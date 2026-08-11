@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards, UsePipes } from '@nestjs/common';
 import { z } from 'zod';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
@@ -140,6 +140,19 @@ export class AstrologyController {
     return this.astrology.gemDesign(user.sub, id);
   }
 
+  /** GET /api/astrology/gemstones/:id/metals — what the metal costs for this
+   *  design at this size. Its own endpoint because it depends on both. */
+  @Get('gemstones/:id/metals')
+  gemMetals(@CurrentUser() user: JwtUser, @Param('id') id: string, @Query() qs: Record<string, string>) {
+    const schema = z.object({
+      worn: z.enum(['ring', 'pendant']),
+      design: z.string().min(1).max(40),
+      size: z.coerce.number().int().min(1).max(40).default(16),
+    });
+    const q = schema.parse(qs);
+    return this.astrology.gemMetals(user.sub, id, q.worn, q.design, q.size);
+  }
+
   /**
    * POST /api/astrology/gemstones/:id/commission — order the stone.
    *
@@ -151,11 +164,12 @@ export class AstrologyController {
   commissionGem(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() body: unknown) {
     const schema = z.object({
       grade: z.number().min(0).max(100),
-      worn: z.enum(['ring', 'pendant']),
+      worn: z.enum(['ring', 'pendant', 'loose']),
       shape: z.string().min(1).max(40),
       setting: z.string().min(1).max(40).optional(),
       style: z.string().min(1).max(40).optional(),
       size: z.number().int().min(1).max(40).optional(),
+      metal: z.enum(['gold22', 'silver', 'panchdhatu']).optional(),
       method: z.enum(['wallet', 'card']).default('wallet'),
     });
     return this.astrology.commissionGem(user.sub, id, schema.parse(body));

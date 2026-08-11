@@ -266,6 +266,25 @@ describe('the gem studio', () => {
     expect(studio).toMatch(/pendantStyles/);
   });
 
+  it('will also just sell somebody the stone', () => {
+    /**
+     * The option a jewellery site would not offer and this one has no reason to
+     * withhold. Plenty of people have a jeweller they already trust, or a
+     * setting in the family that wants a new stone in it. Refusing to sell them
+     * the gem holds the thing they came for hostage to a service they did not
+     * ask for.
+     */
+    expect(studio).toMatch(/Just the stone/);
+    expect(studio).toMatch(/'loose'/);
+    // And it still leaves with the specification — an unset gem and no
+    // instructions is half a purchase, and the open back is the part jewellers
+    // most often close up.
+    expect(studio).toMatch(/What your jeweller will need/);
+    expect(studio).toMatch(/open back/);
+    // No making charge to caveat when there is no making.
+    expect(studio).toMatch(/setting it is between you and your jeweller/);
+  });
+
   it('shows the chart\'s opinion without enforcing it', () => {
     // A tension mount cracks a pearl and an eternity band has no open back.
     // Both are labelled; both stay choosable. Somebody who wants the eternity
@@ -295,10 +314,49 @@ describe('the gem studio', () => {
     expect(api).not.toMatch(/amountInr: v\.amountInr/);
   });
 
-  it('quotes for the stone and says what it is not quoting for', () => {
-    // We have the owner's stone prices and no metalwork prices at all. A total
-    // with a guessed number inside it is worse than a total that stops where
-    // the data does.
-    expect(studio).toMatch(/won’t put a number on metal we haven’t priced|won't put a number on metal/);
+  it('quotes the metal at the day\'s rate and says it can move', () => {
+    // Gold is a live commodity. A quote that does not say when it was good for
+    // is a quote that will be wrong and confident about it.
+    expect(studio).toMatch(/today’s rate|today's rate/);
+    expect(studio).toMatch(/the jeweller will say so before starting/);
+  });
+});
+
+/**
+ * THE METAL, AND THE PART OF THIS THAT TOUCHES A LIVE COMMODITY PRICE.
+ */
+describe('the metal', () => {
+  const studio = code('features/astrology/pages/GemStudio.tsx');
+
+  it('offers gold, silver and the traditional alloy', () => {
+    expect(studio).toMatch(/The metal/);
+    expect(studio).toMatch(/metals\.data\?\.metals/);
+    expect(studio).toMatch(/Traditional for this stone/);
+  });
+
+  it('re-quotes when the mount or the size changes', () => {
+    // A cluster in size 22 carries nearly twice the gold of a solitaire in
+    // size 8, so one fixed number would be wrong for almost everybody.
+    expect(studio).toMatch(/useGemMetals\(gemId, worn, design, size\)/);
+  });
+
+  it('does not price gold in the browser', () => {
+    // The rate, the weight model and the making charge live in one server file.
+    // A copy of any of them here is a second answer waiting to disagree.
+    expect(studio).not.toMatch(/perGram|goldRate|ratePerG|\bMAKING_CHARGE\b/);
+    expect(studio).toMatch(/metalQuote\?\.priceInr/);
+  });
+
+  it('shows stone and metal as two lines and adds no third', () => {
+    // The making charge is inside the metal figure at the owner's instruction —
+    // ordinary jewellery practice, where the price shown is the price paid.
+    // A visible line here would be the start of charging it twice.
+    expect(studio).toMatch(/made up/);
+    expect(studio).not.toMatch(/[Mm]aking charge:|Making charge<|itemis/);
+  });
+
+  it('charges nothing for metal on a loose stone', () => {
+    expect(studio).toMatch(/worn === 'loose' \? 0 :/);
+    expect(studio).toMatch(/metal: worn === 'loose' \? undefined : metal/);
   });
 });

@@ -148,6 +148,19 @@ export function useAstroGemstones() {
 export function useGemDesign(id: string) {
   return useQuery({ queryKey: ['astrology', 'gem-design', id], queryFn: () => astrologyApi.gemDesign(id), retry: false, enabled: Boolean(id) });
 }
+/** What the metal costs for the design as it stands. Re-asked when the mount
+ *  or the size changes, because both move the weight — and the price stays on
+ *  the server so the rate, the weight model and the making charge live in one
+ *  place. */
+export function useGemMetals(id: string, worn: 'ring' | 'pendant' | 'loose', design: string, size: number) {
+  return useQuery({
+    queryKey: ['astrology', 'gem-metals', id, worn, design, size],
+    queryFn: () => astrologyApi.gemMetals(id, worn as 'ring' | 'pendant', design, size),
+    enabled: Boolean(id) && worn !== 'loose',
+    retry: false,
+  });
+}
+
 /** Commissioning spends from the city wallet, so the financial views go stale. */
 export function useGemCommission() {
   const qc = useQueryClient();

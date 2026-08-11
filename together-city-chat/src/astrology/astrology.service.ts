@@ -15,6 +15,7 @@ import { computeNumerology, vimshottariDasha } from './personal-factors';
 import { GEM_DISCLAIMER, buildGemGuidance, buildRemedies } from './gem-remedy-content';
 import { designBrief, recommendGems } from './gems/gem-recommend';
 import { PENDANT_STYLES, RING_SETTINGS, RING_SIZES, STONE_SHAPES, adviseSetting } from './gems/ring-studio';
+import { METAL_NAME, KNOWN_DESIGNS, metalQuotes, type MetalKey } from './gems/metal-pricing';
 import { healthFlagsFor } from './health-flags';
 import { firstNameOf } from './voice';
 
@@ -526,7 +527,35 @@ export class AstrologyService {
       settings: RING_SETTINGS.map((s) => ({ ...s, ...adviseSetting(s.key, brief.gem.planet) })),
       pendantStyles: PENDANT_STYLES,
       sizes: RING_SIZES,
+      metals: METAL_NAME,
       disclaimer: GEM_DISCLAIMER,
+    };
+  }
+
+
+  /**
+   * What the metal costs for one design, at one size.
+   *
+   * ITS OWN ENDPOINT BECAUSE IT DEPENDS ON THE CHOICES. A cluster in size 22
+   * carries nearly twice the gold of a solitaire in size 8, so there is no one
+   * number the design payload could have carried — the first version tried to
+   * hand the page a FUNCTION, which does not survive JSON and would have
+   * arrived as nothing at all.
+   *
+   * And it stays on the server for the reason every price in this app does: the
+   * rate, the weight model and the making charge live in one file, and a copy
+   * of them in the browser is a second answer waiting to disagree.
+   */
+  async gemMetals(userId: string, gemId: string, worn: 'ring' | 'pendant', design: string, size: number) {
+    const row = await this.requireProfile(userId);
+    if (!row) return { needsProfile: true as const };
+    const master = await swallow(this.masterProfile.get(userId), 'astro: master read for metal quote', { userId });
+    const brief = designBrief(gemId, typeof master?.weightKg === 'number' ? master.weightKg : null);
+    if (!brief) throw new NotFoundException('That stone is not in the catalogue.');
+    if (!KNOWN_DESIGNS.has(design)) throw new BadRequestException('That is not a design we make.');
+    return {
+      needsProfile: false as const,
+      metals: metalQuotes(worn, design, size, brief.weight?.carats ?? 0, brief.gem.planet),
     };
   }
 
@@ -551,8 +580,8 @@ export class AstrologyService {
    * and a migration, and it is the next thing.
    */
   async commissionGem(userId: string, gemId: string, dto: {
-    grade: number; worn: 'ring' | 'pendant'; shape: string;
-    setting?: string; style?: string; size?: number; method: PayMethod;
+    grade: number; worn: 'ring' | 'pendant' | 'loose'; shape: string;
+    setting?: string; style?: string; size?: number; metal?: MetalKey; method: PayMethod;
   }) {
     const row = await this.requireProfile(userId);
     if (!row) throw new BadRequestException('Add your birth details before commissioning a stone.');
@@ -564,22 +593,38 @@ export class AstrologyService {
     }
 
     const grade = Math.min(100, Math.max(0, Math.round(dto.grade)));
-    const amountInr = Math.round(brief.fromInr + ((brief.toInr - brief.fromInr) * grade) / 100);
+    const stoneInr = Math.round(brief.fromInr + ((brief.toInr - brief.fromInr) * grade) / 100);
+
+    // THE METAL IS PRICED HERE TOO, from the same file the studio quoted from.
+    // A loose stone has none. The quote already contains the making charge —
+    // see metal-pricing.ts — so nothing is added on top of it here or anywhere.
+    const design = dto.worn === 'ring' ? dto.setting ?? 'solitaire' : dto.style ?? 'classic';
+    const metalQuote = dto.worn === 'loose' || !dto.metal
+      ? null
+      : metalQuotes(dto.worn, design, dto.size ?? 16, brief.weight.carats, brief.gem.planet)
+        .find((m) => m.key === dto.metal) ?? null;
+    const amountInr = stoneInr + (metalQuote?.priceInr ?? 0);
 
     const shape = STONE_SHAPES.find((x) => x.key === dto.shape)?.name ?? 'Oval';
-    const spec = dto.worn === 'ring'
-      ? `${brief.gem.name} · ${brief.weight.carats} ct · ${shape} · `
-        + `${RING_SETTINGS.find((x) => x.key === dto.setting)?.name ?? 'Solitaire'} · `
-        + `${brief.wearing.metal} · size ${dto.size ?? 16}`
-      : `${brief.gem.name} · ${brief.weight.carats} ct · ${shape} · `
-        + `${PENDANT_STYLES.find((x) => x.key === dto.style)?.name ?? 'Classic'} pendant · ${brief.wearing.metal}`;
+    const stone = `${brief.gem.name} · ${brief.weight.carats} ct · ${shape}`;
+    const inMetal = metalQuote ? `${metalQuote.name} (${metalQuote.grams} g)` : brief.wearing.metal;
+    // LOOSE IS A REAL ORDER, NOT A LESSER ONE. Plenty of people buy the stone
+    // and take it to a jeweller they already trust — so the specification says
+    // what that jeweller needs to know rather than trailing off at "unset".
+    const spec = dto.worn === 'loose'
+      ? `${stone} · loose, unset — to be set in ${brief.wearing.metal.toLowerCase()}, `
+        + `${brief.wearing.finger.toLowerCase()} of the ${brief.wearing.hand.toLowerCase()}, open back`
+      : dto.worn === 'ring'
+        ? `${stone} · ${RING_SETTINGS.find((x) => x.key === dto.setting)?.name ?? 'Solitaire'} · `
+          + `${inMetal} · size ${dto.size ?? 16}`
+        : `${stone} · ${PENDANT_STYLES.find((x) => x.key === dto.style)?.name ?? 'Classic'} pendant · ${inMetal}`;
 
     await this.financial.paid<void>(
       userId,
       { hub: 'Astrology', category: 'astrology', label: `Gemstone · ${spec}`, amountInr, method: dto.method },
       async () => undefined,
     );
-    return { paid: true as const, spec, amountInr, caratsX100: Math.round(brief.weight.carats * 100) };
+    return { paid: true as const, spec, amountInr, stoneInr, caratsX100: Math.round(brief.weight.carats * 100) };
   }
 
   /**

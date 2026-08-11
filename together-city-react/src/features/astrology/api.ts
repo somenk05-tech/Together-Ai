@@ -268,6 +268,14 @@ export type DesignVerdict = 'recommended' | 'suitable' | 'avoid';
 export interface SettingOption extends StudioOption { verdict: DesignVerdict; why: string }
 export interface RingSize { indian: number; diameterMm: number; circumferenceMm: number }
 
+export type MetalKey = 'gold22' | 'silver' | 'panchdhatu';
+/** Priced per design and per size — a cluster in size 22 carries nearly twice
+ *  the gold of a solitaire in size 8. The making charge is already inside
+ *  `priceInr`; there is nothing to add to it. */
+export interface MetalQuote {
+  key: MetalKey; name: string; grams: number; priceInr: number; traditional: boolean;
+}
+
 export interface GemDesign {
   needsProfile?: boolean;
   gem: GemStone;
@@ -283,6 +291,7 @@ export interface GemDesign {
   settings: SettingOption[];
   pendantStyles: StudioOption[];
   sizes: RingSize[];
+  metals: Record<MetalKey, string>;
   disclaimer: string;
 }
 
@@ -314,14 +323,17 @@ export const astrologyApi = {
   gems: () => api.get<GemResponse>('/astrology/gems').then((r) => r.data),
   gemstones: () => api.get<GemstonesResponse>('/astrology/gemstones').then((r) => r.data),
   gemDesign: (id: string) => api.get<GemDesign>(`/astrology/gemstones/${id}/design`).then((r) => r.data),
+  gemMetals: (id: string, worn: 'ring' | 'pendant', design: string, size: number) =>
+    api.get<{ metals: MetalQuote[] }>(`/astrology/gemstones/${id}/metals`, { params: { worn, design, size } })
+      .then((r) => r.data),
   /** The choices, never the price — the server prices them from the same
    *  catalogue and weight rule the studio was rendered from. */
   commissionGem: (v: {
-    gemId: string; grade: number; worn: 'ring' | 'pendant'; shape: string;
-    setting?: string; style?: string; size?: number; method: 'wallet' | 'card';
-  }) => api.post<{ paid: true; spec: string; amountInr: number }>(
+    gemId: string; grade: number; worn: 'ring' | 'pendant' | 'loose'; shape: string;
+    setting?: string; style?: string; size?: number; metal?: MetalKey; method: 'wallet' | 'card';
+  }) => api.post<{ paid: true; spec: string; amountInr: number; stoneInr: number }>(
     `/astrology/gemstones/${v.gemId}/commission`,
-    { grade: v.grade, worn: v.worn, shape: v.shape, setting: v.setting, style: v.style, size: v.size, method: v.method },
+    { grade: v.grade, worn: v.worn, shape: v.shape, setting: v.setting, style: v.style, size: v.size, metal: v.metal, method: v.method },
   ).then((r) => r.data),
   remedies: () => api.get<RemedyResponse>('/astrology/remedies').then((r) => r.data),
 };

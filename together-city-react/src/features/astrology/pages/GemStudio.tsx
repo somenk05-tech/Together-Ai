@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Button, Card, Spinner } from '@/components/ui';
-import { useGemCommission, useGemDesign } from '../hooks';
+import { useGemCommission, useGemDesign, useGemMetals } from '../hooks';
 import { AstroHeader, NeedsProfileCard } from '../shared';
 import { payError, type PayMethod } from '@/features/financial/api';
 import { PaymentSheet } from '@/features/financial/PaymentSheet';
-import type { DesignVerdict, SettingOption, StudioOption } from '../api';
+import type { DesignVerdict, MetalKey, SettingOption, StudioOption } from '../api';
 
 /**
  * The design studio — where "add to cart" goes.
@@ -70,20 +70,28 @@ export function GemStudio() {
   const commission = useGemCommission();
   const data = q.data;
 
-  const [worn, setWorn] = useState<'ring' | 'pendant'>('ring');
+  const [worn, setWorn] = useState<'ring' | 'pendant' | 'loose'>('ring');
   const [shape, setShape] = useState('oval');
   const [setting, setSetting] = useState('solitaire');
   const [style, setStyle] = useState('classic');
   const [size, setSize] = useState(16);
   /** 0 is the cheapest grade of this stone, 100 the finest. */
   const [grade, setGrade] = useState(35);
+  const [metal, setMetal] = useState<MetalKey>('gold22');
   const [payOpen, setPayOpen] = useState(false);
   const [placed, setPlaced] = useState(false);
 
-  const priceInr = useMemo(() => {
+  const design = worn === 'ring' ? setting : style;
+  const metals = useGemMetals(gemId, worn, design, size);
+  const metalQuote = metals.data?.metals.find((m) => m.key === metal) ?? null;
+
+  const stoneInr = useMemo(() => {
     if (!data || data.fromInr === null || data.toInr === null) return null;
     return Math.round(data.fromInr + ((data.toInr - data.fromInr) * grade) / 100);
   }, [data, grade]);
+  // The metal is nothing on a loose stone, and the server agrees — it prices
+  // the same two parts from the same files rather than trusting this sum.
+  const priceInr = stoneInr === null ? null : stoneInr + (worn === 'loose' ? 0 : metalQuote?.priceInr ?? 0);
 
   if (q.isLoading) return <Spinner label="Sizing your stone…" />;
   if (q.isError || !data) {
@@ -99,9 +107,12 @@ export function GemStudio() {
 
   const { gem, weight, wearing } = data;
   const chosenSetting = data.settings.find((s) => s.key === setting);
-  const summary = worn === 'ring'
-    ? `${gem.name} · ${weight?.carats ?? '?'} ct · ${data.shapes.find((s) => s.key === shape)?.name} · ${chosenSetting?.name} · ${wearing.metal} · size ${size}`
-    : `${gem.name} · ${weight?.carats ?? '?'} ct · ${data.shapes.find((s) => s.key === shape)?.name} · ${data.pendantStyles.find((s) => s.key === style)?.name} pendant · ${wearing.metal}`;
+  const stone = `${gem.name} · ${weight?.carats ?? '?'} ct · ${data.shapes.find((s) => s.key === shape)?.name}`;
+  const summary = worn === 'loose'
+    ? `${stone} · loose, unset — to be set in ${wearing.metal.toLowerCase()}, ${wearing.finger.toLowerCase()} of the ${wearing.hand.toLowerCase()}, open back`
+    : worn === 'ring'
+      ? `${stone} · ${chosenSetting?.name} · ${metalQuote ? `${metalQuote.name} (${metalQuote.grams} g)` : wearing.metal} · size ${size}`
+      : `${stone} · ${data.pendantStyles.find((s) => s.key === style)?.name} pendant · ${metalQuote ? `${metalQuote.name} (${metalQuote.grams} g)` : wearing.metal}`;
 
   return (
     <div>
@@ -132,19 +143,29 @@ export function GemStudio() {
         </div>
       </div>
 
-      {/* ── 01 how you will wear it ─────────────────────────────────────────
+      {/* ── 01 how you will wear it, or whether we set it at all ────────────
           Ring first because the wearing table names a finger, which is the
-          traditional form. A pendant is a real alternative and not a lesser
-          one — a stone on the chest touches the skin exactly as a ring does. */}
+          traditional form. A pendant is a real alternative and not a lesser one
+          — a stone at the chest touches the skin exactly as a ring does.
+
+          AND THE STONE ON ITS OWN, which is the option a jewellery site would
+          not offer and this one has no reason to withhold. Plenty of people
+          have a jeweller they already trust, or a setting in the family that
+          wants a new stone in it. Refusing to sell them the gem would be
+          holding the thing they came for hostage to a service they did not
+          ask for. */}
       <h2 className="gem-step">01 · How will you wear it?</h2>
       <div className="gem-choices">
-        {([['ring', 'Ring', `On the ${wearing.finger.toLowerCase()}, ${wearing.hand.toLowerCase()} — the traditional form for this stone`],
-           ['pendant', 'Pendant', 'Worn at the chest, against the skin — the same contact, a different place']] as const).map(([k, name, desc]) => (
+        {([
+          ['ring', 'As a ring', `On the ${wearing.finger.toLowerCase()}, ${wearing.hand.toLowerCase()} — the traditional form for this stone`, true],
+          ['pendant', 'As a pendant', 'Worn at the chest, against the skin — the same contact, a different place', false],
+          ['loose', 'Just the stone', 'Loose and unset, for your own jeweller. We send the gem and the specification it should be set to.', false],
+        ] as const).map(([k, name, desc, rec]) => (
           <button key={k} type="button" onClick={() => setWorn(k)} aria-pressed={worn === k}
             className={`gem-choice gem-choice-wide${worn === k ? ' is-on' : ''}`}>
             <span className="gem-choice-name">{name}</span>
             <span className="gem-choice-desc">{desc}</span>
-            {k === 'ring' && <span className="gem-verdict">Recommended</span>}
+            {rec && <span className="gem-verdict is-recommended">Traditional</span>}
           </button>
         ))}
       </div>
@@ -160,7 +181,24 @@ export function GemStudio() {
         ))}
       </div>
 
-      {worn === 'ring' ? (
+      {worn === 'loose' ? (
+        /* Nothing to choose beyond the cut — but the stone still leaves with
+           the instructions, because an unset gem and no specification is half
+           a purchase. */
+        <Card style={{ marginTop: 18, padding: '18px 22px' }}>
+          <h2 style={{ fontSize: 15, margin: '0 0 8px' }}>What your jeweller will need</h2>
+          <p style={{ fontSize: 13.5, lineHeight: 1.7, margin: 0 }}>
+            Set in <strong>{wearing.metal.toLowerCase()}</strong>, worn on the{' '}
+            <strong>{wearing.finger.toLowerCase()}</strong> of the {wearing.hand.toLowerCase()},
+            with an <strong>open back</strong> so the stone touches the skin — that last part is the
+            one jewellers most often close up, and it is the point of a prescribed stone.
+            First worn on a {wearing.day}.
+          </p>
+          <p className="muted" style={{ fontSize: 12, lineHeight: 1.6, margin: '10px 0 0' }}>
+            This goes on your receipt, so you can hand it over as it is.
+          </p>
+        </Card>
+      ) : worn === 'ring' ? (
         <>
           <h2 className="gem-step">03 · The setting</h2>
           <p className="muted gem-step-note">
@@ -207,10 +245,40 @@ export function GemStudio() {
         </>
       )}
 
+      {/* ── the metal ───────────────────────────────────────────────────────
+          Priced by the gram against the day's rate, for the mount and size
+          chosen above — a cluster in size 22 carries nearly twice the gold of a
+          solitaire in size 8, so this re-quotes as those change rather than
+          showing one number for everything.
+
+          The metal the tradition names for this planet is marked, and the other
+          two are still there. Silver instead of gold is a legitimate choice and
+          often the one somebody can actually make. */}
+      {worn !== 'loose' && (
+        <>
+          <h2 className="gem-step">{worn === 'ring' ? '05' : '04'} · The metal</h2>
+          <p className="muted gem-step-note">
+            Priced at today&rsquo;s rate for the {metals.data?.metals[0]?.grams ?? '—'} grams this
+            design takes. What the jeweller quotes on the day can differ a little.
+          </p>
+          <div className="gem-choices">
+            {(metals.data?.metals ?? []).map((m) => (
+              <button key={m.key} type="button" onClick={() => setMetal(m.key)} aria-pressed={metal === m.key}
+                className={`gem-choice gem-choice-wide${metal === m.key ? ' is-on' : ''}`}>
+                <span className="gem-choice-name">{m.name}</span>
+                <span className="gem-choice-desc">{m.grams} g · {rupees(m.priceInr)}</span>
+                {m.traditional && <span className="gem-verdict is-recommended">Traditional for this stone</span>}
+              </button>
+            ))}
+            {metals.isLoading && <span className="muted" style={{ fontSize: 12.5 }}>Pricing the metal…</span>}
+          </div>
+        </>
+      )}
+
       {/* ── the quality axis, and the only slider that changes the price ──── */}
       {weight && data.fromInr !== null && data.toInr !== null && (
         <>
-          <h2 className="gem-step">{worn === 'ring' ? '05' : '04'} · The grade of the stone</h2>
+          <h2 className="gem-step">{worn === 'ring' ? '06' : worn === 'pendant' ? '05' : '03'} · The grade of the stone</h2>
           <p className="muted gem-step-note">
             The weight is your chart’s business and is fixed. Where you land between the plainest
             and the finest stone of that weight is yours — colour, clarity and origin, all at{' '}
@@ -231,8 +299,22 @@ export function GemStudio() {
         <h2 style={{ fontSize: 17, margin: '0 0 10px' }}>What you are commissioning</h2>
         <p style={{ fontSize: 14, lineHeight: 1.7, margin: 0 }}>{summary}</p>
 
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', borderTop: '1px solid var(--line)', marginTop: 16, paddingTop: 14 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' }}>The stone</span>
+        {/* Two lines, because they are two things — and no third line. The
+            making charge is inside the metal figure at the owner's instruction,
+            which is ordinary jewellery practice: the price shown is the price
+            paid and nothing is added at checkout. */}
+        <dl style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px 12px', margin: '16px 0 0', borderTop: '1px solid var(--line)', paddingTop: 14 }}>
+          <dt className="muted" style={{ fontSize: 12.5 }}>The stone · {weight?.carats} ct</dt>
+          <dd style={{ margin: 0, fontSize: 14, fontWeight: 700, textAlign: 'right' }}>{stoneInr === null ? '—' : rupees(stoneInr)}</dd>
+          {worn !== 'loose' && metalQuote && (
+            <>
+              <dt className="muted" style={{ fontSize: 12.5 }}>{metalQuote.name} · {metalQuote.grams} g, made up</dt>
+              <dd style={{ margin: 0, fontSize: 14, fontWeight: 700, textAlign: 'right' }}>{rupees(metalQuote.priceInr)}</dd>
+            </>
+          )}
+        </dl>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', borderTop: '1px solid var(--line)', marginTop: 12, paddingTop: 14 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' }}>Total</span>
           <span style={{ marginLeft: 'auto', fontSize: 26, fontWeight: 800, letterSpacing: '-.01em' }}>
             {priceInr === null ? '—' : rupees(priceInr)}
           </span>
@@ -242,13 +324,16 @@ export function GemStudio() {
             for and what it is not. A total with a guessed number inside it is
             worse than a total that stops where the data does. */}
         <p className="muted" style={{ fontSize: 12, lineHeight: 1.6, margin: '10px 0 0' }}>
-          The stone only. Gold and making are quoted by the jeweller against the design above,
-          before any work begins — we won’t put a number on metal we haven’t priced.
+          {worn === 'loose'
+            ? 'The stone, certified and unset. There is nothing else to pay us — setting it is between you and your jeweller.'
+            : 'Stone and metal, made up and delivered. Metal is priced at today’s rate; if it has moved by the time the piece is made, the jeweller will say so before starting.'}
         </p>
 
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 16 }}>
           <Button variant="accent" disabled={priceInr === null || placed} onClick={() => setPayOpen(true)}>
-            {placed ? '✓ Commissioned' : `Commission this stone · ${priceInr === null ? '—' : rupees(priceInr)}`}
+            {placed
+              ? '✓ Ordered'
+              : `${worn === 'loose' ? 'Buy this stone' : 'Commission this stone'} · ${priceInr === null ? '—' : rupees(priceInr)}`}
           </Button>
           <Link to="/astrology/gemstones"><Button variant="line" size="sm">Look at the others</Button></Link>
           {commission.isError && (
@@ -257,8 +342,9 @@ export function GemStudio() {
         </div>
         {placed && (
           <p style={{ fontSize: 13, lineHeight: 1.6, margin: '12px 0 0' }}>
-            Paid from your city wallet. The jeweller has the specification above and will come back
-            with the making charge before starting.
+            {worn === 'loose'
+              ? 'Paid from your city wallet. The stone comes to you unset, with the specification above on the receipt.'
+              : 'Paid from your city wallet. The jeweller has the specification above and will come back with the making charge before starting.'}
           </p>
         )}
         <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.6, marginTop: 14 }}>{data.disclaimer}</p>
@@ -277,6 +363,7 @@ export function GemStudio() {
         onPay={(method: PayMethod) => commission.mutate(
           {
             gemId: gem.id, grade, worn, shape,
+            metal: worn === 'loose' ? undefined : metal,
             setting: worn === 'ring' ? setting : undefined,
             style: worn === 'pendant' ? style : undefined,
             size: worn === 'ring' ? size : undefined,
