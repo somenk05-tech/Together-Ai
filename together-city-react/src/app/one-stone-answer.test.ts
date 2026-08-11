@@ -229,6 +229,32 @@ describe('the gemstone budget', () => {
     expect(gems).toMatch(/short of the cheapest way in/);
   });
 
+  it('sends the budget rows to the studio, like every other add-to-cart', () => {
+    /**
+     * ONE DOOR. Nothing in this hub is ever locked without somebody having
+     * chosen how it is worn — locking a loose stone straight from a budget row
+     * would decide that for them. And there is no "add all": four stones are
+     * four commissions with four sets of choices in them, and a button that
+     * locked all of them would have to invent every one.
+     */
+    expect(gems).toMatch(/Add to cart/);
+    expect(gems).not.toMatch(/worn: 'loose', shape: 'oval', grade: 0/);
+    expect(gems).not.toMatch(/lock\.mutate/);
+    expect(gems).toMatch(/\$\{pick\.gem\.id\}\/design/);
+  });
+
+  it('says the budget covers stones and not settings', () => {
+    // A budget line quietly excluding a ₹56,000 setting would be the worst kind
+    // of accurate.
+    expect(gems).toMatch(/Stones only/);
+    expect(gems).toMatch(/adds a weight of gold that can cost more than the stone/);
+  });
+
+  it('says when a stone is already locked instead of offering it twice', () => {
+    expect(gems).toMatch(/inCart\.has/);
+    expect(gems).toMatch(/In checkout/);
+  });
+
   it('does not save the number', () => {
     // The beauty hub's budget is a standing monthly limit the engine plans
     // against. This is somebody moving a slider to see what a figure buys, and

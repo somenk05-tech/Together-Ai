@@ -1,7 +1,7 @@
 import { useId, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Card, Spinner } from '@/components/ui';
-import { useAstroGemstones } from '../hooks';
+import { useAstroGemstones, useGemCart } from '../hooks';
 import { AstroHeader, AstroTabs, NeedsProfileCard } from '../shared';
 import type { GemAtWeight, GemPriority, GemRecommendation, GemRole, GemstonesResponse } from '../api';
 
@@ -341,6 +341,17 @@ function StoneSheet({ rec }: { rec: GemRecommendation }) {
  * not fit, and then the DEAREST substitute that does, because within the same
  * planet a better stone is a better stone.
  *
+ * IT PRICES STONES AND NOTHING ELSE, AND IT SAYS SO. Every figure here is the
+ * stone alone, at the weight prescribed and the plainest grade of it. A ring or
+ * a pendant adds a weight of gold that can cost more than the stone did — a
+ * budget line quietly excluding a ₹56,000 setting would be the worst kind of
+ * accurate — so the setting is priced in the studio, where the mount and the
+ * size that decide it are chosen.
+ *
+ * WHICH IS ALSO WHERE "ADD TO CART" GOES FROM HERE. Every one of those buttons
+ * in this hub lands in the same place, and nothing is ever locked without
+ * somebody having chosen how it is worn.
+ *
  * THIS BUDGET IS NOT SAVED, and that is the difference between it and the
  * beauty hub's. That one is a standing monthly limit the engine plans against;
  * this is somebody moving a slider to see what a number buys. Storing it would
@@ -377,6 +388,9 @@ function planWithin(recs: GemRecommendation[], budgetInr: number): { picks: Affo
 
 function BudgetPicker({ data }: { data: GemstonesResponse }) {
   const recs = data.recommendations;
+  const cart = useGemCart();
+  /** Already locked, so a row can say so rather than offering it twice. */
+  const inCart = new Set((cart.data?.lines ?? []).map((l) => l.gemId));
   /** The whole set at its best — the top of the slider, so it always spans
    *  "nothing" to "everything, at the finest quality this shelf sells". */
   const ceiling = useMemo(() => {
@@ -453,6 +467,21 @@ function BudgetPicker({ data }: { data: GemstonesResponse }) {
             <span style={{ fontSize: 13, fontWeight: 700, minWidth: 84, textAlign: 'right' }}>
               {pick ? `from ${rupees(pick.fromInr as number)}` : '—'}
             </span>
+            {/* THE SAME DOOR AS EVERY OTHER "ADD TO CART" IN THIS HUB, and
+                that consistency is the point: nothing is ever locked without
+                somebody having chosen how it is worn. Locking a loose stone
+                from here would be quietly deciding that for them — and the
+                figure beside it is the LOOSE price, so a ring bought that way
+                would arrive with a weight of gold this section never showed. */}
+            {pick && (
+              inCart.has(pick.gem.id)
+                ? <span className="muted" style={{ fontSize: 11.5, fontWeight: 700, minWidth: 92, textAlign: 'right' }}>✓ In checkout</span>
+                : (
+                  <Link to={`/astrology/gemstones/${pick.gem.id}/design`}>
+                    <Button variant="line" size="sm">Add to cart</Button>
+                  </Link>
+                )
+            )}
           </li>
         ))}
       </ul>
@@ -463,6 +492,17 @@ function BudgetPicker({ data }: { data: GemstonesResponse }) {
         </span>
         <span style={{ marginLeft: 'auto', fontSize: 22, fontWeight: 800, letterSpacing: '-.01em' }}>{rupees(totalInr)}</span>
       </div>
+
+      {/* NO "ADD ALL" BUTTON, and its absence is the same decision. Four stones
+          are four commissions with four sets of choices in them; one button
+          that locked all of them would have to invent every one of those. */}
+      {(cart.data?.count ?? 0) > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <Link to="/astrology/gem-checkout" style={{ fontSize: 12.5, fontWeight: 700 }}>
+            Go to checkout ({cart.data?.count}) →
+          </Link>
+        </div>
+      )}
       {budget - totalInr > 0 && got.length === picks.length && (
         <p className="muted" style={{ fontSize: 12, lineHeight: 1.6, margin: '10px 0 0' }}>
           {rupees(budget - totalInr)} left over. Everything your chart asks for is covered — the rest
@@ -470,8 +510,11 @@ function BudgetPicker({ data }: { data: GemstonesResponse }) {
         </p>
       )}
       <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.6, margin: '12px 0 0' }}>
-        Prices are the bottom of each stone&rsquo;s range at the weight you are prescribed. A finer
-        grade of the same stone costs more; the sheets above give both ends.
+        Stones only, at the bottom of each one&rsquo;s range and the weight you are prescribed.
+        Setting one as a ring or a pendant adds a weight of gold that can cost more than the stone
+        did — that is priced in the studio, where the mount and the size that decide it are chosen,
+        and where these buttons take you. A finer grade of the same stone costs more; the sheets
+        above give both ends.
       </p>
     </Card>
   );
