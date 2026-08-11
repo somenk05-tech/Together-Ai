@@ -11,7 +11,7 @@ import type { RecommendedProduct } from './beauty-engine';
  * safety rules are the part worth testing, and they are testable directly.
  */
 
-export type TimeOfDay = 'morning' | 'evening' | 'weekly';
+export type TimeOfDay = 'morning' | 'evening' | 'weekly' | 'body';
 
 export interface RoutineStep {
   order: number;
@@ -23,6 +23,11 @@ export interface RoutineStep {
   category: string;
   keyIngredient: string;
   priceInr: number;
+  /** Two hotlinked photographs and the page it is sold on. Any of them may be
+   *  empty, and the images may simply fail — the step renders without them. */
+  image: string;
+  imageAlt: string;
+  productUrl: string;
   instructions: string;
   frequency: string;
   /** Things that could go wrong with THIS product in THIS routine. */
@@ -44,11 +49,29 @@ export interface Routine {
 const ORDER: Array<{ match: RegExp; step: string; rank: number; instructions: string }> = [
   { match: /cleanser/i, step: 'Cleanse', rank: 10, instructions: 'Massage into damp skin for 30 seconds, then rinse with lukewarm water.' },
   { match: /toner|tonic/i, step: 'Prep', rank: 20, instructions: 'Sweep over clean skin and let it absorb before the next step.' },
-  { match: /serum/i, step: 'Treat', rank: 30, instructions: 'Two or three drops on slightly damp skin; press in rather than rub.' },
+  { match: /face serum|^serum/i, step: 'Treat', rank: 30, instructions: 'Two or three drops on slightly damp skin; press in rather than rub.' },
   { match: /treatment/i, step: 'Treat', rank: 40, instructions: 'A pea-sized amount over the whole face, avoiding the eye area.' },
+  { match: /face mask/i, step: 'Mask', rank: 45, instructions: 'A thin, even layer on clean skin. Leave for the time on the pack, then rinse.' },
   { match: /moisturiser|cream/i, step: 'Moisturise', rank: 50, instructions: 'Seal everything underneath while skin is still slightly damp.' },
   { match: /sunscreen/i, step: 'Protect', rank: 90, instructions: 'Two fingers’ length for the face and neck, as the last step. Reapply if you are out for hours.' },
-  { match: /haircare/i, step: 'Hair', rank: 60, instructions: 'Apply to the scalp, not the lengths, and massage in.' },
+
+  /* HAIR HAS ITS OWN ORDER AND IT IS NOT THE FACE'S. Oil before the wash, then
+     shampoo, then conditioner, then whatever is left in. The single /haircare/
+     rule these replace gave every hair product one rank, so a conditioner could
+     be printed above the shampoo it has to follow. */
+  { match: /hair oil/i, step: 'Pre-wash', rank: 60, instructions: 'Warm a little between your palms and work into the scalp and lengths an hour before you wash.' },
+  { match: /shampoo/i, step: 'Wash', rank: 62, instructions: 'Massage into the scalp rather than the lengths, and rinse thoroughly.' },
+  { match: /conditioner/i, step: 'Condition', rank: 64, instructions: 'Mid-lengths to ends only, never the scalp. Leave a minute, then rinse.' },
+  { match: /hair mask/i, step: 'Treat hair', rank: 66, instructions: 'In place of conditioner, on wash day. Leave for five minutes before rinsing.' },
+  { match: /hair serum/i, step: 'Finish', rank: 68, instructions: 'A few drops through damp mid-lengths and ends. Do not go near the roots.' },
+
+  /* BODY, ON THE SAME LOGIC: what you wash with, what you scrub with, what you
+     seal with, and the two things you carry around. */
+  { match: /body wash/i, step: 'Wash', rank: 70, instructions: 'In the shower, on damp skin; rinse warm rather than hot.' },
+  { match: /body scrub/i, step: 'Exfoliate', rank: 72, instructions: 'Once or twice a week on damp skin, in small circles. Not on broken or sunburnt skin.' },
+  { match: /body lotion/i, step: 'Moisturise', rank: 74, instructions: 'Within three minutes of the shower, while the skin is still damp.' },
+  { match: /hand cream/i, step: 'Hands', rank: 76, instructions: 'After washing your hands, and last thing at night.' },
+  { match: /lip balm/i, step: 'Lips', rank: 78, instructions: 'Whenever they feel tight, and a thicker layer before bed.' },
 ];
 
 function classify(p: RecommendedProduct) {
@@ -58,12 +81,22 @@ function classify(p: RecommendedProduct) {
 /** Which routines a product belongs in, read from its own usage string. */
 function slotsFor(usage: string): TimeOfDay[] {
   const u = usage.toLowerCase();
+  // Body care is its own band. It is not a fourth step in a considered face
+  // routine — nothing in the skin & hair assessment has an opinion about your
+  // elbows — but it is on the shelf, so it is listed where it can be followed.
+  if (u.includes('body')) return ['body'];
   if (u.includes('weekly')) return ['weekly'];
   if (u.includes('morning') && u.includes('night')) return ['morning', 'evening'];
   if (u.includes('night')) return ['evening'];
   if (u.includes('morning')) return ['morning'];
   return ['morning', 'evening'];
 }
+
+/** What each band's steps say about how often. */
+const FREQUENCY: Record<TimeOfDay, string> = {
+  morning: 'Every morning', evening: 'Every evening',
+  weekly: 'On wash day', body: 'Daily, or as needed',
+};
 
 const RETINOID = /retina|retinol|retinal/i;
 const VITAMIN_C = /ascorbic|vitamin c/i;
@@ -120,7 +153,10 @@ function routineNotes(steps: RoutineStep[], when: TimeOfDay, everything: string)
 const TITLES: Record<TimeOfDay, string> = {
   morning: 'Morning',
   evening: 'Evening',
-  weekly: 'Weekly',
+  // Not just masks: shampoo, conditioner and a pre-wash oil are here too, and
+  // "Weekly" alone made a wash day read as an optional extra.
+  weekly: 'Weekly & wash day',
+  body: 'Body & hands',
 };
 
 /**
@@ -137,7 +173,7 @@ export function buildRoutines(products: RecommendedProduct[]): Routine[] {
   // The whole shelf as text, for interactions that span two routines.
   const everything = matched.map((p) => `${p.name} ${p.keyIngredient} ${p.actives.join(' ')}`).join(' ');
 
-  return (['morning', 'evening', 'weekly'] as TimeOfDay[]).map((when) => {
+  return (['morning', 'evening', 'weekly', 'body'] as TimeOfDay[]).map((when) => {
     const steps: RoutineStep[] = matched
       .filter((p) => slotsFor(p.usage).includes(when))
       .map((p) => {
@@ -151,8 +187,11 @@ export function buildRoutines(products: RecommendedProduct[]): Routine[] {
           category: p.category,
           keyIngredient: p.keyIngredient,
           priceInr: p.priceInr,
+          image: p.image,
+          imageAlt: p.imageAlt,
+          productUrl: p.productUrl,
           instructions: c.instructions,
-          frequency: when === 'weekly' ? 'Once a week' : `Every ${when === 'morning' ? 'morning' : 'evening'}`,
+          frequency: FREQUENCY[when],
           warnings: productWarnings(p, when),
         };
       })

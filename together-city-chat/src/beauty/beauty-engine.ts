@@ -130,37 +130,37 @@ export function beautyInsights(values: Record<string, number>): BeautyInsight[] 
 }
 
 // ─────────────────────────── product market ───────────────────────────
+// The shelf itself lives in beauty-catalog.ts — seventy real products,
+// generated from the owner's data sheet. It is imported and re-exported here
+// because every reader in the hub has always taken BEAUTY_PRODUCTS from this
+// file, and moving the data should not move the door.
+import { BEAUTY_PRODUCTS } from './beauty-catalog';
+export { BEAUTY_PRODUCTS };
 export interface BeautyProduct {
   id: string;
   name: string;
   brand: string;
   category: string;         // display category
+  /** 'Skincare' | 'Hair Care' | 'Body Care' — which band of the routine it is in. */
+  group: string;
   priceInr: number;
+  /** 'Budget' | 'Mid-range' | 'Premium', as the data sheet grades it. */
+  tier: string;
   tags: BeautyTag[];        // biomarker-insight needs it addresses (secondary signal)
   profileKeys: string[];    // assessment reading keys it addresses (PRIMARY signal)
   suitableSkin: string[];   // skin types it suits ('all' | dry/oily/combination/normal/sensitive)
   actives: string[];        // key active ingredients
-  usage: string;            // Morning | Night | Morning & Night | Weekly
+  usage: string;            // Morning | Night | Morning & Night | Weekly | Body
   blurb: string;
   keyIngredient: string;
+  /** The retailer's own photograph, and a second from another retailer. Both
+   *  hotlinked, so both may fail; the screens fall through to a mark. */
+  image: string;
+  imageAlt: string;
+  /** Where it is actually sold. */
+  productUrl: string;
 }
 
-/** Curated, science-led shelf. profileKeys drive matching; tags refine via labs. */
-export const BEAUTY_PRODUCTS: BeautyProduct[] = [
-  { id: 'bp_barrier', name: 'Ceramide Barrier Cream', brand: 'Together Beauty Labs', category: 'Moisturiser', priceInr: 1290, tags: ['barrier', 'hydration'], profileKeys: ['hydration', 'redness'], suitableSkin: ['dry', 'sensitive', 'normal', 'combination'], actives: ['Ceramides', 'Cholesterol', 'Fatty acids'], usage: 'Morning & Night', keyIngredient: 'Ceramides + cholesterol', blurb: 'Rebuilds a stressed skin barrier; the anchor for dry, reactive skin.' },
-  { id: 'bp_hydra', name: 'Hyaluronic Hydra Serum', brand: 'Together Beauty Labs', category: 'Serum', priceInr: 990, tags: ['hydration'], profileKeys: ['hydration'], suitableSkin: ['all'], actives: ['Multi-weight hyaluronic acid', 'Panthenol'], usage: 'Morning & Night', keyIngredient: 'Multi-weight hyaluronic acid', blurb: 'Layered water-binding hydration under moisturiser.' },
-  { id: 'bp_vitc', name: 'Vitamin C 15% Serum', brand: 'Together Beauty Labs', category: 'Serum', priceInr: 1490, tags: ['antioxidant', 'brightening'], profileKeys: ['pigmentation', 'wrinkles'], suitableSkin: ['normal', 'combination', 'oily', 'dry'], actives: ['L-ascorbic acid 15%', 'Vitamin E', 'Ferulic acid'], usage: 'Morning', keyIngredient: 'L-ascorbic acid 15%', blurb: 'Daytime antioxidant that brightens tone and supports collagen.' },
-  { id: 'bp_niac', name: 'Niacinamide 10% + Zinc', brand: 'Together Beauty Labs', category: 'Serum', priceInr: 850, tags: ['brightening', 'soothing', 'barrier'], profileKeys: ['acne', 'oil', 'redness', 'pigmentation'], suitableSkin: ['oily', 'combination', 'sensitive', 'normal'], actives: ['Niacinamide 10%', 'Zinc PCA'], usage: 'Morning & Night', keyIngredient: 'Niacinamide 10%', blurb: 'Evens tone, calms redness, controls oil and reinforces the barrier.' },
-  { id: 'bp_spf', name: 'Mineral SPF 50 Fluid', brand: 'Together Beauty Labs', category: 'Sunscreen', priceInr: 1150, tags: ['spf'], profileKeys: ['pigmentation', 'wrinkles', 'redness'], suitableSkin: ['all'], actives: ['Zinc oxide 22%'], usage: 'Morning', keyIngredient: 'Zinc oxide', blurb: 'Daily broad-spectrum defence; stops pigment deepening.' },
-  { id: 'bp_retinal', name: 'Retinal 0.05% Night', brand: 'Together Beauty Labs', category: 'Treatment', priceInr: 1690, tags: ['collagen', 'antioxidant'], profileKeys: ['wrinkles', 'texture', 'acne'], suitableSkin: ['normal', 'combination', 'oily', 'dry'], actives: ['Retinaldehyde 0.05%', 'Squalane'], usage: 'Night', keyIngredient: 'Retinaldehyde', blurb: 'Nightly collagen-support retinoid for firmness and renewal.' },
-  { id: 'bp_peptide', name: 'Peptide Collagen Boost', brand: 'Together Beauty Labs', category: 'Serum', priceInr: 1590, tags: ['collagen'], profileKeys: ['wrinkles'], suitableSkin: ['all'], actives: ['Matrixyl 3000', 'Copper peptides'], usage: 'Morning & Night', keyIngredient: 'Signal peptides', blurb: 'Peptide complex to support firmness where glycation is a concern.' },
-  { id: 'bp_centella', name: 'Centella Soothing Gel', brand: 'Together Beauty Labs', category: 'Treatment', priceInr: 950, tags: ['soothing', 'barrier'], profileKeys: ['redness', 'acne'], suitableSkin: ['sensitive', 'oily', 'combination', 'normal'], actives: ['Centella asiatica', 'Madecassoside'], usage: 'Morning & Night', keyIngredient: 'Centella asiatica', blurb: 'Calms reactive, inflammation-prone skin.' },
-  { id: 'bp_cleanser', name: 'Gentle Amino Cleanser', brand: 'Together Beauty Labs', category: 'Cleanser', priceInr: 690, tags: ['barrier'], profileKeys: ['hydration', 'redness', 'oil'], suitableSkin: ['all'], actives: ['Amino-acid surfactants', 'Glycerin'], usage: 'Morning & Night', keyIngredient: 'Amino-acid surfactants', blurb: 'A low-strip daily cleanser that respects the barrier.' },
-  { id: 'bp_scalp', name: 'Scalp Density Serum', brand: 'Together Beauty Labs', category: 'Haircare', priceInr: 1390, tags: ['scalp', 'hair-density'], profileKeys: ['density', 'hairline'], suitableSkin: ['all'], actives: ['Caffeine', 'Copper peptides', 'Redensyl'], usage: 'Night', keyIngredient: 'Caffeine + copper peptides', blurb: 'Supports density and the hairline — daily leave-in scalp serum.' },
-  { id: 'bp_bond', name: 'Bond Repair Mask', brand: 'Together Beauty Labs', category: 'Haircare', priceInr: 1190, tags: ['scalp'], profileKeys: ['damage', 'thickness'], suitableSkin: ['all'], actives: ['Bond-building complex', 'Hydrolysed keratin'], usage: 'Weekly', keyIngredient: 'Bond-building complex', blurb: 'Rebuilds broken bonds in frizzy, damaged or colour-treated hair.' },
-  { id: 'bp_scalptonic', name: 'Balancing Scalp Tonic', brand: 'Together Beauty Labs', category: 'Haircare', priceInr: 890, tags: ['scalp'], profileKeys: ['scalp'], suitableSkin: ['all'], actives: ['Piroctone olamine', 'Salicylic acid', 'Niacinamide'], usage: 'Morning & Night', keyIngredient: 'Piroctone olamine', blurb: 'Settles flaking, itch and oil at the root of scalp trouble.' },
-  { id: 'bp_protein', name: 'Volumising Protein Shampoo', brand: 'Together Beauty Labs', category: 'Haircare', priceInr: 790, tags: ['scalp', 'hair-density'], profileKeys: ['thickness', 'density'], suitableSkin: ['all'], actives: ['Hydrolysed rice protein', 'Biotin'], usage: 'Morning', keyIngredient: 'Hydrolysed rice protein', blurb: 'Body and strength for fine or thinning strands.' },
-];
 
 /** Legacy quick-concern keys → the assessment reading keys they imply. */
 export interface RequestedLine { id: string; qty: number }

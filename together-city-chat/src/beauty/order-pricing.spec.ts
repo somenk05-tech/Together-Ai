@@ -6,31 +6,37 @@ import { BEAUTY_PRODUCTS, priceBeautyOrder } from './beauty-engine';
  * that, written from the attack rather than from the code.
  */
 
-const RETINAL = BEAUTY_PRODUCTS.find((p) => p.id === 'bp_retinal')!;
-const SPF = BEAUTY_PRODUCTS.find((p) => p.id === 'bp_spf')!;
+/**
+ * TAKEN FROM THE SHELF RATHER THAN NAMED. These were `bp_retinal` and `bp_spf`,
+ * two of the thirteen invented products, and they left with them when the shelf
+ * became seventy real ones — five tests failed for a reason none of them is
+ * about. Pricing does not care which product it is; it cares that the price
+ * comes from HERE and not from the request body.
+ */
+const [A, B] = BEAUTY_PRODUCTS;
 
 describe('priceBeautyOrder', () => {
   it('charges the shelf price, whatever the caller claimed it was', () => {
     // The caller may send name and priceInr; the type here says only what is
     // read. Anything else on the object is, by construction, unreachable.
-    const r = priceBeautyOrder([{ id: 'bp_retinal', qty: 1 }]);
+    const r = priceBeautyOrder([{ id: A.id, qty: 1 }]);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.totalInr).toBe(RETINAL.priceInr);
+    expect(r.totalInr).toBe(A.priceInr);
     expect(r.totalInr).toBeGreaterThan(1);
   });
 
   it('adds up several products at their own prices', () => {
-    const r = priceBeautyOrder([{ id: 'bp_retinal', qty: 2 }, { id: 'bp_spf', qty: 3 }]);
+    const r = priceBeautyOrder([{ id: A.id, qty: 2 }, { id: B.id, qty: 3 }]);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.totalInr).toBe(RETINAL.priceInr * 2 + SPF.priceInr * 3);
+    expect(r.totalInr).toBe(A.priceInr * 2 + B.priceInr * 3);
   });
 
   it('refuses an id that is not on the shelf instead of quietly dropping it', () => {
     // Dropping it would charge for four things when the citizen asked for five,
     // and the order they got back would look right.
-    const r = priceBeautyOrder([{ id: 'bp_spf', qty: 1 }, { id: 'bp_free_stuff', qty: 9 }]);
+    const r = priceBeautyOrder([{ id: B.id, qty: 1 }, { id: 'bp_free_stuff', qty: 9 }]);
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(r.unknownIds).toEqual(['bp_free_stuff']);
@@ -44,19 +50,19 @@ describe('priceBeautyOrder', () => {
   });
 
   it('folds a repeated id into one line, so the quantity cap cannot be walked around', () => {
-    const r = priceBeautyOrder([{ id: 'bp_spf', qty: 20 }, { id: 'bp_spf', qty: 20 }]);
+    const r = priceBeautyOrder([{ id: B.id, qty: 20 }, { id: B.id, qty: 20 }]);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.lines).toHaveLength(1);
     expect(r.lines[0].qty).toBe(40);
-    expect(r.totalInr).toBe(SPF.priceInr * 40);
+    expect(r.totalInr).toBe(B.priceInr * 40);
   });
 
   it('returns the catalogue name, so the saved order cannot be relabelled', () => {
-    const r = priceBeautyOrder([{ id: 'bp_spf', qty: 1 }]);
+    const r = priceBeautyOrder([{ id: B.id, qty: 1 }]);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.lines[0].name).toBe(SPF.name);
+    expect(r.lines[0].name).toBe(B.name);
   });
 
   it('an empty basket costs nothing rather than throwing', () => {
