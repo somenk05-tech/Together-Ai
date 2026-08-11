@@ -223,6 +223,39 @@ describe('one category does not spend another category\'s money', () => {
   });
 });
 
+describe('the monthly budget does not sit on top of the profile\'s own answer', () => {
+  /**
+   * THE OUTAGE THIS PREVENTS. `extras.budget` is the profile's onboarding
+   * answer — a STRING, "₹1000–2500". The monthly budget was first stored under
+   * that same key, so an object landed where a string was expected and
+   * `recommendProducts` called `.match()` on it. That function is the one every
+   * beauty screen goes through: the market, the routine and the profile all
+   * returned 500 together, and the only thing the citizen saw was "we couldn't
+   * build your routine just now".
+   *
+   * Two guards, because either one alone would have been enough and neither was
+   * there: the key is different, and the parser checks the shape.
+   */
+  it('survives a budget field that is not a string at all', () => {
+    const shelf = recommendProducts({
+      readings: READINGS, concerns: [],
+      // Exactly what was written to that field, cast through `unknown` because
+      // the type says string and the stored blob did not care.
+      profile: { skinType: 'combination', budget: { face: 3000 } as unknown as string },
+      insights: [],
+    });
+    expect(shelf.length).toBeGreaterThan(0);
+  });
+
+  it('still reads a real budget string', () => {
+    const cheap = recommendProducts({ readings: READINGS, concerns: [], profile: { skinType: 'combination', budget: 'Under ₹500' }, insights: [] });
+    const rich = recommendProducts({ readings: READINGS, concerns: [], profile: { skinType: 'combination', budget: '₹5000+' }, insights: [] });
+    // The band nudges preference by a few points, so the ORDER of the shelf
+    // differs even though the same products are on it.
+    expect(cheap.map((p) => p.id)).not.toEqual(rich.map((p) => p.id));
+  });
+});
+
 describe('a profile with concerns but no photo assessment', () => {
   it('gets the essentials and stops, rather than nothing or everything', () => {
     // No named needs means no treatment step and no optional steps — the plan

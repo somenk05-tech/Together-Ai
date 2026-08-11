@@ -261,7 +261,13 @@ export function recommendProducts(opts: {
 
   // Budget band from the profile ("₹1000–2500", "Under ₹500", "₹5000+").
   const budgetMax = (() => {
-    const b = profile.budget ?? '';
+    // TYPE-CHECKED RATHER THAN TRUSTED. `profile` is parsed out of a stored JSON
+    // blob, so its fields are whatever was last written there — and when
+    // something wrote an object over this string, `.match()` threw inside the
+    // one function the market, the routine and the profile all pass through.
+    // Three screens, one 500, and a message about the routine. A shape check is
+    // one line; a stored blob is not a type.
+    const b = typeof profile.budget === 'string' ? profile.budget : '';
     const nums = (b.match(/\d+/g) ?? []).map(Number);
     if (!nums.length) return null;
     return b.includes('+') ? Infinity : Math.max(...nums);

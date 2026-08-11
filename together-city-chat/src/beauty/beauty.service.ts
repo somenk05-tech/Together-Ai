@@ -491,8 +491,12 @@ export class BeautyService {
    */
   async getBudget(userId: string): Promise<StoredBudget | null> {
     const row = await swallow(this.beauty.findUnique({ where: { userId } }), 'beauty: profile read', { userId });
-    const extras = safeJson<BeautyProfileInput & { budget?: StoredBudget }>(row?.extras, {});
-    const b = extras.budget;
+    const extras = safeJson<Record<string, unknown>>(row?.extras, {});
+    // `monthlyBudget`, NOT `budget` — see saveBudget for the collision this key
+    // is avoiding. The second branch recovers the handful of profiles written
+    // during the hour the wrong key was live.
+    const raw = (extras.monthlyBudget ?? (typeof extras.budget === 'object' ? extras.budget : null)) as StoredBudget | null;
+    const b = raw;
     if (!b || ![b.face, b.hair, b.body].every((n) => typeof n === 'number')) return null;
     return {
       face: clampBudget(b.face), hair: clampBudget(b.hair), body: clampBudget(b.body),
@@ -500,20 +504,34 @@ export class BeautyService {
     };
   }
 
-  /** Save it, clamped, with the moment it was set. Never inferred, never guessed. */
+  /**
+   * Save it, clamped, with the moment it was set. Never inferred, never guessed.
+   *
+   * THE KEY IS `monthlyBudget` AND THAT IS THE WHOLE POINT OF THIS COMMENT.
+   * `extras.budget` was already taken — it is the profile's own onboarding
+   * answer, a STRING like "₹1000–2500" — and writing an object over it made
+   * `recommendProducts` call `.match()` on an object, which is a TypeError, in
+   * the one function every beauty screen goes through. The market, the routine
+   * and the profile all returned 500 together, and the only visible symptom was
+   * "we couldn't build your routine".
+   *
+   * The old object is also DELETED where it is found, so the string answer is
+   * free to be given again rather than staying permanently occupied.
+   */
   async saveBudget(userId: string, dto: { face: number; hair: number; body: number; preference?: string }) {
     const row = await swallow(this.beauty.findUnique({ where: { userId } }), 'beauty: profile read', { userId });
     const extras = safeJson<Record<string, unknown>>(row?.extras, {});
-    const budget: StoredBudget = {
+    if (typeof extras.budget === 'object' && extras.budget !== null) delete extras.budget;
+    const monthlyBudget: StoredBudget = {
       face: clampBudget(dto.face), hair: clampBudget(dto.hair), body: clampBudget(dto.body),
       setAt: new Date().toISOString(), currency: 'INR', preference: dto.preference ?? null,
     };
     await swallow(this.beauty.upsert({
       where: { userId },
-      update: { extras: JSON.stringify({ ...extras, budget }) },
-      create: { userId, extras: JSON.stringify({ budget }) },
+      update: { extras: JSON.stringify({ ...extras, monthlyBudget }) },
+      create: { userId, extras: JSON.stringify({ monthlyBudget }) },
     }), 'beauty: budget write', { userId });
-    return budget;
+    return monthlyBudget;
   }
 
   /**
