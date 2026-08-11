@@ -462,6 +462,23 @@ export class AstrologyService {
     return { needsProfile: false as const, pending: false as const, ...letter };
   }
 
+  /**
+   * Every month before this one, newest first.
+   *
+   * TWENTY-FOUR RATHER THAN THE DAILY'S THIRTY, and the two numbers mean the
+   * same thing: about as much as a person would think of as "the letters I
+   * have been sent". Thirty days is a month of dailies; twenty-four months is
+   * two years of monthlies, and a monthly letter is the kind somebody goes
+   * back to a year later.
+   *
+   * The rows carry `month` — "August 2026", written out at the time the letter
+   * was — so the archive prints the month the letter was FOR rather than
+   * re-deriving one from a key in whatever timezone the browser is in.
+   */
+  async monthlyHistory(userId: string) {
+    return this.recentLetters(userId, 'monthly', 24);
+  }
+
   private async writeMonthlyLetter(row: AstroProfileRow, userId: string, local: Date): Promise<DatedLetter | null> {
     const chart = this.chartOf(row);
     const astro = scanMonth(chart, local.getUTCFullYear(), local.getUTCMonth() + 1);

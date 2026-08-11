@@ -80,6 +80,12 @@ export class AstrologyController {
     return this.astrology.monthly(user.sub);
   }
 
+  /** Saved monthly letters (the last two years of them). */
+  @Get('monthly/history')
+  monthlyHistory(@CurrentUser() user: JwtUser) {
+    return this.astrology.monthlyHistory(user.sub);
+  }
+
   /**
    * What the next consultation costs, before anybody writes one.
    *
