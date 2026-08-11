@@ -258,26 +258,23 @@ function AssessmentView({ a, analyzedAt }: { a: BeautyAssessment; analyzedAt?: s
       <Block title="Skin" icon="🧴" part={a.skin} />
       <Block title="Hair & scalp" icon="💇" part={a.hair} />
 
-      {/* AM / PM / weekly routine */}
+      {/* THE ROUTINE IS NOT HERE ANY MORE, AND IT WAS THE SECOND OF TWO.
+          This card listed "Gentle cleanser · Vitamin-C serum · Moisturiser" as
+          plain steps, under a heading called "Your routine", on a page called
+          Skin & Hair Profile — while tab 02, also called "Your Routine", holds
+          the real one: the same steps as actual products, with brands, prices,
+          order, instructions, frequency and per-step warnings. Two answers to
+          one question, and the weaker of them was on the wrong page.
+
+          A LINE, NOT A CARD. What is left is a sentence pointing at the tab,
+          because deleting a whole block and leaving nothing is how somebody
+          concludes their routine was never generated. */}
       {a.routine && (
-        <div className="card" style={{ marginBottom: 14 }}>
-          <h3 style={{ fontSize: 16, margin: 0 }}>🗓️ Your routine</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 14, marginTop: 10 }}>
-            {([['☀️ Morning', a.routine.am], ['🌙 Evening', a.routine.pm], ['✨ Weekly', a.routine.weekly]] as const).map(([t, steps]) => (
-              <div key={t}>
-                <div className="muted" style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>{t}</div>
-                <ol style={{ margin: 0, paddingLeft: 16, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {steps.map((s, i) => (
-                    <li key={i} style={{ fontSize: 12.5 }}>{s.step}{s.ingredient && <span className="muted"> · {s.ingredient}</span>}</li>
-                  ))}
-                </ol>
-              </div>
-            ))}
-          </div>
-          {a.routine.seasonal && (
-            <p className="muted" style={{ fontSize: 12, margin: '12px 0 0', paddingTop: 10, borderTop: '1px solid var(--line)' }}>🌦️ {a.routine.seasonal}</p>
-          )}
-        </div>
+        <p style={{ fontSize: 12.5, margin: '0 0 14px' }}>
+          <Link to="/beauty/routine" style={{ fontWeight: 700, color: 'var(--accent-ink)' }}>
+            Your routine, step by step with products &rarr;
+          </Link>
+        </p>
       )}
 
       {/* Ingredients — why for you */}

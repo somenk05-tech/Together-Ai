@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { useBeautyRoutine, type ProductRoutine, type ProductRoutineStep } from '../api';
+import { useBeautyProfile, useBeautyRoutine, type ProductRoutine, type ProductRoutineStep } from '../api';
 
 const ICON: Record<ProductRoutine['timeOfDay'], string> = { morning: '☀️', evening: '🌙', weekly: '📅' };
 
@@ -75,6 +75,15 @@ function RoutineCard({ r }: { r: ProductRoutine }) {
 /** The whole routine: what to use, in what order, morning / evening / weekly. */
 export function Routine() {
   const routine = useBeautyRoutine();
+  // THE SEASONAL LINE CAME WITH THE ROUTINE THAT LEFT THE PROFILE PAGE.
+  // "Summer: lightweight gel moisturiser, blot excess oil, reapply SPF" is
+  // routine advice, so it belongs on the routine — but the product engine is
+  // pure and has no clock or climate in it, and it is the assessment that
+  // works this out. Rather than plumb it through the server for one sentence,
+  // the page that shows routines reads the assessment it is already built
+  // from. Deleting the sentence with the card it sat in would have been the
+  // quiet cost of tidying up.
+  const seasonal = useBeautyProfile().data?.analysis?.routine?.seasonal;
 
   if (routine.isLoading) return <Spinner label="Building your routine…" />;
 
@@ -114,6 +123,12 @@ export function Routine() {
           {data.personalisedBy.labs && <span className="tag" style={{ fontSize: 11 }}>🩸 using your biomarkers</span>}
           {data.personalisedBy.concerns.map((c) => <span key={c} className="tag" style={{ fontSize: 11 }}>{c}</span>)}
         </div>
+      )}
+
+      {!empty && seasonal && (
+        <p style={{ fontSize: 12.5, lineHeight: 1.55, margin: '0 0 14px', background: 'var(--paper)', borderRadius: 10, padding: '10px 12px' }}>
+          🌦️ {seasonal}
+        </p>
       )}
 
       {empty ? (
