@@ -770,14 +770,27 @@
 .beauty-leaf a.t { color: inherit; }
 .beauty-leaf .m { font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); min-width: 0; }
 .beauty-leaf .s { margin-left: auto; flex: none; font-size: 9.5px; letter-spacing: .24em; text-transform: uppercase; color: var(--muted); }
-/* What a leaf opens is CONTENT — readings, ingredient notes, cautions — and
-   content is read on paper in this hub, not off the wall. It gets a sheet of
-   its own rather than the plate's full poster chrome, because it is the inside
-   of an index entry and not a fifth print. */
+/* ── THE SHEET ──────────────────────────────────────────────────────────────
+   A plate with no poster on it: the same cream paper, the same cut edge, the
+   same lift off the wall, and none of the masthead. Content is read on paper in
+   this hub, and the things that are neither a chapter nor an index entry — what
+   a leaf opens, the progress strip, the dated history, the biomarker panel —
+   are read on this.
+
+   IT IS A THIRD SURFACE ON PURPOSE AND THE LAST ONE. Plate for the four
+   chapters the owner drew, leaf for the contents of one, sheet for everything
+   that is simply content. A fourth would be a decision nobody could describe. */
+.beauty-sheet,
 .beauty-leaf-open {
   background: var(--card); border: 1px solid var(--line); border-radius: 2px;
-  box-shadow: var(--e1); padding: 14px 16px 16px; margin: 0 0 16px;
+  box-shadow: var(--e1); padding: 16px 18px 18px; margin: 0 0 14px;
 }
+.beauty-leaf-open { padding: 14px 16px 16px; margin: 0 0 16px; }
+/* A sheet's header is the plate's foot rule, reused: the name on the left, what
+   is in it on the right. Not an emoji and a 16px heading — that is the city's
+   ordinary card idiom, and next to a set of prints it is the one object on the
+   page that came from somewhere else. */
+.beauty-sheet > .beauty-rule:first-child { padding-bottom: 14px; }
 /* On a phone the three cells do not fit on one line, and letting them wrap in
    source order strands "Open +" on a line of its own under a half-empty one.
    The name and the way in stay together on the first row — they are the two

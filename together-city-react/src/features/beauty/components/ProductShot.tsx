@@ -53,7 +53,19 @@ export function ProductShot(
     }}>
       {src
         ? <img key={src} src={src} alt="" loading="lazy" onError={() => setTried((n) => n + 1)}
-            style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            className={fill ? 'no-case' : undefined}
+            style={fill
+              /* NATURAL SIZE, CAPPED — never inflated. width:100% on a small
+                 retailer JPEG upscales it into a blur; auto with a max lets a
+                 big shot fill the well and a small one sit at its own size.
+                 MULTIPLY is the gem sheets' trick for the same photography:
+                 these are shot on pure white, and multiply melts that white
+                 into whatever paper the well is, instead of leaving a white
+                 rectangle floating on cream. `no-case` for the same reason the
+                 gems wear it — an outline drawn round a cut-out is an outline
+                 round nothing. */
+              ? { maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', mixBlendMode: 'multiply' }
+              : { width: '100%', height: '100%', objectFit: 'contain' }} />
         : <span aria-hidden style={{ fontSize: fill ? 40 : Math.round(size / 2.8) }}>{glyphFor(category)}</span>}
     </span>
   );

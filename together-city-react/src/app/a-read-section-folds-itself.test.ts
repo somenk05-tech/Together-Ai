@@ -193,3 +193,66 @@ describe('the beauty display face', () => {
     expect(layout).toMatch(/\.beauty-plate \.beauty-display \{[^}]*font-size/);
   });
 });
+
+/**
+ * THREE SURFACES IN THIS HUB AND NO FOURTH.
+ *
+ * A plate for the four chapters the owner drew, a leaf for the contents of one,
+ * and a sheet for everything that is simply content — the progress strip, the
+ * dated history, the biomarker panel, the bag's running total. The city's
+ * ordinary rounded `.card` is the thing they replace: next to a set of prints
+ * it is the one object on the page that came from another design, and it comes
+ * back the moment somebody adds a section, because `<div className="card">` is
+ * what every other page in this application correctly uses.
+ *
+ * THE BAG BAR IS HERE FOR A DIFFERENT REASON. It was `position: sticky` and
+ * rode up the routine sheet covering the steps somebody was reading — a summary
+ * of what is in the bag parked across the products they were deciding whether
+ * to put in it. It is the last block of the page now: you reach it by getting
+ * to the end, which is also when you have finished deciding.
+ */
+describe('the beauty hub prints on its own paper', () => {
+  const profile = read('features/beauty/pages/Profile.tsx');
+  const bar = read('features/beauty/components/BeautyBagBar.tsx');
+
+  it('gives the progress, history and biomarker panels the sheet', () => {
+    expect([...profile.matchAll(/className="beauty-sheet"/g)].length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('leaves no emoji heading on a beauty surface', () => {
+    // 📈 🗓️ 🩸 headed the three panels above. The 🩸 that stays is a MARKER
+    // inside a chip — it means "your labs support this one" and is doing work
+    // no word does in that width.
+    const code = profile.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/.*$/gm, '$1 ');
+    for (const e of ['📈', '🗓️']) expect(code).not.toContain(e);
+    expect(code).not.toMatch(/eyebrow[^>]*>🩸/);
+  });
+
+  it('does not stick the bag to the viewport', () => {
+    expect(bar).not.toMatch(/position: 'sticky'/);
+    expect(bar).toMatch(/className="beauty-sheet"/);
+  });
+
+  it('registers every lit surface with the wall ink-restore list', () => {
+    // The wall re-points --ink to near-white by inheritance; every class that
+    // paints cream must put the paper's ink back in relief.css. The step cards
+    // and the sheets both shipped without doing so, and both went out with
+    // near-white product names on cream — invisible in review because every
+    // local harness restored the ink by hand. A surface class missing from
+    // this list is that bug again.
+    const relief = read('styles/relief.css');
+    const list = relief.slice(relief.indexOf('[data-hub="beauty"] .card,'));
+    for (const cls of ['.beauty-plate', '.beauty-sheet', '.beauty-leaf-open', '.routine-card']) {
+      expect(list.slice(0, list.indexOf('{'))).toContain(`[data-hub="beauty"] ${cls}`);
+    }
+  });
+
+  it('never inflates a product photograph', () => {
+    // width:100% on a small retailer JPEG upscales it into a blur; the well
+    // shows a shot at its natural size, capped. Multiply + no-case because the
+    // photography is white-ground cut-outs — the gem sheets' own treatment.
+    const shot = read('features/beauty/components/ProductShot.tsx');
+    expect(shot).toMatch(/maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', mixBlendMode: 'multiply'/);
+    expect(shot).toMatch(/className=\{fill \? 'no-case' : undefined\}/);
+  });
+});

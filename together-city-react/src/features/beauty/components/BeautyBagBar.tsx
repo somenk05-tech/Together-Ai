@@ -11,6 +11,16 @@ import { useBeautyBag } from '../api';
  * items · ₹6,009" on the other and both were true, in the sense that neither
  * was. Following a link emptied whichever one they were not looking at.
  *
+ * IT SITS AT THE FOOT OF THE PAGE, NOT ON TOP OF IT. It was `position: sticky`
+ * with a heavy drop shadow, so on the routine sheet it rode up the screen
+ * covering the very steps somebody was reading — the summary of what is in the
+ * bag parked across the products they were deciding whether to put in it. A
+ * running total is worth showing; it is not worth a permanent strip of the
+ * viewport on a page whose whole job is a list you scroll.
+ *
+ * So it is the last block of the page. You reach it by getting to the end,
+ * which is also when you have finished deciding.
+ *
  * AND CHECKOUT IS A LINK, NOT A PAYMENT SHEET. It used to open the wallet
  * directly over whatever page you were on, which asks somebody to pay for a
  * list summarised in one grey line of running text. It goes to My Orders now —
@@ -25,9 +35,8 @@ export function BeautyBagBar() {
   if (!data || data.count === 0) return null;
 
   return (
-    <div className="card" style={{
-      position: 'sticky', bottom: 16, marginTop: 18, display: 'flex', alignItems: 'center',
-      gap: 14, flexWrap: 'wrap', boxShadow: '0 8px 30px rgba(0,0,0,.12)',
+    <div className="beauty-sheet" style={{
+      marginTop: 22, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
     }}>
       <div style={{ minWidth: 0 }}>
         <div style={{ fontWeight: 700, fontSize: 15 }}>

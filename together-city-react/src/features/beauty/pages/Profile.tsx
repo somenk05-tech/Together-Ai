@@ -31,8 +31,12 @@ function SkinHairTimeline() {
   const entries = [...d.entries].reverse(); // newest first
   const fmt = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
   return (
-    <div className="card" style={{ marginTop: 14 }}>
-      <div className="eyebrow">🗓️ Skin &amp; hair timeline</div>
+    <div className="beauty-sheet">
+      <div className="beauty-rule">
+        <span>Skin &amp; hair timeline</span>
+        <span />
+        <span>{entries.length} assessment{entries.length === 1 ? '' : 's'}</span>
+      </div>
 
       {d.followUpDue && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 8, padding: '11px 14px', background: 'var(--warn-soft)', border: '1px solid var(--warn-line)', borderRadius: 12, fontSize: 12.5 }}>
@@ -114,8 +118,8 @@ function BiomarkerCorrelation() {
   const d = q.data;
   if (!d.hasPanel) {
     return (
-      <div className="card" style={{ marginTop: 14 }}>
-        <div className="eyebrow">🩸 Biomarker correlation</div>
+      <div className="beauty-sheet">
+        <div className="beauty-rule"><span>Biomarker correlation</span><span /><span /></div>
         <p className="muted" style={{ fontSize: 13, margin: '6px 0 0', lineHeight: 1.55 }}>
           Add a blood test in the <Link to="/medical/blood" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Medical Hub</Link> and we'll link markers like ferritin, vitamin D, HbA1c and CRP to your skin & hair here — for example, low ferritin → increased shedding, or raised HbA1c → glycation and loss of firmness.
         </p>
@@ -123,10 +127,11 @@ function BiomarkerCorrelation() {
     );
   }
   return (
-    <div className="card" style={{ marginTop: 14 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-        <div className="eyebrow" style={{ margin: 0 }}>🩸 Biomarker correlation</div>
-        {d.takenOn && <span className="muted" style={{ fontSize: 11.5 }}>from your panel · {d.takenOn}</span>}
+    <div className="beauty-sheet">
+      <div className="beauty-rule">
+        <span>Biomarker correlation</span>
+        <span />
+        <span>{d.takenOn ? `From your panel · ${d.takenOn}` : ''}</span>
       </div>
       {d.insights.length === 0 ? (
         <p style={{ fontSize: 13, marginTop: 8, color: 'var(--ok-ink)' }}>✓ No biomarker flags are affecting your skin or hair right now — a good foundation.</p>
@@ -375,10 +380,16 @@ function ProgressView({ entries }: { entries: BeautyProgressEntry[] }) {
     </div>
   );
   return (
-    <div className="card" style={{ marginBottom: 14 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-        <h3 style={{ fontSize: 16, margin: 0 }}>📈 Progress timeline</h3>
-        <span className="muted" style={{ fontSize: 11.5 }}>{sorted.length} check-in{sorted.length === 1 ? '' : 's'} · re-upload weekly to track</span>
+    <div className="beauty-sheet">
+      {/* A SHEET, NOT A CARD WITH AN EMOJI ON IT. This is the one thing on the
+          page somebody comes back FOR, and it was the last object still wearing
+          the city's ordinary idiom — a rounded white tile headed 📈 in the
+          middle of a set of prints. Same paper as everything else now, and the
+          header is the plate's own rule. */}
+      <div className="beauty-rule">
+        <span>Progress timeline</span>
+        <span />
+        <span>{sorted.length} check-in{sorted.length === 1 ? '' : 's'} · re-upload weekly</span>
       </div>
       <div style={{ display: 'flex', gap: 10, overflowX: 'auto', padding: '12px 0 4px' }}>
         {sorted.map((e) => (

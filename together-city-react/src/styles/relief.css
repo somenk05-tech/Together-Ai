@@ -2987,9 +2987,18 @@ textarea.g-field { resize: none; line-height: 1.55; }
    cream card printed in near-white. `.card` covers most of the application,
    the two beauty faces cover the plates, and the last three are the things
    that open OVER a page and therefore never inherit from one. */
+/* THIS LIST BURNED US ONCE, THE WEEK IT WAS WRITTEN. The routine's step cards
+   and the hub's cream sheets were added as new classes and neither joined this
+   list, so both inherited the wall's near-white ink onto cream paper — product
+   names you could barely see, order numbers that vanished — and every local
+   screenshot missed it because the harness restored the ink by hand. The rule:
+   ANY class in this hub that paints --card or --paper is a lit surface and its
+   name belongs here, the same commit it is born. The test now reads this list. */
 [data-hub="beauty"] .card,
 [data-hub="beauty"] .beauty-plate,
+[data-hub="beauty"] .beauty-sheet,
 [data-hub="beauty"] .beauty-leaf-open,
+[data-hub="beauty"] .routine-card,
 [data-hub="beauty"] .modal,
 [data-hub="beauty"] .sheet,
 [data-hub="beauty"] .tc-side {
