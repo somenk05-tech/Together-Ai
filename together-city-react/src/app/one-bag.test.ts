@@ -77,3 +77,32 @@ describe('the beauty bag', () => {
     expect(orders).toMatch(/usePlaceBeautyOrder/);
   });
 });
+
+/**
+ * TAKING A DOOR AWAY IS NOT DELETING A ROOM.
+ *
+ * The Makeup Studio came off the Beauty menu at the owner's word (11 Aug). The
+ * page, the look engine and GET /beauty/makeup are untouched and the path still
+ * resolves — deleting a working surface in order to hide it is how a feature
+ * comes back as a rewrite, and this way it returns in one line.
+ */
+describe('the makeup studio', () => {
+  const hubs = code('config/hubs.ts');
+  const router = code('app/router.tsx');
+
+  it('has no way in from the menu', () => {
+    expect(hubs).not.toMatch(/label: 'Makeup Studio'/);
+  });
+
+  it('still resolves, so no saved link and no test breaks', () => {
+    expect(router).toMatch(/path: '\/beauty\/makeup'/);
+  });
+
+  it('leaves no gap in the numbering behind it', () => {
+    // A menu that counts 01-02-03-05 is a menu advertising the thing it is
+    // trying not to advertise.
+    const beauty = hubs.slice(hubs.indexOf('beauty: {'), hubs.indexOf('medical: {'));
+    const indices = [...beauty.matchAll(/index: '(\d+)'/g)].map((m) => m[1]);
+    expect(indices).toEqual(indices.map((_, i) => String(i + 1).padStart(2, '0')));
+  });
+});

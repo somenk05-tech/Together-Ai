@@ -200,8 +200,16 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // page's section highlights the wrong row and teaches nobody anything.
       { path: '/beauty/routine', index: '02', label: 'Your Routine', sub: 'Built from your profile + budget' },
       { path: '/beauty/market', index: '03', label: 'Beauty Market', sub: 'Curated, matched to you' },
-      { path: '/beauty/makeup', index: '04', label: 'Makeup Studio', sub: 'Your personal AI makeup artist' },
-      { path: '/beauty/orders', index: '05', label: 'My Orders', sub: 'Your beauty shelf' },
+      // THE MAKEUP STUDIO IS OFF THE MENU (11 Aug), at the owner's word, and
+      // that is all that has happened to it: the page, the look engine and
+      // GET /beauty/makeup are untouched and /beauty/makeup still resolves.
+      // Deleting a working surface to hide it is how a feature comes back as a
+      // rewrite; taking the door away is reversible in one line.
+      //
+      // The numbering closes up behind it rather than leaving a gap at 04 —
+      // a menu that counts 01-02-03-05 is a menu with something missing, which
+      // is exactly what this is trying not to advertise.
+      { path: '/beauty/orders', index: '04', label: 'My Orders', sub: 'Your beauty shelf' },
     ],
   },
   medical: {
