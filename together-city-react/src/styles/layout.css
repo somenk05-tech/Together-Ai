@@ -634,13 +634,156 @@
 }
 @media (max-width: 720px) { .routine-assure { grid-template-columns: repeat(2, 1fr); } }
 
-/* THE THIRD AND LAST BORROWER OF THE DISPLAY SERIF. See relief.spec assertion
-   4 — the face is the nutrition press's, lent to the letter's title and now to
-   this masthead, each by name and each with a reason. */
+/* THE BORROWERS OF THE DISPLAY SERIF. See relief.spec assertion 4 — the face
+   is the nutrition press's, lent by name, each with a reason.
+
+   `.routine-display` became `.beauty-display` when the owner's poster
+   reference arrived: the routine masthead and the four plates on the skin &
+   hair page are the same editorial title in the same hub, and one hub gets one
+   display class. Naming it after the first page that happened to need it is
+   how a second page ends up asking for a sixth grant it does not need. */
 .letter-title,
 .letter-archive-day .t,
-.routine-display,
+.beauty-display,
 .gem-display { font-family: var(--press-serif); font-weight: 400; }
+
+/* ══ THE BEAUTY PLATE ═══════════════════════════════════════════════════════
+   The owner's poster reference, made into the page's furniture.
+
+   WHAT THE REFERENCE ACTUALLY IS. Four prints, all the same object: a rule of
+   three tracked words across the top (SKIN · BEAUTY · CARE), a display-serif
+   title set large and centred, a hairline–star–hairline divider, a short
+   paragraph in wide-tracked capitals, and a foot rule. The composition is the
+   whole design; there is not a second idea in it.
+
+   SO A PLATE IS A SECTION HEADER, NOT A DECORATION. Each of these is the
+   clickable header of a fold — the poster IS the tab. That is what keeps the
+   page from becoming five posters with a real interface hiding underneath: the
+   plate is the interface, and the working content opens out of it.
+
+   The frame is a hairline of ink rather than the reference's heavy black
+   border. On one printed poster that border is the mount; repeated five times
+   down a scrolling page it is a stack of picture frames. What survives is what
+   the border was doing — the paper reading as a plate set on the ground —
+   which one hairline and the hub's sand do between them.                     */
+.beauty-plate {
+  display: block; text-align: center;
+  background: var(--card); border: 1px solid var(--ink); border-radius: 2px;
+  padding: clamp(18px, 3.4vw, 30px) clamp(16px, 3vw, 30px) clamp(14px, 2.4vw, 20px);
+  margin-bottom: 14px;
+}
+/* The face is the button; the plate is only the paper it is printed on. See
+   the note in Collapsible.tsx — what opens out of these is a form, and a
+   button wrapped round a form is markup the browser rearranges. */
+.beauty-face {
+  display: block; width: 100%; text-align: inherit; cursor: pointer;
+  background: none; border: 0; padding: 0; font-family: inherit; color: inherit;
+}
+/* The hero is the same object with the air the reference gives it. One per
+   page — the poster impact is spent on the title of the page, not on every
+   section, which is the difference between a masthead and a wallpaper. */
+.beauty-plate.is-hero { cursor: default; padding: clamp(34px, 7vw, 74px) clamp(18px, 4vw, 40px) clamp(24px, 4vw, 40px); }
+
+/* The two rules, top and foot. Three cells and space-between, so the middle
+   word is centred on the plate rather than on whatever is left of it. */
+.beauty-rule {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  font-size: 9.5px; font-weight: 500; letter-spacing: .24em; text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.beauty-rule > :nth-child(2) { text-align: center; }
+.beauty-rule > :last-child { text-align: right; }
+.beauty-plate .beauty-rule:last-child { margin-top: clamp(16px, 3vw, 26px); color: var(--muted); }
+/* THE SIGNATURE COMES OFF THE FOOT ON A PHONE, and only off the sections. At
+   360px three tracked cells in one row wrap into three cramped columns and the
+   two that matter — what is in the section, and the way in — become the least
+   legible things on the plate. The hero keeps its "Together Beauty Labs / Est.
+   2024", because on the hero that line IS the content of the foot. */
+@media (max-width: 560px) {
+  .beauty-plate:not(.is-hero) .beauty-rule:last-child > :first-child { display: none; }
+}
+
+/* SIZE IS THE PLATE'S, NOT THE CLASS'S. `.beauty-display` is the FACE and
+   nothing else — the routine masthead wears it too and sets its own size. A
+   class that is both a typeface grant and a layout is a class that changes a
+   page nobody was editing. */
+.beauty-plate .beauty-display {
+  line-height: .98; margin: clamp(22px, 5vw, 54px) 0 0;
+  font-size: clamp(23px, 3.6vw, 38px); letter-spacing: .005em;
+}
+.beauty-plate.is-hero .beauty-display { font-size: clamp(32px, 6.4vw, 62px); }
+
+/* ——— ✦ ——— . Two rules and a star, and the star is a character rather than
+   an asset because it is one glyph at 9px and a file for that is a request. */
+.beauty-star {
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  margin: clamp(14px, 2.6vw, 24px) auto 0; max-width: 240px; color: var(--ink);
+}
+.beauty-star::before, .beauty-star::after {
+  content: ''; flex: 1; height: 1px; background: currentColor; opacity: .55;
+}
+.beauty-star span { font-size: 9px; line-height: 1; }
+
+/* The blurb. Tracked capitals at a generous leading — the reference's, and the
+   reason it reads as a printed caption instead of body copy. */
+.beauty-blurb {
+  margin: clamp(14px, 2.6vw, 22px) auto 0; max-width: 46ch;
+  font-size: clamp(10px, 1.05vw, 11.5px); font-weight: 500;
+  letter-spacing: .13em; line-height: 2.05; text-transform: uppercase; color: var(--ink-soft);
+}
+.beauty-plate.is-hero .beauty-blurb { max-width: 40ch; }
+
+/* What the plate is holding, once it is open. A rule across, then the working
+   interface — left-aligned, because a form is not a poster. */
+.beauty-open {
+  text-align: left; border-top: 1px solid var(--line);
+  margin: clamp(16px, 3vw, 26px) 0 0; padding-top: 18px;
+}
+
+/* ── THE INDEX ──────────────────────────────────────────────────────────────
+   The parts of the assessment, set as a printed contents page rather than as
+   three more plates or three rounded cards. See the note in Plates.tsx: they
+   are the contents of one chapter, not four chapters. */
+.beauty-index { border-bottom: 1px solid var(--line); margin: 26px 0 22px; }
+.beauty-index > .beauty-rule:first-child { padding-bottom: 14px; }
+.beauty-lede {
+  margin: 0 0 22px; font-size: 13.5px; line-height: 1.75; max-width: 62ch; color: var(--ink-soft);
+}
+.beauty-leaf {
+  display: flex; align-items: baseline; gap: 16px; width: 100%; text-align: left;
+  background: none; border: 0; border-top: 1px solid var(--line); cursor: pointer;
+  font-family: inherit; color: inherit; padding: 16px 2px;
+}
+.beauty-leaf .t { font-size: 11.5px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; flex: none; }
+.beauty-leaf .m { font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); min-width: 0; }
+.beauty-leaf .s { margin-left: auto; flex: none; font-size: 9.5px; letter-spacing: .24em; text-transform: uppercase; color: var(--muted); }
+.beauty-leaf-open { padding: 0 2px 22px; }
+/* On a phone the three cells do not fit on one line, and letting them wrap in
+   source order strands "Open +" on a line of its own under a half-empty one.
+   The name and the way in stay together on the first row — they are the two
+   things you are looking for — and what is inside drops underneath. */
+@media (max-width: 560px) {
+  .beauty-leaf { flex-wrap: wrap; gap: 6px 14px; }
+  .beauty-leaf .m { order: 3; flex-basis: 100%; }
+  .beauty-leaf .s { margin-left: auto; }
+}
+
+/* The two tabs, as a rule rather than a segmented pill. Same reasoning as the
+   plate's frame: one rounded control in a set of printed plates is the single
+   object on the page that came from another design. */
+.beauty-tabs {
+  display: flex; gap: 26px; justify-content: center; flex-wrap: wrap;
+  border-bottom: 1px solid var(--line); margin: 0 0 16px; padding-bottom: 10px;
+}
+.beauty-tabs button {
+  border: 0; background: none; cursor: pointer; font-family: inherit; padding: 4px 2px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--muted); position: relative;
+}
+.beauty-tabs button.is-on { color: var(--ink); }
+.beauty-tabs button.is-on::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: -11px; height: 1px; background: var(--ink);
+}
 
 /* ══ THE BEAUTY MARKET ══════════════════════════════════════════════════════
    A shop, laid out for comparison: a category row, a filter/title/sort bar,

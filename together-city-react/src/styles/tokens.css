@@ -698,13 +698,11 @@
    across two blocks is how one of the four gets left behind. */
 /* DATING is grounded now — its whole palette is the block near the foot of
    this file, with the other rooms. It is deliberately not on this list. */
-[data-hub="beauty"] {
-  --lamp-face: linear-gradient(180deg, #c05289 0%, #96406b 44%, #723151 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
-          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
-          0 1px 1px rgba(150,64,107,.30), 0 8px 20px rgba(150,64,107,.34), 0 20px 46px rgba(150,64,107,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
-}
+/* BEAUTY is grounded now — its lamp left this list and went to live with its
+   ground at the foot of this file, for the same reason dating's, social's and
+   entertainment's did: a hub that owns a ground cannot also have a one-line
+   accent up here silently overriding half of it. Two rival palettes for one
+   hub is the exact failure main.tsx warns about. */
 [data-hub="restaurants"] {
   --lamp-face: linear-gradient(180deg, #b15f24 0%, #8a4a1c 44%, #693815 100%);
   --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
@@ -1458,3 +1456,97 @@
    build time — one place, checked by arithmetic, instead of two places
    agreeing by hand. That is what a grant buys, and the reason this hub took
    one back. */
+
+/* ── BEAUTY IS A SAND ROOM, AND THE ARGUMENT IS ABOUT TONE ─────────────────
+   THE THIRD GROUND GRANT, AND IT IS THE ONE CASE THE THREE RETURNS DO NOT
+   COVER.
+
+   Social and dating both asked for a tint and both were refused with the same
+   answer: a wall of photographs on white is a contact sheet, and the fix for a
+   contact sheet is CASING and SPACE, not colour. That answer is correct and it
+   is still in force — relief.css cases every image in the city.
+
+   It does not reach this hub, because the problem here is not density. It is
+   VALUE. A skincare catalogue is photographed cut-out: a white cream, an ivory
+   balm, a translucent gel, a bare shoulder, a sachet — the owner's own
+   reference is literally three near-white smears and nothing else in the
+   frame. Those photographs are `.no-case` by necessity (a box drawn round a
+   cut-out is a box round nothing) and they are the same VALUE as the city's
+   paper. A cased picture of a person on white loses its frame; an uncased
+   white cream on white loses the cream. Casing cannot fix a subject that is
+   the colour of the page, and space cannot either — the more air you give a
+   #f8f6f2 jar on #ffffff, the more of nothing there is around it.
+
+   So the ground moves DOWN in value, by enough for the merchandise to sit on
+   it, and stops there. The sand is the owner's reference photograph, sampled;
+   the card is the cream smear in it. Everything a citizen reads is on one of
+   those two and every ink below is measured against them by relief.spec at
+   build time.
+
+   THE ACCENT HUE IS NOT THE GROUND. This is the line the removed nutrition
+   tint crossed and the one every grant since has had to clear. Beauty's hue is
+   magenta; there is not a trace of it here. The room is a neutral warm sand
+   with the magenta left where it has always been — in the lit key of the rail,
+   nowhere else — exactly as charcoal keeps its gold in the fill and the dark
+   room keeps its green in the fill.
+
+   AND NOTHING BUT COLOUR CHANGES. No radius, gap, size, weight or shadow
+   GEOMETRY. This is a light room, lit from above like every other light room
+   in the city, so the five depths are inherited untouched rather than
+   inverted — which is what makes this the cheapest of the three grants and,
+   if it is ever handed back, the cleanest to return.                        */
+[data-hub="beauty"] {
+  /* Grounds. Two, not four: the page is the sand and a card is the cream, and
+     the wash is the one step between them. Following the bone room rather than
+     the dark one — ground and paper are the same value there too, because a
+     shell a shade off the page puts a seam down the side of every layout. */
+  --ground: #e0d0ba;
+  --paper:  #e0d0ba;
+  --card:   #f6f1e8;
+  --wash:   #ebe0cf;
+  /* The hairline, mixed from the sand rather than from grey. A #e6e6e6 rule on
+     a warm ground reads blue, which is the tell of a palette that was tinted
+     halfway. */
+  --line:      #cfbda4;
+
+  /* THE INKS, MEASURED. Every figure is this hub's own ground, not white —
+     relief.spec recomputes all of them at build time, which is the whole
+     reason a ground is granted rather than approximated. */
+  --ink:        #171310;   /* 12.2:1 on the paper */
+  --ink-soft:   #2e2822;   /* 12.9:1 on a card    */
+  --muted:      #5b5145;   /*  5.13:1 */
+  --faint:      #5f564a;   /*  4.77:1 — the floor of the scale, and the step a
+                                       hand-picked warm palette always fails */
+  --accent-ink: #1c1c1c;   /* 11.3:1 */
+
+  /* The accent stays the city's near-black — this hub never had a coloured one
+     and is not getting one with a ground. Only its two pale companions move,
+     because a #f2f2f2 pill on sand is a grey smudge rather than a quiet chip. */
+  --accent-soft: #efe6d6;
+  --accent-line: #d9c8b0;
+
+  /* STATUS. The two inks that fail on this ground are the two that always do:
+     green and amber sit close to the sand in luminance where red and blue do
+     not. Both are the root hue taken down until they clear, hue unchanged. */
+  --ok-ink:     #145a26;   /*  5.52:1 — was 4.36 at the root value */
+  --warn-ink:   #664509;   /*  5.74:1 — was 4.48 */
+  --danger-ink: #a5231f;   /*  4.86:1 — clears unchanged */
+  --info-ink:   #14568f;   /*  5.04:1 — clears unchanged */
+  /* Their washes are near-white at the root. A mint-white banner on sand is a
+     cold rectangle, so each is the card's cream carried toward its own hue. */
+  --ok-soft:     #e9efe0;  --ok-line:     #c6d7bb;
+  --warn-soft:   #f5ecd6;  --warn-line:   #e2d0a6;
+  --danger-soft: #f6e6de;  --danger-line: #e8c7ba;
+  --info-soft:   #e4ecef;  --info-line:   #c2d3dd;
+
+  /* THE LAMP, MOVED HERE UNCHANGED. Not one value edited — the magenta key is
+     this hub's identity in all twenty-five rooms of wayfinding and a warm
+     neutral room is exactly where a hue belongs: in the one object whose job
+     is to be found. It lives in this block instead of the accent list above so
+     there is one place that says what Beauty looks like. */
+  --lamp-face: linear-gradient(180deg, #c05289 0%, #96406b 44%, #723151 100%);
+  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
+          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
+          0 1px 1px rgba(150,64,107,.30), 0 8px 20px rgba(150,64,107,.34), 0 20px 46px rgba(150,64,107,.22);
+  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
+}

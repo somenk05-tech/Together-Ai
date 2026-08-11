@@ -508,17 +508,17 @@ export function Routine() {
 
       {/* ── the masthead ───────────────────────────────────────────────────
           The reference's one indispensable idea: this is not a settings screen
-          with a list on it, it is a sheet with a title. `routine-display` is
+          with a list on it, it is a sheet with a title. `beauty-display` is
           the display serif, granted by name in relief.spec — the third and
           last thing in the city allowed to borrow the press's face. */}
       <div className="card" style={{ background: 'var(--accent-soft)', borderColor: 'var(--accent-line)', marginBottom: 16, padding: '22px 22px 20px' }}>
         <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ minWidth: 210 }}>
             <div className="muted" style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.22em', textTransform: 'uppercase' }}>Your daily</div>
-            <h1 className="routine-display" style={{ fontSize: 'clamp(34px, 4.6vw, 50px)', lineHeight: 1.02, margin: '4px 0 2px', color: 'var(--accent-ink)' }}>
+            <h1 className="beauty-display" style={{ fontSize: 'clamp(34px, 4.6vw, 50px)', lineHeight: 1.02, margin: '4px 0 2px', color: 'var(--accent-ink)' }}>
               AM &amp; PM
             </h1>
-            <div className="routine-display" style={{ fontSize: 'clamp(19px, 2.2vw, 25px)', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
+            <div className="beauty-display" style={{ fontSize: 'clamp(19px, 2.2vw, 25px)', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
               skin &amp; hair routine
             </div>
           </div>

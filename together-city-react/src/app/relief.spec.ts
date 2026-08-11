@@ -201,7 +201,7 @@ describe('Relief stays a system', () => {
   });
 
   /**
-   * TWO HUBS HAVE THEIR OWN GROUND, AND EACH IS SCOPED OR IT IS NOT AN
+   * THREE HUBS HAVE THEIR OWN GROUND, AND EACH IS SCOPED OR IT IS NOT AN
    * EXCEPTION.
    *
    * THE CITY IS BLACK AND WHITE, AND EACH HUB OWNS ONE COLOUR: the lit key
@@ -209,12 +209,12 @@ describe('Relief stays a system', () => {
    * twenty-five rooms, and one object that says which you are standing in
    * before a word is read. Everything else is inherited.
    *
-   * Which makes a GROUND grant the rarest thing in the system. TWO hubs hold
-   * one and both are dark; four have handed one back in a day. The returns
-   * are the same rule running the other way — a hub holds a ground when
-   * words are read off something that is not the city's white, and gives it
-   * back the moment that stops being true. What is left is the only case
-   * that rule cannot cover: a room that is dark on purpose.
+   * Which makes a GROUND grant the rarest thing in the system. THREE hubs hold
+   * one; four have handed one back in a day. The returns are the same rule
+   * running the other way — a hub holds a ground when words are read off
+   * something that is not the city's white, and gives it back the moment that
+   * stops being true. What is left is the two cases that rule cannot cover: a
+   * room that is dark on purpose, and a room whose MERCHANDISE is white.
    *
    *   nutrition — RETURNED, and the return is the cleanest of the three. Its
    *     grant was warm paper, argued on the press: a day of food is read the
@@ -242,6 +242,31 @@ describe('Relief stays a system', () => {
    *     posters on white is a catalogue rather than a screen. Its accent hue is
    *     NOT the ground either: the ground is near-black, the green stays in the
    *     fill and in the readable ink.
+   *   beauty — WARM SAND, and it is granted on the one argument the three
+   *     returns below do not answer. Social and dating both asked for a tint
+   *     to hold photographs and both were refused with the same sentence: a
+   *     wall of pictures on white is a contact sheet, and a contact sheet is
+   *     fixed by CASING and SPACE rather than by colour. That refusal stands,
+   *     and relief.css cases every image in the city so it is enforced.
+   *
+   *     It does not reach this hub, because the problem here is not DENSITY,
+   *     it is VALUE. Skincare is photographed cut-out — a white cream, an
+   *     ivory balm, a translucent gel, a sachet; the owner's reference is
+   *     three near-white smears and nothing else in the frame. Those pictures
+   *     are `.no-case` of necessity (an outline drawn round a cut-out is an
+   *     outline round nothing) and they are the same VALUE as the city's
+   *     paper. A cased portrait on white loses its frame and gets it back from
+   *     the case. An uncased white cream on white loses the CREAM, and no
+   *     amount of air returns it — the more space you give a near-white jar on
+   *     white, the more of nothing there is around it.
+   *
+   *     So the ground drops in value by enough for the merchandise to sit on
+   *     it and stops. It is a NEUTRAL warm sand sampled from the owner's own
+   *     photograph, not the hub's magenta: this is the light room of the
+   *     three, the five depths are inherited untouched, and the hue stays
+   *     where every other hub's does — in the lit key of the rail. If the
+   *     catalogue photography ever ships cased and on a coloured seamless,
+   *     this grant goes back the way the other four did.
    *   social — RETURNED. Its grant was the hardest of the three to give back
    *     and it still went. The argument was MATERIAL, twice: clear glass on
    *     white "has nothing behind it to bend", and a wall of other people's
@@ -271,14 +296,16 @@ describe('Relief stays a system', () => {
    * left in the fill, charcoal with the gold left in the fill, candy with the
    * blue left in the fill. A sixth hub asking for "a tint like nutrition's" is
    * asking for the removed thing, not for any of these, and gets its own line
-   * here or nothing.
+   * here or nothing. Beauty's sand is the closest any grant has come to the
+   * removed one and it is still not it: nutrition's tint was the hub's GREEN
+   * washed over the page, and beauty's magenta appears nowhere below the rail.
    *
    * The list is written out rather than counted, exactly like the press's
-   * wearers, so a third entry costs an argument instead of a nod.
+   * wearers, so a fourth entry costs an argument instead of a nod.
    */
-  it('keeps a re-pointed ground inside the two hubs it was granted to', () => {
+  it('keeps a re-pointed ground inside the three hubs it was granted to', () => {
     const css = strip(tokens);
-    const GRANTED = ['astrology', 'entertainment'];
+    const GRANTED = ['astrology', 'beauty', 'entertainment'];
 
     // 1. only the granted hubs re-point a ground token. Sorted: the file's
     //    order is editorial and a re-order must not read as a breach.
@@ -301,7 +328,7 @@ describe('Relief stays a system', () => {
     // 3. and a ground is only ever reached through the hub attribute — never
     //    pinned to a page, which is how a scope quietly becomes a default.
     const wearers = PAGES.filter((f) =>
-      /data-hub=["'](nutrition|astrology)["']/.test(stripTs(read(f))));
+      /data-hub=["'](nutrition|astrology|beauty|entertainment)["']/.test(stripTs(read(f))));
     expect(wearers).toEqual([]);
   });
 
@@ -330,7 +357,7 @@ describe('Relief stays a system', () => {
       return (hi + 0.05) / (lo + 0.05);
     };
     const failures: string[] = [];
-    for (const hub of ['astrology', 'entertainment']) {
+    for (const hub of ['astrology', 'beauty', 'entertainment']) {
       // The block that owns the ground, found by the thing that makes it that
       // block rather than by position: nutrition and entertainment each once
       // had a plain accent one-liner elsewhere in the file, and matching the
@@ -570,13 +597,25 @@ describe('Relief stays a system', () => {
    * and fails on anything else. It is ONE selector with three places in it,
    * deliberately, and they are not three decisions: `.letter-title` and the
    * same title listed in the archive are the same object on two surfaces, and
-   * `.routine-display` is the beauty routine's masthead — the one editorial
-   * title in that hub, from the reference the owner supplied, whose whole
-   * character is this face against the sans. Setting it once is what stops the
-   * three drifting apart. The three press wearers are listed by FILE
-   * because they switch a whole surface on; this one is listed by SELECTOR
-   * because it borrows a typeface. If a fifth thing wants the serif it needs
-   * its own line here, its own reason, and its own entry in that list.
+   * `.beauty-display` is the beauty hub's editorial title, from the reference
+   * the owner supplied, whose whole character is this face against the sans.
+   * Setting it once is what stops the three drifting apart. The three press
+   * wearers are listed by FILE because they switch a whole surface on; this one
+   * is listed by SELECTOR because it borrows a typeface. If a fifth thing wants
+   * the serif it needs its own line here, its own reason, and its own entry in
+   * that list.
+   *
+   * IT WAS `.routine-display` AND THE RENAME IS THE POINT, not tidying. It was
+   * named after the first page that needed it — the routine sheet's masthead —
+   * and then the owner's poster reference arrived for the skin & hair page: four
+   * plates, each with one display title, in the same hub, from the same
+   * reference. Asking for a sixth grant called `.beauty-plate-title` would have
+   * been asking for permission to do the thing this one already permits. ONE HUB
+   * GETS ONE DISPLAY CLASS, and the grant is written at the hub rather than at
+   * whichever page happened to reach for it first.
+   *
+   * The class is the FACE and nothing else — every wearer sets its own size, so
+   * that adding a plate cannot resize a masthead on another page.
    *
    * `.gem-display` is the fifth, and it asked properly. The Astrology Zone's
    * gemstone sheets are the owner's own reference rendered in the city's
@@ -584,7 +623,7 @@ describe('Relief stays a system', () => {
    * and the name beneath in wide-tracked capitals. That name is the entire
    * composition — at .34em of tracking it is closer to a piece of engraving
    * than a heading, and the sans this application otherwise sets everything in
-   * cannot do it. It is the same grant `.routine-display` has for the same
+   * cannot do it. It is the same grant `.beauty-display` has for the same
    * reason: one editorial title, in one hub, from a reference the owner
    * supplied, whose character IS this face against the sans.
    *
@@ -636,7 +675,7 @@ describe('Relief stays a system', () => {
     }
     const borrowed = serifReaders.filter((sel) => !/\.press-|\[data-press\]/.test(sel));
     expect(borrowed, 'the display serif is lent by name, and this is the list')
-      .toEqual(['.letter-title,\n.letter-archive-day .t,\n.routine-display,\n.gem-display']);
+      .toEqual(['.letter-title,\n.letter-archive-day .t,\n.beauty-display,\n.gem-display']);
   });
 
   /**

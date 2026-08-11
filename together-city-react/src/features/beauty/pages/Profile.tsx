@@ -6,7 +6,7 @@ import type { BeautyAssessment, BeautyReading, AssessLevel, BeautyProgressEntry 
 import { useMasterProfile } from '@/features/profile/hooks';
 import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLockedField';
 import { PHOTO_SLOTS, PhotoGrid, missingPhotos, photosReady, requiredCount, type Shot } from '../components/PhotoStudio';
-import { Collapsible } from '../components/Collapsible';
+import { BeautyLeaf, BeautyPlate } from '../components/Plates';
 import { BudgetPanel, budgetSummary } from '../components/BudgetPanel';
 
 const PHOTOS_NEEDED = PHOTO_SLOTS.filter((s) => s.required).length;
@@ -91,15 +91,14 @@ function SkinHairTimeline() {
   );
 }
 
-/** Gender-aware Beauty avatar — VISUAL ONLY. Products, content and
- *  recommendations are never gated by gender; only the icon adapts. Male →
- *  masculine, female → feminine, unspecified → neutral (never a lipstick). */
-function beautyAvatar(gender?: string): string {
-  const g = (gender ?? '').trim().toLowerCase();
-  if (g === 'male') return '👨';
-  if (g === 'female') return '👩';
-  return '🧑';
-}
+/* THE GENDERED AVATAR IS GONE WITH THE HEADING IT SAT IN, and the rule it
+   existed to keep is unchanged: nothing in this hub is gated by gender, only
+   ever illustrated by it. It was one emoji beside "Your skin & hair" that
+   picked 👨 / 👩 / 🧑 from the master profile, and the masthead it lived in is
+   now the owner's poster — SKIN · BEAUTY · CARE over a display title, with no
+   figure in it at all, which is the same neutrality arrived at by composition
+   rather than by a careful default. If a face ever returns here it does not
+   need this function back; it needs the rule, which is written down. */
 
 /** Biomarker labels for the correlation panel (Medical Hub → skin/hair). */
 const MARKER_LABEL: Record<string, string> = {
@@ -233,11 +232,36 @@ function ReadingRow({ r }: { r: BeautyReading }) {
     </div>
   );
 }
+/** "3 to work on", or "all good" — what a closed section is still telling you. */
+function readingSummary(part: BeautyAssessment['skin']): string {
+  const n = part.readings.length;
+  const flagged = part.readings.filter((r) => r.level !== 'good').length;
+  return `${n} reading${n === 1 ? '' : 's'} · ${flagged === 0 ? 'all good' : `${flagged} to work on`}`;
+}
+
 function AssessmentView({ a, analyzedAt }: { a: BeautyAssessment; analyzedAt?: string | null }) {
-  const Block = ({ title, icon, part }: { title: string; icon: string; part: BeautyAssessment['skin'] }) => (
-    <div className="card" style={{ marginBottom: 14 }}>
-      <h3 style={{ fontSize: 16, margin: 0 }}>{icon} {title}</h3>
-      <div style={{ marginTop: 6 }}>{part.readings.map((r) => <ReadingRow key={r.key} r={r} />)}</div>
+  /**
+   * SET AS AN INDEX, NOT AS THREE MORE POSTERS AND NOT AS THREE CARDS.
+   *
+   * These are the CONTENTS of the analysis the page is named after — not four
+   * more chapters of it. Given plates of their own the page becomes seven
+   * posters in a column; given the city's rounded card they are the one thing
+   * on the page from a different design. A printed contents page is what they
+   * actually are, and it is the cheapest of the three.
+   *
+   * They are read once and then scrolled past forever, so they are closed:
+   * seven readings, five readings and nine ingredients is three screens of the
+   * same answer standing between somebody and the two things on this page that
+   * change — the photographs and the budget.
+   *
+   * A CLOSED SECTION THAT SAYS ONLY ITS OWN NAME IS A SECTION NOBODY OPENS,
+   * because nothing outside it says whether anything in it needs them.
+   * "7 readings · 3 to work on" is the reason to open it; "5 readings · all
+   * good" is a complete answer without opening anything.
+   */
+  const Block = ({ title, part }: { title: string; part: BeautyAssessment['skin'] }) => (
+    <BeautyLeaf title={title} meta={readingSummary(part)}>
+      <div>{part.readings.map((r) => <ReadingRow key={r.key} r={r} />)}</div>
       {part.recommendations.length > 0 && (
         <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--line)' }}>
           <div className="muted" style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>Recommended routine</div>
@@ -246,19 +270,23 @@ function AssessmentView({ a, analyzedAt }: { a: BeautyAssessment; analyzedAt?: s
           </ul>
         </div>
       )}
-    </div>
+    </BeautyLeaf>
   );
   return (
-    <div>
-      <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid var(--accent)' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-          <h3 style={{ fontSize: 16, margin: 0 }}>Your assessment</h3>
-          {analyzedAt && <span className="muted" style={{ fontSize: 11.5 }}>saved {new Date(analyzedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
-        </div>
-        <p className="muted" style={{ fontSize: 13, margin: '6px 0 0', lineHeight: 1.55 }}>{a.summary}</p>
+    <div className="beauty-index">
+      {/* THE SUMMARY IS THE ONE PART NOBODY SHOULD HAVE TO OPEN, so it is not
+          in the index — it is the lede above it, on the ground, with no card
+          round it. It was a rounded card with a coloured bar down one side,
+          which is the city's "notice" idiom and made the answer look like an
+          alert about itself. */}
+      <div className="beauty-rule">
+        <span>Your assessment</span>
+        <span />
+        <span>{analyzedAt ? `Saved ${new Date(analyzedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}</span>
       </div>
-      <Block title="Skin" icon="🧴" part={a.skin} />
-      <Block title="Hair & scalp" icon="💇" part={a.hair} />
+      <p className="beauty-lede">{a.summary}</p>
+      <Block title="Skin" part={a.skin} />
+      <Block title="Hair &amp; scalp" part={a.hair} />
 
       {/* THE ROUTINE IS NOT HERE ANY MORE, AND IT WAS THE SECOND OF TWO.
           This card listed "Gentle cleanser · Vitamin-C serum · Moisturiser" as
@@ -271,18 +299,12 @@ function AssessmentView({ a, analyzedAt }: { a: BeautyAssessment; analyzedAt?: s
           A LINE, NOT A CARD. What is left is a sentence pointing at the tab,
           because deleting a whole block and leaving nothing is how somebody
           concludes their routine was never generated. */}
-      {a.routine && (
-        <p style={{ fontSize: 12.5, margin: '0 0 14px' }}>
-          <Link to="/beauty/routine" style={{ fontWeight: 700, color: 'var(--accent-ink)' }}>
-            Your routine, step by step with products &rarr;
-          </Link>
-        </p>
-      )}
-
       {/* Ingredients — why for you */}
       {a.ingredients?.length > 0 && (
-        <div className="card" style={{ marginBottom: 14 }}>
-          <h3 style={{ fontSize: 16, margin: '0 0 8px' }}>🧪 Ingredients for you</h3>
+        <BeautyLeaf
+          title="Ingredients for you"
+          meta={`${a.ingredients.length} ingredient${a.ingredients.length === 1 ? '' : 's'} · ${a.ingredients.slice(0, 3).map((i) => i.name).join(', ')}${a.ingredients.length > 3 ? '…' : ''}`}
+        >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {a.ingredients.map((ing, i) => (
               <div key={i} style={{ borderTop: i ? '1px solid var(--line)' : 'none', paddingTop: i ? 8 : 0 }}>
@@ -291,14 +313,23 @@ function AssessmentView({ a, analyzedAt }: { a: BeautyAssessment; analyzedAt?: s
               </div>
             ))}
           </div>
-        </div>
+        </BeautyLeaf>
       )}
 
       {a.cautions.length > 0 && (
-        <div className="card" style={{ background: 'var(--warn-soft)', borderLeft: '3px solid var(--warn-line)' }}>
-          <div className="eyebrow" style={{ marginBottom: 6 }}>Good to know</div>
-          {a.cautions.map((c, i) => <p key={i} className="muted" style={{ fontSize: 12, margin: '3px 0' }}>· {c}</p>)}
-        </div>
+        <BeautyLeaf title="Good to know" meta={`${a.cautions.length} note${a.cautions.length === 1 ? '' : 's'} before you start`}>
+          {a.cautions.map((c, i) => <p key={i} className="muted" style={{ fontSize: 12.5, margin: '3px 0', lineHeight: 1.6 }}>· {c}</p>)}
+        </BeautyLeaf>
+      )}
+
+      {/* THE ROUTINE IS THE WAY OUT OF THIS PAGE, so it is the last line of the
+          index and set as one — the contents page ends by pointing at the
+          chapter that is somewhere else. */}
+      {a.routine && (
+        <p className="beauty-leaf" style={{ margin: 0 }}>
+          <Link to="/beauty/routine" className="t" style={{ color: 'var(--accent-ink)' }}>Your routine →</Link>
+          <span className="m">Step by step, with products, prices and order</span>
+        </p>
       )}
     </div>
   );
@@ -501,9 +532,20 @@ export function Profile() {
   const progress = profile.data?.progress ?? [];
   const warning = analyze.data?.warning;
 
-  /** The profile has done its job: an assessment exists and the answers are
-   *  saved. This is the only thing that decides whether the page folds away. */
-  const done = Boolean(analysis) && isBeautyComplete((profile.data?.profile ?? {}) as Partial<Form>);
+  /**
+   * A SECTION FOLDS ONCE IT HAS AN ANSWER IN IT, AND AN ASSESSMENT IS THE ANSWER.
+   *
+   * This used to also require all eighteen profile questions to be saved, and
+   * that was the wrong gate: somebody with an assessment on file and one
+   * unanswered question — which happens the moment a question is ADDED to the
+   * form — got the whole page open again, several screens of their own answers,
+   * every visit. What decides whether a section is done is whether the section
+   * has produced something, not whether a different section is finished.
+   *
+   * The onboarding card above says what is still missing, so folding these does
+   * not hide the ask.
+   */
+  const analysed = Boolean(analysis);
   /** The two things the assessment actually flagged, for the budget's one line
    *  about what the money is for. Not the analysis again — that is above it. */
   const priorities = (analysis?.skin.readings ?? []).filter((r) => r.level !== 'good').slice(0, 2).map((r) => r.label);
@@ -598,22 +640,31 @@ export function Profile() {
 
   return (
     <div>
-      <div className="eyebrow">Beauty Market · Skin &amp; Hair</div>
-      <h1 style={{ fontSize: 26, display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span aria-hidden style={{ fontSize: 24 }}>{beautyAvatar(f.gender)}</span>
-        Your skin &amp; hair
-      </h1>
-      <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px' }}>
-        Add photos for a one-time analysis, and fill in your profile — we generate a personalised skin &amp; hair assessment and tune the market to you.
-      </p>
+      {/* ── THE MASTHEAD IS THE OWNER'S FIRST POSTER ─────────────────────────
+          The eyebrow, the emoji avatar and the sentence of instructions are
+          gone. What replaces them says the same thing in the reference's own
+          voice — and the instructions were describing a page that now
+          describes itself: every section below is a plate with its own blurb
+          telling you what it wants.
 
-      {/* tabs */}
-      <div style={{ display: 'inline-flex', background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 999, padding: 3, marginBottom: 16 }}>
+          THE HERO IS THE ONLY PLATE WITH THE FULL AIR. Five posters at poster
+          scale is a page you scroll past rather than read; the impact is spent
+          once, on the title of the page. */}
+      <BeautyPlate
+        hero
+        title={<>Your Skin &amp;<br />Hair Analysis</>}
+        blurb="A personalised assessment of your skin, hair and unique needs — created to build a routine that works for you."
+      />
+
+      {/* The tabs, set as a rule rather than a pill switch: two tracked words
+          on a hairline, the live one underscored. A rounded segmented control
+          in the middle of a set of printed plates is the one object on the
+          page that came from a different design. */}
+      <div className="beauty-tabs" role="tablist" aria-label="Skin and hair profile">
         {(['photos', 'profile'] as const).map((t) => (
-          <button key={t} onClick={() => setTab(t)}
-            style={{ border: 'none', cursor: 'pointer', borderRadius: 999, padding: '7px 18px', fontSize: 12.5, fontWeight: 700, fontFamily: 'inherit',
-              background: tab === t ? 'var(--card)' : 'transparent', color: tab === t ? 'var(--ink)' : 'var(--muted)', boxShadow: tab === t ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
-            {t === 'photos' ? '📸 Photos' : '📝 Profile'}
+          <button key={t} type="button" role="tab" aria-selected={tab === t}
+            className={tab === t ? 'is-on' : undefined} onClick={() => setTab(t)}>
+            {t === 'photos' ? 'Photos & Analysis' : 'Your Details'}
           </button>
         ))}
       </div>
@@ -628,13 +679,18 @@ export function Profile() {
               routine they exist to build. Nothing is deleted and nothing is
               re-asked — the sections are simply closed.
 
-              Two stay open, and both for the same reason: they are what you
-              came back for. The progress photographs are the whole point of a
-              timeline, and the budget is the next thing to do. */}
-          <Collapsible
-            title="Photos & analysis"
-            meta={`${picsRequired} / ${PHOTOS_NEEDED} staged · ${profile.data?.uploads?.remaining ?? 0} analyses left this week`}
-            defaultOpen={!done}
+              The before-and-after stays open: it is the reason to come back.
+
+              THIS ONE OPENS AGAIN WHILE PHOTOS ARE STAGED. Uploading, then
+              switching to the profile tab and back, unmounts this section — and
+              folding it away with somebody's three photographs still inside it,
+              one click from the Analyse button they were reaching for, is worse
+              than never folding it at all. */}
+          <BeautyPlate
+            title={<>Your Photos<br />&amp; Details<br />for Analysis</>}
+            blurb="Share your skin, hair and personal details so we can create your personalised assessment."
+            meta={`${picsRequired} / ${PHOTOS_NEEDED} staged · ${profile.data?.uploads?.remaining ?? 0} left this week`}
+            defaultOpen={!analysed || picsCount > 0}
           >
           <div>
             <div className="eyebrow" style={{ marginBottom: 8 }}>Your photos <span className="muted" style={{ fontWeight: 400 }}>· two needed, one optional · {picsRequired} / {PHOTOS_NEEDED}</span></div>
@@ -680,17 +736,19 @@ export function Profile() {
               </p>
             )}
           </div>
-          </Collapsible>
+          </BeautyPlate>
 
           {/* OPEN. The before and after is the reason to come back. */}
           {progress.length > 0 && <ProgressView entries={progress} />}
 
+          {/* NOT WRAPPED IN A COLLAPSIBLE OF ITS OWN ANY MORE. Skin, Hair &
+              scalp and Ingredients each fold individually now, and one fold
+              around three folds means two clicks to read one reading, with the
+              outer header able to say nothing more specific than the name of
+              the thing inside it. What is left outside is the summary
+              paragraph, which is the one part somebody wants without asking. */}
           {analysis ? (
-            done ? (
-              <Collapsible title="Your assessment" meta={analyzedAt ? `saved ${new Date(analyzedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}` : undefined}>
-                <AssessmentView a={analysis} analyzedAt={analyzedAt} />
-              </Collapsible>
-            ) : <AssessmentView a={analysis} analyzedAt={analyzedAt} />
+            <AssessmentView a={analysis} analyzedAt={analyzedAt} />
           ) : (
             <EmptyState icon="✨" title="No assessment yet" hint="Add photos and analyse, or fill in your profile and save — your assessment appears here." />
           )}
@@ -704,22 +762,28 @@ export function Profile() {
               the answer visible while it is closed, so somebody can see what
               they chose without opening anything. */}
           {analysis && (budget.data ? (
-            <Collapsible
-              title="Your budget"
+            <BeautyPlate
+              title={<>Create<br />Your Budget</>}
+              blurb="Set your monthly budget and let us personalise your beauty, wellness and care routine within your comfort."
               meta={budgetSummary(budget.data)}
-              action={<Link to="/beauty/routine" style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--accent-ink)' }}>See my routine →</Link>}
             >
               <BudgetPanel compact priorities={priorities} />
-            </Collapsible>
+              <p style={{ margin: '14px 0 0', fontSize: 11.5 }}>
+                <Link to="/beauty/routine" style={{ fontWeight: 700, color: 'var(--accent-ink)' }}>See my routine →</Link>
+              </p>
+            </BeautyPlate>
           ) : (
+            /* NOT A PLATE UNTIL THERE IS AN ANSWER IN IT. A budget that has
+               never been set is the next thing to do, and a poster you have to
+               open first is a poster in front of the only unfinished step. */
             <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid var(--accent)' }}>
               <BudgetPanel compact priorities={priorities} />
             </div>
           ))}
 
           {/* Permanent, dated assessment history + progress comparison. */}
-          {done
-            ? <Collapsible title="Skin &amp; hair timeline"><SkinHairTimeline /></Collapsible>
+          {analysed
+            ? <BeautyPlate title="Your Timeline" blurb="Every assessment you have saved, in order, with what changed between them."><SkinHairTimeline /></BeautyPlate>
             : <SkinHairTimeline />}
 
           {/* Medical Hub biomarkers → skin & hair, right here on the profile tab. */}
@@ -729,6 +793,20 @@ export function Profile() {
 
       {tab === 'profile' && (
         <div>
+          {/* THE DETAILS TAB GETS THE SECOND POSTER'S OTHER HALF. The plate on
+              the photos tab is titled "Your Photos & Details for Analysis"
+              because the owner's print is, and the details are on this tab —
+              so a citizen who lands here from the auto-advance arrives at a
+              page with no masthead on it at all.
+
+              NO PANEL BEHIND IT. What follows is eighteen questions somebody
+              came here to answer; putting them behind a fold would be folding
+              away the only unfinished thing on the page. */}
+          <BeautyPlate
+            title="Your Details"
+            blurb="Share your skin, hair and personal details so we can create your personalised assessment."
+            meta={`${answered} / ${profileTotal} answered`}
+          />
           {photoBanner && (
             <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 14, padding: '12px 14px', background: 'var(--ok-soft)', border: '1px solid var(--ok-line)', borderRadius: 12, fontSize: 13 }}>
               <span>✅</span>
