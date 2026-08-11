@@ -84,10 +84,26 @@ describe('the gemstone marketplace', () => {
     // ascendant gets without a birth time, for a larger sum of money.
     expect(gems).toMatch(/rec\.weight/);
     expect(gems).toMatch(/CARATS/);
-    expect(gems).toMatch(/one ratti for every ten kilos/);
     expect(gems).toMatch(/won’t guess at it|won't guess at it/);
     // No literal carat figure anywhere in the page.
     expect(gems).not.toMatch(/carats:\s*\d/);
+  });
+
+  it('says which rule bound the weight, not just what it is', () => {
+    /**
+     * ONE RULE FOR ALL THIRTY STONES PRESCRIBED NINE CARATS OF BLUE SAPPHIRE —
+     * ₹1,35,000 to ₹4,50,000 of the one stone practice is most careful about,
+     * and the one worn smallest. The body-weight rule is real; alone it is a
+     * rule about the wearer with nothing in it about the stone.
+     *
+     * The page now names the stone's own customary range and says whether the
+     * wearer was placed inside it or held at one end, which is the difference
+     * between a number and a recommendation.
+     */
+    expect(gems).toMatch(/rec\.weight\.fromRatti/);
+    expect(gems).toMatch(/rec\.weight\.bound/);
+    expect(gems).toMatch(/customarily worn between/);
+    expect(gems).toMatch(/Custom rather than calculation/);
   });
 
   it('is the owner\'s sheet, not a product row', () => {
@@ -180,5 +196,44 @@ describe('the remedies page', () => {
     expect(remedies).toMatch(/upcoming/);
     expect(remedies).toMatch(/After that/);
     expect(remedies).toMatch(/Everything for this season/);
+  });
+});
+
+/**
+ * WHAT CAN I ACTUALLY BUY.
+ *
+ * Four sheets, each honestly priced, still leaves the citizen doing arithmetic
+ * across them to answer the only question they have. A blue sapphire at ₹67,500
+ * and an amethyst standing in for it at ₹1,650 are both correct answers to the
+ * same chart; which is THEIRS depends on a number only they know.
+ */
+describe('the gemstone budget', () => {
+  const gems = code('features/astrology/pages/AstroGemstones.tsx');
+
+  it('spends in the ranked order, best-first', () => {
+    // The rank is the buying order, so it is also the spending order. Money
+    // must never buy a lesser stone at rank 1 to afford a better one at rank 3.
+    expect(gems).toMatch(/planWithin/);
+    expect(gems).toMatch(/for \(const rec of recs\)/);
+  });
+
+  it('prefers the recommended stone and reaches for a stand-in only when it must', () => {
+    expect(gems).toMatch(/affordable\.find\(\(o\) => o\.gem\.id === rec\.gem\.id\)/);
+    // And says so when it does — somebody who asked for a ruby and is shown a
+    // garnet should be told which one they are looking at.
+    expect(gems).toMatch(/standing in for/);
+  });
+
+  it('puts a figure on what it could not afford', () => {
+    // A gap with a number on it is a decision; a gap without one is a blank.
+    expect(gems).toMatch(/short of the cheapest way in/);
+  });
+
+  it('does not save the number', () => {
+    // The beauty hub's budget is a standing monthly limit the engine plans
+    // against. This is somebody moving a slider to see what a figure buys, and
+    // storing it would turn an idle question into a commitment nobody made.
+    expect(gems).not.toMatch(/useSaveGemBudget|\/astrology\/budget/);
+    expect(gems).toMatch(/useState/);
   });
 });

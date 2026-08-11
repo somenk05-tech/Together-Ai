@@ -1,8 +1,8 @@
-import { useId } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { Card, Spinner } from '@/components/ui';
 import { useAstroGemstones } from '../hooks';
 import { AstroHeader, AstroTabs, NeedsProfileCard } from '../shared';
-import type { GemAtWeight, GemPriority, GemRecommendation, GemRole } from '../api';
+import type { GemAtWeight, GemPriority, GemRecommendation, GemRole, GemstonesResponse } from '../api';
 
 /**
  * Tab 05 — Gemstones.
@@ -255,10 +255,24 @@ function StoneSheet({ rec }: { rec: GemRecommendation }) {
           <div className="gem-weight" style={{ color: 'var(--gem-title)' }}>
             {rec.weight.carats} <span style={{ fontSize: '.42em', letterSpacing: '.2em' }}>CARATS</span>
           </div>
+          {/* THE STONE HAS A SAY IN ITS OWN WEIGHT, and saying which rule bound
+              the figure is the difference between a number and a
+              recommendation. One rule for all thirty prescribed a hundred-kilo
+              citizen nine carats of blue sapphire — the one stone practice is
+              most careful about, and the one worn smallest. */}
           <p className="gem-body" style={{ color: 'var(--gem-body)' }}>
-            About {rec.weight.ratti} ratti — the traditional rule is one ratti for every ten kilos of
-            body weight. Anything from {rec.weight.fromCt} to {rec.weight.toCt} carats is the same
-            prescription; have a jeweller or astrologer confirm it before you commission the stone.
+            About {rec.weight.ratti} ratti. {gem.name.toLowerCase().replace(/^./, (c) => c.toUpperCase())} is
+            customarily worn between {rec.weight.fromRatti} and {rec.weight.toRatti} ratti
+            ({rec.weight.fromCt}–{rec.weight.toCt} ct), and{' '}
+            {rec.weight.bound === 'placed'
+              ? 'your body weight places you inside that.'
+              : rec.weight.bound === 'ceiling'
+                ? 'this is the top of it — the general rule of a ratti per ten kilos would go higher, and this stone is not worn that heavy.'
+                : 'this is the bottom of it — the general rule would go lower, and the stone is not worn lighter than this.'}
+          </p>
+          <p className="gem-body" style={{ color: 'var(--gem-body)', fontSize: 12, marginTop: 8 }}>
+            Custom rather than calculation. A chart-specific weight is an astrologer's call on your
+            whole chart — have this confirmed before you commission the stone.
           </p>
           <div>
             <span className="gem-price" style={{ color: 'var(--gem-title)', borderColor: 'var(--gem-accent)' }}>
@@ -285,6 +299,164 @@ function StoneSheet({ rec }: { rec: GemRecommendation }) {
           </div>
         </>
       )}
+    </Card>
+  );
+}
+
+
+/**
+ * ── WHAT CAN I ACTUALLY BUY? ────────────────────────────────────────────────
+ *
+ * Every sheet above answers "what should I wear" and prices it honestly, which
+ * leaves the citizen doing arithmetic across four cards to answer the question
+ * they actually have. A blue sapphire at ₹67,500 and an amethyst standing in
+ * for it at ₹1,650 are both correct answers to the same chart; which one is
+ * YOUR answer depends on a number only you know.
+ *
+ * SO THE RANK IS THE SPENDING ORDER. The stones are already ranked — 1 is the
+ * one to have if you have one — and this walks them in that order, taking the
+ * best option each one can afford before moving to the next. It is the beauty
+ * hub's budget doctrine in a second place, and deliberately the same shape: the
+ * money never buys a lesser stone higher up the list to afford a better one
+ * further down.
+ *
+ * THE PRIMARY WINS WHEN IT FITS. A substitute is a compromise the tradition
+ * permits, not a preference — so it is reached for only when the primary does
+ * not fit, and then the DEAREST substitute that does, because within the same
+ * planet a better stone is a better stone.
+ *
+ * THIS BUDGET IS NOT SAVED, and that is the difference between it and the
+ * beauty hub's. That one is a standing monthly limit the engine plans against;
+ * this is somebody moving a slider to see what a number buys. Storing it would
+ * turn an idle question into a commitment nobody made.
+ */
+const clampBudget = (n: number, max: number) => Math.max(0, Math.min(max, Math.round(n)));
+
+interface Affordable { rec: GemRecommendation; pick: GemAtWeight | null; isSubstitute: boolean; shortBy: number | null }
+
+function planWithin(recs: GemRecommendation[], budgetInr: number): { picks: Affordable[]; totalInr: number } {
+  let left = budgetInr;
+  const picks: Affordable[] = [];
+  for (const rec of recs) {
+    const primary: GemAtWeight = { gem: rec.gem, weight: rec.weight, fromInr: rec.fromInr, toInr: rec.toInr };
+    const options = [primary, ...rec.substitutes].filter((o) => o.fromInr !== null);
+    const affordable = options.filter((o) => (o.fromInr as number) <= left);
+    // The primary if it fits; otherwise the dearest substitute that does,
+    // because within one planet a better stone is a better stone.
+    const chosen = affordable.find((o) => o.gem.id === rec.gem.id)
+      ?? [...affordable].sort((a, b) => (b.fromInr as number) - (a.fromInr as number))[0]
+      ?? null;
+    if (chosen) {
+      left -= chosen.fromInr as number;
+      picks.push({ rec, pick: chosen, isSubstitute: chosen.gem.id !== rec.gem.id, shortBy: null });
+    } else {
+      // What the cheapest way into this stone would cost — a gap with a figure
+      // on it is a decision; a gap without one is just a blank.
+      const cheapest = Math.min(...options.map((o) => o.fromInr as number));
+      picks.push({ rec, pick: null, isSubstitute: false, shortBy: Number.isFinite(cheapest) ? cheapest - left : null });
+    }
+  }
+  return { picks, totalInr: budgetInr - left };
+}
+
+function BudgetPicker({ data }: { data: GemstonesResponse }) {
+  const recs = data.recommendations;
+  /** The whole set at its best — the top of the slider, so it always spans
+   *  "nothing" to "everything, at the finest quality this shelf sells". */
+  const ceiling = useMemo(() => {
+    const top = recs.reduce((n, r) => n + (r.toInr ?? 0), 0);
+    return Math.max(50_000, Math.ceil(top / 25_000) * 25_000);
+  }, [recs]);
+  const step = Math.max(500, Math.round(ceiling / 200 / 500) * 500);
+  const [budget, setBudget] = useState(() => clampBudget(Math.round(ceiling / 4), ceiling));
+  const [typed, setTyped] = useState<string | null>(null);
+
+  const { picks, totalInr } = useMemo(() => planWithin(recs, budget), [recs, budget]);
+  const got = picks.filter((p) => p.pick);
+  if (recs.length === 0 || data.weightUnknown) return null;
+
+  return (
+    <Card style={{ padding: '26px 28px', marginTop: 26 }}>
+      <h2 style={{ fontSize: 17, margin: '0 0 4px' }}>What your budget buys</h2>
+      <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.6, margin: '0 0 18px', maxWidth: 580 }}>
+        Move this to whatever you have in mind. We spend it in the order above — the must-have
+        first — and take the recommended stone whenever it fits, or the stand-in for the same
+        planet when it doesn&rsquo;t.
+      </p>
+
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 30, fontWeight: 800, letterSpacing: '-.02em', fontVariantNumeric: 'tabular-nums' }}>{rupees(budget)}</span>
+        <span className="muted" style={{ fontSize: 12 }}>to spend</span>
+        <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'baseline', gap: 4 }}>
+          <span className="muted" style={{ fontSize: 13 }}>₹</span>
+          <input
+            aria-label="Budget for gemstones, in rupees"
+            inputMode="numeric"
+            value={typed ?? String(budget)}
+            onChange={(e) => setTyped(e.target.value)}
+            onBlur={(e) => { setBudget(clampBudget(Number(e.target.value.replace(/[^\d]/g, '')) || 0, ceiling)); setTyped(null); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+            style={{ width: 96, textAlign: 'right', border: 'none', borderBottom: '1px solid var(--line)', background: 'transparent',
+              fontFamily: 'inherit', fontSize: 18, fontWeight: 700, color: 'var(--ink)', padding: '1px 2px', outline: 'none' }} />
+        </span>
+      </div>
+
+      <input type="range" min={0} max={ceiling} step={step} value={budget}
+        aria-label="Budget for gemstones"
+        onChange={(e) => { setTyped(null); setBudget(Number(e.target.value)); }}
+        style={{ width: '100%', margin: '14px 0 6px', accentColor: 'var(--accent)' }} />
+      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <span className="muted" style={{ fontSize: 11 }}>Nothing</span>
+        <span className="muted" style={{ fontSize: 11 }}>{rupees(ceiling)} — all of them, at their finest</span>
+      </div>
+
+      <ul style={{ listStyle: 'none', padding: 0, margin: '20px 0 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {picks.map(({ rec, pick, isSubstitute, shortBy }) => (
+          <li key={rec.gem.id} style={{ display: 'flex', alignItems: 'center', gap: 12, borderTop: '1px solid var(--line)', paddingTop: 10 }}>
+            <span className="gem-num" style={{ width: 24, height: 24, fontSize: 11.5, opacity: pick ? 1 : .45 }}>{rec.rank}</span>
+            {pick
+              ? <img className="no-case" src={pick.gem.image} alt="" aria-hidden loading="lazy" width={34} height={34}
+                  style={{ width: 34, height: 34, objectFit: 'contain', mixBlendMode: 'multiply' }} />
+              : <span aria-hidden style={{ width: 34 }} />}
+            <span style={{ flex: 1, minWidth: 0, fontSize: 13, textAlign: 'left' }}>
+              {pick ? (
+                <>
+                  <strong>{pick.gem.name}</strong>
+                  <span className="muted"> · {pick.weight?.carats} ct</span>
+                  {/* Named as a stand-in rather than quietly swapped — somebody
+                      who asked for a ruby and is shown a garnet should be told
+                      which one they are looking at. */}
+                  {isSubstitute && <span className="muted"> · standing in for {rec.gem.name.toLowerCase()}</span>}
+                </>
+              ) : (
+                <span className="muted">
+                  {rec.gem.name} — {shortBy !== null ? `${rupees(shortBy)} short of the cheapest way in` : 'nothing at this budget'}
+                </span>
+              )}
+            </span>
+            <span style={{ fontSize: 13, fontWeight: 700, minWidth: 84, textAlign: 'right' }}>
+              {pick ? `from ${rupees(pick.fromInr as number)}` : '—'}
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', borderTop: '1px solid var(--line)', marginTop: 12, paddingTop: 14 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' }}>
+          {got.length} of {picks.length} stone{picks.length === 1 ? '' : 's'}
+        </span>
+        <span style={{ marginLeft: 'auto', fontSize: 22, fontWeight: 800, letterSpacing: '-.01em' }}>{rupees(totalInr)}</span>
+      </div>
+      {budget - totalInr > 0 && got.length === picks.length && (
+        <p className="muted" style={{ fontSize: 12, lineHeight: 1.6, margin: '10px 0 0' }}>
+          {rupees(budget - totalInr)} left over. Everything your chart asks for is covered — the rest
+          buys a finer grade of the same stones rather than another stone.
+        </p>
+      )}
+      <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.6, margin: '12px 0 0' }}>
+        Prices are the bottom of each stone&rsquo;s range at the weight you are prescribed. A finer
+        grade of the same stone costs more; the sheets above give both ends.
+      </p>
     </Card>
   );
 }
@@ -351,6 +523,11 @@ export function AstroGemstones() {
           </div>
 
           {data.recommendations.map((rec) => <StoneSheet key={rec.gem.id} rec={rec} />)}
+
+          {/* Last on the page on purpose: the question "what can I afford"
+              only makes sense once somebody has read what they are choosing
+              between. */}
+          <BudgetPicker data={data} />
 
           <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.6, marginTop: 20, textAlign: 'center', maxWidth: 620, marginLeft: 'auto', marginRight: 'auto' }}>
             {data.disclaimer}

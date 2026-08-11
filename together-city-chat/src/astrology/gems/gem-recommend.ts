@@ -3,7 +3,7 @@ import type { DashaLord } from '../personal-factors';
 import { GEMS, PRIMARY_BY_PLANET } from './gem-catalog';
 import type { Gem, GemPlanet } from './gem-types';
 import { TRIAL_NOTE, TRIAL_REQUIRED, WEARING, planetOf, type WearingRule } from './wearing';
-import { SUBSTITUTE_FACTOR, priceAtWeight, recommendedWeight, type GemWeight } from './gem-weight';
+import { priceAtWeight, recommendedWeight, type GemWeight } from './gem-weight';
 
 /**
  * Which stones this chart calls for — and, just as importantly, how few.
@@ -229,8 +229,11 @@ export function recommendGems(input: GemChartInput): GemRecommendations {
     if (ROLE_ORDER.indexOf(c.role) < ROLE_ORDER.indexOf(seen.role)) seen.role = c.role;
   }
 
-  const at = (gem: Gem, factor: number): GemAtWeight => {
-    const weight = recommendedWeight(input.bodyKg, factor);
+  // The STONE has a say in its own weight — coral is worn heavy and sapphire
+  // light, and a single body-weight rule applied to both is how a hundred-kilo
+  // citizen was prescribed nine carats of Neelam.
+  const at = (gem: Gem): GemAtWeight => {
+    const weight = recommendedWeight(input.bodyKg, gem.planet, gem.kind);
     const price = weight ? priceAtWeight(weight.carats, gem.perCaratMinInr, gem.perCaratMaxInr) : null;
     return { gem, weight, fromInr: price?.fromInr ?? null, toInr: price?.toInr ?? null };
   };
@@ -239,7 +242,7 @@ export function recommendGems(input: GemChartInput): GemRecommendations {
   for (const [planet, { role, reasons }] of byPlanet) {
     const gem = PRIMARY_BY_PLANET.get(planet);
     if (!gem) continue;   // nine planets, nine primaries — but never assume it
-    const priced = at(gem, 1);
+    const priced = at(gem);
     recommendations.push({
       gem, role, reasons,
       // Both replaced below, once the list is in its final order.
@@ -247,7 +250,7 @@ export function recommendGems(input: GemChartInput): GemRecommendations {
       weight: priced.weight, fromInr: priced.fromInr, toInr: priced.toInr,
       wearing: WEARING[planet],
       trialNote: TRIAL_REQUIRED.has(gem.id) ? TRIAL_NOTE : null,
-      substitutes: GEMS.filter((g) => g.substituteFor === gem.id).map((g) => at(g, SUBSTITUTE_FACTOR)),
+      substitutes: GEMS.filter((g) => g.substituteFor === gem.id).map((g) => at(g)),
     });
   }
   recommendations.sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role));
@@ -274,7 +277,7 @@ export function recommendGems(input: GemChartInput): GemRecommendations {
       bodyKg: typeof input.bodyKg === 'number' ? input.bodyKg : null,
     },
     timeUnknown,
-    weightUnknown: recommendedWeight(input.bodyKg) === null,
+    weightUnknown: recommendedWeight(input.bodyKg, 'sun') === null,
     recommendations,
   };
 }

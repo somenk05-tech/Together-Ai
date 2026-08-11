@@ -1,84 +1,130 @@
+import type { GemPlanet, GemKind } from './gem-types';
+
 /**
- * How much stone, for this person.
+ * How much stone, for this person — and the first version of this was wrong in
+ * a way worth writing down.
  *
- * THE QUESTION EVERY GEM PAGE HAS TO ANSWER AND MOST DO NOT. A price per carat
- * is not a price. "₹8,000 – ₹25,000 per carat" tells somebody nothing about
- * what they are about to spend until they know how many carats their own chart
- * asks for — and the answer is not a property of the stone, it is a property of
- * the wearer.
+ * WHAT IT DID. It applied ONE rule to all thirty stones: about a ratti for every
+ * ten kilos of body weight, converted at the trade's 0.91 carat to the ratti.
+ * That rule is real and it is the one most often quoted, but quoted alone it is
+ * a rule about the WEARER with nothing in it about the STONE. A hundred-kilo
+ * citizen was therefore prescribed a NINE-CARAT BLUE SAPPHIRE — between
+ * ₹1,35,000 and ₹4,50,000 of Neelam — which is not a cautious recommendation in
+ * any tradition. Practice says the opposite about that stone in particular:
+ * blue sapphire is worn SMALL, three to five ratti, and heavy Neelam is the
+ * classic warning.
  *
- * THE RULE IS THE TRADITION'S, NOT OURS, AND IT IS NAMED ON THE PAGE. The
- * convention cited across Indian gem astrology is roughly ONE RATTI PER TEN
- * KILOS of body weight, and the data sheet fixes the conversion this app uses
- * at 1 ratti ≈ 0.91 carat. So a seventy-kilo person is prescribed about seven
- * ratti, which is about 6.4 carats, which this rounds down to 6.25 — quarter-carat steps, because
- * that is how stones are cut and sold.
+ * A diamond makes the same point from the other end. Nobody is prescribed nine
+ * carats of it. Venus's stone is worn at well under two ratti and the price is
+ * why the tradition ever had to say so.
  *
- * It is a rule of thumb and the page says so. A qualified astrologer looking at
- * the whole chart may set a different weight, and nothing here pretends
- * otherwise — the sheet gives the figure, the tradition it comes from, and the
- * sentence saying to have it confirmed.
+ * ── SO THE STONE HAS A SAY ──────────────────────────────────────────────────
  *
- * NO BODY WEIGHT MEANS NO FIGURE. Not an average, not a default, not "most
- * people wear five carats" — the same refusal the ascendant gets when there is
- * no birth time. A number invented on somebody's behalf here is the difference
- * between a ₹50,000 stone and a ₹90,000 one.
+ * Two inputs, in this order:
  *
- * A SUBSTITUTE IS WORN HEAVIER. The upratna carry the same planet at a
- * fraction of the price and the tradition compensates with mass — the data
- * sheet gives 1.5 to 2 times the primary's weight, and this takes the middle of
- * that. It is the reason a "cheaper" stone is not as much cheaper as its per-
- * carat price suggests, and the sheet shows the arithmetic rather than letting
- * somebody discover it at the counter.
+ *   1. THE STONE'S CUSTOMARY RANGE. Each of the nine has one, and they are not
+ *      close to each other: coral and hessonite are worn heavy, sapphire and
+ *      diamond light. This is the constraint, and it is never overridden.
+ *   2. THE BODY-WEIGHT RULE, used to place somebody INSIDE that range rather
+ *      than to set the figure outright. A heavier person sits toward the top of
+ *      the stone's range; a lighter one toward the bottom. Outside it, they sit
+ *      at whichever end they are nearest, and the plan says so.
+ *
+ * A SUBSTITUTE IS WORN HEAVIER — the upratna carry the same planet at a
+ * fraction of the price and the tradition compensates with mass, about three
+ * quarters again. The factor is applied to the RANGE, not to the answer, so a
+ * substitute is still bounded by what its own stone is worn at.
+ *
+ * ALL OF IT IS CUSTOM, NOT CALCULATION, AND THE PAGE SAYS SO. A chart-specific
+ * weight is an astrologer's call on the whole chart. What this gives is the
+ * conventional figure and the range around it, with the instruction to have it
+ * confirmed before anything is commissioned.
  */
 
-/** The data sheet's own conversion. 1 ratti ≈ 0.91 ct. */
+/** The trade's ratti, which is what Indian jewellers quote. 1 ratti = 0.91 ct. */
 export const CT_PER_RATTI = 0.91;
-/** The tradition's rule of thumb: one ratti for every ten kilos. */
+/** The general rule of thumb: about one ratti for every ten kilos. */
 export const KG_PER_RATTI = 10;
-/** Upratna are worn at 1.5–2× the primary. The middle of the sheet's range. */
+/** Upratna are worn at 1.5–2× the primary. The middle of the data sheet's range. */
 export const SUBSTITUTE_FACTOR = 1.75;
 
-/** Nothing is prescribed under two carats or over eleven, whatever the
- *  arithmetic says — below the first it is jewellery, above the second it is a
- *  commission rather than a recommendation. */
-const MIN_CT = 2;
-const MAX_CT = 11;
+/**
+ * What each planet's stone is customarily worn at, in ratti.
+ *
+ * These are the conventional ranges, and the spread between them IS the point —
+ * a rule that gave coral and sapphire the same weight would be ignoring the
+ * thing every practitioner is most careful about.
+ */
+export const RATTI_RANGE: Record<GemPlanet, { min: number; max: number }> = {
+  sun: { min: 3, max: 6 },        // Ruby
+  moon: { min: 4, max: 11 },      // Pearl — light stone, worn generously
+  mars: { min: 6, max: 12 },      // Red coral — the heaviest of the nine
+  mercury: { min: 3, max: 6 },    // Emerald
+  jupiter: { min: 5, max: 9 },    // Yellow sapphire
+  venus: { min: 0.5, max: 2 },    // Diamond — worn small, and priced accordingly
+  saturn: { min: 3, max: 5 },     // Blue sapphire — the stone practice warns about
+  rahu: { min: 6, max: 11 },      // Hessonite
+  ketu: { min: 3, max: 7 },       // Cat's eye
+};
 
-/** Quarter-carat steps: stones are cut and sold in them, and "6.37 ct" is a
- *  number no jeweller will hand you. */
+/** Cut and sold in quarter carats; "6.37 ct" is a number no jeweller hands you. */
 const quarter = (n: number) => Math.round(n * 4) / 4;
+/** Ratti are quoted in halves. */
+const half = (n: number) => Math.round(n * 2) / 2;
 
 export interface GemWeight {
-  /** What the rule gives for this person, in carats. */
+  /** The figure to commission, in carats. */
   carats: number;
-  /** The same figure in the unit the tradition actually counts in. */
+  /** The same, in the unit the tradition counts in. */
   ratti: number;
-  /** The workable spread around it — a stone half a carat either side is the
-   *  same prescription, and insisting on an exact figure sends people hunting. */
+  /** The stone's customary range, in carats — the spread a jeweller will work in. */
   fromCt: number;
   toCt: number;
-  /** True when the rule was clamped, so the page can say so rather than
-   *  quietly presenting a floor as a calculation. */
-  clamped: boolean;
+  /** That range in ratti, for the sentence that names the custom. */
+  fromRatti: number;
+  toRatti: number;
+  /**
+   * Why the figure is where it is:
+   *   'placed'   the body-weight rule landed inside the stone's range
+   *   'floor'    lighter than the stone is worn — set at the bottom of its range
+   *   'ceiling'  heavier than the stone is worn — held at the top of its range
+   */
+  bound: 'placed' | 'floor' | 'ceiling';
 }
 
 /**
- * The recommended weight for a body weight in kilos, or null if we were not
- * told one.
+ * The recommended weight, or null when no body weight is on file.
  *
- * `factor` carries the substitute multiplier; it is 1 for a primary stone.
+ * NO AVERAGE IS SUBSTITUTED. The same refusal the ascendant gets without a
+ * birth time, and for more money.
  */
-export function recommendedWeight(bodyKg: number | null | undefined, factor = 1): GemWeight | null {
+export function recommendedWeight(
+  bodyKg: number | null | undefined,
+  planet: GemPlanet,
+  kind: GemKind = 'primary',
+): GemWeight | null {
   if (typeof bodyKg !== 'number' || !Number.isFinite(bodyKg) || bodyKg <= 0) return null;
-  const raw = (bodyKg / KG_PER_RATTI) * CT_PER_RATTI * factor;
-  const carats = quarter(Math.min(MAX_CT, Math.max(MIN_CT, raw)));
+
+  const base = RATTI_RANGE[planet];
+  if (!base) return null;
+  // The factor scales the RANGE, so a substitute is still bounded by what its
+  // own stone is worn at rather than by a multiple of somebody's answer.
+  const factor = kind === 'primary' ? 1 : SUBSTITUTE_FACTOR;
+  const min = half(base.min * factor);
+  const max = half(base.max * factor);
+
+  const wanted = bodyKg / KG_PER_RATTI * factor;
+  const ratti = half(Math.min(max, Math.max(min, wanted)));
+  const bound = wanted < min ? 'floor' : wanted > max ? 'ceiling' : 'placed';
+
   return {
-    carats,
-    ratti: Math.round((carats / CT_PER_RATTI) * 4) / 4,
-    fromCt: quarter(Math.max(MIN_CT, carats - 0.5)),
-    toCt: quarter(Math.min(MAX_CT, carats + 0.5)),
-    clamped: quarter(raw) !== carats,
+    carats: quarter(ratti * CT_PER_RATTI),
+    ratti,
+    fromCt: quarter(min * CT_PER_RATTI),
+    toCt: quarter(max * CT_PER_RATTI),
+    fromRatti: min,
+    toRatti: max,
+    bound,
   };
 }
 

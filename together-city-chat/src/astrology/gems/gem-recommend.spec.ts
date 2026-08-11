@@ -176,22 +176,66 @@ describe('which stone to buy first', () => {
 
 describe('how many carats, for this person', () => {
   /**
-   * THE FIGURE THAT TURNS A PRICE PER CARAT INTO A PRICE. "₹8,000 – ₹25,000
-   * per carat" is not a number anybody can act on; the same stone at the weight
-   * their own body is prescribed is.
+   * THE FAILURE THIS REPLACED, because it shipped and it was expensive.
+   *
+   * One rule for all thirty stones — a ratti per ten kilos — prescribed a
+   * hundred-kilo citizen a NINE-CARAT BLUE SAPPHIRE, ₹1,35,000 to ₹4,50,000 of
+   * Neelam. That is the one stone practice is most careful about and it is worn
+   * SMALL. The body-weight rule is real; alone, it is a rule about the wearer
+   * with nothing in it about the stone.
    */
-  it('works the weight out from body weight, at the tradition\'s own rule', () => {
-    // One ratti per ten kilos, 0.91 ct to the ratti — 70 kg is 7 ratti is
-    // 6.37 ct, shown as 6.25 because stones are cut in quarter carats.
-    const r = recommendGems({ ascendant: 'Leo', moonSign: 'Taurus', mahadasha: 'Sun', antardasha: 'Venus', lifePath: 1, bodyKg: 70 });
-    const life = r.recommendations.find((x) => x.role === 'life')!;
-    expect(life.weight?.carats).toBe(6.25);
-    expect(r.weightUnknown).toBe(false);
+  const forKg = (kg: number) => recommendGems({
+    ascendant: 'Capricorn', moonSign: 'Taurus', mahadasha: 'Saturn', antardasha: 'Venus', lifePath: 8, bodyKg: kg,
+  });
+
+  it('never prescribes a heavy blue sapphire, whatever the wearer weighs', () => {
+    for (const kg of [55, 70, 100, 140]) {
+      const neelam = forKg(kg).recommendations.find((x) => x.gem.id === 'blue-sapphire')!;
+      // Three to five ratti is the custom; five ratti is 4.55 ct.
+      expect({ kg, ct: neelam.weight!.carats, tooBig: neelam.weight!.carats > 4.75 })
+        .toEqual({ kg, ct: neelam.weight!.carats, tooBig: false });
+    }
+  });
+
+  it('keeps a diamond small and a coral heavy, because they are worn that way', () => {
+    const r = recommendGems({ ascendant: 'Libra', moonSign: 'Aries', mahadasha: 'Venus', antardasha: 'Mars', lifePath: 6, bodyKg: 100 });
+    const venus = r.recommendations.find((x) => x.gem.planet === 'venus')!;
+    const mars = r.recommendations.find((x) => x.gem.planet === 'mars');
+    expect(venus.weight!.carats).toBeLessThanOrEqual(2);      // diamond, under two carats
+    if (mars) expect(mars.weight!.carats).toBeGreaterThan(venus.weight!.carats * 3);
+  });
+
+  it('places a person inside the stone\'s range rather than outside it', () => {
+    // Light and heavy wearers of the same stone differ, but both stay in range.
+    const light = forKg(45).recommendations.find((x) => x.gem.id === 'blue-sapphire')!.weight!;
+    const heavy = forKg(120).recommendations.find((x) => x.gem.id === 'blue-sapphire')!.weight!;
+    expect(light.carats).toBeLessThanOrEqual(heavy.carats);
+    for (const w of [light, heavy]) {
+      expect(w.carats).toBeGreaterThanOrEqual(w.fromCt);
+      expect(w.carats).toBeLessThanOrEqual(w.toCt);
+    }
+    // And it says WHY it sits where it does, so the page can explain itself.
+    expect(['floor', 'placed', 'ceiling']).toContain(heavy.bound);
+  });
+
+  it('bounds every stone in the catalogue, primaries and substitutes alike', () => {
+    for (const kg of [40, 70, 100, 150]) {
+      for (const rec of forKg(kg).recommendations) {
+        for (const w of [rec.weight!, ...rec.substitutes.map((s) => s.weight!)]) {
+          expect({ kg, id: rec.gem.id, inRange: w.carats >= w.fromCt && w.carats <= w.toCt })
+            .toEqual({ kg, id: rec.gem.id, inRange: true });
+        }
+      }
+    }
+  });
+
+  it('makes a substitute heavier than the stone it stands in for', () => {
+    const r = recommendGems({ ascendant: 'Libra', moonSign: 'Taurus', mahadasha: 'Venus', antardasha: 'Sun', lifePath: 6, bodyKg: 70 });
+    const venus = r.recommendations.find((x) => x.gem.planet === 'venus')!;
+    for (const s of venus.substitutes) expect(s.weight!.carats).toBeGreaterThan(venus.weight!.carats);
   });
 
   it('offers no figure at all when nobody has told us a body weight', () => {
-    // The same refusal the ascendant gets without a birth time. An average here
-    // is the difference between a ₹50,000 stone and a ₹90,000 one.
     const r = chart();
     expect(r.weightUnknown).toBe(true);
     for (const rec of r.recommendations) {
@@ -200,31 +244,10 @@ describe('how many carats, for this person', () => {
   });
 
   it('prices the stone at that weight, not per carat', () => {
-    const r = recommendGems({ ascendant: 'Leo', moonSign: 'Taurus', mahadasha: 'Sun', antardasha: 'Venus', lifePath: 1, bodyKg: 70 });
-    const ruby = r.recommendations.find((x) => x.gem.id === 'ruby')!;
-    expect(ruby.fromInr).toBe(Math.round(6.25 * ruby.gem.perCaratMinInr));
-    expect(ruby.toInr).toBe(Math.round(6.25 * ruby.gem.perCaratMaxInr));
-  });
-
-  it('makes a substitute heavier, which is what decides whether it is cheaper', () => {
-    // The upratna carry the same planet at a fraction of the per-carat price and
-    // the tradition compensates with mass. Showing the cheap per-carat figure
-    // without the heavier weight is how somebody finds out at the counter.
-    const r = recommendGems({ ascendant: 'Libra', moonSign: 'Taurus', mahadasha: 'Venus', antardasha: 'Sun', lifePath: 6, bodyKg: 70 });
-    const venus = r.recommendations.find((x) => x.gem.planet === 'venus')!;
-    for (const s of venus.substitutes) {
-      expect(s.weight!.carats).toBeGreaterThan(venus.weight!.carats);
-    }
-  });
-
-  it('never prescribes under two carats or over eleven', () => {
-    for (const kg of [20, 45, 70, 95, 140, 200]) {
-      const r = recommendGems({ ascendant: 'Leo', moonSign: 'Taurus', mahadasha: 'Sun', antardasha: 'Venus', lifePath: 1, bodyKg: kg });
-      for (const rec of r.recommendations) {
-        const c = rec.weight!.carats;
-        expect({ kg, inRange: c >= 2 && c <= 11 }).toEqual({ kg, inRange: true });
-      }
-    }
+    const r = forKg(70);
+    const g = r.recommendations[0];
+    expect(g.fromInr).toBe(Math.round(g.weight!.carats * g.gem.perCaratMinInr));
+    expect(g.toInr).toBe(Math.round(g.weight!.carats * g.gem.perCaratMaxInr));
   });
 });
 

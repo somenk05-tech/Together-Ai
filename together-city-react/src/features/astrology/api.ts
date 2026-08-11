@@ -200,7 +200,12 @@ export interface GemWearing {
 
 /** The weight the tradition prescribes for this person, in carats. */
 export interface GemWeight {
-  carats: number; ratti: number; fromCt: number; toCt: number; clamped: boolean;
+  carats: number; ratti: number;
+  /** The stone's own customary range — coral is worn heavy, sapphire light. */
+  fromCt: number; toCt: number; fromRatti: number; toRatti: number;
+  /** Why the figure sits where it does: inside the stone's range, or held at
+   *  one end of it because the wearer is lighter or heavier than it is worn. */
+  bound: 'placed' | 'floor' | 'ceiling';
 }
 
 /** A stone at that weight, with what it costs there. */
