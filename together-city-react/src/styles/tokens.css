@@ -436,6 +436,30 @@
   /* A gradient is an image, so a hub that hangs a WASH uses the same name as a
      hub that hangs a photograph. One mechanism, not two. */
   --sky-image: none;
+
+  /* ── INK ON THE GROUND, FOR A HUB WHOSE GROUND IS NOT ITS PAPER ──────────
+     Every grant in this file until now re-pointed ONE ground, so --ink was the
+     answer to "what colour is text" everywhere in the hub. The Beauty gallery
+     wall is the first surface a citizen reads text ON that is not the same
+     material as the card beside it: near-black behind, cream in front.
+
+     These three are the ink scale for the wall, and at :root they are the ink
+     scale — no hub without a wall is affected, and nothing needs a fallback.
+     relief.spec measures them against --ground the way it measures --ink
+     against --paper. */
+  --on-ground:       var(--ink);
+  --on-ground-soft:  var(--ink-soft);
+  --on-ground-muted: var(--muted);
+
+  /* And the same scale under a name that survives being shadowed. Re-pointing
+     --ink inside .tc-main is how the wall's ink reaches inline styles; putting
+     it BACK on a card needs the paper's value by a name .tc-main did not
+     touch, because a custom property cannot refer to the value it is replacing.
+     These four are that name. */
+  --on-paper:       var(--ink);
+  --on-paper-soft:  var(--ink-soft);
+  --on-paper-muted: var(--muted);
+  --on-paper-faint: var(--faint);
   --sky-pos: 50% 50%;
   --sky-size: cover;
   --pane: var(--face-tall);
@@ -1496,28 +1520,80 @@
    inverted — which is what makes this the cheapest of the three grants and,
    if it is ever handed back, the cleanest to return.                        */
 [data-hub="beauty"] {
-  /* Grounds. Two, not four: the page is the sand and a card is the cream, and
-     the wash is the one step between them. Following the bone room rather than
-     the dark one — ground and paper are the same value there too, because a
-     shell a shade off the page puts a seam down the side of every layout. */
-  --ground: #e0d0ba;
-  --paper:  #e0d0ba;
+  /* ── THE WALL AND THE PAPER ARE TWO DIFFERENT SURFACES, AND THAT IS NEW ───
+     Every other grant in this file re-points ONE ground: the page and the card
+     are the same material a step apart. This hub has two materials. --ground is
+     the WALL — near-black, grained, vignetted, the owner's backdrop photograph
+     — and it is only ever behind things. --paper and --card are the PRINT, and
+     everything a citizen reads is on one of them.
+
+     WHICH IS WHY --paper IS NOT --ground HERE. In the bone room they are the
+     same value on purpose, so no seam runs down the side of a layout. Here the
+     seam IS the design: the edge of a plate against the wall is what makes it a
+     plate. --paper stays the light surface because it is also every WELL — an
+     input, a photo tile, the tab track — and a black field inside a cream card
+     is not a gallery, it is a bug. */
+  --ground: #101010;
+  --paper:  #e7ded1;
   --card:   #f6f1e8;
-  --wash:   #ebe0cf;
-  /* The hairline, mixed from the sand rather than from grey. A #e6e6e6 rule on
+  --wash:   #efe8dc;
+  /* The hairline, mixed from the paper rather than from grey. A #e6e6e6 rule on
      a warm ground reads blue, which is the tell of a palette that was tinted
      halfway. */
-  --line:      #cfbda4;
+  --line:      #d5c7b3;
+
+  /* ── THE WALL'S TEXTURE, THROUGH THE MECHANISM SOCIAL ALREADY BUILT ──────
+     --sky-image is declared at :root as `none` and hung by one fixed layer
+     behind the shell. Social's note says it: a gradient is an image, so the hub
+     that hangs a picture and the hub that hangs a wash use one mechanism rather
+     than two. A photographic backdrop is the same kind of thing again.
+
+     Three layers, and each is doing a job the reference does. The GRAIN is
+     fractal noise at low opacity — a flat near-black reads as an unloaded
+     screen, and the tooth is most of why the reference looks like a surface.
+     The KEY is an off-centre highlight, the soft box up and to the left. The
+     VIGNETTE is the fall to true black at the corners, which is what makes the
+     wall read as lit rather than as a colour.
+
+     It is generated rather than shipped: a 2000px photograph of a black wall is
+     a megabyte and a half for something four lines of CSS say exactly, and it
+     would have to be re-exported for every screen density. */
+  --sky-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)' opacity='.16'/%3E%3C/svg%3E"),
+    radial-gradient(78% 58% at 34% 26%, rgba(255,255,255,.085), rgba(255,255,255,0) 62%),
+    radial-gradient(120% 100% at 50% 46%, rgba(0,0,0,0) 24%, rgba(0,0,0,.72) 100%);
+
+  /* ── THE INK ON THE WALL ─────────────────────────────────────────────────
+     The scale below is measured on the PAPER, which is where nearly everything
+     is read. These three are for the little that is drawn straight onto the
+     wall — a page heading, a tab rule, the index between two plates — and they
+     are measured on the wall instead. relief.spec checks both sets, because a
+     hub with two grounds and one checked ground is a hub with an unchecked
+     ground.
+
+     Not pure white. #ffffff on #101010 is 19:1 and it glares; these are the
+     same near-whites the dark hubs use, and they still clear AA four times
+     over. */
+  --on-ground:       #ede9e2;   /* 15.7:1 on the wall */
+  --on-ground-soft:  #d9d3c9;   /* 12.8:1 */
+  --on-ground-muted: #a49b8e;   /*  6.9:1 — the floor, and it is nowhere near it */
 
   /* THE INKS, MEASURED. Every figure is this hub's own ground, not white —
      relief.spec recomputes all of them at build time, which is the whole
      reason a ground is granted rather than approximated. */
-  --ink:        #171310;   /* 12.2:1 on the paper */
-  --ink-soft:   #2e2822;   /* 12.9:1 on a card    */
-  --muted:      #5b5145;   /*  5.13:1 */
-  --faint:      #5f564a;   /*  4.77:1 — the floor of the scale, and the step a
-                                       hand-picked warm palette always fails */
-  --accent-ink: #1c1c1c;   /* 11.3:1 */
+  --on-paper:       #171310;   /* 13.9:1 on the paper */
+  --on-paper-soft:  #2e2822;   /* 12.9:1 on a card    */
+  --on-paper-muted: #5b5145;   /*  5.82:1 */
+  --on-paper-faint: #5f564a;   /*  5.41:1 — the floor of the scale, and the
+                                            step a hand-picked warm palette
+                                            always fails */
+  /* Declared through the four above rather than beside them: two lists of the
+     same four greys is two lists that disagree the first time one is nudged. */
+  --ink:        var(--on-paper);
+  --ink-soft:   var(--on-paper-soft);
+  --muted:      var(--on-paper-muted);
+  --faint:      var(--on-paper-faint);
+  --accent-ink: #1c1c1c;   /* 12.8:1 */
 
   /* The accent stays the city's near-black — this hub never had a coloured one
      and is not getting one with a ground. Only its two pale companions move,
@@ -1528,10 +1604,10 @@
   /* STATUS. The two inks that fail on this ground are the two that always do:
      green and amber sit close to the sand in luminance where red and blue do
      not. Both are the root hue taken down until they clear, hue unchanged. */
-  --ok-ink:     #145a26;   /*  5.52:1 — was 4.36 at the root value */
-  --warn-ink:   #664509;   /*  5.74:1 — was 4.48 */
-  --danger-ink: #a5231f;   /*  4.86:1 — clears unchanged */
-  --info-ink:   #14568f;   /*  5.04:1 — clears unchanged */
+  --ok-ink:     #145a26;   /*  6.26:1 — the root value reads 4.36 on this paper */
+  --warn-ink:   #664509;   /*  6.51:1 — the root value reads 4.48 */
+  --danger-ink: #a5231f;   /*  5.51:1 */
+  --info-ink:   #14568f;   /*  5.72:1 */
   /* Their washes are near-white at the root. A mint-white banner on sand is a
      cold rectangle, so each is the card's cream carried toward its own hue. */
   --ok-soft:     #e9efe0;  --ok-line:     #c6d7bb;

@@ -167,7 +167,6 @@ const SCALP_TYPES = ['Dry', 'Oily', 'Normal', 'Sensitive', "Don't know"];
 const ROUTINE = ['Face Cleanser', 'Moisturizer', 'Sunscreen', 'Serum', 'Toner', 'Exfoliator', 'Face Mask', 'Hair Shampoo', 'Conditioner', 'Hair Oil', 'Hair Serum', 'Hair Mask'];
 const ALLERGIES = ['Fragrance', 'Essential Oils', 'Retinol', 'Niacinamide', 'Vitamin C', 'Salicylic Acid', 'Benzoyl Peroxide', 'AHA', 'BHA', 'Sulphates', 'Silicones', 'Parabens', 'Alcohol', 'Coconut Oil', 'Nuts'];
 const CONDITIONS = ['PCOS', 'Thyroid Disorders', 'Diabetes', 'Autoimmune Disorders', 'Pregnancy', 'Breastfeeding', 'Eczema', 'Psoriasis', 'Rosacea', 'Alopecia', 'Hormonal Acne', 'Seborrheic Dermatitis'];
-const BUDGET = ['Under ₹500', '₹500–1000', '₹1000–2500', '₹2500–5000', '₹5000+', "Don't know"];
 const LEVEL: Record<AssessLevel, { color: string; soft: string; label: string }> = {
   good: { color: 'var(--ok-ink)', soft: 'var(--ok-soft)', label: 'Good' },
   monitor: { color: 'var(--info-ink)', soft: 'var(--info-soft)', label: 'Monitor' },
@@ -186,12 +185,25 @@ const EMPTY: Form = { skinGoals: [], skinConcerns: [], hairGoals: [], hairConcer
 /** Onboarding completion: every one of these 18 must be answered ("Don't know" /
  *  "None of these" count as answers) before the AI analysis unlocks. */
 const NONE = 'None of these';
-const REQUIRED_SINGLE: (keyof Form)[] = ['gender', 'lifestyle', 'skinType', 'skinTone', 'undertone', 'hairType', 'hairThickness', 'hairDensity', 'hairTexture', 'scalpType', 'budget'];
+/**
+ * THE BUDGET IS NOT ONE OF THESE ANY MORE, AND THAT IS THE WHOLE FIX.
+ *
+ * It was asked twice: a row of six range chips at the foot of this form, and
+ * the real budget panel — a slider, a live plan, the per-category split — in
+ * its own plate on the other tab. Two questions, one answer, and the weaker of
+ * them was the one blocking the form from ever being finished.
+ *
+ * REMOVING THE CHIPS MEANS REMOVING THE REQUIREMENT, or the count never reaches
+ * its total, the form never collapses and the analysis stays locked behind a
+ * question that no longer exists on the page. That is the trap in deleting a
+ * field: the field goes and the gate it fed stays.
+ */
+const REQUIRED_SINGLE: (keyof Form)[] = ['gender', 'lifestyle', 'skinType', 'skinTone', 'undertone', 'hairType', 'hairThickness', 'hairDensity', 'hairTexture', 'scalpType'];
 const REQUIRED_MULTI: (keyof Form)[] = ['skinGoals', 'skinConcerns', 'hairGoals', 'hairConcerns', 'routine', 'allergies', 'medicalConditions'];
 const REQUIRED_LABEL: Partial<Record<keyof Form, string>> = {
   gender: 'Gender', lifestyle: 'Lifestyle', skinType: 'Skin type', skinTone: 'Skin tone', undertone: 'Undertone',
   hairType: 'Hair type', hairThickness: 'Hair thickness', hairDensity: 'Hair density', hairTexture: 'Hair texture',
-  scalpType: 'Scalp type', budget: 'Budget', skinGoals: 'Skin goals', skinConcerns: 'Skin concerns',
+  scalpType: 'Scalp type', skinGoals: 'Skin goals', skinConcerns: 'Skin concerns',
   hairGoals: 'Hair goals', hairConcerns: 'Hair concerns', routine: 'Current routine', allergies: 'Allergies', medicalConditions: 'Medical conditions',
 };
 
@@ -327,7 +339,11 @@ function AssessmentView({ a, analyzedAt }: { a: BeautyAssessment; analyzedAt?: s
           chapter that is somewhere else. */}
       {a.routine && (
         <p className="beauty-leaf" style={{ margin: 0 }}>
-          <Link to="/beauty/routine" className="t" style={{ color: 'var(--accent-ink)' }}>Your routine →</Link>
+          {/* Inherits the wall's ink rather than --accent-ink. The accent is
+              near-black, which is the right answer on paper and invisible on
+              the gallery wall — and this line is one of the few things in the
+              hub drawn straight onto it. */}
+          <Link to="/beauty/routine" className="t" style={{ color: 'inherit', textDecorationThickness: 1 }}>Your routine →</Link>
           <span className="m">Step by step, with products, prices and order</span>
         </p>
       )}
@@ -409,7 +425,9 @@ function BeautyProfileSummary({ f, onEdit }: { f: Form; onEdit: () => void }) {
     ['Skin goals', (f.skinGoals ?? []).slice(0, 4).join(', ') || '—'],
     ['Hair', [f.hairType, f.hairThickness, f.hairTexture, f.scalpType].filter(Boolean).join(' · ') || '—'],
     ['Hair goals', (f.hairGoals ?? []).slice(0, 4).join(', ') || '—'],
-    ['Budget', f.budget || '—'],
+    /* No budget row. It is not asked here any more, and a summary that reports
+       a stale chip value beside a slider that has since moved is worse than
+       one that stays quiet about it. */
   ];
   return (
     <div className="card" style={{ marginBottom: 14 }}>
@@ -921,7 +939,6 @@ export function Profile() {
               </div>
             );
           })()}
-          <Section title="Monthly beauty budget">{BUDGET.map((x) => <Chip key={x} on={isOn('budget', x)} label={x} onClick={() => single('budget', x)} />)}</Section>
 
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', margin: '4px 0 22px', flexWrap: 'wrap' }}>
             {photosComplete && profileComplete && picsCount > 0 ? (

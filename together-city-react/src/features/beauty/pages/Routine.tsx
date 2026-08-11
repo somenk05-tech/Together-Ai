@@ -77,7 +77,27 @@ const TIER_LABEL: Record<RoutineTier, string> = {
  * retailer's CDN and walks primary → alternate → category mark. Two copies of
  * that fallback would have been two behaviours the day one of them was fixed.
  */
-function Step({ s, pick, qty, onAdd, onRemove }: { s: ProductRoutineStep; pick?: RoutinePick; qty: number; onAdd: () => void; onRemove: () => void }) {
+/**
+ * ONE PRODUCT, ONE PLACE TO BUY IT.
+ *
+ * A cleanser used morning AND evening is ONE bottle, and it appeared as two
+ * steps each with its own quantity control. The bag was never wrong — both
+ * controls edited the same line, keyed by productId — but the page said
+ * otherwise twice over: two "Add to bag" buttons for one purchase, and after
+ * adding, two steppers reading "1" that a reasonable person reads as two
+ * bottles, or as two things they now have to keep in step by hand.
+ *
+ * So the SECOND appearance says where the first one is instead of offering to
+ * buy the thing again. The step keeps everything else — its number in the
+ * order, its own instruction, its own frequency, because "massage into damp
+ * skin" at night is still a thing you do at night.
+ *
+ * `alreadyIn` is the band it was first seen in, not a boolean, because "already
+ * in your bag" answers the wrong question. What somebody wants to know when a
+ * product turns up twice is whether they have missed a second one to buy, and
+ * the answer to that is a place: it is the same bottle as step 1 this morning.
+ */
+function Step({ s, pick, qty, alreadyIn, onAdd, onRemove }: { s: ProductRoutineStep; pick?: RoutinePick; qty: number; alreadyIn?: string; onAdd: () => void; onRemove: () => void }) {
   return (
     <li style={{ display: 'flex', gap: 13, padding: '15px 0', borderTop: '1px solid var(--line)' }}>
       <span aria-hidden
@@ -140,7 +160,13 @@ function Step({ s, pick, qty, onAdd, onRemove }: { s: ProductRoutineStep; pick?:
         )}
 
         <div style={{ marginTop: 9 }}>
-          {qty > 0 ? (
+          {alreadyIn ? (
+            <span className="muted" style={{ fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <span aria-hidden>↑</span>
+              The same bottle as your {alreadyIn.toLowerCase()} routine
+              {qty > 0 ? ` — ${qty} in bag` : ' — add it there'}
+            </span>
+          ) : qty > 0 ? (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
               <Button variant="line" size="sm" onClick={onRemove}>–</Button>
               <span style={{ fontWeight: 700, fontSize: 13.5 }}>{qty}</span>
@@ -157,8 +183,14 @@ function Step({ s, pick, qty, onAdd, onRemove }: { s: ProductRoutineStep; pick?:
 }
 
 function Band(
-  { r, picks, bagged }:
-  { r: ProductRoutine; picks: Map<string, RoutinePick>; bagged: ReturnType<typeof useBagActions> },
+  { r, picks, bagged, seen }:
+  {
+    r: ProductRoutine; picks: Map<string, RoutinePick>; bagged: ReturnType<typeof useBagActions>;
+    /** productId → the band that already offered it. Built once by the page, in
+     *  band order, so "first" means first on the page rather than first
+     *  alphabetically or whatever order the API happened to return. */
+    seen: Map<string, string>;
+  },
 ) {
   const meta = BAND[r.timeOfDay];
   return (
@@ -184,6 +216,7 @@ function Band(
         <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0 0' }}>
           {r.steps.map((s) => (
             <Step key={s.productId} s={s} pick={picks.get(s.productId)} qty={bagged.qtyOf(s.productId)}
+              alreadyIn={seen.get(s.productId) === r.title ? undefined : seen.get(s.productId)}
               onAdd={() => bagged.add(s.productId)} onRemove={() => bagged.remove(s.productId)} />
           ))}
         </ul>
@@ -397,7 +430,20 @@ export function Routine() {
   const everyStep = useMemo(() => {
     const byId = new Map<string, ProductRoutineStep>();
     for (const r of data?.routines ?? []) for (const s of r.steps) if (!byId.has(s.productId)) byId.set(s.productId, s);
+
     return [...byId.values()];
+  }, [data]);
+
+  /**
+   * WHERE EACH PRODUCT IS FIRST OFFERED, so the second time it appears the page
+   * points back instead of offering to buy it again. Built in band order — the
+   * order the page renders — because "first" has to mean first on screen, not
+   * first in whatever order the API returned its routines.
+   */
+  const firstSeen = useMemo(() => {
+    const at = new Map<string, string>();
+    for (const r of data?.routines ?? []) for (const s of r.steps) if (!at.has(s.productId)) at.set(s.productId, r.title);
+    return at;
   }, [data]);
 
   /**
@@ -629,12 +675,12 @@ export function Routine() {
               the only rule on the page and it is what makes them read as two
               halves of one day rather than two lists. */}
           <div className="card routine-day" style={{ marginBottom: 14 }}>
-            {day.map((r) => <Band key={r.timeOfDay} r={r} picks={picks} bagged={bagged} />)}
+            {day.map((r) => <Band key={r.timeOfDay} r={r} picks={picks} bagged={bagged} seen={firstSeen} />)}
           </div>
 
           {rest.filter((r) => r.steps.length > 0).map((r) => (
             <div key={r.timeOfDay} className="card" style={{ marginBottom: 14 }}>
-              <Band r={r} picks={picks} bagged={bagged} />
+              <Band r={r} picks={picks} bagged={bagged} seen={firstSeen} />
             </div>
           ))}
 

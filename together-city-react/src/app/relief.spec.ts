@@ -242,31 +242,49 @@ describe('Relief stays a system', () => {
    *     posters on white is a catalogue rather than a screen. Its accent hue is
    *     NOT the ground either: the ground is near-black, the green stays in the
    *     fill and in the readable ink.
-   *   beauty — WARM SAND, and it is granted on the one argument the three
-   *     returns below do not answer. Social and dating both asked for a tint
-   *     to hold photographs and both were refused with the same sentence: a
-   *     wall of pictures on white is a contact sheet, and a contact sheet is
-   *     fixed by CASING and SPACE rather than by colour. That refusal stands,
-   *     and relief.css cases every image in the city so it is enforced.
+   *   beauty — A GALLERY WALL, and it is the first grant in this file to
+   *     re-point TWO surfaces rather than one. The ground is near-black,
+   *     grained and vignetted — the owner's backdrop photograph — and the paper
+   *     is cream. Every plate, card, field and photograph is the paper; the
+   *     wall is only ever behind them.
+   *
+   *     THE ARGUMENT IS THE ONE THE THREE RETURNS BELOW DO NOT ANSWER. Social
+   *     and dating both asked for a tint to hold photographs and both were
+   *     refused with the same sentence: a wall of pictures on white is a
+   *     contact sheet, and a contact sheet is fixed by CASING and SPACE rather
+   *     than by colour. That refusal stands, and relief.css cases every image
+   *     in the city so it is enforced.
    *
    *     It does not reach this hub, because the problem here is not DENSITY,
-   *     it is VALUE. Skincare is photographed cut-out — a white cream, an
-   *     ivory balm, a translucent gel, a sachet; the owner's reference is
-   *     three near-white smears and nothing else in the frame. Those pictures
-   *     are `.no-case` of necessity (an outline drawn round a cut-out is an
-   *     outline round nothing) and they are the same VALUE as the city's
-   *     paper. A cased portrait on white loses its frame and gets it back from
-   *     the case. An uncased white cream on white loses the CREAM, and no
-   *     amount of air returns it — the more space you give a near-white jar on
-   *     white, the more of nothing there is around it.
+   *     it is VALUE. Skincare is photographed cut-out — a white cream, an ivory
+   *     balm, a translucent gel; the owner's first reference is three near-white
+   *     smears and nothing else in the frame. Those pictures are `.no-case` of
+   *     necessity (an outline drawn round a cut-out is an outline round
+   *     nothing) and they are the same VALUE as the city's paper. A cased
+   *     portrait on white loses its frame and gets it back from the case. An
+   *     uncased white cream on white loses the CREAM, and no amount of air
+   *     returns it — the more space you give a near-white jar on white, the
+   *     more of nothing there is around it.
    *
-   *     So the ground drops in value by enough for the merchandise to sit on
-   *     it and stops. It is a NEUTRAL warm sand sampled from the owner's own
-   *     photograph, not the hub's magenta: this is the light room of the
-   *     three, the five depths are inherited untouched, and the hue stays
-   *     where every other hub's does — in the lit key of the rail. If the
-   *     catalogue photography ever ships cased and on a coloured seamless,
-   *     this grant goes back the way the other four did.
+   *     THE GROUND WENT DOWN IN TWO STEPS AND THE FIRST IS WORTH KEEPING. It
+   *     was warm sand for an afternoon, on exactly this argument, and sand
+   *     answers it: a cream jar has an edge on it. The owner then supplied the
+   *     backdrop, and near-black answers the same argument completely rather
+   *     than adequately — which is the honest reason the value moved, and the
+   *     reason this entry is not a second decision.
+   *
+   *     AND THE HUE IS STILL NOT THE GROUND. Near-black is not beauty's
+   *     magenta; the magenta is in the rail's lit key and nowhere else, exactly
+   *     as charcoal keeps its gold in the fill and the dark room its green. A
+   *     hub asking for "a wall like beauty's" in its own colour is asking for
+   *     the removed nutrition tint, not for this.
+   *
+   *     WHAT IT COSTS, WRITTEN DOWN. Two grounds means two ink scales, and the
+   *     second one is the one nobody screenshots — a heading, a tab rule, an
+   *     index between two plates. The assertion below measures both. The five
+   *     depths are inherited untouched: the prints are lit from above on a dark
+   *     wall exactly as they are on a white one, which is why this grant needed
+   *     no inverted relief and entertainment's did.
    *   social — RETURNED. Its grant was the hardest of the three to give back
    *     and it still went. The argument was MATERIAL, twice: clear glass on
    *     white "has nothing behind it to bend", and a wall of other people's
@@ -296,9 +314,9 @@ describe('Relief stays a system', () => {
    * left in the fill, charcoal with the gold left in the fill, candy with the
    * blue left in the fill. A sixth hub asking for "a tint like nutrition's" is
    * asking for the removed thing, not for any of these, and gets its own line
-   * here or nothing. Beauty's sand is the closest any grant has come to the
-   * removed one and it is still not it: nutrition's tint was the hub's GREEN
-   * washed over the page, and beauty's magenta appears nowhere below the rail.
+   * here or nothing. Beauty's wall is achromatic, so it is not even close: the
+   * removed tint was the hub's GREEN washed over the page, and beauty's magenta
+   * appears nowhere below the rail.
    *
    * The list is written out rather than counted, exactly like the press's
    * wearers, so a fourth entry costs an argument instead of a nod.
@@ -365,15 +383,51 @@ describe('Relief stays a system', () => {
       const body = [...css.matchAll(new RegExp(`\\[data-hub="${hub}"\\]\\s*\\{([\\s\\S]*?)\\n\\}`, 'g'))]
         .map((m) => m[1]).find((b) => /--paper:/.test(b));
       expect({ hub, found: Boolean(body) }).toEqual({ hub, found: true });
-      const val = (n: string) => body!.match(new RegExp(`${n}:\\s*(#[0-9a-f]{6})`, 'i'))?.[1];
+      /**
+       * ONE HOP THROUGH A `var()`, BECAUSE `if (!ink) continue` IS A DOOR.
+       *
+       * This read hexes only, and skipped anything it could not parse — so
+       * `--ink: var(--on-paper)` un-checked the whole ink scale of a hub and
+       * the suite went green. Beauty writes exactly that, for a real reason
+       * (the wall re-points --ink inside .tc-main, and a card can only put the
+       * paper's value back under a name that was not shadowed), and the first
+       * version of this file shipped its four greys unmeasured.
+       *
+       * One hop is enough for that and stops short of an evaluator: a chain
+       * two deep is a palette nobody can read either.
+       */
+      const raw = (n: string) => body!.match(new RegExp(`${n}:\\s*([^;]+);`, 'i'))?.[1]?.trim();
+      const val = (n: string): string | undefined => {
+        const v = raw(n);
+        if (!v) return undefined;
+        if (/^#[0-9a-f]{6}$/i.test(v)) return v;
+        const hop = /^var\(\s*(--[a-z0-9-]+)\s*\)$/i.exec(v)?.[1];
+        const via = hop ? raw(hop) : undefined;
+        return via && /^#[0-9a-f]{6}$/i.test(via) ? via : undefined;
+      };
       const page = val('--paper')!, card = val('--card') ?? page;
-      for (const [name, ground] of [
+      /**
+       * AND A SECOND GROUND, FOR THE HUB THAT HAS ONE.
+       *
+       * Every grant before Beauty re-pointed one ground: the page and the card
+       * were the same material a step apart, so --paper was the only surface
+       * text was read on. The gallery wall is near-black behind cream prints,
+       * and the ink drawn straight onto it is a different scale entirely. A hub
+       * with two grounds and one checked ground is a hub with an unchecked
+       * ground — and it is the one nobody screenshots, because the text on it
+       * is a heading and a tab rule rather than a card full of content.
+       */
+      const wall = val('--ground');
+      const CHECKS: [name: string, on: string | undefined][] = [
         ['--ink', page], ['--ink-soft', card], ['--muted', page], ['--faint', page],
         ['--accent-ink', page], ['--ok-ink', page], ['--warn-ink', page],
         ['--danger-ink', page], ['--info-ink', page],
-      ] as const) {
+        ['--on-ground', wall], ['--on-ground-soft', wall], ['--on-ground-muted', wall],
+      ];
+      for (const [name, ground] of CHECKS) {
         const ink = val(name);
         if (!ink) continue;                       // not re-pointed is not a failure
+        if (!ground) { failures.push(`${hub} ${name} declared with no ground to read it on`); continue; }
         const r = ratio(ink, ground);
         if (r < 4.5) failures.push(`${hub} ${name} at ${r.toFixed(2)}:1`);
       }

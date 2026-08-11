@@ -1995,7 +1995,17 @@ textarea.g-field { resize: none; line-height: 1.55; }
    --sky-image: a gradient is an image, so the hub that hangs a picture and the
    hub that hangs a wash use one mechanism rather than two.                    */
 [data-hub="social"] body { background: transparent; }
-.tc-shell:has(.tc-side[data-side="social"])::before {
+/* ONE FIXED LAYER, FOR EVERY HUB THAT HANGS SOMETHING BEHIND THE SHELL.
+   It was scoped to `:has(.tc-side[data-side="social"])` because social was the
+   only hub with a sky. Beauty's gallery wall is the same object — a texture
+   that must not scroll, must not tile per element, and must sit under
+   everything — and the second copy of this rule would have been three lines
+   that agree with these three until the day one of them is edited.
+
+   It is safe unscoped: --sky-image is `none` at :root and in every hub but
+   these two, and --ground is already what body paints, so on every other
+   screen this layer is a sheet of the colour that was there anyway. */
+.tc-shell::before {
   content: ''; position: fixed; inset: 0; z-index: -2;
   background: var(--sky-image);
   background-color: var(--ground);
@@ -2937,4 +2947,55 @@ textarea.g-field { resize: none; line-height: 1.55; }
    this one, now last, carries it alone. */
 @media (prefers-reduced-motion: reduce) {
   .district-plate:hover .hub-plate-cta { transform: none; }
+}
+
+/* ══ THE BEAUTY GALLERY WALL ════════════════════════════════════════════════
+   The hub's ground is the owner's backdrop photograph: near-black, grained,
+   lit from up and to the left. The prints hang on it — every plate, card,
+   photograph and field stays cream, and the edge between the two is what makes
+   a plate read as a plate.
+
+   THE SHELL GOES TRANSPARENT so the one fixed layer above shows through. Same
+   three lines social needs, for the same reason: a background painted per
+   element tiles its vignette once per element, and the seams are visible the
+   moment anything scrolls.
+
+   AND THE INK SCALE IS RE-POINTED ON THE PAGE, NOT ON THE HUB. This is the
+   part worth reading. Custom properties inherit, so re-pointing --ink inside
+   .tc-main reaches EVERY descendant — including the several thousand inline
+   `color: 'var(--ink)'` styles in this codebase, which no class could ever have
+   reached. Text drawn straight onto the wall becomes the wall's near-white;
+   every SURFACE puts the paper's near-black back, once, here.
+
+   The alternative was auditing four pages by eye for anything not inside a
+   card, which is a job that is never finished — the next component somebody
+   adds to a beauty page is dark ink on a black wall and looks fine in review,
+   because whoever writes it has the card they were working in on screen. */
+[data-hub="beauty"] body { background: transparent; }
+[data-hub="beauty"] .tc-shell,
+[data-hub="beauty"] .tc-main,
+[data-hub="beauty"] .page { background: transparent; }
+
+[data-hub="beauty"] .tc-main {
+  --ink:      var(--on-ground);
+  --ink-soft: var(--on-ground-soft);
+  --muted:    var(--on-ground-muted);
+  --faint:    var(--on-ground-muted);
+  color: var(--on-ground);
+}
+/* Every lit surface, and the list is the point: a surface missing from it is a
+   cream card printed in near-white. `.card` covers most of the application,
+   the two beauty faces cover the plates, and the last three are the things
+   that open OVER a page and therefore never inherit from one. */
+[data-hub="beauty"] .card,
+[data-hub="beauty"] .beauty-plate,
+[data-hub="beauty"] .beauty-leaf-open,
+[data-hub="beauty"] .modal,
+[data-hub="beauty"] .sheet,
+[data-hub="beauty"] .tc-side {
+  --ink:      var(--on-paper);
+  --ink-soft: var(--on-paper-soft);
+  --muted:    var(--on-paper-muted);
+  --faint:    var(--on-paper-faint);
+  color: var(--ink);
 }

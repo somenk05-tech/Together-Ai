@@ -665,10 +665,18 @@
    border. On one printed poster that border is the mount; repeated five times
    down a scrolling page it is a stack of picture frames. What survives is what
    the border was doing — the paper reading as a plate set on the ground —
-   which one hairline and the hub's sand do between them.                     */
+   which one hairline and the hub's ground do between them.
+
+   ON THE WALL THE FRAME INVERTS ITS JOB. A hairline of ink round a cream plate
+   is what separated it from sand; against near-black the plate separates itself
+   and the ink line is a black seam on a black wall — invisible where it is
+   needed and a dirty edge where it is not. So the border becomes the paper's
+   own hairline, which reads as the cut edge of a sheet rather than as a mount,
+   and the depth does the lifting it always did.                              */
 .beauty-plate {
   display: block; text-align: center;
-  background: var(--card); border: 1px solid var(--ink); border-radius: 2px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 2px;
+  box-shadow: var(--e2);
   padding: clamp(18px, 3.4vw, 30px) clamp(16px, 3vw, 30px) clamp(14px, 2.4vw, 20px);
   margin-bottom: 14px;
 }
@@ -744,7 +752,11 @@
    The parts of the assessment, set as a printed contents page rather than as
    three more plates or three rounded cards. See the note in Plates.tsx: they
    are the contents of one chapter, not four chapters. */
-.beauty-index { border-bottom: 1px solid var(--line); margin: 26px 0 22px; }
+/* The index is drawn straight onto the wall — one of the few things in this hub
+   that is — so its rules are the wall's ink at low weight rather than the
+   paper's hairline, which would be black on black. */
+.beauty-index { border-bottom: 1px solid var(--on-ground-muted); margin: 26px 0 22px; }
+.beauty-index .beauty-leaf { border-top-color: var(--on-ground-muted); }
 .beauty-index > .beauty-rule:first-child { padding-bottom: 14px; }
 .beauty-lede {
   margin: 0 0 22px; font-size: 13.5px; line-height: 1.75; max-width: 62ch; color: var(--ink-soft);
@@ -755,9 +767,17 @@
   font-family: inherit; color: inherit; padding: 16px 2px;
 }
 .beauty-leaf .t { font-size: 11.5px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; flex: none; }
+.beauty-leaf a.t { color: inherit; }
 .beauty-leaf .m { font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); min-width: 0; }
 .beauty-leaf .s { margin-left: auto; flex: none; font-size: 9.5px; letter-spacing: .24em; text-transform: uppercase; color: var(--muted); }
-.beauty-leaf-open { padding: 0 2px 22px; }
+/* What a leaf opens is CONTENT — readings, ingredient notes, cautions — and
+   content is read on paper in this hub, not off the wall. It gets a sheet of
+   its own rather than the plate's full poster chrome, because it is the inside
+   of an index entry and not a fifth print. */
+.beauty-leaf-open {
+  background: var(--card); border: 1px solid var(--line); border-radius: 2px;
+  box-shadow: var(--e1); padding: 14px 16px 16px; margin: 0 0 16px;
+}
 /* On a phone the three cells do not fit on one line, and letting them wrap in
    source order strands "Open +" on a line of its own under a half-empty one.
    The name and the way in stay together on the first row — they are the two
@@ -773,7 +793,7 @@
    object on the page that came from another design. */
 .beauty-tabs {
   display: flex; gap: 26px; justify-content: center; flex-wrap: wrap;
-  border-bottom: 1px solid var(--line); margin: 0 0 16px; padding-bottom: 10px;
+  border-bottom: 1px solid var(--on-ground-muted); margin: 0 0 16px; padding-bottom: 10px;
 }
 .beauty-tabs button {
   border: 0; background: none; cursor: pointer; font-family: inherit; padding: 4px 2px;
@@ -782,7 +802,7 @@
 }
 .beauty-tabs button.is-on { color: var(--ink); }
 .beauty-tabs button.is-on::after {
-  content: ''; position: absolute; left: 0; right: 0; bottom: -11px; height: 1px; background: var(--ink);
+  content: ''; position: absolute; left: 0; right: 0; bottom: -11px; height: 1px; background: var(--on-ground);
 }
 
 /* ══ THE BEAUTY MARKET ══════════════════════════════════════════════════════
