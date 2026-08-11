@@ -56,6 +56,10 @@
   --letter-ink:      #14130f;
   --letter-ink-soft: #35322c;
   --letter-faint:    #5f5a52;
+  /* The only line on the letter: the rule above the archive. The letter's own
+     ink at 14% rather than a picked grey, so it sits on whatever the paper
+     becomes instead of drifting off it. */
+  --letter-rule:     rgba(20, 19, 15, .14);
 
   /* ── THE INK SCALE, AND THE TWO STEPS THAT NEVER READ ────────────────────
      --faint was #9b9b9b: 2.78:1 on the ground directly above it. It is

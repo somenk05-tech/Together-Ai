@@ -50,6 +50,79 @@ export function LetterBody({ salutation, body, signOff }: { salutation: string; 
 }
 
 /**
+ * Every letter before this one — as a list of DATES, not a stack of letters.
+ *
+ * What was here before was a card-shaped toggle that unrolled seven whole
+ * letters underneath today's. That is a scroll with nothing to aim at: nobody
+ * remembers a scroll position, they remember a Tuesday. So the foot of the
+ * page is the dates, and choosing one prints that letter in the composition
+ * above — same paper, same measure, same type, same title treatment. A letter
+ * you kept is not displayed differently from the letter that arrived this
+ * morning; it is the same object, on a different date.
+ *
+ * ONE COMPONENT FOR BOTH LETTERS, and the pages hand it rows rather than
+ * letters. The daily writes out "Monday, 10 August" from an ISO day; the
+ * monthly prints the `month` string the server wrote at the time. Formatting a
+ * month from a key in whatever timezone the browser happens to be in is how
+ * you end up showing somebody a letter labelled with the wrong month, so the
+ * conversion stays where the knowledge is and this component only lays out.
+ *
+ * It renders nothing at all when there is nothing behind you. A heading called
+ * "Earlier letters" over an empty rule, on your first day, is the interface
+ * pointing at an absence.
+ */
+export interface ArchiveRow {
+  /** The period key — 2026-08-10 for a day, 2026-08 for a month. Also the id. */
+  date: string;
+  /** What the row says. "Monday, 10 August" · "July 2026". */
+  label: string;
+  /** Letters written before titles existed have none, and the row says the
+   *  date and stops rather than inventing one. */
+  title?: string;
+}
+
+export function LetterArchive(
+  { rows, current, onPick }: { rows: ArchiveRow[]; current: string | null; onPick: (date: string) => void },
+) {
+  if (rows.length === 0) return null;
+  return (
+    <nav className="letter-archive" aria-label="Earlier letters">
+      <h2 className="letter-archive-head">Earlier letters</h2>
+      <ul>
+        {rows.map((r) => (
+          <li key={r.date}>
+            <button
+              type="button"
+              className="letter-archive-day"
+              aria-current={r.date === current ? 'true' : undefined}
+              onClick={() => onPick(r.date)}
+            >
+              <span className="d">{r.label}</span>
+              {r.title && <span className="t">{r.title}</span>}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
+/**
+ * The way back, INSIDE the letter rather than in a bar above it.
+ *
+ * You are reading a letter from a past date; the thing you want next is the
+ * current one, and it belongs at the end of the one you just finished rather
+ * than as a control you have to scroll back up to find.
+ */
+export function LetterReturn({ children, onClick }: { children: ReactNode; onClick: () => void }) {
+  return (
+    <p className="letter-return">
+      <button type="button" className="letter-link" onClick={onClick}>{children}</button>
+    </p>
+  );
+}
+
+/**
  * Everything that is not a letter, said in the letter's own voice.
  *
  * These states used to be a spinner, an EmptyState titled "Couldn't reach the

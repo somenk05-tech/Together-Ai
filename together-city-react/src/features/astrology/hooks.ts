@@ -27,6 +27,17 @@ export function useAstroMonthly() {
   return useQuery({ queryKey: ['astrology', 'monthly'], queryFn: astrologyApi.monthly, staleTime: 30 * 60_000 });
 }
 
+/**
+ * The months behind this one — two years of them.
+ *
+ * No staleTime, matching the daily archive: a list of letters already written
+ * changes only when a new one is, and the cost of re-reading it is one small
+ * request against a page somebody has just navigated to.
+ */
+export function useAstroMonthlyHistory() {
+  return useQuery({ queryKey: ['astrology', 'monthly-history'], queryFn: astrologyApi.monthlyHistory });
+}
+
 export function useAstroQuestions() {
   return useQuery({ queryKey: ['astrology', 'questions'], queryFn: astrologyApi.questions });
 }

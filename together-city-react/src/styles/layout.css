@@ -186,10 +186,13 @@
   font-size: 11.5px; letter-spacing: .3em; text-transform: uppercase;
   color: var(--letter-faint); font-weight: 500; margin: 0 0 28px;
 }
-/* The one place outside the nutrition press that reads the display serif.
-   relief.spec.ts grants it by name and asserts nothing else may. */
+/* THE ONE PLACE OUTSIDE THE NUTRITION PRESS THAT READS THE DISPLAY SERIF, and
+   it is one rule rather than two so the letter's title and the same title in
+   the archive cannot drift into different faces. relief.spec.ts grants this
+   selector by name and asserts nothing else may borrow it. */
+.letter-title,
+.letter-archive-day .t { font-family: var(--press-serif); font-weight: 400; }
 .letter-title {
-  font-family: var(--press-serif); font-weight: 400;
   font-size: clamp(36px, 4.4vw, 56px); line-height: 1.06; letter-spacing: -.01em;
   color: var(--letter-ink); margin: 0 0 46px; text-wrap: balance;
 }
@@ -204,17 +207,51 @@
   .letter-page .letter-open, .letter-page .letter-p, .letter-page .letter-sign { font-size: 16px; }
 }
 
-.letter-past { max-width: var(--measure-card); }
-.letter-past .letter-link {
-  display: flex; align-items: center; gap: 16px; padding: 15px 18px; border-radius: var(--r-3);
-  background: var(--face); box-shadow: var(--e1); color: var(--ink); text-align: left; width: 100%; border: 0; cursor: pointer;
-  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease);
+/* ── the letter's own link, and the archive under it ─────────────────── */
+/* `.letter-past` lived here: a card-shaped toggle that unrolled seven letters
+   underneath this one. It is gone with the card. What replaced it is a list of
+   DAYS, and it is inside the letter's own column so it takes the measure, the
+   paper and the type without asking for any of them. */
+.letter-link {
+  background: none; border: 0; padding: 0; cursor: pointer; font: inherit;
+  color: var(--letter-ink); text-decoration: underline;
+  text-underline-offset: 4px; text-decoration-thickness: 1px;
+  text-decoration-color: var(--letter-faint);
 }
-.letter-past .letter-link:hover, .letter-past .letter-link:focus-visible {
-  transform: translateY(-2px); box-shadow: var(--e2); outline: none;
+.letter-link:hover, .letter-link:focus-visible { text-decoration-color: var(--letter-ink); outline: none; }
+.letter-link:focus-visible { text-decoration-thickness: 2px; }
+.letter-return { margin: 40px 0 0; font-size: 15.5px; }
+
+/* THE ARCHIVE IS A LIST OF DAYS, not a stack of letters. Reading back is
+   looking for one you remember, and seven letters unrolled is a scroll with
+   nothing to aim at. The rule above it is the only line on the page, and it is
+   here because this genuinely is a different thing from the letter — the one
+   place a divider earns itself. */
+.letter-archive { margin: 76px 0 0; border-top: 1px solid var(--letter-rule); padding-top: 30px; }
+.letter-archive-head {
+  font-size: 11.5px; letter-spacing: .3em; text-transform: uppercase; font-weight: 500;
+  color: var(--letter-faint); margin: 0 0 6px;
 }
-.letter-past .letter-link:focus-visible { box-shadow: var(--e2), 0 0 0 3px rgba(0,0,0,.14); }
-.letter-past .letter-date { font-size: 12.5px; color: var(--muted); }
+.letter-archive ul { list-style: none; margin: 0; padding: 0; }
+.letter-archive li + li { border-top: 1px solid var(--letter-rule); }
+.letter-archive-day {
+  display: flex; align-items: baseline; gap: 14px; width: 100%;
+  background: none; border: 0; padding: 15px 0; cursor: pointer;
+  font-family: inherit; text-align: left; color: var(--letter-ink);
+}
+.letter-archive-day .d { font-size: 15.5px; flex: 0 0 auto; }
+.letter-archive-day .t { font-size: 19px; line-height: 1.2; color: var(--letter-ink-soft); min-width: 0; }
+.letter-archive-day:hover .t, .letter-archive-day:focus-visible .t { color: var(--letter-ink); }
+.letter-archive-day:hover .d, .letter-archive-day:focus-visible .d {
+  text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--letter-faint);
+}
+.letter-archive-day:focus-visible { outline: none; }
+.letter-archive-day[aria-current="true"] .d { font-weight: 600; }
+@media (max-width: 640px) {
+  .letter-archive { margin-top: 54px; }
+  .letter-archive-day { flex-direction: column; gap: 3px; padding: 13px 0; }
+  .letter-archive-day .t { font-size: 18px; }
+}
 
 @media (prefers-reduced-motion: no-preference) { .letter-page { animation: letterIn .5s var(--ease) both; } }
 @keyframes letterIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }

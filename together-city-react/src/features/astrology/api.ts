@@ -160,6 +160,7 @@ export const astrologyApi = {
   daily: () => api.get<DailyLetter>('/astrology/daily').then((r) => r.data),
   dailyHistory: () => api.get<Array<Omit<DailyLetter, 'needsProfile' | 'pending'>>>('/astrology/daily/history').then((r) => r.data),
   monthly: () => api.get<MonthlyLetter>('/astrology/monthly').then((r) => r.data),
+  monthlyHistory: () => api.get<Array<Omit<MonthlyLetter, 'needsProfile' | 'pending'>>>('/astrology/monthly/history').then((r) => r.data),
   askQuota: () => api.get<AskQuota>('/astrology/ask').then((r) => r.data),
   ask: (dto: { topic: string; question: string; method?: 'wallet' | 'card' }) =>
     api.post<AskResult>('/astrology/ask', dto).then((r) => r.data),
