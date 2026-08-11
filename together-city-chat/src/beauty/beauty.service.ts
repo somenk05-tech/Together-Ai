@@ -8,6 +8,7 @@ import { AiService } from '../ai/ai.service';
 import { MasterProfileService } from '../profile/master-profile.service';
 import { beautyGender } from '../profile/sex-and-gender';
 import { clampBudget, planForWire, planWithinBudget, type StoredBudget } from './budget-routine';
+import { normaliseBag, parseBag, type BagLine } from './beauty-bag';
 import {
   beautyInsights, recommendProducts, priceBeautyOrder, CONCERN_TAGS, BEAUTY_PRODUCTS,
   type BeautyInsight,
@@ -630,6 +631,65 @@ export class BeautyService {
   }
 
   // ─────────────── orders (the commerce loop) ───────────────
+  /**
+   * The bag — one per citizen, on the server, priced at read time.
+   *
+   * It is stored as ids and quantities and NOTHING ELSE. Every rupee here is
+   * looked up from the shelf when the bag is read, so a bag cannot check out at
+   * a price the market no longer offers, and a product withdrawn from the
+   * catalogue drops out of the bag instead of becoming an unbuyable line.
+   */
+  async getBag(userId: string) {
+    const row = await swallow(this.beauty.findUnique({ where: { userId } }), 'beauty: profile read', { userId });
+    const extras = safeJson<Record<string, unknown>>(row?.extras, {});
+    return this.priceBag(parseBag(extras.bag));
+  }
+
+  /** Replace the bag wholesale. The client owns the arithmetic of adding and
+   *  removing; the server owns what a bag is allowed to contain. */
+  async saveBag(userId: string, lines: BagLine[]) {
+    const row = await swallow(this.beauty.findUnique({ where: { userId } }), 'beauty: profile read', { userId });
+    const extras = safeJson<Record<string, unknown>>(row?.extras, {});
+    const bag = normaliseBag(lines);
+    await swallow(this.beauty.upsert({
+      where: { userId },
+      update: { extras: JSON.stringify({ ...extras, bag }) },
+      create: { userId, extras: JSON.stringify({ bag }) },
+    }), 'beauty: bag write', { userId });
+    return this.priceBag(bag);
+  }
+
+  /**
+   * Ids and quantities in, a bag somebody can read out.
+   *
+   * A LINE FOR A PRODUCT THAT NO LONGER EXISTS IS DROPPED, and `removed` says
+   * how many went — silently shortening the list would leave somebody looking
+   * for a bottle they are sure they added.
+   */
+  private priceBag(lines: BagLine[]) {
+    const priced = priceBeautyOrder(lines);
+    const unknown = priced.ok ? 0 : priced.unknownIds.length;
+    const good = priced.ok ? priced : priceBeautyOrder(lines.filter((l) => !priced.unknownIds.includes(l.id)));
+    if (!good.ok) return { lines: [], totalInr: 0, count: 0, removed: unknown };
+
+    // The photograph travels with the line. A checkout that lists ten products
+    // as ten lines of text is a receipt; the shop it came from showed pictures
+    // and the last screen before paying should not be the first one that does
+    // not. Joined here rather than sent up by the client, for the same reason
+    // the price is: the shelf is the only thing that knows.
+    const byId = new Map(BEAUTY_PRODUCTS.map((p) => [p.id, p]));
+    const withArt = good.lines.map((l) => {
+      const p = byId.get(l.id);
+      return { ...l, image: p?.image ?? '', imageAlt: p?.imageAlt ?? '', category: p?.category ?? '' };
+    });
+    return {
+      lines: withArt,
+      totalInr: good.totalInr,
+      count: withArt.reduce((n, l) => n + l.qty, 0),
+      removed: unknown,
+    };
+  }
+
   async placeOrder(userId: string, dto: PlaceBeautyOrderDto) {
     // The wallet is charged what the shelf says, not what the request says.
     const priced = priceBeautyOrder(dto.items);
@@ -656,6 +716,10 @@ export class BeautyService {
         return created.id;
       },
     );
+    // THE BAG IS EMPTIED BY THE ORDER, which is one of exactly two things
+    // allowed to empty it — the other is the citizen. Leaving it full after
+    // payment is how somebody buys the same routine twice.
+    await this.saveBag(userId, []);
     return this.orders(userId).then((list) => ({ orderId, orders: list }));
   }
 

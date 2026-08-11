@@ -2,11 +2,10 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import {
-  useBeautyProfile, useBeautyRoutine, usePlaceBeautyOrder, useSaveBeautyBudget,
+  useBagActions, useBeautyProfile, useBeautyRoutine, useSaveBeautyBudget,
   type CategoryPlan, type ProductRoutine, type ProductRoutineStep, type RoutinePick, type RoutineTier,
 } from '../api';
-import { payError, type PayMethod } from '@/features/financial/api';
-import { PaymentSheet } from '@/features/financial/PaymentSheet';
+import { BeautyBagBar } from '../components/BeautyBagBar';
 import { ProductShot } from '../components/ProductShot';
 
 /**
@@ -158,8 +157,8 @@ function Step({ s, pick, qty, onAdd, onRemove }: { s: ProductRoutineStep; pick?:
 }
 
 function Band(
-  { r, picks, bag, add, remove }:
-  { r: ProductRoutine; picks: Map<string, RoutinePick>; bag: Record<string, number>; add: (id: string) => void; remove: (id: string) => void },
+  { r, picks, bagged }:
+  { r: ProductRoutine; picks: Map<string, RoutinePick>; bagged: ReturnType<typeof useBagActions> },
 ) {
   const meta = BAND[r.timeOfDay];
   return (
@@ -184,8 +183,8 @@ function Band(
       ) : (
         <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0 0' }}>
           {r.steps.map((s) => (
-            <Step key={s.productId} s={s} pick={picks.get(s.productId)} qty={bag[s.productId] ?? 0}
-              onAdd={() => add(s.productId)} onRemove={() => remove(s.productId)} />
+            <Step key={s.productId} s={s} pick={picks.get(s.productId)} qty={bagged.qtyOf(s.productId)}
+              onAdd={() => bagged.add(s.productId)} onRemove={() => bagged.remove(s.productId)} />
           ))}
         </ul>
       )}
@@ -361,11 +360,14 @@ const ASSURANCES: Array<[string, string]> = [
 
 export function Routine() {
   const routine = useBeautyRoutine();
-  const place = usePlaceBeautyOrder();
   const saveBudget = useSaveBeautyBudget();
-  const [bag, setBag] = useState<Record<string, number>>({});
-  const [placed, setPlaced] = useState(false);
-  const [payOpen, setPayOpen] = useState(false);
+  /**
+   * THE BAG IS NOT THIS PAGE'S. It was a `useState` here and another one on the
+   * market, which meant two bags with two totals and two checkout buttons — and
+   * both were erased by following a link. It lives on the server now and every
+   * surface reads the same one.
+   */
+  const bagged = useBagActions();
   // "Keep ₹1,000" is an answer, and it is remembered for the visit rather than
   // saved: nothing about the budget changes, the question simply stops being
   // asked. Saving a dismissal would be storing an opinion about a number the
@@ -414,13 +416,8 @@ export function Routine() {
     return m;
   }, [data]);
 
-  const items = useMemo(
-    () => everyStep.filter((s) => (bag[s.productId] ?? 0) > 0)
-      .map((s) => ({ id: s.productId, name: s.name, priceInr: s.priceInr, qty: bag[s.productId] })),
-    [everyStep, bag],
-  );
-  const count = items.reduce((n, i) => n + i.qty, 0);
-  const total = items.reduce((n, i) => n + i.priceInr * i.qty, 0);
+  // What the whole routine costs to buy today, and what it costs to keep. Both
+  // are the routine's own figures and neither depends on the bag.
   const routineTotal = everyStep.reduce((n, s) => n + s.priceInr, 0);
   const monthlyTotal = data?.plan?.totalMonthlyInr ?? 0;
 
@@ -471,12 +468,9 @@ export function Routine() {
   }
 
   const empty = !data || data.routines.every((r) => r.steps.length === 0);
-  const add = (id: string) => { setBag((b) => ({ ...b, [id]: (b[id] ?? 0) + 1 })); setPlaced(false); };
-  const remove = (id: string) => setBag((b) => ({ ...b, [id]: Math.max(0, (b[id] ?? 0) - 1) }));
-  const addEverything = () => {
-    setBag(Object.fromEntries(everyStep.map((s) => [s.productId, Math.max(1, bag[s.productId] ?? 0)])));
-    setPlaced(false);
-  };
+  // "Add all" tops the bag up rather than replacing it — somebody who already
+  // had two of something keeps two.
+  const addEverything = () => bagged.setMany(everyStep.map((s) => s.productId));
 
   /**
    * A CATEGORY SET TO ZERO IS NOT SHOWN AT ALL.
@@ -635,12 +629,12 @@ export function Routine() {
               the only rule on the page and it is what makes them read as two
               halves of one day rather than two lists. */}
           <div className="card routine-day" style={{ marginBottom: 14 }}>
-            {day.map((r) => <Band key={r.timeOfDay} r={r} picks={picks} bag={bag} add={add} remove={remove} />)}
+            {day.map((r) => <Band key={r.timeOfDay} r={r} picks={picks} bagged={bagged} />)}
           </div>
 
           {rest.filter((r) => r.steps.length > 0).map((r) => (
             <div key={r.timeOfDay} className="card" style={{ marginBottom: 14 }}>
-              <Band r={r} picks={picks} bag={bag} add={add} remove={remove} />
+              <Band r={r} picks={picks} bagged={bagged} />
             </div>
           ))}
 
@@ -662,29 +656,7 @@ export function Routine() {
         </>
       )}
 
-      {items.length > 0 && (
-        <div className="card" style={{ position: 'sticky', bottom: 16, marginTop: 18, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', boxShadow: '0 8px 30px rgba(0,0,0,.12)' }}>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>{count} item{count === 1 ? '' : 's'} · {rupees(total)}</div>
-            <div className="muted" style={{ fontSize: 12 }}>{items.map((i) => `${i.name}${i.qty > 1 ? ` ×${i.qty}` : ''}`).join(', ')}</div>
-          </div>
-          <div style={{ marginLeft: 'auto' }}>
-            {placed
-              ? <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--accent-ink)' }}>✓ Paid</span>
-              : <Button variant="accent" onClick={() => setPayOpen(true)}>Checkout · {rupees(total)}</Button>}
-          </div>
-        </div>
-      )}
-
-      <PaymentSheet
-        open={payOpen}
-        amountInr={total}
-        label={`Beauty routine · ${count} item${count === 1 ? '' : 's'}`}
-        pending={place.isPending}
-        error={place.isError ? payError(place.error) : null}
-        onCancel={() => setPayOpen(false)}
-        onPay={(method: PayMethod) => place.mutate({ items, method }, { onSuccess: () => { setPlaced(true); setBag({}); setPayOpen(false); } })}
-      />
+      <BeautyBagBar />
     </div>
   );
 }

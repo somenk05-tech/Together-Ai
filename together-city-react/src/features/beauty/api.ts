@@ -164,6 +164,29 @@ export interface RoutineResponse {
   disclaimer: string;
 }
 
+/**
+ * The bag — one per citizen, held on the server.
+ *
+ * It was two React states before this: one on the routine and one on the
+ * market, each with its own total and its own checkout button, and both erased
+ * by clicking a link. A bag that forgets is worse than no bag, because it
+ * invites the work of filling it twice.
+ *
+ * Only ids and quantities are stored. Every rupee here is priced from the shelf
+ * at read time, so a bag can never check out at a price the market no longer
+ * offers.
+ */
+export interface BeautyBag {
+  /** The photograph travels with the line — the last screen before paying
+   *  should not be the first one without pictures. */
+  lines: { id: string; name: string; priceInr: number; qty: number; image: string; imageAlt: string; category: string }[];
+  totalInr: number;
+  count: number;
+  /** Products that have left the catalogue since they were added. Said out
+   *  loud rather than silently dropped. */
+  removed: number;
+}
+
 export interface BeautyOrder {
   id: string; totalInr: number; status: string;
   items: { id: string; name: string; priceInr: number; qty: number }[]; createdAt: string;
@@ -200,6 +223,9 @@ export const beautyApi = {
   budget: () => api.get<BeautyBudget | null>('/beauty/budget').then((r) => r.data),
   saveBudget: (b: { face: number; hair: number; body: number; preference?: string }) =>
     api.put<BeautyBudget>('/beauty/budget', b).then((r) => r.data),
+  bag: () => api.get<BeautyBag>('/beauty/bag').then((r) => r.data),
+  saveBag: (lines: { id: string; qty: number }[]) =>
+    api.put<BeautyBag>('/beauty/bag', { lines }).then((r) => r.data),
   orders: () => api.get<BeautyOrder[]>('/beauty/orders').then((r) => r.data),
   placeOrder: (items: { id: string; name: string; priceInr: number; qty: number }[], method: 'wallet' | 'card' = 'wallet') =>
     api.post<{ orderId: string; orders: BeautyOrder[] }>('/beauty/orders', { items, method }).then((r) => r.data),
@@ -273,6 +299,53 @@ export function useSaveBeautyBudget() {
   });
 }
 
+/**
+ * The one bag. Every surface that adds to it uses these two hooks and no local
+ * state, which is what makes it the same bag on every page.
+ */
+export function useBeautyBag() {
+  return useQuery({ queryKey: ['beauty', 'bag'], queryFn: () => beautyApi.bag() });
+}
+export function useSaveBeautyBag() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: beautyApi.saveBag,
+    // Written straight into the cache rather than invalidated: a bag that
+    // flickers back to its old contents while a refetch lands feels broken, and
+    // the response IS the new bag.
+    onSuccess: (b) => qc.setQueryData(['beauty', 'bag'], b),
+  });
+}
+
+/**
+ * Add, remove and set — the three things a page does to a bag, with the
+ * server's copy as the base each time so two quick taps cannot race.
+ */
+export function useBagActions() {
+  const bag = useBeautyBag();
+  const save = useSaveBeautyBag();
+  const lines = () => (bag.data?.lines ?? []).map((l) => ({ id: l.id, qty: l.qty }));
+  const put = (next: { id: string; qty: number }[]) => save.mutate(next.filter((l) => l.qty > 0));
+  return {
+    bag: bag.data,
+    isLoading: bag.isLoading,
+    isSaving: save.isPending,
+    qtyOf: (id: string) => bag.data?.lines.find((l) => l.id === id)?.qty ?? 0,
+    add: (id: string) => {
+      const cur = lines();
+      const at = cur.findIndex((l) => l.id === id);
+      put(at === -1 ? [...cur, { id, qty: 1 }] : cur.map((l, i) => (i === at ? { ...l, qty: l.qty + 1 } : l)));
+    },
+    remove: (id: string) => put(lines().map((l) => (l.id === id ? { ...l, qty: l.qty - 1 } : l))),
+    setMany: (ids: string[]) => {
+      const cur = new Map(lines().map((l) => [l.id, l.qty]));
+      for (const id of ids) cur.set(id, Math.max(1, cur.get(id) ?? 0));
+      put([...cur].map(([id, qty]) => ({ id, qty })));
+    },
+    clear: () => put([]),
+  };
+}
+
 export function useBeautyOrders() {
   return useQuery({ queryKey: ['beauty', 'orders'], queryFn: () => beautyApi.orders() });
 }
@@ -280,7 +353,13 @@ export function usePlaceBeautyOrder() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (v: { items: { id: string; name: string; priceInr: number; qty: number }[]; method: 'wallet' | 'card' }) => beautyApi.placeOrder(v.items, v.method),
-    onSuccess: (res) => { qc.setQueryData(['beauty', 'orders'], res.orders); void qc.invalidateQueries({ queryKey: ['financial'] }); },
+    onSuccess: (res) => {
+      qc.setQueryData(['beauty', 'orders'], res.orders);
+      // The order empties the bag on the server; the cache has to hear about it
+      // or the sticky bar keeps offering to sell what was just bought.
+      void qc.invalidateQueries({ queryKey: ['beauty', 'bag'] });
+      void qc.invalidateQueries({ queryKey: ['financial'] });
+    },
   });
 }
 

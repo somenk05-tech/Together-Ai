@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react';
 import { AllergyNote, Button, EmptyState, Spinner } from '@/components/ui';
-import { useBeautyProducts, useBeautyRoutine, usePlaceBeautyOrder, type RecommendedProduct } from '../api';
-import { payError, type PayMethod } from '@/features/financial/api';
-import { PaymentSheet } from '@/features/financial/PaymentSheet';
+import { useBagActions, useBeautyProducts, useBeautyRoutine, type RecommendedProduct } from '../api';
+import { BeautyBagBar } from '../components/BeautyBagBar';
 import { ShareToChat } from '@/features/chat/share';
 import { ProductShot } from '../components/ProductShot';
 
@@ -161,10 +160,10 @@ function Tile(
 export function Market() {
   const products = useBeautyProducts();
   const routine = useBeautyRoutine();
-  const place = usePlaceBeautyOrder();
-  const [bag, setBag] = useState<Record<string, number>>({});
-  const [placed, setPlaced] = useState(false);
-  const [payOpen, setPayOpen] = useState(false);
+  // THE SAME BAG THE ROUTINE USES. This page kept its own React state, so the
+  // hub had two bags with two totals and two checkout buttons, and a link
+  // emptied whichever one you were not looking at.
+  const bagged = useBagActions();
   const [seg, setSeg] = useState<Segment>('Skincare');
   const [cat, setCat] = useState('');
   const [sort, setSort] = useState<Sort>('match');
@@ -182,16 +181,6 @@ export function Market() {
     }
     return m;
   }, [routine.data]);
-
-  const items = useMemo(
-    () => Object.entries(bag).filter(([, n]) => n > 0).map(([id, qty]) => {
-      const p = all.find((x) => x.id === id);
-      return p ? { id, name: p.name, priceInr: p.priceInr, qty } : null;
-    }).filter(Boolean) as { id: string; name: string; priceInr: number; qty: number }[],
-    [bag, all],
-  );
-  const total = items.reduce((s, i) => s + i.priceInr * i.qty, 0);
-  const bagCount = items.reduce((s, i) => s + i.qty, 0);
 
   const inSegment = useMemo(() => all.filter((p) => p.group === seg), [all, seg]);
 
@@ -232,8 +221,6 @@ export function Market() {
   if (products.isLoading) return <Spinner label="Curating your shelf…" />;
   if (products.isError || !products.data) return <EmptyState title="Couldn't load the market" hint="Please check your connection and try again." />;
 
-  const add = (id: string) => { setBag((b) => ({ ...b, [id]: (b[id] ?? 0) + 1 })); setPlaced(false); };
-  const remove = (id: string) => setBag((b) => ({ ...b, [id]: Math.max(0, (b[id] ?? 0) - 1) }));
   const countIn = (k: Segment) => all.filter((p) => p.group === k).length;
   const heading = cat || (q.trim() ? `“${q.trim()}”` : `All ${SEGMENTS.find((s) => s.key === seg)!.label.toLowerCase()}`);
 
@@ -308,36 +295,14 @@ export function Market() {
             <div className="market-grid">
               {s.rows.map((p) => (
                 <Tile key={p.id} p={p} inRoutine={routineBands.get(p.id) ?? []}
-                  qty={bag[p.id] ?? 0} onAdd={() => add(p.id)} onRemove={() => remove(p.id)} />
+                  qty={bagged.qtyOf(p.id)} onAdd={() => bagged.add(p.id)} onRemove={() => bagged.remove(p.id)} />
               ))}
             </div>
           </section>
         ))
       )}
 
-      {items.length > 0 && (
-        <div className="card" style={{ position: 'sticky', bottom: 16, marginTop: 20, display: 'flex', alignItems: 'center', gap: 14, boxShadow: '0 8px 30px rgba(0,0,0,.12)' }}>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>{bagCount} item{bagCount === 1 ? '' : 's'} · ₹{total.toLocaleString('en-IN')}</div>
-            <div className="muted" style={{ fontSize: 12 }}>{items.map((i) => `${i.name}${i.qty > 1 ? ` ×${i.qty}` : ''}`).join(', ')}</div>
-          </div>
-          <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-            {placed
-              ? <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--accent-ink)' }}>✓ Paid</span>
-              : <Button variant="accent" onClick={() => setPayOpen(true)}>Checkout · ₹{total.toLocaleString('en-IN')}</Button>}
-          </div>
-        </div>
-      )}
-
-      <PaymentSheet
-        open={payOpen}
-        amountInr={total}
-        label={`Beauty market · ${bagCount} item${bagCount === 1 ? '' : 's'}`}
-        pending={place.isPending}
-        error={place.isError ? payError(place.error) : null}
-        onCancel={() => setPayOpen(false)}
-        onPay={(method: PayMethod) => place.mutate({ items, method }, { onSuccess: () => { setPlaced(true); setBag({}); setPayOpen(false); } })}
-      />
+      <BeautyBagBar />
     </div>
   );
 }

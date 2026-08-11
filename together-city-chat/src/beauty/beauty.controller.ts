@@ -54,6 +54,21 @@ export class BeautyController {
    * has been said out loud, and a default applied on the citizen's behalf is
    * the one thing the design refuses.
    */
+  /** GET /api/beauty/bag — one bag per citizen, priced from the shelf. */
+  @Get('bag')
+  bag(@CurrentUser() user: JwtUser) {
+    return this.beauty.getBag(user.sub);
+  }
+
+  /** PUT /api/beauty/bag — replace it wholesale. */
+  @Put('bag')
+  saveBag(@CurrentUser() user: JwtUser, @Body() body: unknown) {
+    const schema = z.object({
+      lines: z.array(z.object({ id: z.string().min(1), qty: z.number().int().min(0).max(12) })).max(60),
+    });
+    return this.beauty.saveBag(user.sub, schema.parse(body).lines);
+  }
+
   @Get('budget')
   budget(@CurrentUser() user: JwtUser) {
     return this.beauty.getBudget(user.sub);
