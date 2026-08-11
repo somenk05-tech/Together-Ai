@@ -481,9 +481,16 @@ export class AstrologyService {
     const chart = this.chartOf(row);
     const dasha = vimshottariDasha(chart.moon.lon, row.birthDate, local);
     const num = computeNumerology(row.birthDate, local);
+    // The carat figure is worked out from body weight, which the citizen has
+    // already given the Master Profile. Swallowed rather than awaited hard: a
+    // profile read that fails costs the weight figure and nothing else, and the
+    // recommender treats a missing weight as "not told" rather than as an error.
+    const master = await swallow(this.masterProfile.get(userId), 'astro: master read for gem weight', { userId });
+    const bodyKg = typeof master?.weightKg === 'number' ? master.weightKg : null;
     return {
       needsProfile: false as const,
       ...recommendGems({
+        bodyKg,
         // Null without a birth time, and the recommender treats that as a
         // different answer rather than a degraded one.
         ascendant: chart.ascendant?.sign ?? null,

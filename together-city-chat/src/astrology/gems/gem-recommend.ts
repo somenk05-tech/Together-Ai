@@ -3,6 +3,7 @@ import type { DashaLord } from '../personal-factors';
 import { GEMS, PRIMARY_BY_PLANET } from './gem-catalog';
 import type { Gem, GemPlanet } from './gem-types';
 import { TRIAL_NOTE, TRIAL_REQUIRED, WEARING, planetOf, type WearingRule } from './wearing';
+import { SUBSTITUTE_FACTOR, priceAtWeight, recommendedWeight, type GemWeight } from './gem-weight';
 
 /**
  * Which stones this chart calls for — and, just as importantly, how few.
@@ -70,20 +71,39 @@ export const ROLE_LABEL: Record<GemRole, string> = {
   number: 'Number stone',
 };
 
+/** A stone, at the weight this person is prescribed, with what that costs. */
+export interface GemAtWeight {
+  gem: Gem;
+  /** Null when we were never told a body weight — the figure is not invented. */
+  weight: GemWeight | null;
+  fromInr: number | null;
+  toInr: number | null;
+}
+
 export interface GemRecommendation {
   gem: Gem;
   role: GemRole;
+  /** What this stone costs AT THE WEIGHT PRESCRIBED — the only price figure
+   *  anybody can act on. Null together with the weight. */
+  weight: GemWeight | null;
+  fromInr: number | null;
+  toInr: number | null;
   /** Every reason this stone came up, best first — a stone may hold one role
    *  and still be justified three ways. */
   reasons: string[];
   wearing: WearingRule;
   /** The 72-hour trial note, on the three stones that carry it. */
   trialNote: string | null;
-  /** Cheaper stones for the same planet, at the traditional heavier weight. */
-  substitutes: Gem[];
+  /** Cheaper stones for the same planet — priced at the HEAVIER weight the
+   *  tradition asks of a substitute, which is the figure that decides whether
+   *  it is actually cheaper. */
+  substitutes: GemAtWeight[];
 }
 
 export interface GemChartInput {
+  /** From the master profile, entered once. Null if never given — the weight
+   *  rule then returns nothing rather than an average. */
+  bodyKg?: number | null;
   /** Null when the birth time is unknown — the ascendant cannot be computed. */
   ascendant: SignName | null;
   moonSign: SignName;
@@ -102,9 +122,13 @@ export interface GemRecommendations {
     mahadasha: DashaLord;
     antardasha: DashaLord;
     lifePath: number;
+    /** What the carat figures were worked out from. Null if never given. */
+    bodyKg: number | null;
   };
   /** True when there is no birth time, so life and fortune stones are absent. */
   timeUnknown: boolean;
+  /** True when there is no body weight, so no carat figure is offered. */
+  weightUnknown: boolean;
   recommendations: GemRecommendation[];
 }
 
@@ -162,15 +186,23 @@ export function recommendGems(input: GemChartInput): GemRecommendations {
     if (ROLE_ORDER.indexOf(c.role) < ROLE_ORDER.indexOf(seen.role)) seen.role = c.role;
   }
 
+  const at = (gem: Gem, factor: number): GemAtWeight => {
+    const weight = recommendedWeight(input.bodyKg, factor);
+    const price = weight ? priceAtWeight(weight.carats, gem.perCaratMinInr, gem.perCaratMaxInr) : null;
+    return { gem, weight, fromInr: price?.fromInr ?? null, toInr: price?.toInr ?? null };
+  };
+
   const recommendations: GemRecommendation[] = [];
   for (const [planet, { role, reasons }] of byPlanet) {
     const gem = PRIMARY_BY_PLANET.get(planet);
     if (!gem) continue;   // nine planets, nine primaries — but never assume it
+    const priced = at(gem, 1);
     recommendations.push({
       gem, role, reasons,
+      weight: priced.weight, fromInr: priced.fromInr, toInr: priced.toInr,
       wearing: WEARING[planet],
       trialNote: TRIAL_REQUIRED.has(gem.id) ? TRIAL_NOTE : null,
-      substitutes: GEMS.filter((g) => g.substituteFor === gem.id),
+      substitutes: GEMS.filter((g) => g.substituteFor === gem.id).map((g) => at(g, SUBSTITUTE_FACTOR)),
     });
   }
   recommendations.sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role));
@@ -179,8 +211,10 @@ export function recommendGems(input: GemChartInput): GemRecommendations {
     chart: {
       ascendant: input.ascendant, moonSign: input.moonSign,
       mahadasha: input.mahadasha, antardasha: input.antardasha, lifePath: input.lifePath,
+      bodyKg: typeof input.bodyKg === 'number' ? input.bodyKg : null,
     },
     timeUnknown,
+    weightUnknown: recommendedWeight(input.bodyKg) === null,
     recommendations,
   };
 }

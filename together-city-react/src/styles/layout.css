@@ -639,7 +639,8 @@
    this masthead, each by name and each with a reason. */
 .letter-title,
 .letter-archive-day .t,
-.routine-display { font-family: var(--press-serif); font-weight: 400; }
+.routine-display,
+.gem-display { font-family: var(--press-serif); font-weight: 400; }
 
 /* ══ THE BEAUTY MARKET ══════════════════════════════════════════════════════
    A shop, laid out for comparison: a category row, a filter/title/sort bar,
@@ -681,38 +682,108 @@
 @media (max-width: 1080px) { .market-grid { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 820px)  { .market-grid { grid-template-columns: repeat(2, 1fr); gap: 24px 16px; } }
 
-/* ══ GEMSTONES ══════════════════════════════════════════════════════════════
-   The marketplace card: the stone's photograph beside the reading, and a strip
-   of labelled facts under it. Only the three things that need a breakpoint are
-   here — the rest of the hub stays inline, like the rest of this app.
+/* ══ GEMSTONE SHEETS ════════════════════════════════════════════════════════
+   The owner's reference, rendered in the city's material.
 
-   THE PHOTOGRAPH SITS ON WHITE WITH NO FRAME, and that is `no-case` on the img
-   in the page rather than an override here. relief.css frames every photograph
-   by default — outline, shadow, a well behind it — and provides `.no-case` for
-   pictures that are already composed. Thirty cut-out stones on white are the
-   clearest case for it: the frame would be a box around something photographed
-   not to need one. */
-.gem-card {
-  display: grid; grid-template-columns: 240px 1fr; gap: 26px; align-items: start; padding: 22px 24px;
+   ONE COLUMN, CENTRED, AND THAT IS THE WHOLE IDEA. A gem is not a row in a
+   comparison table — the reference composes each stone as a page of its own:
+   a thin capsule at the top, three trait words arched over the photograph, the
+   name beneath in engraved capitals, warm prose under that, and a price ring
+   at the foot. Nothing is left-aligned and nothing is in a grid, because the
+   moment two stones sit side by side they stop being pages and start being
+   products.
+
+   THE PHOTOGRAPHS MULTIPLY ONTO THE CARD. Each stone was shot on white, and
+   white is never quite white — `mix-blend-mode: multiply` drops the sheet's
+   own ground straight through the picture's background so the stone floats
+   rather than sitting on a paler square. It is also why these carry `no-case`
+   in the markup: relief.css frames every photograph, and a frame around a
+   floating stone is a box around something composed not to need one.
+
+   THE TRAIT ARC IS AN SVG textPath, from the reference, at the reference's own
+   geometry — a 130-radius arc across a 360×170 box, pulled down over the photo
+   by a negative margin so the words sit ON the stone rather than above it. */
+.gem-sheet {
+  max-width: 560px; margin: 0 auto 26px; padding: 46px 40px 44px; text-align: center;
 }
-.gem-shot { display: grid; justify-items: center; gap: 10px; }
-.gem-traits {
-  font-size: 10px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase;
-  color: var(--muted); text-align: center; line-height: 1.6;
+.gem-cap {
+  display: inline-block; padding: 7px 18px; border: 1px solid; border-radius: 999px;
+  font-size: 10px; letter-spacing: .24em; text-transform: uppercase; font-weight: 700;
 }
-.gem-card > :nth-child(2) { display: flex; flex-direction: column; gap: 14px; }
-/* The display name, wide-tracked, as in the reference. The face is the app's
-   own — the press serif is granted to three places by name and this is not one
-   of them; see relief.spec assertion 4. */
-.gem-name { font-size: 26px; letter-spacing: .16em; margin: 0; font-weight: 500; }
-.gem-wear,
+/* CAPPED AT ITS OWN VIEWBOX. Left at 100% the arc scales with the sheet, the
+   curve grows taller than the reference's, and the negative pull no longer
+   reaches — the words end up floating a clear inch above the stone instead of
+   sitting on it. 360px is the viewBox's own width, so the geometry is the
+   reference's at every screen size. */
+/* `display: block` is load-bearing. An <svg> is inline by default, so at any
+   width below the sheet's it stops filling the line and tucks itself up beside
+   the role capsule — two unrelated things sharing a row, looking at a glance
+   like a broken float.
+
+   THE PULL IS A PERCENTAGE, WHICH IS THE ONLY VERSION THAT SURVIVES A RESIZE.
+   The reference hard-codes -108px against a 432px box; that is -25% of the
+   width, and the box's height scales with its width because it is an SVG with a
+   viewBox. Written as -25% the words sit on the stone at every screen size
+   instead of only at the one the value was measured on.
+
+   THE TYPE IS SIZED FOR THE LONGEST LINE IN THE CATALOGUE, not for the ruby's.
+   "WILLPOWER · GROUNDING · CONFIDENCE" is 34 characters against the ruby's 28,
+   and text longer than its path does not wrap or shrink — it runs off the end
+   of the arc and is clipped by the viewBox, which is how "VITALITY · COURAGE ·
+   PASSION" first rendered as "ITALITY · COURAGE · PASSIO". */
+.gem-arc {
+  display: block; width: 100%; height: auto; margin: 0 auto -25%;
+}
+.gem-arc text { font-size: 11px; letter-spacing: 2.6px; }
+@media (min-width: 621px) { .gem-arc text { font-size: 12px; letter-spacing: 3px; } }
+.gem-photo {
+  position: relative; z-index: 2; width: 250px; height: 220px; margin: 24px auto 22px;
+  display: flex; align-items: center; justify-content: center;
+}
+.gem-photo img { max-width: 100%; max-height: 100%; mix-blend-mode: multiply; }
+/* .34em rather than the reference's .38 — its face is Georgia and ours is the
+   press serif, which is narrower and needs a shade less air to read as engraved.
+   `text-indent` matching the tracking is not a nicety: letter-spacing is applied
+   AFTER the last glyph too, so a centred line without it sits half a space left
+   of centre, and at this size that is visible. */
+.gem-display {
+  font-size: clamp(24px, 3.4vw, 34px); letter-spacing: .34em; text-indent: .34em;
+  margin: 2px 0 18px; line-height: 1.15;
+}
+.gem-sub {
+  margin: 26px 0 8px; font-size: 10px; letter-spacing: .26em; text-transform: uppercase; font-weight: 700;
+}
+.gem-body { font-size: 13.5px; line-height: 1.85; max-width: 400px; margin: 0 auto; }
+.gem-price {
+  display: inline-block; margin-top: 28px; padding: 9px 22px; border: 1px solid; border-radius: 999px;
+  font-size: 11px; letter-spacing: .16em; font-weight: 700;
+}
+/* The wearing facts, still centred and still tracked — the reference has no
+   table in it, so neither does this. Four labelled pairs on one line at desk
+   width, wrapping to two on a phone. */
+/* TWO BY TWO, NOT THREE AND A STRAY. Four facts across a 560px sheet wrap to
+   3 + 1 and the orphan reads as a mistake; two columns is a deliberate block
+   at every width. */
+.gem-facts {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px 24px;
+  margin: 12px auto 0; max-width: 380px;
+}
 .gem-chart {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 12px 16px;
   background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+  margin-bottom: 18px;
 }
-.gem-chart { margin-bottom: 18px; }
-@media (max-width: 760px) {
-  .gem-card { grid-template-columns: 1fr; gap: 18px; padding: 18px; }
-  .gem-shot img { max-width: 170px; }
-  .gem-name { font-size: 22px; }
+@media (max-width: 620px) {
+  .gem-sheet { padding: 34px 20px 32px; }
+  .gem-photo { width: 190px; height: 170px; }
+  .gem-arc text { font-size: 9.5px; letter-spacing: 1.6px; }
+  .gem-facts { gap: 14px 16px; max-width: 320px; }
+}
+
+/* The carat figure, set like the display name because it is the second most
+   important thing on the sheet and the one people came for. Tabular so the
+   digits do not shuffle between stones. */
+.gem-weight {
+  font-size: clamp(30px, 4vw, 44px); font-weight: 300; letter-spacing: -.01em;
+  margin: 4px 0 10px; font-variant-numeric: tabular-nums;
 }

@@ -112,8 +112,8 @@ describe('which stone this chart calls for', () => {
     const r = chart({ ascendant: 'Libra' });
     const venus = r.recommendations.find((x) => x.gem.planet === 'venus');
     expect(venus?.gem.id).toBe('diamond');
-    expect(venus!.substitutes.map((s) => s.id)).toContain('white-sapphire');
-    for (const s of venus!.substitutes) expect(s.perCaratMinInr).toBeLessThan(venus!.gem.perCaratMinInr);
+    expect(venus!.substitutes.map((s) => s.gem.id)).toContain('white-sapphire');
+    for (const s of venus!.substitutes) expect(s.gem.perCaratMinInr).toBeLessThan(venus!.gem.perCaratMinInr);
   });
 
   it('carries the 72-hour trial note on the three stones that need it, and on no others', () => {
@@ -125,6 +125,60 @@ describe('which stone this chart calls for', () => {
     for (const rec of r.recommendations) {
       expect({ id: rec.gem.id, flagged: rec.trialNote !== null })
         .toEqual({ id: rec.gem.id, flagged: TRIAL_REQUIRED.has(rec.gem.id) });
+    }
+  });
+});
+
+describe('how many carats, for this person', () => {
+  /**
+   * THE FIGURE THAT TURNS A PRICE PER CARAT INTO A PRICE. "₹8,000 – ₹25,000
+   * per carat" is not a number anybody can act on; the same stone at the weight
+   * their own body is prescribed is.
+   */
+  it('works the weight out from body weight, at the tradition\'s own rule', () => {
+    // One ratti per ten kilos, 0.91 ct to the ratti — 70 kg is 7 ratti is
+    // 6.37 ct, shown as 6.25 because stones are cut in quarter carats.
+    const r = recommendGems({ ascendant: 'Leo', moonSign: 'Taurus', mahadasha: 'Sun', antardasha: 'Venus', lifePath: 1, bodyKg: 70 });
+    const life = r.recommendations.find((x) => x.role === 'life')!;
+    expect(life.weight?.carats).toBe(6.25);
+    expect(r.weightUnknown).toBe(false);
+  });
+
+  it('offers no figure at all when nobody has told us a body weight', () => {
+    // The same refusal the ascendant gets without a birth time. An average here
+    // is the difference between a ₹50,000 stone and a ₹90,000 one.
+    const r = chart();
+    expect(r.weightUnknown).toBe(true);
+    for (const rec of r.recommendations) {
+      expect({ id: rec.gem.id, weight: rec.weight, from: rec.fromInr }).toEqual({ id: rec.gem.id, weight: null, from: null });
+    }
+  });
+
+  it('prices the stone at that weight, not per carat', () => {
+    const r = recommendGems({ ascendant: 'Leo', moonSign: 'Taurus', mahadasha: 'Sun', antardasha: 'Venus', lifePath: 1, bodyKg: 70 });
+    const ruby = r.recommendations.find((x) => x.gem.id === 'ruby')!;
+    expect(ruby.fromInr).toBe(Math.round(6.25 * ruby.gem.perCaratMinInr));
+    expect(ruby.toInr).toBe(Math.round(6.25 * ruby.gem.perCaratMaxInr));
+  });
+
+  it('makes a substitute heavier, which is what decides whether it is cheaper', () => {
+    // The upratna carry the same planet at a fraction of the per-carat price and
+    // the tradition compensates with mass. Showing the cheap per-carat figure
+    // without the heavier weight is how somebody finds out at the counter.
+    const r = recommendGems({ ascendant: 'Libra', moonSign: 'Taurus', mahadasha: 'Venus', antardasha: 'Sun', lifePath: 6, bodyKg: 70 });
+    const venus = r.recommendations.find((x) => x.gem.planet === 'venus')!;
+    for (const s of venus.substitutes) {
+      expect(s.weight!.carats).toBeGreaterThan(venus.weight!.carats);
+    }
+  });
+
+  it('never prescribes under two carats or over eleven', () => {
+    for (const kg of [20, 45, 70, 95, 140, 200]) {
+      const r = recommendGems({ ascendant: 'Leo', moonSign: 'Taurus', mahadasha: 'Sun', antardasha: 'Venus', lifePath: 1, bodyKg: kg });
+      for (const rec of r.recommendations) {
+        const c = rec.weight!.carats;
+        expect({ kg, inRange: c >= 2 && c <= 11 }).toEqual({ kg, inRange: true });
+      }
     }
   });
 });

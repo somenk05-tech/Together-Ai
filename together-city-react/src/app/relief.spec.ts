@@ -578,6 +578,16 @@ describe('Relief stays a system', () => {
    * because it borrows a typeface. If a fifth thing wants the serif it needs
    * its own line here, its own reason, and its own entry in that list.
    *
+   * `.gem-display` is the fifth, and it asked properly. The Astrology Zone's
+   * gemstone sheets are the owner's own reference rendered in the city's
+   * material: a stone photographed on white, three trait words arched over it,
+   * and the name beneath in wide-tracked capitals. That name is the entire
+   * composition — at .34em of tracking it is closer to a piece of engraving
+   * than a heading, and the sans this application otherwise sets everything in
+   * cannot do it. It is the same grant `.routine-display` has for the same
+   * reason: one editorial title, in one hub, from a reference the owner
+   * supplied, whose character IS this face against the sans.
+   *
    * The rule lives in layout.css rather than relief.css, which means
    * assertions 1 and 2 — both of which read `relief` only — cannot see it.
    * Assertion 4 reads BOTH files for exactly that reason. A guard that stops
@@ -626,7 +636,7 @@ describe('Relief stays a system', () => {
     }
     const borrowed = serifReaders.filter((sel) => !/\.press-|\[data-press\]/.test(sel));
     expect(borrowed, 'the display serif is lent by name, and this is the list')
-      .toEqual(['.letter-title,\n.letter-archive-day .t,\n.routine-display']);
+      .toEqual(['.letter-title,\n.letter-archive-day .t,\n.routine-display,\n.gem-display']);
   });
 
   /**

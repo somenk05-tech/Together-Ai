@@ -77,11 +77,47 @@ describe('the gemstone marketplace', () => {
     expect(gems).toMatch(/haven’t guessed|haven't guessed/);
   });
 
-  it('does not invent a carat weight while the owner\'s figures are outstanding', () => {
-    // The next screen is a weight and a quality slider. The recommended weight
-    // is the one field the data has not reached us yet, and a page that picks a
-    // number for somebody buying a ₹90,000 stone is worse than no page.
-    expect(gems).not.toMatch(/carat[sS]?\s*[:=]\s*\d/);
-    expect(gems).not.toMatch(/recommendedWeight/);
+  it('says how many carats, and never invents the figure', () => {
+    // A price per carat is not a price. The weight comes from the tradition's
+    // own rule applied to this person's body weight — and when there is no body
+    // weight on file there is no figure, which is the same refusal the
+    // ascendant gets without a birth time, for a larger sum of money.
+    expect(gems).toMatch(/rec\.weight/);
+    expect(gems).toMatch(/CARATS/);
+    expect(gems).toMatch(/one ratti for every ten kilos/);
+    expect(gems).toMatch(/won’t guess at it|won't guess at it/);
+    // No literal carat figure anywhere in the page.
+    expect(gems).not.toMatch(/carats:\s*\d/);
+  });
+
+  it('is the owner\'s sheet, not a product row', () => {
+    /**
+     * THE COMPOSITION IS THE REFERENCE'S. A capsule, three trait words arched
+     * over the stone, the name in engraved capitals, centred prose, a price
+     * ring. The first build of this page was a photograph on the left and a
+     * grey grid of facts on the right — a perfectly good product row that threw
+     * the whole reference away.
+     */
+    expect(gems).toMatch(/gem-sheet/);
+    expect(gems).toMatch(/textPath/);
+    expect(gems).toMatch(/gem-display/);
+    expect(gems).toMatch(/gem-price/);
+    // Every added section speaks the reference's own vocabulary rather than
+    // inventing a second one.
+    expect(gems).toMatch(/<Sub>/);
+    expect(gems).not.toMatch(/gridTemplateColumns/);
+  });
+
+  it('names no colour of its own — the palette is the catalogue\'s', () => {
+    /**
+     * Each sheet is themed to its stone: a ruby's title in oxblood, an
+     * emerald's in deep green. relief.spec forbids colour written into a page
+     * and is right to — a hex typed here is a decision made outside the system.
+     * These arrive in the payload beside the photograph and the price. This is
+     * the assertion that keeps it that way.
+     */
+    expect(gems).toMatch(/gem\.theme\.title/);
+    expect(gems).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    expect(gems).not.toMatch(/rgba?\(/);
   });
 });

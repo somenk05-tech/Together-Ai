@@ -184,17 +184,36 @@ export interface GemWearing {
   allies: string[]; soft: boolean;
 }
 
+/** The weight the tradition prescribes for this person, in carats. */
+export interface GemWeight {
+  carats: number; ratti: number; fromCt: number; toCt: number; clamped: boolean;
+}
+
+/** A stone at that weight, with what it costs there. */
+export interface GemAtWeight {
+  gem: GemStone;
+  weight: GemWeight | null;
+  fromInr: number | null;
+  toInr: number | null;
+}
+
 export interface GemRecommendation {
   gem: GemStone;
   role: GemRole;
+  /** Null when no body weight is on file — no figure is invented. */
+  weight: GemWeight | null;
+  /** What the stone costs AT that weight — the only price anybody can act on. */
+  fromInr: number | null;
+  toInr: number | null;
   /** Every reason this stone came up — a stone holds one role and may still be
    *  justified three ways. */
   reasons: string[];
   wearing: GemWearing;
   /** Set on the three stones traditionally worn on trial before commissioning. */
   trialNote: string | null;
-  /** Cheaper stones for the same planet. */
-  substitutes: GemStone[];
+  /** Cheaper stones for the same planet, priced at the heavier weight the
+   *  tradition asks of a substitute. */
+  substitutes: GemAtWeight[];
 }
 
 export interface GemstonesResponse {
@@ -202,9 +221,13 @@ export interface GemstonesResponse {
   chart: {
     ascendant: string | null; moonSign: string;
     mahadasha: string; antardasha: string; lifePath: number;
+    bodyKg: number | null;
   };
   /** No birth time means no ascendant, so no life or fortune stone. */
   timeUnknown: boolean;
+  /** No body weight means no carat figure — an average would be a guess about
+   *  the difference between a ₹50,000 stone and a ₹90,000 one. */
+  weightUnknown: boolean;
   recommendations: GemRecommendation[];
   disclaimer: string;
 }

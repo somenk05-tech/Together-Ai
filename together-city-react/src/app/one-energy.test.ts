@@ -19,11 +19,25 @@ const api = join(web, '../../together-city-chat/src');
  * the height term and the female constant. If either appears outside
  * shared/energy.ts, somebody is writing the fifth implementation.
  *
+ * THE HEIGHT TERM IS MATCHED AGAINST A HEIGHT, and it did not used to be. A
+ * bare `6.25` was the fingerprint, which is not a fingerprint at all — it is a
+ * number. It caught a gemstone weighing 6.25 carats in the Astrology Zone's
+ * spec, a file with no arithmetic about anybody's metabolism in it. A guard
+ * that fires on a coincidence teaches people to add themselves to its allow
+ * list, and an allow list is where a guard goes to die, so the pattern got
+ * narrower instead: the coefficient MULTIPLIED BY A HEIGHT.
+ *
+ * The female constant stays broad on purpose. `-161` next to nothing in
+ * particular is still overwhelmingly likely to be this equation, and every
+ * implementation of it has that term — so the two together keep catching the
+ * thing this exists to catch, whatever the variables are called.
+ *
  * Comments are stripped before scanning — a guard that reads prose has been
  * fooled four times in this repo already — and the literals are assembled at
  * runtime so this file cannot trip itself.
  */
-const HEIGHT_TERM = new RegExp('\\b6\\.' + '25\\b');
+const HEIGHT_TERM = new RegExp(
+  '\\b6\\.' + '25\\s*\\*\\s*\\w*height|height\\w*\\s*\\*\\s*\\b6\\.' + '25\\b', 'i');
 const FEMALE_TERM = new RegExp('-\\s*' + '161\\b');
 const ALLOWED = ['shared/energy.ts', 'shared/energy.spec.ts', 'app/one-energy.test.ts'];
 
