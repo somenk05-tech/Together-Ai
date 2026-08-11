@@ -346,20 +346,54 @@ export class AstrologyService {
    * and stopping the next letter from repeating the last one. The second is why
    * this reads the bodies rather than a summary — letterProblems() compares
    * five-word runs, and it can only do that against the real text.
+   *
+   * IT DOES NOT FILTER BY READING_VER, AND THAT IS THE POINT OF THIS METHOD.
+   *
+   * It used to: `period: { startsWith: 'v6:' }`. The version prefix is a CACHE
+   * key — it exists so a change to the brief does not leave everybody reading
+   * yesterday's cached letter until their own midnight. Reading HISTORY through
+   * it made every letter written before the last bump vanish, and the effect is
+   * total rather than partial: v5 became v6 one evening, and the next morning
+   * the archive was empty on an account with a month of letters behind it. That
+   * is the one thing an archive must not do.
+   *
+   * A letter that was sent was sent. It is theirs, in the words it was written
+   * in, whatever brief was current that day — which is also why `title` is
+   * optional the whole way out to the api type: letters older than titles list
+   * as their date and read perfectly well.
+   *
+   * ORDERED BY createdAt, NOT BY period. Once versions mix, `period` sorts
+   * `v6:2026-02-01` above `v5:2026-08-01` — every current-version letter in one
+   * block and the older ones underneath, which is not a chronology. The row is
+   * written on the day the letter is for, so createdAt IS that day, and it has
+   * an index. The final sort is on the letter's own `date`, which is the value
+   * the archive prints, so what is shown and what it is ordered by cannot drift
+   * apart.
+   *
+   * AND ONE ROW PER DATE. A bump in the middle of a day leaves `v5:2026-08-10`
+   * and `v6:2026-08-10` both on disk, and both are real — one was sent, then
+   * the other was. The newest wins, because it is the one that was on screen.
+   * The over-fetch is what makes room for the pairs that collapse.
    */
   private async recentLetters(userId: string, kind: 'daily' | 'monthly', take: number): Promise<DatedLetter[]> {
     const rows = (await swallow(this.db.astroReading.findMany({
-      where: { userId, kind, period: { startsWith: `${AstrologyService.READING_VER}:` } },
-      orderBy: { period: 'desc' }, take,
-    }), `astro: ${kind} history read`, { userId })) ?? ([] as Array<{ period: string; readingJson: string }>);
+      where: { userId, kind },
+      orderBy: { createdAt: 'desc' }, take: take * 2,
+    }), `astro: ${kind} history read`, { userId })) ?? ([] as Array<{ readingJson: string }>);
     const out: DatedLetter[] = [];
+    const seen = new Set<string>();
     for (const r of rows) {
       try {
         const parsed = JSON.parse(r.readingJson) as DatedLetter;
-        if (parsed?.body) out.push(parsed);
+        // A row from before letters existed parses fine and has no body. There
+        // is nothing in it to show and nothing to keep the writer from
+        // repeating, so it is not a letter for either of this method's jobs.
+        if (!parsed?.body || !parsed?.date || seen.has(parsed.date)) continue;
+        seen.add(parsed.date);
+        out.push(parsed);
       } catch { /* a row that will not parse is a row we cannot show */ }
     }
-    return out;
+    return out.sort((a, b) => b.date.localeCompare(a.date)).slice(0, take);
   }
 
   /**
