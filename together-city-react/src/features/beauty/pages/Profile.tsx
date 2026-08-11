@@ -1,10 +1,13 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Spinner, EmptyState } from '@/components/ui';
 import { useBeautyProfile, useSaveBeautyProfile, useAnalyzeBeautyPhotos, useBeautyInsights, useBeautyHistory, useConditionSuggestions, useDeleteLatestAssessment } from '../api';
 import type { BeautyAssessment, BeautyReading, AssessLevel, BeautyProgressEntry } from '../api';
 import { useMasterProfile } from '@/features/profile/hooks';
 import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLockedField';
+import { PHOTO_SLOTS, PhotoGrid, missingPhotos, photosReady, requiredCount, type Shot } from '../components/PhotoStudio';
+
+const PHOTOS_NEEDED = PHOTO_SLOTS.filter((s) => s.required).length;
 
 /** Assessment-level display meta for the timeline. */
 const LEVEL_META: Record<string, { c: string; label: string }> = {
@@ -164,11 +167,6 @@ const ROUTINE = ['Face Cleanser', 'Moisturizer', 'Sunscreen', 'Serum', 'Toner', 
 const ALLERGIES = ['Fragrance', 'Essential Oils', 'Retinol', 'Niacinamide', 'Vitamin C', 'Salicylic Acid', 'Benzoyl Peroxide', 'AHA', 'BHA', 'Sulphates', 'Silicones', 'Parabens', 'Alcohol', 'Coconut Oil', 'Nuts'];
 const CONDITIONS = ['PCOS', 'Thyroid Disorders', 'Diabetes', 'Autoimmune Disorders', 'Pregnancy', 'Breastfeeding', 'Eczema', 'Psoriasis', 'Rosacea', 'Alopecia', 'Hormonal Acne', 'Seborrheic Dermatitis'];
 const BUDGET = ['Under ₹500', '₹500–1000', '₹1000–2500', '₹2500–5000', '₹5000+', "Don't know"];
-const PHOTO_SLOTS = [
-  { key: 'face', label: 'Face (front)' }, { key: 'left', label: 'Left side' }, { key: 'right', label: 'Right side' },
-  { key: 'hairline', label: 'Hairline' }, { key: 'top', label: 'Top of head' }, { key: 'scalp', label: 'Scalp close-up' },
-];
-
 const LEVEL: Record<AssessLevel, { color: string; soft: string; label: string }> = {
   good: { color: 'var(--ok-ink)', soft: 'var(--ok-soft)', label: 'Good' },
   monitor: { color: 'var(--info-ink)', soft: 'var(--info-soft)', label: 'Monitor' },
@@ -427,8 +425,7 @@ export function Profile() {
   const [tab, setTab] = useState<'photos' | 'profile'>('photos');
   const [f, setF] = useState<Form>(EMPTY);
   const [editingProfile, setEditingProfile] = useState(false);
-  const [pics, setPics] = useState<Record<string, { preview: string; base64: string; mediaType: string }>>({});
-  const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [pics, setPics] = useState<Record<string, Shot>>({});
 
   useEffect(() => {
     const saved = profile.data?.profile && Object.keys(profile.data.profile).length ? (profile.data.profile as Partial<Form>) : null;
@@ -473,14 +470,16 @@ export function Profile() {
   }, [conditions.data, profile.data]);
 
   // ── hooks that MUST run on every render (before any early return) ──
-  const picsCountH = Object.keys(pics).length;
-  const photosCompleteH = picsCountH >= PHOTO_SLOTS.length;
+  const photosCompleteH = photosReady(pics);
   const answeredH = [
     ...REQUIRED_SINGLE.map((k) => Boolean(f[k] && String(f[k]).trim())),
     ...REQUIRED_MULTI.map((k) => ((f[k] as string[]) ?? []).length > 0),
   ].filter(Boolean).length;
   const profileCompleteH = answeredH >= REQUIRED_SINGLE.length + REQUIRED_MULTI.length;
-  // Auto-advance: the moment the 6th photo lands, glide to the Profile tab.
+  // Auto-advance: the moment the last REQUIRED photo lands, glide to the
+  // Profile tab. It fires on the required pair rather than on a full grid,
+  // because the optional third may never arrive and waiting for it would strand
+  // somebody on a tab they have finished with.
   const [photoBanner, setPhotoBanner] = useState(false);
   const autoSwitched = useRef(false);
   useEffect(() => {
@@ -512,16 +511,17 @@ export function Profile() {
   };
   const isOn = (k: keyof Form, v: string) => (Array.isArray(f[k]) ? (f[k] as string[]).includes(v) : f[k] === v);
 
-  // ── onboarding completion (photos 6/6 + profile 18/18 unlock the analysis) ──
-  const picsCount = Object.keys(pics).length;
-  const photosComplete = picsCount >= PHOTO_SLOTS.length;
+  // ── onboarding completion (the required photos + profile 18/18 unlock it) ──
+  const picsCount = Object.keys(pics).length;      // everything staged, optional included
+  const picsRequired = requiredCount(pics);        // only what the gate counts
+  const photosComplete = photosReady(pics);
   const answered = [
     ...REQUIRED_SINGLE.map((k) => Boolean(f[k] && String(f[k]).trim())),
     ...REQUIRED_MULTI.map((k) => ((f[k] as string[]) ?? []).length > 0),
   ].filter(Boolean).length;
   const profileTotal = REQUIRED_SINGLE.length + REQUIRED_MULTI.length;
   const profileComplete = answered >= profileTotal;
-  const overallPct = Math.round(((Math.min(picsCount, 6) / 6) * 0.5 + (answered / profileTotal) * 0.5) * 100);
+  const overallPct = Math.round(((picsRequired / PHOTOS_NEEDED) * 0.5 + (answered / profileTotal) * 0.5) * 100);
   // Once the SAVED profile is complete, show it collapsed (summary + Edit).
   const savedComplete = isBeautyComplete((profile.data?.profile ?? {}) as Partial<Form>);
   const collapsedProfile = savedComplete && !editingProfile;
@@ -545,7 +545,7 @@ export function Profile() {
         </div>
         <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 12.5 }}>
           <span style={{ fontWeight: 600, color: photosComplete ? 'var(--ok-ink)' : 'var(--ink-soft)' }}>
-            {photosComplete ? '✅' : '1️⃣'} Photos: {Math.min(picsCount, 6)} / 6
+            {photosComplete ? '✅' : '1️⃣'} Photos: {picsRequired} / {PHOTOS_NEEDED}
           </span>
           <span style={{ fontWeight: 600, color: profileComplete ? 'var(--ok-ink)' : 'var(--ink-soft)' }}>
             {profileComplete ? '✅' : '2️⃣'} Profile: {answered} / {profileTotal}
@@ -558,38 +558,11 @@ export function Profile() {
     );
   };
 
-  // Downscale in the browser before upload: phone photos are 3–8 MB each and
-  // six of them would blow past any sane request size. ~1280 px JPEG keeps all
-  // the detail the analysis needs at a fraction of the payload.
-  const onPic = (slot: string, e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const url = String(reader.result || '');
-      const img = new Image();
-      img.onload = () => {
-        const MAX = 1280;
-        const scale = Math.min(1, MAX / Math.max(img.width, img.height));
-        const c = document.createElement('canvas');
-        c.width = Math.max(1, Math.round(img.width * scale));
-        c.height = Math.max(1, Math.round(img.height * scale));
-        const ctx = c.getContext('2d');
-        if (!ctx) { // canvas unavailable — fall back to the original
-          setPics((p) => ({ ...p, [slot]: { preview: url, base64: url.split(',')[1] ?? '', mediaType: file.type || 'image/jpeg' } }));
-          return;
-        }
-        ctx.drawImage(img, 0, 0, c.width, c.height);
-        const jpeg = c.toDataURL('image/jpeg', 0.85);
-        setPics((p) => ({ ...p, [slot]: { preview: jpeg, base64: jpeg.split(',')[1] ?? '', mediaType: 'image/jpeg' } }));
-      };
-      img.onerror = () => {
-        setPics((p) => ({ ...p, [slot]: { preview: url, base64: url.split(',')[1] ?? '', mediaType: file.type || 'image/jpeg' } }));
-      };
-      img.src = url;
-    };
-    reader.readAsDataURL(file);
-  };
+  // Reading and downscaling a photo now lives in PhotoStudio, with the camera
+  // and the drop target, because all three produce the same thing and one of
+  // them having its own resize was how the sizes would come to differ.
+  const setPic = (slot: string, shot: Shot) => setPics((p) => ({ ...p, [slot]: shot }));
+  const clearPic = (slot: string) => setPics((p) => { const n = { ...p }; delete n[slot]; return n; });
   // Downscale one photo to a small JPEG thumbnail for the before/after timeline.
   const makeThumb = (dataUrl: string): Promise<string> => new Promise((resolve) => {
     const img = new Image();
@@ -610,7 +583,7 @@ export function Profile() {
   const runAnalysis = async () => {
     const entries = Object.entries(pics);
     const photos = entries.map(([slot, v]) => ({ slot, base64: v.base64, mediaType: v.mediaType }));
-    if (photos.length < PHOTO_SLOTS.length || !profileComplete) return; // locked until 6/6 photos + full profile
+    if (!photosComplete || !profileComplete) return; // locked until the required photos + a full profile
     const facePic = pics.face ?? entries[0]?.[1];
     const thumb = facePic ? await makeThumb(facePic.preview) : undefined;
     analyze.mutate({ photos, thumb: thumb || undefined }, { onSuccess: () => setPics({}) });
@@ -642,24 +615,12 @@ export function Profile() {
         <div>
           <OnboardingProgress />
           <div className="card" style={{ marginBottom: 14 }}>
-            <div className="eyebrow" style={{ marginBottom: 8 }}>Upload photos <span className="muted" style={{ fontWeight: 400 }}>· all six required · {Math.min(picsCount, 6)} / 6</span></div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 12 }}>
-              {PHOTO_SLOTS.map((s) => {
-                const pic = pics[s.key];
-                return (
-                  <div key={s.key} onClick={() => fileRefs.current[s.key]?.click()}
-                    style={{ cursor: 'pointer', border: '2px dashed var(--line)', borderRadius: 12, aspectRatio: '1 / 1', overflow: 'hidden', position: 'relative', background: pic ? `center/cover no-repeat url(${pic.preview})` : 'var(--paper)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {!pic && <div style={{ textAlign: 'center', padding: 8 }}><div style={{ fontSize: 22 }}>＋</div><div className="muted" style={{ fontSize: 11 }}>{s.label}</div></div>}
-                    {pic && <span style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(20,18,14,.6)', color: 'var(--on-accent)', fontSize: 10.5, padding: '3px 6px', textAlign: 'center' }}>{s.label}</span>}
-                    <input ref={(el) => { fileRefs.current[s.key] = el; }} type="file" accept="image/*" onChange={(e) => onPic(s.key, e)} style={{ display: 'none' }} />
-                  </div>
-                );
-              })}
-            </div>
+            <div className="eyebrow" style={{ marginBottom: 8 }}>Your photos <span className="muted" style={{ fontWeight: 400 }}>· two needed, one optional · {picsRequired} / {PHOTOS_NEEDED}</span></div>
+            <PhotoGrid pics={pics} onSet={setPic} onClear={clearPic} />
             <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 12, padding: '10px 12px', background: 'var(--paper)', borderRadius: 10 }}>
               <span style={{ fontSize: 15 }}>📷</span>
               <p className="muted" style={{ fontSize: 11.5, margin: 0, lineHeight: 1.5 }}>
-                Upload clear, well-lit photos of yourself with a bare face/scalp. <strong>No beauty filters and no AI-generated images</strong> — they distort the analysis and will be rejected. {aiEnabled ? 'AI reviews clear photos once to spot visible issues (acne, pigmentation, texture, pores, redness, hydration, hair density & scalp).' : 'Photos build your before/after alongside your profile assessment.'} Full images aren't stored — only a small unedited thumbnail for your timeline. <strong>🔒 Your photos are completely private: no one but you ever sees them</strong> — they're never shown to other users, never shared, and never used for anything except your own analysis.
+                Bare face and scalp, good even light, and take them however suits you — the camera here, a file, or dragged onto a tile. <strong>No beauty filters and no AI-generated images</strong> — they distort the analysis and will be rejected. {aiEnabled ? 'AI reviews clear photos once to spot visible issues (acne, pigmentation, texture, pores, redness, hydration, hair density & scalp).' : 'Photos build your before/after alongside your profile assessment.'} Full images aren't stored — only a small unedited thumbnail for your timeline. <strong>🔒 Your photos are completely private: no one but you ever sees them</strong> — they're never shown to other users, never shared, and never used for anything except your own analysis.
               </p>
             </div>
             {warning && (
@@ -669,7 +630,10 @@ export function Profile() {
               <Button variant="accent" disabled={analyze.isPending || !photosComplete || !profileComplete || (profile.data?.uploads?.remaining === 0)} onClick={() => void runAnalysis()}>
                 {analyze.isPending ? 'Analysing…' : `Analyse & save${progress.length ? ' this week' : ''}`}
               </Button>
-              {!photosComplete && picsCount > 0 && <span className="muted" style={{ fontSize: 11.5 }}>Add {6 - picsCount} more photo{6 - picsCount > 1 ? 's' : ''} to continue</span>}
+              {/* Names what is missing rather than counting it. "Add 1 more
+                  photo" on a grid with an empty optional tile in it is a
+                  sentence somebody can satisfy and still be locked out. */}
+              {!photosComplete && picsCount > 0 && <span className="muted" style={{ fontSize: 11.5 }}>Still needed: {missingPhotos(pics).join(' and ')}</span>}
               {photosComplete && !profileComplete && (
                 <button type="button" onClick={() => setTab('profile')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, color: 'var(--accent-ink)', padding: 0 }}>
                   Complete your profile to unlock your assessment →
