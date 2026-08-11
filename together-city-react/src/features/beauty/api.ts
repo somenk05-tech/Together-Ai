@@ -110,6 +110,9 @@ export interface RoutinePick {
 export interface CategoryPlan {
   category: 'face' | 'hair' | 'body';
   budgetInr: number;
+  /** The citizen set this category to zero. Not "we found nothing" — they said
+   *  not to, so the band is not drawn at all. */
+  skipped: boolean;
   monthlyInr: number;
   remainingInr: number;
   /** Only when the budget cannot carry the essentials: what it would take. */

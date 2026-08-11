@@ -182,15 +182,15 @@ export const HUBS: Record<HubKey, HubConfig> = {
     key: 'beauty', name: 'Beauty Market', tag: 'Science-led, personally curated', backPath: '/beauty',
     items: [
       { path: '/beauty/profile', index: '01', label: 'Skin & Hair Profile', sub: 'Photos, AI assessment & goals' },
-      // BUDGET SITS BETWEEN THE PROFILE AND THE ROUTINE because that is the
-      // order the decision happens in. A routine generated before anybody has
-      // said what they can spend is a quote, and the whole engine downstream
-      // treats the number as a constraint rather than a filter.
-      { path: '/beauty/budget', index: '02', label: 'Budget', sub: 'Set your monthly beauty budget' },
-      { path: '/beauty/routine', index: '03', label: 'Your Routine', sub: 'Built from your profile + budget' },
-      { path: '/beauty/market', index: '04', label: 'Beauty Market', sub: 'Curated, matched to you' },
-      { path: '/beauty/makeup', index: '05', label: 'Makeup Studio', sub: 'Your personal AI makeup artist' },
-      { path: '/beauty/orders', index: '06', label: 'My Orders', sub: 'Your beauty shelf' },
+      // THE BUDGET IS NOT A TAB. It had one for an afternoon and it was a
+      // second place for one decision — the panel already sits on the profile,
+      // directly under the assessment it is spending against, which is where
+      // the decision is actually made. A sidebar entry pointing at another
+      // page's section highlights the wrong row and teaches nobody anything.
+      { path: '/beauty/routine', index: '02', label: 'Your Routine', sub: 'Built from your profile + budget' },
+      { path: '/beauty/market', index: '03', label: 'Beauty Market', sub: 'Curated, matched to you' },
+      { path: '/beauty/makeup', index: '04', label: 'Makeup Studio', sub: 'Your personal AI makeup artist' },
+      { path: '/beauty/orders', index: '05', label: 'My Orders', sub: 'Your beauty shelf' },
     ],
   },
   medical: {

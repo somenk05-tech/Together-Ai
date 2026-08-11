@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Spinner, EmptyState } from '@/components/ui';
-import { useBeautyProfile, useSaveBeautyProfile, useAnalyzeBeautyPhotos, useBeautyInsights, useBeautyHistory, useConditionSuggestions, useDeleteLatestAssessment } from '../api';
+import { useBeautyBudget, useBeautyProfile, useSaveBeautyProfile, useAnalyzeBeautyPhotos, useBeautyInsights, useBeautyHistory, useConditionSuggestions, useDeleteLatestAssessment } from '../api';
 import type { BeautyAssessment, BeautyReading, AssessLevel, BeautyProgressEntry } from '../api';
 import { useMasterProfile } from '@/features/profile/hooks';
 import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLockedField';
 import { PHOTO_SLOTS, PhotoGrid, missingPhotos, photosReady, requiredCount, type Shot } from '../components/PhotoStudio';
 import { Collapsible } from '../components/Collapsible';
-import { BudgetPanel } from '../components/BudgetPanel';
+import { BudgetPanel, budgetSummary } from '../components/BudgetPanel';
 
 const PHOTOS_NEEDED = PHOTO_SLOTS.filter((s) => s.required).length;
 
@@ -421,6 +421,7 @@ export function Profile() {
     masterGender === 'nonBinary' ? 'Non-binary'
     : masterGender === 'other' && masterGenderFreeText ? masterGenderFreeText
     : null;
+  const budget = useBeautyBudget();
   const [tab, setTab] = useState<'photos' | 'profile'>('photos');
   const [f, setF] = useState<Form>(EMPTY);
   const [editingProfile, setEditingProfile] = useState(false);
@@ -694,15 +695,27 @@ export function Profile() {
             <EmptyState icon="✨" title="No assessment yet" hint="Add photos and analyse, or fill in your profile and save — your assessment appears here." />
           )}
 
-          {/* OPEN, AND DIRECTLY UNDER THE ANALYSIS, because it is step two of
-              three and the assessment is what it is spending against. The same
-              panel is a page of its own at /beauty/budget for anybody coming
-              back only to change a number. */}
-          {analysis && (
+          {/* DIRECTLY UNDER THE ANALYSIS, because it is step two of three and the
+              assessment is what the money is being spent against. This is the
+              only place it lives — it had a page and a sidebar tab for an
+              afternoon, and that was a second location for one decision.
+
+              OPEN UNTIL IT IS SET, then folded with the rest. The header keeps
+              the answer visible while it is closed, so somebody can see what
+              they chose without opening anything. */}
+          {analysis && (budget.data ? (
+            <Collapsible
+              title="Your budget"
+              meta={budgetSummary(budget.data)}
+              action={<Link to="/beauty/routine" style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--accent-ink)' }}>See my routine →</Link>}
+            >
+              <BudgetPanel compact priorities={priorities} />
+            </Collapsible>
+          ) : (
             <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid var(--accent)' }}>
               <BudgetPanel compact priorities={priorities} />
             </div>
-          )}
+          ))}
 
           {/* Permanent, dated assessment history + progress comparison. */}
           {done

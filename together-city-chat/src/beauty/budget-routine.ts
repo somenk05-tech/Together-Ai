@@ -55,8 +55,16 @@ export interface StoredBudget extends CategoryBudgets {
   preference: string | null;
 }
 
-/** The smallest and largest monthly figure the sliders offer. */
-export const BUDGET_MIN = 1000;
+/**
+ * The range the sliders offer, and zero is inside it.
+ *
+ * ZERO IS AN ANSWER, NOT AN UNSET VALUE. Somebody who already has a body wash
+ * and a lotion they like should be able to say "spend nothing here" and be
+ * taken at their word — no body band, no body products, no nagging. It reads
+ * differently from `null`, which still means the budget has never been set and
+ * gates the routine entirely.
+ */
+export const BUDGET_MIN = 0;
 export const BUDGET_MAX = 60000;
 
 export const clampBudget = (n: number): number =>
@@ -121,6 +129,9 @@ export interface Pick_ {
 export interface CategoryPlan {
   category: BudgetCategory;
   budgetInr: number;
+  /** The citizen set this category to zero. Not "we found nothing" — they said
+   *  not to. Nothing is planned, nothing is listed, nothing is suggested. */
+  skipped: boolean;
   picks: Pick_[];
   monthlyInr: number;
   remainingInr: number;
@@ -164,6 +175,19 @@ export function planCategory(
   all: RecommendedProduct[], category: BudgetCategory, budgetInr: number, needs: Set<string>,
 ): CategoryPlan {
   const budget = clampBudget(budgetInr);
+
+  // A ZERO BUDGET IS A DECISION AND IT IS OBEYED IN FULL. Not "the cheapest
+  // thing we could find", not a list of what they are missing out on — an
+  // empty plan, and the page leaves the whole band out. Offering products to
+  // somebody who has just said they do not want to spend anything here is the
+  // shop reflex this feature exists to refuse.
+  if (budget === 0) {
+    return {
+      category, budgetInr: 0, skipped: true, picks: [], monthlyInr: 0,
+      remainingInr: 0, minimumInr: null, leftOut: [], upgrades: [],
+    };
+  }
+
   const pool = all.filter((p) => categoryOf(p.group) === category && p.matched);
   const defs = ROLES[category];
   const forRole = (d: RoleDef) => pool.filter((p) => d.match.test(p.category));
@@ -270,7 +294,7 @@ export function planCategory(
     .filter((u) => u.monthlyInr <= left());
 
   return {
-    category, budgetInr: budget, picks,
+    category, budgetInr: budget, skipped: false, picks,
     monthlyInr: spent,
     remainingInr: Math.max(0, budget - spent),
     minimumInr: short ? floorCost : null,

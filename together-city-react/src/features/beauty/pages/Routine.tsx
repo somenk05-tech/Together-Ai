@@ -224,9 +224,10 @@ export function Routine() {
           <h2 style={{ fontSize: 16, margin: 0 }}>Set your monthly beauty budget first</h2>
           <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.6, margin: '8px 0 14px' }}>
             We&rsquo;ll use your profile and your budget to build your routine — face, hair and
-            body each with their own monthly limit, and nothing chosen that goes over it.
+            body each with their own monthly limit, and nothing chosen that goes over it. The
+            budget sits on your Skin &amp; Hair Profile, under the assessment.
           </p>
-          <Link to="/beauty/budget"><Button variant="accent">Set my budget</Button></Link>
+          <Link to="/beauty/profile"><Button variant="accent">Set my budget</Button></Link>
         </div>
       </div>
     );
@@ -240,7 +241,29 @@ export function Routine() {
     setPlaced(false);
   };
 
-  const band = (k: ProductRoutine['timeOfDay']) => data?.routines.find((r) => r.timeOfDay === k);
+  /**
+   * A CATEGORY SET TO ZERO IS NOT SHOWN AT ALL.
+   *
+   * Not an empty band, not "nothing here yet", not a nudge to raise it —
+   * somebody who set Body to nothing has said they are not spending there, and
+   * the correct response is that the section does not exist. The server already
+   * plans nothing for it; this is the page agreeing rather than drawing a
+   * heading over the silence.
+   */
+  const skipped = new Set(
+    (['face', 'hair', 'body'] as const).filter((k) => data?.plan?.[k].skipped),
+  );
+  const bandCategory: Record<ProductRoutine['timeOfDay'], 'face' | 'hair' | 'body' | null> = {
+    // Morning, evening and weekly can hold face AND hair steps, so they are
+    // only dropped when nothing survived the plan; body is one category and one
+    // band, and is dropped outright.
+    morning: null, evening: null, weekly: null, body: 'body',
+  };
+  const band = (k: ProductRoutine['timeOfDay']) => {
+    const cat = bandCategory[k];
+    if (cat && skipped.has(cat)) return undefined;
+    return data?.routines.find((r) => r.timeOfDay === k);
+  };
   const day = [band('morning'), band('evening')].filter(Boolean) as ProductRoutine[];
   const rest = [band('weekly'), band('body')].filter(Boolean) as ProductRoutine[];
 

@@ -102,9 +102,26 @@ describe('the budget is a limit', () => {
     }
   });
 
-  it('clamps anything outside the range the sliders offer', () => {
+  it('clamps anything outside the range the sliders offer, and zero is inside it', () => {
     expect([clampBudget(0), clampBudget(-5), clampBudget(999999), clampBudget(NaN)])
-      .toEqual([BUDGET_MIN, BUDGET_MIN, BUDGET_MAX, BUDGET_MIN]);
+      .toEqual([0, BUDGET_MIN, BUDGET_MAX, BUDGET_MIN]);
+    expect(BUDGET_MIN).toBe(0);
+  });
+
+  it('plans nothing at all for a category set to zero', () => {
+    // ZERO IS AN ANSWER. Somebody who already owns a body wash they like says
+    // so by setting it to zero, and the correct response is silence — not the
+    // cheapest thing we could find, and not a list of what they are missing.
+    const p = planWithinBudget(SHELF, { face: 5000, hair: 3000, body: 0 }, NEEDS);
+    expect({
+      skipped: p.body.skipped, picks: p.body.picks.length,
+      leftOut: p.body.leftOut.length, upgrades: p.body.upgrades.length,
+      minimum: p.body.minimumInr, monthly: p.body.monthlyInr,
+    }).toEqual({ skipped: true, picks: 0, leftOut: 0, upgrades: 0, minimum: null, monthly: 0 });
+    // And it does not disturb the categories that were funded.
+    expect(p.face.picks.length).toBeGreaterThan(0);
+    expect(p.hair.picks.length).toBeGreaterThan(0);
+    expect(p.totalMonthlyInr).toBe(p.face.monthlyInr + p.hair.monthlyInr);
   });
 });
 

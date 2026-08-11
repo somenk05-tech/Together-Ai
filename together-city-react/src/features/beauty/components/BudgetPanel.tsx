@@ -5,11 +5,11 @@ import { useBeautyBudget, useSaveBeautyBudget, type BeautyBudget } from '../api'
 /**
  * What you are willing to spend, per part of the routine.
  *
- * THE WHOLE POINT OF THIS SCREEN is that nothing downstream runs until it has
- * been answered. The routine is not generated and then priced; the number set
- * here is an input to which products get chosen. A default applied on somebody's
- * behalf would quietly undo that, so there isn't one — the sliders start at a
- * suggestion, and until Save is pressed the server holds nothing.
+ * THE WHOLE POINT is that nothing downstream runs until it has been answered.
+ * The routine is not generated and then priced; the number set here is an input
+ * to which products get chosen. A default applied on somebody's behalf would
+ * quietly undo that, so there isn't one — the dials start at nothing, and until
+ * Save is pressed the server holds nothing either.
  *
  * THREE BUDGETS, NOT ONE. Face, hair and body are planned independently and a
  * generous face budget must not buy a better shampoo. One combined number would
@@ -23,15 +23,34 @@ import { useBeautyBudget, useSaveBeautyBudget, type BeautyBudget } from '../api'
  * the only options.
  */
 
-const MIN = 1000;
+/**
+ * EVERY DIAL STARTS AT ZERO, and that is a decision rather than a placeholder.
+ * A suggested figure sitting in the box is an anchor: people move away from it
+ * by a little and call that their choice. Starting at nothing means the number
+ * that ends up there is one somebody actually reached for.
+ *
+ * Zero is also a legitimate resting place. "I already have a body wash I like"
+ * is answered by leaving Body at nothing, and the routine then has no body band
+ * at all — not the cheapest lotion we could find, not a list of what is
+ * missing. Silence.
+ */
+const MIN = 0;
 const MAX = 60000;
-const QUICK = [1000, 2500, 5000, 10000, 20000, 40000, 60000];
+const QUICK = [0, 1000, 2500, 5000, 10000, 20000, 40000, 60000];
 
 const rupees = (n: number) => `₹${n.toLocaleString('en-IN')}`;
-const chipLabel = (n: number) => (n >= 1000 ? `₹${n / 1000}K` : `₹${n}`);
+const chipLabel = (n: number) => (n === 0 ? 'None' : n >= 1000 ? `₹${n / 1000}K` : `₹${n}`);
 
 export interface BudgetDraft { face: number; hair: number; body: number }
-const DEFAULT_DRAFT: BudgetDraft = { face: 3000, hair: 2000, body: 1500 };
+const DEFAULT_DRAFT: BudgetDraft = { face: 0, hair: 0, body: 0 };
+
+/** The one-line summary a collapsed budget shows in its header. */
+export const budgetSummary = (b: { face: number; hair: number; body: number }): string => {
+  const parts = ([['Face', b.face], ['Hair', b.hair], ['Body', b.body]] as const)
+    .filter(([, n]) => n > 0).map(([k, n]) => `${k} ${rupees(n)}`);
+  const total = b.face + b.hair + b.body;
+  return parts.length ? `${parts.join(' · ')} — ${rupees(total)}/month` : 'nothing set aside yet';
+};
 
 /**
  * One category's control.
@@ -47,9 +66,13 @@ function Dial(
   const [typed, setTyped] = useState<string | null>(null);
   const shown = typed ?? String(value);
   const commit = (raw: string) => {
-    const n = Number(raw.replace(/[^\d]/g, ''));
+    const cleaned = raw.replace(/[^\d]/g, '');
     setTyped(null);
-    if (Number.isFinite(n) && n > 0) onChange(Math.min(MAX, Math.max(MIN, Math.round(n))));
+    // An empty field means zero, not "leave it as it was" — somebody who
+    // deletes the number is saying nothing, and being silently overruled is
+    // worse than being taken literally.
+    const n = cleaned === '' ? 0 : Number(cleaned);
+    if (Number.isFinite(n)) onChange(Math.min(MAX, Math.max(MIN, Math.round(n))));
   };
 
   return (
@@ -57,6 +80,7 @@ function Dial(
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
         <h3 style={{ fontSize: 12, margin: 0, textTransform: 'uppercase', letterSpacing: '.14em' }}>{label}</h3>
         {hint && <span className="muted" style={{ fontSize: 11.5 }}>{hint}</span>}
+        {value === 0 && <span className="muted" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase' }}>not included</span>}
         <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'baseline', gap: 4 }}>
           <span className="muted" style={{ fontSize: 13 }}>₹</span>
           <input
@@ -99,10 +123,13 @@ function Dial(
 }
 
 /**
- * The panel, used in two places and identical in both: its own page at
- * /beauty/budget, and inline under the assessment on the profile, where it is
- * the next thing to do the moment the analysis lands. One component, because a
- * second copy is a second set of rounding rules.
+ * ONE PLACE, AND IT IS THE PROFILE.
+ *
+ * This had a page of its own for an afternoon. It was a second location for a
+ * single decision, and the decision belongs directly under the assessment it is
+ * spending against — you read what your skin needs and then say what you will
+ * put behind it, without navigating anywhere. The page and its sidebar tab are
+ * gone; the panel folds shut once a budget exists.
  */
 export function BudgetPanel(
   { priorities, onSaved, compact = false }:
@@ -135,15 +162,12 @@ export function BudgetPanel(
     <div>
       {!compact && (
         <>
-          <div className="muted" style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.22em', textTransform: 'uppercase' }}>Together Beauty Labs</div>
-          <h1 className="routine-display" style={{ fontSize: 'clamp(30px, 4vw, 44px)', lineHeight: 1.05, margin: '4px 0 6px' }}>
-            Your beauty budget
-          </h1>
           <p className="muted" style={{ fontSize: 13.5, margin: '0 0 4px', maxWidth: 560 }}>
             Set what you&rsquo;re comfortable spending each month. We&rsquo;ll build your routine around it.
           </p>
           <p className="muted" style={{ fontSize: 12.5, margin: '0 0 18px', maxWidth: 560 }}>
-            Your budget is a monthly limit. We&rsquo;ll prioritise the products that matter most and keep your routine lean.
+            Your budget is a monthly limit. We&rsquo;ll prioritise the products that matter most and keep
+            your routine lean. Leave a category at nothing and we&rsquo;ll leave it out altogether.
           </p>
         </>
       )}
@@ -165,10 +189,13 @@ export function BudgetPanel(
       </div>
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 16 }}>
-        <Button variant="accent" disabled={save.isPending}
+        {/* Disabled at nothing-anywhere rather than saving an all-zero budget
+            and sending somebody to an empty routine to work out why. */}
+        <Button variant="accent" disabled={save.isPending || total === 0}
           onClick={() => save.mutate(draft, { onSuccess: () => { setTouched(false); onSaved?.(); } })}>
           {save.isPending ? 'Saving…' : saved.data && !dirty ? 'Budget saved' : saved.data ? 'Update my budget' : 'Create my routine'}
         </Button>
+        {total === 0 && <span className="muted" style={{ fontSize: 11.5 }}>Set at least one of the three to build a routine.</span>}
         {save.isError && (
           <span style={{ fontSize: 12.5, color: 'var(--danger-ink)', fontWeight: 600 }}>
             That didn&rsquo;t save — check your connection and try again.
