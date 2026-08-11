@@ -437,6 +437,19 @@
      hub that hangs a photograph. One mechanism, not two. */
   --sky-image: none;
 
+  /* ── THE GROUND A PRODUCT WAS PHOTOGRAPHED ON ────────────────────────────
+     Every product shot in this catalogue is hotlinked from a retailer — Nykaa,
+     Tira, the brands' own stores — and every one of them was shot on a white
+     seamless. Some are pure #ffffff and some are an off-white a few points
+     down, which is invisible on a white page and is a grey-green rectangle the
+     moment the page is not white.
+
+     So the WELL a shot sits in is the ground it was taken on, not the ground of
+     the room. It is a token rather than a literal because that is where colour
+     lives here, and it resolves to the page's own paper everywhere except the
+     hub that needs it — nothing outside Beauty changes. */
+  --shot-ground: var(--paper);
+
   /* ── INK ON THE GROUND, FOR A HUB WHOSE GROUND IS NOT ITS PAPER ──────────
      Every grant in this file until now re-pointed ONE ground, so --ink was the
      answer to "what colour is text" everywhere in the hub. The Beauty gallery
@@ -1574,6 +1587,11 @@
      Not pure white. #ffffff on #101010 is 19:1 and it glares; these are the
      same near-whites the dark hubs use, and they still clear AA four times
      over. */
+  /* White, and only here: it is the seamless the merchandise was photographed
+     on. Nothing is READ on it — it holds pictures — so it is not in the ink
+     table above. */
+  --shot-ground: #ffffff;
+
   --on-ground:       #ede9e2;   /* 15.7:1 on the wall */
   --on-ground-soft:  #d9d3c9;   /* 12.8:1 */
   --on-ground-muted: #a49b8e;   /*  6.9:1 — the floor, and it is nowhere near it */

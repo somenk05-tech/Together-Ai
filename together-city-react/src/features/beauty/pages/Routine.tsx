@@ -133,13 +133,20 @@ function Step({ s, pick, qty, alreadyIn, onAdd, onRemove }: { s: ProductRoutineS
           <span className="routine-price">₹{s.priceInr}</span>
           {pick && <span className="muted" style={{ fontSize: 11 }}>≈ {rupees(pick.monthlyInr)}/month</span>}
         </div>
-        {/* The name links out to where it is actually sold. A routine that names
-            a product you then have to go and search for is homework. */}
-        <div className="routine-name">
-          {s.productUrl
-            ? <a href={s.productUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--ink)' }}>{s.name}</a>
-            : s.name}
-        </div>
+        {/* THE NAME IS NOT A LINK ANY MORE, at the owner's word, and the
+            reasoning it replaces is worth keeping: it used to open the
+            retailer's page, on the argument that a routine which names a
+            product you then have to search for is homework.
+
+            What changed is the page around it. The card now carries the
+            photograph, the brand, the size, how long it lasts and the price —
+            it IS the product page — and the one thing this hub wants somebody
+            to do next is add it to the bag, which is the button directly
+            underneath. A title that quietly leaves for Nykaa is a shop showing
+            you the door on the way to its own checkout. `productUrl` stays on
+            the wire and stays used in the Market, where browsing OUT is what
+            the page is for. */}
+        <div className="routine-name">{s.name}</div>
         <div className="muted" style={{ fontSize: 11.5, marginTop: 1 }}>{s.brand}{s.keyIngredient ? ` · ${s.keyIngredient}` : ''}</div>
         {/* The working behind the monthly figure. Without it "≈ ₹366/month" is
             an assertion; with it, it is arithmetic anybody can check. */}

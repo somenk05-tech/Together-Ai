@@ -1084,12 +1084,20 @@
   background: var(--card); border: 1px solid var(--line); border-radius: 2px;
   box-shadow: var(--e1);
 }
-/* The well is the paper a shot is taken on, and it is a fixed height so a row
-   of cards has its captions on one line instead of stepping. */
+/* THE WELL IS THE SEAMLESS THE SHOT WAS TAKEN ON — white — not the paper of
+   the room. Every one of these photographs is hotlinked from a retailer and
+   every one was lit on white; on the hub's cream the off-white ones showed as a
+   grey-green rectangle behind the bottle, which reads as a broken image rather
+   than as a product.
+
+   Fixed height so a row of cards keeps its captions on one line instead of
+   stepping, and the reference's own 210. */
+/* No padding here — it belongs to the shot's own absolutely-positioned box, so
+   that box has a height before the picture inside it is measured. See the note
+   in ProductShot.tsx; this is the half of that fix that lives in CSS. */
 .routine-well {
-  position: relative; height: 186px; padding: 16px;
-  background: var(--paper); border-bottom: 1px solid var(--line);
-  display: flex; align-items: center; justify-content: center;
+  position: relative; height: 210px;
+  background: var(--shot-ground); border-bottom: 1px solid var(--line);
 }
 /* The order, kept. A grid of product cards loses the one thing a numbered list
    had, so the number goes on the picture — where a print would put a plate

@@ -247,12 +247,39 @@ describe('the beauty hub prints on its own paper', () => {
     }
   });
 
-  it('never inflates a product photograph', () => {
-    // width:100% on a small retailer JPEG upscales it into a blur; the well
-    // shows a shot at its natural size, capped. Multiply + no-case because the
-    // photography is white-ground cut-outs — the gem sheets' own treatment.
+  it('never inflates or crops a product photograph', () => {
+    // Three constraints, and all three were learned the hard way. `auto` +
+    // max stops a small retailer JPEG being upscaled into a blur. `contain`
+    // stops a landscape shot losing its top and bottom — max-height alone
+    // letterboxes a portrait correctly and crops a landscape, which is why the
+    // live cards had bottles with their caps cut off. `no-case` because an
+    // outline drawn round a cut-out is an outline round nothing.
     const shot = read('features/beauty/components/ProductShot.tsx');
-    expect(shot).toMatch(/maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', mixBlendMode: 'multiply'/);
+    // scale-down, not max-width/max-height + auto: a percentage max-height
+    // against an auto-sized track is circular and the browser drops it, which
+    // is how a 500x1200 shot came to render 578px tall in a 210px well.
+    expect(shot).toMatch(/width: '100%', height: '100%', objectFit: 'scale-down'/);
+    expect(shot).not.toMatch(/maxHeight: '100%'/);
     expect(shot).toMatch(/className=\{fill \? 'no-case' : undefined\}/);
+    // And no blend left behind: it was melting a white studio ground into
+    // cream, and an OFF-white ground melted into a grey-green box instead.
+    expect(shot).not.toMatch(/mixBlendMode/);
+  });
+
+  it('stands a product shot on the ground it was photographed on', () => {
+    // Every one of these is hotlinked from a retailer and lit on white. The
+    // well is white for that reason and for no other — nothing is read on it.
+    const layout = read('styles/layout.css');
+    expect(layout).toMatch(/\.routine-well \{[^}]*background: var\(--shot-ground\)/);
+    const tokens = read('styles/tokens.css');
+    expect(tokens).toMatch(/--shot-ground: var\(--paper\)/);   // inert at the root
+    expect(tokens).toMatch(/--shot-ground: #ffffff/);            // white in this hub
+  });
+
+  it('does not send somebody to a retailer from the middle of its own checkout', () => {
+    // The card carries the photograph, the brand, the size, the life and the
+    // price — it IS the product page — and the next thing it wants is the bag.
+    const routine = read('features/beauty/pages/Routine.tsx');
+    expect(routine).not.toMatch(/<a href=\{s\.productUrl\}/);
   });
 });

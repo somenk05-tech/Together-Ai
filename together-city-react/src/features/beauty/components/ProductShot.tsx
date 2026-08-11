@@ -45,26 +45,62 @@ export function ProductShot(
       // supplied is a 210px band of white with the product centred in it, and a
       // fixed square inside a variable-width column leaves a margin down one
       // side that reads as a mistake at every breakpoint but one.
+      /* A DEFINITE BOX, BY ABSOLUTE POSITIONING, AND THAT IS THE WHOLE TRICK.
+         `width/height: 100%` here looks equivalent and is not: this span is a
+         flex item inside the well, so its cross size is content-based, its own
+         height resolves to `auto`, and every percentage the image then asks for
+         has nothing to resolve against. Measured, that is a 500x1200 shot laid
+         out 578px tall in a 210px well and clipped by the well's overflow.
+         `inset: 0` against the well's `position: relative` gives a box whose
+         height is known before the picture is measured, which is the condition
+         the whole thing needed. The padding moves here with it, so the content
+         box the image fills is the well's 210 less its own margin. */
       ...(fill
-        ? { width: '100%', height: '100%' }
+        ? { position: 'absolute' as const, inset: 0, padding: 16 }
         : { flex: 'none', width: size, height: size }),
-      display: 'grid', placeItems: 'center', overflow: 'hidden',
+      /* FLEX, NOT GRID, IN THE FILL CASE — the last link in the same chain. A
+         grid whose single row is `auto` sizes that row from the item, so the
+         item's own `height: 100%` is circular again and dropped, and the tall
+         shot was still 578px after the box above it had been made definite. A
+         flex container with a definite height resolves a child's percentage
+         height against it. Same centring, one word different, and it is the
+         word the measurement asked for. */
+      ...(fill
+        ? { display: 'flex', alignItems: 'center', justifyContent: 'center' }
+        : { display: 'grid', placeItems: 'center' }),
+      overflow: 'hidden',
       ...(bare || fill ? {} : { borderRadius: 12, background: 'var(--paper)', border: '1px solid var(--line)' }),
     }}>
       {src
         ? <img key={src} src={src} alt="" loading="lazy" onError={() => setTried((n) => n + 1)}
             className={fill ? 'no-case' : undefined}
             style={fill
-              /* NATURAL SIZE, CAPPED — never inflated. width:100% on a small
-                 retailer JPEG upscales it into a blur; auto with a max lets a
-                 big shot fill the well and a small one sit at its own size.
-                 MULTIPLY is the gem sheets' trick for the same photography:
-                 these are shot on pure white, and multiply melts that white
-                 into whatever paper the well is, instead of leaving a white
-                 rectangle floating on cream. `no-case` for the same reason the
-                 gems wear it — an outline drawn round a cut-out is an outline
-                 round nothing. */
-              ? { maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', mixBlendMode: 'multiply' }
+              /* ONE KEYWORD, AND IT REPLACES A RULE THAT SILENTLY DID NOTHING.
+                 This was `max-width/max-height: 100%` with `width/height: auto`
+                 — the obvious way to say "fit, but never blow it up", and it is
+                 the way that does not work here. A PERCENTAGE MAX-HEIGHT
+                 RESOLVES AGAINST THE PARENT'S HEIGHT, and the parent is an
+                 auto-sized grid track whose height depends on this image: the
+                 reference is circular, so the browser drops the constraint
+                 entirely. Measured, a 500x1200 shot rendered 578px tall in a
+                 210px well and was clipped by the well's overflow — which is
+                 the cropping on the live page. The width capped fine, which is
+                 exactly why it looked like a cropping bug rather than a sizing
+                 one.
+
+                 `scale-down` is the property that means what the two lines were
+                 trying to say: lay it out at the box size, then draw it as
+                 `contain` — or at its natural size if that is smaller. No crop
+                 on any aspect, no upscaling of a small retailer JPEG.
+
+                 NO MULTIPLY. It was melting a white studio ground into cream
+                 paper, and that was the wrong half of the fix: an OFF-white
+                 ground multiplied against sand is a grey-green box. The well is
+                 white now — the ground these were actually shot on — so there
+                 is nothing left to blend away. `no-case` stays for the reason
+                 the gem sheets wear it: an outline drawn round a cut-out is an
+                 outline round nothing. */
+              ? { width: '100%', height: '100%', objectFit: 'scale-down' }
               : { width: '100%', height: '100%', objectFit: 'contain' }} />
         : <span aria-hidden style={{ fontSize: fill ? 40 : Math.round(size / 2.8) }}>{glyphFor(category)}</span>}
     </span>
