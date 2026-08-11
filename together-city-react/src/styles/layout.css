@@ -1046,3 +1046,49 @@
      on top of the list it summarises. */
   .gem-summary { position: static; }
 }
+
+
+/* ══ THE ROUTINE CARD ═══════════════════════════════════════════════════════
+   The owner's catalogue sheet, applied to a step: a tall well with the product
+   photographed in it, and everything else underneath.
+
+   WHY THE PICTURE GOT BIGGER. It was 62 square in a row beside four lines of
+   text — enough to tell a bottle from a tube and not enough to tell one white
+   bottle from another. On a page whose job is "go and buy these eight things",
+   the photograph IS the identifier: it is what somebody matches against a shelf
+   or a search result. The text is what they read once.
+
+   THE LAYOUT DID NOT CHANGE. Morning and evening still sit side by side, the
+   steps are still in order, and every fact the row carried is still on the card
+   — the tier, the price, the monthly cost, the pack size, the instruction, the
+   frequency, the warnings. Only the shape moved.                            */
+.routine-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(226px, 1fr));
+  gap: 14px; margin-top: 10px;
+}
+.routine-card {
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--card); border: 1px solid var(--line); border-radius: 2px;
+  box-shadow: var(--e1);
+}
+/* The well is the paper a shot is taken on, and it is a fixed height so a row
+   of cards has its captions on one line instead of stepping. */
+.routine-well {
+  position: relative; height: 186px; padding: 16px;
+  background: var(--paper); border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+}
+/* The order, kept. A grid of product cards loses the one thing a numbered list
+   had, so the number goes on the picture — where a print would put a plate
+   number — rather than being dropped as decoration. */
+.routine-num {
+  position: absolute; top: 10px; left: 10px; width: 23px; height: 23px;
+  border-radius: 50%; display: grid; place-items: center;
+  background: var(--card); box-shadow: var(--e1);
+  font-size: 11px; font-weight: 800;
+}
+.routine-body { padding: 13px 15px 15px; display: flex; flex-direction: column; gap: 7px; flex: 1; }
+.routine-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.routine-name { font-size: 14.5px; line-height: 1.35; font-weight: 700; margin: 0; }
+.routine-price { font-size: 17px; font-weight: 800; letter-spacing: -.01em; }
+.routine-foot { margin-top: auto; padding-top: 10px; }

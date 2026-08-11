@@ -29,8 +29,8 @@ const GLYPH: Array<[RegExp, string]> = [
 export const glyphFor = (category: string) => GLYPH.find(([m]) => m.test(category))?.[1] ?? '🧴';
 
 export function ProductShot(
-  { image, imageAlt, category, size = 62, bare = false }:
-  { image?: string; imageAlt?: string; category: string; size?: number; bare?: boolean },
+  { image, imageAlt, category, size = 62, bare = false, fill = false }:
+  { image?: string; imageAlt?: string; category: string; size?: number; bare?: boolean; fill?: boolean },
 ) {
   const sources = [image, imageAlt].filter(Boolean) as string[];
   const [tried, setTried] = useState(0);
@@ -40,13 +40,21 @@ export function ProductShot(
   // version is the small one that sits in a row beside text.
   return (
     <span style={{
-      flex: 'none', width: size, height: size, display: 'grid', placeItems: 'center', overflow: 'hidden',
-      ...(bare ? {} : { borderRadius: 12, background: 'var(--paper)', border: '1px solid var(--line)' }),
+      // `fill` is the routine card's well: the picture takes the whole panel it
+      // is given rather than a square of a stated size. The reference the owner
+      // supplied is a 210px band of white with the product centred in it, and a
+      // fixed square inside a variable-width column leaves a margin down one
+      // side that reads as a mistake at every breakpoint but one.
+      ...(fill
+        ? { width: '100%', height: '100%' }
+        : { flex: 'none', width: size, height: size }),
+      display: 'grid', placeItems: 'center', overflow: 'hidden',
+      ...(bare || fill ? {} : { borderRadius: 12, background: 'var(--paper)', border: '1px solid var(--line)' }),
     }}>
       {src
         ? <img key={src} src={src} alt="" loading="lazy" onError={() => setTried((n) => n + 1)}
             style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-        : <span aria-hidden style={{ fontSize: Math.round(size / 2.8) }}>{glyphFor(category)}</span>}
+        : <span aria-hidden style={{ fontSize: fill ? 40 : Math.round(size / 2.8) }}>{glyphFor(category)}</span>}
     </span>
   );
 }

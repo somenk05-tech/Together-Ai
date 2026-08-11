@@ -99,17 +99,20 @@ const TIER_LABEL: Record<RoutineTier, string> = {
  */
 function Step({ s, pick, qty, alreadyIn, onAdd, onRemove }: { s: ProductRoutineStep; pick?: RoutinePick; qty: number; alreadyIn?: string; onAdd: () => void; onRemove: () => void }) {
   return (
-    <li style={{ display: 'flex', gap: 13, padding: '15px 0', borderTop: '1px solid var(--line)' }}>
-      <span aria-hidden
-        style={{ flex: 'none', width: 26, height: 26, borderRadius: '50%', display: 'grid', placeItems: 'center',
-          background: 'var(--accent-soft)', color: 'var(--accent-ink)', fontSize: 12, fontWeight: 800 }}>
-        {s.order}
-      </span>
+    <li className="routine-card">
+      {/* THE PICTURE FIRST, AND BIG. The owner's catalogue sheet is a well of
+          paper with the product photographed in it and everything else written
+          underneath, and on a page whose job is "go and buy these eight things"
+          the photograph is the identifier — it is what somebody matches against
+          a shelf. At 62 square it told you a bottle from a tube and nothing
+          else. Every fact the old row carried is still here, below. */}
+      <div className="routine-well">
+        <span aria-hidden className="routine-num">{s.order}</span>
+        <ProductShot image={s.image} imageAlt={s.imageAlt} category={s.category} fill />
+      </div>
 
-      <ProductShot image={s.image} imageAlt={s.imageAlt} category={s.category} size={62} />
-
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+      <div className="routine-body">
+        <div className="routine-top">
           <span className="muted" style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.07em' }}>{s.step}</span>
           {/* WHY THIS STEP IS HERE, in one word. The plan sorts everything into
               three tiers and acts on them — essentials go in first and are never
@@ -124,21 +127,18 @@ function Step({ s, pick, qty, alreadyIn, onAdd, onRemove }: { s: ProductRoutineS
               {TIER_LABEL[pick.tier]}
             </span>
           )}
-          <span style={{ marginLeft: 'auto', textAlign: 'right' }}>
-            <span style={{ fontSize: 13.5, color: 'var(--ink)', fontWeight: 700 }}>₹{s.priceInr}</span>
-            {pick && (
-              <span className="muted" style={{ display: 'block', fontSize: 11, marginTop: 1 }}>
-                ≈ {rupees(pick.monthlyInr)}/month
-              </span>
-            )}
-          </span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+          <span className="routine-price">₹{s.priceInr}</span>
+          {pick && <span className="muted" style={{ fontSize: 11 }}>≈ {rupees(pick.monthlyInr)}/month</span>}
         </div>
         {/* The name links out to where it is actually sold. A routine that names
             a product you then have to go and search for is homework. */}
-        <div style={{ marginTop: 1 }}>
+        <div className="routine-name">
           {s.productUrl
-            ? <a href={s.productUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{s.name}</a>
-            : <strong style={{ fontSize: 14 }}>{s.name}</strong>}
+            ? <a href={s.productUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--ink)' }}>{s.name}</a>
+            : s.name}
         </div>
         <div className="muted" style={{ fontSize: 11.5, marginTop: 1 }}>{s.brand}{s.keyIngredient ? ` · ${s.keyIngredient}` : ''}</div>
         {/* The working behind the monthly figure. Without it "≈ ₹366/month" is
@@ -159,7 +159,7 @@ function Step({ s, pick, qty, alreadyIn, onAdd, onRemove }: { s: ProductRoutineS
           </ul>
         )}
 
-        <div style={{ marginTop: 9 }}>
+        <div className="routine-foot">
           {alreadyIn ? (
             <span className="muted" style={{ fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <span aria-hidden>↑</span>
@@ -213,7 +213,7 @@ function Band(
           Nothing here yet — as your profile fills in, steps appear.
         </p>
       ) : (
-        <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0 0' }}>
+        <ul className="routine-grid" style={{ listStyle: 'none', padding: 0 }}>
           {r.steps.map((s) => (
             <Step key={s.productId} s={s} pick={picks.get(s.productId)} qty={bagged.qtyOf(s.productId)}
               alreadyIn={seen.get(s.productId) === r.title ? undefined : seen.get(s.productId)}
@@ -272,7 +272,7 @@ function BudgetCard(
   const ask = short ? (c.minimumInr as number) : ideal ? (c.idealInr as number) : null;
 
   return (
-    <section className="card" style={{ margin: 0, minWidth: 0 }}>
+    <section className="beauty-sheet" style={{ margin: 0, minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
         <h3 style={{ fontSize: 13, margin: 0, textTransform: 'uppercase', letterSpacing: '.12em' }}>{meta.label}</h3>
         <span className="muted" style={{ fontSize: 11 }}>{c.picks.length} product{c.picks.length === 1 ? '' : 's'}</span>
@@ -674,17 +674,17 @@ export function Routine() {
           {/* AM and PM abreast, as in the reference; the divider between them is
               the only rule on the page and it is what makes them read as two
               halves of one day rather than two lists. */}
-          <div className="card routine-day" style={{ marginBottom: 14 }}>
+          <div className="beauty-sheet routine-day">
             {day.map((r) => <Band key={r.timeOfDay} r={r} picks={picks} bagged={bagged} seen={firstSeen} />)}
           </div>
 
           {rest.filter((r) => r.steps.length > 0).map((r) => (
-            <div key={r.timeOfDay} className="card" style={{ marginBottom: 14 }}>
+            <div key={r.timeOfDay} className="beauty-sheet">
               <Band r={r} picks={picks} bagged={bagged} seen={firstSeen} />
             </div>
           ))}
 
-          <div className="routine-assure card" style={{ marginBottom: 14 }}>
+          <div className="routine-assure beauty-sheet">
             {ASSURANCES.map(([mark, text]) => (
               <div key={text} style={{ display: 'flex', gap: 9, alignItems: 'center' }}>
                 <span aria-hidden style={{ fontSize: 15, color: 'var(--accent-ink)' }}>{mark}</span>
