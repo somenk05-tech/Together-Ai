@@ -6,6 +6,8 @@ import type { BeautyAssessment, BeautyReading, AssessLevel, BeautyProgressEntry 
 import { useMasterProfile } from '@/features/profile/hooks';
 import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLockedField';
 import { PHOTO_SLOTS, PhotoGrid, missingPhotos, photosReady, requiredCount, type Shot } from '../components/PhotoStudio';
+import { Collapsible } from '../components/Collapsible';
+import { BudgetPanel } from '../components/BudgetPanel';
 
 const PHOTOS_NEEDED = PHOTO_SLOTS.filter((s) => s.required).length;
 
@@ -498,6 +500,13 @@ export function Profile() {
   const progress = profile.data?.progress ?? [];
   const warning = analyze.data?.warning;
 
+  /** The profile has done its job: an assessment exists and the answers are
+   *  saved. This is the only thing that decides whether the page folds away. */
+  const done = Boolean(analysis) && isBeautyComplete((profile.data?.profile ?? {}) as Partial<Form>);
+  /** The two things the assessment actually flagged, for the budget's one line
+   *  about what the money is for. Not the analysis again — that is above it. */
+  const priorities = (analysis?.skin.readings ?? []).filter((r) => r.level !== 'good').slice(0, 2).map((r) => r.label);
+
   const set = (k: keyof Form, v: unknown) => setF((s) => ({ ...s, [k]: v }));
   const single = (k: keyof Form, v: string) => set(k, f[k] === v ? undefined : v);
   const multi = (k: keyof Form, v: string) => {
@@ -611,7 +620,22 @@ export function Profile() {
       {tab === 'photos' && (
         <div>
           <OnboardingProgress />
-          <div className="card" style={{ marginBottom: 14 }}>
+          {/* ONCE THE PROFILE IS DONE, THE FORM FOLDS AWAY.
+              Everything on this page is an INPUT: the photos, the answers, the
+              assessment they produce. Before this, every return visit began
+              with several screens of your own answers between you and the
+              routine they exist to build. Nothing is deleted and nothing is
+              re-asked — the sections are simply closed.
+
+              Two stay open, and both for the same reason: they are what you
+              came back for. The progress photographs are the whole point of a
+              timeline, and the budget is the next thing to do. */}
+          <Collapsible
+            title="Photos & analysis"
+            meta={`${picsRequired} / ${PHOTOS_NEEDED} staged · ${profile.data?.uploads?.remaining ?? 0} analyses left this week`}
+            defaultOpen={!done}
+          >
+          <div>
             <div className="eyebrow" style={{ marginBottom: 8 }}>Your photos <span className="muted" style={{ fontWeight: 400 }}>· two needed, one optional · {picsRequired} / {PHOTOS_NEEDED}</span></div>
             <PhotoGrid pics={pics} onSet={setPic} onClear={clearPic} />
             <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 12, padding: '10px 12px', background: 'var(--paper)', borderRadius: 10 }}>
@@ -655,15 +679,35 @@ export function Profile() {
               </p>
             )}
           </div>
+          </Collapsible>
 
+          {/* OPEN. The before and after is the reason to come back. */}
           {progress.length > 0 && <ProgressView entries={progress} />}
 
-          {analysis ? <AssessmentView a={analysis} analyzedAt={analyzedAt} /> : (
+          {analysis ? (
+            done ? (
+              <Collapsible title="Your assessment" meta={analyzedAt ? `saved ${new Date(analyzedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}` : undefined}>
+                <AssessmentView a={analysis} analyzedAt={analyzedAt} />
+              </Collapsible>
+            ) : <AssessmentView a={analysis} analyzedAt={analyzedAt} />
+          ) : (
             <EmptyState icon="✨" title="No assessment yet" hint="Add photos and analyse, or fill in your profile and save — your assessment appears here." />
           )}
 
+          {/* OPEN, AND DIRECTLY UNDER THE ANALYSIS, because it is step two of
+              three and the assessment is what it is spending against. The same
+              panel is a page of its own at /beauty/budget for anybody coming
+              back only to change a number. */}
+          {analysis && (
+            <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid var(--accent)' }}>
+              <BudgetPanel compact priorities={priorities} />
+            </div>
+          )}
+
           {/* Permanent, dated assessment history + progress comparison. */}
-          <SkinHairTimeline />
+          {done
+            ? <Collapsible title="Skin &amp; hair timeline"><SkinHairTimeline /></Collapsible>
+            : <SkinHairTimeline />}
 
           {/* Medical Hub biomarkers → skin & hair, right here on the profile tab. */}
           <BiomarkerCorrelation />

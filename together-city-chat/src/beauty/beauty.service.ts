@@ -7,6 +7,7 @@ import { FinancialService } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
 import { MasterProfileService } from '../profile/master-profile.service';
 import { beautyGender } from '../profile/sex-and-gender';
+import { clampBudget, planWithinBudget, type StoredBudget } from './budget-routine';
 import {
   beautyInsights, recommendProducts, priceBeautyOrder, CONCERN_TAGS, BEAUTY_PRODUCTS,
   type BeautyInsight,
@@ -476,17 +477,84 @@ export class BeautyService {
    * to the beauty profile changes the routine on the next read, with nothing to
    * regenerate or invalidate.
    */
+  /**
+   * The monthly budget, per part of the routine.
+   *
+   * IT LIVES IN THE PROFILE'S OWN JSON rather than in three new columns. The
+   * whole beauty profile — every answer, every goal — is already one `extras`
+   * blob on this row, and a budget is a profile answer. Three columns would be
+   * a migration, a second place to look, and nothing gained.
+   *
+   * `null` means NOT SET, and the difference from zero is the entire feature: a
+   * routine is not generated until somebody has said what they want to spend,
+   * and a default silently applied is the thing the owner asked us not to do.
+   */
+  async getBudget(userId: string): Promise<StoredBudget | null> {
+    const row = await swallow(this.beauty.findUnique({ where: { userId } }), 'beauty: profile read', { userId });
+    const extras = safeJson<BeautyProfileInput & { budget?: StoredBudget }>(row?.extras, {});
+    const b = extras.budget;
+    if (!b || ![b.face, b.hair, b.body].every((n) => typeof n === 'number')) return null;
+    return {
+      face: clampBudget(b.face), hair: clampBudget(b.hair), body: clampBudget(b.body),
+      setAt: b.setAt ?? null, currency: b.currency ?? 'INR', preference: b.preference ?? null,
+    };
+  }
+
+  /** Save it, clamped, with the moment it was set. Never inferred, never guessed. */
+  async saveBudget(userId: string, dto: { face: number; hair: number; body: number; preference?: string }) {
+    const row = await swallow(this.beauty.findUnique({ where: { userId } }), 'beauty: profile read', { userId });
+    const extras = safeJson<Record<string, unknown>>(row?.extras, {});
+    const budget: StoredBudget = {
+      face: clampBudget(dto.face), hair: clampBudget(dto.hair), body: clampBudget(dto.body),
+      setAt: new Date().toISOString(), currency: 'INR', preference: dto.preference ?? null,
+    };
+    await swallow(this.beauty.upsert({
+      where: { userId },
+      update: { extras: JSON.stringify({ ...extras, budget }) },
+      create: { userId, extras: JSON.stringify({ budget }) },
+    }), 'beauty: budget write', { userId });
+    return budget;
+  }
+
+  /**
+   * The routine — which does not exist until a budget does.
+   *
+   * `needsBudget` is returned rather than an empty routine or a default one,
+   * because those are two different lies. The page shows "set your budget
+   * first"; nothing is generated behind it.
+   */
   async routine(userId: string) {
     const { products, personalisedBy } = await this.products(userId);
-    const routines = buildRoutines(products);
+    const budget = await this.getBudget(userId);
+    const disclaimer =
+      'Cosmetic guidance based on your saved skin and hair profile — not medical advice. ' +
+      'Stop anything that stings or reddens, and see a dermatologist for a condition that persists.';
+
+    if (!budget) {
+      return { needsBudget: true as const, budget: null, plan: null, routines: [], personalisedBy, productCount: 0, disclaimer };
+    }
+
+    // The needs the plan optimises against are the assessment's own active
+    // readings — the same ones the shelf was ranked by, not a second opinion.
+    // Typed at the boundary rather than trusted: `analysis` is stored JSON and
+    // getProfile hands it back as `unknown`, which is the honest type for it.
+    type Readings = { readings?: { key: string; level: string }[] };
+    const analysis = (await this.getProfile(userId)).analysis as { skin?: Readings; hair?: Readings } | null;
+    // No assessment yet means no named needs, which means the plan builds the
+    // essentials and stops — the right answer, and not an error.
+    const needs = [...(analysis?.skin?.readings ?? []), ...(analysis?.hair?.readings ?? [])]
+      .filter((r) => r.level !== 'good').map((r) => r.key);
+
+    const plan = planWithinBudget(products, budget, needs);
+    // Only the products the budget actually bought reach the bands. This is the
+    // line that makes the budget real rather than decorative: a step that did
+    // not fit is not laid out and then hidden, it was never chosen.
+    const chosen = new Set([...plan.face.picks, ...plan.hair.picks, ...plan.body.picks].map((x) => x.product.id));
+    const routines = buildRoutines(products.filter((p) => chosen.has(p.id)));
+
     return {
-      routines,
-      personalisedBy,
-      /** Products the routine actually uses, for a basket or a shopping list. */
-      productCount: new Set(routines.flatMap((r) => r.steps.map((s) => s.productId))).size,
-      disclaimer:
-        'Cosmetic guidance based on your saved skin and hair profile — not medical advice. ' +
-        'Stop anything that stings or reddens, and see a dermatologist for a condition that persists.',
+      needsBudget: false as const, budget, plan, routines, personalisedBy,
+      productCount: chosen.size, disclaimer,
     };
   }
 

@@ -47,6 +47,31 @@ export class BeautyController {
     return this.beauty.analyzePhotos(user.sub, dto?.photos ?? [], dto?.thumb);
   }
 
+  /**
+   * The monthly budget, per part of the routine.
+   *
+   * A GET that can answer "not set". The routine is not generated until this
+   * has been said out loud, and a default applied on the citizen's behalf is
+   * the one thing the design refuses.
+   */
+  @Get('budget')
+  budget(@CurrentUser() user: JwtUser) {
+    return this.beauty.getBudget(user.sub);
+  }
+
+  @Put('budget')
+  @UsePipes(new ZodValidationPipe(z.object({
+    // Clamped again in the service. Validated here so a negative or a string
+    // never reaches the planner, and bounded so nobody stores ₹9,000,000.
+    face: z.number().int().min(1000).max(60_000),
+    hair: z.number().int().min(1000).max(60_000),
+    body: z.number().int().min(1000).max(60_000),
+    preference: z.string().max(200).optional(),
+  })))
+  saveBudget(@CurrentUser() user: JwtUser, @Body() dto: { face: number; hair: number; body: number; preference?: string }) {
+    return this.beauty.saveBudget(user.sub, dto);
+  }
+
   // Permanent skin & hair timeline: every dated assessment + latest-vs-previous comparison.
   // Delete the latest photo check-in so a fresh set can be uploaded.
   @Delete('assessments/latest')

@@ -182,13 +182,15 @@ export const HUBS: Record<HubKey, HubConfig> = {
     key: 'beauty', name: 'Beauty Market', tag: 'Science-led, personally curated', backPath: '/beauty',
     items: [
       { path: '/beauty/profile', index: '01', label: 'Skin & Hair Profile', sub: 'Photos, AI assessment & goals' },
-      // Directly after the profile, because it is what the profile is FOR — the
-      // engine builds a routine from those answers and then nothing offered to
-      // show it to anybody.
-      { path: '/beauty/routine', index: '02', label: 'Your Routine', sub: 'Built from your profile, in order' },
-      { path: '/beauty/market', index: '03', label: 'Beauty Market', sub: 'Curated, matched to you' },
-      { path: '/beauty/makeup', index: '04', label: 'Makeup Studio', sub: 'Your personal AI makeup artist' },
-      { path: '/beauty/orders', index: '05', label: 'My Orders', sub: 'Your beauty shelf' },
+      // BUDGET SITS BETWEEN THE PROFILE AND THE ROUTINE because that is the
+      // order the decision happens in. A routine generated before anybody has
+      // said what they can spend is a quote, and the whole engine downstream
+      // treats the number as a constraint rather than a filter.
+      { path: '/beauty/budget', index: '02', label: 'Budget', sub: 'Set your monthly beauty budget' },
+      { path: '/beauty/routine', index: '03', label: 'Your Routine', sub: 'Built from your profile + budget' },
+      { path: '/beauty/market', index: '04', label: 'Beauty Market', sub: 'Curated, matched to you' },
+      { path: '/beauty/makeup', index: '05', label: 'Makeup Studio', sub: 'Your personal AI makeup artist' },
+      { path: '/beauty/orders', index: '06', label: 'My Orders', sub: 'Your beauty shelf' },
     ],
   },
   medical: {

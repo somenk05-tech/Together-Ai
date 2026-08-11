@@ -207,6 +207,31 @@ export function Routine() {
     );
   }
 
+  /**
+   * NO BUDGET, NO ROUTINE — and this is a gate rather than an empty state.
+   *
+   * The server returns `needsBudget` instead of a routine costed against a
+   * number nobody chose. Defaulting one silently is the single thing the design
+   * refuses: a routine you did not set a budget for is a routine that was
+   * priced FOR you, which is the shop behaviour this whole feature replaces.
+   */
+  if (data?.needsBudget) {
+    return (
+      <div>
+        <div className="eyebrow">Beauty Hub · Routine</div>
+        <h1 style={{ fontSize: 26 }}>Your routine</h1>
+        <div className="card" style={{ maxWidth: 560, borderLeft: '4px solid var(--accent)' }}>
+          <h2 style={{ fontSize: 16, margin: 0 }}>Set your monthly beauty budget first</h2>
+          <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.6, margin: '8px 0 14px' }}>
+            We&rsquo;ll use your profile and your budget to build your routine — face, hair and
+            body each with their own monthly limit, and nothing chosen that goes over it.
+          </p>
+          <Link to="/beauty/budget"><Button variant="accent">Set my budget</Button></Link>
+        </div>
+      </div>
+    );
+  }
+
   const empty = !data || data.routines.every((r) => r.steps.length === 0);
   const add = (id: string) => { setBag((b) => ({ ...b, [id]: (b[id] ?? 0) + 1 })); setPlaced(false); };
   const remove = (id: string) => setBag((b) => ({ ...b, [id]: Math.max(0, (b[id] ?? 0) - 1) }));

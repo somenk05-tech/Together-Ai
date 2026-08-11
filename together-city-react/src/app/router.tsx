@@ -93,6 +93,7 @@ const EntWatchlist = lazy(() => import('@/features/entertainment/pages/Watchlist
 // Beauty sub-pages
 const BeautyMakeup = lazy(() => import('@/features/beauty/pages/Makeup').then((m) => ({ default: m.Makeup })));
 const BeautyRoutine = lazy(() => import('@/features/beauty/pages/Routine').then((m) => ({ default: m.Routine })));
+const BeautyBudget = lazy(() => import('@/features/beauty/pages/Budget').then((m) => ({ default: m.Budget })));
 // Social sub-pages
 const SocCreate = lazy(() => import('@/features/social/pages/CreatePost').then((m) => ({ default: m.CreatePost })));
 const SocNotifications = lazy(() => import('@/features/social/pages/Notifications').then((m) => ({ default: m.SocialNotifications })));
@@ -306,6 +307,7 @@ export const router = createBrowserRouter([
       { path: '/beauty/market', element: <RequireAuth>{wrap(<BeautyMarket />)}</RequireAuth> },
       { path: '/beauty/orders', element: <RequireAuth>{wrap(<BeautyOrders />)}</RequireAuth> },
       { path: '/beauty/makeup', element: <RequireAuth>{wrap(<BeautyMakeup />)}</RequireAuth> },
+      { path: '/beauty/budget', element: <RequireAuth>{wrap(<BeautyBudget />)}</RequireAuth> },
       { path: '/beauty/routine', element: <RequireAuth>{wrap(<BeautyRoutine />)}</RequireAuth> },
     ],
   },

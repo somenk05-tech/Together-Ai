@@ -92,7 +92,42 @@ export interface ProductRoutine {
   steps: ProductRoutineStep[];
   notes: string[];
 }
+/**
+ * A monthly limit, per part of the routine. `null` from the server means NOT
+ * SET, and that is not the same as zero — the routine is not generated until
+ * somebody has said a number, and nothing is defaulted on their behalf.
+ */
+export interface BeautyBudget {
+  face: number; hair: number; body: number;
+  setAt: string | null; currency: string; preference: string | null;
+}
+
+export type RoutineTier = 'essential' | 'high-value' | 'optional';
+export interface RoutinePick {
+  productId: string; role: string; tier: RoutineTier;
+  monthlyInr: number; monthsOfUse: number;
+}
+export interface CategoryPlan {
+  category: 'face' | 'hair' | 'body';
+  budgetInr: number;
+  monthlyInr: number;
+  remainingInr: number;
+  /** Only when the budget cannot carry the essentials: what it would take. */
+  minimumInr: number | null;
+  picks: RoutinePick[];
+  leftOut: { role: string; tier: RoutineTier; why: string }[];
+  upgrades: RoutinePick[];
+}
+export interface BudgetPlan {
+  face: CategoryPlan; hair: CategoryPlan; body: CategoryPlan;
+  totalBudgetInr: number; totalMonthlyInr: number; totalRemainingInr: number;
+}
+
 export interface RoutineResponse {
+  /** True until a budget exists. The page says so; nothing is generated behind it. */
+  needsBudget: boolean;
+  budget: BeautyBudget | null;
+  plan: BudgetPlan | null;
   routines: ProductRoutine[];
   personalisedBy: { concerns: string[]; labs: boolean; assessment: boolean };
   productCount: number;
@@ -132,6 +167,9 @@ export const beautyApi = {
   insights: () => api.get<InsightsResponse>('/beauty/insights').then((r) => r.data),
   products: () => api.get<ProductsResponse>('/beauty/products').then((r) => r.data),
   routine: () => api.get<RoutineResponse>('/beauty/routine').then((r) => r.data),
+  budget: () => api.get<BeautyBudget | null>('/beauty/budget').then((r) => r.data),
+  saveBudget: (b: { face: number; hair: number; body: number; preference?: string }) =>
+    api.put<BeautyBudget>('/beauty/budget', b).then((r) => r.data),
   orders: () => api.get<BeautyOrder[]>('/beauty/orders').then((r) => r.data),
   placeOrder: (items: { id: string; name: string; priceInr: number; qty: number }[], method: 'wallet' | 'card' = 'wallet') =>
     api.post<{ orderId: string; orders: BeautyOrder[] }>('/beauty/orders', { items, method }).then((r) => r.data),
@@ -189,6 +227,22 @@ export function useBeautyProducts() {
 export function useBeautyRoutine() {
   return useQuery({ queryKey: ['beauty', 'routine'], queryFn: () => beautyApi.routine() });
 }
+/** What is saved, or null. `retry: false` because "not set" is an answer. */
+export function useBeautyBudget() {
+  return useQuery({ queryKey: ['beauty', 'budget'], queryFn: () => beautyApi.budget(), retry: false });
+}
+/** Saving a budget re-plans the routine, so the routine query goes with it. */
+export function useSaveBeautyBudget() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: beautyApi.saveBudget,
+    onSuccess: (b) => {
+      qc.setQueryData(['beauty', 'budget'], b);
+      void qc.invalidateQueries({ queryKey: ['beauty', 'routine'] });
+    },
+  });
+}
+
 export function useBeautyOrders() {
   return useQuery({ queryKey: ['beauty', 'orders'], queryFn: () => beautyApi.orders() });
 }
