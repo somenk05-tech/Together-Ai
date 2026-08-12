@@ -2972,6 +2972,11 @@ textarea.g-field { resize: none; line-height: 1.55; }
    adds to a beauty page is dark ink on a black wall and looks fine in review,
    because whoever writes it has the card they were working in on screen. */
 [data-hub="beauty"] body { background: transparent; }
+/* THE RAIL IS FURNITURE IN THE ROOM, NOT A HOLE IN THE WALL. It stayed the
+   city's white while every surface beside it went cream, so the one permanent
+   object on screen was the one object that did not belong to the hub. Its ink
+   is already the paper's, from the list below; this is the face. */
+[data-hub="beauty"] .tc-side { background: var(--card); }
 [data-hub="beauty"] .tc-shell,
 [data-hub="beauty"] .tc-main,
 [data-hub="beauty"] .page { background: transparent; }
@@ -3001,7 +3006,19 @@ textarea.g-field { resize: none; line-height: 1.55; }
 [data-hub="beauty"] .routine-card,
 [data-hub="beauty"] .modal,
 [data-hub="beauty"] .sheet,
-[data-hub="beauty"] .tc-side {
+[data-hub="beauty"] .tc-side,
+/* A CONTROL IS A LIT SURFACE TOO, which is the third time this list has been
+   the answer and the first time it has been about something other than a card.
+   An outline button, a select and a text field all paint themselves in --paper
+   or white and then draw a label on top; on the wall that label inherited the
+   near-white and the button read as empty. Measured on the live Market page:
+   the sort control's face was rgb(231,222,209) and its text rgb(237,233,226).
+   .btn-loud and .btn-accent are deliberately NOT here — those are black faces
+   that set their own --on-loud, and dark ink would erase them instead. */
+[data-hub="beauty"] .btn-line,
+[data-hub="beauty"] select,
+[data-hub="beauty"] input,
+[data-hub="beauty"] textarea {
   --ink:      var(--on-paper);
   --ink-soft: var(--on-paper-soft);
   --muted:    var(--on-paper-muted);

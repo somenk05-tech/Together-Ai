@@ -242,8 +242,18 @@ describe('the beauty hub prints on its own paper', () => {
     // this list is that bug again.
     const relief = read('styles/relief.css');
     const list = relief.slice(relief.indexOf('[data-hub="beauty"] .card,'));
-    for (const cls of ['.beauty-plate', '.beauty-sheet', '.beauty-leaf-open', '.routine-card']) {
+    // Controls joined the list after the live Market page was measured: the
+    // sort select's face was cream and its label near-white. A form control is
+    // a lit surface exactly like a card, and it is the kind of thing nobody
+    // thinks of as a "surface" until it is invisible.
+    for (const cls of ['.beauty-plate', '.beauty-sheet', '.beauty-leaf-open', '.routine-card',
+                       '.btn-line', 'select', 'input', 'textarea']) {
       expect(list.slice(0, list.indexOf('{'))).toContain(`[data-hub="beauty"] ${cls}`);
+    }
+    // …and the loud button must stay OUT of it: it is a black face with its own
+    // foreground, and the paper's ink would erase its label instead of saving it.
+    for (const cls of ['.btn-loud', '.btn-accent']) {
+      expect(list.slice(0, list.indexOf('{'))).not.toContain(`[data-hub="beauty"] ${cls}`);
     }
   });
 
@@ -276,10 +286,27 @@ describe('the beauty hub prints on its own paper', () => {
     expect(tokens).toMatch(/--shot-ground: #ffffff/);            // white in this hub
   });
 
-  it('does not send somebody to a retailer from the middle of its own checkout', () => {
+  it('does not send somebody to a retailer from anywhere in the hub', () => {
     // The card carries the photograph, the brand, the size, the life and the
     // price — it IS the product page — and the next thing it wants is the bag.
-    const routine = read('features/beauty/pages/Routine.tsx');
-    expect(routine).not.toMatch(/<a href=\{s\.productUrl\}/);
+    // Both pages, because the Market kept its link for a day after the Routine
+    // lost one and the inconsistency is what made it easy to miss.
+    for (const f of ['features/beauty/pages/Routine.tsx', 'features/beauty/pages/Market.tsx']) {
+      expect(read(f)).not.toMatch(/target="_blank"/);
+    }
+  });
+
+  it('gives the shop and the shelf a sheet to stand on', () => {
+    // Without one, a grid of white product tiles sits straight on the black
+    // wall and the page reads as a different application from the rest of the
+    // hub. The owner chose: wall stays, every page gets a sheet.
+    for (const f of ['features/beauty/pages/Market.tsx', 'features/beauty/pages/Orders.tsx']) {
+      expect(read(f)).toMatch(/<div className="beauty-sheet">/);
+    }
+  });
+
+  it('gives the rail the hub own paper', () => {
+    const relief = read('styles/relief.css');
+    expect(relief).toMatch(/\[data-hub="beauty"\] \.tc-side \{ background: var\(--card\); \}/);
   });
 });

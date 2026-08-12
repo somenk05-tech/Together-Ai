@@ -50,7 +50,8 @@ export function Orders() {
   const list = orders.data ?? [];
 
   return (
-    <div>
+    /* Same sheet as the Market, for the same reason — see the note there. */
+    <div className="beauty-sheet">
       <div className="eyebrow">Beauty Market · Orders</div>
       <h1 style={{ fontSize: 26 }}>{hasBag ? 'Your bag' : 'Your orders'}</h1>
 

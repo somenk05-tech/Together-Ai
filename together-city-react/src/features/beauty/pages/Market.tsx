@@ -88,9 +88,14 @@ function Tile(
       <div style={{ textAlign: 'center', padding: '0 6px' }}>
         <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.09em', textTransform: 'uppercase' }}>{p.brand}</div>
         <div style={{ marginTop: 3 }}>
-          {p.productUrl
-            ? <a href={p.productUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.35 }}>{p.name}</a>
-            : <span style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.35 }}>{p.name}</span>}
+          {/* NO WAY OUT OF THE SHOP. The last outbound link in the hub — the
+              tile's name opened the retailer's own page in a new tab. The
+              routine's equivalent went at the owner's word and this is the
+              same argument one page over: a market that sends you to
+              plumgoodness.com is a market showing you the door on the way to
+              its own checkout. `productUrl` stays on the wire; the shelf spec
+              requires it and it is what the order is fulfilled against. */}
+          <span style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.35 }}>{p.name}</span>
         </div>
         <div className="muted" style={{ fontSize: 12.5, marginTop: 4 }}>₹{p.priceInr.toLocaleString('en-IN')}</div>
 
@@ -225,7 +230,16 @@ export function Market() {
   const heading = cat || (q.trim() ? `“${q.trim()}”` : `All ${SEGMENTS.find((s) => s.key === seg)!.label.toLowerCase()}`);
 
   return (
-    <div>
+    /* THE SHEET IS WHAT MAKES THIS PAGE PART OF THE HUB. Profile and Routine
+       read as beige because their plates and sheets cover the page; this one
+       had nothing, so a grid of white product tiles sat straight on the black
+       wall and the whole shop read as a different application. The owner's
+       call was explicit: the wall stays, and every page gets a sheet so the
+       black shows only at the edges.
+
+       NOT on `.page` globally — that makes one undifferentiated cream slab and
+       the plates lose the edge that makes them read as plates. */
+    <div className="beauty-sheet">
       <div className="eyebrow">Beauty Market · Shop</div>
 
       {/* ── the category row, across the top, as in the reference ───────── */}
