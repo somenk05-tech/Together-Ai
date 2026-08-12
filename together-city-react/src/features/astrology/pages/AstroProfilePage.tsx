@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { profileApi, type MasterProfileView } from '@/features/profile/api';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useAstroProfile, useSaveAstroProfile } from '../hooks';
+import { allKnownZones, isKnownZone, zoneCity, zoneForBirthPlace, zonesForCountry } from '../birthZone';
 import { PrivacyNote } from '@/features/privacy/PrivacyNote';
 
 /** Photo-or-initials avatar (same look as the main profile page). */
@@ -86,18 +87,6 @@ const field: React.CSSProperties = {
   background: 'var(--card)', color: 'var(--ink)', fontFamily: 'inherit', fontSize: 14,
 };
 const label: React.CSSProperties = { fontSize: 12.5, fontWeight: 700, display: 'block', margin: '0 0 6px' };
-
-/** Primary IANA zone per country — auto-set on country pick, editable via the
- *  "Change timezone" link (only advanced users ever need it). */
-const TZ_BY_COUNTRY: Record<string, string> = {
-  IN: 'Asia/Kolkata', AE: 'Asia/Dubai', AU: 'Australia/Sydney', BD: 'Asia/Dhaka', BR: 'America/Sao_Paulo',
-  CA: 'America/Toronto', CH: 'Europe/Zurich', CN: 'Asia/Shanghai', DE: 'Europe/Berlin', ES: 'Europe/Madrid',
-  FR: 'Europe/Paris', GB: 'Europe/London', ID: 'Asia/Jakarta', IE: 'Europe/Dublin', IT: 'Europe/Rome',
-  JP: 'Asia/Tokyo', KE: 'Africa/Nairobi', LK: 'Asia/Colombo', MY: 'Asia/Kuala_Lumpur', NG: 'Africa/Lagos',
-  NL: 'Europe/Amsterdam', NP: 'Asia/Kathmandu', NZ: 'Pacific/Auckland', PH: 'Asia/Manila', PK: 'Asia/Karachi',
-  QA: 'Asia/Qatar', SA: 'Asia/Riyadh', SG: 'Asia/Singapore', TH: 'Asia/Bangkok', US: 'America/New_York',
-  VN: 'Asia/Ho_Chi_Minh', ZA: 'Africa/Johannesburg',
-};
 
 const to12h = (hhmm: string) => {
   const [h, m] = hhmm.split(':').map(Number);
@@ -285,7 +274,6 @@ function SummaryCard({ profile, justSaved, onEdit }: {
 export function AstroProfilePage() {
   const view = useAstroProfile();
   const save = useSaveAstroProfile();
-  const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata';
   const today = new Date().toISOString().slice(0, 10);
 
   const [birthDate, setBirthDate] = useState('');
@@ -295,6 +283,13 @@ export function AstroProfilePage() {
   const [stateSel, setStateSel] = useState<{ label: string; code: string } | null>(null);
   const [city, setCity] = useState('');
   const [timeZone, setTimeZone] = useState('Asia/Kolkata');
+  /**
+   * WHERE THE ZONE CAME FROM, which is the difference between a fact and a
+   * guess and is therefore said on screen rather than implied by "(auto)".
+   * 'country' and 'city' are derived (see birthZone.ts), 'chosen' is the
+   * citizen's own answer, 'saved' is what they told us last time.
+   */
+  const [tzFrom, setTzFrom] = useState<'country' | 'city' | 'chosen' | 'saved'>('country');
   const [tzEdit, setTzEdit] = useState(false);
   const [missing, setMissing] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
@@ -314,6 +309,23 @@ export function AstroProfilePage() {
   const states = useLookups('state', { parent: country.code });
   const isIndia = country.code === 'IN';
   const hasStateList = (states.data?.length ?? 0) > 0;
+  const countryZones = zonesForCountry(country.code);
+  /** Several zones (or none we know of) → the citizen answers, we do not. */
+  const mustPickZone = countryZones.length !== 1;
+  /** Whatever they had saved stays offered even if tzdata no longer lists it. */
+  const zones = timeZone && !countryZones.includes(timeZone) ? [timeZone, ...countryZones] : countryZones;
+
+  /**
+   * The birth city can answer the zone question, and often does — every zone is
+   * named after a city and birthZone.ts knows the large ones that are not.
+   * A hand-typed zone is never overwritten: an answer beats a hint.
+   */
+  const setBirthCity = (value: string) => {
+    setCity(value);
+    if (tzFrom === 'chosen') return;
+    const derived = zoneForBirthPlace(country.code, value);
+    if (derived) { setTimeZone(derived); setTzFrom('city'); }
+  };
 
   // Prefill from the saved profile (or dating details) — resolve labels → codes.
   useEffect(() => {
@@ -328,7 +340,7 @@ export function AstroProfilePage() {
     if (c) setCountry({ label: c.label, code: c.code });
     if (src.birthState) setStateSel({ label: src.birthState, code: '' });
     setCity(src.birthCity || '');
-    if (d.profile?.timeZone) setTimeZone(d.profile.timeZone);
+    if (d.profile?.timeZone) { setTimeZone(d.profile.timeZone); setTzFrom('saved'); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view.data, countries.data]);
 
@@ -350,8 +362,16 @@ export function AstroProfilePage() {
     if (!country.label) miss.push('Birth Country');
     if (hasStateList ? !stateSel?.label : false) miss.push('Birth State');
     if (!city.trim()) miss.push('Birth City');
+    // The zone is as load-bearing as the time itself — an hour of it is a
+    // sign and a half of ascendant — so it is a required field, not a
+    // default with a "change" link beside it.
+    if (!timeZone.trim()) miss.push('Birth Time Zone');
     setMissing(miss);
     if (miss.length) return;
+    if (!isKnownZone(timeZone)) {
+      setError(`“${timeZone}” isn't a time zone we recognise. Pick one from the list — it decides where the sky was.`);
+      return;
+    }
     save.mutate({
       birthDate,
       birthTime: timeUnknown ? null : birthTime,
@@ -453,7 +473,15 @@ export function AstroProfilePage() {
                   if (!opt) return;
                   setCountry({ label: opt.label, code: opt.code });
                   setStateSel(null); setCity('');
-                  setTimeZone(TZ_BY_COUNTRY[opt.code] ?? detectedTz);
+                  setTzEdit(false);
+                  // The city is cleared with the country, so this answers only
+                  // for the one-zone countries. Everywhere else the field
+                  // becomes an empty question until the city or the citizen
+                  // answers it — never America/New_York because the country
+                  // was "United States".
+                  const derived = zoneForBirthPlace(opt.code, '');
+                  setTimeZone(derived ?? '');
+                  setTzFrom('country');
                 }} />
             </div>
             <div>
@@ -472,26 +500,54 @@ export function AstroProfilePage() {
               {isIndia && stateSel?.code ? (
                 <SearchSelect category="city" parent={stateSel.code} value={city}
                   placeholder="Type to search — e.g. Jam…"
-                  onChange={(opt) => setCity(opt?.label ?? '')} />
+                  onChange={(opt) => setBirthCity(opt?.label ?? '')} />
               ) : (
-                <input value={city} onChange={(e) => setCity(e.target.value)}
+                <input value={city} onChange={(e) => setBirthCity(e.target.value)}
                   placeholder={isIndia ? 'Select your state first' : 'City'}
                   disabled={isIndia && !stateSel} style={field} />
               )}
             </div>
             <div>
-              <label style={label}>Time Zone</label>
-              {!tzEdit ? (
+              <label style={label}>Time Zone {mustPickZone && <span style={{ color: 'var(--danger-ink)' }}>*</span>}</label>
+              {tzEdit ? (
+                <>
+                  <input aria-label="Time zone" value={timeZone} list="tc-zones" placeholder="e.g. America/Los_Angeles"
+                    onChange={(e) => { setTimeZone(e.target.value.trim()); setTzFrom('chosen'); }} style={field} />
+                  <datalist id="tc-zones">
+                    {allKnownZones().map((z) => <option key={z} value={z} />)}
+                  </datalist>
+                </>
+              ) : mustPickZone ? (
+                /* Several zones in this country → a question with no default.
+                   The old form answered it silently and a Los Angeles birth was
+                   computed on New York's clock, three hours and about a sign
+                   and a half of ascendant away. */
+                <select aria-label="Time zone of your birth city" value={timeZone} style={field}
+                  onChange={(e) => { setTimeZone(e.target.value); setTzFrom('chosen'); }}>
+                  <option value="">Select the time zone of your birth city…</option>
+                  {zones.map((z) => <option key={z} value={z}>{zoneCity(z)} — {z}</option>)}
+                </select>
+              ) : (
                 <div style={{ ...field, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--paper)' }}>
-                  <span style={{ fontSize: 13.5 }}>{timeZone} <span className="muted" style={{ fontSize: 11 }}>(auto)</span></span>
+                  <span style={{ fontSize: 13.5 }}>{timeZone || '—'}</span>
                   <button type="button" onClick={() => setTzEdit(true)}
                     style={{ background: 'none', border: 'none', color: 'var(--accent-ink)', fontSize: 11.5, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
                     Change timezone
                   </button>
                 </div>
-              ) : (
-                <input aria-label="Time zone" value={timeZone} onChange={(e) => setTimeZone(e.target.value)} style={field} />
               )}
+              <p className="muted" style={{ fontSize: 11.5, margin: '5px 0 0' }}>
+                {tzFrom === 'city' ? `From your birth city. ${country.label} has ${zones.length} time zones — change it if this one is wrong.`
+                  : tzFrom === 'country' && !mustPickZone ? `The only time zone in ${country.label}.`
+                    : mustPickZone && !timeZone ? `${country.label} spans ${zones.length} time zones, and an hour of it moves your ascendant by half a sign. Pick the one your birth city was in.`
+                      : tzFrom === 'saved' ? 'What you told us last time.' : 'Your choice.'}
+                {!tzEdit && mustPickZone && (
+                  <> <button type="button" onClick={() => setTzEdit(true)}
+                    style={{ background: 'none', border: 'none', color: 'var(--accent-ink)', fontSize: 11.5, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
+                    Not listed?
+                  </button></>
+                )}
+              </p>
             </div>
           </div>
 
