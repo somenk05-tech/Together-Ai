@@ -1,10 +1,22 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { readdirSync, readFileSync } from 'node:fs';
+import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
+const stripTs = (src: string) =>
+  src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/.*$/gm, '$1 ');
+
+/** Every source file under src/, so a rule about "anywhere in the app" can
+ *  actually say anywhere rather than "in the two files I thought of". */
+const walk = (dir: string): string[] =>
+  readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const full = join(dir, e.name);
+    if (e.isDirectory()) return walk(full);
+    return /\.tsx?$/.test(e.name) ? [relative(SRC, full)] : [];
+  });
+const PAGES = walk(SRC);
 
 /**
  * A SECTION SOMEBODY HAS ALREADY READ DOES NOT GET TO KEEP THE SCREEN.
@@ -150,14 +162,69 @@ describe('the beauty profile folds what it has already answered', () => {
 describe('the fold itself', () => {
   const c = read('features/beauty/components/Plates.tsx');
 
-  it('gives both faces the same keyboard contract', () => {
-    // A plate and a leaf are one behaviour wearing two papers. A poster that
-    // opens on click and says nothing to a screen reader is a poster with the
-    // interface hidden behind it — and a second implementation of a keyboard
-    // contract is how one of them quietly stops announcing itself.
-    expect([...c.matchAll(/aria-expanded=\{open\}/g)]).toHaveLength(2);
-    expect([...c.matchAll(/aria-controls=\{id\}/g)]).toHaveLength(2);
-    expect([...c.matchAll(/ id=\{id\}/g)]).toHaveLength(2);
+  it('gives every face the same keyboard contract, from one place', () => {
+    // A plate and a leaf are one behaviour wearing two papers, and a section
+    // that opens on click while saying nothing to a screen reader is an
+    // interface hidden behind a heading.
+    //
+    // THIS USED TO COUNT TWO PAIRS IN Plates.tsx ALONE, and the count was the
+    // whole guard: a second implementation is how one of them quietly stops
+    // announcing itself. When the Financial hub needed folds, the choice was a
+    // third copy of those four lines or one component wearing three skins —
+    // so the contract moved to components/ui/Fold.tsx and the leaf delegates.
+    //
+    // The guard did not weaken, it moved: the plate keeps its own pair because
+    // it is a different element with its own markup, the shared Fold has
+    // exactly one, and — the part that matters — NOWHERE ELSE has any. That
+    // last assertion is the one that would have caught the copy this change
+    // exists to prevent, and it reads every page in the app.
+    const fold = read('components/ui/Fold.tsx');
+    expect([...c.matchAll(/aria-expanded=\{open\}/g)]).toHaveLength(1);      // the plate
+    expect([...fold.matchAll(/aria-expanded=\{open\}/g)]).toHaveLength(1);   // everything else
+    expect([...fold.matchAll(/aria-controls=\{id\}/g)]).toHaveLength(1);
+    expect([...fold.matchAll(/ id=\{id\}/g)]).toHaveLength(1);
+    // And the leaf is the Fold rather than a copy of it.
+    expect(c).toMatch(/<Fold title=\{title\} meta=\{meta\} defaultOpen=\{defaultOpen\}/);
+    expect(c).toMatch(/face="beauty-leaf" panel="beauty-leaf-open"/);
+  });
+
+  it('keeps the list of things that expand on their own short, and named', () => {
+    // The assertion the old count could not make: it read one file, so a fold
+    // written anywhere else was invisible to it. This reads every source file
+    // in the app and names what it is allowed to find.
+    //
+    // AND `aria-expanded` IS NOT A SYNONYM FOR "FOLD" — the first draft of this
+    // assumed it was and failed on three components that are all correct. A
+    // combobox announces its listbox with the same attribute. So this is a list
+    // with reasons rather than a count, and a NEW entry has to argue for itself
+    // the way an entry in nav-audit's UNREACHABLE_ON_PURPOSE does:
+    //
+    //   ui/Fold.tsx        the one disclosure; everything below is why it is
+    //                      worth having exactly one
+    //   beauty/Plates.tsx  the PLATE — a poster that opens, its own markup and
+    //                      its own paper. The leaf beside it delegates to Fold.
+    //   SearchSelect       a combobox, `aria-haspopup="listbox"`. Not a section
+    //                      that folds; a control that offers options.
+    //   mail/MessageView   a thread: quoted text and a collapsed message stack,
+    //                      three different expanders inside one reader.
+    //   TargetsDisclosure  A GENUINE FOURTH FOLD, and the one thing on this
+    //                      list that should probably become a Fold. Left alone
+    //                      deliberately — it is in another hub, it was not what
+    //                      this change was asked to touch, and moving it blind
+    //                      is how a UI change becomes a regression somewhere
+    //                      nobody was looking. Recorded here rather than fixed
+    //                      quietly or forgotten.
+    const owners = PAGES.filter((f) => {
+      const src = stripTs(read(f));
+      return /aria-expanded=\{open\}/.test(src) && /useState\(/.test(src);
+    }).sort();
+    expect(owners).toEqual([
+      'components/SearchSelect.tsx',
+      'components/ui/Fold.tsx',
+      'features/beauty/components/Plates.tsx',
+      'features/mail/pages/MessageView.tsx',
+      'features/nutrition/components/TargetsDisclosure.tsx',
+    ]);
   });
 
   it('has no rounded chevron card left to drift back to', () => {

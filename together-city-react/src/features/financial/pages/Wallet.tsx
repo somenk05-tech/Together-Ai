@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, EmptyState, Spinner } from '@/components/ui';
+import { Button, EmptyState, Fold, Spinner } from '@/components/ui';
 import { useWallet, useTopUp, useServices, useLinkCard, useRemoveCard, catIcon, inr, type Txn } from '../api';
 import { PrivacyNote } from '@/features/privacy/PrivacyNote';
 
@@ -90,15 +90,33 @@ export function Wallet() {
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <div className="eyebrow">Recent activity</div>
-          <Link to="/financial/transactions" style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--accent-ink)', fontWeight: 600 }}>See all →</Link>
-        </div>
+      {/* FOLDED, AND CLOSED. This is a page about a balance and how to add to
+          it; the last six transactions are a reference, not the reason anybody
+          came. The meta line carries what the closed section would otherwise
+          leave unsaid — how many, and how recent — because a section reading
+          only "Recent activity" gives nobody a reason to open it.
+
+          THE "SEE ALL" LINK MOVED INSIDE. It was beside the heading, and the
+          heading is a <button> now: a link inside a button is a tap target
+          inside a tap target, which is the thing the fold contract exists to
+          avoid. It sits at the foot of the panel, where somebody who has read
+          the six is the person who wants the rest. */}
+      <Fold
+        title="Recent activity"
+        meta={w.recent.length === 0 ? 'Nothing yet'
+          : `${w.recent.length} ${w.recent.length === 1 ? 'entry' : 'entries'} · latest ${w.recent[0].date.slice(0, 10)}`}
+      >
         {w.recent.length === 0 ? (
-          <p className="muted" style={{ fontSize: 13, margin: '10px 0 0' }}>No activity yet. Top up, then pay across any hub — it all flows through here.</p>
-        ) : w.recent.map((t) => <TxnRow key={t.id} t={t} />)}
-      </div>
+          <p className="muted" style={{ fontSize: 13, margin: 0 }}>No activity yet. Top up, then pay across any hub — it all flows through here.</p>
+        ) : (
+          <>
+            {w.recent.map((t) => <TxnRow key={t.id} t={t} />)}
+            <div style={{ marginTop: 12, textAlign: 'right' }}>
+              <Link to="/financial/transactions" style={{ fontSize: 12.5, color: 'var(--accent-ink)', fontWeight: 600 }}>See all →</Link>
+            </div>
+          </>
+        )}
+      </Fold>
 
       <div className="card">
         <div className="eyebrow">City service rates</div>

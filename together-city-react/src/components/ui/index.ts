@@ -9,6 +9,7 @@ export { PageHeader } from './PageHeader';
 export { SectionHeader } from './SectionHeader';
 export { ListItem } from './ListItem';
 export { EmptyState } from './EmptyState';
+export { Fold } from './Fold';
 export { Modal } from './Modal';
 export { ActionBar } from './ActionBar';
 export { ProfileSummaryCard } from './ProfileSummaryCard';

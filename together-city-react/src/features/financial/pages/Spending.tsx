@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Button, EmptyState, Spinner } from '@/components/ui';
+import { Button, EmptyState, Fold, Spinner } from '@/components/ui';
 import { useSpending, catColor, catIcon, inr } from '../api';
 
 /** Spending — where your money goes across the city, this month. */
@@ -9,6 +9,10 @@ export function Spending() {
   if (q.isError || !q.data) return <EmptyState title="Couldn't load spending" hint="Your transactions are safe — this is only the summary that didn’t arrive." />;
   const s = q.data;
   const max = Math.max(1, ...s.byCategory.map((c) => c.amountInr));
+  // How many categories were actually spent in — the number the closed fold
+  // reports. Counted rather than assumed: a month with nothing in it must say
+  // so, not report "0 of 8" as though that were a breakdown.
+  const used = s.byCategory.filter((c) => c.amountInr > 0).length;
 
   return (
     <div>
@@ -30,8 +34,28 @@ export function Spending() {
       {s.totalInr === 0 ? (
         <EmptyState icon="🧾" title="No spending yet this month" hint="Orders from Nutrition, Beauty and Medical consults show up here automatically." />
       ) : (
-        <div className="card">
-          <div className="eyebrow">By category</div>
+        /* FOLDED, AND CLOSED. Eight categories, and on most months seven of
+           them read ₹0 — the shape of this list is one bar and a column of
+           zeroes, which is a lot of screen to say "you spent it on one thing".
+           The meta says which thing and how much, so the closed section answers
+           the page's question on its own, and opening it is for the breakdown
+           rather than for the answer.
+
+           AN UNBRACED COMMENT, AND IT TOOK TWO GOES. This is the inside of a
+           ternary's parentheses, where the contents must be one expression: a
+           braced JSX comment is a CHILD, legal between siblings and not here,
+           and it fails as a parse error six lines further down — a long way
+           from what caused it.
+
+           The second go failed for a different reason worth knowing: writing
+           the braced form inside this comment to explain it ENDS the comment,
+           because the sequence that closes a block comment appears inside the
+           braces. Describe it; do not quote it. */
+        <Fold
+          title="By category"
+          meta={`${inr(s.totalInr)} · ${used === 0 ? 'nothing spent yet'
+            : `${used} of ${s.byCategory.length} categor${used === 1 ? 'y' : 'ies'}`}`}
+        >
           {s.byCategory.map((c) => (
             <div key={c.category} style={{ padding: '12px 0', borderTop: '1px solid var(--line)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -49,7 +73,7 @@ export function Spending() {
               </div>
             </div>
           ))}
-        </div>
+        </Fold>
       )}
 
       <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>

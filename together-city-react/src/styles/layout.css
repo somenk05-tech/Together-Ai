@@ -794,7 +794,49 @@
    that is — so its rules are the wall's ink at low weight rather than the
    paper's hairline, which would be black on black. */
 .beauty-index { border-bottom: 1px solid var(--on-ground-muted); margin: 26px 0 22px; }
-.beauty-index .beauty-leaf { border-top-color: var(--on-ground-muted); }
+.beauty-index /* ══ THE FOLD, IN THE CITY'S ORDINARY MATERIAL ══════════════════════════════
+   The beauty hub's leaf is an INDEX LINE — a rule, a tracked name, what is in
+   it, and the word for opening it — because that page is a printed contents
+   page and the owner's reference says so. Nothing else in the city is.
+
+   So the generic fold is the card it replaces: the same face, the same edge,
+   the same lift, with the eyebrow turned into the thing you press. A section
+   that folds should look exactly like the section it was, or somebody has to
+   learn a new object in order to read less.
+
+   THE HIT AREA IS THE WHOLE HEADER and it is 44px tall. A 10px letterspaced
+   eyebrow is not a target; it is a label that happens to be inside one. */
+.fold {
+  display: flex; align-items: baseline; gap: 14px; width: 100%; text-align: left;
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--r-2);
+  box-shadow: var(--e1); cursor: pointer; font-family: inherit; color: inherit;
+  padding: 15px 18px; min-height: 44px; margin: 0 0 16px;
+}
+.fold + .fold-open { margin-top: -16px; }
+.fold .t {
+  font-size: 10.5px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--muted); flex: none;
+}
+.fold .m { font-size: 12.5px; color: var(--ink-soft); min-width: 0; }
+.fold .s {
+  margin-left: auto; flex: none; font-size: 10.5px; font-weight: 600;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--accent-ink);
+}
+.fold-open {
+  background: var(--card); border: 1px solid var(--line); border-top: 0;
+  border-radius: 0 0 var(--r-2) var(--r-2); box-shadow: var(--e1);
+  padding: 4px 18px 18px; margin: 0 0 16px;
+}
+/* On a phone the meta drops under the name rather than squeezing it: the two
+   together are wider than a 360px screen, and the name is the one that has to
+   stay whole. Same treatment the beauty leaf gets, for the same reason. */
+@media (max-width: 560px) {
+  .fold { flex-wrap: wrap; }
+  .fold .m { order: 3; flex-basis: 100%; }
+  .fold .s { margin-left: auto; }
+}
+
+.beauty-leaf { border-top-color: var(--on-ground-muted); }
 .beauty-index > .beauty-rule:first-child { padding-bottom: 14px; }
 .beauty-lede {
   margin: 0 0 22px; font-size: 13.5px; line-height: 1.75; max-width: 62ch; color: var(--ink-soft);

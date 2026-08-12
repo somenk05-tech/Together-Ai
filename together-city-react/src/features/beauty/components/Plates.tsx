@@ -1,4 +1,5 @@
 import { useId, useState, type ReactNode } from 'react';
+import { Fold } from '@/components/ui';
 
 /**
  * THE BEAUTY HUB'S TWO FOLDS — a plate and a leaf.
@@ -118,21 +119,24 @@ export function BeautyPlate(
  * opening anything. A closed section that says only its own name is a section
  * nobody opens, which is the same as deleting it.
  */
+/**
+ * THE BEHAVIOUR MOVED OUT AND THE PAPER STAYED. Everything above is still true
+ * of this leaf; what is no longer true is that this file owns the disclosure.
+ * When the Financial hub needed folds, the choice was a second copy of the
+ * state, the id and the two aria attributes — four lines that look right when
+ * one of them is missing — or one component wearing two skins. See
+ * components/ui/Fold.tsx, and the test that now reads both files.
+ *
+ * The markup this renders is byte-for-byte what it rendered before.
+ */
 export function BeautyLeaf(
   { title, meta, defaultOpen = false, children }:
   { title: string; meta?: ReactNode; defaultOpen?: boolean; children: ReactNode },
 ) {
-  const [open, setOpen] = useState(defaultOpen);
-  const id = useId();
   return (
-    <>
-      <button type="button" className="beauty-leaf"
-        onClick={() => setOpen(!open)} aria-expanded={open} aria-controls={id}>
-        <span className="t">{title}</span>
-        {meta && <span className="m">{meta}</span>}
-        <span className="s" aria-hidden>{open ? 'Close −' : 'Open +'}</span>
-      </button>
-      {open && <div className="beauty-leaf-open" id={id}>{children}</div>}
-    </>
+    <Fold title={title} meta={meta} defaultOpen={defaultOpen}
+      face="beauty-leaf" panel="beauty-leaf-open">
+      {children}
+    </Fold>
   );
 }
