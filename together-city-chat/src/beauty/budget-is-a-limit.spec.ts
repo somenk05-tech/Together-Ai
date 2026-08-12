@@ -134,13 +134,44 @@ describe('the routine genuinely changes with the budget', () => {
   });
 
   it('says what a short budget would need, rather than just failing', () => {
-    const lean = plan(1000).face;
+    /**
+     * THIS TEST USED TO ASK ₹1,000 AND IT WAS RIGHT TO, until the shelf got
+     * better. A ₹1,000 face budget could not carry cleanse-moisturise-protect
+     * on the seventy-product catalogue: measured against this file's own
+     * profile the floor was ₹1,067 a month, which is where the ₹1,000 in the
+     * old assertion came from and why `toBeGreaterThan(1000)` held. The shelf
+     * that replaced it carries large-pack mass-market SPF and the same floor is
+     * ₹311, so ₹1,000 now buys a whole routine and there is no "minimum you
+     * would need" left to report.
+     *
+     * THE ASSERTION IS NOT THE CASUALTY OF THAT — the budget in it is. The
+     * thing being guarded is that a budget too small for a routine gets a
+     * NUMBER rather than "your budget is insufficient", and that path still
+     * exists and still has to work. So the question is asked at a budget that
+     * is genuinely below the floor, and the day the shelf gets cheap enough to
+     * build a face routine for ₹300 this comment is the instruction: move the
+     * number again, do not delete the test.
+     */
+    const BELOW_THE_FLOOR = 300;
+    const lean = plan(BELOW_THE_FLOOR).face;
     // Not "your budget is insufficient" — a number, so the choice is real.
     expect(typeof lean.minimumInr).toBe('number');
-    expect(lean.minimumInr!).toBeGreaterThan(1000);
+    expect(lean.minimumInr!).toBeGreaterThan(BELOW_THE_FLOOR);
     // And it still builds what it can, naming what it left out.
     expect(lean.picks.length).toBeGreaterThan(0);
     expect(lean.leftOut.length).toBeGreaterThan(0);
+  });
+
+  it('carries a whole face routine at ₹1,000, which is what the shelf bought', () => {
+    // The other half of the change above, asserted rather than remembered: the
+    // floor moved from ₹1,067 to ₹311 and ₹1,000 stopped being short.
+    // If a future catalogue puts the cheap sunscreens back in the sea, this
+    // fails and the test above starts passing for the wrong reason.
+    const thousand = plan(1000).face;
+    expect(thousand.minimumInr).toBeNull();
+    expect(thousand.picks.map((x) => x.role)).toEqual(
+      expect.arrayContaining(['Cleanse', 'Moisturise', 'Protect']),
+    );
   });
 
   it('drops the most substitutable step first, not the last one declared', () => {
@@ -233,6 +264,31 @@ describe('the routine genuinely changes with the budget', () => {
         const excusable = dominant.every((x) => c.picks.length === 1 || x.tier === 'essential');
         expect({ budget: n, category: cat, ok: excusable }).toEqual({ budget: n, category: cat, ok: true });
       }
+    }
+  });
+
+  it('caps the step it ADDS, not only the one it upgrades', () => {
+    /**
+     * THE HOLE THE CAP HAD FOR A MONTH. It was written inside pass 5b, the
+     * premium-upgrade pass, because that is where the ₹3,300 sunscreen came
+     * from — and pass 5, which ADDS a step to reach the target, priced its
+     * candidate against the ceiling and nothing else. At a ₹1,000 hair budget
+     * it put a ₹680-a-month hair serum on top of a ₹278 wash-and-condition
+     * routine: seventy per cent of the bill, one product, every other rule
+     * satisfied.
+     *
+     * Nothing caught it because no category had a product dear enough. Hair
+     * topped out at ₹933 sticker until the premium tier was filled in, and the
+     * first premium hair oil on the shelf found the hole the same afternoon.
+     * This asserts the added step specifically, so the cap cannot quietly go
+     * back to being one pass's guard.
+     */
+    const hair = planCategory(SHELF, 'hair', 1000, new Set(NEEDS));
+    const added = hair.picks.filter((x) => x.tier !== 'essential');
+    expect(added.length).toBeGreaterThan(0);
+    for (const x of added) {
+      expect({ role: x.role, name: x.product.name, withinHalf: x.monthlyInr <= 500 })
+        .toEqual({ role: x.role, name: x.product.name, withinHalf: true });
     }
   });
 

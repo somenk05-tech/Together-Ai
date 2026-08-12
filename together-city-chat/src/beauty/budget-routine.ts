@@ -290,6 +290,37 @@ export function planCategory(
     picks.push(pick); spent += pick.monthlyInr;
   };
 
+  /**
+   * ── NO STEP MAY BE MOST OF THE ROUTINE ──────────────────────────────────
+   *
+   * Half the category budget, and it belongs to EVERY pass that is not the
+   * floor — which is what it did not do when it was written. It lived inside
+   * pass 5b, next to the greedy upgrade that had produced a ₹3,300-a-month
+   * sunscreen, and it was read ever after as "the premium pass's guard".
+   *
+   * IT WAS NEVER ONLY THE PREMIUM PASS. Pass 5 adds a whole step to reach the
+   * target and priced it against the ceiling alone; pass 4 swaps a step for a
+   * better one and priced only the DIFFERENCE. Either can put one product most
+   * of the way through a small budget, and on this shelf pass 5 did: at a
+   * ₹1,000 hair budget it added a ₹680-a-month hair serum on top of a ₹278
+   * wash-and-condition routine, because it was the best-matched thing for the
+   * one role still open and 680 was under the ceiling. The cap was in the file
+   * and the product walked past it.
+   *
+   * The bug hid for as long as it did because no category had a product dear
+   * enough to trip it. Hair topped out at ₹933 sticker until the premium tier
+   * was filled in; the first premium hair oil on the shelf found the hole the
+   * same afternoon. That is the argument for real data over generated data,
+   * written down where the next person will read it.
+   *
+   * THE FLOOR IS EXEMPT AND HAS TO BE. If the only compatible sunscreen costs
+   * more than half the budget, that is the routine — a cap that removed it
+   * would be choosing no protection over expensive protection. Everything
+   * after the floor is a choice between products, and a choice can be capped.
+   */
+  const shareCap = budget * 0.5;
+  const withinShare = (p: RecommendedProduct) => cost(p) <= shareCap;
+
   // ── 1. the floor ────────────────────────────────────────────────────────
   const essentials = defs.filter((d) => d.tier === 'essential');
   const floorPicks = essentials
@@ -317,11 +348,15 @@ export function planCategory(
     const candidates = [...forRole(d)]
       .filter((p) => p.profileKeys.some((k) => needs.has(k)))
       .sort(byEffect);
-    const p = candidates.find((c) => cost(c) <= room());
+    const p = candidates.find((c) => withinShare(c) && cost(c) <= room());
     if (p) take(p, d.role, d.tier);
     else if (candidates.length) {
       const cheapest = [...candidates].sort(byValue)[0];
-      leftOut.push({ role: d.role, tier: d.tier, why: `We haven't included a ${d.role.toLowerCase()} step — the cheapest one that suits you is about ₹${cost(cheapest).toLocaleString('en-IN')} a month and would push you over.` });
+      // Two different refusals, and they deserve two different sentences: the
+      // budget is full, or this one step would eat half of it by itself.
+      leftOut.push({ role: d.role, tier: d.tier, why: withinShare(cheapest)
+        ? `We haven't included a ${d.role.toLowerCase()} step — the cheapest one that suits you is about ₹${cost(cheapest).toLocaleString('en-IN')} a month and would push you over.`
+        : `We haven't included a ${d.role.toLowerCase()} step — the cheapest one that suits you is about ₹${cost(cheapest).toLocaleString('en-IN')} a month, which is more than half your ${category} budget on one product.` });
     }
   }
 
@@ -330,7 +365,7 @@ export function planCategory(
     const already = covered();
     const unmet = (p: RecommendedProduct) => p.profileKeys.some((k) => needs.has(k) && !already.has(k));
     const candidates = [...forRole(d)].filter(unmet).sort(byEffect);
-    const p = candidates.find((c) => cost(c) <= room());
+    const p = candidates.find((c) => withinShare(c) && cost(c) <= room());
     if (p) take(p, d.role, d.tier);
   }
 
@@ -355,6 +390,10 @@ export function planCategory(
         if (cand.id === pick.product.id) continue;
         const extra = cost(cand) - pick.monthlyInr;
         if (extra > room()) continue;
+        // The cap is on what the product IS, not on what the swap costs. A
+        // ₹3,300 sunscreen replacing a ₹3,200 one is a ₹100 upgrade by this
+        // pass's arithmetic and still most of a ₹5,000 routine.
+        if (!withinShare(cand)) continue;
         if (!better(cand, pick.product)) continue;
         // Findings answered dominate; profile match breaks ties within them.
         const gain = (answers(cand) - answers(pick.product)) * 1000 + (cand.matchScore - pick.product.matchScore);
@@ -374,7 +413,10 @@ export function planCategory(
   // compatible steps this routine does not have — a toner, a weekly mask, a
   // hand cream — best-matched first, and it stops the instant the routine
   // reaches B × 0.90. It cannot invent a step that isn't in ROLES, it cannot
-  // take anything outside the matched pool, and it cannot cross the ceiling.
+  // take anything outside the matched pool, it cannot cross the ceiling, and
+  // it cannot spend more than half the category on the step it adds — a whole
+  // new product is exactly the shape the share cap exists to refuse, and this
+  // pass went without it for as long as the shelf had nothing dear enough.
   //
   // If it runs out of roles before it reaches the target, that is the answer.
   // Pass 6 explains it; nothing here pads.
@@ -382,7 +424,7 @@ export function planCategory(
   while (spent < targetLow) {
     let added = false;
     for (const d of openRoles()) {
-      const cand = [...forRole(d)].sort(byEffect).find((c) => cost(c) <= room());
+      const cand = [...forRole(d)].sort(byEffect).find((c) => withinShare(c) && cost(c) <= room());
       if (cand) { take(cand, d.role, d.tier); added = true; break; }
     }
     if (!added) break;
@@ -419,15 +461,12 @@ export function planCategory(
   // actually uses and stops the instant the target is met, which is the
   // difference between a better routine and an expensive one.
   //
-  // NO STEP MAY TAKE MORE THAN HALF THE CATEGORY. A routine where one product
-  // is most of the bill is not a routine, it is a purchase with four accessories
-  // — and it is precisely what an optimiser aiming at a number will produce if
-  // nothing forbids it. The floor passes are exempt: if the only compatible
-  // sunscreen costs that much, that is the routine, and it is not this pass's
-  // doing.
+  // NO STEP MAY TAKE MORE THAN HALF THE CATEGORY — `withinShare`, declared with
+  // the floor above because it governs every pass after it and not only this
+  // one. It was written here first, and keeping it here is what let passes 4
+  // and 5 walk past it for a month.
   const GRADE: Record<string, number> = { Budget: 0, 'Mid-range': 1, Premium: 2 };
   const grade = (p: RecommendedProduct) => GRADE[p.tier] ?? 0;
-  const shareCap = budget * 0.5;
   for (let guard = 0; guard < 24 && spent < targetLow; guard++) {
     let best: { at: number; to: RecommendedProduct; step: number } | null = null;
     picks.forEach((pick, at) => {
@@ -437,7 +476,7 @@ export function planCategory(
         if (cand.id === pick.product.id) continue;
         if (grade(cand) <= grade(pick.product)) continue;
         if (answers(cand) < answers(pick.product) || cand.matchScore < pick.product.matchScore) continue;
-        if (cost(cand) > shareCap) continue;
+        if (!withinShare(cand)) continue;
         const after = spent - pick.monthlyInr + cost(cand);
         if (after > ceiling || after <= spent) continue;
         const step = after - spent;
@@ -461,11 +500,18 @@ export function planCategory(
     const any = forRole(d);
     if (!any.length) continue;
     const cheapest = [...any].sort(byValue)[0];
+    // THREE REASONS A ROLE IS OPEN, and only one of them is "you don't need
+    // it". The cap closes a role while the money is still there, and saying
+    // "what you already have covers it" in that case would be a lie the
+    // citizen can check: the shelf has one, they can afford it, and we are
+    // declining to build a routine around it. Say that instead.
     leftOut.push({
       role: d.role, tier: d.tier,
       why: cost(cheapest) > room()
         ? `A ${d.role.toLowerCase()} step would fit your profile but not this budget.`
-        : `You don't need a separate ${d.role.toLowerCase()} step — what you already have covers it.`,
+        : !withinShare(cheapest)
+          ? `A ${d.role.toLowerCase()} step that suits you starts at about ₹${cost(cheapest).toLocaleString('en-IN')} a month — more than half your ${category} budget on one product, so we've left the choice to you.`
+          : `You don't need a separate ${d.role.toLowerCase()} step — what you already have covers it.`,
     });
   }
   const stale = new Set(picks.map((x) => x.role));
