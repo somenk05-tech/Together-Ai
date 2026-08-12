@@ -1,5 +1,73 @@
 # Working in this repository
 
+## How to work here, before what to work on
+
+Four rules, added 13 Aug. They bias toward caution over speed; on a trivial
+task, use judgement. Each one carries the local evidence for it, because a
+generic rule with no scar attached is a rule people skim.
+
+### 1 · Think before coding
+
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+State assumptions out loud. If a request has two readings, present both rather
+than silently picking one. If a simpler approach exists, say so. If something is
+unclear, stop and name what is confusing.
+
+*Locally:* "the city feed should have a sliding picture feel" had two readings —
+the opened post already slid, so the only actionable one was the wall. Asking
+cost one turn; guessing would have cost a commit. And "add a countdown" needed
+to know whether the date came from the first product to run out or the last: the
+answers differ by three and a half months of no sunscreen.
+
+### 2 · Simplicity first
+
+**The minimum that solves the problem. Nothing speculative.**
+
+No features beyond what was asked, no abstractions for single-use code, no
+configurability nobody requested, no error handling for impossible states. If
+200 lines could be 50, rewrite it. Ask: would a senior engineer call this
+overcomplicated?
+
+*Locally, the counter-example worth knowing:* the shared `Fold` looks like an
+abstraction over two callers and is not one. It exists because a disclosure is
+four things done together — state, id, `aria-expanded`, `aria-controls` — and a
+second copy still LOOKS correct while one of them stops announcing itself. The
+test is whether duplication can fail silently, not whether there are two callers.
+
+### 3 · Surgical changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+Don't improve adjacent code, comments or formatting. Don't refactor what isn't
+broken. Match the existing style even where you'd write it differently. Remove
+imports and helpers that YOUR change orphaned; leave pre-existing dead code
+alone and **mention it instead**.
+
+*Locally:* removing "Add all to bag" orphaned `setMany`, which had exactly one
+caller — that went with it. The three dead exports against a ceiling of 2 are
+somebody else's, and every landing script this week has reported them rather
+than absorbing them.
+
+### 4 · Goal-driven execution
+
+**Define success criteria. Loop until verified.**
+
+Turn a task into something checkable: "add validation" → "write tests for the
+invalid inputs, then make them pass". For multi-step work, state the plan as
+step → verification.
+
+*Locally, and this is the sharpest one:* a suite that reads source as TEXT is
+not a compiler. The spend-log page shipped 33 green assertions twice with a file
+that did not parse. `tsc` runs first in every landing script for that reason. In
+the same spirit: **a guard is only proven where the data has reached** — the
+share cap read as correct for a month because no category held a product dear
+enough to trip it.
+
+**These are working if:** diffs contain fewer unrelated changes, fewer rewrites
+follow from overcomplication, and the clarifying question arrives before the
+implementation rather than after the mistake.
+
 ## The design system is a test, not a taste
 
 `together-city-react/src/app/relief.spec.ts` is the authority on how this
