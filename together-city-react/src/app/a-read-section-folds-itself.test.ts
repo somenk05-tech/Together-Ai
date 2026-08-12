@@ -298,7 +298,7 @@ describe('the beauty hub prints on its own paper', () => {
     // whose body is white by another is a card that grows a seam the first time
     // either is nudged.
     const layout = read('styles/layout.css');
-    expect(layout).toMatch(/\.beauty-sheet\.is-shop,\s*\.routine-card \{ background: var\(--shot-ground\); \}/);
+    expect(layout).toMatch(/\.beauty-sheet\.is-shop,\s*\.routine-card \{\s*background: var\(--shot-ground\);/);
     expect(layout).not.toMatch(/\.routine-card \{[^}]*background: var\(--card\)/);
     // The sections that take it are the ones with merchandise in them and no
     // others — the profile's sheets and an opened leaf keep the hub's paper.
@@ -307,6 +307,38 @@ describe('the beauty hub prints on its own paper', () => {
     expect(routine).toMatch(/className="beauty-sheet is-shop"/);
     // The assurance strip is not a product section and keeps the cream.
     expect(routine).toMatch(/className="routine-assure beauty-sheet"/);
+  });
+
+  it('leaves the product sections flat — no edge, no lift, no seam', () => {
+    // CASING SEPARATES THINGS OF DIFFERENT VALUE FROM THEIR GROUND — a
+    // photograph from the paper it sits on. Between two whites it draws the
+    // join rather than the thing, and white cards with a hairline and a lift,
+    // on a white section with a hairline and a lift, on a white page, is three
+    // edges and two shadows around surfaces that are all the same colour.
+    //
+    // What separates one product from the next is the gap and the block of type
+    // in it, which is how a printed catalogue does it.
+    const layout = read('styles/layout.css');
+    const rule = (sel: string) => layout.slice(layout.indexOf(sel)).split('}')[0];
+
+    // The section and the card, set once, together.
+    expect(rule('.beauty-sheet.is-shop,')).toMatch(/border: 0; box-shadow: none;/);
+    // And neither takes an edge or a lift back on its own afterwards. `border-`
+    // catches width, style and colour, so `border-color: transparent` — which
+    // still occupies its pixel and misaligns a row — fails this too.
+    //
+    // ANCHORED ON THE DECLARATION AFTER THE SELECTOR, because `.routine-card {`
+    // also appears in the shared white rule above — where `box-shadow: none` is
+    // the correct answer. Matching the first occurrence read that rule instead
+    // and failed on the very declaration it was written to require.
+    expect(rule('.routine-card {\n  display: flex')).not.toMatch(/border-(?!radius)|box-shadow/);
+    // No seam under the photograph: it separated studio white from cream, and
+    // there is one material now.
+    expect(rule('.routine-well {')).not.toMatch(/border/);
+    // The plate number keeps its cream — it has to be found against a white
+    // photograph — and gives up its lift with everything else.
+    expect(rule('.routine-num {')).toMatch(/background: var\(--card\)/);
+    expect(rule('.routine-num {')).not.toMatch(/box-shadow/);
   });
 
   it('does not send somebody to a retailer from anywhere in the hub', () => {

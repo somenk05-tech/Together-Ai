@@ -843,8 +843,27 @@
    would still be a band — the heading and the rule say so — but a white sheet
    with an edge is what the market grid already looked like from the inside,
    and matching it costs nothing and explains itself. */
+/* ── AND FLAT, NOT CARDED ───────────────────────────────────────────────────
+   THE SECOND HALF OF THE SAME INSTRUCTION, and it is what the first half was
+   actually asking for. White cards with a hairline and a lift, on a white
+   section with a hairline and a lift, on a white page: three edges and two
+   shadows drawn around surfaces that are all the same colour. Casing is how
+   this city separates things of DIFFERENT value from their ground — a
+   photograph from the paper it sits on. Between two whites it is drawing the
+   join rather than the thing.
+
+   So the section and the card keep their white and give up their edges. What
+   separates one product from the next is the gap between them and the block of
+   type in it, which is how a printed catalogue does it and why a catalogue page
+   can hold twelve products without looking like a dashboard.
+
+   `border: 0` rather than `border-color: transparent`: a transparent border
+   still occupies its pixel, and a row of cards laid out with a border they
+   cannot see is a row that will not line up with anything that has none. */
 .beauty-sheet.is-shop,
-.routine-card { background: var(--shot-ground); }
+.routine-card {
+  background: var(--shot-ground); border: 0; box-shadow: none;
+}
 /* A sheet's header is the plate's foot rule, reused: the name on the left, what
    is in it on the right. Not an emoji and a 16px heading — that is the city's
    ordinary card idiom, and next to a set of prints it is the one object on the
@@ -1140,11 +1159,11 @@
 }
 .routine-card {
   display: flex; flex-direction: column; overflow: hidden;
-  /* The face is white — see `.beauty-sheet.is-shop` above; it is the ground the
-     photograph in the well was taken on, carried through the whole card so the
-     two halves are one surface rather than a join. */
-  border: 1px solid var(--line); border-radius: 2px;
-  box-shadow: var(--e1);
+  /* No face, no edge and no lift of its own — all three are set once, with the
+     section, in the `.beauty-sheet.is-shop` rule above. A card that also
+     declared them here is a card that would keep half of them the next time
+     somebody changed the other half. */
+  border-radius: 2px;
 }
 /* THE WELL IS THE SEAMLESS THE SHOT WAS TAKEN ON — white — not the paper of
    the room. Every one of these photographs is hotlinked from a retailer and
@@ -1157,9 +1176,13 @@
 /* No padding here — it belongs to the shot's own absolutely-positioned box, so
    that box has a height before the picture inside it is measured. See the note
    in ProductShot.tsx; this is the half of that fix that lives in CSS. */
+/* NO RULE UNDER THE PHOTOGRAPH EITHER. It was the seam between the studio white
+   and the cream body, and drawing it was right while there were two materials to
+   separate. There is one now, and a hairline across the middle of a single white
+   surface is a line about nothing. */
 .routine-well {
   position: relative; height: 210px;
-  background: var(--shot-ground); border-bottom: 1px solid var(--line);
+  background: var(--shot-ground);
 }
 /* The order, kept. A grid of product cards loses the one thing a numbered list
    had, so the number goes on the picture — where a print would put a plate
@@ -1167,7 +1190,11 @@
 .routine-num {
   position: absolute; top: 10px; left: 10px; width: 23px; height: 23px;
   border-radius: 50%; display: grid; place-items: center;
-  background: var(--card); box-shadow: var(--e1);
+  /* The one thing on the card that is still a disc, and it keeps the hub's
+     cream because it has to be found against a white photograph. Its lift goes
+     with everything else's: a raised chip on a flat card is the last survivor
+     of an idiom, which reads as an oversight rather than as emphasis. */
+  background: var(--card);
   font-size: 11px; font-weight: 800;
 }
 .routine-body { padding: 13px 15px 15px; display: flex; flex-direction: column; gap: 7px; flex: 1; }
