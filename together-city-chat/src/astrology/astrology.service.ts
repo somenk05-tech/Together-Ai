@@ -243,13 +243,47 @@ export class AstrologyService {
       update: data,
       create: { userId, ...data },
     });
-    // Birth details changed → today's cached horoscope + this month's reading are
-    // now stale. Drop the user's cached readings so daily/monthly/insights
-    // regenerate from the new chart on the next fetch (spec: show the UPDATED
-    // horoscope after saving).
-    // If this fails the citizen keeps seeing a horoscope for the OLD chart —
-    // the spec says show the updated one after saving.
-    await swallow(this.db.astroReading.deleteMany({ where: { userId } }), 'astro: purge stale readings', { userId });
+    /**
+     * Birth details changed → the letters for the period the citizen is IN were
+     * written from the wrong chart and have to go, so daily/monthly regenerate
+     * on the next fetch. If this fails they keep seeing a letter for the old
+     * chart, which is the thing saving was supposed to fix.
+     *
+     * ONLY THOSE. This was `deleteMany({ where: { userId } })` — every row the
+     * citizen had — and `dailyHistory()`/`monthlyHistory()` read the archive out
+     * of that same table. Correcting a typo in a birth city therefore burned
+     * thirty days of letters and two years of monthlies, silently, on a request
+     * that reported success. letter-archive.spec's sentence is the rule and it
+     * still holds: A LETTER THAT WAS SENT WAS SENT. The chart it was written
+     * from has changed. That it was sent has not.
+     *
+     * Two clauses, because they are two different questions:
+     *   · the letters FOR now — today's and this month's, under whatever
+     *     version wrote them. A READING_VER bump mid-day can leave a v5 and a
+     *     v6 row for one date and both are stale for the same reason, so the
+     *     match is on the period key rather than on the whole cache key.
+     *   · anything written SINCE the citizen's last midnight — the same set,
+     *     except when the time zone is what just changed and today's letter is
+     *     filed under a date that is no longer today. Nothing older can be
+     *     caught by it: a letter's row is written on the day it is for.
+     */
+    const now = new Date();
+    const offsetMs = tzOffsetMinutes(data.timeZone, now) * 60000;
+    const local = new Date(now.getTime() + offsetMs);
+    const keys = AstrologyService.periodKeysAt(local);
+    const midnight = new Date(
+      Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()) - offsetMs,
+    );
+    await swallow(this.db.astroReading.deleteMany({
+      where: {
+        userId,
+        OR: [
+          { kind: 'daily', period: { endsWith: keys.daily } },
+          { kind: 'monthly', period: { endsWith: keys.monthly } },
+          { createdAt: { gte: midnight } },
+        ],
+      },
+    }), 'astro: purge the letters for right now', { userId });
     // Master Profile sync — birth details are shared fields used app-wide.
     await swallow(this.masterProfile.syncShared(userId, {
       dateOfBirth: birthDate, timeOfBirth: data.birthTime,
@@ -293,6 +327,22 @@ export class AstrologyService {
     return new Date(now.getTime() + tzOffsetMinutes(row.timeZone, now) * 60000);
   }
 
+  /**
+   * The period keys the letters for a moment are filed under: the citizen's own
+   * calendar day, and their own calendar month.
+   *
+   * ONE PLACE, because three call sites have to agree about them and one of
+   * those deletes rows. `daily()` and `monthly()` build the cache key with it;
+   * `saveProfile()` builds a purge that must hit exactly those rows and nothing
+   * else. Two spellings of one key is how an archive gets thrown away.
+   */
+  private static periodKeysAt(local: Date) {
+    return {
+      daily: local.toISOString().slice(0, 10),   // the user's OWN calendar day
+      monthly: local.toISOString().slice(0, 7),  // one per user per calendar month
+    };
+  }
+
   /** The name to address someone by, or '' if we don't have a usable one. */
   private async firstName(userId: string): Promise<string> {
     const u = await swallow(this.prisma.user
@@ -322,7 +372,7 @@ export class AstrologyService {
     const row = await this.requireProfile(userId);
     if (!row) return { needsProfile: true as const }; // only for stored birth details
     const local = this.userNow(row);
-    const date = local.toISOString().slice(0, 10); // the user's OWN calendar day
+    const date = AstrologyService.periodKeysAt(local).daily;
     const letter = await this.cachedLetter(userId, 'daily', date, () => this.writeDailyLetter(row, userId, local));
     if (!letter) return { needsProfile: false as const, pending: true as const, date };
     return { needsProfile: false as const, pending: false as const, ...letter };
@@ -683,7 +733,7 @@ export class AstrologyService {
     const row = await this.requireProfile(userId);
     if (!row) return { needsProfile: true as const }; // only for stored birth details
     const local = this.userNow(row);
-    const monthKey = local.toISOString().slice(0, 7); // one per user per calendar month
+    const monthKey = AstrologyService.periodKeysAt(local).monthly;
     const letter = await this.cachedLetter(userId, 'monthly', monthKey, () => this.writeMonthlyLetter(row, userId, local));
     if (!letter) return { needsProfile: false as const, pending: true as const, date: monthKey, month: monthNameOf(local) };
     return { needsProfile: false as const, pending: false as const, ...letter };
