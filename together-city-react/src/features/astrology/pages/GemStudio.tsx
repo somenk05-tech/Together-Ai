@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button, Card, Spinner } from '@/components/ui';
 import { useLockGem, useGemDesign, useGemMetals } from '../hooks';
@@ -86,6 +86,27 @@ export function GemStudio() {
   const [metal, setMetal] = useState<MetalKey>('gold22');
 
 
+  /**
+   * Start from what this stone actually offers.
+   *
+   * The initial 'oval' / 'solitaire' / 'classic' / 'gold22' are the catalogue's
+   * usual keys, not a promise — and a payload without one of them left nothing
+   * selected while the summary line still interpolated the lookup, printing
+   * "Ruby · 5 ct · undefined" and quoting a metal the citizen never chose.
+   */
+  useEffect(() => {
+    const d = q.data;
+    if (!d || ('needsProfile' in d && d.needsProfile)) return;
+    const first = <T extends { key: string }>(list: T[] | undefined, cur: string) =>
+      (list?.some((o) => o.key === cur) ? null : list?.[0]?.key ?? null);
+    const s0 = first(d.shapes, shape); if (s0) setShape(s0);
+    const t0 = first(d.settings, setting); if (t0) setSetting(t0);
+    const p0 = first(d.pendantStyles, style); if (p0) setStyle(p0);
+    const sizesIn = d.sizes ?? [];
+    if (sizesIn.length && !sizesIn.some((z) => z.indian === size)) setSize(sizesIn[0].indian);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q.data]);
+
   const design = worn === 'ring' ? setting : style;
   const metals = useGemMetals(gemId, worn, design, size);
   const metalQuote = metals.data?.metals.find((m) => m.key === metal) ?? null;
@@ -94,9 +115,20 @@ export function GemStudio() {
     if (!data || data.fromInr === null || data.toInr === null) return null;
     return Math.round(data.fromInr + ((data.toInr - data.fromInr) * grade) / 100);
   }, [data, grade]);
-  // The metal is nothing on a loose stone, and the server agrees — it prices
-  // the same two parts from the same files rather than trusting this sum.
-  const priceInr = stoneInr === null ? null : stoneInr + (worn === 'loose' ? 0 : metalQuote?.priceInr ?? 0);
+  /**
+   * The metal is nothing on a loose stone, and UNKNOWN until its quote lands —
+   * which are not the same thing, and used to be written as if they were.
+   *
+   * `metalQuote?.priceInr ?? 0` read a quote that had not arrived yet as a
+   * piece with no metal in it. The size slider re-quotes on every step, so the
+   * gap is real and reachable: the button offered "Commission this stone ·
+   * ₹67,500", the citizen pressed it, and the checkout — which prices the same
+   * two parts on the server — asked for ₹1,23,500. A quote that has not
+   * arrived is a price we cannot state, so the total says so and both buttons
+   * stay closed until it does.
+   */
+  const metalInr = worn === 'loose' ? 0 : metalQuote?.priceInr ?? null;
+  const priceInr = stoneInr === null || metalInr === null ? null : stoneInr + metalInr;
 
   if (q.isLoading) return <Spinner label="Sizing your stone…" />;
   if (q.isError || !data) {
@@ -112,6 +144,18 @@ export function GemStudio() {
 
   const { gem, weight, wearing } = data;
   const chosenSetting = data.settings.find((s) => s.key === setting);
+  /**
+   * A payload with no ring sizes must cost a step, not the page.
+   *
+   * `data.sizes[0].indian` and `data.sizes[sizes.length - 1].indian` read the
+   * ends of a list nothing promised would have any — one empty array from an
+   * older stone or a half-built catalogue row and the whole studio is the
+   * white screen of "reading 'indian' of undefined". The slider is the only
+   * part that needs the ends, so the slider is the only part that goes.
+   */
+  const sizes = data.sizes ?? [];
+  const sizeMin = sizes[0]?.indian ?? null;
+  const sizeMax = sizes[sizes.length - 1]?.indian ?? null;
   const lockPayload = {
     gemId: gem.id, grade, worn, shape,
     metal: worn === 'loose' ? undefined : metal,
@@ -234,17 +278,24 @@ export function GemStudio() {
             Indian sizes. Measure at the end of the day, when fingers are largest — and if your
             knuckle is wider than the base, size for the knuckle and take the nearer size up.
           </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-            <input type="range" min={data.sizes[0].indian} max={data.sizes[data.sizes.length - 1].indian} step={1}
-              value={size} aria-label="Indian ring size"
-              onChange={(e) => setSize(Number(e.target.value))}
-              style={{ flex: 1, minWidth: 220, accentColor: 'var(--accent)' }} />
-            <span style={{ fontSize: 22, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{size}</span>
-            <span className="muted" style={{ fontSize: 12 }}>
-              {data.sizes.find((s) => s.indian === size)?.diameterMm} mm across ·{' '}
-              {data.sizes.find((s) => s.indian === size)?.circumferenceMm} mm around
-            </span>
-          </div>
+          {sizeMin === null || sizeMax === null ? (
+            <p className="muted gem-step-note">
+              We don’t have the size chart for this stone just now — the jeweller
+              will size the band with you before it is made.
+            </p>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+              <input type="range" min={sizeMin} max={sizeMax} step={1}
+                value={size} aria-label="Indian ring size"
+                onChange={(e) => setSize(Number(e.target.value))}
+                style={{ flex: 1, minWidth: 220, accentColor: 'var(--accent)' }} />
+              <span style={{ fontSize: 22, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{size}</span>
+              <span className="muted" style={{ fontSize: 12 }}>
+                {sizes.find((s) => s.indian === size)?.diameterMm} mm across ·{' '}
+                {sizes.find((s) => s.indian === size)?.circumferenceMm} mm around
+              </span>
+            </div>
+          )}
         </>
       ) : (
         <>
@@ -335,6 +386,13 @@ export function GemStudio() {
             and no metalwork prices at all, so the page says what it is quoting
             for and what it is not. A total with a guessed number inside it is
             worse than a total that stops where the data does. */}
+        {worn !== 'loose' && metalInr === null && (
+          <p style={{ fontSize: 12.5, margin: '10px 0 0', fontWeight: 600, color: metals.isError ? 'var(--danger-ink)' : 'var(--muted)' }}>
+            {metals.isError
+              ? 'We couldn’t price the metal just now, so we can’t total this piece. Nothing has been locked — try again in a moment.'
+              : 'Pricing the metal at today’s rate…'}
+          </p>
+        )}
         <p className="muted" style={{ fontSize: 12, lineHeight: 1.6, margin: '10px 0 0' }}>
           {worn === 'loose'
             ? 'The stone, certified and unset. There is nothing else to pay us — setting it is between you and your jeweller.'
