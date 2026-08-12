@@ -166,7 +166,12 @@ describe('delivering a letter', () => {
     const w = fakeAi(true, BAD_HEADINGS, BAD_HEADINGS);
     const out = await build(db.prisma, w.ai).daily('u1') as Record<string, unknown>;
 
-    expect(w.calls).toHaveLength(2);                       // one retry, not more
+    // TWO RETRIES, NOT ONE, since "The brief asked for a letter the rules
+    // forbid": each attempt narrows what the letter is asked to carry, so the
+    // later ones are cheaper to satisfy rather than the same ask repeated. What
+    // has not changed is the ending — it gives up rather than serving something
+    // that breaks the rules, and it stores nothing.
+    expect(w.calls).toHaveLength(3);
     expect(w.calls[1]).toContain('A previous attempt was rejected for');
     expect(w.calls[1]).toContain('section label');         // named, so it can be fixed
     expect(out.pending).toBe(true);

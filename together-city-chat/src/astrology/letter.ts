@@ -429,8 +429,34 @@ export function letterRules(kind: 'daily' | 'monthly', firstName?: string | null
  * it over as "facts to stay faithful to" is an invitation to repeat it. The
  * brief below is already ordinary English about a person, so nothing is lost.
  */
+/**
+ * THE BRIEF ASKED FOR A LETTER THE RULES FORBID, and production said so for a
+ * week in a line nobody was reading:
+ *
+ *   daily letter rejected (attempt 1): 155 words — longer than 150
+ *   daily letter rejected (attempt 2): 187 words — longer than 150
+ *
+ * This function used to open with "Every one of these must be reflected
+ * somewhere in the letter" above ELEVEN observations, while rule 4 of
+ * letterRules caps a daily at 150 words and tells the writer to choose the ONE
+ * thing worth saying. Both instructions cannot be obeyed. The writer chose
+ * coverage — the more reasonable reading of a contradictory brief — went over
+ * the cap every time, and the letter was discarded unsent. The citizen got
+ * "Today's letter isn't ready yet" on a day when it had in fact been written
+ * three times.
+ *
+ * So the brief now says what it actually wants: a few observations to WRITE
+ * ABOUT, and the rest as material that may be used only if the letter still
+ * fits. Nothing is dropped from the prompt — the writer sees everything, and
+ * is told what is load-bearing.
+ *
+ * `lead` is a count rather than a separate list because the composer already
+ * orders its observations the way a letter tends to want them — the shape of
+ * the period first, then work, people, body, money, the long view — and the
+ * transit hits it leads with are ranked by orb. The first few ARE the news.
+ */
 export function letterPrompt(
-  observations: string[], firstName: string, previous: string[], extra?: string,
+  observations: string[], firstName: string, previous: string[], extra?: string, lead = 3,
 ): string {
   const avoid = previous.length
     ? '\n\nYou have written to this person before. Here are the last letters, in full. Do not reuse ' +
@@ -438,12 +464,21 @@ export function letterPrompt(
       'every letter must not be able to see the pattern:\n\n' +
       previous.map((p, i) => `--- letter ${i + 1} ---\n${p}`).join('\n\n')
     : '';
+  const head = observations.slice(0, Math.max(1, lead));
+  const rest = observations.slice(Math.max(1, lead));
   return [
     firstName ? `Their name is ${firstName}.` : 'You do not know their name; address them as "friend".',
     '',
-    'What is true about them and about the period ahead. Every one of these must be reflected',
-    'somewhere in the letter, in your own words, without ever being listed:',
-    ...observations.map((o) => `- ${o}`),
+    'WRITE ABOUT THESE. They are what is true about this person and this period, and they are the',
+    'letter\'s subject — in your own words, woven together, never listed:',
+    ...head.map((o) => `- ${o}`),
+    ...(rest.length ? [
+      '',
+      'ALSO TRUE, AND OPTIONAL. Use one only if it belongs in the same thought and the letter still',
+      'fits inside its length. Leaving all of them out is the right answer more often than not —',
+      'the length rule wins every argument with this list:',
+      ...rest.map((o) => `- ${o}`),
+    ] : []),
     extra ? `\n${extra}` : '',
     avoid,
   ].filter(Boolean).join('\n');

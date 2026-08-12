@@ -8,7 +8,9 @@ import {
   NatalChart, geocodeApprox, natalChart, scanMonth, tzOffsetMinutes, SIGNS,
 } from './astro-engine';
 import { composeAnswerBrief, composeDailyBrief, composeMonthlyBrief, type GuidanceBrief } from './astro-content';
-import { letterPrompt, letterProblems, letterRules, titleProblems, toLetter, type Letter } from './letter';
+import {
+  DAILY_WORDS, MONTHLY_WORDS, letterPrompt, letterProblems, letterRules, titleProblems, toLetter, type Letter,
+} from './letter';
 import { answerProblems, consultationPrompt, consultationRules } from './consultation';
 import { PACK_SIZE, priceForNextQuestion, quotaFor, type QuestionQuota } from './question-quota';
 import { computeNumerology, vimshottariDasha } from './personal-factors';
@@ -137,6 +139,27 @@ export class AstrologyService {
    * properly; storing that would turn one bad minute into a whole day without a
    * letter, and the next request would not even try.
    */
+  /**
+   * A FAILED LETTER IS NOT A REASON TO WRITE IT AGAIN THIS SECOND.
+   *
+   * Nothing negative is stored — that stays true, and it is why `pending` can
+   * heal on its own. But nothing remembered it either, so every open of Today
+   * and every press of "Check again" started a fresh generation: the day the
+   * word cap was fighting the brief, the logs show four full attempts inside
+   * ten seconds for one citizen. If the writer is having a bad minute, that
+   * arrangement turns it into a bad minute with a bill.
+   *
+   * So a failure is remembered in memory for a few minutes — long enough that
+   * pressing the button costs nothing, short enough that a citizen who waits
+   * out a provider incident gets their letter without being told to come back
+   * tomorrow. It is deliberately NOT in the database: it is a fact about the
+   * last few minutes of this process, not about the citizen.
+   */
+  private static readonly RETRY_AFTER_MS = 5 * 60_000;
+  private readonly failedUntil = new Map<string, number>();
+  /** One generation per key at a time, so two tabs are one letter, not two. */
+  private readonly writing = new Map<string, Promise<DatedLetter | null>>();
+
   private async cachedLetter(
     userId: string, kind: 'daily' | 'monthly', periodKey: string,
     compute: () => Promise<DatedLetter | null>,
@@ -151,13 +174,47 @@ export class AstrologyService {
         if (cached?.body) return cached;
       } catch { /* unreadable row — write over it below */ }
     }
-    const letter = await compute();
+    const key = `${userId}:${kind}:${period}`;
+    const inFlight = this.writing.get(key);
+    if (inFlight) return inFlight;
+    const holdUntil = this.failedUntil.get(key);
+    if (holdUntil && Date.now() < holdUntil) return null;
+
+    const run = this.write(key, kind, compute);
+    this.writing.set(key, run);
+    let letter: DatedLetter | null;
+    try { letter = await run; } finally { this.writing.delete(key); }
     if (!letter) return null;
     await swallow(this.db.astroReading.upsert({
       where: { userId_kind_period: { userId, kind, period } },
       update: { readingJson: JSON.stringify(letter) },
       create: { userId, kind, period, readingJson: JSON.stringify(letter) },
     }), 'astro: letter cache write', { userId, kind }); // table may not exist mid-deploy — the letter still returns
+    return letter;
+  }
+
+  /** The generation itself, wrapped so one failure holds the next attempt off. */
+  private async write(
+    key: string, kind: 'daily' | 'monthly', compute: () => Promise<DatedLetter | null>,
+  ): Promise<DatedLetter | null> {
+    let letter: DatedLetter | null = null;
+    try {
+      letter = await compute();
+    } finally {
+      if (letter) {
+        this.failedUntil.delete(key);
+      } else {
+        this.failedUntil.set(key, Date.now() + AstrologyService.RETRY_AFTER_MS);
+        this.logger.warn(`No ${kind} letter this time — not trying again for `
+          + `${AstrologyService.RETRY_AFTER_MS / 60_000} minutes for this citizen and period.`);
+        // One entry per citizen per period per day; swept so a long-lived
+        // process cannot accumulate yesterday's disappointments.
+        if (this.failedUntil.size > 500) {
+          const now = Date.now();
+          for (const [k, until] of this.failedUntil) if (until < now) this.failedUntil.delete(k);
+        }
+      }
+    }
     return letter;
   }
 
@@ -495,14 +552,21 @@ export class AstrologyService {
       this.logger.warn(`No ${kind} letter written — the writer is not configured, and this hub has no template to fall back on.`);
       return null;
     }
+    const range = kind === 'daily' ? DAILY_WORDS : MONTHLY_WORDS;
+    /**
+     * How many observations are the letter's subject, the rest being optional
+     * material (see letterPrompt). Fewer on each retry: if the last draft could
+     * not fit, the answer is less to say, not the same amount said faster.
+     */
+    const leadFor = (attempt: number) => Math.max(1, (kind === 'daily' ? 3 : 6) - (attempt - 1));
     let feedback = '';
-    for (let attempt = 1; attempt <= 2; attempt++) {
+    for (let attempt = 1; attempt <= 3; attempt++) {
       // Title and letter in ONE pass, not two. A title written by a second call
       // is a title written about a letter rather than out of it, and the two
       // drift: the reader gets a heading that is nearly what the letter says.
       const out = await this.ai.json<{ title?: string; letter?: string }>(
         letterRules(kind, firstName),
-        letterPrompt(brief.observations, firstName, previous, brief.note + feedback) +
+        letterPrompt(brief.observations, firstName, previous, brief.note + feedback, leadFor(attempt)) +
           '\n\nReturn JSON: {"title": "the title, 3-7 words", ' +
           '"letter": "the complete letter, opening line included"}.',
         {},
@@ -514,7 +578,29 @@ export class AstrologyService {
       if (!problems.length) return toLetter(candidate, firstName, title);
       const said = problems.map((p) => `${p.what} — ${p.why}`).join('; ');
       this.logger.warn(`${kind} letter rejected (attempt ${attempt}): ${said}`);
-      feedback = `\n\nA previous attempt was rejected for: ${said}. Fix every one of those and keep everything else.`;
+      /**
+       * THE RETRY USED TO MAKE IT WORSE. The feedback was "fix every one of
+       * those and keep everything else" — which, when the fault is length, is
+       * two instructions that cancel: attempt 2 came back at 187 words after
+       * attempt 1 was refused at 155.
+       *
+       * A draft that is ONLY too long is a good letter with too much in it, so
+       * it is handed back to be cut rather than rewritten — the writing was
+       * fine and rewriting risks losing it. Anything else (a banned word, a
+       * heading, phrasing reused from an earlier letter) needs a different
+       * letter, not a shorter one, and handing the draft back would carry the
+       * fault into the next attempt.
+       */
+      const onlyLength = problems.every((p) => /^(longer|shorter) than/.test(p.why));
+      feedback = onlyLength && candidate
+        ? `\n\nYour previous draft is below. It was rejected for: ${said}. The limit is `
+          + `${range.min}–${range.max} words, and it is not negotiable. Return the SAME letter cut to `
+          + 'fit by deleting whole sentences — the ones carrying the optional material above go '
+          + 'first. Do not rewrite it, do not compress sentences into denser ones, do not summarise. '
+          + `Count the words before answering.\n\n--- your draft ---\n${candidate}`
+        : `\n\nA previous attempt was rejected for: ${said}. Write a different letter that does not `
+          + 'repeat those faults. You do not have to mention everything above — the length rule and '
+          + 'the language rules outrank the material.';
     }
     return null;
   }
