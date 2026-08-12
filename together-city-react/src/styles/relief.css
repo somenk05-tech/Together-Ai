@@ -1749,15 +1749,24 @@ textarea.g-field { resize: none; line-height: 1.55; }
 }
 .poster-strip::-webkit-scrollbar { display: none; }
 .poster-strip img { flex: none; width: 100%; height: 100%; scroll-snap-align: center; }
-/* ABOVE THE PHONE, THE FIRST PICTURE AND NOTHING ELSE — the owner's call. The
-   markup does not change with the viewport; the wall is three across at this
-   width and a sideways scroll inside one of nine tiles is a gesture nobody is
-   looking for. `display: none` on the rest also stops them being fetched, so
-   the desktop wall costs exactly what it costs today. */
-@media (min-width: 561px) {
-  .poster-strip { overflow: hidden; }
-  .poster-strip img:not(:first-child) { display: none; }
-}
+/* IT SCROLLS AT EVERY WIDTH NOW, and the reversal is worth keeping rather than
+   editing out. It shipped phone-only this afternoon on the argument that the
+   wall is three across on a desktop and a sideways scroll inside one of nine
+   tiles is a gesture nobody is looking for. That reasoning was about the
+   GESTURE and it missed the simpler fact underneath: a post with four
+   photographs was still showing one of them, and it was doing that on the
+   screen where the tile is largest and the loss most obvious.
+
+   Hiding the rest also hid the badge that says there are four, so a desktop
+   visitor had nothing telling them anything was missing — which is the version
+   of this bug that cannot be discovered by using the page.
+
+   THE COST IS REAL AND IT IS THE FETCH. `display: none` on the siblings kept
+   the desktop wall at one image per tile; nine tiles with four pictures each is
+   thirty-six requests instead of nine. Every one of them is `loading="lazy"`
+   below the first, so the browser defers what is off-screen — but a wide wall
+   has a lot on screen, and this is the trade being made rather than a free
+   improvement. If the wall ever feels heavy, this rule is where to look. */
 /* The count, over the picture and under the scrim's own darkening. It says how
    many there are and never which one you are on: nothing tracks the scroll, and
    a badge reading "1/4" while you look at the third is worse than no badge. The
@@ -1770,7 +1779,9 @@ textarea.g-field { resize: none; line-height: 1.55; }
   color: var(--on-accent); background: rgba(0, 0, 0, .46);
   backdrop-filter: blur(3px);
 }
-@media (min-width: 561px) { .poster-count { display: none; } }
+/* The count goes wherever the strip goes: it is the only thing on the tile that
+   says there is more than one picture, and hiding it was half of the bug the
+   rule above describes. */
 
 .poster-scrim { position: absolute; inset: 0; pointer-events: none;
   background:
