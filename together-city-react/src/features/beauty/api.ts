@@ -153,6 +153,48 @@ export interface BudgetPlan {
   totalBudgetInr: number; totalMonthlyInr: number; totalRemainingInr: number;
 }
 
+/**
+ * WHEN THE NEXT ORDER IS DUE — decided on the server, formatted here.
+ *
+ * Every field on this is a judgement made in `beauty/reorder.ts`: which product
+ * runs out first, how long a pack of it lasts, how many days before empty to
+ * ask. The browser turns `dueAt` into "35 days" and does nothing else with it,
+ * which is the same division of labour as `lastsLabel` and `packLabel` — and
+ * the reason the countdown ticks over at midnight without a refetch.
+ *
+ * `null` means no order has been placed yet, and the surfaces show nothing.
+ */
+export interface ReorderDue {
+  /** ISO day to place the next order — `runsOutAt` less `leadDays`. */
+  dueAt: string;
+  /** ISO day the first product is actually empty. */
+  runsOutAt: string;
+  productId: string;
+  /** What runs out first. Named, so the number can be checked against a shelf. */
+  productName: string;
+  /** "Sunscreen" — the short form, for a sentence somebody reads in passing. */
+  productCategory: string;
+  /** "about 6 weeks" — the same phrase the routine card uses for this product. */
+  lastsLabel: string;
+  orderedAt: string;
+  leadDays: number;
+}
+
+/**
+ * Whole days from today until an ISO day, floored at zero.
+ *
+ * BOTH SIDES ARE FLATTENED TO LOCAL MIDNIGHT, because the answer is a count of
+ * calendar days and not of elapsed hours. Subtracting raw timestamps says "34
+ * days" at nine in the morning and "35" the same evening, which is a countdown
+ * that appears to go backwards while somebody watches it.
+ */
+export function daysUntil(iso: string, from: Date = new Date()): number {
+  const target = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(target.getTime())) return 0;
+  const today = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  return Math.max(0, Math.round((target.getTime() - today.getTime()) / 86_400_000));
+}
+
 export interface RoutineResponse {
   /** True until a budget exists. The page says so; nothing is generated behind it. */
   needsBudget: boolean;
@@ -162,6 +204,8 @@ export interface RoutineResponse {
   personalisedBy: { concerns: string[]; labs: boolean; assessment: boolean };
   productCount: number;
   disclaimer: string;
+  /** Null until the first order. See ReorderDue. */
+  reorder: ReorderDue | null;
 }
 
 /**
@@ -190,6 +234,8 @@ export interface BeautyBag {
 export interface BeautyOrder {
   id: string; totalInr: number; status: string;
   items: { id: string; name: string; priceInr: number; qty: number }[]; createdAt: string;
+  /** When this order's supply runs out. Null when nothing in it is still sold. */
+  reorder: ReorderDue | null;
 }
 
 /** True when the failure is the Medical Hub's consent gate (403). */

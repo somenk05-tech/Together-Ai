@@ -16,6 +16,7 @@ import {
 import { topicalExclusions } from '../shared/topical-sensitivities';
 import { allergyNotice } from '../shared/allergen-voice';
 import { buildRoutines } from './routine-engine';
+import { nextReorder, reorderDueFor } from './reorder';
 import { LookAnalysisService } from './look-analysis.service';
 import { assessBeauty, type BeautyProfileInput, type BeautyAssessment } from './beauty-analysis';
 import { buildMakeupLook, type FaceAttrs } from './makeup-engine';
@@ -550,7 +551,11 @@ export class BeautyService {
       'Stop anything that stings or reddens, and see a dermatologist for a condition that persists.';
 
     if (!budget) {
-      return { needsBudget: true as const, budget: null, plan: null, routines: [], personalisedBy, productCount: 0, disclaimer };
+      // `reorder` is null here rather than computed, and it is not laziness:
+      // this branch renders a gate that says "set your budget first" and has no
+      // routine card to hang a countdown on. Fetching an order history to
+      // decorate a page that shows none of it is a query nobody reads.
+      return { needsBudget: true as const, budget: null, plan: null, routines: [], personalisedBy, productCount: 0, disclaimer, reorder: null };
     }
 
     // The needs the plan optimises against are the assessment's own active
@@ -571,12 +576,30 @@ export class BeautyService {
     const chosen = new Set([...plan.face.picks, ...plan.hair.picks, ...plan.body.picks].map((x) => x.product.id));
     const routines = buildRoutines(products.filter((p) => chosen.has(p.id)));
 
+    /**
+     * WHEN TO BUY THIS AGAIN, decided here and not in the browser.
+     *
+     * The same rule as `lastsLabel` and `packLabel` one file over: a judgement
+     * about a product — which one runs out first, how long a pack lasts, how
+     * early to reorder — is made on the server, once, and travels as an answer.
+     * The page turns the date into "35 days" and formats nothing else, so the
+     * countdown ticks over at midnight without a refetch and there is still
+     * only one copy of the arithmetic.
+     *
+     * IT IS COMPUTED FROM THE LAST ORDER, NOT FROM THIS ROUTINE. Somebody who
+     * moves their budget the day after paying has a new routine and the same
+     * ten bottles; the bottles are what run out. A routine nobody has ordered
+     * yet gets null, which is the honest answer to "when is your next order" —
+     * not a date.
+     */
+    const reorder = nextReorder(await this.orders(userId));
+
     return {
       // The wire shape, not the planner's own — see `planForWire`. The page
       // joins these picks to the routine steps by productId, which the internal
       // Pick_ does not have.
       needsBudget: false as const, budget, plan: planForWire(plan), routines, personalisedBy,
-      productCount: chosen.size, disclaimer,
+      productCount: chosen.size, disclaimer, reorder,
     };
   }
 
@@ -727,11 +750,18 @@ export class BeautyService {
     const rows = await this.prisma.beautyOrder.findMany({
       where: { userId }, orderBy: { createdAt: 'desc' }, take: ORDER_HISTORY_CAP,
     });
-    return rows.map((o) => ({
-      id: o.id, totalInr: o.totalInr, status: o.status,
-      items: safeParse(o.itemsJson),
-      createdAt: o.createdAt.toISOString(),
-    }));
+    // EVERY ORDER CARRIES ITS OWN DUE DATE, not just the latest one. An order
+    // is a supply with a life, and a history where only the top row knows when
+    // it ran out is a history that cannot answer "how long did that last me".
+    // The routine page picks the latest of these; this page shows each.
+    return rows.map((o) => {
+      const order = {
+        id: o.id, totalInr: o.totalInr, status: o.status,
+        items: safeParse(o.itemsJson),
+        createdAt: o.createdAt.toISOString(),
+      };
+      return { ...order, reorder: reorderDueFor(order) };
+    });
   }
 }
 

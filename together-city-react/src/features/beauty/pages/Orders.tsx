@@ -4,6 +4,7 @@ import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useBagActions, useBeautyOrders, usePlaceBeautyOrder } from '../api';
 import { payError, type PayMethod } from '@/features/financial/api';
 import { PaymentSheet } from '@/features/financial/PaymentSheet';
+import { NextOrder } from '../components/NextOrder';
 import { ProductShot } from '../components/ProductShot';
 
 /**
@@ -131,7 +132,7 @@ export function Orders() {
         </div>
       ) : (
         <div style={{ marginTop: hasBag ? 0 : 16 }}>
-          {list.map((o) => (
+          {list.map((o, at) => (
             <article key={o.id} className="card" style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                 <strong style={{ fontSize: 15 }}>{rupees(o.totalInr)}</strong>
@@ -141,6 +142,15 @@ export function Orders() {
               <div className="muted" style={{ fontSize: 13, marginTop: 6 }}>
                 {o.items.map((i) => `${i.name}${i.qty > 1 ? ` ×${i.qty}` : ''}`).join(' · ')}
               </div>
+              {/* THE COUNTDOWN GOES ON THE NEWEST ORDER AND NOWHERE ELSE.
+                  The server dates every order in the history, because an order
+                  IS a supply with a life and one that only the top row knew
+                  about could not answer "how long did that last me". But only
+                  one of them is a live instruction: an order from March ran out
+                  in April, and "Time to reorder" printed against every row a
+                  citizen has ever placed is a page of alarms rather than an
+                  answer. `at === 0` because the service returns newest first. */}
+              {at === 0 && o.reorder && <NextOrder due={o.reorder} variant="row" />}
             </article>
           ))}
         </div>

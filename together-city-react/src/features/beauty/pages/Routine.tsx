@@ -6,6 +6,7 @@ import {
   type CategoryPlan, type ProductRoutine, type ProductRoutineStep, type RoutinePick, type RoutineTier,
 } from '../api';
 import { BeautyBagBar } from '../components/BeautyBagBar';
+import { NextOrder } from '../components/NextOrder';
 import { ProductShot } from '../components/ProductShot';
 
 /**
@@ -603,6 +604,7 @@ export function Routine() {
                   size belongs. `everyStep` stays: it is what the count and the
                   total are made of. */}
               <div className="muted" style={{ fontSize: 11 }}>{everyStep.length} products</div>
+              {data?.reorder && <NextOrder due={data.reorder} />}
             </div>
           )}
         </div>

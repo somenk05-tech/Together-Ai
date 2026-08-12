@@ -73,6 +73,18 @@ const MAX_MONTHS = 12;
 /** And nothing is costed as lasting less than a fortnight. */
 const MIN_MONTHS = 0.5;
 
+/**
+ * How many days a "month" is, for turning a pack's life into a calendar date.
+ *
+ * IT IS DERIVED FROM `lastsLabel`'S OWN 4.345 WEEKS rather than picked afresh,
+ * and that is the whole reason it lives here. The reorder countdown says "45
+ * days" about the same bottle this file calls "about 6 weeks"; two independent
+ * constants would eventually disagree by a day and produce a page that says six
+ * weeks in one place and forty-one days in another. One number, one file, and
+ * the label and the date cannot drift apart.
+ */
+export const DAYS_PER_MONTH = 4.345 * 7;
+
 /** "(100 ml)" · "(50 g)" · "(1.5 kg)" → millilitres or grams, treated alike. */
 export function packSize(name: string): number | null {
   const m = /\(([\d.]+)\s*(ml|g|gm|kg|l)\)/i.exec(name);
