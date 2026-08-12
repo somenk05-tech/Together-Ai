@@ -318,8 +318,16 @@ export function useSaveBeautyBag() {
 }
 
 /**
- * Add, remove and set — the three things a page does to a bag, with the
- * server's copy as the base each time so two quick taps cannot race.
+ * Add, remove and clear — what a page does to a bag, with the server's copy as
+ * the base each time so two quick taps cannot race.
+ *
+ * `setMany` was here too, and it went with the Routine page's "Add all to bag".
+ * It was written for that button and had exactly one caller; a bulk write left
+ * behind with nothing calling it is a loaded gun in a drawer, and the next
+ * surface that wants one should write it against its own need rather than
+ * inherit this one's assumption that topping up is the right merge. The
+ * behaviour, if it is ever wanted back: existing quantities kept, missing ones
+ * set to one, nothing removed.
  */
 export function useBagActions() {
   const bag = useBeautyBag();
@@ -337,11 +345,6 @@ export function useBagActions() {
       put(at === -1 ? [...cur, { id, qty: 1 }] : cur.map((l, i) => (i === at ? { ...l, qty: l.qty + 1 } : l)));
     },
     remove: (id: string) => put(lines().map((l) => (l.id === id ? { ...l, qty: l.qty - 1 } : l))),
-    setMany: (ids: string[]) => {
-      const cur = new Map(lines().map((l) => [l.id, l.qty]));
-      for (const id of ids) cur.set(id, Math.max(1, cur.get(id) ?? 0));
-      put([...cur].map(([id, qty]) => ({ id, qty })));
-    },
     clear: () => put([]),
   };
 }

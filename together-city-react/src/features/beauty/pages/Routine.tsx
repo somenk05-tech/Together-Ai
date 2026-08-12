@@ -521,9 +521,6 @@ export function Routine() {
   }
 
   const empty = !data || data.routines.every((r) => r.steps.length === 0);
-  // "Add all" tops the bag up rather than replacing it — somebody who already
-  // had two of something keeps two.
-  const addEverything = () => bagged.setMany(everyStep.map((s) => s.productId));
 
   /**
    * A CATEGORY SET TO ZERO IS NOT SHOWN AT ALL.
@@ -597,8 +594,15 @@ export function Routine() {
               {monthlyTotal > 0 && (
                 <div className="muted" style={{ fontSize: 11 }}>≈ {rupees(monthlyTotal)}/month to keep going</div>
               )}
-              <div className="muted" style={{ fontSize: 11, marginBottom: 9 }}>{everyStep.length} products</div>
-              <Button variant="accent" size="sm" onClick={addEverything}>Add all to bag</Button>
+              {/* NO "ADD ALL TO BAG", at the owner's word. This card is a
+                  READING of the routine — what it costs to buy, what it costs
+                  to keep, how many bottles that is — and the accent button
+                  turned it into a till. Adding ten products in one tap is also
+                  the one bag action nobody can undo in one tap; every step
+                  carries its own Add to bag, which is where a decision that
+                  size belongs. `everyStep` stays: it is what the count and the
+                  total are made of. */}
+              <div className="muted" style={{ fontSize: 11 }}>{everyStep.length} products</div>
             </div>
           )}
         </div>
