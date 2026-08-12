@@ -824,6 +824,27 @@
   box-shadow: var(--e1); padding: 16px 18px 18px; margin: 0 0 14px;
 }
 .beauty-leaf-open { padding: 14px 16px 16px; margin: 0 0 16px; }
+/* ── AND A SHEET WITH MERCHANDISE ON IT IS WHITE ────────────────────────────
+   THE PRODUCT SECTIONS COME OFF THE CREAM, at the owner's word: the routine's
+   morning, evening and wash-day bands, and the market's shop sheet. Everything
+   else in the hub — the profile's sheets, an opened leaf, the plates — keeps
+   the paper it has always had.
+
+   `--shot-ground` AND NOT A NEW WHITE, because it is already the right idea
+   wearing the right name. It is the seamless the merchandise was photographed
+   on: every one of these products is hotlinked from a retailer and every one
+   was lit on white. The photograph's own well has been that white since the
+   day the shots stopped melting into cream, and this extends it from the well
+   to the card and the section around it. A card whose top half is the studio
+   white and whose bottom half is cream is a join; one white surface is a
+   product on a sheet of the paper it was shot on.
+
+   The section keeps its hairline and its lift. Without a fill of its own it
+   would still be a band — the heading and the rule say so — but a white sheet
+   with an edge is what the market grid already looked like from the inside,
+   and matching it costs nothing and explains itself. */
+.beauty-sheet.is-shop,
+.routine-card { background: var(--shot-ground); }
 /* A sheet's header is the plate's foot rule, reused: the name on the left, what
    is in it on the right. Not an emoji and a 16px heading — that is the city's
    ordinary card idiom, and next to a set of prints it is the one object on the
@@ -1119,7 +1140,10 @@
 }
 .routine-card {
   display: flex; flex-direction: column; overflow: hidden;
-  background: var(--card); border: 1px solid var(--line); border-radius: 2px;
+  /* The face is white — see `.beauty-sheet.is-shop` above; it is the ground the
+     photograph in the well was taken on, carried through the whole card so the
+     two halves are one surface rather than a join. */
+  border: 1px solid var(--line); border-radius: 2px;
   box-shadow: var(--e1);
 }
 /* THE WELL IS THE SEAMLESS THE SHOT WAS TAKEN ON — white — not the paper of

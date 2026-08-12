@@ -239,7 +239,7 @@ export function Market() {
 
        NOT on `.page` globally — that makes one undifferentiated cream slab and
        the plates lose the edge that makes them read as plates. */
-    <div className="beauty-sheet">
+    <div className="beauty-sheet is-shop">
       <div className="eyebrow">Beauty Market · Shop</div>
 
       {/* ── the category row, across the top, as in the reference ───────── */}

@@ -687,12 +687,12 @@ export function Routine() {
           {/* AM and PM abreast, as in the reference; the divider between them is
               the only rule on the page and it is what makes them read as two
               halves of one day rather than two lists. */}
-          <div className="beauty-sheet routine-day">
+          <div className="beauty-sheet is-shop routine-day">
             {day.map((r) => <Band key={r.timeOfDay} r={r} picks={picks} bagged={bagged} seen={firstSeen} />)}
           </div>
 
           {rest.filter((r) => r.steps.length > 0).map((r) => (
-            <div key={r.timeOfDay} className="beauty-sheet">
+            <div key={r.timeOfDay} className="beauty-sheet is-shop">
               <Band r={r} picks={picks} bagged={bagged} seen={firstSeen} />
             </div>
           ))}

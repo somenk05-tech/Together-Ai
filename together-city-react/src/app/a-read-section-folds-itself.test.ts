@@ -277,13 +277,36 @@ describe('the beauty hub prints on its own paper', () => {
   });
 
   it('stands a product shot on the ground it was photographed on', () => {
-    // Every one of these is hotlinked from a retailer and lit on white. The
-    // well is white for that reason and for no other — nothing is read on it.
+    // Every one of these is hotlinked from a retailer and lit on white, and the
+    // well is white for that reason and for no other.
     const layout = read('styles/layout.css');
     expect(layout).toMatch(/\.routine-well \{[^}]*background: var\(--shot-ground\)/);
     const tokens = read('styles/tokens.css');
     expect(tokens).toMatch(/--shot-ground: var\(--paper\)/);   // inert at the root
     expect(tokens).toMatch(/--shot-ground: #ffffff/);            // white in this hub
+  });
+
+  it('carries the studio white out of the well and across the product sections', () => {
+    // THIS FILE USED TO SAY "nothing is read on it", and the token file said the
+    // same. At the owner's word the product sections came off the cream, and
+    // that white now dresses the routine's bands, the routine card and the
+    // market's shop sheet — every one of which carries type. The claim is
+    // retired in both places, because "no text on this surface" is exactly the
+    // sort of note a later reader trusts instead of checking.
+    //
+    // ONE TOKEN, NOT THREE WHITES. A card whose well is white by one rule and
+    // whose body is white by another is a card that grows a seam the first time
+    // either is nudged.
+    const layout = read('styles/layout.css');
+    expect(layout).toMatch(/\.beauty-sheet\.is-shop,\s*\.routine-card \{ background: var\(--shot-ground\); \}/);
+    expect(layout).not.toMatch(/\.routine-card \{[^}]*background: var\(--card\)/);
+    // The sections that take it are the ones with merchandise in them and no
+    // others — the profile's sheets and an opened leaf keep the hub's paper.
+    const routine = read('features/beauty/pages/Routine.tsx');
+    expect(routine).toMatch(/className="beauty-sheet is-shop routine-day"/);
+    expect(routine).toMatch(/className="beauty-sheet is-shop"/);
+    // The assurance strip is not a product section and keeps the cream.
+    expect(routine).toMatch(/className="routine-assure beauty-sheet"/);
   });
 
   it('does not send somebody to a retailer from anywhere in the hub', () => {
@@ -297,11 +320,21 @@ describe('the beauty hub prints on its own paper', () => {
   });
 
   it('gives the shop and the shelf a sheet to stand on', () => {
-    // Without one, a grid of white product tiles sits straight on the black
-    // wall and the page reads as a different application from the rest of the
-    // hub. The owner chose: wall stays, every page gets a sheet.
+    // Without one, a grid of product tiles sits straight on the room's ground
+    // and the page reads as a different application from the rest of the hub.
+    // THE ORIGINAL REASON WAS THE BLACK WALL and that wall is white now, which
+    // does not retire the rule: a sheet is a defined content area — an edge, a
+    // lift and a measure — and a page without one is a page whose content runs
+    // to the width of the window.
+    //
+    // THE MODIFIER IS ALLOWED, THE WRAPPER IS NOT OPTIONAL. Market's sheet took
+    // `is-shop` when the product sections went white, so this matches a class
+    // LIST beginning with beauty-sheet rather than the bare string it used to
+    // pin. `[\w -]*` and not `.*`: a modifier may follow, an arbitrary
+    // expression may not, and `className={cond ? "beauty-sheet" : ""}` — a
+    // sheet that is sometimes there — still fails.
     for (const f of ['features/beauty/pages/Market.tsx', 'features/beauty/pages/Orders.tsx']) {
-      expect(read(f)).toMatch(/<div className="beauty-sheet">/);
+      expect(read(f)).toMatch(/<div className="beauty-sheet[\w -]*">/);
     }
   });
 

@@ -1591,7 +1591,21 @@
      happens to be, and for an unrelated reason. It stays declared: a well is
      white because a retailer lit a bottle on white, not because the wall is,
      and merging the two would tie a photographic fact to a taste decision that
-     has already moved once today. */
+     has already moved once today.
+
+     IT IS READ ON NOW, WHICH IT WAS NOT. This said "nothing is READ on it — it
+     holds pictures — so it is not in the ink table above", and that stopped
+     being true when the product sections came off the cream: the routine's
+     bands, the routine cards and the market's shop sheet all wear it, and every
+     one of them carries type. The claim is retired rather than quietly left
+     standing, because "no text on this surface" is exactly the sort of note a
+     later reader trusts instead of checking.
+
+     Nothing had to move to make it safe, and that is worth stating rather than
+     assuming: these surfaces are on the ink-restore list in relief.css, so they
+     carry --on-paper (#171310), and relief.spec already measures that value
+     against a white ground under the --on-ground names — 18.5:1 against the 4.5
+     required, better than it was on the cream it left. */
   --shot-ground: #ffffff;
 
   /* ── THE INK ON THE WALL, WHICH IS NOW THE INK ON THE PAPER ──────────────
