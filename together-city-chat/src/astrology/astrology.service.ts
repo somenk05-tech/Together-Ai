@@ -321,10 +321,31 @@ export class AstrologyService {
     return swallow(this.db.astroProfile.findUnique({ where: { userId } }), 'astro: profile read', { userId }).then((r) => r ?? null);
   }
 
-  /** The user's "now" in their own time zone (so the daily flips at THEIR midnight). */
-  private userNow(row: AstroProfileRow): Date {
-    const now = new Date();
-    return new Date(now.getTime() + tzOffsetMinutes(row.timeZone, now) * 60000);
+  /**
+   * The two clocks a day has, handed out together so they cannot be confused.
+   *
+   * `local` is the citizen's WALL CLOCK — a real instant shifted by their
+   * offset, so its calendar fields read as their date. It is the right answer
+   * to "which day is it for them", and it is what names the letter, seeds it,
+   * picks the numerology day and turns the remedy over on their Monday.
+   *
+   * `at` is the actual instant, which is the only thing the sky can be read at.
+   *
+   * THEY USED TO BE ONE VALUE, and the shifted one was passed to the ephemeris:
+   * `userNow()` returned now + 5h30m for an Indian citizen and the composer
+   * computed the day's transits from it. The Moon moves about three degrees in
+   * five and a half hours, so a Moon near a boundary was reported in the next
+   * sign, or the phase named as the next phase, on a letter dated correctly.
+   * Meanwhile `ask()` used the true instant, so two surfaces of the same hub
+   * disagreed about where the Moon was.
+   *
+   * The method returns both and is the only place the shift happens, so
+   * choosing wrongly now takes typing the wrong field name rather than
+   * reaching for the only value there was.
+   */
+  private momentFor(row: AstroProfileRow): { at: Date; local: Date } {
+    const at = new Date();
+    return { at, local: new Date(at.getTime() + tzOffsetMinutes(row.timeZone, at) * 60000) };
   }
 
   /**
@@ -371,21 +392,25 @@ export class AstrologyService {
   async daily(userId: string) {
     const row = await this.requireProfile(userId);
     if (!row) return { needsProfile: true as const }; // only for stored birth details
-    const local = this.userNow(row);
+    const { at, local } = this.momentFor(row);
     const date = AstrologyService.periodKeysAt(local).daily;
-    const letter = await this.cachedLetter(userId, 'daily', date, () => this.writeDailyLetter(row, userId, local));
+    const letter = await this.cachedLetter(userId, 'daily', date, () => this.writeDailyLetter(row, userId, { at, local }));
     if (!letter) return { needsProfile: false as const, pending: true as const, date };
     return { needsProfile: false as const, pending: false as const, ...letter };
   }
 
-  private async writeDailyLetter(row: AstroProfileRow, userId: string, local: Date): Promise<DatedLetter | null> {
+  private async writeDailyLetter(
+    row: AstroProfileRow, userId: string, when: { at: Date; local: Date },
+  ): Promise<DatedLetter | null> {
     const chart = this.chartOf(row);
-    const num = computeNumerology(row.birthDate, local);
-    const dasha = vimshottariDasha(chart.moon.lon, row.birthDate, local);
-    const brief = composeDailyBrief(chart, userId, local, num, dasha);
+    const date = AstrologyService.periodKeysAt(when.local).daily;
+    // Calendar things off the wall clock, sky things off the instant.
+    const num = computeNumerology(row.birthDate, when.local);
+    const dasha = vimshottariDasha(chart.moon.lon, row.birthDate, when.at);
+    const brief = composeDailyBrief(chart, userId, { date, at: when.at }, num, dasha);
     const previous = (await this.recentLetters(userId, 'daily', 3)).map((l) => l.body);
     const letter = await this.writeLetter('daily', brief, await this.firstName(userId), previous, 700);
-    return letter ? { date: local.toISOString().slice(0, 10), ...letter } : null;
+    return letter ? { date, ...letter } : null;
   }
 
   /** Past letters, newest first — the same letters, on the days they were for. */
@@ -506,9 +531,9 @@ export class AstrologyService {
   async gems(userId: string) {
     const row = await this.requireProfile(userId);
     if (!row) return { needsProfile: true as const };
-    const local = this.userNow(row);
+    const { at } = this.momentFor(row);
     const chart = this.chartOf(row);
-    const dasha = vimshottariDasha(chart.moon.lon, row.birthDate, local);
+    const dasha = vimshottariDasha(chart.moon.lon, row.birthDate, at);
     return { needsProfile: false as const, ...buildGemGuidance({ maha: dasha.maha, antar: dasha.antar }) };
   }
 
@@ -530,9 +555,9 @@ export class AstrologyService {
   async gemstones(userId: string) {
     const row = await this.requireProfile(userId);
     if (!row) return { needsProfile: true as const };
-    const local = this.userNow(row);
+    const { at, local } = this.momentFor(row);
     const chart = this.chartOf(row);
-    const dasha = vimshottariDasha(chart.moon.lon, row.birthDate, local);
+    const dasha = vimshottariDasha(chart.moon.lon, row.birthDate, at);
     const num = computeNumerology(row.birthDate, local);
     // The carat figure is worked out from body weight, which the citizen has
     // already given the Master Profile. Swallowed rather than awaited hard: a
@@ -709,9 +734,9 @@ export class AstrologyService {
   async remedies(userId: string) {
     const row = await this.requireProfile(userId);
     if (!row) return { needsProfile: true as const };
-    const local = this.userNow(row);
+    const { at, local } = this.momentFor(row);
     const chart = this.chartOf(row);
-    const dasha = vimshottariDasha(chart.moon.lon, row.birthDate, local);
+    const dasha = vimshottariDasha(chart.moon.lon, row.birthDate, at);
     const flags = await healthFlagsFor(this.prisma, userId);
     // `local` rather than `new Date()` — the practice turns over on Monday
     // where the citizen is, not on Monday in UTC.
@@ -732,9 +757,9 @@ export class AstrologyService {
   async monthly(userId: string) {
     const row = await this.requireProfile(userId);
     if (!row) return { needsProfile: true as const }; // only for stored birth details
-    const local = this.userNow(row);
+    const { at, local } = this.momentFor(row);
     const monthKey = AstrologyService.periodKeysAt(local).monthly;
-    const letter = await this.cachedLetter(userId, 'monthly', monthKey, () => this.writeMonthlyLetter(row, userId, local));
+    const letter = await this.cachedLetter(userId, 'monthly', monthKey, () => this.writeMonthlyLetter(row, userId, { at, local }));
     if (!letter) return { needsProfile: false as const, pending: true as const, date: monthKey, month: monthNameOf(local) };
     return { needsProfile: false as const, pending: false as const, ...letter };
   }
@@ -756,15 +781,23 @@ export class AstrologyService {
     return this.recentLetters(userId, 'monthly', 24);
   }
 
-  private async writeMonthlyLetter(row: AstroProfileRow, userId: string, local: Date): Promise<DatedLetter | null> {
+  private async writeMonthlyLetter(
+    row: AstroProfileRow, userId: string, when: { at: Date; local: Date },
+  ): Promise<DatedLetter | null> {
     const chart = this.chartOf(row);
-    const astro = scanMonth(chart, local.getUTCFullYear(), local.getUTCMonth() + 1);
-    const num = computeNumerology(row.birthDate, local);
-    const dasha = vimshottariDasha(chart.moon.lon, row.birthDate, local);
+    // The month is a calendar fact, and scanMonth reads the sky for itself at
+    // noon of each of its days — so the wall clock is the right input here and
+    // the instant never enters. The running period is elapsed time, so it is
+    // measured from the instant.
+    const astro = scanMonth(chart, when.local.getUTCFullYear(), when.local.getUTCMonth() + 1);
+    const num = computeNumerology(row.birthDate, when.local);
+    const dasha = vimshottariDasha(chart.moon.lon, row.birthDate, when.at);
     const brief = composeMonthlyBrief(chart, userId, astro, num, dasha);
     const previous = (await this.recentLetters(userId, 'monthly', 2)).map((l) => l.body);
     const letter = await this.writeLetter('monthly', brief, await this.firstName(userId), previous, 800);
-    return letter ? { date: local.toISOString().slice(0, 7), month: brief.month, ...letter } : null;
+    return letter
+      ? { date: AstrologyService.periodKeysAt(when.local).monthly, month: brief.month, ...letter }
+      : null;
   }
 
   // ───────────────────────── Tab 03 · Ask the Astrologer ─────────────────────────
@@ -796,7 +829,7 @@ export class AstrologyService {
     const row = await this.requireProfile(userId);
     if (!row) return { needsProfile: true as const };
     const chart = this.chartOf(row);
-    const local = this.userNow(row);
+    const { local } = this.momentFor(row);
     const astro = scanMonth(chart, local.getUTCFullYear(), local.getUTCMonth() + 1);
 
     // What this one costs — 0 inside the free five or inside a bought pack,

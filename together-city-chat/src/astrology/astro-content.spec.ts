@@ -9,8 +9,11 @@ const born2 = new Date('1985-12-02T00:00:00Z');
 const chart = natalChart(born1, '09:45', 'Asia/Kolkata', 12.97, 77.59);
 const chart2 = natalChart(born2, '22:10', 'Asia/Kolkata', 28.61, 77.21);
 
+/** The existing tests hand one Date; a brief now takes the citizen's day AND
+ *  the instant, so this helper spells the same moment both ways. */
 const briefOn = (c: typeof chart, born: Date, seed: string, day: Date) =>
-  composeDailyBrief(c, seed, day, computeNumerology(born, day), vimshottariDasha(c.moon.lon, born, day));
+  composeDailyBrief(c, seed, { date: day.toISOString().slice(0, 10), at: day },
+    computeNumerology(born, day), vimshottariDasha(c.moon.lon, born, day));
 
 const monthlyOn = (c: typeof chart, born: Date, seed: string, month: number) => {
   const on = new Date(`2026-${String(month).padStart(2, '0')}-05T00:00:00Z`);

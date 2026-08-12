@@ -125,12 +125,34 @@ export interface GuidanceBrief {
  * is what lets the whole list be handed to a writer that must never learn the
  * vocabulary.
  */
+/**
+ * A day, and the instant inside it the sky is read at.
+ *
+ * TWO FIELDS BECAUSE THEY ARE TWO DIFFERENT CLOCKS, and passing one Date for
+ * both is the defect this type exists to end. `date` is the citizen's own
+ * calendar day: it names the letter and seeds it, so the same person opening
+ * Today twice in a day gets the same letter. `at` is the real instant, and it
+ * is the only thing that can be turned into a Julian day.
+ *
+ * The service used to hand this function a wall-clock Date — the true instant
+ * shifted by the citizen's UTC offset — and it was used for both. For India
+ * that read the sky five and a half hours into the future, which is about
+ * three degrees of Moon: enough to report it in the next sign, or to name the
+ * next phase, on a letter whose date was perfectly correct.
+ */
+export interface DayMoment {
+  /** YYYY-MM-DD in the citizen's own calendar. */
+  date: string;
+  /** The actual instant. Never a shifted one. */
+  at: Date;
+}
+
 export function composeDailyBrief(
-  chart: NatalChart, userSeed: string, date: Date, num: Numerology, dasha: Dasha,
+  chart: NatalChart, userSeed: string, when: DayMoment, num: Numerology, dasha: Dasha,
 ): GuidanceBrief {
-  const iso = date.toISOString().slice(0, 10);
+  const iso = when.date;
   const rng = mulberry32(hashSeed(userSeed + iso + 'brief1'));
-  const jd = julianDay(new Date(date.getTime()));
+  const jd = julianDay(when.at);
   const transits = positionsAt(jd);
   const hits = hitsAgainstNatal(transits, chart);
   const find = (p: string) => transits.find((t) => t.planet === p)!;
