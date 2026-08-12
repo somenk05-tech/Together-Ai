@@ -18,7 +18,7 @@ import { allergyNotice } from '../shared/allergen-voice';
 import { buildRoutines } from './routine-engine';
 import { nextReorder, reorderDueFor } from './reorder';
 import { LookAnalysisService } from './look-analysis.service';
-import { assessBeauty, type BeautyProfileInput, type BeautyAssessment } from './beauty-analysis';
+import { assessBeauty, focusOf, noteOf, type BeautyProfileInput, type BeautyAssessment } from './beauty-analysis';
 import { buildMakeupLook, type FaceAttrs } from './makeup-engine';
 import type { PlaceBeautyOrderDto } from './dto/beauty.dto';
 
@@ -41,6 +41,20 @@ export interface ProgressEntry {
   skin?: AttrSnapshot[]; hair?: AttrSnapshot[]; baseline?: boolean;
 }
 const safeJson = <T>(s: string | null | undefined, fb: T): T => { try { return s ? (JSON.parse(s) as T) : fb; } catch { return fb; } };
+
+/**
+ * What is actually on file: an assessment written by whichever version of
+ * beauty-analysis.ts was deployed the day it was generated. `summary` has been
+ * there since the beginning; `focus` and `note` have not.
+ */
+type StoredAssessment =
+  | ({ summary?: string; focus?: string[]; note?: string } & Record<string, unknown>)
+  | null;
+
+/** Fills in the two parts the page typesets, for rows that predate them. */
+const withAssessmentParts = (a: StoredAssessment): StoredAssessment => (a
+  ? { ...a, focus: focusOf(a as Parameters<typeof focusOf>[0]), note: a.note ?? noteOf(a.summary ?? '') }
+  : null);
 
 /** Assessment level → 0–100 score (higher is healthier), for progress comparison. */
 const LEVEL_SCORE: Record<string, number> = { good: 100, monitor: 70, attention: 45, priority: 20 };
@@ -224,7 +238,19 @@ export class BeautyService {
        * handles null by inviting the citizen to upload; that is the honest
        * state.
        */
-      analysis: row.analyzedAt && photosOnFile.length > 0 ? safeJson<unknown>(row.analysisJson, null) : null,
+      /**
+       * `focus` AND `note` ARE DERIVED ON READ, NOT MIGRATED. The profile page
+       * sets the summary as type — the priorities large, the qualifier in
+       * italic beneath — so it needs the sentence in its parts. Assessments
+       * saved before those fields existed have the parts on file anyway: the
+       * findings are in `issues`, and the qualifier is the second half of the
+       * summary this same module composed. Deriving them here means an old row
+       * and a new one answer identically and nothing has to be rewritten in the
+       * database to change a typeface.
+       */
+      analysis: withAssessmentParts(
+        row.analyzedAt && photosOnFile.length > 0 ? safeJson<StoredAssessment>(row.analysisJson, null) : null,
+      ),
       photos: photosOnFile,
       progress: safeJson<ProgressEntry[]>(row.progressJson, []),
       analyzedAt: row.analyzedAt && photosOnFile.length > 0 ? row.analyzedAt.toISOString() : null,

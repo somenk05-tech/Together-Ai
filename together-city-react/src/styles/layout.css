@@ -721,6 +721,44 @@
 }
 .beauty-plate.is-hero .beauty-display { font-size: clamp(32px, 6.4vw, 62px); }
 
+/* ── THE ASSESSMENT PLATE ───────────────────────────────────────────────────
+   The same plate, carrying the one sentence the whole page exists to produce.
+   It adds no surface of its own — the cream, the hairline, the lift and the
+   centred axis are the plate's, which is also why it needs no entry in the
+   ink-restore list in relief.css: it paints nothing.
+
+   THE CHIP is the reference's oval stamp, and it is two lines because a chip
+   wider than it is tall stops reading as a stamp and starts reading as a
+   button. The border is the paper's hairline, so it is the cut-edge line the
+   plate already uses rather than a second idea about rules.
+
+   THE MEASURE IS THE POINT OF THE DISPLAY LINE. `max-width` in `ch` and auto
+   margins, so three findings break into two or three lines the way the
+   reference does instead of running to the width of a desktop plate. A display
+   line the full width of a 1200px card is a headline, not a poster. */
+.beauty-assess { margin-bottom: 22px; }
+.beauty-assess .chip {
+  display: inline-flex; flex-direction: column; align-items: center;
+  padding: 7px 17px; border: 1px solid var(--line); border-radius: 999px;
+  font-size: 8px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase;
+  line-height: 1.55; color: var(--muted);
+}
+.beauty-assess .beauty-display {
+  margin: clamp(16px, 3vw, 26px) auto 0; max-width: 17ch;
+  line-height: 1.05; letter-spacing: -.004em;
+}
+/* The italic is a real cut, not a slant the browser invents — see the
+   @font-face beside the roman in relief.css. On a display face at this size
+   the difference between the two is the whole reason the reference works. */
+.beauty-assess .beauty-display em { font-style: italic; }
+/* The subtitle: the same face, small, italic, and on a wider measure than the
+   display line because it is a sentence to be read rather than a shape. */
+.beauty-assess .beauty-display.note {
+  margin-top: clamp(13px, 2.2vw, 19px); max-width: 46ch;
+  font-size: clamp(12.5px, 1.35vw, 15px); font-style: italic;
+  line-height: 1.5; letter-spacing: 0; color: var(--muted);
+}
+
 /* ——— ✦ ——— . Two rules and a star, and the star is a character rather than
    an asset because it is one glyph at 9px and a file for that is a request. */
 .beauty-star {

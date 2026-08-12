@@ -1533,20 +1533,33 @@
    inverted — which is what makes this the cheapest of the three grants and,
    if it is ever handed back, the cleanest to return.                        */
 [data-hub="beauty"] {
-  /* ── THE WALL AND THE PAPER ARE TWO DIFFERENT SURFACES, AND THAT IS NEW ───
-     Every other grant in this file re-points ONE ground: the page and the card
-     are the same material a step apart. This hub has two materials. --ground is
-     the WALL — near-black, grained, vignetted, the owner's backdrop photograph
-     — and it is only ever behind things. --paper and --card are the PRINT, and
-     everything a citizen reads is on one of them.
+  /* ── THE WALL IS WHITE NOW, AND THE PLATES STAYED CREAM ──────────────────
+     IT WAS NEAR-BLACK, GRAINED AND VIGNETTED — the owner's own backdrop
+     photograph, generated in four lines of CSS rather than shipped. It went at
+     the owner's word, and the argument it was built on is kept here because
+     the half of it that was structural is the half that survived.
 
-     WHICH IS WHY --paper IS NOT --ground HERE. In the bone room they are the
-     same value on purpose, so no seam runs down the side of a layout. Here the
-     seam IS the design: the edge of a plate against the wall is what makes it a
-     plate. --paper stays the light surface because it is also every WELL — an
-     input, a photo tile, the tab track — and a black field inside a cream card
-     is not a gallery, it is a bug. */
-  --ground: #101010;
+     STRUCTURAL, AND UNCHANGED: this hub has TWO materials where every other
+     grant in this file has one. --ground is only ever BEHIND things; --paper
+     and --card are the PRINT, and everything a citizen reads is on one of
+     them. The seam between them IS the design — the edge of a plate against
+     the ground is what makes it a plate — which is why --paper is not
+     --ground here, and why putting the cream on `.page` globally was refused
+     when it was proposed. Taste, and the owner's: which value the ground is.
+
+     WHITE AND NOT THE PAPER'S CREAM, deliberately, and it is the same refusal
+     as `.page` arrived at from the other side. Cream behind cream is one
+     undifferentiated slab and the plates stop reading as plates. White is a
+     step LIGHTER than the print rather than darker, so the seam survives the
+     inversion: a cream plate on white reads as a plate the way it did on
+     black, and the shadow under it does the work it was always drawn to do.
+
+     AND NOTE WHAT DID NOT MOVE, because it is the receipt for this grant being
+     the cheap one it claimed to be. The plates, the cards, the hairline, the
+     paper inks, the five depths, every radius and gap: untouched. One ground
+     changed value and the three inks measured against it followed. A wall that
+     costs two declarations to repaint is a wall that was built properly. */
+  --ground: #ffffff;
   --paper:  #e7ded1;
   --card:   #f6f1e8;
   --wash:   #efe8dc;
@@ -1555,46 +1568,59 @@
      halfway. */
   --line:      #d5c7b3;
 
-  /* ── THE WALL'S TEXTURE, THROUGH THE MECHANISM SOCIAL ALREADY BUILT ──────
-     --sky-image is declared at :root as `none` and hung by one fixed layer
-     behind the shell. Social's note says it: a gradient is an image, so the hub
-     that hangs a picture and the hub that hangs a wash use one mechanism rather
-     than two. A photographic backdrop is the same kind of thing again.
+  /* ── THE TEXTURE IS NOT DECLARED, AND THAT IS THE WHOLE REMOVAL ──────────
+     --sky-image was three layers here and every one of them was drawn FOR the
+     near-black: fractal grain at .16 opacity, because a flat near-black reads
+     as an unloaded screen; an off-centre highlight, the soft box up and to the
+     left; and a vignette falling to true black at the corners, which is what
+     made the wall read as lit rather than as a colour.
 
-     Three layers, and each is doing a job the reference does. The GRAIN is
-     fractal noise at low opacity — a flat near-black reads as an unloaded
-     screen, and the tooth is most of why the reference looks like a surface.
-     The KEY is an off-centre highlight, the soft box up and to the left. The
-     VIGNETTE is the fall to true black at the corners, which is what makes the
-     wall read as lit rather than as a colour.
+     ALL THREE ARE WRONG ON WHITE AND NOT ONE OF THEM IS SALVAGEABLE. Grain on
+     white is dirt. A white highlight on white is nothing. A vignette to black
+     on white is a grey smudge in the corners of a clean room — the single
+     most obvious way to make a light page look like a mistake.
 
-     It is generated rather than shipped: a 2000px photograph of a black wall is
-     a megabyte and a half for something four lines of CSS say exactly, and it
-     would have to be re-exported for every screen density. */
-  --sky-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)' opacity='.16'/%3E%3C/svg%3E"),
-    radial-gradient(78% 58% at 34% 26%, rgba(255,255,255,.085), rgba(255,255,255,0) 62%),
-    radial-gradient(120% 100% at 50% 46%, rgba(0,0,0,0) 24%, rgba(0,0,0,.72) 100%);
+     So it is not re-tuned, it is not declared. It falls back to the `none` at
+     :root, `.tc-shell::before` paints --ground and nothing else, and the fixed
+     layer stays in place unscoped for Social, which still hangs a wash on it.
+     Retuning a texture for a ground it was not drawn for is how a hub ends up
+     with an effect nobody can defend and nobody dares delete. */
 
-  /* ── THE INK ON THE WALL ─────────────────────────────────────────────────
-     The scale below is measured on the PAPER, which is where nearly everything
-     is read. These three are for the little that is drawn straight onto the
-     wall — a page heading, a tab rule, the index between two plates — and they
-     are measured on the wall instead. relief.spec checks both sets, because a
-     hub with two grounds and one checked ground is a hub with an unchecked
-     ground.
-
-     Not pure white. #ffffff on #101010 is 19:1 and it glares; these are the
-     same near-whites the dark hubs use, and they still clear AA four times
-     over. */
-  /* White, and only here: it is the seamless the merchandise was photographed
-     on. Nothing is READ on it — it holds pictures — so it is not in the ink
-     table above. */
+  /* The seamless the merchandise was photographed on. It was white while the
+     room was black and it is white still — the same value the ground now
+     happens to be, and for an unrelated reason. It stays declared: a well is
+     white because a retailer lit a bottle on white, not because the wall is,
+     and merging the two would tie a photographic fact to a taste decision that
+     has already moved once today. */
   --shot-ground: #ffffff;
 
-  --on-ground:       #ede9e2;   /* 15.7:1 on the wall */
-  --on-ground-soft:  #d9d3c9;   /* 12.8:1 */
-  --on-ground-muted: #a49b8e;   /*  6.9:1 — the floor, and it is nowhere near it */
+  /* ── THE INK ON THE WALL, WHICH IS NOW THE INK ON THE PAPER ──────────────
+     These three are for the little that is drawn STRAIGHT onto the ground — a
+     page heading, a tab rule, the index between two plates. They existed as
+     their own scale because the ground was near-black and the paper was cream:
+     two grounds, two directions, and relief.spec measures both, because a hub
+     with two grounds and one checked ground is a hub with an unchecked ground.
+
+     They were near-whites — #ede9e2 at 15.7:1 on #101010, deliberately not
+     pure white, because #ffffff on near-black is 19:1 and it glares.
+
+     ON A WHITE GROUND THEY POINT AT THE PAPER'S INKS, and they are declared
+     through `var()` rather than copied so the two lists cannot drift. White is
+     LIGHTER than the cream, so any ink safe on the paper is safe here by
+     construction and by more than it was: #171310 is 13.9:1 on the paper and
+     18.5:1 here. That is arithmetic rather than a hope, and relief.spec
+     recomputes it at build time either way — it follows one hop through a
+     var(), which is exactly why one hop is all this is.
+
+     THE THREE NAMES STAY even though they now resolve to what --ink already
+     resolves to. The wall's ink and the paper's ink coinciding is a property of
+     today's value, not of the design: the mechanism in relief.css that swaps
+     one for the other on every lit surface is what makes the ground repaintable
+     at all, and collapsing it because the two happen to agree is how a hub
+     loses the machinery it needs the next time somebody changes their mind. */
+  --on-ground:       var(--on-paper);        /* 18.5:1 on white */
+  --on-ground-soft:  var(--on-paper-soft);   /* 14.6:1 */
+  --on-ground-muted: var(--on-paper-muted);  /*  7.8:1 — the floor, well clear */
 
   /* THE INKS, MEASURED. Every figure is this hub's own ground, not white —
      relief.spec recomputes all of them at build time, which is the whole

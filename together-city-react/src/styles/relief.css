@@ -1420,6 +1420,21 @@ textarea.g-field { resize: none; line-height: 1.55; }
   src: url('/assets/fonts/instrument-serif-400.woff2') format('woff2');
   font-weight: 400; font-style: normal; font-display: swap;
 }
+/* THE ITALIC IS THE ROMAN'S OWN, NOT A THIRD TYPEFACE — the same family, the
+   same foundry, the same latin subset, and the roman already on disk is
+   byte-for-byte the file this one ships beside. That is the whole argument for
+   it: without a real italic the browser SLANTS the roman, and a synthetic
+   oblique of a display serif at 38px is the one thing on a page that looks
+   broken to everybody and wrong to nobody who can say why. The beauty hub's
+   assessment plate sets its findings roman-italic-roman, from the owner's
+   reference, whose entire character is those two cuts against each other.
+
+   22 KB, latin, `swap`, and requested only by the pages that set the face. */
+@font-face {
+  font-family: 'Instrument Serif';
+  src: url('/assets/fonts/instrument-serif-400-italic.woff2') format('woff2');
+  font-weight: 400; font-style: italic; font-display: swap;
+}
 @font-face {
   font-family: 'IBM Plex Mono';
   src: url('/assets/fonts/ibm-plex-mono-400.woff2') format('woff2');
@@ -2949,28 +2964,40 @@ textarea.g-field { resize: none; line-height: 1.55; }
   .district-plate:hover .hub-plate-cta { transform: none; }
 }
 
-/* ══ THE BEAUTY GALLERY WALL ════════════════════════════════════════════════
-   The hub's ground is the owner's backdrop photograph: near-black, grained,
-   lit from up and to the left. The prints hang on it — every plate, card,
-   photograph and field stays cream, and the edge between the two is what makes
-   a plate read as a plate.
+/* ══ THE BEAUTY WALL ════════════════════════════════════════════════════════
+   THE WALL IS WHITE. It was the owner's backdrop photograph — near-black,
+   grained, lit from up and to the left — until the owner said otherwise. What
+   did not change is the relationship this whole section is about: the prints
+   hang ON the ground, every plate, card, photograph and field stays cream, and
+   the edge between the two is what makes a plate read as a plate. The value
+   moved; the two materials did not become one. See tokens.css for the argument.
 
-   THE SHELL GOES TRANSPARENT so the one fixed layer above shows through. Same
-   three lines social needs, for the same reason: a background painted per
-   element tiles its vignette once per element, and the seams are visible the
-   moment anything scrolls.
+   THE SHELL STAYS TRANSPARENT. It is three lines social needs anyway, and with
+   --sky-image back at its `none` the fixed layer simply paints the ground —
+   which is the colour that would have been there regardless. Unpicking it would
+   be a change to a mechanism another hub is using, in order to remove nothing.
 
-   AND THE INK SCALE IS RE-POINTED ON THE PAGE, NOT ON THE HUB. This is the
-   part worth reading. Custom properties inherit, so re-pointing --ink inside
-   .tc-main reaches EVERY descendant — including the several thousand inline
-   `color: 'var(--ink)'` styles in this codebase, which no class could ever have
-   reached. Text drawn straight onto the wall becomes the wall's near-white;
-   every SURFACE puts the paper's near-black back, once, here.
+   AND THE INK SCALE IS STILL RE-POINTED ON THE PAGE, NOT ON THE HUB. This is
+   the part worth reading, and it is worth reading MORE now than it was, because
+   today the two scales resolve to the same greys and the whole apparatus below
+   looks like it does nothing.
+
+   It does not do nothing; it is the reason the ground could be repainted this
+   morning by editing two declarations. Custom properties inherit, so
+   re-pointing --ink inside .tc-main reaches EVERY descendant — including the
+   several thousand inline `color: 'var(--ink)'` styles in this codebase, which
+   no class could ever have reached. Text drawn straight onto the ground takes
+   the ground's ink; every SURFACE puts the paper's ink back, once, here. When
+   those two are the same value the swap is invisible and free. When they are
+   not — and they were not yesterday — this is the only thing standing between
+   the hub and a page of unreadable text.
 
    The alternative was auditing four pages by eye for anything not inside a
-   card, which is a job that is never finished — the next component somebody
-   adds to a beauty page is dark ink on a black wall and looks fine in review,
-   because whoever writes it has the card they were working in on screen. */
+   card, which is a job that is never finished: the next component somebody adds
+   to a beauty page looks fine in review, because whoever writes it has the card
+   they were working in on screen. That was true when the wall was black and it
+   will be true again the day it is anything but white. DO NOT COLLAPSE THIS
+   BECAUSE THE TWO LISTS CURRENTLY AGREE. */
 [data-hub="beauty"] body { background: transparent; }
 /* THE RAIL IS FURNITURE IN THE ROOM, NOT A HOLE IN THE WALL. It stayed the
    city's white while every surface beside it went cream, so the one permanent
@@ -2998,7 +3025,14 @@ textarea.g-field { resize: none; line-height: 1.55; }
    names you could barely see, order numbers that vanished — and every local
    screenshot missed it because the harness restored the ink by hand. The rule:
    ANY class in this hub that paints --card or --paper is a lit surface and its
-   name belongs here, the same commit it is born. The test now reads this list. */
+   name belongs here, the same commit it is born. The test now reads this list.
+
+   AND THE RULE OUTLIVED THE BLACK WALL IT WAS WRITTEN FOR — it is simply
+   harder to obey now. With the two ink scales currently resolving to the same
+   greys, a class left off this list looks perfect in every screenshot anybody
+   will take. It will look perfect right until the ground moves again, and then
+   it is a fresh instance of exactly the bug above, shipped by somebody who
+   checked. */
 [data-hub="beauty"] .card,
 [data-hub="beauty"] .beauty-plate,
 [data-hub="beauty"] .beauty-sheet,

@@ -11,7 +11,21 @@ export interface RoutineStep { step: string; ingredient?: string }
 export interface IngredientRec { name: string; why: string }
 export interface MakeupRec { item: string; note: string }
 export interface BeautyAssessment {
+  /** The whole answer as one paragraph — still the fallback, still unchanged. */
   summary: string;
+  /**
+   * THE SAME ANSWER IN ITS PARTS, so the profile plate can SET it: the findings
+   * in display type, the qualifier in italic beneath. Both are decided on the
+   * server — see beauty-analysis.ts — because a page that split the paragraph
+   * itself would hold a second copy of the rule that composed it.
+   *
+   * Optional on this type, and that is about DATA rather than deployment: the
+   * server derives both for assessments saved before the fields existed, and
+   * `focus` is legitimately empty for somebody whose skin and hair came back
+   * well-balanced. The page falls back to the paragraph in both cases.
+   */
+  focus?: string[];
+  note?: string;
   skin: { readings: BeautyReading[]; issues: string[]; recommendations: string[] };
   hair: { readings: BeautyReading[]; issues: string[]; recommendations: string[] };
   ingredients: IngredientRec[];

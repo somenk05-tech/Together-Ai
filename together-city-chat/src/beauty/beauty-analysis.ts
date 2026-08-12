@@ -11,8 +11,58 @@ export interface Reading { key: string; label: string; level: Level; note: strin
 export interface RoutineStep { step: string; ingredient?: string }
 export interface IngredientRec { name: string; why: string }
 export interface MakeupRec { item: string; note: string }
+
+/**
+ * HOW MANY FINDINGS A SUMMARY NAMES, AND THE ONE PLACE THAT DECIDES IT.
+ *
+ * Three, because a summary is a summary: a citizen with seven readings on
+ * attention does not need all seven in the opening sentence, they need the
+ * order to start in. The readings are all there, one section down, unabridged.
+ *
+ * It is a function rather than a line inside `assessBeauty` because an
+ * assessment saved in March has its `issues` on file and its `focus` computed
+ * by a version of this file that did not have the field. The service derives it
+ * on read through this, so an old row and a new one answer the same way and
+ * nothing has to be migrated. One rule; two callers; no backfill script.
+ */
+export const FOCUS_LIMIT = 3;
+export function focusOf(
+  a: { skin?: { issues?: string[] } | null; hair?: { issues?: string[] } | null } | null | undefined,
+): string[] {
+  return [...(a?.skin?.issues ?? []), ...(a?.hair?.issues ?? [])].slice(0, FOCUS_LIMIT);
+}
+
+/**
+ * The sentence after the priorities one, for an assessment stored before `note`
+ * existed. Both halves come out of the same file, so the split is on the join
+ * this file makes — a single space after the first full stop — and not on prose
+ * parsing. Returns '' when there is no second sentence, and the card shows no
+ * qualifier rather than a fragment.
+ */
+export function noteOf(summary: string): string {
+  const at = (summary ?? '').indexOf('. ');
+  return at === -1 ? '' : summary.slice(at + 2);
+}
+
 export interface BeautyAssessment {
+  /**
+   * The whole answer as one paragraph. It stays, unchanged and first, and it is
+   * still what anything without a typographic opinion should print.
+   */
   summary: string;
+  /**
+   * THE SAME ANSWER IN ITS PARTS, because the profile page now SETS this rather
+   * than printing it: the priorities in display type, the qualifier beneath
+   * them in italic. A page cannot typeset a sentence it has to take apart
+   * first, and taking it apart in the browser would put the rule that composed
+   * it in two places — the same objection as recomputing `lastsLabel` there.
+   *
+   * `focus` is the up-to-three findings the sentence names. `note` is the
+   * sentence after it. Together they rebuild `summary` exactly, and a test
+   * asserts that rather than trusting it.
+   */
+  focus: string[];
+  note: string;
   skin: { readings: Reading[]; issues: string[]; recommendations: string[] };
   hair: { readings: Reading[]; issues: string[]; recommendations: string[] };
   ingredients: IngredientRec[];
@@ -198,13 +248,26 @@ export function assessBeauty(p: BeautyProfileInput, photoFindings: string[] = []
 
   const skinIssues = skin.filter((r) => r.level === 'attention' || r.level === 'priority').map((r) => r.label);
   const hairIssues = hair.filter((r) => r.level === 'attention' || r.level === 'priority').map((r) => r.label);
-  const focus = [...skinIssues, ...hairIssues].slice(0, 3);
-  const summary = focus.length
-    ? `Your assessment flags ${focus.join(', ')} as the priorities. The routine below targets these while respecting your skin type${allergies.length ? ' and sensitivities' : ''}.`
-    : 'Your skin and hair look well-balanced from your profile. The routine below is a gentle maintenance plan to keep it that way.';
+  /**
+   * ONE SENTENCE, BUILT FROM TWO NAMED HALVES — and it is the same sentence it
+   * has always been. The page sets the first half in display type and the
+   * second in italic beneath it, so it needs them apart; everything else still
+   * wants the paragraph. Composing the paragraph FROM the halves rather than
+   * splitting it back out is what keeps the two from ever disagreeing.
+   */
+  const focus = focusOf({ skin: { issues: skinIssues }, hair: { issues: hairIssues } });
+  const lead = focus.length
+    ? `Your assessment flags ${focus.join(', ')} as the priorities.`
+    : 'Your skin and hair look well-balanced from your profile.';
+  const note = focus.length
+    ? `The routine below targets these while respecting your skin type${allergies.length ? ' and sensitivities' : ''}.`
+    : 'The routine below is a gentle maintenance plan to keep it that way.';
+  const summary = `${lead} ${note}`;
 
   return {
     summary,
+    focus,
+    note,
     skin: { readings: skin, issues: skinIssues, recommendations: skinRec },
     hair: { readings: hair, issues: hairIssues, recommendations: hairRec },
     ingredients,

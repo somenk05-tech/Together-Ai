@@ -6,6 +6,7 @@ import type { BeautyAssessment, BeautyReading, AssessLevel, BeautyProgressEntry 
 import { useMasterProfile } from '@/features/profile/hooks';
 import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLockedField';
 import { PHOTO_SLOTS, PhotoGrid, missingPhotos, photosReady, requiredCount, type Shot } from '../components/PhotoStudio';
+import { AssessmentPlate } from '../components/AssessmentPlate';
 import { BeautyLeaf, BeautyPlate } from '../components/Plates';
 import { BudgetPanel, budgetSummary } from '../components/BudgetPanel';
 
@@ -301,7 +302,16 @@ function AssessmentView({ a, analyzedAt }: { a: BeautyAssessment; analyzedAt?: s
         <span />
         <span>{analyzedAt ? `Saved ${new Date(analyzedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}</span>
       </div>
-      <p className="beauty-lede">{a.summary}</p>
+      {/* THE ANSWER IS SET, NOT PRINTED — but only when there is something to
+          set. The well-balanced assessment has no findings, and a display plate
+          reading "." over an italic line is a rendering failure with a border
+          round it. An assessment saved before the server split the sentence has
+          its focus derived on read, so this is a branch about CONTENT and not
+          about deployment order. The lede stays as what it always was: the
+          paragraph, for the case that is a paragraph. */}
+      {a.focus?.length
+        ? <AssessmentPlate focus={a.focus} note={a.note ?? ''} />
+        : <p className="beauty-lede">{a.summary}</p>}
       <Block title="Skin" part={a.skin} />
       <Block title="Hair &amp; scalp" part={a.hair} />
 

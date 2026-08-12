@@ -27,9 +27,27 @@ describe('the readings appear only when something was read', () => {
     // row stamped analyzedAt by the RETIRED profile-save path, with zero
     // photos, kept printing seven GOOD readings — a timestamp is not
     // evidence either. The gate demands both.
-    expect(code).toMatch(/analysis:\s*row\.analyzedAt\s*&&\s*photosOnFile\.length\s*>\s*0\s*\?\s*safeJson/);
+    //
+    // THE WRAPPER IS NAMED IN THE PATTERN, ON PURPOSE. The read is handed to
+    // `withAssessmentParts`, which fills in the two fields the profile plate
+    // typesets for assessments saved before those fields existed. Loosening
+    // this to `.*` so that any wrapper passes would have made the guard blind
+    // to the thing a wrapper is most likely to introduce: a default.
+    // `withAssessmentParts(gate ? safeJson(...) : SOMETHING)` sails through a
+    // wildcard and re-opens the exact door this test was written to shut. So
+    // the gate is asserted WHOLE, inside the call — the event, the photos, then
+    // safeJson. A different wrapper is welcome and costs one edit here, which
+    // is the price of it being a decision somebody made rather than one that
+    // happened.
+    expect(code).toMatch(
+      /analysis:\s*withAssessmentParts\(\s*row\.analyzedAt\s*&&\s*photosOnFile\.length\s*>\s*0\s*\?\s*safeJson/,
+    );
     const bare = code.split('\n').filter((l) => /analysis:\s*safeJson<unknown>\(row\.analysisJson/.test(l));
     expect(bare).toEqual([]);
+    // And the wrapper adds fields; it never invents an assessment. `null` in,
+    // `null` out — otherwise an account with no evidence gets an object with a
+    // focus and a note on it, which is this whole file's bug wearing a hat.
+    expect(code).toMatch(/withAssessmentParts\s*=\s*\(a: StoredAssessment\): StoredAssessment => \(a\s*\?[\s\S]{0,200}?:\s*null\)/);
     // and the timestamp the screen prints obeys the same gate — "saved 22
     // Jul" under an empty assessment is the same lie in a smaller font
     expect(code).toMatch(/analyzedAt:\s*row\.analyzedAt\s*&&\s*photosOnFile\.length\s*>\s*0/);
