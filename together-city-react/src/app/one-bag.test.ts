@@ -106,3 +106,56 @@ describe('the makeup studio', () => {
     expect(indices).toEqual(indices.map((_, i) => String(i + 1).padStart(2, '0')));
   });
 });
+
+/**
+ * AND THE SAME DECISION, MADE AGAIN.
+ *
+ * Activity Dating came off the Dating menu at the owner's word (12 Aug), and
+ * explicitly "for now" — which is exactly why nothing else moved. Page,
+ * invitation engine and endpoints untouched; the route still resolves.
+ *
+ * THE HALF THAT WAS MISSED THE FIRST TIME IS ASSERTED HERE. Hiding a surface
+ * has two parts: taking it off the menu, and telling nav-audit the silence is
+ * deliberate. The Makeup Studio only ever got the first, so the audit failed on
+ * it for a day and every landing script since had to explain itself against a
+ * main that was already red. An audit that is expected to fail is an audit
+ * nobody reads — so both entries are checked below, and the makeup one is
+ * checked even though it predates this change.
+ */
+describe('a hidden surface is declared hidden', () => {
+  const hubs = code('config/hubs.ts');
+  const router = code('app/router.tsx');
+  const navAudit = code('../scripts/nav-audit.mjs');
+
+  it('takes Activity Dating off the menu and leaves the room standing', () => {
+    expect(hubs).not.toMatch(/label: 'Activity Dating'/);
+    expect(router).toMatch(/path: '\/dating\/activity'/);
+  });
+
+  it('declares both hidden surfaces to nav-audit, with a reason', () => {
+    // The reason string is not decoration: nav-audit prints it, and it is what
+    // tells the next person whether a route is hidden on purpose or stranded.
+    for (const path of ['/beauty/makeup', '/dating/activity']) {
+      const entry = navAudit.match(new RegExp(`\\['${path}', '([^']*(?:\\\\'[^']*)*)'\\]`));
+      expect({ path, declared: Boolean(entry) }).toEqual({ path, declared: true });
+      expect(entry![1].length).toBeGreaterThan(40);
+    }
+  });
+
+  it('leaves no gap in any hub menu, not just the one that lost a page', () => {
+    // THIS USED TO CHECK BEAUTY ALONE while its own note claimed it covered
+    // every hub. The first hub to lose a page after it was written was a
+    // different one, which is the way a guard scoped to one example always
+    // fails: not by breaking, but by being silent somewhere else.
+    // ` {2}` rather than two literal spaces: the lint rule is right that
+    // spaces are hard to count, and this regex is anchored on indentation.
+    const blocks = [...hubs.matchAll(/^ {2}([a-z]+): \{[\s\S]*?\n {2}\},$/gm)];
+    expect(blocks.length).toBeGreaterThan(8);
+    for (const [block, hub] of blocks) {
+      const indices = [...block.matchAll(/index: '(\d+)'/g)].map((m) => m[1]);
+      if (!indices.length) continue;
+      expect({ hub, indices })
+        .toEqual({ hub, indices: indices.map((_, i) => String(i + 1).padStart(2, '0')) });
+    }
+  });
+});

@@ -51,6 +51,11 @@ describe('the beauty profile folds what it has already answered', () => {
     ['Skin / Hair & scalp', /<BeautyLeaf title=\{title\} meta=\{readingSummary\(part\)\}/],
     ['Ingredients for you', /<BeautyLeaf\s+title="Ingredients for you"/],
     ['Good to know', /<BeautyLeaf title="Good to know"/],
+    // The longest read-once block on the page: a marker, a chip, a mechanism
+    // and an advice line each, from a panel drawn weeks ago. Its no-panel
+    // branch is deliberately NOT folded — that one is an invitation to add a
+    // blood test, and a fold is a good way to make an invitation invisible.
+    ['Biomarker correlation', /<BeautyLeaf title="Biomarker correlation" meta=/],
   ];
 
   it.each(SECTIONS)('folds %s', (_name, marker) => {
@@ -105,6 +110,28 @@ describe('the beauty profile folds what it has already answered', () => {
     // still inside, one click from the Analyse button, is worse than not
     // folding at all.
     expect(profile).toMatch(/defaultOpen=\{!analysed \|\| picsCount > 0\}/);
+  });
+
+  it('gives the two tabs a face somebody can see is pressable', () => {
+    // THEY WERE 10.5px TRACKED CAPITALS WITH A ONE-PIXEL UNDERLINE — a caption
+    // that happened to be clickable, with the live one distinguishable from the
+    // dead one only by being slightly darker.
+    //
+    // The object they became is the market's own category chip, which is the
+    // point: the hub already owns this button, so borrowing it is not importing
+    // a control from another design. The accent pair is the one relief.spec
+    // already measures, which is why this needed no new contrast argument.
+    const layout = read('styles/layout.css');
+    const strip = layout.slice(layout.indexOf('.beauty-tabs {'));
+    const on = strip.slice(strip.indexOf('.beauty-tabs button.is-on'));
+    expect(strip).toMatch(/border-radius: 999px/);
+    expect(on).toMatch(/background: var\(--accent\)/);
+    expect(on).toMatch(/color: var\(--on-accent\)/);
+    // And the rule under the strip went with the idiom it belonged to. A
+    // hairline beneath a row of filled buttons is the leftover of the thing
+    // they replaced.
+    expect(strip.slice(0, strip.indexOf('}'))).not.toMatch(/border-bottom/);
+    expect(layout).not.toMatch(/\.beauty-tabs button\.is-on::after/);
   });
 
   it('folds nothing behind two taps', () => {
@@ -215,8 +242,21 @@ describe('the beauty hub prints on its own paper', () => {
   const profile = read('features/beauty/pages/Profile.tsx');
   const bar = read('features/beauty/components/BeautyBagBar.tsx');
 
-  it('gives the progress, history and biomarker panels the sheet', () => {
-    expect([...profile.matchAll(/className="beauty-sheet"/g)].length).toBeGreaterThanOrEqual(4);
+  it('gives the progress, history and biomarker panels a surface of the hub', () => {
+    // THE COUNT WENT FROM 4 TO 3 AND NOTHING REGRESSED, which is why this is
+    // not simply a smaller number. The biomarker panel is a `BeautyLeaf` now,
+    // and a leaf's open body is `.beauty-leaf-open` — the same cream, the same
+    // hairline, the same lift, the same entry in the ink-restore list. It did
+    // not lose its surface, it changed shape.
+    //
+    // The bare-on-the-ground failure this was written against is still the one
+    // being checked; it is now checked in two parts, because "at least four of
+    // this string" could never say WHICH panel lost its paper. The leaf is
+    // pinned by name in the fold list at the top of this file.
+    expect([...profile.matchAll(/className="beauty-sheet"/g)].length).toBeGreaterThanOrEqual(3);
+    expect(profile).toMatch(/<BeautyLeaf title="Biomarker correlation"/);
+    // And it is not BOTH — a leaf wrapped in a sheet is two papers deep.
+    expect(profile).not.toMatch(/className="beauty-sheet"[\s\S]{0,80}<BeautyLeaf title="Biomarker/);
   });
 
   it('leaves no emoji heading on a beauty surface', () => {

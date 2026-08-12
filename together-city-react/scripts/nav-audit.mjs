@@ -328,6 +328,19 @@ const UNREACHABLE_ON_PURPOSE = new Map([
   ['/dating/admin', 'operator page, deliberately absent from every menu'],
   ['/realestate/admin', 'operator page, deliberately absent from every menu'],
   ['/dating/match', 'UNRESOLVED. The singular sibling of /dating/chat, which was removed for serving a hardcoded conversation. Nothing opens this one either. Decide: delete it, or link it from a match card.'],
+  // ── TWO SURFACES TAKEN OFF A MENU AND LEFT WORKING ──────────────────────
+  // Both are the same decision made twice: the page, its engine and its
+  // endpoints are untouched and the path still resolves, because deleting a
+  // working surface in order to hide it is how a feature comes back as a
+  // rewrite. What is removed is the door.
+  //
+  // THE ENTRY HERE IS THE SECOND HALF OF THAT DECISION, and the makeup one is
+  // late. /beauty/makeup came off the Beauty menu on 11 Aug and was never
+  // declared here, so this audit failed on it for a day and every landing
+  // script since has had to measure itself against a main that was already
+  // red. An audit that is expected to fail is an audit nobody reads.
+  ['/beauty/makeup', 'the Makeup Studio. Off the Beauty menu since 11 Aug at the owner\'s word — page, look engine and GET /beauty/makeup all untouched, and the route still resolves so no saved link breaks. Hidden, not deleted; it returns by putting one line back in config/hubs.ts.'],
+  ['/dating/activity', 'Activity Dating. Off the Dating menu since 12 Aug at the owner\'s word, and explicitly "for now" — page, invitation engine and every /dating/activity endpoint untouched, and the route still resolves. Same shape as the Makeup Studio above: hidden, not deleted, and it returns by putting one line back in config/hubs.ts.'],
 ]);
 
 const referenced = new Set();

@@ -36,6 +36,57 @@ describe('the city feed is a wall of the citizens\' own posters', () => {
     expect(css).toMatch(/\.poster\.words \{[^}]*background: var\(--paper\)/);
   });
 
+  it('shows every picture the post carries, not only the first', () => {
+    // A post with four photographs was showing one of them. On a phone the
+    // poster IS the post — the wall is a single column below 560px — so three
+    // quarters of what somebody uploaded existed only for whoever opened it.
+    //
+    // SAME RULE AS THE COVER, APPLIED TO ALL OF THEM: an image is its own url,
+    // a video is its cover frame, and a video without one contributes nothing.
+    // If this ever becomes `.map((m) => m.url)` the strip starts rendering
+    // blank frames for coverless videos, which looks like a broken image.
+    expect(poster).toMatch(/post\.media\s*\n?\s*\.map\(\(m\) => \(m\.kind === 'image' \? m\.url : m\.thumbUrl\)\)/);
+    expect(poster).toMatch(/\.filter\(\(u\): u is string => Boolean\(u\)\)/);
+    expect(poster).toMatch(/covers\.length > 1/);
+  });
+
+  it('scrolls rather than carouselling, because a poster is one button', () => {
+    // NO ARROWS, NO DOTS, NO AUTOPLAY — the arc in the Astrology zone made the
+    // same call. Here it is not only taste: the poster is one button, and a
+    // control inside it would be a tap target stacked inside a tap target,
+    // which the test above counts. A swipe is not a click, so scrolling the
+    // strip cannot open the post by accident.
+    const strip = css.slice(css.indexOf('.poster-strip {'));
+    expect(strip.slice(0, strip.indexOf('}'))).toMatch(/scroll-snap-type: x mandatory/);
+    // A scroll container cannot honour `overflow-y: visible` — the browser
+    // computes the other axis to auto — so leaving this out gives every poster
+    // a vertical scroll it never asked for. The arc has the same note.
+    expect(strip.slice(0, strip.indexOf('}'))).toMatch(/overflow-y: hidden/);
+    // And the strip itself holds no controls.
+    const markup = poster.slice(poster.indexOf('poster-strip'), poster.indexOf('poster-scrim'));
+    expect(markup).not.toMatch(/<button|onClick/);
+  });
+
+  it('keeps the sideways scroll to the phone, where the poster is the post', () => {
+    // Above 560px the wall is three across, and a sideways scroll inside one of
+    // nine tiles is a gesture nobody is looking for. `display: none` on the
+    // rest also stops them being fetched, so the desktop wall costs what it
+    // costs today.
+    const above = css.slice(css.indexOf('@media (min-width: 561px)', css.indexOf('.poster-strip {')));
+    expect(above.slice(0, 240)).toMatch(/\.poster-strip img:not\(:first-child\) \{ display: none; \}/);
+  });
+
+  it('counts the pictures without claiming which one you are on', () => {
+    // Nothing tracks the scroll position, so a badge reading "1/4" while you
+    // look at the third is worse than no badge. It says how many there are.
+    // The count is aria-hidden and repeated in the button's accessible name,
+    // because somebody who cannot see the badge should still be told there are
+    // four — and the name is the only thing this poster announces.
+    expect(poster).toMatch(/className="poster-count" aria-hidden/);
+    expect(poster).toMatch(/\$\{covers\.length\} photographs/);
+    expect(poster).not.toMatch(/1\s*\/\s*\{covers\.length\}|currentIndex|activeSlide/);
+  });
+
   it('shows only numbers the post carries', () => {
     expect(poster).toMatch(/\{post\.likes\}/);
     expect(poster).toMatch(/\{post\.comments\}/);

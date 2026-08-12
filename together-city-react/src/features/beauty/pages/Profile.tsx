@@ -127,13 +127,32 @@ function BiomarkerCorrelation() {
       </div>
     );
   }
+  /**
+   * FOLDED, LIKE EVERY OTHER READ SECTION ON THIS PAGE.
+   *
+   * It is the longest block here — a marker, a chip, a mechanism and an advice
+   * line each, from a panel drawn weeks ago — and it is read once and then
+   * scrolled past on every visit after that. That is the exact shape this
+   * page's folds exist for.
+   *
+   * THE META LINE CARRIES WHAT THE HEADER USED TO. A closed section saying only
+   * "Biomarker correlation" gives nobody a reason to open it, so the count of
+   * markers and the date of the panel move into it — the date was in the rule's
+   * right-hand cell, and it is the thing that tells somebody whether this is
+   * about a test they remember taking.
+   *
+   * The no-panel branch above is NOT folded, deliberately: it is three lines
+   * inviting somebody to add a blood test, and a fold is a good way to make an
+   * invitation invisible.
+   */
+  const flagged = d.insights.length;
+  const meta = [
+    flagged === 0 ? 'Nothing flagged' : `${flagged} marker${flagged === 1 ? '' : 's'} to know about`,
+    d.takenOn ? `from your panel · ${d.takenOn}` : '',
+  ].filter(Boolean).join(' · ');
+
   return (
-    <div className="beauty-sheet">
-      <div className="beauty-rule">
-        <span>Biomarker correlation</span>
-        <span />
-        <span>{d.takenOn ? `From your panel · ${d.takenOn}` : ''}</span>
-      </div>
+    <BeautyLeaf title="Biomarker correlation" meta={meta}>
       {d.insights.length === 0 ? (
         <p style={{ fontSize: 13, marginTop: 8, color: 'var(--ok-ink)' }}>✓ No biomarker flags are affecting your skin or hair right now — a good foundation.</p>
       ) : (
@@ -152,7 +171,7 @@ function BiomarkerCorrelation() {
         </div>
       )}
       <p className="muted" style={{ fontSize: 11, marginTop: 10 }}>{d.source}</p>
-    </div>
+    </BeautyLeaf>
   );
 }
 

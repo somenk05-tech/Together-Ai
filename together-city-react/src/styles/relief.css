@@ -1721,6 +1721,57 @@ textarea.g-field { resize: none; line-height: 1.55; }
 /* The scrim is what makes type on a photograph legible, and it is the reason
    this can be a poster at all. Two stops top and bottom, nothing in the middle,
    so the picture is untouched where the words are not. */
+/* ── MORE THAN ONE PICTURE: A SCROLL, ON THE PHONE ONLY ────────────────────
+   A post with four photographs was showing one of them. On a phone the poster
+   IS the post — the wall is a single column below 560px — so three quarters of
+   what somebody uploaded existed only for whoever opened it.
+
+   NO ARROWS, NO DOTS, NO AUTOPLAY, exactly like the arc in the Astrology zone,
+   and here it is not only a preference: the poster is ONE button by design, and
+   a control inside it would be a tap target stacked inside a tap target. A
+   swipe is not a click, so the strip never opens the post by accident.
+
+   `overflow-y: hidden` IS NOT REDUNDANT. A scroll container cannot honour
+   `overflow-y: visible` — the browser computes the other axis to `auto` — so
+   leaving it out gives every poster a vertical scrollbar's worth of behaviour
+   it never asked for. That is written down two hundred lines up, about the arc,
+   and it is the same trap.
+
+   `mandatory` rather than `proximity`: each picture fills the frame, so there
+   is no such thing as resting between two of them. The arc uses proximity
+   because its cards are narrower than its viewport and a half-scroll there is
+   a legitimate place to stop. */
+.poster-strip {
+  position: absolute; inset: 0; display: flex;
+  overflow-x: auto; overflow-y: hidden;
+  scroll-snap-type: x mandatory; scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.poster-strip::-webkit-scrollbar { display: none; }
+.poster-strip img { flex: none; width: 100%; height: 100%; scroll-snap-align: center; }
+/* ABOVE THE PHONE, THE FIRST PICTURE AND NOTHING ELSE — the owner's call. The
+   markup does not change with the viewport; the wall is three across at this
+   width and a sideways scroll inside one of nine tiles is a gesture nobody is
+   looking for. `display: none` on the rest also stops them being fetched, so
+   the desktop wall costs exactly what it costs today. */
+@media (min-width: 561px) {
+  .poster-strip { overflow: hidden; }
+  .poster-strip img:not(:first-child) { display: none; }
+}
+/* The count, over the picture and under the scrim's own darkening. It says how
+   many there are and never which one you are on: nothing tracks the scroll, and
+   a badge reading "1/4" while you look at the third is worse than no badge. The
+   truthful version of "which" lives in the button's accessible name. */
+.poster-count {
+  position: absolute; top: 10px; right: 10px; z-index: 2;
+  min-width: 21px; height: 21px; padding: 0 6px; border-radius: 999px;
+  display: grid; place-items: center;
+  font-size: 11px; font-weight: 700; letter-spacing: .02em;
+  color: var(--on-accent); background: rgba(0, 0, 0, .46);
+  backdrop-filter: blur(3px);
+}
+@media (min-width: 561px) { .poster-count { display: none; } }
+
 .poster-scrim { position: absolute; inset: 0; pointer-events: none;
   background:
     linear-gradient(to bottom, rgba(0,0,0,.46) 0%, rgba(0,0,0,0) 30%),
