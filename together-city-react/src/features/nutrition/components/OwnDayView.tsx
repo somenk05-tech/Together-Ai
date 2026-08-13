@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Button, Spinner } from '@/components/ui';
 import { VegMark } from './VegMark';
 import type { OwnDay, OwnPlan } from '../composed.api';
+import { paperFor } from '../planDates';
 
 /**
  * THE DAYS A CITIZEN BUILT, PRINTED ON THE SAME PRESS AS THE ONE THE ENGINE
@@ -77,7 +78,22 @@ function DaySheet({ day, targets, busy, onRemove, onLock, onUnlock }: {
 
   return (
     <div data-press style={{ padding: '26px 0 8px' }}>
-      <div className="press-sheet">
+      {/* THE DAY YOU BUILT PRINTS ON THE DAY'S PAPER, like the day the engine
+          builds. This page already used the planner's own markup — press-sheet,
+          press-hero, press-stats, press-course — but not its SURFACE, so a
+          Thursday built by hand came out on white while the same Thursday
+          composed by the engine came out on Thursday's sheet: one press, two
+          papers, for no reason a reader could see.
+
+          It wears `.press-recto` rather than a new class of its own, which is
+          the whole point: the recto is what carries the ground, the veil and
+          the re-pointed ink scale, and a second papered class would be a second
+          place to fix a paper. The recto is a flex column and press-sheet is a
+          grid — nesting the grid inside it changes nothing, because a lone
+          flex child stretches. */}
+      <div data-paper={paperFor(dateOf(day.dayISO))}>
+        <section className="press-recto">
+          <div className="press-sheet">
 
         <header className="press-hero">
           <div className="press-hero-row">
@@ -219,7 +235,9 @@ function DaySheet({ day, targets, busy, onRemove, onLock, onUnlock }: {
           <div><dt>Carbs</dt><dd>{grams(t.carbs)}</dd></div>
           <div><dt>Fat</dt><dd>{grams(t.fat)}</dd></div>
           <div><dt>Fibre</dt><dd>{grams(t.fiber)}</dd></div>
-        </footer>
+          </footer>
+          </div>
+        </section>
       </div>
     </div>
   );

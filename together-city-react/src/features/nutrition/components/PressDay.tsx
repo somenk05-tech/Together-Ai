@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { PressCourse } from './PressCourse';
 import { NIc } from './NIcon';
 import type { ComposedDay } from '../composed.api';
-import { longDate, weekdayFull } from '../planDates';
+import { longDate, weekdayFull, paperFor } from '../planDates';
 import { ShareIconButton } from '@/components/share/ShareButton';
 import { dayShareCard } from '../shareMeal';
 
@@ -35,9 +35,6 @@ import { dayShareCard } from '../shareMeal';
  * composer already built.
  */
 
-/** Sunday-first, to match Date#getDay. The key a paper block is written against. */
-const PAPER = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
-
 export interface PressDayProps {
   d: ComposedDay;
   date: Date;
@@ -69,7 +66,7 @@ export function PressDay({
   restored, summary, action, aboutLeft, aboutRight, totals, under, sign, household,
 }: PressDayProps) {
   return (
-    <div data-paper={PAPER[date.getDay()]}>
+    <div data-paper={paperFor(date)}>
 
       <section className="press-recto">
         <div className="press-slug">

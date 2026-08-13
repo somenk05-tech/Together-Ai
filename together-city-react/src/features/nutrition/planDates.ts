@@ -37,6 +37,14 @@ export function planDayOffset(iso?: string): number {
 }
 
 export const weekdayFull = (d: Date): string => WEEKDAY_FULL[d.getDay()];
+
+/** Which of the thirteen papers a date prints on. Sunday-first, to match
+ *  Date#getDay — the key the `[data-paper]` blocks in tokens.css are written
+ *  against. It lives HERE, with the other calendar facts, because two pages
+ *  print a day and a second copy of this array is how Thursday comes out on
+ *  Wednesday's sheet on one of them. */
+const PAPER = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
+export const paperFor = (d: Date): typeof PAPER[number] => PAPER[d.getDay()];
 export const shortDate = (d: Date): string =>
   d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).toUpperCase();
 
