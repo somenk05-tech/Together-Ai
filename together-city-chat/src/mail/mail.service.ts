@@ -481,7 +481,32 @@ export class MailService {
         subject, body: dto.body, snippet: snippetOf(dto.body), sizeBytes: size,
         // Read: a draft is your own words — there is nothing here you have not
         // seen, and an unread badge on your own unfinished note is noise.
-        read: true, system: false, threadId: dto.threadId ?? null,
+        read: true, system: false,
+        /**
+         * THE SAME ANTI-SPOOF GATE THE TWO SEND PATHS USE, AND IT WAS MISSING
+         * HERE.
+         *
+         * Thread membership is this module's authorization boundary: a row in
+         * a thread is what `threadAttachments` and `attachmentUrl` accept as
+         * proof you belong in that conversation, and neither filters by
+         * folder. So a DRAFT carrying somebody else's threadId was as good as
+         * a message in their thread — and a draft costs nothing to make. Two
+         * requests got a stranger a signed download URL for another citizen's
+         * Drive file:
+         *
+         *   POST /mail/draft {threadId: "<their thread>"}
+         *   GET  /mail/thread/<their thread>/attachments/<file>/url
+         *
+         * resolveThreadId exists to close exactly this, and says so in its own
+         * doc comment - "so this is a security boundary, not just tidiness".
+         * Both send paths route through it. This one never did.
+         *
+         * A threadId the caller does not already hold a message in becomes a
+         * fresh trail rather than an error: a draft is unfinished work, and
+         * refusing to save it would lose what somebody typed over a parameter
+         * they never chose.
+         */
+        threadId: dto.threadId ? await this.resolveThreadId(userId, dto.threadId) : null,
       },
     });
     return { ...this.shape(created), body: created.body };
