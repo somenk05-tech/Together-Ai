@@ -1592,6 +1592,197 @@ textarea.g-field { resize: none; line-height: 1.55; }
   .press-dish > .press-name-cell { padding-bottom: 8px; border-bottom: 0; }
 }
 
+/* ══ THE DAY IN TWO SHEETS ═══════════════════════════════════════════════
+   Recto and verso. The RECTO is what you decide — the weekday, the five
+   figures, the lock, what to buy. The VERSO is what you eat — every dish with
+   its macros, the totals, the ring. They were one scrolling sheet, which left
+   the lock bar stranded above a menu it was not about.
+
+   The papers themselves, and the argument for putting a photograph behind this
+   page at all, are in tokens.css → THE WEEK'S PAPERS. One pair per weekday; a
+   day with no pair keeps the white press paper and looks exactly as it does
+   today.
+
+   NOTHING BELOW READS --press-ink, AND THAT IS THE COST OF SEVEN PAPERS. The
+   near-black that is 15.7:1 on white is a hole on Saturday's olive, and the
+   cream that reads on Thursday's blue is 1.5:1 on Sunday's linen. Every rule
+   here reads --press-recto-* or --press-verso-*, which the paper blocks
+   re-point per day. A sheet without its own ink is half a decision.
+
+   EMBOSSED, WHICH IS A MATERIAL AND NOT A HEIGHT. Type is lit from above:
+   --press-lit is the light caught on a letter's lower edge, and it is white on
+   the sheets whose ink is dark and dark on the sheets whose ink is cream, so
+   one declaration reads as raised on Thursday and pressed-in on Sunday. Rules
+   are SCORED — the cut, then the light on its lower lip. Panels are stamped.
+   The lock button is the only thing genuinely raised, because it is the only
+   thing on either sheet you can press. */
+.press-recto, .press-verso {
+  border-radius: 14px;
+  background-size: cover; background-position: center;
+  padding: clamp(26px, 4vw, 48px) clamp(18px, 4vw, 56px) clamp(24px, 3vw, 38px);
+}
+/* A SHEET RE-POINTS THE PRESS'S OWN TOKENS AND EVERY COMPONENT FOLLOWS.
+   The masthead block below already dresses Relief's pills, chips, buttons and
+   tags for the press — reading --press-ink, --press-rule, --press-paper and
+   --press-green. Rather than writing a second set of rules onto those same
+   class names (which borrows a global name inside a namespaced block, and
+   no-borrowed-class-names.test.ts is right to refuse it), each sheet re-points
+   the four tokens those rules already read. One declaration block, no new
+   selectors, and a control that has never heard of a recto comes out in the
+   recto's ink.
+
+   --press-green BECOMES THE SHEET'S INK, which is not a colour change so much
+   as an admission: the emerald is 7.8:1 on white and unreadable on Saturday's
+   olive, and an accent hue that has to survive seven grounds is not an accent.
+   Filled-with-the-ink is the press's own emphasis rule anyway, and it inverts a
+   pair whose ratio is already computed — so the loud button is exactly as
+   readable as the body copy, on every paper.  */
+.press-recto {
+  background-image: linear-gradient(var(--press-recto-veil), var(--press-recto-veil)), var(--press-recto-sheet);
+  --press-paper:  var(--press-recto-ground);
+  --press-ink:    var(--press-recto-ink);
+  --press-ink-2:  var(--press-recto-ink-2);
+  --press-ink-3:  var(--press-recto-ink-3);
+  --press-rule:   var(--press-recto-rule);
+  --press-rule-2: var(--press-recto-rule);
+  --press-green:  var(--press-recto-ink);
+  color: var(--press-recto-ink);
+  text-shadow: 0 1px 0 var(--press-recto-lift);
+  display: flex; flex-direction: column;
+}
+.press-verso {
+  background-image: linear-gradient(var(--press-verso-veil), var(--press-verso-veil)), var(--press-verso-sheet);
+  --press-paper:  var(--press-verso-ground);
+  --press-ink:    var(--press-verso-ink);
+  --press-ink-2:  var(--press-verso-ink-2);
+  --press-ink-3:  var(--press-verso-ink-3);
+  --press-rule:   var(--press-verso-rule);
+  --press-rule-2: var(--press-verso-rule);
+  --press-green:  var(--press-verso-ink);
+  /* the ring and its legend both read these, so re-pointing here is what keeps
+     the two agreeing without either naming a sheet */
+  --press-macro-1:var(--press-verso-macro-1);
+  --press-macro-2:var(--press-verso-macro-2);
+  --press-macro-3:var(--press-verso-macro-3);
+  --press-macro-0:var(--press-verso-macro-0);
+  color: var(--press-verso-ink);
+  text-shadow: 0 1px 0 var(--press-verso-lift);
+  margin-top: 18px;
+  display: grid; grid-template-columns: 258px minmax(0, 1fr);
+  grid-template-rows: 1fr auto; column-gap: clamp(22px, 4vw, 44px); align-items: start;
+}
+/* The press's own components — courses, dish rows, column heads — inherit the
+   sheet they are dropped on and do not know which one it is. That is what stops
+   the verso needing a second PressCourse. */
+.press-recto .press-desc, .press-recto .press-quote { color: var(--press-recto-ink-2); }
+.press-recto .press-colhead span, .press-recto .press-stats dt,
+.press-recto .press-aside h3 { color: var(--press-recto-ink-3); }
+.press-verso .press-desc, .press-verso .press-quote { color: var(--press-verso-ink-2); }
+.press-verso .press-colhead span, .press-verso .press-aside h3 { color: var(--press-verso-ink-3); }
+.press-verso .press-course-head { border-bottom-color: var(--press-verso-rule); }
+.press-verso .press-course-head h2 { color: var(--press-verso-ink); }
+.press-verso .press-course-head .press-kcal { color: var(--press-verso-ink);
+  font-family: var(--press-serif); font-size: 25px; }
+.press-verso .press-course-head .press-kcal small { color: var(--press-verso-ink-2); }
+.press-verso .press-dish > *, .press-verso .press-colhead span,
+.press-verso .press-bar { border-bottom-color: var(--press-verso-rule); }
+.press-verso .press-track { background: var(--press-verso-macro-0); }
+.press-verso .press-track i { background: var(--press-verso-macro-1); }
+.press-verso .press-acts button { color: var(--press-verso-ink-2); }
+.press-verso .press-acts button:hover:not(:disabled) { color: var(--press-verso-ink);
+  border-bottom-color: var(--press-verso-ink); }
+
+/* a scored rule: the cut, then the light caught on its lower lip */
+.press-score { height: 0; border-top: 1px solid var(--press-recto-rule);
+  box-shadow: 0 1px 0 var(--press-recto-lift); }
+.press-verso .press-score { border-top-color: var(--press-verso-rule);
+  box-shadow: 0 1px 0 var(--press-verso-lift); }
+
+/* a stamped panel */
+.press-plate { border: 1px solid var(--press-recto-rule); border-radius: 10px;
+  box-shadow: var(--press-stamp); }
+.press-verso .press-plate { border-color: var(--press-verso-rule); box-shadow: var(--press-stamp-warm); }
+
+/* ── the recto ──────────────────────────────────────────────────────────── */
+.press-slug { display: flex; justify-content: space-between;
+  font-family: var(--press-serif); font-style: italic; font-size: 16px;
+  color: var(--press-recto-ink-2); }
+.press-oval { width: 74px; height: 45px; margin: clamp(14px, 3vw, 24px) auto 0;
+  border: 1px solid var(--press-recto-rule); border-radius: 50%;
+  display: grid; place-items: center; font-family: var(--press-serif); font-size: 22px;
+  box-shadow: inset 0 1px 0 var(--press-recto-rule), 0 1px 0 var(--press-recto-lift); }
+.press-verso .press-oval { border-color: var(--press-verso-rule); margin: 0 0 24px;
+  box-shadow: inset 0 1px 0 var(--press-verso-rule), 0 1px 0 var(--press-verso-lift); }
+.press-masthead { text-align: center; }
+.press-masthead .press-day { font-size: clamp(44px, 8vw, 86px); letter-spacing: .012em; margin-top: 10px; }
+.press-masthead .press-date { color: var(--press-recto-ink-2); letter-spacing: .36em;
+  font-family: var(--sans); font-size: 12.5px; }
+.press-hair { width: 54px; height: 0; margin: 20px auto;
+  border-top: 1px solid var(--press-recto-rule); box-shadow: 0 1px 0 var(--press-recto-lift); }
+.press-note { text-align: center; max-width: 19ch; margin: 0 auto;
+  font-family: var(--press-serif); font-style: italic; font-size: clamp(19px, 2.4vw, 25px);
+  line-height: 1.38; color: var(--press-recto-ink); }
+.press-recto .press-stats { border-top: 0; border-bottom: 0; padding: 0; margin-top: 20px; }
+.press-recto .press-stats > div { border-left-color: var(--press-recto-rule); }
+.press-recto .press-stats dd { font-family: var(--press-serif); font-size: clamp(26px, 3vw, 33px); }
+.press-recto .press-stats dd small,
+.press-recto .press-stats .press-pc { color: var(--press-recto-ink-2); }
+.press-lab { font-family: var(--sans); font-size: 10px; font-weight: 600; letter-spacing: .23em;
+  text-transform: uppercase; color: var(--press-recto-ink-3); margin: 0 0 16px; }
+.press-verso .press-lab { color: var(--press-verso-ink-3); }
+.press-two-up { margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; }
+.press-two-up > div { padding: 20px 24px; }
+.press-two-up > div + div { border-left: 1px solid var(--press-recto-rule); }
+.press-recto .press-foot { border-top: 0; margin-top: 16px; padding: 20px 24px; }
+.press-recto .press-foot > div { border-left-color: var(--press-recto-rule); }
+.press-recto .press-foot dt { color: var(--press-recto-ink-3); }
+.press-recto .press-foot dd { font-family: var(--press-serif); font-size: 30px; letter-spacing: .012em; }
+.press-sign { margin-top: auto; padding-top: 24px; display: flex; justify-content: space-between;
+  font-family: var(--press-serif); font-style: italic; font-size: 15px;
+  color: var(--press-recto-ink-2); }
+.press-verso .press-sign { grid-column: 1 / -1; margin-top: 0; padding-top: 20px;
+  color: var(--press-verso-ink-2); }
+
+/* ── the verso's rail ───────────────────────────────────────────────────── */
+.press-rail-top { font-family: var(--sans); font-size: 12.5px; letter-spacing: .3em;
+  font-weight: 600; text-transform: uppercase; }
+.press-rail-top em { font-style: normal; display: block; font-size: 11.5px; letter-spacing: .28em;
+  font-weight: 400; color: var(--press-verso-ink-2); margin-top: 9px; }
+.press-rail-hair { width: 56px; height: 0; margin: 24px 0 28px;
+  border-top: 1px solid var(--press-verso-rule); box-shadow: 0 1px 0 var(--press-verso-lift); }
+/* The day's own verdict, set as the sheet's display line. It is the SAME
+   string as the quote beneath it, cut to its head — one sentence from
+   dayBalance printed twice at two sizes, so there is nothing here for a second
+   field to drift from and nothing new for the engine to return. */
+.press-verdict { font-family: var(--press-serif); font-style: italic; font-weight: 400; margin: 0;
+  font-size: clamp(34px, 4.6vw, 56px); line-height: 1.03; letter-spacing: -.006em; max-width: 9ch; }
+.press-verso .press-quote { margin: 0; max-width: 23ch; font-size: 17px; }
+.press-by { font-family: var(--press-serif); font-style: italic; font-size: 14px;
+  color: var(--press-verso-ink-3); margin: 26px 0 0; }
+.press-bill-head { display: flex; justify-content: space-between; align-items: baseline;
+  border-bottom: 1px solid var(--press-verso-rule); box-shadow: 0 1px 0 var(--press-verso-lift);
+  padding-bottom: 11px; }
+.press-bill-head .press-lab { margin: 0; }
+.press-bill-head .press-tot { font-family: var(--sans); font-size: 12.5px; color: var(--press-verso-ink-2); }
+.press-bill-head .press-tot b { font-family: var(--press-serif); font-weight: 400; font-size: 26px;
+  margin-left: 11px; color: var(--press-verso-ink); letter-spacing: .012em; }
+.press-verso .press-foot { border-top: 0; margin-top: 14px; }
+.press-verso .press-foot > div { border-left-color: var(--press-verso-rule); }
+.press-verso .press-foot dt { color: var(--press-verso-ink-3); }
+.press-verso .press-foot dd { font-family: var(--press-serif); font-size: 28px; letter-spacing: .012em; }
+.press-under { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; margin-top: 22px;
+  border-top: 1px solid var(--press-verso-rule); box-shadow: 0 1px 0 var(--press-verso-lift);
+  padding-top: 20px; }
+.press-under .press-aside { position: static; }
+.press-under .press-aside section { margin-bottom: 0; }
+
+@media (max-width: 900px) {
+  .press-verso { grid-template-columns: minmax(0, 1fr); row-gap: 30px; }
+  .press-two-up, .press-under { grid-template-columns: minmax(0, 1fr); }
+  .press-two-up > div + div { border-left: 0; border-top: 1px solid var(--press-recto-rule); }
+  .press-verdict { max-width: none; }
+}
+
 /* ══ THE MASTHEAD, ON THE SAME PAPER ═════════════════════════════════════
    The press used to start at the menu, which left a white masthead sitting on
    an ivory day — two pages stapled together. The paper now runs the length of

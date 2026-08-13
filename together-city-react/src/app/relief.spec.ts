@@ -132,7 +132,17 @@ describe('Relief stays a system', () => {
     // --atmos-lip joins for the medical atmosphere: the lit top rim that makes
     // a smoked pane read as glass instead of a brown box. It is one inset
     // hairline of light — a way of being made, like --soft-in, not a height.
-    const NAMED = /var\(--(e1|e2|e3|e1-key|e2-key|carve|carve-deep|press|shadow|shadow-deep|edge-up|edge-in|pip|pip-ok|case-rim|case-rim-soft|pane-rim|lens|lens-key|lamp|lamp-badge|key-lit|key-lit-pip|rail-well-shadow|glass|glass-key|glass-in|glass-dock|glass-tray-shadow|glass-bubble-shadow|prism|focus-ring|soft-in|soft-out|soft-tile|atmos-lip)\)/;
+    // --press-stamp and --press-stamp-warm join for the day's two sheets. A
+    // menu card is STAMPED: the panel is pressed into the paper. Every layer of
+    // both is inset. They are materials, in the company of --glass and
+    // --soft-in, not a sixth height.
+    //
+    // --press-recto-lift and --press-verso-lift are EDGES and join the four
+    // already named above: a scored rule is the cut plus the light caught on
+    // its lower lip, and nothing stands on it. They are per-sheet because the
+    // light on Thursday's blue is white and the light on Sunday's linen is not,
+    // which is the whole reason a scored line reads as a crease on both.
+    const NAMED = /var\(--(e1|e2|e3|e1-key|e2-key|carve|carve-deep|press|shadow|shadow-deep|edge-up|edge-in|pip|pip-ok|case-rim|case-rim-soft|pane-rim|lens|lens-key|lamp|lamp-badge|key-lit|key-lit-pip|rail-well-shadow|glass|glass-key|glass-in|glass-dock|glass-tray-shadow|glass-bubble-shadow|prism|focus-ring|soft-in|soft-out|soft-tile|atmos-lip|press-stamp|press-stamp-warm|press-recto-lift|press-verso-lift)\)/;
     // A photograph, a filled black button and a text emboss are not surfaces —
     // they are ink and images, and they carry their own light.
     const ALLOWED = /(text-shadow|drop-shadow|\.hero|\.btn-accent|\.btn-gold|\.btn-primary|\.ask-cta|\.step\.|\.mincal|\.tag\.dark|\.knob|outline|inset 0 1px 0|no-case|img:not|video:not|\.case)/;
@@ -433,6 +443,72 @@ describe('Relief stays a system', () => {
       }
     }
     expect(failures).toEqual([]);
+  });
+
+  /**
+   * AND EVERY PAPER THE WEEK OWNS IS READABLE — COMPUTED, PER SHEET.
+   *
+   * The grants above measure a hub's ink against a hub's ground. The nutrition
+   * day does not go through that machinery: it is not a hub ground, it is
+   * fourteen photographs, two per weekday, declared in `[data-paper]` blocks and
+   * reached only from the meal plan's own two sheets.
+   *
+   * A PHOTOGRAPH HAS NO COLOUR TO MEASURE, which is the whole difficulty. The
+   * average of a photograph is a colour that appears nowhere in it, so each
+   * block declares a `-ground` hex that is the WORST PIXEL of its own sheet
+   * under its own veil — the lightest where the ink is cream, the darkest where
+   * the ink is dark. That hex is a claim about an image, and this recomputes
+   * every ink against it. It cannot verify the claim itself; scripts/paper.mjs
+   * re-derives the hexes from the files in public/assets/img, and the numbers
+   * in the comments beside each token come from that.
+   *
+   * `-ink-3` IS HELD TO 3:1 AND NOT 4.5, deliberately and exactly as
+   * `--press-ink-3` already is at 3.7:1 on white: it is the floor of the scale
+   * and it is for labels, eyebrows and metadata. Nothing sets body copy in it.
+   * The other two are body text and are held to AA.
+   *
+   * A DAY WITH NO BLOCK IS NOT A FAILURE. The defaults are the white press
+   * paper, so an undressed weekday is the page exactly as it shipped — this
+   * checks what has been declared, not that seven days have been.
+   */
+  it('clears AA for every ink each of the week\'s papers declares', () => {
+    const css = strip(tokens);
+    const lin = (c: number) => (c / 255 <= 0.03928 ? c / 255 / 12.92 : (((c / 255) + 0.055) / 1.055) ** 2.4);
+    const lum = (hex: string) => {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+      return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    };
+    const ratio = (a: string, b: string) => {
+      const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+      return (hi + 0.05) / (lo + 0.05);
+    };
+
+    const blocks = [...css.matchAll(/\[data-paper="([a-z]{3})"\]\s*\.press-(recto|verso)\s*\{([\s\S]*?)\n\}/g)];
+    // A guard that finds nothing passes. This one has to be reading real blocks.
+    expect(blocks.length).toBeGreaterThan(6);
+
+    const failures: string[] = [];
+    const seen: string[] = [];
+    for (const [, day, side, body] of blocks) {
+      seen.push(`${day}-${side}`);
+      const val = (n: string) => body.match(new RegExp(`--press-${side}-${n}:\\s*(#[0-9a-f]{6})`, 'i'))?.[1];
+      const ground = val('ground');
+      if (!ground) { failures.push(`${day} ${side}: a paper with no ground hex to measure against`); continue; }
+      for (const [name, floor] of [['ink', 4.5], ['ink-2', 4.5], ['ink-3', 3]] as const) {
+        const ink = val(name);
+        if (!ink) { failures.push(`${day} ${side}: --press-${side}-${name} not declared`); continue; }
+        const r = ratio(ink, ground);
+        if (r < floor) failures.push(`${day} ${side} ${name} at ${r.toFixed(2)}:1 (needs ${floor})`);
+      }
+      // A sheet declares a picture or it is not a sheet. A block that re-points
+      // the inks and forgets the paper leaves the day white with somebody
+      // else's ink on it, which is the one failure that looks deliberate.
+      if (!/--press-\w+-sheet:\s*url\(/.test(body)) failures.push(`${day} ${side}: ink re-pointed with no sheet behind it`);
+    }
+    expect(failures).toEqual([]);
+    // and every declared side belongs to a real weekday
+    const DAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+    expect(seen.filter((k) => !DAYS.includes(k.slice(0, 3)))).toEqual([]);
   });
 
   /**

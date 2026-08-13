@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { AllergyNote, Card, Spinner, EmptyState, Button, Chip, Modal } from '@/components/ui';
 import {
@@ -15,7 +15,7 @@ import { skippedSlotsFor, skippedRolesFor } from '../skips';
 import { SLOT_CUISINES, slotCuisineLabel } from '../cuisineMix';
 import { TargetsDisclosure, TargetsRefusal } from '../components/TargetsDisclosure';
 import { NIc } from '../components/NIcon';
-import { balanceNote, dayBalance } from '../dayBalance';
+import { balanceNote, balanceHead, dayBalance } from '../dayBalance';
 
 /** Master-source-of-truth gate: no plan until the Food Preference Profile is saved. */
 function ProfileGate() {
@@ -135,8 +135,8 @@ const longDate = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', mo
  * whose first four lines are salt, oil, water and sugar buries the four things
  * you actually have to buy.
  */
-function DayShoppingPanel({ d, dayIndex, locked, skips }: {
-  d: ComposedDay; dayIndex: number; locked: boolean; skips: string[];
+function DayShoppingPanel({ d, dayIndex, locked, skips, bare }: {
+  d: ComposedDay; dayIndex: number; locked: boolean; skips: string[]; bare?: boolean;
 }) {
   const merged = new Map<string, number>();
   let pantry = 0;
@@ -154,11 +154,24 @@ function DayShoppingPanel({ d, dayIndex, locked, skips }: {
   }
   const items = [...merged.entries()].sort((a, b) => b[1] - a[1]);
   const shown = items.slice(0, 8);
+  // BARE is the printed sheet asking for the CONTENTS and nothing else. The
+  // recto supplies its own plate and its own heading, and an inline card style
+  // beats every stylesheet in Relief — so the card cannot be turned off from
+  // the outside, only from here.
+  const Shell = bare
+    ? ({ children }: { children: ReactNode }) => <div>{children}</div>
+    : ({ children }: { children: ReactNode }) => (
+      <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 18, padding: '16px 18px', boxShadow: 'var(--shadow)' }}>{children}</div>
+    );
   return (
-    <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 18, padding: '16px 18px', boxShadow: 'var(--shadow)' }}>
-      <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center', marginBottom: 12 }}>
-        This day&rsquo;s shopping
-      </div>
+    <Shell>
+      {bare
+        ? <p className="press-lab">This day&rsquo;s shopping</p>
+        : (
+          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center', marginBottom: 12 }}>
+            This day&rsquo;s shopping
+          </div>
+        )}
       {items.length === 0 ? (
         <p className="muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.5 }}>
           Nothing to buy for this day beyond what a kitchen already keeps.
@@ -190,7 +203,7 @@ function DayShoppingPanel({ d, dayIndex, locked, skips }: {
           ? <>This day is locked, so these are already on your{' '}<Link to="/nutrition/grocery" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>grocery list</Link>.</>
           : <>Not on your grocery list yet &mdash; lock the day to add them.</>}
       </p>
-    </div>
+    </Shell>
   );
 }
 
@@ -204,7 +217,7 @@ function DayShoppingPanel({ d, dayIndex, locked, skips }: {
  * dishes whose ingredients we recognise; without a count, a citizen reading a
  * sodium figure has no way to know it is a figure for part of their day.
  */
-function AboutThisMenu({ d }: { d: ComposedDay }) {
+function AboutThisMenu({ d, bare }: { d: ComposedDay; bare?: boolean }) {
   const comps = d.meals.flatMap((m) => m.components);
   const cuisines = [...new Set(comps.map((c) => (c.cuisine ?? "").trim()).filter(Boolean))];
   const minutes = d.meals.reduce((t, m) => t + (m.minutes || 0), 0);
@@ -224,18 +237,23 @@ function AboutThisMenu({ d }: { d: ComposedDay }) {
       ? "Sodium and potassium are computed from every dish here."
       : `Sodium and potassium come from ${complete} of these ${comps.length} dishes \u2014 the rest have ingredients we cannot yet measure, so those figures are a floor, not a total.`);
   }
+  const list = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {facts.map((f) => (
+        <div key={f} style={{ display: 'flex', gap: 9, alignItems: 'flex-start', fontSize: 12.5, color: bare ? 'inherit' : 'var(--ink-soft)', lineHeight: 1.45 }}>
+          <span style={{ color: bare ? 'inherit' : 'var(--accent-ink)', marginTop: 1 }}><NIc name="check" size={14} stroke={2.2} /></span>{f}
+        </div>
+      ))}
+    </div>
+  );
+  // See DayShoppingPanel for why `bare` is a prop rather than a stylesheet rule.
+  if (bare) return <div><p className="press-lab">About this menu</p>{list}</div>;
   return (
     <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 18, padding: '16px 18px', boxShadow: 'var(--shadow)' }}>
       <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center', marginBottom: 12 }}>
         About this menu
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {facts.map((f) => (
-          <div key={f} style={{ display: 'flex', gap: 9, alignItems: 'flex-start', fontSize: 12.5, color: 'var(--ink-soft)', lineHeight: 1.45 }}>
-            <span style={{ color: 'var(--accent-ink)', marginTop: 1 }}><NIc name="check" size={14} stroke={2.2} /></span>{f}
-          </div>
-        ))}
-      </div>
+      {list}
     </div>
   );
 }
@@ -351,7 +369,10 @@ function LockedDaySummary({ d, date }: { d: ComposedDay; date: Date }) {
 }
 
 
-function DayView({ wk, d, dayIndex, date, readOnly }: { wk: ComposedWeek; d: ComposedDay; dayIndex: number; date: Date; readOnly?: boolean }) {
+/** Sunday-first, to match Date#getDay. The key a paper block is written against. */
+const PAPER = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
+
+function DayView({ wk, d, dayIndex, date, readOnly, lock }: { wk: ComposedWeek; d: ComposedDay; dayIndex: number; date: Date; readOnly?: boolean; lock?: ReactNode }) {
   const t = d.totals as Totals;
   const kcal = Math.max(1, t.kcal);
   const pPct = Math.round((t.protein * 4 / kcal) * 100);
@@ -364,95 +385,163 @@ function DayView({ wk, d, dayIndex, date, readOnly }: { wk: ComposedWeek; d: Com
   // it came from was told "Great balance of protein, carbs & healthy fats!" on
   // the strength of an average that protein had not contributed to. See
   // dayBalance.ts for why the bands are not symmetric.
-  const note = balanceNote(dayBalance(t, wk.prescription, wk.prescription.assumed));
+  const verdict = dayBalance(t, wk.prescription, wk.prescription.assumed);
+  const note = balanceNote(verdict);
+  const head = balanceHead(verdict);
   const skips = wk.skips ?? [];
   const n = (v: number) => Math.round(v).toLocaleString('en-IN');
 
-  // THE PRINTED DAY. See tokens.css → THE PRESS for why this one page is set
-  // rather than built, and relief.spec.ts for the guard that keeps it here.
+  // THE PRINTED DAY, IN TWO SHEETS. See tokens.css → THE WEEK'S PAPERS for the
+  // papers and the argument for them, relief.css → THE DAY IN TWO SHEETS for the
+  // material, and relief.spec.ts for the guards that keep both here.
+  //
+  // The RECTO is what you decide; the VERSO is what you eat. They were one
+  // scrolling sheet, which left the lock bar stranded above a menu it was not
+  // about.
   //
   // Everything below is the engine's output, typeset. Not one figure, name or
   // portion is written into this file: composedPlan builds a different week for
   // every citizen out of their body, bloods, conditions, diet, allergies,
   // goals, cuisine and history, and this page's only job is to survive the
-  // range of what that returns.
+  // range of what that returns — including a day with no pair of papers, which
+  // falls back to the white press sheet and is a whole page, not a gap.
   return (
-    <div className="press-sheet">
+    <div data-paper={PAPER[date.getDay()]}>
 
-      <header className="press-hero">
-        <div className="press-hero-row">
-          <div>
-            <h1 className="press-day">{weekdayFull(date)}</h1>
-            <div className="press-date">{longDate(date)}</div>
-          </div>
-          {/* The engine's own reading of this day, not a decoration. */}
-          <p className="press-quote">{note}</p>
+      <section className="press-recto">
+        <div className="press-slug">
+          <span>the week&rsquo;s plan</span>
+          <span>day {dayIndex + 1} of {wk.days.length}</span>
         </div>
-        <dl className="press-stats">
-          <div><dt>Daily calories</dt><dd>{n(t.kcal)}<small>kcal</small></dd><span className="press-pc">{kcalPct}% of target</span></div>
-          <div><dt>Protein</dt><dd>{n(t.protein)}<small>g</small></dd><span className="press-pc">{pPct}%</span></div>
-          <div><dt>Carbohydrate</dt><dd>{n(t.carbs)}<small>g</small></dd><span className="press-pc">{cPct}%</span></div>
-          <div><dt>Fat</dt><dd>{n(t.fat)}<small>g</small></dd><span className="press-pc">{fPct}%</span></div>
-          <div><dt>Fibre</dt><dd>{n(t.fiber)}<small>g</small></dd><span className="press-pc">{fibPct}%</span></div>
+
+        <header className="press-masthead">
+          <div className="press-oval">{date.getDate()}</div>
+          <h1 className="press-day">{weekdayFull(date)}</h1>
+          <div className="press-date">{longDate(date)}</div>
+          <div className="press-hair" />
+          {/* The engine's own reading of this day, not a decoration. */}
+          <p className="press-note">{note}</p>
+        </header>
+
+        <div className="press-score" style={{ marginTop: 30 }} />
+
+        <div style={{ marginTop: 20 }}>
+          <p className="press-lab">Daily summary</p>
+          <dl className="press-stats">
+            <div><dt>Calories</dt><dd>{n(t.kcal)}<small>kcal</small></dd><span className="press-pc">{kcalPct}% of target</span></div>
+            <div><dt>Protein</dt><dd>{n(t.protein)}<small>g</small></dd><span className="press-pc">{pPct}%</span></div>
+            <div><dt>Carbohydrate</dt><dd>{n(t.carbs)}<small>g</small></dd><span className="press-pc">{cPct}%</span></div>
+            <div><dt>Fat</dt><dd>{n(t.fat)}<small>g</small></dd><span className="press-pc">{fPct}%</span></div>
+            <div><dt>Fibre</dt><dd>{n(t.fiber)}<small>g</small></dd><span className="press-pc">{fibPct}%</span></div>
+          </dl>
+        </div>
+
+        {/* The lock is HANDED IN rather than built here: it belongs to the day
+            sheet visually and to the planner logically, and moving the component
+            would have meant a locked day losing its unlock. Same markup, same
+            behaviour, one sheet further down the page. */}
+        {lock && <div className="press-plate" style={{ marginTop: 22, padding: '18px 22px' }}>{lock}</div>}
+
+        <div className="press-plate press-two-up">
+          <AboutThisMenu d={d} bare />
+          <DayShoppingPanel d={d} dayIndex={dayIndex} locked={(wk.locks ?? []).includes(dayIndex)} skips={skips} bare />
+        </div>
+
+        <dl className="press-plate press-foot">
+          <div><dt>Total calories</dt><dd>{n(t.kcal)}</dd></div>
+          <div><dt>Protein</dt><dd>{n(t.protein)}g</dd></div>
+          <div><dt>Carbs</dt><dd>{n(t.carbs)}g</dd></div>
+          <div><dt>Fat</dt><dd>{n(t.fat)}g</dd></div>
+          <div><dt>Fibre</dt><dd>{n(t.fiber)}g</dd></div>
         </dl>
-      </header>
 
-      <main>
-        {d.fasting && (
-          <p className="press-desc" style={{ margin: '0 0 20px' }}>
-            Eating window {d.window.start}–{d.window.end}.
-          </p>
-        )}
-        {d.meals.map((m) => (
-          <PressCourse key={m.slot} meal={m} dayIndex={dayIndex} readOnly={readOnly} skips={skips} />
-        ))}
-        {/* A skipped MEAL leaves the composer's output entirely, so without this
-            its course is simply absent and the only way back is the
-            restore-everything banner. */}
-        {!readOnly && skippedSlotsFor(skips, dayIndex).map((slot) => (
-          <SkippedMealCard key={`skipped-${slot}`} dayIndex={dayIndex} slot={slot} />
-        ))}
-      </main>
+        <div className="press-sign">
+          <span>Together City</span><span>nutrition // the printed day</span>
+        </div>
+      </section>
 
-      <aside className="press-aside">
-        <section>
-          <h3>Nutrition summary</h3>
-          <div className="press-bar"><span className="press-lab">Calories</span><span className="press-track"><i style={{ width: `${kcalPct}%` }} /></span><span className="press-val">{n(t.kcal)}<em>kcal</em></span></div>
-          <div className="press-bar"><span className="press-lab">Protein</span><span className="press-track"><i style={{ width: `${pPct}%` }} /></span><span className="press-val">{n(t.protein)}g<em>{pPct}%</em></span></div>
-          <div className="press-bar"><span className="press-lab">Carbs</span><span className="press-track"><i style={{ width: `${cPct}%` }} /></span><span className="press-val">{n(t.carbs)}g<em>{cPct}%</em></span></div>
-          <div className="press-bar"><span className="press-lab">Fat</span><span className="press-track"><i style={{ width: `${fPct}%` }} /></span><span className="press-val">{n(t.fat)}g<em>{fPct}%</em></span></div>
-          <div className="press-bar"><span className="press-lab">Fibre</span><span className="press-track"><i style={{ width: `${fibPct}%` }} /></span><span className="press-val">{n(t.fiber)}g<em>{fibPct}%</em></span></div>
-        </section>
+      <section className="press-verso">
+        <aside className="press-rail">
+          <div className="press-rail-top">{weekdayFull(date)}<em>{longDate(date)}</em></div>
+          <div className="press-rail-hair" />
+          <div className="press-oval">{date.getDate()}</div>
+          {/* The same verdict the note is built from, cut to a display line in
+              dayBalance.ts rather than sliced out of the sentence below it. */}
+          <h2 className="press-verdict">{head}</h2>
+          <div className="press-rail-hair" />
+          <p className="press-quote">&ldquo;{note}&rdquo;</p>
+        </aside>
 
-        <section>
-          <h3>Macro breakdown</h3>
-          <div className="press-ring">
-            <PressRing kcal={t.kcal} p={pPct} c={cPct} f={fPct} />
-            <div className="press-key">
-              <div><i style={{ background: 'var(--press-macro-1)' }} /><span className="press-l">Protein</span><span className="press-n">{n(t.protein)}g · {pPct}%</span></div>
-              <div><i style={{ background: 'var(--press-macro-2)' }} /><span className="press-l">Carbs</span><span className="press-n">{n(t.carbs)}g · {cPct}%</span></div>
-              <div><i style={{ background: 'var(--press-macro-3)' }} /><span className="press-l">Fat</span><span className="press-n">{n(t.fat)}g · {fPct}%</span></div>
-            </div>
+        <div>
+          <div className="press-bill-head">
+            <p className="press-lab">Today&rsquo;s menu</p>
+            <div className="press-tot">Total calories <b>{n(t.kcal)}<small>&nbsp;kcal</small></b></div>
           </div>
-          {/* Fibre is in the summary and the footer but never a slice: it carries
-              no energy to plot beside the three that do, and a fourth wedge in
-              the same green said it did. */}
-          <p className="press-desc" style={{ marginTop: 16 }}>
-            Fibre sits outside the ring — {n(t.fiber)}&nbsp;g today, against {n(wk.prescription.fiber)}&nbsp;g.
-          </p>
-        </section>
 
-        <DayShoppingPanel d={d} dayIndex={dayIndex} locked={(wk.locks ?? []).includes(dayIndex)} skips={skips} />
-        <AboutThisMenu d={d} />
-      </aside>
+          {d.fasting && (
+            <p className="press-desc" style={{ margin: '16px 0 0' }}>
+              Eating window {d.window.start}&ndash;{d.window.end}.
+            </p>
+          )}
+          {d.meals.map((m) => (
+            <PressCourse key={m.slot} meal={m} dayIndex={dayIndex} readOnly={readOnly} skips={skips} />
+          ))}
+          {/* A skipped MEAL leaves the composer's output entirely, so without this
+              its course is simply absent and the only way back is the
+              restore-everything banner. */}
+          {!readOnly && skippedSlotsFor(skips, dayIndex).map((slot) => (
+            <SkippedMealCard key={`skipped-${slot}`} dayIndex={dayIndex} slot={slot} />
+          ))}
 
-      <footer className="press-foot">
-        <div><dt>Total calories</dt><dd>{n(t.kcal)}</dd></div>
-        <div><dt>Protein</dt><dd>{n(t.protein)}g</dd></div>
-        <div><dt>Carbs</dt><dd>{n(t.carbs)}g</dd></div>
-        <div><dt>Fat</dt><dd>{n(t.fat)}g</dd></div>
-        <div><dt>Fibre</dt><dd>{n(t.fiber)}g</dd></div>
-      </footer>
+          <div className="press-score" style={{ marginTop: 24 }} />
+
+          <div style={{ marginTop: 16 }}>
+            <p className="press-lab">Total nutrition</p>
+            <dl className="press-foot">
+              <div><dt>Calories</dt><dd>{n(t.kcal)}</dd></div>
+              <div><dt>Protein</dt><dd>{n(t.protein)}g</dd></div>
+              <div><dt>Carbs</dt><dd>{n(t.carbs)}g</dd></div>
+              <div><dt>Fat</dt><dd>{n(t.fat)}g</dd></div>
+              <div><dt>Fibre</dt><dd>{n(t.fiber)}g</dd></div>
+            </dl>
+          </div>
+
+          <div className="press-under">
+            <div>
+              <p className="press-lab">Macro breakdown</p>
+              <div className="press-ring">
+                <PressRing kcal={t.kcal} p={pPct} c={cPct} f={fPct} />
+                <div className="press-key">
+                  <div><i style={{ background: 'var(--press-macro-1)' }} /><span className="press-l">Protein</span><span className="press-n">{n(t.protein)}g · {pPct}%</span></div>
+                  <div><i style={{ background: 'var(--press-macro-2)' }} /><span className="press-l">Carbs</span><span className="press-n">{n(t.carbs)}g · {cPct}%</span></div>
+                  <div><i style={{ background: 'var(--press-macro-3)' }} /><span className="press-l">Fat</span><span className="press-n">{n(t.fat)}g · {fPct}%</span></div>
+                </div>
+              </div>
+              {/* Fibre is in the summary and the footer but never a slice: it carries
+                  no energy to plot beside the three that do, and a fourth wedge in
+                  the same hue said it did. */}
+              <p className="press-desc" style={{ marginTop: 14 }}>
+                Fibre sits outside the ring — {n(t.fiber)}&nbsp;g today, against {n(wk.prescription.fiber)}&nbsp;g.
+              </p>
+            </div>
+
+            <aside className="press-aside">
+              <section>
+                <h3>Nutrition summary</h3>
+                <div className="press-bar"><span className="press-lab">Calories</span><span className="press-track"><i style={{ width: `${kcalPct}%` }} /></span><span className="press-val">{n(t.kcal)}<em>kcal</em></span></div>
+                <div className="press-bar"><span className="press-lab">Protein</span><span className="press-track"><i style={{ width: `${pPct}%` }} /></span><span className="press-val">{n(t.protein)}g<em>{pPct}%</em></span></div>
+                <div className="press-bar"><span className="press-lab">Carbs</span><span className="press-track"><i style={{ width: `${cPct}%` }} /></span><span className="press-val">{n(t.carbs)}g<em>{cPct}%</em></span></div>
+                <div className="press-bar"><span className="press-lab">Fat</span><span className="press-track"><i style={{ width: `${fPct}%` }} /></span><span className="press-val">{n(t.fat)}g<em>{fPct}%</em></span></div>
+                <div className="press-bar"><span className="press-lab">Fibre</span><span className="press-track"><i style={{ width: `${fibPct}%` }} /></span><span className="press-val">{n(t.fiber)}g<em>{fibPct}%</em></span></div>
+              </section>
+            </aside>
+          </div>
+        </div>
+
+        <div className="press-sign">
+          <span>Together City</span><span>nutrition // the menu</span>
+        </div>
+      </section>
     </div>
   );
 }
@@ -857,13 +946,19 @@ export function MealPlan() {
             </div>
           )}
 
-          <DayLock
-            dayIndex={day}
-            date={dates[day]}
-            locked={(wk.locks ?? []).includes(day)}
-            lastDay={wk.days.length - 1}
-            onMoveTo={setDay}
-          />
+          {/* THE LOCK MOVED ONTO THE SHEET, for the unlocked day only. It is the
+              day sheet's one control and it now sits on it. A LOCKED day has no
+              sheet to sit on — it collapses to a summary — so it keeps the lock
+              above, which is also the only place its Unlock can be. */}
+          {(wk.locks ?? []).includes(day) && (
+            <DayLock
+              dayIndex={day}
+              date={dates[day]}
+              locked
+              lastDay={wk.days.length - 1}
+              onMoveTo={setDay}
+            />
+          )}
 
           <div style={{ marginTop: 14 }}>
             {(wk.locks ?? []).includes(day)
@@ -871,7 +966,20 @@ export function MealPlan() {
                  and re-reading it is not what you came back for. The summary
                  stays so it is still a menu, not just a padlock. */
               ? <LockedDaySummary d={d} date={dates[day]} />
-              : <DayView wk={wk} d={d} dayIndex={day} date={dates[day]} readOnly={wk.readOnly} />}
+              : (
+                <DayView
+                  wk={wk} d={d} dayIndex={day} date={dates[day]} readOnly={wk.readOnly}
+                  lock={
+                    <DayLock
+                      dayIndex={day}
+                      date={dates[day]}
+                      locked={false}
+                      lastDay={wk.days.length - 1}
+                      onMoveTo={setDay}
+                    />
+                  }
+                />
+              )}
           </div>
 
           <div style={{ marginTop: 22, textAlign: 'center', background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 14, padding: '12px 16px', fontSize: 12.5, color: 'var(--muted)' }}>

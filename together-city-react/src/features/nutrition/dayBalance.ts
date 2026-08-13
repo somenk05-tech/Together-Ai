@@ -93,3 +93,27 @@ export function balanceNote(v: BalanceVerdict): string {
   const allThree = v.short.length + v.over.length >= 3;
   return allThree ? `Today is ${list(parts)}.` : `Today is ${list(parts)} — the rest lands where it should.`;
 }
+
+/**
+ * THE SAME VERDICT, CUT TO WHAT A DISPLAY LINE CAN CARRY.
+ *
+ * The menu sheet sets the day's reading twice: once large, as the page's
+ * display line, and once beneath it at reading size. Both come from THIS
+ * object, not from slicing the sentence above — a display line built by cutting
+ * `balanceNote` at its em-dash is a parser for prose that this file controls,
+ * and it produces "Today is light on carbs and heavy on fat" the day somebody
+ * rewords the note.
+ *
+ * So it is not a second field and there is nothing for it to drift from: one
+ * verdict, two renderings, both computed here.
+ */
+export function balanceHead(v: BalanceVerdict): string {
+  if (v.kind === 'balanced') return 'all where it should be';
+  if (v.kind === 'ungraded') {
+    return v.reason === 'assumed' ? 'nothing here worth grading' : 'no targets yet';
+  }
+  const parts: string[] = [];
+  if (v.short.length) parts.push(`light on ${list(v.short)}`);
+  if (v.over.length) parts.push(`heavy on ${list(v.over)}`);
+  return list(parts);
+}
