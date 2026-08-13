@@ -5,6 +5,8 @@ import {
 } from '../composed.api';
 import { skippedRolesFor } from '../skips';
 import { VegMark } from './VegMark';
+import { ShareIconButton } from '@/components/share/ShareButton';
+import { mealShareCard } from '../shareMeal';
 
 /**
  * ONE COURSE OF THE PRINTED DAY.
@@ -68,8 +70,21 @@ export function PressCourse({ meal, dayIndex, readOnly, skips = [] }: {
     <section className="press-course">
       <div className="press-course-head">
         <h2>{meal.label}</h2>
-        <span className="press-kcal">
-          {courseKcal.toLocaleString('en-IN')}<small>kcal</small>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}>
+          {/* THE SEND CAME BACK WITH THE COURSE. ComposedMealCard carried one
+              on its photo corner; the printed day replaced that card on both
+              planners and the affordance did not travel with it. The card it
+              sends is the same builder's, so a meal sent from a card and a
+              meal sent from a sheet are one card. `ghost` reads the sheet's
+              own re-pointed --line/--muted, so it follows the paper. */}
+          <ShareIconButton
+            card={mealShareCard(meal, meal.components.find((c) => c.imageUrl) ?? null)}
+            label={`Send ${meal.title}`}
+            variant="ghost"
+          />
+          <span className="press-kcal">
+            {courseKcal.toLocaleString('en-IN')}<small>kcal</small>
+          </span>
         </span>
       </div>
 

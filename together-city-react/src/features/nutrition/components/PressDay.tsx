@@ -3,6 +3,8 @@ import { PressCourse } from './PressCourse';
 import { NIc } from './NIcon';
 import type { ComposedDay } from '../composed.api';
 import { longDate, weekdayFull } from '../planDates';
+import { ShareIconButton } from '@/components/share/ShareButton';
+import { dayShareCard } from '../shareMeal';
 
 /**
  * THE PRINTED DAY, IN TWO SHEETS — AND NOW THREE AUTHORS.
@@ -57,11 +59,14 @@ export interface PressDayProps {
   under: ReactNode;
   /** The line at the foot of each sheet, right-hand side. */
   sign: string;
+  /** How many the day is cooked for, when it is a household's. Says so on the
+   *  sent card; absent on a citizen's own day, which is one plate. */
+  household?: number;
 }
 
 export function PressDay({
   d, date, dayIndex, dayCount, note, head, readOnly, skips = [],
-  restored, summary, action, aboutLeft, aboutRight, totals, under, sign,
+  restored, summary, action, aboutLeft, aboutRight, totals, under, sign, household,
 }: PressDayProps) {
   return (
     <div data-paper={PAPER[date.getDay()]}>
@@ -69,7 +74,24 @@ export function PressDay({
       <section className="press-recto">
         <div className="press-slug">
           <span>the week&rsquo;s plan</span>
-          <span>day {dayIndex + 1} of {dayCount}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 14 }}>
+            day {dayIndex + 1} of {dayCount}
+            {/* THE WHOLE DAY, SENDABLE. The menu travels inside the card, so
+                what was sent is what is read — see dayShareCard for why it
+                carries no link: the only one available would open the
+                RECIPIENT'S plan while claiming to be this day. */}
+            <ShareIconButton
+              card={dayShareCard({
+                dateLabel: `${weekdayFull(date)} · ${longDate(date)}`,
+                meals: d.meals,
+                totals: d.totals,
+                image: d.meals.flatMap((m) => m.components).find((c) => c.imageUrl)?.imageUrl ?? null,
+                household,
+              })}
+              label={`Send ${weekdayFull(date)}'s menu`}
+              variant="ghost"
+            />
+          </span>
         </div>
 
         <header className="press-masthead">

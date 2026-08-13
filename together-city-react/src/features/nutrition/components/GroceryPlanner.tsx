@@ -4,6 +4,8 @@ import { EmptyState, Spinner } from '@/components/ui';
 import { useGroceryPlan } from '../hooks';
 import { ShoppingRange } from './ShoppingRange';
 import { nutritionApi } from '../api';
+import { ShareIconButton } from '@/components/share/ShareButton';
+import { groceryShareCard } from '../shareMeal';
 import { useQueryClient } from '@tanstack/react-query';
 import type { GroceryPlanItem } from '../api';
 
@@ -257,6 +259,25 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
             <header className="gsheet-mast">
               <div className="gsheet-city">TOGETHER CITY</div>
               <div className="gsheet-doc">GROCERY LIST</div>
+              {/* SEND THE LIST. Explicit inks rather than `ghost`'s defaults:
+                  this sheet re-points its own --grocery-* scale and not the
+                  city's, so a button reading root --muted would print grey on
+                  blue. The card carries the lines themselves — see
+                  groceryShareCard for why it has no link. */}
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: 12 }}>
+                <ShareIconButton
+                  card={groceryShareCard({
+                    title: mode === 'family' ? 'Family grocery list' : 'Grocery list',
+                    lines: aisles.flatMap((a) => a.items.map((i) => `${i.name} · ${i.qtyLabel}`)),
+                    itemCount,
+                    people: menuFor,
+                    household: mode === 'family',
+                  })}
+                  label="Send this grocery list"
+                  variant="ghost"
+                  style={{ border: '2px solid var(--grocery-ink)', color: 'var(--grocery-ink)', fontWeight: 700, letterSpacing: '.04em' }}
+                />
+              </div>
             </header>
             <p className="gsheet-intro">
               Every item below comes from the menus you locked, in the plan you locked them in —

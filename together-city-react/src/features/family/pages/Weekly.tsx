@@ -150,6 +150,7 @@ export function FamilyWeekly() {
             note={`One kitchen for ${people} — every dish below is cooked once and plated to each member's own target, with everyone's allergies, exclusions and conditions already applied to the shared dishes.`}
             head="Cooked once, plated to each."
             readOnly={week.readOnly}
+            household={people}
             sign="family nutrition // one kitchen"
             summary={<>
               <div><dt>Calories</dt><dd>{n(day.totals.kcal)}<small>kcal</small></dd></div>

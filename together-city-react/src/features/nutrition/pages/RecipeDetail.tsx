@@ -11,6 +11,7 @@ import { VegMark, dietKind } from '../components/VegMark';
 import { setTitle } from '../recipeTitle';
 import type { DietKey } from '../types';
 import type { RecipeDetail as RecipeDetailT } from '../api';
+import { ShareIconButton } from '@/components/share/ShareButton';
 
 /**
  * THE RECIPE, SET AS A CARD.
@@ -284,9 +285,32 @@ export function RecipeDetail() {
           <button type="button" className={`press-r-act${saved ? ' is-on' : ''}`} onClick={toggleSave} aria-pressed={saved}>
             <Ic name="bookmark" size={14} /> {saved ? 'Saved' : 'Save'}
           </button>
-          <button type="button" className="press-r-act" onClick={() => void share()} aria-label="Share this recipe">
-            <Ic name="share" size={14} /> Share
+          <button type="button" className="press-r-act" onClick={() => void share()} aria-label="Copy a link to this recipe">
+            <Ic name="share" size={14} /> Copy link
           </button>
+          {/* TWO DIFFERENT VERBS, WHICH IS WHY BOTH ARE HERE. The button above
+              hands the URL to the operating system or the clipboard; this one
+              sends the recipe INTO the city's own chat, to people the sender
+              already talks to, as the same rich card every hub sends. The old
+              label said "Share" for the first and there was no second, so the
+              only way to send a recipe to somebody in the app was to copy a
+              link and paste it. */}
+          <ShareIconButton
+            card={{
+              kind: 'recipe',
+              title: r.name,
+              subtitle: [r.country, vegWord].filter(Boolean).join(' · '),
+              image: r.imageUrl ?? null,
+              meta: [
+                `${Math.round(r.kcal ?? 0)} kcal`,
+                ...(r.protein ? [`P ${Math.round(r.protein)}g`] : []),
+                ...(r.minutes ? [`${r.minutes} min`] : []),
+              ],
+              deepLink: `/nutrition/recipes/${r.id}`,
+            }}
+            label={`Send ${r.name}`}
+            variant="ghost"
+          />
         </div>
       </div>
 

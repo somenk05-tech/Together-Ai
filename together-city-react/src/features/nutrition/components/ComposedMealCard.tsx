@@ -6,8 +6,7 @@ import {
 } from '../composed.api';
 import { VegMark, mealKind } from './VegMark';
 import { ShareIconButton } from '@/components/share/ShareButton';
-import { encodeMeal } from '../shareMeal';
-import type { ShareCard } from '@/api';
+import { mealShareCard } from '../shareMeal';
 import { NIc } from './NIcon';
 import { skippedRolesFor } from '../skips';
 
@@ -22,39 +21,6 @@ import { skippedRolesFor } from '../skips';
  * 2 Aug rather than wired: there was no screen where a worse duplicate of this
  * one was the right answer.
  */
-/** Build a rich, shareable recipe card from a meal — its headline dish photo,
- *  the meal's name, calories and macros, deep-linked to the recipe page. Reused
- *  by the same UniversalShareSheet every hub uses. */
-function mealShareCard(meal: ComposedMeal, master: MealComponent | null): ShareCard {
-  const t = meal.totals;
-  const macros = [
-    `${Math.round(t.kcal)} kcal`,
-    `P ${Math.round(t.protein)}g`,
-    `C ${Math.round(t.carbs)}g`,
-    `F ${Math.round(t.fat)}g`,
-  ];
-  // The whole meal, encoded into the deep link, so tapping the shared card opens a
-  // full-page read-only view of the ENTIRE meal (photo, name, macros, every dish),
-  // where each dish links to its detailed recipe — no server lookup needed.
-  const token = encodeMeal({
-    t: meal.title,
-    l: meal.label,
-    i: master?.imageUrl ?? null,
-    k: Math.round(t.kcal),
-    m: macros.slice(1), // P/C/F only — kcal is rendered separately from `k`
-    d: meal.components.map((c) => [c.name, c.recipeId, Math.round(c.kcal)] as [string, string, number]),
-  });
-  return {
-    kind: 'recipe',
-    title: meal.title,
-    subtitle: `${meal.label} · ${meal.components.length} ${meal.components.length === 1 ? 'dish' : 'dishes'}`,
-    image: master?.imageUrl ?? null,
-    meta: macros,
-    items: meal.components.map((c) => `${c.name} · ${Math.round(c.kcal)} kcal`),
-    deepLink: `/nutrition/shared-meal?d=${token}`,
-  };
-}
-
 /** Deterministic warm food-toned gradient for a recipe without a photo (always a
  *  gradient — the real photo is layered on top via <img> so a missing/404 image
  *  reveals this instead of a blank box). */
