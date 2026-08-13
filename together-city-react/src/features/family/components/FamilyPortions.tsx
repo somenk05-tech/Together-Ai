@@ -4,13 +4,17 @@ import { useFamilyPortions } from '@/features/nutrition/hooks';
 
 /** Per-member portions for the day's shared family meals (Family Stage 2).
  *  One dish is cooked; each person's plate is scaled to their own calorie target. */
-export function FamilyPortions({ dayIndex }: { dayIndex: number }) {
+export function FamilyPortions({ dayIndex, bare }: { dayIndex: number; bare?: boolean }) {
+  // `bare` strips the card so this can sit ON a printed sheet — the same
+  // pattern DayShoppingPanel uses. A white card on a press paper is the
+  // food-paper lesson: its lightest pixel is white, so the card has no edge.
+  const shell = bare ? undefined : 'card';
   const q = useFamilyPortions(dayIndex);
-  if (q.isLoading) return <div className="card"><Spinner label="Portioning per member…" /></div>;
+  if (q.isLoading) return <div className={shell}><Spinner label="Portioning per member…" /></div>;
   const data = q.data;
   if (q.isError || !data) {
     return (
-      <div className="card" style={{ padding: '16px 18px' }}>
+      <div className={shell} style={bare ? undefined : { padding: '16px 18px' }}>
         <p className="muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.6 }}>
           We couldn’t portion today’s meals just now — the plan itself is
           untouched. Try again in a moment.
@@ -22,11 +26,13 @@ export function FamilyPortions({ dayIndex }: { dayIndex: number }) {
   const soloOnly = data.members.length <= 1;
 
   return (
-    <div className="card" style={{ padding: '16px 18px' }}>
-      <h4 style={{ margin: '0 0 2px' }}>Personalised portions</h4>
-      <p className="muted" style={{ fontSize: 11.5, margin: '0 0 12px' }}>
-        Cook once — each plate scaled to that person's target.
-      </p>
+    <div className={shell} style={bare ? undefined : { padding: '16px 18px' }}>
+      {!bare && <h4 style={{ margin: '0 0 2px' }}>Personalised portions</h4>}
+      {!bare && (
+        <p className="muted" style={{ fontSize: 11.5, margin: '0 0 12px' }}>
+          Cook once — each plate scaled to that person's target.
+        </p>
+      )}
 
       {soloOnly && (
         <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
