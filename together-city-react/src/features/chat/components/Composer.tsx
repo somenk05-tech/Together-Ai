@@ -157,6 +157,7 @@ export function Composer({ onSend, onTyping }: {
         <input ref={fileRef} type="file" multiple onChange={onPick}
           style={{ display: 'none' }} aria-hidden tabIndex={-1} />
 
+
         {recording ? (
           <>
             <span className="csrec-dot" aria-hidden />
@@ -170,17 +171,25 @@ export function Composer({ onSend, onTyping }: {
           </>
         ) : (
           <>
-            <button type="button" className="cstool" aria-label="Attach a file"
-              disabled={Boolean(busy)} onClick={() => fileRef.current?.click()}>📎</button>
+            {/* BOTH WAYS OF ATTACHING SIT TOGETHER, ON THE LEFT (owner's call,
+                13 Aug). They are the same kind of act — put something into the
+                message that is not typing — so they belong in one place, and
+                the right-hand corner belongs to Send alone. The microphone used
+                to live there and swap with Send, which meant the key under your
+                thumb changed identity as you typed. */}
+            <span className="cstools">
+              <button type="button" className="cstool" aria-label="Attach a file"
+                disabled={Boolean(busy)} onClick={() => fileRef.current?.click()}>📎</button>
+              <button type="button" className="cstool" aria-label="Record a voice note"
+                disabled={Boolean(busy)} onClick={() => void startRec()}>🎙</button>
+            </span>
             <input value={body} placeholder="Write a message…" aria-label="Write a message"
               disabled={Boolean(busy)}
               onChange={(e) => { setBody(e.target.value); onTyping(e.target.value.length > 0); }} />
-            {/* The microphone gives way to Send the moment there is text: one
-                key in that corner, and it does the thing the box is holding. */}
-            {body.trim()
-              ? <button type="submit" className="cssend" aria-label="Send" disabled={Boolean(busy)}>➤</button>
-              : <button type="button" className="cstool" aria-label="Record a voice note"
-                  disabled={Boolean(busy)} onClick={() => void startRec()}>🎙</button>}
+            {/* Disabled rather than absent: the capsule keeps its shape as you
+                type, and `.cssend[disabled]` is already drawn as a hollow key
+                for exactly this state. */}
+            <button type="submit" className="cssend" aria-label="Send" disabled={Boolean(busy) || !body.trim()}>➤</button>
           </>
         )}
       </form>

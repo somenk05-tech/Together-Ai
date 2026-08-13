@@ -3058,6 +3058,10 @@ textarea.g-field { resize: none; line-height: 1.55; }
 /* THE TWO QUIET KEYS — attach and record. They are not the send: the send is
    the one raised key in the capsule and stays the only one, so these are flat,
    the stage's soft ink, and the same 42px target the send has. */
+/* The two attach keys as one object: a single group at the left edge, tight
+   to each other and spaced from the field, so they read as "the ways to add
+   something" rather than two unrelated buttons the field happens to sit after. */
+.cscomposer .cstools { display: flex; align-items: center; gap: 2px; flex: none; margin-left: -6px; }
 .cscomposer .cstool { width: 42px; height: 42px; flex: none; border-radius: var(--r-full);
   display: grid; place-items: center; border: 0; background: none; cursor: pointer;
   font-family: inherit; font-size: 17px; line-height: 1; color: var(--on-stage-soft); padding: 0; }
