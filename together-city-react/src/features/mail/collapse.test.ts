@@ -73,8 +73,13 @@ describe('the folded line', () => {
     expect(out.endsWith('…')).toBe(true);
   });
 
-  it('an empty body previews as nothing, not as "undefined"', () => {
-    expect(previewOf('')).toBe('');
-    expect(previewOf('   \n  \n')).toBe('');
+  it('an empty body says it is empty, rather than drawing a void', () => {
+    // This asserted '' until 14 Aug, and '' is what put eight rows in one
+    // mailbox that were a name, a date and nothing — indistinguishable from a
+    // row still loading, and from a bug. Empty messages are refused at the
+    // composer now; the ones already sent still have to render as something
+    // honest.
+    expect(previewOf('')).toBe('(no text)');
+    expect(previewOf('   \n  \n')).toBe('(no text)');
   });
 });

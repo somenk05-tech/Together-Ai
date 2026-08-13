@@ -76,5 +76,11 @@ export function previewOf(unquotedBody: string, max = 110): string {
     .split('\n')
     .map((l) => l.trim())
     .find((l) => l.length > 0) ?? '';
+  // A MESSAGE WITH NOTHING IN IT SAYS SO. Returning '' drew a row that was a
+  // name, a date and a void — indistinguishable from one still loading, and
+  // from a bug. Empty messages should not be sendable at all (the composer
+  // refuses them now), but eight of them already exist in one mailbox and
+  // they have to render as something honest.
+  if (!line) return '(no text)';
   return line.length > max ? `${line.slice(0, max - 1).trimEnd()}…` : line;
 }

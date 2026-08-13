@@ -148,7 +148,28 @@ export function Compose() {
   }, [to, dir.data]);
 
   const pick = (d: DirectoryEntry) => { setTo(d.address); setShowSug(false); };
-  const canSend = to.trim() && !send.isPending;
+  /**
+   * A MESSAGE NEEDS SOMETHING IN IT.
+   *
+   * `to.trim() && !send.isPending` was the whole test, so Send was live on an
+   * empty box — and a thread in this mailbox now holds EIGHT blank messages,
+   * each one a name and a date and nothing else, sent by a finger that was
+   * already on the key. The city's chat composer has required a body since it
+   * was written; its mail composer never did.
+   *
+   * An attachment counts as something to send: a file with no covering note is
+   * a message. A subject alone is not — that is the slip this is catching.
+   *
+   * AND A REPLY WAITS FOR ITS THREAD. The quotation is built from the trail,
+   * and until the trail arrives there is nothing to quote: pressing Send in
+   * that half-second sends a reply carrying no history, with nothing on screen
+   * to say the history was missing. It is the same race the project key had,
+   * and it gets the same answer — the key is not live until the fact it needs
+   * is in hand.
+   */
+  const hasSomething = Boolean(body.trim()) || attachments.length > 0;
+  const trailPending = Boolean(threadId) && trail.isLoading;
+  const canSend = to.trim() && hasSomething && !trailPending && !send.isPending;
 
   const inp = { padding: '11px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' as const, background: 'var(--card)' };
 
@@ -282,7 +303,7 @@ export function Compose() {
               { to, cc: addrs(cc), bcc: addrs(bcc), subject: subject || '(no subject)', body: withQuote(body, quote), threadId, attachmentFileIds: attachments.map((f) => f.id), draftId: draftId.current, projectKey },
               { onSuccess: () => { if (threadId) nav(-1); else nav(projectKey ? `/mail/p/${projectKey}/sent` : '/mail/sent'); } },
             )}>
-            {send.isPending ? 'Sending…' : threadId ? 'Send reply' : 'Send'}
+            {send.isPending ? 'Sending…' : trailPending ? 'Loading the thread…' : threadId ? 'Send reply' : 'Send'}
           </Button>
           <Button variant="line" onClick={() => nav(-1)}>Cancel</Button>
           {/* Says what actually happened, and where to find it. */}
