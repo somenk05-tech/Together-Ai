@@ -1,7 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageHeader, Button, Spinner, EmptyState, Chip } from '@/components/ui';
-import { DayTabs } from '@/features/nutrition/components/DayTabs';
 import { GroceryPlanner } from '@/features/nutrition/components/GroceryPlanner';
 import { ComposedMealCard } from '@/features/nutrition/components/ComposedMealCard';
 import { ProfileIncomplete } from '@/features/nutrition/components/ProfileIncomplete';
@@ -12,7 +11,7 @@ import { useFamily, headcount, MEMBERS } from '../members';
 import { FamilySnacks } from '../components/FamilySnacks';
 import { HouseholdPlanNotice } from '../components/HouseholdPlanNotice';
 import { FamilyPortions } from '../components/FamilyPortions';
-import { planDates, weekdayFull } from '@/features/nutrition/planDates';
+import { planDates, planDayOffset, weekdayFull, shortDate } from '@/features/nutrition/planDates';
 
 const chipStyle: React.CSSProperties = {
   fontSize: 9.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase',
@@ -33,7 +32,11 @@ const chipStyle: React.CSSProperties = {
  * Mains are cooked together; snacks stay personal per member.
  */
 export function FamilyWeekly() {
-  const [dayIndex, setDayIndex] = useState(0);
+  // null until the citizen picks — the rail then defaults to TODAY, exactly
+  // like the individual planner. An index of 0 is the 1st of the month, which
+  // by the second week is a morning nobody can cook again.
+  const [picked, setPicked] = useState<number | null>(null);
+  const railRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<'plan' | 'grocery'>('plan');
   // The My Preferences / Optimal Health toggle now does something here: both
   // modes are real compositions, which is exactly what the older engine on this
@@ -54,6 +57,12 @@ export function FamilyWeekly() {
   const { state } = useFamily();
   const N = headcount(state);
 
+  // Keep the selected day centred in the rail, the individual planner's touch.
+  useEffect(() => {
+    const el = railRef.current?.querySelector('[data-active="true"]') as HTMLElement | null;
+    el?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+  }, [picked, plan.data]);
+
   if (plan.isLoading) return <Spinner label="Building your family plan…" />;
   if (plan.isError || !plan.data) {
     return <EmptyState icon="🗓️" title="Couldn't load your plan" hint="Reload the page to try again." />;
@@ -64,9 +73,10 @@ export function FamilyWeekly() {
   const days = week.days ?? [];
   if (!days.length) return <EmptyState icon="🗓️" title="No plan yet" hint="Save your Nutrition preferences and the household plan appears here." />;
 
-  const clamped = Math.min(dayIndex, days.length - 1);
-  const day = days[clamped];
   const dates = planDates(week.planStartDate, days.length);
+  const todayIdx = Math.min(days.length - 1, planDayOffset(week.planStartDate));
+  const clamped = Math.max(todayIdx, Math.min(picked ?? todayIdx, days.length - 1));
+  const day = days[clamped];
   const last = clamped === days.length - 1;
   // Snacks are personalised per member, so they're rendered by FamilySnacks
   // rather than as part of the shared plate.
@@ -107,7 +117,30 @@ export function FamilyWeekly() {
       {tab === 'plan' && (
       <div style={{ display: 'grid', gridTemplateColumns: '2.3fr 1fr', gap: 28, alignItems: 'start', marginTop: 22 }} className="tc-dashgrid">
         <div>
-          <DayTabs days={dates.map(weekdayFull)} current={clamped} onSelect={setDayIndex} />
+          {/* THE RAIL IS THE INDIVIDUAL PLANNER'S: today first, real dates,
+              TODAY named, one scrollable row with chevrons, the month as its
+              horizon. The weekday-only wrapped tabs said "Sat" thirty-one
+              times and never a date — a calendar with no calendar in it. */}
+          <div style={{ display: 'flex', alignItems: 'stretch', gap: 8, marginBottom: 14 }}>
+            <button type="button" aria-label="Previous day" disabled={clamped <= todayIdx} onClick={() => setPicked(Math.max(todayIdx, clamped - 1))}
+              style={{ display: 'grid', placeItems: 'center', width: 34, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--muted)', cursor: clamped <= todayIdx ? 'default' : 'pointer', opacity: clamped <= todayIdx ? 0.4 : 1, fontSize: 18 }}>‹</button>
+            <div ref={railRef} style={{ flex: 1, display: 'flex', gap: 2, overflowX: 'auto', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 16, padding: 5, scrollbarWidth: 'none' }}>
+              {days.map((_, i) => i).filter((i) => i >= todayIdx).map((i) => {
+                const on = i === clamped;
+                return (
+                  <button key={i} type="button" onClick={() => setPicked(i)} aria-current={on} data-active={on ? 'true' : undefined}
+                    style={{ flex: '1 0 auto', minWidth: 84, border: 'none', background: on ? 'var(--accent-soft)' : 'transparent', borderRadius: 11, padding: '8px 12px', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center' }}>
+                    <div style={{ fontSize: 12, fontWeight: on ? 800 : 700, letterSpacing: '.03em', color: on ? 'var(--accent)' : 'var(--ink-soft)' }}>
+                      {i === todayIdx ? 'TODAY' : weekdayFull(dates[i]).toUpperCase()}
+                    </div>
+                    <div style={{ fontSize: 10.5, marginTop: 2, color: on ? 'var(--accent)' : 'var(--muted)' }}>{shortDate(dates[i])}</div>
+                  </button>
+                );
+              })}
+            </div>
+            <button type="button" aria-label="Next day" disabled={last} onClick={() => setPicked(Math.min(days.length - 1, clamped + 1))}
+              style={{ display: 'grid', placeItems: 'center', width: 34, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--muted)', cursor: last ? 'default' : 'pointer', opacity: last ? 0.4 : 1, fontSize: 18 }}>›</button>
+          </div>
 
           <section className="card" style={{ padding: '0 20px 20px', borderRadius: 20, marginBottom: 20 }}>
             <div style={{ margin: '0 -20px 16px', padding: '13px 20px', background: 'var(--accent-soft)', borderRadius: '20px 20px 0 0', borderBottom: '1px solid var(--line)' }}>
@@ -127,11 +160,13 @@ export function FamilyWeekly() {
           </section>
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 18px', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 16, boxShadow: 'var(--shadow)' }}>
-            <Button variant="line" disabled={clamped === 0} onClick={() => setDayIndex((i) => Math.max(0, i - 1))}>← Previous</Button>
-            <span style={{ fontFamily: 'var(--serif)', fontSize: 15 }}>{weekdayFull(dates[clamped])} · Day {clamped + 1} of {days.length}</span>
+            <Button variant="line" disabled={clamped <= todayIdx} onClick={() => setPicked(Math.max(todayIdx, clamped - 1))}>← Previous</Button>
+            {/* The date, not "Day 14 of 31" — an index into the month is a
+                number nobody's kitchen runs on. */}
+            <span style={{ fontFamily: 'var(--serif)', fontSize: 15 }}>{weekdayFull(dates[clamped])} · {shortDate(dates[clamped])}</span>
             {last
               ? <Link to="/family/grocery"><Button variant="accent">🛒 Add to cart</Button></Link>
-              : <Button variant="accent" onClick={() => setDayIndex((i) => i + 1)}>Next →</Button>}
+              : <Button variant="accent" onClick={() => setPicked(clamped + 1)}>Next →</Button>}
           </div>
 
           <div style={{ margin: '24px 0', padding: 20, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 'var(--radius)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
