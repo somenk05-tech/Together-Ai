@@ -6,6 +6,19 @@ import { fileURLToPath } from 'node:url';
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const plan = readFileSync(join(web, 'features', 'nutrition', 'pages', 'MealPlan.tsx'), 'utf8');
 const card = readFileSync(join(web, 'features', 'nutrition', 'components', 'ComposedMealCard.tsx'), 'utf8');
+/**
+ * ABOUT-THIS-MENU MOVED, AND THIS FOLLOWED IT RATHER THAN RELAXING.
+ *
+ * The panel used to be declared inside MealPlan.tsx. It now lives beside the
+ * printed sheet in components/PressDay.tsx, because the FAMILY planner prints
+ * the same plate and neither page should own the other's copy of it. The three
+ * assertions below are unchanged in substance — they still check the same
+ * sentences on the same panel — they just read the file it is in now.
+ *
+ * The alternative was widening each regex until it matched either file, which
+ * is how a guard stops being able to say where anything is.
+ */
+const sheet = readFileSync(join(web, 'features', 'nutrition', 'components', 'PressDay.tsx'), 'utf8');
 
 /**
  * The planner rail answers the two questions a menu raises.
@@ -58,19 +71,20 @@ describe("the day's shopping panel", () => {
 
 describe('about this menu', () => {
   it('is in the rail', () => {
+    // Still rendered BY the planner, now declared beside the sheet.
     expect(plan).toMatch(/<AboutThisMenu\b/);
-    expect(plan).toMatch(/function AboutThisMenu\(/);
+    expect(sheet).toMatch(/export function AboutThisMenu\(/);
   });
 
   it('says how much of the micronutrient picture it could actually compute', () => {
-    expect(plan).toMatch(/nutrientComplete/);
-    expect(plan).toMatch(/a floor, not a total/);
+    expect(sheet).toMatch(/nutrientComplete/);
+    expect(sheet).toMatch(/a floor, not a total/);
   });
 
   it('states the eating window only on a day that has one', () => {
     // A day with no fasting protocol has no window to state, and printing one
     // anyway would invent a restriction nobody set.
-    expect(plan).toMatch(/if \(d\.fasting\) facts\.push\(/);
+    expect(sheet).toMatch(/if \(d\.fasting\) facts\.push\(/);
   });
 });
 

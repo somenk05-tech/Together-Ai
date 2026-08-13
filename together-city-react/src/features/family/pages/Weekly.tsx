@@ -7,7 +7,7 @@ import { ComposedMealCard } from '@/features/nutrition/components/ComposedMealCa
 import { ProfileIncomplete } from '@/features/nutrition/components/ProfileIncomplete';
 import { PlanModeToggle } from '@/features/nutrition/components/PlanModeToggle';
 import { useComposedPlan, useRenewPlan, type PlanMode } from '@/features/nutrition/composed.api';
-import { useRecipes, useBuildCart } from '@/features/nutrition/hooks';
+import { useRecipes, useBuildCart, useFamilyPortions } from '@/features/nutrition/hooks';
 import { useFamily, headcount, MEMBERS } from '../members';
 import { FamilySnacks } from '../components/FamilySnacks';
 import { HouseholdPlanNotice } from '../components/HouseholdPlanNotice';
@@ -48,6 +48,7 @@ export function FamilyWeekly() {
   // the endpoint call behind it. Its per-member protein-swap merge is the one
   // thing lost, and that belongs on the composed path anyway.
   const buildCart = useBuildCart();
+  const portions = useFamilyPortions(0);
   const navigate = useNavigate();
   const recipes = useRecipes();
   const { state } = useFamily();
@@ -77,7 +78,21 @@ export function FamilyWeekly() {
         title="Weekly Meal Planner"
         sub="The household's plan, composed from every member's needs — refresh or skip any meal." />
 
-      <HouseholdPlanNotice people={N} />
+      {/* ONE ANSWER TO "WHO IS EATING", because the page was giving two. The
+          notice counted `headcount(state)` — the LOCAL family state, which
+          tracks members you have disabled on this device — while the portions
+          panel a few hundred pixels to its right listed whoever the server
+          portioned the day for. On a household with a locally-disabled member
+          that reads "cooked together for the whole family (1 person)" directly
+          beside a table of two people's plates, and both are printed as fact.
+
+          The sentence now counts what the table counts, because the table is
+          the thing on screen next to it. `headcount` remains the fallback for
+          the moment before the query settles, and remains what the grocery
+          cart is portioned by — if a local disable is meant to change what you
+          BUY as well as what you read, that is a separate decision and not one
+          a caption should make quietly. */}
+      <HouseholdPlanNotice people={portions.data?.members.length ?? N} />
 
       <PlanModeToggle mode={mode} onChange={setMode} busy={plan.isFetching} />
 

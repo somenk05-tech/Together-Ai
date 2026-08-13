@@ -8,7 +8,7 @@ import {
 } from '../composed.api';
 import { useHealthScore } from '@/features/profile/hooks';
 import { SkippedMealCard } from '../components/ComposedMealCard';
-import { PressCourse } from '../components/PressCourse';
+import { PressDay, PressRing, AboutThisMenu } from '../components/PressDay';
 import { PlannerModeToggle } from '../components/PlannerModeToggle';
 import { usePlannerMode } from '../plannerMode';
 import { skippedSlotsFor, skippedRolesFor } from '../skips';
@@ -197,58 +197,6 @@ function DayShoppingPanel({ d, dayIndex, locked, skips, bare }: {
 }
 
 /**
- * About this menu — what can be said about the day from the day itself.
- *
- * Deliberately only facts already on the page: how many dishes, how long they
- * take, which cuisines are in it, and how much of the micronutrient picture we
- * could actually compute. That last line is the one worth having. The nutrition
- * panel above prints sodium and potassium, and it prints them only for the
- * dishes whose ingredients we recognise; without a count, a citizen reading a
- * sodium figure has no way to know it is a figure for part of their day.
- */
-function AboutThisMenu({ d, bare }: { d: ComposedDay; bare?: boolean }) {
-  const comps = d.meals.flatMap((m) => m.components);
-  const cuisines = [...new Set(comps.map((c) => (c.cuisine ?? "").trim()).filter(Boolean))];
-  const minutes = d.meals.reduce((t, m) => t + (m.minutes || 0), 0);
-  const complete = comps.filter((c) => c.nutrientComplete).length;
-  const facts: string[] = [
-    `${comps.length} dish${comps.length === 1 ? "" : "es"} across ${d.meals.length} meal${d.meals.length === 1 ? "" : "s"}.`,
-    `About ${minutes} minutes of cooking in total.`,
-  ];
-  if (cuisines.length) {
-    facts.push(cuisines.length <= 3
-      ? `${cuisines.join(", ")}.`
-      : `${cuisines.slice(0, 3).join(", ")} and ${cuisines.length - 3} more.`);
-  }
-  if (d.fasting) facts.push(`Everything falls inside ${d.window.start}\u2013${d.window.end}.`);
-  if (comps.length) {
-    facts.push(complete === comps.length
-      ? "Sodium and potassium are computed from every dish here."
-      : `Sodium and potassium come from ${complete} of these ${comps.length} dishes \u2014 the rest have ingredients we cannot yet measure, so those figures are a floor, not a total.`);
-  }
-  const list = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: bare ? 11 : 8 }}>
-      {facts.map((f) => (
-        <div key={f} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: bare ? 14 : 12.5, color: bare ? 'inherit' : 'var(--ink-soft)', lineHeight: bare ? 1.5 : 1.45 }}>
-          <span style={{ color: bare ? 'inherit' : 'var(--accent-ink)', marginTop: 1 }}><NIc name="check" size={14} stroke={2.2} /></span>{f}
-        </div>
-      ))}
-    </div>
-  );
-  // See DayShoppingPanel for why `bare` is a prop rather than a stylesheet rule.
-  if (bare) return <div><p className="press-lab">About this menu</p>{list}</div>;
-  return (
-    <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 18, padding: '16px 18px', boxShadow: 'var(--shadow)' }}>
-      <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center', marginBottom: 12 }}>
-        About this menu
-      </div>
-      {list}
-    </div>
-  );
-}
-
-
-/**
  * Lock this day — and put its shopping in the basket.
  *
  * The two halves are one action on purpose. Locking a day IS the moment a plan
@@ -358,9 +306,6 @@ function LockedDaySummary({ d, date }: { d: ComposedDay; date: Date }) {
 }
 
 
-/** Sunday-first, to match Date#getDay. The key a paper block is written against. */
-const PAPER = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
-
 function DayView({ wk, d, dayIndex, date, readOnly, lock }: { wk: ComposedWeek; d: ComposedDay; dayIndex: number; date: Date; readOnly?: boolean; lock?: ReactNode }) {
   const t = d.totals as Totals;
   const kcal = Math.max(1, t.kcal);
@@ -382,182 +327,62 @@ function DayView({ wk, d, dayIndex, date, readOnly, lock }: { wk: ComposedWeek; 
   const skips = wk.skips ?? [];
   const n = (v: number) => Math.round(v).toLocaleString('en-IN');
 
-  // THE PRINTED DAY, IN TWO SHEETS. See tokens.css → THE WEEK'S PAPERS for the
-  // papers and the argument for them, relief.css → THE DAY IN TWO SHEETS for the
-  // material, and relief.spec.ts for the guards that keep both here.
-  //
-  // The RECTO is what you decide; the VERSO is what you eat. They were one
-  // scrolling sheet, which left the lock bar stranded above a menu it was not
-  // about.
-  //
-  // Everything below is the engine's output, typeset. Not one figure, name or
-  // portion is written into this file: composedPlan builds a different week for
-  // every citizen out of their body, bloods, conditions, diet, allergies,
-  // goals, cuisine and history, and this page's only job is to survive the
-  // range of what that returns — including a day with no pair of papers, which
-  // falls back to the white press sheet and is a whole page, not a gap.
+  // THE PRINTED DAY LIVES IN components/PressDay.tsx NOW, because the family
+  // planner has to look identical and the only way two pages stay identical is
+  // for there to be one of them. What differs between a citizen's day and a
+  // household's is passed in as slots; the sheet itself is shared.
   return (
-    <div data-paper={PAPER[date.getDay()]}>
-
-      <section className="press-recto">
-        <div className="press-slug">
-          <span>the week&rsquo;s plan</span>
-          <span>day {dayIndex + 1} of {wk.days.length}</span>
-        </div>
-
-        <header className="press-masthead">
-          <div className="press-oval">{date.getDate()}</div>
-          <h1 className="press-day">{weekdayFull(date)}</h1>
-          <div className="press-date">{longDate(date)}</div>
-          <div className="press-hair" />
-          {/* The engine's own reading of this day, not a decoration. */}
-          <p className="press-note">{note}</p>
-        </header>
-
-        <div className="press-score" style={{ marginTop: 30 }} />
-
-        <div style={{ marginTop: 20 }}>
-          <p className="press-lab">Daily summary</p>
-          <dl className="press-stats">
-            <div><dt>Calories</dt><dd>{n(t.kcal)}<small>kcal</small></dd><span className="press-pc">{kcalPct}% of target</span></div>
-            <div><dt>Protein</dt><dd>{n(t.protein)}<small>g</small></dd><span className="press-pc">{pPct}%</span></div>
-            <div><dt>Carbohydrate</dt><dd>{n(t.carbs)}<small>g</small></dd><span className="press-pc">{cPct}%</span></div>
-            <div><dt>Fat</dt><dd>{n(t.fat)}<small>g</small></dd><span className="press-pc">{fPct}%</span></div>
-            <div><dt>Fibre</dt><dd>{n(t.fiber)}<small>g</small></dd><span className="press-pc">{fibPct}%</span></div>
-          </dl>
-        </div>
-
-        {/* The lock is HANDED IN rather than built here: it belongs to the day
-            sheet visually and to the planner logically, and moving the component
-            would have meant a locked day losing its unlock. Same markup, same
-            behaviour, one sheet further down the page. */}
-        {lock && <div className="press-plate" style={{ marginTop: 22, padding: '18px 22px' }}>{lock}</div>}
-
-        <div className="press-plate press-two-up">
-          <AboutThisMenu d={d} bare />
-          <DayShoppingPanel d={d} dayIndex={dayIndex} locked={(wk.locks ?? []).includes(dayIndex)} skips={skips} bare />
-        </div>
-
-        {/* THE RECTO PRINTED THE FIVE FIGURES TWICE. `Daily summary` above already
-            carries them AND their percentage against the target, which is strictly
-            more than a bare repeat of the same numbers eighty pixels lower; the
-            verso then printed them a third time. Each sheet keeps exactly one
-            printing, and the two do different jobs: the recto reads the day
-            against its targets, the verso sums the menu you have just read. */}
-
-        <div className="press-sign">
-          <span>Together City</span><span>nutrition // the printed day</span>
-        </div>
-      </section>
-
-      <section className="press-verso">
-        <aside className="press-rail">
-          <div className="press-rail-top">{weekdayFull(date)}<em>{longDate(date)}</em></div>
-          <div className="press-rail-hair" />
-          <div className="press-oval">{date.getDate()}</div>
-          {/* The same verdict the note is built from, cut to a display line in
-              dayBalance.ts rather than sliced out of the sentence below it. */}
-          <h2 className="press-verdict">{head}</h2>
-          <div className="press-rail-hair" />
-          <p className="press-quote">&ldquo;{note}&rdquo;</p>
-        </aside>
-
+    <PressDay
+      d={d} date={date} dayIndex={dayIndex} dayCount={wk.days.length}
+      note={note} head={head} readOnly={readOnly} skips={skips}
+      sign="nutrition // the printed day"
+      summary={<>
+        <div><dt>Calories</dt><dd>{n(t.kcal)}<small>kcal</small></dd><span className="press-pc">{kcalPct}% of target</span></div>
+        <div><dt>Protein</dt><dd>{n(t.protein)}<small>g</small></dd><span className="press-pc">{pPct}%</span></div>
+        <div><dt>Carbohydrate</dt><dd>{n(t.carbs)}<small>g</small></dd><span className="press-pc">{cPct}%</span></div>
+        <div><dt>Fat</dt><dd>{n(t.fat)}<small>g</small></dd><span className="press-pc">{fPct}%</span></div>
+        <div><dt>Fibre</dt><dd>{n(t.fiber)}<small>g</small></dd><span className="press-pc">{fibPct}%</span></div>
+      </>}
+      action={lock}
+      aboutLeft={<AboutThisMenu d={d} />}
+      aboutRight={<DayShoppingPanel d={d} dayIndex={dayIndex} locked={(wk.locks ?? []).includes(dayIndex)} skips={skips} bare />}
+      totals={<>
+        <div><dt>Calories</dt><dd>{n(t.kcal)}</dd></div>
+        <div><dt>Protein</dt><dd>{n(t.protein)}g</dd></div>
+        <div><dt>Carbs</dt><dd>{n(t.carbs)}g</dd></div>
+        <div><dt>Fat</dt><dd>{n(t.fat)}g</dd></div>
+        <div><dt>Fibre</dt><dd>{n(t.fiber)}g</dd></div>
+      </>}
+      restored={!readOnly && skippedSlotsFor(skips, dayIndex).map((slot) => (
+        <SkippedMealCard key={`skipped-${slot}`} dayIndex={dayIndex} slot={slot} />
+      ))}
+      under={<>
         <div>
-          <div className="press-bill-head">
-            <p className="press-lab">Today&rsquo;s menu</p>
-            <div className="press-tot">Total calories <b>{n(t.kcal)}<small>&nbsp;kcal</small></b></div>
-          </div>
-
-          {d.fasting && (
-            <p className="press-desc" style={{ margin: '16px 0 0' }}>
-              Eating window {d.window.start}&ndash;{d.window.end}.
-            </p>
-          )}
-          {d.meals.map((m) => (
-            <PressCourse key={m.slot} meal={m} dayIndex={dayIndex} readOnly={readOnly} skips={skips} />
-          ))}
-          {/* A skipped MEAL leaves the composer's output entirely, so without this
-              its course is simply absent and the only way back is the
-              restore-everything banner. */}
-          {!readOnly && skippedSlotsFor(skips, dayIndex).map((slot) => (
-            <SkippedMealCard key={`skipped-${slot}`} dayIndex={dayIndex} slot={slot} />
-          ))}
-
-          <div className="press-score" style={{ marginTop: 24 }} />
-
-          <div style={{ marginTop: 16 }}>
-            <p className="press-lab">Total nutrition</p>
-            <dl className="press-foot">
-              <div><dt>Calories</dt><dd>{n(t.kcal)}</dd></div>
-              <div><dt>Protein</dt><dd>{n(t.protein)}g</dd></div>
-              <div><dt>Carbs</dt><dd>{n(t.carbs)}g</dd></div>
-              <div><dt>Fat</dt><dd>{n(t.fat)}g</dd></div>
-              <div><dt>Fibre</dt><dd>{n(t.fiber)}g</dd></div>
-            </dl>
-          </div>
-
-          <div className="press-under">
-            <div>
-              <p className="press-lab">Macro breakdown</p>
-              <div className="press-ring">
-                <PressRing kcal={t.kcal} p={pPct} c={cPct} f={fPct} />
-                <div className="press-key">
-                  <div><i style={{ background: 'var(--press-macro-1)' }} /><span className="press-l">Protein</span><span className="press-n">{n(t.protein)}g · {pPct}%</span></div>
-                  <div><i style={{ background: 'var(--press-macro-2)' }} /><span className="press-l">Carbs</span><span className="press-n">{n(t.carbs)}g · {cPct}%</span></div>
-                  <div><i style={{ background: 'var(--press-macro-3)' }} /><span className="press-l">Fat</span><span className="press-n">{n(t.fat)}g · {fPct}%</span></div>
-                </div>
-              </div>
-              {/* Fibre is in the summary and the footer but never a slice: it carries
-                  no energy to plot beside the three that do, and a fourth wedge in
-                  the same hue said it did. */}
-              <p className="press-desc" style={{ marginTop: 14 }}>
-                Fibre sits outside the ring — {n(t.fiber)}&nbsp;g today, against {n(wk.prescription.fiber)}&nbsp;g.
-              </p>
+          <p className="press-lab">Macro breakdown</p>
+          <div className="press-ring">
+            <PressRing kcal={t.kcal} p={pPct} c={cPct} f={fPct} />
+            <div className="press-key">
+              <div><i style={{ background: 'var(--press-macro-1)' }} /><span className="press-l">Protein</span><span className="press-n">{n(t.protein)}g · {pPct}%</span></div>
+              <div><i style={{ background: 'var(--press-macro-2)' }} /><span className="press-l">Carbs</span><span className="press-n">{n(t.carbs)}g · {cPct}%</span></div>
+              <div><i style={{ background: 'var(--press-macro-3)' }} /><span className="press-l">Fat</span><span className="press-n">{n(t.fat)}g · {fPct}%</span></div>
             </div>
-
-            <aside className="press-aside">
-              <section>
-                <h3>Nutrition summary</h3>
-                <div className="press-bar"><span className="press-lab">Calories</span><span className="press-track"><i style={{ width: `${kcalPct}%` }} /></span><span className="press-val">{n(t.kcal)}<em>kcal</em></span></div>
-                <div className="press-bar"><span className="press-lab">Protein</span><span className="press-track"><i style={{ width: `${pPct}%` }} /></span><span className="press-val">{n(t.protein)}g<em>{pPct}%</em></span></div>
-                <div className="press-bar"><span className="press-lab">Carbs</span><span className="press-track"><i style={{ width: `${cPct}%` }} /></span><span className="press-val">{n(t.carbs)}g<em>{cPct}%</em></span></div>
-                <div className="press-bar"><span className="press-lab">Fat</span><span className="press-track"><i style={{ width: `${fPct}%` }} /></span><span className="press-val">{n(t.fat)}g<em>{fPct}%</em></span></div>
-                <div className="press-bar"><span className="press-lab">Fibre</span><span className="press-track"><i style={{ width: `${fibPct}%` }} /></span><span className="press-val">{n(t.fiber)}g<em>{fibPct}%</em></span></div>
-              </section>
-            </aside>
           </div>
+          <p className="press-desc" style={{ marginTop: 14 }}>
+            Fibre sits outside the ring — {n(t.fiber)}&nbsp;g today, against {n(wk.prescription.fiber)}&nbsp;g.
+          </p>
         </div>
-
-        <div className="press-sign">
-          <span>Together City</span><span>nutrition // the menu</span>
-        </div>
-      </section>
-    </div>
-  );
-}
-
-/** The macro ring: one hue at three values, because it is a proportion and not
- *  a palette. Percentages come in already computed against the day's energy. */
-function PressRing({ kcal, p, c, f }: { kcal: number; p: number; c: number; f: number }) {
-  const label = `Of today's energy: protein ${p} per cent, carbohydrate ${c} per cent, fat ${f} per cent`;
-  return (
-    <svg width="126" height="126" viewBox="0 0 42 42" role="img" aria-label={label}>
-      <circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--press-macro-0)" strokeWidth="2.6" />
-      <circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--press-macro-1)" strokeWidth="2.6"
-        strokeDasharray={`${p} ${100 - p}`} strokeDashoffset="25" />
-      <circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--press-macro-2)" strokeWidth="2.6"
-        strokeDasharray={`${c} ${100 - c}`} strokeDashoffset={String(25 - p)} />
-      <circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--press-macro-3)" strokeWidth="2.6"
-        strokeDasharray={`${f} ${100 - f}`} strokeDashoffset={String(25 - p - c)} />
-      <text x="21" y="20.3" textAnchor="middle"
-        style={{ fontFamily: 'var(--press-mono)', fontSize: '6px', fill: 'var(--press-ink)' }}>
-        {Math.round(kcal).toLocaleString('en-IN')}
-      </text>
-      <text x="21" y="25" textAnchor="middle"
-        style={{ fontFamily: 'var(--sans)', fontSize: '2.9px', fill: 'var(--press-ink-3)', letterSpacing: '.14em' }}>
-        KCAL
-      </text>
-    </svg>
+        <aside className="press-aside">
+          <section>
+            <h3>Nutrition summary</h3>
+            <div className="press-bar"><span className="press-lab">Calories</span><span className="press-track"><i style={{ width: `${kcalPct}%` }} /></span><span className="press-val">{n(t.kcal)}<em>kcal</em></span></div>
+            <div className="press-bar"><span className="press-lab">Protein</span><span className="press-track"><i style={{ width: `${pPct}%` }} /></span><span className="press-val">{n(t.protein)}g<em>{pPct}%</em></span></div>
+            <div className="press-bar"><span className="press-lab">Carbs</span><span className="press-track"><i style={{ width: `${cPct}%` }} /></span><span className="press-val">{n(t.carbs)}g<em>{cPct}%</em></span></div>
+            <div className="press-bar"><span className="press-lab">Fat</span><span className="press-track"><i style={{ width: `${fPct}%` }} /></span><span className="press-val">{n(t.fat)}g<em>{fPct}%</em></span></div>
+            <div className="press-bar"><span className="press-lab">Fibre</span><span className="press-track"><i style={{ width: `${fibPct}%` }} /></span><span className="press-val">{n(t.fiber)}g<em>{fibPct}%</em></span></div>
+          </section>
+        </aside>
+      </>}
+    />
   );
 }
 
@@ -780,18 +605,17 @@ export function MealPlan() {
         {!wk.readOnly && <Button variant="line" size="sm" onClick={() => setShowSettings(true)}>Meal settings</Button>}
       </div>
 
-      {/* Whose plan this is. The component draws nothing unless the household
-          actually offers a shared plan, so a solo citizen sees no switch and is
-          not asked a question that has one answer. */}
-      {planner.canUseFamily && (
-        <div style={{ marginTop: 14 }}>
-          <PlannerModeToggle
-            mode={planner.mode}
-            onChange={planner.setMode}
-            busy={plan.isFetching}
-          />
-        </div>
-      )}
+      {/* THE FAMILY / INDIVIDUAL SWITCH IS NOT HERE ANY MORE. Removed at the
+          owner's word: the hub rail already carries Individual and Family as its
+          top two entries, so this was a second door into the same room, sitting
+          above a page that had just told you which room you were in.
+
+          IT SURVIVES IN EXACTLY ONE PLACE — the error state further up, where a
+          household plan that failed to build would otherwise leave somebody with
+          no way back to their own. That instance is not a duplicate of this one;
+          it is the only switch reachable when the page has nothing else on it,
+          and its own comment says so. Deleting it too would restore a bug that
+          was deliberately fixed. */}
 
       {/*
         FE-8.1 (p9): Optimal Health is offered only when there is something for
