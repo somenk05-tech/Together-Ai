@@ -26,8 +26,19 @@ export function Sidebar({ hub }: { hub: HubConfig }) {
    * project the rail is that project's folders; everywhere else `hub.items`
    * is untouched, for all twenty-five hubs that share this layout.
    */
-  const { pathname } = useLocation();
-  const projectKey = pathname.startsWith('/mail/p/') ? (pathname.split('/')[3] ?? '') : '';
+  const { pathname, search } = useLocation();
+  /**
+   * WHICH ROOM YOU ARE IN, and the composer counts.
+   *
+   * /mail/p/<key> is the obvious half. The other half is /mail/compose?project=
+   * <key>: pressing Compose in a project's own rail took you to a URL that did
+   * not look like a project, so the rail reverted to the whole mailbox's
+   * mid-task — the one moment you are most sure you are still inside the room,
+   * because you got there from its own menu.
+   */
+  const projectKey = pathname.startsWith('/mail/p/')
+    ? (pathname.split('/')[3] ?? '')
+    : (pathname === '/mail/compose' ? (new URLSearchParams(search).get('project') ?? '') : '');
   const open = useUiStore((s) => s.sidebarOpen);
   const toggle = useUiStore((s) => s.toggleSidebar);
 
@@ -70,15 +81,31 @@ export function Sidebar({ hub }: { hub: HubConfig }) {
       {projectKey ? (
         <MailProjectSideRail projectKey={projectKey} onNavigate={() => toggle(false)} />
       ) : (
-        <nav className="side-menu">
-          {hub.items.map((it) => (
-            <NavLink key={it.path} to={it.path} onClick={() => toggle(false)}
-              className={({ isActive }) => (isActive ? 'active' : undefined)}>
-              <span className="n">{it.index}</span>
-              <span><span className="l">{it.label}</span><span className="s">{it.sub}</span></span>
-            </NavLink>
-          ))}
-        </nav>
+        <>
+          <nav className="side-menu">
+            {hub.items.map((it) => (
+              <NavLink key={it.path} to={it.path} onClick={() => toggle(false)}
+                className={({ isActive }) => (isActive ? 'active' : undefined)}>
+                <span className="n">{it.index}</span>
+                <span><span className="l">{it.label}</span><span className="s">{it.sub}</span></span>
+              </NavLink>
+            ))}
+          </nav>
+          {/* THE WAY OUT SITS BELOW THE HAIRLINE, NOT IN THE NUMBERED LIST.
+              The numbered rail is the folders of the room you are standing in,
+              and "Projects" is not one of All Emails' folders — it is the door
+              back to the wall. Exactly where the project rail keeps its own
+              way out, and for the same reason. Mail only. */}
+          {hub.key === 'mail' && (
+            <nav className="side-menu mproj-side-out" aria-label="Leave All Emails">
+              <NavLink to="/mail" end onClick={() => toggle(false)}
+                className={({ isActive }) => (isActive ? 'active' : undefined)}>
+                <span className="n" aria-hidden><Icon name="sort" size={15} /></span>
+                <span><span className="l">Projects</span><span className="s">Every room in your mailbox</span></span>
+              </NavLink>
+            </nav>
+          )}
+        </>
       )}
       {/* MAIL IS THE ONE HUB WITH RAIL ENTRIES THAT ARE NOT IN CONFIG. Every
           other rail is a fixed list of screens; a citizen's projects are

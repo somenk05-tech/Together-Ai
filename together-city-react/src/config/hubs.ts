@@ -285,19 +285,20 @@ export const HUBS: Record<HubKey, HubConfig> = {
   mail: {
     key: 'mail', name: 'Together City Mail', tag: 'Your @togethercity.app inbox', backPath: '/mail',
     items: [
-      // The door, and the first thing in the rail: a mailbox with rooms in it
-      // is a mailbox you choose a room from before you read anything.
-      { path: '/mail', index: '01', label: 'Projects', sub: 'Every room in your mailbox' },
-      { path: '/mail/inbox', index: '02', label: 'All Email', sub: 'Every message, always' },
-      { path: '/mail/compose', index: '03', label: 'Compose', sub: 'Write a new message' },
-      { path: '/mail/sent', index: '04', label: 'Sent', sub: 'Messages that were accepted' },
+      // PROJECTS IS NOT ONE OF ALL EMAILS' FOLDERS. This numbered rail is the
+      // folders of the room you are standing in, and the door back to the wall
+      // hangs below the hairline instead — see Sidebar.tsx, where the project
+      // rail keeps its own way out in the same place for the same reason.
+      { path: '/mail/inbox', index: '01', label: 'All Email', sub: 'Every message, always' },
+      { path: '/mail/compose', index: '02', label: 'Compose', sub: 'Write a new message' },
+      { path: '/mail/sent', index: '03', label: 'Sent', sub: 'Messages that were accepted' },
       // One room for everything still waiting on the citizen: what they were
       // still writing, and what the provider refused. /mail/failed still
       // resolves for old links — see router.
-      { path: '/mail/unsent', index: '05', label: 'Drafts & Failed', sub: 'Unfinished, and rejected — pick either up' },
-      { path: '/mail/starred', index: '06', label: 'Starred', sub: 'Flagged for later' },
-      { path: '/mail/trash', index: '07', label: 'Trash', sub: 'Deleted mail' },
-      { path: '/mail/drive', index: '08', label: 'Drive', sub: 'Upload & attach your files' },
+      { path: '/mail/unsent', index: '04', label: 'Drafts & Failed', sub: 'Unfinished, and rejected — pick either up' },
+      { path: '/mail/starred', index: '05', label: 'Starred', sub: 'Flagged for later' },
+      { path: '/mail/trash', index: '06', label: 'Trash', sub: 'Deleted mail' },
+      { path: '/mail/drive', index: '07', label: 'Drive', sub: 'Upload & attach your files' },
     ],
   },
   financial: {

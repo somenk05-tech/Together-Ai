@@ -127,7 +127,7 @@ export function Compose() {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <div>
-          <div className="eyebrow">Mail · Compose</div>
+          <div className="eyebrow">{project?.name ?? projectKey ?? 'Mail'} · Compose</div>
           <h1 style={{ fontSize: 24, margin: 0 }}>✍️ {draftParam ? 'Continue your draft' : threadId ? 'Reply' : 'New message'}</h1>
           {/* Which room this is being written in, said once and plainly. A
               composer that looks identical everywhere is how a message meant
