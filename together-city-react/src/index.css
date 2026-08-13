@@ -1490,3 +1490,23 @@ html.tc-immersive .cscomposer { margin-bottom: calc(var(--safe-bottom) + 14px); 
   font-size: 12.5px; font-weight: 500;
 }
 .mproj-bar-mark { font-size: 12px; letter-spacing: .04em; }
+
+/* ── THE QUOTED TRAIL, UNDER A REPLY ──────────────────────────────────────
+   The control every mail client uses for this is three dots, and it is three
+   dots here. Read-only on purpose: the quotation is a record of what was
+   actually sent, and the place to change your own words is the box above it. */
+.mq { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.mq-key {
+  border: 1px solid var(--line-2); background: var(--card); color: var(--muted);
+  border-radius: 8px; min-width: 36px; min-height: 26px; padding: 0 10px;
+  font: inherit; font-size: 13px; line-height: 1; cursor: pointer; flex: 0 0 auto;
+}
+.mq-key:hover { color: var(--ink); border-color: var(--ink); }
+.mq-said { font-size: 12px; line-height: 1.5; align-self: center; }
+.mq-body {
+  flex-basis: 100%; margin: 4px 0 0; padding: 12px 14px;
+  border-left: 2px solid var(--line-2); background: var(--wash);
+  border-radius: 0 10px 10px 0; font: inherit; font-size: 12.5px;
+  color: var(--muted); line-height: 1.55; white-space: pre-wrap; word-break: break-word;
+  max-height: 320px; overflow: auto;
+}

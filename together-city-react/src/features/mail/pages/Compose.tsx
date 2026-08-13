@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useScaleLock } from '@/hooks/useScaleLock';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui';
-import { useDirectory, useSendMail, useMailAccount, useSaveDraft, useMailMessage, useMailProjects, type DirectoryEntry } from '../api';
+import { useDirectory, useSendMail, useMailAccount, useSaveDraft, useMailMessage, useMailThread, useMailProjects, type DirectoryEntry } from '../api';
+import { quoteBlock, withQuote } from '../replyQuote';
 import { payError } from '@/features/financial/api';
 import { DrivePicker } from '../DrivePicker';
 import { fmtBytes, fileIcon, type DriveFile } from '@/features/drive/api';
@@ -112,6 +113,34 @@ export function Compose() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [to, subject, body, threadId, seeded, sending]);
 
+  /**
+   * A REPLY CARRIES WHAT IT IS ANSWERING, which it did not until now.
+   *
+   * Inside the city that was survivable — the thread is on the screen behind
+   * you — but the recipient is usually outside it, and what landed in their
+   * Gmail was a bare "yes, Tuesday works" with nothing saying what Tuesday
+   * was. Every mail client quotes; the absence was not restraint.
+   *
+   * QUOTED AT SEND, NOT TYPED INTO THE BOX. Gmail puts the history inside the
+   * editable body, which is why a four-word reply there is fifty lines tall
+   * before you start. quoted.ts already argues the other side of this for
+   * READING; the same argument holds for writing. The box holds what you are
+   * writing, the quotation is shown beneath it behind one control, and the two
+   * are joined on the way out.
+   *
+   * The NEWEST message in the trail is the one quoted. The ones before it are
+   * already inside its own quotation, which is how every client does it and
+   * why a thread does not grow quadratically.
+   */
+  const trail = useMailThread(threadId ?? null);
+  const quote = useMemo(() => {
+    if (!threadId) return '';
+    const rows = trail.data ?? [];
+    const newest = rows[rows.length - 1];
+    return newest ? quoteBlock(newest) : '';
+  }, [threadId, trail.data]);
+  const [open, setOpen] = useState(false);
+
   const suggestions = useMemo(() => {
     const term = to.trim().toLowerCase().replace(/@.*/, '');
     if (!term) return (dir.data ?? []).slice(0, 6);
@@ -202,6 +231,21 @@ export function Compose() {
         <div>
           <label style={{ fontSize: 12 }} className="muted">Message</label>
           <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={12} placeholder="Write your message…" style={{ ...inp, resize: 'vertical', lineHeight: 1.6 }} />
+          {/* The trail, under the message, behind the control every mail
+              client uses for it. Read-only: it is a record of what was
+              actually sent, and the place to change your own words is the box
+              above. */}
+          {quote && (
+            <div className="mq">
+              <button type="button" className="mq-key" aria-expanded={open}
+                aria-label={open ? 'Hide the quoted conversation' : 'Show the quoted conversation'}
+                onClick={() => setOpen((v) => !v)}>···</button>
+              <span className="mq-said muted">
+                {open ? 'The conversation you are replying to — it goes out under your message.' : 'Quoting the conversation below your message.'}
+              </span>
+              {open && <pre className="mq-body">{quote}</pre>}
+            </div>
+          )}
         </div>
 
         {/* Attachments from the citizen's Drive */}
@@ -235,7 +279,7 @@ export function Compose() {
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <Button variant="accent" disabled={!canSend}
             onClick={() => send.mutate(
-              { to, cc: addrs(cc), bcc: addrs(bcc), subject: subject || '(no subject)', body, threadId, attachmentFileIds: attachments.map((f) => f.id), draftId: draftId.current, projectKey },
+              { to, cc: addrs(cc), bcc: addrs(bcc), subject: subject || '(no subject)', body: withQuote(body, quote), threadId, attachmentFileIds: attachments.map((f) => f.id), draftId: draftId.current, projectKey },
               { onSuccess: () => { if (threadId) nav(-1); else nav(projectKey ? `/mail/p/${projectKey}/sent` : '/mail/sent'); } },
             )}>
             {send.isPending ? 'Sending…' : threadId ? 'Send reply' : 'Send'}

@@ -207,6 +207,12 @@ describe('the fold itself', () => {
     //                      that folds; a control that offers options.
     //   mail/MessageView   a thread: quoted text and a collapsed message stack,
     //                      three different expanders inside one reader.
+    //   mail/Compose       the ... key over a reply's quoted trail. The one
+    //                      genuine DISCLOSURE on this list that is not a Fold,
+    //                      and deliberately not one: a Fold is a titled
+    //                      section of a page, and this is a three-dot control
+    //                      inside a form, which is the shape every mail client
+    //                      has settled on for exactly this.
     //   mail/Projects      the ... key on a project folder: `aria-haspopup=
     //                      "menu"`. Open, Archive, Delete — a menu of actions
     //                      on an object, not a section of the page that folds.
@@ -231,6 +237,7 @@ describe('the fold itself', () => {
       'components/ui/Fold.tsx',
       'features/beauty/components/Plates.tsx',
       'features/mail/MoveToProject.tsx',
+      'features/mail/pages/Compose.tsx',
       'features/mail/pages/MessageView.tsx',
       'features/mail/pages/Projects.tsx',
       'features/nutrition/components/TargetsDisclosure.tsx',

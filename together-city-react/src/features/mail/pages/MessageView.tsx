@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useQuery } from '@tanstack/react-query';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { mailApi } from '../api';
+import { useMailProjects } from '../api';
 import { fmtBytes, fileIcon } from '@/features/drive/api';
 import { splitQuoted, stripCityFooter } from '../quoted';
 import { expandedByDefault, previewOf } from '../collapse';
@@ -196,6 +197,9 @@ export function MessageView() {
   const thread = useMailThread(q.data?.threadId);
   const flag = useFlagMail();
   const remove = useRemoveMail();
+  // Above the early returns with the rest of them: a hook that runs on some
+  // renders and not others is not a hook. Used far below, for the reply link.
+  const projects = useMailProjects();
 
   /* THE SUBJECT IS THE NAME OF THIS PAGE, and only this page knows it.
      useTrackRecent files every visit the moment the URL changes, before any
@@ -248,9 +252,19 @@ export function MessageView() {
   // the folder, which collapse.ts keeps open for exactly that reason.
   const shown = openIds ?? expandedByDefault(trail, id);
 
+  // The room this conversation is filed in, by key, for the reply link.
+  const projectKey = m.projectId
+    ? (projects.data ?? []).find((p) => p.id === m.projectId)?.key
+    : undefined;
+
   const openReply = () => {
     const p = new URLSearchParams({ to: replyTo, subject: replySubject });
     if (m.threadId) p.set('threadId', m.threadId);
+    // A reply read inside a project is written inside it: the send would
+    // inherit the room either way (the thread is already filed), but the RAIL
+    // would not, and a composer whose sidebar says All Emails while it writes
+    // into ABG is the same lie the rail commit went to remove.
+    if (projectKey) p.set('project', projectKey);
     nav(`/mail/compose?${p.toString()}`);
   };
 
