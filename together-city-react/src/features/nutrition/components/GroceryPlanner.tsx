@@ -5,7 +5,7 @@ import { useGroceryPlan } from '../hooks';
 import { ShoppingRange } from './ShoppingRange';
 import { nutritionApi } from '../api';
 import { useQueryClient } from '@tanstack/react-query';
-import type { GroceryAisle, GroceryPlanItem } from '../api';
+import type { GroceryPlanItem } from '../api';
 
 /** THE EMPTY LIST IS A CONSTANT, NOT A LITERAL.
  *  `x ?? []` builds a NEW array on every render, so any useMemo that depends
@@ -19,107 +19,43 @@ type View = 'grocery' | 'recipe';
 /** A week. The longest range offered, and the one most people shop to. */
 const DEFAULT_DAYS = 7;
 
-/** One shopping item row — checkbox, name, real-unit quantity, and an
- *  expandable "used in" breakdown of which recipes need it. */
-function ItemRow({ item, checked, onToggle }: { item: GroceryPlanItem; checked: boolean; onToggle: () => void }) {
+/** One PRINTED row — box, name, a dotted leader, the quantity. The reference
+ *  sheet's line, kept functional: the box still checks off (44px target via
+ *  relief.css), the name still opens its "used in" split when more than one
+ *  recipe needs the item, and the pantry have/buy note rides under the
+ *  quantity. */
+function SheetRow({ item, checked, onToggle }: { item: GroceryPlanItem; checked: boolean; onToggle: () => void }) {
   const [open, setOpen] = useState(false);
   const multi = item.usedIn.length > 1;
   return (
-    // A cell now, not a row: it needs a left edge as well as a top one, or the
-    // columns run together into something that reads as one wide line.
-    <div style={{ borderTop: '1px solid var(--line)', borderLeft: '1px solid var(--line)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px' }}>
-        <button
-          onClick={onToggle}
-          aria-label={checked ? 'Uncheck' : 'Check off'}
-          style={{ minWidth: 44, minHeight: 44, 
-            flex: 'none', width: 22, height: 22, borderRadius: 7, cursor: 'pointer',
-            border: checked ? 'none' : '1.8px solid var(--line)',
-            background: checked ? 'var(--accent)' : 'transparent',
-            color: 'var(--on-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 13, fontWeight: 900, transition: 'color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease)', padding: 0,
-          }}
-        >
+    <>
+      <div className="gsheet-row">
+        <button type="button" className={`gsheet-box${checked ? ' on' : ''}`} onClick={onToggle}
+          aria-label={checked ? `Uncheck ${item.name}` : `Check off ${item.name}`}>
           {checked ? '✓' : ''}
         </button>
-
-        <button
+        <button type="button" className={`gsheet-name${checked ? ' done' : ''}`}
           onClick={() => multi && setOpen((o) => !o)}
-          style={{
-            flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none', padding: 0,
-            cursor: multi ? 'pointer' : 'default', display: 'flex', flexDirection: 'column', gap: 1,
-          }}
-        >
-          <span style={{ fontSize: 14, fontWeight: 600, textTransform: 'capitalize', textDecoration: checked ? 'line-through' : 'none', color: checked ? 'var(--muted)' : 'var(--ink)' }}>
-            {item.name}
-          </span>
-          {multi && (
-            <span className="muted" style={{ fontSize: 11.5 }}>
-              {open ? '▾' : '▸'} used in {item.usedIn.length} recipes
-            </span>
-          )}
+          style={{ cursor: multi ? 'pointer' : 'default' }}>
+          {item.name}{multi ? ` · ${item.usedIn.length} recipes` : ''}
         </button>
-
-        <span style={{ flex: 'none', textAlign: 'right', whiteSpace: 'nowrap', color: checked ? 'var(--muted)' : 'var(--ink)' }}>
-          <span style={{ fontWeight: 700, fontSize: 13.5 }}>{item.qtyLabel}</span>
-          {/* Pantry-aware: don't ask them to re-buy what's already on the shelf. */}
+        <span className="gsheet-dots" aria-hidden="true" />
+        <span className="gsheet-qty">
+          {item.qtyLabel}
           {item.inPantry && (item.haveGrams ?? 0) > 0 && (
-            <span style={{ display: 'block', fontSize: 10.5, fontWeight: 700, color: 'var(--ok-ink)' }}>
-              {(item.toBuyGrams ?? 0) > 0 ? `have ${item.haveQtyLabel} · buy ${item.toBuyQtyLabel}` : '✓ already in pantry'}
+            <span className="gsheet-qty-sub">
+              {(item.toBuyGrams ?? 0) > 0 ? `have ${item.haveQtyLabel} · buy ${item.toBuyQtyLabel}` : 'in pantry'}
             </span>
           )}
           {item.pack && item.pack !== item.qtyLabel && !item.inPantry && (
-            <span className="muted" style={{ display: 'block', fontSize: 10.5, fontWeight: 600 }}>buy {item.pack}</span>
+            <span className="gsheet-qty-sub">buy {item.pack}</span>
           )}
         </span>
       </div>
-
-      {open && multi && (
-        <div style={{ padding: '2px 14px 12px 48px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {item.usedIn.map((u, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12.5 }}>
-              <span className="muted" style={{ textTransform: 'capitalize' }}>· {u.recipe}</span>
-              <span className="muted" style={{ whiteSpace: 'nowrap' }}>{u.qtyLabel}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** A supermarket aisle — icon header, shelf life + storage tip, item rows. */
-function Aisle({ aisle, checked, toggle }: { aisle: GroceryAisle; checked: Set<string>; toggle: (n: string) => void }) {
-  const shelf = aisle.items[0];
-  const done = aisle.items.filter((i) => checked.has(i.name)).length;
-  return (
-    <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 14, borderRadius: 16 }}>
-      <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, background: 'var(--paper)' }}>
-        <span style={{ fontSize: 22 }}>{aisle.icon}</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            <h3 style={{ fontSize: 16, margin: 0 }}>{aisle.title}</h3>
-            <span className="muted" style={{ fontSize: 11.5 }}>{aisle.note}</span>
-          </div>
-          {shelf && (shelf.shelfLife || shelf.storageTip) && (
-            <p className="muted" style={{ fontSize: 11.5, margin: '3px 0 0' }}>
-              {shelf.shelfLife ? `🕒 Keeps ${shelf.shelfLife}` : ''}{shelf.shelfLife && shelf.storageTip ? ' · ' : ''}{shelf.storageTip ? `📦 ${shelf.storageTip}` : ''}
-            </p>
-          )}
-        </div>
-        <span className="muted" style={{ flex: 'none', fontSize: 12, fontWeight: 600 }}>{done}/{aisle.items.length}</span>
-      </div>
-      {/* Horizontal, not a single column. An aisle is a set of things to pick
-          up, not a sequence — one per row turned thirteen vegetables into a
-          scroll on a screen with two-thirds of its width empty. auto-fill with
-          a min width means it becomes one column on a phone without a media
-          query, which matters because this list is read while shopping. */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))' }}>
-        {aisle.items.map((it) => (
-          <ItemRow key={it.name} item={it} checked={checked.has(it.name)} onToggle={() => toggle(it.name)} />
-        ))}
-      </div>
-    </div>
+      {open && multi && item.usedIn.map((u, i) => (
+        <div key={i} className="gsheet-used"><span>· {u.recipe}</span><span>{u.qtyLabel}</span></div>
+      ))}
+    </>
   );
 }
 
@@ -138,7 +74,11 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
   // two: choosing a range SETTLES the days in it, so the window is real and
   // the list still cannot churn underneath somebody mid-shop.
   const [days, setDays] = useState(DEFAULT_DAYS);
-  const plan = useGroceryPlan(mode, days);
+  // HOW MANY PEOPLE IS THIS MENU FOR? Chosen on the sheet, sent to the server,
+  // persisted there — undefined until the citizen touches it, so the saved
+  // count comes back without being rewritten on every visit.
+  const [people, setPeople] = useState<number | undefined>(undefined);
+  const plan = useGroceryPlan(mode, days, undefined, people);
   const qc = useQueryClient();
   const schedule = plan.data?.deliverySchedule;
   const [view, setView] = useState<View>('grocery');
@@ -186,6 +126,9 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
   const recipes = plan.data?.recipes ?? [];
   const itemCount = plan.data?.itemCount ?? 0;
   const summary = plan.data?.summary;
+  // The server's answer wins: it clamps, persists, and for family it is the
+  // real household. Local state only bridges the round trip.
+  const menuFor = summary?.people ?? people ?? 1;
   const checkedCount = useMemo(() => {
     let c = 0; for (const a of aisles) for (const i of a.items) if (checked.has(i.name)) c++; return c;
   }, [aisles, checked]);
@@ -377,7 +320,53 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
           {failedNote && (
             <p style={{ fontSize: 12.5, color: 'var(--danger-ink)', margin: '0 0 10px' }}>{failedNote}</p>
           )}
-          {aisles.map((a) => <Aisle key={a.key} aisle={a} checked={checked} toggle={toggle} />)}
+          {/* THE LIST IS A PRINTED SHEET — the owner's reference art (13 Aug):
+              blue paper, tracked-caps masthead, aisle sections, dotted leaders
+              to the quantities. The ink is navy rather than the reference's
+              white, which is 1.95:1 against this paper and no veil can fix ink
+              lighter than its sheet; the ratios live in tokens.css. Everything
+              functional above the sheet keeps the city's white. */}
+          <div className="grocery-sheet">
+            <header className="gsheet-mast">
+              <div className="gsheet-city">TOGETHER CITY</div>
+              <div className="gsheet-doc">GROCERY LIST</div>
+            </header>
+            <p className="gsheet-intro">
+              Every item below comes from the menus you locked, in the plan you locked them in —
+              real quantities, duplicates merged, nothing inferred.
+              {' '}This menu is for <strong>{menuFor} {menuFor === 1 ? 'person' : 'people'}</strong>
+              {summary?.peopleBasis === 'household' ? ' — your household, portioned to each member' : ''}.
+            </p>
+            {mode === 'individual' && (
+              <div className="gsheet-people">
+                <span>Cooking for</span>
+                <button type="button" aria-label="One person fewer"
+                  disabled={plan.isFetching || menuFor <= 1}
+                  onClick={() => setPeople(Math.max(1, menuFor - 1))}>−</button>
+                <span className="gsheet-people-n" aria-live="polite">{menuFor}</span>
+                <button type="button" aria-label="One person more"
+                  disabled={plan.isFetching || menuFor >= 12}
+                  onClick={() => setPeople(Math.min(12, menuFor + 1))}>+</button>
+                <span>{menuFor === 1 ? 'person' : 'people'} — every quantity scales</span>
+              </div>
+            )}
+            <div className="gsheet-cols">
+              {aisles.map((a) => (
+                <section key={a.key} className="gsheet-aisle">
+                  <h3 className="gsheet-aisle-title">
+                    {a.title}{' '}
+                    <span className="gsheet-aisle-note">
+                      {a.items.filter((i) => checked.has(i.name)).length}/{a.items.length}
+                    </span>
+                  </h3>
+                  {a.items.map((it) => (
+                    <SheetRow key={it.name} item={it} checked={checked.has(it.name)} onToggle={() => toggle(it.name)} />
+                  ))}
+                </section>
+              ))}
+            </div>
+            <footer className="gsheet-foot">TOGETHER CITY</footer>
+          </div>
         </>
       ) : (
         <>

@@ -391,6 +391,11 @@ interface PrefExtras {
   includePantry?: boolean;
   /** Preferred daily delivery time for fresh items, 'HH:MM' (24h). */
   deliveryTime?: string;
+  /** How many people the INDIVIDUAL grocery list cooks for (1–12, default 1).
+   *  Multiplies what is BOUGHT, never what the planner says one person eats.
+   *  Family mode ignores it: its scale is each member's real calorie-weighted
+   *  portion, which a flat count would overwrite. */
+  groceryPeople?: number;
   /** Last date whose meals were auto-deducted from the pantry (YYYY-MM-DD). */
   pantrySettledThrough?: string;
   /** Composed-plan per-meal overrides (Refresh/Skip). Keys "d{index}:{slotCode}". */
@@ -5912,7 +5917,7 @@ export class NutritionService implements OnModuleInit {
     return { ok: true, deliveryTime: time };
   }
 
-  async groceryPlan(userId: string, mode: PlanMode = 'individual', days = 7, startDate?: string) {
+  async groceryPlan(userId: string, mode: PlanMode = 'individual', days = 7, startDate?: string, people?: number) {
     // SOURCE OF TRUTH: the COMPOSED plan — the same plan the Meal Plan page
     // shows. Previously this read the separately-generated MealPlan rows, so
     // the basket could be built from meals the user was never shown. Falls back
@@ -5924,6 +5929,19 @@ export class NutritionService implements OnModuleInit {
     const prefForLocks = await this.prisma.foodPref.findUnique({ where: { userId } });
     const exForLocks = parseExtras((prefForLocks as { extras?: string | null } | null)?.extras);
     const locked = this.lockedDays(exForLocks);
+    // HOW MANY PEOPLE IS THIS MENU FOR? Individual only. The composed plan's
+    // grams are one person's portion; "cooking for N" multiplies what is
+    // BOUGHT, and the number persists so the list means the same thing on the
+    // next visit. The stored value is user-editable JSON like everything else
+    // in extras, so it is clamped, not trusted.
+    const savedPeopleRaw = Number((exForLocks as { groceryPeople?: unknown }).groceryPeople);
+    const savedPeople = Number.isFinite(savedPeopleRaw) && savedPeopleRaw >= 1 ? Math.min(12, Math.round(savedPeopleRaw)) : 1;
+    const askedPeople = Number.isFinite(people ?? NaN) && (people as number) >= 1 ? Math.min(12, Math.round(people as number)) : null;
+    const cookingFor = mode === 'family' ? 1 : (askedPeople ?? savedPeople);
+    if (mode !== 'family' && askedPeople !== null && askedPeople !== savedPeople) {
+      await this.mergeExtras(userId, { groceryPeople: askedPeople })
+        .catch(swallowed('nutrition.groceryPlan people', undefined, { userId }));
+    }
     // EACH LOCKED DAY IS SHOPPED IN THE PLAN MODEL IT WAS LOCKED IN. A lock is
     // "I read this menu and accepted it", and two real menus exist for every
     // day. Days locked from different tabs split into one composition per
@@ -5961,7 +5979,7 @@ export class NutritionService implements OnModuleInit {
     // serving), NOT a flat headcount. So a recipe that serves 2 scales to the
     // real number of portions the household eats (spec: Step 1–3).
     const REF_KCAL = 2000;
-    let scale = 1;
+    let scale = mode === 'family' ? 1 : cookingFor;
     let memberScales: { name: string; dailyKcal: number; multiplier: number }[] = [];
     if (mode === 'family') {
       const raw = await this.householdRaw(userId);
@@ -5982,7 +6000,7 @@ export class NutritionService implements OnModuleInit {
     // the meal count it reported was never the number of meals in the plan.
     const slotCounts: Record<string, number> = { b: 0, l: 0, es: 0, d: 0 };
     const activeDays = composed.dayCount + own.dayCount;
-    const headcount = mode === 'family' ? Math.max(1, memberScales.length) : 1;
+    const headcount = mode === 'family' ? Math.max(1, memberScales.length) : cookingFor;
     if (!sourceMeals.length) {
       // Distinguish "nothing locked" from "we could not build a list" — the
       // first is a thing the citizen can act on and the second is our failure.
@@ -6125,6 +6143,10 @@ export class NutritionService implements OnModuleInit {
       // The exact dates this basket covers, so the UI can say what it's for.
       startDate: fromISO, endDate: windowEndISO,
       householdSize: headcount,
+      /** Who this menu is for, said plainly: the chosen count (individual) or
+       *  the real household (family). The UI prints this sentence. */
+      people: headcount,
+      peopleBasis: mode === 'family' ? ('household' as const) : ('chosen' as const),
       days: activeDays,
       meals: { breakfast: slotCounts.b, lunch: slotCounts.l, evening: slotCounts.es, dinner: slotCounts.d },
       estimatedCostInr: Math.round(estCostInr),

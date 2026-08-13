@@ -1968,3 +1968,28 @@
           0 1px 1px rgba(150,64,107,.30), 0 8px 20px rgba(150,64,107,.34), 0 20px 46px rgba(150,64,107,.22);
   --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
 }
+
+/* ═══ THE GROCERY LIST PRINTS ON ITS OWN BLUE SHEET ══════════════════════════
+   One page taking one paper — the same grant shape as .food-paper, not a hub
+   ground. The sheet is the owner's flat dusty-blue paper (13 Aug), printed in
+   navy: the reference art was WHITE ink on this blue, which is 1.95:1 against
+   the sheet's lightest pixel and no veil fixes ink that is lighter than the
+   paper. So the ink flips dark and the paper stays light, which keeps the
+   look's dominant half.
+
+   Every ratio is against the sheet's WORST pixel (darkest, #95a6b8 L .3712 —
+   dark ink fails first where the paper is darkest), the press papers' own
+   method:
+     --grocery-ink    6.47:1   body, headings, quantities
+     --grocery-ink-2  4.97:1   secondary copy, intro, notes
+     --grocery-ink-3  3.90:1   labels and metadata ONLY, never body copy
+   The rule alpha composites lighter than ink-3 and draws leaders and boxes,
+   not text. */
+.grocery-sheet {
+  --grocery-sheet-img: url('/assets/img/press-grocery.jpg');
+  --grocery-ground: #95a6b8;  /* darkest pixel, unveiled */
+  --grocery-ink:    #16222e;  /* 6.47:1 */
+  --grocery-ink-2:  #233649;  /* 4.97:1 */
+  --grocery-ink-3:  #31465c;  /* 3.90:1 — labels and metadata ONLY */
+  --grocery-rule:   rgba(22, 34, 46, .38);
+}

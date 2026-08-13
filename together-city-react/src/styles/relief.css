@@ -3444,3 +3444,194 @@ textarea.g-field { resize: none; line-height: 1.55; }
 .food-paper .card {
   box-shadow: 0 0 0 1px var(--press-ink-3), var(--shadow);
 }
+
+/* ═══ THE GROCERY SHEET — a printed checklist, not a stack of cards ══════════
+   The reference is a supermarket checklist on blue paper: a tracked-caps
+   masthead, aisle sections in caps, checkbox rows with dotted leaders running
+   to right-aligned quantities, a small footer. Colour comes entirely from the
+   .grocery-sheet token block in tokens.css; nothing chromatic lives here.
+
+   The functional cards above the sheet (range, delivery, progress) keep the
+   city's white — the sheet is the LIST itself, the thing you would print. */
+.grocery-sheet {
+  background-image: var(--grocery-sheet-img);
+  background-size: cover;
+  background-position: center;
+  border-radius: 18px;
+  padding: 34px 30px 26px;
+  color: var(--grocery-ink);
+}
+.gsheet-mast {
+  text-align: center;
+  border-bottom: 2px solid var(--grocery-ink);
+  padding-bottom: 14px;
+  margin-bottom: 6px;
+}
+.gsheet-mast .gsheet-city {
+  font-size: clamp(26px, 5vw, 40px);
+  font-weight: 800;
+  letter-spacing: .14em;
+  line-height: 1.05;
+}
+.gsheet-mast .gsheet-doc {
+  font-size: clamp(15px, 2.6vw, 22px);
+  font-weight: 500;
+  letter-spacing: .38em;
+  text-indent: .38em; /* re-centres tracked caps */
+  margin-top: 10px;
+}
+.gsheet-intro {
+  color: var(--grocery-ink-2);
+  font-size: 13px;
+  line-height: 1.7;
+  text-align: center;
+  max-width: 620px;
+  margin: 14px auto 0;
+}
+/* HOW MANY PEOPLE THE MENU IS FOR. A control printed on the sheet: the
+   number is part of what the list means, so it lives where the list is. */
+.gsheet-people {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 14px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.gsheet-people button {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 2px solid var(--grocery-ink);
+  background: transparent;
+  color: var(--grocery-ink);
+  font-size: 18px;
+  font-weight: 800;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+.gsheet-people button:disabled { opacity: .35; cursor: default; }
+.gsheet-people .gsheet-people-n {
+  min-width: 34px;
+  text-align: center;
+  font-size: 17px;
+  font-weight: 800;
+}
+.gsheet-cols {
+  columns: 2;
+  column-gap: 44px;
+  margin-top: 18px;
+}
+@media (max-width: 760px) { .gsheet-cols { columns: 1; } }
+.gsheet-aisle {
+  break-inside: avoid;
+  margin-bottom: 20px;
+}
+.gsheet-aisle-title {
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  margin: 0 0 6px;
+  color: var(--grocery-ink);
+}
+.gsheet-aisle-note {
+  color: var(--grocery-ink-3); /* metadata only, per its floor */
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+.gsheet-row {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  padding: 4.5px 0;
+}
+.gsheet-box {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  border-radius: 4px;
+  border: 2px solid var(--grocery-ink);
+  background: transparent;
+  color: var(--paper);
+  cursor: pointer;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  align-self: center;
+  position: relative;
+}
+.gsheet-box.on { background: var(--grocery-ink); }
+/* The printed box stays 17px — the reference's checkbox — and the TARGET is
+   the transparent centred pseudo at 44x44, which is .btn-sm's own pattern
+   (see the tap-target block above): the paint does not grow, the press does. */
+.gsheet-box::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 44px;
+  min-height: 44px;
+  z-index: 0;
+}
+.gsheet-name {
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  color: var(--grocery-ink);
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  min-width: 0;
+}
+.gsheet-name.done { text-decoration: line-through; color: var(--grocery-ink-3); }
+.gsheet-dots {
+  flex: 1;
+  min-width: 24px;
+  border-bottom: 2px dotted var(--grocery-rule);
+  transform: translateY(-3px);
+}
+.gsheet-qty {
+  flex: none;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--grocery-ink);
+}
+.gsheet-qty .gsheet-qty-sub {
+  display: block;
+  text-align: right;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--grocery-ink-2);
+}
+.gsheet-used {
+  margin: 0 0 4px 26px;
+  font-size: 11.5px;
+  color: var(--grocery-ink-2);
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.gsheet-foot {
+  text-align: center;
+  letter-spacing: .3em;
+  text-indent: .3em;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--grocery-ink-2);
+  border-top: 1px solid var(--grocery-rule);
+  padding-top: 12px;
+  margin-top: 8px;
+}

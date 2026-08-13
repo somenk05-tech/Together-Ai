@@ -135,25 +135,32 @@ describe('the stored value is user-editable JSON, so it is never trusted', () =>
   });
 });
 
+function buildGrocery(extras: Record<string, unknown>) {
+  const s: any = Object.create(NutritionService.prototype);
+  const calls: Array<{ days: readonly number[] | undefined; planMode: string }> = [];
+  const saved: Record<string, unknown>[] = [];
+  s.prisma = { foodPref: { findUnique: async () => ({ extras: JSON.stringify(extras) }) } };
+  s.mergeExtras = async (_u: string, patch: Record<string, unknown>) => { saved.push(patch); };
+  s.resolveStartDate = async () => '2026-08-13';
+  s.ownMealsForShopping = async () => ({ dayCount: 0, meals: [] });
+  s.householdRaw = async () => [];   // family scale block runs before the early return
+  // The aisle pipeline below the split needs these two to be quiet.
+  s.syncGroceryList = async () => new Map();
+  // `pantry` is a prototype GETTER, so plain assignment throws — shadow it.
+  Object.defineProperty(s, 'pantry', { value: { findMany: async () => [] } });
+  s.composedMealsForShopping = async (
+    _u: string, _w: number, _f?: string, _h?: boolean,
+    dayIndexes?: readonly number[], planMode: string = 'preferred',
+  ) => {
+    calls.push({ days: dayIndexes, planMode });
+    return { dayCount: dayIndexes?.length ?? 0, meals: [] };
+  };
+  return { s, calls, saved };
+}
+
 describe('the basket shops each locked day in the model it was locked in', () => {
   // groceryPlan is stubbed down to its split: what matters here is WHICH days
   // it hands to WHICH composition, not the aisles arithmetic below them.
-  function buildGrocery(extras: Record<string, unknown>) {
-    const s: any = Object.create(NutritionService.prototype);
-    const calls: Array<{ days: readonly number[] | undefined; planMode: string }> = [];
-    s.prisma = { foodPref: { findUnique: async () => ({ extras: JSON.stringify(extras) }) } };
-    s.resolveStartDate = async () => '2026-08-13';
-    s.ownMealsForShopping = async () => ({ dayCount: 0, meals: [] });
-    s.householdRaw = async () => [];   // family scale block runs before the early return
-    s.composedMealsForShopping = async (
-      _u: string, _w: number, _f?: string, _h?: boolean,
-      dayIndexes?: readonly number[], planMode: string = 'preferred',
-    ) => {
-      calls.push({ days: dayIndexes, planMode });
-      return { dayCount: dayIndexes?.length ?? 0, meals: [] };
-    };
-    return { s, calls };
-  }
 
   it('splits mixed locks into one composition per model, merged into one basket', async () => {
     const { s, calls } = buildGrocery({ composedLocks: [1, 2, 5], composedLockModes: { 2: 'optimal' } });
@@ -176,5 +183,51 @@ describe('the basket shops each locked day in the model it was locked in', () =>
     const { s, calls } = buildGrocery({ composedLocks: [0, 4], composedLockModes: { 0: 'optimal', 4: 'optimal' } });
     await s.groceryPlan('u1', 'family');
     expect(calls).toEqual([{ days: [0, 4], planMode: 'optimal' }]);
+  });
+});
+
+describe('how many people the menu is for', () => {
+  const oneMeal = {
+    dayCount: 1,
+    meals: [{ slot: 'l', recipeName: 'Toor Dal', dayISO: '2026-08-13', ingredients: [{ name: 'toor dal', grams: 100 }] }],
+  };
+
+  it('an individual basket cooking for three buys three portions, and says so', async () => {
+    const { s, saved } = buildGrocery({ composedLocks: [0] });
+    s.composedMealsForShopping = async () => oneMeal;
+    const out = await s.groceryPlan('u1', 'individual', 7, undefined, 3);
+    const item = out.aisles.flatMap((a: any) => a.items).find((i: any) => /dal/i.test(String(i.name)));
+    expect(item.grams).toBe(300);
+    expect(out.summary.people).toBe(3);
+    expect(out.summary.peopleBasis).toBe('chosen');
+    // …and the count persists, so the list means the same thing tomorrow.
+    expect(saved).toEqual([{ groceryPeople: 3 }]);
+  });
+
+  it('reads the saved count back when none is asked for', async () => {
+    const { s, saved } = buildGrocery({ composedLocks: [0], groceryPeople: 2 });
+    s.composedMealsForShopping = async () => oneMeal;
+    const out = await s.groceryPlan('u1', 'individual');
+    const item = out.aisles.flatMap((a: any) => a.items).find((i: any) => /dal/i.test(String(i.name)));
+    expect(item.grams).toBe(200);
+    expect(out.summary.people).toBe(2);
+    expect(saved).toEqual([]);   // nothing asked, nothing rewritten
+  });
+
+  it('family ignores the chosen count — its scale is per-member, not a headcount', async () => {
+    const { s, saved } = buildGrocery({ composedLocks: [0] });
+    s.composedMealsForShopping = async () => oneMeal;
+    const out = await s.groceryPlan('u1', 'family', 7, undefined, 5);
+    const item = out.aisles.flatMap((a: any) => a.items).find((i: any) => /dal/i.test(String(i.name)));
+    expect(item.grams).toBe(100);            // householdRaw is empty → scale 1
+    expect(out.summary.peopleBasis).toBe('household');
+    expect(saved).toEqual([]);               // a family visit never rewrites the personal count
+  });
+
+  it('the stored count is clamped, not trusted', async () => {
+    const { s } = buildGrocery({ composedLocks: [0], groceryPeople: 500 });
+    s.composedMealsForShopping = async () => oneMeal;
+    const out = await s.groceryPlan('u1', 'individual');
+    expect(out.summary.people).toBe(12);
   });
 });

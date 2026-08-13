@@ -502,10 +502,13 @@ export class NutritionController {
     @Query('mode') mode?: PlanMode,
     @Query('days') days?: string,
     @Query('startDate') startDate?: string,
+    @Query('people') people?: string,
   ) {
     // days: 1 | 2 | 5 | 7 (any 1–28); startDate: YYYY-MM-DD, today or later.
+    // people: how many the individual list cooks for (1–12; service clamps).
     const n = Number(days);
-    return this.nutrition.groceryPlan(user.sub, mode ?? 'individual', Number.isFinite(n) && n > 0 ? n : 7, startDate);
+    const p = Number(people);
+    return this.nutrition.groceryPlan(user.sub, mode ?? 'individual', Number.isFinite(n) && n > 0 ? n : 7, startDate, Number.isFinite(p) && p > 0 ? p : undefined);
   }
 
   @Get('history/:id')

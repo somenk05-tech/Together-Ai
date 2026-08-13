@@ -160,12 +160,13 @@ export function useGroceryPlan(
   mode: 'individual' | 'family' = 'individual',
   days?: number,
   startDate?: string,
+  people?: number,
 ) {
-  // days/startDate are part of the key: three days of shopping and seven days
-  // of shopping are different baskets and must never share a cache entry.
+  // days/startDate/people are part of the key: three days of shopping and
+  // seven days are different baskets, and so are one person's and three's.
   return useQuery({
-    queryKey: ['nutrition', 'grocery-plan', mode, days ?? null, startDate ?? null],
-    queryFn: () => nutritionApi.groceryPlan(mode, days, startDate),
+    queryKey: ['nutrition', 'grocery-plan', mode, days ?? null, startDate ?? null, people ?? null],
+    queryFn: () => nutritionApi.groceryPlan(mode, days, startDate, people),
   });
 }
 

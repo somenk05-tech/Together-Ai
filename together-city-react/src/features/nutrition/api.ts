@@ -70,8 +70,8 @@ export const nutritionApi = {
   /** `days` and `startDate` have been on this endpoint since it was written —
    *  groceryPlan(userId, mode, days = 7, startDate?), clamped 1–28 — and the web
    *  app sent neither, so the citizen had no say in how far ahead they shop. */
-  groceryPlan: (mode: 'individual' | 'family' = 'individual', days?: number, startDate?: string) =>
-    api.get<GroceryPlan>('/nutrition/grocery/plan', { params: { mode, days, startDate } }).then((r) => r.data),
+  groceryPlan: (mode: 'individual' | 'family' = 'individual', days?: number, startDate?: string, people?: number) =>
+    api.get<GroceryPlan>('/nutrition/grocery/plan', { params: { mode, days, startDate, people } }).then((r) => r.data),
   cart: () => api.get<GroceryCart>('/nutrition/cart').then((r) => r.data),
   prepAlerts: (mode: 'individual' | 'family' = 'individual') =>
     api.get<{ alerts: Array<{ mealKey: string; title: string; what: string; startBy: string; notified: boolean }> }>(
@@ -275,6 +275,8 @@ export interface GrocerySummary {
   /** The exact dates this basket covers (always today or later). */
   startDate?: string; endDate?: string;
   householdSize: number; days: number;
+  /** Who this menu is for: the chosen count (individual) or the household. */
+  people?: number; peopleBasis?: 'chosen' | 'household';
   meals: { breakfast: number; lunch: number; evening: number; dinner: number };
   estimatedCostInr: number; wastePct: number; scale: number; members: GroceryScaleMember[];
   perishableCount?: number; pantryCount?: number;
