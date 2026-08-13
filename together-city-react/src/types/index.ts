@@ -73,8 +73,16 @@ export interface Message {
 export interface MediaAttachment {
   id: string;
   url: string;
-  kind: 'image' | 'video' | 'file';
+  /** 'audio' joined with voice notes — it was folded into 'file' before, which
+   *  is why a voice note could only render as a link. Keep in step with
+   *  api/schemas.ts's MediaAttachmentSchema, which is what parses the wire. */
+  kind: 'image' | 'video' | 'audio' | 'file';
   thumbUrl?: string;
+  mimeType?: string;
+  /** Absent on a voice note and on anything sent before the column existed. */
+  name?: string;
+  sizeBytes?: number;
+  durationSec?: number;
 }
 
 export interface NotificationItem {

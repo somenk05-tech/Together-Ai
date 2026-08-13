@@ -1,6 +1,68 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Message } from '@/types';
+import type { Message, MediaAttachment } from '@/types';
 import { ShareCardView } from '../share';
+
+const fmtSize = (n?: number): string =>
+  !n ? '' : n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
+const fmtClock = (sec?: number): string =>
+  typeof sec === 'number' && sec > 0
+    ? `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}`
+    : '';
+
+/**
+ * WHAT ARRIVED, RENDERED AS WHAT IT IS.
+ *
+ * A voice note is a player with its length on it; a photo is the photo; a file
+ * is a row you can read the name and the weight of before deciding to open it.
+ * All three used to be the same thing — nothing at all, because the thread
+ * rendered `body` and `share` and ignored `media` entirely, on a schema that
+ * has carried attachments since it was written.
+ *
+ * The audio element is the browser's own. A hand-drawn waveform here would be
+ * a picture of a sound nobody has decoded — and the native player brings
+ * keyboard control, scrubbing and the platform's own accessibility for free.
+ */
+function Attachment({ a, mine }: { a: MediaAttachment; mine: boolean }) {
+  const name = a.name ?? 'Attachment';
+  const sub = [a.name ? fmtSize(a.sizeBytes) : '', fmtClock(a.durationSec)].filter(Boolean).join(' · ');
+
+  if (a.kind === 'image') {
+    return (
+      <a href={a.url} target="_blank" rel="noreferrer" style={{ display: 'block', maxWidth: 260 }}>
+        <img src={a.thumbUrl || a.url} alt={a.name ?? 'Shared photo'} loading="lazy"
+          style={{ width: '100%', borderRadius: 14, display: 'block', background: 'var(--stage-tile)' }} />
+      </a>
+    );
+  }
+  if (a.kind === 'video') {
+    return <video src={a.url} controls preload="metadata" style={{ maxWidth: 260, width: '100%', borderRadius: 14, display: 'block' }} />;
+  }
+  if (a.kind === 'audio') {
+    return (
+      <div className={mine ? 'csb me' : 'csb'} style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 232 }}>
+        {/* No caption track: a voice note is speech nobody has transcribed, and
+            an empty <track> would be a promise of subtitles that do not exist.
+            The duration is stated below instead, and the native player brings
+            the platform's own keyboard and screen-reader handling. */}
+        <audio src={a.url} controls preload="metadata" style={{ width: '100%', height: 34 }} />
+        <span style={{ fontSize: 11, opacity: .75 }}>
+          Voice note{fmtClock(a.durationSec) ? ` · ${fmtClock(a.durationSec)}` : ''}
+        </span>
+      </div>
+    );
+  }
+  return (
+    <a href={a.url} target="_blank" rel="noreferrer" download={a.name}
+      className={mine ? 'csb me' : 'csb'}
+      style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', maxWidth: 280 }}>
+      <span aria-hidden style={{ fontSize: 20, flex: 'none' }}>📄</span>
+      <span style={{ minWidth: 0 }}>
+        <span style={{ display: 'block', fontWeight: 700, fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+        {sub && <span style={{ display: 'block', fontSize: 11, opacity: .75 }}>{sub}</span>}
+      </span>
+    </a>
+  );
+}
 
 /** WhatsApp-style delivery ticks (shown on your own messages only). */
 function Ticks({ status }: { status?: Message['status'] }) {
@@ -165,7 +227,12 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
                 ) : (
                   <>
                     {m.body && <div className={mine ? 'csb me' : 'csb'}>{m.body}</div>}
-                    {m.share && <div style={{ marginTop: m.body ? 6 : 0 }}><ShareCardView card={m.share} compact clickable /></div>}
+                    {(m.media ?? []).map((a, i) => (
+                      <div key={a.id} style={{ marginTop: m.body || i ? 6 : 0 }}>
+                        <Attachment a={a} mine={mine} />
+                      </div>
+                    ))}
+                    {m.share && <div style={{ marginTop: m.body || (m.media ?? []).length ? 6 : 0 }}><ShareCardView card={m.share} compact clickable /></div>}
                   </>
                 )}
 

@@ -12,6 +12,27 @@ import {
 const ContactSchema = z.object({ id: z.string(), handle: z.string(), name: z.string(), profileImage: z.string().nullable().optional() });
 export type Contact = z.infer<typeof ContactSchema>;
 
+/** What the composer hands the socket after the bytes are already in storage.
+ *  Mirrors the API's AttachmentSchema — url, size and mimeType are required
+ *  there, so they are required here rather than discovered by a 400. */
+export interface OutgoingAttachment {
+  url: string;
+  mimeType: string;
+  size: number;
+  name?: string;
+  duration?: number;
+}
+
+/** The message type a set of attachments makes it. The server stores it on the
+ *  row; a mixed send is a FILE message, because that is the honest floor. */
+function messageTypeFor(list: OutgoingAttachment[]): 'IMAGE' | 'VIDEO' | 'VOICE' | 'FILE' {
+  const every = (p: string) => list.every((a) => a.mimeType.startsWith(p));
+  if (every('image/')) return 'IMAGE';
+  if (every('video/')) return 'VIDEO';
+  if (every('audio/')) return 'VOICE';
+  return 'FILE';
+}
+
 /** REST — conversations + message history (cursor pagination). */
 export const chatApi = {
   conversations: (): Promise<Conversation[]> =>
@@ -137,8 +158,24 @@ export function useChatRealtime(
     };
   }, [conversationId, onMessage, onTyping, onDeleted, onEdited]);
 
-  const send = useCallback((body: string) => {
-    if (conversationId) socketClient.emit(WS.SEND_MESSAGE, { conversationId, body, clientId: crypto.randomUUID() });
+  /**
+   * Send text, attachments, or both.
+   *
+   * The socket schema has accepted `attachments` and `messageType` since it was
+   * written — SocketSendSchema IS SendMessageSchema, which permits a message
+   * with no text so long as it carries an attachment. The web simply never
+   * offered a way to make one, so voice notes and files were a backend that
+   * nothing could reach.
+   */
+  const send = useCallback((body: string, attachments?: OutgoingAttachment[]) => {
+    if (!conversationId) return;
+    const list = attachments?.length ? attachments : undefined;
+    socketClient.emit(WS.SEND_MESSAGE, {
+      conversationId,
+      body,
+      clientId: crypto.randomUUID(),
+      ...(list ? { attachments: list, messageType: messageTypeFor(list) } : null),
+    });
   }, [conversationId]);
   const setTyping = useCallback((isTyping: boolean) => {
     if (conversationId) socketClient.emit(isTyping ? WS.TYPING_START : WS.TYPING_STOP, { conversationId });

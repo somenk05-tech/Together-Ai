@@ -17,6 +17,9 @@ export const AttachmentSchema = z.object({
   thumbnail: z.string().url().optional(),
   size: z.number().int().nonnegative(),
   mimeType: z.string().min(1),
+  /** What the file was called on the sender's machine. Bounded and optional:
+   *  a voice note has no name, and a name is a label, never a path. */
+  name: z.string().max(255).optional(),
   duration: z.number().int().nonnegative().optional(),
   width: z.number().int().nonnegative().optional(),
   height: z.number().int().nonnegative().optional(),

@@ -366,6 +366,12 @@ model Attachment {
   thumbnail String?
   size      Int
   mimeType  String
+  /// The name the file had on the sender's machine. Storage keys are
+  /// `uploads/<user>/<uuid>.<ext>` by design — good for storage, useless to a
+  /// recipient, who needs to know they were sent "lease-agreement.pdf" and not
+  /// "9f2c….pdf". Nullable: everything sent before this column existed, and
+  /// every voice note, has no name to remember.
+  name      String?
   duration  Int? // seconds (voice/video)
   width     Int?
   height    Int?

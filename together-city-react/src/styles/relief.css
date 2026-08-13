@@ -3055,6 +3055,20 @@ textarea.g-field { resize: none; line-height: 1.55; }
    rather than an unavailable one — the opposite of what it means. */
 .cscomposer .cssend[disabled] { cursor: default; color: var(--on-stage-faint);
   background: none; box-shadow: none; outline: 1.5px solid var(--stage-line); outline-offset: -1.5px; }
+/* THE TWO QUIET KEYS — attach and record. They are not the send: the send is
+   the one raised key in the capsule and stays the only one, so these are flat,
+   the stage's soft ink, and the same 42px target the send has. */
+.cscomposer .cstool { width: 42px; height: 42px; flex: none; border-radius: var(--r-full);
+  display: grid; place-items: center; border: 0; background: none; cursor: pointer;
+  font-family: inherit; font-size: 17px; line-height: 1; color: var(--on-stage-soft); padding: 0; }
+.cscomposer .cstool[disabled] { cursor: default; color: var(--on-stage-faint); }
+/* The recording tell: one dot, and it is the only thing on the stage that
+   pulses. Reduced motion holds it steady rather than removing it — the dot IS
+   the state, and a state you can only perceive by watching it move is not one. */
+.csrec-dot { width: 10px; height: 10px; flex: none; border-radius: var(--r-full);
+  background: var(--danger-ink); animation: csrec-pulse var(--dur-slow) var(--ease) infinite; }
+@keyframes csrec-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .csrec-dot { animation: none; } }
 
 @media (hover: hover) and (pointer: fine) {
   .cstab:hover { color: var(--on-stage); }

@@ -371,7 +371,10 @@ export class MessagesService {
     deleted: boolean;
     createdAt: Date;
     updatedAt?: Date;
-    attachments?: Array<{ id: string; url: string; mimeType: string; thumbnail?: string | null }>;
+    attachments?: Array<{
+      id: string; url: string; mimeType: string; thumbnail?: string | null;
+      name?: string | null; size?: number | null; duration?: number | null;
+    }>;
     sender?: unknown;
     statuses?: Array<{ status: string }>;
   }) {
@@ -379,11 +382,31 @@ export class MessagesService {
     if (m.shareJson) {
       try { share = JSON.parse(m.shareJson); } catch { share = null; }
     }
+    /**
+     * AUDIO IS ITS OWN KIND, AND THE REST OF THE ROW TRAVELS WITH IT.
+     *
+     * This used to fold audio into 'file' and drop every column but the URL,
+     * so a voice note arrived as an anonymous attachment with no duration and
+     * a document arrived with no name and no size — the three facts that make
+     * either renderable as anything better than a link. The columns were in
+     * the table the whole time (duration has been there since the schema was
+     * written); only the serializer was throwing them away.
+     */
     const media = (m.attachments ?? []).map((a) => ({
       id: a.id,
       url: a.url,
-      kind: a.mimeType?.startsWith('image/') ? 'image' : a.mimeType?.startsWith('video/') ? 'video' : 'file',
+      kind: a.mimeType?.startsWith('image/')
+        ? 'image'
+        : a.mimeType?.startsWith('video/')
+          ? 'video'
+          : a.mimeType?.startsWith('audio/')
+            ? 'audio'
+            : 'file',
       thumbUrl: a.thumbnail ?? undefined,
+      mimeType: a.mimeType,
+      name: a.name ?? undefined,
+      sizeBytes: typeof a.size === 'number' ? a.size : undefined,
+      durationSec: typeof a.duration === 'number' ? a.duration : undefined,
     }));
     // Aggregate delivery status across recipients (least-progressed wins):
     // all read ⇒ READ, all delivered-or-better ⇒ DELIVERED, else SENT.

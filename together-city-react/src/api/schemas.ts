@@ -58,8 +58,16 @@ export type Conversation = z.infer<typeof ConversationSchema>;
 export const MediaAttachmentSchema = z.object({
   id: z.string(),
   url: z.string(),
-  kind: z.enum(['image', 'video', 'file']),
+  /** 'audio' joined the list with voice notes. It was folded into 'file'
+   *  before, which is why a voice note could only ever render as a link. */
+  kind: z.enum(['image', 'video', 'audio', 'file']),
   thumbUrl: z.string().optional(),
+  mimeType: z.string().optional(),
+  /** What the file was called on the sender's machine; absent on a voice note
+   *  and on everything sent before the column existed. */
+  name: z.string().optional(),
+  sizeBytes: z.number().optional(),
+  durationSec: z.number().optional(),
 });
 export type MediaAttachment = z.infer<typeof MediaAttachmentSchema>;
 
