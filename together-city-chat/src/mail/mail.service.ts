@@ -150,9 +150,40 @@ export class MailService {
   private async threadProject(userId: string, threadId: string): Promise<string | null> {
     const row = await this.prisma.mailMessage.findFirst({
       where: { ownerId: userId, threadId, projectId: { not: null } },
+      // NEWEST FILING WINS, AND IT IS ORDERED SO THERE IS ONE ANSWER. Without
+      // an orderBy this was "whatever the database hands back first" — fine
+      // while a trail can only carry one room, and this method's whole purpose
+      // is the case where that has not been established yet. Two rows with two
+      // rooms used to make the answer differ between identical requests.
+      orderBy: { createdAt: 'desc' },
       select: { projectId: true },
     });
     return row?.projectId ?? null;
+  }
+
+  /**
+   * FILE THE WHOLE TRAIL, NOT THE ROW BEING WRITTEN.
+   *
+   * The filing is on the THREAD — `fileThread` says so and moves every row at
+   * once — but the send path stamped only its own row, so replying from inside
+   * a project to a conversation that was not filed anywhere put ONE message in
+   * the room and left the other five in All Emails. The project showed a
+   * fragment of a correspondence and nothing said why.
+   *
+   * Pressing "Compose in ABG" on a conversation means the conversation belongs
+   * to ABG. This is that sentence, kept.
+   *
+   * No participation check here, deliberately: every caller has already
+   * established that this citizen owns the trail — `resolveThreadId` for a
+   * send, `resolveInboundThread` for an arrival — and the updateMany is scoped
+   * to `ownerId` besides. The public `fileThread` keeps its checks, because
+   * its threadId comes from a request.
+   */
+  private async fileWholeThread(userId: string, threadId: string, projectId: string): Promise<void> {
+    await this.prisma.mailMessage.updateMany({
+      where: { ownerId: userId, threadId },
+      data: { projectId },
+    });
   }
 
   /**
@@ -177,10 +208,16 @@ export class MailService {
     // A key that names no project of this citizen's files nothing rather than
     // failing the send: the message is the point, and the worst outcome of a
     // stale key is a message in All Emails, which is where it would be anyway.
-    return this.prisma.mailProject.findFirst({
+    const owned = await this.prisma.mailProject.findFirst({
       where: { key, ownerId: userId, archived: false },
       select: { id: true, key: true, subAddress: true },
     });
+    // The trail had no room and now it has one — so the trail moves, not just
+    // the message about to be written. See fileWholeThread. A brand-new thread
+    // has no rows yet and this is a no-op; the row being created carries the
+    // filing on its own.
+    if (owned) await this.fileWholeThread(userId, threadId, owned.id);
+    return owned;
   }
 
   /** Attachments on a thread the caller is a participant of. */
@@ -1192,8 +1229,12 @@ export class MailService {
        * scoring against a subject line — nothing here can put a message in a
        * room a citizen did not name, because nothing here does any inferring.
        */
-      const projectId = (await this.threadProject(user.id, threadId))
-        ?? (await this.subAddressProject(user.id, byHandle.get(handle) ?? null));
+      const inherited = await this.threadProject(user.id, threadId);
+      const tagged = inherited ? null : await this.subAddressProject(user.id, byHandle.get(handle) ?? null);
+      // An arrival addressed to you+abg@ files the CONVERSATION, not only
+      // itself — the same rule the send path follows, for the same reason.
+      if (tagged) await this.fileWholeThread(user.id, threadId, tagged);
+      const projectId = inherited ?? tagged;
       await this.prisma.mailMessage.create({
         data: {
           ownerId: user.id, boxUserId: user.id, folder: 'inbox', read: false, system: false, projectId,

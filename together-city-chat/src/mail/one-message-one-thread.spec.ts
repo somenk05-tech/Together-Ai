@@ -49,8 +49,18 @@ function harness() {
         return select?.sizeBytes ? hit.map((r) => ({ sizeBytes: r.sizeBytes })) : hit;
       },
       deleteMany: async () => ({ count: 0 }),
+      updateMany: async ({ where, data }: any) => {
+        const hit = rows.filter((r) => matches(where, r));
+        for (const r of hit) Object.assign(r, data);
+        return { count: hit.length };
+      },
     },
-    mailProject: { findFirst: async () => null },
+    mailProject: {
+      findFirst: async ({ where }: any) => {
+        if (where.key === 'abg' || where.id === 'p1') return { id: 'p1', key: 'abg', subAddress: true };
+        return null;
+      },
+    },
     mailAccount: { findUnique: async () => ({ userId: 'u1', address: 'somen@togethercity.app' }) },
     user: {
       findUnique: async ({ where }: any) => {
@@ -158,5 +168,42 @@ describe('what a message tells the client about its copies', () => {
     const shaped = svc.shape(sentRows(rows)[0]);
     expect(shaped.ccAddrs).toContain('bob@togethercity.app');
     expect(shaped.bccAddrs).toContain('carol@example.com');
+  });
+});
+
+describe('replying from a project files the conversation, not the reply', () => {
+  it('moves every message of the trail into the room', async () => {
+    const { svc, rows } = harness();
+    // A conversation already in the mailbox, filed nowhere.
+    const THREAD = 'tttttttt-1111-2222-3333-444444444444';
+    for (let i = 0; i < 3; i++) {
+      rows.push({
+        id: `old${i}`, ownerId: 'u1', folder: i === 0 ? 'sent' : 'inbox', threadId: THREAD,
+        projectId: null, sizeBytes: 10, body: '', subject: 'x', ccAddrs: null, bccAddrs: null,
+        createdAt: new Date('2026-08-13T10:0' + i + ':00Z'),
+      });
+    }
+
+    await svc.send('u1', {
+      to: 'alice@togethercity.app', subject: 'Re: x', body: 'ok',
+      threadId: THREAD, projectKey: 'abg',
+    });
+
+    const trail = rows.filter((r) => r.ownerId === 'u1' && r.threadId === THREAD);
+    expect(trail.length).toBeGreaterThan(3);
+    // Not one of them is left behind in All Emails.
+    for (const r of trail) expect(r.projectId).toBe('p1');
+  });
+
+  it('leaves a conversation alone when no room was named', async () => {
+    const { svc, rows } = harness();
+    const THREAD = 'uuuuuuuu-1111-2222-3333-444444444444';
+    rows.push({
+      id: 'old0', ownerId: 'u1', folder: 'inbox', threadId: THREAD, projectId: null,
+      sizeBytes: 10, body: '', subject: 'x', ccAddrs: null, bccAddrs: null,
+      createdAt: new Date('2026-08-13T10:00:00Z'),
+    });
+    await svc.send('u1', { to: 'alice@togethercity.app', subject: 'Re: x', body: 'ok', threadId: THREAD });
+    for (const r of rows.filter((r) => r.ownerId === 'u1')) expect(r.projectId ?? null).toBeNull();
   });
 });
