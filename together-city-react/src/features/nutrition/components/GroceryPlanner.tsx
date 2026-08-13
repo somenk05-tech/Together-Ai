@@ -80,7 +80,6 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
   const [people, setPeople] = useState<number | undefined>(undefined);
   const plan = useGroceryPlan(mode, days, undefined, people);
   const qc = useQueryClient();
-  const schedule = plan.data?.deliverySchedule;
   const [view, setView] = useState<View>('grocery');
   /**
    * The ticks come from the server now (BE-11.1).
@@ -204,86 +203,14 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
     );
   }
 
-  const fmtDay = (iso: string) =>
-    new Date(`${iso}T00:00:00`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
-
-  const deliveryCard = schedule && (
-    <div className="card" style={{ marginBottom: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-        <h3 style={{ margin: 0, fontSize: 16 }}>🚚 Delivery schedule</h3>
-        <span className="muted" style={{ fontSize: 12 }}>fresh items arrive the day you cook them</span>
-        <label style={{ marginLeft: 'auto', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span className="muted">Preferred time</span>
-          <input type="time" defaultValue={schedule.preferredTime}
-            onChange={(e) => {
-              const t = e.target.value;
-              if (/^\d{2}:\d{2}$/.test(t)) {
-                void nutritionApi.setDeliveryTime(t).then(() => qc.invalidateQueries({ queryKey: ['nutrition', 'grocery-plan'] }));
-              }
-            }}
-            style={{ border: '1.5px solid var(--line)', borderRadius: 8, padding: '5px 8px', fontFamily: 'inherit', fontSize: 12.5 }} />
-        </label>
-      </div>
-
-      <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--line)' }}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
-          <strong style={{ fontSize: 13.5 }}>Now · {fmtDay(schedule.first.date)}</strong>
-          <span className="muted" style={{ fontSize: 12 }}>
-            {schedule.first.itemCount} item{schedule.first.itemCount === 1 ? '' : 's'} · pantry staples + today's fresh
-          </span>
-        </div>
-        {schedule.first.items.length > 0 && (
-          <p className="muted" style={{ fontSize: 11.5, margin: '4px 0 0' }}>{schedule.first.items.slice(0, 14).join(' · ')}{schedule.first.items.length > 14 ? ' …' : ''}</p>
-        )}
-      </div>
-
-      {schedule.daily.map((d) => (
-        <div key={d.date} style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--line)' }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
-            <strong style={{ fontSize: 13.5 }}>{fmtDay(d.date)} · {d.time}</strong>
-            <span className="muted" style={{ fontSize: 12 }}>{d.itemCount} fresh item{d.itemCount === 1 ? '' : 's'}</span>
-          </div>
-          <p className="muted" style={{ fontSize: 11.5, margin: '4px 0 0' }}>{d.items.slice(0, 14).join(' · ')}{d.items.length > 14 ? ' …' : ''}</p>
-        </div>
-      ))}
-      {schedule.daily.length === 0 && (
-        <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>Everything in this basket can arrive in the first delivery.</p>
-      )}
-    </div>
-  );
-
   return (
     <div>
       {lockedNote}
       <ShoppingRange mode={mode} days={days} onDays={setDays} />
-      {deliveryCard}
-      {/* Shopping summary — household scaling + estimated cost & waste (family) */}
-      {mode === 'family' && summary && summary.householdSize > 1 && (
-        <div className="card" style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-            <h3 style={{ margin: 0, fontSize: 16 }}>Shopping summary</h3>
-            <span className="muted" style={{ fontSize: 12 }}>scaled to each member's portion, not headcount</span>
-          </div>
-          <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', marginTop: 12 }}>
-            {([
-              [`${summary.householdSize}`, 'members'],
-              [`${summary.days} days`, 'planned'],
-              [`${summary.meals.breakfast + summary.meals.lunch + summary.meals.dinner}`, 'main meals'],
-              [`${summary.meals.evening}`, 'evening'],
-              [`₹${summary.estimatedCostInr.toLocaleString('en-IN')}`, 'est. cost'],
-              [`<${Math.max(3, Math.ceil(summary.wastePct))}%`, 'est. waste'],
-            ] as [string, string][]).map(([n, l]) => (
-              <div key={l}><div style={{ fontSize: 18, fontWeight: 800 }}>{n}</div><div className="muted" style={{ fontSize: 11 }}>{l}</div></div>
-            ))}
-          </div>
-          {summary.members.length > 0 && (
-            <p className="muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.5 }}>
-              Portion multipliers: {summary.members.map((m) => `${m.name.split(' ')[0]} ×${m.multiplier}`).join(' · ')} — a recipe that serves 2 is scaled to {summary.scale} household portions.
-            </p>
-          )}
-        </div>
-      )}
-
+      {/* The delivery-schedule and shopping-summary cards left this page on
+          13 Aug (owner's call). Ordering is not live, so a schedule of drops
+          nobody can order was a promise; and the family scaling the summary
+          described is said once, on the sheet, where the list actually is. */}
       {/* progress + view toggle */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
         <div style={{ flex: 1, minWidth: 180 }}>
