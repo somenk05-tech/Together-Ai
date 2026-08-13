@@ -151,12 +151,16 @@ export const HUBS: Record<HubKey, HubConfig> = {
       //
       // The numbering closes up with it. It ran 01-02-03-04-06-07-08 — a gap
       // at 05 from an earlier removal that nobody shut.
+      // My Orders and Shared Pantry left the rail on 13 Aug (owner's call).
+      // Orders was "empty until ordering goes live" — a door to a room with
+      // nothing in it; its route now lands on the grocery list, where the
+      // coming-soon notice already is. The pantry is a real feature the
+      // grocery arithmetic reads, so its PAGE stays and is linked from the
+      // grocery list it feeds — the cart's own precedent from 4 Aug.
       { path: '/family/connect', index: '01', label: 'Connect Members', sub: 'Roles & permissions' },
       { path: '/family/weekly', index: '02', label: 'Weekly Planner', sub: 'Portioned per member' },
       { path: '/family/grocery', index: '03', label: LABELS.groceryLists, sub: 'One combined list' },
-      { path: '/family/orders', index: '04', label: 'My Orders', sub: 'Empty until ordering goes live' },
-      { path: '/family/pantry', index: '05', label: 'Shared Pantry', sub: 'One household pantry' },
-      { path: '/family/search', index: '06', label: 'Search by Ingredients', sub: "Cook from what's in" },
+      { path: '/family/search', index: '04', label: 'Search by Ingredients', sub: "Cook from what's in" },
     ],
   },
   social: {

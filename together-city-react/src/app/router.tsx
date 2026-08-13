@@ -130,7 +130,6 @@ const FamConnect = lazy(() => import('@/features/family/pages/Connect').then((m)
 const FamWeekly = lazy(() => import('@/features/family/pages/Weekly').then((m) => ({ default: m.FamilyWeekly })));
 const FamGrocery = lazy(() => import('@/features/family/pages/Grocery').then((m) => ({ default: m.FamilyGrocery })));
 const FamCart = lazy(() => import('@/features/family/pages/Cart').then((m) => ({ default: m.FamilyCart })));
-const FamOrders = lazy(() => import('@/features/family/pages/Orders').then((m) => ({ default: m.FamilyOrders })));
 const FamSearch = lazy(() => import('@/features/family/pages/Search').then((m) => ({ default: m.FamilySearch })));
 const FamPantry = lazy(() => import('@/features/family/pages/Pantry').then((m) => ({ default: m.FamilyPantry })));
 const MailInbox = lazy(() => import('@/features/mail/pages/Folders').then((m) => ({ default: m.Inbox })));
@@ -347,7 +346,9 @@ export const router = createBrowserRouter([
       { path: '/family/weekly', element: <RequireAuth>{wrap(<FamWeekly />)}</RequireAuth> },
       { path: '/family/grocery', element: <RequireAuth>{wrap(<FamGrocery />)}</RequireAuth> },
       { path: '/family/cart', element: <RequireAuth>{wrap(<FamCart />)}</RequireAuth> },
-      { path: '/family/orders', element: <RequireAuth>{wrap(<FamOrders />)}</RequireAuth> },
+      // Orders was empty until ordering goes live; its door now opens on the
+      // list, where the coming-soon notice already stands.
+      { path: '/family/orders', element: <Navigate to="/family/grocery" replace /> },
       { path: '/family/search', element: <RequireAuth>{wrap(<FamSearch />)}</RequireAuth> },
       { path: '/family/pantry', element: <RequireAuth>{wrap(<FamPantry />)}</RequireAuth> },
     ],

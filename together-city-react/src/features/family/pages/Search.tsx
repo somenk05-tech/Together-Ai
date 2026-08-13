@@ -116,7 +116,7 @@ export function FamilySearch() {
 
   return (
     <div>
-      <PageHeader eyebrow="Family Nutrition · 06"
+      <PageHeader eyebrow="Family Nutrition · 04"
         title="Search by Ingredients"
         sub="Tell us what's in the kitchen — we search the Together City world database and respect every member's diet, flag kid-friendly recipes, and portion ingredients for the whole family." />
 

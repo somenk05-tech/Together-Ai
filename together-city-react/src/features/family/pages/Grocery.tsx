@@ -40,6 +40,8 @@ export function FamilyGrocery() {
       <div style={{ marginTop: 22, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <Link to="/family/cart"><Button variant="line" size="sm">Review &amp; checkout →</Button></Link>
         <span className="muted" style={{ fontSize: 12.5 }}>Order what is on this list.</span>
+        <Link to="/family/pantry"><Button variant="line" size="sm">Shared pantry →</Button></Link>
+        <span className="muted" style={{ fontSize: 12.5 }}>What you already have — the list subtracts it.</span>
       </div>
 
       <div className="trust">
