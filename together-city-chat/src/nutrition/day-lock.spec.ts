@@ -231,3 +231,46 @@ describe('how many people the menu is for', () => {
     expect(out.summary.people).toBe(12);
   });
 });
+
+describe('the anchor moves, the days keep their dates', () => {
+  // The plan is the calendar month now. Old anchors (the rolling 21-day
+  // block, or last month's 1st) are migrated by shifting every day-keyed
+  // index by the calendar distance — locks must go on naming the same DATES.
+  it('re-anchoring shifts every day-keyed thing by the calendar distance', async () => {
+    const saved: Record<string, unknown>[] = [];
+    const s: any = Object.create(NutritionService.prototype);
+    s.mergeExtras = async (_u: string, patch: Record<string, unknown>) => { saved.push(patch); };
+    // Old anchor 25 Jul; month anchor 1 Aug → shift −7. Day 19 was 13 Aug and
+    // day 20 was 14 Aug; after the move they must STILL be 13 and 14 Aug.
+    const out = await s.reanchorDayKeyedState('u1', {
+      planStartDate: '2026-07-25',
+      composedLocks: [1, 19, 20],                       // day 1 (26 Jul) has passed — dropped
+      composedLockModes: { 19: 'optimal', 20: 'preferred' },
+      composedSkips: ['d19:l', 'd2:b'],
+      composedPins: { 'd20:d': 'r1' },
+      composedBumps: { 'd19:es': 2 },
+      ownDays: { 20: [{ slot: 'l', recipeId: 'r2' }] },
+      ownLocks: [20, 3],
+    }, '2026-08-01', 31);
+    expect(saved[0]).toMatchObject({
+      planStartDate: '2026-08-01',
+      composedLocks: [12, 13],
+      composedLockModes: { 12: 'optimal', 13: 'preferred' },
+      composedSkips: ['d12:l'],
+      composedPins: { 'd13:d': 'r1' },
+      composedBumps: { 'd12:es': 2 },
+      ownLocks: [13],
+    });
+    expect(Object.keys((saved[0] as { ownDays: Record<string, unknown> }).ownDays)).toEqual(['13']);
+    expect(out.planStartDate).toBe('2026-08-01');
+  });
+
+  it('a first-ever anchor shifts nothing', async () => {
+    const saved: Record<string, unknown>[] = [];
+    const s: any = Object.create(NutritionService.prototype);
+    s.mergeExtras = async (_u: string, patch: Record<string, unknown>) => { saved.push(patch); };
+    const out = await s.reanchorDayKeyedState('u1', { composedLocks: [2, 5] }, '2026-08-01', 31);
+    expect((saved[0] as { composedLocks: number[] }).composedLocks).toEqual([2, 5]);
+    expect(out.planStartDate).toBe('2026-08-01');
+  });
+});

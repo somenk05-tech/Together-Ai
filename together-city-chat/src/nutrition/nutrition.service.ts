@@ -471,7 +471,16 @@ type PoolRow = {
   ingredients: Array<{ name: string; grams?: number | null }>;
 };
 
-const PLAN_DAYS = 21;
+/** THE PLAN IS THE CALENDAR MONTH. Day 0 is the 1st; the plan runs to the
+ *  month's last day, and on the 1st of the next month a new one is generated
+ *  under the same principles — fresh seed, same profile, same gates. The
+ *  rolling 21-day block this replaces survives only as stored anchors, which
+ *  are migrated on first read (see reanchorDayKeyedState). */
+const monthStartISO = (todayISO: string): string => `${todayISO.slice(0, 7)}-01`;
+const monthDayCount = (startISO: string): number => {
+  const y = Number(startISO.slice(0, 4)), m = Number(startISO.slice(5, 7));
+  return new Date(Date.UTC(y, m, 0)).getUTCDate();
+};
 
 /**
  * Composed weeks, memoised by their inputs. See the note at the call site in
@@ -2294,9 +2303,18 @@ export class NutritionService implements OnModuleInit {
     // 3-week plan anchor: day 0 = the day the user started this plan. Lazily set on
     // first generation so the plan progresses day-by-day and can prompt a review
     // once its three weeks are up.
-    let planStartDate = (typeof ex.planStartDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(ex.planStartDate)) ? ex.planStartDate : '';
+    // THE PLAN IS THE CALENDAR MONTH: day 0 is the 1st, and on the 1st of the
+    // next month a new plan begins under the same principles. An anchor stored
+    // by the old rolling scheme — or by last month — is MIGRATED, not reset:
+    // every day-keyed thing the citizen did (locks and their models, skips,
+    // pins, bumps, hand-built days) shifts by the calendar distance between
+    // the two anchors, so "Friday is locked" goes on meaning that Friday.
+    const planStartDate = monthStartISO(await this.today(userId));
+    const planDays = monthDayCount(planStartDate);
+    if (ex.planStartDate !== planStartDate) {
+      ex = await this.reanchorDayKeyedState(userId, ex, planStartDate, planDays);
+    }
     const planSeedBump = Number(ex.planSeedBump) || 0;
-    if (!planStartDate) { planStartDate = await this.today(userId); await this.mergeExtras(userId, { planStartDate }); }
     const bvals = await this.bloodValues(userId);
     // Declared conditions + conditions DERIVED from abnormal blood values (QA H5).
     const conditions = [...new Set([...(ex.healthConditions ?? []), ...conditionsFromBlood(bvals)])];
@@ -2391,7 +2409,7 @@ export class NutritionService implements OnModuleInit {
       composerDiet,
       ex.weekly as Record<string, 'veg' | 'nonveg'> | undefined,
       planStartDate,
-      PLAN_DAYS,
+      planDays,
     );
 
     const cprefsFor = (m: 'preferred' | 'optimal'): ComposerPrefs => {
@@ -2445,14 +2463,16 @@ export class NutritionService implements OnModuleInit {
      * turns a speed-up into an out-of-memory.
      */
     const poolStamp = `${datasetPool.length}`;
-    const baseSeed = this.seedFor(userId) + Math.imul(planSeedBump, 7919);
+    // The month is IN the seed: 1 September's plan must differ from August's
+    // without the citizen pressing anything.
+    const baseSeed = this.seedFor(userId) + Math.imul(planSeedBump, 7919) + Math.imul(Number(planStartDate.replace(/-/g, '')), 97);
     const weekFor = (m: 'preferred' | 'optimal') => {
       const seed = baseSeed + (m === 'optimal' ? 101 : 0);
       const prefs = cprefsFor(m);
-      const key = `${userId}|${m}|${seed}|${PLAN_DAYS}|${poolStamp}|${stableKey(targets)}|${stableKey(prefs)}`;
+      const key = `${userId}|${m}|${seed}|${planDays}|${poolStamp}|${stableKey(targets)}|${stableKey(prefs)}`;
       const hit = COMPOSED_WEEK_CACHE.get(key);
       if (hit && hit.at > Date.now() - COMPOSED_WEEK_TTL_MS) return hit.week;
-      const week = composeWeek(targets, prefs, PLAN_DAYS, seed, datasetPool);
+      const week = composeWeek(targets, prefs, planDays, seed, datasetPool);
       if (COMPOSED_WEEK_CACHE.size >= COMPOSED_WEEK_MAX) {
         // Oldest insertion first — Map preserves insertion order.
         const oldest = COMPOSED_WEEK_CACHE.keys().next().value;
@@ -2488,7 +2508,7 @@ export class NutritionService implements OnModuleInit {
     // and attributing a clinical avoid to "you told us about it" would be false.
     const cut = corpusExcludedBy(datasetPool, terms(ex.allergies));
     const locks = this.lockedDays(ex);
-    return { ...week, mode, prescription: t, fastingSafety: safety, skips: ex.composedSkips ?? [], locks, lockModes: this.lockPlanModes(ex), scorecard, planStartDate, reviewDate: addDaysISO(planStartDate, PLAN_DAYS), planDays: PLAN_DAYS, allergyNotice: allergyNotice(cut.matched, cut.removed, { one: 'recipe', many: 'recipes' }), ...(compliance ? { compliance } : {}) };
+    return { ...week, mode, prescription: t, fastingSafety: safety, skips: ex.composedSkips ?? [], locks, lockModes: this.lockPlanModes(ex), scorecard, planStartDate, reviewDate: addDaysISO(planStartDate, planDays), planDays, allergyNotice: allergyNotice(cut.matched, cut.removed, { one: 'recipe', many: 'recipes' }), ...(compliance ? { compliance } : {}) };
   }
 
   /** DB diet values that satisfy a requested diet (ladder). Real DB values:
@@ -2907,6 +2927,49 @@ export class NutritionService implements OnModuleInit {
   }
 
   /**
+   * Move every day-keyed thing the citizen owns onto a new plan anchor.
+   *
+   * Day indexes are relative to planStartDate; when the anchor moves (the old
+   * rolling block → this month's 1st, or one month → the next) an index kept
+   * as-is silently renames the day it points at. The shift is the calendar
+   * distance between the anchors, and whatever lands outside the month is
+   * dropped — on a rollover that is exactly the days that have already passed.
+   */
+  private async reanchorDayKeyedState(userId: string, ex: PrefExtras, toISO: string, planDays: number): Promise<PrefExtras> {
+    const fromISO = (typeof ex.planStartDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(ex.planStartDate)) ? ex.planStartDate : '';
+    const shift = fromISO ? daysBetweenISO(toISO, fromISO) : 0;
+    const inRange = (d: number) => Number.isInteger(d) && d >= 0 && d < planDays;
+
+    const days = (xs: unknown): number[] =>
+      Array.isArray(xs) ? xs.filter((d): d is number => typeof d === 'number').map((d) => d + shift).filter(inRange).sort((a, b) => a - b) : [];
+    const keyed = <V,>(rec: Record<string, V> | undefined, keyShift: (k: string) => string | null): Record<string, V> => {
+      const out: Record<string, V> = {};
+      for (const [k, v] of Object.entries(rec ?? {})) { const nk = keyShift(k); if (nk !== null) out[nk] = v; }
+      return out;
+    };
+    const shiftDayKey = (k: string): string | null => {
+      const d = Number(k) + shift; return inRange(d) ? String(d) : null;
+    };
+    const shiftSlotKey = (k: string): string | null => {
+      const m = /^d(\d+):(.+)$/.exec(k); if (!m) return null;
+      const d = Number(m[1]) + shift; return inRange(d) ? `d${d}:${m[2]}` : null;
+    };
+
+    const patch: Partial<PrefExtras> = {
+      planStartDate: toISO,
+      composedLocks: days(ex.composedLocks),
+      composedLockModes: keyed(this.lockPlanModes(ex) as unknown as Record<string, 'preferred' | 'optimal'>, shiftDayKey),
+      composedSkips: (ex.composedSkips ?? []).map(shiftSlotKey).filter((k): k is string => k !== null),
+      composedPins: keyed(ex.composedPins, shiftSlotKey),
+      composedBumps: keyed(ex.composedBumps, shiftSlotKey),
+      ownDays: keyed(ex.ownDays as Record<string, never> | undefined, shiftDayKey) as PrefExtras['ownDays'],
+      ownLocks: days(ex.ownLocks),
+    };
+    await this.mergeExtras(userId, patch as Record<string, unknown>);
+    return { ...ex, ...patch };
+  }
+
+  /**
    * Refuse to change a day the citizen has settled.
    *
    * Called by every mutation that could move a meal. The message names the way
@@ -2944,13 +3007,16 @@ export class NutritionService implements OnModuleInit {
    */
   async ownPlan(userId: string) {
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
-    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    let ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    // Month anchor, shared with the composed plan — and migrated the same way,
+    // because ownDays/ownLocks are day-keyed against the same day 0.
+    const planStartDate = monthStartISO(await this.today(userId));
+    const planDays = monthDayCount(planStartDate);
+    if (ex.planStartDate !== planStartDate) {
+      ex = await this.reanchorDayKeyedState(userId, ex, planStartDate, planDays);
+    }
     const entries = (ex.ownDays ?? {}) as Record<string, OwnEntry[]>;
     const locks = (ex.ownLocks ?? []) as number[];
-
-    let planStartDate = (typeof ex.planStartDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(ex.planStartDate))
-      ? ex.planStartDate : '';
-    if (!planStartDate) { planStartDate = await this.today(userId); await this.mergeExtras(userId, { planStartDate }); }
 
     const todayIdx = Math.max(0, daysBetweenISO(planStartDate, await this.today(userId)));
     const pool = await this.poolFor(userId);
@@ -2978,7 +3044,7 @@ export class NutritionService implements OnModuleInit {
     return {
       planStartDate,
       todayIndex: todayIdx,
-      targetDay: targetDay(todayIdx, locks, PLAN_DAYS),
+      targetDay: targetDay(todayIdx, locks, planDays),
       locks: [...locks].sort((a, b) => a - b),
       days,
       targets: prescription,
@@ -2992,12 +3058,16 @@ export class NutritionService implements OnModuleInit {
     if (!recipe) throw new NotFoundException('recipe not found');
 
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
-    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    let ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const planStartDate = monthStartISO(await this.today(userId));
+    const planDays = monthDayCount(planStartDate);
+    if (ex.planStartDate !== planStartDate) {
+      ex = await this.reanchorDayKeyedState(userId, ex, planStartDate, planDays);
+    }
     const entries = { ...((ex.ownDays ?? {}) as Record<string, OwnEntry[]>) };
     const locks = (ex.ownLocks ?? []) as number[];
-    const planStartDate = (typeof ex.planStartDate === 'string' && ex.planStartDate) || (await this.today(userId));
     const todayIdx = Math.max(0, daysBetweenISO(planStartDate, await this.today(userId)));
-    const day = targetDay(todayIdx, locks, PLAN_DAYS);
+    const day = targetDay(todayIdx, locks, planDays);
 
     const list = [...(entries[String(day)] ?? [])];
     // The same dish twice in one course is almost always a double tap, not an
@@ -3230,7 +3300,9 @@ export class NutritionService implements OnModuleInit {
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
     await this.mergeExtras(userId, {
-      planStartDate: await this.today(userId),
+      // A fresh plan under the month scheme keeps the month's anchor — day 0
+      // stays the 1st — and reseeds the meals.
+      planStartDate: monthStartISO(await this.today(userId)),
       planSeedBump: (Number(ex.planSeedBump) || 0) + 1,
       composedBumps: {},
       composedSkips: [],

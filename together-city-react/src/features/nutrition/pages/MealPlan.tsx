@@ -590,7 +590,7 @@ export function MealPlan() {
   const dates = datesFrom(start, wk.days.length);
   const offset = dayOffset(start);
   const todayIdx = Math.max(0, Math.min(wk.days.length - 1, offset));
-  const planEnded = offset >= wk.days.length;        // today is past the 3-week block
+  const planEnded = offset >= wk.days.length;        // today is past the plan's month (timezone edge)
   const endDate = dates[dates.length - 1];
   // Default the strip to today; an explicit ?day= wins so navigation is shareable.
   // THE RAIL STARTS AT TODAY. A planner that opens on the 3rd when it is the
@@ -601,15 +601,10 @@ export function MealPlan() {
   const dayParam = sp.get('day');
   const day = Math.max(todayIdx, Math.min(wk.days.length - 1, dayParam !== null ? (Number(dayParam) || 0) : todayIdx));
   const d = wk.days[day];
-  // One week from today by default, two on request ("?span=14" so the choice
-  // survives a recipe round-trip like day and mode do), clamped to what the
-  // plan still has. The SELECTED day is always kept on the rail: DayLock hands
-  // off to "the next unlocked day", and a hand-off outside the rail would
-  // select a day the strip refuses to show.
-  const span = sp.get('span') === '14' ? 14 : 7;
-  const setSpan = (n: 7 | 14) => setSp((p) => { p.set('span', String(n)); return p; }, { replace: true });
-  const spanEnd = Math.min(wk.days.length - 1, todayIdx + span - 1);
-  const lastVisible = Math.max(spanEnd, day);
+  // THE RAIL IS THE MONTH: today through the month's last day, one scroll by
+  // date. The week/two-week window went with the rolling block — a month
+  // plan's horizon is the calendar's, not a chosen span.
+  const lastVisible = wk.days.length - 1;
 
   return (
     <div data-press className="press-page">
@@ -693,17 +688,17 @@ export function MealPlan() {
           something the equation needs. */}
       <TargetsDisclosure p={wk.prescription} />
 
-      {/* 3-week plan window + review prompt (planned in one go; adjust after it ends). */}
+      {/* The month's plan window — a new plan is generated on the 1st, same principles. */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: planEnded ? 'var(--warn-soft)' : 'var(--accent-soft)', border: `1px solid ${planEnded ? 'var(--warn-line)' : 'var(--line)'}`, borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 12.5 }}>
         <span style={{ flex: 1, minWidth: 220 }}>
           {planEnded
-            ? <><strong>Your 3-week plan has ended.</strong> Start a fresh one and we’ll plan the next three weeks from today.</>
-            : <><strong>3-week plan</strong> · {longDate(start)} – {longDate(endDate)}. Follow it through, then come back after {longDate(endDate)} to review &amp; adjust.</>}
+            ? <><strong>This month’s plan has ended.</strong> Start a fresh one and we’ll plan the rest of the month from today.</>
+            : <><strong>{start.toLocaleDateString('en-IN', { month: 'long' })} plan</strong> · {longDate(start)} – {longDate(endDate)}. A fresh plan begins on {longDate(new Date(endDate.getTime() + 86_400_000))}, built the same way from your profile.</>}
         </span>
         {!wk.readOnly && (
           <Button variant="line" size="sm" disabled={renew.isPending}
-            onClick={() => { if (window.confirm('Start a fresh 3-week plan from today? This replaces the current plan and clears your swaps/skips.')) renew.mutate({}); }}>
-            {renew.isPending ? 'Planning…' : (planEnded ? 'Start new 3-week plan' : 'Start fresh plan')}
+            onClick={() => { if (window.confirm('Start a fresh plan for this month? This replaces the current plan and clears your swaps/skips.')) renew.mutate({}); }}>
+            {renew.isPending ? 'Planning…' : (planEnded ? 'Start new plan' : 'Start fresh plan')}
           </Button>
         )}
       </div>
@@ -760,13 +755,6 @@ export function MealPlan() {
             </div>
             <button type="button" aria-label="Next day" disabled={day >= lastVisible} onClick={() => setDay(Math.min(lastVisible, day + 1))}
               style={{ display: 'grid', placeItems: 'center', width: 34, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--muted)', cursor: day >= lastVisible ? 'default' : 'pointer', opacity: day >= lastVisible ? 0.4 : 1 }}><NIc name="chevR" size={18} /></button>
-            {spanEnd < wk.days.length - 1 || span === 14 ? (
-              <button type="button" aria-label={span === 7 ? 'Show two weeks' : 'Show one week'}
-                onClick={() => setSpan(span === 7 ? 14 : 7)}
-                style={{ display: 'grid', placeItems: 'center', padding: '0 12px', borderRadius: 12, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink-soft)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
-                {span === 7 ? 'Two weeks' : 'One week'}
-              </button>
-            ) : null}
           </div>
 
           {wk.skips && wk.skips.length > 0 && (
