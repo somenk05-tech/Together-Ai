@@ -1,8 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import type { PrismaTx } from '../shared/prisma/prisma-tx';
-import { LEDGER_CAP } from '../shared/paging';
-import type { SetBudgetDto } from './dto/financial.dto';
+import { LEDGER_CAP, SPEND_LOG_CAP } from '../shared/paging';
+import type { AddSpendLogDto, SetBudgetDto } from './dto/financial.dto';
 
 /** Spend categories — one per commerce-producing hub. */
 export const CATEGORIES = [
@@ -290,18 +290,108 @@ export class FinancialService {
     const thisM = inMonth(monthKey(now));
     const prevM = inMonth(monthKey(prev));
     const sumBy = (list: Txn[], cat: string) => list.filter((d) => d.category === cat).reduce((s, d) => s + d.amountInr, 0);
-    const total = thisM.reduce((s, d) => s + d.amountInr, 0);
-    const prevTotal = prevM.reduce((s, d) => s + d.amountInr, 0);
+    const cityTotal = thisM.reduce((s, d) => s + d.amountInr, 0);
+    const cityPrev = prevM.reduce((s, d) => s + d.amountInr, 0);
+
+    /**
+     * THE HAND-WRITTEN HALF, COUNTED IN THE TOTAL AND NAMED SEPARATELY.
+     *
+     * A log entry has no category and cannot be given one — see the schema
+     * note — so it cannot join `byCategory` without inventing a heading the
+     * citizen never chose. It joins the TOTAL, because "what did I spend this
+     * month" is a question about money and not about who moved it, and it is
+     * reported on its own line so no per-category figure is ever quietly wrong.
+     *
+     * That is also why the percentages below are computed against the CITY
+     * total rather than the combined one: a category showing 32% of a number
+     * that includes uncategorised cash would be describing a share of something
+     * it is not a share of.
+     */
+    const [loggedThis, loggedPrev] = await Promise.all([
+      this.loggedInMonth(userId, monthKey(now)),
+      this.loggedInMonth(userId, monthKey(prev)),
+    ]);
+    const total = cityTotal + loggedThis.amountInr;
+    const prevTotal = cityPrev + loggedPrev.amountInr;
+
     return {
       totalInr: total,
       prevTotalInr: prevTotal,
       trendPct: prevTotal ? Math.round(((total - prevTotal) / prevTotal) * 100) : null,
+      /** What the city moved, and what the citizen wrote down. They add to totalInr. */
+      cityInr: cityTotal,
+      loggedInr: loggedThis.amountInr,
+      loggedCount: loggedThis.count,
       byCategory: CATEGORIES.map((c) => {
         const amt = sumBy(thisM, c.key);
-        return { category: c.key, label: c.label, hint: c.hint, amountInr: amt, pct: total ? Math.round((amt / total) * 100) : 0 };
+        return { category: c.key, label: c.label, hint: c.hint, amountInr: amt, pct: cityTotal ? Math.round((amt / cityTotal) * 100) : 0 };
       }),
       txnCount: thisM.length,
     };
+  }
+
+  /** One month of the citizen's own entries, summed. Used by `spending`. */
+  private async loggedInMonth(userId: string, key: string) {
+    const [y, m] = key.split('-').map(Number);
+    const from = new Date(Date.UTC(y, m - 1, 1));
+    const to = new Date(Date.UTC(y, m, 1));
+    // The LIST in spendLog() is capped at SPEND_LOG_CAP; this is arithmetic, and
+    // paging.ts's own header says why the two differ — a cap on a list is a slow
+    // query avoided, a cap on a computation is a wrong number shipped.
+    // unbounded: one citizen's entries for ONE month, summed. The date window IS
+    // the bound, and a cap here would under-report a total while looking fine.
+    const rows = await this.prisma.spendLogEntry.findMany({
+      where: { userId, spentOn: { gte: from, lt: to } },
+      select: { amountInr: true },
+    });
+    return { amountInr: rows.reduce((s, r) => s + r.amountInr, 0), count: rows.length };
+  }
+
+  /**
+   * THE CITIZEN'S OWN LOG — newest first, and bounded.
+   *
+   * `SPEND_LOG_CAP` rather than every row ever written: this is the page's
+   * list, and a page that fetches four years of entries to show the last fifty
+   * gets slower every month it is used. The month totals above do NOT read
+   * through this — they aggregate their own window — so the cap can never make
+   * a total wrong, which is the failure a capped list usually causes.
+   */
+  async spendLog(userId: string) {
+    const rows = await this.prisma.spendLogEntry.findMany({
+      where: { userId },
+      orderBy: [{ spentOn: 'desc' }, { createdAt: 'desc' }],
+      take: SPEND_LOG_CAP,
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      spentOn: r.spentOn.toISOString().slice(0, 10),
+      note: r.note,
+      amountInr: r.amountInr,
+    }));
+  }
+
+  /**
+   * Write one line. The day arrives as YYYY-MM-DD and is stored as that day at
+   * UTC midnight — a `date` column, so the time is never read back and cannot
+   * drift a row into the wrong month.
+   */
+  async addSpendLog(userId: string, dto: AddSpendLogDto) {
+    const [y, m, d] = dto.spentOn.split('-').map(Number);
+    await this.prisma.spendLogEntry.create({
+      data: { userId, spentOn: new Date(Date.UTC(y, m - 1, d)), note: dto.note, amountInr: dto.amountInr },
+    });
+    return this.spendLog(userId);
+  }
+
+  /**
+   * Remove one line. Scoped by userId in the WHERE and not merely checked after
+   * reading — a delete that fetches, compares and then deletes is two round
+   * trips and one race; `deleteMany` with both keys is one statement that
+   * cannot touch somebody else's row.
+   */
+  async removeSpendLog(userId: string, id: string) {
+    await this.prisma.spendLogEntry.deleteMany({ where: { id, userId } });
+    return this.spendLog(userId);
   }
 
   /** Budgets per category with current-month spend against them. */

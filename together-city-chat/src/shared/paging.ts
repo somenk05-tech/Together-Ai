@@ -31,6 +31,17 @@ export const RECORD_CAP = 500;
 export const LEDGER_CAP = 500;
 
 /**
+ * The citizen's own spending log — the page's list, not the month's arithmetic.
+ *
+ * It sits beside LEDGER_CAP for the same reason and with the same caveat above:
+ * `spendLog` is a LIST and is capped, while the monthly totals aggregate their
+ * own date window and are not. A cap that reached the totals would make them
+ * quietly wrong the first month somebody wrote more than this many lines, which
+ * is the failure this file's header exists to warn about.
+ */
+export const SPEND_LOG_CAP = 500;
+
+/**
  * Clamp a caller-supplied `limit` to something sane.
  * Rejects junk (NaN, negatives, absurd numbers) by falling back to the default.
  */

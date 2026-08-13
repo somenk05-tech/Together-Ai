@@ -168,6 +168,7 @@ model User {
   astroReadings        AstroReading[]
   tarotReadings        TarotReading[]
   budgets              Budget[]
+  spendLog             SpendLogEntry[]
   jobProfile           JobProfile?
   jobsPosted           Job[]
   jobApplications      JobApplication[]
@@ -1406,6 +1407,40 @@ model WalletTxn {
 
   @@unique([userId, idempotencyKey])
   @@index([userId, createdAt])
+}
+
+/**
+ * A LINE IN THE CITIZEN'S OWN SPENDING LOG.
+ *
+ * Everything else the Financial hub knows about is money the CITY moved: an
+ * order it placed, a wallet it debited, a rate it charged. This is the other
+ * kind — cash spent in a shop the city has never heard of, written down by the
+ * person who spent it.
+ *
+ * THREE COLUMNS AND NO CATEGORY, and the absence is the design. Asking somebody
+ * to file "auto to work, ₹80" under one of seven headings before it will accept
+ * the entry is how a log stops being written in. The note is whatever they
+ * typed; the total is a number they typed beside it.
+ *
+ * `spentOn` IS A DATE AND NOT A TIMESTAMP. A citizen logging yesterday's coffee
+ * is naming a day, not an instant, and storing an instant would put their entry
+ * in the wrong month for five and a half hours a day in Asia/Kolkata — which is
+ * the bug the shared clock service exists to prevent everywhere else.
+ */
+model SpendLogEntry {
+  id        String   @id @default(uuid())
+  userId    String
+  /** The day the money went, as the citizen named it. */
+  spentOn   DateTime @db.Date
+  /** What they wrote. Free text on purpose — see the note above. */
+  note      String
+  amountInr Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Read by user and month, always, and never by note.
+  @@index([userId, spentOn])
 }
 
 model Budget {
