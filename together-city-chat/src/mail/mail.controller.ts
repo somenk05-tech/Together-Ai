@@ -5,7 +5,12 @@ import { JwtUser } from '../shared/types';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { MailService } from './mail.service';
-import { FlagSchema, type FlagDto, FolderQuerySchema, type FolderQueryDto, SendMailSchema, type SendMailDto, SaveDraftSchema, type SaveDraftDto } from './dto/mail.dto';
+import {
+  FlagSchema, type FlagDto, FolderQuerySchema, type FolderQueryDto,
+  SendMailSchema, type SendMailDto, SaveDraftSchema, type SaveDraftDto,
+  CreateProjectSchema, type CreateProjectDto, UpdateProjectSchema, type UpdateProjectDto,
+  FileThreadSchema, type FileThreadDto,
+} from './dto/mail.dto';
 
 @Controller('mail')
 @UseGuards(JwtAuthGuard)
@@ -34,6 +39,41 @@ export class MailController {
   }).strict()))
   setPrimary(@CurrentUser() user: JwtUser, @Body() body: { email?: string; phone?: string }) {
     return this.mail.setPrimary(user.sub, { email: body?.email, phone: body?.phone });
+  }
+
+  /* ── PROJECTS ──────────────────────────────────────────────────────────
+     Declared above the `:id` routes on purpose: Nest matches in declaration
+     order, and `GET /mail/projects` under `@Get(':id')` is a lookup for a
+     message called "projects". */
+
+  @Get('projects')
+  projects(@CurrentUser() user: JwtUser) {
+    return this.mail.projects(user.sub);
+  }
+
+  @Post('projects')
+  @UsePipes(new ZodValidationPipe(CreateProjectSchema))
+  createProject(@CurrentUser() user: JwtUser, @Body() dto: CreateProjectDto) {
+    return this.mail.createProject(user.sub, dto);
+  }
+
+  @Post('projects/:id')
+  @UsePipes(new ZodValidationPipe(UpdateProjectSchema))
+  updateProject(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: UpdateProjectDto) {
+    return this.mail.updateProject(user.sub, id, dto);
+  }
+
+  /** Close a room. The mail inside it returns to All Email — see the service. */
+  @Delete('projects/:id')
+  deleteProject(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.mail.deleteProject(user.sub, id);
+  }
+
+  /** Move a whole conversation into a project, or out of one. */
+  @Post('file')
+  @UsePipes(new ZodValidationPipe(FileThreadSchema))
+  fileThread(@CurrentUser() user: JwtUser, @Body() dto: FileThreadDto) {
+    return this.mail.fileThread(user.sub, dto);
   }
 
   @Get()

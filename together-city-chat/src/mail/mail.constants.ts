@@ -20,15 +20,44 @@ export const stripCityDomain = (raw: string): string => {
   const [local, domain] = v.split('@');
   return domain && CITY_DOMAINS.includes(domain) ? local : v;
 };
-/** Parse a "handle@togethercity.app" (or legacy .tech, or bare handle) into a
- *  city handle, or null if the address is off-domain (i.e. truly external). */
-export const handleFromAddress = (raw: string): string | null => {
+/**
+ * Parse a city address into the mailbox it names and the project tag it was
+ * sub-addressed with, or null if the address is off-domain (truly external).
+ *
+ * SUB-ADDRESSING IS ONE MAILBOX, NOT A SECOND ACCOUNT. `you+abg@` is delivered
+ * to `you`, and the `abg` is a hint about where in that mailbox it belongs —
+ * which is the whole reason project folders do not each need an address of
+ * their own.
+ *
+ * The `+` USED TO BE SCRUBBED. The old parser stripped everything outside
+ * [a-z0-9._-] from the local part, so `you+abg@togethercity.app` resolved to
+ * the handle `youabg` — a mailbox nobody has — and the mail was silently
+ * dropped as having no city recipient. Sub-addressed mail has therefore never
+ * arrived here; splitting on the `+` before scrubbing is what fixes it, and it
+ * is a fix whether or not projects exist.
+ */
+export const cityRecipient = (raw: string): { handle: string; tag: string | null } | null => {
   const v = (raw || '').trim().toLowerCase();
   if (!v) return null;
-  if (!v.includes('@')) return v.replace(/[^a-z0-9._-]/g, '') || null;
-  const [local, domain] = v.split('@');
-  if (!CITY_DOMAINS.includes(domain)) return null;
-  return local.replace(/[^a-z0-9._-]/g, '') || null;
+  const at = v.includes('@');
+  const [localRaw, domain] = at ? v.split('@') : [v, ''];
+  if (at && !CITY_DOMAINS.includes(domain)) return null;
+  const [base, ...rest] = localRaw.split('+');
+  const handle = base.replace(/[^a-z0-9._-]/g, '');
+  if (!handle) return null;
+  const tag = rest.join('').replace(/[^a-z0-9-]/g, '');
+  return { handle, tag: tag || null };
+};
+
+/** Parse a "handle@togethercity.app" (or legacy .tech, or bare handle) into a
+ *  city handle, or null if the address is off-domain (i.e. truly external). */
+export const handleFromAddress = (raw: string): string | null => cityRecipient(raw)?.handle ?? null;
+
+/** you+abg@togethercity.app — the citizen's own address with a hint on it.
+ *  One mailbox, and never a second account: see cityRecipient above. */
+export const subAddressed = (address: string, key: string): string => {
+  const [local, domain] = (address || '').split('@');
+  return domain ? `${local}+${key}@${domain}` : `${local}+${key}`;
 };
 
 export const snippetOf = (body: string, n = 140): string => {

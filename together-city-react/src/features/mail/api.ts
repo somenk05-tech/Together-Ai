@@ -32,18 +32,52 @@ export interface MailItem {
   system: boolean; folder: string; threadId?: string | null; createdAt: string;
   /** Why the provider refused it, in its own words. Null on anything in Sent. */
   failureReason?: string | null;
+  /** The project this conversation is filed under, or null for All Email.
+   *  Carried on every row so a list can draw the chip without a second ask. */
+  projectId?: string | null;
 }
+
+/**
+ * A ROOM INSIDE THE MAILBOX.
+ *
+ * `total` excludes Trash, `unread` counts the project's Inbox, and `last` is
+ * what the card says happened most recently — who, which way round, and when.
+ * `address` is present only when the citizen switched the sub-address on,
+ * because an address nobody has turned on is not one they can hand out.
+ */
+export interface MailProject {
+  id: string; name: string; key: string;
+  subAddress: boolean; address: string | null; archived: boolean;
+  createdAt: string; total: number; unread: number;
+  last: { who: string; outbound: boolean; at: string } | null;
+}
+
+/** Fifty per citizen, counted out loud from the first one rather than sprung
+ *  at the limit. Mirrors PROJECT_CAP in the API's mail dto. */
+export const PROJECT_CAP = 50;
 export interface MailMessage extends MailItem { body: string }
 export interface DirectoryEntry { handle: string; name: string; address: string }
 
 export const mailApi = {
   account: () => api.get<MailAccount>('/mail/account').then((r) => r.data),
   directory: () => api.get<DirectoryEntry[]>('/mail/directory').then((r) => r.data),
-  list: (folder: Folder, q?: string) =>
-    api.get<MailItem[]>('/mail', { params: q ? { folder, q } : { folder } }).then((r) => r.data),
+  list: (folder: Folder, q?: string, project?: string) =>
+    api.get<MailItem[]>('/mail', {
+      params: { folder, ...(q ? { q } : {}), ...(project ? { project } : {}) },
+    }).then((r) => r.data),
+  projects: () => api.get<MailProject[]>('/mail/projects').then((r) => r.data),
+  createProject: (input: { name: string; key: string; subAddress: boolean }) =>
+    api.post<{ projects: MailProject[]; created: string }>('/mail/projects', input).then((r) => r.data),
+  updateProject: (id: string, input: { name?: string; subAddress?: boolean; archived?: boolean }) =>
+    api.post<MailProject[]>(`/mail/projects/${id}`, input).then((r) => r.data),
+  deleteProject: (id: string) =>
+    api.delete<{ ok: boolean; released: number; projects: MailProject[] }>(`/mail/projects/${id}`).then((r) => r.data),
+  /** Move a whole conversation into a project, or out of one (null). */
+  fileThread: (input: { threadId: string; projectId: string | null }) =>
+    api.post<{ ok: boolean; moved: number }>('/mail/file', input).then((r) => r.data),
   get: (id: string) => api.get<MailMessage>(`/mail/${id}`).then((r) => r.data),
   thread: (threadId: string) => api.get<MailMessage[]>(`/mail/thread/${threadId}`).then((r) => r.data),
-  send: (input: { to: string; cc?: string[]; bcc?: string[]; subject: string; body: string; threadId?: string; attachmentFileIds?: string[]; draftId?: string }) =>
+  send: (input: { to: string; cc?: string[]; bcc?: string[]; subject: string; body: string; threadId?: string; attachmentFileIds?: string[]; draftId?: string; projectId?: string }) =>
     api.post<MailItem[]>('/mail/send', input).then((r) => r.data),
   saveDraft: (input: { id?: string; to: string; subject: string; body: string; threadId?: string }) =>
     api.post<MailMessage>('/mail/draft', input).then((r) => r.data),
@@ -75,14 +109,52 @@ export function useSetPrimary() {
 export function useDirectory() {
   return useQuery({ queryKey: ['mail', 'directory'], queryFn: () => mailApi.directory() });
 }
-export function useMailList(folder: Folder, q?: string) {
+export function useMailProjects() {
+  return useQuery({ queryKey: ['mail', 'projects'], queryFn: () => mailApi.projects() });
+}
+export function useCreateProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { name: string; key: string; subAddress: boolean }) => mailApi.createProject(v),
+    onSuccess: (r) => { qc.setQueryData(['mail', 'projects'], r.projects); },
+  });
+}
+export function useUpdateProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { id: string; name?: string; subAddress?: boolean; archived?: boolean }) =>
+      mailApi.updateProject(v.id, { name: v.name, subAddress: v.subAddress, archived: v.archived }),
+    onSuccess: (projects) => { qc.setQueryData(['mail', 'projects'], projects); },
+  });
+}
+/** Closes the room. The mail returns to All Email — `released` says how much,
+ *  so the client can state it rather than leave somebody guessing. */
+export function useDeleteProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => mailApi.deleteProject(id),
+    onSuccess: (r) => { qc.setQueryData(['mail', 'projects'], r.projects); void qc.invalidateQueries({ queryKey: ['mail', 'list'] }); },
+  });
+}
+/** Move a conversation into a project, or out of one. Invalidates every list:
+ *  the thread leaves one scoped mailbox and appears in another, and the chip
+ *  in All Email changes on the same move. */
+export function useFileThread() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { threadId: string; projectId: string | null }) => mailApi.fileThread(v),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['mail'] }); },
+  });
+}
+
+export function useMailList(folder: Folder, q?: string, project?: string) {
   const needle = (q ?? '').trim();
   return useQuery({
     // The needle is part of the key, so a search is a cache entry rather than a
     // refetch of the folder — clearing the box shows the folder again instantly
     // and going back to a search does not re-ask.
-    queryKey: ['mail', 'list', folder, needle],
-    queryFn: () => mailApi.list(folder, needle || undefined),
+    queryKey: ['mail', 'list', folder, needle, project ?? ''],
+    queryFn: () => mailApi.list(folder, needle || undefined, project),
     // A folder rendered while somebody is still typing is a list flickering
     // under their hands. The page debounces before it changes this argument;
     // holding the previous rows meanwhile keeps the screen still.
@@ -102,7 +174,7 @@ export function useMailThread(threadId?: string | null) {
 export function useSendMail() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { to: string; cc?: string[]; bcc?: string[]; subject: string; body: string; threadId?: string; attachmentFileIds?: string[]; draftId?: string }) => mailApi.send(v),
+    mutationFn: (v: { to: string; cc?: string[]; bcc?: string[]; subject: string; body: string; threadId?: string; attachmentFileIds?: string[]; draftId?: string; projectId?: string }) => mailApi.send(v),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['mail'] }); },
   });
 }

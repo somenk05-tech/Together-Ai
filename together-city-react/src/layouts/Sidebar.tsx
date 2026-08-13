@@ -2,6 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import type { HubConfig } from '@/config/hubs';
 import { Icon } from '@/components/ui/Icon';
 import { useUiStore } from '@/store/ui.store';
+import { MailProjectsRail } from '@/features/mail/ProjectRail';
 
 const PersonIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -65,6 +66,12 @@ export function Sidebar({ hub }: { hub: HubConfig }) {
           </NavLink>
         ))}
       </nav>
+      {/* MAIL IS THE ONE HUB WITH RAIL ENTRIES THAT ARE NOT IN CONFIG. Every
+          other rail is a fixed list of screens; a citizen's projects are
+          theirs, and they hang under the fixed list rather than being merged
+          into it — hub.items stays the same shape for all twenty-five. */}
+      {hub.key === 'mail' && <MailProjectsRail onNavigate={() => toggle(false)} />}
+
       {/* The way out is on the same door the way in was: Home, and the whole
           city, from any hub's drawer. */}
       <nav className="side-menu" aria-label="The city" style={{ borderTop: '1px solid var(--line)', marginTop: 14, paddingTop: 10 }}>

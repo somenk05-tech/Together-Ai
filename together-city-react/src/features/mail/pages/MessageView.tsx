@@ -9,6 +9,7 @@ import { mailApi } from '../api';
 import { fmtBytes, fileIcon } from '@/features/drive/api';
 import { splitQuoted, stripCityFooter } from '../quoted';
 import { expandedByDefault, previewOf } from '../collapse';
+import { MoveToProject } from '../MoveToProject';
 import {
   useMailMessage, useMailThread, useMailAccount, useFlagMail, useRemoveMail,
   humanBytes, initials, avatarHue, type MailMessage,
@@ -259,6 +260,11 @@ export function MessageView() {
         <Button variant="line" size="sm" onClick={() => nav(-1)}>← Back</Button>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
           <Button variant="line" size="sm" onClick={() => flag.mutate({ id: m.id, starred: !m.starred })}>{m.starred ? '★ Starred' : '☆ Star'}</Button>
+          {/* FILING HAPPENS WHERE THE MESSAGE CAN BE READ. A row in a list is
+              a subject and a snippet; deciding which room a conversation
+              belongs in is a decision about what it SAYS, so the control is
+              here rather than on the row. */}
+          {m.threadId && <MoveToProject threadId={m.threadId} projectId={m.projectId ?? null} count={trail.length} />}
           {!m.system && <Button variant="accent" size="sm" onClick={openReply}>↩ Reply</Button>}
           <Button variant="line" size="sm" onClick={() => remove.mutate(m.id, { onSuccess: () => nav('/mail/inbox') })}>🗑 Delete</Button>
         </div>

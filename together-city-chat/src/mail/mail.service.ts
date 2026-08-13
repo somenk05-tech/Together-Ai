@@ -24,11 +24,15 @@ const MIME_BUDGET_BYTES = 20 * 1024 * 1024;          // safely under provider ca
 const MAX_OUTBOUND_TOTAL_BYTES = 1024 * 1024 * 1024; // 1 GB across attachments
 const SHARE_LINK_TTL_SEC = 7 * 24 * 3600;            // 7 days (S3/R2 maximum)
 import {
-  MAIL_DOMAIN, CITY_DOMAINS, QUOTA_BYTES, addressFor, handleFromAddress, snippetOf, sizeOf, welcomeMail, humanBytes,
+  MAIL_DOMAIN, CITY_DOMAINS, QUOTA_BYTES, addressFor, handleFromAddress, cityRecipient, subAddressed, snippetOf, sizeOf, welcomeMail, humanBytes,
 } from './mail.constants';
 import { createMessagingProvider, messagingConfigured, type Channel } from './messaging-provider';
 import { cityFromHeader, normalizeInbound, type InboundMail } from './mail-inbound';
-import type { FlagDto, FolderQueryDto, SaveDraftDto, SendMailDto } from './dto/mail.dto';
+import type {
+  FlagDto, FolderQueryDto, SaveDraftDto, SendMailDto,
+  CreateProjectDto, UpdateProjectDto, FileThreadDto,
+} from './dto/mail.dto';
+import { PROJECT_CAP } from './dto/mail.dto';
 
 /** What a citizen reads when the body could not be retrieved. One sentence, and
  *  never an empty message — a blank arrival is indistinguishable from a blank
@@ -136,6 +140,37 @@ export class MailService {
       select: { id: true },
     });
     return owns ? requested : randomUUID();
+  }
+
+  /**
+   * The room a trail is already in, or null. One indexed read, and it is what
+   * makes a reply arrive where the conversation lives without anybody writing
+   * a rule: the filing is on the THREAD, so the next message inherits it.
+   */
+  private async threadProject(userId: string, threadId: string): Promise<string | null> {
+    const row = await this.prisma.mailMessage.findFirst({
+      where: { ownerId: userId, threadId, projectId: { not: null } },
+      select: { projectId: true },
+    });
+    return row?.projectId ?? null;
+  }
+
+  /**
+   * Which project a message being sent belongs to.
+   *
+   * The thread wins over the composer, always. Somebody replying to a filed
+   * conversation from All Email has not asked to move it out of its room, and
+   * a conversation that changes rooms depending on which screen the reply was
+   * typed on is the exact instability a "project" is supposed to remove.
+   */
+  private async resolveSendProject(userId: string, threadId: string, requested?: string): Promise<string | null> {
+    const inherited = await this.threadProject(userId, threadId);
+    if (inherited) return inherited;
+    if (!requested) return null;
+    const owned = await this.prisma.mailProject.findFirst({
+      where: { id: requested, ownerId: userId }, select: { id: true },
+    });
+    return owned?.id ?? null;
   }
 
   /** Attachments on a thread the caller is a participant of. */
@@ -256,11 +291,15 @@ export class MailService {
     id: string; fromAddr: string; fromName: string; toAddr: string; toName: string; subject: string;
     snippet: string; sizeBytes: number; read: boolean; starred: boolean; system: boolean; folder: string;
     threadId: string | null; createdAt: Date; failureReason?: string | null;
+    projectId?: string | null;
   }) {
     return {
       id: m.id, fromAddr: m.fromAddr, fromName: m.fromName, toAddr: m.toAddr, toName: m.toName,
       subject: m.subject, snippet: m.snippet, sizeBytes: m.sizeBytes, read: m.read, starred: m.starred,
       system: m.system, folder: m.folder, threadId: m.threadId, createdAt: m.createdAt.toISOString(),
+      // Which room this conversation is filed in, so All Email can put the
+      // chip on the row without asking a second time.
+      projectId: m.projectId ?? null,
       // Carried on every message so a list can show it without a second fetch.
       // Null on everything in Sent, by construction.
       failureReason: m.failureReason ?? null,
@@ -317,7 +356,19 @@ export class MailService {
 
   async list(userId: string, q: FolderQueryDto) {
     await this.ensureAccount(userId);
-    const where =
+    /**
+     * THE SCOPE IS ONE CLAUSE, AND IT IS THE ONLY THING A PROJECT DOES TO THE
+     * MAILBOX. Everything below — the folder rules, the search, the cap — is
+     * untouched, which is why Sent, Drafts, Starred and Trash all keep working
+     * one room in rather than needing a second implementation each.
+     *
+     * An unknown key is a 404, not an empty list. "The ABG inbox is empty" and
+     * "there is no ABG" are different sentences and a citizen deserves the
+     * right one.
+     */
+    const scope = q.project ? await this.projectByKey(userId, q.project) : null;
+    const filed = scope ? { projectId: scope.id } : {};
+    const folderWhere =
       // Starred deliberately excludes trash only — a starred draft is still
       // something the citizen marked, and hiding it would lose the mark.
       q.folder === 'starred' ? { ownerId: userId, starred: true, NOT: { folder: 'trash' } }
@@ -328,6 +379,7 @@ export class MailService {
       // One room for everything still waiting on the citizen.
       : q.folder === 'unsent' ? { ownerId: userId, folder: { in: ['draft', 'failed'] } }
       : { ownerId: userId, folder: 'trash' };
+    const where = { ...folderWhere, ...filed };
     /**
      * SEARCH, WHERE A CITIZEN EXPECTS IT: over the folder they are looking at.
      *
@@ -572,6 +624,10 @@ export class MailService {
     // Reply → reuse the parent thread (only if the sender actually owns a message
     // in it, so threads can't be spoofed); otherwise start a new trail.
     const threadId = await this.resolveThreadId(userId, dto.threadId);
+    // THE FILING IS THE SENDER'S, NOT THE MESSAGE'S. It goes on their Sent row
+    // below and never into `base` — a recipient's copy stamped with the
+    // sender's project would put a stranger's mail in a room they never made.
+    const projectId = await this.resolveSendProject(userId, threadId, dto.projectId);
     const toAddr = addressFor(recipient.handle);
     const base = {
       fromAddr: sender.address, fromName: me.name, toAddr, toName: recipient.name,
@@ -605,7 +661,7 @@ export class MailService {
       // to delete and four lies about how many messages were written. It is
       // also THE ONLY ROW that ever carries the blind list.
       ...(dto.keepSentCopy
-        ? [this.prisma.mailMessage.create({ data: { ...base, bccAddrs: dto.bccAddrs, ownerId: userId, boxUserId: userId, folder: 'sent', read: true } })]
+        ? [this.prisma.mailMessage.create({ data: { ...base, bccAddrs: dto.bccAddrs, ownerId: userId, boxUserId: userId, folder: 'sent', read: true, projectId } })]
         : []),
       // The recipient's Inbox copy. bccAddrs is absent, not blanked — a column
       // that is present and empty is one somebody later fills in "for
@@ -632,6 +688,9 @@ export class MailService {
     // stranger's threadId mint an owned row in their thread — enough to pass the
     // participant check on the attachment routes and presign their Drive files.
     const threadId = await this.resolveThreadId(userId, dto.threadId);
+    // Which room this correspondence lives in — the thread's if it has one,
+    // otherwise the project Compose was opened from. See resolveSendProject.
+    const projectId = await this.resolveSendProject(userId, threadId, dto.projectId);
     // DISPATCH FIRST, then file it (p21, FE-14.1).
     //
     // The Sent copy used to be written here, before the provider was called,
@@ -681,6 +740,9 @@ export class MailService {
         ccAddrs: dto.ccAddrs ?? null,
         bccAddrs: dto.bccAddrs ?? null,
         subject, body: dto.body, snippet: snippetOf(dto.body), sizeBytes: size, system: false, threadId,
+        // A failed message keeps its room too, so Retry sends from the same
+        // place and the citizen finds it where they left it.
+        projectId,
         // The message is kept either way. A failed send that vanishes takes the
         // citizen's writing with it, which is worse than a wrong folder.
         ...(reason ? { failureReason: reason } : {}),
@@ -701,6 +763,188 @@ export class MailService {
       );
     }
     return this.list(userId, { folder: 'sent' });
+  }
+
+  /* ══ PROJECTS — THE ROOMS INSIDE A MAILBOX ════════════════════════════════
+
+     A project files THREADS, for one citizen, and it does exactly two things
+     to the mail: it puts a name on a conversation, and it lets a folder query
+     ask for one room instead of all of them. It never removes a message from
+     All Email, it never has an address of its own, and nothing in this block
+     ever decides on a citizen's behalf that a message belongs somewhere.
+
+     There are three ways a thread gets into a room, and every one of them is
+     something a person did: they composed from inside it, the trail was
+     already filed and this message inherited it, or they moved it by hand.  */
+
+  /** A project of this citizen's, by key. 404 rather than an empty list — see
+   *  the note on FolderQuerySchema.project. */
+  private async projectByKey(userId: string, key: string) {
+    const p = await this.prisma.mailProject.findFirst({ where: { ownerId: userId, key } });
+    if (!p) throw new NotFoundException(`No project called “${key}” in your mailbox.`);
+    return p;
+  }
+
+  /** The room a sub-addressed arrival names, if the citizen switched that on
+   *  for it. Archived projects accept nothing new — that is what archived
+   *  means — so mail to a retired tag lands in All Email rather than in a room
+   *  nobody is reading. */
+  private async subAddressProject(userId: string, tag: string | null): Promise<string | null> {
+    if (!tag) return null;
+    const p = await this.prisma.mailProject.findFirst({
+      where: { ownerId: userId, key: tag, subAddress: true, archived: false },
+      select: { id: true },
+    });
+    return p?.id ?? null;
+  }
+
+  /**
+   * Every project with what a card has to say: what is waiting, how much is in
+   * there, and what last happened.
+   *
+   * THE LAST MESSAGE IS ONE QUERY PER PROJECT, deliberately. It is at most
+   * fifty indexed `findFirst`s on a screen that loads once, and the alternative
+   * — reading the newest N rows of the whole mailbox and reducing in memory —
+   * silently loses the last line of any project quiet enough to have fallen off
+   * the end, which is precisely the project whose card most needs to say when
+   * it last moved.
+   */
+  async projects(userId: string) {
+    const acct = await this.ensureAccount(userId);
+    const rows = await this.prisma.mailProject.findMany({
+      where: { ownerId: userId },
+      orderBy: [{ archived: 'asc' }, { createdAt: 'asc' }],
+      take: PROJECT_CAP,
+    });
+
+    // Two grouped counts for the whole mailbox rather than two per project.
+    // Trash is excluded from the total for the same reason the folder list
+    // excludes it: a card claiming eighty-four messages, twelve of which the
+    // citizen has already thrown away, is counting the wrong thing.
+    const tally = async (where: Record<string, unknown>): Promise<Map<string, number>> => {
+      const rowsOut = await this.prisma.mailMessage.groupBy({
+        by: ['projectId'],
+        where: { ownerId: userId, projectId: { not: null }, ...where },
+        _count: { _all: true },
+      });
+      const m = new Map<string, number>();
+      for (const r of rowsOut) if (r.projectId) m.set(r.projectId, r._count._all);
+      return m;
+    };
+    const totals = await tally({ NOT: { folder: 'trash' } });
+    const unreads = await tally({ folder: 'inbox', read: false });
+
+    const lasts = await Promise.all(rows.map((p) => this.prisma.mailMessage.findFirst({
+      where: { ownerId: userId, projectId: p.id, NOT: { folder: 'trash' } },
+      orderBy: { createdAt: 'desc' },
+      select: { fromName: true, toName: true, folder: true, createdAt: true },
+    })));
+
+    return rows.map((p, i) => {
+      const last = lasts[i];
+      return {
+        id: p.id, name: p.name, key: p.key,
+        subAddress: p.subAddress,
+        // Shown on the card only when it is on, because an address a citizen
+        // has not switched on is not an address they can hand out.
+        address: p.subAddress ? subAddressed(acct.address, p.key) : null,
+        archived: p.archived,
+        createdAt: p.createdAt.toISOString(),
+        total: totals.get(p.id) ?? 0,
+        unread: unreads.get(p.id) ?? 0,
+        last: last
+          ? {
+            // The Sent side of a trail says who it went to; the Inbox side says
+            // who it came from. A card that always says "from" reads as a lie
+            // on a project where the citizen is the one doing the writing.
+            who: last.folder === 'sent' || last.folder === 'failed' ? last.toName : last.fromName,
+            outbound: last.folder === 'sent' || last.folder === 'failed',
+            at: last.createdAt.toISOString(),
+          }
+          : null,
+      };
+    });
+  }
+
+  async createProject(userId: string, dto: CreateProjectDto) {
+    await this.ensureAccount(userId);
+    const count = await this.prisma.mailProject.count({ where: { ownerId: userId } });
+    if (count >= PROJECT_CAP) {
+      throw new BadRequestException(
+        `You already have ${PROJECT_CAP} projects, which is the limit. Delete or rename one to make room — deleting a project never deletes its mail.`,
+      );
+    }
+    const clash = await this.prisma.mailProject.findFirst({ where: { ownerId: userId, key: dto.key }, select: { name: true } });
+    if (clash) throw new BadRequestException(`“${dto.key}” is already the key for ${clash.name}. Pick another.`);
+    const p = await this.prisma.mailProject.create({
+      data: { ownerId: userId, name: dto.name, key: dto.key, subAddress: dto.subAddress },
+    });
+    // NOTHING IS SWEPT IN. A project opens empty because nothing has happened
+    // in it yet; back-filling it from a guess about old mail is the one thing
+    // this design refuses to do.
+    return this.projects(userId).then((all) => ({ projects: all, created: p.key }));
+  }
+
+  async updateProject(userId: string, id: string, dto: UpdateProjectDto) {
+    const owned = await this.prisma.mailProject.findFirst({ where: { id, ownerId: userId }, select: { id: true } });
+    if (!owned) throw new NotFoundException('No project with that id in your mailbox.');
+    await this.prisma.mailProject.update({
+      where: { id },
+      data: {
+        ...(dto.name !== undefined ? { name: dto.name } : {}),
+        ...(dto.subAddress !== undefined ? { subAddress: dto.subAddress } : {}),
+        ...(dto.archived !== undefined ? { archived: dto.archived } : {}),
+      },
+    });
+    return this.projects(userId);
+  }
+
+  /**
+   * DELETING A PROJECT DELETES NOTHING ELSE.
+   *
+   * The filing is cleared and the room is closed; every conversation returns
+   * to All Email, where it always was. The count of what was released is
+   * returned so the client can say it out loud rather than leaving somebody to
+   * wonder what just happened to eighty-four messages.
+   */
+  async deleteProject(userId: string, id: string) {
+    const owned = await this.prisma.mailProject.findFirst({ where: { id, ownerId: userId }, select: { id: true } });
+    if (!owned) throw new NotFoundException('No project with that id in your mailbox.');
+    const released = await this.prisma.mailMessage.updateMany({
+      where: { ownerId: userId, projectId: id },
+      data: { projectId: null },
+    });
+    await this.prisma.mailProject.delete({ where: { id } });
+    return { ok: true, released: released.count, projects: await this.projects(userId) };
+  }
+
+  /**
+   * Move a conversation into a room, or out of one (`projectId: null`).
+   *
+   * THE ONLY WRITER OF THE FILING, which is the invariant the denormalised
+   * column depends on: every row of the trail moves in one statement, so half
+   * a conversation can never be in a different room from the other half.
+   *
+   * Bounded to threads the caller holds a message in — the same participation
+   * check the attachment routes use — so a threadId typed into a request
+   * cannot file somebody else's correspondence.
+   */
+  async fileThread(userId: string, dto: FileThreadDto) {
+    const owns = await this.prisma.mailMessage.findFirst({
+      where: { ownerId: userId, threadId: dto.threadId }, select: { id: true },
+    });
+    if (!owns) throw new NotFoundException('No conversation with that id in your mailbox.');
+    if (dto.projectId) {
+      const p = await this.prisma.mailProject.findFirst({
+        where: { id: dto.projectId, ownerId: userId }, select: { id: true },
+      });
+      if (!p) throw new NotFoundException('No project with that id in your mailbox.');
+    }
+    const moved = await this.prisma.mailMessage.updateMany({
+      where: { ownerId: userId, threadId: dto.threadId },
+      data: { projectId: dto.projectId },
+    });
+    return { ok: true, moved: moved.count };
   }
 
   async flag(userId: string, id: string, dto: FlagDto) {
@@ -743,7 +987,13 @@ export class MailService {
     // matching citizen. An address we don't recognise is ignored — it was never
     // ours to receive. handleFromAddress returns null for any domain outside
     // CITY_DOMAINS, so a stranger's address cannot name a mailbox here.
-    const handles = [...new Set(mail.to.map(handleFromAddress).filter((h): h is string => Boolean(h)))];
+    const recipients = mail.to.map(cityRecipient).filter((r): r is { handle: string; tag: string | null } => Boolean(r));
+    // One copy per mailbox, keeping the FIRST tag seen for it. Two addresses
+    // naming the same citizen is one delivery, and the tag that came with it
+    // is a hint about filing, never a reason to deliver twice.
+    const byHandle = new Map<string, string | null>();
+    for (const r of recipients) if (!byHandle.has(r.handle)) byHandle.set(r.handle, r.tag);
+    const handles = [...byHandle.keys()];
     if (!handles.length) {
       this.logger.warn('inbound mail: no city recipient in To');
       return { ok: false, reason: 'no-city-recipient' };
@@ -771,9 +1021,23 @@ export class MailService {
       }
 
       const threadId = await this.resolveInboundThread(user.id, mail.from.addr, subject);
+      /**
+       * WHERE AN ARRIVING MESSAGE IS FILED, in the order the design fixed:
+       *
+       *   1. the trail it belongs to is already in a room → it goes there;
+       *   2. it was addressed to you+<key>@ and that project accepts the
+       *      sub-address → it goes there;
+       *   3. otherwise: All Email, untagged.
+       *
+       * There is no third guess. No sender lists, no domain matching, no
+       * scoring against a subject line — nothing here can put a message in a
+       * room a citizen did not name, because nothing here does any inferring.
+       */
+      const projectId = (await this.threadProject(user.id, threadId))
+        ?? (await this.subAddressProject(user.id, byHandle.get(handle) ?? null));
       await this.prisma.mailMessage.create({
         data: {
-          ownerId: user.id, boxUserId: user.id, folder: 'inbox', read: false, system: false,
+          ownerId: user.id, boxUserId: user.id, folder: 'inbox', read: false, system: false, projectId,
           fromAddr: mail.from.addr, fromName: mail.from.name || mail.from.addr,
           toAddr: addressFor(handle), toName: user.name ?? '',
           subject, body, snippet: snippetOf(body), sizeBytes: size, threadId,

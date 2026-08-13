@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useScaleLock } from '@/hooks/useScaleLock';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui';
-import { useDirectory, useSendMail, useMailAccount, useSaveDraft, useMailMessage, type DirectoryEntry } from '../api';
+import { useDirectory, useSendMail, useMailAccount, useSaveDraft, useMailMessage, useMailProjects, type DirectoryEntry } from '../api';
 import { payError } from '@/features/financial/api';
 import { DrivePicker } from '../DrivePicker';
 import { fmtBytes, fileIcon, type DriveFile } from '@/features/drive/api';
@@ -54,6 +54,18 @@ export function Compose() {
   /** The draft row these words live in. Set on resume, or on first autosave. */
   const draftId = useRef<string | undefined>(draftParam);
   const threadId = params.get('threadId') ?? (loaded.data?.threadId ?? undefined); // reply → append to trail
+  /**
+   * COMPOSE WAS OPENED INSIDE A PROJECT, so the conversation this starts is
+   * born filed there and every reply comes home to the same room. That is the
+   * FIRST of the two ways mail is ever filed, and it is why no rule engine is
+   * needed for the common case.
+   *
+   * The API ignores this when the thread is already filed — replying to an ABG
+   * conversation from All Email does not move it out of ABG.
+   */
+  const projectKey = params.get('project') ?? undefined;
+  const projects = useMailProjects();
+  const project = projectKey ? (projects.data ?? []).find((p) => p.key === projectKey) : undefined;
 
   useEffect(() => {
     if (seeded || !loaded.data) return;
@@ -110,6 +122,10 @@ export function Compose() {
         <div>
           <div className="eyebrow">Mail · Compose</div>
           <h1 style={{ fontSize: 24, margin: 0 }}>✍️ {draftParam ? 'Continue your draft' : threadId ? 'Reply' : 'New message'}</h1>
+          {/* Which room this is being written in, said once and plainly. A
+              composer that looks identical everywhere is how a message meant
+              for a project ends up filed nowhere. */}
+          {project && <div className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>in {project.name} — the reply will come back here</div>}
         </div>
         <span className="muted" style={{ marginLeft: 'auto', fontSize: 12.5, fontFamily: 'monospace' }}>from {acct.data?.address ?? '…'}</span>
       </div>
@@ -204,8 +220,8 @@ export function Compose() {
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <Button variant="accent" disabled={!canSend}
             onClick={() => send.mutate(
-              { to, cc: addrs(cc), bcc: addrs(bcc), subject: subject || '(no subject)', body, threadId, attachmentFileIds: attachments.map((f) => f.id), draftId: draftId.current },
-              { onSuccess: () => { if (threadId) nav(-1); else nav('/mail/sent'); } },
+              { to, cc: addrs(cc), bcc: addrs(bcc), subject: subject || '(no subject)', body, threadId, attachmentFileIds: attachments.map((f) => f.id), draftId: draftId.current, projectId: project?.id },
+              { onSuccess: () => { if (threadId) nav(-1); else nav(project ? `/mail/p/${project.key}/sent` : '/mail/sent'); } },
             )}>
             {send.isPending ? 'Sending…' : threadId ? 'Send reply' : 'Send'}
           </Button>

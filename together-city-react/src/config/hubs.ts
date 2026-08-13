@@ -285,16 +285,19 @@ export const HUBS: Record<HubKey, HubConfig> = {
   mail: {
     key: 'mail', name: 'Together City Mail', tag: 'Your @togethercity.app inbox', backPath: '/mail',
     items: [
-      { path: '/mail/inbox', index: '01', label: 'Inbox', sub: 'Mail from around the city' },
-      { path: '/mail/compose', index: '02', label: 'Compose', sub: 'Write a new message' },
-      { path: '/mail/sent', index: '03', label: 'Sent', sub: 'Messages that were accepted' },
+      // The door, and the first thing in the rail: a mailbox with rooms in it
+      // is a mailbox you choose a room from before you read anything.
+      { path: '/mail', index: '01', label: 'Projects', sub: 'Every room in your mailbox' },
+      { path: '/mail/inbox', index: '02', label: 'All Email', sub: 'Every message, always' },
+      { path: '/mail/compose', index: '03', label: 'Compose', sub: 'Write a new message' },
+      { path: '/mail/sent', index: '04', label: 'Sent', sub: 'Messages that were accepted' },
       // One room for everything still waiting on the citizen: what they were
       // still writing, and what the provider refused. /mail/failed still
       // resolves for old links — see router.
-      { path: '/mail/unsent', index: '04', label: 'Drafts & Failed', sub: 'Unfinished, and rejected — pick either up' },
-      { path: '/mail/starred', index: '05', label: 'Starred', sub: 'Flagged for later' },
-      { path: '/mail/trash', index: '06', label: 'Trash', sub: 'Deleted mail' },
-      { path: '/mail/drive', index: '07', label: 'Drive', sub: 'Upload & attach your files' },
+      { path: '/mail/unsent', index: '05', label: 'Drafts & Failed', sub: 'Unfinished, and rejected — pick either up' },
+      { path: '/mail/starred', index: '06', label: 'Starred', sub: 'Flagged for later' },
+      { path: '/mail/trash', index: '07', label: 'Trash', sub: 'Deleted mail' },
+      { path: '/mail/drive', index: '08', label: 'Drive', sub: 'Upload & attach your files' },
     ],
   },
   financial: {

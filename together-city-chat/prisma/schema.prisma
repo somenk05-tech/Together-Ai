@@ -183,6 +183,7 @@ model User {
   reservations         Reservation[]
   mailAccount          MailAccount?
   mailMessages         MailMessage[]
+  mailProjects         MailProject[]
   emailDeliveries      EmailDelivery[]
   passwordResets       PasswordReset[]
   verificationCodes    VerificationCode[]
@@ -1988,11 +1989,50 @@ model MailMessage {
   /// the same message with the same files. Without it a retry quietly went out
   /// without the attachments — the message looked sent and arrived incomplete.
   attachmentIds     String?
+  /// The project this message's THREAD is filed under, or null for All Email.
+  ///
+  /// Denormalised onto every row of the thread rather than held in a join
+  /// table, because the only query that reads it is the folder list — one
+  /// indexed read per screen — and a join would put a growing `IN (…)` in
+  /// front of every mailbox. The invariant that makes it safe is that
+  /// `fileThread()` is the ONLY writer and moves every row of a thread at
+  /// once: half a conversation in a project is the bug this column could
+  /// otherwise have.
+  ///
+  /// Per-mailbox, always. A recipient's copy is never stamped with the
+  /// sender's project — the filing is one citizen's, not the message's.
+  projectId         String?
   createdAt  DateTime @default(now())
 
   owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
   @@index([ownerId, folder, createdAt])
+  @@index([ownerId, projectId, folder, createdAt])
+}
+
+/// A ROOM INSIDE ONE CITIZEN'S MAILBOX.
+///
+/// A project files THREADS. It never hides a message from All Email — the
+/// scoped mailbox is a view of the same rows — and deleting one clears the
+/// filing rather than the mail.
+model MailProject {
+  id         String   @id @default(uuid())
+  ownerId    String
+  name       String
+  /// Lowercase slug, unique per mailbox because it is both the URL
+  /// (/mail/p/<key>) and the optional sub-address (you+<key>@togethercity.app).
+  key        String
+  /// OFF BY DEFAULT, and the only inbound path that does not begin with the
+  /// citizen. On, mail addressed to you+<key>@ is filed here on arrival.
+  subAddress Boolean  @default(false)
+  /// A finished project: out of the rail, filing kept, accepting nothing new.
+  archived   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, key])
+  @@index([ownerId, archived, createdAt])
 }
 
 // Outbound delivery log — every message dispatched OUTSIDE the city (email or SMS)

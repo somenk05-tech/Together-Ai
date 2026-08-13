@@ -132,6 +132,9 @@ const FamGrocery = lazy(() => import('@/features/family/pages/Grocery').then((m)
 const FamCart = lazy(() => import('@/features/family/pages/Cart').then((m) => ({ default: m.FamilyCart })));
 const FamSearch = lazy(() => import('@/features/family/pages/Search').then((m) => ({ default: m.FamilySearch })));
 const FamPantry = lazy(() => import('@/features/family/pages/Pantry').then((m) => ({ default: m.FamilyPantry })));
+const MailProjects = lazy(() => import('@/features/mail/pages/Projects').then((m) => ({ default: m.MailProjects })));
+const MailProjectInbox = lazy(() => import('@/features/mail/pages/Folders').then((m) => ({ default: m.ProjectInbox })));
+const MailProjectFolder = lazy(() => import('@/features/mail/pages/Folders').then((m) => ({ default: m.ProjectFolderRoute })));
 const MailInbox = lazy(() => import('@/features/mail/pages/Folders').then((m) => ({ default: m.Inbox })));
 const MailSent = lazy(() => import('@/features/mail/pages/Folders').then((m) => ({ default: m.Sent })));
 const MailUnsent = lazy(() => import('@/features/mail/pages/Folders').then((m) => ({ default: m.Unsent })));
@@ -169,7 +172,6 @@ export const router = createBrowserRouter([
       { path: '/travel', element: <HubLanding hub="travel" /> },
       { path: '/restaurants', element: <RequireAuth>{wrap(<RestHome />)}</RequireAuth> },
       { path: '/astrology', element: <HubLanding hub="astrology" /> },
-      { path: '/mail', element: <HubLanding hub="mail" /> },
       { path: '/nutrition', element: <HubLanding hub="nutrition" /> },
       { path: '/entertainment', element: <HubLanding hub="entertainment" /> },
       { path: '/social', element: <HubLanding hub="social" /> },
@@ -455,6 +457,14 @@ export const router = createBrowserRouter([
     // Together City Mail — webmail inbox (@togethercity.app), 10 GB per citizen.
     element: <HubLayout hub={HUBS.mail} />,
     children: [
+      /* THE DOOR. /mail used to be a hub landing that redirected past itself
+         to the inbox on every visit after the first, so the mailbox had a
+         front door nobody stood in. It is the project cards now — All Email
+         first, then the rooms — and every older mail URL below is untouched. */
+      { path: '/mail', element: <RequireAuth>{wrap(<MailProjects />)}</RequireAuth> },
+      { path: '/mail/projects', element: <Navigate to="/mail" replace /> },
+      { path: '/mail/p/:key', element: <RequireAuth>{wrap(<MailProjectInbox />)}</RequireAuth> },
+      { path: '/mail/p/:key/:folder', element: <RequireAuth>{wrap(<MailProjectFolder />)}</RequireAuth> },
       { path: '/mail/inbox', element: <RequireAuth>{wrap(<MailInbox />)}</RequireAuth> },
       { path: '/mail/compose', element: <RequireAuth>{wrap(<MailCompose />)}</RequireAuth> },
       { path: '/mail/sent', element: <RequireAuth>{wrap(<MailSent />)}</RequireAuth> },

@@ -1174,3 +1174,145 @@ html.tc-immersive .cscomposer { margin-bottom: calc(var(--safe-bottom) + 14px); 
 }
 .mail-search-clear:hover { color: var(--ink); }
 @media (max-width: 560px) { .mail-search { max-width: none; } }
+
+/* ══ PROJECT FOLDERS — THE ROOMS INSIDE A MAILBOX (14 Aug) ═══════════════
+   No new material. The cards are the city's `.card`, the folder rail is the
+   hub's `.chip`, the sidebar run is `.side-menu`. Everything below is
+   geometry, and every colour in it is a token — there is not one literal
+   here, which is the rule this file is held to. */
+
+.mproj-grid {
+  display: grid; gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+}
+/* A card is a door, so the whole card is the link — not a title inside it. */
+.mproj-card {
+  display: block; padding: 15px 16px; text-decoration: none; color: var(--ink);
+  text-align: left; font-family: inherit;
+}
+.mproj-top { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; }
+.mproj-key {
+  font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--faint);
+}
+.mproj-flag {
+  margin-left: auto; font-size: 10px; font-weight: 800; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--muted);
+}
+.mproj-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--ink);
+  flex: 0 0 auto; display: inline-block;
+}
+/* A project with nothing in it yet is not a broken one — the dot goes quiet
+   rather than the card going grey, because the card is still a door. */
+.mproj-card[data-quiet] .mproj-dot { background: var(--line-2); }
+.mproj-name { font-size: 15px; margin: 0 0 3px; }
+.mproj-met { font-size: 12px; color: var(--muted); }
+.mproj-foot {
+  margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--line);
+  font-size: 11.5px; color: var(--muted);
+}
+/* ALL EMAIL IS INKED, because it is the mailbox and the projects are rooms in
+   it. The one filled card on the screen, so the eye lands on the way back to
+   everything before it lands on any one room. */
+.mproj-card.is-all { background: var(--accent); border-color: var(--accent); }
+.mproj-card.is-all .mproj-name { color: var(--on-accent); }
+.mproj-card.is-all .mproj-key,
+.mproj-card.is-all .mproj-met,
+.mproj-card.is-all .mproj-foot { color: var(--on-accent); opacity: .74; }
+.mproj-card.is-all .mproj-foot { border-top: 0; padding-top: 0; margin-top: 8px; }
+.mproj-card.is-add {
+  border-style: dashed; display: grid; place-items: center; gap: 3px;
+  min-height: 126px; cursor: pointer;
+}
+.mproj-add-l { font-weight: 700; font-size: 13px; color: var(--muted); }
+
+.mproj-sheet { max-width: 480px; }
+.mproj-fields { display: grid; grid-template-columns: 1fr 140px; gap: 10px; margin-bottom: 12px; }
+@media (max-width: 480px) { .mproj-fields { grid-template-columns: 1fr; } }
+.mproj-check {
+  display: flex; gap: 9px; align-items: flex-start; font-size: 12.5px;
+  line-height: 1.5; margin-top: 11px; padding-top: 11px; border-top: 1px solid var(--line);
+}
+.mproj-check input { margin-top: 2px; flex: 0 0 auto; }
+
+/* The context bar takes the account bar's place inside a project — same card,
+   same 42px mark, different sentence. */
+.mproj-bar-addr { font-weight: 500; font-size: 13px; }
+.mproj-bar-keys { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+/* ON A PHONE THE BAR KEEPS ITS SETTINGS AND LOSES ITS COMPOSE. Compose is the
+   floating key the folder already draws; settings has no other door, and a
+   control removed with no replacement is a lost capability rather than a
+   simplification — the same rule the row's bin follows. The address wraps
+   away because the project's NAME is what says which mailbox this is. */
+@media (max-width: 560px) {
+  .mproj-bar-addr { display: none; }
+  .mproj-bar .mail-account-top { flex-wrap: wrap; }
+  .mproj-bar-keys { margin-left: auto; }
+}
+.mproj-rail { margin-bottom: 4px; }
+.mproj-out { margin-left: auto; }
+@media (max-width: 899px) { .mproj-out { margin-left: 0; } }
+
+.mproj-settings { margin-top: 12px; }
+.mproj-settings-foot {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line);
+}
+.mproj-danger { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.mproj-del {
+  background: none; border: 0; padding: 0; font: inherit; font-size: 12.5px;
+  font-weight: 700; color: var(--danger-ink); cursor: pointer;
+}
+
+/* The projects run of the sidebar. `.side-menu` already draws the rows; this
+   is the hairline above them and the two numerals they carry. */
+.mproj-side { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 10px; }
+.mproj-side-head { display: flex; align-items: center; gap: 8px; padding: 0 4px 6px; }
+.mproj-side-count { margin-left: auto; font-size: 10.5px; font-weight: 700; color: var(--faint); }
+.mproj-side-unread {
+  margin-left: auto; font-size: 11px; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.mproj-side-new {
+  display: block; margin: 6px 4px 2px; padding: 8px 10px; text-align: center;
+  border: 1px dashed var(--line-2); border-radius: 10px;
+  font-size: 12px; font-weight: 700; color: var(--muted);
+}
+
+/* WHICH ROOM A CONVERSATION IS FILED IN, on the row, in All Email only. Set
+   in the row's own metadata weight so it reads as a label and not a button —
+   the row is already a link, and Move lives in the reader. */
+.mail-ptag {
+  flex: 0 0 auto; font-size: 10px; font-weight: 800; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--ink-soft);
+  border: 1px solid var(--line-2); border-radius: 999px; padding: 1px 8px;
+  align-self: center;
+}
+
+/* The move sheet hangs off its key rather than pushing the toolbar apart. */
+.mmove-wrap { position: relative; display: inline-flex; }
+.mmove {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 30;
+  width: min(330px, calc(100vw - 32px)); text-align: left;
+  box-shadow: var(--e3);
+}
+.mmove-h { margin: 0 0 3px; font-size: 15px; }
+.mmove-hint { margin: 0 0 12px; font-size: 12px; }
+.mmove-opts { display: grid; gap: 6px; }
+.mmove-opt {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 9px 11px; border: 1px solid var(--line); border-radius: 11px;
+  background: var(--card); font: inherit; font-size: 13px; font-weight: 600;
+  color: var(--ink); cursor: pointer; text-align: left; min-height: 40px;
+}
+.mmove-opt.on { border-color: var(--ink); }
+.mmove-opt-k {
+  margin-left: auto; font-size: 10.5px; font-weight: 700; color: var(--faint);
+  text-transform: uppercase; letter-spacing: .08em;
+}
+.mmove-note {
+  font-size: 11.5px; line-height: 1.5; margin: 11px 0 0; padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.mmove-foot { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
