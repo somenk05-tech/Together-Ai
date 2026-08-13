@@ -1993,3 +1993,45 @@
   --grocery-ink-3:  #31465c;  /* 3.90:1 — labels and metadata ONLY */
   --grocery-rule:   rgba(22, 34, 46, .38);
 }
+
+/* ══ THE FOLDER TINTS — one per mail project ═══════════════════════════════
+   Nine colours a citizen picks from when they make a project, plus the slate
+   the All Emails folder always wears.
+
+   COLOUR IN THIS APPLICATION IS A DECISION MADE IN THIS FILE, and this is the
+   first set since the hub accents to be genuinely chromatic on a surface a
+   citizen reads on. It earns it: nine folders in a grid are told apart at a
+   glance by hue and only after that by name, which is the whole reason the
+   reference drew them in nine colours rather than nine greys.
+
+   TWO VALUES PER TINT, AND ONLY TWO.
+     · `-tab`  the saturated strip along the top of the folder, and nothing
+               else. It is decoration adjacent to white, so it is not required
+               to carry contrast against anything.
+     · `-face` the pale body the words sit on.
+
+   MEASURED, NOT EYEBALLED. Every face is checked against the two inks that
+   ever land on it:
+       --ink   (#000000)  17.85 : 1 at worst (violet)   — title
+       --muted (#666666)   4.88 : 1 at worst (violet)   — description
+   Both clear AA at the worst tint in the set, so no folder needs its own ink
+   scale and none of them is a special case.
+
+   THE ICON GLYPH IS INK, NOT THE TINT. Drawn in the tab colour on the white
+   chip it measures between 1.68:1 (amber) and 3.33:1 (violet) — a mark you
+   have to already know to read. The tab and the face carry the colour; the
+   glyph is near-black on white at 21:1, and is legible in all ten. */
+:root {
+  --fold-blue-tab: #4f8ef7;   --fold-blue-face: #e8f0fe;
+  --fold-green-tab: #8bb865;  --fold-green-face: #eef4e6;
+  --fold-purple-tab: #9b7fd4; --fold-purple-face: #f0eafa;
+  --fold-red-tab: #ef7b7b;    --fold-red-face: #fdeceb;
+  --fold-orange-tab: #f2994a; --fold-orange-face: #fdf0e3;
+  --fold-teal-tab: #57c4b0;   --fold-teal-face: #e6f6f3;
+  --fold-amber-tab: #f2c14e;  --fold-amber-face: #fdf5e1;
+  --fold-pink-tab: #f07fa8;   --fold-pink-face: #fdeaf1;
+  --fold-violet-tab: #8b83d6; --fold-violet-face: #eeecfa;
+  /* All Emails, and the fallback for any tint key this build does not know.
+     Achromatic on purpose: the whole mailbox is not one of the nine rooms. */
+  --fold-slate-tab: #9a9a9a;  --fold-slate-face: #ffffff;
+}

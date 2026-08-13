@@ -33,7 +33,11 @@ export function MoveToProject({ threadId, projectId, count, onDone }: {
      Reply and Delete out from under the pointer that was heading for them. */
   return (
     <span className="mmove-wrap">
-      <Button variant="line" size="sm" onClick={() => setOpen((v) => !v)}>
+      {/* It opens a list of rooms to choose from, and it says so: without
+          aria-haspopup and aria-expanded a screen reader announces a button
+          that appears to do nothing. */}
+      <Button variant="line" size="sm" aria-haspopup="menu" aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}>
         {here ? `🗂 In ${here.name}` : '🗂 Move to project'}
       </Button>
       {open && (

@@ -47,6 +47,12 @@ export interface MailItem {
  */
 export interface MailProject {
   id: string; name: string; key: string;
+  /** One of the nine folder tints, or 'slate'. Unknown values fall back to
+   *  slate in folderLook.tintOf rather than rendering a colourless folder. */
+  color: string;
+  /** What the project is FOR, in the citizen's words. Null shows what is in
+   *  it instead, which is the better line once there is anything to count. */
+  description: string | null;
   subAddress: boolean; address: string | null; archived: boolean;
   createdAt: string; total: number; unread: number;
   last: { who: string; outbound: boolean; at: string } | null;
@@ -66,9 +72,9 @@ export const mailApi = {
       params: { folder, ...(q ? { q } : {}), ...(project ? { project } : {}) },
     }).then((r) => r.data),
   projects: () => api.get<MailProject[]>('/mail/projects').then((r) => r.data),
-  createProject: (input: { name: string; key: string; subAddress: boolean }) =>
+  createProject: (input: { name: string; key: string; subAddress: boolean; color?: string; description?: string }) =>
     api.post<{ projects: MailProject[]; created: string }>('/mail/projects', input).then((r) => r.data),
-  updateProject: (id: string, input: { name?: string; subAddress?: boolean; archived?: boolean }) =>
+  updateProject: (id: string, input: { name?: string; subAddress?: boolean; archived?: boolean; color?: string; description?: string }) =>
     api.post<MailProject[]>(`/mail/projects/${id}`, input).then((r) => r.data),
   deleteProject: (id: string) =>
     api.delete<{ ok: boolean; released: number; projects: MailProject[] }>(`/mail/projects/${id}`).then((r) => r.data),
@@ -115,15 +121,15 @@ export function useMailProjects() {
 export function useCreateProject() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { name: string; key: string; subAddress: boolean }) => mailApi.createProject(v),
+    mutationFn: (v: { name: string; key: string; subAddress: boolean; color?: string; description?: string }) => mailApi.createProject(v),
     onSuccess: (r) => { qc.setQueryData(['mail', 'projects'], r.projects); },
   });
 }
 export function useUpdateProject() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { id: string; name?: string; subAddress?: boolean; archived?: boolean }) =>
-      mailApi.updateProject(v.id, { name: v.name, subAddress: v.subAddress, archived: v.archived }),
+    mutationFn: (v: { id: string; name?: string; subAddress?: boolean; archived?: boolean; color?: string; description?: string }) =>
+      mailApi.updateProject(v.id, { name: v.name, subAddress: v.subAddress, archived: v.archived, color: v.color, description: v.description }),
     onSuccess: (projects) => { qc.setQueryData(['mail', 'projects'], projects); },
   });
 }

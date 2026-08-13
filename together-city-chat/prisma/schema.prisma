@@ -2025,6 +2025,15 @@ model MailProject {
   /// OFF BY DEFAULT, and the only inbound path that does not begin with the
   /// citizen. On, mail addressed to you+<key>@ is filed here on arrival.
   subAddress Boolean  @default(false)
+  /// One of the nine folder tints, or 'slate'. A plain string rather than an
+  /// enum: adding a tenth colour should be a token and a list in the client,
+  /// not a migration, and the client already falls back to slate on anything
+  /// it does not recognise.
+  color      String   @default("blue")
+  /// The line under the name on the folder — what this project is FOR, in the
+  /// citizen's own words. Optional: a project with no description shows what
+  /// is in it instead, which is the more useful sentence once there is any.
+  description String?
   /// A finished project: out of the rail, filing kept, accepting nothing new.
   archived   Boolean  @default(false)
   createdAt  DateTime @default(now())

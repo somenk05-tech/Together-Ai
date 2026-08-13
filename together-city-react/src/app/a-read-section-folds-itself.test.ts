@@ -207,6 +207,14 @@ describe('the fold itself', () => {
     //                      that folds; a control that offers options.
     //   mail/MessageView   a thread: quoted text and a collapsed message stack,
     //                      three different expanders inside one reader.
+    //   mail/Projects      the ... key on a project folder: `aria-haspopup=
+    //                      "menu"`. Open, Archive, Delete — a menu of actions
+    //                      on an object, not a section of the page that folds.
+    //   mail/MoveToProject the same shape: a key that offers the rooms a
+    //                      conversation can move to. Both carry aria-haspopup
+    //                      precisely so this list stays readable — a menu and
+    //                      a fold both use aria-expanded, and the attribute
+    //                      that tells them apart is the one they now have.
     //   TargetsDisclosure  A GENUINE FOURTH FOLD, and the one thing on this
     //                      list that should probably become a Fold. Left alone
     //                      deliberately — it is in another hub, it was not what
@@ -222,7 +230,9 @@ describe('the fold itself', () => {
       'components/SearchSelect.tsx',
       'components/ui/Fold.tsx',
       'features/beauty/components/Plates.tsx',
+      'features/mail/MoveToProject.tsx',
       'features/mail/pages/MessageView.tsx',
+      'features/mail/pages/Projects.tsx',
       'features/nutrition/components/TargetsDisclosure.tsx',
     ]);
   });

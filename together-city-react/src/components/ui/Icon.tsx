@@ -11,6 +11,7 @@ import {
   Camera, Video, Globe2, Hash, Smile, Sun, Wallet, Pencil, Image, ArrowUpDown,
   LayoutGrid, Plus, ArrowLeft, ChevronRight, Notebook, MoreHorizontal,
   Music, X, Flag, Ban, FolderOpen, Satellite, TriangleAlert, Play, Pause,
+  Megaphone, FileText, LineChart,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -30,7 +31,9 @@ export type IconName =
   | 'camera' | 'video' | 'globe' | 'hash' | 'mood' | 'personal' | 'wallet' | 'edit'
   | 'image' | 'reorder' | 'grid' | 'plus' | 'back' | 'next' | 'journal' | 'more'
   | 'music' | 'close' | 'flag' | 'block' | 'sort' | 'locating' | 'warn'
-  | 'play' | 'pause';
+  | 'play' | 'pause'
+  // Marks the mail folders derive from a project's name.
+  | 'megaphone' | 'doc' | 'chart';
 
 const MAP: Record<IconName, LucideIcon> = {
   bell: Bell, heart: Heart, comment: MessageCircle, follow: UserPlus, connection: Handshake,
@@ -44,6 +47,10 @@ const MAP: Record<IconName, LucideIcon> = {
   plus: Plus, back: ArrowLeft, next: ChevronRight, journal: Notebook, more: MoreHorizontal,
   music: Music, close: X, flag: Flag, block: Ban, sort: FolderOpen,
   locating: Satellite, warn: TriangleAlert, play: Play, pause: Pause,
+  // Four marks the mail folders derive from a project's name. Megaphone,
+  // FileText and LineChart had no entry here; `sort` (FolderOpen) is the
+  // plain folder every unmatched name falls back to and was already present.
+  megaphone: Megaphone, doc: FileText, chart: LineChart,
 };
 
 export function Icon({ name, size = 18, strokeWidth = 1.75, className, style }: {

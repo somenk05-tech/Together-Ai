@@ -1181,52 +1181,6 @@ html.tc-immersive .cscomposer { margin-bottom: calc(var(--safe-bottom) + 14px); 
    geometry, and every colour in it is a token — there is not one literal
    here, which is the rule this file is held to. */
 
-.mproj-grid {
-  display: grid; gap: 12px;
-  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
-}
-/* A card is a door, so the whole card is the link — not a title inside it. */
-.mproj-card {
-  display: block; padding: 15px 16px; text-decoration: none; color: var(--ink);
-  text-align: left; font-family: inherit;
-}
-.mproj-top { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; }
-.mproj-key {
-  font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
-  color: var(--faint);
-}
-.mproj-flag {
-  margin-left: auto; font-size: 10px; font-weight: 800; letter-spacing: .08em;
-  text-transform: uppercase; color: var(--muted);
-}
-.mproj-dot {
-  width: 7px; height: 7px; border-radius: 50%; background: var(--ink);
-  flex: 0 0 auto; display: inline-block;
-}
-/* A project with nothing in it yet is not a broken one — the dot goes quiet
-   rather than the card going grey, because the card is still a door. */
-.mproj-card[data-quiet] .mproj-dot { background: var(--line-2); }
-.mproj-name { font-size: 15px; margin: 0 0 3px; }
-.mproj-met { font-size: 12px; color: var(--muted); }
-.mproj-foot {
-  margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--line);
-  font-size: 11.5px; color: var(--muted);
-}
-/* ALL EMAIL IS INKED, because it is the mailbox and the projects are rooms in
-   it. The one filled card on the screen, so the eye lands on the way back to
-   everything before it lands on any one room. */
-.mproj-card.is-all { background: var(--accent); border-color: var(--accent); }
-.mproj-card.is-all .mproj-name { color: var(--on-accent); }
-.mproj-card.is-all .mproj-key,
-.mproj-card.is-all .mproj-met,
-.mproj-card.is-all .mproj-foot { color: var(--on-accent); opacity: .74; }
-.mproj-card.is-all .mproj-foot { border-top: 0; padding-top: 0; margin-top: 8px; }
-.mproj-card.is-add {
-  border-style: dashed; display: grid; place-items: center; gap: 3px;
-  min-height: 126px; cursor: pointer;
-}
-.mproj-add-l { font-weight: 700; font-size: 13px; color: var(--muted); }
-
 .mproj-sheet { max-width: 480px; }
 .mproj-fields { display: grid; grid-template-columns: 1fr 140px; gap: 10px; margin-bottom: 12px; }
 @media (max-width: 480px) { .mproj-fields { grid-template-columns: 1fr; } }
@@ -1238,7 +1192,6 @@ html.tc-immersive .cscomposer { margin-bottom: calc(var(--safe-bottom) + 14px); 
 
 /* The context bar takes the account bar's place inside a project — same card,
    same 42px mark, different sentence. */
-.mproj-bar-addr { font-weight: 500; font-size: 13px; }
 .mproj-bar-keys { margin-left: auto; display: flex; gap: 8px; align-items: center; }
 /* ON A PHONE THE BAR KEEPS ITS SETTINGS AND LOSES ITS COMPOSE. Compose is the
    floating key the folder already draws; settings has no other door, and a
@@ -1250,9 +1203,6 @@ html.tc-immersive .cscomposer { margin-bottom: calc(var(--safe-bottom) + 14px); 
   .mproj-bar .mail-account-top { flex-wrap: wrap; }
   .mproj-bar-keys { margin-left: auto; }
 }
-.mproj-rail { margin-bottom: 4px; }
-.mproj-out { margin-left: auto; }
-@media (max-width: 899px) { .mproj-out { margin-left: 0; } }
 
 .mproj-settings { margin-top: 12px; }
 .mproj-settings-foot {
@@ -1316,3 +1266,188 @@ html.tc-immersive .cscomposer { margin-bottom: calc(var(--safe-bottom) + 14px); 
   border-top: 1px solid var(--line);
 }
 .mmove-foot { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+
+/* ══ THE FOLDER WALL — /mail (14 Aug) ═══════════════════════════════════════
+   A project is drawn as the object it is: a folder with a tab. A row in a list
+   is a thing you scan; a folder is a thing you open, and this screen exists so
+   somebody chooses a room BEFORE they read any mail.
+
+   THE TAB IS ONE PSEUDO-ELEMENT AND NO IMAGE. `.mfold::before` is the tab,
+   `.mfold-face` is the body, and the tint is two custom properties resolved
+   from `[data-tint]` — so a folder is one element, one pseudo-element and no
+   asset to load, and a tenth colour costs a token and a selector.
+
+   COLOUR ONLY VIA THOSE TWO PROPERTIES. Not one chromatic literal below; the
+   nine tints and their measured contrast live in tokens.css. */
+
+.mproj-page { max-width: 940px; }
+.mproj-head { text-align: center; margin: 6px 0 22px; }
+.mproj-head h1 { font-size: 30px; margin: 0 0 6px; letter-spacing: -.02em; }
+.mproj-head p { margin: 0; font-size: 13.5px; }
+.mproj-h2 { font-size: 15px; margin: 26px 0 12px; }
+.mproj-none { font-size: 13px; max-width: 56ch; margin: 0 0 4px; line-height: 1.6; }
+
+.mfold-grid {
+  display: grid; gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(228px, 1fr));
+}
+
+/* ── the object ──────────────────────────────────────────────────────────── */
+.mfold {
+  position: relative;
+  --tab: var(--fold-slate-tab);
+  --face: var(--fold-slate-face);
+  padding-top: 14px;          /* the tab stands in this */
+}
+.mfold[data-tint="blue"]   { --tab: var(--fold-blue-tab);   --face: var(--fold-blue-face); }
+.mfold[data-tint="green"]  { --tab: var(--fold-green-tab);  --face: var(--fold-green-face); }
+.mfold[data-tint="purple"] { --tab: var(--fold-purple-tab); --face: var(--fold-purple-face); }
+.mfold[data-tint="red"]    { --tab: var(--fold-red-tab);    --face: var(--fold-red-face); }
+.mfold[data-tint="orange"] { --tab: var(--fold-orange-tab); --face: var(--fold-orange-face); }
+.mfold[data-tint="teal"]   { --tab: var(--fold-teal-tab);   --face: var(--fold-teal-face); }
+.mfold[data-tint="amber"]  { --tab: var(--fold-amber-tab);  --face: var(--fold-amber-face); }
+.mfold[data-tint="pink"]   { --tab: var(--fold-pink-tab);   --face: var(--fold-pink-face); }
+.mfold[data-tint="violet"] { --tab: var(--fold-violet-tab); --face: var(--fold-violet-face); }
+.mfold[data-tint="slate"]  { --tab: var(--fold-slate-tab);  --face: var(--fold-slate-face); }
+
+/* THE TAB. Inset from the left like a real one, and it ends UNDER the body so
+   the two read as one piece of card folded rather than two rectangles. */
+.mfold::before {
+  content: ''; position: absolute; top: 0; left: 0;
+  width: 46%; height: 26px; background: var(--tab);
+  border-radius: 12px 10px 0 0;
+}
+.mfold-face {
+  position: relative; display: block; text-decoration: none; color: var(--ink);
+  background: var(--face); border-radius: 12px;
+  padding: 14px 15px 15px; min-height: 118px;
+  box-shadow: var(--e1);
+}
+.mfold-all .mfold-face { min-height: 120px; }
+.mfold-top { display: flex; align-items: center; margin-bottom: 12px; }
+/* WHITE CHIP, INK GLYPH. Drawn in the tint the mark measures between 1.68:1
+   (amber) and 3.33:1 (violet) — a picture you have to already know to read.
+   The tab and the face carry the colour; the mark carries meaning. */
+.mfold-mark {
+  width: 34px; height: 34px; border-radius: 10px; background: var(--card);
+  display: grid; place-items: center; color: var(--ink); flex: 0 0 auto;
+  box-shadow: var(--e1);
+}
+.mfold-count {
+  margin-left: auto; background: var(--card); border-radius: 999px;
+  padding: 3px 10px; font-size: 11.5px; font-weight: 700; color: var(--ink);
+  font-variant-numeric: tabular-nums; box-shadow: var(--e1);
+}
+.mfold-name { display: block; font-size: 15px; font-weight: 700; line-height: 1.25; }
+.mfold-all .mfold-name { font-size: 18px; }
+.mfold-sub {
+  display: block; margin-top: 4px; font-size: 12px; color: var(--muted);
+  line-height: 1.45;
+}
+.mfold-flag {
+  position: absolute; top: 0; left: 14px; font-size: 9.5px; font-weight: 800;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--on-accent);
+  line-height: 14px;
+}
+/* Archived is quieter, not hidden: it is still a room, just a closed one. */
+.mfold.is-archived { opacity: .62; }
+
+@media (hover: hover) and (pointer: fine) {
+  .mfold-face:hover { box-shadow: var(--e2); transform: translateY(-2px); }
+}
+.mfold-face:focus-visible { box-shadow: var(--focus-ring); }
+
+/* All Emails sits alone above the grid, wider than one project and narrower
+   than the row, so it reads as the parent of what is under it. */
+.mfold-all { max-width: 360px; margin: 0 auto; }
+
+/* ── the overflow key ────────────────────────────────────────────────────── */
+.mfold-menu-wrap { position: absolute; right: 10px; bottom: 10px; }
+.mfold-menu-key {
+  border: 0; background: none; padding: 4px; border-radius: 8px; cursor: pointer;
+  color: var(--muted); display: grid; place-items: center; min-width: 28px; min-height: 28px;
+}
+.mfold-menu-key:hover { color: var(--ink); }
+.mfold-menu {
+  position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 30;
+  width: 232px; background: var(--card); border: 1px solid var(--line-2);
+  border-radius: 12px; padding: 6px; box-shadow: var(--e3); text-align: left;
+}
+.mfold-menu > button {
+  display: block; width: 100%; text-align: left; border: 0; background: none;
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--ink);
+  padding: 9px 10px; border-radius: 9px; cursor: pointer; min-height: 38px;
+}
+.mfold-menu > button:hover { background: var(--accent-soft); }
+.mfold-menu-del { color: var(--danger-ink); }
+.mfold-menu-confirm { padding: 8px 10px 4px; }
+.mfold-menu-confirm p { margin: 0 0 10px; font-size: 12px; line-height: 1.5; color: var(--muted); }
+
+/* ── make another ────────────────────────────────────────────────────────── */
+.mfold-new {
+  display: flex; align-items: center; gap: 14px; width: 100%; margin-top: 18px;
+  padding: 15px 18px; border: 1px dashed var(--line-2); border-radius: 14px;
+  background: var(--card); font: inherit; color: var(--ink); cursor: pointer;
+  text-align: left; min-height: 62px;
+}
+.mfold-new:hover { border-color: var(--ink); }
+.mfold-new-plus {
+  width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--accent-soft); color: var(--ink); flex: 0 0 auto;
+}
+.mfold-new-said b { display: block; font-size: 14px; }
+.mfold-new-said .muted { font-size: 12px; }
+.mfold-new-count { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 11.5px; }
+.mfold-new-pill {
+  background: var(--accent-soft); border-radius: 999px; padding: 3px 10px;
+  font-weight: 700; font-variant-numeric: tabular-nums;
+}
+@media (max-width: 560px) { .mfold-new-count .muted { display: none; } }
+
+/* ── the swatches, and the folder being made ─────────────────────────────── */
+.mfold-preview { max-width: 228px; margin: 0 0 16px; pointer-events: none; }
+.mfold-swatches { border: 0; padding: 0; margin: 0 0 4px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.mfold-swatches legend { padding: 0; margin-bottom: 6px; }
+.mfold-swatch {
+  width: 30px; height: 30px; border-radius: 9px; cursor: pointer; padding: 0;
+  border: 1px solid var(--line-2); background: var(--face);
+  --tab: var(--fold-slate-tab); --face: var(--fold-slate-face);
+  position: relative; overflow: hidden;
+}
+.mfold-swatch::before {
+  content: ''; position: absolute; inset: 0 0 auto 0; height: 10px; background: var(--tab);
+}
+.mfold-swatch.on { border-color: var(--ink); outline: 1.5px solid var(--ink); outline-offset: 1px; }
+.mfold-swatch[data-tint="blue"]   { --tab: var(--fold-blue-tab);   --face: var(--fold-blue-face); }
+.mfold-swatch[data-tint="green"]  { --tab: var(--fold-green-tab);  --face: var(--fold-green-face); }
+.mfold-swatch[data-tint="purple"] { --tab: var(--fold-purple-tab); --face: var(--fold-purple-face); }
+.mfold-swatch[data-tint="red"]    { --tab: var(--fold-red-tab);    --face: var(--fold-red-face); }
+.mfold-swatch[data-tint="orange"] { --tab: var(--fold-orange-tab); --face: var(--fold-orange-face); }
+.mfold-swatch[data-tint="teal"]   { --tab: var(--fold-teal-tab);   --face: var(--fold-teal-face); }
+.mfold-swatch[data-tint="amber"]  { --tab: var(--fold-amber-tab);  --face: var(--fold-amber-face); }
+.mfold-swatch[data-tint="pink"]   { --tab: var(--fold-pink-tab);   --face: var(--fold-pink-face); }
+.mfold-swatch[data-tint="violet"] { --tab: var(--fold-violet-tab); --face: var(--fold-violet-face); }
+
+/* ══ INSIDE A PROJECT ══════════════════════════════════════════════════════
+   THE PROJECT'S FOLDERS WERE INVISIBLE ON A DESKTOP. They were drawn with
+   `.hub-chips`, which every hub hides at 900px because the sidebar carries the
+   same links there — and the sidebar does NOT carry these: they are one
+   project's Inbox, Sent, Drafts, Starred and Trash. So on the screen most of
+   this is read on, a project had an inbox and no way to reach anything else in
+   it. Its own rail, shown at every width. */
+.mproj-rail {
+  display: flex; flex-wrap: wrap; gap: 7px; align-items: center;
+  margin: 0 0 14px; padding: 0;
+}
+.mproj-out { margin-left: auto; }
+@media (max-width: 700px) { .mproj-out { margin-left: 0; } }
+
+/* The project's name is a NAME. It was inheriting `.mail-account-addr`, which
+   is monospace because an email address is a string you read character by
+   character — a project called "together" is not. */
+.mproj-bar-name { font-size: 17px; font-weight: 800; letter-spacing: -.01em; }
+.mproj-bar-addr {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px; font-weight: 500;
+}
+.mproj-bar-mark { font-size: 12px; letter-spacing: .04em; }

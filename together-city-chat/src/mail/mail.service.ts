@@ -844,6 +844,7 @@ export class MailService {
       const last = lasts[i];
       return {
         id: p.id, name: p.name, key: p.key,
+        color: p.color, description: p.description ?? null,
         subAddress: p.subAddress,
         // Shown on the card only when it is on, because an address a citizen
         // has not switched on is not an address they can hand out.
@@ -877,7 +878,10 @@ export class MailService {
     const clash = await this.prisma.mailProject.findFirst({ where: { ownerId: userId, key: dto.key }, select: { name: true } });
     if (clash) throw new BadRequestException(`“${dto.key}” is already the key for ${clash.name}. Pick another.`);
     const p = await this.prisma.mailProject.create({
-      data: { ownerId: userId, name: dto.name, key: dto.key, subAddress: dto.subAddress },
+      data: {
+        ownerId: userId, name: dto.name, key: dto.key, subAddress: dto.subAddress,
+        color: dto.color, ...(dto.description ? { description: dto.description } : {}),
+      },
     });
     // NOTHING IS SWEPT IN. A project opens empty because nothing has happened
     // in it yet; back-filling it from a guess about old mail is the one thing
@@ -894,6 +898,10 @@ export class MailService {
         ...(dto.name !== undefined ? { name: dto.name } : {}),
         ...(dto.subAddress !== undefined ? { subAddress: dto.subAddress } : {}),
         ...(dto.archived !== undefined ? { archived: dto.archived } : {}),
+        ...(dto.color !== undefined ? { color: dto.color } : {}),
+        // An empty description is a description REMOVED, not one left alone:
+        // the field is a text input and clearing it has to mean something.
+        ...(dto.description !== undefined ? { description: dto.description || null } : {}),
       },
     });
     return this.projects(userId);

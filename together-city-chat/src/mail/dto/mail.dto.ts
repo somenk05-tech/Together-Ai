@@ -102,10 +102,23 @@ export const ProjectKeySchema = z.string().trim().min(1).max(24)
   .regex(/^[A-Za-z0-9][A-Za-z0-9-]*$/, 'Use letters, numbers and hyphens')
   .transform((v) => v.toLowerCase());
 
+/**
+ * The nine a citizen picks from, and the slate All Emails wears.
+ *
+ * Validated as a list rather than left open: a tint the client cannot draw
+ * renders a colourless folder, and the honest place to refuse it is here.
+ * Adding a tenth is a line in this array and a token in the stylesheet.
+ */
+export const FOLD_TINTS = ['blue', 'green', 'purple', 'red', 'orange', 'teal', 'amber', 'pink', 'violet', 'slate'] as const;
+
 export const CreateProjectSchema = z.object({
   name: z.string().trim().min(1, 'Give the project a name').max(60),
   key: ProjectKeySchema,
   subAddress: z.boolean().default(false),
+  color: z.enum(FOLD_TINTS).default('blue'),
+  /** One line, on the folder. Short because it is drawn in two lines of 12px
+   *  and a paragraph would be clipped rather than read. */
+  description: z.string().trim().max(80).optional(),
 }).strict();
 export type CreateProjectDto = z.infer<typeof CreateProjectSchema>;
 
@@ -116,6 +129,8 @@ export const UpdateProjectSchema = z.object({
   name: z.string().trim().min(1).max(60).optional(),
   subAddress: z.boolean().optional(),
   archived: z.boolean().optional(),
+  color: z.enum(FOLD_TINTS).optional(),
+  description: z.string().trim().max(80).optional(),
 }).strict();
 export type UpdateProjectDto = z.infer<typeof UpdateProjectSchema>;
 

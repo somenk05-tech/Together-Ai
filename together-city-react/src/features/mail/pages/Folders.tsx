@@ -10,6 +10,7 @@ import {
   type Folder, type MailProject,
 } from '../api';
 import { groupByThread, type Convo } from '../threading';
+import { iconForName, tintOf, FOLD_TINTS } from '../folderLook';
 
 /** Outbound delivery log — every email/SMS sent through the messaging provider. */
 function DeliveryLog() {
@@ -356,10 +357,10 @@ function ProjectBar({ project, onSettings, settingsOpen }: {
   return (
     <div className="card mail-account mproj-bar">
       <div className="mail-account-top">
-        <div className="mail-account-mark" aria-hidden>{project.key.slice(0, 3).toUpperCase()}</div>
+        <div className="mail-account-mark" aria-hidden><Icon name={iconForName(project.name)} size={20} /></div>
         <div style={{ minWidth: 0 }}>
           <div className="eyebrow mail-account-eyebrow" style={{ margin: 0 }}>Together City Mail · Project</div>
-          <div className="mail-account-addr">
+          <div className="mproj-bar-name">
             {project.name}
             {project.address && <span className="muted mproj-bar-addr"> · {project.address}</span>}
           </div>
@@ -385,7 +386,7 @@ function ProjectFolders({ project }: { project: MailProject }) {
     ['starred', 'Starred'], ['trash', 'Trash'],
   ];
   return (
-    <nav className="hub-chips mproj-rail" aria-label={`${project.name} folders`}>
+    <nav className="mproj-rail" aria-label={`${project.name} folders`}>
       {items.map(([f, label]) => (
         <NavLink key={f} end to={f === 'inbox' ? `/mail/p/${project.key}` : `/mail/p/${project.key}/${f}`}
           className={({ isActive }) => `chip${isActive ? ' on' : ''}`}
@@ -414,6 +415,7 @@ function ProjectSettings({ project }: { project: MailProject }) {
   const remove = useDeleteProject();
   const nav = useNavigate();
   const [name, setName] = useState(project.name);
+  const [description, setDescription] = useState(project.description ?? '');
   const [confirming, setConfirming] = useState(false);
   const inp = { padding: '9px 11px', border: '1.5px solid var(--line-2)', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', width: '100%', maxWidth: 280 } as const;
 
@@ -432,6 +434,28 @@ function ProjectSettings({ project }: { project: MailProject }) {
           The key <strong>{project.key}</strong> stays as it is — it is this project's address in the app.
         </span>
       </label>
+
+      <label style={{ display: 'block', marginBottom: 12 }}>
+        <span className="eyebrow">What it is for</span>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <input value={description} onChange={(e) => setDescription(e.target.value)} maxLength={80}
+            placeholder="Campaigns, production & communication" style={{ ...inp, maxWidth: 380 }} />
+          <Button variant="line" size="sm" disabled={update.isPending || description === (project.description ?? '')}
+            onClick={() => update.mutate({ id: project.id, description })}>Save</Button>
+        </div>
+      </label>
+
+      {/* The tint is saved on the press rather than behind a Save: it is one
+          value, it is visible the instant it lands, and a colour you have to
+          confirm is a colour you pick twice. */}
+      <fieldset className="mfold-swatches" style={{ marginBottom: 14 }}>
+        <legend className="eyebrow">Colour</legend>
+        {FOLD_TINTS.map((t) => (
+          <button key={t} type="button" className={`mfold-swatch${tintOf(project.color) === t ? ' on' : ''}`}
+            data-tint={t} aria-label={t} aria-pressed={tintOf(project.color) === t} disabled={update.isPending}
+            onClick={() => update.mutate({ id: project.id, color: t })} />
+        ))}
+      </fieldset>
 
       <label className="mproj-check">
         <input type="checkbox" checked={project.subAddress} disabled={update.isPending}
