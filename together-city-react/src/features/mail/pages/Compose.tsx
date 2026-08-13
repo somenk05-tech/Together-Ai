@@ -368,22 +368,61 @@ export function Compose() {
 
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <Button variant="accent" disabled={!canSend}
-            onClick={() => { setRefused([]); send.mutate(
-              { to, cc: addrs(cc), bcc: addrs(bcc), subject: subject || '(no subject)', body: withQuote(body, quote), threadId, attachmentFileIds: attachments.map((f) => f.id), draftId: draftId.current, projectKey },
-              {
-                onSuccess: (res) => {
-                  // Nothing may write a draft of this message from here on.
-                  sentRef.current = true;
-                  // Some refused, some accepted: stay, and say which.
-                  if (res.failed.length > 0) { setRefused(res.failed); return; }
-                  if (threadId) nav(-1);
-                  else nav(projectKey ? `/mail/p/${projectKey}/sent` : '/mail/sent');
+            onClick={() => {
+              setRefused([]);
+              /* SET WHEN THE KEY IS PRESSED, NOT WHEN THE SEND RETURNS. The
+                 autosave this is racing may land BEFORE onSuccess does, and a
+                 flag set in onSuccess is a flag set too late to catch it. */
+              sentRef.current = true;
+              send.mutate(
+                { to, cc: addrs(cc), bcc: addrs(bcc), subject: subject || '(no subject)', body: withQuote(body, quote), threadId, attachmentFileIds: attachments.map((f) => f.id), draftId: draftId.current, projectKey },
+                {
+                  onSuccess: (res) => {
+                    if (res.failed.length > 0) {
+                      /* Some refused, some accepted: the message IS in Sent, and
+                         the citizen is still here fixing addresses. send() has
+                         already cleared the draft, so the id in hand points at
+                         a row that no longer exists — drop it, and let autosave
+                         start a fresh one for whatever they type next. */
+                      sentRef.current = false;
+                      draftId.current = undefined;
+                      setRefused(res.failed);
+                      return;
+                    }
+                    if (threadId) nav(-1);
+                    else nav(projectKey ? `/mail/p/${projectKey}/sent` : '/mail/sent');
+                  },
+                  // Nothing went out. Their words are still in the box and
+                  // autosave should go on protecting them.
+                  onError: () => { sentRef.current = false; },
                 },
-              },
-            ); }}>
+              );
+            }}>
             {send.isPending ? 'Sending…' : trailPending ? 'Loading the thread…' : threadId ? 'Send reply' : 'Send'}
           </Button>
           <Button variant="line" onClick={() => nav(-1)}>Cancel</Button>
+          {/* DISCARD, WHICH THE COMPOSER HAS NEVER HAD.
+              mail-reads-on-a-phone.test.ts has been holding a place for this
+              since it was written: the row's bin is hidden on a phone wherever
+              deleting has another door, and drafts were the one exception
+              because there was no other door. Cancel leaves the draft where it
+              is — which is right, it is unfinished work — but there was no way
+              to say "throw this away" from the place you are throwing it away
+              from. Shown only once there is a row to discard: a composer
+              nobody has typed in has nothing to delete. */}
+          {(draftParam || savedAt) && (
+            <Button variant="line" disabled={discard.isPending}
+              onClick={() => {
+                const id = draftId.current;
+                if (!id) { nav(-1); return; }
+                // Stop autosave putting it straight back — the same flag the
+                // send path uses, for the same race.
+                sentRef.current = true;
+                discard.mutate(id, { onSuccess: () => nav('/mail/unsent') });
+              }}>
+              {discard.isPending ? 'Discarding…' : '🗑 Discard'}
+            </Button>
+          )}
           {/* Says what actually happened, and where to find it. */}
           <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }} role="status" aria-live="polite">
             {savedAt

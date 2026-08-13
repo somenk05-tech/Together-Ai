@@ -163,7 +163,10 @@ function Row({ convo, folder, tag }: { convo: Convo; folder: Folder; tag?: strin
    * draft keeps its bin. A control removed with no replacement is not a
    * simplification, it is a lost capability.
    */
-  const binHasAnotherDoor = !isDraft; // MessageView carries Delete; the composer does not carry Discard
+  // Every row's bin now has another door: a message carries Delete in the
+  // reader, and a draft carries Discard in the composer, which it did not
+  // when this exception was written.
+  const binHasAnotherDoor = true;
   return (
     <div className={`mail-row${unread ? ' unread' : ''}`}
       onClick={() => nav(isDraft ? `/mail/compose?draft=${m.id}` : `/mail/message/${m.id}`)}>

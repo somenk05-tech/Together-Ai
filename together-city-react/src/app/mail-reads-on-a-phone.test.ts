@@ -62,12 +62,20 @@ describe('the mail list reads on a phone', () => {
     expect(message).toMatch(/remove\.mutate/);
   });
 
-  it('keeps a draft its bin, because the composer has no Discard', () => {
-    expect(folders).toMatch(/binHasAnotherDoor = !isDraft/);
+  it('lets a draft be thrown away from the place it is being written', () => {
+    // THIS TEST USED TO SAY THE OPPOSITE, and said why: "keeps a draft its bin,
+    // because the composer has no Discard — the day the composer grows one,
+    // drop the exception and this line." The composer grew one, so both went.
+    //
+    // Cancel leaves a draft where it is, which is right; there was simply no
+    // way to say "throw this away" from the surface you are throwing it away
+    // from, and on a phone that made the row's bin the only door.
     const compose = read('features/mail/pages/Compose.tsx');
-    // The day the composer grows a Discard, drop the exception and this line.
-    expect(compose, 'Compose now has Discard — the draft-bin exception can go')
-      .not.toMatch(/discardDraft|Discard/);
+    expect(compose).toMatch(/Discard/);
+    expect(compose).toMatch(/discard\.mutate\(/);
+    // With that door open, the row keeps its shape for every kind of message.
+    expect(folders).toMatch(/binHasAnotherDoor = true/);
+    expect(folders).not.toMatch(/binHasAnotherDoor = !isDraft/);
   });
 
   /**
