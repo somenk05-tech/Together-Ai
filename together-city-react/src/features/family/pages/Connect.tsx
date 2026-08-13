@@ -7,6 +7,7 @@ import {
 import type { HouseholdSharing } from '@/features/nutrition/api';
 import type { FamilyMemberProfile, FamilyMemberInput, HouseholdRole } from '@/features/nutrition/api';
 import { AddHubMemberDialog } from '@/features/connections/components/AddHubMemberDialog';
+import { FamilyDashboard } from '../components/FamilyDashboard';
 
 const DIETS: Record<string, string> = {
   everything: 'Non-vegetarian', nonveg: 'Non-vegetarian', veg: 'Vegetarian', vegan: 'Vegan',
@@ -408,6 +409,13 @@ export function FamilyConnect() {
 
       <div style={{ maxWidth: 820, margin: '0 auto' }}>
         <InvitesInbox />
+        {/* The per-member check lived on the family landing page; the landing
+            went (owner's call, 13 Aug) and the check moved HERE, beside the
+            members it is about — a flag about somebody's portion sits next to
+            the card where that somebody is managed. */}
+        <div style={{ marginBottom: 18 }}>
+          <FamilyDashboard />
+        </div>
         <FamilyMealPlanningCard />
         <FamilyProfileCard />
         <PrivacyCard />

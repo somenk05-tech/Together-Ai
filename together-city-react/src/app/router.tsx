@@ -126,7 +126,6 @@ const RESell = lazy(() => import('@/features/realestate/pages/Sell').then((m) =>
 const FitWorkout = lazy(() => import('@/features/fitness/pages/Workout').then((m) => ({ default: m.Workout })));
 const FitSupplements = lazy(() => import('@/features/fitness/pages/Supplements').then((m) => ({ default: m.Supplements })));
 const FitSleep = lazy(() => import('@/features/fitness/pages/Sleep').then((m) => ({ default: m.Sleep })));
-const FamHome = lazy(() => import('@/features/family/pages/Family').then((m) => ({ default: m.Family })));
 const FamConnect = lazy(() => import('@/features/family/pages/Connect').then((m) => ({ default: m.FamilyConnect })));
 const FamWeekly = lazy(() => import('@/features/family/pages/Weekly').then((m) => ({ default: m.FamilyWeekly })));
 const FamGrocery = lazy(() => import('@/features/family/pages/Grocery').then((m) => ({ default: m.FamilyGrocery })));
@@ -340,7 +339,10 @@ export const router = createBrowserRouter([
     // Family Nutrition hub — one plan portioned per member (reached from the Nutrition Individual/Family toggle).
     element: <HubLayout hub={HUBS.family} />,
     children: [
-      { path: '/family', element: <RequireAuth>{wrap(<FamHome />)}</RequireAuth> },
+      // The family hub has no landing — the door opens on the first thing to
+      // DO (owner's call, 13 Aug): connect the members whose portions every
+      // other page depends on. Same shape as /cars and /nutrition/weekly-classic.
+      { path: '/family', element: <Navigate to="/family/connect" replace /> },
       { path: '/family/connect', element: <RequireAuth>{wrap(<FamConnect />)}</RequireAuth> },
       { path: '/family/weekly', element: <RequireAuth>{wrap(<FamWeekly />)}</RequireAuth> },
       { path: '/family/grocery', element: <RequireAuth>{wrap(<FamGrocery />)}</RequireAuth> },
