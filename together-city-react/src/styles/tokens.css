@@ -980,7 +980,8 @@
    four hundredths of white is what carries it over. It is written rather than
    rounded away because the next person to "tidy" it back to none puts a
    description under AA and nothing on the page looks different. */
-[data-paper="tue"] .press-recto {
+[data-paper="tue"] .press-recto,
+[data-paper="tue"] .food-paper {
   --press-recto-sheet: url('/assets/img/press-tue-recto.jpg');
   --press-recto-veil:  rgba(255, 253, 250, .52);
   --press-recto-ground:#c2a094;  /* darkest pixel, veiled */
