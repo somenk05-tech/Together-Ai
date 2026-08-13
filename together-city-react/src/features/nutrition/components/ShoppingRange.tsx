@@ -56,6 +56,12 @@ export function ShoppingRange({ mode, days, onDays }: {
   const maxDays = Math.max(1, Math.min(7, planDays ? planDays - base : 7));
   const chosen = Math.min(Math.max(1, days), maxDays);
   const locks = useMemo(() => new Set(wk?.locks ?? []), [wk]);
+  // Which plan model each locked day was locked from. Absent = 'preferred':
+  // the lock predates the record. The basket shops each day in this model, so
+  // this panel must SAY it — "locked" alone hides which of the two menus the
+  // list is buying for.
+  const modelOf = (dayIndex: number): 'preferred' | 'optimal' =>
+    wk?.lockModes?.[String(dayIndex)] === 'optimal' ? 'optimal' : 'preferred';
 
   const week = useMemo(() => Array.from({ length: maxDays }, (_, i) => {
     const dayIndex = base + i;
@@ -113,14 +119,16 @@ export function ShoppingRange({ mode, days, onDays }: {
         {week.map((d) => (
           <button key={d.dayIndex} type="button" onClick={() => onDays(d.i + 1)}
             aria-pressed={d.inRange}
-            aria-label={`${longLabel(d.date)}${d.locked ? ', menu locked' : ', menu not locked yet'}`}
+            aria-label={`${longLabel(d.date)}${d.locked
+              ? `, menu locked from your ${modelOf(d.dayIndex) === 'optimal' ? 'Optimal Health' : 'My Preferences'} plan`
+              : ', menu not locked yet'}`}
             className={`pill ${d.inRange ? 'on' : ''}`}
             style={{ cursor: 'pointer', flexDirection: 'column', height: 'auto', padding: '8px 14px', gap: 2 }}>
             <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.02em' }}>
               {d.i === 0 ? 'Today' : dayLabel(d.date)}
             </span>
             <span style={{ fontSize: 11, opacity: .75 }}>
-              {dateLabel(d.date)}{d.locked ? ' · locked' : ''}
+              {dateLabel(d.date)}{d.locked ? (modelOf(d.dayIndex) === 'optimal' ? ' · locked · Optimal' : ' · locked · Preferences') : ''}
             </span>
           </button>
         ))}
@@ -129,6 +137,19 @@ export function ShoppingRange({ mode, days, onDays }: {
       <p className="muted" style={{ fontSize: 12.5, margin: '14px 0 0', lineHeight: 1.65 }}>
         Only ingredients from <strong>locked menus</strong> appear below — a menu you have not
         locked can still change, and buying for it would buy food you may never cook.
+        {(() => {
+          /* WHICH plan the menus come from, said in words. Every day has two
+             real menus — My Preferences and Optimal Health — and each lock
+             shops the one that was showing when it was made. */
+          const lockedHere = inRange.filter((d) => d.locked);
+          if (!lockedHere.length) return null;
+          const opt = lockedHere.filter((d) => modelOf(d.dayIndex) === 'optimal').length;
+          if (opt === 0) return <> Every locked menu here is from your <strong>My Preferences</strong> plan.</>;
+          if (opt === lockedHere.length) return <> Every locked menu here is from your <strong>Optimal Health</strong> plan.</>;
+          return <> {lockedHere.length - opt} locked menu{lockedHere.length - opt === 1 ? ' is' : 's are'} from your{' '}
+            <strong>My Preferences</strong> plan and {opt} from <strong>Optimal Health</strong> — each day is shopped
+            from the menu you locked it in.</>;
+        })()}
       </p>
 
       {unlocked.length > 0 ? (

@@ -35,7 +35,7 @@ describe('what a lock does', () => {
     const { s, saved, groceryCalls } = build();
     const out = await s.lockComposedDay('u1', 2, 'individual');
     expect(out.locked).toBe(true);
-    expect(saved[0]).toEqual({ composedLocks: [2] });
+    expect(saved[0]).toEqual({ composedLocks: [2], composedLockModes: { 2: 'preferred' } });
     // NO window and no date: groceryPlan reads composedLocks itself. Passing a
     // single day would double-count one locked twice and could not express a
     // day being taken back out.
@@ -53,6 +53,19 @@ describe('what a lock does', () => {
     const { s } = build();
     const out = await s.lockComposedDay('u1', 20);   // planDays = 21
     expect(out.nextDay).toBeNull();
+  });
+
+  it('remembers which plan model was showing when the lock was pressed', async () => {
+    // Two real menus exist for every day. A lock made from the Optimal Health
+    // tab is a decision about THAT menu, and the basket shops it — recording
+    // only the day is how somebody who accepted the Optimal Friday ends up
+    // buying the Preferences Friday's food.
+    const { s, saved } = build({ composedLocks: [1], composedLockModes: { 1: 'preferred' } });
+    await s.lockComposedDay('u1', 2, 'individual', 'optimal');
+    expect(saved[0]).toEqual({
+      composedLocks: [1, 2],
+      composedLockModes: { 1: 'preferred', 2: 'optimal' },
+    });
   });
 
   it('a basket that fails does not fail the lock', async () => {
@@ -95,7 +108,7 @@ describe('unlocking', () => {
     const { s, saved, groceryCalls } = build({ composedLocks: [1, 2] });
     const out = await s.unlockComposedDay('u1', 1);
     expect(out.locked).toBe(false);
-    expect(saved[0]).toEqual({ composedLocks: [2] });
+    expect(saved[0]).toEqual({ composedLocks: [2], composedLockModes: {} });
     // The basket follows the locks in BOTH directions, or it is not following
     // them. What protects the citizen here is mergeGroceryList, not skipping
     // the rebuild: a ticked line has been bought and is kept, and a manual
@@ -110,5 +123,58 @@ describe('the stored value is user-editable JSON, so it is never trusted', () =>
     expect(s.lockedDays({ composedLocks: 'nope' })).toEqual([]);
     expect(s.lockedDays({ composedLocks: [3, 'x', -1, 1.5, 1, 1, 0] })).toEqual([0, 1, 3]);
     expect(s.lockedDays({})).toEqual([]);
+  });
+
+  it('the model map is sanitised the same way', () => {
+    const { s } = build();
+    expect(s.lockPlanModes({})).toEqual({});
+    expect(s.lockPlanModes({ composedLockModes: 'nope' })).toEqual({});
+    expect(s.lockPlanModes({ composedLockModes: ['optimal'] })).toEqual({});
+    expect(s.lockPlanModes({ composedLockModes: { 1: 'optimal', 2: 'preferred', x: 'optimal', '-1': 'optimal', 3: 'keto' } }))
+      .toEqual({ 1: 'optimal', 2: 'preferred' });
+  });
+});
+
+describe('the basket shops each locked day in the model it was locked in', () => {
+  // groceryPlan is stubbed down to its split: what matters here is WHICH days
+  // it hands to WHICH composition, not the aisles arithmetic below them.
+  function buildGrocery(extras: Record<string, unknown>) {
+    const s: any = Object.create(NutritionService.prototype);
+    const calls: Array<{ days: readonly number[] | undefined; planMode: string }> = [];
+    s.prisma = { foodPref: { findUnique: async () => ({ extras: JSON.stringify(extras) }) } };
+    s.resolveStartDate = async () => '2026-08-13';
+    s.ownMealsForShopping = async () => ({ dayCount: 0, meals: [] });
+    s.householdRaw = async () => [];   // family scale block runs before the early return
+    s.composedMealsForShopping = async (
+      _u: string, _w: number, _f?: string, _h?: boolean,
+      dayIndexes?: readonly number[], planMode: string = 'preferred',
+    ) => {
+      calls.push({ days: dayIndexes, planMode });
+      return { dayCount: dayIndexes?.length ?? 0, meals: [] };
+    };
+    return { s, calls };
+  }
+
+  it('splits mixed locks into one composition per model, merged into one basket', async () => {
+    const { s, calls } = buildGrocery({ composedLocks: [1, 2, 5], composedLockModes: { 2: 'optimal' } });
+    await s.groceryPlan('u1', 'individual');
+    expect(calls).toEqual([
+      { days: [1, 5], planMode: 'preferred' },
+      { days: [2], planMode: 'optimal' },
+    ]);
+  });
+
+  it('a lock with no recorded model shops My Preferences', async () => {
+    // Every lock that predates the model map was made when the basket only
+    // knew how to shop the preferences plan; absent must mean exactly that.
+    const { s, calls } = buildGrocery({ composedLocks: [3] });
+    await s.groceryPlan('u1', 'individual');
+    expect(calls).toEqual([{ days: [3], planMode: 'preferred' }]);
+  });
+
+  it('all-optimal locks never compose the preferences plan', async () => {
+    const { s, calls } = buildGrocery({ composedLocks: [0, 4], composedLockModes: { 0: 'optimal', 4: 'optimal' } });
+    await s.groceryPlan('u1', 'family');
+    expect(calls).toEqual([{ days: [0, 4], planMode: 'optimal' }]);
   });
 });

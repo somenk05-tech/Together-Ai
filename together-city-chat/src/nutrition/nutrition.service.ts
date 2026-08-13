@@ -409,6 +409,16 @@ interface PrefExtras {
    * should not be drawn.
    */
   composedLocks?: number[];
+  /**
+   * Which plan model each locked day was locked FROM: day index → model.
+   * Two real plans exist for every day — 'preferred' (My Preferences) and
+   * 'optimal' (Optimal Health) — and a lock is a statement about the one that
+   * was showing. A day absent from this map is 'preferred': every lock that
+   * predates the field was made when the basket only knew how to shop the
+   * preferences plan. The basket composes each locked day in its own model —
+   * see groceryPlan.
+   */
+  composedLockModes?: Record<string, 'preferred' | 'optimal'>;
   composedBumps?: Record<string, number>;
   /** Dishes the citizen chose for a slot themselves. Keys "d{index}:{slotCode}"
    *  → recipeId. Honoured only while the dish still passes their filters. */
@@ -2473,7 +2483,7 @@ export class NutritionService implements OnModuleInit {
     // and attributing a clinical avoid to "you told us about it" would be false.
     const cut = corpusExcludedBy(datasetPool, terms(ex.allergies));
     const locks = this.lockedDays(ex);
-    return { ...week, mode, prescription: t, fastingSafety: safety, skips: ex.composedSkips ?? [], locks, scorecard, planStartDate, reviewDate: addDaysISO(planStartDate, PLAN_DAYS), planDays: PLAN_DAYS, allergyNotice: allergyNotice(cut.matched, cut.removed, { one: 'recipe', many: 'recipes' }), ...(compliance ? { compliance } : {}) };
+    return { ...week, mode, prescription: t, fastingSafety: safety, skips: ex.composedSkips ?? [], locks, lockModes: this.lockPlanModes(ex), scorecard, planStartDate, reviewDate: addDaysISO(planStartDate, PLAN_DAYS), planDays: PLAN_DAYS, allergyNotice: allergyNotice(cut.matched, cut.removed, { one: 'recipe', many: 'recipes' }), ...(compliance ? { compliance } : {}) };
   }
 
   /** DB diet values that satisfy a requested diet (ladder). Real DB values:
@@ -2876,6 +2886,21 @@ export class NutritionService implements OnModuleInit {
     return [...new Set(raw.filter((d): d is number => typeof d === 'number' && Number.isInteger(d) && d >= 0))].sort((a, b) => a - b);
   }
 
+  /** The plan model each locked day was locked from. User-editable JSON, so it
+   *  is sanitised exactly like lockedDays: unknown days and unknown models are
+   *  dropped, and a missing entry reads as 'preferred' at the call sites. */
+  private lockPlanModes(ex: PrefExtras): Record<number, 'preferred' | 'optimal'> {
+    const raw = (ex as { composedLockModes?: unknown }).composedLockModes;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+    const out: Record<number, 'preferred' | 'optimal'> = {};
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+      const day = Number(k);
+      if (!Number.isInteger(day) || day < 0) continue;
+      if (v === 'preferred' || v === 'optimal') out[day] = v;
+    }
+    return out;
+  }
+
   /**
    * Refuse to change a day the citizen has settled.
    *
@@ -3025,14 +3050,18 @@ export class NutritionService implements OnModuleInit {
     return this.ownPlan(userId);
   }
 
-  async lockComposedDay(userId: string, day: number, mode: PlanMode = 'individual') {
+  async lockComposedDay(userId: string, day: number, mode: PlanMode = 'individual', planMode: 'preferred' | 'optimal' = 'preferred') {
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
     const locks = new Set(this.lockedDays(ex));
     locks.add(day);
-    await this.mergeExtras(userId, { composedLocks: [...locks].sort((a, b) => a - b) });
+    // THE LOCK REMEMBERS WHICH MENU WAS READ. Recording only the day here is
+    // how a citizen who read and accepted the Optimal Friday ends up buying
+    // the Preferences Friday's food.
+    const lockModes = { ...this.lockPlanModes(ex), [day]: planMode };
+    await this.mergeExtras(userId, { composedLocks: [...locks].sort((a, b) => a - b), composedLockModes: lockModes });
 
-    const plan = (await this.composedPlan(userId, 'preferred')) as unknown as {
+    const plan = (await this.composedPlan(userId, planMode)) as unknown as {
       planStartDate?: string; planDays?: number; days?: unknown[];
     };
     const dayISO = plan.planStartDate ? addDaysISO(plan.planStartDate, day) : undefined;
@@ -3062,7 +3091,9 @@ export class NutritionService implements OnModuleInit {
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
     const locks = new Set(this.lockedDays(ex));
     locks.delete(day);
-    await this.mergeExtras(userId, { composedLocks: [...locks].sort((a, b) => a - b) });
+    const lockModes = this.lockPlanModes(ex);
+    delete lockModes[day];
+    await this.mergeExtras(userId, { composedLocks: [...locks].sort((a, b) => a - b), composedLockModes: lockModes });
     // The basket follows the locks, so this day's lines go — EXCEPT any the
     // citizen has already ticked, which mergeGroceryList keeps precisely
     // because a ticked line has been bought and removing it would make the
@@ -5729,13 +5760,15 @@ export class NutritionService implements OnModuleInit {
      * contain the days that were decided and nothing else.
      */
     dayIndexes?: readonly number[],
+    /** Which of the two plan models to compose. See groceryPlan's split. */
+    planMode: 'preferred' | 'optimal' = 'preferred',
   ): Promise<{
     dayCount: number;
     meals: Array<{ slot: string; recipeName: string; dayISO?: string; ingredients: Array<{ name: string; grams: number }> }>;
   }> {
     const empty = { dayCount: 0, meals: [] as Array<{ slot: string; recipeName: string; dayISO?: string; ingredients: Array<{ name: string; grams: number }> }> };
     try {
-      const plan = (await this.composedPlan(userId, 'preferred', { household })) as unknown as {
+      const plan = (await this.composedPlan(userId, planMode, { household })) as unknown as {
         needsProfile?: boolean;
         planStartDate?: string;
         days?: Array<{ dayIndex: number; meals: Array<{ slot: string; title: string; components: Array<{ name: string; ingredients?: Array<{ name: string; grams: number; toTaste?: boolean; pantry?: boolean }> }> }> }>;
@@ -5889,11 +5922,30 @@ export class NutritionService implements OnModuleInit {
     // THE BASKET FOLLOWS THE LOCKS. Days the citizen has settled, and nothing
     // else — see composedMealsForShopping's dayIndexes.
     const prefForLocks = await this.prisma.foodPref.findUnique({ where: { userId } });
-    const locked = this.lockedDays(parseExtras((prefForLocks as { extras?: string | null } | null)?.extras));
+    const exForLocks = parseExtras((prefForLocks as { extras?: string | null } | null)?.extras);
+    const locked = this.lockedDays(exForLocks);
+    // EACH LOCKED DAY IS SHOPPED IN THE PLAN MODEL IT WAS LOCKED IN. A lock is
+    // "I read this menu and accepted it", and two real menus exist for every
+    // day. Days locked from different tabs split into one composition per
+    // model and merge into one basket; a day with no recorded model predates
+    // the record and was locked from My Preferences. (Owner's call, 13 Aug.)
     // mode==='family' composes with every household member's allergies and
     // exclusions applied, so the basket can never buy an ingredient for a dish
     // one of them can't eat.
-    const composed = await this.composedMealsForShopping(userId, window, fromISO, mode === 'family', locked);
+    const lockModes = this.lockPlanModes(exForLocks);
+    const optimalDays = locked.filter((d) => lockModes[d] === 'optimal');
+    const preferredDays = locked.filter((d) => lockModes[d] !== 'optimal');
+    type ShoppingMeals = { dayCount: number; meals: Array<{ slot: string; recipeName: string; dayISO?: string; ingredients: Array<{ name: string; grams: number }> }> };
+    let composed: ShoppingMeals;
+    if (optimalDays.length && preferredDays.length) {
+      const pref = await this.composedMealsForShopping(userId, window, fromISO, mode === 'family', preferredDays, 'preferred');
+      const opt = await this.composedMealsForShopping(userId, window, fromISO, mode === 'family', optimalDays, 'optimal');
+      composed = { dayCount: pref.dayCount + opt.dayCount, meals: [...pref.meals, ...opt.meals] };
+    } else if (optimalDays.length) {
+      composed = await this.composedMealsForShopping(userId, window, fromISO, mode === 'family', optimalDays, 'optimal');
+    } else {
+      composed = await this.composedMealsForShopping(userId, window, fromISO, mode === 'family', preferredDays, 'preferred');
+    }
     // AND THE DAYS THEY BUILT BY HAND. Individual only: an own day is one
     // person's dishes chosen for themselves, and the household multiplier below
     // would buy five portions of a lunch one citizen picked. A household that

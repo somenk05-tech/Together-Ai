@@ -208,8 +208,11 @@ function DayShoppingPanel({ d, dayIndex, locked, skips, bare }: {
  * work is. The server decides which day that is, because the server knows which
  * ones are already locked.
  */
-function DayLock({ dayIndex, date, locked, lastDay, onMoveTo }: {
+function DayLock({ dayIndex, date, locked, lastDay, onMoveTo, planMode }: {
   dayIndex: number; date: Date; locked: boolean; lastDay: number; onMoveTo: (d: number) => void;
+  /** Which plan model is SHOWING — the menu being read is the menu being
+   *  locked, and the basket shops that menu for this day. */
+  planMode: 'preferred' | 'optimal';
 }) {
   const lock = useLockDay();
   const unlock = useUnlockDay();
@@ -256,7 +259,7 @@ function DayLock({ dayIndex, date, locked, lastDay, onMoveTo }: {
         </span>
         <Button
           variant="accent" size="sm" disabled={lock.isPending}
-          onClick={() => lock.mutate({ day: dayIndex }, {
+          onClick={() => lock.mutate({ day: dayIndex, planMode }, {
             onSuccess: (r) => {
               // Only ever claim what happened. The basket write is allowed to
               // fail without failing the lock, so the sentence has two versions.
@@ -763,6 +766,7 @@ export function MealPlan() {
               locked
               lastDay={wk.days.length - 1}
               onMoveTo={setDay}
+              planMode={mode}
             />
           )}
 
@@ -771,7 +775,19 @@ export function MealPlan() {
               /* Collapsed on purpose: a locked day is a decision already made,
                  and re-reading it is not what you came back for. The summary
                  stays so it is still a menu, not just a padlock. */
-              ? <LockedDaySummary d={d} date={dates[day]} />
+              ? <>
+                  {(wk.lockModes?.[String(day)] ?? 'preferred') !== mode && (
+                    /* The menu below is this tab's composition; the LOCKED one
+                       lives on the other tab, and the basket follows the lock.
+                       Without this line, the summary silently shows food the
+                       citizen did not accept. */
+                    <p className="muted" style={{ fontSize: 12.5, margin: '0 0 10px', lineHeight: 1.6 }}>
+                      This day was locked from your {wk.lockModes?.[String(day)] === 'optimal' ? 'Optimal Health' : 'My Preferences'} plan —
+                      that menu is what your grocery list shops. Switch tabs above to read it.
+                    </p>
+                  )}
+                  <LockedDaySummary d={d} date={dates[day]} />
+                </>
               : (
                 <DayView
                   wk={wk} d={d} dayIndex={day} date={dates[day]} readOnly={wk.readOnly}
@@ -782,6 +798,7 @@ export function MealPlan() {
                       locked={false}
                       lastDay={wk.days.length - 1}
                       onMoveTo={setDay}
+                      planMode={mode}
                     />
                   }
                 />

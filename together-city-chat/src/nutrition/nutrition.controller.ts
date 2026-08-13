@@ -242,9 +242,12 @@ export class NutritionController {
   @UsePipes(new ZodValidationPipe(z.object({
     day: z.number().int().min(0).max(60),
     mode: z.enum(['individual', 'family']).optional(),
+    // Which plan model was SHOWING when the citizen pressed lock — the menu
+    // they read and accepted. The basket shops that menu for this day.
+    planMode: z.enum(['preferred', 'optimal']).optional(),
   })))
-  lockComposedDay(@CurrentUser() user: JwtUser, @Body() dto: { day: number; mode?: 'individual' | 'family' }) {
-    return this.nutrition.lockComposedDay(user.sub, dto.day, dto.mode ?? 'individual');
+  lockComposedDay(@CurrentUser() user: JwtUser, @Body() dto: { day: number; mode?: 'individual' | 'family'; planMode?: 'preferred' | 'optimal' }) {
+    return this.nutrition.lockComposedDay(user.sub, dto.day, dto.mode ?? 'individual', dto.planMode ?? 'preferred');
   }
 
   @Post('plan/composed/unlock')

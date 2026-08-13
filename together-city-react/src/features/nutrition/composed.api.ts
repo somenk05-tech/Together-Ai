@@ -92,6 +92,10 @@ export interface ComposedWeek {
   scorecard?: Scorecard;
   /** Day indexes the citizen has locked. Enforced server-side, not a UI flag. */
   locks?: number[];
+  /** Which plan model each locked day was locked FROM (day index → model).
+   *  A day absent from the map is 'preferred' — its lock predates the record.
+   *  The basket shops each locked day in this model; see ShoppingRange. */
+  lockModes?: Record<string, 'preferred' | 'optimal'>;
   /** What the allergy rule kept out of this plan, or null. (K5.66.) */
   allergyNotice?: AllergyNoticeShape | null;
   prescription: Prescription;
@@ -244,7 +248,7 @@ export interface LockResult {
 export function useLockDay() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { day: number; mode?: 'individual' | 'family' }) =>
+    mutationFn: (v: { day: number; mode?: 'individual' | 'family'; planMode?: PlanMode }) =>
       api.post<LockResult>('/nutrition/plan/composed/lock', v).then((r) => r.data),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['nutrition', 'composed'] });
