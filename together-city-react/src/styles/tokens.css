@@ -791,6 +791,12 @@
      of being MADE — like --soft-in and --atmos-lip — not a sixth elevation, and
      every layer of both stamps is inset.
 
+     THE INNER GLOW IS FAINT BECAUSE IT SITS UNDER TEXT. At .13 it was a
+     vignette: the two-up plate on Saturday's olive read visibly darker than the
+     sheet around it, which quietly spent contrast the ground measurement had
+     already promised to the words inside. A stamp should be an edge you notice
+     and a middle you do not.
+
      THERE WAS A THIRD, --press-key, FOR A LOCK BUTTON THAT STOOD PROUD, and it
      is gone. Reaching it meant writing `.press-recto .btn-accent`, which borrows
      a global class name inside a namespaced block; no-borrowed-class-names
@@ -804,10 +810,10 @@
      next is two materials that look like one mistake, and nothing says so. */
   --press-stamp: inset 0 1px 0 rgba(255, 255, 255, .16),
                  inset 0 -1px 0 rgba(10, 24, 36, .34),
-                 inset 0 0 24px rgba(10, 24, 36, .13);
+                 inset 0 0 20px rgba(10, 24, 36, .05);
   --press-stamp-warm: inset 0 1px 0 rgba(255, 250, 242, .55),
                  inset 0 -1px 0 rgba(51, 44, 37, .20),
-                 inset 0 0 26px rgba(51, 44, 37, .06);
+                 inset 0 0 22px rgba(51, 44, 37, .03);
 
   --sans: 'General Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --serif: var(--sans);

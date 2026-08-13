@@ -76,9 +76,36 @@ const list = (xs: readonly string[]): string =>
 
 /**
  * What the panel says. Never a bare score — the citizen cannot act on "78".
+ *
+ * ── SEVEN DAYS SHOULD NOT READ AS ONE SENTENCE SEVEN TIMES ──────────────────
+ *
+ * A week frequently contains three days that are light on the same macro, and
+ * before `seed` they printed the identical line three times. Read down the day
+ * tabs that looks like the page has not noticed which day it is on.
+ *
+ * SO THE FACT IS FIXED AND THE PHRASING ROTATES. Every variant below says the
+ * SAME thing about the same numbers — which macro is short, which is over, and
+ * whether anything else is fine. None of them softens a verdict, hedges one, or
+ * adds a claim the arithmetic did not make; if they did, this would be a
+ * horoscope rather than a reading of a day. `seed` is the day index, so a given
+ * day says the same thing every time it is opened, which is the difference
+ * between variety and noise.
+ *
+ * SEED 0 IS THE ORIGINAL WORDING, deliberately: the tests that pin these
+ * sentences are pinning a promise about tone, and a rotation that quietly
+ * retired the sentence they check would be a rotation nobody reviewed.
  */
-export function balanceNote(v: BalanceVerdict): string {
-  if (v.kind === 'balanced') return 'Protein, carbs and fat all land where they should today.';
+const pick = <T,>(xs: readonly T[], seed: number): T => xs[((seed % xs.length) + xs.length) % xs.length];
+
+export function balanceNote(v: BalanceVerdict, seed = 0): string {
+  if (v.kind === 'balanced') {
+    return pick([
+      'Protein, carbs and fat all land where they should today.',
+      'All three macros sit inside their targets today.',
+      'Nothing to correct today — protein, carbs and fat are all in range.',
+      'A day that needs no adjusting: every macro lands where it should.',
+    ], seed);
+  }
   if (v.kind === 'ungraded') {
     return v.reason === 'assumed'
       ? 'These targets assume an average body, because we don’t have yours yet — so there’s nothing here worth grading the day against.'
@@ -87,11 +114,24 @@ export function balanceNote(v: BalanceVerdict): string {
   const parts: string[] = [];
   if (v.short.length) parts.push(`light on ${list(v.short)}`);
   if (v.over.length) parts.push(`heavy on ${list(v.over)}`);
+  const said = list(parts);
   // Only promise the remainder is fine when there IS a remainder. Three macros
   // are graded; if all three are off, "the rest lands where it should" is the
   // same species of untrue sentence this module was written to remove.
-  const allThree = v.short.length + v.over.length >= 3;
-  return allThree ? `Today is ${list(parts)}.` : `Today is ${list(parts)} — the rest lands where it should.`;
+  if (v.short.length + v.over.length >= 3) {
+    return pick([
+      `Today is ${said}.`,
+      `Today comes out ${said}.`,
+      `Today reads ${said}.`,
+      `On today's numbers: ${said}.`,
+    ], seed);
+  }
+  return pick([
+    `Today is ${said} — the rest lands where it should.`,
+    `Today runs ${said}; everything else is where it should be.`,
+    `Today is ${said}. The rest of the day sits in range.`,
+    `${said.charAt(0).toUpperCase()}${said.slice(1)} today — the other macros land where they should.`,
+  ], seed);
 }
 
 /**
@@ -107,8 +147,10 @@ export function balanceNote(v: BalanceVerdict): string {
  * So it is not a second field and there is nothing for it to drift from: one
  * verdict, two renderings, both computed here.
  */
-export function balanceHead(v: BalanceVerdict): string {
-  if (v.kind === 'balanced') return 'all where it should be';
+export function balanceHead(v: BalanceVerdict, seed = 0): string {
+  if (v.kind === 'balanced') {
+    return pick(['all where it should be', 'everything in range', 'a day that needs no fixing'], seed);
+  }
   if (v.kind === 'ungraded') {
     return v.reason === 'assumed' ? 'nothing here worth grading' : 'no targets yet';
   }

@@ -1646,8 +1646,21 @@ textarea.g-field { resize: none; line-height: 1.55; }
   --press-rule:   var(--press-recto-rule);
   --press-rule-2: var(--press-recto-rule);
   --press-green:  var(--press-recto-ink);
+  /* AND THE CITY'S OWN INK SCALE, WHICH IS WHERE THE FIRST VERSION LEAKED.
+     The two panels on the recto are Relief components handed printed material,
+     and they carry inline `color: var(--muted)` / `var(--ink-soft)` — root
+     values tuned for white paper. On Saturday's olive, --muted (#666666) came
+     out at about 1.1:1 and the shopping quantities were invisible. An inline
+     style beats every stylesheet, so the only place to fix it is the token it
+     reads. Re-pointed here, every component inside either sheet follows, and
+     none of them has to know which sheet it is on. */
+  --ink:       var(--press-recto-ink);
+  --ink-soft:  var(--press-recto-ink);
+  --muted:     var(--press-recto-ink-2);
+  --faint:     var(--press-recto-ink-2);
+  --line:      var(--press-recto-rule);
+  --accent-ink:var(--press-recto-ink);
   color: var(--press-recto-ink);
-  text-shadow: 0 1px 0 var(--press-recto-lift);
   display: flex; flex-direction: column;
 }
 .press-verso {
@@ -1659,6 +1672,20 @@ textarea.g-field { resize: none; line-height: 1.55; }
   --press-rule:   var(--press-verso-rule);
   --press-rule-2: var(--press-verso-rule);
   --press-green:  var(--press-verso-ink);
+  /* AND THE CITY'S OWN INK SCALE, WHICH IS WHERE THE FIRST VERSION LEAKED.
+     The two panels on the recto are Relief components handed printed material,
+     and they carry inline `color: var(--muted)` / `var(--ink-soft)` — root
+     values tuned for white paper. On Saturday's olive, --muted (#666666) came
+     out at about 1.1:1 and the shopping quantities were invisible. An inline
+     style beats every stylesheet, so the only place to fix it is the token it
+     reads. Re-pointed here, every component inside either sheet follows, and
+     none of them has to know which sheet it is on. */
+  --ink:       var(--press-verso-ink);
+  --ink-soft:  var(--press-verso-ink);
+  --muted:     var(--press-verso-ink-2);
+  --faint:     var(--press-verso-ink-2);
+  --line:      var(--press-verso-rule);
+  --accent-ink:var(--press-verso-ink);
   /* the ring and its legend both read these, so re-pointing here is what keeps
      the two agreeing without either naming a sheet */
   --press-macro-1:var(--press-verso-macro-1);
@@ -1666,7 +1693,6 @@ textarea.g-field { resize: none; line-height: 1.55; }
   --press-macro-3:var(--press-verso-macro-3);
   --press-macro-0:var(--press-verso-macro-0);
   color: var(--press-verso-ink);
-  text-shadow: 0 1px 0 var(--press-verso-lift);
   margin-top: 18px;
   display: grid; grid-template-columns: 258px minmax(0, 1fr);
   grid-template-rows: 1fr auto; column-gap: clamp(22px, 4vw, 44px); align-items: start;
@@ -1676,9 +1702,16 @@ textarea.g-field { resize: none; line-height: 1.55; }
    the verso needing a second PressCourse. */
 .press-recto .press-desc, .press-recto .press-quote { color: var(--press-recto-ink-2); }
 .press-recto .press-colhead span, .press-recto .press-stats dt,
-.press-recto .press-aside h3 { color: var(--press-recto-ink-3); }
+.press-recto .press-aside h3 { color: var(--press-recto-ink-2); font-size: 10.5px; letter-spacing: .15em; }
 .press-verso .press-desc, .press-verso .press-quote { color: var(--press-verso-ink-2); }
-.press-verso .press-colhead span, .press-verso .press-aside h3 { color: var(--press-verso-ink-3); }
+.press-verso .press-colhead span, .press-verso .press-aside h3 { color: var(--press-verso-ink-2); font-size: 10.5px; letter-spacing: .15em; }
+/* the dish table is the thing this page exists to be read down */
+.press-verso .press-name { font-size: 16.5px; }
+.press-verso .press-desc { font-size: 13.5px; line-height: 1.55; }
+.press-verso .press-v { font-size: 14px; }
+.press-verso .press-v.dim { font-size: 13px; }
+.press-verso .press-acts button { font-size: 12px; }
+.press-recto .press-foot dt, .press-verso .press-foot dt { font-size: 10.5px; letter-spacing: .15em; }
 .press-verso .press-course-head { border-bottom-color: var(--press-verso-rule); }
 .press-verso .press-course-head h2 { color: var(--press-verso-ink); }
 .press-verso .press-course-head .press-kcal { color: var(--press-verso-ink);
@@ -1691,6 +1724,22 @@ textarea.g-field { resize: none; line-height: 1.55; }
 .press-verso .press-acts button { color: var(--press-verso-ink-2); }
 .press-verso .press-acts button:hover:not(:disabled) { color: var(--press-verso-ink);
   border-bottom-color: var(--press-verso-ink); }
+
+/* THE EMBOSS IS ON THE DISPLAY TYPE ONLY, and that is a legibility decision
+   rather than a stylistic one. A 1px shadow under a 90px weekday is a bevel; the
+   same shadow under 13px body copy is a blur, and the whole sheet was carrying
+   it. Anything set large is lit from above; everything you actually read is
+   left crisp. */
+.press-recto .press-day, .press-recto .press-note,
+.press-recto .press-stats dd, .press-recto .press-foot dd,
+.press-recto .press-oval, .press-recto .press-slug {
+  text-shadow: 0 1px 0 var(--press-recto-lift);
+}
+.press-verso .press-verdict, .press-verso .press-course-head,
+.press-verso .press-foot dd, .press-verso .press-oval,
+.press-verso .press-bill-head .press-tot b, .press-verso .press-quote {
+  text-shadow: 0 1px 0 var(--press-verso-lift);
+}
 
 /* a scored rule: the cut, then the light caught on its lower lip */
 .press-score { height: 0; border-top: 1px solid var(--press-recto-rule);
@@ -1715,8 +1764,8 @@ textarea.g-field { resize: none; line-height: 1.55; }
   box-shadow: inset 0 1px 0 var(--press-verso-rule), 0 1px 0 var(--press-verso-lift); }
 .press-masthead { text-align: center; }
 .press-masthead .press-day { font-size: clamp(44px, 8vw, 86px); letter-spacing: .012em; margin-top: 10px; }
-.press-masthead .press-date { color: var(--press-recto-ink-2); letter-spacing: .36em;
-  font-family: var(--sans); font-size: 12.5px; }
+.press-masthead .press-date { color: var(--press-recto-ink-2); letter-spacing: .3em;
+  font-family: var(--sans); font-size: 13px; font-weight: 500; }
 .press-hair { width: 54px; height: 0; margin: 20px auto;
   border-top: 1px solid var(--press-recto-rule); box-shadow: 0 1px 0 var(--press-recto-lift); }
 .press-note { text-align: center; max-width: 19ch; margin: 0 auto;
@@ -1727,9 +1776,13 @@ textarea.g-field { resize: none; line-height: 1.55; }
 .press-recto .press-stats dd { font-family: var(--press-serif); font-size: clamp(26px, 3vw, 33px); }
 .press-recto .press-stats dd small,
 .press-recto .press-stats .press-pc { color: var(--press-recto-ink-2); }
-.press-lab { font-family: var(--sans); font-size: 10px; font-weight: 600; letter-spacing: .23em;
-  text-transform: uppercase; color: var(--press-recto-ink-3); margin: 0 0 16px; }
-.press-verso .press-lab { color: var(--press-verso-ink-3); }
+/* LABELS COME OFF THE FLOOR OF THE SCALE. -ink-3 is 3.3–4.0:1 and correct for
+   metadata on paper you hold; at 10px with .23em of tracking on a photograph it
+   is not correct for anything. They move to -ink-2, which is AA, and up two
+   points — the tracking is what makes them read as labels, not the smallness. */
+.press-lab { font-family: var(--sans); font-size: 11.5px; font-weight: 600; letter-spacing: .19em;
+  text-transform: uppercase; color: var(--press-recto-ink-2); margin: 0 0 16px; }
+.press-verso .press-lab { color: var(--press-verso-ink-2); }
 .press-two-up { margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; }
 .press-two-up > div { padding: 20px 24px; }
 .press-two-up > div + div { border-left: 1px solid var(--press-recto-rule); }
@@ -1746,8 +1799,8 @@ textarea.g-field { resize: none; line-height: 1.55; }
 /* ── the verso's rail ───────────────────────────────────────────────────── */
 .press-rail-top { font-family: var(--sans); font-size: 12.5px; letter-spacing: .3em;
   font-weight: 600; text-transform: uppercase; }
-.press-rail-top em { font-style: normal; display: block; font-size: 11.5px; letter-spacing: .28em;
-  font-weight: 400; color: var(--press-verso-ink-2); margin-top: 9px; }
+.press-rail-top em { font-style: normal; display: block; font-size: 12px; letter-spacing: .22em;
+  font-weight: 500; color: var(--press-verso-ink-2); margin-top: 9px; }
 .press-rail-hair { width: 56px; height: 0; margin: 24px 0 28px;
   border-top: 1px solid var(--press-verso-rule); box-shadow: 0 1px 0 var(--press-verso-lift); }
 /* The day's own verdict, set as the sheet's display line. It is the SAME
@@ -1756,9 +1809,9 @@ textarea.g-field { resize: none; line-height: 1.55; }
    field to drift from and nothing new for the engine to return. */
 .press-verdict { font-family: var(--press-serif); font-style: italic; font-weight: 400; margin: 0;
   font-size: clamp(34px, 4.6vw, 56px); line-height: 1.03; letter-spacing: -.006em; max-width: 9ch; }
-.press-verso .press-quote { margin: 0; max-width: 23ch; font-size: 17px; }
-.press-by { font-family: var(--press-serif); font-style: italic; font-size: 14px;
-  color: var(--press-verso-ink-3); margin: 26px 0 0; }
+.press-verso .press-quote { margin: 0; max-width: 23ch; font-size: 18px; line-height: 1.6; }
+.press-by { font-family: var(--press-serif); font-style: italic; font-size: 15px;
+  color: var(--press-verso-ink-2); margin: 26px 0 0; }
 .press-bill-head { display: flex; justify-content: space-between; align-items: baseline;
   border-bottom: 1px solid var(--press-verso-rule); box-shadow: 0 1px 0 var(--press-verso-lift);
   padding-bottom: 11px; }

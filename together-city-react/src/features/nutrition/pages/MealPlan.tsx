@@ -60,27 +60,16 @@ function PlanScorecard({ sc }: { sc: Scorecard }) {
         <ScoreDial label="Health score" value={sc.health} hint="How clinically correct this plan is" />
         <ScoreDial label="Matches your preferences" value={sc.preference} hint="How closely it follows your saved profile" />
       </div>
-      <div className="muted" style={{ fontSize: 12.5, marginTop: 11, lineHeight: 1.5 }}>{sc.summary}</div>
-      {(sc.healthNotes.length > 0 || sc.preferenceNotes.length > 0) && (
-        <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginTop: 10 }}>
-          {sc.healthNotes.length > 0 && (
-            <div style={{ flex: '1 1 220px', minWidth: 200 }}>
-              <div style={{ fontSize: 11.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .3, color: 'var(--muted)', marginBottom: 4 }}>Health gaps</div>
-              <ul style={{ margin: '0 0 0 16px', fontSize: 12, lineHeight: 1.5 }}>
-                {sc.healthNotes.slice(0, 4).map((n) => <li key={n.key} style={{ color: n.severity === 'warn' ? '#c0392b' : 'inherit' }}>{n.label}: {n.detail}</li>)}
-              </ul>
-            </div>
-          )}
-          {sc.preferenceNotes.length > 0 && (
-            <div style={{ flex: '1 1 220px', minWidth: 200 }}>
-              <div style={{ fontSize: 11.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .3, color: 'var(--muted)', marginBottom: 4 }}>Preference match</div>
-              <ul style={{ margin: '0 0 0 16px', fontSize: 12, lineHeight: 1.5 }}>
-                {sc.preferenceNotes.slice(0, 4).map((n) => <li key={n.key} style={{ color: n.severity === 'warn' ? '#c0392b' : 'inherit' }}>{n.label}: {n.detail}</li>)}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
+      {/* THE PROSE AND THE TWO LISTS ARE GONE, THE DIALS STAY. Removed at the
+          owner's word: the paragraph restated both dials in words, and the two
+          columns under it printed twelve figures — sodium, saturated fat,
+          potassium, phosphorus, protein-source and cuisine ratios — none of
+          which the page asks anybody to act on. The scores are the answer to
+          "which plan is this"; the audit behind them was not the question.
+
+          `sc.summary`, `sc.healthNotes` and `sc.preferenceNotes` are still on
+          the API and still computed. Nothing here reads them, which is the
+          cheap way back if they should return somewhere quieter. */}
     </Card>
   );
 }
@@ -180,25 +169,25 @@ function DayShoppingPanel({ d, dayIndex, locked, skips, bare }: {
         <>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
             {shown.map(([name, grams]) => (
-              <div key={name} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12.5 }}>
-                <span style={{ color: 'var(--ink)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-                <span style={{ color: 'var(--muted)', whiteSpace: 'nowrap' }}>{Math.round(grams)} g</span>
+              <div key={name} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: bare ? 14 : 12.5, lineHeight: bare ? 1.85 : 1.5 }}>
+                <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+                <span style={{ color: 'var(--muted)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{Math.round(grams)} g</span>
               </div>
             ))}
           </div>
           {items.length > shown.length && (
-            <p className="muted" style={{ fontSize: 11.5, margin: '9px 0 0' }}>
+            <p className="muted" style={{ fontSize: bare ? 13.5 : 11.5, margin: '9px 0 0' }}>
               and {items.length - shown.length} more.
             </p>
           )}
           {pantry > 0 && (
-            <p className="muted" style={{ fontSize: 11.5, margin: '4px 0 0', lineHeight: 1.5 }}>
+            <p className="muted" style={{ fontSize: bare ? 12.5 : 11.5, margin: '6px 0 0', lineHeight: 1.55 }}>
               {pantry} pantry item{pantry === 1 ? "" : "s"} (salt, oil and the like) left off &mdash; you almost certainly have them.
             </p>
           )}
         </>
       )}
-      <p style={{ fontSize: 11.5, margin: '11px 0 0', lineHeight: 1.55, color: 'var(--ink-soft)' }}>
+      <p style={{ fontSize: bare ? 12.5 : 11.5, margin: '11px 0 0', lineHeight: 1.6, color: 'var(--ink-soft)' }}>
         {locked
           ? <>This day is locked, so these are already on your{' '}<Link to="/nutrition/grocery" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>grocery list</Link>.</>
           : <>Not on your grocery list yet &mdash; lock the day to add them.</>}
@@ -238,9 +227,9 @@ function AboutThisMenu({ d, bare }: { d: ComposedDay; bare?: boolean }) {
       : `Sodium and potassium come from ${complete} of these ${comps.length} dishes \u2014 the rest have ingredients we cannot yet measure, so those figures are a floor, not a total.`);
   }
   const list = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: bare ? 11 : 8 }}>
       {facts.map((f) => (
-        <div key={f} style={{ display: 'flex', gap: 9, alignItems: 'flex-start', fontSize: 12.5, color: bare ? 'inherit' : 'var(--ink-soft)', lineHeight: 1.45 }}>
+        <div key={f} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: bare ? 14 : 12.5, color: bare ? 'inherit' : 'var(--ink-soft)', lineHeight: bare ? 1.5 : 1.45 }}>
           <span style={{ color: bare ? 'inherit' : 'var(--accent-ink)', marginTop: 1 }}><NIc name="check" size={14} stroke={2.2} /></span>{f}
         </div>
       ))}
@@ -386,8 +375,10 @@ function DayView({ wk, d, dayIndex, date, readOnly, lock }: { wk: ComposedWeek; 
   // the strength of an average that protein had not contributed to. See
   // dayBalance.ts for why the bands are not symmetric.
   const verdict = dayBalance(t, wk.prescription, wk.prescription.assumed);
-  const note = balanceNote(verdict);
-  const head = balanceHead(verdict);
+  // SEEDED BY THE DAY so a week of similar days does not print one sentence
+  // seven times. Same fact, same numbers, different wording — see dayBalance.ts.
+  const note = balanceNote(verdict, dayIndex);
+  const head = balanceHead(verdict, dayIndex);
   const skips = wk.skips ?? [];
   const n = (v: number) => Math.round(v).toLocaleString('en-IN');
 
@@ -447,13 +438,12 @@ function DayView({ wk, d, dayIndex, date, readOnly, lock }: { wk: ComposedWeek; 
           <DayShoppingPanel d={d} dayIndex={dayIndex} locked={(wk.locks ?? []).includes(dayIndex)} skips={skips} bare />
         </div>
 
-        <dl className="press-plate press-foot">
-          <div><dt>Total calories</dt><dd>{n(t.kcal)}</dd></div>
-          <div><dt>Protein</dt><dd>{n(t.protein)}g</dd></div>
-          <div><dt>Carbs</dt><dd>{n(t.carbs)}g</dd></div>
-          <div><dt>Fat</dt><dd>{n(t.fat)}g</dd></div>
-          <div><dt>Fibre</dt><dd>{n(t.fiber)}g</dd></div>
-        </dl>
+        {/* THE RECTO PRINTED THE FIVE FIGURES TWICE. `Daily summary` above already
+            carries them AND their percentage against the target, which is strictly
+            more than a bare repeat of the same numbers eighty pixels lower; the
+            verso then printed them a third time. Each sheet keeps exactly one
+            printing, and the two do different jobs: the recto reads the day
+            against its targets, the verso sums the menu you have just read. */}
 
         <div className="press-sign">
           <span>Together City</span><span>nutrition // the printed day</span>
@@ -845,19 +835,11 @@ export function MealPlan() {
       {/* Both scores for THIS plan + the one-line difference vs the other mode. */}
       {wk.scorecard && <PlanScorecard sc={wk.scorecard} />}
 
-      {/* Medical-guidance banner (preferred mode) — inform, offer the healthier plan, never force. */}
-      {mode === 'preferred' && wk.compliance && wk.compliance.concerns.length > 0 && (
-        <div style={{ background: 'var(--ok-soft)', border: '1px solid var(--ok-line)', borderRadius: 10, padding: '11px 14px', marginBottom: 12, fontSize: 12.5 }}>
-          {/* Deliberately no percentage here. The scorecard directly above already
-              shows the health score, and this banner used to print a SECOND,
-              separately-computed number for the same idea — 0/100 in the circle
-              and "2% aligned" one line below it. Two numbers answering one
-              question, disagreeing, is worse than either alone. This says what
-              is wrong and what to do about it; the scorecard says how far off. */}
-          <strong>Medical guidance:</strong> {wk.compliance.concerns[0].message} You can keep your preferences, or
-          {' '}<button type="button" onClick={() => setMode('optimal')} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent-ink)', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5 }}>see the Optimal Health plan →</button>
-        </div>
-      )}
+      {/* THE MEDICAL-GUIDANCE BANNER WAS REMOVED HERE TOO, same word, same
+          reason: it named one concern out of the list above it and repeated a
+          figure the dial already gave. `wk.compliance.concerns` is untouched on
+          the API — MedicalRecs and the medical hub still read it, so the
+          information has not left the application, only this page. */}
 
       <p className="muted" style={{ fontSize: 13, margin: '0 0 10px' }}>
         Complete meals from your prescription ({wk.prescription.kcal} kcal · {wk.prescription.protein} g protein).
