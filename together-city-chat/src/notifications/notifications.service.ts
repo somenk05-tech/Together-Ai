@@ -253,9 +253,9 @@ export class NotificationsService {
 
     for (const recipientId of params.recipientIds) {
       const online = await this.presence.isOnline(recipientId);
-      const openConvo = await this.redis.getOpenConversation(recipientId);
-      // Suppress if the recipient is actively viewing this conversation.
-      if (online && openConvo === params.conversationId) continue;
+      const openConvos = await this.redis.openConversationsOf(recipientId);
+      // Suppress if any of the recipient's live tabs is viewing this conversation.
+      if (online && openConvos.includes(params.conversationId)) continue;
 
       const member = await this.prisma.conversationMember.findUnique({
         where: { conversationId_userId: { conversationId: params.conversationId, userId: recipientId } },

@@ -13,6 +13,14 @@ interface ChatNotification {
  * Global chat push: fires for a new message in ANY of your conversations, even
  * ones you're not viewing (the server pushes to your personal socket room).
  * Updates the unread badge instantly and acknowledges delivery (✓✓) to the sender.
+ *
+ * RECEIPT FRAMES ARE SCOPED AND COALESCED. This listener used to invalidate
+ * every cached thread on every message_read / message_delivered frame — so one
+ * receipt refetched every open transcript, and the open thread's own re-acks
+ * became a loop that never went quiet (13 Aug audit). Frames now carry their
+ * conversationId, so only that thread is invalidated; and a burst — 500
+ * backlog receipts on somebody's reconnect — collapses into one refetch per
+ * conversation per second, not five hundred.
  */
 export function useChatNotifications(): void {
   const qc = useQueryClient();
@@ -30,16 +38,28 @@ export function useChatNotifications(): void {
         messageIds: [n.messageId],
       });
     });
-    /* THE TICKS HAVE TO CATCH UP TOO. A receipt is a socket frame and nothing
-       persisted it into the cache, so a message read while the sender had the
-       thread closed stayed on one tick until a reload. Re-reading the thread is
-       cheap and it is the only thing that makes the tick eventually true. */
-    const offRead = socketClient.on<{ conversationId?: string }>(WS.MESSAGE_READ, () => {
-      void qc.invalidateQueries({ queryKey: ['chat', 'messages'] });
-    });
-    const offDelivered = socketClient.on<{ conversationId?: string }>(WS.MESSAGE_DELIVERED, () => {
-      void qc.invalidateQueries({ queryKey: ['chat', 'messages'] });
-    });
-    return () => { off(); offRead(); offDelivered(); };
+    /* The ticks still have to catch up — a receipt is a socket frame and only
+       a refetch persists it into the cache — but scoped, and coalesced. */
+    const pending = new Set<string>();
+    let timer: number | null = null;
+    const flush = () => {
+      timer = null;
+      const ids = [...pending];
+      pending.clear();
+      for (const id of ids) void qc.invalidateQueries({ queryKey: ['chat', 'messages', id] });
+    };
+    const receipt = (p: { conversationId?: string }) => {
+      // An unscoped frame (a server mid-deploy) invalidates nothing here; the
+      // open thread's own statusMap listener still advances its ticks live.
+      if (!p?.conversationId) return;
+      pending.add(p.conversationId);
+      if (timer === null) timer = window.setTimeout(flush, 1000);
+    };
+    const offRead = socketClient.on<{ conversationId?: string }>(WS.MESSAGE_READ, receipt);
+    const offDelivered = socketClient.on<{ conversationId?: string }>(WS.MESSAGE_DELIVERED, receipt);
+    return () => {
+      off(); offRead(); offDelivered();
+      if (timer !== null) window.clearTimeout(timer);
+    };
   }, [qc]);
 }

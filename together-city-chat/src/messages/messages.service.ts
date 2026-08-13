@@ -39,6 +39,8 @@ export class MessagesService {
   async send(senderId: string, dto: SendMessageDto) {
     // 1) permission gate (403 if not connected / not a member)
     await this.permission.assertCanPostToConversation(senderId, dto.conversationId);
+    // 1b) attachment gate — see assertOwnAttachments below.
+    if (dto.attachments?.length) this.assertOwnAttachments(senderId, dto.attachments);
 
     const recipientIds = await this.recipientIds(dto.conversationId, senderId);
 
@@ -150,33 +152,52 @@ export class MessagesService {
 
     // "Delete for me": record this user on the message's hidden list — the
     // message disappears from THEIR history only; everyone else still sees it.
+    // The write is CONDITIONAL on the value read (hiddenForJson in the WHERE),
+    // so two people hiding the same message at once cannot erase each other:
+    // the loser's write matches nothing and is retried against the fresh row.
     await this.assertMember(userId, msg.conversationId);
-    const hidden = ((): string[] => {
-      try { return JSON.parse((msg as { hiddenForJson?: string | null }).hiddenForJson ?? '[]') as string[]; } catch { return []; }
-    })();
-    if (!hidden.includes(userId)) {
-      await this.prisma.message.update({
-        where: { id: messageId },
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const fresh = await this.prisma.message.findUnique({ where: { id: messageId }, select: { hiddenForJson: true } });
+      const hidden = ((): string[] => {
+        try { return JSON.parse(fresh?.hiddenForJson ?? '[]') as string[]; } catch { return []; }
+      })();
+      if (hidden.includes(userId)) break;
+      const res = await this.prisma.message.updateMany({
+        where: { id: messageId, hiddenForJson: fresh?.hiddenForJson ?? null },
         data: { hiddenForJson: JSON.stringify([...hidden, userId]) },
       });
+      if (res.count) break;
     }
     return { deleted: true, scope: 'ME' };
   }
 
   /** Mark messages DELIVERED for a recipient (double tick). */
   async markDelivered(userId: string, messageIds: string[]) {
-    await this.prisma.messageStatus.updateMany({
+    /* ONLY A TRANSITION EARNS A RECEIPT. This used to publish one
+       message.delivered per id whether or not anything changed, and the
+       app-wide client listener refetches a thread on every receipt frame — so
+       repeated acks for already-delivered rows kept the wire warm forever
+       (the read half of that loop is documented on markRead). The pre-select
+       narrows the batch to rows actually moving SENT → DELIVERED; none moving
+       means nothing to say. */
+    // unbounded: `in:` of the caller's receipt batch bounds it
+    const pending = await this.prisma.messageStatus.findMany({
       where: { messageId: { in: messageIds }, userId, status: DeliveryStatus.SENT },
+      select: { messageId: true },
+    });
+    if (!pending.length) return;
+    const ids = pending.map((p) => p.messageId);
+    await this.prisma.messageStatus.updateMany({
+      where: { messageId: { in: ids }, userId, status: DeliveryStatus.SENT },
       data: { status: DeliveryStatus.DELIVERED },
     });
     // The updateMany above is scoped to this user's own status rows, so nothing
-    // is written for a foreign id. The lookup wasn't scoped, though, which meant
-    // a caller could name any message id and have a "delivered" receipt
-    // broadcast into a conversation they aren't in. Restricting to conversations
-    // they're a member of makes the receipt unforgeable.
+    // is written for a foreign id. The lookup is membership-scoped so the
+    // receipt broadcast stays unforgeable — a caller must not be able to name
+    // any message id and have a receipt ring in a conversation they aren't in.
     // unbounded: `in:` of the caller's receipt batch bounds it
     const mine = await this.prisma.message.findMany({
-      where: { id: { in: messageIds }, conversation: { members: { some: { userId } } } },
+      where: { id: { in: ids }, conversation: { members: { some: { userId } } } },
       select: { id: true, conversationId: true },
     });
     for (const m of mine) {
@@ -186,17 +207,29 @@ export class MessagesService {
 
   /** Mark messages READ for a recipient (blue tick) + advance lastReadAt. */
   async markRead(userId: string, messageIds: string[]) {
+    /* ONLY A TRANSITION EARNS A RECEIPT — same rule as markDelivered, and here
+       it is the rule that broke the loop: an open thread re-acking messages it
+       had already read caused receipts, the receipts caused refetches, and the
+       refetches caused re-acks (13 Aug audit). Rows already READ produce
+       nothing now — no write, no lastReadAt churn, no broadcast. */
+    // unbounded: `in:` of the caller's receipt batch bounds it
+    const pending = await this.prisma.messageStatus.findMany({
+      where: { messageId: { in: messageIds }, userId, status: { not: DeliveryStatus.READ } },
+      select: { messageId: true },
+    });
+    if (!pending.length) return;
+    const ids = pending.map((p) => p.messageId);
     const now = new Date();
     await this.prisma.messageStatus.updateMany({
-      where: { messageId: { in: messageIds }, userId, status: { not: DeliveryStatus.READ } },
+      where: { messageId: { in: ids }, userId, status: { not: DeliveryStatus.READ } },
       data: { status: DeliveryStatus.READ, readAt: now },
     });
     // Membership-scoped for the same reason as markDelivered — an unscoped
     // lookup let a non-participant emit a read receipt into someone else's chat.
     // unbounded: `in:` of the caller's receipt batch bounds it
     const rows = await this.prisma.message.findMany({
-      where: { id: { in: messageIds }, conversation: { members: { some: { userId } } } },
-      select: { id: true, conversationId: true },
+      where: { id: { in: ids }, conversation: { members: { some: { userId } } } },
+      select: { id: true, conversationId: true, createdAt: true },
     });
     // LAST-READ IS A MESSAGE'S TIMESTAMP, NOT A CLOCK READING. Stamping `now`
     // marks as read everything that arrives between the newest message in this
@@ -204,13 +237,8 @@ export class MessagesService {
     // is counted read by somebody who never saw it, and the unread count
     // (conversations.service: createdAt > lastReadAt) silently loses it. The
     // high-water mark is the newest message actually acknowledged.
-    // unbounded: `in:` the rows just matched above — the caller's receipt batch bounds it
-    const readRows = await this.prisma.message.findMany({
-      where: { id: { in: rows.map((r) => r.id) } },
-      select: { conversationId: true, createdAt: true },
-    });
     const highWater = new Map<string, Date>();
-    for (const r of readRows) {
+    for (const r of rows) {
       const seen = highWater.get(r.conversationId);
       if (!seen || r.createdAt > seen) highWater.set(r.conversationId, r.createdAt);
     }
@@ -355,6 +383,36 @@ export class MessagesService {
   }
 
   /**
+   * AN ATTACHMENT IS A FILE THE SENDER UPLOADED, NOT A URL THE SENDER TYPED.
+   *
+   * The DTO accepts any syntactically valid URL, and recipient clients render
+   * attachments eagerly (<img>, <audio preload>) — so an unchecked URL is a
+   * tracking pixel anyone can place in any conversation, or a "file" that is
+   * really any content on the internet wearing a trusted name. Storage keys
+   * are `uploads/<userId>/<uuid>.<ext>` by design, which makes ownership
+   * provable from the URL itself: the path must name the sender. When a public
+   * base is configured the URL must live under it too; without one (dev, no
+   * cloud creds) the path rule still holds.
+   */
+  private assertOwnAttachments(
+    senderId: string,
+    attachments: Array<{ url: string; thumbnail?: string }>,
+  ): void {
+    const base = (this.config.get<string>('media.publicBaseUrl') ?? '').replace(/\/+$/, '');
+    const own = (u: string | undefined): boolean => {
+      if (!u) return true;
+      if (base && !u.startsWith(`${base}/`)) return false;
+      const path = (() => { try { return new URL(u).pathname; } catch { return u; } })();
+      return path.includes(`/uploads/${senderId}/`);
+    };
+    for (const a of attachments) {
+      if (!own(a.url) || !own(a.thumbnail)) {
+        throw new ForbiddenException('An attachment must be a file you uploaded yourself.');
+      }
+    }
+  }
+
+  /**
    * Map a persisted message to the shape the frontend consumes:
    * `text`→`body`, `shareJson`→`share`, `attachments`→`media`. Also tombstones
    * the body of deleted messages so their content never leaks.
@@ -378,8 +436,12 @@ export class MessagesService {
     sender?: unknown;
     statuses?: Array<{ status: string }>;
   }) {
+    /* A DELETED MESSAGE IS DELETED ALL THE WAY DOWN. The tombstone used to
+       zero only the text: `media` URLs and the share card still travelled to
+       every member on a row whose whole point is that its content is gone.
+       The client happened to hide them; the API must not hand them out. */
     let share: unknown = null;
-    if (m.shareJson) {
+    if (m.shareJson && !m.deleted) {
       try { share = JSON.parse(m.shareJson); } catch { share = null; }
     }
     /**
@@ -392,7 +454,7 @@ export class MessagesService {
      * the table the whole time (duration has been there since the schema was
      * written); only the serializer was throwing them away.
      */
-    const media = (m.attachments ?? []).map((a) => ({
+    const media = (m.deleted ? [] : (m.attachments ?? [])).map((a) => ({
       id: a.id,
       url: a.url,
       kind: a.mimeType?.startsWith('image/')

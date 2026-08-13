@@ -73,7 +73,7 @@ function build(opts: {
     },
   };
   svc.presence = { isOnline: async (u: string) => (opts.online ?? []).includes(u) };
-  svc.redis = { getOpenConversation: async (u: string) => (opts.openConvo ?? {})[u] ?? null };
+  svc.redis = { openConversationsOf: async (u: string) => { const c = (opts.openConvo ?? {})[u]; return c ? [c] : []; } };
   svc.gateway = {
     emitNew: (userId: string, payload: unknown, count: number) => emitted.push({ ev: 'new', userId, payload, count }),
     emitCount: (userId: string, count: number) => emitted.push({ ev: 'count', userId, count }),

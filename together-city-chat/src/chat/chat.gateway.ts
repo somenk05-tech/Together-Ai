@@ -108,9 +108,10 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         this.logger.error(`deliverBacklog failed for ${user.sub}: ${e.message}`);
       });
 
-      // Sync any messages that arrived while the user was offline.
-      const pending = await this.messages.pendingForUser(user.sub);
-      if (pending.length) client.emit('sync_pending', pending);
+      /* `sync_pending` is gone: no client has ever listened for it, and the
+         query behind it — up to 500 fully-hydrated messages — ran inside every
+         handshake for an audience of nobody. History is REST's job;
+         deliverBacklog above is what makes the receipts true. */
     } catch {
       client.emit(WS.ERROR, { message: 'Unauthorized' });
       client.disconnect(true);
@@ -120,7 +121,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   async handleDisconnect(client: AuthedSocket): Promise<void> {
     if (!client.userId) return;
     client.typingTimers?.forEach((t) => clearTimeout(t));
-    await this.redis.setOpenConversation(client.userId, null);
+    await this.redis.setOpenConversation(client.userId, null, client.id);
     const transitioned = await this.presence.markOffline(client.userId, client.id);
     if (transitioned) this.bus.publish({ kind: 'presence.changed', userId: client.userId, online: false });
   }
@@ -143,7 +144,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     const { conversationId } = parseOrThrow(JoinConversationSchema, body);
     await this.permission.assertCanPostToConversation(client.userId, conversationId);
     await client.join(room.conversation(conversationId));
-    await this.redis.setOpenConversation(client.userId, conversationId);
+    await this.redis.setOpenConversation(client.userId, conversationId, client.id);
     // Opening a chat clears its message notification from the bell.
     void this.notifications.markConversationRead(client.userId, conversationId);
   }
@@ -152,7 +153,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   async onLeave(@ConnectedSocket() client: AuthedSocket, @MessageBody() body: unknown): Promise<void> {
     const { conversationId } = parseOrThrow(LeaveConversationSchema, body);
     await client.leave(room.conversation(conversationId));
-    await this.redis.setOpenConversation(client.userId, null);
+    await this.redis.setOpenConversation(client.userId, null, client.id);
   }
 
   // ── messaging ──────────────────────────────────────────
@@ -182,6 +183,12 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   @SubscribeMessage(WS.TYPING_START)
   async onTypingStart(@ConnectedSocket() client: AuthedSocket, @MessageBody() body: unknown): Promise<void> {
     const { conversationId } = parseOrThrow(TypingSchema, body);
+    /* Typing is gated by the ROOM, not by a DB query per keystroke: the
+       handshake (joinOwnConversations) and onJoin only admit members, so being
+       in the room is the proof of membership. Without this check any signed-in
+       socket could broadcast a typing indicator into any conversation it could
+       name — before its own authentication had even finished. */
+    if (!client.userId || !client.rooms.has(room.conversation(conversationId))) return;
     client.to(room.conversation(conversationId)).emit(WS.TYPING_START, {
       conversationId,
       userId: client.userId,
@@ -206,6 +213,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   @SubscribeMessage(WS.TYPING_STOP)
   async onTypingStop(@ConnectedSocket() client: AuthedSocket, @MessageBody() body: unknown): Promise<void> {
     const { conversationId } = parseOrThrow(TypingSchema, body);
+    if (!client.userId || !client.rooms.has(room.conversation(conversationId))) return;
     const existing = client.typingTimers.get(conversationId);
     if (existing) clearTimeout(existing);
     client.typingTimers.delete(conversationId);
@@ -241,6 +249,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   // ── presence heartbeat ─────────────────────────────────
   @SubscribeMessage(WS.HEARTBEAT)
   async onHeartbeat(@ConnectedSocket() client: AuthedSocket): Promise<void> {
+    if (!client.userId) return; // handshake auth not finished — drop the frame
     await this.presence.heartbeat(client.userId);
   }
 
@@ -287,17 +296,17 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       case 'message.deleted':
         this.server
           .to(room.conversation(event.conversationId))
-          .emit(WS.MESSAGE_DELETED, { messageId: event.messageId });
+          .emit(WS.MESSAGE_DELETED, { conversationId: event.conversationId, messageId: event.messageId });
         break;
       case 'message.delivered':
         this.server
           .to(room.conversation(event.conversationId))
-          .emit(WS.MESSAGE_DELIVERED, { messageId: event.messageId, userId: event.userId });
+          .emit(WS.MESSAGE_DELIVERED, { conversationId: event.conversationId, messageId: event.messageId, userId: event.userId });
         break;
       case 'message.read':
         this.server
           .to(room.conversation(event.conversationId))
-          .emit(WS.MESSAGE_READ, { messageId: event.messageId, userId: event.userId });
+          .emit(WS.MESSAGE_READ, { conversationId: event.conversationId, messageId: event.messageId, userId: event.userId });
         break;
       case 'presence.changed': {
         /* This told the subject they had come online and told nobody else.

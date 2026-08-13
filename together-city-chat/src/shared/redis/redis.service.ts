@@ -35,7 +35,7 @@ export class RedisService implements OnModuleDestroy {
   private healthy = false;
   /** In-process mirror used only while Redis is down. */
   private readonly localSockets = new Map<string, Set<string>>();
-  private readonly localOpenConv = new Map<string, string>();
+  private readonly localOpenConv = new Map<string, Map<string, string>>();
 
   constructor(@Inject(ConfigService) config: ConfigService) {
     this.client = new Redis(config.get<string>('redisUrl') ?? 'redis://localhost:6379', {
@@ -73,7 +73,13 @@ export class RedisService implements OnModuleDestroy {
       return set.size;
     }
     await this.client.sadd(SOCKETS_KEY(userId), socketId);
-    await this.client.set(PRESENCE_KEY(userId), Date.now().toString());
+    /* Both keys expire. `presence:` used to be written here with NO TTL, so a
+       disconnect this process never saw (a crashed instance, a killed deploy)
+       left the citizen online forever; and `sockets:` accumulated dead ids the
+       same way, so its count never returned to zero again. The heartbeat —
+       every 30s from a connected client — refreshes both; 90s of silence is offline. */
+    await this.client.set(PRESENCE_KEY(userId), Date.now().toString(), 'EX', 90);
+    await this.client.expire(SOCKETS_KEY(userId), 90);
     return this.client.scard(SOCKETS_KEY(userId));
   }
 
@@ -99,22 +105,44 @@ export class RedisService implements OnModuleDestroy {
 
   async heartbeat(userId: string): Promise<void> {
     if (!this.healthy) return;
-    await this.client.set(PRESENCE_KEY(userId), Date.now().toString(), 'EX', 60);
+    await this.client.set(PRESENCE_KEY(userId), Date.now().toString(), 'EX', 90);
+    await this.client.expire(SOCKETS_KEY(userId), 90);
   }
 
-  /** Track which conversation a user currently has open (suppresses push). */
-  async setOpenConversation(userId: string, conversationId: string | null): Promise<void> {
+  /** Track which conversation each SOCKET has open (suppresses push).
+   *
+   *  Keyed per socket, not per user: with one shared value, a second tab
+   *  closing — or the phone disconnecting — cleared the state for the tab
+   *  still reading, and its owner started getting pushed for the conversation
+   *  on their own screen. A hash of socketId → conversationId means each
+   *  connection speaks only for itself. */
+  async setOpenConversation(userId: string, conversationId: string | null, socketId: string): Promise<void> {
     if (!this.healthy) {
-      if (conversationId) this.localOpenConv.set(userId, conversationId);
+      const per = this.localOpenConv.get(userId) ?? new Map<string, string>();
+      if (conversationId) per.set(socketId, conversationId);
+      else per.delete(socketId);
+      if (per.size) this.localOpenConv.set(userId, per);
       else this.localOpenConv.delete(userId);
       return;
     }
-    if (conversationId) await this.client.set(OPEN_CONV_KEY(userId), conversationId, 'EX', 3600);
-    else await this.client.del(OPEN_CONV_KEY(userId));
+    if (conversationId) {
+      try {
+        await this.client.hset(OPEN_CONV_KEY(userId), socketId, conversationId);
+      } catch {
+        // The previous schema stored a plain string at this key (WRONGTYPE
+        // for an hour after deploy, until its old EX ran out) — replace it.
+        await this.client.del(OPEN_CONV_KEY(userId));
+        await this.client.hset(OPEN_CONV_KEY(userId), socketId, conversationId);
+      }
+      await this.client.expire(OPEN_CONV_KEY(userId), 3600);
+    } else {
+      await this.client.hdel(OPEN_CONV_KEY(userId), socketId).catch(swallowed('redis.setOpenConversation', 0));
+    }
   }
 
-  async getOpenConversation(userId: string): Promise<string | null> {
-    if (!this.healthy) return this.localOpenConv.get(userId) ?? null;
-    return this.client.get(OPEN_CONV_KEY(userId));
+  /** Every conversation any of this user's live sockets has open. */
+  async openConversationsOf(userId: string): Promise<string[]> {
+    if (!this.healthy) return [...(this.localOpenConv.get(userId)?.values() ?? [])];
+    return this.client.hvals(OPEN_CONV_KEY(userId)).catch(swallowed('redis.openConversationsOf', [] as string[]));
   }
 }

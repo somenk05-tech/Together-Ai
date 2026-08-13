@@ -107,6 +107,15 @@ export class RedisIoAdapter extends IoAdapter {
     this.server.adapter(this.adapterConstructor);
     this.attached = true;
     this.logger.log('Socket.IO Redis adapter attached to the running server.');
+    /* Swapping adapters re-initialises every namespace's room bookkeeping, so
+       any socket that connected BEFORE this late attach is silently no longer
+       in its rooms — the exact quiet-thread bug the retry exists to prevent.
+       Kick them once: they reconnect immediately and the handshake re-joins
+       everything (joinOwnConversations). A no-op when the attach happened at
+       boot, before anyone connected. */
+    try {
+      this.server.disconnectSockets();
+    } catch { /* no namespace initialised yet — nobody to kick */ }
   }
 
   createIOServer(port: number, options?: ServerOptions): Server {

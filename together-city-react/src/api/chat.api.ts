@@ -115,10 +115,16 @@ export function useMessages(conversationId: string | undefined) {
     () => (q.data?.pages ?? []).slice().reverse().flatMap((p) => p.items),
     [q.data],
   );
-  return {
-    ...q,
-    data: q.data ? { items, nextCursor: q.data.pages[q.data.pages.length - 1]?.nextCursor ?? null } : undefined,
-  };
+  /* STABLE IDENTITY, OR EVERY RENDER LOOKS LIKE NEW DATA. This returned a
+     fresh `{ items, nextCursor }` object on every render, so an effect keyed
+     on `data` fired on every render of the reader — one third of the
+     read-receipt loop (see Chats.tsx). Memoised, its identity now changes
+     only when a fetch actually lands. */
+  const data = useMemo(
+    () => (q.data ? { items, nextCursor: q.data.pages[q.data.pages.length - 1]?.nextCursor ?? null } : undefined),
+    [q.data, items],
+  );
+  return { ...q, data };
 }
 
 /* ---------------- Realtime (Socket.IO) ---------------- */
@@ -149,7 +155,10 @@ export function useChatRealtime(
     const offMsg = socketClient.on<Message>(WS.RECEIVE_MESSAGE, (m) => { if (m.conversationId === conversationId) onMessage(m); });
     const offStart = socketClient.on<TypingPayload>(WS.TYPING_START, (e) => { if (e.conversationId === conversationId) onTyping?.(e.userId, true); });
     const offStop = socketClient.on<TypingPayload>(WS.TYPING_STOP, (e) => { if (e.conversationId === conversationId) onTyping?.(e.userId, false); });
-    const offDel = socketClient.on<{ messageId: string }>(WS.MESSAGE_DELETED, ({ messageId }) => onDeleted?.(messageId));
+    const offDel = socketClient.on<{ messageId: string; conversationId?: string }>(WS.MESSAGE_DELETED, (p) => {
+      // Scoped: the frame now names its conversation (older frames didn't).
+      if (!p.conversationId || p.conversationId === conversationId) onDeleted?.(p.messageId);
+    });
     const offEdit = socketClient.on<Message>(WS.MESSAGE_EDITED, (m) => { if (m.conversationId === conversationId) onEdited?.(m); });
     return () => {
       socketClient.emit(WS.LEAVE_CONVERSATION, { conversationId });

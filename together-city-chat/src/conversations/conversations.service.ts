@@ -101,34 +101,38 @@ export class ConversationsService {
       orderBy: { conversation: { updatedAt: 'desc' } },
     });
 
-    const out = [];
-    for (const m of memberships) {
-      if (datingIds.has(m.conversationId)) continue;
-
+    const visible = memberships.filter((m) => {
+      if (datingIds.has(m.conversationId)) return false;
       // A conversation this citizen deleted stays gone until someone writes to
       // it again. `messages` is the single newest message (take: 1, desc), so
       // "nothing since I cleared it" is exactly what keeps it out of the panel.
-      const clearedAt = m.clearedAt;
-      if (clearedAt) {
+      if (m.clearedAt) {
         const newest = m.conversation.messages[0];
-        if (!newest || newest.createdAt <= clearedAt) continue;
+        if (!newest || newest.createdAt <= m.clearedAt) return false;
       }
-
-      // Unread counts from whichever came later: the last read, or the clear.
-      // Without this a cleared thread reappears claiming every old message is
-      // unread.
-      const since = this.laterOf(m.lastReadAt, clearedAt);
-      const unread = await this.prisma.message.count({
-        where: {
-          conversationId: m.conversationId,
-          deleted: false,
-          senderId: { not: userId },
-          ...(since ? { createdAt: { gt: since } } : {}),
-        },
-      });
-      out.push(this.shape(m.conversation, userId, unread));
-    }
-    return out;
+      return true;
+    });
+    /* The counts run CONCURRENTLY. This was one awaited count per conversation
+       in series — a panel of forty chats was forty round-trips end to end, and
+       every open client polls this endpoint every fifteen seconds. Same
+       queries, one wait. */
+    const unreads = await Promise.all(
+      visible.map((m) => {
+        // Unread counts from whichever came later: the last read, or the clear.
+        // Without this a cleared thread reappears claiming every old message is
+        // unread.
+        const since = this.laterOf(m.lastReadAt, m.clearedAt);
+        return this.prisma.message.count({
+          where: {
+            conversationId: m.conversationId,
+            deleted: false,
+            senderId: { not: userId },
+            ...(since ? { createdAt: { gt: since } } : {}),
+          },
+        });
+      }),
+    );
+    return visible.map((m, i) => this.shape(m.conversation, userId, unreads[i]));
   }
 
   /** The later of two optional instants — null only when both are null. */
@@ -232,7 +236,9 @@ export class ConversationsService {
     }).catch(() => 0);
     return {
       lastMessageAt: (last?.createdAt ?? new Date(0)).toISOString(),
-      lastText: (last as { body?: string | null } | null)?.body ?? null,
+      // The column is `text`; `body` only exists after serialize. Reading
+      // `.body` off the raw row meant the Dating Hub list never had a preview.
+      lastText: (last as { text?: string | null } | null)?.text ?? null,
       lastSenderId: (last as { senderId?: string | null } | null)?.senderId ?? null,
       unread,
     };
@@ -305,10 +311,22 @@ export class ConversationsService {
   /** Mark a whole conversation read for this user (advances lastReadAt → unread = 0). */
   async markRead(userId: string, conversationId: string): Promise<{ ok: true }> {
     await this.assertMember(userId, conversationId);
-    await this.prisma.conversationMember.updateMany({
-      where: { conversationId, userId },
-      data: { lastReadAt: new Date() },
+    // LAST-READ IS A MESSAGE'S TIMESTAMP, NOT A CLOCK READING — the same rule
+    // messages.service.markRead documents. Stamping `now` counted a message
+    // that arrived mid-write as read by somebody who never saw it. The newest
+    // message's own timestamp is the most this reader can honestly claim, and
+    // the mark never moves backwards.
+    const newest = await this.prisma.message.findFirst({
+      where: { conversationId },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true },
     });
+    if (newest) {
+      await this.prisma.conversationMember.updateMany({
+        where: { conversationId, userId, OR: [{ lastReadAt: null }, { lastReadAt: { lt: newest.createdAt } }] },
+        data: { lastReadAt: newest.createdAt },
+      });
+    }
     return { ok: true };
   }
 }

@@ -78,9 +78,12 @@ export function Chats() {
   const [tombstoned, setTombstoned] = useState<Set<string>>(new Set());       // deleted for everyone
   const [editsMap, setEditsMap] = useState<Record<string, Message>>({});      // live edits
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Message ids this session has already asked to mark read — each id is
+   *  acknowledged once per opened thread, never per render. */
+  const ackedRead = useRef<Set<string>>(new Set());
 
   // Reset the live buffer whenever the conversation changes.
-  useEffect(() => { setLive([]); setPeerTyping(false); setStatusMap({}); setHiddenIds(new Set()); setTombstoned(new Set()); setEditsMap({}); }, [activeId]);
+  useEffect(() => { setLive([]); setPeerTyping(false); setStatusMap({}); setHiddenIds(new Set()); setTombstoned(new Set()); setEditsMap({}); ackedRead.current = new Set(); }, [activeId]);
 
   // Live delivery/read receipts → advance the ticks on your sent messages.
   useEffect(() => {
@@ -94,7 +97,8 @@ export function Chats() {
   const onMessage = useCallback((m: Message) => {
     setLive((prev) => [...prev, m]);
     // A message arriving in the open conversation is read immediately.
-    if (activeId && m.senderId !== user?.id) {
+    if (activeId && m.senderId !== user?.id && !ackedRead.current.has(m.id)) {
+      ackedRead.current.add(m.id);
       socketClient.emit(WS.MESSAGE_READ, { conversationId: activeId, messageIds: [m.id] });
     }
   }, [activeId, user?.id]);
@@ -147,20 +151,32 @@ export function Chats() {
       .map((m) => (statusMap[m.id] ? { ...m, status: statusMap[m.id] } : m));
   }, [history.data, live, statusMap, hiddenIds, tombstoned, editsMap]);
 
-  // Opening a conversation marks it read. REST reliably clears the unread badge
-  // (independent of the socket); the socket read drives blue read-receipt ticks.
+  /* A RECEIPT IS SENT ONCE, FOR SOMETHING NOT YET READ.
+     This effect used to ack EVERY loaded message on every change of
+     `history.data` — and the app-wide receipt listener refetches the thread on
+     receipt frames, so the acks caused the very data changes that re-fired the
+     acks: an open thread never went quiet (13 Aug audit). Three dampeners now:
+     only messages not already READ, each id acked once per opened thread
+     (ackedRead), and batches capped at the socket schema's 500. The server
+     adds the fourth — a receipt is only published for a row that moved. */
   useEffect(() => {
     if (!activeId || !history.data) return;
     const unreadIds = (history.data.items ?? [])
-      .filter((m) => m.senderId !== user?.id)
+      .filter((m) => m.senderId !== user?.id && m.status !== 'READ' && !ackedRead.current.has(m.id))
       .map((m) => m.id);
-    if (unreadIds.length) {
-      socketClient.emit(WS.MESSAGE_READ, { conversationId: activeId, messageIds: unreadIds });
+    for (const id of unreadIds) ackedRead.current.add(id);
+    for (let i = 0; i < unreadIds.length; i += 500) {
+      socketClient.emit(WS.MESSAGE_READ, { conversationId: activeId, messageIds: unreadIds.slice(i, i + 500) });
     }
+  }, [activeId, history.data, user?.id]);
+  // Opening a conversation clears its badge ONCE, by REST — the server advances
+  // lastReadAt to the newest message's own timestamp, never to the clock.
+  useEffect(() => {
+    if (!activeId) return;
     void chatApi.markRead(activeId)
       .then(() => qc.invalidateQueries({ queryKey: ['chat', 'conversations'] }))
       .catch(() => undefined);
-  }, [activeId, history.data, user?.id, qc]);
+  }, [activeId, qc]);
 
   if (conversations.isLoading) return <Spinner label="Loading your chats…" />;
   if (conversations.isError) return <EmptyState title="Couldn't load chats" hint="Every conversation is still there — this didn’t reach us. Try again in a moment." />;
