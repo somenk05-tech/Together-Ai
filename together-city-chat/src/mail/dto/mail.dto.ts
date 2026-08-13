@@ -52,46 +52,6 @@ export const SaveDraftSchema = z.object({
 });
 export type SaveDraftDto = z.infer<typeof SaveDraftSchema>;
 
-export const SendMailSchema = z.object({
-  to: z.string().min(1, 'Recipient required').max(120),
-  /** Openly copied. Every recipient sees this list — that is what Cc means. */
-  cc: z.array(z.string().trim().min(1).max(120)).max(25).optional(),
-  /** Blind-copied. Kept on the sender's Sent row and nowhere else. */
-  bcc: z.array(z.string().trim().min(1).max(120)).max(25).optional(),
-  subject: z.string().max(200).default('(no subject)'),
-  body: z.string().max(50000).default(''),
-  threadId: z.string().max(64).optional(), // reply → append to this trail
-  /** Drive files (owned by the sender) to attach to this message. */
-  attachmentFileIds: z.array(z.string().uuid()).max(10).optional(),
-  /** The draft this send came from. Cleared once the message is away — a
-   *  draft that survives its own sending is a duplicate the citizen has to
-   *  tidy up by hand, and would send twice if they resumed it. */
-  draftId: z.string().uuid().optional(),
-  /**
-   * Compose was opened inside a project, so the thread it starts is born
-   * filed there and every reply comes home to the same room. Ignored when the
-   * thread is already filed — a conversation does not change rooms because
-   * somebody replied to it from a different screen.
-   */
-  projectId: z.string().uuid().optional(),
-});
-export type SendMailDto = z.infer<typeof SendMailSchema>;
-
-export const FlagSchema = z.object({
-  starred: z.boolean().optional(),
-  read: z.boolean().optional(),
-});
-export type FlagDto = z.infer<typeof FlagSchema>;
-
-/**
- * PROJECTS — the rooms inside a mailbox.
- *
- * Fifty per citizen. The cap is here rather than in the service so the number
- * has one home: the API refuses the fifty-first, and the client counts up to
- * it out loud (`4 / 50`) instead of springing it at the limit.
- */
-export const PROJECT_CAP = 50;
-
 /**
  * The key is a URL segment and half an email address, so it is bounded to what
  * both of those can carry without escaping: lowercase letters, digits and
@@ -111,10 +71,57 @@ export const ProjectKeySchema = z.string().trim().min(1).max(24)
  */
 export const FOLD_TINTS = ['blue', 'green', 'purple', 'red', 'orange', 'teal', 'amber', 'pink', 'violet', 'slate'] as const;
 
+export const SendMailSchema = z.object({
+  to: z.string().min(1, 'Recipient required').max(120),
+  /** Openly copied. Every recipient sees this list — that is what Cc means. */
+  cc: z.array(z.string().trim().min(1).max(120)).max(25).optional(),
+  /** Blind-copied. Kept on the sender's Sent row and nowhere else. */
+  bcc: z.array(z.string().trim().min(1).max(120)).max(25).optional(),
+  subject: z.string().max(200).default('(no subject)'),
+  body: z.string().max(50000).default(''),
+  threadId: z.string().max(64).optional(), // reply → append to this trail
+  /** Drive files (owned by the sender) to attach to this message. */
+  attachmentFileIds: z.array(z.string().uuid()).max(10).optional(),
+  /** The draft this send came from. Cleared once the message is away — a
+   *  draft that survives its own sending is a duplicate the citizen has to
+   *  tidy up by hand, and would send twice if they resumed it. */
+  draftId: z.string().uuid().optional(),
+  /**
+   * Compose was opened inside a project, so the thread it starts is born filed
+   * there and every reply comes home to the same room. Ignored when the thread
+   * is already filed — a conversation does not change rooms because somebody
+   * replied to it from a different screen.
+   *
+   * THE KEY AND NOT THE ID, which removes a race rather than saving a
+   * character. The composer knows the key the instant it reads the URL; the id
+   * it would have to look up in the project list, and a citizen who opens
+   * Compose from a project, types fast and presses Send before that list
+   * resolves would have sent an UNFILED message from inside a project — with
+   * nothing on screen to say so. The server already resolves keys.
+   */
+  projectKey: ProjectKeySchema.optional(),
+});
+export type SendMailDto = z.infer<typeof SendMailSchema>;
+
+export const FlagSchema = z.object({
+  starred: z.boolean().optional(),
+  read: z.boolean().optional(),
+});
+export type FlagDto = z.infer<typeof FlagSchema>;
+
+/**
+ * PROJECTS — the rooms inside a mailbox.
+ *
+ * Fifty per citizen. The cap is here rather than in the service so the number
+ * has one home: the API refuses the fifty-first, and the client counts up to
+ * it out loud (`4 / 50`) instead of springing it at the limit.
+ */
+export const PROJECT_CAP = 50;
+
 export const CreateProjectSchema = z.object({
   name: z.string().trim().min(1, 'Give the project a name').max(60),
   key: ProjectKeySchema,
-  subAddress: z.boolean().default(false),
+  subAddress: z.boolean().default(true),
   color: z.enum(FOLD_TINTS).default('blue'),
   /** One line, on the folder. Short because it is drawn in two lines of 12px
    *  and a paragraph would be clipped rather than read. */

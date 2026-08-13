@@ -61,7 +61,14 @@ export function Compose() {
    * needed for the common case.
    *
    * The API ignores this when the thread is already filed — replying to an ABG
-   * conversation from All Email does not move it out of ABG.
+   * conversation from All Emails does not move it out of ABG.
+   *
+   * THE KEY GOES TO THE API, NOT THE ID. The key is in the URL and is known
+   * the instant this page mounts; the id needs the project list, and somebody
+   * who opens Compose from a project, types fast and presses Send before that
+   * list resolves would send an UNFILED message from inside a project, with
+   * nothing on screen to say so. The lookup below is for the LABEL only, so
+   * the worst it can do late is say "in …" a moment after the page.
    */
   const projectKey = params.get('project') ?? undefined;
   const projects = useMailProjects();
@@ -125,7 +132,15 @@ export function Compose() {
           {/* Which room this is being written in, said once and plainly. A
               composer that looks identical everywhere is how a message meant
               for a project ends up filed nowhere. */}
-          {project && <div className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>in {project.name} — the reply will come back here</div>}
+          {/* Which room this is being written in, said once and plainly. Keyed
+              off the URL rather than the loaded project, so it is right from
+              the first paint — a composer that looks identical everywhere is
+              how a message meant for a project ends up filed nowhere. */}
+          {projectKey && (
+            <div className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>
+              in {project?.name ?? projectKey} — it will be filed there, and the reply will come back to it
+            </div>
+          )}
         </div>
         <span className="muted" style={{ marginLeft: 'auto', fontSize: 12.5, fontFamily: 'monospace' }}>from {acct.data?.address ?? '…'}</span>
       </div>
@@ -220,8 +235,8 @@ export function Compose() {
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <Button variant="accent" disabled={!canSend}
             onClick={() => send.mutate(
-              { to, cc: addrs(cc), bcc: addrs(bcc), subject: subject || '(no subject)', body, threadId, attachmentFileIds: attachments.map((f) => f.id), draftId: draftId.current, projectId: project?.id },
-              { onSuccess: () => { if (threadId) nav(-1); else nav(project ? `/mail/p/${project.key}/sent` : '/mail/sent'); } },
+              { to, cc: addrs(cc), bcc: addrs(bcc), subject: subject || '(no subject)', body, threadId, attachmentFileIds: attachments.map((f) => f.id), draftId: draftId.current, projectKey },
+              { onSuccess: () => { if (threadId) nav(-1); else nav(projectKey ? `/mail/p/${projectKey}/sent` : '/mail/sent'); } },
             )}>
             {send.isPending ? 'Sending…' : threadId ? 'Send reply' : 'Send'}
           </Button>

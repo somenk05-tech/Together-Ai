@@ -124,7 +124,8 @@ function NewProject({ used, onDone }: { used: number; onDone: () => void }) {
   const [key, setKey] = useState('');
   const [description, setDescription] = useState('');
   const [color, setColor] = useState<string>('blue');
-  const [subAddress, setSubAddress] = useState(false);
+  // ON BY DEFAULT: every project has an id, and it is the same mailbox.
+  const [subAddress, setSubAddress] = useState(true);
   // What will actually be created: what they typed, or the name turned into a
   // key if they left the field alone. The box shows the first; this is the second.
   const finalKey = keyFrom(key) || keyFrom(name);
@@ -178,14 +179,15 @@ function NewProject({ used, onDone }: { used: number; onDone: () => void }) {
         ))}
       </fieldset>
 
-      {/* The sub-address is the ONE inbound path that does not begin with the
-          citizen, so it is off until they ask for it and it is shown in full
-          rather than described. */}
+      {/* The id, shown in full rather than described. It is on because mail
+          sent from this project is sent Reply-To it — which is what makes a
+          reply come home to the room instead of merely usually doing so. */}
       <label className="mproj-check">
         <input type="checkbox" checked={subAddress} onChange={(e) => setSubAddress(e.target.checked)} />
         <span>
-          Also accept mail addressed to <strong>{sub}</strong>, so somebody outside can start a
-          conversation here. <span className="muted">Off by default — still one mailbox, not a second account.</span>
+          Give this project the id <strong>{sub}</strong>. Mail you send from here replies to
+          it, so answers come back to this folder.
+          <span className="muted"> Same mailbox, same 10 GB — the tag only says which room.</span>
         </span>
       </label>
       <p className="muted" style={{ fontSize: 12, margin: '12px 0 0', lineHeight: 1.55 }}>

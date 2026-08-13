@@ -163,14 +163,24 @@ export class MailService {
    * a conversation that changes rooms depending on which screen the reply was
    * typed on is the exact instability a "project" is supposed to remove.
    */
-  private async resolveSendProject(userId: string, threadId: string, requested?: string): Promise<string | null> {
+  private async resolveSendProject(
+    userId: string, threadId: string, key?: string,
+  ): Promise<{ id: string; key: string; subAddress: boolean } | null> {
     const inherited = await this.threadProject(userId, threadId);
-    if (inherited) return inherited;
-    if (!requested) return null;
-    const owned = await this.prisma.mailProject.findFirst({
-      where: { id: requested, ownerId: userId }, select: { id: true },
+    if (inherited) {
+      return this.prisma.mailProject.findFirst({
+        where: { id: inherited, ownerId: userId },
+        select: { id: true, key: true, subAddress: true },
+      });
+    }
+    if (!key) return null;
+    // A key that names no project of this citizen's files nothing rather than
+    // failing the send: the message is the point, and the worst outcome of a
+    // stale key is a message in All Emails, which is where it would be anyway.
+    return this.prisma.mailProject.findFirst({
+      where: { key, ownerId: userId, archived: false },
+      select: { id: true, key: true, subAddress: true },
     });
-    return owned?.id ?? null;
   }
 
   /** Attachments on a thread the caller is a participant of. */
@@ -627,7 +637,8 @@ export class MailService {
     // THE FILING IS THE SENDER'S, NOT THE MESSAGE'S. It goes on their Sent row
     // below and never into `base` — a recipient's copy stamped with the
     // sender's project would put a stranger's mail in a room they never made.
-    const projectId = await this.resolveSendProject(userId, threadId, dto.projectId);
+    const project = await this.resolveSendProject(userId, threadId, dto.projectKey);
+    const projectId = project?.id ?? null;
     const toAddr = addressFor(recipient.handle);
     const base = {
       fromAddr: sender.address, fromName: me.name, toAddr, toName: recipient.name,
@@ -690,7 +701,24 @@ export class MailService {
     const threadId = await this.resolveThreadId(userId, dto.threadId);
     // Which room this correspondence lives in — the thread's if it has one,
     // otherwise the project Compose was opened from. See resolveSendProject.
-    const projectId = await this.resolveSendProject(userId, threadId, dto.projectId);
+    const project = await this.resolveSendProject(userId, threadId, dto.projectKey);
+    const projectId = project?.id ?? null;
+    /**
+     * A REPLY TO A PROJECT'S MAIL COMES BACK TO THE PROJECT, and this is what
+     * makes that true rather than likely.
+     *
+     * Thread inheritance handles the ordinary case, but it leans on matching
+     * an inbound message to a trail by sender and normalised subject — and
+     * that misses exactly when it matters: a recipient who rewrites the
+     * subject, replies from a client that drops the thread, or forwards it to
+     * a colleague who writes back. Reply-To carries the room in the ADDRESS,
+     * so the reply arrives already saying where it belongs and ingestInbound
+     * files it on the sub-address rule with nothing to guess.
+     *
+     * From stays the plain city address: it is the DKIM-aligned one, and the
+     * note above is the reason it must not move. Reply-To is the lever.
+     */
+    const replyTo = project?.subAddress ? subAddressed(fromAddr, project.key) : fromAddr;
     // DISPATCH FIRST, then file it (p21, FE-14.1).
     //
     // The Sent copy used to be written here, before the provider was called,
@@ -711,7 +739,7 @@ export class MailService {
     // @togethercity.app address, so this is DKIM-aligned and deliverable.
     const fromHeader = cityFromHeader(fromName, fromAddr);
     const res = await provider
-      .send({ channel: 'email', to: toEmail, subject, body: dto.body + linkFooter + footer, kind: 'mail', from: fromHeader, replyTo: fromAddr, ...(attachments.length ? { attachments } : {}) })
+      .send({ channel: 'email', to: toEmail, subject, body: dto.body + linkFooter + footer, kind: 'mail', from: fromHeader, replyTo, ...(attachments.length ? { attachments } : {}) })
       .catch((e: Error) => ({ provider: provider.name, providerMessageId: null as string | null, status: 'failed' as const, error: e.message }));
     // The delivery audit row is how an outage gets diagnosed (see the mail
     // postmortem) — losing it silently blinds exactly that investigation.

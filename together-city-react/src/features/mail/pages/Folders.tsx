@@ -461,8 +461,9 @@ function ProjectSettings({ project }: { project: MailProject }) {
         <input type="checkbox" checked={project.subAddress} disabled={update.isPending}
           onChange={(e) => update.mutate({ id: project.id, subAddress: e.target.checked })} />
         <span>
-          Accept mail addressed to <strong>{project.address ?? `your address +${project.key}`}</strong>.
-          <span className="muted"> The one way in that does not start with you.</span>
+          This project's id is <strong>{project.address ?? `your address +${project.key}`}</strong>.
+          <span className="muted"> Mail sent from here replies to it, so answers come back to this
+          folder. Turning it off leaves the folder relying on the conversation being matched instead.</span>
         </span>
       </label>
 

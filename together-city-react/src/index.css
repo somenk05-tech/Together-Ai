@@ -1429,18 +1429,57 @@ html.tc-immersive .cscomposer { margin-bottom: calc(var(--safe-bottom) + 14px); 
 .mfold-swatch[data-tint="violet"] { --tab: var(--fold-violet-tab); --face: var(--fold-violet-face); }
 
 /* ══ INSIDE A PROJECT ══════════════════════════════════════════════════════
-   THE PROJECT'S FOLDERS WERE INVISIBLE ON A DESKTOP. They were drawn with
-   `.hub-chips`, which every hub hides at 900px because the sidebar carries the
-   same links there — and the sidebar does NOT carry these: they are one
-   project's Inbox, Sent, Drafts, Starred and Trash. So on the screen most of
-   this is read on, a project had an inbox and no way to reach anything else in
-   it. Its own rail, shown at every width. */
-.mproj-rail {
-  display: flex; flex-wrap: wrap; gap: 7px; align-items: center;
-  margin: 0 0 14px; padding: 0;
+   THE PROJECT'S FOLDERS LIVE IN THE SIDEBAR, and this is the phone's copy of
+   them — the same rule `.hub-chips` follows, at the same 1100px, which is the
+   width where the sidebar becomes a drawer. Whenever the rail is not on
+   screen, these are.
+
+   The sidebar could not carry them until it knew which room you were in; it
+   does now (see MailProjectSideRail), so this stops being the only way to
+   reach a project's Sent and goes back to being the small-screen one. */
+.mproj-rail { display: none; }
+@media (max-width: 1100px) {
+  .mproj-rail {
+    display: flex; flex-wrap: wrap; gap: 7px; align-items: center;
+    margin: 0 0 14px; padding: 0;
+  }
 }
 .mproj-out { margin-left: auto; }
 @media (max-width: 700px) { .mproj-out { margin-left: 0; } }
+
+/* Which room the sidebar's folders belong to, in that folder's own colour. */
+.mproj-side-in {
+  display: flex; gap: 10px; align-items: center; padding: 10px 4px 12px;
+  margin-top: 12px; border-top: 1px solid var(--line);
+  --tab: var(--fold-slate-tab);
+}
+.mproj-side-in[data-tint="blue"]   { --tab: var(--fold-blue-tab); }
+.mproj-side-in[data-tint="green"]  { --tab: var(--fold-green-tab); }
+.mproj-side-in[data-tint="purple"] { --tab: var(--fold-purple-tab); }
+.mproj-side-in[data-tint="red"]    { --tab: var(--fold-red-tab); }
+.mproj-side-in[data-tint="orange"] { --tab: var(--fold-orange-tab); }
+.mproj-side-in[data-tint="teal"]   { --tab: var(--fold-teal-tab); }
+.mproj-side-in[data-tint="amber"]  { --tab: var(--fold-amber-tab); }
+.mproj-side-in[data-tint="pink"]   { --tab: var(--fold-pink-tab); }
+.mproj-side-in[data-tint="violet"] { --tab: var(--fold-violet-tab); }
+.mproj-side-mark {
+  width: 30px; height: 30px; border-radius: 9px; background: var(--tab);
+  color: var(--on-accent); display: grid; place-items: center; flex: 0 0 auto;
+}
+.mproj-side-name { display: block; font-size: 14px; font-weight: 800; margin-top: 1px; }
+.mproj-side-out { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 8px; }
+/* The dot in the projects run wears the folder's tab colour, so the rail and
+   the wall agree about which room is which. */
+.mproj-dot[data-tint="blue"]   { background: var(--fold-blue-tab); }
+.mproj-dot[data-tint="green"]  { background: var(--fold-green-tab); }
+.mproj-dot[data-tint="purple"] { background: var(--fold-purple-tab); }
+.mproj-dot[data-tint="red"]    { background: var(--fold-red-tab); }
+.mproj-dot[data-tint="orange"] { background: var(--fold-orange-tab); }
+.mproj-dot[data-tint="teal"]   { background: var(--fold-teal-tab); }
+.mproj-dot[data-tint="amber"]  { background: var(--fold-amber-tab); }
+.mproj-dot[data-tint="pink"]   { background: var(--fold-pink-tab); }
+.mproj-dot[data-tint="violet"] { background: var(--fold-violet-tab); }
+.mproj-dot[data-tint="slate"]  { background: var(--fold-slate-tab); }
 
 /* The project's name is a NAME. It was inheriting `.mail-account-addr`, which
    is monospace because an email address is a string you read character by

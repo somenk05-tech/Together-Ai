@@ -83,7 +83,7 @@ export const mailApi = {
     api.post<{ ok: boolean; moved: number }>('/mail/file', input).then((r) => r.data),
   get: (id: string) => api.get<MailMessage>(`/mail/${id}`).then((r) => r.data),
   thread: (threadId: string) => api.get<MailMessage[]>(`/mail/thread/${threadId}`).then((r) => r.data),
-  send: (input: { to: string; cc?: string[]; bcc?: string[]; subject: string; body: string; threadId?: string; attachmentFileIds?: string[]; draftId?: string; projectId?: string }) =>
+  send: (input: { to: string; cc?: string[]; bcc?: string[]; subject: string; body: string; threadId?: string; attachmentFileIds?: string[]; draftId?: string; projectKey?: string }) =>
     api.post<MailItem[]>('/mail/send', input).then((r) => r.data),
   saveDraft: (input: { id?: string; to: string; subject: string; body: string; threadId?: string }) =>
     api.post<MailMessage>('/mail/draft', input).then((r) => r.data),
@@ -180,7 +180,7 @@ export function useMailThread(threadId?: string | null) {
 export function useSendMail() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { to: string; cc?: string[]; bcc?: string[]; subject: string; body: string; threadId?: string; attachmentFileIds?: string[]; draftId?: string; projectId?: string }) => mailApi.send(v),
+    mutationFn: (v: { to: string; cc?: string[]; bcc?: string[]; subject: string; body: string; threadId?: string; attachmentFileIds?: string[]; draftId?: string; projectKey?: string }) => mailApi.send(v),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['mail'] }); },
   });
 }

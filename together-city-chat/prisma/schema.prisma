@@ -2022,9 +2022,13 @@ model MailProject {
   /// Lowercase slug, unique per mailbox because it is both the URL
   /// (/mail/p/<key>) and the optional sub-address (you+<key>@togethercity.app).
   key        String
-  /// OFF BY DEFAULT, and the only inbound path that does not begin with the
-  /// citizen. On, mail addressed to you+<key>@ is filed here on arrival.
-  subAddress Boolean  @default(false)
+  /// ON BY DEFAULT: every project has an id, and the id is the mailbox's own
+  /// address with the project's key on it. Outbound mail from the project is
+  /// sent Reply-To that address, so a reply files itself here even when the
+  /// thread cannot be matched — a different client, a rewritten subject, a
+  /// forward that comes back. It grants nothing: mail to you+<key>@ lands in
+  /// YOUR mailbox exactly as mail to you@ does; the tag only says which room.
+  subAddress Boolean  @default(true)
   /// One of the nine folder tints, or 'slate'. A plain string rather than an
   /// enum: adding a tenth colour should be a token and a list in the client,
   /// not a migration, and the client already falls back to slate on anything

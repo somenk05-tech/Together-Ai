@@ -1,8 +1,8 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import type { HubConfig } from '@/config/hubs';
 import { Icon } from '@/components/ui/Icon';
 import { useUiStore } from '@/store/ui.store';
-import { MailProjectsRail } from '@/features/mail/ProjectRail';
+import { MailProjectsRail, MailProjectSideRail } from '@/features/mail/ProjectRail';
 
 const PersonIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -18,6 +18,16 @@ const PeopleIcon = () => (
 /** Hub sidebar — back link + (nutrition/family) mode tabs + menu. */
 export function Sidebar({ hub }: { hub: HubConfig }) {
   const navigate = useNavigate();
+  /**
+   * MAIL'S RAIL CHANGES WITH THE ROOM. Standing inside a project, "Sent" in
+   * this sidebar used to be the WHOLE mailbox's Sent — it looked like the
+   * project's own and it was not, which is the most expensive kind of wrong a
+   * navigation can be, because nothing about it appears broken. Inside a
+   * project the rail is that project's folders; everywhere else `hub.items`
+   * is untouched, for all twenty-five hubs that share this layout.
+   */
+  const { pathname } = useLocation();
+  const projectKey = pathname.startsWith('/mail/p/') ? (pathname.split('/')[3] ?? '') : '';
   const open = useUiStore((s) => s.sidebarOpen);
   const toggle = useUiStore((s) => s.toggleSidebar);
 
@@ -57,15 +67,19 @@ export function Sidebar({ hub }: { hub: HubConfig }) {
         onClick={() => { window.dispatchEvent(new Event('tc:command')); toggle(false); }}>
         ⌕ Search the city
       </button>
-      <nav className="side-menu">
-        {hub.items.map((it) => (
-          <NavLink key={it.path} to={it.path} onClick={() => toggle(false)}
-            className={({ isActive }) => (isActive ? 'active' : undefined)}>
-            <span className="n">{it.index}</span>
-            <span><span className="l">{it.label}</span><span className="s">{it.sub}</span></span>
-          </NavLink>
-        ))}
-      </nav>
+      {projectKey ? (
+        <MailProjectSideRail projectKey={projectKey} onNavigate={() => toggle(false)} />
+      ) : (
+        <nav className="side-menu">
+          {hub.items.map((it) => (
+            <NavLink key={it.path} to={it.path} onClick={() => toggle(false)}
+              className={({ isActive }) => (isActive ? 'active' : undefined)}>
+              <span className="n">{it.index}</span>
+              <span><span className="l">{it.label}</span><span className="s">{it.sub}</span></span>
+            </NavLink>
+          ))}
+        </nav>
+      )}
       {/* MAIL IS THE ONE HUB WITH RAIL ENTRIES THAT ARE NOT IN CONFIG. Every
           other rail is a fixed list of screens; a citizen's projects are
           theirs, and they hang under the fixed list rather than being merged
