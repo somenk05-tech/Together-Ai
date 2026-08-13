@@ -593,9 +593,23 @@ export function MealPlan() {
   const planEnded = offset >= wk.days.length;        // today is past the 3-week block
   const endDate = dates[dates.length - 1];
   // Default the strip to today; an explicit ?day= wins so navigation is shareable.
+  // THE RAIL STARTS AT TODAY. A planner that opens on the 3rd when it is the
+  // 13th is ten mornings nobody can cook again, scrolled past before the day
+  // that matters. Past days keep their locks, their history and their place in
+  // the basket's arithmetic - they just stop being offered as places to go,
+  // and a link that points at one snaps forward to today.
   const dayParam = sp.get('day');
-  const day = Math.max(0, Math.min(wk.days.length - 1, dayParam !== null ? (Number(dayParam) || 0) : todayIdx));
+  const day = Math.max(todayIdx, Math.min(wk.days.length - 1, dayParam !== null ? (Number(dayParam) || 0) : todayIdx));
   const d = wk.days[day];
+  // One week from today by default, two on request ("?span=14" so the choice
+  // survives a recipe round-trip like day and mode do), clamped to what the
+  // plan still has. The SELECTED day is always kept on the rail: DayLock hands
+  // off to "the next unlocked day", and a hand-off outside the rail would
+  // select a day the strip refuses to show.
+  const span = sp.get('span') === '14' ? 14 : 7;
+  const setSpan = (n: 7 | 14) => setSp((p) => { p.set('span', String(n)); return p; }, { replace: true });
+  const spanEnd = Math.min(wk.days.length - 1, todayIdx + span - 1);
+  const lastVisible = Math.max(spanEnd, day);
 
   return (
     <div data-press className="press-page">
@@ -727,10 +741,10 @@ export function MealPlan() {
         <>
           {/* Premium day tabs — Monday → Sunday with real dates + prev/next. */}
           <div style={{ display: 'flex', alignItems: 'stretch', gap: 8, marginBottom: 8 }}>
-            <button type="button" aria-label="Previous day" disabled={day === 0} onClick={() => setDay(Math.max(0, day - 1))}
-              style={{ display: 'grid', placeItems: 'center', width: 34, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--muted)', cursor: day === 0 ? 'default' : 'pointer', opacity: day === 0 ? 0.4 : 1 }}><NIc name="chevL" size={18} /></button>
+            <button type="button" aria-label="Previous day" disabled={day <= todayIdx} onClick={() => setDay(Math.max(todayIdx, day - 1))}
+              style={{ display: 'grid', placeItems: 'center', width: 34, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--muted)', cursor: day <= todayIdx ? 'default' : 'pointer', opacity: day <= todayIdx ? 0.4 : 1 }}><NIc name="chevL" size={18} /></button>
             <div ref={stripRef} style={{ flex: 1, display: 'flex', gap: 2, overflowX: 'auto', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 16, padding: 5, scrollbarWidth: 'none' }}>
-              {wk.days.map((_, i) => {
+              {wk.days.map((_, i) => i).filter((i) => i >= todayIdx && i <= lastVisible).map((i) => {
                 const on = i === day;
                 const isToday = i === todayIdx && !planEnded;
                 return (
@@ -744,8 +758,15 @@ export function MealPlan() {
                 );
               })}
             </div>
-            <button type="button" aria-label="Next day" disabled={day === wk.days.length - 1} onClick={() => setDay(Math.min(wk.days.length - 1, day + 1))}
-              style={{ display: 'grid', placeItems: 'center', width: 34, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--muted)', cursor: day === wk.days.length - 1 ? 'default' : 'pointer', opacity: day === wk.days.length - 1 ? 0.4 : 1 }}><NIc name="chevR" size={18} /></button>
+            <button type="button" aria-label="Next day" disabled={day >= lastVisible} onClick={() => setDay(Math.min(lastVisible, day + 1))}
+              style={{ display: 'grid', placeItems: 'center', width: 34, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--muted)', cursor: day >= lastVisible ? 'default' : 'pointer', opacity: day >= lastVisible ? 0.4 : 1 }}><NIc name="chevR" size={18} /></button>
+            {spanEnd < wk.days.length - 1 || span === 14 ? (
+              <button type="button" aria-label={span === 7 ? 'Show two weeks' : 'Show one week'}
+                onClick={() => setSpan(span === 7 ? 14 : 7)}
+                style={{ display: 'grid', placeItems: 'center', padding: '0 12px', borderRadius: 12, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink-soft)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                {span === 7 ? 'Two weeks' : 'One week'}
+              </button>
+            ) : null}
           </div>
 
           {wk.skips && wk.skips.length > 0 && (
