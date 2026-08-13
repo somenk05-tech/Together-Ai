@@ -64,6 +64,24 @@ export const PROJECT_CAP = 50;
 export interface MailMessage extends MailItem { body: string }
 export interface DirectoryEntry { handle: string; name: string; address: string }
 
+/**
+ * WHAT A SEND ACTUALLY ANSWERS.
+ *
+ * This was typed `MailItem[]` and was not one: the API spread an array into an
+ * object literal, so the body was `{0:…, 1:…, delivered, failed}`. Nothing
+ * read it, which is the only reason nobody noticed — and `failed` is the
+ * reason it matters. `send()` throws only when EVERY recipient is refused, so
+ * a message to five people where two were rejected returned 200, and the
+ * composer closed on it without a word.
+ */
+export interface SendResult {
+  sent: MailItem[];
+  /** Addresses the API accepted. */
+  delivered: string[];
+  /** Addresses it did not, each with the reason in the provider's own words. */
+  failed: Array<{ to: string; reason: string }>;
+}
+
 export const mailApi = {
   account: () => api.get<MailAccount>('/mail/account').then((r) => r.data),
   directory: () => api.get<DirectoryEntry[]>('/mail/directory').then((r) => r.data),
@@ -84,7 +102,7 @@ export const mailApi = {
   get: (id: string) => api.get<MailMessage>(`/mail/${id}`).then((r) => r.data),
   thread: (threadId: string) => api.get<MailMessage[]>(`/mail/thread/${threadId}`).then((r) => r.data),
   send: (input: { to: string; cc?: string[]; bcc?: string[]; subject: string; body: string; threadId?: string; attachmentFileIds?: string[]; draftId?: string; projectKey?: string }) =>
-    api.post<MailItem[]>('/mail/send', input).then((r) => r.data),
+    api.post<SendResult>('/mail/send', input).then((r) => r.data),
   saveDraft: (input: { id?: string; to: string; subject: string; body: string; threadId?: string }) =>
     api.post<MailMessage>('/mail/draft', input).then((r) => r.data),
   discardDraft: (id: string) => api.delete<MailItem[]>(`/mail/draft/${id}`).then((r) => r.data),

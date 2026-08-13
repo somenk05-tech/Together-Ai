@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useScaleLock } from '@/hooks/useScaleLock';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui';
-import { useDirectory, useSendMail, useMailAccount, useSaveDraft, useMailMessage, useMailThread, useMailProjects, type DirectoryEntry } from '../api';
+import { useDirectory, useSendMail, useMailAccount, useSaveDraft, useDiscardDraft, useMailMessage, useMailThread, useMailProjects, type DirectoryEntry } from '../api';
 import { quoteBlock, withQuote } from '../replyQuote';
 import { payError } from '@/features/financial/api';
 import { DrivePicker } from '../DrivePicker';
@@ -21,6 +21,7 @@ export function Compose() {
   const acct = useMailAccount();
   const send = useSendMail();
   const saveDraft = useSaveDraft();
+  const discard = useDiscardDraft();
 
   /**
    * Resuming a draft. `?draft=<id>` loads what was left; the fields are seeded
@@ -52,6 +53,20 @@ export function Compose() {
   const [attachments, setAttachments] = useState<DriveFile[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
+  /**
+   * WHO DID NOT GET IT.
+   *
+   * `send()` throws only when EVERY recipient is refused; otherwise it returns
+   * 200 with a `failed` list. This composer never read that list, so a message
+   * to five people where two were rejected closed the page and navigated to
+   * Sent, and nobody was ever told. Half the recipients got nothing and the
+   * screen said the message had gone.
+   *
+   * It stays on the page when that happens. Navigating away and putting the
+   * news in a toast is the same silence with an animation on it — the failed
+   * addresses are here, next to the field they were typed into.
+   */
+  const [refused, setRefused] = useState<Array<{ to: string; reason: string }>>([]);
   /** The draft row these words live in. Set on resume, or on first autosave. */
   const draftId = useRef<string | undefined>(draftParam);
   const threadId = params.get('threadId') ?? (loaded.data?.threadId ?? undefined); // reply → append to trail
@@ -88,22 +103,61 @@ export function Compose() {
    *
    * Debounced 1.2s after the last keystroke, and skipped entirely while the
    * message is empty: a citizen who opens Compose, reads it and leaves should
-   * not find a blank draft waiting for them. It is also skipped while sending,
-   * because a draft saved during a send is a draft that outlives it.
+   * not find a blank draft waiting for them.
+   *
+   * "SKIPPED WHILE SENDING" ONLY EVER STOPPED THE TIMER BEING ARMED, and that
+   * is not the same as stopping a save. A request already in the air kept
+   * going, and its onSuccess set `draftId.current` — after the send had
+   * already read it:
+   *
+   *   t+1.2s  autosave fires with id: undefined  →  CREATE, in flight
+   *   t+1.3s  Send reads draftId.current (still undefined) and clears nothing
+   *   t+1.4s  autosave lands and creates the row
+   *
+   * A full copy of the message that just went out sits in Drafts & Failed for
+   * good, and resuming it sends the whole thing a second time — which is the
+   * exact outcome `draftId` exists to prevent.
+   *
+   * TWO REFS FIX IT, and neither is a timer.
+   *
+   * `sentRef` records that a send has been ACCEPTED. Any draft that lands
+   * after that is a ghost of a message already delivered, so it is discarded
+   * the moment it arrives rather than left for somebody to find.
+   *
+   * `savingRef` records that a CREATE is in flight. Without it, a second
+   * autosave firing before the first resolves also carries `id: undefined`
+   * and creates a second row — the "thirty near-identical drafts" this
+   * function's own docstring says it exists to prevent, reachable on any slow
+   * connection.
    */
   const sending = send.isPending;
+  const sentRef = useRef(false);
+  const savingRef = useRef(false);
   useEffect(() => {
-    if (!seeded || sending) return;
+    if (!seeded || sending || sentRef.current) return;
     const hasSomething = Boolean(to.trim() || subject.trim() || body.trim());
     if (!hasSomething) return;
     const t = setTimeout(() => {
+      // A create is already in the air; it will carry an id next time.
+      if (savingRef.current || sentRef.current) return;
+      if (!draftId.current) savingRef.current = true;
       saveDraft.mutate(
         { id: draftId.current, to, subject, body, threadId },
         {
-          onSuccess: (d) => { draftId.current = d.id; setSavedAt(new Date()); },
+          onSuccess: (d) => {
+            savingRef.current = false;
+            if (sentRef.current) {
+              // The message went out while this was in the air. Nobody wants a
+              // draft of a letter they have already posted.
+              discard.mutate(d.id);
+              return;
+            }
+            draftId.current = d.id;
+            setSavedAt(new Date());
+          },
           // A failed autosave is not worth a red box over somebody's writing —
           // the words are still in the box, and the next keystroke retries.
-          onError: () => undefined,
+          onError: () => { savingRef.current = false; },
         },
       );
     }, 1200);
@@ -252,6 +306,21 @@ export function Compose() {
         <div>
           <label style={{ fontSize: 12 }} className="muted">Message</label>
           <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={12} placeholder="Write your message…" style={{ ...inp, resize: 'vertical', lineHeight: 1.6 }} />
+          {refused.length > 0 && (
+            <div className="mrefused" role="alert">
+              <b>
+                {refused.length === 1 ? 'One address did not get it' : `${refused.length} addresses did not get it`}
+                {' — the rest did.'}
+              </b>
+              <ul>
+                {refused.map((f) => <li key={f.to}><span className="mrefused-to">{f.to}</span> {f.reason}</li>)}
+              </ul>
+              <span className="muted">
+                Your message is in Sent. Fix or remove those addresses and send again — the people who received it
+                will get a second copy.
+              </span>
+            </div>
+          )}
           {/* The trail, under the message, behind the control every mail
               client uses for it. Read-only: it is a record of what was
               actually sent, and the place to change your own words is the box
@@ -299,10 +368,19 @@ export function Compose() {
 
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <Button variant="accent" disabled={!canSend}
-            onClick={() => send.mutate(
+            onClick={() => { setRefused([]); send.mutate(
               { to, cc: addrs(cc), bcc: addrs(bcc), subject: subject || '(no subject)', body: withQuote(body, quote), threadId, attachmentFileIds: attachments.map((f) => f.id), draftId: draftId.current, projectKey },
-              { onSuccess: () => { if (threadId) nav(-1); else nav(projectKey ? `/mail/p/${projectKey}/sent` : '/mail/sent'); } },
-            )}>
+              {
+                onSuccess: (res) => {
+                  // Nothing may write a draft of this message from here on.
+                  sentRef.current = true;
+                  // Some refused, some accepted: stay, and say which.
+                  if (res.failed.length > 0) { setRefused(res.failed); return; }
+                  if (threadId) nav(-1);
+                  else nav(projectKey ? `/mail/p/${projectKey}/sent` : '/mail/sent');
+                },
+              },
+            ); }}>
             {send.isPending ? 'Sending…' : trailPending ? 'Loading the thread…' : threadId ? 'Send reply' : 'Send'}
           </Button>
           <Button variant="line" onClick={() => nav(-1)}>Cancel</Button>

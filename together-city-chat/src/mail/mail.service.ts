@@ -301,7 +301,7 @@ export class MailService {
     id: string; fromAddr: string; fromName: string; toAddr: string; toName: string; subject: string;
     snippet: string; sizeBytes: number; read: boolean; starred: boolean; system: boolean; folder: string;
     threadId: string | null; createdAt: Date; failureReason?: string | null;
-    projectId?: string | null;
+    projectId?: string | null; ccAddrs?: string | null; bccAddrs?: string | null;
   }) {
     return {
       id: m.id, fromAddr: m.fromAddr, fromName: m.fromName, toAddr: m.toAddr, toName: m.toName,
@@ -310,6 +310,22 @@ export class MailService {
       // Which room this conversation is filed in, so All Email can put the
       // chip on the row without asking a second time.
       projectId: m.projectId ?? null,
+      /**
+       * THE COPY LISTS WERE WRITTEN AND NEVER RETURNED.
+       *
+       * Both columns have been filled on every send since Cc and Bcc shipped,
+       * no endpoint has ever emitted them, and the client declares both on
+       * MailItem while MessageView renders both behind a truthiness check — so
+       * the rows were there, the UI was there, and the field in between was
+       * missing. A citizen Cc'd two colleagues, opened their own Sent copy,
+       * and there was no cc line anywhere.
+       *
+       * Safe to emit: `bccAddrs` is only ever written to the sender's own Sent
+       * row (mail-cc-bcc.spec.ts holds that), and every read here is already
+       * scoped to `ownerId`, so a recipient's copy has nothing to leak.
+       */
+      ccAddrs: m.ccAddrs ?? null,
+      bccAddrs: m.bccAddrs ?? null,
       // Carried on every message so a list can show it without a second fetch.
       // Null on everything in Sent, by construction.
       failureReason: m.failureReason ?? null,
@@ -339,8 +355,17 @@ export class MailService {
     })();
 
     const before = await this.prisma.mailMessage.count({ where: { ownerId: userId, folder: 'sent' } });
+    // THE COPY LISTS COME WITH IT. Retry rebuilt the message from the
+    // recipient, subject, body, thread and files — and dropped Cc and Bcc, so
+    // a message that succeeded on the second attempt reached fewer people than
+    // the one that failed on the first, silently.
+    const split = (v?: string | null) => (v ?? '').split(',').map((x) => x.trim()).filter(Boolean);
+    const cc = split(m.ccAddrs);
+    const bcc = split(m.bccAddrs);
     await this.send(userId, {
       to: m.toAddr, subject: m.subject, body: m.body,
+      ...(cc.length ? { cc } : {}),
+      ...(bcc.length ? { bcc } : {}),
       ...(m.threadId ? { threadId: m.threadId } : {}),
       ...(attachmentFileIds.length ? { attachmentFileIds } : {}),
     });
@@ -576,9 +601,41 @@ export class MailService {
       seen.add(norm(a));
       queue.push({ addr: a, blind });
     };
+    // THE SENDER'S OWN ADDRESS IS ALREADY SERVED BY THE SENT COPY. Cc'ing
+    // yourself alongside somebody else used to enqueue a second pass that
+    // wrote NOTHING — no Sent row (that was the first pass's job) and no inbox
+    // row (the internal path skips it when the recipient is the sender) — and
+    // still reported the address as delivered. Writing to yourself alone still
+    // works: it is then the first recipient, and the Sent copy is the message.
+    const meAddr = (await this.ensureAccount(userId)).address.toLowerCase();
+    const pushUnlessSelfCopy = (addr: string, blind: boolean) => {
+      if (queue.length > 0 && norm(addr) === meAddr) return;
+      push(addr, blind);
+    };
     push(dto.to, false);
-    for (const a of dto.cc ?? []) push(a, false);
-    for (const a of dto.bcc ?? []) push(a, true);
+    for (const a of dto.cc ?? []) pushUnlessSelfCopy(a, false);
+    for (const a of dto.bcc ?? []) pushUnlessSelfCopy(a, true);
+
+    /**
+     * ONE THREAD FOR THE WHOLE MESSAGE, RESOLVED ONCE, HERE.
+     *
+     * `sendOne` used to call resolveThreadId itself, once per recipient — and
+     * for a NEW message `dto.threadId` is undefined, so every recipient got a
+     * fresh uuid. One message to three people was three unrelated
+     * conversations, and the damage was not cosmetic:
+     *
+     *  · attachments are linked to a THREAD, and `attachedId` is one column,
+     *    so the last recipient's trail won and the sender's own Sent copy
+     *    showed a message whose files 404;
+     *  · a reply came back into a trail the sender's copy was not in, so it
+     *    arrived with no original beside it.
+     *
+     * The room is resolved once for the same reason: one conversation, one
+     * filing. Resolving it per recipient also read `threadProject` before the
+     * first row existed, which made the answer depend on write order.
+     */
+    const threadId = await this.resolveThreadId(userId, dto.threadId);
+    const project = await this.resolveSendProject(userId, threadId, dto.projectKey);
 
     const cc = (dto.cc ?? []).map((a) => a.trim()).filter(Boolean);
     const bcc = (dto.bcc ?? []).map((a) => a.trim()).filter(Boolean);
@@ -588,7 +645,7 @@ export class MailService {
     for (const [i, r] of queue.entries()) {
       try {
         await this.sendOne(userId, {
-          ...dto, to: r.addr,
+          ...dto, to: r.addr, resolvedThreadId: threadId, projectId: project?.id ?? null,
           // The sender keeps ONE Sent copy, written with the first recipient,
           // and it is the only row that ever carries the blind list. Later
           // recipients write an inbox row and nothing else.
@@ -620,11 +677,22 @@ export class MailService {
       );
     }
     await this.clearDraft(userId, dto.draftId);
-    return { ...(await this.list(userId, { folder: 'sent' })), delivered: sent, failed };
+    /**
+     * AN OBJECT, NOT AN ARRAY WITH TWO PROPERTIES BOLTED ON.
+     *
+     * This used to spread `list()` — an ARRAY — into an object literal, so the
+     * response was `{0: {...}, 1: {...}, delivered, failed}`, and the client
+     * typed it as `MailItem[]`. Nothing read it, which is the only reason
+     * nobody noticed. `failed` is the point: a send to five people where two
+     * were refused returned 200 and the composer closed on it.
+     */
+    return { sent: await this.list(userId, { folder: 'sent' }), delivered: sent, failed };
   }
 
   private async sendOne(userId: string, dto: SendMailDto & {
     keepSentCopy: boolean; ccAddrs: string | null; bccAddrs: string | null;
+    /** Resolved once per MESSAGE in fanOut, not once per recipient. */
+    resolvedThreadId: string; projectId: string | null;
   }) {
     const sender = await this.ensureAccount(userId);
     const me = await this.prisma.user.findUnique({ where: { id: userId }, select: { handle: true, name: true } });
@@ -656,14 +724,12 @@ export class MailService {
     const used = await this.usedBytes(userId);
     if (used + size > QUOTA_BYTES) throw new BadRequestException('Your 10 GB mailbox is full. Delete some mail and try again.');
 
-    // Reply → reuse the parent thread (only if the sender actually owns a message
-    // in it, so threads can't be spoofed); otherwise start a new trail.
-    const threadId = await this.resolveThreadId(userId, dto.threadId);
+    // One trail and one room for the whole message — see fanOut.
+    const threadId = dto.resolvedThreadId;
     // THE FILING IS THE SENDER'S, NOT THE MESSAGE'S. It goes on their Sent row
     // below and never into `base` — a recipient's copy stamped with the
     // sender's project would put a stranger's mail in a room they never made.
-    const project = await this.resolveSendProject(userId, threadId, dto.projectKey);
-    const projectId = project?.id ?? null;
+    const projectId = dto.projectId;
     const toAddr = addressFor(recipient.handle);
     const base = {
       fromAddr: sender.address, fromName: me.name, toAddr, toName: recipient.name,
@@ -713,21 +779,22 @@ export class MailService {
   /** Send to a GLOBAL (external) email address via the email provider (Resend).
    *  Keeps a Sent copy in the city; logs the dispatch to the outbox. */
   private async sendExternal(userId: string, fromAddr: string, fromName: string, toEmail: string,
-    dto: SendMailDto & { keepSentCopy?: boolean; ccAddrs?: string | null; bccAddrs?: string | null }) {
+    dto: SendMailDto & {
+      keepSentCopy?: boolean; ccAddrs?: string | null; bccAddrs?: string | null;
+      resolvedThreadId: string; projectId: string | null;
+    }) {
     const subject = dto.subject?.trim() || '(no subject)';
     const size = sizeOf(subject, dto.body);
     const used = await this.usedBytes(userId);
     if (used + size > QUOTA_BYTES) throw new BadRequestException('Your 10 GB mailbox is full. Delete some mail and try again.');
 
-    // Same anti-spoof rule as the internal path. This used to be a bare
-    // `dto.threadId ?? randomUUID()`, which let one external mail carrying a
-    // stranger's threadId mint an owned row in their thread — enough to pass the
-    // participant check on the attachment routes and presign their Drive files.
-    const threadId = await this.resolveThreadId(userId, dto.threadId);
-    // Which room this correspondence lives in — the thread's if it has one,
-    // otherwise the project Compose was opened from. See resolveSendProject.
-    const project = await this.resolveSendProject(userId, threadId, dto.projectKey);
-    const projectId = project?.id ?? null;
+    // One trail and one room for the whole message, resolved in fanOut through
+    // the same anti-spoof gate this path has always used.
+    const threadId = dto.resolvedThreadId;
+    const projectId = dto.projectId;
+    const project = projectId
+      ? await this.prisma.mailProject.findFirst({ where: { id: projectId, ownerId: userId }, select: { key: true, subAddress: true } })
+      : null;
     /**
      * A REPLY TO A PROJECT'S MAIL COMES BACK TO THE PROJECT, and this is what
      * makes that true rather than likely.
@@ -781,6 +848,37 @@ export class MailService {
     const reason = failed
       ? ((res as { error?: string }).error ?? 'The mail provider would not accept this message.')
       : null;
+
+    /**
+     * ONE SENT ROW FOR THE MESSAGE, NOT ONE PER RECIPIENT.
+     *
+     * `keepSentCopy` has been in this method's parameter type since fanOut was
+     * written and was never read, so the internal path kept one copy and this
+     * one kept N. A single external message with two people Cc'd wrote THREE
+     * rows to Sent and charged the 10 GB quota three times — and if the third
+     * was refused, the citizen was looking at two Sent rows and one Failed row
+     * for one message they wrote once.
+     *
+     * The first recipient carries the row; the rest dispatch and write
+     * nothing. A refusal on a later recipient is not lost — fanOut collects it
+     * and `send()` returns it, which is what the composer now reads.
+     *
+     * KNOWN RESIDUE, stated rather than discovered: if the FIRST recipient is
+     * refused and a later one is accepted, the row is filed under Failed even
+     * though the message did reach somebody. Retrying it re-sends to the
+     * refused address only, which is the right repair — but the row's folder
+     * is telling half the story until then. Fixing that properly means one
+     * provider call carrying to/cc/bcc rather than a fan-out, which is a
+     * change to the delivery topology and belongs in its own commit.
+     */
+    if (dto.keepSentCopy === false) {
+      if (failed) {
+        throw new BadRequestException(
+          `Couldn't deliver to ${toEmail}. ${reason ?? ''}`.trim(),
+        );
+      }
+      return this.list(userId, { folder: 'sent' });
+    }
 
     await this.prisma.mailMessage.create({
       data: {

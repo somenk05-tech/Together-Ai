@@ -1510,3 +1510,17 @@ html.tc-immersive .cscomposer { margin-bottom: calc(var(--safe-bottom) + 14px); 
   color: var(--muted); line-height: 1.55; white-space: pre-wrap; word-break: break-word;
   max-height: 320px; overflow: auto;
 }
+
+/* ── ADDRESSES THAT DID NOT GET IT ────────────────────────────────────────
+   A send where some recipients were refused used to return 200 and close the
+   page. This is what says otherwise, and it sits next to the field the
+   addresses were typed into rather than in a toast on the next screen. */
+.mrefused {
+  margin-top: 12px; padding: 12px 14px; border-radius: 12px;
+  border: 1px solid var(--danger-line); background: var(--danger-soft);
+  font-size: 12.5px; line-height: 1.55;
+}
+.mrefused b { display: block; color: var(--danger-ink); font-size: 13px; }
+.mrefused ul { margin: 8px 0; padding-left: 18px; }
+.mrefused li { margin: 2px 0; color: var(--ink-soft); }
+.mrefused-to { font-weight: 700; }
