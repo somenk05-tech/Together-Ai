@@ -28,9 +28,17 @@ import {
  * grid needs, and they carry no colour of their own.
  */
 
-/** A key is a URL segment and half an email address. Suggested from the name,
- *  never silently corrected under somebody's hands — the field stays theirs
- *  the moment they touch it. */
+/**
+ * A key is a URL segment and half an email address, so it is bounded to what
+ * both can carry: lowercase, digits, hyphens.
+ *
+ * THE FIELD STARTS EMPTY AND STAYS EMPTY UNTIL SOMEBODY TYPES IN IT. It used
+ * to mirror the name as you typed, which put words in a box nobody had filled
+ * in and made a second field look like a decision that had already been taken
+ * for you. Left empty it is DERIVED at create — the line above the button
+ * shows what from, so the address is never a surprise — and typed in, it is
+ * simply what you typed.
+ */
 const keyFrom = (name: string): string =>
   name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24);
 
@@ -62,14 +70,15 @@ function NewProject({ used, onDone }: { used: number; onDone: () => void }) {
   const acct = useMailAccount();
   const [name, setName] = useState('');
   const [key, setKey] = useState('');
-  const [touchedKey, setTouchedKey] = useState(false);
   const [subAddress, setSubAddress] = useState(false);
-  const shownKey = touchedKey ? key : keyFrom(name);
+  // What will actually be created: what they typed, or the name turned into a
+  // key if they left it alone. The box shows the first; this is the second.
+  const finalKey = keyFrom(key) || keyFrom(name);
   const full = used >= PROJECT_CAP;
   const inp = { padding: '9px 11px', border: '1.5px solid var(--line-2)', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', width: '100%' } as const;
   const sub = acct.data?.address
-    ? acct.data.address.replace('@', `+${shownKey || 'key'}@`)
-    : `you+${shownKey || 'key'}@togethercity.app`;
+    ? acct.data.address.replace('@', `+${finalKey || 'key'}@`)
+    : `you+${finalKey || 'key'}@togethercity.app`;
 
   return (
     <div className="card mproj-sheet">
@@ -84,7 +93,7 @@ function NewProject({ used, onDone }: { used: number; onDone: () => void }) {
         </label>
         <label style={{ display: 'block' }}>
           <span className="eyebrow">Short key</span>
-          <input value={shownKey} onChange={(e) => { setTouchedKey(true); setKey(e.target.value); }} placeholder="abg" style={inp} />
+          <input value={key} onChange={(e) => setKey(e.target.value)} placeholder={keyFrom(name) || 'abg'} style={inp} />
         </label>
       </div>
       {/* The sub-address is the ONE inbound path that does not begin with the
@@ -108,9 +117,9 @@ function NewProject({ used, onDone }: { used: number; onDone: () => void }) {
       )}
       <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
         <Button variant="accent" size="sm"
-          disabled={create.isPending || full || !name.trim() || !shownKey.trim()}
+          disabled={create.isPending || full || !name.trim() || !finalKey}
           onClick={() => create.mutate(
-            { name: name.trim(), key: shownKey.trim(), subAddress },
+            { name: name.trim(), key: finalKey, subAddress },
             { onSuccess: onDone },
           )}>
           {create.isPending ? 'Creating…' : 'Create project'}
