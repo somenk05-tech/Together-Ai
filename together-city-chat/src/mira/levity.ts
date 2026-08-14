@@ -97,6 +97,22 @@ const SILENT_DOMAINS = new Set(['medical', 'medicines', 'health', 'legal', 'priv
  *
  * "Always playful" is a statement about the first kind. The second kind is not
  * a tone setting, and no dial reaches it.
+ *
+ * ── AND THE RATIO IT SITS UNDER — owner decision, 15 Aug ─────────────────────
+ *
+ * Two documents disagreed about who Mira is, and the table below is the one
+ * place the answer is executable, so it is recorded here.
+ *
+ *   Framework v1.0 §3   70% best friend · 15% assistant · 10% strategist · 5% menace
+ *   Mira.md §3          40% assistant — "the floor nothing else may eat into"
+ *
+ * THE FRAMEWORK WINS. Friendship is primary; competence is what a friend has.
+ *
+ * The numbers in BASE already say so — playful-by-default moved them on 14 Aug —
+ * so nothing below changes. What the decision changes is what counts as a BUG:
+ * an answer so long that `say()` drops her aside is no longer merely verbose,
+ * it is the ratio being lost to arithmetic on the turn that mattered. That is
+ * asserted in `mira.service.spec.ts`, not left to judgement.
  */
 const BASE: Record<Lane, LevityLevel> = {
   LISTEN: 0,

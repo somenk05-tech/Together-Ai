@@ -56,6 +56,80 @@ function asList(v: unknown, ...keys: string[]): unknown[] {
 const rupees = (n: number): string => `₹${Math.round(n).toLocaleString('en-IN')}`;
 
 /** "a, b and c" — an assistant that says "a, b, c" is reading out a database. */
+/**
+ * "When will I find love?"
+ *
+ * Asked in production the night she went live, and it reached NOTHING. ADVISE
+ * wants `my chart` or `horoscope`; LISTEN wants `i feel`; `readSituation` wants
+ * one of nine relationship words and "love" is not one; and `city.ts` gives
+ * Dating the words matches/dates/profile. So it fell all the way through to the
+ * gap, and the gap said: "What are you actually trying to get done?"
+ *
+ * That is Mode 3 answering a Mode 1 question — an operational clause asked of
+ * somebody wondering about their life — and under a spectrum that is 70% friend
+ * it is exactly inverted. §24 bans the register; §7 names the mode.
+ *
+ * She also may not answer it. §11: no guaranteed marriage, no guaranteed
+ * anything. So this returns the honest shape — she declines the prediction, says
+ * what she actually has, and opens it. §25: honesty with direction is guidance;
+ * honesty without direction is criticism.
+ */
+const FORETOLD =
+  /\b(?:when will i|when am i (?:going to|gonna)|will i ever|am i (?:ever )?going to (?:find|meet|get|be)|is it (?:a )?good time to)\b/i;
+
+function foretold(text: string): Attempt | undefined {
+  if (!FORETOLD.test(text)) return undefined;
+  return {
+    outcome: 'advise',
+    text: "I'm not going to put a date on that — nobody honestly can. Your reading is the closest thing I have to an answer, and it's written fresh each day.",
+    goto: { label: 'Astrology', path: '/astrology' },
+  };
+}
+
+/**
+ * An instant, in the citizen's own clock.
+ *
+ * Framework §10: she must understand the user's timezone, and must never be
+ * vague when precise information is available. The first cut of `dayBrief`
+ * interpolated the hub's raw field and said "wants starting by
+ * 2026-08-15T05:15:00.000Z" — a machine string in a sentence, and UTC, so even
+ * read correctly it named an hour five and a half hours from the one on the
+ * citizen's wall.
+ *
+ * Falls back to nothing rather than to a wrong time: an omitted clause reads as
+ * her not mentioning it, and a wrong one reads as her being wrong.
+ */
+function clockTime(iso: string | undefined, tz: string | undefined): string | undefined {
+  if (!iso) return undefined;
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return undefined;
+  try {
+    return new Intl.DateTimeFormat('en-GB', {
+      hour: 'numeric', minute: '2-digit', hour12: true, timeZone: tz || 'UTC',
+    }).format(at).replace(/\s?(am|pm)/i, (m) => m.trim().toLowerCase());
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * A field that came out of a hub is quoted, never conjugated.
+ *
+ * "Coconut-curry Lentil Stew Served Over Quinoa Thali wants starting by ..." is
+ * a database row made to act as the subject of a verb. Every other line she
+ * says was written by a person; that one was a join result wearing a sentence.
+ */
+function asNamed(title: string): string {
+  const t = title.trim().replace(/\s+/g, ' ').toLowerCase();
+  const words = t.split(' ');
+  const kept: string[] = [];
+  for (const w of words) {
+    if ([...kept, w].join(' ').length > 26) break;
+    kept.push(w);
+  }
+  return (kept.length ? kept : words.slice(0, 3)).join(' ');
+}
+
 function list(items: string[]): string {
   const clean = items.filter(Boolean);
   if (clean.length <= 1) return clean[0] ?? '';
@@ -100,6 +174,13 @@ export interface AskContext {
   weeksKnown: number;
   /** Local hour in THEIR timezone. Never the server's. */
   hour: number;
+  /**
+   * Their IANA timezone, e.g. 'Asia/Kolkata'. Sent by the client for the same
+   * reason `hour` is, and it cannot be derived from `hour`: an offset guessed
+   * from the hour rounds to the nearest hour, which is wrong by thirty minutes
+   * for every citizen in India. Optional, so an older client still gets answers.
+   */
+  tz?: string;
   dial?: 0 | 1 | 2;
   distressLocked?: boolean;
   recent?: string[];
@@ -224,13 +305,15 @@ export class MiraService {
         };
       }
       if (routed.lane === 'ADVISE') {
+        const told = foretold(text);
+        if (told) return told;
         const situation = readSituation(text);
         if (situation) return relate(situation);
         // The interpretation lane belongs to the astrology engine, which already
         // computes deterministically and already has its own enforced voice.
         // Rather than improvise here, she offers the reading that actually
         // exists — which is now something she can fetch.
-        return this.dayBrief(ctx.userId);
+        return this.dayBrief(ctx.userId, ctx.tz);
       }
       // Before giving up: is this a place rather than a task? "Where do I set my
       // allergies", "take me to my budgets" — the question the hub wall cannot
@@ -254,6 +337,8 @@ export class MiraService {
         // become "Dad. Want me to take you?" — so this is asked before the
         // place-finder, and it returns nothing at all unless there is genuinely
         // a situation to read.
+        const told = foretold(text);
+        if (told) return told;
         const situation = readSituation(text);
         if (situation) return relate(situation);
 
@@ -277,7 +362,7 @@ export class MiraService {
         }
         return { outcome: 'clarify', text: this.clarify(routed), choices: [] };
       }
-      return { outcome: 'capability', ...(await this.read(cap.id, ctx.userId, colour)) };
+      return { outcome: 'capability', ...(await this.read(cap.id, ctx.userId, colour, ctx.tz)) };
     };
 
     const attempt = await turn();
@@ -355,7 +440,7 @@ export class MiraService {
    * On a cache miss it returns `pending`, and `pending` is reported, never
    * retried in a loop: it costs a model call and it is not hers to spend.
    */
-  private async dayBrief(userId: string): Promise<Attempt> {
+  private async dayBrief(userId: string, tz?: string): Promise<Attempt> {
     const [reading, doses, prep, post, alerts] = await Promise.allSettled([
       this.astrology.daily(userId),
       this.prescriptions.today(userId),
@@ -379,7 +464,7 @@ export class MiraService {
     } else {
       const body = str(pick(r, 'body'));
       const title = str(pick(r, 'title'));
-      if (body) parts.push(firstSentences(body, 2));
+      if (body) parts.push(firstSentences(body, 1));
       else if (title) parts.push(title);
     }
 
@@ -389,23 +474,27 @@ export class MiraService {
     });
     if (due.length) {
       const names = due.slice(0, 3).map((d) => str(pick(d, 'medicine')) ?? 'something').filter(Boolean);
-      parts.push(`${due.length === 1 ? 'One dose' : `${due.length} doses`} still to take — ${list(names)}.`);
+      parts.push(`${due.length === 1 ? 'One dose' : `${due.length} doses`} left — ${list(names)}.`);
     }
 
     const cook = asList(ok(prep), 'alerts');
     if (cook.length) {
       const next = cook[0];
       const what = str(pick(next, 'title')) ?? str(pick(next, 'what'));
-      const when = str(pick(next, 'startBy'));
-      if (what) parts.push(when ? `${what} wants starting by ${when}.` : `${what} is next in the kitchen.`);
+      const when = clockTime(str(pick(next, 'startBy')), tz);
+      if (what) {
+        parts.push(when
+          ? `Start ${asNamed(what)} by ${when}.`
+          : `Next in the kitchen: ${asNamed(what)}.`);
+      }
     }
 
     const unreadMail = num(pick(pick(ok(post), 'counts'), 'inboxUnread')) ?? 0;
     const unseen = num(ok(alerts)) ?? 0;
     const waiting: string[] = [];
     if (unreadMail) waiting.push(`${unreadMail} unread`);
-    if (unseen) waiting.push(`${unseen} notification${unseen === 1 ? '' : 's'}`);
-    if (waiting.length) parts.push(`${list(waiting)} waiting.`);
+    if (unseen) waiting.push(`${unseen} alert${unseen === 1 ? '' : 's'}`);
+    if (waiting.length) parts.push(`${waiting.join(', ')}.`);
 
     if (!parts.length) {
       return {
@@ -415,9 +504,15 @@ export class MiraService {
       };
     }
 
+    // §23, and it is load-bearing rather than stylistic. `say()` drops her aside
+    // once the finished line exceeds the mood's word budget, so an unbounded
+    // join does not merely make her verbose — it makes her voiceless, and it
+    // does it silently, on the turn most likely to be somebody's first. The
+    // reading is always kept; the rest is reachable by asking, which is the
+    // whole premise of her existing.
     return {
       outcome: 'capability',
-      text: parts.join(' '),
+      text: parts.slice(0, 4).join(' '),
       asides: due.length
         ? ['The pills are not going to take themselves.']
         : ['That is the whole of it. Ask me for any of it properly and I will open it.'],
@@ -443,7 +538,7 @@ export class MiraService {
    * governor. A branch cannot make itself funny, which is the whole safety
    * argument for having jokes at all.
    */
-  private async read(id: string, userId: string, c: Colour): Promise<Attempt> {
+  private async read(id: string, userId: string, c: Colour, tz?: string): Promise<Attempt> {
     switch (id) {
       // ── MONEY ──────────────────────────────────────────────────────────
       case 'financial GET wallet': {
@@ -478,7 +573,7 @@ export class MiraService {
 
       // ── THE DAY ────────────────────────────────────────────────────────
       case 'astrology GET daily':
-        return this.dayBrief(userId);
+        return this.dayBrief(userId, tz);
       case 'astrology GET gems': {
         const g = await this.astrology.gems(userId);
         if (pick(g, 'needsProfile') === true) return this.needBirth();
@@ -554,10 +649,14 @@ export class MiraService {
         const a = asList(await this.nutrition.prepAlerts(userId), 'alerts');
         if (!a.length) return { text: 'Nothing needs starting yet.', asides: ['Kitchen is quiet.'] };
         const next = a[0];
-        const what = str(pick(next, 'title')) ?? str(pick(next, 'what')) ?? 'the next meal';
-        const when = str(pick(next, 'startBy'));
+        // Same two faults as the day brief had, in a second branch: a raw ISO
+        // instant and a Title Case row used as a noun. Found by the land script's
+        // grep, not by anybody reading — which is the argument for the grep.
+        const raw = str(pick(next, 'title')) ?? str(pick(next, 'what'));
+        const what = raw ? asNamed(raw) : 'the next meal';
+        const when = clockTime(str(pick(next, 'startBy')), tz);
         return {
-          text: when ? `${what}, start by ${when}.` : `${what} is next.`,
+          text: when ? `Start ${what} by ${when}.` : `Next: ${what}.`,
           asides: ['Do not let it become an order.'],
           payload: a.slice(0, 4),
           goto: { label: 'Nutrition', path: '/nutrition' },

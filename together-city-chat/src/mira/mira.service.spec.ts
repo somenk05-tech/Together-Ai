@@ -1,6 +1,7 @@
 import { MiraService } from './mira.service';
 import type { Capability } from './mira.registry';
 import { manifest } from './manifest';
+import { profileFor, ALL_MOODS } from './mood';
 
 /**
  * THE REAL INVENTORY, NOT A HAND-PICKED FOUR.
@@ -336,5 +337,137 @@ describe('the trace explains the turn', () => {
     expect(trace).toMatch(/matched financial/);
     expect(trace).toMatch(/mood: /);
     expect(trace).toMatch(/result L/);
+  });
+});
+
+
+/**
+ * THE RATIO HAS TO SURVIVE A REAL ANSWER — Framework §3, settled 15 Aug.
+ *
+ * 70% trusted best friend, 15% assistant. That is a sentence in a document, and
+ * a sentence in a document is a suggestion — the argument
+ * `Astrology-Voice-Principles.md` already won about language rules in system
+ * prompts, pointed at personality instead.
+ *
+ * Here is how it was being lost in production, silently. `say()` refuses to
+ * append an aside when the finished line would exceed the mood's word budget:
+ *
+ *     if (words(text) + words(pick) > p.words * 2) return text;
+ *
+ * The day brief was fifty-five words of `parts.join(' ')`. So on the single turn
+ * most likely to be somebody's FIRST — "how is my day going to be" — she came
+ * back 100% assistant and 0% friend. Not by anyone's decision. By arithmetic.
+ *
+ * Nothing was red. The governor worked exactly as designed. The answer was
+ * simply too long to carry a voice. §23 (length follows the need) and §18 (her
+ * speech is shorter than her writing) become enforceable here instead of
+ * aspirational.
+ */
+const LOADED = {
+  daily: () => Promise.resolve({
+    needsProfile: false, pending: false, title: 'A steady one',
+    body: 'A steady day, mostly. Keep the afternoon light. There is something you have been meaning to say that would land cleanly if you spoke it plainly, without heat or qualification.',
+  }),
+  today: () => Promise.resolve({ doses: [{ medicine: 'Metformin', status: 'due' }] }),
+  prepAlerts: () => Promise.resolve({
+    alerts: [{ title: 'Coconut-curry Lentil Stew Served Over Quinoa Thali', startBy: '2026-08-15T05:15:00.000Z' }],
+  }),
+  account: () => Promise.resolve({ counts: { inboxUnread: 3 } }),
+  unreadCount: () => Promise.resolve(2),
+};
+
+const countWords = (t: string) => t.split(/\s+/).filter(Boolean).length;
+const loaded = (o: Record<string, unknown> = {}) =>
+  svc(LOADED).ask('how is my day going to be', ctx(o));
+
+describe('the day brief is short enough to still sound like her', () => {
+  /** The two asides `dayBrief` can reach for. If neither is there, she is mute. */
+  const HER_VOICE = /pills are not going to take themselves|whole of it/i;
+
+  /**
+   * MEASURE THE THING, NOT A PROXY FOR IT.
+   *
+   * The first cut of this test counted words and compared them against the mood
+   * budget by hand — and got it wrong, because `t.text` is what `say()` already
+   * returned, aside included. It was adding the aside twice and failing a brief
+   * that was fine.
+   *
+   * So ask the real question instead: did her voice survive? That is one
+   * `toMatch`, it cannot be arithmetic-ed wrong, and it fails hard on the
+   * fifty-five-word join it was written for — that version fitted no mood at
+   * all, so the aside was dropped on every seed, for everyone, permanently.
+   *
+   * Swept across seeds because the mood is the day's, not the turn's: passing on
+   * whichever mood seed 0 happens to pick would be a test that holds for one
+   * day in six.
+   */
+  it('survives a fully loaded day, on most of her moods', async () => {
+    const heard: number[] = [];
+    for (let seed = 0; seed < 12; seed++) {
+      const t = await svc(LOADED).ask('how is my day going to be', ctx({ seed }));
+      if (HER_VOICE.test(t.text)) heard.push(seed);
+    }
+    expect(heard.length).toBeGreaterThanOrEqual(6);
+  });
+
+  /**
+   * And the brief underneath stays short, so the line above cannot be rescued
+   * later by quietly raising a word budget instead of shortening an answer.
+   * `quiet` is eight words ON PURPOSE; the bar is the widest mood, not every one.
+   */
+  it('stays inside the widest mood budget before anything is appended', async () => {
+    const t = await svc(LOADED).ask('how is my day going to be', ctx({ dial: 0 }));
+    const widest = Math.max(...ALL_MOODS.map((m) => profileFor(m, 2).words));
+    expect(countWords(t.text)).toBeLessThanOrEqual(widest * 2);
+  });
+
+  it('reads like a person wrote it', async () => {
+    const t = await loaded({ tz: 'Asia/Kolkata' });
+    // eslint-disable-next-line no-console
+    console.log(`  day brief: ${t.text}`);
+    expect(t.text).not.toMatch(/undefined|NaN|\[object/);
+  });
+});
+
+describe('nothing she says is a machine string', () => {
+  it('never reads an ISO timestamp aloud', async () => {
+    const t = await loaded();
+    expect(t.text).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
+  });
+
+  /** §10: her clock is the citizen's clock. 05:15Z is 10:45 in Kolkata. */
+  it('says the time on the citizen own wall', async () => {
+    const t = await loaded({ tz: 'Asia/Kolkata' });
+    expect(t.text).toMatch(/10:45\s?am/i);
+  });
+
+  it('falls silent about the time rather than naming a wrong one', async () => {
+    const t = await loaded({ tz: 'Not/AZone' });
+    expect(t.text).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
+  });
+
+  /** A hub field is quoted, never made the subject of a verb. */
+  it('does not conjugate a database row', async () => {
+    const t = await loaded();
+    expect(t.text).not.toMatch(/Thali wants/i);
+  });
+});
+
+describe('a question about a life is not a question about a task', () => {
+  it('does not ask what they are trying to get done', async () => {
+    const t = await svc().ask('when will i find love', ctx());
+    expect(t.text).not.toMatch(/trying to get done/i);
+  });
+
+  /** §11: no guaranteed marriage, no guaranteed anything. */
+  it('refuses to put a date on it, and says where the real answer lives', async () => {
+    const t = await svc().ask('when will i find love', ctx());
+    expect(t.text).toMatch(/not going to put a date/i);
+    expect(t.goto?.path).toBe('/astrology');
+  });
+
+  it('leaves an ordinary request alone', async () => {
+    const t = await svc().ask('take me to astrology', ctx());
+    expect(t.text).not.toMatch(/not going to put a date/i);
   });
 });

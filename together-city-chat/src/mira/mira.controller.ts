@@ -32,6 +32,20 @@ export const AskSchema = z.object({
   dial: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
   distressLocked: z.boolean().optional(),
   recent: z.array(z.string().max(2000)).max(3).optional(),
+  /**
+   * Their IANA timezone, e.g. 'Asia/Kolkata'.
+   *
+   * Sent by the client for the same reason `hour` is — the server's clock is the
+   * wrong one — and it cannot be derived from `hour`, because an offset guessed
+   * from an hour rounds to the hour and is wrong by thirty minutes for every
+   * citizen in India. Bounded and shape-checked like anything from a client;
+   * it only ever reaches `Intl.DateTimeFormat`, which throws on nonsense, and
+   * `clockTime` catches that and omits the clause rather than naming a wrong time.
+   *
+   * OPTIONAL, and that is the rule rather than a detail: a new field in a
+   * request must not 400 a client that has not shipped yet.
+   */
+  tz: z.string().min(1).max(64).regex(/^[A-Za-z][\w+\-]*(?:\/[\w+\-]+)*$/, 'an IANA timezone').optional(),
   /** Session counter — picks the mood and which aside she reaches for. Sent by
    *  the client because the mood must hold across a conversation and the server
    *  keeps no session. Not security-relevant: it chooses a tone. */
@@ -131,6 +145,7 @@ export class MiraController {
       dial: dto.dial,
       distressLocked: dto.distressLocked,
       recent: dto.recent,
+      tz: dto.tz,
       seed: dto.seed,
       answering: dto.answering,
     });

@@ -77,6 +77,11 @@ export function useMiraAsk(opts: {
         text: input.text,
         recent: input.recent?.slice(0, 3),
         hour: new Date().getHours(),
+        // Her clock has to be the citizen's clock. `hour` alone cannot convert a
+        // date — an offset inferred from it rounds to the hour and is half an
+        // hour wrong across all of India — so the zone itself is sent. Optional
+        // on the server, so this reaching an older API costs nothing.
+        tz: Intl.DateTimeFormat().resolvedOptions().timeZone || undefined,
         weeksKnown: opts.weeksKnown,
         dial: opts.dial,
         distressLocked: opts.distressLocked,
