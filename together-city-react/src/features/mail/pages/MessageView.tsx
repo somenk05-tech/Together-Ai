@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useScaleLock } from '@/hooks/useScaleLock';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useRecentStore } from '@/store/recent.store';
@@ -10,10 +10,11 @@ import { useMailProjects } from '../api';
 import { fmtBytes, fileIcon } from '@/features/drive/api';
 import { splitQuoted, stripCityFooter } from '../quoted';
 import { expandedByDefault, previewOf } from '../collapse';
+import { quoteBlock, withQuote } from '../replyQuote';
 import { MoveToProject } from '../MoveToProject';
 import {
-  useMailMessage, useMailThread, useMailAccount, useFlagMail, useRemoveMail,
-  humanBytes, initials, avatarHue, type MailMessage,
+  useMailMessage, useMailThread, useMailAccount, useFlagMail, useRemoveMail, useSendMail,
+  humanBytes, initials, avatarHue, mailError, type MailMessage,
 } from '../api';
 
 /** Files attached to this trail, pulled from the sender's Drive. Any participant
@@ -105,8 +106,13 @@ function MailBody({ body }: { body: string }) {
 }
 
 /** One message inside a trail. */
-function TrailMessage({ m, mine, open, onToggle }: {
+function TrailMessage({ m, mine, open, onToggle, onRemove, removing }: {
   m: MailMessage; mine: boolean; open: boolean; onToggle: () => void;
+  /** Move THIS message to Trash, leaving the rest of the conversation where
+   *  it is. Absent when the trail is a single message (the page's own Delete
+   *  already does that job) and on anything already in Trash, where the same
+   *  press would mean destroy. */
+  onRemove?: () => void; removing?: boolean;
 }) {
   const hue = avatarHue(m.fromAddr);
   const when = new Date(m.createdAt).toLocaleString('en-IN', {
@@ -158,29 +164,138 @@ function TrailMessage({ m, mine, open, onToggle }: {
 
   return (
     <div style={{ padding: '14px 0', borderTop: '1px solid var(--line)' }}>
-      <div onClick={onToggle} role="button" tabIndex={0} aria-expanded
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}
-        style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
-        <div style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, display: 'grid', placeItems: 'center', fontSize: 13, fontWeight: 800, color: 'var(--on-accent)', background: m.system ? 'var(--accent)' : `hsl(${hue},52%,45%)` }}>
-          {m.system ? '🏙' : initials(m.fromName)}
-        </div>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ fontWeight: 700, fontSize: 13.5 }}>
-            {mine ? 'You' : m.fromName} <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>&lt;{m.fromAddr}&gt;</span>
+      {/* The toggle and the bin are SIBLINGS, not nested — a button inside a
+          role="button" is markup the browser repairs by pulling one out of the
+          other, and a press meant for the bin must never fold the message. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div onClick={onToggle} role="button" tabIndex={0} aria-expanded
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}
+          style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', minWidth: 0, flex: 1 }}>
+          <div style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, display: 'grid', placeItems: 'center', fontSize: 13, fontWeight: 800, color: 'var(--on-accent)', background: m.system ? 'var(--accent)' : `hsl(${hue},52%,45%)` }}>
+            {m.system ? '🏙' : initials(m.fromName)}
           </div>
-          <div className="muted" style={{ fontSize: 12 }}>
-            to {m.toAddr}
-            {/* Cc is shown to everyone, because that is what Cc means. Bcc is
-                only ever present on your own Sent copy — the server never
-                writes it to a recipient row, so there is nothing here to hide.
-                It is labelled as yours so you can see what you sent. */}
-            {m.ccAddrs && <> · cc {m.ccAddrs}</>}
-            {m.bccAddrs && <> · <span title="Only you can see this">bcc {m.bccAddrs}</span></>}
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 13.5 }}>
+              {mine ? 'You' : m.fromName} <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>&lt;{m.fromAddr}&gt;</span>
+            </div>
+            <div className="muted" style={{ fontSize: 12 }}>
+              to {m.toAddr}
+              {/* Cc is shown to everyone, because that is what Cc means. Bcc is
+                  only ever present on your own Sent copy — the server never
+                  writes it to a recipient row, so there is nothing here to hide.
+                  It is labelled as yours so you can see what you sent. */}
+              {m.ccAddrs && <> · cc {m.ccAddrs}</>}
+              {m.bccAddrs && <> · <span title="Only you can see this">bcc {m.bccAddrs}</span></>}
+            </div>
           </div>
+          <div className="muted" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{when}</div>
         </div>
-        <div className="muted" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{when}</div>
+        {onRemove && (
+          <button type="button" onClick={onRemove} disabled={removing}
+            aria-label="Move this message to Trash" title="Move this message to Trash"
+            style={{ minWidth: 44, minHeight: 44, flexShrink: 0, border: 'none', background: 'none',
+              cursor: 'pointer', fontSize: 15, color: 'var(--muted)', opacity: removing ? 0.5 : 1 }}>
+            🗑
+          </button>
+        )}
       </div>
       <MailBody body={m.body} />
+    </div>
+  );
+}
+
+/**
+ * THE REPLY BOX LIVES AT THE FOOT OF THE THREAD, which is where every mail
+ * client puts it. Reply used to navigate to the Compose page — a different
+ * screen, with the conversation gone from behind it, for what is nearly always
+ * a few sentences. Gmail answers in place; now this does too.
+ *
+ * WHAT IT DELIBERATELY DOES NOT CARRY: Cc, Bcc, attachments, a subject field.
+ * A reply's subject is the thread's subject, and the moment somebody needs the
+ * rest they need the full composer — one press away, with the recipient, the
+ * subject and the thread pre-filled. That door sits beside the box from the
+ * start, because words typed HERE cannot follow it through the URL: offering
+ * it first is what keeps anything from being lost to it.
+ *
+ * THE QUOTED TRAIL GOES OUT UNDER THE REPLY, same as Compose: built from the
+ * newest message, shown behind the ··· control, joined at send. And the same
+ * two rules Compose earned the hard way apply — a reply with nothing in it
+ * does not send, and the key is not live until the trail it quotes has
+ * arrived.
+ */
+function InlineReply({ to, name, subject, threadId, latest, trailPending, open, onOpenChange, onOpenFull }: {
+  to: string; name: string; subject: string; threadId?: string | null;
+  latest: MailMessage; trailPending: boolean;
+  open: boolean; onOpenChange: (v: boolean) => void; onOpenFull: () => void;
+}) {
+  const send = useSendMail();
+  const [body, setBody] = useState('');
+  const [qOpen, setQOpen] = useState(false);
+  const boxRef = useRef<HTMLTextAreaElement>(null);
+  // Focus lands in the box when it opens — including from the header's Reply
+  // key — and focusing also scrolls it into view, so no motion is needed.
+  useEffect(() => { if (open) boxRef.current?.focus(); }, [open]);
+
+  const quote = useMemo(() => quoteBlock(latest), [latest]);
+  const canSend = Boolean(body.trim()) && !trailPending && !send.isPending;
+
+  if (!open) {
+    return (
+      <div style={{ marginTop: 12, textAlign: 'right' }}>
+        <Button variant="accent" size="sm" onClick={() => onOpenChange(true)}>↩ Reply to {name}</Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card" style={{ marginTop: 12, display: 'grid', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 13, fontWeight: 700 }}>↩ Reply</span>
+        <span className="muted" style={{ fontSize: 12.5, fontFamily: 'monospace', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>to {to}</span>
+        {/* The door to the rest of a composer, offered while the box is still
+            empty rather than discovered after it is not. */}
+        <button type="button" onClick={onOpenFull}
+          style={{ marginLeft: 'auto', minHeight: 44, padding: '0 2px', background: 'none', border: 0, cursor: 'pointer',
+            fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, color: 'var(--accent-ink)' }}>
+          Cc, Bcc or files → full composer
+        </button>
+      </div>
+      <textarea ref={boxRef} value={body} onChange={(e) => setBody(e.target.value)} rows={5}
+        aria-label={`Reply to ${to}`} placeholder="Write your reply…"
+        style={{ padding: '11px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14,
+          fontFamily: 'inherit', width: '100%', boxSizing: 'border-box', background: 'var(--card)',
+          resize: 'vertical', lineHeight: 1.6 }} />
+      {/* Same control, same words, same shape as Compose — it IS the same fact. */}
+      <div className="mq" style={{ marginTop: 0 }}>
+        <button type="button" className="mq-key" aria-expanded={qOpen}
+          aria-label={qOpen ? 'Hide the quoted conversation' : 'Show the quoted conversation'}
+          onClick={() => setQOpen((v) => !v)}>···</button>
+        <span className="mq-said muted">
+          {qOpen ? 'The conversation you are replying to — it goes out under your message.' : 'Quoting the conversation below your message.'}
+        </span>
+        {qOpen && <pre className="mq-body">{quote}</pre>}
+      </div>
+      {send.isError && (
+        <div className="mail-mishap" role="alert">
+          <span>⚠ {mailError(send.error, 'That reply did not send.')}</span>
+          <span className="muted">Your words are still in the box.</span>
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <Button variant="accent" disabled={!canSend}
+          onClick={() => send.mutate(
+            { to, subject, body: withQuote(body, quote), threadId: threadId ?? undefined },
+            {
+              // The reply appears in the trail above — the invalidation
+              // refetches it — so the box has done its job and closes. Staying
+              // put is the point of answering in place.
+              onSuccess: () => { setBody(''); setQOpen(false); onOpenChange(false); },
+            },
+          )}>
+          {send.isPending ? 'Sending…' : trailPending ? 'Loading the thread…' : 'Send reply'}
+        </Button>
+        <Button variant="line" onClick={() => onOpenChange(false)}>Cancel</Button>
+      </div>
     </div>
   );
 }
@@ -235,6 +350,12 @@ export function MessageView() {
    */
   const [openIds, setOpenIds] = useState<Set<string> | null>(null);
   useEffect(() => { setOpenIds(null); }, [id]);
+  /** Asked only where deleting is final — see the key itself. */
+  const [confirmGone, setConfirmGone] = useState(false);
+  /** The reply box at the foot of the trail. Opened by either Reply key;
+   *  starts closed, and starts over on a different thread. */
+  const [replying, setReplying] = useState(false);
+  useEffect(() => { setReplying(false); }, [id]);
 
   if (q.isLoading) return <Spinner label="Opening message…" />;
   if (q.isError || !q.data) return <div style={{ padding: 28 }}><EmptyState title="Couldn't open message" hint="It may have been deleted." /></div>;
@@ -257,7 +378,30 @@ export function MessageView() {
     ? (projects.data ?? []).find((p) => p.id === m.projectId)?.key
     : undefined;
 
-  const openReply = () => {
+  /**
+   * ON A PHONE THIS IS THE ONLY BIN. The row hides its own on a narrow screen
+   * precisely because this key exists, so everything the row now says about
+   * deleting has to be true here first.
+   *
+   * IT SAID "DELETE" IN TRASH AND MEANT "DESTROY". `remove()` moves a message
+   * to Trash — except in Trash, where the same call deletes the row outright.
+   * One word, two behaviours, no confirmation, and then it navigated to the
+   * INBOX, which is not the folder the citizen was standing in and not where
+   * they could have checked.
+   */
+  const permanent = m.folder === 'trash';
+  const backTo = projectKey
+    ? `/mail/p/${projectKey}${m.folder === 'inbox' ? '' : `/${m.folder}`}`
+    : `/mail/${m.folder === 'draft' || m.folder === 'failed' ? 'unsent' : m.folder}`;
+  const mishap =
+    remove.isError ? mailError(remove.error, permanent ? 'That message could not be deleted.' : 'That message could not be moved to Trash.')
+    : flag.isError ? mailError(flag.error, 'That star did not stick.')
+    : null;
+
+  /** The FULL composer — Cc, Bcc, attachments, drafts. The reply itself
+   *  happens in the thread now; this is the bigger desk for when the small
+   *  one is not enough. */
+  const openFullComposer = () => {
     const p = new URLSearchParams({ to: replyTo, subject: replySubject });
     if (m.threadId) p.set('threadId', m.threadId);
     // A reply read inside a project is written inside it: the send would
@@ -279,10 +423,35 @@ export function MessageView() {
               belongs in is a decision about what it SAYS, so the control is
               here rather than on the row. */}
           {m.threadId && <MoveToProject threadId={m.threadId} projectId={m.projectId ?? null} count={trail.length} />}
-          {!m.system && <Button variant="accent" size="sm" onClick={openReply}>↩ Reply</Button>}
-          <Button variant="line" size="sm" onClick={() => remove.mutate(m.id, { onSuccess: () => nav('/mail/inbox') })}>🗑 Delete</Button>
+          {!m.system && <Button variant="accent" size="sm" onClick={() => setReplying(true)}>↩ Reply</Button>}
+          <Button variant="line" size="sm" disabled={remove.isPending}
+            aria-expanded={permanent ? confirmGone : undefined}
+            onClick={() => {
+              if (permanent) { setConfirmGone((v) => !v); return; }
+              remove.mutate(m.id, { onSuccess: () => nav(backTo) });
+            }}>
+            {permanent ? '🗑 Delete forever' : '🗑 Delete'}
+          </Button>
         </div>
       </div>
+
+      {confirmGone && (
+        <div className="mail-mishap" role="alert" style={{ marginTop: 12 }}>
+          <span>Delete this forever? Trash is the last stop — there is nowhere to take it back from.</span>
+          <span className="mail-mishap-keys">
+            <Button variant="line" size="sm" disabled={remove.isPending}
+              onClick={() => remove.mutate(m.id, { onSuccess: () => nav(backTo) })}>
+              {remove.isPending ? 'Deleting…' : 'Delete forever'}
+            </Button>
+            <Button variant="line" size="sm" onClick={() => setConfirmGone(false)}>Keep it</Button>
+          </span>
+        </div>
+      )}
+      {mishap && (
+        <div className="mail-mishap" role="alert" style={{ marginTop: 12 }}>
+          <span>⚠ {mishap}</span> <span className="muted">This message is exactly as it was.</span>
+        </div>
+      )}
 
       <div className="card" style={{ marginTop: 14 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
@@ -297,15 +466,25 @@ export function MessageView() {
               const next = new Set(prev ?? shown);
               if (next.has(x.id)) next.delete(x.id); else next.add(x.id);
               return next;
-            })} />
+            })}
+            /* One message can leave the conversation — the blank ones a finger
+               sent before the composer refused them have to be removable
+               without taking the thread with them. Only where the trail HAS
+               other messages (alone, the page's Delete is the same act), and
+               never in Trash, where this press would mean destroy. */
+            onRemove={trail.length > 1 && x.folder !== 'trash'
+              ? () => remove.mutate(x.id)
+              : undefined}
+            removing={remove.isPending && remove.variables === x.id} />
         ))}
         <ThreadAttachments threadId={m.threadId} />
       </div>
 
       {!m.system && (
-        <div style={{ marginTop: 12, textAlign: 'right' }}>
-          <Button variant="accent" size="sm" onClick={openReply}>↩ Reply to {latest.fromAddr === myAddr ? latest.toName : latest.fromName}</Button>
-        </div>
+        <InlineReply to={replyTo} name={latest.fromAddr === myAddr ? latest.toName : latest.fromName}
+          subject={replySubject} threadId={m.threadId} latest={latest}
+          trailPending={Boolean(m.threadId) && thread.isLoading}
+          open={replying} onOpenChange={setReplying} onOpenFull={openFullComposer} />
       )}
     </div>
   );
