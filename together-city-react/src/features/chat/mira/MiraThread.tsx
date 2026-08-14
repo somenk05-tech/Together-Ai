@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ZodError } from 'zod';
 import { Link } from 'react-router-dom';
-import { useMiraAsk, useMiraCapabilities, useMiraGreeting, type Choice } from './api';
+import { useMiraAsk, useMiraCapabilities, useMiraGreeting, useMiraSubscribe, type Choice } from './api';
 import { Icon } from '@/components/ui/Icon';
 import { MiraMark, type MarkState } from './MiraMark';
 import { useVoiceNote, useSpeech } from './voice';
@@ -51,6 +51,16 @@ export function MiraThread({ weeksKnown = 0, dial }: { weeksKnown?: number; dial
   const [draft, setDraft] = useState('');
   const [distressLocked, setDistressLocked] = useState(false);
   /**
+   * THE METER, WHEN THE SERVER MENTIONS IT. `freeLeft` is null for a
+   * subscriber — unmetered, never rendered as "0 left". `paywalled` puts the
+   * subscribe card under her last line; it is not persisted, because the
+   * server re-answers with the same card on the next attempt anyway and a
+   * stale local copy of a billing fact is worse than asking again.
+   */
+  const [freeLeft, setFreeLeft] = useState<number | null | undefined>(undefined);
+  const [paywalled, setPaywalled] = useState(false);
+  const subscribe = useMiraSubscribe();
+  /**
    * WHAT SHE JUST ASKED, HELD FOR ONE TURN.
    *
    * When her reply was a question she sends the options with it; they come
@@ -86,12 +96,18 @@ export function MiraThread({ weeksKnown = 0, dial }: { weeksKnown?: number; dial
     const clean = text.trim();
     if (!clean || ask.isPending) return;
     const recent = turns.filter((t) => t.who === 'you').slice(-3).map((t) => t.text).reverse();
+    // The day's transcript, both voices, oldest first — her context. Without
+    // it "just feeling lonely" arrives as a sentence from nowhere, which is
+    // the exact conversation the owner screenshotted.
+    const history = turns.slice(-12).map((t) => ({ who: t.who === 'you' ? ('me' as const) : ('mira' as const), text: t.text }));
     setTurns((t) => [...t, { who: 'you', text: clean }]);
     setDraft('');
     try {
-      const reply = await ask.mutateAsync({ text: clean, recent, answering: pending.current });
+      const reply = await ask.mutateAsync({ text: clean, recent, answering: pending.current, history });
       pending.current = reply.choices?.length ? reply.choices : undefined;
       if (reply.levity === 0 && reply.lane === 'LISTEN') setDistressLocked(true);
+      if (reply.pass) setFreeLeft(reply.pass.freeLeft);
+      setPaywalled(Boolean(reply.paywall));
       setTurns((t) => [...t, { who: 'mira', text: reply.text, levity: reply.levity, goto: reply.goto }]);
       speech.speak(reply.text);
     } catch (err) {
@@ -182,8 +198,50 @@ export function MiraThread({ weeksKnown = 0, dial }: { weeksKnown?: number; dial
           </div>
         ))}
         {ask.isPending && <div className="miraturn mira"><div className="mirabub mirawait">Give me a second.</div></div>}
+
+        {/* THE SUBSCRIBE CARD, under her own explanation of the meter. The
+            price is on the key itself — a charge may only ever follow a press
+            that named its amount. Mira cannot spend money; this is the
+            citizen doing it, through the same wallet rail as every checkout
+            in the city, and a refusal (an empty wallet) is shown in her
+            thread in the rail's own words rather than swallowed. */}
+        {paywalled && (
+          <div className="miraturn mira">
+            <div className="mirabub">
+              <button
+                type="button"
+                className="mirasub"
+                disabled={subscribe.isPending}
+                onClick={() => {
+                  void subscribe.mutateAsync()
+                    .then(() => {
+                      setPaywalled(false);
+                      setFreeLeft(null);
+                      setTurns((t) => [...t, { who: 'mira', text: 'Done — we’re good for 30 days. Now, where were we?', levity: 2 }]);
+                    })
+                    .catch((err: unknown) => {
+                      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+                      setTurns((t) => [...t, {
+                        who: 'mira',
+                        text: typeof msg === 'string' && msg.trim() ? msg : 'The wallet didn’t answer. Try again in a minute?',
+                        levity: 0,
+                      }]);
+                    });
+                }}>
+                {subscribe.isPending ? 'A moment…' : 'Subscribe · ₹999 for 30 days'}
+              </button>
+              <Link className="miragoto" to="/financial">Top up the wallet first →</Link>
+            </div>
+          </div>
+        )}
         <div ref={endRef} />
       </div>
+
+      {/* The meter, mentioned only once it is worth mentioning. null is a
+          subscriber — unmetered — and silence is the honest render of that. */}
+      {typeof freeLeft === 'number' && freeLeft > 0 && freeLeft <= 25 && !paywalled && (
+        <p className="miranote">{freeLeft} free conversation{freeLeft === 1 ? '' : 's'} left · then ₹999 a month</p>
+      )}
 
       {/* WHAT SHE KEEPS, SAID OUT LOUD. The history lives in this browser and
           ends at midnight. `one-bag.test.ts` bans localStorage for the shopping

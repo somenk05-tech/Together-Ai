@@ -76,7 +76,12 @@ const FILE = /^asks-(\d{4}-\d{2}-\d{2})\.jsonl$/;
  * and the executor had no branch for it. That is a decorator and an
  * implementation disagreeing in production, and it should never be silent.
  */
-export type Outcome = 'capability' | 'navigate' | 'listen' | 'advise' | 'relate' | 'clarify' | 'gap';
+/**
+ * `chat` is a model-backed conversation turn — the metered kind. `paywall` is
+ * the meter itself answering; a run of them from one `who` is a citizen who
+ * wants to talk and has not subscribed, which is a number the pricing needs.
+ */
+export type Outcome = 'capability' | 'navigate' | 'listen' | 'advise' | 'relate' | 'clarify' | 'gap' | 'chat' | 'paywall';
 
 export interface LedgerEntry {
   userId: string;

@@ -66,6 +66,16 @@ export const AskSchema = z.object({
     label: z.string().min(1).max(80),
     path: z.string().min(1).max(200).regex(/^\/[\w\-/]*$/, 'an in-app path'),
   })).max(3).optional(),
+  /**
+   * The day's transcript, both voices, oldest first — the model's context.
+   * Twelve turns is plenty of yesterday for a chat bubble; the thread itself
+   * lives on the device and the server keeps no session. Optional, like every
+   * field a client may not have shipped yet.
+   */
+  history: z.array(z.object({
+    who: z.enum(['me', 'mira']),
+    text: z.string().min(1).max(2000),
+  })).max(12).optional(),
 });
 export type AskDto = z.infer<typeof AskSchema>;
 
@@ -148,6 +158,22 @@ export class MiraController {
       tz: dto.tz,
       seed: dto.seed,
       answering: dto.answering,
+      history: dto.history,
     });
+  }
+
+  /**
+   * Thirty days of conversation for ₹999, from the city wallet.
+   *
+   * NOT a @Mira() capability and not reachable from the ask route — she still
+   * cannot spend money. This is behind an explicit button that carries its
+   * price on its face, and it uses the same unified payment rail as every
+   * checkout in the city, so an empty wallet answers with the same sentence
+   * everywhere. The capabilities, navigation and the greeting never touch the
+   * meter; only model conversations are counted, and 200 of those are free.
+   */
+  @Post('subscribe')
+  subscribe(@CurrentUser() user: JwtUser) {
+    return this.mira.subscribe(user.sub);
   }
 }

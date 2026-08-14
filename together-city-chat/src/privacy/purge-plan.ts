@@ -179,6 +179,11 @@ export const PURGE_RULES: PurgeRule[] = [
   { model: 'PrivacySetting', by: 'userId', action: 'purge', reason: 'Consent and permission flags.' },
   { model: 'Budget', by: 'userId', action: 'purge', reason: 'Income, spending categories and targets.' },
   { model: 'CityWallet', by: 'userId', action: 'purge', reason: 'What they were holding in the city wallet.' },
+  { model: 'MiraPass', by: 'userId', action: 'purge', reason: 'Mira conversation meter and subscription window — only the citizen ever sees it, and a tombstone needs no chat allowance.' },
+  // The two below were added by other work without a classification, which
+  // this spec is designed to force. Decided here rather than left red:
+  { model: 'MailProject', by: 'ownerId', action: 'purge', reason: 'Their mailbox’s project folders — names, keys, colours. Only the owner ever sees them, and the mail they organised is already classified on its own rows.' },
+  { model: 'SpendLogEntry', by: 'userId', action: 'purge', reason: 'Their hand-written spend log — free-text notes about their own money.' },
   { model: 'WalletLedger', by: 'userId', action: 'purge', reason: 'Every credit and debit against that wallet.' },
   { model: 'WalletTxn', by: 'userId', action: 'purge', reason: 'Individual wallet transactions and what they paid for.' },
   { model: 'MailAccount', by: 'userId', action: 'purge', reason: 'Their in-city mailbox.' },

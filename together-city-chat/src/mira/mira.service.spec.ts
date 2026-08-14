@@ -109,6 +109,12 @@ const svc = (over: Partial<Hubs> = {}) => {
     // reading @Mira() metadata off the live handlers.
     as<16>({ upTo: () => CAPS, byId: (id: string) => CAPS.find((c) => c.id === id), all: () => CAPS }),
     as<17>({ record: (e: Record<string, unknown>) => { recorded.push(e); } }),
+    // The model, OFF. Every test in this file describes the deterministic
+    // Mira, and she must be exactly as she was when the model is not
+    // configured — that equivalence is itself the thing under test.
+    as<18>({ enabled: false, converse: async () => null }),
+    // Prisma, unreachable: with the model off, nothing in ask() touches it.
+    as<19>({}),
   );
 };
 

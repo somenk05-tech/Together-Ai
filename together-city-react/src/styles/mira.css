@@ -214,6 +214,17 @@
 .mirarecdrop { border: 1px solid var(--mira-line); background: none; color: var(--on-mira-soft); }
 .mirarecdone { border: 0; background: var(--on-mira); color: var(--on-mira-ink); }
 
+/* The subscribe key, in her bubble. The light tile in the red room — same
+   pair mirarecdone uses — because a key that takes money must be the most
+   legible thing on the screen, and its price is on its face. */
+.mirasub {
+  display: block; font: inherit; font-size: 14px; font-weight: 700;
+  min-height: 44px; padding: 11px 16px; border-radius: var(--r-2);
+  border: 0; background: var(--on-mira); color: var(--on-mira-ink); cursor: pointer;
+}
+.mirasub:disabled { opacity: .6; cursor: default; }
+.mirasub + .miragoto { display: inline-block; margin-top: 10px; font-size: 12.5px; }
+
 /* Her voice, and the fact that it is OFF until asked. A chat surface that
    starts talking out loud on a phone in a room with other people in it is a
    betrayal in one second flat, so the lit state is the exception and the quiet

@@ -53,6 +53,15 @@ export const MiraReplySchema = z.object({
    */
   choices: z.array(z.object({ label: z.string(), path: z.string() })).optional(),
   trace: z.array(z.string()),
+  /**
+   * The conversation meter, on turns that used or hit it. `freeLeft` is null
+   * for a subscriber — unmetered, which must never render as "0 left".
+   * Optional on the client, ALWAYS — the rule the mood field earned above.
+   */
+  pass: z.object({ freeLeft: z.number().nullable() }).optional(),
+  /** True when this turn is the meter itself answering, and the subscribe
+   *  card belongs under it. Same optionality rule. */
+  paywall: z.boolean().optional(),
 });
 export type MiraReply = z.infer<typeof MiraReplySchema>;
 
@@ -72,10 +81,14 @@ export function useMiraAsk(opts: {
   seed: number;
 }) {
   return useMutation({
-    mutationFn: async (input: { text: string; recent?: string[]; answering?: Choice[] }) =>
+    mutationFn: async (input: { text: string; recent?: string[]; answering?: Choice[]; history?: Array<{ who: 'me' | 'mira'; text: string }> }) =>
       apiPost('/mira/ask', {
         text: input.text,
         recent: input.recent?.slice(0, 3),
+        // The day's transcript, both voices — what makes "just feeling
+        // lonely" a continuation rather than a sentence from nowhere. The
+        // thread lives on this device; the server keeps no session.
+        history: input.history?.slice(-12),
         hour: new Date().getHours(),
         // Her clock has to be the citizen's clock. `hour` alone cannot convert a
         // date — an offset inferred from it rounds to the hour and is half an
@@ -130,6 +143,24 @@ export function useMiraGreeting(opts: {
     // She has plenty to say without it. A greeting that fails is a quieter
     // opening, never an error in front of somebody.
     retry: false,
+  });
+}
+
+/**
+ * Thirty days of conversation for ₹999, from the city wallet.
+ *
+ * Behind an explicit button that carries its price on its face — Mira herself
+ * cannot spend money, and this is not her doing it; it is the citizen
+ * pressing a priced key. An empty wallet answers with the same sentence every
+ * checkout in the city uses, and the thread shows it rather than swallowing it.
+ */
+const SubscribeSchema = z.object({
+  paidUntil: z.string(),
+  freeLeft: z.null(),
+});
+export function useMiraSubscribe() {
+  return useMutation({
+    mutationFn: async () => apiPost('/mira/subscribe', {}, SubscribeSchema),
   });
 }
 

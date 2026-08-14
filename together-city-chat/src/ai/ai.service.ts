@@ -33,6 +33,41 @@ export class AiService {
   }
 
   /** Ask for a JSON object matching <T>. Returns `fallback` if AI is off or errors. */
+  /**
+   * A conversational turn — a system prompt, a transcript, one reply.
+   *
+   * Built for Mira, usable by anything that talks. Returns null when the key
+   * is unset or the call fails, because every caller of a conversation has a
+   * deterministic sentence to fall back to, and "the model is down" must cost
+   * warmth rather than an answer. Uses the model fallback chain for the same
+   * reason every other call here does: a retired model id must degrade, not
+   * take the feature with it.
+   */
+  async converse(
+    system: string,
+    turns: Array<{ role: 'user' | 'assistant'; content: string }>,
+    maxTokens = 400,
+  ): Promise<string | null> {
+    if (!this.client) return null;
+    try {
+      const res = await this.createWithFallback({
+        model: this.model,
+        max_tokens: maxTokens,
+        system,
+        messages: turns,
+      });
+      const text = res.content
+        .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+        .map((b) => b.text)
+        .join('')
+        .trim();
+      return text || null;
+    } catch (e) {
+      this.logger.warn(`AI converse call failed: ${(e as Error).message}`);
+      return null;
+    }
+  }
+
   async json<T>(system: string, user: string, fallback: T, maxTokens = 1024): Promise<T> {
     if (!this.client) return fallback;
     try {

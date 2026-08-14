@@ -1,4 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { AiService } from '../ai/ai.service';
+import { PrismaService } from '../shared/prisma/prisma.service';
 import { FinancialService } from '../financial/financial.service';
 import { RestaurantsService } from '../restaurants/restaurants.service';
 import { DriveService } from '../drive/drive.service';
@@ -23,6 +25,7 @@ import { resolveChoice, type Choice } from './choose';
 import { MiraRegistry } from './mira.registry';
 import { MiraLedger, type Outcome } from './ledger';
 import { acceptOrFallback, violations } from './voice';
+import { persona, FREE_CHATS, SUB_INR, PAYWALL_LINE } from './persona';
 import { findInCity, whyWeAsk } from './city';
 import { readSituation, type Read } from './relate';
 
@@ -113,6 +116,23 @@ function clockTime(iso: string | undefined, tz: string | undefined): string | un
 }
 
 /**
+ * The line the persona uses to speak from the citizen's clock: "Friday 15
+ * August, 12:58 am". Their zone, never the server's, for the reason clockTime
+ * gives above — and absent rather than wrong when the zone is not sent.
+ */
+function clockLine(tz: string | undefined): string | undefined {
+  if (!tz) return undefined;
+  try {
+    return new Intl.DateTimeFormat('en-GB', {
+      weekday: 'long', day: 'numeric', month: 'long',
+      hour: 'numeric', minute: '2-digit', hour12: true, timeZone: tz,
+    }).format(new Date()).replace(/\s?(am|pm)/i, (m) => m.trim().toLowerCase());
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * A field that came out of a hub is quoted, never conjugated.
  *
  * "Coconut-curry Lentil Stew Served Over Quinoa Thali wants starting by ..." is
@@ -166,6 +186,14 @@ export interface MiraTurn {
   choices?: Choice[];
   /** Everything the turn decided, for the inspector and for a misfire post-mortem. */
   trace: string[];
+  /**
+   * The conversation meter, on turns that used or hit it. `freeLeft` is null
+   * for a subscriber — not zero, which would read as "none left". Optional on
+   * the wire, ALWAYS, so an older client never chokes on it.
+   */
+  pass?: { freeLeft: number | null };
+  /** True when this turn is the meter saying so, and the client may offer the subscription. */
+  paywall?: boolean;
 }
 
 export interface AskContext {
@@ -188,6 +216,14 @@ export interface AskContext {
   seed?: number;
   /** What she offered last turn, handed back so an answer is read as an answer. */
   answering?: Choice[];
+  /**
+   * The day's transcript, both voices, oldest first — sent by the client
+   * because the thread lives on the device and the server keeps no session.
+   * This is what makes "just feeling lonely" a continuation instead of a
+   * sentence from nowhere; without it the model re-meets the citizen on every
+   * turn, which is the deterministic Mira's oldest defect wearing a new coat.
+   */
+  history?: Array<{ who: 'me' | 'mira'; text: string }>;
 }
 
 /** One branch's output: the fact, and the asides that would be true of it. */
@@ -198,6 +234,8 @@ interface Attempt {
   goto?: Choice;
   choices?: Choice[];
   outcome?: Outcome;
+  /** Where the conversation meter stands, on turns that moved or hit it. */
+  pass?: { freeLeft: number | null };
 }
 
 /**
@@ -238,6 +276,9 @@ export class MiraService {
     private readonly thoughts: ThoughtsService,
     private readonly registry: MiraRegistry,
     private readonly ledger: MiraLedger,
+    // Appended rather than inserted, so the spec's positional stubs stay true.
+    private readonly ai: AiService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async ask(text: string, ctx: AskContext): Promise<MiraTurn> {
@@ -294,9 +335,16 @@ export class MiraService {
       if (routed.lane === 'LISTEN') {
         // Even here — especially here. If what they described is control,
         // violence or somebody at the edge, "what's going on?" is the wrong
-        // next move and the hand-off outranks it.
+        // next move and the hand-off outranks it — including outranking the
+        // model. A crisis is handled by code that cannot have a bad day.
         const beyond = readSituation(text);
         if (beyond?.handOff) return relate(beyond);
+        // The model, when configured, is what makes this a conversation
+        // rather than one canned question. The governor has already set the
+        // register: on a distressed turn the persona is stripped of every
+        // joke before the model sees a word.
+        const talked = await this.converse(text, ctx, lev.distress);
+        if (talked) return talked;
         return {
           outcome: 'listen',
           text: lev.distress
@@ -360,6 +408,15 @@ export class MiraService {
             choices: options,
           };
         }
+        // Nothing matched: the lane the whole framework was written for. This
+        // used to be "That's not something I can do yet" — the sentence the
+        // owner screenshotted twice. Now it is a conversation, when the model
+        // is configured; the old sentence stays as the honest fallback when
+        // it is not, so a missing key degrades rather than breaks.
+        if (routed.why === 'nothing matched' || routed.why === 'empty') {
+          const talked = await this.converse(text, ctx, lev.distress);
+          if (talked) return talked;
+        }
         return { outcome: 'clarify', text: this.clarify(routed), choices: [] };
       }
       return { outcome: 'capability', ...(await this.read(cap.id, ctx.userId, colour, ctx.tz)) };
@@ -367,7 +424,12 @@ export class MiraService {
 
     const attempt = await turn();
     const outcome: Outcome = attempt.outcome ?? 'capability';
-    const draft = say(attempt.text, colour, attempt.asides ?? []);
+    // Model prose and the meter's own line are complete sentences said in her
+    // register already; running them through say() would staple an aside onto
+    // a paragraph. Everything deterministic keeps the full treatment.
+    const draft = outcome === 'chat' || outcome === 'paywall'
+      ? attempt.text
+      : say(attempt.text, colour, attempt.asides ?? []);
 
     // Fire and forget, by construction — recording a question must never slow
     // an answer down and must never be the reason one fails.
@@ -399,7 +461,125 @@ export class MiraService {
       goto: attempt.goto,
       choices: attempt.choices?.length ? attempt.choices : undefined,
       trace,
+      pass: attempt.pass,
+      ...(outcome === 'paywall' ? { paywall: true } : {}),
     };
+  }
+
+  // ── THE CONVERSATION LANE ─────────────────────────────────────────────
+  //
+  // Everything the deterministic Mira cannot say — comfort, curiosity, a real
+  // exchange — comes from here. Three rules, all enforced in code rather than
+  // hoped for in the prompt:
+  //
+  //  1. THE METER IS CHECKED FIRST. Two hundred model conversations are free;
+  //     after that the subscription carries them. Capabilities, navigation
+  //     and the greeting never touch the meter — the working city stays free.
+  //  2. THE PERSONA IS BUILT FROM WHAT IS TRUE: their name, their clock,
+  //     their Vedic chart when they have given birth details, and the honest
+  //     list of what she can actually do — so the model cannot promise an
+  //     order button that does not exist.
+  //  3. HER VOICE RULES OUTRANK THE MODEL. A reply that breaks them is
+  //     dropped and the deterministic sentence stands. Warmth is never worth
+  //     sounding like a call centre.
+
+  private async converse(text: string, ctx: AskContext, distress: boolean): Promise<Attempt | undefined> {
+    if (!this.ai.enabled) return undefined;
+    const pass = await this.passOf(ctx.userId);
+    if (!pass.paid && pass.freeLeft <= 0) {
+      return { outcome: 'paywall', text: PAYWALL_LINE, pass: { freeLeft: 0 } };
+    }
+    const [name, signs] = await Promise.all([this.nameOf(ctx.userId), this.signsOf(ctx.userId)]);
+    const system = persona({
+      name,
+      signs,
+      clock: clockLine(ctx.tz),
+      weeksKnown: ctx.weeksKnown,
+      distress,
+      canDo: this.registry.all().map((c) => c.intent.toLowerCase()),
+    });
+    // The day's transcript, capped and cleaned. The current text goes last —
+    // and if the client already echoed it into history, it is not sent twice.
+    const trail = (ctx.history ?? []).slice(-12)
+      .map((h) => ({ role: h.who === 'me' ? ('user' as const) : ('assistant' as const), content: h.text.slice(0, 2000) }));
+    if (trail.length && trail[trail.length - 1].role === 'user' && trail[trail.length - 1].content === text) trail.pop();
+    const said = await this.ai.converse(system, [...trail, { role: 'user', content: text }]);
+    if (!said) return undefined;
+    const bad = violations(said);
+    if (bad.length) {
+      this.logger.warn(`Mira's model reply broke voice (${bad.map((v) => v.why).join(', ')}) — deterministic line stands`);
+      return undefined;
+    }
+    const left = await this.spendChat(ctx.userId, pass);
+    return { outcome: 'chat', text: said, pass: { freeLeft: left } };
+  }
+
+  /** Where the meter stands. A missing row is a citizen who has never chatted. */
+  private async passOf(userId: string): Promise<{ paid: boolean; used: number; freeLeft: number }> {
+    const row = await this.prisma.miraPass.findUnique({ where: { userId } }).catch(() => null);
+    const used = row?.chatUsed ?? 0;
+    const paid = Boolean(row?.paidUntil && row.paidUntil.getTime() > Date.now());
+    return { paid, used, freeLeft: Math.max(0, FREE_CHATS - used) };
+  }
+
+  /**
+   * One conversation, spent. Subscribers are not counted — null says "not
+   * metered", which the client must not render as "0 left". Fire-and-forget
+   * on failure: a meter that cannot be written must never cost an answer.
+   */
+  private async spendChat(userId: string, pass: { paid: boolean; used: number }): Promise<number | null> {
+    if (pass.paid) return null;
+    await this.prisma.miraPass.upsert({
+      where: { userId },
+      update: { chatUsed: { increment: 1 } },
+      create: { userId, chatUsed: 1 },
+    }).catch(() => undefined);
+    return Math.max(0, FREE_CHATS - pass.used - 1);
+  }
+
+  /**
+   * ₹999 from the city wallet, thirty days on the pass, one transaction.
+   *
+   * NOT a @Mira() capability, on purpose: she still cannot spend money. This
+   * is behind an explicit button the citizen presses, priced on its face, and
+   * it goes through the same unified rail as every checkout in the city — so
+   * an insufficient wallet answers with the same sentence everywhere.
+   * Extending an active pass stacks from its end, never from today: paying
+   * early must never eat the days already bought.
+   */
+  async subscribe(userId: string): Promise<{ paidUntil: string; freeLeft: null }> {
+    const row = await this.prisma.miraPass.findUnique({ where: { userId } }).catch(() => null);
+    const now = Date.now();
+    const from = row?.paidUntil && row.paidUntil.getTime() > now ? row.paidUntil.getTime() : now;
+    const until = new Date(from + 30 * 24 * 60 * 60 * 1000);
+    await this.financial.paid(
+      userId,
+      { hub: 'Mira', category: 'subscription', label: 'Mira · 30 days of conversation', amountInr: SUB_INR },
+      (tx) => tx.miraPass.upsert({
+        where: { userId },
+        update: { paidUntil: until },
+        create: { userId, paidUntil: until },
+      }),
+    );
+    return { paidUntil: until.toISOString(), freeLeft: null };
+  }
+
+  /** Their name, for the persona. Best-effort — she talks fine without it. */
+  private async nameOf(userId: string): Promise<string | null> {
+    const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } }).catch(() => null);
+    return u?.name ?? null;
+  }
+
+  /** Their Vedic signs, when birth details exist. Best-effort, never blocking. */
+  private async signsOf(userId: string): Promise<{ sun?: string | null; moon?: string | null; rising?: string | null } | null> {
+    try {
+      const p = (await this.astrology.getProfile(userId)) as
+        { chart?: { sunSign?: string; moonSign?: string; ascendant?: string | null } } | null;
+      if (!p?.chart) return null;
+      return { sun: p.chart.sunSign ?? null, moon: p.chart.moonSign ?? null, rising: p.chart.ascendant ?? null };
+    } catch {
+      return null;
+    }
   }
 
   /** One question, never two, and never a guess between two things. */

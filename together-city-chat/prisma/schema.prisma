@@ -161,6 +161,7 @@ model User {
   fitnessProfile       FitnessProfile?
   workoutLogs          WorkoutLog[]
   cityWallet           CityWallet?
+  miraPass             MiraPass?
   walletTxns           WalletTxn[]
   masterProfile        MasterProfile?
   astroProfile         AstroProfile?
@@ -1412,6 +1413,20 @@ model CityWallet {
   cardLast4  String?
   cardName   String?
   updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Mira's meter and her pass. `chatUsed` counts MODEL-BACKED conversations
+/// only — the deterministic capabilities, navigation and the greeting are
+/// never metered, so the working city stays free. Two hundred conversations
+/// are free for life; `paidUntil` is the rolling 30-day subscription that
+/// continues them. One row per citizen, created lazily on the first chat.
+model MiraPass {
+  userId    String    @id
+  chatUsed  Int       @default(0)
+  paidUntil DateTime?
+  updatedAt DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

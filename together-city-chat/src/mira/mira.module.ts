@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { DiscoveryModule } from '@nestjs/core';
+import { AiModule } from '../ai/ai.module';
 import { FinancialModule } from '../financial/financial.module';
 import { RestaurantsModule } from '../restaurants/restaurants.module';
 import { DriveModule } from '../drive/drive.module';
@@ -46,6 +47,10 @@ import { MiraLedger } from './ledger';
 @Module({
   imports: [
     DiscoveryModule,
+    // The model behind her conversation lane. Everything else about her stays
+    // deterministic; AiService degrades to null without a key, and she
+    // degrades with it — to the phase-1 sentences, never to an error.
+    AiModule,
     FinancialModule,
     RestaurantsModule,
     DriveModule,
