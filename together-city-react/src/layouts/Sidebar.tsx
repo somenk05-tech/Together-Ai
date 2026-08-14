@@ -4,6 +4,7 @@ import { Icon } from '@/components/ui/Icon';
 import { useUiStore } from '@/store/ui.store';
 import { MailProjectsRail, MailProjectSideRail } from '@/features/mail/ProjectRail';
 import { useMailMessage, useMailProjects } from '@/features/mail/api';
+import { DrawerScrim, useSwipeClose } from './drawerDismiss';
 
 const PersonIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -60,6 +61,8 @@ export function Sidebar({ hub }: { hub: HubConfig }) {
     : messageProjectKey;
   const open = useUiStore((s) => s.sidebarOpen);
   const toggle = useUiStore((s) => s.toggleSidebar);
+  const close = () => toggle(false);
+  const swipe = useSwipeClose(close);
 
   // Nutrition and Family Nutrition are the two modes of one experience.
   const showModeTabs = hub.key === 'nutrition' || hub.key === 'family';
@@ -75,7 +78,9 @@ export function Sidebar({ hub }: { hub: HubConfig }) {
   });
 
   return (
-    <aside className={`tc-side${open ? ' open' : ''}`} data-side={hub.key}>
+    <>
+    <DrawerScrim open={open} onClose={close} />
+    <aside className={`tc-side${open ? ' open' : ''}`} data-side={hub.key} {...swipe}>
       <button className="back" onClick={() => navigate(-1)}>← Back</button>
       <div className="hubname">{hub.key === 'family' ? 'Nutrition Hub' : hub.name}</div>
       <div className="hubtag">{hub.key === 'family' ? 'Eat healthy, live better' : hub.tag}</div>
@@ -147,5 +152,6 @@ export function Sidebar({ hub }: { hub: HubConfig }) {
         </NavLink>
       </nav>
     </aside>
+    </>
   );
 }

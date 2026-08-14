@@ -87,8 +87,16 @@
 }
 .tc-footer > span:last-child { font-size: 12px; color: var(--muted); }
 
+/* The drawer's dismissal surface. Behaviour, not decoration: transparent,
+   viewport-wide, one layer under the drawer, and a BUTTON so it has a name.
+   A tap on it is the outside tap every drawer on every platform closes on —
+   it calls the same toggleSidebar(false) the burger and the nav links use.
+   Desktop has no drawer, so no scrim. */
+.tc-scrim { display: none; }
+
 /* mobile drawer */
 @media (max-width: 1100px) {
+  .tc-scrim { display: block; position: fixed; inset: 0; z-index: 199; background: none; border: 0; padding: 0; margin: 0; }
   .tc-burger { display: flex; }
   .tc-header { padding: 6px 12px; }
   .tc-nav { padding-left: 0; }

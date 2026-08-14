@@ -3,6 +3,7 @@ import { NAV, HUBS } from '@/config/hubs';
 import { HUB_ICON } from '@/nav/registry';
 import { Icon } from '@/components/ui/Icon';
 import { useUiStore } from '@/store/ui.store';
+import { DrawerScrim, useSwipeClose } from './drawerDismiss';
 
 /**
  * The burger's drawer for every page that is NOT inside a hub. The button
@@ -19,6 +20,9 @@ import { useUiStore } from '@/store/ui.store';
 export function CityDrawer() {
   const open = useUiStore((s) => s.sidebarOpen);
   const toggle = useUiStore((s) => s.toggleSidebar);
+  const close = () => toggle(false);
+  // A hook, so it is called before the early return below like every other one.
+  const swipe = useSwipeClose(close);
   const { pathname } = useLocation();
   const phone = typeof window !== 'undefined' && window.matchMedia('(max-width: 899px)').matches;
   const inHub = Object.values(HUBS).some(
@@ -26,7 +30,9 @@ export function CityDrawer() {
   );
   if (!phone || inHub) return null;
   return (
-    <aside className={`tc-side${open ? ' open' : ''}`}>
+    <>
+    <DrawerScrim open={open} onClose={close} />
+    <aside className={`tc-side${open ? ' open' : ''}`} {...swipe}>
       <div className="hubname">Together City</div>
       <div className="hubtag">Every hub, one door.</div>
       <nav className="side-menu" aria-label="The city">
@@ -44,5 +50,6 @@ export function CityDrawer() {
         ))}
       </nav>
     </aside>
+    </>
   );
 }
