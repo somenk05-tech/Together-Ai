@@ -11,8 +11,10 @@ const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
  *
  * Friend is the companion — chart, numbers, the listening ear. City
  * assistant is the operator she has always been. The tab changes her
- * REGISTER on the wire (`mode`), never her thread: same day store, same
- * seed, same meter, so a conversation started anywhere continues everywhere.
+ * REGISTER on the wire (`mode`) — and, by the owner's call, her THREAD: a
+ * heart-to-heart and "take me to budgets" do not belong in the same scroll,
+ * so each tab keeps its own day. The seed, the mood and the meter stay
+ * shared — one person, two rooms.
  *
  * And her mark now floats on every page: a press pops the chat up over
  * whatever the citizen is doing, with the page sent along so "what is
@@ -37,6 +39,21 @@ describe('Mira is two tabs', () => {
 
   it('opened over a page, she arrives as the assistant', () => {
     expect(thread).toMatch(/about \? 'city' : storedMode\(\) \?\? 'friend'/);
+  });
+
+  it('each tab keeps its own thread — the friend and the errands never merge', () => {
+    const day = read('features/chat/mira/day.ts');
+    // The friend's room has its own key; the assistant keeps the ORIGINAL
+    // key, so every conversation from before the split is still where its
+    // citizens left it.
+    expect(day).toMatch(/mira\.day\.friend/);
+    expect(day).toMatch(/room === 'friend' \? 'mira\.day\.friend' : KEY/);
+    // Switching tabs swaps the thread, drops the other room's held question,
+    // and saves into the room being looked at.
+    expect(thread).toMatch(/setTurns\(loadDay\(undefined, m\)\)/);
+    expect(thread).toMatch(/saveDay\(turns, undefined, mode\)/);
+    // Forget today forgets the tab you are standing in, not both.
+    expect(thread).toMatch(/clearDay\(mode\)/);
   });
 });
 

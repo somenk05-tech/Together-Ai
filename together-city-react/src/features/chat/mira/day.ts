@@ -37,6 +37,16 @@ import { z } from 'zod';
 
 const KEY = 'mira.day';
 const GREETED_KEY = 'mira.greeted';
+
+/**
+ * TWO TABS, TWO THREADS. The owner's call, made looking at one merged
+ * transcript: a heart-to-heart and "take me to budgets" do not belong in the
+ * same scroll. The friend's day lives under its own key; the assistant keeps
+ * the ORIGINAL key, so every conversation that existed before the split is
+ * still exactly where its citizens left it — in the assistant's room.
+ */
+export type MiraRoom = 'friend' | 'city';
+const keyFor = (room?: MiraRoom): string => (room === 'friend' ? 'mira.day.friend' : KEY);
 const SALT_KEY = 'mira.salt';
 
 /** A long day of talking, and a hard stop. Anything past this is a runaway loop
@@ -66,26 +76,26 @@ function store(): Storage | null {
   try { return window.localStorage; } catch { return null; }
 }
 
-export function loadDay(at: Date = new Date()): StoredTurn[] {
+export function loadDay(at: Date = new Date(), room?: MiraRoom): StoredTurn[] {
   const s = store();
   if (!s) return [];
   try {
-    const raw = s.getItem(KEY);
+    const raw = s.getItem(keyFor(room));
     if (!raw) return [];
     const parsed = DaySchema.safeParse(JSON.parse(raw));
     // A shape we do not recognise is yesterday's format, and it is dropped for
     // the same reason yesterday's day is: this is a cache of a conversation,
     // not a record anybody is owed.
-    if (!parsed.success || parsed.data.day !== today(at)) { s.removeItem(KEY); return []; }
+    if (!parsed.success || parsed.data.day !== today(at)) { s.removeItem(keyFor(room)); return []; }
     return parsed.data.turns;
   } catch { return []; }
 }
 
-export function saveDay(turns: StoredTurn[], at: Date = new Date()): void {
+export function saveDay(turns: StoredTurn[], at: Date = new Date(), room?: MiraRoom): void {
   const s = store();
   if (!s) return;
   try {
-    s.setItem(KEY, JSON.stringify({ day: today(at), turns: turns.slice(-MAX_TURNS) }));
+    s.setItem(keyFor(room), JSON.stringify({ day: today(at), turns: turns.slice(-MAX_TURNS) }));
   } catch { /* a full quota is not worth an error boundary */ }
 }
 
@@ -161,8 +171,17 @@ export function firstOpenToday(at: Date = new Date()): boolean {
   } catch { return true; }
 }
 
-export function clearDay(): void {
+/** Forget today. Clears ONE room's thread when named — "Forget today" is
+ *  pressed inside a tab, and forgetting the friend must not take the
+ *  assistant's errands with it — and everything when not, which is what the
+ *  older call sites and the spec mean by it. The greeting marker goes either
+ *  way: half-remembering having said hello is worse than saying it twice. */
+export function clearDay(room?: MiraRoom): void {
   const s = store();
   if (!s) return;
-  try { s.removeItem(KEY); s.removeItem(GREETED_KEY); } catch { /* nothing to do about it */ }
+  try {
+    if (room) s.removeItem(keyFor(room));
+    else { s.removeItem(keyFor('city')); s.removeItem(keyFor('friend')); }
+    s.removeItem(GREETED_KEY);
+  } catch { /* nothing to do about it */ }
 }

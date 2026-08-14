@@ -41,6 +41,9 @@ const storedMode = (): 'friend' | 'city' | null => {
     return v === 'friend' || v === 'city' ? v : null;
   } catch { return null; }
 };
+/** Opened over a page she arrives as the assistant; otherwise as whichever
+ *  of her spoke last, and as the friend the very first time. */
+const openingMode = (about?: string): 'friend' | 'city' => (about ? 'city' : storedMode() ?? 'friend');
 
 export function MiraThread({ weeksKnown = 0, dial, about }: {
   weeksKnown?: number; dial?: 0 | 1 | 2;
@@ -60,19 +63,28 @@ export function MiraThread({ weeksKnown = 0, dial, about }: {
    * empty thread first and then flash the history in, which reads as a bug even
    * though it settles correctly.
    */
-  const [turns, setTurns] = useState<StoredTurn[]>(() => loadDay());
+  /**
+   * ONE MIRA, TWO TABS — AND TWO THREADS. Friend is the companion — the
+   * chart, the numbers, the listening ear. City assistant is the operator
+   * she has always been. The owner's call, made looking at one merged
+   * transcript: a heart-to-heart and "take me to budgets" do not belong in
+   * the same scroll, so each tab keeps its own day (day.ts rooms). The seed,
+   * the mood and the meter stay shared — she is one person with two rooms,
+   * not two people. The tab is remembered; opened OVER a page she arrives as
+   * the assistant, which is plainly what was asked for.
+   */
+  const [mode, setMode] = useState<'friend' | 'city'>(() => openingMode(about));
+  const [turns, setTurns] = useState<StoredTurn[]>(() => loadDay(undefined, openingMode(about)));
   const [draft, setDraft] = useState('');
   const [distressLocked, setDistressLocked] = useState(false);
-  /**
-   * ONE MIRA, TWO TABS. Friend is the companion — the chart, the numbers,
-   * the listening ear. City assistant is the operator she has always been.
-   * The tab is remembered because switching registers every open would make
-   * her feel like two strangers — except when she is opened OVER a page,
-   * where the assistant is plainly what was asked for.
-   */
-  const [mode, setMode] = useState<'friend' | 'city'>(() => (about ? 'city' : storedMode() ?? 'friend'));
   const pickMode = (m: 'friend' | 'city') => {
+    if (m === mode) return;
     setMode(m);
+    // The other room's day, and none of this one's held question — an answer
+    // to a question asked in the other tab would be read against the wrong
+    // conversation.
+    setTurns(loadDay(undefined, m));
+    pending.current = undefined;
     try { window.localStorage.setItem(MODE_KEY, m); } catch { /* a preference, not data */ }
   };
   /**
@@ -115,7 +127,7 @@ export function MiraThread({ weeksKnown = 0, dial, about }: {
     firstOfDay: firstOfDay.current, dial, distressLocked,
   });
 
-  useEffect(() => { saveDay(turns); }, [turns]);
+  useEffect(() => { saveDay(turns, undefined, mode); }, [turns, mode]);
 
   const send = async (text: string) => {
     const clean = text.trim();
@@ -288,7 +300,7 @@ export function MiraThread({ weeksKnown = 0, dial, about }: {
       {turns.length > 0 && (
         <p className="miranote">
           Today, on this device — it clears itself at midnight.{' '}
-          <button type="button" className="miraforget" onClick={() => { clearDay(); setTurns([]); pending.current = undefined; }}>
+          <button type="button" className="miraforget" onClick={() => { clearDay(mode); setTurns([]); pending.current = undefined; }}>
             Forget today
           </button>
         </p>
