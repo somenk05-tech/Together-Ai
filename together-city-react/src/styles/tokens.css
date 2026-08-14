@@ -2083,3 +2083,146 @@
      Achromatic on purpose: the whole mailbox is not one of the nine rooms. */
   --fold-slate-tab: #9a9a9a;  --fold-slate-face: #ffffff;
 }
+
+/* ══ THE STAGE TAKES A COLOUR ══════════════════════════════════════════════
+   The owner, with eight palette cards: a swatch row beside the Chats header,
+   one tap re-grounds the whole chat system. Mira stays red — her room has
+   its own tokens and no block below touches them.
+
+   EVERY THEME IS ALL ELEVEN TOKENS, TOGETHER. A theme that re-pointed the
+   ground and kept the slate's ink would be `a-stage-does-not-export-its-ink`
+   wearing a new coat — so each block re-states the full set, and the guard
+   test parses these blocks and demands it.
+
+   THE LIGHT THEMES INVERT THE TILES ON PURPOSE. On the dark stages the
+   incoming bubble is a light tile (--on-stage used as a ground) with dark
+   type; on Mandarin, Rose, Peach, Pistachio, Lavender and Cream the same
+   pair renders a DARK tile with light type, because --on-stage is now a
+   dark ink. The pairings hold, so nothing else needed to change — which is
+   the whole argument for the stage having been tokens.
+
+   EVERY INK IS MEASURED against its palest ground (gradient stops AND the
+   solid, which is the phone's thread ground): main ink >=5.0 everywhere
+   except Mandarin at 5.1's floor of 5.14; quiet inks >=4.6; faint >=4.5
+   (Mandarin's faint is 4.62, the tightest in the set — the reference orange
+   eats dark ink and was already darkened one step). Tile and bubble pairs
+   all measure >=11:1. The glass alphas flip sign with the ground: white
+   glass on the dark stages, smoked glass on the light ones. */
+
+.cstage[data-stage="navy"] {
+  --stage: linear-gradient(158deg, #3a5878 0%, #24344e 42%, #141e30 100%);
+  --stage-panel: rgba(255,255,255,.07);
+  --stage-tile:  rgba(255,255,255,.16);
+  --stage-hover: rgba(255,255,255,.11);
+  --stage-well:  rgba(0,0,0,.20);
+  --stage-line: rgba(255,255,255,.18);
+  --stage-solid: #101827;
+  --on-stage: #f5f7fa;
+  --on-stage-soft: #dde5ee;
+  --on-stage-faint: #d0dbe8;
+  --on-stage-ink: #101827;
+}
+.cstage[data-stage="emerald"] {
+  --stage: linear-gradient(158deg, #2b5e3c 0%, #1a3a2d 42%, #0f2027 100%);
+  --stage-panel: rgba(255,255,255,.07);
+  --stage-tile:  rgba(255,255,255,.16);
+  --stage-hover: rgba(255,255,255,.11);
+  --stage-well:  rgba(0,0,0,.20);
+  --stage-line: rgba(255,255,255,.18);
+  --stage-solid: #0c1a20;
+  --on-stage: #f3f8f4;
+  --on-stage-soft: #d9e7dc;
+  --on-stage-faint: #cbdfd2;
+  --on-stage-ink: #0c1a20;
+}
+.cstage[data-stage="mandarin"] {
+  --stage: linear-gradient(158deg, #f6a04f 0%, #f28a2e 42%, #d97516 100%);
+  --stage-panel: rgba(0,0,0,.045);
+  --stage-tile:  rgba(0,0,0,.09);
+  --stage-hover: rgba(0,0,0,.06);
+  --stage-well:  rgba(0,0,0,.08);
+  --stage-line: rgba(0,0,0,.16);
+  --stage-solid: #ffe9d2;
+  --on-stage: #301904;
+  --on-stage-soft: #3b1f06;
+  --on-stage-faint: #3d2007;
+  --on-stage-ink: #fff3e4;
+}
+.cstage[data-stage="rose"] {
+  --stage: linear-gradient(158deg, #edc6c9 0%, #e5b9bd 42%, #d19aa0 100%);
+  --stage-panel: rgba(0,0,0,.045);
+  --stage-tile:  rgba(0,0,0,.09);
+  --stage-hover: rgba(0,0,0,.06);
+  --stage-well:  rgba(0,0,0,.08);
+  --stage-line: rgba(0,0,0,.16);
+  --stage-solid: #f9e9ea;
+  --on-stage: #43191e;
+  --on-stage-soft: #552730;
+  --on-stage-faint: #5f2f38;
+  --on-stage-ink: #fdf2f3;
+}
+.cstage[data-stage="peach"] {
+  --stage: linear-gradient(158deg, #f3b287 0%, #efa071 42%, #dd8551 100%);
+  --stage-panel: rgba(0,0,0,.045);
+  --stage-tile:  rgba(0,0,0,.09);
+  --stage-hover: rgba(0,0,0,.06);
+  --stage-well:  rgba(0,0,0,.08);
+  --stage-line: rgba(0,0,0,.16);
+  --stage-solid: #fce4d1;
+  --on-stage: #2f1707;
+  --on-stage-soft: #3a1d09;
+  --on-stage-faint: #40210b;
+  --on-stage-ink: #fff2e7;
+}
+.cstage[data-stage="pistachio"] {
+  --stage: linear-gradient(158deg, #abd9bd 0%, #98cfae 42%, #79b892 100%);
+  --stage-panel: rgba(0,0,0,.045);
+  --stage-tile:  rgba(0,0,0,.09);
+  --stage-hover: rgba(0,0,0,.06);
+  --stage-well:  rgba(0,0,0,.08);
+  --stage-line: rgba(0,0,0,.16);
+  --stage-solid: #dcf0e4;
+  --on-stage: #0e2115;
+  --on-stage-soft: #16311f;
+  --on-stage-faint: #1a3925;
+  --on-stage-ink: #effaf3;
+}
+.cstage[data-stage="lavender"] {
+  --stage: linear-gradient(158deg, #d5cbee 0%, #c9bce6 42%, #b0a0d6 100%);
+  --stage-panel: rgba(0,0,0,.045);
+  --stage-tile:  rgba(0,0,0,.09);
+  --stage-hover: rgba(0,0,0,.06);
+  --stage-well:  rgba(0,0,0,.08);
+  --stage-line: rgba(0,0,0,.16);
+  --stage-solid: #efeafa;
+  --on-stage: #241b3c;
+  --on-stage-soft: #352954;
+  --on-stage-faint: #3e315f;
+  --on-stage-ink: #f6f2fd;
+}
+.cstage[data-stage="cream"] {
+  --stage: linear-gradient(158deg, #fdf9f2 0%, #fcf6ed 42%, #efe3d0 100%);
+  --stage-panel: rgba(0,0,0,.045);
+  --stage-tile:  rgba(0,0,0,.09);
+  --stage-hover: rgba(0,0,0,.06);
+  --stage-well:  rgba(0,0,0,.08);
+  --stage-line: rgba(0,0,0,.16);
+  --stage-solid: #ffffff;
+  --on-stage: #2f2717;
+  --on-stage-soft: #4a3d24;
+  --on-stage-faint: #55472c;
+  --on-stage-ink: #fdf9f2;
+}
+
+/* The picker's own dots — each theme's mid ground stop, stated here rather
+   than in the page, because a colour literal belongs in the token layer and
+   nowhere else (relief.spec enforces exactly this). */
+.cstheme [data-t="slate"]     { background: #434a54; }
+.cstheme [data-t="navy"]      { background: #24344e; }
+.cstheme [data-t="emerald"]   { background: #1a3a2d; }
+.cstheme [data-t="mandarin"]  { background: #f28a2e; }
+.cstheme [data-t="rose"]      { background: #e5b9bd; }
+.cstheme [data-t="peach"]     { background: #efa071; }
+.cstheme [data-t="pistachio"] { background: #98cfae; }
+.cstheme [data-t="lavender"]  { background: #c9bce6; }
+.cstheme [data-t="cream"]     { background: #fcf6ed; }

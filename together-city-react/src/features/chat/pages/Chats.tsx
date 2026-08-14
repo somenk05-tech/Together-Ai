@@ -17,6 +17,36 @@ import { MiraMark } from '../mira/MiraMark';
  * position in this list, not a shape in the database.
  */
 const MIRA_ID = '__mira__';
+
+/**
+ * THE STAGE TAKES A COLOUR. Eight palettes from the owner's cards, plus the
+ * slate the stage ships in. A theme is a `data-stage` attribute on the stage
+ * element — the token blocks in tokens.css do all the painting, each one
+ * re-stating the FULL set of stage tokens with its own measured inks, so a
+ * theme can never re-ground the room while keeping the wrong ink. Mira's
+ * room has its own tokens and takes no theme: she stays red.
+ *
+ * The swatch colours live in tokens.css with the theme blocks (`.cstheme
+ * [data-t=...]`) — relief.spec bans colour literals in page files, and it
+ * is right to: a hex here and a hex there is how two swatches drift.
+ */
+const STAGE_THEMES = [
+  { id: 'slate', name: 'Slate' },
+  { id: 'navy', name: 'Navy Mirage' },
+  { id: 'emerald', name: 'Emerald Depth' },
+  { id: 'mandarin', name: 'Mandarin Curd' },
+  { id: 'rose', name: 'Rose Mascarpone' },
+  { id: 'peach', name: 'Peach Glaze' },
+  { id: 'pistachio', name: 'Pistachio Mint Cream' },
+  { id: 'lavender', name: 'Lavender Cream' },
+  { id: 'cream', name: 'Cream Veil' },
+] as const;
+type StageTheme = (typeof STAGE_THEMES)[number]['id'];
+const THEME_KEY = 'chat.stage';
+const storedTheme = (): StageTheme => {
+  const t = localStorage.getItem(THEME_KEY);
+  return STAGE_THEMES.some((s) => s.id === t) ? (t as StageTheme) : 'slate';
+};
 import { MessageThread, ConfirmDelete, withinWindow } from '../components/MessageThread';
 import { Composer } from '../components/Composer';
 import { ChatStarter } from '../components/ChatStarter';
@@ -133,6 +163,13 @@ export function Chats() {
      below, the same window this screen already renders, handed over as a
      prop at ask time. The panel fetches nothing and keeps nothing. */
   const [confide, setConfide] = useState(false);
+  /* The chosen colour, held per device — a preference about this screen,
+     like the day store, not a fact the server needs. */
+  const [stageTheme, setStageTheme] = useState<StageTheme>(() => storedTheme());
+  const pickTheme = (id: StageTheme) => {
+    setStageTheme(id);
+    localStorage.setItem(THEME_KEY, id);
+  };
   /* Forwarding takes a LIST now, always. One message is a list of one — the
      alternative is a union the panel would have to narrow on every read. */
   const [forwarding, setForwarding] = useState<Message[] | null>(null);
@@ -474,6 +511,7 @@ export function Chats() {
           three columns, which is how a room touches both edges of a phone
           without a negative margin fighting the gutter. */}
       <div className={`cstage${phone ? (activeId ? ' is-thread bleed' : ' is-list') : ''}`}
+        data-stage={stageTheme}
         style={{ height: phone
           ? (activeId ? 'var(--tc-vvh, 100dvh)' : 'calc(100dvh - var(--header-h) - var(--safe-top) - var(--safe-bottom) - 24px)')
           : 'calc(100dvh - var(--header-h) - var(--safe-top) - 42px)' }}>
@@ -482,6 +520,18 @@ export function Chats() {
           <div className="cshead">
             <h2>Chats</h2>
             <p>Together City</p>
+            {/* The stage's colours, one tap each. Swatches rather than names
+                because the colour IS the name; the name rides in the label
+                for anyone listening instead of looking. */}
+            <div className="cstheme" role="group" aria-label="Chat colour">
+              {STAGE_THEMES.map((t) => (
+                <button key={t.id} type="button" title={t.name} data-t={t.id}
+                  aria-label={`Colour: ${t.name}`}
+                  aria-pressed={stageTheme === t.id}
+                  className={stageTheme === t.id ? 'on' : undefined}
+                  onClick={() => pickTheme(t.id)} />
+              ))}
+            </div>
           </div>
           <ChatStarter onOpened={onOpened} />
           <MiraRow active={activeId === MIRA_ID} onSelect={() => setActiveId(MIRA_ID)} />

@@ -3653,3 +3653,21 @@ textarea.g-field { resize: none; line-height: 1.55; }
   padding-top: 12px;
   margin-top: 8px;
 }
+
+/* ── THE STAGE TAKES A COLOUR ──────────────────────────────────────────────
+   The swatch row under the Chats header. Each dot is a ground the stage can
+   wear (the token blocks live in tokens.css); the lit ring marks the one it
+   is wearing. The 44px target is the transparent pseudo-element every small
+   control in this file already uses — the paint stays a 22px dot. */
+.cstheme { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+.cstheme button {
+  position: relative; width: 22px; height: 22px; padding: 0;
+  border-radius: var(--r-full); border: 1px solid var(--stage-line);
+  cursor: pointer;
+}
+.cstheme button.on { outline: 2px solid var(--on-stage); outline-offset: 2px; }
+.cstheme button::after {
+  content: ''; position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 44px; min-height: 44px;
+}
