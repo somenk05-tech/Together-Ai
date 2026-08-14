@@ -306,12 +306,16 @@
   min-width: 44px; min-height: 44px; z-index: -1;
 }
 /* Her mark as a header key on the chat stage: JUST the ring, no disc —
-   the owner's call. Her red so it reads as her rather than as another
-   glyph; a full 44px target with the paint being only the mark itself. */
+   the owner's call. Drawn in THE STAGE'S OWN INK, not her red: --mira-mark
+   is measured on white (her row's slot), and on the dark stages it lands
+   near 1.5:1 — the owner's screenshot showed exactly that, a mark-shaped
+   nothing beside the search key. The stage's ink is re-measured by every
+   theme, so the ring is legible on all nine grounds; the ring's gap is
+   what says Mira. A full 44px target, the paint only the mark itself. */
 .mira-door {
   min-width: 44px; min-height: 44px; padding: 0; border: 0; background: none;
   display: grid; place-items: center; cursor: pointer;
-  color: var(--mira-mark);
+  color: var(--on-stage);
 }
 
 /* Her voice, and the fact that it is OFF until asked. A chat surface that

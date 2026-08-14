@@ -35,6 +35,10 @@ describe('Mira reads one chat', () => {
     const mira = read('styles/mira.css');
     expect(mira).toMatch(/\.mira-door \{[^}]*background: none/);
     expect(mira).toMatch(/\.mira-door \{[^}]*min-width: 44px; min-height: 44px/);
+    // And the bare ring is drawn in THE STAGE'S ink, never her on-white red:
+    // --mira-mark is measured on white and vanished on the dark themes.
+    expect(mira).toMatch(/\.mira-door \{[^}]*color: var\(--on-stage\)/);
+    expect(mira).not.toMatch(/\.mira-door \{[^}]*var\(--mira-mark\)/);
   });
 
   it('the window is this screen’s own render — bounded, sides told apart', () => {
