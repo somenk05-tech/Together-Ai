@@ -119,6 +119,20 @@ export const MessagePageSchema = z.object({
 });
 export type MessagePage = z.infer<typeof MessagePageSchema>;
 
+/** Who a message reached, and when — sender's own view. */
+export const MessageInfoSchema = z.object({
+  messageId: z.string(),
+  sentAt: z.string(),
+  recipients: z.array(z.object({
+    userId: z.string(),
+    name: z.string().nullable().optional(),
+    handle: z.string().nullable().optional(),
+    status: z.enum(['SENT', 'DELIVERED', 'READ']),
+    readAt: z.string().nullable().optional(),
+  })),
+});
+export type MessageInfo = z.infer<typeof MessageInfoSchema>;
+
 export const NotificationSchema = z.object({
   id: z.string(),
   kind: z.string(),

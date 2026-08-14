@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { useConversations, useMessages, useChatRealtime, useClearConversation, useMessageSearch, chatApi, socketClient, WS, type OutgoingAttachment } from '@/api';
+import { useConversations, useMessages, useChatRealtime, useClearConversation, useMessageSearch, useOnlineContacts, chatApi, socketClient, WS, type OutgoingAttachment } from '@/api';
 import { ConversationList } from '../components/ConversationList';
 import { MessageThread } from '../components/MessageThread';
 import { Composer } from '../components/Composer';
@@ -89,6 +89,29 @@ export function Chats() {
   const [jumpToId, setJumpToId] = useState<string | null>(null);
   const [jumpNote, setJumpNote] = useState<string | null>(null);
   const hits = useMessageSearch(activeId, kw, from || undefined, to || undefined);
+
+  /* PRESENCE HAD TWO IMPLEMENTATIONS AND NO AUDIENCE. The gateway works out an
+     online/offline transition and broadcasts it to every conversation the
+     citizen shares — and nothing listened. `useOnlineContacts` calls
+     GET /users/online and nothing called IT. Both are read here: the REST list
+     answers "are they here now" on open, which a socket frame cannot because it
+     only ever reports a CHANGE, and the frames keep it true afterwards. */
+  const onlineNow = useOnlineContacts();
+  const peerId = useMemo(() => {
+    const convo = (conversations.data ?? []).find((c) => c.id === activeId);
+    if (!convo || convo.isGroup) return undefined;   // a group has no single "they"
+    return (convo.participantIds ?? []).find((id) => id !== user?.id);
+  }, [conversations.data, activeId, user?.id]);
+  const [peerOnline, setPeerOnline] = useState(false);
+  useEffect(() => {
+    setPeerOnline(Boolean(peerId && (onlineNow.data ?? []).includes(peerId)));
+  }, [peerId, onlineNow.data]);
+  useEffect(() => {
+    if (!peerId) return;
+    const on = socketClient.on<{ userId: string }>(WS.USER_ONLINE, ({ userId }) => { if (userId === peerId) setPeerOnline(true); });
+    const off = socketClient.on<{ userId: string }>(WS.USER_OFFLINE, ({ userId }) => { if (userId === peerId) setPeerOnline(false); });
+    return () => { on(); off(); };
+  }, [peerId]);
 
   // Reset the live buffer whenever the conversation changes.
   useEffect(() => { setLive([]); setPeerTyping(false); setStatusMap({}); setHiddenIds(new Set()); setTombstoned(new Set()); setEditsMap({}); ackedRead.current = new Set(); setReplyTo(null); setSearchOpen(false); setKw(''); setFrom(''); setTo(''); setJumpToId(null); setJumpNote(null); }, [activeId]);
@@ -284,7 +307,11 @@ export function Chats() {
                 <span className="csav">{activeTitle.split(/[\s·]+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase()}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <b style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeTitle}</b>
-                  <em>{peerTyping ? 'typing…' : 'Together City'}</em>
+                  {/* Typing outranks online: it is the more specific fact, and
+                      the more useful one. Absent both, the room says nothing
+                      about the other person rather than guessing "offline" —
+                      presence expires on a TTL, so silence is not proof. */}
+                  <em>{peerTyping ? 'typing…' : peerOnline ? 'online' : 'Together City'}</em>
                 </div>
                 <button type="button" className="cstool" aria-label="Search this conversation"
                   aria-expanded={searchOpen} onClick={() => setSearchOpen((v) => !v)}
@@ -354,7 +381,8 @@ export function Chats() {
                     )}
                     <MessageThread messages={messages} currentUserId={user?.id} typing={peerTyping}
                       peerName={activeTitle} onDelete={deleteMessage} onEdit={editMessage}
-                      onReply={setReplyTo} onJump={(id) => { void jumpTo(id); }} jumpToId={jumpToId} />
+                      onReply={setReplyTo} onJump={(id) => { void jumpTo(id); }} jumpToId={jumpToId}
+                      fetchInfo={chatApi.messageInfo} />
                   </>}
               <Composer onSend={sendWithReply} onTyping={emitTyping}
                 replyTo={replyTo ? {

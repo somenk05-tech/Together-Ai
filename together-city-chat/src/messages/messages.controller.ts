@@ -77,4 +77,12 @@ export class MessagesController {
     const dto: SearchMessagesDto = SearchMessagesSchema.parse(query);
     return this.messages.search(user.sub, dto);
   }
+
+  // GET /api/messages/:id/info — declared AFTER messages/search on purpose:
+  // Nest matches in declaration order and a bare `:id` would otherwise swallow
+  // the literal path. Sender-only; the service refuses anybody else.
+  @Get('messages/:id/info')
+  info(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.messages.info(user.sub, id);
+  }
 }

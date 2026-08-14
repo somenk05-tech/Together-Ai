@@ -317,6 +317,46 @@ export class MessagesService {
     return statuses.map((s) => this.serialize(s.message));
   }
 
+  /**
+   * WHO HAS SEEN THIS, AND WHEN — for one message, for the person who sent it.
+   *
+   * The rows have existed since read receipts shipped: one MessageStatus per
+   * recipient, with readAt written. Nothing ever read them back, so the bubble's
+   * aggregate tick was the entire story — and that aggregate is the LEAST
+   * progressed of everybody, so one person who has not opened the app holds the
+   * whole group at a single tick with no way to find out who.
+   *
+   * Sender-only. In a group, who has read your message is a fact about your
+   * message; who has read everybody else's is a log of six people's habits, and
+   * this endpoint is not a way to ask for it.
+   */
+  async info(userId: string, messageId: string) {
+    const msg = await this.prisma.message.findUnique({
+      where: { id: messageId },
+      select: { id: true, senderId: true, createdAt: true },
+    });
+    if (!msg) throw new NotFoundException('Message not found');
+    if (msg.senderId !== userId) {
+      throw new ForbiddenException('Only the sender can see who has read a message.');
+    }
+    // unbounded: one message's recipients — group-sized, and the group is the point
+    const rows = await this.prisma.messageStatus.findMany({
+      where: { messageId },
+      include: { user: { select: { id: true, name: true, handle: true } } },
+    });
+    return {
+      messageId: msg.id,
+      sentAt: msg.createdAt.toISOString(),
+      recipients: rows.map((r) => ({
+        userId: r.userId,
+        name: r.user?.name ?? null,
+        handle: r.user?.handle ?? null,
+        status: r.status,
+        readAt: r.readAt ? r.readAt.toISOString() : null,
+      })),
+    };
+  }
+
   /** Multi-criteria search (keyword / sender / type / date / conversation). */
   async search(userId: string, dto: SearchMessagesDto) {
     // unbounded: their own memberships — the search scope, socially bounded

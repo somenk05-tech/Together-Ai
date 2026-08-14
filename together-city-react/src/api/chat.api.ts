@@ -5,8 +5,8 @@ import { apiDelete, apiGet, apiPost, apiPut } from './http';
 import { socketClient, WS } from './socket';
 import { useAuthed } from '@/store/useAuthed';
 import {
-  ConversationSchema, MessagePageSchema, MessageSchema,
-  type Conversation, type Message, type MessagePage, type ShareCard,
+  ConversationSchema, MessageInfoSchema, MessagePageSchema, MessageSchema,
+  type Conversation, type Message, type MessageInfo, type MessagePage, type ShareCard,
 } from './schemas';
 
 const ContactSchema = z.object({ id: z.string(), handle: z.string(), name: z.string(), profileImage: z.string().nullable().optional() });
@@ -77,6 +77,9 @@ export const chatApi = {
     conversationId?: string; keyword?: string; from?: string; to?: string; limit?: number;
   }): Promise<Message[]> =>
     apiGet('/messages/search', z.array(MessageSchema), { params }),
+  /** Who received and read one of YOUR messages. 403 for anybody else's. */
+  messageInfo: (messageId: string): Promise<MessageInfo> =>
+    apiGet(`/messages/${messageId}/info`, MessageInfoSchema),
 };
 
 /* ---------------- React Query hooks ---------------- */

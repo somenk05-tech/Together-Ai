@@ -127,7 +127,7 @@ function ConfirmDelete({ mine, canEveryone, onCancel, onDelete }: {
   );
 }
 
-export function MessageThread({ messages, currentUserId, typing, peerName, onDelete, onEdit, onReply, onJump, jumpToId }: {
+export function MessageThread({ messages, currentUserId, typing, peerName, onDelete, onEdit, onReply, onJump, fetchInfo, jumpToId }: {
   messages: Message[]; currentUserId?: string; typing?: boolean;
   /** Whose thread this is, for the attribution line above each run. */
   peerName?: string;
@@ -137,6 +137,13 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
   /** Tapping a quotation asks the page to jump — the page owns history, and
    *  the message may be older than what is loaded. */
   onJump?: (messageId: string) => void;
+  /** Who received and read one of your own messages. Structural type rather
+   *  than an import: this component reads `@/types`, and one endpoint's shape
+   *  is not worth a second source of truth for it to drift against. */
+  fetchInfo?: (messageId: string) => Promise<{
+    sentAt: string;
+    recipients: Array<{ userId: string; name?: string | null; handle?: string | null; status: string; readAt?: string | null }>;
+  }>;
   /** A message to bring into view — from a search result, or from tapping a
    *  quotation. Scrolls THIS box only, never an ancestor: see the note on the
    *  auto-scroll below, which is the same lesson learned the same way. */
@@ -149,6 +156,9 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const [flashId, setFlashId] = useState<string | null>(null);
+  const [infoFor, setInfoFor] = useState<Message | null>(null);
+  const [info, setInfo] = useState<Awaited<ReturnType<NonNullable<typeof fetchInfo>>> | null>(null);
+  const [infoErr, setInfoErr] = useState<string | null>(null);
   const longPress = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /* THE LIST SCROLLS ITSELF.
@@ -182,6 +192,19 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
     const t = window.setTimeout(() => setFlashId(null), 1600);
     return () => window.clearTimeout(t);
   }, [jumpToId, messages.length]);
+
+  /* INFO IS FETCHED WHEN IT IS ASKED FOR, never alongside the thread: it is
+     one row per recipient per message, and pre-loading it for a hundred
+     messages to serve the one somebody taps is how a transcript gets slow. */
+  useEffect(() => {
+    if (!infoFor || !fetchInfo) return;
+    let alive = true;
+    setInfo(null); setInfoErr(null);
+    fetchInfo(infoFor.id)
+      .then((d) => { if (alive) setInfo(d); })
+      .catch(() => { if (alive) setInfoErr('That could not be loaded just now.'); });
+    return () => { alive = false; };
+  }, [infoFor, fetchInfo]);
 
   const doDelete = async (m: Message, scope: 'ME' | 'EVERYONE') => {
     setConfirmFor(null);
@@ -240,6 +263,7 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
                   {onReply && <button type="button" title="Reply" onClick={() => { onReply(m); setTouchOpen(null); }}>↩ Reply</button>}
                   {m.body && <button type="button" title="Copy" onClick={() => { void navigator.clipboard?.writeText(m.body); setTouchOpen(null); }}>⧉ Copy</button>}
                   {canEdit && <button type="button" title="Edit" onClick={() => startEdit(m)}>✎ Edit</button>}
+                  {mine && fetchInfo && <button type="button" title="Message info" onClick={() => { setInfoFor(m); setTouchOpen(null); }}>ⓘ Info</button>}
                   <button type="button" className="danger" title="Delete" onClick={() => { setConfirmFor(m); setTouchOpen(null); }}>🗑 Delete</button>
                 </div>
               )}
@@ -303,6 +327,42 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
         );
       })}
       {typing && <div className="csatt"><i>{peerName ?? 'They'} is typing…</i></div>}
+
+      {infoFor && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9500, background: 'rgba(20,18,12,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={() => setInfoFor(null)}>
+          <div className="card" style={{ width: 'min(420px, 100%)', padding: '20px 22px' }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 2px', fontSize: 17 }}>Message info</h3>
+            <p className="muted" style={{ fontSize: 12.5, margin: '0 0 14px' }}>
+              Sent {new Date(infoFor.createdAt).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+            </p>
+            {infoErr && <p style={{ fontSize: 13, margin: '0 0 12px' }} role="alert">{infoErr}</p>}
+            {!info && !infoErr && <p className="muted" style={{ fontSize: 13, margin: '0 0 12px' }}>Loading…</p>}
+            {info && (
+              <div style={{ display: 'grid', gap: 8, marginBottom: 14 }}>
+                {info.recipients.length === 0
+                  ? <p className="muted" style={{ fontSize: 13, margin: 0 }}>Nobody else is in this conversation yet.</p>
+                  : info.recipients.map((r) => (
+                      <div key={r.userId} style={{ display: 'flex', alignItems: 'baseline', gap: 10, justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 13.5, fontWeight: 600 }}>{r.name ?? (r.handle ? `@${r.handle}` : 'Someone')}</span>
+                        <span className="muted" style={{ fontSize: 12 }}>
+                          {/* The word people actually want is "read" and the time
+                              it happened; delivered without a time is the honest
+                              answer for a message nobody has opened. */}
+                          {r.status === 'READ'
+                            ? `Read${r.readAt ? ' · ' + new Date(r.readAt).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}`
+                            : r.status === 'DELIVERED' ? 'Delivered' : 'Sent'}
+                        </span>
+                      </div>
+                    ))}
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-line btn-sm" onClick={() => setInfoFor(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {confirmFor && (
         <ConfirmDelete
