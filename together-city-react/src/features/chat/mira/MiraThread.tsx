@@ -203,10 +203,12 @@ export function MiraThread({ weeksKnown = 0, dial }: { weeksKnown?: number; dial
               aria-label={speech.on ? 'Stop Mira speaking her replies' : 'Let Mira speak her replies'}
               title={speech.on ? 'Mira speaks her replies' : 'Mira is silent'}
             >
-              {/* An icon, not an emoji. Icon.tsx has said so since it was
-                  written: chrome uses the line icons; emoji stay for content,
-                  reactions and things a citizen typed. */}
-              <Icon name="megaphone" size={15} aria-hidden />
+              {/* THE ICON IS THE STATE, because nothing else here is.
+                  A megaphone stood here first and the owner asked what the
+                  button did — which is the only review a control icon ever
+                  gets, and it failed. A crossed-out speaker says "she is
+                  silent" without a tooltip, a label, or a guess. */}
+              <Icon name={speech.on ? 'speak' : 'mute'} size={16} aria-hidden />
             </button>
           )}
           {note.supported && (

@@ -12,6 +12,10 @@ import {
   LayoutGrid, Plus, ArrowLeft, ChevronRight, Notebook, MoreHorizontal,
   Music, X, Flag, Ban, FolderOpen, Satellite, TriangleAlert, Play, Pause,
   Megaphone, FileText, LineChart,
+  // Mira's voice, on and off. A megaphone stood in for this and read as
+  // "broadcast" rather than "read this aloud" — the owner asked what the
+  // button did, which is the only review a control icon ever gets.
+  Volume2, VolumeX,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -33,7 +37,9 @@ export type IconName =
   | 'music' | 'close' | 'flag' | 'block' | 'sort' | 'locating' | 'warn'
   | 'play' | 'pause'
   // Marks the mail folders derive from a project's name.
-  | 'megaphone' | 'doc' | 'chart';
+  | 'megaphone' | 'doc' | 'chart'
+  // Mira reading her replies aloud, and not.
+  | 'speak' | 'mute';
 
 const MAP: Record<IconName, LucideIcon> = {
   bell: Bell, heart: Heart, comment: MessageCircle, follow: UserPlus, connection: Handshake,
@@ -51,6 +57,7 @@ const MAP: Record<IconName, LucideIcon> = {
   // FileText and LineChart had no entry here; `sort` (FolderOpen) is the
   // plain folder every unmatched name falls back to and was already present.
   megaphone: Megaphone, doc: FileText, chart: LineChart,
+  speak: Volume2, mute: VolumeX,
 };
 
 export function Icon({ name, size = 18, strokeWidth = 1.75, className, style }: {

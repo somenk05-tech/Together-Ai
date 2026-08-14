@@ -104,6 +104,27 @@ describe('her voice is off until somebody turns it on', () => {
     expect(hook).toMatch(/onvoiceschanged/);
   });
 
+  /**
+   * AND THE ICON IS THE STATE.
+   *
+   * It shipped as a megaphone — the nearest name Icon.tsx happened to have —
+   * and the owner's first question on seeing it was "what does this button
+   * do?". That is the only review a control icon ever gets, and it failed. A
+   * crossed-out speaker says "she is silent" without a tooltip, a label, or a
+   * guess; a megaphone says "broadcast", which is a different feature.
+   *
+   * Asserted because the failure is silent: an icon that means the wrong thing
+   * renders perfectly, passes every type check, and is only ever caught by
+   * somebody being confused in front of it.
+   */
+  it('shows whether she is speaking or silent, in the icon itself', () => {
+    const thread = strip(read('src/features/chat/mira/MiraThread.tsx'));
+    expect(thread).toMatch(/name=\{speech\.on \? 'speak' : 'mute'\}/);
+    const icons = strip(read('src/components/ui/Icon.tsx'));
+    expect(icons).toMatch(/speak: Volume2/);
+    expect(icons).toMatch(/mute: VolumeX/);
+  });
+
   /** Queueing means an interrupted turn keeps talking over the next one, which
    *  is how a voice becomes something you switch off and never switch back on. */
   it('cancels the previous line before starting a new one', () => {
