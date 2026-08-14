@@ -45,6 +45,48 @@ const storedMode = (): 'friend' | 'city' | null => {
  *  of her spoke last, and as the friend the very first time. */
 const openingMode = (about?: string): 'friend' | 'city' => (about ? 'city' : storedMode() ?? 'friend');
 
+/**
+ * HER FIRST MESSAGE AS A FRIEND — the owner's copy, verbatim, emojis and
+ * all. Sent once per device, as a real bubble rather than an empty-state
+ * paragraph, because "the first message Mira sends" is what was asked for
+ * and a message is a thing that arrived. The assistant tab keeps the
+ * original opening: HERE, take your time, and what she can actually do.
+ */
+const WELCOME = `Hey. I’m Mira. 👋
+Think of me as your buddy inside Together City.
+You’ve got 200 free messages with me to start with. And the more you choose to share and build your profile, the better I’ll understand you — what you like, what matters to you, what you’re working on, and how I can actually be useful.
+You can talk to me however you want.
+Need a friend? I’m here.
+Want an astrologer? I’ve got you. ✨
+Need a guide or someone to help you think through a decision? Talk to me.
+Need an assistant to actually get things done? Say the word.
+Relationship trouble? Want me to analyse a chat and tell you what the hell is actually going on? Send it over. 😏
+And you don’t have to figure out which version of me you need.
+Just talk to me normally. I’ll figure it out.
+You’re always in control of what I know about you. I only use information you choose to share or give me permission to access, and your conversations are treated as private and confidential within Together City’s privacy framework.
+I’m not here to judge you.
+I’m here to help you think, decide, create, organise, laugh, vent, figure shit out — and sometimes stop you from making a spectacularly bad decision.
+So...
+I’m Mira.
+Your astrologer.
+Your guide.
+Your assistant.
+Your sounding board.
+Your occasional voice of reason.
+But mostly?
+Your buddy. ❤️`;
+
+const WELCOMED_KEY = 'mira.welcomed';
+/** The friend's room, seeded with her hello exactly once per device. */
+const seedWelcome = (turns: StoredTurn[], room: 'friend' | 'city'): StoredTurn[] => {
+  if (room !== 'friend' || turns.length > 0) return turns;
+  try {
+    if (window.localStorage.getItem(WELCOMED_KEY)) return turns;
+    window.localStorage.setItem(WELCOMED_KEY, '1');
+  } catch { return turns; }
+  return [{ who: 'mira', text: WELCOME, levity: 2 }];
+};
+
 export function MiraThread({ weeksKnown = 0, dial, about }: {
   weeksKnown?: number; dial?: 0 | 1 | 2;
   /** The in-app path she was opened over — the dock's "ask about this page". */
@@ -74,7 +116,7 @@ export function MiraThread({ weeksKnown = 0, dial, about }: {
    * the assistant, which is plainly what was asked for.
    */
   const [mode, setMode] = useState<'friend' | 'city'>(() => openingMode(about));
-  const [turns, setTurns] = useState<StoredTurn[]>(() => loadDay(undefined, openingMode(about)));
+  const [turns, setTurns] = useState<StoredTurn[]>(() => seedWelcome(loadDay(undefined, openingMode(about)), openingMode(about)));
   const [draft, setDraft] = useState('');
   const [distressLocked, setDistressLocked] = useState(false);
   const pickMode = (m: 'friend' | 'city') => {
@@ -83,7 +125,7 @@ export function MiraThread({ weeksKnown = 0, dial, about }: {
     // The other room's day, and none of this one's held question — an answer
     // to a question asked in the other tab would be read against the wrong
     // conversation.
-    setTurns(loadDay(undefined, m));
+    setTurns(seedWelcome(loadDay(undefined, m), m));
     pending.current = undefined;
     try { window.localStorage.setItem(MODE_KEY, m); } catch { /* a preference, not data */ }
   };
@@ -232,7 +274,11 @@ export function MiraThread({ weeksKnown = 0, dial, about }: {
                 when it does not: a greeting that fails is a quieter opening,
                 never an error in front of somebody. */}
             {greeting.data?.ask && <p className="miraask">{greeting.data.ask}</p>}
-            <p className="miraopentext">{opening((caps.data ?? []).map((c) => c.intent.toLowerCase()))}</p>
+            {/* The capability rundown is the ASSISTANT's introduction — the
+                owner's call: "I'm here, what do you need" belongs to the city
+                tab. The friend's introduction is the welcome bubble, and an
+                empty friend tab after that keeps just the mark and her mood. */}
+            {mode === 'city' && <p className="miraopentext">{opening((caps.data ?? []).map((c) => c.intent.toLowerCase()))}</p>}
           </div>
         )}
 

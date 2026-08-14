@@ -79,7 +79,9 @@
 .miraturn { display: flex; max-width: 82%; }
 .miraturn.you { align-self: flex-end; }
 .miraturn.mira { align-self: flex-start; }
-.mirabub { padding: 11px 15px; border-radius: var(--r-2); font-size: 15px; line-height: 1.5; }
+/* pre-wrap: her welcome and the model's longer answers arrive with real
+   line breaks, and a bubble that collapses them turns a letter into a blob. */
+.mirabub { padding: 11px 15px; border-radius: var(--r-2); font-size: 15px; line-height: 1.5; white-space: pre-wrap; }
 
 /* THE ROOM SPEAKS IN THE ROOM'S MATERIAL, AND YOU SPEAK IN WHITE.
    Inverted from the chat stage, where incoming is the white tile — and
@@ -273,6 +275,39 @@
   .mira-fab { bottom: 24px; right: 22px; }
   .mira-dock-panel { left: auto; width: 400px; bottom: 24px; right: 22px; }
 }
+
+/* ── The confidant, beside one conversation ───────────────────────────
+   Her mark in a chat header opens this: a sheet of her own material laid
+   against the screen's edge, over the thread it is reading. It reuses the
+   dock's scrim, head and close; only the shape is new — a full-height side
+   panel, because it is read ALONGSIDE the conversation rather than instead
+   of it. No motion of its own: it appears, like every panel on the stage. */
+.mira-confide {
+  position: fixed; z-index: 250; display: flex; flex-direction: column; overflow: hidden;
+  top: 0; right: 0; bottom: 0; width: min(100vw, 420px);
+  padding-top: var(--safe-top); padding-bottom: var(--safe-bottom);
+  border-left: 1px solid var(--mira-line);
+  background: var(--mira-ground); color: var(--on-mira);
+  box-shadow: var(--e3);
+}
+.mira-confide-chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 18px 4px; flex-shrink: 0; }
+/* Copy is a link inside her bubble, the miraforget shape: it takes rather
+   than does, and a button dressed like Send would be the wrong weight. The
+   44px target is the same transparent pseudo-element trick. */
+.miracopy {
+  position: relative; display: block; margin-top: 8px; font: inherit;
+  font-size: 12px; font-weight: 600; padding: 0; border: 0; background: none;
+  cursor: pointer; color: var(--on-mira-soft); text-decoration: underline;
+}
+.miracopy:hover { color: var(--on-mira); }
+.miracopy::after {
+  content: ''; position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 44px; min-height: 44px; z-index: -1;
+}
+/* Her mark as a header tool on the chat stage: the stage's own button, her
+   red for the ring so it reads as her rather than as another glyph. */
+.cstool.mira-door { color: var(--mira-mark); }
 
 /* Her voice, and the fact that it is OFF until asked. A chat surface that
    starts talking out loud on a phone in a room with other people in it is a

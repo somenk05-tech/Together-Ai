@@ -180,6 +180,7 @@ export const PURGE_RULES: PurgeRule[] = [
   { model: 'Budget', by: 'userId', action: 'purge', reason: 'Income, spending categories and targets.' },
   { model: 'CityWallet', by: 'userId', action: 'purge', reason: 'What they were holding in the city wallet.' },
   { model: 'MiraPass', by: 'userId', action: 'purge', reason: 'Mira conversation meter and subscription window — only the citizen ever sees it, and a tombstone needs no chat allowance.' },
+  { model: 'MiraTurn', by: 'userId', action: 'purge', reason: 'Every conversation with Mira — her memory of the citizen. The most personal record in the city; nothing of it survives the account.' },
   // The two below were added by other work without a classification, which
   // this spec is designed to force. Decided here rather than left red:
   { model: 'MailProject', by: 'ownerId', action: 'purge', reason: 'Their mailbox’s project folders — names, keys, colours. Only the owner ever sees them, and the mail they organised is already classified on its own rows.' },

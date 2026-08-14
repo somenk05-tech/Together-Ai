@@ -81,7 +81,13 @@ const FILE = /^asks-(\d{4}-\d{2}-\d{2})\.jsonl$/;
  * the meter itself answering; a run of them from one `who` is a citizen who
  * wants to talk and has not subscribed, which is a number the pricing needs.
  */
-export type Outcome = 'capability' | 'navigate' | 'listen' | 'advise' | 'relate' | 'clarify' | 'gap' | 'chat' | 'paywall';
+/** `forget` is the citizen exercising the promise that makes her memory
+ *  tolerable. Counted so a spike in it reads as what it is: mistrust. */
+/** `confide` is her reading of ONE person-to-person conversation, at the
+ *  citizen's request, scoped to that thread and nothing else. Counted apart
+ *  from `chat` because it is the one lane where what she saw was somebody
+ *  ELSE's words too, and its volume is a fact worth watching on its own. */
+export type Outcome = 'capability' | 'navigate' | 'listen' | 'advise' | 'relate' | 'clarify' | 'gap' | 'chat' | 'paywall' | 'forget' | 'confide';
 
 export interface LedgerEntry {
   userId: string;

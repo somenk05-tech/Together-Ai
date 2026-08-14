@@ -162,6 +162,7 @@ model User {
   workoutLogs          WorkoutLog[]
   cityWallet           CityWallet?
   miraPass             MiraPass?
+  miraTurns            MiraTurn[]
   walletTxns           WalletTxn[]
   masterProfile        MasterProfile?
   astroProfile         AstroProfile?
@@ -1429,6 +1430,24 @@ model MiraPass {
   updatedAt DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Her memory: both sides of every exchange, per citizen, per room
+/// ('friend' | 'city'). This is what lets tomorrow's Mira remember today
+/// across devices — and the forget command tears pages out of it, which is
+/// the only write she can perform anywhere. Purge-classified; cascades with
+/// the account.
+model MiraTurn {
+  id        String   @id @default(uuid())
+  userId    String
+  room      String
+  who       String
+  text      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, room, createdAt])
 }
 
 model WalletTxn {

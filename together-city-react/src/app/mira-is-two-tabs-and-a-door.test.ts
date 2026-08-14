@@ -41,6 +41,19 @@ describe('Mira is two tabs', () => {
     expect(thread).toMatch(/about \? 'city' : storedMode\(\) \?\? 'friend'/);
   });
 
+  it('the friend introduces herself once, and the assistant keeps the rundown', () => {
+    // The owner's welcome, verbatim, as her first message in the friend tab
+    // — once per device. The capability opening ("tell me what you want
+    // done") is the CITY tab's empty state now, not the friend's.
+    expect(thread).toMatch(/Your buddy\. ❤️/);
+    expect(thread).toMatch(/mira\.welcomed/);
+    expect(thread).toMatch(/room !== 'friend' \|\| turns\.length > 0/);
+    expect(thread).toMatch(/mode === 'city' && <p className="miraopentext">/);
+    // The welcome arrives with real line breaks, and the bubble keeps them.
+    const css = read('styles/mira.css');
+    expect(css).toMatch(/\.mirabub \{[^}]*white-space: pre-wrap/);
+  });
+
   it('each tab keeps its own thread — the friend and the errands never merge', () => {
     const day = read('features/chat/mira/day.ts');
     // The friend's room has its own key; the assistant keeps the ORIGINAL
@@ -50,7 +63,7 @@ describe('Mira is two tabs', () => {
     expect(day).toMatch(/room === 'friend' \? 'mira\.day\.friend' : KEY/);
     // Switching tabs swaps the thread, drops the other room's held question,
     // and saves into the room being looked at.
-    expect(thread).toMatch(/setTurns\(loadDay\(undefined, m\)\)/);
+    expect(thread).toMatch(/setTurns\(seedWelcome\(loadDay\(undefined, m\), m\)\)/);
     expect(thread).toMatch(/saveDay\(turns, undefined, mode\)/);
     // Forget today forgets the tab you are standing in, not both.
     expect(thread).toMatch(/clearDay\(mode\)/);

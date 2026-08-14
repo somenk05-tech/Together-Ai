@@ -25,9 +25,10 @@ import { resolveChoice, type Choice } from './choose';
 import { MiraRegistry } from './mira.registry';
 import { MiraLedger, type Outcome } from './ledger';
 import { acceptOrFallback, violations } from './voice';
-import { persona, lifePathOf, FREE_CHATS, SUB_INR, PAYWALL_LINE } from './persona';
+import { persona, confidant, lifePathOf, FREE_CHATS, SUB_INR, PAYWALL_LINE } from './persona';
 import { findInCity, whyWeAsk } from './city';
 import { readSituation, type Read } from './relate';
+import { readForget } from './forget';
 
 /**
  * Narrowing helpers, because the hub services return their own shapes.
@@ -335,6 +336,15 @@ export class MiraService {
      * written by citizens rather than guessed at.
      */
     const turn = async (): Promise<Attempt> => {
+      /**
+       * FORGETTING OUTRANKS EVERYTHING, including the choice she offered
+       * last turn — somebody asking her to forget is exercising the promise
+       * that makes her memory tolerable, and it must never be misread as an
+       * answer to "which one?". forget.ts is strict about what counts as the
+       * command, so "I forgot my keys" still flows to the conversation.
+       */
+      const forget = readForget(text);
+      if (forget) return this.forget(ctx.userId, forget);
       if (answered) {
         return {
           outcome: 'navigate',
@@ -482,6 +492,18 @@ export class MiraService {
     if (bad.length) this.logger.warn(`Mira's own line broke voice: ${bad.map((v) => v.why).join(', ')}`);
     const said = acceptOrFallback(draft, "I can't do that from here.");
 
+    /**
+     * THE RECORD IS HER MEMORY. Both sides of every exchange, kept per
+     * citizen on the server, which is what lets tomorrow's Mira remember
+     * today — across devices, unlike the browser's day store, which remains
+     * the display. Fire-and-forget like the ledger: remembering must never
+     * slow an answer and must never be the reason one fails. The two turns
+     * a forget produces are NOT recorded — a wipe that immediately writes
+     * "forget everything" back into the memory it wiped is a wipe that
+     * keeps a receipt, and the receipt is the thing they asked to lose.
+     */
+    if (outcome !== 'forget') this.remember(ctx.userId, ctx.mode === 'friend' ? 'friend' : 'city', text, said);
+
     return {
       text: said,
       lane: routed.lane,
@@ -533,12 +555,33 @@ export class MiraService {
       distress,
       canDo: this.registry.all().map((c) => c.intent.toLowerCase()),
     });
-    // The day's transcript, capped and cleaned. The current text goes last —
-    // and if the client already echoed it into history, it is not sent twice.
-    const trail = (ctx.history ?? []).slice(-12)
-      .map((h) => ({ role: h.who === 'me' ? ('user' as const) : ('assistant' as const), content: h.text.slice(0, 2000) }));
+    // HER MEMORY FIRST, THE DEVICE SECOND. The server record spans days and
+    // devices; the client's day store is one browser and clears at midnight.
+    // When the record answers, it IS the context — including today, because
+    // every exchange lands in it as it happens. The client trail remains the
+    // fallback for the first conversation and for a read that fails, so a
+    // slow table costs continuity, never an answer.
+    const remembered = await this.recall(ctx.userId, ctx.mode === 'friend' ? 'friend' : 'city');
+    const trail = remembered.length
+      ? remembered
+      : (ctx.history ?? []).slice(-12)
+          .map((h) => ({ role: h.who === 'me' ? ('user' as const) : ('assistant' as const), content: h.text.slice(0, 2000) }));
     if (trail.length && trail[trail.length - 1].role === 'user' && trail[trail.length - 1].content === text) trail.pop();
-    const said = await this.ai.converse(system, [...trail, { role: 'user', content: text }]);
+    /**
+     * The wire wants strict alternation starting with a user turn. The
+     * record is written in pairs so it usually is — but a half-failed write
+     * or a capability answer squeezed between chats can double a role, and
+     * one malformed transcript must not cost the conversation. Same-role
+     * neighbours are joined; a leading assistant turn is dropped.
+     */
+    const squashed: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+    for (const turn of [...trail, { role: 'user' as const, content: text }]) {
+      const last = squashed[squashed.length - 1];
+      if (last && last.role === turn.role) last.content += `\n${turn.content}`;
+      else squashed.push({ ...turn });
+    }
+    while (squashed.length && squashed[0].role !== 'user') squashed.shift();
+    const said = await this.ai.converse(system, squashed);
     if (!said) return undefined;
     const bad = violations(said);
     if (bad.length) {
@@ -597,6 +640,145 @@ export class MiraService {
       }),
     );
     return { paidUntil: until.toISOString(), freeLeft: null };
+  }
+
+  /**
+   * THE CONFIDANT — she reads ONE conversation, and only that one.
+   *
+   * The citizen pressed her mark inside a person-to-person chat. The client
+   * sends that thread's transcript with the ask, and the reply is built from
+   * that window of text and NOTHING else. The scope is the promise, and it is
+   * enforced by absence rather than by prompt: this method never touches
+   * MiraTurn (no recall, no remember — what two people said to each other is
+   * not hers to keep), never loads the chart or the name, and never reaches
+   * the router or the executor. One model call in, one paragraph out.
+   *
+   * The crisis hand-off still outranks the model — a thread can hold the same
+   * darkness a friend-tab turn can, and it is handled by code that cannot
+   * have a bad day. The meter is the same one conversation spends: this IS a
+   * model conversation, wherever she was standing when it happened.
+   */
+  async confide(
+    userId: string,
+    input: { otherName?: string; ask: string; transcript: Array<{ who: 'me' | 'them'; text: string }> },
+  ): Promise<{ text: string; pass?: { freeLeft: number | null }; paywall?: boolean }> {
+    const record = (outcome: Outcome) =>
+      this.ledger.record({ userId, text: input.ask, lane: 'LISTEN', confidence: 1, outcome, levity: 0 });
+
+    // The hand-off first, deterministically, before any model sees a word.
+    const situation = readSituation(input.ask);
+    if (situation?.handOff) {
+      record('relate');
+      return { text: `${situation.reflection} ${situation.handOff}` };
+    }
+
+    if (!this.ai.enabled) {
+      record('confide');
+      return { text: 'I can see this conversation, but my reading half isn’t switched on right now. Try me again in a while.' };
+    }
+
+    const pass = await this.passOf(userId);
+    if (!pass.paid && pass.freeLeft <= 0) {
+      record('paywall');
+      return { text: PAYWALL_LINE, pass: { freeLeft: 0 }, paywall: true };
+    }
+
+    const them = (input.otherName ?? '').trim() || 'Them';
+    const system = confidant({ otherName: input.otherName, distress: Boolean(situation) });
+    // One user turn: the window of text, then the question. A single message
+    // is trivially a legal transcript, and it keeps the model from mistaking
+    // the OTHER person's words for its interlocutor's.
+    const window = input.transcript.slice(-40)
+      .map((t) => `${t.who === 'me' ? 'Me' : them}: ${t.text.slice(0, 1000)}`)
+      .join('\n');
+    const content = window
+      ? `THE CONVERSATION SO FAR:\n${window}\n\nMY QUESTION: ${input.ask}`
+      : `The conversation is empty so far.\n\nMY QUESTION: ${input.ask}`;
+
+    const said = await this.ai.converse(system, [{ role: 'user', content }]);
+    if (!said || violations(said).length) {
+      if (said) this.logger.warn('Mira’s confidant reply broke voice — the plain line stands');
+      record('confide');
+      // Not billed — a reply she was not allowed to say costs nobody anything.
+      return { text: 'I’ve read it. Ask me plainly what you want to know about it — where they’re coming from, or how to answer.' };
+    }
+
+    record('confide');
+    const left = await this.spendChat(userId, pass);
+    return { text: said, pass: { freeLeft: left } };
+  }
+
+  /**
+   * The last stretch of the record, oldest first, shaped for the wire.
+   * Bounded (unbounded-reads rule) and try/caught whole: a missing table, a
+   * stale client or a slow read returns [] and the caller falls back to the
+   * device's own transcript.
+   */
+  private async recall(userId: string, room: 'friend' | 'city'): Promise<Array<{ role: 'user' | 'assistant'; content: string }>> {
+    try {
+      const rows = await this.prisma.miraTurn.findMany({
+        where: { userId, room },
+        orderBy: { createdAt: 'desc' },
+        take: 30,
+      });
+      return rows.reverse().map((t: { who: string; text: string }) => ({
+        role: t.who === 'you' ? ('user' as const) : ('assistant' as const),
+        content: t.text.slice(0, 1500),
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  /** Write both sides of an exchange into the record. Fire-and-forget, and
+   *  the reply is stamped a millisecond later so the pair reads back in the
+   *  order it was said. */
+  private remember(userId: string, room: 'friend' | 'city', asked: string, said: string): void {
+    try {
+      const at = Date.now();
+      void this.prisma.miraTurn.createMany({
+        data: [
+          { userId, room, who: 'you', text: asked.slice(0, 4000), createdAt: new Date(at) },
+          { userId, room, who: 'mira', text: said.slice(0, 4000), createdAt: new Date(at + 1) },
+        ],
+      }).catch(() => undefined);
+    } catch { /* memory is best-effort, never load-bearing */ }
+  }
+
+  /**
+   * Tear pages out of her notebook — the one write she can do, and it only
+   * ever removes. Scoped to the asker's own record by construction: the
+   * WHERE carries their userId before anything else.
+   */
+  private async forget(userId: string, ask: { scope: string; topic?: string }): Promise<Attempt> {
+    if (ask.scope === 'dismiss') return { outcome: 'forget', text: 'Dropped.' };
+    if (ask.scope === 'unclear') {
+      return {
+        outcome: 'clarify',
+        text: 'Everything, or a topic? Say "forget everything", or "forget about the loan" — and it is truly gone.',
+        choices: [],
+      };
+    }
+    try {
+      if (ask.scope === 'everything') {
+        await this.prisma.miraTurn.deleteMany({ where: { userId } });
+        return {
+          outcome: 'forget',
+          text: 'Done — all of it, gone from my memory. This device keeps today\u2019s thread until you press Forget today, and tomorrow I start from just us.',
+        };
+      }
+      const gone = await this.prisma.miraTurn.deleteMany({
+        where: { userId, text: { contains: ask.topic ?? '', mode: 'insensitive' } },
+      });
+      return {
+        outcome: 'forget',
+        text: gone.count > 0
+          ? `Done. ${gone.count} thing${gone.count === 1 ? '' : 's'} that mentioned it — gone from my memory.`
+          : 'Nothing in my memory mentions that, so there was nothing to forget. We\u2019re clean.',
+      };
+    } catch {
+      return { outcome: 'forget', text: 'That didn\u2019t take just now. Ask me again in a minute — it matters.' };
+    }
   }
 
   /** Their name, for the persona. Best-effort — she talks fine without it. */
