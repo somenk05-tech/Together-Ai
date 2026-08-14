@@ -91,4 +91,56 @@ describe('A dark stage does not export its ink', () => {
     }
     expect([...new Set(offenders)]).toEqual([]);
   });
+
+  /**
+   * AND THE RULE APPLIES ONE LEVEL DOWN, TO MIRA'S ROOM.
+   *
+   * The stage exports near-white ink. Mira's thread sits ON the stage and now
+   * paints a RED ground of its own — so it is the same shape as `.card`, and it
+   * shipped with the same defect in both directions before this was written:
+   * her opening paragraph asked for `--ink-soft` (#1c1c1c on #26282b, 1.2:1)
+   * while her bubbles painted `--card` white and let the stage's near-white
+   * type land on it.
+   *
+   * A component cannot know what ground it is on. It CAN know whether it
+   * painted one — and that is the thing this checks.
+   */
+  const mira = strip(read('src/styles/mira.css'));
+
+  it('gives Mira\'s room its own ground and its own ink, together', () => {
+    const thread = mira.slice(mira.indexOf('.mirathread {'));
+    const block = thread.slice(0, thread.indexOf('}'));
+    expect(block).toMatch(/background:\s*var\(--mira-ground\)/);
+    expect(block).toMatch(/(^|[^-\w])color:\s*var\(--on-mira\)/);
+  });
+
+  /**
+   * NO LIGHT TILE IN THAT ROOM WITHOUT AN INK OF ITS OWN. `--on-mira` is a
+   * near-white ground when it is used as one — the citizen's bubble, the send
+   * button, the live microphone — and inheriting `--on-mira` onto it is
+   * near-white on near-white, which is this whole file's defect wearing the
+   * new palette.
+   */
+  it('pairs every light tile in Mira\'s room with an ink', () => {
+    const LIGHT = /background(-color)?:\s*var\(--(on-mira|card|paper)\)/;
+    const offenders: string[] = [];
+    for (const block of mira.split('}')) {
+      const [selector, body] = [block.split('{')[0]?.trim(), block.split('{')[1]];
+      if (!body || !LIGHT.test(body)) continue;
+      if (!/(^|[^-\w])color:/.test(body)) offenders.push(selector);
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  /**
+   * AND THE CITY'S OWN INKS STAY OUT. `--ink`, `--ink-soft`, `--muted` and
+   * `--faint` are all near-black: correct on white paper, invisible in a red
+   * room. The one exception is Mira's ROW, which is not in the room — it sits
+   * on the stage, and wears the white tile the stage gives a selected row.
+   */
+  it('keeps the city\'s near-black inks out of the red room', () => {
+    const room = mira.slice(mira.indexOf('.mirathread {'));
+    const found = [...new Set(room.match(/var\(--(ink|ink-soft|muted|faint)\)/g) ?? [])];
+    expect(found).toEqual([]);
+  });
 });

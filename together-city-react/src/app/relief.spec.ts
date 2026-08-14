@@ -21,6 +21,10 @@ const tokens = read('src/styles/tokens.css');
 const relief = read('src/styles/relief.css');
 const layout = read('src/styles/layout.css');
 const index = read('src/index.css');
+/* Mira's room is the fourth stylesheet, and every rule in this file was blind
+   to it until it carried a red ground of its own. A stylesheet no ratchet
+   reads is a second design system with a head start. */
+const mira = read('src/styles/mira.css');
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(join(APP, dir))) {
@@ -147,7 +151,7 @@ describe('Relief stays a system', () => {
     // they are ink and images, and they carry their own light.
     const ALLOWED = /(text-shadow|drop-shadow|\.hero|\.btn-accent|\.btn-gold|\.btn-primary|\.ask-cta|\.step\.|\.mincal|\.tag\.dark|\.knob|outline|inset 0 1px 0|no-case|img:not|video:not|\.case)/;
     const offenders: string[] = [];
-    for (const [name, css] of [['relief.css', relief], ['layout.css', layout], ['index.css', index]] as const) {
+    for (const [name, css] of [['relief.css', relief], ['layout.css', layout], ['index.css', index], ['mira.css', mira]] as const) {
       for (const block of strip(css).split('}')) {
         const selector = block.split('{')[0].trim();
         const body = block.split('{')[1];
@@ -182,7 +186,7 @@ describe('Relief stays a system', () => {
       return !(h.slice(0, 2) === h.slice(2, 4) && h.slice(2, 4) === h.slice(4, 6));
     };
     const offenders: string[] = [];
-    for (const [name, css] of [['relief.css', relief], ['layout.css', layout], ['index.css', index]] as const) {
+    for (const [name, css] of [['relief.css', relief], ['layout.css', layout], ['index.css', index], ['mira.css', mira]] as const) {
       for (const hex of new Set(strip(css).match(/#[0-9a-fA-F]{3,8}\b/g) ?? [])) {
         if (chromatic(hex)) offenders.push(`${name} → ${hex}`);
       }
@@ -1110,7 +1114,7 @@ describe('Relief stays a system', () => {
    * always fine, because the fallback is the definition.
    */
   it('never asks for a custom property nobody defines', () => {
-    const CSS = [tokens, relief, layout, index].map(strip);
+    const CSS = [tokens, relief, layout, index, mira].map(strip);
     const TS = PAGES.map((f) => stripTs(read(f)));
 
     const defined = new Set<string>();
@@ -1123,6 +1127,7 @@ describe('Relief stays a system', () => {
     const files: Array<[string, string]> = [
       ['src/styles/tokens.css', CSS[0]], ['src/styles/relief.css', CSS[1]],
       ['src/styles/layout.css', CSS[2]], ['src/index.css', CSS[3]],
+      ['src/styles/mira.css', CSS[4]],
       ...PAGES.map((f, i) => [f, TS[i]] as [string, string]),
     ];
     for (const [name, text] of files) {

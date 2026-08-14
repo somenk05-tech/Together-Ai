@@ -4,7 +4,7 @@ import { RestaurantsService } from '../restaurants/restaurants.service';
 import { DriveService } from '../drive/drive.service';
 import { route, isUncertain, type Routed } from './router';
 import { levity, type LevityLevel, type LevityVerdict } from './levity';
-import { byId } from './manifest';
+import { MiraRegistry } from './mira.registry';
 import { acceptOrFallback, violations } from './voice';
 import { findInCity, whyWeAsk } from './city';
 
@@ -87,11 +87,12 @@ export class MiraService {
     private readonly financial: FinancialService,
     private readonly restaurants: RestaurantsService,
     private readonly drive: DriveService,
+    private readonly registry: MiraRegistry,
   ) {}
 
   async ask(text: string, ctx: AskContext): Promise<MiraTurn> {
-    const routed = route(text);
-    const cap = routed.capabilityId ? byId(routed.capabilityId) : undefined;
+    const routed = route(text, { capabilities: this.registry.upTo('R0') });
+    const cap = routed.capabilityId ? this.registry.byId(routed.capabilityId) : undefined;
 
     const lev: LevityVerdict = levity({
       lane: routed.lane,

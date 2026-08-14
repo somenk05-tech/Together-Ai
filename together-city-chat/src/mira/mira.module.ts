@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
+import { DiscoveryModule } from '@nestjs/core';
 import { FinancialModule } from '../financial/financial.module';
 import { RestaurantsModule } from '../restaurants/restaurants.module';
 import { DriveModule } from '../drive/drive.module';
 import { MiraController } from './mira.controller';
 import { MiraService } from './mira.service';
+import { MiraRegistry } from './mira.registry';
 
 /**
  * Mira imports the hubs she reads from; she owns no data of her own.
@@ -13,9 +15,9 @@ import { MiraService } from './mira.service';
  * wrong place.
  */
 @Module({
-  imports: [FinancialModule, RestaurantsModule, DriveModule],
+  imports: [DiscoveryModule, FinancialModule, RestaurantsModule, DriveModule],
   controllers: [MiraController],
-  providers: [MiraService],
-  exports: [MiraService],
+  providers: [MiraRegistry, MiraService],
+  exports: [MiraService, MiraRegistry],
 })
 export class MiraModule {}

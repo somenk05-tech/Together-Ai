@@ -1,14 +1,13 @@
 import { route, isUncertain, AMBIGUOUS_BELOW } from './router';
-import type { Capability } from './manifest';
+import type { Capability } from './mira.registry';
 
 const cap = (over: Partial<Capability>): Capability => ({
   id: 'x GET y',
-  file: 'x/x.controller.ts',
+  controller: 'XController',
   method: 'GET',
   path: 'x/y',
   intent: 'do a thing',
   risk: 'R0',
-  takesCurrentUser: true,
   ...over,
 });
 
@@ -123,10 +122,15 @@ describe('the confidence floor', () => {
   });
 });
 
-describe('it works against the real manifest too', () => {
-  it('routes a real utterance without being handed fixtures', () => {
-    const v = route("what's my balance");
-    expect(v.lane).toBe('RETRIEVE');
-    expect(v.capabilityId).toMatch(/financial/);
+describe('the router never reaches for capabilities itself', () => {
+  it('given none, it routes to AMBIGUOUS rather than guessing', () => {
+    // This is the guard for the production defect. The router used to fall
+    // back to a module-level source parse, which is empty in a compiled build —
+    // so every capability silently disappeared and Mira answered questions she
+    // could actually do with the navigation fallback. Capabilities are now
+    // passed in by the caller, and their absence is loud rather than invisible.
+    const v = route("what's my balance", { capabilities: [] });
+    expect(v.lane).toBe('AMBIGUOUS');
+    expect(v.capabilityId).toBeUndefined();
   });
 });

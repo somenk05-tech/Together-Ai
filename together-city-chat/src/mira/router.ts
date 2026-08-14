@@ -1,4 +1,4 @@
-import { manifest, type Capability } from './manifest';
+import type { Capability } from './mira.registry';
 import type { Lane } from './levity';
 
 export interface Routed {
@@ -104,7 +104,10 @@ export function route(text: string, opts: { capabilities?: Capability[] } = {}):
     if (re.test(t)) return { lane: 'AMBIGUOUS', confidence: 0.3, why };
   }
 
-  const caps = opts.capabilities ?? manifest();
+  // Capabilities are PASSED IN, never imported. The router must not reach for
+  // a module-level source parse — that is what made the manifest empty in
+  // production while every test stayed green.
+  const caps = opts.capabilities ?? [];
   const ranked = caps
     .map((c) => ({ c, s: score(c, t) }))
     .filter((x) => x.s > 0)

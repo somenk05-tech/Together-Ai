@@ -5,7 +5,7 @@ import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { MiraService } from './mira.service';
-import { manifest } from './manifest';
+import { MiraRegistry } from './mira.registry';
 
 export const AskSchema = z.object({
   text: z.string().min(1).max(2000),
@@ -21,7 +21,7 @@ export type AskDto = z.infer<typeof AskSchema>;
 @Controller('mira')
 @UseGuards(JwtAuthGuard)
 export class MiraController {
-  constructor(private readonly mira: MiraService) {}
+  constructor(private readonly mira: MiraService, private readonly registry: MiraRegistry) {}
 
   /**
    * What Mira can do, generated from the decorators.
@@ -31,7 +31,7 @@ export class MiraController {
    */
   @Get('capabilities')
   capabilities() {
-    return manifest().map(({ id, intent, risk, path }) => ({ id, intent, risk, path }));
+    return this.registry.all().map(({ id, intent, risk, path }) => ({ id, intent, risk, path }));
   }
 
   @Post('ask')

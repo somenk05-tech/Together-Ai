@@ -529,6 +529,47 @@
   --on-stage-faint: #a8adb3;
   --on-stage-ink: #101113;
 
+  /* ── MIRA'S ROOM ─────────────────────────────────────────────────────────
+     One room in the city is red, and it is hers.
+
+     IT IS A ROOM, NOT A THEME — the same argument `--stage` makes six
+     paragraphs up, and it is worth repeating rather than assuming. Nothing
+     toggles; a citizen who never opens Mira never sees a red pixel; the chat
+     hub around her keeps the black-and-white stage it already had. What
+     changes is one panel, and a panel may carry its own world.
+
+     WHY IT NEEDED TOKENS AT ALL. Mira's thread shipped with no ground of its
+     own, so it inherited the stage's — near-white ink on nothing — while her
+     opening paragraph asked for `--ink-soft`. That is #1c1c1c on #26282b:
+     1.2:1, dark on dark, and her bubbles were the same defect inverted,
+     painting `--card` white and inheriting the stage's near-white type onto
+     it. Exactly the failure `a-stage-does-not-export-its-ink` was written
+     for, one file too late to be caught by it. The rule that file states is
+     the fix here: a surface that brings its own ground brings its own ink.
+
+     THE INKS ARE MEASURED AGAINST THE LIT END. The ground is a gradient, so
+     one ink meets three grounds and only the palest of them decides. Against
+     #6d1119 (L=0.042): --on-mira is 10.6:1, --on-mira-soft 6.4:1,
+     --on-mira-faint 4.7:1. The faint tone is the one with no headroom — it
+     is the reason it is #c99a9d and not the prettier #b98d90, which measures
+     4.0:1 and fails. */
+  --mira-ground: linear-gradient(158deg, #6d1119 0%, #43090f 46%, #1a0508 100%);
+  --mira-solid:  #43090f;
+  --mira-tile:   rgba(255,255,255,.10);
+  --mira-line:   rgba(255,255,255,.16);
+  --mira-well:   rgba(0,0,0,.26);
+  --on-mira:       #fdf4f3;
+  --on-mira-soft:  #e0b9bb;
+  --on-mira-faint: #c99a9d;
+  /* The ink for a LIGHT tile sitting in her room — the citizen's own bubble
+     and the send button. Her darkest ground rather than the city's black, so
+     a white tile in a red room still belongs to the room. */
+  --on-mira-ink: #1a0508;
+  /* And the mark's own red, for the one place it is drawn on white: her row
+     in the conversation list, which sits on the chat stage and not in her
+     room. 7.8:1 on white. */
+  --mira-mark: #a4161a;
+
   /* THE TWO SHADOWS, as MATERIALS rather than elevations — the company they
      keep in relief.spec's named list is --glass, --lens, --lamp and --prism,
      not --e1..--e3. Pressed in, raised out, and a shallow inset for chrome. */

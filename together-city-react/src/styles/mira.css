@@ -1,26 +1,52 @@
 /* ── Mira ──────────────────────────────────────────────────────────────────
-   Pinned above the conversations, and drawn in the city's own material: the
-   same paper, the same radii, the same rhythm. She takes no accent of her
-   own — she borrows the one of wherever she is working, which is the visual
-   half of "chrome, not a hub".                                             */
+   Two surfaces, on two different grounds, and that is the whole of what makes
+   this file hard.
 
-.mirarow { border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+   HER ROW sits in the conversation list, on the chat stage — black and white,
+   near-white ink, the city's own furniture. She borrows all of it and adds one
+   thing: the mark, drawn in her red.
+
+   HER THREAD is a room of its own, and the room is red. It brings its own
+   ground, so it brings its own ink, and every rule below the divider re-points
+   colour rather than inheriting it. That is not style — it is
+   `a-stage-does-not-export-its-ink`'s rule applied one level down. The first
+   version of this file inherited from the stage and shipped Mira's opening
+   paragraph at 1.2:1, dark grey on near-black, with white bubbles carrying
+   near-white type. Both directions of the same mistake, in one component.
+
+   NO LITERALS. Every colour here is a token, so `relief.spec` reads this file
+   alongside relief.css, layout.css and index.css. It did not, until this
+   change: a fourth stylesheet nobody's ratchet had heard of is how a design
+   system stops being one.                                                   */
+
+/* ══ HER ROW, ON THE CHAT STAGE ═══════════════════════════════════════════ */
+
+.mirarow { border-bottom: 1px solid var(--stage-line); margin-bottom: 4px; }
 .mirarow .csrowmain {
   display: flex; align-items: center; gap: 12px; width: 100%;
   padding: 12px 14px; background: none; border: 0; cursor: pointer;
   font: inherit; color: inherit; text-align: left;
 }
+/* A white disc with a red ring — the one place the mark is drawn on a light
+   ground, which is why --mira-mark exists and is measured on white (7.8:1)
+   rather than on her own room. */
 .mirarow .miramark-slot {
   flex: 0 0 auto; display: grid; place-items: center;
-  width: 34px; height: 34px; border-radius: 999px;
+  width: 34px; height: 34px; border-radius: var(--r-full);
   background: var(--card); border: 1px solid var(--line);
-  /* currentColor all the way down, so the mark takes the hub's accent. */
-  color: var(--accent, var(--gold, #b08640));
+  color: var(--mira-mark);
 }
+.mirarow .csrowtext { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.mirarow .csrowtitle { font-weight: 640; font-size: 14.5px; }
+/* --muted is #6b6b6b, which is 3.4:1 on the stage and correct on the white
+   tile the selected row wears. Two grounds, two tones — the shape `.cswho
+   span` already uses four rules up in relief.css. */
+.mirarow .csrowsub { font-size: 12.5px; color: var(--on-stage-faint); }
+.mirarow.on .csrowsub { color: var(--muted); }
 
 /* The gap is the state. Motion, never colour — and never more than one
    ambient animation in the app, which is why only `listening` breathes.
-   
+
    Every duration is a token, not a literal. motion-ceiling caught this on the
    first land attempt: four new literals against a ceiling of seventeen. Two of
    them turned out to BE tokens already — --dur-slow is 420ms and I had written
@@ -38,65 +64,88 @@
 @media (prefers-reduced-motion: reduce) {
   .miramark-arc { animation: none !important; }
 }
-.mirarow .csrowtext { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-.mirarow .csrowtitle { font-weight: 640; font-size: 14.5px; }
-.mirarow .csrowsub { font-size: 12.5px; color: var(--muted); }
-.mirarow.on { background: var(--card); }
 
-.mirathread { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+/* ══ HER ROOM, WHICH IS RED ═══════════════════════════════════════════════
+   One declaration makes the room, and one makes it readable. Everything after
+   them exists because a child element paints a ground of its own and therefore
+   owes its own ink. */
+
+.mirathread {
+  display: flex; flex-direction: column; height: 100%; min-height: 0;
+  background: var(--mira-ground);
+  color: var(--on-mira);
+}
 .miraturns { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
 .miraturn { display: flex; max-width: 82%; }
 .miraturn.you { align-self: flex-end; }
 .miraturn.mira { align-self: flex-start; }
-.mirabub { padding: 11px 15px; border-radius: 16px; font-size: 15px; line-height: 1.5; }
-.miraturn.you .mirabub { background: var(--ink); color: var(--paper); border-bottom-right-radius: 5px; }
-.miraturn.mira .mirabub { background: var(--card); border: 1px solid var(--line); border-bottom-left-radius: 5px; }
+.mirabub { padding: 11px 15px; border-radius: var(--r-2); font-size: 15px; line-height: 1.5; }
+
+/* THE ROOM SPEAKS IN THE ROOM'S MATERIAL, AND YOU SPEAK IN WHITE.
+   Inverted from the chat stage, where incoming is the white tile — and
+   deliberately. On the stage the white tile marks the other person, because
+   the stage is neutral ground shared by two citizens. This room is not
+   neutral: it is Mira's, so her voice is made of it and yours is the object
+   set down in it. A white tile on red also needs an ink that is not the
+   city's black, or it reads as a message pasted in from another screen. */
+.miraturn.mira .mirabub { background: var(--mira-tile); border: 1px solid var(--mira-line); border-bottom-left-radius: 5px; }
+.miraturn.you .mirabub { background: var(--on-mira); color: var(--on-mira-ink); border-bottom-right-radius: 5px; }
+
 /* "Give me a second" rather than a spinner — the spec's one line of narration
    budget, and a better latency mask than a dot animation. */
-.mirawait { color: var(--muted); font-style: italic; }
+.mirawait { color: var(--on-mira-soft); font-style: italic; }
 
-.miracomposer { display: flex; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--line); }
+.miracomposer { display: flex; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--mira-line); }
 .miracomposer input {
   flex: 1; font: inherit; padding: 11px 14px;
-  border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink);
+  border: 1px solid var(--mira-line); border-radius: var(--r-2);
+  background: var(--mira-well); color: var(--on-mira);
 }
+/* A placeholder does not inherit the input's colour, so it is the one piece of
+   type in here that would have stayed at the browser's default grey. */
+.miracomposer input::placeholder { color: var(--on-mira-faint); opacity: 1; }
 .miracomposer button {
-  font: inherit; padding: 11px 18px; border: 0; border-radius: 12px;
-  background: var(--ink); color: var(--paper); cursor: pointer;
+  font: inherit; padding: 11px 18px; border: 0; border-radius: var(--r-2);
+  background: var(--on-mira); color: var(--on-mira-ink); cursor: pointer;
 }
 .miracomposer button:disabled { opacity: .45; cursor: default; }
 
 /* Says what she cannot do yet, in the product, rather than letting somebody
    discover it by asking. The same honesty the TURN relay message uses. */
-.miranote { margin: 0; padding: 0 18px 14px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+.miranote { margin: 0; padding: 0 18px 14px; font-size: 12px; color: var(--on-mira-faint); line-height: 1.5; }
 
-/* The opening — the mark, then the promise. */
+/* The opening — the mark, then the promise. The mark is near-white here and
+   red in the list: a ring drawn in --mira-mark on --mira-solid is 1.9:1, which
+   is a logo you cannot see. Same symbol, two grounds, two inks. */
 .miraopen { display: grid; place-items: center; gap: 16px; padding: 26px 18px 8px; text-align: center; }
-.miraopen .miramark { color: var(--accent, var(--gold, #b08640)); }
+.miraopen .miramark { color: var(--on-mira); }
 .miraopentext {
-  margin: 0; max-width: 46ch; font-size: 15px; line-height: 1.6; color: var(--ink-soft, #3d3936);
+  margin: 0; max-width: 46ch; font-size: 15px; line-height: 1.6; color: var(--on-mira-soft);
 }
 
 /* Navigation is the one part of "Mira runs the app" that changes nothing, so
-   it ships in phase 1 and needs no confirmation. */
+   it ships in phase 1 and needs no confirmation. It appears inside both
+   bubbles, so it is coloured per bubble rather than once. */
 .miragoto {
   display: block; margin-top: 9px; font-size: 14px; font-weight: 600;
-  color: var(--accent-ink, var(--gold-ink, #7a5a1f)); text-decoration: none;
+  text-decoration: none;
 }
+.miraturn.mira .miragoto { color: var(--on-mira); }
+.miraturn.you .miragoto { color: var(--on-mira-ink); }
 .miragoto:hover { text-decoration: underline; }
-.miraturn.you .miragoto { color: var(--paper, #f7f5f3); }
 
 /* Talk to her. Hidden entirely where the platform has no recogniser — a
    microphone that does nothing is worse than no microphone. */
 .miramic {
-  width: 42px; height: 42px; border-radius: 999px; border: 1px solid var(--line, #e4dfda);
-  background: var(--card, #fff); display: grid; place-items: center; cursor: pointer; flex: 0 0 auto;
+  width: 42px; height: 42px; border-radius: var(--r-full); border: 1px solid var(--mira-line);
+  background: var(--mira-tile); color: var(--on-mira);
+  display: grid; place-items: center; cursor: pointer; flex: 0 0 auto;
 }
 .miramic span { display: flex; align-items: center; gap: 2.5px; height: 16px; }
 .miramic i { display: block; width: 2px; border-radius: 2px; background: currentColor; height: 5px; }
 .miramic i:nth-child(2) { height: 12px; } .miramic i:nth-child(3) { height: 16px; }
 .miramic i:nth-child(4) { height: 10px; } .miramic i:nth-child(5) { height: 6px; }
-.miramic.on { background: var(--ink, #1b1917); color: var(--paper, #f7f5f3); border-color: var(--ink, #1b1917); }
+.miramic.on { background: var(--on-mira); color: var(--on-mira-ink); border-color: var(--on-mira); }
 .miramic.on i { animation: mira-wave var(--dur-spin) ease-in-out infinite; }
 .miramic.on i:nth-child(2) { animation-delay: .1s; } .miramic.on i:nth-child(3) { animation-delay: .2s; }
 .miramic.on i:nth-child(4) { animation-delay: .3s; } .miramic.on i:nth-child(5) { animation-delay: .4s; }

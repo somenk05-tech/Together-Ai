@@ -1,4 +1,20 @@
 import { MiraService } from './mira.service';
+import type { Capability } from './mira.registry';
+
+const CAPS: Capability[] = [
+  { id: 'financial GET wallet', controller: 'FinancialController', method: 'GET', path: 'financial/wallet',
+    intent: 'Tell the citizen their wallet balance', risk: 'R0',
+    utterances: ["what's my balance", 'how much do I have', 'wallet balance'] },
+  { id: 'financial GET transactions', controller: 'FinancialController', method: 'GET', path: 'financial/transactions',
+    intent: 'List recent transactions', risk: 'R0',
+    utterances: ['what did I spend', 'recent transactions', 'what have I paid for'] },
+  { id: 'restaurants GET discover', controller: 'RestaurantsController', method: 'GET', path: 'restaurants/discover',
+    intent: 'Find restaurants that fit an occasion', risk: 'R0',
+    utterances: ['find somewhere for dinner', 'somewhere special', 'a quiet place to eat'] },
+  { id: 'drive GET', controller: 'DriveController', method: 'GET', path: 'drive',
+    intent: 'Find one of the citizen own documents', risk: 'R0',
+    utterances: ["where's my insurance document", 'find my policy', 'my documents'] },
+];
 
 type Stub = () => Promise<unknown>;
 type Stubs = Partial<Record<'wallet' | 'transactions' | 'discover' | 'list', Stub>>;
@@ -18,6 +34,14 @@ const svc = (over: Stubs = {}) =>
     } as unknown as ConstructorParameters<typeof MiraService>[0],
     { discover: over.discover ?? (() => Promise.resolve({ places: [] })) } as unknown as ConstructorParameters<typeof MiraService>[1],
     { list: over.list ?? (() => Promise.resolve({ files: [] })) } as unknown as ConstructorParameters<typeof MiraService>[2],
+    // A stand-in registry. In production this is filled by Nest's DiscoveryService
+    // reading @Mira() metadata off the live handlers; here it is the four entries
+    // those decorators declare, so the router has something to match against.
+    {
+      upTo: () => CAPS,
+      byId: (id: string) => CAPS.find((c) => c.id === id),
+      all: () => CAPS,
+    } as unknown as ConstructorParameters<typeof MiraService>[3],
   );
 
 const ctx = (o: Partial<Parameters<MiraService['ask']>[1]> = {}) => ({
