@@ -5,6 +5,8 @@ import { useConversations, useMessages, useChatRealtime, useClearConversation, u
 import { ConversationList } from '../components/ConversationList';
 import { MiraRow } from '../mira/MiraRow';
 import { MiraThread } from '../mira/MiraThread';
+import { MiraConfidant } from '../mira/MiraConfidant';
+import { MiraMark } from '../mira/MiraMark';
 
 /**
  * Mira is selected by a sentinel id rather than a conversation row.
@@ -125,6 +127,12 @@ export function Chats() {
   }, [conversations.data, activeId, user?.id]);
   const [peerOnline, setPeerOnline] = useState(false);
   const [groupOpen, setGroupOpen] = useState(false);
+  /* MIRA, INVITED INTO THIS CONVERSATION. Her mark in the header opens a side
+     panel that reads THIS thread — and only this thread. The scope is
+     structural rather than behavioural: what she reads is `confideTranscript`
+     below, the same window this screen already renders, handed over as a
+     prop at ask time. The panel fetches nothing and keeps nothing. */
+  const [confide, setConfide] = useState(false);
   /* Forwarding takes a LIST now, always. One message is a list of one — the
      alternative is a union the panel would have to narrow on every read. */
   const [forwarding, setForwarding] = useState<Message[] | null>(null);
@@ -155,7 +163,7 @@ export function Chats() {
   }, [peerId]);
 
   // Reset the live buffer whenever the conversation changes.
-  useEffect(() => { setLive([]); setPeerTyping(false); setStatusMap({}); setHiddenIds(new Set()); setTombstoned(new Set()); setEditsMap({}); ackedRead.current = new Set(); setReplyTo(null); setSearchOpen(false); setKw(''); setFrom(''); setTo(''); setJumpToId(null); setJumpNote(null); setStarredOnly(false); setSelected(new Set()); setBulkDelete(false); setReactionsMap({}); }, [activeId]);
+  useEffect(() => { setLive([]); setPeerTyping(false); setStatusMap({}); setHiddenIds(new Set()); setTombstoned(new Set()); setEditsMap({}); ackedRead.current = new Set(); setReplyTo(null); setSearchOpen(false); setKw(''); setFrom(''); setTo(''); setJumpToId(null); setJumpNote(null); setStarredOnly(false); setSelected(new Set()); setBulkDelete(false); setReactionsMap({}); setConfide(false); }, [activeId]);
 
   /* THE WHOLE LIST ARRIVES, so this assigns rather than merges. A frame that
      said "+1 on 👍" would need a correct count to add to, and one dropped frame
@@ -360,6 +368,21 @@ export function Chats() {
      me, or cleared with the conversation — simply stops being in here, so the
      bar can never act on a message that is no longer on screen. */
   const picked = useMemo(() => messages.filter((m) => selected.has(m.id)), [messages, selected]);
+
+  /* THE WINDOW MIRA MAY READ: this thread as this screen shows it — deletions
+     and tombstones already applied, attachments-only rows dropped because she
+     reads words. The last forty turns, the same bound the server enforces, so
+     a long thread hands her a window rather than an archive. Sides are told
+     apart the way the bubbles are: yours is `senderId === user.id`. */
+  const confideTranscript = useMemo(() =>
+    messages
+      .filter((m) => !m.deleted && m.body)
+      .slice(-40)
+      .map((m) => ({
+        who: m.senderId === user?.id ? ('me' as const) : ('them' as const),
+        text: (m.body ?? '').slice(0, 1000),
+      })),
+  [messages, user?.id]);
   const toggleSelect = useCallback((m: Message) => {
     setSelected((s) => {
       const next = new Set(s);
@@ -537,6 +560,15 @@ export function Chats() {
                 <button type="button" className="cstool" aria-label="Search this conversation"
                   aria-expanded={searchOpen} onClick={() => setSearchOpen((v) => !v)}
                   style={{ flex: 'none' }}>🔍</button>
+                {/* Her mark, on every conversation. A press invites Mira into
+                    THIS thread — the side panel reads the window on screen and
+                    nothing else. Her ring rather than an emoji, because the
+                    mark is the promise: this is Mira, the same one. */}
+                <button type="button" className="cstool mira-door" aria-label="Ask Mira about this conversation"
+                  title="Ask Mira" onClick={() => setConfide(true)}
+                  style={{ flex: 'none' }}>
+                  <MiraMark size={22} showWord={false} state="waiting" />
+                </button>
                 <CallButtons conversationId={activeId} compact />
                 {/* end of the ordinary header — the bulk bar above takes this
                     whole row when anything is picked. */}
@@ -669,6 +701,10 @@ export function Chats() {
                   onCancel={() => setBulkDelete(false)}
                   onDelete={(scope) => { void deleteSelected(scope); }}
                 />
+              )}
+              {confide && (
+                <MiraConfidant otherName={activeTitle} transcript={confideTranscript}
+                  onClose={() => setConfide(false)} />
               )}
               {groupOpen && activeId && (
                 <GroupPanel conversationId={activeId} title={activeTitle} meId={user?.id}

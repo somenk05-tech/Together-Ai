@@ -173,6 +173,43 @@ export function useMiraSubscribe() {
   });
 }
 
+/**
+ * The confidant's one turn back. Deliberately smaller than MiraReplySchema:
+ * this lane has no lanes, no mood, no navigation — one paragraph about one
+ * conversation, plus the meter when it moved. Every field beyond `text` is
+ * optional, per the rule the mood field earned above.
+ */
+const ConfideReplySchema = z.object({
+  text: z.string(),
+  pass: z.object({ freeLeft: z.number().nullable() }).optional(),
+  paywall: z.boolean().optional(),
+});
+export type ConfideReply = z.infer<typeof ConfideReplySchema>;
+
+/**
+ * Mira, invited into ONE conversation.
+ *
+ * The transcript rides FROM THE CLIENT, and that is the scope made mechanical:
+ * the server never queries the chat tables for this, so the only thing she can
+ * ever read is the window this screen was already showing. Capped at the last
+ * forty turns — the same bound the server enforces — so a ten-year thread
+ * sends a window, not an archive.
+ */
+export function useMiraConfide() {
+  return useMutation({
+    mutationFn: async (input: {
+      otherName?: string;
+      ask: string;
+      transcript: Array<{ who: 'me' | 'them'; text: string }>;
+    }) =>
+      apiPost('/mira/confide', {
+        ask: input.ask,
+        otherName: input.otherName,
+        transcript: input.transcript.slice(-40),
+      }, ConfideReplySchema),
+  });
+}
+
 const CapabilitySchema = z.object({
   id: z.string(), intent: z.string(), risk: z.string(), path: z.string(),
 });

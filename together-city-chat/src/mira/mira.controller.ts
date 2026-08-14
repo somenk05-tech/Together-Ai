@@ -87,6 +87,28 @@ export const AskSchema = z.object({
 export type AskDto = z.infer<typeof AskSchema>;
 
 /**
+ * One conversation, shown to her by the person it belongs to.
+ *
+ * The transcript arrives FROM THE CLIENT, and that is the scope mechanism
+ * rather than a shortcut: the server never queries the chat tables for this,
+ * so the only thing she can ever read is the window the citizen was looking
+ * at when they pressed her mark. Bounded like everything from a client —
+ * forty turns of a thousand characters is plenty of thread for a side panel.
+ */
+export const ConfideSchema = z.object({
+  /** What they want from her about it. */
+  ask: z.string().min(1).max(2000),
+  /** The other person's display name, for the prompt only. */
+  otherName: z.string().min(1).max(80).optional(),
+  /** The visible window of the thread, oldest first, both voices. */
+  transcript: z.array(z.object({
+    who: z.enum(['me', 'them']),
+    text: z.string().min(1).max(1000),
+  })).max(40),
+});
+export type ConfideDto = z.infer<typeof ConfideSchema>;
+
+/**
  * What she needs to say hello, and all of it comes from the CLIENT.
  *
  * The hour, the day, whether this is the first open of it — every one is a fact
@@ -184,5 +206,23 @@ export class MiraController {
   @Post('subscribe')
   subscribe(@CurrentUser() user: JwtUser) {
     return this.mira.subscribe(user.sub);
+  }
+
+  /**
+   * Mira reads ONE conversation — the one the citizen showed her.
+   *
+   * A separate route rather than a mode on `ask`, because the separation IS
+   * the promise: this path never touches her memory, the chart, the router
+   * or the executor, and keeping it out of `ask` makes that checkable by
+   * reading one method instead of auditing every branch of the big one.
+   */
+  @Post('confide')
+  @UsePipes(new ZodValidationPipe(ConfideSchema))
+  confide(@CurrentUser() user: JwtUser, @Body() dto: ConfideDto) {
+    return this.mira.confide(user.sub, {
+      ask: dto.ask,
+      otherName: dto.otherName,
+      transcript: dto.transcript,
+    });
   }
 }
