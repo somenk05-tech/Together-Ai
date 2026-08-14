@@ -33,7 +33,20 @@ function opening(canDo: string[]): string {
 
 const mmss = (s: number): string => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
-export function MiraThread({ weeksKnown = 0, dial }: { weeksKnown?: number; dial?: 0 | 1 | 2 }) {
+/** Which tab spoke last, remembered across opens — a preference, not data. */
+const MODE_KEY = 'mira.mode';
+const storedMode = (): 'friend' | 'city' | null => {
+  try {
+    const v = window.localStorage.getItem(MODE_KEY);
+    return v === 'friend' || v === 'city' ? v : null;
+  } catch { return null; }
+};
+
+export function MiraThread({ weeksKnown = 0, dial, about }: {
+  weeksKnown?: number; dial?: 0 | 1 | 2;
+  /** The in-app path she was opened over — the dock's "ask about this page". */
+  about?: string;
+}) {
   const caps = useMiraCapabilities();
   /**
    * SHE REMEMBERS TODAY.
@@ -50,6 +63,18 @@ export function MiraThread({ weeksKnown = 0, dial }: { weeksKnown?: number; dial
   const [turns, setTurns] = useState<StoredTurn[]>(() => loadDay());
   const [draft, setDraft] = useState('');
   const [distressLocked, setDistressLocked] = useState(false);
+  /**
+   * ONE MIRA, TWO TABS. Friend is the companion — the chart, the numbers,
+   * the listening ear. City assistant is the operator she has always been.
+   * The tab is remembered because switching registers every open would make
+   * her feel like two strangers — except when she is opened OVER a page,
+   * where the assistant is plainly what was asked for.
+   */
+  const [mode, setMode] = useState<'friend' | 'city'>(() => (about ? 'city' : storedMode() ?? 'friend'));
+  const pickMode = (m: 'friend' | 'city') => {
+    setMode(m);
+    try { window.localStorage.setItem(MODE_KEY, m); } catch { /* a preference, not data */ }
+  };
   /**
    * THE METER, WHEN THE SERVER MENTIONS IT. `freeLeft` is null for a
    * subscriber — unmetered, never rendered as "0 left". `paywalled` puts the
@@ -103,7 +128,7 @@ export function MiraThread({ weeksKnown = 0, dial }: { weeksKnown?: number; dial
     setTurns((t) => [...t, { who: 'you', text: clean }]);
     setDraft('');
     try {
-      const reply = await ask.mutateAsync({ text: clean, recent, answering: pending.current, history });
+      const reply = await ask.mutateAsync({ text: clean, recent, answering: pending.current, history, mode, page: about });
       pending.current = reply.choices?.length ? reply.choices : undefined;
       if (reply.levity === 0 && reply.lane === 'LISTEN') setDistressLocked(true);
       if (reply.pass) setFreeLeft(reply.pass.freeLeft);
@@ -161,6 +186,18 @@ export function MiraThread({ weeksKnown = 0, dial }: { weeksKnown?: number; dial
 
   return (
     <div className="mirathread">
+      {/* The two of her, one press apart. Chips, not a router — the thread
+          and the day's memory are shared; only her register changes. */}
+      <div className="miratabs" role="group" aria-label="Which Mira">
+        <button type="button" className={`miratab${mode === 'friend' ? ' on' : ''}`}
+          aria-pressed={mode === 'friend'} onClick={() => pickMode('friend')}>
+          Friend
+        </button>
+        <button type="button" className={`miratab${mode === 'city' ? ' on' : ''}`}
+          aria-pressed={mode === 'city'} onClick={() => pickMode('city')}>
+          City assistant
+        </button>
+      </div>
       <div className="miraturns">
         {/* The opening is the empty state, not a permanent banner. Once there is
             a conversation, the promise has been kept or broken and repeating it
@@ -275,7 +312,7 @@ export function MiraThread({ weeksKnown = 0, dial }: { weeksKnown?: number; dial
             ref={box}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="Tell me what you need…"
+            placeholder={mode === 'friend' ? 'Talk to me…' : 'Tell me what you need…'}
             aria-label="Tell Mira what you need"
             autoComplete="off"
           />

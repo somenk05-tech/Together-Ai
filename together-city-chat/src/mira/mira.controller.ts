@@ -76,6 +76,13 @@ export const AskSchema = z.object({
     who: z.enum(['me', 'mira']),
     text: z.string().min(1).max(2000),
   })).max(12).optional(),
+  /** Which tab is asking — friend (the companion) or city (the assistant).
+   *  Optional: an older client is the assistant, which is what it shipped as. */
+  mode: z.enum(['friend', 'city']).optional(),
+  /** The in-app path they were standing on when they opened her, for the
+   *  "ask about this page" door. Validated like `answering`'s paths: it
+   *  reaches a prompt, not a redirect, but a client field is a client field. */
+  page: z.string().min(1).max(200).regex(/^\/[\w\-/?=&.%]*$/, 'an in-app path').optional(),
 });
 export type AskDto = z.infer<typeof AskSchema>;
 
@@ -159,6 +166,8 @@ export class MiraController {
       seed: dto.seed,
       answering: dto.answering,
       history: dto.history,
+      mode: dto.mode,
+      page: dto.page,
     });
   }
 

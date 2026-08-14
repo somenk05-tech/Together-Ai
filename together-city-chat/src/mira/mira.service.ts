@@ -25,7 +25,7 @@ import { resolveChoice, type Choice } from './choose';
 import { MiraRegistry } from './mira.registry';
 import { MiraLedger, type Outcome } from './ledger';
 import { acceptOrFallback, violations } from './voice';
-import { persona, FREE_CHATS, SUB_INR, PAYWALL_LINE } from './persona';
+import { persona, lifePathOf, FREE_CHATS, SUB_INR, PAYWALL_LINE } from './persona';
 import { findInCity, whyWeAsk } from './city';
 import { readSituation, type Read } from './relate';
 
@@ -224,6 +224,17 @@ export interface AskContext {
    * turn, which is the deterministic Mira's oldest defect wearing a new coat.
    */
   history?: Array<{ who: 'me' | 'mira'; text: string }>;
+  /**
+   * Which tab is asking. `friend` is the companion — conversation leads, and
+   * the interpretive lanes (astrology questions, "how is my day") go to the
+   * model with her full mystic register. `city` (and absent, for an older
+   * client) is the assistant she has always been. Capabilities, navigation
+   * and the crisis hand-off behave identically in both: a tab changes her
+   * register, never her safety and never what she can actually do.
+   */
+  mode?: 'friend' | 'city';
+  /** The in-app path they were standing on when they opened her. */
+  page?: string;
 }
 
 /** One branch's output: the fact, and the asides that would be true of it. */
@@ -353,9 +364,21 @@ export class MiraService {
         };
       }
       if (routed.lane === 'ADVISE') {
+        // The hand-off is checked before ANY register: control, violence or
+        // somebody at the edge outranks the friend tab and the model alike.
+        const situation = readSituation(text);
+        if (situation?.handOff) return relate(situation);
+        if (ctx.mode === 'friend') {
+          // The friend tab. "When will I find love" was the second question
+          // ever asked of her, and the assistant's honest deflection was the
+          // wrong register for it. Here the model answers with the chart and
+          // the numbers she actually knows — and when the model is off, she
+          // falls through to exactly what the assistant would have said.
+          const talked = await this.converse(text, ctx, lev.distress);
+          if (talked) return talked;
+        }
         const told = foretold(text);
         if (told) return told;
-        const situation = readSituation(text);
         if (situation) return relate(situation);
         // The interpretation lane belongs to the astrology engine, which already
         // computes deterministically and already has its own enforced voice.
@@ -385,10 +408,16 @@ export class MiraService {
         // become "Dad. Want me to take you?" — so this is asked before the
         // place-finder, and it returns nothing at all unless there is genuinely
         // a situation to read.
-        const told = foretold(text);
-        if (told) return told;
         const situation = readSituation(text);
-        if (situation) return relate(situation);
+        if (situation?.handOff) return relate(situation);
+        // In the friend tab the one-liner oracle steps aside: "when will I
+        // find love" deserves the model, with the chart and the numbers she
+        // actually knows, not a stock sentence. The city tab keeps
+        // foretold() — terse and honest is the assistant's register — and
+        // navigation below gets its chance in both tabs.
+        const told = ctx.mode === 'friend' ? undefined : foretold(text);
+        if (told) return told;
+        if (situation && ctx.mode !== 'friend') return relate(situation);
 
         const found = findInCity(text, 3);
         const [top, second] = found;
@@ -413,10 +442,13 @@ export class MiraService {
         // owner screenshotted twice. Now it is a conversation, when the model
         // is configured; the old sentence stays as the honest fallback when
         // it is not, so a missing key degrades rather than breaks.
-        if (routed.why === 'nothing matched' || routed.why === 'empty') {
+        if (ctx.mode === 'friend' || routed.why === 'nothing matched' || routed.why === 'empty') {
           const talked = await this.converse(text, ctx, lev.distress);
           if (talked) return talked;
         }
+        // The friend tab with the model off keeps the relationship lane's
+        // own script rather than losing it to a clarify.
+        if (situation) return relate(situation);
         return { outcome: 'clarify', text: this.clarify(routed), choices: [] };
       }
       return { outcome: 'capability', ...(await this.read(cap.id, ctx.userId, colour, ctx.tz)) };
@@ -489,10 +521,13 @@ export class MiraService {
     if (!pass.paid && pass.freeLeft <= 0) {
       return { outcome: 'paywall', text: PAYWALL_LINE, pass: { freeLeft: 0 } };
     }
-    const [name, signs] = await Promise.all([this.nameOf(ctx.userId), this.signsOf(ctx.userId)]);
+    const [name, chart] = await Promise.all([this.nameOf(ctx.userId), this.chartOf(ctx.userId)]);
     const system = persona({
+      mode: ctx.mode === 'friend' ? 'friend' : 'city',
       name,
-      signs,
+      signs: chart?.signs ?? null,
+      lifePath: lifePathOf(chart?.birthDate),
+      page: ctx.page ?? null,
       clock: clockLine(ctx.tz),
       weeksKnown: ctx.weeksKnown,
       distress,
@@ -570,13 +605,20 @@ export class MiraService {
     return u?.name ?? null;
   }
 
-  /** Their Vedic signs, when birth details exist. Best-effort, never blocking. */
-  private async signsOf(userId: string): Promise<{ sun?: string | null; moon?: string | null; rising?: string | null } | null> {
+  /** Their Vedic signs and birth date, when birth details exist. Best-effort,
+   *  never blocking — she talks fine without either. */
+  private async chartOf(userId: string): Promise<{
+    signs: { sun?: string | null; moon?: string | null; rising?: string | null };
+    birthDate: string | null;
+  } | null> {
     try {
       const p = (await this.astrology.getProfile(userId)) as
-        { chart?: { sunSign?: string; moonSign?: string; ascendant?: string | null } } | null;
+        { birthDate?: string; chart?: { sunSign?: string; moonSign?: string; ascendant?: string | null } } | null;
       if (!p?.chart) return null;
-      return { sun: p.chart.sunSign ?? null, moon: p.chart.moonSign ?? null, rising: p.chart.ascendant ?? null };
+      return {
+        signs: { sun: p.chart.sunSign ?? null, moon: p.chart.moonSign ?? null, rising: p.chart.ascendant ?? null },
+        birthDate: typeof p.birthDate === 'string' ? p.birthDate : null,
+      };
     } catch {
       return null;
     }

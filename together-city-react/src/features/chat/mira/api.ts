@@ -81,10 +81,19 @@ export function useMiraAsk(opts: {
   seed: number;
 }) {
   return useMutation({
-    mutationFn: async (input: { text: string; recent?: string[]; answering?: Choice[]; history?: Array<{ who: 'me' | 'mira'; text: string }> }) =>
+    mutationFn: async (input: {
+      text: string; recent?: string[]; answering?: Choice[];
+      history?: Array<{ who: 'me' | 'mira'; text: string }>;
+      /** Which tab is asking — friend (the companion) or city (the assistant). */
+      mode?: 'friend' | 'city';
+      /** The in-app path they were standing on when they opened her. */
+      page?: string;
+    }) =>
       apiPost('/mira/ask', {
         text: input.text,
         recent: input.recent?.slice(0, 3),
+        mode: input.mode,
+        page: input.page,
         // The day's transcript, both voices — what makes "just feeling
         // lonely" a continuation rather than a sentence from nowhere. The
         // thread lives on this device; the server keeps no session.

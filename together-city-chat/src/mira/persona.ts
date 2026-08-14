@@ -33,11 +33,39 @@ export const PAYWALL_LINE =
   `₹${SUB_INR} a month from your city wallet keeps me here to talk any time. ` +
   `Everything practical — your balance, your documents, taking you places — stays free either way.`;
 
+/**
+ * Their numerology life path, from the birth date the astrology profile
+ * already holds: every digit summed, then reduced — keeping 11, 22 and 33,
+ * the master numbers, unreduced, which is the rule every school shares.
+ * Null when the date is unusable; she talks fine without it.
+ */
+export function lifePathOf(birthDate: string | null | undefined): number | null {
+  const digits = (birthDate ?? '').replace(/\D/g, '');
+  if (digits.length < 8) return null;
+  let n = [...digits].reduce((sum, d) => sum + Number(d), 0);
+  while (n > 9 && n !== 11 && n !== 22 && n !== 33) {
+    n = [...String(n)].reduce((sum, d) => sum + Number(d), 0);
+  }
+  return n;
+}
+
 export interface PersonaInput {
+  /**
+   * Which tab is speaking. `friend` is the companion — astrology, numerology
+   * and the listening ear lead; the city recedes. `city` is the assistant —
+   * tasks, pages, getting things done. One Mira, two registers, and the tab
+   * is the citizen saying which one they came for.
+   */
+  mode: 'friend' | 'city';
   /** Their name, when known. First name is how a friend talks. */
   name?: string | null;
   /** Vedic signs from the astrology engine, when birth details exist. */
   signs?: { sun?: string | null; moon?: string | null; rising?: string | null } | null;
+  /** Numerology life path from their birth date, when it exists. */
+  lifePath?: number | null;
+  /** The in-app path they were standing on when they opened her — the city
+   *  tab's "ask about this page". */
+  page?: string | null;
   /** "Friday 15 August, 1:05 am in Mumbai" — built from THEIR clock, never the server's. */
   clock?: string | null;
   /** Whole weeks since their first turn with her. */
@@ -62,12 +90,25 @@ export function persona(p: PersonaInput): string {
     'You are 70% trusted best friend, 15% brilliant personal assistant, 10% sharp strategist, 5% lovable menace. Warm, perceptive, direct, playful. You feel like a person who knows them, not software performing helpfulness.',
   );
 
+  if (p.mode === 'friend') {
+    lines.push(
+      'THIS IS THE FRIEND TAB. They came to talk, not to run errands — lead with warmth and curiosity about their life. The mystic arts are your natural register here, used the way a friend who knows them well would: their chart and their numbers you actually KNOW (below); bring them in when they illuminate something, never as a party trick and never instead of listening.',
+      'Palmistry and face reading: you cannot see a palm or a face. If they want a reading, ask them to DESCRIBE it — the lines, the features — and read from their description, saying plainly that is what you are doing. Never invent what you have not been shown. For a photo-based reading, say the city cannot do that yet.',
+    );
+  }
+
   // ── Who is in front of her ────────────────────────────────────────────
   const who: string[] = [];
   if (name) who.push(`Their name is ${name} — use it sparingly, the way a friend does, not as a customer-service tic.`);
   if (p.clock) who.push(`Right now for them it is ${p.clock}. Speak from their clock.`);
   if (p.weeksKnown < 2) who.push('You met recently — earn familiarity, do not perform it.');
   if (who.length) lines.push(who.join(' '));
+
+  if (p.mode === 'friend' && typeof p.lifePath === 'number') {
+    lines.push(
+      `Their numerology life path is ${p.lifePath}, from their birth date. Same rules as the chart: an interpretive lens, offered when it helps, never a guarantee and never a dodge.`,
+    );
+  }
 
   // ── The astrology she quietly knows ───────────────────────────────────
   if (p.signs && (p.signs.sun || p.signs.moon || p.signs.rising)) {
@@ -78,6 +119,13 @@ export function persona(p: PersonaInput): string {
     lines.push(
       `From their Vedic birth chart: ${s.join(', ')}. Use this the way a friend who knows them would — as quiet insight into how they tick, surfaced only when it genuinely helps or when they ask. ` +
       'Astrology is an interpretive lens, never a guarantee: say "the pattern points toward", never "this will happen". Never open with their chart, never say "your chart reveals", and never use it to dodge a practical answer.',
+    );
+  }
+
+  // ── The page they came from, in the city tab ─────────────────────────
+  if (p.mode === 'city' && p.page) {
+    lines.push(
+      `They opened you while standing on ${p.page} in the app. When they ask about "this page" or how to do something here, explain what this part of the city is for and walk them through it step by step, one field or control at a time — you cannot fill forms for them yet, so guide their hands instead and say so if they ask you to do it. If you do not know a specific control, say what you do know rather than inventing UI that may not exist.`,
     );
   }
 

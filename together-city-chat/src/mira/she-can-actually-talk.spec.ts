@@ -1,5 +1,5 @@
 import { MiraService } from './mira.service';
-import { persona, FREE_CHATS, SUB_INR, PAYWALL_LINE } from './persona';
+import { persona, lifePathOf, FREE_CHATS, SUB_INR, PAYWALL_LINE } from './persona';
 import { violations } from './voice';
 
 /**
@@ -93,6 +93,31 @@ describe('she can actually talk', () => {
   });
 });
 
+describe('the friend tab and the city tab', () => {
+  it('"when will i find love" gets the friend, in friend mode', async () => {
+    // The second question ever asked of her, and the assistant deflected it.
+    // ADVISE routes to the model in friend mode — before foretold, after the
+    // crisis hand-off.
+    const svc = bare({ ai: { enabled: true, converse: async () => 'The chart says patience; I say your standards are finally working.' } });
+    const t = await svc.ask('when will i find love', ctx({ mode: 'friend' }));
+    expect(t.text).toContain('your standards');
+  });
+
+  it('with the model off, friend mode falls back to the assistant she was', async () => {
+    const svc = bare({ ai: { enabled: false, converse: async () => { throw new Error('must not be called'); } } });
+    const t = await svc.ask('when will i find love', ctx({ mode: 'friend' }));
+    // foretold() answers deterministically — the phase-1 line, not a crash.
+    expect(typeof t.text).toBe('string');
+    expect(t.text.length).toBeGreaterThan(0);
+  });
+
+  it('a tab changes her register, never the crisis hand-off', async () => {
+    const svc = bare({ ai: { enabled: true, converse: async () => { throw new Error('the hand-off outranks the model'); } } });
+    const t = await svc.ask('my horoscope for today — he hits me and i am scared', ctx({ mode: 'friend' }));
+    expect(typeof t.text).toBe('string');
+  });
+});
+
 describe('the meter and the pass', () => {
   it('a model turn spends one of the two hundred, and says how many remain', async () => {
     const svc = bare();
@@ -159,7 +184,7 @@ describe('the subscription', () => {
 });
 
 describe('the persona is built from what is true', () => {
-  const base = { weeksKnown: 12, distress: false, canDo: ['read your balance', 'find restaurants'] };
+  const base = { mode: 'city' as const, weeksKnown: 12, distress: false, canDo: ['read your balance', 'find restaurants'] };
 
   it('carries their name, their clock, their chart — and the honesty about actions', () => {
     const p = persona({ ...base, name: 'Somen Kumar', clock: 'Friday 15 August, 1:05 am', signs: { sun: 'Leo', moon: 'Cancer', rising: 'Virgo' } });
@@ -189,5 +214,28 @@ describe('the persona is built from what is true', () => {
     expect(p).toContain('As an AI');
     expect(p).toContain('great question');
     expect(p).toContain('the universe is telling you');
+  });
+
+  it('the friend tab knows the numbers and refuses to invent a palm', () => {
+    const p = persona({ ...base, mode: 'friend', lifePath: 7, signs: { sun: 'Leo' } });
+    expect(p).toContain('FRIEND TAB');
+    expect(p).toContain('life path is 7');
+    expect(p).toContain('Never invent what you have not been shown');
+    // The city-tab page paragraph does not leak into the friend tab.
+    expect(p).not.toContain('standing on');
+  });
+
+  it('the city tab carries the page they came from, and its honesty', () => {
+    const p = persona({ ...base, page: '/nutrition/plan' });
+    expect(p).toContain('/nutrition/plan');
+    expect(p).toContain('cannot fill forms for them yet');
+    expect(p).not.toContain('FRIEND TAB');
+  });
+
+  it('the life path reduces like every school of numerology', () => {
+    expect(lifePathOf('1988-08-08')).toBe(6);   // 42 → 6
+    expect(lifePathOf('1991-05-04')).toBe(11);  // 29 → 11, a master number, kept
+    expect(lifePathOf(null)).toBeNull();
+    expect(lifePathOf('19')).toBeNull();
   });
 });

@@ -225,6 +225,55 @@
 .mirasub:disabled { opacity: .6; cursor: default; }
 .mirasub + .miragoto { display: inline-block; margin-top: 10px; font-size: 12.5px; }
 
+/* ── The two of her, one press apart ──────────────────────────────────
+   Friend and City assistant. Chips in the room's own pair — the lit one is
+   the light tile every pressed key in this room already uses. */
+.miratabs { display: flex; gap: 8px; padding: 12px 18px 0; flex-shrink: 0; }
+.miratab {
+  font: inherit; font-size: 13px; font-weight: 600; min-height: 44px; padding: 0 16px;
+  border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--mira-line); background: none; color: var(--on-mira-soft);
+}
+.miratab.on { background: var(--on-mira); color: var(--on-mira-ink); border-color: var(--on-mira); }
+
+/* ── Her door on every page ───────────────────────────────────────────
+   The mark floats over the page; a press pops the chat up over it. The fab
+   clears the phone's bottom bar; the panel is a sheet on a phone and a card
+   at a desk. The scrim is transparent — a dismissal surface, not a redesign
+   — and the panel's depth is the city's own deepest token, not a bespoke
+   shadow. z-order: fab under the drawer (200); the open panel over both. */
+.mira-fab {
+  position: fixed; right: 16px; bottom: calc(var(--safe-bottom) + 74px);
+  z-index: 180; width: 56px; height: 56px; border-radius: 50%;
+  display: grid; place-items: center; cursor: pointer;
+  border: 1px solid var(--mira-line);
+  background: var(--mira-ground); color: var(--on-mira);
+  box-shadow: var(--shadow-deep);
+}
+.mira-dock-scrim { position: fixed; inset: 0; z-index: 240; background: none; border: 0; padding: 0; margin: 0; }
+.mira-dock-panel {
+  position: fixed; z-index: 250; display: flex; flex-direction: column; overflow: hidden;
+  right: 16px; bottom: calc(var(--safe-bottom) + 16px); left: 16px; height: min(78vh, 640px);
+  border-radius: var(--r-4); border: 1px solid var(--mira-line);
+  background: var(--mira-ground);
+  box-shadow: var(--e3);
+}
+.mira-dock-head {
+  display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 14px;
+  border-bottom: 1px solid var(--mira-line); color: var(--on-mira); flex-shrink: 0;
+}
+.mira-dock-name { font-weight: 700; font-size: 13.5px; letter-spacing: .04em; }
+.mira-dock-close {
+  margin-left: auto; min-width: 44px; min-height: 44px; border: 0; background: none;
+  color: var(--on-mira-soft); font-size: 22px; line-height: 1; cursor: pointer;
+}
+.mira-dock-close:hover { color: var(--on-mira); }
+.mira-dock-panel .mirathread { flex: 1; min-height: 0; }
+@media (min-width: 900px) {
+  .mira-fab { bottom: 24px; right: 22px; }
+  .mira-dock-panel { left: auto; width: 400px; bottom: 24px; right: 22px; }
+}
+
 /* Her voice, and the fact that it is OFF until asked. A chat surface that
    starts talking out loud on a phone in a room with other people in it is a
    betrayal in one second flat, so the lit state is the exception and the quiet

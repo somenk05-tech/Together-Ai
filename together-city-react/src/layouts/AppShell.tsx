@@ -8,6 +8,7 @@ import { useConnectionSync } from '@/api/connections.api';
 import { CookRoot } from '@/features/nutrition/components/CookMode';
 import { NotificationToaster } from './NotificationToaster';
 import { CityDrawer } from './CityDrawer';
+import { MiraDock } from './MiraDock';
 import { VerifyEmailBanner } from '@/features/auth/VerifyEmailBanner';
 
 /** Root layout for full-width hub landings & the city home. */
@@ -31,6 +32,7 @@ export function AppShell() {
       <CityDrawer /> {/* the burger's door on pages without a hub rail */}
       <main className="tc-main" style={isChat ? { minHeight: 0, overflow: 'hidden' } : undefined}><Outlet /></main>
       {!isChat && <Footer />}
+      <MiraDock /> {/* her mark on every page; a press pops the chat up over it */}
       <CookRoot /> {/* guided cook overlay + background timer — only renders while cooking */}
       <NotificationToaster /> {/* app-wide live toasts for notifications + chat */}
     </>
