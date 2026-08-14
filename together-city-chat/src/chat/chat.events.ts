@@ -13,6 +13,8 @@ export const WS = {
   MESSAGE_READ: 'message_read',
   MESSAGE_DELETED: 'message_deleted',
   MESSAGE_EDITED: 'message_edited',
+  MESSAGE_REACTED: 'message_reacted',
+  MESSAGE_PINNED: 'message_pinned',
   // typing
   TYPING_START: 'typing_start',
   TYPING_STOP: 'typing_stop',

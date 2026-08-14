@@ -150,13 +150,154 @@ export class MessagesService {
     return { ok: true as const, starred: on };
   }
 
-  /** A message you may star is a message you may read: membership, re-asked. */
-  private async assertCanSeeMessage(userId: string, messageId: string): Promise<void> {
+  /** A message you may star, react to or pin is a message you may read:
+   *  membership, re-asked. It returns the row now, because the callers that
+   *  publish to the bus need the conversation it is in and re-reading for that
+   *  would be a second query for a fact this one already had. */
+  private async assertCanSeeMessage(
+    userId: string,
+    messageId: string,
+  ): Promise<{ id: string; conversationId: string }> {
     const row = await this.prisma.message.findFirst({
       where: { id: messageId, conversation: { members: { some: { userId } } } },
-      select: { id: true },
+      select: { id: true, conversationId: true },
     });
     if (!row) throw new NotFoundException('Message not found');
+    return row;
+  }
+
+  /** Reactions as stored: emoji → the citizens who chose it. */
+  private reactionsOf(m: unknown): Record<string, string[]> {
+    try {
+      const raw = JSON.parse((m as { reactionsJson?: string | null }).reactionsJson ?? '{}') as unknown;
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+      return raw as Record<string, string[]>;
+    } catch { return {}; }
+  }
+
+  /**
+   * The wire shape: a stable-ordered list with empty buckets dropped.
+   *
+   * It carries the USER IDS, not a count and a per-viewer boolean, and that is
+   * deliberate — one socket frame goes to a whole room, so any field whose
+   * value depends on who is reading is a field the broadcast has to get wrong
+   * for everybody but one person. The client knows its own id; let it decide.
+   */
+  private reactionList(m: unknown): Array<{ emoji: string; userIds: string[] }> {
+    const map = this.reactionsOf(m);
+    return Object.keys(map)
+      .filter((e) => Array.isArray(map[e]) && map[e].length > 0)
+      .sort()
+      .map((emoji) => ({ emoji, userIds: map[emoji] }));
+  }
+
+  /**
+   * Answer a message with one of the six, or clear your answer with null.
+   *
+   * ONE PER PERSON: you are stripped from wherever you were before being added,
+   * so a userId is under at most one key. Conditional updateMany with a retry
+   * rather than a $transaction — a transaction is not a lock, so the WHERE
+   * carries the value that was read and a loser retries against the fresh row.
+   * A busy group reacting to the same message in the same second is the
+   * ordinary case for this feature, not an exotic one.
+   */
+  async setReaction(userId: string, messageId: string, emoji: string | null) {
+    const msg = await this.assertCanSeeMessage(userId, messageId);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const fresh = await this.prisma.message.findUnique({
+        where: { id: messageId }, select: { reactionsJson: true },
+      });
+      const map = this.reactionsOf(fresh);
+      const next: Record<string, string[]> = {};
+      for (const key of Object.keys(map)) {
+        const kept = (Array.isArray(map[key]) ? map[key] : []).filter((id) => id !== userId);
+        if (kept.length) next[key] = kept;
+      }
+      if (emoji) next[emoji] = [...(next[emoji] ?? []), userId];
+      const after = JSON.stringify(next);
+      // Tapping the reaction you already have is a clear, and tapping a clear
+      // twice is nothing at all. Neither deserves a write or a broadcast.
+      if (JSON.stringify(map) === after) return { ok: true as const, reactions: this.reactionList(fresh) };
+      const res = await this.prisma.message.updateMany({
+        where: { id: messageId, reactionsJson: fresh?.reactionsJson ?? null },
+        data: { reactionsJson: after },
+      });
+      if (res.count) {
+        const reactions = this.reactionList({ reactionsJson: after });
+        this.bus.publish({
+          kind: 'message.reacted', conversationId: msg.conversationId, messageId, reactions,
+        });
+        return { ok: true as const, reactions };
+      }
+    }
+    // Three losses to concurrent writers. Report what is actually there rather
+    // than what this call wanted — the citizen can look and tap again.
+    const now = await this.prisma.message.findUnique({
+      where: { id: messageId }, select: { reactionsJson: true },
+    });
+    return { ok: true as const, reactions: this.reactionList(now) };
+  }
+
+  /**
+   * Pin a message, or unpin it. ONE PER CONVERSATION.
+   *
+   * A pin is a fact about the ROOM — everybody sees the same banner — which is
+   * what separates it from a star, and why it is two plain columns rather than
+   * a per-reader list. Clearing then setting is two writes and not a
+   * $transaction, for the usual reason: the clear's WHERE names the
+   * conversation rather than a row somebody read a moment ago, so two people
+   * pinning at once resolve to whichever wrote second, with no orphan left
+   * pinned behind it.
+   */
+  async setPinned(userId: string, messageId: string, on: boolean) {
+    const msg = await this.assertCanSeeMessage(userId, messageId);
+    if (!on) {
+      await this.prisma.message.updateMany({
+        where: { id: messageId, pinnedAt: { not: null } },
+        data: { pinnedAt: null, pinnedById: null },
+      });
+      this.bus.publish({
+        kind: 'message.pinned', conversationId: msg.conversationId, messageId: null, message: null,
+      });
+      return { ok: true as const, pinned: null };
+    }
+    await this.prisma.message.updateMany({
+      where: { conversationId: msg.conversationId, pinnedAt: { not: null } },
+      data: { pinnedAt: null, pinnedById: null },
+    });
+    const row = await this.prisma.message.update({
+      where: { id: messageId },
+      data: { pinnedAt: new Date(), pinnedById: userId },
+      include: messageInclude,
+    });
+    const dtoOut = this.serialize(row);
+    this.bus.publish({
+      kind: 'message.pinned', conversationId: msg.conversationId, messageId, message: dtoOut,
+    });
+    return { ok: true as const, pinned: dtoOut };
+  }
+
+  /**
+   * What is pinned in this conversation, if anything.
+   *
+   * A dedicated read rather than a field on the message list, because the
+   * pinned message is usually OLD — that is what pinning is for — and the
+   * thread only loads its newest page. Tombstones are excluded here rather
+   * than unpinned on delete: "this message was deleted" is not worth a banner,
+   * and a row that comes back is not a case this schema has.
+   */
+  async pinnedIn(userId: string, conversationId: string) {
+    const row = await this.prisma.message.findFirst({
+      where: {
+        conversationId,
+        pinnedAt: { not: null },
+        deleted: false,
+        conversation: { members: { some: { userId } } },
+      },
+      orderBy: { pinnedAt: 'desc' },
+      include: messageInclude,
+    });
+    return { pinned: row ? this.serialize(row, userId) : null };
   }
 
   async edit(userId: string, messageId: string, dto: EditMessageDto) {
@@ -552,6 +693,8 @@ export class MessagesService {
     statuses?: Array<{ status: string }>;
     replyTo?: { id: string; text: string | null; messageType: string; senderId: string; deleted: boolean } | null;
     starredForJson?: string | null;
+    reactionsJson?: string | null;
+    pinnedAt?: Date | null;
   }, viewerId?: string) {
     /* A DELETED MESSAGE IS DELETED ALL THE WAY DOWN. The tombstone used to
        zero only the text: `media` URLs and the share card still travelled to
@@ -627,6 +770,11 @@ export class MessagesService {
          socket frame goes to several people at once and cannot carry one
          person's bookkeeping. Their own next read fills it in. */
       starred: viewerId ? this.starredBy(m, viewerId) : false,
+      /* Unlike `starred` right above it, this needs no viewer: it carries the
+         ids and lets the reader recognise themselves. That is the reason a
+         reaction frame can be broadcast and a star frame cannot. */
+      reactions: this.reactionList(m),
+      pinnedAt: m.pinnedAt ?? null,
       edited: !!m.edited,
       deleted: m.deleted,
       editedAt: m.edited ? (m.updatedAt ?? m.createdAt) : null,

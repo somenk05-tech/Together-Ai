@@ -94,7 +94,28 @@ const CSS = `
 .tc-msg-collapse{display:grid;grid-template-rows:1fr;transition:grid-template-rows var(--dur-base) var(--ease-out),opacity var(--dur-fast) var(--ease-out)}
 .tc-msg-collapse > *{overflow:hidden;min-height:0}
 .tc-msg-collapsing{grid-template-rows:0fr;opacity:0}
+/* A chip is small on purpose — it sits under a bubble and must not compete
+   with it — so it borrows the repo's own answer to that: a transparent 44px
+   pseudo-element centred behind the label, so the TARGET meets the standard
+   while the paint stays 22px. Same trick as .btn-sm::after in relief.css,
+   which tap-targets.test.ts exists to stop anybody removing. */
+.tc-react{position:relative;display:inline-flex;align-items:center;gap:3px;border:1px solid var(--stage-line);background:var(--stage-tile);color:var(--on-stage-soft);border-radius:999px;padding:1px 8px;font-size:11.5px;font-family:inherit;line-height:1.7;cursor:pointer}
+.tc-react.mine{border-color:var(--on-stage-faint);color:var(--on-stage)}
+.tc-react::after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);min-width:44px;min-height:44px;z-index:0}
+.tc-react > span{position:relative;z-index:1}
+.tc-msg-actions button.tc-emoji{font-size:15px;padding:2px 5px}
 `;
+
+/**
+ * THE SIX.
+ *
+ * A closed set, and the same closed set the API enforces in
+ * messages/dto/messages.dto.ts — the two packages share no code, so this is a
+ * copy and the guard pins both ends of it. Six is what fits on one row of a
+ * phone beside the other actions, which is the reason there is no picker to
+ * open: the picker IS the row.
+ */
+export const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'] as const;
 
 /**
  * 15-minute edit / delete-for-everyone window (matches the server policy).
@@ -144,7 +165,7 @@ export function ConfirmDelete({ mine, canEveryone, count = 1, onCancel, onDelete
   );
 }
 
-export function MessageThread({ messages, currentUserId, typing, peerName, onDelete, onEdit, onReply, onForward, onStar, onJump, fetchInfo, jumpToId, selectedIds, onSelect }: {
+export function MessageThread({ messages, currentUserId, typing, peerName, onDelete, onEdit, onReply, onForward, onStar, onJump, fetchInfo, jumpToId, selectedIds, onSelect, onReact, onPin, pinnedId }: {
   messages: Message[]; currentUserId?: string; typing?: boolean;
   /** Whose thread this is, for the attribution line above each run. */
   peerName?: string;
@@ -158,6 +179,16 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
    *  the disagreement that would matter is an empty selection still swallowing
    *  every tap. "Cancel" is the page emptying the set. */
   selectedIds?: Set<string>;
+  /** Answer a message with one of THE SIX, or clear yours by passing null —
+   *  which is also what tapping your own chip does. One per person, so the
+   *  page never has to work out which of several to remove. */
+  onReact?: (m: Message, emoji: string | null) => void;
+  /** Pin this message for the whole room, or unpin it. One per conversation,
+   *  so pinning anything is also unpinning whatever was there. */
+  onPin?: (m: Message, on: boolean) => void;
+  /** The id of the room's pinned message, so the action bar can offer "Unpin"
+   *  on the one message where that is the honest word. */
+  pinnedId?: string | null;
   /** Toggle one message in the selection. The first call is what enters
    *  selection mode, which is why the way in is a button in the action bar
    *  rather than a gesture: long-press already belongs to that bar, and taking
@@ -182,6 +213,11 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
   const [confirmFor, setConfirmFor] = useState<Message | null>(null);
   const [collapsing, setCollapsing] = useState<Set<string>>(new Set());
   const [touchOpen, setTouchOpen] = useState<string | null>(null);
+  /* Which message's action bar is currently showing the six instead of its
+     buttons. One bar with two faces rather than a second floating row: the
+     stage is a locked viewport and every new floating thing on it is another
+     element that can land under a keyboard. */
+  const [reactFor, setReactFor] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const [flashId, setFlashId] = useState<string | null>(null);
@@ -221,6 +257,12 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
     const t = window.setTimeout(() => setFlashId(null), 1600);
     return () => window.clearTimeout(t);
   }, [jumpToId, messages.length]);
+
+  /* A bar that is showing the six belongs to the message it opened on. When
+     the thread changes underneath it — a message arrives, one is deleted — the
+     row it was anchored to may not be where it was, so it closes rather than
+     hovering over whatever moved into its place. */
+  useEffect(() => { setReactFor(null); }, [messages.length]);
 
   /* INFO IS FETCHED WHEN IT IS ASKED FOR, never alongside the thread: it is
      one row per recipient per message, and pre-loading it for a hundred
@@ -271,6 +313,12 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
         /* A tombstone cannot be picked: forwarding it would send "this message
            was deleted" to somebody, and deleting it again is a no-op. */
         const pickable = selecting && !deleted;
+        const isPinned = Boolean(pinnedId && pinnedId === m.id);
+        /* At most one, by construction on the server — so this is a find, not a
+           filter, and the picker can light the one you already chose. */
+        const myReaction = currentUserId
+          ? (m.reactions ?? []).find((r) => r.userIds.includes(currentUserId))?.emoji ?? null
+          : null;
         const canEdit = mine && !deleted && Boolean(m.body) && withinWindow(m) && Boolean(onEdit);
         /* THE ATTRIBUTION LINE PRINTS ONCE PER RUN. Four messages from one
            person do not need the name and the clock four times — that is the
@@ -336,6 +384,25 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
                   and an action bar on top of it is a second thing a tap means. */}
               {!deleted && !selecting && onDelete && (
                 <div className="tc-msg-actions" style={mine ? { right: 0 } : { left: 0 }}>
+                  {/* THE BAR HAS TWO FACES. Asked for the six, it shows the
+                      six and nothing else — there is no room on a phone for a
+                      picker beside eight other controls, and a second floating
+                      row on a locked viewport is a thing that lands under a
+                      keyboard. Choosing one, or tapping away, puts it back. */}
+                  {onReact && reactFor === m.id ? (
+                    <>
+                      {REACTIONS.map((e) => (
+                        <button key={e} type="button" className="tc-emoji" title={`React ${e}`}
+                          aria-label={`React with ${e}`}
+                          onClick={() => { onReact(m, myReaction === e ? null : e); setReactFor(null); setTouchOpen(null); }}>
+                          <span style={myReaction === e ? { filter: 'none' } : undefined}>{e}</span>
+                        </button>
+                      ))}
+                      <button type="button" aria-label="Close reactions" onClick={() => setReactFor(null)}>✕</button>
+                    </>
+                  ) : (
+                  <>
+                  {onReact && <button type="button" title="React" onClick={() => setReactFor(m.id)}>☺ React</button>}
                   {onReply && <button type="button" title="Reply" onClick={() => { onReply(m); setTouchOpen(null); }}>↩ Reply</button>}
                   {/* THE WAY IN. No new gesture: this bar is already what a
                       long-press opens and what a hover shows, and a button in
@@ -355,7 +422,15 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
                   {m.body && <button type="button" title="Copy" onClick={() => { void navigator.clipboard?.writeText(m.body); setTouchOpen(null); }}>⧉ Copy</button>}
                   {canEdit && <button type="button" title="Edit" onClick={() => startEdit(m)}>✎ Edit</button>}
                   {mine && fetchInfo && <button type="button" title="Message info" onClick={() => { setInfoFor(m); setTouchOpen(null); }}>ⓘ Info</button>}
+                  {onPin && (
+                    <button type="button" title={isPinned ? 'Unpin' : 'Pin'}
+                      onClick={() => { onPin(m, !isPinned); setTouchOpen(null); }}>
+                      {isPinned ? '📌 Unpin' : '📌 Pin'}
+                    </button>
+                  )}
                   <button type="button" className="danger" title="Delete" onClick={() => { setConfirmFor(m); setTouchOpen(null); }}>🗑 Delete</button>
+                  </>
+                  )}
                 </div>
               )}
 
@@ -402,6 +477,31 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
                     ))}
                     {m.share && <div style={{ marginTop: m.body || (m.media ?? []).length ? 6 : 0 }}><ShareCardView card={m.share} compact clickable /></div>}
                   </>
+                )}
+
+                {/* WHAT THE ROOM ANSWERED. Under the bubble rather than over
+                    its corner: a chip laid on the bubble covers the last line
+                    of a short message, and every count in this app that hides
+                    a word has been a bug report. Tapping your own chip clears
+                    it, which is the only gesture people try. */}
+                {!deleted && (m.reactions ?? []).length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4,
+                    justifyContent: mine ? 'flex-end' : 'flex-start', maxWidth: 260 }}>
+                    {(m.reactions ?? []).map((r) => {
+                      const isMine = Boolean(currentUserId && r.userIds.includes(currentUserId));
+                      return (
+                        <button key={r.emoji} type="button"
+                          className={isMine ? 'tc-react mine' : 'tc-react'}
+                          aria-pressed={isMine}
+                          aria-label={`${r.emoji} · ${r.userIds.length}${isMine ? ', including you — tap to remove yours' : ''}`}
+                          onClick={() => onReact?.(m, isMine ? null : r.emoji)}
+                          disabled={!onReact}>
+                          <span aria-hidden>{r.emoji}</span>
+                          <span aria-hidden>{r.userIds.length}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
 
                 {/* Only the facts the attribution line does not already carry:

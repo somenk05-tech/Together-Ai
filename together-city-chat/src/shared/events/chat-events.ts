@@ -13,6 +13,19 @@ export type ChatEvent =
   | { kind: 'message.deleted'; conversationId: string; messageId: string }
   | { kind: 'message.delivered'; conversationId: string; messageId: string; userId: string }
   | { kind: 'message.read'; conversationId: string; messageId: string; userId: string }
+  /* The whole list every time, not a delta. A reaction frame that said "+1 on
+     👍" would need the client to already hold a correct count to add to — and a
+     client that missed one frame would then be wrong for as long as the thread
+     stayed open. Sending the state makes a dropped frame self-healing. */
+  | {
+      kind: 'message.reacted';
+      conversationId: string;
+      messageId: string;
+      reactions: Array<{ emoji: string; userIds: string[] }>;
+    }
+  /* messageId is null when the room's pin was cleared. `message` carries the
+     newly pinned one so a banner can render without a fetch. */
+  | { kind: 'message.pinned'; conversationId: string; messageId: string | null; message: unknown }
   | { kind: 'presence.changed'; userId: string; online: boolean }
   // Calls. The gateway fans these to per-user rooms rather than the
   // conversation room: a call has to reach someone who is not looking at the

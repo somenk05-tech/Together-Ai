@@ -102,6 +102,12 @@ export const MessageSchema = z.object({
      does not declare, so every reply the server sent lost the one thing that
      made it a reply somewhere between the wire and the component. */
   starred: z.boolean().optional(),
+  /* Shared, unlike `starred`: the ids arrive and the client recognises itself
+     among them. zod strips what a schema does not declare, which is how quoted
+     replies were lost between the wire and the component — so this is declared
+     here in the same breath as the type. */
+  reactions: z.array(z.object({ emoji: z.string(), userIds: z.array(z.string()) })).optional(),
+  pinnedAt: z.string().nullable().optional(),
   replyToMessageId: z.string().nullable().optional(),
   replyTo: z.object({
     id: z.string(),

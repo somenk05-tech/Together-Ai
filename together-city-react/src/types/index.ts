@@ -70,6 +70,12 @@ export interface Message {
   media?: MediaAttachment[];
   /** Whether YOU have kept this message — per reader, never shared. */
   starred?: boolean;
+  /** Who answered this message with what. SHARED, unlike `starred`: the server
+   *  sends ids rather than a count and a "mine", so one broadcast frame is
+   *  correct for everybody who receives it. Keep in step with api/schemas.ts. */
+  reactions?: Array<{ emoji: string; userIds: string[] }>;
+  /** Set when this message is the one pinned in its conversation. */
+  pinnedAt?: string | null;
   /** What this message answers. Keep in step with api/schemas.ts's
    *  MessageSchema, which is what parses the wire — the server has always
    *  sent the id, and now sends enough of the original to quote it. */

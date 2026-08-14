@@ -28,6 +28,10 @@ import {
   SearchMessagesSchema,
   SendMessageDto,
   SendMessageSchema,
+  PinMessageDto,
+  PinMessageSchema,
+  ReactMessageDto,
+  ReactMessageSchema,
   StarMessageDto,
   StarMessageSchema,
 } from './dto/messages.dto';
@@ -85,6 +89,26 @@ export class MessagesController {
   @UsePipes(new ZodValidationPipe(StarMessageSchema))
   star(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: StarMessageDto) {
     return this.messages.setStarred(user.sub, id, dto.on);
+  }
+
+  // POST /api/messages/:id/react — one of the six, or null to clear yours.
+  @Post('messages/:id/react')
+  @UsePipes(new ZodValidationPipe(ReactMessageSchema))
+  react(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: ReactMessageDto) {
+    return this.messages.setReaction(user.sub, id, dto.emoji);
+  }
+
+  // POST /api/messages/:id/pin — one pinned message per conversation.
+  @Post('messages/:id/pin')
+  @UsePipes(new ZodValidationPipe(PinMessageSchema))
+  pin(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: PinMessageDto) {
+    return this.messages.setPinned(user.sub, id, dto.on);
+  }
+
+  // GET /api/chat/:id/pinned — what is pinned in this room, if anything.
+  @Get('chat/:id/pinned')
+  pinned(@CurrentUser() user: JwtUser, @Param('id') conversationId: string) {
+    return this.messages.pinnedIn(user.sub, conversationId);
   }
 
   // GET /api/messages/:id/info — declared AFTER messages/search on purpose:

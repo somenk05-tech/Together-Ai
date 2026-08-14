@@ -107,3 +107,23 @@ export type SearchMessagesDto = z.infer<typeof SearchMessagesSchema>;
 
 export const StarMessageSchema = z.object({ on: z.boolean() });
 export type StarMessageDto = z.infer<typeof StarMessageSchema>;
+
+/**
+ * The six, closed HERE rather than only in the picker.
+ *
+ * An open emoji field is an open text field wearing a smaller name, and this
+ * one is persisted and then broadcast to everybody in the room. Six is also
+ * what fits on one row of a phone without a scroller, which is why the picker
+ * needs no picker. `null` clears whatever you had — one per person, so setting
+ * a second replaces the first rather than adding to it.
+ *
+ * The web client keeps its own copy of this list (features/chat/MessageThread)
+ * because the two packages share no code. Change one, change the other.
+ */
+export const ReactMessageSchema = z.object({
+  emoji: z.enum(['👍', '❤️', '😂', '😮', '😢', '🙏']).nullable(),
+});
+export type ReactMessageDto = z.infer<typeof ReactMessageSchema>;
+
+export const PinMessageSchema = z.object({ on: z.boolean() });
+export type PinMessageDto = z.infer<typeof PinMessageSchema>;

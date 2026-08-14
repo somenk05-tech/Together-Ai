@@ -84,6 +84,22 @@ export const chatApi = {
   starMessage: (messageId: string, on: boolean): Promise<{ ok: boolean; starred: boolean }> =>
     apiPost(`/messages/${messageId}/star`, { on }, z.object({ ok: z.boolean(), starred: z.boolean() })),
 
+  /** Answer a message with one of the six, or clear yours with null. */
+  reactToMessage: (messageId: string, emoji: string | null): Promise<{ ok: boolean; reactions: Array<{ emoji: string; userIds: string[] }> }> =>
+    apiPost(`/messages/${messageId}/react`, { emoji }, z.object({
+      ok: z.boolean(),
+      reactions: z.array(z.object({ emoji: z.string(), userIds: z.array(z.string()) })),
+    })),
+
+  /** Pin a message, or unpin it. One per conversation — pinning clears the last. */
+  pinMessage: (messageId: string, on: boolean): Promise<{ ok: boolean; pinned: Message | null }> =>
+    apiPost(`/messages/${messageId}/pin`, { on }, z.object({ ok: z.boolean(), pinned: MessageSchema.nullable() })),
+
+  /** What is pinned in this conversation. Its own read, because a pinned
+   *  message is usually older than the page the thread has loaded. */
+  pinnedMessage: (conversationId: string): Promise<{ pinned: Message | null }> =>
+    apiGet(`/chat/${conversationId}/pinned`, z.object({ pinned: MessageSchema.nullable() })),
+
   /** Who received and read one of YOUR messages. 403 for anybody else's. */
   messageInfo: (messageId: string): Promise<MessageInfo> =>
     apiGet(`/messages/${messageId}/info`, MessageInfoSchema),
@@ -304,6 +320,17 @@ export function useMessageSearch(
     }),
     enabled: active,
     staleTime: 10_000,
+  });
+}
+
+/** The room's pinned message. Refetched by the socket frame, not by a poll —
+ *  a pin changes rarely and an interval here would be a request per open thread
+ *  per fifteen seconds for a fact that is usually null. */
+export function usePinnedMessage(conversationId: string | undefined) {
+  return useQuery({
+    queryKey: ['chat', 'pinned', conversationId],
+    queryFn: () => chatApi.pinnedMessage(conversationId as string),
+    enabled: Boolean(conversationId),
   });
 }
 

@@ -338,6 +338,19 @@ model Message {
   /// other's. Same shape as hiddenForJson deliberately, so the two
   /// per-reader facts about a message are read the same way.
   starredForJson   String?
+  /// JSON { "<emoji>": userId[] } — who answered this message with what.
+  /// SHARED, unlike starredForJson directly above it: a star is the reader's
+  /// own bookkeeping and nobody else sees it, a reaction is addressed to the
+  /// room. One per person, so a userId appears under at most one key and
+  /// choosing a second replaces the first.
+  reactionsJson    String?
+  /// ONE PIN PER CONVERSATION: pinning another message clears these, so the
+  /// pair answers "what is pinned here" without a second table. A pin is a
+  /// fact about the room rather than about the reader, which is why it is not
+  /// a per-viewer list. ConversationMember.pinned is a different feature — it
+  /// pins a CONVERSATION in somebody's panel.
+  pinnedAt         DateTime?
+  pinnedById       String?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
@@ -349,6 +362,7 @@ model Message {
   statuses     MessageStatus[]
 
   @@index([conversationId, createdAt]) // cursor pagination + ordering
+  @@index([conversationId, pinnedAt]) // "what is pinned in this room" — one row
   @@index([senderId])
   @@index([createdAt])
 }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { useConversations, useMessages, useChatRealtime, useClearConversation, useMessageSearch, useOnlineContacts, chatApi, socketClient, WS, type OutgoingAttachment } from '@/api';
+import { useConversations, useMessages, useChatRealtime, useClearConversation, useMessageSearch, useOnlineContacts, usePinnedMessage, chatApi, socketClient, WS, type OutgoingAttachment } from '@/api';
 import { ConversationList } from '../components/ConversationList';
 import { MessageThread, ConfirmDelete, withinWindow } from '../components/MessageThread';
 import { Composer } from '../components/Composer';
@@ -117,6 +117,11 @@ export function Chats() {
      cannot leave a stale copy of a message sitting in the set. */
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkDelete, setBulkDelete] = useState(false);
+  /* Its own map rather than a partial written into editsMap, which is typed as
+     whole Messages: a reaction frame carries only the list, and widening that
+     map to accept fragments would let a half-message through it later. */
+  const [reactionsMap, setReactionsMap] = useState<Record<string, Message['reactions']>>({});
+  const pinned = usePinnedMessage(activeId);
   const activeIsGroup = useMemo(
     () => Boolean((conversations.data ?? []).find((c) => c.id === activeId)?.isGroup),
     [conversations.data, activeId],
@@ -132,7 +137,28 @@ export function Chats() {
   }, [peerId]);
 
   // Reset the live buffer whenever the conversation changes.
-  useEffect(() => { setLive([]); setPeerTyping(false); setStatusMap({}); setHiddenIds(new Set()); setTombstoned(new Set()); setEditsMap({}); ackedRead.current = new Set(); setReplyTo(null); setSearchOpen(false); setKw(''); setFrom(''); setTo(''); setJumpToId(null); setJumpNote(null); setStarredOnly(false); setSelected(new Set()); setBulkDelete(false); }, [activeId]);
+  useEffect(() => { setLive([]); setPeerTyping(false); setStatusMap({}); setHiddenIds(new Set()); setTombstoned(new Set()); setEditsMap({}); ackedRead.current = new Set(); setReplyTo(null); setSearchOpen(false); setKw(''); setFrom(''); setTo(''); setJumpToId(null); setJumpNote(null); setStarredOnly(false); setSelected(new Set()); setBulkDelete(false); setReactionsMap({}); }, [activeId]);
+
+  /* THE WHOLE LIST ARRIVES, so this assigns rather than merges. A frame that
+     said "+1 on 👍" would need a correct count to add to, and one dropped frame
+     would leave the room wrong for as long as the thread stayed open. */
+  useEffect(() => {
+    const off = socketClient.on<{ messageId: string; reactions: Message['reactions'] }>(
+      WS.MESSAGE_REACTED,
+      ({ messageId, reactions }) => setReactionsMap((s) => ({ ...s, [messageId]: reactions })),
+    );
+    return off;
+  }, []);
+  /* A pin is one row for the whole room, so the frame is a nudge and the
+     refetch is the truth — it also has to reach the banner when the pinned
+     message is older than anything loaded, which no frame can carry. */
+  useEffect(() => {
+    if (!activeId) return;
+    const off = socketClient.on<{ conversationId: string }>(WS.MESSAGE_PINNED, ({ conversationId }) => {
+      if (conversationId === activeId) void qc.invalidateQueries({ queryKey: ['chat', 'pinned', activeId] });
+    });
+    return off;
+  }, [activeId, qc]);
 
   // Live delivery/read receipts → advance the ticks on your sent messages.
   useEffect(() => {
@@ -229,6 +255,43 @@ export function Chats() {
     }
   }, [activeId, qc]);
 
+  /* Optimistic for the same reason a star is: the server cannot refuse a
+     reaction on a message you can already see, and one that waits for a round
+     trip feels broken on a phone. ONE PER PERSON is applied here too, so the
+     chip you had disappears in the same frame the new one appears — the server
+     is agreeing with the screen rather than correcting it. */
+  const reactToMessage = useCallback(async (m: Message, emoji: string | null) => {
+    const before = reactionsMap[m.id] ?? m.reactions ?? [];
+    const me = user?.id;
+    if (!me) return;
+    const stripped = before
+      .map((r) => ({ emoji: r.emoji, userIds: r.userIds.filter((id) => id !== me) }))
+      .filter((r) => r.userIds.length > 0);
+    const optimistic = emoji
+      ? (stripped.some((r) => r.emoji === emoji)
+          ? stripped.map((r) => (r.emoji === emoji ? { ...r, userIds: [...r.userIds, me] } : r))
+          : [...stripped, { emoji, userIds: [me] }].sort((a, b) => a.emoji.localeCompare(b.emoji)))
+      : stripped;
+    setReactionsMap((s) => ({ ...s, [m.id]: optimistic }));
+    try {
+      const res = await chatApi.reactToMessage(m.id, emoji);
+      setReactionsMap((s) => ({ ...s, [m.id]: res.reactions }));
+    } catch {
+      setReactionsMap((s) => ({ ...s, [m.id]: before }));
+    }
+  }, [reactionsMap, user?.id]);
+
+  /* A pin is NOT optimistic. It changes what the whole room sees and it
+     silently unpins somebody else's choice, so the banner should say what the
+     server did rather than what this tab hoped — and the refetch is one row. */
+  const pinMessage = useCallback(async (m: Message, on: boolean) => {
+    try {
+      await chatApi.pinMessage(m.id, on);
+    } finally {
+      void pinned.refetch();
+    }
+  }, [pinned]);
+
   /* Flag it and LEAVE. Staying in an open thread you have just marked unread
      is a contradiction the next render would have to resolve, and it would
      resolve it by marking it read again — the effect above does exactly that
@@ -253,8 +316,9 @@ export function Chats() {
       .filter((m) => !hiddenIds.has(m.id))                      // deleted for me → gone entirely
       .map((m) => (editsMap[m.id] ? { ...m, ...editsMap[m.id] } : m))
       .map((m) => (tombstoned.has(m.id) ? { ...m, deleted: true, body: '' } : m))
-      .map((m) => (statusMap[m.id] ? { ...m, status: statusMap[m.id] } : m));
-  }, [history.data, live, statusMap, hiddenIds, tombstoned, editsMap]);
+      .map((m) => (statusMap[m.id] ? { ...m, status: statusMap[m.id] } : m))
+      .map((m) => (reactionsMap[m.id] ? { ...m, reactions: reactionsMap[m.id] } : m));
+  }, [history.data, live, statusMap, hiddenIds, tombstoned, editsMap, reactionsMap]);
 
   /* The picked messages, in thread order, resolved from the live list on every
      render. Anything that has left the thread while it was picked — deleted for
@@ -340,6 +404,7 @@ export function Chats() {
   };
 
   const activeTitle = list.find((c) => c.id === activeId)?.title || 'Conversation';
+  const pinnedMsg = pinned.data?.pinned ?? null;
 
   return (
     /* THE STAGE. A dark panel laid on the city's white page, not a re-pointed
@@ -440,6 +505,32 @@ export function Chats() {
                 </>
                 )}
               </div>
+              {/* THE PINNED ROW, under the header and above everything else.
+                  It is a line rather than a card because it is present for the
+                  whole visit and a card would be a permanent tax on the height
+                  of the thread. Tapping it goes to the message, which is the
+                  only thing anybody wants from a pin. A tombstoned pin is
+                  dropped here as well as on the server — the delete frame
+                  arrives before the refetch does. */}
+              {pinnedMsg && !tombstoned.has(pinnedMsg.id) && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 18px',
+                  borderBottom: '1px solid var(--stage-line)' }}>
+                  <span aria-hidden style={{ flex: 'none', fontSize: 12 }}>📌</span>
+                  <button type="button" onClick={() => { void jumpTo(pinnedMsg.id); }}
+                    aria-label="Go to the pinned message"
+                    style={{ flex: 1, minWidth: 0, textAlign: 'left', border: 'none', background: 'none',
+                      font: 'inherit', color: 'inherit', cursor: 'pointer', padding: 0 }}>
+                    <span style={{ display: 'block', fontSize: 10.5, color: 'var(--on-stage-faint)' }}>Pinned</span>
+                    <span style={{ display: 'block', fontSize: 12.5, overflow: 'hidden',
+                      textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {pinnedMsg.body || '📎 Attachment'}
+                    </span>
+                  </button>
+                  <button type="button" className="cstool" style={{ flex: 'none' }}
+                    aria-label="Unpin this message" title="Unpin"
+                    onClick={() => { void pinMessage(pinnedMsg, false); }}>✕</button>
+                </div>
+              )}
               {searchOpen && (
                 <div style={{ padding: '10px 18px', borderBottom: '1px solid var(--stage-line)', display: 'grid', gap: 8 }}>
                   <input value={kw} onChange={(e) => setKw(e.target.value)} autoFocus
@@ -510,6 +601,9 @@ export function Chats() {
                       onReply={setReplyTo} onForward={(m) => setForwarding([m])} onStar={(m, on) => { void starMessage(m, on); }}
                       onJump={(id) => { void jumpTo(id); }} jumpToId={jumpToId}
                       selectedIds={selected} onSelect={toggleSelect}
+                      onReact={(m, e) => { void reactToMessage(m, e); }}
+                      onPin={(m, on) => { void pinMessage(m, on); }}
+                      pinnedId={pinnedMsg?.id ?? null}
                       fetchInfo={chatApi.messageInfo} />
                   </>}
               {forwarding && (

@@ -308,6 +308,28 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
           .to(room.conversation(event.conversationId))
           .emit(WS.MESSAGE_READ, { conversationId: event.conversationId, messageId: event.messageId, userId: event.userId });
         break;
+      /* Both go to the conversation room and to nobody else. Neither is worth a
+         per-user push the way a new message is: a reaction and a pin are things
+         you notice when you are in the room, not things that should light up a
+         phone in somebody's pocket. */
+      case 'message.reacted':
+        this.server
+          .to(room.conversation(event.conversationId))
+          .emit(WS.MESSAGE_REACTED, {
+            conversationId: event.conversationId,
+            messageId: event.messageId,
+            reactions: event.reactions,
+          });
+        break;
+      case 'message.pinned':
+        this.server
+          .to(room.conversation(event.conversationId))
+          .emit(WS.MESSAGE_PINNED, {
+            conversationId: event.conversationId,
+            messageId: event.messageId,
+            message: event.message,
+          });
+        break;
       case 'presence.changed': {
         /* This told the subject they had come online and told nobody else.
            `room.user(event.userId)` is their OWN room — the one place the news
