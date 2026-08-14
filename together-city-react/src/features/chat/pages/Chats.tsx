@@ -612,12 +612,13 @@ export function Chats() {
                   style={{ flex: 'none' }}>🔍</button>
                 {/* Her mark, on every conversation. A press invites Mira into
                     THIS thread — the side panel reads the window on screen and
-                    nothing else. Her ring rather than an emoji, because the
-                    mark is the promise: this is Mira, the same one. */}
-                <button type="button" className="cstool mira-door" aria-label="Ask Mira about this conversation"
+                    nothing else. JUST the ring, bare — the owner's call: no
+                    tool disc around it. The mark is the promise: this is
+                    Mira, the same one, and it needs no chrome to say so. */}
+                <button type="button" className="mira-door" aria-label="Ask Mira about this conversation"
                   title="Ask Mira" onClick={() => setConfide(true)}
                   style={{ flex: 'none' }}>
-                  <MiraMark size={22} showWord={false} state="waiting" />
+                  <MiraMark size={30} showWord={false} state="waiting" />
                 </button>
                 <CallButtons conversationId={activeId} compact />
                 {/* end of the ordinary header — the bulk bar above takes this
@@ -655,7 +656,7 @@ export function Chats() {
                 <div style={{ padding: '10px 18px', borderBottom: '1px solid var(--stage-line)', display: 'grid', gap: 8 }}>
                   <input value={kw} onChange={(e) => setKw(e.target.value)} autoFocus
                     aria-label="Search in this conversation" placeholder="Search in this conversation…"
-                    className="csb" style={{ width: '100%', fontSize: 16, boxShadow: 'var(--soft-in)' }} />
+                    className="csb" style={{ width: '100%', fontSize: 16 }} />
                   {/* A date range on its own is a real search: "what did we say
                       that week" is a question people ask without a keyword. */}
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>

@@ -305,9 +305,14 @@
   transform: translate(-50%, -50%);
   min-width: 44px; min-height: 44px; z-index: -1;
 }
-/* Her mark as a header tool on the chat stage: the stage's own button, her
-   red for the ring so it reads as her rather than as another glyph. */
-.cstool.mira-door { color: var(--mira-mark); }
+/* Her mark as a header key on the chat stage: JUST the ring, no disc —
+   the owner's call. Her red so it reads as her rather than as another
+   glyph; a full 44px target with the paint being only the mark itself. */
+.mira-door {
+  min-width: 44px; min-height: 44px; padding: 0; border: 0; background: none;
+  display: grid; place-items: center; cursor: pointer;
+  color: var(--mira-mark);
+}
 
 /* Her voice, and the fact that it is OFF until asked. A chat surface that
    starts talking out loud on a phone in a room with other people in it is a

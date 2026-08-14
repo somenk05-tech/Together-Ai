@@ -24,10 +24,17 @@ describe('Mira reads one chat', () => {
   const panel = read('features/chat/mira/MiraConfidant.tsx');
   const api = read('features/chat/mira/api.ts');
 
-  it('her mark sits in the conversation header, and a press opens the panel', () => {
+  it('her mark sits in the conversation header, bare, and a press opens the panel', () => {
     expect(chats).toMatch(/aria-label="Ask Mira about this conversation"/);
-    expect(chats).toMatch(/<MiraMark size=\{22\} showWord=\{false\}/);
+    expect(chats).toMatch(/<MiraMark size=\{30\} showWord=\{false\}/);
     expect(chats).toMatch(/<MiraConfidant otherName=\{activeTitle\} transcript=\{confideTranscript\}/);
+    // JUST the ring — the owner's call. No tool disc around her mark: the
+    // button wears only her own class, and that class paints no ground.
+    expect(chats).toMatch(/className="mira-door"/);
+    expect(chats).not.toMatch(/cstool mira-door/);
+    const mira = read('styles/mira.css');
+    expect(mira).toMatch(/\.mira-door \{[^}]*background: none/);
+    expect(mira).toMatch(/\.mira-door \{[^}]*min-width: 44px; min-height: 44px/);
   });
 
   it('the window is this screen’s own render — bounded, sides told apart', () => {
