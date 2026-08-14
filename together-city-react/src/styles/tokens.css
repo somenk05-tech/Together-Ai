@@ -497,9 +497,11 @@
   --sp-1: 6px; --sp-2: 10px; --sp-3: 16px; --sp-4: 24px; --sp-5: 36px; --sp-6: 52px; --sp-7: 76px;
 
   /* ── THE CHAT STAGE ──────────────────────────────────────────────────────
-     Chat is drawn on a dark stage, black and white: an incoming message is a
-     WHITE tile pressed into the surface, an outgoing one is a BLACK tile
-     raised off it in white type.
+     Chat is drawn on a slate stage — cool gunmetal glass, by the owner's
+     reference (14 Aug): a misted blue-grey ground, panels that read as
+     frosted glass, silver ink. An incoming message is still a WHITE tile
+     pressed into the surface, an outgoing one a DARK tile raised off it in
+     light type: the reference restyles the room, not the speaking.
 
      IT IS A STAGE, NOT A GROUND, and the distinction is the whole reason this
      costs nothing. The page keeps the city's white; the chat surface is a
@@ -508,26 +510,31 @@
      stage. Chat is the second. A hub-wide dark ground would need the sixth
      grant and the argument that goes with it; a panel does not.
 
-     WHY BLACK AND WHITE AT ALL. Pure neumorphism makes both bubbles out of
-     the surface and leaves the light to say who spoke — beautiful held still,
-     and unreadable scrolling fast or in sunlight. Black and white does the
-     speaking (17.3:1 and 17.7:1) and frees the shadows to be craft.
+     WHY THE TILES STAY OPAQUE. The reference's buttons are translucent
+     glass, and translucent BUBBLES were tried on paper first: a white tile
+     at the reference's alpha lands its ink at under 3:1 over the lit end of
+     this gradient. The glass therefore lives in the fittings — panel, line,
+     hover, the ground itself — and the tiles keep doing the speaking
+     (16.9:1 white, 14.0:1 dark, measured against their own inks).
 
-     --on-stage-faint is #a8adb3 and not the #8b9095 it started as: the stage
-     is a GRADIENT, so one ink meets three grounds, and the paler original
-     measured 4.59:1 in the middle of it and 3.39:1 at the lit end where the
-     list header and the first timestamps sit. */
-  --stage: linear-gradient(158deg, #3a3d41 0%, #26282b 42%, #131416 100%);
-  --stage-panel: rgba(255,255,255,.045);
-  --stage-tile:  rgba(255,255,255,.12);
-  --stage-hover: rgba(255,255,255,.085);
-  --stage-well:  rgba(0,0,0,.22);
-  --stage-line: rgba(255,255,255,.10);
-  --stage-solid: #0d0e10;
-  --on-stage: #f4f5f6;
-  --on-stage-soft: #b9bdc2;
-  --on-stage-faint: #a8adb3;
-  --on-stage-ink: #101113;
+     THE LIT END DECIDES THE INKS, as it always has: the stage is a GRADIENT,
+     so one ink meets three grounds and only the palest of them counts. The
+     reference's own grey (#6b737e) was darkened to #565e68 because the quiet
+     inks could not survive it — against #565e68, --on-stage is 6.2:1,
+     --on-stage-soft 5.2:1 and --on-stage-faint 4.8:1, the same ≥4.6
+     discipline the black stage held. The quiet inks are LIGHTER than the old
+     stage's for the same reason: a paler ground eats grey ink first. */
+  --stage: linear-gradient(158deg, #565e68 0%, #434a54 42%, #2b3138 100%);
+  --stage-panel: rgba(255,255,255,.07);
+  --stage-tile:  rgba(255,255,255,.16);
+  --stage-hover: rgba(255,255,255,.11);
+  --stage-well:  rgba(0,0,0,.20);
+  --stage-line: rgba(255,255,255,.18);
+  --stage-solid: #23282e;
+  --on-stage: #f6f8fa;
+  --on-stage-soft: #e2e6eb;
+  --on-stage-faint: #d6dce3;
+  --on-stage-ink: #14171c;
 
   /* ── MIRA'S ROOM ─────────────────────────────────────────────────────────
      One room in the city is red, and it is hers.
