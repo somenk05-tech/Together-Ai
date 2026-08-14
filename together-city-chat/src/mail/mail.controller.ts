@@ -75,13 +75,30 @@ export class MailController {
     return this.mail.deleteProject(user.sub, id);
   }
 
-  /** Empty the Trash. Declared above the `:id` routes, or "trash" reads as a
-   *  message id. This is the only way to get bytes back: everything else moves
-   *  mail to Trash, and Trash still counts against the quota. */
-  @Delete('trash')
-  emptyTrash(@CurrentUser() user: JwtUser) {
-    return this.mail.emptyTrash(user.sub);
-  }
+  /* ── DELETE /mail/trash IS PARKED, AND IT IS NOT GONE ─────────────────────
+     Empty the Trash. Declared above the `:id` routes, or "trash" reads as a
+     message id. It is the only way to get bytes back: everything else moves
+     mail to Trash, and Trash still counts against the quota.
+
+     IT WAS COMMITTED WITHOUT ITS SERVICE METHOD. `MailService.emptyTrash` is
+     still uncommitted work in another session's tree, so `main` has not
+     compiled since 5392f63 — a Mira commit that staged this controller for an
+     unrelated decorator and took four lines of somebody else's in-progress
+     feature with it. Every API build since has failed, and the host has been
+     serving the previous container, which is why deploying appeared to do
+     nothing for a day.
+
+     Restoring this is four lines, and it belongs in the commit that lands
+     `MailService.emptyTrash` — not before it:
+
+         @Delete('trash')
+         emptyTrash(@CurrentUser() user: JwtUser) {
+           return this.mail.emptyTrash(user.sub);
+         }
+
+     Removed rather than completed because completing it means committing 473
+     lines of that session's unfinished service, and the whole reason this
+     happened was committing somebody's work in progress. */
 
   /** Move a whole conversation into a project, or out of one. */
   @Post('file')
