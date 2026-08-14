@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useScaleLock } from '@/hooks/useScaleLock';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui';
@@ -50,6 +50,10 @@ export function Compose() {
   const addrs = (v: string) => v.split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean);
   const [body, setBody] = useState('');
   const [showSug, setShowSug] = useState(false);
+  /** Which suggestion the keyboard is on. -1 is "none", which is also what the
+   *  mouse leaves it at — nothing is preselected, so Enter sends what was
+   *  typed unless somebody has actually arrowed down to a name. */
+  const [sugAt, setSugAt] = useState(-1);
   const [attachments, setAttachments] = useState<DriveFile[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
@@ -201,7 +205,45 @@ export function Compose() {
     return (dir.data ?? []).filter((d) => d.name.toLowerCase().includes(term) || d.handle.toLowerCase().includes(term)).slice(0, 6);
   }, [to, dir.data]);
 
-  const pick = (d: DirectoryEntry) => { setTo(d.address); setShowSug(false); };
+  const pick = (d: DirectoryEntry) => { setTo(d.address); setShowSug(false); setSugAt(-1); };
+
+  /**
+   * THE SUGGESTION LIST COULD NOT BE CLOSED AND COULD NOT BE REACHED.
+   *
+   * It opened on focus and on every keystroke, and the ONLY thing that ever
+   * closed it was picking a name from it. Type an address that is not a
+   * connection — which is most external mail — and the panel stayed over the
+   * Cc field and the Bcc field for the rest of the compose, absolutely
+   * positioned at z-index 20, and there was no key, no click and no gesture
+   * that would put it away.
+   *
+   * And the options were bare `div`s with an onClick. Not focusable, not
+   * announced, no role: to a keyboard they did not exist, and to a screen
+   * reader the To field had nothing attached to it at all — no combobox, no
+   * list, no indication that six names had just appeared. The mouse was the
+   * only way in.
+   *
+   * So: Escape closes it, blur closes it, arrows move through it, Enter takes
+   * the one the arrows are on, and the whole thing is a listbox the input
+   * points at. `onMouseDown` still preventDefaults on each option so a click
+   * does not blur the input out from under itself before the click lands —
+   * that part was already right.
+   */
+  const onToKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      // Only swallowed when there is something to close, so Escape keeps
+      // meaning whatever it means to the page when the list is not open.
+      if (showSug) { e.stopPropagation(); setShowSug(false); setSugAt(-1); }
+      return;
+    }
+    if (!showSug || suggestions.length === 0) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setShowSug(true); setSugAt(0); }
+      return;
+    }
+    if (e.key === 'ArrowDown') { e.preventDefault(); setSugAt((i) => (i + 1) % suggestions.length); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setSugAt((i) => (i <= 0 ? suggestions.length : i) - 1); }
+    else if (e.key === 'Enter' && sugAt >= 0 && sugAt < suggestions.length) { e.preventDefault(); pick(suggestions[sugAt]); }
+  };
   /**
    * A MESSAGE NEEDS SOMETHING IN IT.
    *
@@ -252,7 +294,14 @@ export function Compose() {
       <div className="card" style={{ marginTop: 14, display: 'grid', gap: 12 }}>
         <div style={{ position: 'relative' }}>
           <label style={{ fontSize: 12 }} className="muted">To</label>
-          <input value={to} onChange={(e) => { setTo(e.target.value); setShowSug(true); }} onFocus={() => setShowSug(true)}
+          <input value={to}
+            onChange={(e) => { setTo(e.target.value); setShowSug(true); setSugAt(-1); }}
+            onFocus={() => setShowSug(true)}
+            onBlur={() => { setShowSug(false); setSugAt(-1); }}
+            onKeyDown={onToKey}
+            role="combobox" aria-autocomplete="list" aria-controls="mail-to-suggestions"
+            aria-expanded={showSug && suggestions.length > 0}
+            aria-activedescendant={sugAt >= 0 ? `mail-to-sug-${sugAt}` : undefined}
             placeholder="a connection's @togethercity.app handle · or any email address" style={inp} autoComplete="off" />
           {dir.isSuccess && (dir.data?.length ?? 0) === 0 && (
             <div className="muted" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.5 }}>
@@ -261,13 +310,14 @@ export function Compose() {
             </div>
           )}
           {showSug && suggestions.length > 0 && (
-            <div className="card" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20, padding: 4, marginTop: 4, maxHeight: 240, overflow: 'auto' }}>
-              {suggestions.map((d) => (
-                <div key={d.handle} onClick={() => pick(d)} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 10px', borderRadius: 8, cursor: 'pointer' }}
-                  onMouseDown={(e) => e.preventDefault()}>
-                  <div style={{ fontWeight: 600, fontSize: 13.5 }}>{d.name}</div>
-                  <div className="muted" style={{ fontSize: 12, fontFamily: 'monospace', marginLeft: 'auto' }}>{d.address}</div>
-                </div>
+            <div className="card mail-sug" id="mail-to-suggestions" role="listbox" aria-label="Your connections">
+              {suggestions.map((d, i) => (
+                <button type="button" key={d.handle} id={`mail-to-sug-${i}`} role="option"
+                  aria-selected={i === sugAt} className={`mail-sug-opt${i === sugAt ? ' on' : ''}`}
+                  onMouseDown={(e) => e.preventDefault()} onClick={() => pick(d)}>
+                  <span className="mail-sug-name">{d.name}</span>
+                  <span className="muted mail-sug-addr">{d.address}</span>
+                </button>
               ))}
             </div>
           )}

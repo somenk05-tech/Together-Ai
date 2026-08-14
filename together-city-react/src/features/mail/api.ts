@@ -117,6 +117,33 @@ export const mailApi = {
   setPrimary: (input: { email?: string; phone?: string }) => api.post<MailAccount>('/mail/primary', input).then((r) => r.data),
 };
 
+/**
+ * WHAT WENT WRONG, IN THE API'S OWN WORDS.
+ *
+ * Every mutation on the mail surface — star, trash, retry, discard, rename,
+ * recolour, archive, delete, move — was fired and forgotten. When one failed
+ * the row simply did not change: the star stayed hollow, the message stayed
+ * where it was, the project kept its old name, and nothing anywhere said the
+ * request had been refused. A control that silently does nothing is worse than
+ * one that is disabled, because the citizen concludes it worked and stops
+ * looking. The API already answers with a sentence written for a person; this
+ * is the two lines it takes to read it.
+ *
+ * `payError` does the same job for the financial hub. Not shared yet on
+ * purpose: that one ends in "Payment failed." and every caller here needs its
+ * own last line — "That star did not stick" and "The project could not be
+ * closed" are not interchangeable, and a shared helper with a fallback
+ * argument is this function with more imports.
+ */
+export function mailError(err: unknown, fallback: string): string {
+  const m = (err as { response?: { data?: { message?: unknown } } } | null | undefined)?.response?.data?.message;
+  if (typeof m === 'string' && m.trim()) return m;
+  // Zod's validation pipe answers with an array of sentences; the first one is
+  // the field the citizen has to fix.
+  if (Array.isArray(m) && typeof m[0] === 'string' && m[0].trim()) return m[0];
+  return fallback;
+}
+
 export function useMailAccount() {
   return useQuery({ queryKey: ['mail', 'account'], queryFn: () => mailApi.account() });
 }
@@ -179,10 +206,24 @@ export function useMailList(folder: Folder, q?: string, project?: string) {
     // and going back to a search does not re-ask.
     queryKey: ['mail', 'list', folder, needle, project ?? ''],
     queryFn: () => mailApi.list(folder, needle || undefined, project),
-    // A folder rendered while somebody is still typing is a list flickering
-    // under their hands. The page debounces before it changes this argument;
-    // holding the previous rows meanwhile keeps the screen still.
-    placeholderData: (prev) => prev,
+    /**
+     * A folder rendered while somebody is still typing is a list flickering
+     * under their hands. The page debounces before it changes this argument;
+     * holding the previous rows meanwhile keeps the screen still.
+     *
+     * BUT ONLY WHEN THE PREVIOUS ROWS ARE ROWS OF THIS MAILBOX. The key also
+     * carries the folder and the project, so `(prev) => prev` handed ABG's
+     * inbox to All Email's, and All Email's to ABG's — one room's mail drawn
+     * under another room's heading, with its chips and its counts, for as long
+     * as the new request took. On a slow connection that is seconds, and it is
+     * indistinguishable from the filing being wrong. The needle is the only
+     * part of the key this was ever meant to smooth over.
+     */
+    placeholderData: (prev, prevQuery) => {
+      const k = prevQuery?.queryKey as unknown[] | undefined;
+      if (!k) return undefined;
+      return k[2] === folder && k[4] === (project ?? '') ? prev : undefined;
+    },
   });
 }
 export function useMailMessage(id: string) {

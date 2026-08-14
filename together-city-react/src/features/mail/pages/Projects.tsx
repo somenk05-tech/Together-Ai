@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useScaleLock } from '@/hooks/useScaleLock';
-import { Button, Spinner } from '@/components/ui';
+import { Button, EmptyState, Spinner } from '@/components/ui';
 import { Icon } from '@/components/ui/Icon';
 import {
   useMailAccount, useMailProjects, useCreateProject, useUpdateProject, useDeleteProject,
-  PROJECT_CAP, type MailProject,
+  PROJECT_CAP, mailError, type MailProject,
 } from '../api';
 import { iconForName, tintOf, FOLD_TINTS } from '../folderLook';
 
@@ -72,6 +72,16 @@ function FolderMenu({ p }: { p: MailProject }) {
             onClick={() => update.mutate({ id: p.id, archived: !p.archived }, { onSuccess: () => setOpen(false) })}>
             {p.archived ? 'Bring back' : 'Archive'}
           </button>
+          {/* Archive and Delete both closed the menu on success and did nothing
+              at all on failure — the menu simply stayed open, which reads as a
+              press that missed rather than a request that was refused. */}
+          {(update.isError || remove.isError) && (
+            <p className="mfold-menu-mishap" role="alert">
+              ⚠ {update.isError
+                ? mailError(update.error, 'That did not save.')
+                : mailError(remove.error, 'The project could not be closed.')}
+            </p>
+          )}
           {!confirming ? (
             <button type="button" className="mfold-menu-del" onClick={() => setConfirming(true)}>Delete…</button>
           ) : (
@@ -235,7 +245,14 @@ export function MailProjects() {
         <p className="muted">All your emails in one place — {a?.address ?? '…'}</p>
       </header>
 
-      {q.isLoading ? <Spinner label="Opening your mailbox…" /> : (
+      {/* "No projects yet" is a claim about this citizen's mailbox, and when the
+          request failed it was made without checking. Somebody who has built
+          nine rooms opened this page on a bad connection and was shown the
+          first-run copy inviting them to make their first one. */}
+      {q.isError ? (
+        <EmptyState icon="⚠️" title="Couldn't open your projects"
+          hint="Nothing has been deleted — we couldn’t reach your mailbox just now. Your mail is all still in All Emails. Try again in a moment." />
+      ) : q.isLoading ? <Spinner label="Opening your mailbox…" /> : (
         <>
           {/* The whole mailbox, and never one of the nine tints: it is not a
               room inside itself. Larger than the projects, and centred, so the

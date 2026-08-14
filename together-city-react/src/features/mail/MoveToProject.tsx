@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui';
-import { useMailProjects, useFileThread, PROJECT_CAP } from './api';
+import { useMailProjects, useFileThread, PROJECT_CAP, mailError } from './api';
 
 /**
  * MOVE A CONVERSATION INTO A ROOM — the second of the two ways mail is ever
@@ -46,7 +46,24 @@ export function MoveToProject({ threadId, projectId, count, onDone }: {
       <p className="muted mmove-hint">
         {count === 1 ? 'One message' : `All ${count} messages`}, and every reply from now on.
       </p>
-      {projects.length === 0 ? (
+      {/* A MOVE THAT WAS REFUSED LEFT THE SHEET OPEN AND THE ROW HIGHLIGHTED
+          NOWHERE — indistinguishable from a press that did not register, so
+          the citizen presses the same room again. The sheet stays open on
+          failure, which is right: the choice they were making is still in
+          front of them. */}
+      {file.isError && (
+        <p className="mail-mishap" role="alert">
+          <span>⚠ {mailError(file.error, 'That conversation could not be moved.')}</span>{' '}
+          <span className="muted">It is still filed where it was.</span>
+        </p>
+      )}
+      {q.isError && (
+        <p className="mail-mishap" role="alert">
+          <span>⚠ Couldn’t load your projects.</span>{' '}
+          <span className="muted">Nothing has been deleted — try again in a moment.</span>
+        </p>
+      )}
+      {projects.length === 0 && !q.isError ? (
         <p className="muted mmove-hint" style={{ marginBottom: 10 }}>
           You have no projects yet. <Link to="/mail">Make one</Link> — up to {PROJECT_CAP}, and a project never hides mail.
         </p>

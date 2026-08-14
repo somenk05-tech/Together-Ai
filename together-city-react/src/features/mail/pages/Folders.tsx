@@ -6,7 +6,7 @@ import { Icon } from '@/components/ui/Icon';
 import {
   useMailAccount, useMailList, useFlagMail, useRemoveMail, useSetPrimary, useOutbox,
   useMailProjects, useUpdateProject, useDeleteProject,
-  humanBytes, mailTime, initials, avatarHue, useRetryMail, useDiscardDraft,
+  humanBytes, mailTime, initials, avatarHue, useRetryMail, useDiscardDraft, mailError,
   type Folder, type MailProject,
 } from '../api';
 import { groupByThread, type Convo } from '../threading';
@@ -167,6 +167,39 @@ function Row({ convo, folder, tag }: { convo: Convo; folder: Folder; tag?: strin
   // reader, and a draft carries Discard in the composer, which it did not
   // when this exception was written.
   const binHasAnotherDoor = true;
+
+  /**
+   * A CONTROL THAT SILENTLY DOES NOTHING IS WORSE THAN A DISABLED ONE.
+   *
+   * All four of these were fired and forgotten. A star that the API refused
+   * left the outline hollow and said nothing, so the citizen pressed it again;
+   * a trash that failed left the message in the list, which reads as a tap
+   * that missed; a retry that failed left "Try again" sitting there having
+   * apparently done nothing. In each case the request came back with a
+   * sentence explaining itself and this row threw it away.
+   *
+   * One line under the row, and the row is unchanged — which is the true part
+   * worth saying, because the fear when a control does nothing is that it did
+   * half of something.
+   */
+  const mishap =
+    flag.isError ? mailError(flag.error, 'That star did not stick.')
+    : retry.isError ? mailError(retry.error, 'That message could not be sent again.')
+    : discard.isError ? mailError(discard.error, 'That draft could not be discarded.')
+    : remove.isError ? mailError(remove.error, folder === 'trash' ? 'That message could not be deleted.' : 'That message could not be moved to Trash.')
+    : null;
+
+  /**
+   * DELETING FROM TRASH IS THE ONE IRREVERSIBLE THING IN THIS MAILBOX, and it
+   * was a single tap on a 30px key next to a star, with no confirmation and no
+   * undo. Everywhere else the bin MOVES mail — that is what makes the gesture
+   * feel cheap — and in this one folder the identical key at the identical
+   * place destroys it. The API has said `permanent` all along; the screen
+   * never did.
+   */
+  const [confirmGone, setConfirmGone] = useState(false);
+  const permanent = folder === 'trash' && !isDraft;
+
   return (
     <div className={`mail-row${unread ? ' unread' : ''}`}
       onClick={() => nav(isDraft ? `/mail/compose?draft=${m.id}` : `/mail/message/${m.id}`)}>
@@ -195,6 +228,23 @@ function Row({ convo, folder, tag }: { convo: Convo; folder: Folder; tag?: strin
         {/* The provider's own words. A failure the citizen cannot read the
             reason for is one they cannot do anything about. */}
         {m.failureReason && <div className="mail-fail">⚠ {m.failureReason}</div>}
+        {mishap && (
+          <div className="mail-mishap" role="alert" onClick={(e) => e.stopPropagation()}>
+            <span>⚠ {mishap}</span> <span className="muted">This message is exactly as it was.</span>
+          </div>
+        )}
+        {confirmGone && (
+          <div className="mail-mishap" role="alert" onClick={(e) => e.stopPropagation()}>
+            <span>Delete this forever? Trash is the last stop — there is nowhere to take it back from.</span>
+            <span className="mail-mishap-keys">
+              <Button variant="line" size="sm" disabled={remove.isPending}
+                onClick={() => remove.mutate(m.id, { onSuccess: () => setConfirmGone(false) })}>
+                {remove.isPending ? 'Deleting…' : 'Delete forever'}
+              </Button>
+              <Button variant="line" size="sm" onClick={() => setConfirmGone(false)}>Keep it</Button>
+            </span>
+          </div>
+        )}
       </div>
       {/* The time is a child of the ROW, not of the sender line.
           Gmail's desktop list is one line — sender, then subject and snippet
@@ -216,8 +266,16 @@ function Row({ convo, folder, tag }: { convo: Convo; folder: Folder; tag?: strin
       <button type="button" className={`mail-bin${binHasAnotherDoor ? ' has-another-door' : ''}`}
         title={isDraft ? 'Discard this draft' : folder === 'trash' ? 'Delete forever' : 'Move to trash'}
         aria-label={isDraft ? 'Discard this draft' : folder === 'trash' ? 'Delete forever' : 'Move to trash'}
+        aria-expanded={permanent ? confirmGone : undefined}
         disabled={discard.isPending}
-        onClick={(e) => { e.stopPropagation(); if (isDraft) discard.mutate(m.id); else remove.mutate(m.id); }}>🗑</button>
+        onClick={(e) => {
+          e.stopPropagation();
+          if (isDraft) { discard.mutate(m.id); return; }
+          // In Trash the key asks; everywhere else it moves, which is
+          // reversible and does not need a question.
+          if (permanent) { setConfirmGone((v) => !v); return; }
+          remove.mutate(m.id);
+        }}>🗑</button>
     </div>
   );
 }
@@ -295,7 +353,14 @@ function FolderView({ folder, project }: { folder: Folder; project?: MailProject
         ? <ProjectBar project={project} settingsOpen={settings} onSettings={() => setSettings((v) => !v)} />
         : <AccountBar />}
       {project && <ProjectFolders project={project} />}
-      {project && settings && <ProjectSettings project={project} />}
+      {/* KEYED ON THE PROJECT, WHICH IT WAS NOT. The name and the description
+          are seeded into local state on mount, and this component did not
+          remount when the route moved from one project to the next — so
+          leaving settings open and clicking through to another room left ABG's
+          name sitting in the field above Nova's key, one press of Save from
+          renaming the wrong project. A key is the whole fix: React treats a
+          different project as a different component, which is what it is. */}
+      {project && settings && <ProjectSettings key={project.id} project={project} />}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '18px 0 10px' }}>
         <div>
@@ -422,8 +487,26 @@ function ProjectSettings({ project }: { project: MailProject }) {
   const [confirming, setConfirming] = useState(false);
   const inp = { padding: '9px 11px', border: '1.5px solid var(--line-2)', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', width: '100%', maxWidth: 280 } as const;
 
+  /**
+   * Six controls on this card, and every one of them was fire-and-forget: a
+   * rename the API refused left the typed name in the box looking saved, an
+   * archive that failed left the button reading "Archive" as though it had not
+   * been pressed, and a colour that did not land simply drew the old swatch
+   * again. Said once, at the top, because they share a card and only one of
+   * them is ever in flight.
+   */
+  const mishap =
+    update.isError ? mailError(update.error, 'That change did not save.')
+    : remove.isError ? mailError(remove.error, 'The project could not be closed.')
+    : null;
+
   return (
     <div className="card mproj-settings">
+      {mishap && (
+        <div className="mail-mishap" role="alert">
+          <span>⚠ {mishap}</span> <span className="muted">Nothing about this project has changed.</span>
+        </div>
+      )}
       <label style={{ display: 'block', marginBottom: 12 }}>
         <span className="eyebrow">Name</span>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -516,8 +599,28 @@ function ProjectSettings({ project }: { project: MailProject }) {
 export function ProjectMailbox({ folder = 'inbox' }: { folder?: Folder }) {
   const { key = '' } = useParams();
   const q = useMailProjects();
-  const project = (q.data ?? []).find((p) => p.key === key.toLowerCase());
   if (q.isLoading) return <Spinner label="Opening the project…" />;
+  /**
+   * A REQUEST THAT FAILED IS NOT A PROJECT THAT WAS DELETED.
+   *
+   * `project` is looked up in `q.data ?? []`, so a project list that times out
+   * or 500s leaves it undefined — and this screen then told the citizen, by
+   * name, that the room they had bookmarked did not exist and that everything
+   * in it had gone back to All Email. None of that had happened, and the
+   * sentence was reassuring, which is the worst kind of wrong: somebody reads
+   * it, believes their filing is gone, and makes the project again.
+   *
+   * Exactly the failure failure-states.test.ts was written for — `data` is
+   * undefined in two situations that mean opposite things, and every `?? []`
+   * collapses them into the one that sounds calmer.
+   */
+  if (q.isError) {
+    return (
+      <EmptyState icon="⚠️" title="Couldn't open your projects"
+        hint="Nothing has been deleted and nothing has moved — we couldn’t reach your mailbox just now. Try again in a moment." />
+    );
+  }
+  const project = (q.data ?? []).find((p) => p.key === key.toLowerCase());
   if (!project) {
     return (
       <EmptyState icon="✉️" title={`No project called “${key}”`}
