@@ -119,6 +119,16 @@ export const MessagePageSchema = z.object({
 });
 export type MessagePage = z.infer<typeof MessagePageSchema>;
 
+/** One person in a group, and what they are. */
+export const GroupMemberSchema = z.object({
+  userId: z.string(),
+  name: z.string(),
+  handle: z.string().nullable().optional(),
+  profileImage: z.string().nullable().optional(),
+  role: z.enum(['OWNER', 'ADMIN', 'MEMBER']),
+});
+export type GroupMember = z.infer<typeof GroupMemberSchema>;
+
 /** Who a message reached, and when — sender's own view. */
 export const MessageInfoSchema = z.object({
   messageId: z.string(),

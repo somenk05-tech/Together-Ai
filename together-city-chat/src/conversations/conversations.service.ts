@@ -308,6 +308,131 @@ export class ConversationsService {
     if (!member) throw new ForbiddenException('Not a member of this conversation');
   }
 
+  /* ── A GROUP'S ROSTER IS NOT FROZEN AT CREATION ────────────────────────
+     MemberRole has carried OWNER, ADMIN and MEMBER since the schema was
+     written and nothing ever read the column. Everything below reads it. */
+
+  /** The group + my own membership, proving I may change it. */
+  private async assertGroupAdmin(userId: string, conversationId: string) {
+    const convo = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: { members: true },
+    });
+    // 404, not 403 — the same reasoning assertParticipant carries: somebody
+    // who is not in the group must not be able to tell an id from a typo.
+    if (!convo) throw new NotFoundException('No such conversation.');
+    const me = convo.members.find((m) => m.userId === userId);
+    if (!me) throw new NotFoundException('No such conversation.');
+    if (convo.type !== 'GROUP') throw new ForbiddenException('That is not a group.');
+    if (me.role !== 'OWNER' && me.role !== 'ADMIN') {
+      throw new ForbiddenException('Only a group admin can change this group.');
+    }
+    return { convo, me };
+  }
+
+  /** Who is in this group, and what they are. Any member may ask. */
+  async members(userId: string, conversationId: string) {
+    await this.assertParticipant(userId, conversationId);
+    // unbounded: one conversation's members — group-sized
+    const rows = await this.prisma.conversationMember.findMany({
+      where: { conversationId },
+      include: { user: { select: { id: true, name: true, handle: true, profileImage: true } } },
+      orderBy: { joinedAt: 'asc' },
+    });
+    return rows.map((r) => ({
+      userId: r.userId,
+      name: r.user?.name ?? 'Someone',
+      handle: r.user?.handle ?? null,
+      profileImage: r.user?.profileImage ?? null,
+      role: r.role,
+    }));
+  }
+
+  /**
+   * Add people. Each one must be connected to the person adding them — the
+   * same gate createGroup applies, and for the same reason: a group is not a
+   * way to put a stranger in front of somebody who never accepted them.
+   */
+  async addMembers(userId: string, conversationId: string, memberIds: string[]) {
+    const { convo } = await this.assertGroupAdmin(userId, conversationId);
+    const already = new Set(convo.members.map((m) => m.userId));
+    const fresh = memberIds.filter((id) => !already.has(id));
+    for (const id of fresh) {
+      if (!(await this.permission.canCommunicate(userId, id))) {
+        throw new ForbiddenException('You can only add members you are connected to.');
+      }
+    }
+    if (fresh.length) {
+      await this.prisma.conversationMember.createMany({
+        data: fresh.map((id) => ({ conversationId, userId: id, role: 'MEMBER' as const })),
+        skipDuplicates: true,
+      });
+    }
+    return { ok: true as const, added: fresh.length };
+  }
+
+  /** Remove somebody else. The owner cannot be removed by anybody. */
+  async removeMember(userId: string, conversationId: string, targetId: string) {
+    const { convo } = await this.assertGroupAdmin(userId, conversationId);
+    if (targetId === userId) throw new ForbiddenException('Use leave to remove yourself.');
+    const target = convo.members.find((m) => m.userId === targetId);
+    if (!target) throw new NotFoundException('They are not in this group.');
+    if (target.role === 'OWNER') throw new ForbiddenException('The group owner cannot be removed.');
+    await this.prisma.conversationMember.deleteMany({ where: { conversationId, userId: targetId } });
+    return { ok: true as const };
+  }
+
+  /** Promote or demote. Only the OWNER may, and never to OWNER. */
+  async setMemberRole(userId: string, conversationId: string, targetId: string, role: 'ADMIN' | 'MEMBER') {
+    const { convo, me } = await this.assertGroupAdmin(userId, conversationId);
+    if (me.role !== 'OWNER') throw new ForbiddenException('Only the group owner can change what somebody is.');
+    if (targetId === userId) throw new ForbiddenException('You cannot change your own role.');
+    const target = convo.members.find((m) => m.userId === targetId);
+    if (!target) throw new NotFoundException('They are not in this group.');
+    if (target.role === 'OWNER') throw new ForbiddenException('There is one owner.');
+    await this.prisma.conversationMember.updateMany({ where: { conversationId, userId: targetId }, data: { role } });
+    return { ok: true as const };
+  }
+
+  /** Rename. Admins and the owner; the name is what everybody sees. */
+  async renameGroup(userId: string, conversationId: string, title: string) {
+    await this.assertGroupAdmin(userId, conversationId);
+    await this.prisma.conversation.update({ where: { id: conversationId }, data: { title } });
+    return { ok: true as const };
+  }
+
+  /**
+   * Leave.
+   *
+   * The row is DELETED, not archived: recipientIds is computed from members, so
+   * anything short of removing it leaves somebody receiving a group they left.
+   *
+   * An owner may leave, and ownership moves rather than blocking them —
+   * longest-standing admin first, then longest-standing member. Requiring a
+   * hand-over before the door opens sounds tidy and is a trap: the owner is the
+   * one person with no way out of it.
+   */
+  async leaveConversation(userId: string, conversationId: string) {
+    const convo = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: { members: { orderBy: { joinedAt: 'asc' } } },
+    });
+    if (!convo) throw new NotFoundException('No such conversation.');
+    const me = convo.members.find((m) => m.userId === userId);
+    if (!me) throw new NotFoundException('No such conversation.');
+    if (convo.type !== 'GROUP') throw new ForbiddenException('You can only leave a group.');
+
+    const others = convo.members.filter((m) => m.userId !== userId);
+    if (me.role === 'OWNER' && others.length) {
+      const heir = others.find((m) => m.role === 'ADMIN') ?? others[0];
+      await this.prisma.conversationMember.updateMany({
+        where: { conversationId, userId: heir.userId }, data: { role: 'OWNER' },
+      });
+    }
+    await this.prisma.conversationMember.deleteMany({ where: { conversationId, userId } });
+    return { ok: true as const };
+  }
+
   /** Mark a whole conversation read for this user (advances lastReadAt → unread = 0). */
   async markRead(userId: string, conversationId: string): Promise<{ ok: true }> {
     await this.assertMember(userId, conversationId);

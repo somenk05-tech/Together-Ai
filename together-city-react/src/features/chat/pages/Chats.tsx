@@ -6,6 +6,7 @@ import { ConversationList } from '../components/ConversationList';
 import { MessageThread } from '../components/MessageThread';
 import { Composer } from '../components/Composer';
 import { ChatStarter } from '../components/ChatStarter';
+import { GroupPanel } from '../components/GroupPanel';
 import { Spinner, EmptyState } from '@/components/ui';
 import { CallButtons } from '@/features/calls/CallButtons';
 import { useAuth } from '@/hooks/useAuth';
@@ -103,6 +104,11 @@ export function Chats() {
     return (convo.participantIds ?? []).find((id) => id !== user?.id);
   }, [conversations.data, activeId, user?.id]);
   const [peerOnline, setPeerOnline] = useState(false);
+  const [groupOpen, setGroupOpen] = useState(false);
+  const activeIsGroup = useMemo(
+    () => Boolean((conversations.data ?? []).find((c) => c.id === activeId)?.isGroup),
+    [conversations.data, activeId],
+  );
   useEffect(() => {
     setPeerOnline(Boolean(peerId && (onlineNow.data ?? []).includes(peerId)));
   }, [peerId, onlineNow.data]);
@@ -306,7 +312,16 @@ export function Chats() {
                 )}
                 <span className="csav">{activeTitle.split(/[\s·]+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase()}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
+                  {activeIsGroup ? (
+                    <button type="button" onClick={() => setGroupOpen(true)}
+                      aria-label="Group members and settings"
+                      style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none',
+                        padding: 0, font: 'inherit', color: 'inherit', cursor: 'pointer' }}>
+                      <b style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeTitle}</b>
+                    </button>
+                  ) : (
                   <b style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeTitle}</b>
+                  )}
                   {/* Typing outranks online: it is the more specific fact, and
                       the more useful one. Absent both, the room says nothing
                       about the other person rather than guessing "offline" —
@@ -384,6 +399,12 @@ export function Chats() {
                       onReply={setReplyTo} onJump={(id) => { void jumpTo(id); }} jumpToId={jumpToId}
                       fetchInfo={chatApi.messageInfo} />
                   </>}
+              {groupOpen && activeId && (
+                <GroupPanel conversationId={activeId} title={activeTitle} meId={user?.id}
+                  onClose={() => setGroupOpen(false)}
+                  onChanged={() => { void conversations.refetch(); }}
+                  onLeft={() => { setGroupOpen(false); setActiveId(undefined); void conversations.refetch(); }} />
+              )}
               <Composer onSend={sendWithReply} onTyping={emitTyping}
                 replyTo={replyTo ? {
                   name: replyTo.senderId === user?.id ? 'yourself' : activeTitle,

@@ -5,8 +5,8 @@ import { apiDelete, apiGet, apiPost, apiPut } from './http';
 import { socketClient, WS } from './socket';
 import { useAuthed } from '@/store/useAuthed';
 import {
-  ConversationSchema, MessageInfoSchema, MessagePageSchema, MessageSchema,
-  type Conversation, type Message, type MessageInfo, type MessagePage, type ShareCard,
+  ConversationSchema, GroupMemberSchema, MessageInfoSchema, MessagePageSchema, MessageSchema,
+  type Conversation, type GroupMember, type Message, type MessageInfo, type MessagePage, type ShareCard,
 } from './schemas';
 
 const ContactSchema = z.object({ id: z.string(), handle: z.string(), name: z.string(), profileImage: z.string().nullable().optional() });
@@ -80,6 +80,20 @@ export const chatApi = {
   /** Who received and read one of YOUR messages. 403 for anybody else's. */
   messageInfo: (messageId: string): Promise<MessageInfo> =>
     apiGet(`/messages/${messageId}/info`, MessageInfoSchema),
+
+  /* ---- groups: a roster that can change ---- */
+  groupMembers: (conversationId: string): Promise<GroupMember[]> =>
+    apiGet(`/chat/${conversationId}/members`, z.array(GroupMemberSchema)),
+  addGroupMembers: (conversationId: string, memberIds: string[]): Promise<{ ok: boolean; added: number }> =>
+    apiPost(`/chat/${conversationId}/members`, { memberIds }, z.object({ ok: z.boolean(), added: z.number() })),
+  removeGroupMember: (conversationId: string, userId: string): Promise<{ ok: boolean }> =>
+    apiDelete(`/chat/${conversationId}/members/${userId}`, z.object({ ok: z.boolean() })),
+  setGroupRole: (conversationId: string, userId: string, role: 'ADMIN' | 'MEMBER'): Promise<{ ok: boolean }> =>
+    apiPost(`/chat/${conversationId}/members/${userId}/role`, { role }, z.object({ ok: z.boolean() })),
+  renameGroup: (conversationId: string, title: string): Promise<{ ok: boolean }> =>
+    apiPost(`/chat/${conversationId}/rename`, { title }, z.object({ ok: z.boolean() })),
+  leaveGroup: (conversationId: string): Promise<{ ok: boolean }> =>
+    apiPost(`/chat/${conversationId}/leave`, {}, z.object({ ok: z.boolean() })),
 };
 
 /* ---------------- React Query hooks ---------------- */

@@ -5,8 +5,14 @@ import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { ConversationsService } from './conversations.service';
 import {
+  AddMembersDto,
+  AddMembersSchema,
   CreateGroupDto,
   CreateGroupSchema,
+  RenameGroupDto,
+  RenameGroupSchema,
+  SetRoleDto,
+  SetRoleSchema,
   StartDirectDto,
   StartDirectSchema,
 } from './dto/conversations.dto';
@@ -63,6 +69,46 @@ export class ConversationsController {
   @Post(':id/unarchive')
   unarchive(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.conversations.setArchived(user.sub, id, false);
+  }
+
+  // GET /api/chat/:id/members — who is in this group, and what they are.
+  @Get(':id/members')
+  members(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.conversations.members(user.sub, id);
+  }
+
+  // POST /api/chat/:id/members — add people (admins only; each must be connected)
+  @Post(':id/members')
+  @UsePipes(new ZodValidationPipe(AddMembersSchema))
+  addMembers(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: AddMembersDto) {
+    return this.conversations.addMembers(user.sub, id, dto.memberIds);
+  }
+
+  // DELETE /api/chat/:id/members/:userId — remove somebody (never the owner)
+  @Delete(':id/members/:userId')
+  removeMember(@CurrentUser() user: JwtUser, @Param('id') id: string, @Param('userId') userId: string) {
+    return this.conversations.removeMember(user.sub, id, userId);
+  }
+
+  // POST /api/chat/:id/members/:userId/role — promote/demote (owner only)
+  @Post(':id/members/:userId/role')
+  @UsePipes(new ZodValidationPipe(SetRoleSchema))
+  setRole(@CurrentUser() user: JwtUser, @Param('id') id: string, @Param('userId') userId: string, @Body() dto: SetRoleDto) {
+    return this.conversations.setMemberRole(user.sub, id, userId, dto.role);
+  }
+
+  // POST /api/chat/:id/rename — a distinct path rather than PATCH :id, so the
+  // one-id routes stay one shape and nothing depends on method to disambiguate.
+  @Post(':id/rename')
+  @UsePipes(new ZodValidationPipe(RenameGroupSchema))
+  rename(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: RenameGroupDto) {
+    return this.conversations.renameGroup(user.sub, id, dto.title);
+  }
+
+  // POST /api/chat/:id/leave — leave a group for good (the row is deleted)
+  @Post(':id/leave')
+  leave(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.conversations.leaveConversation(user.sub, id);
   }
 
   // GET /api/chat/contacts — city directory for starting chats / groups
