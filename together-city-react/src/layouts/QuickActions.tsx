@@ -51,7 +51,20 @@ export function QuickActions({ show = 'all' }: { show?: 'all' | 'search' | 'link
       )}
       {linksOn && (
         <>
-          <Link to="/mail/inbox" aria-label="Mail" style={pill}>
+          {/* THE MAIL PILL OPENS THE MAILBOX, NOT ONE FOLDER IN IT.
+
+              It pointed at /mail/inbox — the flat list of every message. That is
+              a reasonable default and the wrong front door: it skips the
+              projects entirely, so somebody who files their mail into rooms
+              lands on the one screen that ignores them and has to navigate back
+              out of it.
+
+              /mail is what `hubs.ts` has declared as this hub's path since it
+              was written, and it shows All Emails and the projects side by side.
+              The folder is one click IN from there; the mailbox was not one
+              click out. The header was the only thing in the app not using the
+              hub's own path. */}
+          <Link to="/mail" aria-label="Mail" style={pill}>
             <Icon name="mail" size={17} /> <span className="lab">Mail</span>
           </Link>
           <Link to="/chats" aria-label="Chat" style={pill}>

@@ -69,7 +69,30 @@ describe('the layout uses the space it has', () => {
     }
     // Mail is NOT in the bottom bar, so it must survive — hiding it would leave
     // the mailbox with no door on a phone at all.
-    expect(phone).not.toContain('/mail/inbox');
+    expect(phone).not.toContain('a[href="/mail"]');
+  });
+
+  /**
+   * AND THE MAIL PILL OPENS THE MAILBOX, NOT ONE FOLDER IN IT.
+   *
+   * It pointed at `/mail/inbox`, the flat list of every message. That is a
+   * reasonable default and the wrong front door: it skips the projects, so
+   * somebody who files their mail into rooms lands on the one screen that
+   * ignores them.
+   *
+   * `/mail` is what `hubs.ts` has declared as the mail hub's path since it was
+   * written, and the header was the only thing in the app not using it.
+   *
+   * Asserted rather than left to review because BOTH PATHS WORK. The old one
+   * renders a real page with real mail in it, so nothing looks broken and
+   * nothing fails — the only symptom is a citizen never finding the room they
+   * filed things into. That is the kind of regression a test has to catch,
+   * because a person cannot.
+   */
+  it('sends the header Mail pill to the mailbox, not to the inbox list', () => {
+    const quick = read('layouts/QuickActions.tsx').replace(/\/\*[\s\S]*?\*\//g, ' ');
+    expect(quick).toMatch(/<Link to="\/mail"\s+aria-label="Mail"/);
+    expect(quick).not.toMatch(/to="\/mail\/inbox"/);
   });
 
   it('shows the chips rail wherever the sidebar is a drawer, not 200px later', () => {
