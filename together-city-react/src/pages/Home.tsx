@@ -193,19 +193,28 @@ export function Home() {
           </p>
           <div style={{ marginTop: 30, display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
             {authed ? (
-              /* A citizen who is signed in is already inside; the key is for a
-                 desk, where the hero is a poster you look at rather than a
-                 page you have walked into. */
-              /* The door is Mira, not the dashboard.
+              /* THE DOOR IS MIRA, AND IT IS ON THE PHONE TOO.
                  A hub wall answers "what is here"; it cannot answer "I need a
                  table for four on Saturday". This is the front door for people
                  who know what they want and not where it lives — which, after
-                 the first week, is most people most of the time. */
-              phone ? null : (
-                <Link className="btn btn-gold" to="/chats?c=__mira__">
-                  Talk to Mira — your personal assistant
-                </Link>
-              )
+                 the first week, is most people most of the time.
+
+                 IT USED TO BE HIDDEN ON A PHONE, and the reason was sound for a
+                 different button: this said "Enter your city", and on a phone
+                 the citizen has already entered — the hub wall is right there
+                 under the fold and the bottom bar is under their thumb. A
+                 second door to the same room is clutter.
+
+                 It is not the same room any more. When the copy changed to
+                 "Talk to Mira" the guard was left behind, and it hid the ONLY
+                 route to her from the home screen on the device most people use
+                 — a signed-out visitor kept the button, a signed-in citizen lost
+                 it. The argument that justified hiding it now argues the other
+                 way: the smaller the screen, the more it costs to go and find
+                 the page yourself. */
+              <Link className="btn btn-gold" to="/chats?c=__mira__">
+                Talk to Mira — your personal assistant
+              </Link>
             ) : (
               <>
                 <Link className="btn btn-gold" to="/sign-up">Talk to Mira — your personal assistant</Link>
