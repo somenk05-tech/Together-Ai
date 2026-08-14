@@ -81,6 +81,35 @@ export const chatApi = {
   messageInfo: (messageId: string): Promise<MessageInfo> =>
     apiGet(`/messages/${messageId}/info`, MessageInfoSchema),
 
+  /**
+   * Send an existing message on to another conversation.
+   *
+   * A copy, not a reference: the new row is its own message with its own id,
+   * its own receipts and its own place in the other conversation's history.
+   * The attachments travel as URLs — the same bytes, no re-upload — which is
+   * exactly what the widened gate in messages.service permits and why it had
+   * to be widened rather than bypassed.
+   */
+  forwardMessage: (toConversationId: string, m: Message): Promise<Message> =>
+    apiPost('/messages', {
+      conversationId: toConversationId,
+      body: m.body || undefined,
+      ...(m.share ? { share: m.share } : {}),
+      ...((m.media ?? []).length ? {
+        messageType: m.media![0].kind === 'image' ? 'IMAGE'
+          : m.media![0].kind === 'video' ? 'VIDEO'
+          : m.media![0].kind === 'audio' ? 'VOICE' : 'FILE',
+        attachments: m.media!.map((a) => ({
+          url: a.url,
+          mimeType: a.mimeType ?? 'application/octet-stream',
+          size: a.sizeBytes ?? 0,
+          ...(a.name ? { name: a.name } : {}),
+          ...(a.durationSec ? { duration: Math.round(a.durationSec) } : {}),
+          ...(a.thumbUrl ? { thumbnail: a.thumbUrl } : {}),
+        })),
+      } : {}),
+    }, MessageSchema),
+
   /* ---- groups: a roster that can change ---- */
   groupMembers: (conversationId: string): Promise<GroupMember[]> =>
     apiGet(`/chat/${conversationId}/members`, z.array(GroupMemberSchema)),

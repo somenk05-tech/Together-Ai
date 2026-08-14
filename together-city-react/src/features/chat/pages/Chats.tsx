@@ -7,6 +7,7 @@ import { MessageThread } from '../components/MessageThread';
 import { Composer } from '../components/Composer';
 import { ChatStarter } from '../components/ChatStarter';
 import { GroupPanel } from '../components/GroupPanel';
+import { ForwardPanel } from '../components/ForwardPanel';
 import { Spinner, EmptyState } from '@/components/ui';
 import { CallButtons } from '@/features/calls/CallButtons';
 import { useAuth } from '@/hooks/useAuth';
@@ -105,6 +106,7 @@ export function Chats() {
   }, [conversations.data, activeId, user?.id]);
   const [peerOnline, setPeerOnline] = useState(false);
   const [groupOpen, setGroupOpen] = useState(false);
+  const [forwarding, setForwarding] = useState<Message | null>(null);
   const activeIsGroup = useMemo(
     () => Boolean((conversations.data ?? []).find((c) => c.id === activeId)?.isGroup),
     [conversations.data, activeId],
@@ -396,9 +398,22 @@ export function Chats() {
                     )}
                     <MessageThread messages={messages} currentUserId={user?.id} typing={peerTyping}
                       peerName={activeTitle} onDelete={deleteMessage} onEdit={editMessage}
-                      onReply={setReplyTo} onJump={(id) => { void jumpTo(id); }} jumpToId={jumpToId}
+                      onReply={setReplyTo} onForward={setForwarding} onJump={(id) => { void jumpTo(id); }} jumpToId={jumpToId}
                       fetchInfo={chatApi.messageInfo} />
                   </>}
+              {forwarding && (
+                <ForwardPanel message={forwarding} fromConversationId={activeId}
+                  conversations={list}
+                  onClose={() => setForwarding(null)}
+                  onSent={(toId) => {
+                    setForwarding(null);
+                    void conversations.refetch();
+                    // The copy lands in the OTHER conversation; if that thread
+                    // is the one on screen it needs re-reading, and if it is
+                    // not, the list's own poll is what shows it.
+                    void qc.invalidateQueries({ queryKey: ['chat', 'messages', toId] });
+                  }} />
+              )}
               {groupOpen && activeId && (
                 <GroupPanel conversationId={activeId} title={activeTitle} meId={user?.id}
                   onClose={() => setGroupOpen(false)}

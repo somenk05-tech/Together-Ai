@@ -39,8 +39,8 @@ export class MessagesService {
   async send(senderId: string, dto: SendMessageDto) {
     // 1) permission gate (403 if not connected / not a member)
     await this.permission.assertCanPostToConversation(senderId, dto.conversationId);
-    // 1b) attachment gate — see assertOwnAttachments below.
-    if (dto.attachments?.length) this.assertOwnAttachments(senderId, dto.attachments);
+    // 1b) attachment gate — see assertAttachmentsAreYoursToSend below.
+    if (dto.attachments?.length) await this.assertAttachmentsAreYoursToSend(senderId, dto.attachments);
 
     const recipientIds = await this.recipientIds(dto.conversationId, senderId);
 
@@ -434,10 +434,10 @@ export class MessagesService {
    * base is configured the URL must live under it too; without one (dev, no
    * cloud creds) the path rule still holds.
    */
-  private assertOwnAttachments(
+  private async assertAttachmentsAreYoursToSend(
     senderId: string,
     attachments: Array<{ url: string; thumbnail?: string }>,
-  ): void {
+  ): Promise<void> {
     const base = (this.config.get<string>('media.publicBaseUrl') ?? '').replace(/\/+$/, '');
     const own = (u: string | undefined): boolean => {
       if (!u) return true;
@@ -445,9 +445,31 @@ export class MessagesService {
       const path = (() => { try { return new URL(u).pathname; } catch { return u; } })();
       return path.includes(`/uploads/${senderId}/`);
     };
-    for (const a of attachments) {
-      if (!own(a.url) || !own(a.thumbnail)) {
-        throw new ForbiddenException('An attachment must be a file you uploaded yourself.');
+
+    /* A FORWARD IS THE ONE LEGITIMATE CASE THE FIRST RULE FORBIDS — the file
+       belongs to whoever sent it to you, so `uploads/<you>/` will never match.
+       The second clause is a DATABASE question rather than a string one: the
+       URL must name an Attachment row whose message sits in a conversation
+       this sender is a member of. An arbitrary URL still cannot be posted, and
+       a file from a chat they have left or been removed from is no longer
+       theirs to pass on, because membership is re-read here and not trusted
+       from whenever they first saw it. */
+    const urls = attachments.flatMap((a) => [a.url, a.thumbnail]).filter((u): u is string => Boolean(u));
+    const foreign = urls.filter((u) => !own(u));
+    if (!foreign.length) return;
+
+    // unbounded: `in:` at most ten attachments' worth of urls — the DTO caps it
+    const seen = await this.prisma.attachment.findMany({
+      where: {
+        url: { in: foreign },
+        message: { conversation: { members: { some: { userId: senderId } } } },
+      },
+      select: { url: true },
+    });
+    const allowed = new Set(seen.map((r) => r.url));
+    for (const u of foreign) {
+      if (!allowed.has(u)) {
+        throw new ForbiddenException('An attachment must be a file you uploaded, or one sent to a conversation you are in.');
       }
     }
   }

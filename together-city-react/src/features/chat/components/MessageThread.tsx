@@ -127,13 +127,14 @@ function ConfirmDelete({ mine, canEveryone, onCancel, onDelete }: {
   );
 }
 
-export function MessageThread({ messages, currentUserId, typing, peerName, onDelete, onEdit, onReply, onJump, fetchInfo, jumpToId }: {
+export function MessageThread({ messages, currentUserId, typing, peerName, onDelete, onEdit, onReply, onForward, onJump, fetchInfo, jumpToId }: {
   messages: Message[]; currentUserId?: string; typing?: boolean;
   /** Whose thread this is, for the attribution line above each run. */
   peerName?: string;
   onDelete?: (messageId: string, scope: 'ME' | 'EVERYONE') => Promise<void> | void;
   onEdit?: (messageId: string, body: string) => Promise<void> | void;
   onReply?: (m: Message) => void;
+  onForward?: (m: Message) => void;
   /** Tapping a quotation asks the page to jump — the page owns history, and
    *  the message may be older than what is loaded. */
   onJump?: (messageId: string) => void;
@@ -261,6 +262,7 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
               {!deleted && onDelete && (
                 <div className="tc-msg-actions" style={mine ? { right: 0 } : { left: 0 }}>
                   {onReply && <button type="button" title="Reply" onClick={() => { onReply(m); setTouchOpen(null); }}>↩ Reply</button>}
+                  {onForward && !deleted && <button type="button" title="Forward" onClick={() => { onForward(m); setTouchOpen(null); }}>⤳ Forward</button>}
                   {m.body && <button type="button" title="Copy" onClick={() => { void navigator.clipboard?.writeText(m.body); setTouchOpen(null); }}>⧉ Copy</button>}
                   {canEdit && <button type="button" title="Edit" onClick={() => startEdit(m)}>✎ Edit</button>}
                   {mine && fetchInfo && <button type="button" title="Message info" onClick={() => { setInfoFor(m); setTouchOpen(null); }}>ⓘ Info</button>}
