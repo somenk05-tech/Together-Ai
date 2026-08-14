@@ -23,8 +23,26 @@ export const MiraReplySchema = z.object({
   payload: z.unknown().optional(),
   /** Where she is offering to take you. Navigation changes nothing, so it needs no confirmation. */
   goto: z.object({ label: z.string(), path: z.string() }).optional(),
-  /** The colour this turn was said in — six of them, announced once a day. */
-  mood: z.enum(['wry', 'warm', 'sharp', 'brisk', 'mischievous', 'quiet']),
+  /**
+   * The colour this turn was said in — six of them, announced once a day.
+   *
+   * OPTIONAL, AND THAT IS A RULE RATHER THAN A DETAIL ABOUT MOODS.
+   *
+   * This shipped as required and took Mira down completely. The web app deploys
+   * to Vercel and the API deploys to Railway, independently, so there is ALWAYS
+   * a window — minutes, sometimes longer if a build queues — where the new
+   * frontend is live against the old backend. A required field the old backend
+   * has never heard of makes `schema.parse` throw on every single turn, the
+   * mutation rejects, and the citizen gets the offline line while the API sits
+   * there perfectly healthy answering everything correctly.
+   *
+   * THE RULE: A NEW FIELD IN A RESPONSE IS OPTIONAL ON THE CLIENT, ALWAYS. It
+   * may be promoted to required later, once the server that sends it is the only
+   * one deployed — and in practice that day never comes and it never matters.
+   * `mira-tolerates-an-older-server.test.ts` holds this for the whole schema
+   * rather than for this one field.
+   */
+  mood: z.enum(['wry', 'warm', 'sharp', 'brisk', 'mischievous', 'quiet']).optional(),
   /**
    * The options she just offered, when the turn was a question.
    *

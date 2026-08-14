@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ZodError } from 'zod';
 import { Link } from 'react-router-dom';
 import { useMiraAsk, useMiraCapabilities, type Choice } from './api';
 import { Icon } from '@/components/ui/Icon';
@@ -81,9 +82,31 @@ export function MiraThread({ weeksKnown = 0, dial }: { weeksKnown?: number; dial
       if (reply.levity === 0 && reply.lane === 'LISTEN') setDistressLocked(true);
       setTurns((t) => [...t, { who: 'mira', text: reply.text, levity: reply.levity, goto: reply.goto }]);
       speech.speak(reply.text);
-    } catch {
+    } catch (err) {
       pending.current = undefined;
-      setTurns((t) => [...t, { who: 'mira', text: "I’m not reaching the city right now. Try me in a minute?", levity: 0 }]);
+      /**
+       * TWO FAILURES, AND THEY ARE NOT THE SAME SENTENCE.
+       *
+       * This was one `catch` saying "I'm not reaching the city right now" — and
+       * that line is a LIE in the case that actually happened: the API answered,
+       * correctly and quickly, and the client threw because the reply carried a
+       * field the schema had just been taught to require. Mira told the owner
+       * the city was down while the city was fine.
+       *
+       * This codebase makes every other surface say what is true when it fails.
+       * Hers has to as well, and it costs one `instanceof`. The console line is
+       * the other half: a caught error with no trace turns a five-minute
+       * diagnosis into an afternoon of guessing, which is what it cost here.
+       */
+      const stale = err instanceof ZodError;
+      if (stale) console.warn('[mira] reply did not match the schema — API and web app are on different versions', err.issues);
+      setTurns((t) => [...t, {
+        who: 'mira',
+        text: stale
+          ? 'I heard the city, but we are not speaking the same language yet. Give the update a minute to land.'
+          : 'I’m not reaching the city right now. Try me in a minute?',
+        levity: 0,
+      }]);
     }
   };
 
