@@ -220,6 +220,17 @@ export function Chats() {
     }
   }, [activeId, qc]);
 
+  /* Flag it and LEAVE. Staying in an open thread you have just marked unread
+     is a contradiction the next render would have to resolve, and it would
+     resolve it by marking it read again — the effect above does exactly that
+     on open. So the gesture closes the room, which is also what somebody means
+     by it: I am done here for now. */
+  const leaveUnread = useCallback(async (id: string) => {
+    await chatApi.markConversationUnread(id).catch(() => undefined);
+    setActiveId(undefined);
+    void conversations.refetch();
+  }, [conversations]);
+
   const emitTyping = useCallback((t: boolean) => {
     setTyping(t);
     if (typingTimer.current) clearTimeout(typingTimer.current);
@@ -345,6 +356,9 @@ export function Chats() {
                       presence expires on a TTL, so silence is not proof. */}
                   <em>{peerTyping ? 'typing…' : peerOnline ? 'online' : 'Together City'}</em>
                 </div>
+                <button type="button" className="cstool" aria-label="Leave this conversation unread"
+                  title="Mark unread" onClick={() => { void leaveUnread(activeId); }}
+                  style={{ flex: 'none' }}>◍</button>
                 <button type="button" className="cstool" aria-label="Search this conversation"
                   aria-expanded={searchOpen} onClick={() => setSearchOpen((v) => !v)}
                   style={{ flex: 'none' }}>🔍</button>

@@ -51,6 +51,9 @@ export const chatApi = {
     apiPost('/chat/group', { title, memberIds }, ConversationSchema),
   markRead: (conversationId: string): Promise<{ ok: boolean }> =>
     apiPost(`/chat/${conversationId}/read`, {}, z.object({ ok: z.boolean() })),
+  /** Leave it unread on purpose — the "deal with this later" gesture. */
+  markConversationUnread: (conversationId: string): Promise<{ ok: boolean }> =>
+    apiPost(`/chat/${conversationId}/unread`, {}, z.object({ ok: z.boolean() })),
   /**
    * Remove a conversation from MY left panel. Deliberately not called
    * `deleteConversation`: the server sets clearedAt on my own membership row

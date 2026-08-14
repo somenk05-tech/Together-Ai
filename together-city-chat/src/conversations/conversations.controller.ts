@@ -71,6 +71,12 @@ export class ConversationsController {
     return this.conversations.setArchived(user.sub, id, false);
   }
 
+  // POST /api/chat/:id/unread — leave it unread on purpose.
+  @Post(':id/unread')
+  markUnread(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.conversations.markUnread(user.sub, id);
+  }
+
   // GET /api/chat/:id/members — who is in this group, and what they are.
   @Get(':id/members')
   members(@CurrentUser() user: JwtUser, @Param('id') id: string) {

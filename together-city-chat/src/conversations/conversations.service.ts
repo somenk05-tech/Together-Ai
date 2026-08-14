@@ -132,7 +132,11 @@ export class ConversationsService {
         });
       }),
     );
-    return visible.map((m, i) => this.shape(m.conversation, userId, unreads[i]));
+    /* A flagged chat counts at least one. MAX rather than a fixed 1, so a
+       conversation with three real unread messages that is ALSO flagged still
+       says three — the flag raises the floor, it does not replace the count. */
+    return visible.map((m, i) =>
+      this.shape(m.conversation, userId, m.markedUnread ? Math.max(1, unreads[i]) : unreads[i]));
   }
 
   /** The later of two optional instants — null only when both are null. */
@@ -433,6 +437,23 @@ export class ConversationsService {
     return { ok: true as const };
   }
 
+  /**
+   * Leave a conversation unread on purpose.
+   *
+   * Not a rewind of lastReadAt: that field is a high-water mark with a `lt`
+   * guard on every write, precisely so a late receipt cannot re-open messages
+   * already cleared, and rewinding it would re-open EVERY message after the
+   * new point rather than flagging the one conversation.
+   */
+  async markUnread(userId: string, conversationId: string): Promise<{ ok: true }> {
+    await this.assertParticipant(userId, conversationId);
+    await this.prisma.conversationMember.updateMany({
+      where: { conversationId, userId },
+      data: { markedUnread: true },
+    });
+    return { ok: true };
+  }
+
   /** Mark a whole conversation read for this user (advances lastReadAt → unread = 0). */
   async markRead(userId: string, conversationId: string): Promise<{ ok: true }> {
     await this.assertMember(userId, conversationId);
@@ -452,6 +473,15 @@ export class ConversationsService {
         data: { lastReadAt: newest.createdAt },
       });
     }
+    /* Cleared SEPARATELY and unconditionally. The write above is guarded on
+       lastReadAt actually moving, and the commonest way to open a flagged chat
+       is one where it does not move at all — everything was already read, which
+       is exactly why the citizen flagged it by hand. Folding the flag into that
+       update would leave it set in precisely that case. */
+    await this.prisma.conversationMember.updateMany({
+      where: { conversationId, userId },
+      data: { markedUnread: false },
+    });
     return { ok: true };
   }
 }

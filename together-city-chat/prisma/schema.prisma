@@ -300,6 +300,10 @@ model ConversationMember {
   lastReadAt     DateTime? // for unread counts
   muted          Boolean    @default(false)
   archived       Boolean    @default(false)
+  /// This reader has chosen to see the conversation as unread again.
+  /// A separate flag rather than a rewind of lastReadAt, which is a
+  /// high-water mark that never moves backwards by design.
+  markedUnread   Boolean    @default(false)
   pinned         Boolean    @default(false)
   /// Per-participant chat deletion. Deleting a chat from the left panel is not
   /// a shared act — the other person keeps their copy — so it records a moment
