@@ -46,6 +46,14 @@ function harness(rows: any[] = []) {
         const hit = rows.filter((r) => matches(where ?? {}, r));
         return select?.sizeBytes ? hit.map((r) => ({ sizeBytes: r.sizeBytes })) : hit;
       },
+      // usedBytes() adds the mailbox up in the DATABASE now instead of reading
+      // every row into the process, so the stub needs the one method Prisma
+      // uses to do that. It sums the same rows findMany would have returned.
+      aggregate: async ({ where, _sum }: any) => ({
+        _sum: _sum?.sizeBytes
+          ? { sizeBytes: rows.filter((r) => matches(where ?? {}, r)).reduce((n: number, r: any) => n + (r.sizeBytes ?? 0), 0) }
+          : {},
+      }),
       count: async ({ where }: any) => rows.filter((r) => matches(where, r)).length,
       delete: async ({ where }: any) => {
         const i = rows.findIndex((r) => r.id === where.id); return rows.splice(i, 1)[0];

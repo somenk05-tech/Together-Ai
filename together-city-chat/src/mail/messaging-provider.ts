@@ -36,6 +36,16 @@ export interface OutboundMessage {
   // email only — where replies go. Set to the citizen's city address so a reply
   // lands back in THEIR inbox (via the inbound webhook), not the shared box.
   replyTo?: string;
+  /**
+   * email only — raw headers to put on the wire.
+   *
+   * This is the seam that was missing. Everything an email needs beyond a
+   * body — Message-ID, In-Reply-To, References, and later List-Unsubscribe and
+   * Auto-Submitted — is a header, and there was nowhere to put one, so
+   * outbound city mail carried none of them. Gmail and Outlook were left to
+   * thread on the subject line alone.
+   */
+  headers?: Record<string, string>;
 }
 
 export interface ProviderResult {
@@ -217,6 +227,8 @@ export class ResendEmailProvider implements MessagingProvider {
       // Replies go where the sender can actually receive them (their city
       // inbox), not to the envelope default.
       ...(msg.replyTo ? { replyTo: msg.replyTo } : {}),
+      // Threading, and whatever else the caller needs on the wire.
+      ...(msg.headers && Object.keys(msg.headers).length ? { headers: msg.headers } : {}),
       to: msg.to,
       subject: msg.subject ?? '(no subject)',
       // Send both: HTML for clients that render it, plain text as the fallback.

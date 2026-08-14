@@ -48,6 +48,14 @@ function harness() {
         const hit = rows.filter((r) => matches(where ?? {}, r));
         return select?.sizeBytes ? hit.map((r) => ({ sizeBytes: r.sizeBytes })) : hit;
       },
+      // usedBytes() adds the mailbox up in the DATABASE now instead of reading
+      // every row into the process, so the stub needs the one method Prisma
+      // uses to do that. It sums the same rows findMany would have returned.
+      aggregate: async ({ where, _sum }: any) => ({
+        _sum: _sum?.sizeBytes
+          ? { sizeBytes: rows.filter((r) => matches(where ?? {}, r)).reduce((n: number, r: any) => n + (r.sizeBytes ?? 0), 0) }
+          : {},
+      }),
       deleteMany: async () => ({ count: 0 }),
       updateMany: async ({ where, data }: any) => {
         const hit = rows.filter((r) => matches(where, r));
@@ -62,6 +70,8 @@ function harness() {
       },
     },
     mailAccount: { findUnique: async () => ({ userId: 'u1', address: 'somen@togethercity.app' }) },
+    // The outbound budget counts external dispatches out of this table.
+    emailDelivery: { count: async () => 0 },
     user: {
       findUnique: async ({ where }: any) => {
         if (where.id) return { id: 'u1', name: 'Somen', handle: 'somen' };

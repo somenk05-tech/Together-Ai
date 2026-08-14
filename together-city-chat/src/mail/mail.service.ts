@@ -23,8 +23,87 @@ import { greetHtml, greetSms, greetText } from './greet';
 const MIME_BUDGET_BYTES = 20 * 1024 * 1024;          // safely under provider caps
 const MAX_OUTBOUND_TOTAL_BYTES = 1024 * 1024 * 1024; // 1 GB across attachments
 const SHARE_LINK_TTL_SEC = 7 * 24 * 3600;            // 7 days (S3/R2 maximum)
+/**
+ * How many city mailboxes ONE arriving email may be delivered to.
+ *
+ * The webhook is reachable by anyone who can get a message through the
+ * provider's MX, and the loop below does a body fetch over the network and a
+ * whole-mailbox scan PER RECIPIENT, inline, in the request. A single email
+ * addressed to a thousand handles was a thousand of each, in one handler.
+ * Fifty is far above any real To line and far below a useful lever.
+ */
+const MAX_INBOUND_RECIPIENTS = 50;
+/**
+ * THE OUTBOUND BUDGET, and why the city needs one at all.
+ *
+ * Writing to a fellow citizen requires an accepted connection. Writing to any
+ * address on the public internet required nothing: the external branch of
+ * `sendOne` returns before the connection check, and `cc`/`bcc` accept 25 each,
+ * so one API call dispatched 51 separately-addressed messages — every one of
+ * them From a DKIM-aligned <handle>@togethercity.app that passes DMARC.
+ *
+ * The global throttler is 120 requests a minute. That is sized for ordinary
+ * API traffic, not for an endpoint that turns one request into fifty-one
+ * emails, and it counts requests rather than recipients — so it was no
+ * ceiling on sending at all.
+ *
+ * The cost of getting this wrong is not this citizen's account. System mail —
+ * password recovery, security notices — leaves on the SAME verified domain, so
+ * a burnt sender reputation locks everybody out of their own accounts. The
+ * budget is the cheapest thing standing between one abused signup and that.
+ *
+ * Externals only. A message to citizens is already gated by the connection
+ * rule, and counting it here would make the cap bite the people it is not for.
+ *
+ * A ROLLING WINDOW, not a calendar day: no timezone to argue about, and no
+ * midnight at which a full budget becomes an empty one.
+ */
+/**
+ * THREADING IS CARRIED IN THE ID, NOT GUESSED FROM THE SUBJECT.
+ *
+ * Outbound mail set no Message-ID, no In-Reply-To and no References, so Gmail
+ * and Outlook had nothing to thread on but the subject line — and the inbound
+ * side had nothing to match on either, so `resolveInboundThread` fell back to
+ * "the most recent message from this correspondent, if the Re:-stripped
+ * subjects are identical". Two live conversations with one person was enough
+ * to break it: a reply to the older one matched the newer one's subject,
+ * failed, and started a third thread with no original beside it.
+ *
+ * The trail id is encoded INTO the ids we mint, so a reply that echoes any of
+ * them back — every mail client echoes References — names its thread without
+ * a lookup and without a new column.
+ *
+ *   Message-ID:  <t.{threadId}.{uuid}@togethercity.app>   unique per message
+ *   References:  <t.{threadId}.thread@togethercity.app>   stable per thread
+ *
+ * A THREAD ID IN A HEADER IS A CLAIM, NOT A CREDENTIAL. `threadFromRefs` is
+ * only ever believed after checking the citizen already holds a row in that
+ * trail — otherwise a stranger could put their mail inside somebody's
+ * conversation by writing one header, which is the same hole the draft path
+ * had and closed.
+ */
+const threadAnchorId = (threadId: string): string => `<t.${threadId}.thread@${MAIL_DOMAIN}>`;
+const threadMessageId = (threadId: string): string => `<t.${threadId}.${randomUUID()}@${MAIL_DOMAIN}>`;
+// Built on call, not at module load: MAIL_DOMAIN is imported BELOW this block
+// (this file interleaves its constants with its imports), so reading it here
+// eagerly is a temporal-dead-zone crash at require time. Every mail suite fails
+// to load, which is how this was caught.
+const threadRef = (): RegExp =>
+  new RegExp(`^<t\\.([0-9a-f-]{36})\\.[^@<>]+@${MAIL_DOMAIN.replace(/\./g, '\\.')}>$`, 'i');
+const threadFromRefs = (refs: string[]): string | null => {
+  const re = threadRef();
+  for (const r of refs) {
+    const m = re.exec(r.trim());
+    if (m) return m[1].toLowerCase();
+  }
+  return null;
+};
+
+const EXTERNAL_RECIPIENTS_PER_MESSAGE = 10;
+const EXTERNAL_SENDS_PER_DAY = 200;
+const DAY_MS = 24 * 3600 * 1000;
 import {
-  MAIL_DOMAIN, CITY_DOMAINS, QUOTA_BYTES, addressFor, handleFromAddress, cityRecipient, subAddressed, snippetOf, sizeOf, welcomeMail, humanBytes,
+  MAIL_DOMAIN, CITY_DOMAINS, QUOTA_BYTES, addressFor, handleFromAddress, cityRecipient, subAddressed, snippetOf, sizeOf, welcomeMail, humanBytes, isCityAddress,
 } from './mail.constants';
 import { createMessagingProvider, messagingConfigured, type Channel } from './messaging-provider';
 import { cityFromHeader, normalizeInbound, type InboundMail } from './mail-inbound';
@@ -295,14 +374,62 @@ export class MailService {
     return acct;
   }
 
+  /**
+   * THE ACCOUNT'S OWN ALLOWANCE. MailAccount.quotaBytes has existed since the
+   * table was written and nothing ever read it — every check used the global
+   * constant, so raising one citizen's quota did nothing at all, silently. It
+   * is a BigInt column, hence the Number(); the constant is the answer for a
+   * mailbox that somehow has no row.
+   */
+  private async quotaOf(userId: string): Promise<number> {
+    const a = await this.prisma.mailAccount.findUnique({ where: { userId }, select: { quotaBytes: true } });
+    // `a?.quotaBytes ?` rather than `a ?`: a row that somehow has no allowance
+    // must fall back to the constant, not to Number(undefined) — which is NaN,
+    // and every `used + size > NaN` is false, so the quota would stop applying
+    // at all. Found by four spec harnesses whose stub accounts carry only an
+    // address, which is exactly the shape this has to survive.
+    return a?.quotaBytes ? Number(a.quotaBytes) : QUOTA_BYTES;
+  }
+
+  /**
+   * WHAT "FULL" MEANS, SAID ONCE.
+   *
+   * The old sentence was "Your 10 GB mailbox is full. Delete some mail and try
+   * again." — hardcoded to a number that is now per-account, and quiet about
+   * the thing that actually traps people: `remove()` moves a message to Trash
+   * and usedBytes sums every folder, so a citizen can delete five hundred
+   * messages, watch the meter not move, and be told the same thing again with
+   * no explanation. Trash counting is the right call — trashed mail is still
+   * stored — but it has to be stated, and there has to be a way out. There is
+   * one now: DELETE /mail/trash.
+   */
+  private fullMessage(quota: number): string {
+    return `Your ${humanBytes(quota)} mailbox is full. Delete some mail and empty your Trash — `
+      + 'trashed mail is still stored, so it still counts — then try again.';
+  }
+
   private async usedBytes(userId: string): Promise<number> {
-    // unbounded: the storage meter SUMS every row — truncating undercounts the vault
-    const rows = await this.prisma.mailMessage.findMany({ where: { ownerId: userId }, select: { sizeBytes: true } });
-    return rows.reduce((s, r) => s + r.sizeBytes, 0);
+    /**
+     * SUMMED IN THE DATABASE, NOT IN THIS PROCESS.
+     *
+     * This used to `findMany` every row of the mailbox and reduce in JS — and
+     * it is called on every quota check: once in account(), twice per draft
+     * autosave, once per recipient in send, once per recipient on an arrival.
+     * A citizen with 200 000 messages materialised 200 000 objects every time
+     * the composer ticked. The comment it carried ("truncating undercounts the
+     * vault") was answering the wrong question: the fix for a cap is an
+     * aggregate, not a full read.
+     */
+    const agg = await this.prisma.mailMessage.aggregate({
+      where: { ownerId: userId },
+      _sum: { sizeBytes: true },
+    });
+    return agg._sum.sizeBytes ?? 0;
   }
 
   async account(userId: string) {
     const acct = await this.ensureAccount(userId);
+    const quota = Number(acct.quotaBytes ?? QUOTA_BYTES);
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, phone: true } });
     const [inboxUnread, inbox, sent, draft, failed, starred, trash, used, emailed] = await Promise.all([
       this.prisma.mailMessage.count({ where: { ownerId: userId, folder: 'inbox', read: false } }),
@@ -317,8 +444,8 @@ export class MailService {
     ]);
     return {
       address: acct.address, primaryEmail: user?.email ?? null, phone: user?.phone ?? null,
-      quotaBytes: QUOTA_BYTES, usedBytes: used,
-      usedPct: Math.min(100, +((used / QUOTA_BYTES) * 100).toFixed(4)),
+      quotaBytes: quota, usedBytes: used,
+      usedPct: Math.min(100, +((used / quota) * 100).toFixed(4)),
       // `unsent` is what the menu shows; `draft` and `failed` stay separate so
       // a screen can say WHICH kind of waiting it found.
       counts: { inbox, inboxUnread, sent, draft, failed, unsent: draft + failed, starred, trash, emailed },
@@ -391,7 +518,6 @@ export class MailService {
       try { const j: unknown = JSON.parse(raw); return Array.isArray(j) ? j.map(String) : []; } catch { return []; }
     })();
 
-    const before = await this.prisma.mailMessage.count({ where: { ownerId: userId, folder: 'sent' } });
     // THE COPY LISTS COME WITH IT. Retry rebuilt the message from the
     // recipient, subject, body, thread and files — and dropped Cc and Bcc, so
     // a message that succeeded on the second attempt reached fewer people than
@@ -399,18 +525,31 @@ export class MailService {
     const split = (v?: string | null) => (v ?? '').split(',').map((x) => x.trim()).filter(Boolean);
     const cc = split(m.ccAddrs);
     const bcc = split(m.bccAddrs);
-    await this.send(userId, {
-      to: m.toAddr, subject: m.subject, body: m.body,
-      ...(cc.length ? { cc } : {}),
-      ...(bcc.length ? { bcc } : {}),
-      ...(m.threadId ? { threadId: m.threadId } : {}),
-      ...(attachmentFileIds.length ? { attachmentFileIds } : {}),
-    });
-    const after = await this.prisma.mailMessage.count({ where: { ownerId: userId, folder: 'sent' } });
-
-    // send() throws on a configured-provider refusal, so reaching here means it
-    // did not fail — but the count check keeps this honest if that ever changes.
-    if (after > before) {
+    /**
+     * THE ATTEMPT'S OWN ROW SUPERSEDES THE SOURCE, WHETHER IT WORKED OR NOT.
+     *
+     * The old rule removed the failed row only when the retry ADDED one to
+     * Sent. Reasonable-looking, and it meant a retry that failed AGAIN left the
+     * original in place while sendExternal wrote a second row with the same
+     * body: three retries on a dead address gave four identical rows in Failed
+     * and four copies of the message against the quota.
+     *
+     * Every path through send() writes a row for this attempt — Sent if the
+     * provider took it, Failed with the new reason if it did not — so the
+     * source is always superseded. The `finally` is what makes that true when
+     * send() throws, which it does when every recipient is refused. Scoped to
+     * this id, this owner and this folder, so it can only remove the one row
+     * the retry was for.
+     */
+    try {
+      await this.send(userId, {
+        to: m.toAddr, subject: m.subject, body: m.body,
+        ...(cc.length ? { cc } : {}),
+        ...(bcc.length ? { bcc } : {}),
+        ...(m.threadId ? { threadId: m.threadId } : {}),
+        ...(attachmentFileIds.length ? { attachmentFileIds } : {}),
+      });
+    } finally {
       await this.prisma.mailMessage.deleteMany({ where: { id, ownerId: userId, folder: 'failed' } });
     }
     return this.list(userId, { folder: 'failed' });
@@ -418,12 +557,21 @@ export class MailService {
 
   /** The full trail for a thread in this user's mailbox (oldest → newest, with bodies). */
   async thread(userId: string, threadId: string) {
+    /**
+     * NEWEST-FIRST TO THE DATABASE, OLDEST-FIRST TO THE READER.
+     *
+     * This was `asc` with a `take`, so a thread longer than the cap hid its
+     * NEWEST messages — including the reply somebody had just been notified
+     * about. A cap has to drop something; dropping the end you came for is the
+     * one choice that makes the screen useless. `list()` has always done this
+     * correctly; only the trail did not.
+     */
     const rows = await this.prisma.mailMessage.findMany({
       where: { ownerId: userId, threadId },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: 'desc' },
       take: FEED_CAP, // a thread longer than this needs pagination, not scroll
     });
-    return rows.map((m) => ({ ...this.shape(m), body: m.body }));
+    return rows.reverse().map((m) => ({ ...this.shape(m), body: m.body }));
   }
 
   async list(userId: string, q: FolderQueryDto) {
@@ -519,8 +667,9 @@ export class MailService {
       const existing = await this.prisma.mailMessage.findFirst({ where: { id: dto.id, ownerId: userId, folder: 'draft' } });
       if (!existing) throw new NotFoundException('draft not found');
       const delta = size - existing.sizeBytes;
-      if (delta > 0 && (await this.usedBytes(userId)) + delta > QUOTA_BYTES) {
-        throw new BadRequestException('Your 10 GB mailbox is full. Delete some mail and try again.');
+      const quota = Number(sender.quotaBytes ?? QUOTA_BYTES);
+      if (delta > 0 && (await this.usedBytes(userId)) + delta > quota) {
+        throw new BadRequestException(this.fullMessage(quota));
       }
       const updated = await this.prisma.mailMessage.update({
         where: { id: dto.id },
@@ -532,8 +681,9 @@ export class MailService {
       return { ...this.shape(updated), body: updated.body };
     }
 
-    if ((await this.usedBytes(userId)) + size > QUOTA_BYTES) {
-      throw new BadRequestException('Your 10 GB mailbox is full. Delete some mail and try again.');
+    const quota = Number(sender.quotaBytes ?? QUOTA_BYTES);
+    if ((await this.usedBytes(userId)) + size > quota) {
+      throw new BadRequestException(this.fullMessage(quota));
     }
     const created = await this.prisma.mailMessage.create({
       data: {
@@ -671,6 +821,33 @@ export class MailService {
      * filing. Resolving it per recipient also read `threadProject` before the
      * first row existed, which made the answer depend on write order.
      */
+    /**
+     * The budget is checked ONCE, for the whole message, before anything is
+     * written or dispatched. Per-recipient would leave half a message sent and
+     * half refused for a reason the citizen cannot act on, and it would put a
+     * count query inside the loop.
+     */
+    const external = queue.filter((r) => !handleFromAddress(r.addr));
+    if (external.length > EXTERNAL_RECIPIENTS_PER_MESSAGE) {
+      throw new BadRequestException(
+        `One message can go to ${EXTERNAL_RECIPIENTS_PER_MESSAGE} addresses outside the city at a time. `
+        + `This one names ${external.length}. Citizens you're connected with don't count towards it.`,
+      );
+    }
+    if (external.length) {
+      // EmailDelivery writes one row per external recipient, so the count and
+      // the budget are in the same units. It is indexed on [userId, createdAt].
+      const spent = await this.prisma.emailDelivery.count({
+        where: { userId, kind: 'mail', createdAt: { gte: new Date(Date.now() - DAY_MS) } },
+      });
+      if (spent + external.length > EXTERNAL_SENDS_PER_DAY) {
+        throw new BadRequestException(
+          `You've reached the daily limit of ${EXTERNAL_SENDS_PER_DAY} emails to addresses outside the city `
+          + `(${spent} in the last 24 hours). Mail to citizens you're connected with is unaffected.`,
+        );
+      }
+    }
+
     const threadId = await this.resolveThreadId(userId, dto.threadId);
     const project = await this.resolveSendProject(userId, threadId, dto.projectKey);
 
@@ -679,16 +856,40 @@ export class MailService {
     const sent: string[] = [];
     const failed: Array<{ to: string; reason: string }> = [];
 
-    for (const [i, r] of queue.entries()) {
+    /**
+     * THE MESSAGE'S OWN ROW BELONGS TO THE FIRST ATTEMPT THAT WRITES ONE, not
+     * to the first attempt MADE.
+     *
+     * `keepSentCopy: i === 0` read as "the first recipient carries the row",
+     * and it is only the same thing when the first recipient gets far enough
+     * to write. It does not, when the address is malformed, names no city
+     * mailbox, belongs to somebody the sender is not connected with, or the
+     * mailbox is full: `sendOne` throws before any create. The later
+     * recipients then ran with the copy already spoken for and wrote an inbox
+     * row and nothing else.
+     *
+     *   send({ to: 'stranger@togethercity.app', cc: ['alice@togethercity.app'] })
+     *
+     * Alice gets the mail. `send()` returns 200 with her in `delivered`, so
+     * `clearDraft` removes the draft. The sender is left with NO Sent row, no
+     * Failed row and no draft — a message delivered and no trace of it
+     * anywhere in the mailbox that sent it.
+     *
+     * A ledger rather than an index, because the fact being tracked is "has a
+     * row for this message been written", and only the writer knows. It flips
+     * on a Failed row too: an external refusal already files the message so
+     * Retry can find it, and a second row would be a second copy of one
+     * message, which is the thing the previous commit was for.
+     */
+    const ownCopy = { written: false };
+
+    for (const r of queue) {
       try {
         await this.sendOne(userId, {
           ...dto, to: r.addr, resolvedThreadId: threadId, projectId: project?.id ?? null,
-          // The sender keeps ONE Sent copy, written with the first recipient,
-          // and it is the only row that ever carries the blind list. Later
-          // recipients write an inbox row and nothing else.
-          keepSentCopy: i === 0,
+          ownCopy,
           ccAddrs: cc.length ? cc.join(', ') : null,
-          bccAddrs: i === 0 && bcc.length ? bcc.join(', ') : null,
+          bccAddrs: !ownCopy.written && bcc.length ? bcc.join(', ') : null,
         });
         sent.push(r.addr);
       } catch (e) {
@@ -707,6 +908,18 @@ export class MailService {
    * all five.
    */
   async send(userId: string, dto: SendMailDto) {
+    /**
+     * A MESSAGE NEEDS SOMETHING IN IT — enforced where the row is written, not
+     * only where one client draws its Send key. The web composer refuses an
+     * empty body now, but a dozen blank messages in one mailbox arrived
+     * through this door before it did, each one a name and a date and
+     * nothing else, and any other caller could go on producing them. An
+     * attachment counts: a file with no covering note is a message. A subject
+     * alone is not — that is the slip this catches.
+     */
+    if (!(dto.body ?? '').trim() && !dto.attachmentFileIds?.length) {
+      throw new BadRequestException('A message needs something in it — a few words, or a file.');
+    }
     const { sent, failed } = await this.fanOut(userId, dto);
     if (sent.length === 0) {
       throw new BadRequestException(
@@ -727,7 +940,8 @@ export class MailService {
   }
 
   private async sendOne(userId: string, dto: SendMailDto & {
-    keepSentCopy: boolean; ccAddrs: string | null; bccAddrs: string | null;
+    /** Shared across the fan-out: set once, by whichever attempt writes the sender's row. */
+    ownCopy: { written: boolean }; ccAddrs: string | null; bccAddrs: string | null;
     /** Resolved once per MESSAGE in fanOut, not once per recipient. */
     resolvedThreadId: string; projectId: string | null;
   }) {
@@ -759,7 +973,8 @@ export class MailService {
     const subject = dto.subject?.trim() || '(no subject)';
     const size = sizeOf(subject, dto.body);
     const used = await this.usedBytes(userId);
-    if (used + size > QUOTA_BYTES) throw new BadRequestException('Your 10 GB mailbox is full. Delete some mail and try again.');
+    const quota = await this.quotaOf(userId);
+    if (used + size > quota) throw new BadRequestException(this.fullMessage(quota));
 
     // One trail and one room for the whole message — see fanOut.
     const threadId = dto.resolvedThreadId;
@@ -794,12 +1009,13 @@ export class MailService {
       // harmless on its own, and it is not part of the claim being made.
       await this.prisma.mailAccount.findUnique({ where: { userId: recipient.id } }).then((a) => a ?? this.ensureAccount(recipient.id));
     }
+    const keepOwnCopy = !dto.ownCopy.written;
     await this.prisma.$transaction([
       // The sender's Sent copy, written once for the whole message rather than
       // once per recipient — five rows in Sent for one message is five things
       // to delete and four lies about how many messages were written. It is
       // also THE ONLY ROW that ever carries the blind list.
-      ...(dto.keepSentCopy
+      ...(keepOwnCopy
         ? [this.prisma.mailMessage.create({ data: { ...base, bccAddrs: dto.bccAddrs, ownerId: userId, boxUserId: userId, folder: 'sent', read: true, projectId } })]
         : []),
       // The recipient's Inbox copy. bccAddrs is absent, not blanked — a column
@@ -809,6 +1025,9 @@ export class MailService {
         ? [this.prisma.mailMessage.create({ data: { ...base, ownerId: recipient.id, boxUserId: recipient.id, folder: 'inbox', read: false } })]
         : []),
     ]);
+    // Claimed only after the write succeeded — a transaction that threw leaves
+    // the row unwritten, and the next recipient must still be able to carry it.
+    if (keepOwnCopy) dto.ownCopy.written = true;
     await this.linkAttachments(userId, threadId, dto.attachmentFileIds);
     return this.list(userId, { folder: 'sent' });
   }
@@ -817,13 +1036,14 @@ export class MailService {
    *  Keeps a Sent copy in the city; logs the dispatch to the outbox. */
   private async sendExternal(userId: string, fromAddr: string, fromName: string, toEmail: string,
     dto: SendMailDto & {
-      keepSentCopy?: boolean; ccAddrs?: string | null; bccAddrs?: string | null;
+      ownCopy: { written: boolean }; ccAddrs?: string | null; bccAddrs?: string | null;
       resolvedThreadId: string; projectId: string | null;
     }) {
     const subject = dto.subject?.trim() || '(no subject)';
     const size = sizeOf(subject, dto.body);
     const used = await this.usedBytes(userId);
-    if (used + size > QUOTA_BYTES) throw new BadRequestException('Your 10 GB mailbox is full. Delete some mail and try again.');
+    const quota = await this.quotaOf(userId);
+    if (used + size > quota) throw new BadRequestException(this.fullMessage(quota));
 
     // One trail and one room for the whole message, resolved in fanOut through
     // the same anti-spoof gate this path has always used.
@@ -868,7 +1088,16 @@ export class MailService {
     // @togethercity.app address, so this is DKIM-aligned and deliverable.
     const fromHeader = cityFromHeader(fromName, fromAddr);
     const res = await provider
-      .send({ channel: 'email', to: toEmail, subject, body: dto.body + linkFooter + footer, kind: 'mail', from: fromHeader, replyTo, ...(attachments.length ? { attachments } : {}) })
+      .send({
+        channel: 'email', to: toEmail, subject, body: dto.body + linkFooter + footer, kind: 'mail',
+        from: fromHeader, replyTo,
+        // References names the trail on the FIRST message too, where it points
+        // at an id nothing has sent yet. Clients tolerate that and still group
+        // on it, and it means every message of a thread carries the same
+        // anchor rather than only the replies.
+        headers: { 'Message-ID': threadMessageId(threadId), References: threadAnchorId(threadId) },
+        ...(attachments.length ? { attachments } : {}),
+      })
       .catch((e: Error) => ({ provider: provider.name, providerMessageId: null as string | null, status: 'failed' as const, error: e.message }));
     // The delivery audit row is how an outage gets diagnosed (see the mail
     // postmortem) — losing it silently blinds exactly that investigation.
@@ -900,15 +1129,18 @@ export class MailService {
      * nothing. A refusal on a later recipient is not lost — fanOut collects it
      * and `send()` returns it, which is what the composer now reads.
      *
-     * KNOWN RESIDUE, stated rather than discovered: if the FIRST recipient is
-     * refused and a later one is accepted, the row is filed under Failed even
-     * though the message did reach somebody. Retrying it re-sends to the
-     * refused address only, which is the right repair — but the row's folder
-     * is telling half the story until then. Fixing that properly means one
-     * provider call carrying to/cc/bcc rather than a fan-out, which is a
+     * The row belongs to the first attempt that WRITES one, not the first
+     * attempt made — see the ledger in fanOut. A refusal writes it too, in
+     * Failed, so a message nobody would take is still somewhere the citizen
+     * can find and retry.
+     *
+     * KNOWN RESIDUE, stated rather than discovered: if the row is claimed by a
+     * refusal and a LATER recipient is accepted, the row is filed under Failed
+     * even though the message did reach somebody. Fixing that properly means
+     * one provider call carrying to/cc/bcc rather than a fan-out, which is a
      * change to the delivery topology and belongs in its own commit.
      */
-    if (dto.keepSentCopy === false) {
+    if (dto.ownCopy.written) {
       if (failed) {
         throw new BadRequestException(
           `Couldn't deliver to ${toEmail}. ${reason ?? ''}`.trim(),
@@ -941,6 +1173,9 @@ export class MailService {
         ...(failed && dto.attachmentFileIds?.length ? { attachmentIds: JSON.stringify(dto.attachmentFileIds) } : {}),
       },
     });
+    // Sent or Failed, the message now has exactly one row. Later recipients
+    // dispatch and write nothing.
+    dto.ownCopy.written = true;
 
     // Keep the attachments visible on whichever copy was written.
     await this.linkAttachments(userId, threadId, dto.attachmentFileIds);
@@ -1106,11 +1341,21 @@ export class MailService {
   async deleteProject(userId: string, id: string) {
     const owned = await this.prisma.mailProject.findFirst({ where: { id, ownerId: userId }, select: { id: true } });
     if (!owned) throw new NotFoundException('No project with that id in your mailbox.');
-    const released = await this.prisma.mailMessage.updateMany({
-      where: { ownerId: userId, projectId: id },
-      data: { projectId: null },
-    });
-    await this.prisma.mailProject.delete({ where: { id } });
+    /**
+     * BOTH OR NEITHER. These were two statements: clear the filing, then delete
+     * the room. If the second failed, every conversation had lost its room
+     * permanently and the room was still there — and nothing anywhere recorded
+     * what had been in it, so there was no way back. The array form is the
+     * whole fix: two writes, no read between them, so there is nothing here to
+     * serialise except atomicity, which is what was missing.
+     */
+    const [released] = await this.prisma.$transaction([
+      this.prisma.mailMessage.updateMany({
+        where: { ownerId: userId, projectId: id },
+        data: { projectId: null },
+      }),
+      this.prisma.mailProject.delete({ where: { id } }),
+    ]);
     return { ok: true, released: released.count, projects: await this.projects(userId) };
   }
 
@@ -1154,6 +1399,27 @@ export class MailService {
   }
 
   /** Move to trash; if already in trash, delete permanently. */
+  /**
+   * EMPTY THE TRASH. The way out of a full mailbox, which did not exist.
+   *
+   * `remove()` moves a message to Trash and `usedBytes` sums every folder, so
+   * deleting five hundred messages left the meter exactly where it was and the
+   * same "mailbox is full" error with no explanation. Counting Trash is right —
+   * trashed mail is still stored — but a rule with no escape is a trap.
+   *
+   * Deletes outright, because that is what emptying a trash means, and returns
+   * the freed byte count so the screen can say what happened rather than just
+   * going quiet.
+   */
+  async emptyTrash(userId: string) {
+    const rows = await this.prisma.mailMessage.findMany({
+      where: { ownerId: userId, folder: 'trash' }, select: { sizeBytes: true },
+    });
+    const freed = rows.reduce((n, r) => n + r.sizeBytes, 0);
+    const { count } = await this.prisma.mailMessage.deleteMany({ where: { ownerId: userId, folder: 'trash' } });
+    return { ok: true, deleted: count, freedBytes: freed };
+  }
+
   async remove(userId: string, id: string) {
     const m = await this.prisma.mailMessage.findFirst({ where: { id, ownerId: userId } });
     if (!m) throw new NotFoundException('message not found');
@@ -1179,6 +1445,41 @@ export class MailService {
       return { ok: false, reason: 'unparseable' };
     }
 
+    /**
+     * NOTHING THAT ARRIVES HERE MAY WEAR A CITIZEN'S NAME.
+     *
+     * `fromAddr` was written straight off the wire, and nothing checked what
+     * it claimed to be. Mail between citizens never leaves the building —
+     * `sendOne` writes both rows itself — so an inbound message whose From is
+     * a city address did not come from that citizen. It came from whoever
+     * handed it to the provider.
+     *
+     *   From: "The Mayor" <mayor@togethercity.app>
+     *   To:   victim@togethercity.app
+     *
+     * The provider accepts it for the verified domain and fires this webhook
+     * with its own valid secret. Before this gate the row landed in the
+     * victim's inbox and rendered as ordinary internal mail — and worse,
+     * `resolveInboundThread` matches on fromAddr and subject, so a forgery
+     * spliced itself into a real conversation and inherited that thread's
+     * project.
+     *
+     * It also walked past the only anti-abuse control this module has, the
+     * connection check on the send path, because it never touched the
+     * authenticated API at all.
+     *
+     * The rule needs no verdict header and no provider-specific field, which
+     * is why it is this and not a DKIM check: internal mail has no reason to
+     * arrive here, so a city From is either forged or a loop, and both should
+     * be refused. (A DKIM/SPF verdict on top would let us mark ordinary
+     * external mail as unverified; that needs the payload shape confirmed
+     * against a live webhook and is not guessed at here.)
+     */
+    if (isCityAddress(mail.from.addr)) {
+      this.logger.warn(`inbound mail REFUSED: From claims the city address ${mail.from.addr}`);
+      return { ok: false, reason: 'from-is-a-city-address' };
+    }
+
     // The reply is addressed to one or more city handles; deliver a copy to each
     // matching citizen. An address we don't recognise is ignored — it was never
     // ours to receive. handleFromAddress returns null for any domain outside
@@ -1189,19 +1490,57 @@ export class MailService {
     // is a hint about filing, never a reason to deliver twice.
     const byHandle = new Map<string, string | null>();
     for (const r of recipients) if (!byHandle.has(r.handle)) byHandle.set(r.handle, r.tag);
-    const handles = [...byHandle.keys()];
+    const allHandles = [...byHandle.keys()];
+    const handles = allHandles.slice(0, MAX_INBOUND_RECIPIENTS);
+    if (allHandles.length > handles.length) {
+      // Said out loud rather than truncated quietly: a silent cap reads as
+      // "everybody got it" to whoever is reading the logs afterwards.
+      this.logger.warn(
+        `inbound mail: ${allHandles.length} city recipients, delivering to the first ${MAX_INBOUND_RECIPIENTS}`,
+      );
+    }
     if (!handles.length) {
       this.logger.warn('inbound mail: no city recipient in To');
       return { ok: false, reason: 'no-city-recipient' };
     }
 
     let delivered = 0;
+    /**
+     * ONE FAILURE MUST NOT RE-DELIVER TO EVERYBODY ELSE.
+     *
+     * The loop had no catch, so a write that threw halfway escaped the method,
+     * Nest answered 500, and the provider re-sent the identical payload — to
+     * the mailboxes that had already taken it. Each recipient is now its own
+     * attempt, and the ones that worked are not undone by the one that did
+     * not. `errors` is reported so a partial delivery is legible rather than
+     * inferred from a count.
+     */
+    let errors = 0;
     for (const handle of handles) {
+     try {
       const user = await this.prisma.user.findUnique({ where: { handle }, select: { id: true, name: true, deletedAt: true } });
       // A deleted account keeps its row so other citizens' conversations survive
       // (see User.deletedAt). It must not keep receiving mail.
       if (!user || user.deletedAt) continue;
-      await this.ensureAccount(user.id);
+      const acctFor = await this.ensureAccount(user.id);
+
+      /**
+       * A PROVIDER RETRY IS NOT A SECOND EMAIL.
+       *
+       * providerMessageId was written and never read back, and the column
+       * carries no constraint — so every redelivery (a timeout on our side, a
+       * partial failure, an at-least-once guarantee doing its job) put another
+       * copy of the same message in the same inbox, in the same thread,
+       * charging the quota again. Scoped per mailbox because the id is unique
+       * to the message, not to the delivery.
+       */
+      if (mail.providerMessageId) {
+        const already = await this.prisma.mailMessage.findFirst({
+          where: { ownerId: user.id, providerMessageId: mail.providerMessageId },
+          select: { id: true },
+        });
+        if (already) continue;
+      }
 
       const subject = (mail.subject || '(no subject)').slice(0, 200);
       const body = (await this.inboundBody(mail)).slice(0, 50000);
@@ -1211,12 +1550,13 @@ export class MailService {
       // failing the whole webhook — the sender is external and cannot be bounced
       // from here.
       const used = await this.usedBytes(user.id);
-      if (used + size > QUOTA_BYTES) {
+      const quota = Number(acctFor?.quotaBytes ?? QUOTA_BYTES);
+      if (used + size > quota) {
         this.logger.warn(`inbound mail dropped: ${handle}'s mailbox is full`);
         continue;
       }
 
-      const threadId = await this.resolveInboundThread(user.id, mail.from.addr, subject);
+      const threadId = await this.resolveInboundThread(user.id, mail.from.addr, subject, mail.inReplyTo);
       /**
        * WHERE AN ARRIVING MESSAGE IS FILED, in the order the design fixed:
        *
@@ -1245,8 +1585,12 @@ export class MailService {
         },
       });
       delivered++;
+     } catch (e) {
+      errors++;
+      this.logger.error(`inbound mail: delivery to ${handle} failed - ${(e as Error).message}`);
+     }
     }
-    return { ok: true, delivered };
+    return { ok: true, delivered, ...(errors ? { errors } : {}) };
   }
 
   /**
@@ -1300,7 +1644,38 @@ export class MailService {
    *  external address under the same (normalised) subject; otherwise a new
    *  thread. Best-effort, since an inbound reply's headers can't be relied on to
    *  echo the id we sent. */
-  private async resolveInboundThread(userId: string, fromAddr: string, subject: string): Promise<string> {
+  private async resolveInboundThread(
+    userId: string, fromAddr: string, subject: string, refs: string[] = [],
+  ): Promise<string> {
+    /**
+     * THE HEADERS FIRST, BECAUSE THEY ARE THE ANSWER THE PROTOCOL CARRIES.
+     *
+     * Outbound mail now mints ids with the trail encoded in them, and every
+     * mail client echoes References back. So a reply usually names its own
+     * thread, and none of the guessing below has to run.
+     *
+     * A THREAD ID IN A HEADER IS A CLAIM, NOT A CREDENTIAL. It is believed
+     * only after checking this citizen already holds a row in that trail —
+     * without that, anyone could drop their mail into the middle of somebody
+     * else's conversation by writing one header, which is the hole the draft
+     * path had. The check is the same shape as `resolveThreadId`'s.
+     */
+    const claimed = threadFromRefs(refs);
+    if (claimed) {
+      const mine = await this.prisma.mailMessage.findFirst({
+        where: { ownerId: userId, threadId: claimed }, select: { id: true },
+      });
+      if (mine) return claimed;
+    }
+
+    /**
+     * Then the old guess, for mail from a client that dropped the headers, or
+     * a forward that came back. It looks at the most recent message from this
+     * correspondent and requires the subjects to match — which is wrong often
+     * enough to matter (two live conversations with one person is enough), and
+     * is why the headers above exist. It is kept because losing the thread is
+     * worse than occasionally starting a new one.
+     */
     const strip = (t: string) => t.replace(/^\s*(re|fwd?)\s*:\s*/i, '').trim().toLowerCase();
     const norm = strip(subject);
     const prior = await this.prisma.mailMessage.findFirst({

@@ -78,6 +78,18 @@ export interface InboundMail {
    * MailService uses this id to fetch the body before writing the row.
    */
   emailId?: string;
+  /**
+   * The Message-IDs this mail says it answers — In-Reply-To first, then the
+   * References chain, newest last.
+   *
+   * Threading used to be "the most recent message from this correspondent,
+   * if the Re:-stripped subjects match exactly". Two conversations with one
+   * person was enough to break it: a reply to the older one matched the newer
+   * one's subject, failed, and started a third thread. The headers are the
+   * answer the protocol already carries, and the outbound side now mints ids
+   * it can recognise.
+   */
+  inReplyTo: string[];
 }
 
 /**
@@ -100,6 +112,16 @@ export function normalizeInbound(payload: unknown): InboundMail | null {
   if (!to.length || !from.addr) return null;
   const headers = (d.headers && typeof d.headers === 'object' ? d.headers : {}) as Record<string, unknown>;
   const idRaw = d.message_id ?? d.messageId ?? headers['message-id'] ?? headers['Message-ID'] ?? d.id ?? '';
+  // Case-insensitive: header names are, and providers differ about which case
+  // they hand back. Both fields are lists of <id> tokens; References carries
+  // the whole chain, In-Reply-To the immediate parent, and either will do.
+  const hdr = (name: string): string => {
+    const k = Object.keys(headers).find((x) => x.toLowerCase() === name);
+    const v = k === undefined ? undefined : headers[k];
+    return typeof v === 'string' ? v : '';
+  };
+  const refs = `${d.in_reply_to ?? d.inReplyTo ?? hdr('in-reply-to')} ${d.references ?? hdr('references')}`;
+  const inReplyTo = (refs.match(/<[^<>\s]+>/g) ?? []).map((x) => x.trim());
   return {
     to,
     from,
@@ -109,5 +131,6 @@ export function normalizeInbound(payload: unknown): InboundMail | null {
     providerMessageId: String(idRaw) || undefined,
     emailId: typeof d.email_id === 'string' ? d.email_id
       : typeof d.emailId === 'string' ? d.emailId : undefined,
+    inReplyTo,
   };
 }

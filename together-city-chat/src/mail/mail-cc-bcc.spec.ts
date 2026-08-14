@@ -45,8 +45,11 @@ describe('a blind copy stays blind', () => {
 
   it('writes the blind list only for the copy that keeps the Sent row', () => {
     // Fanning out to five people must not produce five Sent rows, and must not
-    // produce five chances to attach the blind list.
-    expect(code).toMatch(/bccAddrs:\s*i === 0 && bcc\.length/);
+    // produce five chances to attach the blind list. The condition is the
+    // ledger rather than the index because a refused first recipient writes no
+    // row — see sent-is-written-by-whoever-arrives.spec.ts, which asserts the
+    // behaviour this line only describes.
+    expect(code).toMatch(/bccAddrs:\s*!ownCopy\.written && bcc\.length/);
   });
 });
 
