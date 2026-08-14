@@ -68,11 +68,15 @@ const FILE = /^asks-(\d{4}-\d{2}-\d{2})\.jsonl$/;
  * the point — "I understood you and cannot do it yet" and "I could not work out
  * what you meant" are opposite problems with opposite fixes.
  *
+ * `relate` is a relationship turn — somebody stuck with a person rather than a
+ * task. Counted on its own because it is the one lane where "she answered" and
+ * "she helped" are different questions, and this file is how we find out which.
+ *
  * `gap` is the one worth watching: the router matched a decorated capability
  * and the executor had no branch for it. That is a decorator and an
  * implementation disagreeing in production, and it should never be silent.
  */
-export type Outcome = 'capability' | 'navigate' | 'listen' | 'advise' | 'clarify' | 'gap';
+export type Outcome = 'capability' | 'navigate' | 'listen' | 'advise' | 'relate' | 'clarify' | 'gap';
 
 export interface LedgerEntry {
   userId: string;

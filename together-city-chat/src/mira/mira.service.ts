@@ -24,6 +24,7 @@ import { MiraRegistry } from './mira.registry';
 import { MiraLedger, type Outcome } from './ledger';
 import { acceptOrFallback, violations } from './voice';
 import { findInCity, whyWeAsk } from './city';
+import { readSituation, type Read } from './relate';
 
 /**
  * Narrowing helpers, because the hub services return their own shapes.
@@ -210,6 +211,11 @@ export class MiraService {
         };
       }
       if (routed.lane === 'LISTEN') {
+        // Even here — especially here. If what they described is control,
+        // violence or somebody at the edge, "what's going on?" is the wrong
+        // next move and the hand-off outranks it.
+        const beyond = readSituation(text);
+        if (beyond?.handOff) return relate(beyond);
         return {
           outcome: 'listen',
           text: lev.distress
@@ -218,6 +224,8 @@ export class MiraService {
         };
       }
       if (routed.lane === 'ADVISE') {
+        const situation = readSituation(text);
+        if (situation) return relate(situation);
         // The interpretation lane belongs to the astrology engine, which already
         // computes deterministically and already has its own enforced voice.
         // Rather than improvise here, she offers the reading that actually
@@ -242,6 +250,13 @@ export class MiraService {
         // beside "Astrology Log" at 0.5 is not a tie, and treating it as one is
         // half of the loop the owner found. A runner-up has to be genuinely
         // close before a question is worth a turn.
+        // A PERSON IS NOT A PLACE. "I don't know how to tell my dad" must not
+        // become "Dad. Want me to take you?" — so this is asked before the
+        // place-finder, and it returns nothing at all unless there is genuinely
+        // a situation to read.
+        const situation = readSituation(text);
+        if (situation) return relate(situation);
+
         const found = findInCity(text, 3);
         const [top, second] = found;
         if (top && (!second || top.score - second.score >= CONTEST)) {
@@ -688,6 +703,24 @@ export class MiraService {
       goto: { label: 'Astrology', path: '/astrology' },
     };
   }
+}
+
+/**
+ * One relationship turn, assembled.
+ *
+ * Reflection first, always — what she HEARD, before anything she concluded.
+ * Then the hand-off OR the script, never both: the entire point of a hand-off
+ * is that a better opening sentence is the wrong answer.
+ *
+ * No asides are offered. `levity.ts` caps the listen lane at 0 and `say()` is
+ * what decides — but the array is left empty rather than relying on that,
+ * because nobody should have to run the governor in their head to know whether
+ * a joke can land on somebody describing a marriage.
+ */
+function relate(r: Read): Attempt {
+  if (r.handOff) return { outcome: 'relate', text: `${r.reflection} ${r.handOff}` };
+  if (!r.script) return { outcome: 'relate', text: r.reflection };
+  return { outcome: 'relate', text: `${r.reflection} If you want a way in: ${r.script.opening} ${r.script.why}` };
 }
 
 /**
