@@ -8,6 +8,22 @@ import { MiraService } from './mira.service';
 import { MiraRegistry } from './mira.registry';
 import { greet } from './greeting';
 
+/**
+ * The largest seed either route will accept, and there is exactly one of it.
+ *
+ * `daySeed()` in the web package takes its hash modulo this number. It used to
+ * appear here TWICE — ten million on the greeting, one million on the ask — and
+ * the land script's gate read only the `z.coerce` spelling, so it compared the
+ * greeting's bound against the web's, found them equal, and never saw the other
+ * one. The result in production: every greeting returned 200 and every ask
+ * returned 400, for every citizen whose day seed happened to exceed a million.
+ *
+ * A bound that is written down twice is a bound that will diverge. One constant,
+ * both schemas, and the gate now asserts that no `seed:` line in this file
+ * carries a numeric literal at all.
+ */
+export const SEED_MAX = 10_000_000;
+
 export const AskSchema = z.object({
   text: z.string().min(1).max(2000),
   /** Their local hour, sent by the client — the server's clock is the wrong one. */
@@ -19,7 +35,7 @@ export const AskSchema = z.object({
   /** Session counter — picks the mood and which aside she reaches for. Sent by
    *  the client because the mood must hold across a conversation and the server
    *  keeps no session. Not security-relevant: it chooses a tone. */
-  seed: z.number().int().min(0).max(1_000_000).optional(),
+  seed: z.number().int().min(0).max(SEED_MAX).optional(),
   /**
    * The options she offered last turn, handed back.
    *
@@ -53,7 +69,7 @@ export type AskDto = z.infer<typeof AskSchema>;
  */
 export const GreetSchema = z.object({
   hour: z.coerce.number().int().min(0).max(23),
-  seed: z.coerce.number().int().min(0).max(10_000_000),
+  seed: z.coerce.number().int().min(0).max(SEED_MAX),
   weeksKnown: z.coerce.number().int().min(0).max(520).optional(),
   firstOfDay: z.coerce.boolean().optional(),
   dial: z.coerce.number().int().min(0).max(2).optional(),
