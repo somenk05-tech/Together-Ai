@@ -224,3 +224,24 @@
   display: grid; place-items: center; cursor: pointer; flex: 0 0 auto;
 }
 .miraspeak.on { background: var(--mira-tile); color: var(--on-mira); border-color: var(--on-mira-faint); }
+
+/* ── WHICH MIRA TURNED UP ──────────────────────────────────────────────────
+   Two lines above the promise, and the order is the argument: her mood, then
+   what she wants to know, then — quietest — what she can actually do.
+
+   The mood line is the smallest type in the room and it is the only thing on
+   this screen that is purely character. That is deliberate: it earns its place
+   by being brief and by appearing once a day, and the moment it competes with
+   the question it becomes a slogan.
+
+   `--on-mira-faint` rather than a colour of its own. Six moods with six tints
+   would be a mood ring, and the colour would start doing the work the words are
+   supposed to do. */
+.miramood {
+  margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .16em;
+  text-transform: uppercase; color: var(--on-mira-faint);
+}
+.miraask {
+  margin: 0; max-width: 24ch; font-size: 21px; line-height: 1.25;
+  letter-spacing: -.01em; color: var(--on-mira);
+}

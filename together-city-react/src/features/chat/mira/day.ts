@@ -36,6 +36,8 @@ import { z } from 'zod';
  */
 
 const KEY = 'mira.day';
+const GREETED_KEY = 'mira.greeted';
+const SALT_KEY = 'mira.salt';
 
 /** A long day of talking, and a hard stop. Anything past this is a runaway loop
  *  rather than a conversation, and it should not be able to fill a quota. */
@@ -87,8 +89,80 @@ export function saveDay(turns: StoredTurn[], at: Date = new Date()): void {
   } catch { /* a full quota is not worth an error boundary */ }
 }
 
+/**
+ * ── THE DAY'S SEED, AND WHY IT IS NOT A RANDOM NUMBER ─────────────────────
+ *
+ * Her mood is chosen from this. It was `Math.random()` held in a ref, which
+ * meant a NEW MIRA ON EVERY PAGE LOAD: announce "Wide awake and slightly
+ * dangerous", refresh, get a different character. A mood that survives less
+ * time than the tab is not a mood.
+ *
+ * It also has to be the SAME number the greeting and the answers both use, or
+ * she announces one Mira in the badge and delivers another in the next
+ * sentence — the exact incoherence `greeting.ts` guards against one level down,
+ * where it prefers the mood's own openers instead of appending them to a shared
+ * pool.
+ *
+ * So: one integer, derived from the calendar day, stable for that day on that
+ * device, and gone with everything else at midnight.
+ */
+/**
+ * The ceiling is the API's, and they have to agree.
+ *
+ * `GreetSchema` bounds `seed` at ten million, so a seed above it is not a large
+ * number — it is a 400 on every greeting, on every open. The first version
+ * returned a full 32-bit hash and did exactly that; the spec caught it because
+ * the bound was written into the test to match the schema rather than to match
+ * the implementation.
+ *
+ * Ten million is far more than the pickers need — every consumer takes it
+ * modulo a list of six or seven — so narrowing costs nothing real.
+ */
+const SEED_CEILING = 10_000_000;
+
+export function daySeed(at: Date = new Date()): number {
+  const day = today(at);
+  let h = 0;
+  for (let i = 0; i < day.length; i++) h = (h * 31 + day.charCodeAt(i)) | 0;
+  // Mixed with the device's own record so two people do not get the same Mira
+  // on the same date — a mood is hers with YOU, not the day's horoscope.
+  return Math.abs(h ^ deviceSalt()) % SEED_CEILING;
+}
+
+/** A per-device integer, made once and kept. Not an identifier: it never leaves
+ *  the browser and nothing is looked up by it. */
+function deviceSalt(): number {
+  const s = store();
+  if (!s) return 0;
+  try {
+    const had = s.getItem(SALT_KEY);
+    if (had) return Number(had) || 0;
+    const made = Math.floor(Math.random() * 1_000_000);
+    s.setItem(SALT_KEY, String(made));
+    return made;
+  } catch { return 0; }
+}
+
+/**
+ * True the FIRST time this is called on a given day, false every time after.
+ *
+ * She announces her mood once a day, not once a session — somebody who opens
+ * the app nine times before lunch does not need telling nine times what kind of
+ * day she is having. That is a catchphrase, and catchphrases are how a
+ * character dies. The call is what marks it, so ask once per open.
+ */
+export function firstOpenToday(at: Date = new Date()): boolean {
+  const s = store();
+  if (!s) return true;
+  try {
+    if (s.getItem(GREETED_KEY) === today(at)) return false;
+    s.setItem(GREETED_KEY, today(at));
+    return true;
+  } catch { return true; }
+}
+
 export function clearDay(): void {
   const s = store();
   if (!s) return;
-  try { s.removeItem(KEY); } catch { /* nothing to do about it */ }
+  try { s.removeItem(KEY); s.removeItem(GREETED_KEY); } catch { /* nothing to do about it */ }
 }

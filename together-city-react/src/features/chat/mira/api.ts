@@ -88,6 +88,46 @@ export function useMiraAsk(opts: {
 
 export type Choice = { label: string; path: string };
 
+/**
+ * Hello, and which Mira turned up today.
+ *
+ * Every input is a fact about the CITIZEN — their hour, their day, whether this
+ * is their first open of it — so every one is sent from here. `seed` is the
+ * day's seed, the same number `useMiraAsk` sends, because a badge announcing
+ * one Mira and an answer delivering another is worse than no badge.
+ *
+ * `staleTime: Infinity` because it is a fact about this open of the app, not a
+ * value that goes out of date. Refetching it would re-roll the opening line
+ * under somebody who is mid-sentence.
+ */
+const GreetingSchema = z.object({
+  /** Her mood, on the first open of the day. Empty every other time. */
+  hello: z.string(),
+  ask: z.string(),
+  mood: z.enum(['wry', 'warm', 'sharp', 'brisk', 'mischievous', 'quiet']).optional(),
+  levity: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional(),
+});
+export type MiraGreeting = z.infer<typeof GreetingSchema>;
+
+export function useMiraGreeting(opts: {
+  hour: number; seed: number; weeksKnown: number;
+  firstOfDay: boolean; dial?: 0 | 1 | 2; distressLocked?: boolean;
+}) {
+  return useQuery({
+    queryKey: ['mira', 'greeting', opts.seed, opts.firstOfDay],
+    queryFn: () => apiGet('/mira/greeting', GreetingSchema, {
+      params: {
+        hour: opts.hour, seed: opts.seed, weeksKnown: opts.weeksKnown,
+        firstOfDay: opts.firstOfDay, dial: opts.dial, distressLocked: opts.distressLocked,
+      },
+    }),
+    staleTime: Infinity,
+    // She has plenty to say without it. A greeting that fails is a quieter
+    // opening, never an error in front of somebody.
+    retry: false,
+  });
+}
+
 const CapabilitySchema = z.object({
   id: z.string(), intent: z.string(), risk: z.string(), path: z.string(),
 });

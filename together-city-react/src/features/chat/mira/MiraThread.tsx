@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { ZodError } from 'zod';
 import { Link } from 'react-router-dom';
-import { useMiraAsk, useMiraCapabilities, type Choice } from './api';
+import { useMiraAsk, useMiraCapabilities, useMiraGreeting, type Choice } from './api';
 import { Icon } from '@/components/ui/Icon';
 import { MiraMark, type MarkState } from './MiraMark';
 import { useVoiceNote, useSpeech } from './voice';
-import { clearDay, loadDay, saveDay, type StoredTurn } from './day';
+import { clearDay, daySeed, firstOpenToday, loadDay, saveDay, type StoredTurn } from './day';
 
 /**
  * The opening, built from the manifest rather than written by hand.
@@ -59,14 +59,26 @@ export function MiraThread({ weeksKnown = 0, dial }: { weeksKnown?: number; dial
    * re-render between typing and sending would be a race for the wrong reason.
    */
   const pending = useRef<Choice[] | undefined>(undefined);
-  /** One seed for the life of the thread — her mood holds across a
-   *  conversation, and a mood that re-rolls per message is whiplash. */
-  const seed = useRef(Math.floor(Math.random() * 100_000));
+  /**
+   * ONE SEED, AND IT LASTS THE DAY.
+   *
+   * It was `Math.random()` in a ref, so she was a different character on every
+   * page load — announce one mood, refresh, get another. It also has to be the
+   * number the GREETING uses, or the badge says "Wide awake and slightly
+   * dangerous" and the next answer arrives quiet.
+   */
+  const seed = useRef(daySeed());
+  /** Asked ONCE per mount, because asking is what marks the day as greeted. */
+  const firstOfDay = useRef(firstOpenToday());
   const ask = useMiraAsk({ weeksKnown, dial, distressLocked, seed: seed.current });
   const endRef = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLInputElement>(null);
 
   const speech = useSpeech();
+  const greeting = useMiraGreeting({
+    hour: new Date().getHours(), seed: seed.current, weeksKnown,
+    firstOfDay: firstOfDay.current, dial, distressLocked,
+  });
 
   useEffect(() => { saveDay(turns); }, [turns]);
 
@@ -140,6 +152,21 @@ export function MiraThread({ weeksKnown = 0, dial }: { weeksKnown?: number; dial
         {turns.length === 0 && (
           <div className="miraopen">
             <MiraMark size={104} state={state} />
+            {/* ── WHICH MIRA TURNED UP ──────────────────────────────────────
+                Her mood, in her own words, on the FIRST open of the day and not
+                after — somebody who opens the app nine times before lunch does
+                not need telling nine times what kind of day she is having. That
+                is a catchphrase, and catchphrases are how a character dies.
+                `greet()` decides; this only renders what it returns, and it
+                returns an empty string on every later open.
+
+                After a hard session it is "Here." — honest, short, and not a
+                performance. That is the whole of what L0 permits. */}
+            {greeting.data?.hello && <p className="miramood">{greeting.data.hello}</p>}
+            {/* The big line. Hers when the greeting arrives, and the plain one
+                when it does not: a greeting that fails is a quieter opening,
+                never an error in front of somebody. */}
+            {greeting.data?.ask && <p className="miraask">{greeting.data.ask}</p>}
             <p className="miraopentext">{opening((caps.data ?? []).map((c) => c.intent.toLowerCase()))}</p>
           </div>
         )}

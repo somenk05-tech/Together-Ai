@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards, UsePipes } from '@nestjs/common';
 import { z } from 'zod';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
@@ -6,6 +6,7 @@ import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { MiraService } from './mira.service';
 import { MiraRegistry } from './mira.registry';
+import { greet } from './greeting';
 
 export const AskSchema = z.object({
   text: z.string().min(1).max(2000),
@@ -38,6 +39,29 @@ export const AskSchema = z.object({
 });
 export type AskDto = z.infer<typeof AskSchema>;
 
+/**
+ * What she needs to say hello, and all of it comes from the CLIENT.
+ *
+ * The hour, the day, whether this is the first open of it — every one is a fact
+ * about the citizen rather than about the server, and a server in another
+ * timezone deciding it is not 3am for somebody is the class of bug
+ * `MasterProfile.timeZone` exists to prevent.
+ *
+ * Coerced, because a query string is text. Bounded, because these choose a tone
+ * and nothing else — the worst a bad value can do is make her cheerful at the
+ * wrong hour, and it still may not be a number this route trusts.
+ */
+export const GreetSchema = z.object({
+  hour: z.coerce.number().int().min(0).max(23),
+  seed: z.coerce.number().int().min(0).max(10_000_000),
+  weeksKnown: z.coerce.number().int().min(0).max(520).optional(),
+  firstOfDay: z.coerce.boolean().optional(),
+  dial: z.coerce.number().int().min(0).max(2).optional(),
+  distressLocked: z.coerce.boolean().optional(),
+  sessionsSinceFourthWall: z.coerce.number().int().min(0).max(10_000).optional(),
+});
+export type GreetDto = z.infer<typeof GreetSchema>;
+
 @Controller('mira')
 @UseGuards(JwtAuthGuard)
 export class MiraController {
@@ -52,6 +76,33 @@ export class MiraController {
   @Get('capabilities')
   capabilities() {
     return this.registry.all().map(({ id, intent, risk, path }) => ({ id, intent, risk, path }));
+  }
+
+  /**
+   * Hello, and which Mira turned up.
+   *
+   * A GET rather than part of the ask, because it is what she says BEFORE
+   * anybody has asked anything — and because it must be cheap: it runs on every
+   * open of the thread and touches no hub, no database and no model. It is a
+   * pure function of the numbers above.
+   *
+   * NOT a @Mira() capability. This is chrome, not something she does; putting
+   * it in the manifest would mean the router could match "say hello" and route
+   * a citizen's question into a greeting.
+   */
+  @Get('greeting')
+  @UsePipes(new ZodValidationPipe(GreetSchema))
+  greeting(@Query() q: GreetDto) {
+    const g = greet({
+      hour: q.hour,
+      seed: q.seed,
+      weeksKnown: q.weeksKnown ?? 0,
+      firstOfDay: q.firstOfDay,
+      dial: q.dial as 0 | 1 | 2 | undefined,
+      lastSessionDistressed: q.distressLocked,
+      sessionsSinceFourthWall: q.sessionsSinceFourthWall,
+    });
+    return { hello: g.hello, ask: g.ask, mood: g.mood, levity: g.level };
   }
 
   @Post('ask')
