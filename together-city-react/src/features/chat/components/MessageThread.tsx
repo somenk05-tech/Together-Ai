@@ -96,24 +96,41 @@ const CSS = `
 .tc-msg-collapsing{grid-template-rows:0fr;opacity:0}
 `;
 
-/** 15-minute edit / delete-for-everyone window (matches the server policy). */
+/**
+ * 15-minute edit / delete-for-everyone window (matches the server policy).
+ *
+ * EXPORTED because the bulk bar has to ask the same question of a whole
+ * selection: "for everyone" is offered only when every message in it is yours
+ * and still inside the window. A second copy of the rule in the page would go
+ * on looking correct for exactly as long as the two numbers happened to agree,
+ * which is the kind of duplication this repo does factor out — the test is
+ * whether it can fail SILENTLY, not whether there are two callers.
+ */
 const WINDOW_MS = 15 * 60 * 1000;
-const withinWindow = (m: Message) => Date.now() - new Date(m.createdAt).getTime() < WINDOW_MS;
+export const withinWindow = (m: Message) => Date.now() - new Date(m.createdAt).getTime() < WINDOW_MS;
 
-function ConfirmDelete({ mine, canEveryone, onCancel, onDelete }: {
+/**
+ * Exported for the same reason. The wording of a delete is the safety-critical
+ * part of it — what it promises about other people's copies — and a bulk delete
+ * that invented its own phrasing is how the two drift apart.
+ */
+export function ConfirmDelete({ mine, canEveryone, count = 1, onCancel, onDelete }: {
   mine: boolean; canEveryone: boolean;
+  /** How many messages this is about: 1 from the thread, the selection size from the bulk bar. */
+  count?: number;
   onCancel: () => void; onDelete: (scope: 'ME' | 'EVERYONE') => void;
 }) {
+  const these = count > 1 ? `these ${count} messages` : 'this message';
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 9500, background: 'rgba(20,18,12,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onCancel}>
       <div className="card" style={{ width: 'min(400px, 100%)', padding: '22px 24px' }} onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ margin: '0 0 6px', fontSize: 17 }}>Delete this message?</h3>
+        <h3 style={{ margin: '0 0 6px', fontSize: 17 }}>Delete {these}?</h3>
         <p className="muted" style={{ fontSize: 13, margin: '0 0 16px', lineHeight: 1.5 }}>
           {canEveryone
             ? 'Delete just from your history, or for everyone in the conversation.'
             : mine
-              ? 'The delete-for-everyone window (15 min) has passed — this will remove it from your history only.'
-              : 'This will be permanently removed from your chat history. Others still see the original.'}
+              ? `The delete-for-everyone window (15 min) has passed — this will remove ${count > 1 ? 'them' : 'it'} from your history only.`
+              : `This will be permanently removed from your chat history. Others still see the ${count > 1 ? 'originals' : 'original'}.`}
         </p>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
           <button type="button" className="btn btn-line btn-sm" onClick={onCancel}>Cancel</button>
@@ -127,7 +144,7 @@ function ConfirmDelete({ mine, canEveryone, onCancel, onDelete }: {
   );
 }
 
-export function MessageThread({ messages, currentUserId, typing, peerName, onDelete, onEdit, onReply, onForward, onStar, onJump, fetchInfo, jumpToId }: {
+export function MessageThread({ messages, currentUserId, typing, peerName, onDelete, onEdit, onReply, onForward, onStar, onJump, fetchInfo, jumpToId, selectedIds, onSelect }: {
   messages: Message[]; currentUserId?: string; typing?: boolean;
   /** Whose thread this is, for the attribution line above each run. */
   peerName?: string;
@@ -136,6 +153,16 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
   onReply?: (m: Message) => void;
   onForward?: (m: Message) => void;
   onStar?: (m: Message, on: boolean) => void;
+  /** Which messages the page currently has selected. SELECTION MODE IS A
+   *  NON-EMPTY SET — there is no second boolean to keep in step with it, and
+   *  the disagreement that would matter is an empty selection still swallowing
+   *  every tap. "Cancel" is the page emptying the set. */
+  selectedIds?: Set<string>;
+  /** Toggle one message in the selection. The first call is what enters
+   *  selection mode, which is why the way in is a button in the action bar
+   *  rather than a gesture: long-press already belongs to that bar, and taking
+   *  it would put Reply, Keep, Copy, Edit and Info out of reach on a phone. */
+  onSelect?: (m: Message) => void;
   /** Tapping a quotation asks the page to jump — the page owns history, and
    *  the message may be older than what is loaded. */
   onJump?: (messageId: string) => void;
@@ -228,6 +255,11 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
 
   const at = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+  /* The mode is derived, never stored. `onSelect` is in the condition too, so a
+     caller that passes ids without a handler gets a thread that reads normally
+     rather than one whose every tap does nothing. */
+  const selecting = Boolean(onSelect && selectedIds && selectedIds.size > 0);
+
   return (
     <div className="csmsgs" ref={box}>
       <style>{CSS}</style>
@@ -235,6 +267,10 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
         const mine = m.senderId === currentUserId;
         const deleted = Boolean(m.deleted);
         const isCollapsing = collapsing.has(m.id);
+        const picked = Boolean(selectedIds?.has(m.id));
+        /* A tombstone cannot be picked: forwarding it would send "this message
+           was deleted" to somebody, and deleting it again is a no-op. */
+        const pickable = selecting && !deleted;
         const canEdit = mine && !deleted && Boolean(m.body) && withinWindow(m) && Boolean(onEdit);
         /* THE ATTRIBUTION LINE PRINTS ONCE PER RUN. Four messages from one
            person do not need the name and the clock four times — that is the
@@ -253,16 +289,62 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
             <div
               data-mid={m.id}
               className={`tc-msg-row tc-msg-collapse${isCollapsing ? ' tc-msg-collapsing' : ''}${touchOpen === m.id ? ' touch-open' : ''}`}
+              role={pickable ? 'button' : undefined}
+              tabIndex={pickable ? 0 : undefined}
+              aria-pressed={pickable ? picked : undefined}
+              aria-label={pickable ? (picked ? 'Deselect this message' : 'Select this message') : undefined}
               style={{ alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: m.share ? 320 : '100%',
-                ...(flashId === m.id ? { outline: '2px solid var(--on-stage-faint)', outlineOffset: 4, borderRadius: 14 } : null) }}
-              onTouchStart={() => { longPress.current = setTimeout(() => setTouchOpen((t) => (t === m.id ? null : m.id)), 450); }}
+                ...(pickable ? { cursor: 'pointer' } : null),
+                /* THREE STATES, ONE OUTLINE. Picked is the bright ink; a
+                   selectable-but-unpicked row gets a dashed hint, so the mode
+                   is legible without a checkbox column that would re-flow every
+                   bubble on the stage the moment somebody long-pressed. The
+                   search flash keeps the middle tone and yields while picking —
+                   two outlines on one row is a row saying two things. */
+                ...(pickable
+                  ? (picked
+                      ? { outline: '2px solid var(--on-stage)', outlineOffset: 4, borderRadius: 14 }
+                      : { outline: '1px dashed var(--on-stage-faint)', outlineOffset: 4, borderRadius: 14 })
+                  : flashId === m.id
+                    ? { outline: '2px solid var(--on-stage-faint)', outlineOffset: 4, borderRadius: 14 }
+                    : null) }}
+              /* CAPTURE, so the tap never reaches what it landed on. A bubbling
+                 handler runs AFTER the quotation's own onClick has jumped the
+                 thread and after an attachment's <a> has decided to open — so
+                 picking a photo would open the photo, and picking a reply would
+                 scroll away from the selection being made. */
+              onClickCapture={(e) => {
+                if (!pickable) return;
+                e.preventDefault(); e.stopPropagation();
+                onSelect?.(m);
+              }}
+              onKeyDown={(e) => {
+                if (!pickable) return;
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect?.(m); }
+              }}
+              onTouchStart={() => {
+                /* One long-press, one meaning. While picking, the bar it would
+                   open is suppressed anyway, so the timer stays home. */
+                if (selecting) return;
+                longPress.current = setTimeout(() => setTouchOpen((t) => (t === m.id ? null : m.id)), 450);
+              }}
               onTouchEnd={() => { if (longPress.current) clearTimeout(longPress.current); }}
               onTouchMove={() => { if (longPress.current) clearTimeout(longPress.current); }}>
 
-              {/* hover / long-press actions — never on deleted messages */}
-              {!deleted && onDelete && (
+              {/* hover / long-press actions — never on deleted messages, and
+                  never while picking: in selection mode the row IS the control,
+                  and an action bar on top of it is a second thing a tap means. */}
+              {!deleted && !selecting && onDelete && (
                 <div className="tc-msg-actions" style={mine ? { right: 0 } : { left: 0 }}>
                   {onReply && <button type="button" title="Reply" onClick={() => { onReply(m); setTouchOpen(null); }}>↩ Reply</button>}
+                  {/* THE WAY IN. No new gesture: this bar is already what a
+                      long-press opens and what a hover shows, and a button in
+                      it is also the only version of "select" that a mouse can
+                      find. */}
+                  {onSelect && !deleted && (
+                    <button type="button" title="Select messages"
+                      onClick={() => { onSelect(m); setTouchOpen(null); }}>☑ Select</button>
+                  )}
                   {onStar && !deleted && (
                     <button type="button" title={m.starred ? 'Remove star' : 'Keep this message'}
                       onClick={() => { onStar(m, !m.starred); setTouchOpen(null); }}>

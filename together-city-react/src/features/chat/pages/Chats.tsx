@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useConversations, useMessages, useChatRealtime, useClearConversation, useMessageSearch, useOnlineContacts, chatApi, socketClient, WS, type OutgoingAttachment } from '@/api';
 import { ConversationList } from '../components/ConversationList';
-import { MessageThread } from '../components/MessageThread';
+import { MessageThread, ConfirmDelete, withinWindow } from '../components/MessageThread';
 import { Composer } from '../components/Composer';
 import { ChatStarter } from '../components/ChatStarter';
 import { GroupPanel } from '../components/GroupPanel';
@@ -107,7 +107,16 @@ export function Chats() {
   }, [conversations.data, activeId, user?.id]);
   const [peerOnline, setPeerOnline] = useState(false);
   const [groupOpen, setGroupOpen] = useState(false);
-  const [forwarding, setForwarding] = useState<Message | null>(null);
+  /* Forwarding takes a LIST now, always. One message is a list of one — the
+     alternative is a union the panel would have to narrow on every read. */
+  const [forwarding, setForwarding] = useState<Message[] | null>(null);
+  /* WHAT IS PICKED LIVES HERE. The bulk bar replaces the conversation header,
+     which this page owns; a selection held inside MessageThread would have to
+     be lifted out again on the first render of that bar. Ids rather than
+     messages, so an edit, a receipt or a tombstone arriving mid-selection
+     cannot leave a stale copy of a message sitting in the set. */
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkDelete, setBulkDelete] = useState(false);
   const activeIsGroup = useMemo(
     () => Boolean((conversations.data ?? []).find((c) => c.id === activeId)?.isGroup),
     [conversations.data, activeId],
@@ -123,7 +132,7 @@ export function Chats() {
   }, [peerId]);
 
   // Reset the live buffer whenever the conversation changes.
-  useEffect(() => { setLive([]); setPeerTyping(false); setStatusMap({}); setHiddenIds(new Set()); setTombstoned(new Set()); setEditsMap({}); ackedRead.current = new Set(); setReplyTo(null); setSearchOpen(false); setKw(''); setFrom(''); setTo(''); setJumpToId(null); setJumpNote(null); setStarredOnly(false); }, [activeId]);
+  useEffect(() => { setLive([]); setPeerTyping(false); setStatusMap({}); setHiddenIds(new Set()); setTombstoned(new Set()); setEditsMap({}); ackedRead.current = new Set(); setReplyTo(null); setSearchOpen(false); setKw(''); setFrom(''); setTo(''); setJumpToId(null); setJumpNote(null); setStarredOnly(false); setSelected(new Set()); setBulkDelete(false); }, [activeId]);
 
   // Live delivery/read receipts → advance the ticks on your sent messages.
   useEffect(() => {
@@ -247,6 +256,41 @@ export function Chats() {
       .map((m) => (statusMap[m.id] ? { ...m, status: statusMap[m.id] } : m));
   }, [history.data, live, statusMap, hiddenIds, tombstoned, editsMap]);
 
+  /* The picked messages, in thread order, resolved from the live list on every
+     render. Anything that has left the thread while it was picked — deleted for
+     me, or cleared with the conversation — simply stops being in here, so the
+     bar can never act on a message that is no longer on screen. */
+  const picked = useMemo(() => messages.filter((m) => selected.has(m.id)), [messages, selected]);
+  const toggleSelect = useCallback((m: Message) => {
+    setSelected((s) => {
+      const next = new Set(s);
+      // delete() reports whether it removed anything, which is the toggle.
+      if (!next.delete(m.id)) next.add(m.id);
+      return next;
+    });
+  }, []);
+
+  /* DELETE FOR EVERYONE IS ALL OR NOTHING. It is offered only when every picked
+     message is yours and still inside the 15-minute window — the same
+     `withinWindow` the thread asks about one message, imported rather than
+     restated. Applying it to the eligible half and quietly downgrading the rest
+     would be a delete whose outcome nobody could state afterwards, and "some of
+     them are gone for everyone" is not a sentence anybody should have to work
+     out from a list of bubbles. */
+  const allMine = picked.length > 0 && picked.every((m) => m.senderId === user?.id);
+  const canDeleteForEveryone = allMine && picked.every((m) => !m.deleted && withinWindow(m));
+
+  /* Sequential, and the selection is emptied FIRST: a bar counting down while
+     its own messages disappear underneath it is a control describing something
+     that has stopped being true. Each call swallows its own failure exactly as
+     the single delete does, so a message the window closed on stays put. */
+  const deleteSelected = useCallback(async (scope: 'ME' | 'EVERYONE') => {
+    const ids = picked.map((m) => m.id);
+    setBulkDelete(false);
+    setSelected(new Set());
+    for (const id of ids) await deleteMessage(id, scope);
+  }, [picked, deleteMessage]);
+
   /* A RECEIPT IS SENT ONCE, FOR SOMETHING NOT YET READ.
      This effect used to ack EVERY loaded message on every change of
      `history.data` — and the app-wide receipt listener refetches the thread on
@@ -331,6 +375,34 @@ export function Chats() {
           {activeId ? (
             <>
               <div className="cshead-t">
+                {/* THE BULK BAR REPLACES THE HEADER — it does not float. The
+                    composer is fixed to a locked visual viewport on a phone,
+                    and a bar hovering above it is the one piece of chrome
+                    guaranteed to end up under a keyboard. Taking the header's
+                    place costs nothing: while you are picking messages, the
+                    name of the room and its call buttons are not what this row
+                    is for, and it is exactly where somebody is already looking
+                    for the way out. */}
+                {picked.length > 0 ? (
+                  <>
+                    <button type="button" className="csback" aria-label="Cancel selection"
+                      onClick={() => setSelected(new Set())}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                    </button>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <b style={{ display: 'block' }}>{picked.length} selected</b>
+                      <em>{picked.length === 1 ? 'Tap another to add it' : 'Tap one again to drop it'}</em>
+                    </div>
+                    <button type="button" className="cstool" style={{ flex: 'none' }} title="Forward"
+                      aria-label={`Forward ${picked.length} selected message${picked.length > 1 ? 's' : ''}`}
+                      onClick={() => setForwarding(picked)}>⤳</button>
+                    <button type="button" className="cstool" style={{ flex: 'none' }} title="Delete"
+                      aria-label={`Delete ${picked.length} selected message${picked.length > 1 ? 's' : ''}`}
+                      onClick={() => setBulkDelete(true)}>🗑</button>
+                  </>
+                ) : (
+                <>
                 {phone && (
                   <button type="button" className="csback" aria-label="Back to chats"
                     onClick={() => setActiveId(undefined)}>
@@ -363,6 +435,10 @@ export function Chats() {
                   aria-expanded={searchOpen} onClick={() => setSearchOpen((v) => !v)}
                   style={{ flex: 'none' }}>🔍</button>
                 <CallButtons conversationId={activeId} compact />
+                {/* end of the ordinary header — the bulk bar above takes this
+                    whole row when anything is picked. */}
+                </>
+                )}
               </div>
               {searchOpen && (
                 <div style={{ padding: '10px 18px', borderBottom: '1px solid var(--stage-line)', display: 'grid', gap: 8 }}>
@@ -431,22 +507,36 @@ export function Chats() {
                     )}
                     <MessageThread messages={messages} currentUserId={user?.id} typing={peerTyping}
                       peerName={activeTitle} onDelete={deleteMessage} onEdit={editMessage}
-                      onReply={setReplyTo} onForward={setForwarding} onStar={(m, on) => { void starMessage(m, on); }}
+                      onReply={setReplyTo} onForward={(m) => setForwarding([m])} onStar={(m, on) => { void starMessage(m, on); }}
                       onJump={(id) => { void jumpTo(id); }} jumpToId={jumpToId}
+                      selectedIds={selected} onSelect={toggleSelect}
                       fetchInfo={chatApi.messageInfo} />
                   </>}
               {forwarding && (
-                <ForwardPanel message={forwarding} fromConversationId={activeId}
+                <ForwardPanel messages={forwarding} fromConversationId={activeId}
                   conversations={list}
                   onClose={() => setForwarding(null)}
                   onSent={(toId) => {
                     setForwarding(null);
+                    /* Forwarding is the end of the selection. The messages have
+                       gone where they were going, and a bar still standing over
+                       them is an invitation to send the lot a second time. */
+                    setSelected(new Set());
                     void conversations.refetch();
                     // The copy lands in the OTHER conversation; if that thread
                     // is the one on screen it needs re-reading, and if it is
                     // not, the list's own poll is what shows it.
                     void qc.invalidateQueries({ queryKey: ['chat', 'messages', toId] });
                   }} />
+              )}
+              {bulkDelete && picked.length > 0 && (
+                <ConfirmDelete
+                  mine={allMine}
+                  canEveryone={canDeleteForEveryone}
+                  count={picked.length}
+                  onCancel={() => setBulkDelete(false)}
+                  onDelete={(scope) => { void deleteSelected(scope); }}
+                />
               )}
               {groupOpen && activeId && (
                 <GroupPanel conversationId={activeId} title={activeTitle} meId={user?.id}
