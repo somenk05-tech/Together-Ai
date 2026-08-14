@@ -101,6 +101,7 @@ export const MessageSchema = z.object({
   /* QUOTED REPLIES ARRIVED AND WERE THROWN AWAY HERE. zod strips what a schema
      does not declare, so every reply the server sent lost the one thing that
      made it a reply somewhere between the wire and the component. */
+  starred: z.boolean().optional(),
   replyToMessageId: z.string().nullable().optional(),
   replyTo: z.object({
     id: z.string(),

@@ -74,9 +74,13 @@ export const chatApi = {
    * point, none of it was reachable.
    */
   searchMessages: (params: {
-    conversationId?: string; keyword?: string; from?: string; to?: string; limit?: number;
+    conversationId?: string; keyword?: string; from?: string; to?: string; limit?: number; starredOnly?: boolean;
   }): Promise<Message[]> =>
     apiGet('/messages/search', z.array(MessageSchema), { params }),
+  /** Keep a message, or stop. Per reader — nobody else sees your stars. */
+  starMessage: (messageId: string, on: boolean): Promise<{ ok: boolean; starred: boolean }> =>
+    apiPost(`/messages/${messageId}/star`, { on }, z.object({ ok: z.boolean(), starred: z.boolean() })),
+
   /** Who received and read one of YOUR messages. 403 for anybody else's. */
   messageInfo: (messageId: string): Promise<MessageInfo> =>
     apiGet(`/messages/${messageId}/info`, MessageInfoSchema),
@@ -279,16 +283,20 @@ export function useMessageSearch(
   keyword: string,
   from?: string,
   to?: string,
+  starredOnly?: boolean,
 ) {
   const kw = keyword.trim();
-  const active = Boolean(conversationId) && (kw.length >= 2 || Boolean(from) || Boolean(to));
+  // Starred-only is a search in its own right: "show me what I kept here" needs
+  // no keyword and no dates.
+  const active = Boolean(conversationId) && (kw.length >= 2 || Boolean(from) || Boolean(to) || Boolean(starredOnly));
   return useQuery({
-    queryKey: ['chat', 'search', conversationId, kw, from ?? '', to ?? ''],
+    queryKey: ['chat', 'search', conversationId, kw, from ?? '', to ?? '', starredOnly ? 'starred' : ''],
     queryFn: () => chatApi.searchMessages({
       conversationId,
       ...(kw ? { keyword: kw } : {}),
       ...(from ? { from: new Date(from + 'T00:00:00').toISOString() } : {}),
       ...(to ? { to: new Date(to + 'T23:59:59').toISOString() } : {}),
+      ...(starredOnly ? { starredOnly: true } : {}),
       limit: 50,
     }),
     enabled: active,

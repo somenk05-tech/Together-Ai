@@ -90,7 +90,8 @@ export function Chats() {
   const [to, setTo] = useState('');
   const [jumpToId, setJumpToId] = useState<string | null>(null);
   const [jumpNote, setJumpNote] = useState<string | null>(null);
-  const hits = useMessageSearch(activeId, kw, from || undefined, to || undefined);
+  const [starredOnly, setStarredOnly] = useState(false);
+  const hits = useMessageSearch(activeId, kw, from || undefined, to || undefined, starredOnly);
 
   /* PRESENCE HAD TWO IMPLEMENTATIONS AND NO AUDIENCE. The gateway works out an
      online/offline transition and broadcasts it to every conversation the
@@ -122,7 +123,7 @@ export function Chats() {
   }, [peerId]);
 
   // Reset the live buffer whenever the conversation changes.
-  useEffect(() => { setLive([]); setPeerTyping(false); setStatusMap({}); setHiddenIds(new Set()); setTombstoned(new Set()); setEditsMap({}); ackedRead.current = new Set(); setReplyTo(null); setSearchOpen(false); setKw(''); setFrom(''); setTo(''); setJumpToId(null); setJumpNote(null); }, [activeId]);
+  useEffect(() => { setLive([]); setPeerTyping(false); setStatusMap({}); setHiddenIds(new Set()); setTombstoned(new Set()); setEditsMap({}); ackedRead.current = new Set(); setReplyTo(null); setSearchOpen(false); setKw(''); setFrom(''); setTo(''); setJumpToId(null); setJumpNote(null); setStarredOnly(false); }, [activeId]);
 
   // Live delivery/read receipts → advance the ticks on your sent messages.
   useEffect(() => {
@@ -203,6 +204,20 @@ export function Chats() {
       setEditsMap((s) => ({ ...s, [messageId]: updated }));
       void qc.invalidateQueries({ queryKey: ['chat', 'messages', activeId] });
     } catch { /* edit window passed — keep original */ }
+  }, [activeId, qc]);
+
+  /* A star is optimistic on purpose: it is the reader's own bookkeeping, the
+     server cannot refuse it for a message they can see, and a star that waits
+     for a round trip feels broken on a phone. The refetch behind it is what
+     makes it true. */
+  const starMessage = useCallback(async (m: Message, on: boolean) => {
+    setEditsMap((s) => ({ ...s, [m.id]: { ...(s[m.id] ?? m), starred: on } }));
+    try {
+      await chatApi.starMessage(m.id, on);
+      void qc.invalidateQueries({ queryKey: ['chat', 'search', activeId] });
+    } catch {
+      setEditsMap((s) => ({ ...s, [m.id]: { ...(s[m.id] ?? m), starred: !on } }));
+    }
   }, [activeId, qc]);
 
   const emitTyping = useCallback((t: boolean) => {
@@ -351,9 +366,13 @@ export function Chats() {
                       <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
                         className="csb" style={{ marginLeft: 6, fontSize: 16 }} />
                     </label>
-                    {(kw || from || to) && (
+                    <button type="button" className={starredOnly ? 'cstab on' : 'cstab'}
+                      aria-pressed={starredOnly} onClick={() => setStarredOnly((v) => !v)}>
+                      ★ Only kept
+                    </button>
+                    {(kw || from || to || starredOnly) && (
                       <button type="button" className="cstab"
-                        onClick={() => { setKw(''); setFrom(''); setTo(''); setJumpNote(null); }}>Clear</button>
+                        onClick={() => { setKw(''); setFrom(''); setTo(''); setStarredOnly(false); setJumpNote(null); }}>Clear</button>
                     )}
                   </div>
                   {jumpNote && <p role="status" style={{ margin: 0, fontSize: 12, color: 'var(--on-stage-soft)' }}>{jumpNote}</p>}
@@ -398,7 +417,8 @@ export function Chats() {
                     )}
                     <MessageThread messages={messages} currentUserId={user?.id} typing={peerTyping}
                       peerName={activeTitle} onDelete={deleteMessage} onEdit={editMessage}
-                      onReply={setReplyTo} onForward={setForwarding} onJump={(id) => { void jumpTo(id); }} jumpToId={jumpToId}
+                      onReply={setReplyTo} onForward={setForwarding} onStar={(m, on) => { void starMessage(m, on); }}
+                      onJump={(id) => { void jumpTo(id); }} jumpToId={jumpToId}
                       fetchInfo={chatApi.messageInfo} />
                   </>}
               {forwarding && (

@@ -100,5 +100,10 @@ export const SearchMessagesSchema = z.object({
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
+  /** Only what this reader has kept. A query-string flag, so '1'/'true' both read. */
+  starredOnly: z.coerce.boolean().optional(),
 });
 export type SearchMessagesDto = z.infer<typeof SearchMessagesSchema>;
+
+export const StarMessageSchema = z.object({ on: z.boolean() });
+export type StarMessageDto = z.infer<typeof StarMessageSchema>;

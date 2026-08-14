@@ -329,6 +329,11 @@ model Message {
   deletedAt        DateTime?   // when delete-for-everyone happened
   deletedById      String?     // who deleted it
   hiddenForJson    String?     // JSON userId[] — users who chose "delete for me"
+  /// JSON userId[] — who has kept this message. A star is the READER's
+  /// bookkeeping: two people can star the same row and neither sees the
+  /// other's. Same shape as hiddenForJson deliberately, so the two
+  /// per-reader facts about a message are read the same way.
+  starredForJson   String?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 

@@ -102,7 +102,7 @@ export class MessagesService {
     const visible = page.filter((m) => !this.hiddenFor(m).includes(userId)); // "deleted for me" stays hidden
     return {
       // Frontend expects `items` in chronological order (oldest→newest) for display.
-      items: visible.map((m) => this.serialize(m)).reverse(),
+      items: visible.map((m) => this.serialize(m, userId)).reverse(),
       nextCursor: hasMore ? page[page.length - 1].id : null,
     };
   }
@@ -110,6 +110,53 @@ export class MessagesService {
   /** Users who chose "delete for me" on a message (new column — offline client can't type it). */
   private hiddenFor(m: unknown): string[] {
     try { return JSON.parse((m as { hiddenForJson?: string | null }).hiddenForJson ?? '[]') as string[]; } catch { return []; }
+  }
+
+  /** Whether this reader has kept this message. */
+  private starredBy(m: unknown, userId: string): boolean {
+    try {
+      const list = JSON.parse((m as { starredForJson?: string | null }).starredForJson ?? '[]') as string[];
+      return list.includes(userId);
+    } catch { return false; }
+  }
+
+  /**
+   * Keep a message, or stop keeping it.
+   *
+   * Conditional updateMany with a retry rather than a $transaction: a
+   * transaction is not a lock (transaction-safety.spec says so at length), so
+   * the WHERE carries the value that was read and a loser retries against the
+   * fresh row. Two people starring the same message in the same instant is
+   * the ordinary case in a busy group, not an exotic one.
+   */
+  async setStarred(userId: string, messageId: string, on: boolean) {
+    await this.assertCanSeeMessage(userId, messageId);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const fresh = await this.prisma.message.findUnique({
+        where: { id: messageId }, select: { starredForJson: true },
+      });
+      const list = ((): string[] => {
+        try { return JSON.parse(fresh?.starredForJson ?? '[]') as string[]; } catch { return []; }
+      })();
+      const has = list.includes(userId);
+      if (has === on) return { ok: true as const, starred: on };
+      const next = on ? [...list, userId] : list.filter((id) => id !== userId);
+      const res = await this.prisma.message.updateMany({
+        where: { id: messageId, starredForJson: fresh?.starredForJson ?? null },
+        data: { starredForJson: JSON.stringify(next) },
+      });
+      if (res.count) return { ok: true as const, starred: on };
+    }
+    return { ok: true as const, starred: on };
+  }
+
+  /** A message you may star is a message you may read: membership, re-asked. */
+  private async assertCanSeeMessage(userId: string, messageId: string): Promise<void> {
+    const row = await this.prisma.message.findFirst({
+      where: { id: messageId, conversation: { members: { some: { userId } } } },
+      select: { id: true },
+    });
+    if (!row) throw new NotFoundException('Message not found');
   }
 
   async edit(userId: string, messageId: string, dto: EditMessageDto) {
@@ -394,7 +441,13 @@ export class MessagesService {
       orderBy: { createdAt: 'desc' },
       take: dto.limit ?? 50,
     });
-    return messages.filter((m) => !this.hiddenFor(m).includes(userId)).map((m) => this.serialize(m));
+    return messages
+      .filter((m) => !this.hiddenFor(m).includes(userId))
+      // Starred-only is applied HERE rather than in the where clause: the
+      // column is a JSON string, and `contains: userId` would also match a
+      // substring of somebody else's id. Cheap, because the page is capped.
+      .filter((m) => (dto.starredOnly ? this.starredBy(m, userId) : true))
+      .map((m) => this.serialize(m, userId));
   }
 
   // ── helpers ──────────────────────────────────────────────
@@ -498,7 +551,8 @@ export class MessagesService {
     sender?: unknown;
     statuses?: Array<{ status: string }>;
     replyTo?: { id: string; text: string | null; messageType: string; senderId: string; deleted: boolean } | null;
-  }) {
+    starredForJson?: string | null;
+  }, viewerId?: string) {
     /* A DELETED MESSAGE IS DELETED ALL THE WAY DOWN. The tombstone used to
        zero only the text: `media` URLs and the share card still travelled to
        every member on a row whose whole point is that its content is gone.
@@ -567,6 +621,12 @@ export class MessagesService {
             body: m.replyTo.deleted ? '' : (m.replyTo.text ?? ''),
           }
         : null,
+      /* Starred is per READER, so it can only be answered when we know who is
+         asking. Callers that serialize for one citizen pass their id; the
+         broadcast paths do not, and false is the honest answer there — a
+         socket frame goes to several people at once and cannot carry one
+         person's bookkeeping. Their own next read fills it in. */
+      starred: viewerId ? this.starredBy(m, viewerId) : false,
       edited: !!m.edited,
       deleted: m.deleted,
       editedAt: m.edited ? (m.updatedAt ?? m.createdAt) : null,

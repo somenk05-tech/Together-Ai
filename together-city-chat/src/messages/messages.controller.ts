@@ -28,6 +28,8 @@ import {
   SearchMessagesSchema,
   SendMessageDto,
   SendMessageSchema,
+  StarMessageDto,
+  StarMessageSchema,
 } from './dto/messages.dto';
 
 @Controller()
@@ -76,6 +78,13 @@ export class MessagesController {
   search(@CurrentUser() user: JwtUser, @Query() query: Record<string, string>) {
     const dto: SearchMessagesDto = SearchMessagesSchema.parse(query);
     return this.messages.search(user.sub, dto);
+  }
+
+  // POST /api/messages/:id/star — keep it, or stop keeping it.
+  @Post('messages/:id/star')
+  @UsePipes(new ZodValidationPipe(StarMessageSchema))
+  star(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: StarMessageDto) {
+    return this.messages.setStarred(user.sub, id, dto.on);
   }
 
   // GET /api/messages/:id/info — declared AFTER messages/search on purpose:
