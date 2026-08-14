@@ -612,13 +612,14 @@ export function Chats() {
                   style={{ flex: 'none' }}>🔍</button>
                 {/* Her mark, on every conversation. A press invites Mira into
                     THIS thread — the side panel reads the window on screen and
-                    nothing else. JUST the ring, bare — the owner's call: no
-                    tool disc around it. The mark is the promise: this is
-                    Mira, the same one, and it needs no chrome to say so. */}
+                    nothing else. THE WHOLE LOCKUP — ring and wordmark — the
+                    owner's call, at 48 because the word stops being legible
+                    below that. No chrome around it; hovering says what she is
+                    for (the .mira-door tooltip in mira.css). */}
                 <button type="button" className="mira-door" aria-label="Ask Mira about this conversation"
-                  title="Ask Mira" onClick={() => setConfide(true)}
+                  title="Mira can analyse this chat for you" onClick={() => setConfide(true)}
                   style={{ flex: 'none' }}>
-                  <MiraMark size={30} showWord={false} state="waiting" />
+                  <MiraMark size={48} state="waiting" />
                 </button>
                 <CallButtons conversationId={activeId} compact />
                 {/* end of the ordinary header — the bulk bar above takes this

@@ -24,21 +24,32 @@ describe('Mira reads one chat', () => {
   const panel = read('features/chat/mira/MiraConfidant.tsx');
   const api = read('features/chat/mira/api.ts');
 
-  it('her mark sits in the conversation header, bare, and a press opens the panel', () => {
+  it('her whole lockup sits in the conversation header, and a press opens the panel', () => {
     expect(chats).toMatch(/aria-label="Ask Mira about this conversation"/);
-    expect(chats).toMatch(/<MiraMark size=\{30\} showWord=\{false\}/);
+    // The FULL mark — ring and wordmark — at 48, where the word is legible.
+    expect(chats).toMatch(/<MiraMark size=\{48\} state="waiting" \/>/);
+    expect(chats).not.toMatch(/mira-door[\s\S]{0,200}showWord=\{false\}/);
     expect(chats).toMatch(/<MiraConfidant otherName=\{activeTitle\} transcript=\{confideTranscript\}/);
-    // JUST the ring — the owner's call. No tool disc around her mark: the
-    // button wears only her own class, and that class paints no ground.
+    // No tool disc around her mark: the button wears only her own class,
+    // and that class paints no ground.
     expect(chats).toMatch(/className="mira-door"/);
     expect(chats).not.toMatch(/cstool mira-door/);
     const mira = read('styles/mira.css');
     expect(mira).toMatch(/\.mira-door \{[^}]*background: none/);
     expect(mira).toMatch(/\.mira-door \{[^}]*min-width: 44px; min-height: 44px/);
-    // And the bare ring is drawn in THE STAGE'S ink, never her on-white red:
-    // --mira-mark is measured on white and vanished on the dark themes.
+    // Drawn in THE STAGE'S ink, never her on-white red: --mira-mark is
+    // measured on white and vanished on the dark themes.
     expect(mira).toMatch(/\.mira-door \{[^}]*color: var\(--on-stage\)/);
     expect(mira).not.toMatch(/\.mira-door \{[^}]*var\(--mira-mark\)/);
+  });
+
+  it('hovering says what she is for, and a keyboard learns the same thing', () => {
+    const mira = read('styles/mira.css');
+    expect(mira).toMatch(/\.mira-door::after \{[^}]*content: 'Mira can analyse this chat for you'/);
+    expect(mira).toMatch(/\.mira-door:focus-visible::after \{ display: block; \}/);
+    expect(mira).toMatch(/\.mira-door:hover::after \{ display: block; \}/);
+    // The cursor's line and the tap's title agree, word for word.
+    expect(chats).toMatch(/title="Mira can analyse this chat for you"/);
   });
 
   it('the window is this screen’s own render — bounded, sides told apart', () => {
