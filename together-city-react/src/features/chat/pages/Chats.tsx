@@ -25,7 +25,7 @@ import { CallButtons } from '@/features/calls/CallButtons';
 import { useAuth } from '@/hooks/useAuth';
 import { useChatRoom } from '@/hooks/useChatRoom';
 import { useScaleLock } from '@/hooks/useScaleLock';
-import type { Message, ShareCard } from '@/types';
+import type { Message } from '@/types';
 
 /**
  * Chats — conversation list + real-time thread.
@@ -213,10 +213,27 @@ export function Chats() {
   /* A reply is a send that remembers. The state is cleared BEFORE the emit so
      a slow socket cannot leave the bar sitting over the composer looking like
      the next message will quote it too. */
-  const sendWithReply = useCallback((body: string, attachments?: OutgoingAttachment[], share?: ShareCard) => {
+  /* THE SHARE ARGUMENT IS ACCEPTED AND NOT FORWARDED, ON PURPOSE.
+     
+     `send` takes three arguments in this branch. A fourth — a share card —
+     exists in an in-progress change to chat.api.ts that has not landed, and
+     this call site went out ahead of it: the build passed locally against the
+     modified file and failed on Vercel against the committed one, which is the
+     one way a half-landed feature can pass every gate on the machine that
+     wrote it.
+     
+     Nothing is lost by dropping it. The share control lives in Composer.tsx,
+     which has not landed either, so no caller in this branch can supply one.
+     The parameter is dropped rather than accepted-and-ignored: eslint has no
+     underscore exemption here, and a callback taking fewer arguments is still
+     assignable where more are expected — so Composer's `onSend` type continues
+     to accept this, share and all, and the working tree keeps compiling. When
+     the share work lands, the parameter and the fourth argument come back
+     together. */
+  const sendWithReply = useCallback((body: string, attachments?: OutgoingAttachment[]) => {
     const answering = replyTo?.id;
     setReplyTo(null);
-    send(body, attachments, answering, share);
+    send(body, attachments, answering);
   }, [send, replyTo]);
 
   /* JUMPING TO A MESSAGE THAT IS NOT LOADED YET. A search hit can be a hundred
