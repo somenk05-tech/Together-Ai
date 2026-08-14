@@ -302,12 +302,14 @@ export function findInCity(q: string, limit = 3): Found[] {
     .map(({ label, path, hub, why }) => ({ label, path, hub, why }));
 }
 
-/** What she can still offer to learn. Consented facts are never volunteered first. */
-export function nextPersonalisation(known: string[]): Personalisation | undefined {
-  const have = new Set(known.map(norm));
-  const open = PERSONALISATION.filter((p) => !have.has(norm(p.fact)));
-  return open.find((p) => !p.consented) ?? open[0];
-}
+/*
+ * `nextPersonalisation` lived here — "what she can still offer to learn,
+ * consented facts never volunteered first". It had no caller: proactively
+ * offering to learn something is phase 5, and this was written three phases
+ * early. Removed rather than left exported, because an export with no importer
+ * is where a feature gets built by mistake. It is in the history when phase 5
+ * arrives.
+ */
 
 /** Everything one fact changes — for "why do you need that?". Always answerable. */
 export function whyWeAsk(fact: string): Personalisation | undefined {
