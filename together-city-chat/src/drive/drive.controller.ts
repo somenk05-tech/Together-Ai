@@ -5,6 +5,7 @@ import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { parseOrThrow } from '../shared/zod/zod-validation.pipe';
 import { DriveService } from './drive.service';
+import { Mira } from '../mira/mira.decorator';
 
 const NameSchema = z.object({ name: z.string().min(1).max(180) });
 const CreateFolderSchema = NameSchema.extend({ parentId: z.string().uuid().optional() });
@@ -47,6 +48,11 @@ export class DriveController {
   }
 
   /** Browse a folder (omit folderId for the drive root). */
+  @Mira({
+    intent: 'Find one of the citizen’s own documents',
+    utterances: ["where's my insurance document", 'find my policy', 'my documents'],
+    risk: 'R0',
+  })
   @Get()
   list(@CurrentUser() user: JwtUser, @Query('folderId') folderId?: string) {
     return this.drive.list(user.sub, folderId);

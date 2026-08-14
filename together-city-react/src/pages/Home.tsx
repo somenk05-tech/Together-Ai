@@ -196,10 +196,19 @@ export function Home() {
               /* A citizen who is signed in is already inside; the key is for a
                  desk, where the hero is a poster you look at rather than a
                  page you have walked into. */
-              phone ? null : <Link className="btn btn-gold" to="/dashboard">Enter your city</Link>
+              /* The door is Mira, not the dashboard.
+                 A hub wall answers "what is here"; it cannot answer "I need a
+                 table for four on Saturday". This is the front door for people
+                 who know what they want and not where it lives — which, after
+                 the first week, is most people most of the time. */
+              phone ? null : (
+                <Link className="btn btn-gold" to="/chats?c=__mira__">
+                  Talk to Mira — your personal assistant
+                </Link>
+              )
             ) : (
               <>
-                <Link className="btn btn-gold" to="/sign-up">Join the city</Link>
+                <Link className="btn btn-gold" to="/sign-up">Talk to Mira — your personal assistant</Link>
                 <Link className="btn" to="/sign-in">Sign in</Link>
               </>
             )}

@@ -11,6 +11,7 @@ import './index.css';
 // paper, and how there came to be two rival [data-hub] palettes fighting over
 // the same variable.
 import './styles/relief.css';
+import './styles/mira.css';
 
 const container = document.getElementById('root');
 if (!container) throw new Error('#root not found');

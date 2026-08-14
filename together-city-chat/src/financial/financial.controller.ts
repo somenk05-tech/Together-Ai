@@ -4,6 +4,7 @@ import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { FinancialService } from './financial.service';
+import { Mira } from '../mira/mira.decorator';
 import {
   TopUpSchema, type TopUpDto, SetBudgetSchema, type SetBudgetDto, PaySchema, type PayDto,
   LinkCardSchema, type LinkCardDto, AddSpendLogSchema, type AddSpendLogDto,
@@ -14,6 +15,11 @@ import {
 export class FinancialController {
   constructor(private readonly financial: FinancialService) {}
 
+  @Mira({
+    intent: 'Tell the citizen their wallet balance',
+    utterances: ["what's my balance", 'how much do I have', 'wallet balance'],
+    risk: 'R0',
+  })
   @Get('wallet')
   wallet(@CurrentUser() user: JwtUser) {
     return this.financial.wallet(user.sub);
@@ -53,6 +59,11 @@ export class FinancialController {
     return this.financial.removeCard(user.sub);
   }
 
+  @Mira({
+    intent: 'List the citizen’s recent transactions',
+    utterances: ['what did I spend', 'recent transactions', 'what have I paid for'],
+    risk: 'R0',
+  })
   @Get('transactions')
   transactions(@CurrentUser() user: JwtUser) {
     return this.financial.transactions(user.sub);

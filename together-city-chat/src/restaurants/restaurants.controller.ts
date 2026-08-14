@@ -4,6 +4,7 @@ import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { RestaurantsService } from './restaurants.service';
+import { Mira } from '../mira/mira.decorator';
 import {
   PlaceOrderSchema, type PlaceOrderDto,
   ReserveTableSchema, type ReserveTableDto,
@@ -40,6 +41,12 @@ export class RestaurantsController {
     return this.restaurants.myReservations(user.sub);
   }
 
+  @Mira({
+    intent: 'Find restaurants that fit an occasion',
+    utterances: ['find somewhere for dinner', 'somewhere special', 'a quiet place to eat'],
+    risk: 'R0',
+    needs: ['when', 'party'],
+  })
   @Get('discover')
   @UsePipes(new ZodValidationPipe(DiscoverSchema))
   discover(@CurrentUser() user: JwtUser, @Query() query: DiscoverDto) {

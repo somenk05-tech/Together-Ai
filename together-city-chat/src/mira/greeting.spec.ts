@@ -1,0 +1,142 @@
+import { greet, greetingLevel, allGreetings, FOURTH_WALL_EVERY, type GreetingInput } from './greeting';
+import { violations } from './voice';
+
+const g = (over: Partial<GreetingInput> = {}): GreetingInput => ({
+  weeksKnown: 52, hour: 14, seed: 0, dial: 1, ...over,
+});
+
+describe('every line she can ever open with is in voice', () => {
+  // The sweep, not a sample. A greeting is the most-read sentence in the
+  // product — it is seen by everyone, every session, before anything else —
+  // so a bad one is the most expensive possible bad line.
+  it.each(allGreetings())('%j', (line) => {
+    expect(violations(line)).toEqual([]);
+  });
+
+  it('none of them is the banned call-centre greeting', () => {
+    for (const l of allGreetings()) {
+      expect(l).not.toMatch(/how (can|may) I (help|assist)/i);
+    }
+  });
+
+  it('every line says something — none is a bare hello', () => {
+    for (const l of allGreetings()) expect(l.trim().length).toBeGreaterThan(8);
+  });
+});
+
+describe('playful from the first session', () => {
+  // Inverted by the owner, 14 Aug — see levity.ts. Kept rather than deleted so
+  // the reversal is legible.
+  it('she opens playful on day one', () => {
+    expect(greetingLevel(g({ weeksKnown: 0 }))).toBeGreaterThanOrEqual(3);
+  });
+
+  it('and how long they have known her changes nothing', () => {
+    expect(greetingLevel(g({ weeksKnown: 0 }))).toBe(greetingLevel(g({ weeksKnown: 300 })));
+  });
+
+  it('their "less" setting is still the way out', () => {
+    // The mitigation for a first-session joke that misses: one tap, and it holds.
+    expect(greetingLevel(g({ weeksKnown: 0, dial: 0 }))).toBe(1);
+  });
+});
+
+describe('the case it exists for', () => {
+  it('a distressed last session opens plain, however long they have known her', () => {
+    const out = greet(g({ weeksKnown: 300, dial: 2, lastSessionDistressed: true }));
+    expect(out.level).toBe(0);
+    expect(out.ask).not.toMatch(/suspicious|score|fire|breaking|parent|sleep/i);
+  });
+
+  it('and no seed can shake a joke out of it', () => {
+    for (let seed = 0; seed < 60; seed++) {
+      const out = greet(g({ weeksKnown: 300, dial: 2, lastSessionDistressed: true, seed }));
+      expect(out.level).toBe(0);
+    }
+  });
+});
+
+describe('the dampers', () => {
+  it('the small hours take the edge off, not the warmth', () => {
+    for (const hour of [0, 3, 5]) expect(greetingLevel(g({ hour }))).toBe(2);
+  });
+
+  it('their "less" setting holds at L1 forever', () => {
+    expect(greetingLevel(g({ weeksKnown: 500, dial: 0 }))).toBe(1);
+  });
+});
+
+describe('a level is a ceiling, not a target', () => {
+  it('an L3 citizen still gets plain openings sometimes', () => {
+    // A character who is always on is exhausting by Thursday. Draw across 30
+    // seeds and assert the pool genuinely includes the quiet lines.
+    const asks = new Set<string>();
+    for (let seed = 0; seed < 30; seed++) asks.add(greet(g({ weeksKnown: 20, seed })).ask);
+    expect(asks.size).toBeGreaterThan(4);
+    expect([...asks].some((a) => /What are we fixing today|What’s first/.test(a))).toBe(true);
+  });
+
+  it('is reproducible — the same session gets the same greeting', () => {
+    const a = greet(g({ seed: 7 }));
+    const b = greet(g({ seed: 7 }));
+    expect(a).toEqual(b);
+  });
+});
+
+describe('the fourth wall is rate-limited in code', () => {
+  it('does not fire before it is due', () => {
+    const out = greet(g({ weeksKnown: 20, sessionsSinceFourthWall: FOURTH_WALL_EVERY - 1 }));
+    expect(out.ask).not.toMatch(/don’t sleep/);
+  });
+
+  it('fires when it is due', () => {
+    const out = greet(g({ weeksKnown: 20, sessionsSinceFourthWall: FOURTH_WALL_EVERY }));
+    expect(out.ask).toMatch(/don’t sleep/);
+  });
+
+  it('never fires below L3 — not even when overdue', () => {
+    // dial:0 is now the only way below L3, since the week ramp is gone.
+    const out = greet(g({ dial: 0, sessionsSinceFourthWall: 9999 }));
+    expect(out.ask).not.toMatch(/don’t sleep/);
+  });
+
+  it('is rare by construction', () => {
+    // If somebody lowers this, the line stops landing. Make them say so.
+    expect(FOURTH_WALL_EVERY).toBeGreaterThanOrEqual(20);
+  });
+});
+
+describe('teases target choices, never the person', () => {
+  /**
+   * Two lists, not one — and the split was forced by a false positive.
+   *
+   * The first draft was a single word list containing "broke", and it fired on
+   * "Back already. I'm flattered. What broke?" — a line about a THING breaking,
+   * which is exactly the tease-a-choice register this rule is meant to protect.
+   *
+   * That is the same correction `shared/voice.ts` has already made twice, and
+   * its comment says why: a guard that fires on good writing is one somebody
+   * switches off. So the unambiguous slurs stay bare, and the words that are
+   * only insults when aimed at a person are matched only when aimed at one.
+   */
+  const ALWAYS = /\b(fat|obese|thin|ugly|stupid|idiot|lazy|useless|pathetic|hopeless)\b/i;
+  const ONLY_ABOUT_YOU = /\byou(?:'re| are|r)\s+(?:so\s+|such a\s+|too\s+)?(?:broke|poor|slow|old|failing|behind|a mess|terrible at)\b/i;
+
+  it('never an unambiguous insult', () => {
+    for (const l of allGreetings()) expect(l).not.toMatch(ALWAYS);
+  });
+
+  it('never aims a circumstance word at the person', () => {
+    for (const l of allGreetings()) expect(l).not.toMatch(ONLY_ABOUT_YOU);
+  });
+
+  it('the narrowed rule still catches the thing it is for', () => {
+    // Proven against planted copy rather than trusted. An untripped guard
+    // proves nothing — the reason the allergen ratchet in this repo was
+    // re-proven by mutation.
+    expect("You're broke and you know it").toMatch(ONLY_ABOUT_YOU);
+    expect('Morning, lazy').toMatch(ALWAYS);
+    expect('What broke?').not.toMatch(ONLY_ABOUT_YOU);
+    expect('What broke?').not.toMatch(ALWAYS);
+  });
+});

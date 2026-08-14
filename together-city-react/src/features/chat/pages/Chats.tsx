@@ -3,6 +3,18 @@ import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useConversations, useMessages, useChatRealtime, useClearConversation, useMessageSearch, useOnlineContacts, usePinnedMessage, chatApi, socketClient, WS, type OutgoingAttachment } from '@/api';
 import { ConversationList } from '../components/ConversationList';
+import { MiraRow } from '../mira/MiraRow';
+import { MiraThread } from '../mira/MiraThread';
+
+/**
+ * Mira is selected by a sentinel id rather than a conversation row.
+ *
+ * She is not a Conversation — `Message.senderId` is a foreign key to `User`,
+ * so a Mira thread would need a synthetic user, and that row would surface in
+ * the people directory, in connections and in the dating pool. "Top tab" is a
+ * position in this list, not a shape in the database.
+ */
+const MIRA_ID = '__mira__';
 import { MessageThread, ConfirmDelete, withinWindow } from '../components/MessageThread';
 import { Composer } from '../components/Composer';
 import { ChatStarter } from '../components/ChatStarter';
@@ -13,7 +25,7 @@ import { CallButtons } from '@/features/calls/CallButtons';
 import { useAuth } from '@/hooks/useAuth';
 import { useChatRoom } from '@/hooks/useChatRoom';
 import { useScaleLock } from '@/hooks/useScaleLock';
-import type { Message } from '@/types';
+import type { Message, ShareCard } from '@/types';
 
 /**
  * Chats — conversation list + real-time thread.
@@ -70,9 +82,15 @@ export function Chats() {
   /* And the room itself — the flag, the visible-viewport measurement, its own
      hold on the scale lock — is in useChatRoom, because the Dating hub holds
      conversations too and a conversation is one act wherever you have it. */
-  useChatRoom(Boolean(activeId));
+  // Mira is not a conversation, so nothing that expects one may fire for her:
+  // joining a socket room named after a row that does not exist, and fetching
+  // its messages, would be a bogus join and a 404 on every keystroke.
+  const isMira = activeId === MIRA_ID;
+  const convId = isMira ? undefined : activeId;
 
-  const history = useMessages(activeId);
+  useChatRoom(Boolean(convId));
+
+  const history = useMessages(convId);
   const [live, setLive] = useState<Message[]>([]);
   const [peerTyping, setPeerTyping] = useState(false);
   const [statusMap, setStatusMap] = useState<Record<string, 'DELIVERED' | 'READ'>>({});
@@ -195,10 +213,10 @@ export function Chats() {
   /* A reply is a send that remembers. The state is cleared BEFORE the emit so
      a slow socket cannot leave the bar sitting over the composer looking like
      the next message will quote it too. */
-  const sendWithReply = useCallback((body: string, attachments?: OutgoingAttachment[]) => {
+  const sendWithReply = useCallback((body: string, attachments?: OutgoingAttachment[], share?: ShareCard) => {
     const answering = replyTo?.id;
     setReplyTo(null);
-    send(body, attachments, answering);
+    send(body, attachments, answering, share);
   }, [send, replyTo]);
 
   /* JUMPING TO A MESSAGE THAT IS NOT LOADED YET. A search hit can be a hundred
@@ -426,6 +444,7 @@ export function Chats() {
             <p>Together City</p>
           </div>
           <ChatStarter onOpened={onOpened} />
+          <MiraRow active={activeId === MIRA_ID} onSelect={() => setActiveId(MIRA_ID)} />
           {list.length === 0
             ? <p style={{ fontSize: 13, padding: '4px 18px 18px', color: 'var(--on-stage-faint)', lineHeight: 1.55 }}>
                 No conversations yet. Start one above, or open a member’s profile and tap Message.
@@ -437,7 +456,9 @@ export function Chats() {
 
         {!(phone && !activeId) && (
         <section className="csthread">
-          {activeId ? (
+          {activeId === MIRA_ID ? (
+            <MiraThread />
+          ) : activeId ? (
             <>
               <div className="cshead-t">
                 {/* THE BULK BAR REPLACES THE HEADER — it does not float. The

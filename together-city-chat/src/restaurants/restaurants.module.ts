@@ -11,5 +11,6 @@ import { PlacesService } from './places.service';
   imports: [PrismaModule, FinancialModule, MailModule, ProfileModule],
   controllers: [RestaurantsController],
   providers: [RestaurantsService, PlacesService],
+  exports: [RestaurantsService],
 })
 export class RestaurantsModule {}
