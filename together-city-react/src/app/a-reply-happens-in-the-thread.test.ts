@@ -54,4 +54,31 @@ describe('a reply happens in the thread', () => {
     expect(view).toMatch(/x\.folder !== 'trash'/);
     expect(view).toMatch(/trail\.length > 1/);
   });
+
+  it('does not show the blank messages the old composer let through', () => {
+    // Hidden, not destroyed: the rows still exist in Sent with their own
+    // bins, and the server refuses to create new ones. The one the citizen
+    // deep-linked into stays visible, or the page would be about nothing.
+    expect(view).toMatch(/x\.id === id \|\| stripCityFooter\(x\.body\)\.trim\(\) !== ''/);
+  });
+
+  it('replies with the whole desk: recipient, copies, files', () => {
+    // "The reply needs to be the full stack instead of half" — the owner,
+    // 15 Aug. The subject alone stays behind the full-composer door, because
+    // changing it is starting a new message.
+    expect(view).toMatch(/Add Cc or Bcc/);
+    expect(view).toMatch(/DrivePicker/);
+    expect(view).toMatch(/attachmentFileIds/);
+    expect(view).toMatch(/bcc: addrs\(bcc\)/);
+  });
+
+  it('keeps the project rail when a message from that project is open', () => {
+    // /mail/message/<id> carries no project in the URL, so the sidebar used
+    // to fall back to the whole mailbox's folders the moment a message
+    // opened. The message itself knows its room; the sidebar asks it.
+    const side = read('layouts/Sidebar.tsx');
+    expect(side).toMatch(/\/mail\/message\//);
+    expect(side).toMatch(/useMailMessage\(/);
+    expect(side).toMatch(/messageProjectKey/);
+  });
 });

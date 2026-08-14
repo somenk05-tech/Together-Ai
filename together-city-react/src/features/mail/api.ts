@@ -160,8 +160,11 @@ export function useSetPrimary() {
 export function useDirectory() {
   return useQuery({ queryKey: ['mail', 'directory'], queryFn: () => mailApi.directory() });
 }
-export function useMailProjects() {
-  return useQuery({ queryKey: ['mail', 'projects'], queryFn: () => mailApi.projects() });
+/** `enabled` exists for the one caller outside the mail pages — the sidebar,
+ *  which resolves an open message's project and must not fetch a mailbox's
+ *  projects while somebody is standing in another hub. */
+export function useMailProjects(enabled = true) {
+  return useQuery({ queryKey: ['mail', 'projects'], queryFn: () => mailApi.projects(), enabled });
 }
 export function useCreateProject() {
   const qc = useQueryClient();

@@ -7,11 +7,12 @@ import { useQuery } from '@tanstack/react-query';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { mailApi } from '../api';
 import { useMailProjects } from '../api';
-import { fmtBytes, fileIcon } from '@/features/drive/api';
+import { fmtBytes, fileIcon, type DriveFile } from '@/features/drive/api';
 import { splitQuoted, stripCityFooter } from '../quoted';
 import { expandedByDefault, previewOf } from '../collapse';
 import { quoteBlock, withQuote } from '../replyQuote';
 import { MoveToProject } from '../MoveToProject';
+import { DrivePicker } from '../DrivePicker';
 import {
   useMailMessage, useMailThread, useMailAccount, useFlagMail, useRemoveMail, useSendMail,
   humanBytes, initials, avatarHue, mailError, type MailMessage,
@@ -210,18 +211,21 @@ function TrailMessage({ m, mine, open, onToggle, onRemove, removing }: {
  * screen, with the conversation gone from behind it, for what is nearly always
  * a few sentences. Gmail answers in place; now this does too.
  *
- * WHAT IT DELIBERATELY DOES NOT CARRY: Cc, Bcc, attachments, a subject field.
- * A reply's subject is the thread's subject, and the moment somebody needs the
- * rest they need the full composer — one press away, with the recipient, the
- * subject and the thread pre-filled. That door sits beside the box from the
- * start, because words typed HERE cannot follow it through the URL: offering
- * it first is what keeps anything from being lost to it.
+ * IT CARRIES THE WHOLE DESK. The first cut of this box held a textarea and
+ * nothing else, with Cc, Bcc and files a navigation away — and the owner's
+ * verdict was immediate: "the reply needs to be the full stack instead of
+ * half." Gmail's inline reply is a full composer wearing a small collar, and
+ * so is this one now: the recipient is editable, Cc and Bcc unfold on a
+ * press, files come from Drive without leaving the thread. The one thing that
+ * stays behind the full-composer door is the subject — a reply's subject is
+ * the thread's subject, and changing it is the moment you are writing a new
+ * message.
  *
  * THE QUOTED TRAIL GOES OUT UNDER THE REPLY, same as Compose: built from the
  * newest message, shown behind the ··· control, joined at send. And the same
  * two rules Compose earned the hard way apply — a reply with nothing in it
- * does not send, and the key is not live until the trail it quotes has
- * arrived.
+ * does not send (a file counts, a blank box does not), and the key is not
+ * live until the trail it quotes has arrived.
  */
 function InlineReply({ to, name, subject, threadId, latest, trailPending, open, onOpenChange, onOpenFull }: {
   to: string; name: string; subject: string; threadId?: string | null;
@@ -229,52 +233,144 @@ function InlineReply({ to, name, subject, threadId, latest, trailPending, open, 
   open: boolean; onOpenChange: (v: boolean) => void; onOpenFull: () => void;
 }) {
   const send = useSendMail();
+  const [toAddr, setToAddr] = useState(to);
+  // The thread's other party changes when a new message lands (your own reply
+  // included); the field follows until somebody has edited it — reseeding on
+  // every render would overwrite what the citizen is typing.
+  useEffect(() => { setToAddr(to); }, [to]);
+  const [cc, setCc] = useState('');
+  const [bcc, setBcc] = useState('');
+  const [showCopies, setShowCopies] = useState(false);
   const [body, setBody] = useState('');
+  const [attachments, setAttachments] = useState<DriveFile[]>([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [refused, setRefused] = useState<Array<{ to: string; reason: string }>>([]);
   const [qOpen, setQOpen] = useState(false);
   const boxRef = useRef<HTMLTextAreaElement>(null);
   // Focus lands in the box when it opens — including from the header's Reply
   // key — and focusing also scrolls it into view, so no motion is needed.
   useEffect(() => { if (open) boxRef.current?.focus(); }, [open]);
 
+  /** Commas or spaces, because both are what people type. Same as Compose. */
+  const addrs = (v: string) => v.split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean);
   const quote = useMemo(() => quoteBlock(latest), [latest]);
-  const canSend = Boolean(body.trim()) && !trailPending && !send.isPending;
+  const hasSomething = Boolean(body.trim()) || attachments.length > 0;
+  const canSend = Boolean(toAddr.trim()) && hasSomething && !trailPending && !send.isPending;
+  const inp = { padding: '11px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' as const, background: 'var(--card)' };
 
   if (!open) {
+    /* Gmail's reply row: the full width of the thread, not a chip in a
+       corner. The whole row is the button, because the whole row is what the
+       eye lands on when the last message ends. */
     return (
-      <div style={{ marginTop: 12, textAlign: 'right' }}>
-        <Button variant="accent" size="sm" onClick={() => onOpenChange(true)}>↩ Reply to {name}</Button>
+      <div className="card" style={{ marginTop: 12, padding: 0 }}>
+        <button type="button" onClick={() => onOpenChange(true)}
+          style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', minHeight: 54,
+            padding: '0 18px', background: 'none', border: 0, cursor: 'pointer', fontFamily: 'inherit',
+            fontSize: 14.5, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}>
+          <span>↩ Reply to {name}</span>
+          <span className="muted" style={{ fontWeight: 400, fontSize: 12.5, marginLeft: 'auto' }}>
+            Cc, Bcc and files, right here
+          </span>
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="card" style={{ marginTop: 12, display: 'grid', gap: 10 }}>
+    <div className="card" style={{ marginTop: 12, display: 'grid', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 13, fontWeight: 700 }}>↩ Reply</span>
-        <span className="muted" style={{ fontSize: 12.5, fontFamily: 'monospace', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>to {to}</span>
-        {/* The door to the rest of a composer, offered while the box is still
-            empty rather than discovered after it is not. */}
+        <span className="muted" style={{ fontSize: 12.5 }}>{subject}</span>
+        {/* The one thing not on this desk. Changing the subject is starting a
+            new message, and that is the full composer's job. */}
         <button type="button" onClick={onOpenFull}
           style={{ marginLeft: 'auto', minHeight: 44, padding: '0 2px', background: 'none', border: 0, cursor: 'pointer',
             fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, color: 'var(--accent-ink)' }}>
-          Cc, Bcc or files → full composer
+          Change the subject → full composer
         </button>
       </div>
-      <textarea ref={boxRef} value={body} onChange={(e) => setBody(e.target.value)} rows={5}
-        aria-label={`Reply to ${to}`} placeholder="Write your reply…"
-        style={{ padding: '11px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14,
-          fontFamily: 'inherit', width: '100%', boxSizing: 'border-box', background: 'var(--card)',
-          resize: 'vertical', lineHeight: 1.6 }} />
-      {/* Same control, same words, same shape as Compose — it IS the same fact. */}
-      <div className="mq" style={{ marginTop: 0 }}>
-        <button type="button" className="mq-key" aria-expanded={qOpen}
-          aria-label={qOpen ? 'Hide the quoted conversation' : 'Show the quoted conversation'}
-          onClick={() => setQOpen((v) => !v)}>···</button>
-        <span className="mq-said muted">
-          {qOpen ? 'The conversation you are replying to — it goes out under your message.' : 'Quoting the conversation below your message.'}
-        </span>
-        {qOpen && <pre className="mq-body">{quote}</pre>}
+      <div>
+        <label style={{ fontSize: 12 }} className="muted">To</label>
+        <input value={toAddr} onChange={(e) => setToAddr(e.target.value)} style={inp}
+          placeholder="a citizen's @togethercity.app handle · or any email address" autoComplete="off" />
       </div>
+      {(showCopies || cc || bcc) ? (
+        <div style={{ display: 'grid', gap: 12 }}>
+          <div>
+            <label style={{ fontSize: 12 }} className="muted">Cc</label>
+            <input value={cc} onChange={(e) => setCc(e.target.value)}
+              placeholder="Everyone here can see each other" style={inp} autoComplete="off" />
+          </div>
+          <div>
+            <label style={{ fontSize: 12 }} className="muted">Bcc</label>
+            <input value={bcc} onChange={(e) => setBcc(e.target.value)}
+              placeholder="Nobody else sees these addresses" style={inp} autoComplete="off" />
+          </div>
+        </div>
+      ) : (
+        <button type="button" onClick={() => setShowCopies(true)}
+          style={{ justifySelf: 'start', minHeight: 44, padding: '0 2px', background: 'none', border: 0,
+            cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, color: 'var(--accent-ink)' }}>
+          Add Cc or Bcc
+        </button>
+      )}
+      <div>
+        <textarea ref={boxRef} value={body} onChange={(e) => setBody(e.target.value)} rows={6}
+          aria-label={`Reply to ${toAddr}`} placeholder="Write your reply…"
+          style={{ ...inp, resize: 'vertical', lineHeight: 1.6 }} />
+        {refused.length > 0 && (
+          <div className="mrefused" role="alert">
+            <b>
+              {refused.length === 1 ? 'One address did not get it' : `${refused.length} addresses did not get it`}
+              {' — the rest did.'}
+            </b>
+            <ul>
+              {refused.map((f) => <li key={f.to}><span className="mrefused-to">{f.to}</span> {f.reason}</li>)}
+            </ul>
+            <span className="muted">
+              Your reply is in Sent. Fix or remove those addresses and send again — the people who received it
+              will get a second copy.
+            </span>
+          </div>
+        )}
+        {/* Same control, same words, same shape as Compose — it IS the same fact. */}
+        <div className="mq">
+          <button type="button" className="mq-key" aria-expanded={qOpen}
+            aria-label={qOpen ? 'Hide the quoted conversation' : 'Show the quoted conversation'}
+            onClick={() => setQOpen((v) => !v)}>···</button>
+          <span className="mq-said muted">
+            {qOpen ? 'The conversation you are replying to — it goes out under your message.' : 'Quoting the conversation below your message.'}
+          </span>
+          {qOpen && <pre className="mq-body">{quote}</pre>}
+        </div>
+      </div>
+
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <Button variant="line" size="sm" onClick={() => setPickerOpen(true)}>📎 Attach from Drive</Button>
+          {attachments.length > 0 && (
+            <span className="muted" style={{ fontSize: 12 }}>
+              {attachments.length} file{attachments.length === 1 ? '' : 's'} · {fmtBytes(attachments.reduce((s2, f) => s2 + f.sizeBytes, 0))}
+            </span>
+          )}
+        </div>
+        {attachments.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+            {attachments.map((f) => (
+              <span key={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: '1px solid var(--line)', borderRadius: 999, padding: '6px 10px 6px 12px', fontSize: 12.5, background: 'var(--paper)' }}>
+                <span>{fileIcon(f)}</span>
+                <span style={{ maxWidth: 190, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                <span className="muted" style={{ fontSize: 11 }}>{fmtBytes(f.sizeBytes)}</span>
+                <button type="button" aria-label={`Remove ${f.name}`}
+                  onClick={() => setAttachments((cur) => cur.filter((x) => x.id !== f.id))}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 15, lineHeight: 1, color: 'var(--muted)' }}>×</button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
       {send.isError && (
         <div className="mail-mishap" role="alert">
           <span>⚠ {mailError(send.error, 'That reply did not send.')}</span>
@@ -283,19 +379,42 @@ function InlineReply({ to, name, subject, threadId, latest, trailPending, open, 
       )}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
         <Button variant="accent" disabled={!canSend}
-          onClick={() => send.mutate(
-            { to, subject, body: withQuote(body, quote), threadId: threadId ?? undefined },
-            {
-              // The reply appears in the trail above — the invalidation
-              // refetches it — so the box has done its job and closes. Staying
-              // put is the point of answering in place.
-              onSuccess: () => { setBody(''); setQOpen(false); onOpenChange(false); },
-            },
-          )}>
+          onClick={() => {
+            setRefused([]);
+            send.mutate(
+              { to: toAddr, cc: addrs(cc), bcc: addrs(bcc), subject, body: withQuote(body, quote),
+                threadId: threadId ?? undefined, attachmentFileIds: attachments.map((f) => f.id) },
+              {
+                onSuccess: (res) => {
+                  if (res.failed.length > 0) {
+                    /* Some refused, some accepted: the reply IS in Sent, and
+                       the citizen is still here fixing addresses. */
+                    setRefused(res.failed);
+                    return;
+                  }
+                  // The reply appears in the trail above — the invalidation
+                  // refetches it — so the box has done its job and closes.
+                  setBody(''); setCc(''); setBcc(''); setShowCopies(false);
+                  setAttachments([]); setQOpen(false); onOpenChange(false);
+                },
+              },
+            );
+          }}>
           {send.isPending ? 'Sending…' : trailPending ? 'Loading the thread…' : 'Send reply'}
         </Button>
         <Button variant="line" onClick={() => onOpenChange(false)}>Cancel</Button>
+        <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>
+          Delivers to citizens and external emails
+        </span>
       </div>
+
+      {pickerOpen && (
+        <DrivePicker
+          alreadyPicked={attachments.map((f) => f.id)}
+          onClose={() => setPickerOpen(false)}
+          onPick={(files) => setAttachments((cur) => [...cur, ...files.filter((f) => !cur.some((c) => c.id === f.id))])}
+        />
+      )}
     </div>
   );
 }
@@ -363,7 +482,19 @@ export function MessageView() {
   const m = q.data;
   const myAddr = acct.data?.address ?? '';
   // The whole trail if we have it; otherwise just this message.
-  const trail = thread.data && thread.data.length > 0 ? thread.data : [m];
+  const raw = thread.data && thread.data.length > 0 ? thread.data : [m];
+  /**
+   * A BLANK MESSAGE IS NOT PART OF A CONVERSATION. The dozen empty rows the
+   * old composer let through rendered as a wall of "You · (no text)" between
+   * the words that were actually exchanged, and the owner's verdict was the
+   * right one: they should not be shown at all. Hidden, not destroyed — the
+   * rows still exist in Sent, where each has its own bin, and the server now
+   * refuses to create new ones. The one exception is the message the citizen
+   * OPENED: deep-link into a blank message from a folder and hiding it here
+   * would render a page that appears to be about something else.
+   */
+  const visible = raw.filter((x) => x.id === id || stripCityFooter(x.body).trim() !== '');
+  const trail = visible.length > 0 ? visible : [m];
   const latest = trail[trail.length - 1];
   // Reply goes to the other party of the most recent message.
   const replyTo = latest.fromAddr === myAddr ? latest.toAddr : latest.fromAddr;

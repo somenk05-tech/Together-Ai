@@ -3,6 +3,7 @@ import type { HubConfig } from '@/config/hubs';
 import { Icon } from '@/components/ui/Icon';
 import { useUiStore } from '@/store/ui.store';
 import { MailProjectsRail, MailProjectSideRail } from '@/features/mail/ProjectRail';
+import { useMailMessage, useMailProjects } from '@/features/mail/api';
 
 const PersonIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -36,9 +37,27 @@ export function Sidebar({ hub }: { hub: HubConfig }) {
    * mid-task — the one moment you are most sure you are still inside the room,
    * because you got there from its own menu.
    */
+  /**
+   * AND THE THIRD HALF: /mail/message/<id>. A message opened from a project's
+   * inbox carries no project in its URL, so the rail reverted to the whole
+   * mailbox's the moment the message opened — inside the room, reading the
+   * room's own mail, with a sidebar claiming you had left. The URL cannot say
+   * which room a message is filed in, but the message itself can: it is
+   * already in the query cache (the page fetched it), and its projectId
+   * resolves to a key through the projects list. Both queries are disabled
+   * everywhere but a mail message route, so the other twenty-four hubs fetch
+   * nothing new.
+   */
+  const messageId = pathname.startsWith('/mail/message/') ? (pathname.split('/')[3] ?? '') : '';
+  const openMessage = useMailMessage(messageId);
+  const messageProjects = useMailProjects(Boolean(messageId && openMessage.data?.projectId));
+  const messageProjectKey = messageId && openMessage.data?.projectId
+    ? ((messageProjects.data ?? []).find((p) => p.id === openMessage.data?.projectId)?.key ?? '')
+    : '';
   const projectKey = pathname.startsWith('/mail/p/')
     ? (pathname.split('/')[3] ?? '')
-    : (pathname === '/mail/compose' ? (new URLSearchParams(search).get('project') ?? '') : '');
+    : pathname === '/mail/compose' ? (new URLSearchParams(search).get('project') ?? '')
+    : messageProjectKey;
   const open = useUiStore((s) => s.sidebarOpen);
   const toggle = useUiStore((s) => s.toggleSidebar);
 
