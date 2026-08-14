@@ -127,12 +127,20 @@ function ConfirmDelete({ mine, canEveryone, onCancel, onDelete }: {
   );
 }
 
-export function MessageThread({ messages, currentUserId, typing, peerName, onDelete, onEdit }: {
+export function MessageThread({ messages, currentUserId, typing, peerName, onDelete, onEdit, onReply, onJump, jumpToId }: {
   messages: Message[]; currentUserId?: string; typing?: boolean;
   /** Whose thread this is, for the attribution line above each run. */
   peerName?: string;
   onDelete?: (messageId: string, scope: 'ME' | 'EVERYONE') => Promise<void> | void;
   onEdit?: (messageId: string, body: string) => Promise<void> | void;
+  onReply?: (m: Message) => void;
+  /** Tapping a quotation asks the page to jump — the page owns history, and
+   *  the message may be older than what is loaded. */
+  onJump?: (messageId: string) => void;
+  /** A message to bring into view — from a search result, or from tapping a
+   *  quotation. Scrolls THIS box only, never an ancestor: see the note on the
+   *  auto-scroll below, which is the same lesson learned the same way. */
+  jumpToId?: string | null;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const [confirmFor, setConfirmFor] = useState<Message | null>(null);
@@ -140,6 +148,7 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
   const [touchOpen, setTouchOpen] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
+  const [flashId, setFlashId] = useState<string | null>(null);
   const longPress = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /* THE LIST SCROLLS ITSELF.
@@ -153,6 +162,26 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
     if (typeof el.scrollTo === 'function') el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
     else el.scrollTop = el.scrollHeight;
   }, [messages.length, typing]);
+
+  /* Bring one message into view and mark it, briefly. `el.scrollIntoView`
+     would ask every scrollable ancestor to move — which on a phone is the page
+     under a fixed room, the exact bug the viewport-lock commit removed. So the
+     box scrolls itself, by offset, and jumpToId is the whole reason this
+     component takes a prop rather than owning a ref somebody outside reaches
+     into. */
+  useEffect(() => {
+    if (!jumpToId) return;
+    const box0 = box.current;
+    // `window.CSS`, not `CSS`: this module declares its own `const CSS` for the
+    // style block a few lines up, which shadows the global and turns
+    // CSS.escape into a property of a string. tsc caught it; nothing else would.
+    const el = box0?.querySelector<HTMLElement>(`[data-mid="${window.CSS.escape(jumpToId)}"]`);
+    if (!box0 || !el) return;
+    box0.scrollTo({ top: Math.max(0, el.offsetTop - 48), behavior: 'smooth' });
+    setFlashId(jumpToId);
+    const t = window.setTimeout(() => setFlashId(null), 1600);
+    return () => window.clearTimeout(t);
+  }, [jumpToId, messages.length]);
 
   const doDelete = async (m: Message, scope: 'ME' | 'EVERYONE') => {
     setConfirmFor(null);
@@ -197,8 +226,10 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
               </div>
             )}
             <div
+              data-mid={m.id}
               className={`tc-msg-row tc-msg-collapse${isCollapsing ? ' tc-msg-collapsing' : ''}${touchOpen === m.id ? ' touch-open' : ''}`}
-              style={{ alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: m.share ? 320 : '100%' }}
+              style={{ alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: m.share ? 320 : '100%',
+                ...(flashId === m.id ? { outline: '2px solid var(--on-stage-faint)', outlineOffset: 4, borderRadius: 14 } : null) }}
               onTouchStart={() => { longPress.current = setTimeout(() => setTouchOpen((t) => (t === m.id ? null : m.id)), 450); }}
               onTouchEnd={() => { if (longPress.current) clearTimeout(longPress.current); }}
               onTouchMove={() => { if (longPress.current) clearTimeout(longPress.current); }}>
@@ -206,6 +237,7 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
               {/* hover / long-press actions — never on deleted messages */}
               {!deleted && onDelete && (
                 <div className="tc-msg-actions" style={mine ? { right: 0 } : { left: 0 }}>
+                  {onReply && <button type="button" title="Reply" onClick={() => { onReply(m); setTouchOpen(null); }}>↩ Reply</button>}
                   {m.body && <button type="button" title="Copy" onClick={() => { void navigator.clipboard?.writeText(m.body); setTouchOpen(null); }}>⧉ Copy</button>}
                   {canEdit && <button type="button" title="Edit" onClick={() => startEdit(m)}>✎ Edit</button>}
                   <button type="button" className="danger" title="Delete" onClick={() => { setConfirmFor(m); setTouchOpen(null); }}>🗑 Delete</button>
@@ -226,6 +258,27 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
                   </div>
                 ) : (
                   <>
+                    {/* WHAT THIS ANSWERS, ABOVE WHAT IT SAYS. Tapping it goes
+                        to the original — which is the entire point of a quote
+                        and the thing a static blockquote fails to be. */}
+                    {m.replyTo && (
+                      <button type="button" onClick={() => onJump?.(m.replyTo!.id)}
+                        aria-label="Go to the message this answers"
+                        style={{
+                          display: 'block', textAlign: 'left', width: '100%', maxWidth: 320,
+                          border: 'none', cursor: 'pointer', font: 'inherit',
+                          background: 'var(--stage-tile)', borderLeft: '3px solid var(--on-stage-faint)',
+                          borderRadius: 10, padding: '6px 10px', marginBottom: 4,
+                        }}>
+                        <span style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--on-stage-soft)' }}>
+                          {m.replyTo.senderId === currentUserId ? 'You' : (peerName ?? 'Them')}
+                        </span>
+                        <span style={{ display: 'block', fontSize: 12.5, color: 'var(--on-stage-faint)',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {m.replyTo.deleted ? 'This message was deleted' : (m.replyTo.body || 'Attachment')}
+                        </span>
+                      </button>
+                    )}
                     {m.body && <div className={mine ? 'csb me' : 'csb'}>{m.body}</div>}
                     {(m.media ?? []).map((a, i) => (
                       <div key={a.id} style={{ marginTop: m.body || i ? 6 : 0 }}>

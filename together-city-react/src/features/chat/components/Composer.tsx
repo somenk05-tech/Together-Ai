@@ -39,9 +39,13 @@ function pickMime(): string {
   return '';
 }
 
-export function Composer({ onSend, onTyping }: {
+export function Composer({ onSend, onTyping, replyTo, onCancelReply }: {
   onSend: (body: string, attachments?: OutgoingAttachment[]) => void;
   onTyping: (t: boolean) => void;
+  /** The message being answered, if any — shown above the capsule so nobody
+   *  sends a reply into the wrong thread of a conversation. */
+  replyTo?: { name: string; body: string } | null;
+  onCancelReply?: () => void;
 }) {
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
@@ -152,6 +156,29 @@ export function Composer({ onSend, onTyping }: {
         }} role={error ? 'alert' : 'status'}>
           {error ?? busy}
         </p>
+      )}
+      {/* No class name: this bar is styled inline because a `cs`-prefixed name
+          with no rule in index.css is a promise to a stylesheet that never
+          answers — the failure no-borrowed-class-names.test.ts exists to catch,
+          pointed the other way. */}
+      {replyTo && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 8px',
+          padding: '8px 12px', borderRadius: 12,
+          background: 'var(--stage-tile)', borderLeft: '3px solid var(--on-stage-faint)',
+        }}>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: 'var(--on-stage-soft)' }}>
+              Replying to {replyTo.name}
+            </span>
+            <span style={{ display: 'block', fontSize: 12.5, color: 'var(--on-stage-faint)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {replyTo.body || 'Attachment'}
+            </span>
+          </span>
+          <button type="button" className="cstool" aria-label="Cancel reply"
+            onClick={() => onCancelReply?.()} style={{ flex: 'none' }}>✕</button>
+        </div>
       )}
       <form className="cscomposer" onSubmit={submit} style={{ margin: 0 }}>
         <input ref={fileRef} type="file" multiple onChange={onPick}

@@ -98,6 +98,17 @@ export const MessageSchema = z.object({
   deleted: z.boolean().optional(),
   editedAt: z.string().nullable().optional(),
   media: z.array(MediaAttachmentSchema).optional(),
+  /* QUOTED REPLIES ARRIVED AND WERE THROWN AWAY HERE. zod strips what a schema
+     does not declare, so every reply the server sent lost the one thing that
+     made it a reply somewhere between the wire and the component. */
+  replyToMessageId: z.string().nullable().optional(),
+  replyTo: z.object({
+    id: z.string(),
+    senderId: z.string(),
+    body: z.string(),
+    messageType: z.string().optional(),
+    deleted: z.boolean().optional(),
+  }).nullable().optional(),
 });
 export type Message = z.infer<typeof MessageSchema>;
 

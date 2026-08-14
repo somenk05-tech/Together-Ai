@@ -10,6 +10,6 @@ export { isServerUnreachable, SERVER_UNREACHABLE_MSG } from './client';
 export { authApi, LoginInput, RegisterInput } from './auth.api';
 export { usersApi, useMe, useOnlineContacts, RelationshipSchema, LookupSchema, type Relationship, type LookupResult } from './users.api';
 export { connectionsApi, useConnections, useRequestConnection, useRespondConnection, useIncomingRequestCount } from './connections.api';
-export { chatApi, useConversations, useUnreadChatCount, useMessages, useChatRealtime, useStartDirect, useChatContacts, useCreateGroup, useClearConversation, type Contact, type OutgoingAttachment } from './chat.api';
+export { chatApi, useConversations, useUnreadChatCount, useMessages, useChatRealtime, useStartDirect, useChatContacts, useCreateGroup, useClearConversation, useMessageSearch, type Contact, type OutgoingAttachment } from './chat.api';
 export { notificationsApi, useNotifications, useUnreadNotificationCount, useMarkNotificationRead, useMarkAllNotificationsRead, useNotificationSync } from './notifications.api';
 export { mediaApi, PresignInput, PresignResult } from './media.api';

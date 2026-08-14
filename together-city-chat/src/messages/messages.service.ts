@@ -435,6 +435,7 @@ export class MessagesService {
     }>;
     sender?: unknown;
     statuses?: Array<{ status: string }>;
+    replyTo?: { id: string; text: string | null; messageType: string; senderId: string; deleted: boolean } | null;
   }) {
     /* A DELETED MESSAGE IS DELETED ALL THE WAY DOWN. The tombstone used to
        zero only the text: `media` URLs and the share card still travelled to
@@ -489,6 +490,21 @@ export class MessagesService {
       media,
       status,
       replyToMessageId: m.replyToMessageId ?? null,
+      /* THE QUOTED MESSAGE TRAVELS WITH THE REPLY. `messageInclude` has
+         fetched replyTo since replies were designed and the serializer dropped
+         it on the floor — so a client held the id of the message being
+         answered and could not show a word of it without a second fetch per
+         bubble. Tombstoned like any other body: answering a message somebody
+         later deleted quotes the deletion, never the text. */
+      replyTo: m.replyTo
+        ? {
+            id: m.replyTo.id,
+            senderId: m.replyTo.senderId,
+            messageType: m.replyTo.messageType,
+            deleted: m.replyTo.deleted,
+            body: m.replyTo.deleted ? '' : (m.replyTo.text ?? ''),
+          }
+        : null,
       edited: !!m.edited,
       deleted: m.deleted,
       editedAt: m.edited ? (m.updatedAt ?? m.createdAt) : null,

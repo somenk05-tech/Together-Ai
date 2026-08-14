@@ -64,6 +64,19 @@ export const chatApi = {
     apiDelete(`/messages/${messageId}`, z.object({ deleted: z.boolean(), scope: z.string() }), { data: { scope } }),
   editMessage: (messageId: string, body: string): Promise<Message> =>
     apiPut(`/messages/${messageId}`, { text: body }, MessageSchema),
+  /**
+   * Search, scoped and filtered.
+   *
+   * The endpoint has taken conversationId, senderId, attachmentType and a
+   * from/to date range since it was written. Its only caller until now was the
+   * command palette, which asks for a keyword across everything and takes five
+   * results — so inside a long thread, where scoping and dates are the whole
+   * point, none of it was reachable.
+   */
+  searchMessages: (params: {
+    conversationId?: string; keyword?: string; from?: string; to?: string; limit?: number;
+  }): Promise<Message[]> =>
+    apiGet('/messages/search', z.array(MessageSchema), { params }),
 };
 
 /* ---------------- React Query hooks ---------------- */
@@ -176,7 +189,7 @@ export function useChatRealtime(
    * offered a way to make one, so voice notes and files were a backend that
    * nothing could reach.
    */
-  const send = useCallback((body: string, attachments?: OutgoingAttachment[]) => {
+  const send = useCallback((body: string, attachments?: OutgoingAttachment[], replyToMessageId?: string) => {
     if (!conversationId) return;
     const list = attachments?.length ? attachments : undefined;
     socketClient.emit(WS.SEND_MESSAGE, {
@@ -184,6 +197,8 @@ export function useChatRealtime(
       body,
       clientId: crypto.randomUUID(),
       ...(list ? { attachments: list, messageType: messageTypeFor(list) } : null),
+      // SocketSendSchema has accepted this since it was written.
+      ...(replyToMessageId ? { replyToMessageId } : null),
     });
   }, [conversationId]);
   const setTyping = useCallback((isTyping: boolean) => {
@@ -211,6 +226,30 @@ export function useClearConversation() {
 export function useStartDirect() {
   return useMutation({ mutationFn: (handle: string) => chatApi.startDirect(handle) });
 }
+/** In-conversation search. Idle until there is something to look for — a
+ *  keyword, or a date range on its own ("what did we say that Tuesday"). */
+export function useMessageSearch(
+  conversationId: string | undefined,
+  keyword: string,
+  from?: string,
+  to?: string,
+) {
+  const kw = keyword.trim();
+  const active = Boolean(conversationId) && (kw.length >= 2 || Boolean(from) || Boolean(to));
+  return useQuery({
+    queryKey: ['chat', 'search', conversationId, kw, from ?? '', to ?? ''],
+    queryFn: () => chatApi.searchMessages({
+      conversationId,
+      ...(kw ? { keyword: kw } : {}),
+      ...(from ? { from: new Date(from + 'T00:00:00').toISOString() } : {}),
+      ...(to ? { to: new Date(to + 'T23:59:59').toISOString() } : {}),
+      limit: 50,
+    }),
+    enabled: active,
+    staleTime: 10_000,
+  });
+}
+
 export function useChatContacts() {
   return useQuery({ queryKey: ['chat', 'contacts'], queryFn: () => chatApi.contacts() });
 }

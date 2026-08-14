@@ -114,7 +114,12 @@ export class RedisIoAdapter extends IoAdapter {
        everything (joinOwnConversations). A no-op when the attach happened at
        boot, before anyone connected. */
     try {
-      this.server.disconnectSockets();
+      /* `.local`, and the word is load-bearing. Bare disconnectSockets() is a
+         CLUSTER-WIDE instruction once the adapter is attached: instance A
+         finishing a late connect would kick every socket on instances B and C,
+         which had attached cleanly at boot and were fine. Only this process's
+         sockets lost their rooms, so only this process's sockets are kicked. */
+      this.server.local.disconnectSockets();
     } catch { /* no namespace initialised yet — nobody to kick */ }
   }
 

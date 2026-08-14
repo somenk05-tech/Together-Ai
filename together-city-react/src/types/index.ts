@@ -68,6 +68,17 @@ export interface Message {
   edited?: boolean;
   deleted?: boolean; // soft-deleted for everyone → render tombstone
   media?: MediaAttachment[];
+  /** What this message answers. Keep in step with api/schemas.ts's
+   *  MessageSchema, which is what parses the wire — the server has always
+   *  sent the id, and now sends enough of the original to quote it. */
+  replyToMessageId?: string | null;
+  replyTo?: {
+    id: string;
+    senderId: string;
+    body: string;
+    messageType?: string;
+    deleted?: boolean;
+  } | null;
 }
 
 export interface MediaAttachment {

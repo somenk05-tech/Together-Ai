@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { useConversations, useMessages, useChatRealtime, useClearConversation, chatApi, socketClient, WS } from '@/api';
+import { useConversations, useMessages, useChatRealtime, useClearConversation, useMessageSearch, chatApi, socketClient, WS, type OutgoingAttachment } from '@/api';
 import { ConversationList } from '../components/ConversationList';
 import { MessageThread } from '../components/MessageThread';
 import { Composer } from '../components/Composer';
@@ -81,9 +81,17 @@ export function Chats() {
   /** Message ids this session has already asked to mark read — each id is
    *  acknowledged once per opened thread, never per render. */
   const ackedRead = useRef<Set<string>>(new Set());
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [kw, setKw] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [jumpToId, setJumpToId] = useState<string | null>(null);
+  const [jumpNote, setJumpNote] = useState<string | null>(null);
+  const hits = useMessageSearch(activeId, kw, from || undefined, to || undefined);
 
   // Reset the live buffer whenever the conversation changes.
-  useEffect(() => { setLive([]); setPeerTyping(false); setStatusMap({}); setHiddenIds(new Set()); setTombstoned(new Set()); setEditsMap({}); ackedRead.current = new Set(); }, [activeId]);
+  useEffect(() => { setLive([]); setPeerTyping(false); setStatusMap({}); setHiddenIds(new Set()); setTombstoned(new Set()); setEditsMap({}); ackedRead.current = new Set(); setReplyTo(null); setSearchOpen(false); setKw(''); setFrom(''); setTo(''); setJumpToId(null); setJumpNote(null); }, [activeId]);
 
   // Live delivery/read receipts → advance the ticks on your sent messages.
   useEffect(() => {
@@ -116,6 +124,37 @@ export function Chats() {
   }, []);
 
   const { send, setTyping } = useChatRealtime(activeId, onMessage, onTyping, onDeleted, onEdited);
+
+  /* A reply is a send that remembers. The state is cleared BEFORE the emit so
+     a slow socket cannot leave the bar sitting over the composer looking like
+     the next message will quote it too. */
+  const sendWithReply = useCallback((body: string, attachments?: OutgoingAttachment[]) => {
+    const answering = replyTo?.id;
+    setReplyTo(null);
+    send(body, attachments, answering);
+  }, [send, replyTo]);
+
+  /* JUMPING TO A MESSAGE THAT IS NOT LOADED YET. A search hit can be a hundred
+     messages back, and telling somebody "it is further up" while refusing to
+     go there is the kind of answer that makes a feature not worth opening. So
+     this walks history backwards a page at a time until the id is on screen —
+     bounded, because a thread with thousands of messages should give up rather
+     than fetch all night. */
+  const jumpTo = useCallback(async (messageId: string) => {
+    setJumpNote(null);
+    for (let i = 0; i < 12; i++) {
+      if (document.querySelector(`[data-mid="${CSS.escape(messageId)}"]`)) {
+        setSearchOpen(false);
+        setJumpToId(null);
+        window.setTimeout(() => setJumpToId(messageId), 0);
+        return;
+      }
+      if (!history.hasNextPage) break;
+      await history.fetchNextPage();
+      await new Promise((r) => window.setTimeout(r, 80));
+    }
+    setJumpNote('That message is further back than this conversation will load.');
+  }, [history]);
 
   /** Delete a message (soft delete server-side; synced across devices). */
   const deleteMessage = useCallback(async (messageId: string, scope: 'ME' | 'EVERYONE') => {
@@ -247,8 +286,55 @@ export function Chats() {
                   <b style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeTitle}</b>
                   <em>{peerTyping ? 'typing…' : 'Together City'}</em>
                 </div>
+                <button type="button" className="cstool" aria-label="Search this conversation"
+                  aria-expanded={searchOpen} onClick={() => setSearchOpen((v) => !v)}
+                  style={{ flex: 'none' }}>🔍</button>
                 <CallButtons conversationId={activeId} compact />
               </div>
+              {searchOpen && (
+                <div style={{ padding: '10px 18px', borderBottom: '1px solid var(--stage-line)', display: 'grid', gap: 8 }}>
+                  <input value={kw} onChange={(e) => setKw(e.target.value)} autoFocus
+                    aria-label="Search in this conversation" placeholder="Search in this conversation…"
+                    className="csb" style={{ width: '100%', fontSize: 16, boxShadow: 'var(--soft-in)' }} />
+                  {/* A date range on its own is a real search: "what did we say
+                      that week" is a question people ask without a keyword. */}
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <label style={{ fontSize: 11.5, color: 'var(--on-stage-faint)' }}>From
+                      <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
+                        className="csb" style={{ marginLeft: 6, fontSize: 16 }} />
+                    </label>
+                    <label style={{ fontSize: 11.5, color: 'var(--on-stage-faint)' }}>To
+                      <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
+                        className="csb" style={{ marginLeft: 6, fontSize: 16 }} />
+                    </label>
+                    {(kw || from || to) && (
+                      <button type="button" className="cstab"
+                        onClick={() => { setKw(''); setFrom(''); setTo(''); setJumpNote(null); }}>Clear</button>
+                    )}
+                  </div>
+                  {jumpNote && <p role="status" style={{ margin: 0, fontSize: 12, color: 'var(--on-stage-soft)' }}>{jumpNote}</p>}
+                  {hits.isFetching && <p style={{ margin: 0, fontSize: 12, color: 'var(--on-stage-faint)' }}>Searching…</p>}
+                  {hits.data && (
+                    <div style={{ maxHeight: 220, overflowY: 'auto', display: 'grid', gap: 4 }}>
+                      {hits.data.length === 0
+                        ? <p style={{ margin: 0, fontSize: 12.5, color: 'var(--on-stage-faint)' }}>Nothing in this conversation matches.</p>
+                        : hits.data.map((h) => (
+                            <button key={h.id} type="button" onClick={() => { void jumpTo(h.id); }}
+                              style={{ textAlign: 'left', border: 'none', background: 'var(--stage-tile)', cursor: 'pointer',
+                                borderRadius: 10, padding: '7px 10px', font: 'inherit', color: 'var(--on-stage)' }}>
+                              <span style={{ display: 'block', fontSize: 10.5, color: 'var(--on-stage-faint)' }}>
+                                {new Date(h.createdAt).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                {h.senderId === user?.id ? ' · You' : ''}
+                              </span>
+                              <span style={{ display: 'block', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {h.body || '📎 Attachment'}
+                              </span>
+                            </button>
+                          ))}
+                    </div>
+                  )}
+                </div>
+              )}
               {history.isLoading
                 ? <Spinner />
                 : <>
@@ -267,9 +353,15 @@ export function Chats() {
                       </div>
                     )}
                     <MessageThread messages={messages} currentUserId={user?.id} typing={peerTyping}
-                      peerName={activeTitle} onDelete={deleteMessage} onEdit={editMessage} />
+                      peerName={activeTitle} onDelete={deleteMessage} onEdit={editMessage}
+                      onReply={setReplyTo} onJump={(id) => { void jumpTo(id); }} jumpToId={jumpToId} />
                   </>}
-              <Composer onSend={send} onTyping={emitTyping} />
+              <Composer onSend={sendWithReply} onTyping={emitTyping}
+                replyTo={replyTo ? {
+                  name: replyTo.senderId === user?.id ? 'yourself' : activeTitle,
+                  body: replyTo.body || 'Attachment',
+                } : null}
+                onCancelReply={() => setReplyTo(null)} />
             </>
           ) : (
             <div style={{ display: 'grid', placeItems: 'center', height: '100%', padding: 30, textAlign: 'center' }}>
