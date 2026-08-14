@@ -35,10 +35,10 @@ const ROUTE_DECORATOR = /^\s*@(Get|Post|Patch|Delete|Put)\(\s*(?:'([^']*)'|"([^"
  * and the argument for gate 1 asserting a non-empty manifest rather than only
  * validating whatever it happened to find.
  */
-function parseCapabilities(file: string): Array<{ cap: MiraCapability; method: string; path: string }> {
+function parseCapabilities(file: string): Array<{ cap: MiraCapability; method: string; path: string; line: number }> {
   const text = readFileSync(file, 'utf8');
   const lines = text.split('\n');
-  const out: Array<{ cap: MiraCapability; method: string; path: string }> = [];
+  const out: Array<{ cap: MiraCapability; method: string; path: string; line: number }> = [];
 
   let pending: MiraCapability | null = null;
 
@@ -71,7 +71,7 @@ function parseCapabilities(file: string): Array<{ cap: MiraCapability; method: s
     const m = line.match(ROUTE_DECORATOR);
     if (m) {
       if (pending) {
-        out.push({ cap: pending, method: m[1].toUpperCase(), path: (m[2] ?? m[3] ?? '').trim() });
+        out.push({ cap: pending, method: m[1].toUpperCase(), path: (m[2] ?? m[3] ?? '').trim(), line: i });
         pending = null;
       }
       continue;
@@ -102,10 +102,31 @@ export function manifest(): Capability[] {
   for (const file of controllerFiles()) {
     const rel = file.slice(SRC_ROOT.length + 1);
     const src = readFileSync(file, 'utf8');
-    const prefixMatch = src.match(/@Controller\(\s*(?:'([^']*)'|"([^"]*)")?\s*\)/);
-    const prefix = (prefixMatch?.[1] ?? prefixMatch?.[2] ?? '').trim();
+    /**
+     * THE NEAREST @Controller ABOVE, NOT THE FIRST IN THE FILE.
+     *
+     * `prescriptions.controller.ts` declares two: `@Controller('prescriptions')`
+     * and `@Controller('medicines')`. Matching the first one gave every
+     * capability in that file the `prescriptions` prefix — so the build-time id
+     * was `prescriptions GET today` while the RUNTIME registry, reading metadata
+     * off the actual handler, produced `medicines GET today`.
+     *
+     * Two ids for one route, and the executor keys off the runtime one, so the
+     * source parse's gates were silently guarding a route that does not exist.
+     * That is the same class of divergence the registry was written to end, one
+     * layer down, and it survived because only one file in the API has two
+     * controllers in it.
+     */
+    const prefixes = [...src.matchAll(/@Controller\(\s*(?:'([^']*)'|"([^"]*)")?\s*\)/g)]
+      .map((m) => ({ line: src.slice(0, m.index ?? 0).split('\n').length - 1, prefix: (m[1] ?? m[2] ?? '').trim() }));
+    const prefixAt = (line: number): string => {
+      let found = '';
+      for (const p of prefixes) { if (p.line <= line) found = p.prefix; else break; }
+      return found;
+    };
 
-    for (const { cap, method, path } of parseCapabilities(file)) {
+    for (const { cap, method, path, line } of parseCapabilities(file)) {
+      const prefix = prefixAt(line);
       const id = `${prefix} ${method} ${path}`.trim();
       const route = routes.get(`${rel}::${id}`);
       out.push({

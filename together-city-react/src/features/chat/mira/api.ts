@@ -23,6 +23,17 @@ export const MiraReplySchema = z.object({
   payload: z.unknown().optional(),
   /** Where she is offering to take you. Navigation changes nothing, so it needs no confirmation. */
   goto: z.object({ label: z.string(), path: z.string() }).optional(),
+  /** The colour this turn was said in — six of them, announced once a day. */
+  mood: z.enum(['wry', 'warm', 'sharp', 'brisk', 'mischievous', 'quiet']),
+  /**
+   * The options she just offered, when the turn was a question.
+   *
+   * Held by the caller and sent straight back on the next ask. That round trip
+   * is the whole of her short-term memory, and without it a one-word reply goes
+   * back through the matcher that produced the question — which is how she
+   * asked "Astrology or Log? Which one?" twice in a row in production.
+   */
+  choices: z.array(z.object({ label: z.string(), path: z.string() })).optional(),
   trace: z.array(z.string()),
 });
 export type MiraReply = z.infer<typeof MiraReplySchema>;
@@ -39,9 +50,11 @@ export function useMiraAsk(opts: {
   weeksKnown: number;
   dial?: 0 | 1 | 2;
   distressLocked?: boolean;
+  /** Held for the life of the thread, so her mood does not change mid-sentence. */
+  seed: number;
 }) {
   return useMutation({
-    mutationFn: async (input: { text: string; recent?: string[] }) =>
+    mutationFn: async (input: { text: string; recent?: string[]; answering?: Choice[] }) =>
       apiPost('/mira/ask', {
         text: input.text,
         recent: input.recent?.slice(0, 3),
@@ -49,9 +62,13 @@ export function useMiraAsk(opts: {
         weeksKnown: opts.weeksKnown,
         dial: opts.dial,
         distressLocked: opts.distressLocked,
+        seed: opts.seed,
+        answering: input.answering,
       }, MiraReplySchema),
   });
 }
+
+export type Choice = { label: string; path: string };
 
 const CapabilitySchema = z.object({
   id: z.string(), intent: z.string(), risk: z.string(), path: z.string(),

@@ -42,6 +42,11 @@ export class DriveController {
   constructor(private readonly drive: DriveService) {}
 
   /** Vault usage across mail + health documents + drive (one 10 GB allowance). */
+  @Mira({
+    intent: 'Tell the citizen how much storage they have left',
+    utterances: ['how much storage', 'my drive space', 'am I out of space', 'storage left'],
+    risk: 'R0',
+  })
   @Get('usage')
   usage(@CurrentUser() user: JwtUser) {
     return this.drive.usage(user.sub);

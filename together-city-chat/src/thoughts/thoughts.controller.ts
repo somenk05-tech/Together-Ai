@@ -4,6 +4,7 @@ import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { ThoughtsService } from './thoughts.service';
+import { Mira } from '../mira/mira.decorator';
 import {
   CreateThoughtSchema, ListThoughtsSchema, UpdateThoughtSchema,
   type CreateThoughtDto, type ListThoughtsDto, type UpdateThoughtDto,
@@ -15,6 +16,11 @@ export class ThoughtsController {
   constructor(private readonly thoughts: ThoughtsService) {}
 
   /** GET /api/thoughts — your journal, newest first, cursor-paginated. */
+  @Mira({
+    intent: 'List the citizen’s own notes',
+    utterances: ['my notes', 'my thoughts', 'what did I write down', 'my journal'],
+    risk: 'R0',
+  })
   @Get()
   @UsePipes(new ZodValidationPipe(ListThoughtsSchema))
   list(@CurrentUser() user: JwtUser, @Query() dto: ListThoughtsDto) {

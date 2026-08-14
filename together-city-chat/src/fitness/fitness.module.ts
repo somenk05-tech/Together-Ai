@@ -14,5 +14,7 @@ import { FitnessService } from './fitness.service';
   imports: [PrismaModule, ProfileModule, MedicalModule, NutritionModule],
   controllers: [FitnessController],
   providers: [FitnessService],
+  /** Mira reads the citizen's plan and their log. */
+  exports: [FitnessService],
 })
 export class FitnessModule {}

@@ -13,5 +13,7 @@ import { ProfileModule } from '../profile/profile.module';
   imports: [PrismaModule, MedicalModule, FinancialModule, AiModule, ProfileModule],
   controllers: [BeautyController],
   providers: [BeautyService, LookAnalysisService],
+  /** Mira reads the citizen's routine. The photo analyser stays inside. */
+  exports: [BeautyService],
 })
 export class BeautyModule {}

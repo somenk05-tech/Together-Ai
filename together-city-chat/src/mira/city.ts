@@ -266,7 +266,18 @@ export const PERSONALISATION: Personalisation[] = [
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
 
-export interface Found { label: string; path: string; hub?: string; why: string }
+/**
+ * A match, WITH ITS SCORE.
+ *
+ * The score used to be discarded at the return, and discarding it is what
+ * produced the disambiguation loop the owner found in production: two hits
+ * came back, the service saw "two", and it asked — even when the first was an
+ * exact name match and the second merely contained the word. `Astrology` at
+ * 1.0 beside `Astrology Log` at 0.5 is an answer with a runner-up, not a tie.
+ *
+ * A caller cannot tell those apart without the number, so the number leaves.
+ */
+export interface Found { label: string; path: string; hub?: string; why: string; score: number }
 
 /**
  * "Where do I find…" — the question the hub wall cannot answer.
@@ -275,6 +286,24 @@ export interface Found { label: string; path: string; hub?: string; why: string 
  * is wants to be taken there, not handed a search results page — that is the
  * thing they were already stuck in.
  */
+/**
+ * WHOLE WORDS, NOT SUBSTRINGS — and this one line was half of a real loop.
+ *
+ * `'take me to astrology'.includes('log')` is TRUE. "log" sits inside
+ * "astroLOGy", so the room called Log scored 0.8 against a sentence that had
+ * nothing to do with it, tied with the hub the citizen actually named, and she
+ * asked "Astrology or Log? Which one?" — then asked it again when they
+ * answered, for ever.
+ *
+ * A raw `includes` on normalised text is the kind of matcher that looks correct
+ * in every example you think to try, because the failures are words hiding
+ * inside longer words: "art" in "start", "ate" in "later", "log" in astrology.
+ */
+function holds(haystack: string, needle: string): boolean {
+  if (!needle) return false;
+  return new RegExp(`(?:^| )${needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?: |$)`).test(haystack);
+}
+
 export function findInCity(q: string, limit = 3): Found[] {
   const hay = norm(q);
   if (!hay) return [];
@@ -286,8 +315,8 @@ export function findInCity(q: string, limit = 3): Found[] {
       const n = norm(t);
       if (!n) continue;
       if (hay === n) score = Math.max(score, 1);
-      else if (hay.includes(n)) score = Math.max(score, 0.8);
-      else if (n.includes(hay) && hay.length > 3) score = Math.max(score, 0.5);
+      else if (holds(hay, n)) score = Math.max(score, 0.8);
+      else if (holds(n, hay) && hay.length > 3) score = Math.max(score, 0.5);
     }
     if (score > 0) hits.push({ label, path, hub, why: `matched “${label}”`, score });
   };
@@ -299,7 +328,7 @@ export function findInCity(q: string, limit = 3): Found[] {
   for (const r of EVERYWHERE) consider(r.label, r.path, [r.label, ...(r.says ?? [])]);
 
   return hits.sort((a, b) => b.score - a.score).slice(0, limit)
-    .map(({ label, path, hub, why }) => ({ label, path, hub, why }));
+    .map(({ label, path, hub, why, score }) => ({ label, path, hub, why, score }));
 }
 
 /*

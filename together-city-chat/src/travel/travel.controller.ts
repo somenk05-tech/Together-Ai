@@ -4,6 +4,7 @@ import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { TravelService } from './travel.service';
+import { Mira } from '../mira/mira.decorator';
 import {
   PackageQuerySchema, type PackageQueryDto,
   BookPackageSchema, type BookPackageDto,
@@ -46,6 +47,11 @@ export class TravelController {
     return this.travel.bookFlight(user.sub, dto);
   }
 
+  @Mira({
+    intent: 'List the citizen’s trips',
+    utterances: ['my trips', 'am I travelling', 'my travel plans', 'where am I going'],
+    risk: 'R0',
+  })
   @Get('trips')
   trips(@CurrentUser() user: JwtUser) { return this.travel.myTrips(user.sub); }
 }

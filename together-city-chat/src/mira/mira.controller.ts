@@ -15,6 +15,26 @@ export const AskSchema = z.object({
   dial: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
   distressLocked: z.boolean().optional(),
   recent: z.array(z.string().max(2000)).max(3).optional(),
+  /** Session counter — picks the mood and which aside she reaches for. Sent by
+   *  the client because the mood must hold across a conversation and the server
+   *  keeps no session. Not security-relevant: it chooses a tone. */
+  seed: z.number().int().min(0).max(1_000_000).optional(),
+  /**
+   * The options she offered last turn, handed back.
+   *
+   * This is the whole of her short-term memory, and it rides on the wire rather
+   * than living on the server. Without it every turn starts from nothing, a
+   * one-word reply goes back through the matcher that produced the question,
+   * and she asks it again — which is exactly what production did.
+   *
+   * Bounded at three because she never offers more, and validated like anything
+   * else that arrives from a client: it decides a navigation, so a path that did
+   * not come from her would be an open redirect inside the app.
+   */
+  answering: z.array(z.object({
+    label: z.string().min(1).max(80),
+    path: z.string().min(1).max(200).regex(/^\/[\w\-/]*$/, 'an in-app path'),
+  })).max(3).optional(),
 });
 export type AskDto = z.infer<typeof AskSchema>;
 
@@ -44,6 +64,8 @@ export class MiraController {
       dial: dto.dial,
       distressLocked: dto.distressLocked,
       recent: dto.recent,
+      seed: dto.seed,
+      answering: dto.answering,
     });
   }
 }

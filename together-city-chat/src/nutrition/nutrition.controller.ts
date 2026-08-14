@@ -17,6 +17,7 @@ import {
 } from './dto/nutrition.dto';
 import { OwnRecipeSchema, type OwnRecipeDto } from './dto/own-recipe.dto';
 
+import { Mira } from '../mira/mira.decorator';
 /**
  * Household PHI-sharing switches — exactly the four the service stores
  * (HouseholdSharing in nutrition.service.ts). This endpoint decides which of a
@@ -62,6 +63,11 @@ const FamilyMemberPatchSchema = z.object({
 export class NutritionController {
   constructor(private readonly nutrition: NutritionService) {}
 
+  @Mira({
+    intent: 'Tell the citizen their calorie and macro targets',
+    utterances: ['my calorie target', 'how many calories', 'my macros', 'how much protein'],
+    risk: 'R0',
+  })
   @Get('targets')
   targets(@CurrentUser() user: JwtUser) {
     return this.nutrition.targets(user.sub);
@@ -442,6 +448,11 @@ export class NutritionController {
   }
 
   /** Advance-prep alerts: what must be started early (soak/ferment/marinate). */
+  @Mira({
+    intent: 'Say what the citizen needs to start cooking',
+    utterances: ['what should I cook', 'whats for dinner', 'do I need to start cooking', 'what am I eating', 'anything to prep'],
+    risk: 'R0',
+  })
   @Get('prep-alerts')
   prepAlerts(@CurrentUser() user: JwtUser, @Query('mode') mode?: PlanMode) {
     return this.nutrition.prepAlerts(user.sub, mode ?? 'individual');

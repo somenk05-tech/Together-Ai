@@ -1,4 +1,24 @@
-import sharp from 'sharp';
+/**
+ * sharp is loaded ON FIRST USE, not at import.
+ *
+ * It is a NATIVE module — a platform-specific `.node` binary — and importing it
+ * at module scope means every file that transitively reaches MedicalService
+ * loads it, including test files that never touch an image. That is a slower
+ * boot for every process and a hard failure on any machine whose installed
+ * binary does not match the running architecture:
+ *
+ *     Could not load the "sharp" module using the linux-arm64 runtime
+ *
+ * `heic-convert` two functions down was already deferred, for the same reason
+ * and without the reason written down. The two now match.
+ */
+type Sharp = typeof import('sharp');
+let loaded: Sharp | null = null;
+async function sharpLib(): Promise<Sharp> {
+  const mod = (await import('sharp')) as unknown as { default?: Sharp };
+  loaded ??= mod.default ?? (mod as unknown as Sharp);
+  return loaded;
+}
 
 /**
  * Media types the vision API accepts for image blocks. Anything else — HEIC/HEIF
@@ -37,7 +57,7 @@ export async function normalizeReportImage(
       type = 'image/jpeg';
     } else if (!VISION_TYPES.has(type)) {
       // TIFF/BMP/unknown → decode with sharp and re-encode as JPEG.
-      buf = await sharp(buf).rotate().jpeg({ quality: 85 }).toBuffer();
+      buf = await (await sharpLib())(buf).rotate().jpeg({ quality: 85 }).toBuffer();
       type = 'image/jpeg';
     }
 
@@ -45,7 +65,7 @@ export async function normalizeReportImage(
       // Downscale progressively until it fits; lab reports stay perfectly
       // readable at 2000px.
       for (const width of [2400, 2000, 1600, 1200]) {
-        buf = await sharp(buf).rotate().resize({ width, withoutEnlargement: true }).jpeg({ quality: 80 }).toBuffer();
+        buf = await (await sharpLib())(buf).rotate().resize({ width, withoutEnlargement: true }).jpeg({ quality: 80 }).toBuffer();
         type = 'image/jpeg';
         if (buf.length <= MAX_BYTES) break;
       }

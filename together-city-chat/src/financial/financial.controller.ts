@@ -69,6 +69,11 @@ export class FinancialController {
     return this.financial.transactions(user.sub);
   }
 
+  @Mira({
+    intent: 'Tell the citizen what they spent this month',
+    utterances: ['what did I spend this month', 'my spending', 'where is my money going', 'how much have I spent'],
+    risk: 'R0',
+  })
   @Get('spending')
   spending(@CurrentUser() user: JwtUser) {
     return this.financial.spending(user.sub);
@@ -79,6 +84,11 @@ export class FinancialController {
     return this.financial.services();
   }
 
+  @Mira({
+    intent: 'Tell the citizen how their budgets stand',
+    utterances: ['my budgets', 'how much is left in my budget', 'am I over budget', 'budget left'],
+    risk: 'R0',
+  })
   @Get('budgets')
   budgets(@CurrentUser() user: JwtUser) {
     return this.financial.budgets(user.sub);

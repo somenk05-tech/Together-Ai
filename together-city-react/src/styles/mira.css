@@ -151,3 +151,76 @@
 .miramic.on i:nth-child(4) { animation-delay: .3s; } .miramic.on i:nth-child(5) { animation-delay: .4s; }
 @keyframes mira-wave { 0%, 100% { transform: scaleY(.5); } 50% { transform: scaleY(1.5); } }
 @media (prefers-reduced-motion: reduce) { .miramic.on i { animation: none; } }
+
+/* "Forget today" — a link inside a sentence, not a button beside one. It undoes
+   rather than does, and a control that looks like the Send button beside it
+   would be the wrong weight for the smallest destructive thing in the room.
+   The 44px target is a transparent pseudo-element, the same trick relief.css
+   uses for every small control, so the hit area is honest and the paint is
+   unchanged. */
+.miraforget {
+  position: relative; font: inherit; font-size: 12px; padding: 0;
+  border: 0; background: none; cursor: pointer;
+  color: var(--on-mira-soft); text-decoration: underline;
+}
+.miraforget::after {
+  content: ''; position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 44px; min-height: 44px; z-index: -1;
+}
+
+/* ── RECORDING IS ITS OWN BAR ──────────────────────────────────────────────
+   Not a state of the composer. A blinking dot where the text box was is how
+   somebody sends a half-transcript by reflex; a different shape makes "I am
+   recording" unmissable, and puts Discard as far from Done as the row allows.
+
+   The dot is the only thing in Mira's room that blinks, and it blinks because
+   it is reporting a live capture — the one case where motion is information
+   rather than decoration. It respects the reduced-motion preference by holding
+   at full opacity, not by vanishing: somebody who asked for less movement still
+   needs to know the microphone is on. */
+.mirarec {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 18px; border-top: 1px solid var(--mira-line);
+  background: var(--mira-well); color: var(--on-mira);
+}
+.mirarecdot {
+  flex: 0 0 auto; width: 9px; height: 9px; border-radius: var(--r-full);
+  background: var(--on-mira); color: var(--on-mira-ink);
+  animation: mira-live var(--dur-spin) ease-in-out infinite;
+}
+/* The dot holds no text today. It carries an ink anyway, because the rule this
+   file is measured by is "a surface that brings its own ground brings its own
+   ink" — and an exception for the ones that happen to be empty right now is how
+   the rule stops being one. */
+@keyframes mira-live { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .mirarecdot { animation: none; opacity: 1; } }
+.mirarectime {
+  flex: 0 0 auto; font-variant-numeric: tabular-nums; font-size: 12.5px;
+  color: var(--on-mira-soft);
+}
+/* The transcript is one line and it truncates. It is a progress signal, not the
+   deliverable — the deliverable lands in the composer, where it can be read
+   properly and fixed. */
+.mirarectext {
+  flex: 1; min-width: 0; font-size: 14px; line-height: 1.4;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: var(--on-mira-soft);
+}
+.mirarecdrop, .mirarecdone {
+  flex: 0 0 auto; font: inherit; font-size: 13px; font-weight: 600;
+  padding: 9px 14px; border-radius: var(--r-2); cursor: pointer;
+}
+.mirarecdrop { border: 1px solid var(--mira-line); background: none; color: var(--on-mira-soft); }
+.mirarecdone { border: 0; background: var(--on-mira); color: var(--on-mira-ink); }
+
+/* Her voice, and the fact that it is OFF until asked. A chat surface that
+   starts talking out loud on a phone in a room with other people in it is a
+   betrayal in one second flat, so the lit state is the exception and the quiet
+   one is the resting look. */
+.miraspeak {
+  width: 42px; height: 42px; border-radius: var(--r-full);
+  border: 1px solid var(--mira-line); background: none; color: var(--on-mira-faint);
+  display: grid; place-items: center; cursor: pointer; flex: 0 0 auto;
+}
+.miraspeak.on { background: var(--mira-tile); color: var(--on-mira); border-color: var(--on-mira-faint); }

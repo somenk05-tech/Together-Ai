@@ -10,5 +10,7 @@ import { TarotService } from './tarot.service';
   imports: [PrismaModule, ProfileModule, FinancialModule],
   controllers: [AstrologyController],
   providers: [AstrologyService, TarotService],
+  /** Mira reads the citizen's own daily letter, stones and remedies. */
+  exports: [AstrologyService, TarotService],
 })
 export class AstrologyModule {}

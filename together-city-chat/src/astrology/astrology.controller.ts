@@ -7,6 +7,7 @@ import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { AstrologyService, AskDto, SaveAstroProfileDto } from './astrology.service';
 import { TarotService, type DrawSpreadDto } from './tarot.service';
 
+import { Mira } from '../mira/mira.decorator';
 const SaveProfileSchema = z.object({
   birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD'),
   birthTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM (24h)').nullable().optional(),
@@ -63,6 +64,11 @@ export class AstrologyController {
   }
 
   /** Tab 01 — Today's Horoscope. */
+  @Mira({
+    intent: 'Read the citizen’s own reading for today',
+    utterances: ['how is my day going to be', 'how is my day', 'how will my day be', 'what is my day like', 'my reading today', 'todays reading', 'my horoscope', 'todays horoscope', 'what do the stars say', 'read my day', 'anything I should watch out for today'],
+    risk: 'R0',
+  })
   @Get('daily')
   daily(@CurrentUser() user: JwtUser) {
     return this.astrology.daily(user.sub);
@@ -121,6 +127,11 @@ export class AstrologyController {
   // ─────────────── Tarot ───────────────
   /** What each spread deals and costs — drives the picker. */
   /** GET /api/astrology/gems — the stone for this period, and one supporting it. */
+  @Mira({
+    intent: 'Name the stone the citizen’s chart calls for',
+    utterances: ['which stone should I wear', 'my gemstone', 'what gem is right for me', 'my stone'],
+    risk: 'R0',
+  })
   @Get('gems')
   gems(@CurrentUser() user: JwtUser) {
     return this.astrology.gems(user.sub);
@@ -190,6 +201,11 @@ export class AstrologyController {
   }
 
   /** GET /api/astrology/remedies — practices for this period, health-filtered. */
+  @Mira({
+    intent: 'List the practices the citizen’s chart suggests',
+    utterances: ['what remedies', 'what should I do for my chart', 'my remedies', 'my practices'],
+    risk: 'R0',
+  })
   @Get('remedies')
   remedies(@CurrentUser() user: JwtUser) {
     return this.astrology.remedies(user.sub);
@@ -216,6 +232,11 @@ export class AstrologyController {
     return this.tarot.chooseDailyCard(user.sub, body.position);
   }
 
+  @Mira({
+    intent: 'Draw the citizen’s card for today',
+    utterances: ['my card today', 'draw me a card', 'tarot', 'pull a card'],
+    risk: 'R0',
+  })
   @Get('tarot/daily')
   tarotDaily(@CurrentUser() user: JwtUser) {
     return this.tarot.dailyCard(user.sub);

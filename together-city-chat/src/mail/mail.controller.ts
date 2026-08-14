@@ -5,6 +5,7 @@ import { JwtUser } from '../shared/types';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { MailService } from './mail.service';
+import { Mira } from '../mira/mira.decorator';
 import {
   FlagSchema, type FlagDto, FolderQuerySchema, type FolderQueryDto,
   SendMailSchema, type SendMailDto, SaveDraftSchema, type SaveDraftDto,
@@ -17,6 +18,11 @@ import {
 export class MailController {
   constructor(private readonly mail: MailService) {}
 
+  @Mira({
+    intent: 'Tell the citizen how much mail is waiting',
+    utterances: ['any new mail', 'unread mail', 'how many emails', 'do I have mail', 'my inbox'],
+    risk: 'R0',
+  })
   @Get('account')
   account(@CurrentUser() user: JwtUser) {
     return this.mail.account(user.sub);
@@ -67,6 +73,14 @@ export class MailController {
   @Delete('projects/:id')
   deleteProject(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.mail.deleteProject(user.sub, id);
+  }
+
+  /** Empty the Trash. Declared above the `:id` routes, or "trash" reads as a
+   *  message id. This is the only way to get bytes back: everything else moves
+   *  mail to Trash, and Trash still counts against the quota. */
+  @Delete('trash')
+  emptyTrash(@CurrentUser() user: JwtUser) {
+    return this.mail.emptyTrash(user.sub);
   }
 
   /** Move a whole conversation into a project, or out of one. */

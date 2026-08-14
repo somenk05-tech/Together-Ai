@@ -4,6 +4,7 @@ import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { FitnessService } from './fitness.service';
+import { Mira } from '../mira/mira.decorator';
 import {
   SaveFitnessProfileSchema, type SaveFitnessProfileDto,
   LogWorkoutSchema, type LogWorkoutDto,
@@ -25,6 +26,11 @@ export class FitnessController {
     return this.fitness.saveProfile(user.sub, dto);
   }
 
+  @Mira({
+    intent: 'Read the citizen’s training plan',
+    utterances: ['my workout', 'my training plan', 'what should I train today', 'my exercise plan'],
+    risk: 'R0',
+  })
   @Get('plan')
   plan(@CurrentUser() user: JwtUser) {
     return this.fitness.plan(user.sub);
@@ -40,6 +46,11 @@ export class FitnessController {
     return this.fitness.syncNutrition(user.sub);
   }
 
+  @Mira({
+    intent: 'Say how much the citizen has trained',
+    utterances: ['how much have I trained', 'my workout log', 'minutes this week', 'have I exercised'],
+    risk: 'R0',
+  })
   @Get('log')
   log(@CurrentUser() user: JwtUser) {
     return this.fitness.log(user.sub);

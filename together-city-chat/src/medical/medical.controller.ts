@@ -5,6 +5,7 @@ import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { MedicalService } from './medical.service';
 import { SaveBloodTestSchema, type SaveBloodTestDto } from './dto/medical.dto';
+import { Mira } from '../mira/mira.decorator';
 import {
   AddRecordSchema, type AddRecordDto,
   UploadDocSchema, type UploadDocDto,
@@ -90,6 +91,11 @@ export class MedicalController {
     return this.medical.supplementPlan(user.sub);
   }
 
+  @Mira({
+    intent: 'Summarise the citizen’s latest blood work',
+    utterances: ['my health summary', 'my blood test', 'how are my labs', 'my results'],
+    risk: 'R0',
+  })
   @Get('summary')
   summary(@CurrentUser() user: JwtUser) {
     return this.medical.healthSummary(user.sub);

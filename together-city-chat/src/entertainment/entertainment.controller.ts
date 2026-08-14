@@ -9,6 +9,7 @@ import { WatchmodeService } from './watchmode.service';
 import { SaveWatchSchema, type SaveWatchDto } from './dto/entertainment.dto';
 import { Delete } from '@nestjs/common';
 
+import { Mira } from '../mira/mira.decorator';
 @Controller('entertainment')
 @UseGuards(JwtAuthGuard)
 export class EntertainmentController {
@@ -72,6 +73,11 @@ export class EntertainmentController {
   }
 
   // ── personal Watchlist (saved movies & series, synced across devices) ──
+  @Mira({
+    intent: 'List what the citizen saved to watch',
+    utterances: ['my watchlist', 'what should I watch', 'what did I save to watch'],
+    risk: 'R0',
+  })
   @Get('watchlist')
   watchlist(@CurrentUser() user: JwtUser) {
     return this.entertainment.watchlist(user.sub);

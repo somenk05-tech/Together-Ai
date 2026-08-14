@@ -8,6 +8,7 @@ import { BeautyService } from './beauty.service';
 import { LookAnalysisService } from './look-analysis.service';
 import { PlaceBeautyOrderSchema, type PlaceBeautyOrderDto } from './dto/beauty.dto';
 
+import { Mira } from '../mira/mira.decorator';
 @Controller('beauty')
 @UseGuards(JwtAuthGuard)
 export class BeautyController {
@@ -113,6 +114,11 @@ export class BeautyController {
   }
 
   /** GET /api/beauty/routine — morning, evening and weekly, in order. */
+  @Mira({
+    intent: 'Read the citizen’s skincare routine',
+    utterances: ['my routine', 'my skincare', 'what do I put on my face', 'my products'],
+    risk: 'R0',
+  })
   @Get('routine')
   routine(@CurrentUser() user: JwtUser) {
     return this.beauty.routine(user.sub);

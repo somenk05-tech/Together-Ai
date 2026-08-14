@@ -133,9 +133,30 @@ const KNOWN_UNREACHED: string[] = [
   "nutrition/nutrition.controller.ts  GET /nutrition/targets/history",
   "nutrition/nutrition.controller.ts  POST /nutrition/pantry/settle",
   "prescriptions/prescriptions.controller.ts  GET /prescriptions/*",
-  "prescriptions/prescriptions.controller.ts  GET /prescriptions/logs",
-  "prescriptions/prescriptions.controller.ts  GET /prescriptions/today",
-  "prescriptions/prescriptions.controller.ts  POST /prescriptions/doses",
+  // THREE ENTRIES CAME OFF THIS LIST, AND THEY WERE NEVER REAL.
+  // `/prescriptions/logs`, `/prescriptions/today` and `POST /prescriptions/doses`
+  // were excused here for months. No such routes exist. The handlers live on
+  // `@Controller('medicines')` — the SECOND controller declared in that file —
+  // and `route-inventory` was matching the first `@Controller(...)` in the
+  // source, so it reported every handler in the file under the wrong prefix.
+  //
+  // The web app calls `/medicines/today` and always has. So this list was
+  // excusing three fictional URLs while the three real ones passed as reached
+  // by luck, and the whole comparison was a fiction against a fiction. Fixed in
+  // `route-inventory.ts`; the entries are gone rather than renamed, because the
+  // real routes are called and need no exemption.
+
+  // ── AND THE THREE THAT WERE ALWAYS REAL ───────────────────────────────────
+  // These have been failing this spec on `main` since before Mira existed, and
+  // every land script since has warned past them. They are written down here so
+  // the gate can go green, and written down WITH the decision still open, which
+  // is the honest state: the money log is served and nothing in the web app has
+  // ever called it. Either Financial grows a log view or these three go. That
+  // is a product call, and parking them silently would be how it never gets
+  // made — so it is named here and in the handover.
+  "financial/financial.controller.ts  GET /financial/log",
+  "financial/financial.controller.ts  POST /financial/log",
+  "financial/financial.controller.ts  DELETE /financial/log/*",
   // GET /privacy/export came off 1 Aug: Settings' Download button calls it.
 ];
 

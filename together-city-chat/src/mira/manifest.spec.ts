@@ -130,13 +130,63 @@ describe('the parse itself', () => {
     expect(byId(first.id)?.id).toBe(first.id);
   });
 
+  /**
+   * EVERYTHING SHE MAY WANT, WRITTEN OUT ONCE.
+   *
+   * This list is the inventory, and asserting EQUALITY rather than membership is
+   * the point of it. Two failures it catches, and both have happened:
+   *
+   * 1. A `@Mira()` bleeding onto the next route down the file. The parse ends a
+   *    decorator block on the first line that is not a decorator or a comment;
+   *    if that scoping breaks, a capability silently attaches to a handler
+   *    nobody chose — and at R0 that is a read of the wrong thing, while at R2
+   *    it would be an action.
+   * 2. A capability appearing because somebody added a decorator without adding
+   *    an executor branch. The switch in `mira.service.ts` keys off these ids
+   *    exactly; an id here with no branch there answers "that's not something I
+   *    can do yet" while claiming to be a capability, which is the `gap` outcome
+   *    the ledger now records.
+   *
+   * Adding a capability means editing this list. That is the intended cost.
+   */
+  const OPENED = [
+    'astrology GET daily', 'astrology GET gems', 'astrology GET remedies', 'astrology GET tarot/daily',
+    'beauty GET routine',
+    'drive GET', 'drive GET usage',
+    'entertainment GET watchlist',
+    'financial GET budgets', 'financial GET spending', 'financial GET transactions', 'financial GET wallet',
+    'fitness GET log', 'fitness GET plan',
+    'mail GET account',
+    'medical GET summary',
+    'medicines GET today',
+    'notifications GET unread-count',
+    'nutrition GET prep-alerts', 'nutrition GET targets',
+    'profile GET completion', 'profile GET health-score', 'profile GET master',
+    'restaurants GET discover', 'restaurants GET orders', 'restaurants GET reservations',
+    'thoughts GET',
+    'travel GET trips',
+  ];
+
   it('does not attach a capability to the wrong handler', () => {
-    // The parse walks backwards over a contiguous decorator block. If that
-    // scoping were wrong, a @Mira() would bleed onto the NEXT route down the
-    // file — so assert every decorated path is one we actually chose.
-    const chosen = [/financial\/wallet/, /financial\/transactions/, /restaurants\/discover/, /^drive$/];
-    for (const c of manifest()) {
-      expect(chosen.some((re) => re.test(c.path))).toBe(true);
-    }
+    expect(manifest().map((c) => c.id).sort()).toEqual([...OPENED].sort());
+  });
+
+  /**
+   * AND THE PREFIX IS THE NEAREST CONTROLLER, NOT THE FIRST IN THE FILE.
+   *
+   * `prescriptions.controller.ts` declares two controllers. Matching the first
+   * `@Controller(...)` in the file gave the medicines handler the id
+   * `prescriptions GET today`, while the runtime registry — reading metadata off
+   * the real handler — produced `medicines GET today`. One route, two ids, and
+   * the executor keys off the runtime one: the source gates were guarding a
+   * route that does not exist.
+   *
+   * Only one file in this API has two controllers, which is exactly why it
+   * survived. Named here so it cannot come back quietly.
+   */
+  it('reads the id off the controller the handler is actually in', () => {
+    const ids = manifest().map((c) => c.id);
+    expect(ids).toContain('medicines GET today');
+    expect(ids).not.toContain('prescriptions GET today');
   });
 });

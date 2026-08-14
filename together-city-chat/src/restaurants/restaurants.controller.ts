@@ -31,11 +31,21 @@ export class RestaurantsController {
     return this.restaurants.browse(user.sub, query);
   }
 
+  @Mira({
+    intent: 'List the citizen’s food orders',
+    utterances: ['my orders', 'what did I order', 'where is my order', 'my food order'],
+    risk: 'R0',
+  })
   @Get('orders')
   orders(@CurrentUser() user: JwtUser) {
     return this.restaurants.myOrders(user.sub);
   }
 
+  @Mira({
+    intent: 'List the citizen’s table reservations',
+    utterances: ['my reservations', 'my bookings', 'do I have a table booked', 'where am I eating'],
+    risk: 'R0',
+  })
   @Get('reservations')
   reservations(@CurrentUser() user: JwtUser) {
     return this.restaurants.myReservations(user.sub);

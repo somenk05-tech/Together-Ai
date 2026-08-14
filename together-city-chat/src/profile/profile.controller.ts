@@ -8,6 +8,7 @@ import { ProfileService } from './profile.service';
 import { MasterProfileService, type SharedFields } from './master-profile.service';
 import { declaredHealthPatch } from './master-health-conditions';
 
+import { Mira } from '../mira/mira.decorator';
 @Controller('profile')
 @UseGuards(JwtAuthGuard)
 export class ProfileController {
@@ -17,12 +18,22 @@ export class ProfileController {
   ) {}
 
   /** The Master Profile — single source of truth for shared user information. */
+  @Mira({
+    intent: 'Read the citizen’s own profile',
+    utterances: ['what do you know about me', 'my profile', 'my details', 'who am I to you'],
+    risk: 'R0',
+  })
   @Get('master')
   master(@CurrentUser() user: JwtUser) {
     return this.masterProfile.get(user.sub);
   }
 
   /** One platform-wide profile-completion score + per-hub breakdown. */
+  @Mira({
+    intent: 'Say what is still missing from the citizen’s profile',
+    utterances: ['what is missing from my profile', 'is my profile complete', 'what else do you need'],
+    risk: 'R0',
+  })
   @Get('completion')
   completion(@CurrentUser() user: JwtUser) {
     return this.masterProfile.completion(user.sub);
@@ -34,6 +45,11 @@ export class ProfileController {
    * Returns `computed`, `incomplete` or `unavailable` — never a fabricated
    * number, and never zero because something was not filled in.
    */
+  @Mira({
+    intent: 'Tell the citizen their health score',
+    utterances: ['my health score', 'how healthy am I', 'whats my score'],
+    risk: 'R0',
+  })
   @Get('health-score')
   healthScore(@CurrentUser() user: JwtUser) {
     return this.masterProfile.healthScore(user.sub);

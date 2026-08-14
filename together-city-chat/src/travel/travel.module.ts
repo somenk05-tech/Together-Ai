@@ -9,5 +9,7 @@ import { TravelService } from './travel.service';
   imports: [PrismaModule, FinancialModule, MailModule],
   controllers: [TravelController],
   providers: [TravelService],
+  /** Mira reads the citizen's trips. */
+  exports: [TravelService],
 })
 export class TravelModule {}

@@ -9,5 +9,8 @@ import { WatchmodeService } from './watchmode.service';
   imports: [PrismaModule],
   controllers: [EntertainmentController],
   providers: [EntertainmentService, TmdbService, WatchmodeService],
+  /** Mira reads the watchlist. The two external clients stay inside — she must
+   *  not be able to reach TMDB or Watchmode on a spoken word. */
+  exports: [EntertainmentService],
 })
 export class EntertainmentModule {}

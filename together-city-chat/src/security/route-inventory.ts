@@ -53,8 +53,27 @@ export function parseController(file: string): Route[] {
   const lines = text.split('\n');
   const rel = file.slice(SRC_ROOT.length + 1);
 
-  const prefixMatch = text.match(/@Controller\(\s*(?:'([^']*)'|"([^"]*)")?\s*\)/);
-  const prefix = (prefixMatch?.[1] ?? prefixMatch?.[2] ?? '').trim();
+  /**
+   * THE NEAREST @Controller ABOVE THE HANDLER, NOT THE FIRST IN THE FILE.
+   *
+   * `prescriptions.controller.ts` declares two — `@Controller('prescriptions')`
+   * and `@Controller('medicines')` — and taking the first match gave every
+   * handler in that file the `prescriptions` prefix. So this inventory has been
+   * reporting `/prescriptions/today` for a route the app serves and calls at
+   * `/medicines/today`: a wrong URL in the one file whose job is to know the
+   * URLs.
+   *
+   * It survived because exactly one file in this API has two controllers in it,
+   * and because both of its shapes were in the reviewed set — so route-reach
+   * stayed green while comparing a fiction against a fiction.
+   */
+  const prefixes = [...text.matchAll(/@Controller\(\s*(?:'([^']*)'|"([^"]*)")?\s*\)/g)]
+    .map((m) => ({ line: text.slice(0, m.index ?? 0).split('\n').length - 1, value: (m[1] ?? m[2] ?? '').trim() }));
+  const prefixAt = (line: number): string => {
+    let found = '';
+    for (const p of prefixes) { if (p.line <= line) found = p.value; else break; }
+    return found;
+  };
 
   const routes: Route[] = [];
 
@@ -95,10 +114,10 @@ export function parseController(file: string): Route[] {
 
     routes.push({
       file: rel,
-      prefix,
+      prefix: prefixAt(i),
       method,
       path,
-      id: `${prefix} ${method} ${path}`.trim(),
+      id: `${prefixAt(i)} ${method} ${path}`.trim(),
       isPublic,
       guards,
       takesRouteParam: /@Param\(/.test(sig),

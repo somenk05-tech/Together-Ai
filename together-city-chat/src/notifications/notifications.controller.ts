@@ -4,6 +4,7 @@ import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { NotificationsService } from './notifications.service';
 
+import { Mira } from '../mira/mira.decorator';
 @Controller('notifications')
 @UseGuards(JwtAuthGuard)
 export class NotificationsController {
@@ -14,6 +15,11 @@ export class NotificationsController {
     return this.notifications.listFor(user.sub);
   }
 
+  @Mira({
+    intent: 'Tell the citizen how many notifications are waiting',
+    utterances: ['any notifications', 'anything new for me', 'did I miss anything'],
+    risk: 'R0',
+  })
   @Get('unread-count')
   async unreadCount(@CurrentUser() user: JwtUser) {
     return { count: await this.notifications.unreadCount(user.sub) };

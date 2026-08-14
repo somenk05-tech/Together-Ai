@@ -4,6 +4,7 @@ import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { PrescriptionsService } from './prescriptions.service';
+import { Mira } from '../mira/mira.decorator';
 import {
   AddItemSchema, ConfirmPrescriptionSchema, DoseActionSchema, LogsQuerySchema, ReviewItemSchema, UploadPrescriptionSchema,
   type AddItemDto, type ConfirmPrescriptionDto, type DoseActionDto, type LogsQueryDto, type ReviewItemDto, type UploadPrescriptionDto,
@@ -74,6 +75,11 @@ export class MedicinesController {
   }
 
   /** GET /api/medicines/today — the doses in your own day, and where each stands. */
+  @Mira({
+    intent: 'Tell the citizen which medicines are due today',
+    utterances: ['what medicines do I take today', 'my medicines', 'what is due', 'have I taken my pills', 'my doses', 'medicine reminder', 'do I have anything to take'],
+    risk: 'R0',
+  })
   @Get('today')
   today(@CurrentUser() user: JwtUser) {
     return this.prescriptions.today(user.sub);
