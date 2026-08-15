@@ -210,6 +210,32 @@ export function useMiraConfide() {
   });
 }
 
+/**
+ * The visible thread, from her record on the server — what makes the SAME
+ * conversation appear on the phone and the site. The record was already the
+ * model's memory; this reads it for the screen. `retry: false` and the
+ * caller ignores failure entirely: an older API without this route, or a
+ * slow table, means the device's own day store stands — sync is an upgrade,
+ * never a dependency.
+ */
+const MiraThreadSchema = z.object({
+  turns: z.array(z.object({
+    who: z.enum(['you', 'mira']),
+    text: z.string(),
+    at: z.string(),
+  })),
+});
+export type MiraServerThread = z.infer<typeof MiraThreadSchema>;
+
+export function useMiraThread(room: 'friend' | 'city') {
+  return useQuery({
+    queryKey: ['mira', 'thread', room],
+    queryFn: () => apiGet('/mira/thread', MiraThreadSchema, { params: { room } }),
+    retry: false,
+    staleTime: 0,
+  });
+}
+
 const CapabilitySchema = z.object({
   id: z.string(), intent: z.string(), risk: z.string(), path: z.string(),
 });

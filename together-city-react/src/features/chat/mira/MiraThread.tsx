@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ZodError } from 'zod';
 import { Link } from 'react-router-dom';
-import { useMiraAsk, useMiraCapabilities, useMiraGreeting, useMiraSubscribe, type Choice } from './api';
+import { useMiraAsk, useMiraCapabilities, useMiraGreeting, useMiraSubscribe, useMiraThread, type Choice } from './api';
 import { Icon } from '@/components/ui/Icon';
 import { MiraMark, type MarkState } from './MiraMark';
 import { useVoiceNote, useSpeech } from './voice';
@@ -44,6 +44,14 @@ const storedMode = (): 'friend' | 'city' | null => {
 /** Opened over a page she arrives as the assistant; otherwise as whichever
  *  of her spoke last, and as the friend the very first time. */
 const openingMode = (about?: string): 'friend' | 'city' => (about ? 'city' : storedMode() ?? 'friend');
+
+/** When "Forget today" was last pressed in a room, ON THIS DEVICE. The
+ *  server thread hydrates only what was said after it, so a cleared screen
+ *  stays cleared here while the record — and every other device — keeps the
+ *  history. Deleting the record itself is the forget command's job. */
+const clearedAt = (room: 'friend' | 'city'): number => {
+  try { return Number(window.localStorage.getItem(`mira.cleared.${room}`) ?? 0) || 0; } catch { return 0; }
+};
 
 /**
  * HER FIRST MESSAGE AS A FRIEND — the owner's copy, verbatim, emojis and
@@ -147,6 +155,35 @@ export function MiraThread({ weeksKnown = 0, dial, about, onBack }: {
   const [freeLeft, setFreeLeft] = useState<number | null | undefined>(undefined);
   const [paywalled, setPaywalled] = useState(false);
   const subscribe = useMiraSubscribe();
+
+  /**
+   * THE THREAD FOLLOWS THE ACCOUNT. "user data on mobile and site should be
+   * same" — the owner, holding a phone showing one conversation beside a
+   * laptop showing another. The record on the server (her memory) is now
+   * also the screen's source: on open, each room hydrates from it, and the
+   * device's day store becomes the offline fallback rather than the truth.
+   *
+   * Three guards keep it honest. HYDRATE ONCE per room per visit — a
+   * refetch must never rewrite a scroll somebody is reading. NEVER OVER A
+   * CONVERSATION IN PROGRESS — if they typed before the server answered,
+   * their turn wins and the record catches up next visit. AND "FORGET
+   * TODAY" HOLDS — clearing marks the moment on this device, and hydration
+   * only shows what was said after it, so a cleared thread does not
+   * resurrect on the next open (the record itself is untouched; deleting it
+   * is the forget command's job, and hers).
+   */
+  const serverThread = useMiraThread(mode);
+  const hydrated = useRef<{ friend: boolean; city: boolean }>({ friend: false, city: false });
+  const spoke = useRef(false);
+  useEffect(() => {
+    const data = serverThread.data;
+    if (!data || hydrated.current[mode] || spoke.current) return;
+    hydrated.current[mode] = true;
+    const kept = data.turns
+      .filter((t) => new Date(t.at).getTime() > clearedAt(mode))
+      .map((t) => ({ who: t.who, text: t.text }));
+    if (kept.length) setTurns(kept);
+  }, [serverThread.data, mode]);
   /**
    * WHAT SHE JUST ASKED, HELD FOR ONE TURN.
    *
@@ -182,6 +219,9 @@ export function MiraThread({ weeksKnown = 0, dial, about, onBack }: {
   const send = async (text: string) => {
     const clean = text.trim();
     if (!clean || ask.isPending) return;
+    // From here the conversation on screen is live — a hydration arriving
+    // late must not rewrite it out from under them.
+    spoke.current = true;
     const recent = turns.filter((t) => t.who === 'you').slice(-3).map((t) => t.text).reverse();
     // The day's transcript, both voices, oldest first — her context. Without
     // it "just feeling lonely" arrives as a sentence from nowhere, which is
@@ -362,9 +402,12 @@ export function MiraThread({ weeksKnown = 0, dial, about, onBack }: {
           limit rather than let somebody find it by opening their phone. */}
       {turns.length > 0 && (
         <p className="miranote">
-          Today, on this device — it clears itself at midnight.{' '}
-          <button type="button" className="miraforget" onClick={() => { clearDay(mode); setTurns([]); pending.current = undefined; }}>
-            Forget today
+          With your account, on every device.{' '}
+          <button type="button" className="miraforget" onClick={() => {
+            try { window.localStorage.setItem(`mira.cleared.${mode}`, String(Date.now())); } catch { /* view-only marker */ }
+            clearDay(mode); setTurns([]); pending.current = undefined;
+          }}>
+            Clear this screen
           </button>
         </p>
       )}

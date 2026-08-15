@@ -24,6 +24,20 @@ describe('Mira is two tabs', () => {
   const thread = read('features/chat/mira/MiraThread.tsx');
   const api = read('features/chat/mira/api.ts');
 
+  it('the thread follows the account — one conversation on every device', () => {
+    // The server record (her memory) is now also the screen's source. The
+    // device day-store remains the offline fallback, never the truth.
+    expect(api).toMatch(/apiGet\('\/mira\/thread'/);
+    expect(thread).toMatch(/useMiraThread\(mode\)/);
+    // Hydrate once per room, and never over a conversation in progress.
+    expect(thread).toMatch(/hydrated\.current\[mode\]/);
+    expect(thread).toMatch(/spoke\.current = true/);
+    // Clearing marks the moment on THIS device; hydration shows only what
+    // came after, so a cleared screen does not resurrect on the next open.
+    expect(thread).toMatch(/mira\.cleared\.\$\{mode\}/);
+    expect(thread).toMatch(/clearedAt\(mode\)/);
+  });
+
   it('her room carries its own way back when it is the whole screen', () => {
     // On a phone the chat page shows one room at a time, and her room
     // replaces the thread header — the one place the back arrow lived. So

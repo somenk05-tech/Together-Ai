@@ -709,6 +709,38 @@ export class MiraService {
   }
 
   /**
+   * THE VISIBLE THREAD, SERVED FROM HER RECORD.
+   *
+   * "user data on mobile and site should be same" — the owner, holding a
+   * phone showing one conversation beside a laptop showing another. The
+   * record already spans devices (it is what her memory reads); this serves
+   * the same rows to the SCREEN, so the thread a citizen sees follows their
+   * account instead of their browser. The device day-store remains the
+   * offline fallback, never the truth. Bounded, try/caught whole: a failed
+   * read is an empty thread the client ignores, never an error.
+   */
+  async thread(userId: string, room: 'friend' | 'city'): Promise<{
+    turns: Array<{ who: 'you' | 'mira'; text: string; at: string }>;
+  }> {
+    try {
+      const rows = await this.prisma.miraTurn.findMany({
+        where: { userId, room },
+        orderBy: { createdAt: 'desc' },
+        take: 60,
+      });
+      return {
+        turns: rows.reverse().map((t: { who: string; text: string; createdAt: Date }) => ({
+          who: t.who === 'you' ? ('you' as const) : ('mira' as const),
+          text: t.text,
+          at: t.createdAt.toISOString(),
+        })),
+      };
+    } catch {
+      return { turns: [] };
+    }
+  }
+
+  /**
    * The last stretch of the record, oldest first, shaped for the wire.
    * Bounded (unbounded-reads rule) and try/caught whole: a missing table, a
    * stale client or a slow read returns [] and the caller falls back to the
@@ -764,7 +796,7 @@ export class MiraService {
         await this.prisma.miraTurn.deleteMany({ where: { userId } });
         return {
           outcome: 'forget',
-          text: 'Done — all of it, gone from my memory. This device keeps today\u2019s thread until you press Forget today, and tomorrow I start from just us.',
+          text: 'Done — all of it, gone from my memory, on every device. What\u2019s still on this screen goes when you press Clear this screen.',
         };
       }
       const gone = await this.prisma.miraTurn.deleteMany({

@@ -108,6 +108,12 @@ export const ConfideSchema = z.object({
 });
 export type ConfideDto = z.infer<typeof ConfideSchema>;
 
+/** Which of her rooms to read. Absent means the assistant, as everywhere. */
+export const ThreadSchema = z.object({
+  room: z.enum(['friend', 'city']).optional(),
+});
+export type ThreadDto = z.infer<typeof ThreadSchema>;
+
 /**
  * What she needs to say hello, and all of it comes from the CLIENT.
  *
@@ -206,6 +212,18 @@ export class MiraController {
   @Post('subscribe')
   subscribe(@CurrentUser() user: JwtUser) {
     return this.mira.subscribe(user.sub);
+  }
+
+  /**
+   * The visible thread, from her record — what makes the same conversation
+   * appear on the phone and the site. A read of the citizen's own rows,
+   * unmetered like every read; the client treats an empty or failed answer
+   * as "use the device's own copy", so an older API costs nothing.
+   */
+  @Get('thread')
+  @UsePipes(new ZodValidationPipe(ThreadSchema))
+  thread(@CurrentUser() user: JwtUser, @Query() q: ThreadDto) {
+    return this.mira.thread(user.sub, q.room === 'friend' ? 'friend' : 'city');
   }
 
   /**

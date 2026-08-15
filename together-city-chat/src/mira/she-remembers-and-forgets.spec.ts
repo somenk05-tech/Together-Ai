@@ -104,6 +104,26 @@ describe('she remembers', () => {
   });
 });
 
+describe('and the thread follows the account', () => {
+  it('serves the record oldest first, shaped for the screen', async () => {
+    const svc = bare();
+    svc.prisma.miraTurn.findMany = async () => [
+      { who: 'mira', text: 'Named after the song?', createdAt: new Date(2) },
+      { who: 'you', text: 'my dog is called Bruno', createdAt: new Date(1) },
+    ];
+    const t = await svc.thread('u1', 'friend');
+    expect(t.turns.map((x: any) => x.who)).toEqual(['you', 'mira']);
+    expect(t.turns[0].text).toBe('my dog is called Bruno');
+    expect(t.turns[0].at).toBe(new Date(1).toISOString());
+  });
+
+  it('a read that fails is an empty thread, never an error', async () => {
+    const svc = bare();
+    svc.prisma.miraTurn.findMany = async () => { throw new Error('table is down'); };
+    await expect(svc.thread('u1', 'city')).resolves.toEqual({ turns: [] });
+  });
+});
+
 describe('and she can be told to forget', () => {
   it('"forget everything" deletes the whole record, scoped to the asker', async () => {
     const svc = bare();
