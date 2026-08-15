@@ -65,7 +65,7 @@ export class NutritionController {
 
   @Mira({
     intent: 'Tell the citizen their calorie and macro targets',
-    utterances: ['my calorie target', 'how many calories', 'my macros', 'how much protein'],
+    utterances: ['my calorie target', 'how many calories', 'my macros', 'how much protein', 'my nutrition targets'],
     risk: 'R0',
   })
   @Get('targets')
@@ -448,9 +448,14 @@ export class NutritionController {
   }
 
   /** Advance-prep alerts: what must be started early (soak/ferment/marinate). */
+  /* "what my nutrition today" reached the ASTROLOGY day brief in production
+     (the router's substring bug did half of it; these utterances not
+     existing did the rest). "Nutrition today" and "meal plan" are how
+     citizens actually ask for today's food, so the kitchen now owns the
+     words. */
   @Mira({
     intent: 'Say what the citizen needs to start cooking',
-    utterances: ['what should I cook', 'whats for dinner', 'do I need to start cooking', 'what am I eating', 'anything to prep'],
+    utterances: ['what should I cook', 'whats for dinner', 'do I need to start cooking', 'what am I eating', 'anything to prep', 'my meal plan', 'my meal plan today', 'my nutrition today', 'whats my nutrition', 'todays meals'],
     risk: 'R0',
   })
   @Get('prep-alerts')

@@ -61,6 +61,19 @@ const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s']/g, ' ').replac
  */
 function score(cap: Capability, q: string): number {
   const hay = norm(q);
+  /**
+   * TOKENS MATCH WORDS, NEVER SUBSTRINGS.
+   *
+   * The first cut used `hay.includes(token)`, and the token "day" is a
+   * substring of the word "today" — so 'how is my day' half-matched every
+   * sentence that merely said "today", and "what my nutrition today" was
+   * answered with the astrology day brief: a citizen asked about food and
+   * was told about her stars and an unread letter (owner's screenshot,
+   * 15 Aug). A whole PHRASE may still match as a substring below — "my meal
+   * plan today" inside a longer sentence is a real match — but a lone token
+   * only counts when it appears as a whole word.
+   */
+  const words = new Set(hay.split(' '));
   let best = 0;
 
   for (const u of cap.utterances ?? []) {
@@ -71,7 +84,7 @@ function score(cap: Capability, q: string): number {
     else {
       const toks = n.split(' ').filter((t) => t.length > 2);
       if (toks.length) {
-        const hit = toks.filter((t) => hay.includes(t)).length / toks.length;
+        const hit = toks.filter((t) => words.has(t)).length / toks.length;
         if (hit === 1) best = Math.max(best, 0.7);
         else if (hit >= 0.6) best = Math.max(best, 0.45 + hit * 0.2);
       }
@@ -80,7 +93,7 @@ function score(cap: Capability, q: string): number {
 
   const intentToks = norm(cap.intent).split(' ').filter((t) => t.length > 4);
   if (intentToks.length) {
-    const hit = intentToks.filter((t) => hay.includes(t)).length / intentToks.length;
+    const hit = intentToks.filter((t) => words.has(t)).length / intentToks.length;
     if (hit >= 0.5) best = Math.max(best, 0.35 + hit * 0.2);
   }
 
