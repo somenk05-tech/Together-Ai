@@ -167,12 +167,14 @@ export const HUBS: Record<HubKey, HubConfig> = {
     key: 'social', name: 'Social Life', tag: 'Discover everything around you', backPath: '/social', dark: false,
     items: [
       // The map page was removed by the review (p18) — it had never held a pin.
+      // Create Post left the rail by the owner's call (15 Aug): the page
+      // stays, reached from the feed's + Create and its composer — a verb
+      // does not need a room in the list of places.
       { path: '/social/feed', index: '01', label: 'City Feed', sub: 'Moments from around you' },
-      { path: '/social/create', index: '02', label: 'Create Post', sub: 'Share a photo, video or plan' },
-      { path: '/social/profile', index: '03', label: 'My Profile', sub: 'Story, stats & Post & Earn' },
-      { path: '/social/saved', index: '04', label: 'Saved', sub: 'Bookmarked posts & places' },
+      { path: '/social/profile', index: '02', label: 'My Profile', sub: 'Story, stats & Post & Earn' },
+      { path: '/social/saved', index: '03', label: 'Saved', sub: 'Bookmarked posts & places' },
       // The journal. Built, tested, and listed nowhere.
-      { path: '/thoughts', index: '05', label: 'Thoughts', sub: 'Your private journal' },
+      { path: '/thoughts', index: '04', label: 'Thoughts', sub: 'Your private journal' },
     ],
   },
   dating: {

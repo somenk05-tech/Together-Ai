@@ -581,6 +581,15 @@ export function CreatePost() {
     <div>
       <div className="sl-head rise">
         <div className="sl-head-t">
+          {/* The way back, on the page itself. This page left the hub rail
+              (a verb, not a place), so it carries its own door home — and it
+              goes to the FEED, deterministically, not navigate(-1): after a
+              deep link or a posted post, "back" means the wall, not wherever
+              the browser happens to have been. */}
+          <Link to="/social/feed" className="btn btn-sm"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 12, minHeight: 44 }}>
+            <Icon name="back" size={15} /> Back to the feed
+          </Link>
           <div className="eyebrow">Social Life · Create Post</div>
           <h1>Share with your city</h1>
           <p>A photo, a video, a place or a thought — any one of them is a post.</p>
