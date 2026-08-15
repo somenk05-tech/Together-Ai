@@ -4,6 +4,7 @@ import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { FitnessService } from './fitness.service';
+import { SupplementsService } from './supplements/supplements.service';
 import { Mira } from '../mira/mira.decorator';
 import {
   SaveFitnessProfileSchema, type SaveFitnessProfileDto,
@@ -13,7 +14,10 @@ import {
 @Controller('fitness')
 @UseGuards(JwtAuthGuard)
 export class FitnessController {
-  constructor(private readonly fitness: FitnessService) {}
+  constructor(
+    private readonly fitness: FitnessService,
+    private readonly supplements: SupplementsService,
+  ) {}
 
   @Get('profile')
   profile(@CurrentUser() user: JwtUser) {
@@ -60,5 +64,26 @@ export class FitnessController {
   @UsePipes(new ZodValidationPipe(LogWorkoutSchema))
   addLog(@CurrentUser() user: JwtUser, @Body() dto: LogWorkoutDto) {
     return this.fitness.addLog(user.sub, dto);
+  }
+
+  /**
+   * THE SUPPLEMENT PLAN — read-only, and READ-ONLY IS THE POINT. There is no
+   * route here that takes a dose, a lab value or a supplement id from a client
+   * and turns it into a recommendation: everything the engine answers with is
+   * derived server-side from the citizen's own hubs and resolved against a
+   * cited knowledge base. A POST would be the door through which "recommend me
+   * 5,000 IU" eventually arrives.
+   *
+   * NOT REGISTERED WITH MIRA. Every other reader on this controller carries an
+   * @Mira intent so she can answer from it; this one deliberately does not.
+   * She is a voice with a levity governor and a fallback line, and the gap
+   * between "explain my plan" and "tell me what to take" is one sentence wide
+   * when the subject is medicines and blood work. The plan is a screen a
+   * citizen reads, with its sources on it, until there is a specific reviewed
+   * design for her saying any of it out loud.
+   */
+  @Get('supplements')
+  supplementPlan(@CurrentUser() user: JwtUser) {
+    return this.supplements.plan(user.sub);
   }
 }

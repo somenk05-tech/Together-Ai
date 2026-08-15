@@ -5,6 +5,7 @@ import { MedicalModule } from '../medical/medical.module';
 import { NutritionModule } from '../nutrition/nutrition.module';
 import { FitnessController } from './fitness.controller';
 import { FitnessService } from './fitness.service';
+import { SupplementsService } from './supplements/supplements.service';
 
 @Module({
   // MedicalModule provides the consent-gated biomarker reader. NutritionModule
@@ -13,7 +14,7 @@ import { FitnessService } from './fitness.service';
   // Nutrition does not import Fitness, so there is no cycle to break.
   imports: [PrismaModule, ProfileModule, MedicalModule, NutritionModule],
   controllers: [FitnessController],
-  providers: [FitnessService],
+  providers: [FitnessService, SupplementsService],
   /** Mira reads the citizen's plan and their log. */
   exports: [FitnessService],
 })
