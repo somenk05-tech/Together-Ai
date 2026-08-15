@@ -10,6 +10,10 @@ import {
   SaveFitnessProfileSchema, type SaveFitnessProfileDto,
   LogWorkoutSchema, type LogWorkoutDto,
 } from './dto/fitness.dto';
+import {
+  SupplementBagSchema, type SupplementBagDto,
+  PlaceSupplementOrderSchema, type PlaceSupplementOrderDto,
+} from './dto/supplements.dto';
 
 @Controller('fitness')
 @UseGuards(JwtAuthGuard)
@@ -101,5 +105,37 @@ export class FitnessController {
   @Get('store')
   supplementStore(@CurrentUser() user: JwtUser) {
     return this.supplements.store(user.sub);
+  }
+
+  /* ── THE TILL ────────────────────────────────────────────────────────────
+     Four routes, and the pair of them that matter are GET store/bag and GET
+     store/orders. Nutrition once shipped a checkout with neither: it charged
+     the wallet, wrote the order and rendered none of it, so a citizen paid and
+     had nowhere to look. Every writer below has a reader in the same commit,
+     and none of these is a Mira capability — "order me the vitamin D" is one
+     sentence away from working, and an assistant that can spend a citizen's
+     wallet on a supplement is an assistant that can be talked into spending it
+     on the wrong one. */
+
+  @Get('store/bag')
+  supplementBag(@CurrentUser() user: JwtUser) {
+    return this.supplements.bag(user.sub);
+  }
+
+  @Put('store/bag')
+  @UsePipes(new ZodValidationPipe(SupplementBagSchema))
+  saveSupplementBag(@CurrentUser() user: JwtUser, @Body() dto: SupplementBagDto) {
+    return this.supplements.saveBag(user.sub, dto.lines);
+  }
+
+  @Get('store/orders')
+  supplementOrders(@CurrentUser() user: JwtUser) {
+    return this.supplements.orders(user.sub);
+  }
+
+  @Post('store/orders')
+  @UsePipes(new ZodValidationPipe(PlaceSupplementOrderSchema))
+  placeSupplementOrder(@CurrentUser() user: JwtUser, @Body() dto: PlaceSupplementOrderDto) {
+    return this.supplements.placeOrder(user.sub, dto);
   }
 }

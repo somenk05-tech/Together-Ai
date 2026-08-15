@@ -54,6 +54,20 @@ export interface Product {
   price?: string;
   /** For sorting only. Never shown as a price. */
   priceFrom?: number;
+  /**
+   * THE TILL PRICE, IN WHOLE RUPEES, and the only number the wallet is ever
+   * charged. Present ONLY where the review recorded one unambiguous price for
+   * one pack: a range ("₹379–₹999 for 100–400 g") is three products wearing
+   * one row, and "Stock intermittent" is not a price at all. Three of the 43
+   * have no `priceInr` and cannot be bought here — the card says so rather
+   * than guessing at the middle of a range and charging it.
+   *
+   * The city's till is in whole rupees, as every other hub's is. Two of these
+   * were recorded in paise (₹34.60, ₹23.90) and round to the nearest rupee;
+   * the card prints both the till price and the recorded label, so the
+   * rounding is visible rather than quiet.
+   */
+  priceInr?: number;
   /** The review's own notes on the product — certification, or a warning. */
   tags: string[];
   /** Prescription-only in India. */
@@ -74,6 +88,7 @@ export const PRODUCTS: Product[] = [
     strength: "600 IU D3 (lichen) + MK-7",
     price: "₹649 / 30 strips",
     priceFrom: 649,
+    priceInr: 649,
     tags: ["Vegan", "Vitashine"],
     rx: false,
     pack: "strip",
@@ -90,6 +105,7 @@ export const PRODUCTS: Product[] = [
     strength: "Labelled 100% RDA",
     price: "₹449 / 120 tablets",
     priceFrom: 449,
+    priceInr: 449,
     tags: ["Vegetarian"],
     rx: false,
     pack: "bottle-tab",
@@ -106,6 +122,7 @@ export const PRODUCTS: Product[] = [
     strength: "60,000 IU per 1 g sachet",
     price: "₹34.60 / sachet",
     priceFrom: 34.6,
+    priceInr: 35,
     tags: ["Repletion only"],
     rx: false,
     pack: "sachet",
@@ -122,6 +139,7 @@ export const PRODUCTS: Product[] = [
     strength: "60,000 IU",
     price: "₹362 / 12 capsules",
     priceFrom: 362,
+    priceInr: 362,
     tags: ["Prescription"],
     rx: true,
     pack: "blister",
@@ -138,6 +156,7 @@ export const PRODUCTS: Product[] = [
     strength: "60,000 IU per 5 ml",
     price: "₹466 / 4 × 5 ml",
     priceFrom: 466,
+    priceInr: 466,
     tags: ["Repletion only"],
     rx: false,
     pack: "syrup",
@@ -154,6 +173,7 @@ export const PRODUCTS: Product[] = [
     strength: "500 mg elemental Ca + 250 IU D3",
     price: "₹356 / 40 tablets",
     priceFrom: 356,
+    priceInr: 356,
     tags: ["Calcium too"],
     rx: false,
     pack: "bottle-tab",
@@ -170,6 +190,7 @@ export const PRODUCTS: Product[] = [
     strength: "1,500 mcg methylcobalamin",
     price: "₹193 / 20 tablets",
     priceFrom: 193,
+    priceInr: 193,
     tags: ["Prescription"],
     rx: true,
     pack: "blister",
@@ -186,6 +207,7 @@ export const PRODUCTS: Product[] = [
     strength: "B12 15 mcg + full B-complex",
     price: "₹47.53 / 30 tablets",
     priceFrom: 47.53,
+    priceInr: 48,
     tags: ["Cyanocobalamin"],
     rx: false,
     pack: "blister",
@@ -202,6 +224,7 @@ export const PRODUCTS: Product[] = [
     strength: "B12 15 mcg + folic acid 1.5 mg + C",
     price: "₹62.37 / 20 capsules",
     priceFrom: 62.37,
+    priceInr: 62,
     tags: ["B-complex"],
     rx: false,
     pack: "blister",
@@ -218,6 +241,7 @@ export const PRODUCTS: Product[] = [
     strength: "B12 + methylfolate + Brahmi",
     price: "₹649 / 30 strips",
     priceFrom: 649,
+    priceInr: 649,
     tags: ["Check label dose"],
     rx: false,
     pack: "strip",
@@ -234,6 +258,7 @@ export const PRODUCTS: Product[] = [
     strength: "892 mg EPA + 594 mg DHA per 2 caps",
     price: "₹749 / 60 softgels",
     priceFrom: 749,
+    priceInr: 749,
     tags: ["Highest EPA/DHA found", "Heavy-metal tested"],
     rx: false,
     pack: "bottle-soft",
@@ -250,6 +275,7 @@ export const PRODUCTS: Product[] = [
     strength: "500 mg DHA per 2 caps (no EPA)",
     price: "₹1,350 / 60 capsules",
     priceFrom: 1350,
+    priceInr: 1350,
     tags: ["Vegan", "Published CoA"],
     rx: false,
     pack: "bottle-soft",
@@ -266,6 +292,7 @@ export const PRODUCTS: Product[] = [
     strength: "180 mg EPA + 120 mg DHA per cap",
     price: "₹359 / 60 capsules",
     priceFrom: 359,
+    priceInr: 359,
     tags: ["Low concentration"],
     rx: false,
     pack: "bottle-soft",
@@ -282,6 +309,7 @@ export const PRODUCTS: Product[] = [
     strength: "EPA/DHA split not stated on label",
     price: "₹641 / 2 × 60 capsules",
     priceFrom: 641,
+    priceInr: 641,
     tags: ["Verify dose"],
     rx: false,
     pack: "bottle-soft",
@@ -329,6 +357,7 @@ export const PRODUCTS: Product[] = [
     strength: "3 g per 3.1 g serving, 80 servings",
     price: "₹999 / 250 g",
     priceFrom: 999,
+    priceInr: 999,
     tags: ["No 3rd-party cert"],
     rx: false,
     pack: "tub",
@@ -345,6 +374,7 @@ export const PRODUCTS: Product[] = [
     strength: "~10 g/day target dose",
     price: "₹320 / 180 g",
     priceFrom: 320,
+    priceInr: 320,
     tags: ["Category default"],
     rx: false,
     pack: "jar",
@@ -361,6 +391,7 @@ export const PRODUCTS: Product[] = [
     strength: "25 g protein, 5.51 g BCAA per serving",
     price: "₹7,799 / 2 kg",
     priceFrom: 7799,
+    priceInr: 7799,
     tags: ["Informed Choice", "Labdoor", "Trustified Gold"],
     rx: false,
     pack: "tub",
@@ -377,6 +408,7 @@ export const PRODUCTS: Product[] = [
     strength: ">90% protein, 1% fat",
     price: "₹1,999 / 250 g",
     priceFrom: 1999,
+    priceInr: 1999,
     tags: ["Informed Choice", "Informed Protein"],
     rx: false,
     pack: "pouch",
@@ -393,6 +425,7 @@ export const PRODUCTS: Product[] = [
     strength: "24 g protein, 5.5 g BCAA",
     price: "₹2,309 / 1 lb",
     priceFrom: 2309,
+    priceInr: 2309,
     tags: ["ISO 22000"],
     rx: false,
     pack: "tub",
@@ -409,6 +442,7 @@ export const PRODUCTS: Product[] = [
     strength: "Pea + brown rice + quinoa blend",
     price: "₹1,299 / 500 g",
     priceFrom: 1299,
+    priceInr: 1299,
     tags: ["Vegan blend"],
     rx: false,
     pack: "pouch",
@@ -440,6 +474,7 @@ export const PRODUCTS: Product[] = [
     strength: "440 mg elemental Mg per 2 tablets",
     price: "₹415 / 60 tablets",
     priceFrom: 415,
+    priceInr: 415,
     tags: ["Glycinate", "GMP"],
     rx: false,
     pack: "bottle-tab",
@@ -456,6 +491,7 @@ export const PRODUCTS: Product[] = [
     strength: "340 mg elemental — as OXIDE",
     price: "₹338 / 60 tablets",
     priceFrom: 338,
+    priceInr: 338,
     tags: ["Oxide — poorly absorbed"],
     rx: false,
     pack: "bottle-tab",
@@ -472,6 +508,7 @@ export const PRODUCTS: Product[] = [
     strength: "29 mg elemental + folic acid + zinc",
     price: "₹379 / 60 capsules",
     priceFrom: 379,
+    priceInr: 379,
     tags: ["Bisglycinate", "Gentler GI"],
     rx: false,
     pack: "bottle-cap",
@@ -488,6 +525,7 @@ export const PRODUCTS: Product[] = [
     strength: "Bisglycinate + carbonyl iron + C + B12",
     price: "₹375 / 60 tablets",
     priceFrom: 375,
+    priceInr: 375,
     tags: ["Elemental mg not stated"],
     rx: false,
     pack: "bottle-tab",
@@ -504,6 +542,7 @@ export const PRODUCTS: Product[] = [
     strength: "50 mg elemental + folic acid + zinc",
     price: "₹98 / 15 tablets",
     priceFrom: 98,
+    priceInr: 98,
     tags: ["Pharma dose"],
     rx: false,
     pack: "blister",
@@ -520,6 +559,7 @@ export const PRODUCTS: Product[] = [
     strength: "98.6 mg elemental + B12 + folic acid",
     price: "₹179 / 30 capsules",
     priceFrom: 179,
+    priceInr: 179,
     tags: ["High dose"],
     rx: false,
     pack: "blister",
@@ -536,6 +576,7 @@ export const PRODUCTS: Product[] = [
     strength: "32.8 mg elemental per 15 ml + B12",
     price: "₹198 / 200 ml",
     priceFrom: 198,
+    priceInr: 198,
     tags: ["Liquid"],
     rx: false,
     pack: "syrup",
@@ -552,6 +593,7 @@ export const PRODUCTS: Product[] = [
     strength: "600 mg KSM-66 per capsule",
     price: "₹929 / 60 capsules",
     priceFrom: 929,
+    priceInr: 929,
     tags: ["KSM-66"],
     rx: false,
     pack: "bottle-cap",
@@ -568,6 +610,7 @@ export const PRODUCTS: Product[] = [
     strength: "250 mg extract per tablet",
     price: "₹229 / 60 tablets",
     priceFrom: 229,
+    priceInr: 229,
     tags: ["Cycle it"],
     rx: false,
     pack: "bottle-tab",
@@ -584,6 +627,7 @@ export const PRODUCTS: Product[] = [
     strength: "Traditional loose powder",
     price: "₹170 / 100 g",
     priceFrom: 170,
+    priceInr: 170,
     tags: ["Unstandardised"],
     rx: false,
     pack: "jar",
@@ -600,6 +644,7 @@ export const PRODUCTS: Product[] = [
     strength: "Melatonin 10 mg + Suntheanine 30 mg",
     price: "₹599 / 30 strips",
     priceFrom: 599,
+    priceInr: 599,
     tags: ["10 mg is above the 4 mg optimum"],
     rx: false,
     pack: "strip",
@@ -616,6 +661,7 @@ export const PRODUCTS: Product[] = [
     strength: "300 mg CoQ10 + 40 mcg selenium",
     price: "₹849 / 30 capsules",
     priceFrom: 849,
+    priceInr: 849,
     tags: ["ISO 22000", "HACCP"],
     rx: false,
     pack: "bottle-soft",
@@ -632,6 +678,7 @@ export const PRODUCTS: Product[] = [
     strength: "95% curcuminoids + piperine",
     price: "₹648 / 60 capsules",
     priceFrom: 648,
+    priceInr: 648,
     tags: ["Generic, not C3 Complex"],
     rx: false,
     pack: "bottle-cap",
@@ -648,6 +695,7 @@ export const PRODUCTS: Product[] = [
     strength: "Zinc 17 mg + multivitamin",
     price: "₹104 / 15 tablets",
     priceFrom: 104,
+    priceInr: 104,
     tags: ["India default"],
     rx: false,
     pack: "blister",
@@ -664,6 +712,7 @@ export const PRODUCTS: Product[] = [
     strength: "500 mg",
     price: "₹23.90 / 15 tablets",
     priceFrom: 23.9,
+    priceInr: 24,
     tags: ["Above saturation"],
     rx: false,
     pack: "blister",
@@ -680,6 +729,7 @@ export const PRODUCTS: Product[] = [
     strength: "13 vitamins + 11 minerals",
     price: "₹1,289 / 60 tablets",
     priceFrom: 1289,
+    priceInr: 1289,
     tags: ["Premium end"],
     rx: false,
     pack: "bottle-tab",
@@ -696,6 +746,7 @@ export const PRODUCTS: Product[] = [
     strength: "Zinc 5.49 mg + taurine + ginseng",
     price: "₹399 / 60 tablets",
     priceFrom: 399,
+    priceInr: 399,
     tags: ["Insurance, not medicine"],
     rx: false,
     pack: "bottle-tab",
@@ -712,6 +763,7 @@ export const PRODUCTS: Product[] = [
     strength: "Ginseng 212.5 mg + 10 vitamins",
     price: "₹315 / 30 capsules",
     priceFrom: 315,
+    priceInr: 315,
     tags: ["Energy claims unsupported"],
     rx: false,
     pack: "bottle-soft",
@@ -728,6 +780,7 @@ export const PRODUCTS: Product[] = [
     strength: "8 g peptides per serving",
     price: "₹1,619 / 200 g",
     priceFrom: 1619,
+    priceInr: 1619,
     tags: ["Weak evidence"],
     rx: false,
     pack: "jar",
@@ -744,6 +797,7 @@ export const PRODUCTS: Product[] = [
     strength: "Zinc form and elemental mg not stated",
     price: "₹399 / 60 tablets",
     priceFrom: 399,
+    priceInr: 399,
     tags: ["Label unclear"],
     rx: false,
     pack: "bottle-tab",
@@ -753,6 +807,26 @@ export const PRODUCTS: Product[] = [
     image: "https://img4.hkrtcdn.com/39197/prd_3919673-HealthKart-HK-Vitals-Zinc-Complex-60-tablets_c_l.jpg",
   },
 ];
+
+/**
+ * CAN THIS CITY SELL IT?
+ *
+ * Two ways to be un-sellable and they are not the same absence, which is why
+ * a screen must be able to tell them apart:
+ *
+ *   NO TILL PRICE — the review recorded a range or no stock, so there is no
+ *   single number to charge. Three products. Nothing to do but say so.
+ *
+ *   PRESCRIPTION ONLY — there IS a price and the product is real, and a shop
+ *   that put it in a basket beside a tub of whey would be selling a licensed
+ *   drug on a fitness page. Two products. They keep their card, their evidence
+ *   and their price, and their button goes to the prescriptions hub instead of
+ *   to a checkout.
+ *
+ * Stated as a function rather than as a `sellable: true` column because a flag
+ * in the data can be edited by whoever adds the next row, and this cannot.
+ */
+export const sellable = (p: Product): boolean => typeof p.priceInr === 'number' && !p.rx;
 
 /** Every product for one supplement, cheapest-known first, prescription last.
  *  A product with no readable price sorts to the end rather than to zero. */

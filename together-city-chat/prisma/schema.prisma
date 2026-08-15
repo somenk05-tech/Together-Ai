@@ -158,6 +158,8 @@ model User {
   privacySettings      PrivacySetting[]
   beautyProfile        BeautyProfile?
   beautyOrders         BeautyOrder[]
+  supplementBag        SupplementBag?
+  supplementOrders     SupplementOrder[]
   fitnessProfile       FitnessProfile?
   workoutLogs          WorkoutLog[]
   cityWallet           CityWallet?
@@ -1343,6 +1345,52 @@ model BeautyOrder {
   id        String   @id @default(uuid())
   userId    String
   itemsJson String // JSON array of {id,name,priceInr,qty}
+  totalInr  Int
+  status    String   @default("placed") // placed | cancelled
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+/// THE SUPPLEMENT BAG — one per citizen, and the only place a basket lives.
+///
+/// A JSON column rather than a row per line, for the reason Beauty's bag is
+/// the same shape: a bag is replaced wholesale on every change, it is never
+/// queried across citizens, and nothing joins to a line of it. Two tables and
+/// a foreign key would buy referential integrity over a list that is rewritten
+/// in full a moment later.
+///
+/// IT HOLDS IDS AND QUANTITIES AND NOTHING ELSE. No price is stored here. The
+/// bag is a statement of intent; what it costs is read off the shelf every
+/// time it is displayed and again when it is paid for, so a bag left open for
+/// a week cannot lock in yesterday's number.
+model SupplementBag {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  linesJson String   @default("[]")
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// A SUPPLEMENT ORDER — the receipt, priced on the day.
+///
+/// `itemsJson` is a snapshot of what was charged, NOT a list of ids to look up
+/// later. A receipt that changes when a shelf price changes is not a receipt,
+/// and a product removed from the catalogue must not erase the fact that
+/// somebody bought it.
+///
+/// This exists before any route that takes money does. Nutrition's grocery
+/// checkout charged the wallet and wrote seven delivery rows that nothing in
+/// the app ever rendered — the citizen paid and had nowhere to see what they
+/// had bought — and it was removed for exactly that. GET /fitness/store/orders
+/// is why this table is allowed to be written to.
+model SupplementOrder {
+  id        String   @id @default(uuid())
+  userId    String
+  itemsJson String
   totalInr  Int
   status    String   @default("placed") // placed | cancelled
   createdAt DateTime @default(now())

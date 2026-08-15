@@ -30,7 +30,9 @@ import { useSupplementPlan, type Bucket, type Recommendation } from '@/api/suppl
  * WHERE THE MONEY WENT. There is no price and no "add to kit" anywhere on this
  * page. Selling is a different act from advising, and a page that does both at
  * once cannot be trusted with the second — the moment a refusal costs revenue,
- * the refusals get quieter. The shelf can come back as its own screen.
+ * the refusals get quieter. The shelf came back as its own screen, at
+ * /fitness/store, and it carries this page's verdict on every card it sells —
+ * including the twelve products it sells under a refusal.
  */
 
 const BUCKETS: Array<{ id: Bucket; dot: string; title: string; blurb: string }> = [
@@ -146,6 +148,14 @@ export function Supplements() {
           <p className="lede" style={{ marginTop: 6 }}>
             Built from your blood work, your diet, your medicines and your goal — and from an evidence
             review, not a catalogue. About a third of it is what to stop buying.
+          </p>
+          {/* THE DOOR TO THE SHELF, AND IT IS A DOOR RATHER THAN A BUTTON.
+              This page holds the opinion; the store holds the bottles, at the
+              retailers that sell them, with this page's verdict printed on
+              every card. Two screens because they are two acts. */}
+          <p style={{ marginTop: 10, fontSize: 13.5 }}>
+            <Link to="/fitness/store">Every one of these is in the store</Link>
+            <span className="muted"> — 43 products verified in India, at the shops that sell them.</span>
           </p>
         </div>
       </div>

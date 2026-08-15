@@ -3,7 +3,9 @@ import { join } from 'node:path';
 import { recommend, type Citizen } from './supplements.engine';
 import { SUPPLEMENTS, DO_NOT_RECOMMEND } from './knowledge';
 import { CUTOFF } from './labs';
-import { AISLES, PRODUCTS, STOCKED, productsFor } from './products';
+import { AISLES, PRODUCTS, STOCKED, productsFor, sellable } from './products';
+import { MAX_QTY, normaliseBag, parseBag, priceBagForDisplay, priceSupplementOrder } from './supplements.bag';
+import { PlaceSupplementOrderSchema } from '../dto/supplements.dto';
 
 /**
  * THE SUPPLEMENT ENGINE IS A SAFETY DEVICE BEFORE IT IS A FEATURE.
@@ -316,5 +318,139 @@ describe('the store sells nothing this city cannot cite', () => {
   it('and three supplements have no verified Indian product, which the store must be able to say', () => {
     const missing = SUPPLEMENTS.map((s) => s.id).filter((id) => !STOCKED.includes(id));
     expect(missing.sort()).toEqual(['folate', 'l-theanine', 'vitamin-k2']);
+  });
+});
+
+/* ══ THE TILL ═══════════════════════════════════════════════════════════════
+   The owner, 15 Aug: a Together City cart, and no links out. Money moves now,
+   so these are not tests about a feature working. They are the four ways a
+   till goes wrong. */
+
+describe('the client says what it wants and the server says what it costs', () => {
+  const d3 = PRODUCTS.find((p) => p.id === 'carbamide-forte-vitamin-d3-k2-mk-7-lichen-source')!;
+
+  it('prices a bag off the shelf, times the quantity asked for', () => {
+    const out = priceSupplementOrder([{ id: d3.id, qty: 3 }]);
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.totalInr).toBe((d3.priceInr as number) * 3);
+    expect(out.lines[0].priceInr).toBe(d3.priceInr);
+  });
+
+  it('and there is nowhere in the request for a price to arrive', () => {
+    // The beauty bug in one assertion: POST /beauty/orders summed `priceInr`
+    // out of the request body, so a ₹1,690 retinal named at ₹1 was charged ₹1.
+    // This schema was written after that and never accepted the field at all —
+    // which is stronger than accepting it and remembering to ignore it.
+    const parsed = PlaceSupplementOrderSchema.parse({
+      items: [{ id: d3.id, qty: 1, priceInr: 1, name: 'Free vitamins' }],
+    });
+    expect(parsed.items[0]).toEqual({ id: d3.id, qty: 1 });
+    expect(JSON.stringify(parsed)).not.toMatch(/priceInr|Free vitamins/);
+  });
+
+  it('two lines for one product are one line, and a quantity has bounds', () => {
+    const bag = normaliseBag([
+      { id: d3.id, qty: 4 }, { id: d3.id, qty: 5 },
+      { id: d3.id, qty: -2 }, { id: 'x', qty: 0 }, { id: '', qty: 1 }, null, 'nonsense',
+    ]);
+    expect(bag).toEqual([{ id: d3.id, qty: 9 }]);
+    expect(normaliseBag([{ id: d3.id, qty: 9999 }])[0].qty).toBe(MAX_QTY);
+  });
+
+  it('a bag read back out of the database is normalised again on the way out', () => {
+    // The column is a string somebody may one day have edited by hand, and a
+    // reader that trusts its own writes has never met a migration.
+    expect(parseBag(JSON.parse('[{"id":"' + d3.id + '","qty":"7"}]'))).toEqual([]);
+    expect(parseBag('not an array')).toEqual([]);
+  });
+});
+
+describe('what this city will not put through a checkout', () => {
+  it('a prescription-only medicine, by name, pointing somewhere else', () => {
+    const rx = PRODUCTS.find((p) => p.rx)!;
+    const out = priceSupplementOrder([{ id: rx.id, qty: 1 }]);
+    expect(out.ok).toBe(false);
+    if (out.ok) return;
+    expect(out.prescriptionIds).toContain(rx.id);
+  });
+
+  it('a product with no single recorded price — rather than guessing at one', () => {
+    // "₹379–₹999 (100–400 g)" is three products wearing one row, and the middle
+    // of a range is a number nobody published.
+    const ranged = PRODUCTS.find((p) => typeof p.priceInr !== 'number')!;
+    const out = priceSupplementOrder([{ id: ranged.id, qty: 1 }]);
+    expect(out.ok).toBe(false);
+    if (out.ok) return;
+    expect(out.unpricedIds).toContain(ranged.id);
+  });
+
+  it('and an id that is not on the shelf at all', () => {
+    const out = priceSupplementOrder([{ id: 'not-a-product', qty: 1 }]);
+    expect(out.ok).toBe(false);
+    if (out.ok) return;
+    expect(out.unknownIds).toEqual(['not-a-product']);
+  });
+
+  it('a refusal is named in its own category, never silently dropped from the total', () => {
+    // A basket that quietly costs less than it showed is the same bug as one
+    // that quietly costs more.
+    const rx = PRODUCTS.find((p) => p.rx)!;
+    const good = PRODUCTS.find((p) => sellable(p))!;
+    const out = priceSupplementOrder([{ id: good.id, qty: 1 }, { id: rx.id, qty: 1 }]);
+    expect(out.ok).toBe(false);
+  });
+});
+
+describe('the till price and the price on the label are the same number', () => {
+  it('every priceInr is the one ₹ amount its own label records', () => {
+    for (const p of PRODUCTS) {
+      if (typeof p.priceInr !== 'number') continue;
+      const amounts = (p.price ?? '').match(/₹\s*[\d,]+(?:\.\d+)?/g) ?? [];
+      expect({ id: p.id, recorded: amounts.length }).toEqual({ id: p.id, recorded: 1 });
+      const rupees = Number((amounts[0] ?? '').replace(/[₹,\s]/g, ''));
+      expect({ id: p.id, till: p.priceInr }).toEqual({ id: p.id, till: Math.round(rupees) });
+    }
+  });
+
+  it('exactly three products have no till price, and the shelf can say which', () => {
+    const unpriced = PRODUCTS.filter((p) => typeof p.priceInr !== 'number');
+    expect(unpriced).toHaveLength(3);
+    for (const p of unpriced) expect(p.price ?? 'Stock intermittent').toMatch(/–|Stock intermittent/);
+  });
+
+  it('thirty-eight of the forty-three can actually be bought here', () => {
+    expect(PRODUCTS.filter(sellable)).toHaveLength(38);
+  });
+
+  it('a bag for display shows an unsellable line rather than deleting it', () => {
+    // A citizen may have had it in the bag since before the shelf changed, and
+    // removing it without a word is how a bag lies about itself.
+    const rx = PRODUCTS.find((p) => p.rx)!;
+    const shown = priceBagForDisplay([{ id: rx.id, qty: 2 }]);
+    expect(shown.lines).toHaveLength(1);
+    expect(shown.totalInr).toBe(0);
+    expect(shown.unsellable).toBe(1);
+  });
+});
+
+describe('nothing on this shelf sends anybody somewhere else to buy it', () => {
+  const service = readFileSync(join(__dirname, 'supplements.service.ts'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+
+  it('the store payload drops the retailer link and the retailer photograph', () => {
+    // Dropped on the WIRE rather than in a component, so no screen can put
+    // either back by accident. This city sells these itself now, and a shop
+    // with a door to a rival checkout is not a shop.
+    expect(service).toMatch(/delete listed\.url;/);
+    expect(service).toMatch(/delete listed\.image;/);
+    expect(service).not.toMatch(/\burl:\s*p\.url\b/);
+  });
+
+  it('and what survives is provenance, not a route out', () => {
+    // `retailer` stays: it is the claim the review was making — that this is a
+    // real product somebody actually stocks in India — and it is a name, not a
+    // link.
+    expect(PRODUCTS.every((p) => p.retailer.length > 1)).toBe(true);
   });
 });
