@@ -114,6 +114,7 @@ const DatingChats = lazy(() => import('@/features/dating/pages/DatingChats').the
 const Thoughts = lazy(() => import('@/features/thoughts/pages/Thoughts').then((m) => ({ default: m.Thoughts })));
 const PersonalHome = lazy(() => import('@/features/personal/pages/PersonalHome').then((m) => ({ default: m.PersonalHome })));
 const Album = lazy(() => import('@/features/personal/pages/Album').then((m) => ({ default: m.Album })));
+const DayPage = lazy(() => import('@/features/daybook/pages/DayPage').then((m) => ({ default: m.DayPage })));
 const Avatars = lazy(() => import('@/features/avatars/pages/Avatars').then((m) => ({ default: m.Avatars })));
 const Medicines = lazy(() => import('@/features/medicines/pages/Medicines').then((m) => ({ default: m.Medicines })));
 const DatingAdminStats = lazy(() => import('@/features/dating/pages/DatingAdminStats').then((m) => ({ default: m.DatingAdminStats })));
@@ -231,6 +232,8 @@ export const router = createBrowserRouter([
          own page gathers them; the album is the one new room. */
       { path: '/personal', element: <RequireAuth>{wrap(<PersonalHome />)}</RequireAuth> },
       { path: '/personal/album', element: <RequireAuth>{wrap(<Album />)}</RequireAuth> },
+      /* One day of the daybook. The calendar is the map; this is the place. */
+      { path: '/daybook/:date', element: <RequireAuth>{wrap(<DayPage />)}</RequireAuth> },
       { path: '/thoughts', element: <RequireAuth>{wrap(<Thoughts />)}</RequireAuth> },
       { path: '/chats', element: <RequireAuth>{wrap(<Chats />)}</RequireAuth> },
       // The mobile bottom bar's doors: the whole city on one screen, and the

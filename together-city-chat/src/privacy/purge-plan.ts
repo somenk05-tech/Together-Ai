@@ -160,6 +160,8 @@ export const PURGE_RULES: PurgeRule[] = [
 
   // ── Private hubs. Nobody else has ever been able to see any of this.
   { model: 'Thought', by: 'userId', action: 'purge', reason: 'A private journal. If anything here is purged, this is.' },
+  { model: 'DayPage', by: 'userId', action: 'purge', reason: 'How their days felt and what they wrote in them. A diary, and it goes with the diarist.' },
+  { model: 'DayItem', by: 'userId', action: 'purge', reason: 'What they meant to do on a given day. Nobody else has a use for a stranger’s Tuesday.' },
   { model: 'MasterProfile', by: 'userId', action: 'purge', reason: 'The cross-hub profile — birth details, body, preferences.' },
   { model: 'ProfileChange', by: 'userId', action: 'purge', reason: 'Audit trail of profile edits — holds the old and new values of health data, so it is the citizen\'s data too, not just a record that they had some.' },
   { model: 'GroceryListItem', by: 'userId', action: 'purge', reason: 'Their shopping list, including anything they added by hand. Small, and theirs.' },

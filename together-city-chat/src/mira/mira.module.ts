@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { DaybookModule } from '../daybook/daybook.module';
 import { DiscoveryModule } from '@nestjs/core';
 import { AiModule } from '../ai/ai.module';
 import { FinancialModule } from '../financial/financial.module';
@@ -45,7 +46,7 @@ import { MiraLedger } from './ledger';
  * one of those it will be one route at a time, with the argument written down.
  */
 @Module({
-  imports: [
+  imports: [DaybookModule, 
     DiscoveryModule,
     // The model behind her conversation lane. Everything else about her stays
     // deterministic; AiService degrades to null without a key, and she

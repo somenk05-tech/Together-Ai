@@ -115,6 +115,8 @@ const svc = (over: Partial<Hubs> = {}) => {
     as<18>({ enabled: false, converse: async () => null }),
     // Prisma, unreachable: with the model off, nothing in ask() touches it.
     as<19>({}),
+    // The daybook, likewise: only readDay() reads it, and readDay is not ask().
+    as<20>({}),
   );
 };
 

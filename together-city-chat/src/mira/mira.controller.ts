@@ -114,6 +114,14 @@ export const ThreadSchema = z.object({
 });
 export type ThreadDto = z.infer<typeof ThreadSchema>;
 
+/** One day of the citizen's own daybook, and what they want to know about it. */
+export const DaySchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'a YYYY-MM-DD date'),
+  ask: z.string().min(1).max(2000),
+  tz: z.string().min(1).max(64).regex(/^[A-Za-z][\w+\-]*(?:\/[\w+\-]+)*$/, 'an IANA timezone').optional(),
+});
+export type DayDto = z.infer<typeof DaySchema>;
+
 /**
  * What she needs to say hello, and all of it comes from the CLIENT.
  *
@@ -224,6 +232,21 @@ export class MiraController {
   @UsePipes(new ZodValidationPipe(ThreadSchema))
   thread(@CurrentUser() user: JwtUser, @Query() q: ThreadDto) {
     return this.mira.thread(user.sub, q.room === 'friend' ? 'friend' : 'city');
+  }
+
+  /**
+   * Mira reads ONE DAY — the citizen's own page from the daybook.
+   *
+   * A separate route from `confide` because the source is different in the
+   * way that matters: a chat window is somebody else's words handed over by
+   * the person looking at them, and a daybook page is the citizen's own
+   * record, read from the server. Same scope discipline either way — one
+   * day, nothing around it.
+   */
+  @Post('day')
+  @UsePipes(new ZodValidationPipe(DaySchema))
+  day(@CurrentUser() user: JwtUser, @Body() dto: DayDto) {
+    return this.mira.readDay(user.sub, dto.date, dto.ask, dto.tz);
   }
 
   /**

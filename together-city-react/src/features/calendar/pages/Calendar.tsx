@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, Button, EmptyState } from '@/components/ui';
+import { useDaybookMonth } from '@/api/daybook.api';
 
 type View = 'month' | 'week' | 'day';
 
@@ -30,9 +31,19 @@ function iso(d: Date): string {
 }
 
 /**
- * Master Calendar — every hub's scheduled items in one view. Bookings, tables,
- * tests, workouts and dates flow in here as you make them across Together City.
- * Real data only: nothing is pre-populated.
+ * MY DAYBOOK — the month as a MAP, not a container.
+ *
+ * This page used to promise every hub's bookings in one view, over a grid with
+ * `const activities: Activity[] = []` behind it: no API, no model, no data, and
+ * a subtitle describing all of it. The owner's answer (15 Aug) was not to go
+ * and fetch the bookings — a calendar tells you what is SCHEDULED, and what
+ * people actually want is the record of the day.
+ *
+ * So every date is a door into `features/daybook`, and the only thing the grid
+ * is allowed to show is a MARK: a count of the lines on a day, a dot if it was
+ * written in. Never a title, never a mood, never a word of the page — a diary
+ * you can read over somebody's shoulder from across the room is not private.
+ * Opening a day is a second, deliberate act.
  */
 export function Calendar() {
   const today = useMemo(() => new Date(), []);
@@ -53,6 +64,10 @@ export function Calendar() {
   };
 
   const year = cursor.getFullYear(), month = cursor.getMonth();
+  /* WHICH DAYS HOLD SOMETHING. Counts, never contents — the grid is allowed to
+     say that a day has a page, never what the page says. Reading it is a
+     second, deliberate act: you open the day. */
+  const marks = useDaybookMonth(`${year}-${String(month + 1).padStart(2, '0')}`);
   const firstDow = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const cells: (number | null)[] = [
@@ -75,9 +90,12 @@ export function Calendar() {
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
           <div className="eyebrow">Together City</div>
-          <h1 style={{ margin: '2px 0 4px' }}>Master Calendar</h1>
-          <p className="lede" style={{ margin: 0 }}>Everything scheduled, one calendar.</p>
-          <p className="muted" style={{ fontSize: 13, marginTop: 2 }}>Flights, tables, tests, workouts and dates — every hub in one view.</p>
+          <h1 style={{ margin: '2px 0 4px' }}>My Daybook</h1>
+          <p className="lede" style={{ margin: 0 }}>Everything that makes up your day.</p>
+          {/* IT SAID "every hub in one view" WHILE SHOWING AN EMPTY GRID. The
+              hub bookings were never wired in; this page's own promise is the
+              one it can keep today — open a day and it is yours to keep. */}
+          <p className="muted" style={{ fontSize: 13, marginTop: 2 }}>Open any day to keep it: how it felt, what was on it, what you want to remember.</p>
         </div>
         <Link to="/restaurants/explore"><Button variant="accent" size="sm">Book a table</Button></Link>
       </div>
@@ -123,14 +141,24 @@ export function Calendar() {
               const dstr = iso(new Date(year, month, day));
               const isToday = dstr === iso(today);
               const evs = byDate(dstr);
+              /* A DATE IS A DOOR NOW, not a box that holds events. The grid is
+                 the map; the day is the place (see features/daybook). A mark
+                 says the day holds something — a page written, or lines on
+                 it — and says nothing about what. */
+              const mark = marks.data?.[dstr];
               return (
-                <div key={i} style={{ minHeight: 64, borderRadius: 8, padding: 6, border: '1px solid var(--line)',
-                  background: isToday ? 'rgba(47,159,224,.10)' : 'transparent', outline: isToday ? '1px solid var(--accent)' : 'none' }}>
+                <Link key={i} to={`/daybook/${dstr}`} className="cal-day"
+                  aria-label={`Open ${dstr}${mark ? ' — this day has something on it' : ''}`}
+                  style={{ minHeight: 64, borderRadius: 8, padding: 6, border: '1px solid var(--line)', display: 'block',
+                    textDecoration: 'none', color: 'var(--ink)',
+                    background: isToday ? 'rgba(47,159,224,.10)' : 'transparent', outline: isToday ? '1px solid var(--accent)' : 'none' }}>
                   <div style={{ fontSize: 12, fontWeight: isToday ? 800 : 600, color: isToday ? 'var(--accent)' : 'var(--ink)' }}>{day}</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 4 }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 4, alignItems: 'center' }}>
                     {evs.map((e) => <span key={e.id} title={e.title} style={{ width: 6, height: 6, borderRadius: '50%', background: catColor(e.category) }} />)}
+                    {mark?.items ? <span className="cal-mark">{mark.items}</span> : null}
+                    {mark?.written ? <span className="cal-written" aria-hidden>·</span> : null}
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>

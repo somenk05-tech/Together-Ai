@@ -49,6 +49,7 @@ import { HealthModule } from './health/health.module';
 import { AstrologyModule } from './astrology/astrology.module';
 import { PrivacyModule } from './privacy/privacy.module';
 import { ThoughtsModule } from './thoughts/thoughts.module';
+import { DaybookModule } from './daybook/daybook.module';
 import { PrescriptionsModule } from './prescriptions/prescriptions.module';
 import { CallsModule } from './calls/calls.module';
 import { AvatarsModule } from './avatars/avatars.module';
@@ -109,6 +110,7 @@ import { AvatarsModule } from './avatars/avatars.module';
     MiraModule,
     PrivacyModule,
     ThoughtsModule,
+    DaybookModule,
     PrescriptionsModule,
     CallsModule,
     AvatarsModule,

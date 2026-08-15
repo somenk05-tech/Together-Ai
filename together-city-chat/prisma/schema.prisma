@@ -163,6 +163,8 @@ model User {
   cityWallet           CityWallet?
   miraPass             MiraPass?
   miraTurns            MiraTurn[]
+  dayPages             DayPage[]
+  dayItems             DayItem[]
   walletTxns           WalletTxn[]
   masterProfile        MasterProfile?
   astroProfile         AstroProfile?
@@ -3036,4 +3038,61 @@ model ServiceMessage {
   enquiry ServiceEnquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
 
   @@index([enquiryId, createdAt])
+}
+
+/// THE DAYBOOK — a day as the person who lived it recorded it.
+///
+/// The calendar was a grid with nothing behind it: every hub's bookings were
+/// meant to flow into it and none ever did, so it rendered an empty month and
+/// called itself a Master Calendar. This is the other half of the idea, and
+/// the half that could not be borrowed from anywhere else — the day as the
+/// citizen keeps it rather than as the city scheduled it.
+///
+/// THE DATE IS A STRING, DELIBERATELY. A day is something people live in
+/// their own timezone; an instant stored in UTC and read back in another zone
+/// silently becomes the day before, which for a diary is not a rounding error
+/// but the wrong page. YYYY-MM-DD is the day they meant, everywhere.
+model DayPage {
+  id     String @id @default(uuid())
+  userId String
+  /// YYYY-MM-DD, in the citizen's own calendar.
+  date   String
+  /// One word for how the day felt, from a list they can ignore — free text,
+  /// for the reason Thought.mood is free text: a fixed list of moods tells
+  /// people which feelings are allowed.
+  mood     String?
+  /// What is behind the mood, in their words.
+  feelNote String?
+  /// The day's page. Private, always — there is no visibility column here
+  /// because there is no version of this that is shared.
+  journal  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+/// One line on a day's page: a task, a meeting, a reminder, an appointment.
+/// The kind is a string rather than an enum because the list will grow (an
+/// alarm, a habit, a hub booking flowing in) and a migration per new kind is
+/// how a product stops adding them.
+model DayItem {
+  id     String @id @default(uuid())
+  userId String
+  date   String
+  kind   String  @default("task")
+  title  String
+  /// HH:MM in their own clock, when the thing has a time. Absent is not a
+  /// missing value — most of what people mean to do has no hour.
+  at     String?
+  done   Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
 }

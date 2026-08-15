@@ -1411,222 +1411,6 @@ textarea.g-field { resize: none; line-height: 1.55; }
   .g-key:not(:disabled):hover { transform: none; }
 }
 
-/* ══ SOCIAL LIFE — THE SHEET ══════════════════════════════════════════════
-   THE GLASS ABOVE WAS DRAWN FOR A GROUND THAT NO LONGER EXISTS.
-
-   `.g-*` says so itself, in its own first paragraph: "the ground here is white,
-   and clear glass on white has nothing behind it to bend." It was built while
-   Social Life still held a lavender ground and it was meant to be lit by it.
-   That grant was handed back — tokens.css records the return — and what was
-   left is a white-on-white material where a field, a key and the page are three
-   shades of the same white. The owner's screenshot of Thoughts is the whole
-   argument: a form with four controls in it, none of which looks like somewhere
-   to type.
-
-   THIS IS THE CITY'S OWN PAPER, GIVEN THE SHAPES THE HUB NEEDS. No new depth,
-   no new face, no new ink: `.card`, `.btn`, `--line`, `--e1` and the ink scale,
-   exactly as the other twenty-four rooms use them. What is new here is
-   GEOMETRY — a composer, a tab rail, a post, an attach grid, a settings row —
-   because those are shapes the city did not have, not materials it lacks.
-
-   ONE PLACE SPENDS HUE, and it spends the tints the mail folders already
-   measured: the eight attach tiles on Create Post, where the icon chip carries
-   the colour and the glyph stays ink. That is the folder block's own rule,
-   written there because a tinted glyph reads between 1.68:1 and 3.33:1 and a
-   tinted FACE reads 17.85:1 at its worst. Nothing else in the hub is coloured.
-
-   `.g-*` is left standing. `tap-targets.test.ts` asserts `.g-key.sm` by name,
-   so retiring the family is a change to a guard as well as to a stylesheet, and
-   that belongs in its own commit rather than riding along with this one. */
-
-/* ── the page head: what this is, and the one thing you came to do ────── */
-.sl-head { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 16px; }
-.sl-head-t { flex: 1 1 auto; min-width: 0; }
-.sl-head-t h1 { font-size: clamp(23px, 5.2vw, 30px); margin: 3px 0 5px; }
-.sl-head-t p { margin: 0; font-size: 13.5px; color: var(--muted); }
-.sl-head > .btn { flex: 0 0 auto; }
-
-/* ── the composer: a door to Create Post, not a second one ────────────── */
-.sl-composer { padding: 13px 15px 5px; }
-.sl-open {
-  display: flex; align-items: center; gap: 12px; width: 100%;
-  padding: 5px 3px 13px; background: none; border: 0; cursor: pointer;
-  font-family: var(--sans); font-size: 15px; color: var(--muted); text-align: left;
-}
-.sl-open span { flex: 1 1 auto; min-width: 0; }
-/* Four doors and a way through. Each is a real target at 44px tall and none of
-   them is a second composer — they open the one that exists, already on the
-   right control. */
-.sl-quicks { display: flex; align-items: center; border-top: 1px solid var(--line); }
-.sl-quick {
-  flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center; justify-content: center;
-  gap: 7px; height: 52px; padding: 0 4px; background: none; border: 0; cursor: pointer;
-  font-family: var(--sans); font-size: 12.5px; font-weight: 600; color: var(--ink-soft);
-}
-.sl-quick + .sl-quick { border-left: 1px solid var(--line); }
-.sl-quick-l { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@media (max-width: 400px) { .sl-quick-l { display: none; } }
-
-/* ── the tab rail. A rule under the row, a heavier one under the tab ──── */
-.sl-tabs {
-  display: flex; gap: 24px; overflow-x: auto; scrollbar-width: none;
-  border-bottom: 1px solid var(--line); margin: 18px 0 14px;
-}
-.sl-tabs::-webkit-scrollbar { display: none; }
-.sl-tab {
-  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px;
-  height: 46px; padding: 0 1px; margin-bottom: -1px;
-  background: none; border: 0; border-bottom: 2px solid transparent; cursor: pointer;
-  font-family: var(--sans); font-size: 14.5px; font-weight: 600; color: var(--muted);
-  transition: color var(--dur-base) var(--ease);
-}
-.sl-tab.on { color: var(--ink); border-bottom-color: var(--ink); font-weight: 700; }
-
-/* ── a band that names a run of things, and counts it ─────────────────── */
-.sl-band { display: flex; align-items: center; gap: 13px; padding: 2px 2px 14px; }
-.sl-band-t { flex: 1 1 auto; min-width: 0; }
-.sl-band-t b { display: block; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; font-weight: 700; }
-.sl-band-t span { display: block; font-size: 12.5px; color: var(--muted); margin-top: 3px; }
-.sl-band-more {
-  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px; min-height: 44px;
-  background: none; border: 0; padding: 0 2px; cursor: pointer;
-  font-family: var(--sans); font-size: 13px; font-weight: 600; color: var(--ink);
-}
-.sl-band-more:disabled { color: var(--muted); cursor: default; }
-
-/* ── a carved-free icon chip: the city's raised face at three sizes ───── */
-.sl-ic {
-  display: grid; place-items: center; flex: 0 0 auto;
-  width: 42px; height: 42px; border-radius: var(--r-2);
-  background: var(--face); box-shadow: var(--e1); color: var(--ink-soft);
-}
-.sl-ic.lg { width: 76px; height: 76px; border-radius: var(--r-4); }
-.sl-ic.sm { width: 34px; height: 34px; border-radius: var(--r-1); }
-/* A mark that labels rather than lifts: the lock beside a heading is part of
-   the word, not an object sitting on the page. */
-.sl-ic.flat { box-shadow: none; color: var(--ink); }
-.sl-ic.amber { background: var(--fold-amber-face); }
-
-/* ── one post, on a phone ─────────────────────────────────────────────── */
-.sl-post { padding: 14px 15px 4px; margin-bottom: 14px; }
-.sl-post-head { display: flex; align-items: flex-start; gap: 11px; }
-.sl-post-id { flex: 1 1 auto; min-width: 0; }
-.sl-post-name { font-size: 14.5px; font-weight: 700; letter-spacing: -.01em; }
-.sl-post-name .sl-at { font-weight: 400; color: var(--muted); }
-.sl-post-meta {
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-  font-size: 12px; color: var(--muted); margin-top: 2px;
-}
-.sl-post-text { margin: 11px 0 0; font-size: 14.5px; line-height: 1.55; white-space: pre-wrap; }
-.sl-media { position: relative; margin-top: 11px; border-radius: var(--r-2); overflow: hidden; background: var(--media-bg); }
-.sl-acts { display: flex; align-items: center; gap: 20px; padding: 2px 0; margin-top: 4px; }
-.sl-act {
-  display: inline-flex; align-items: center; gap: 7px; min-height: 44px;
-  background: none; border: 0; padding: 0; cursor: pointer;
-  font-family: var(--sans); font-size: 13.5px; font-weight: 600; color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-.sl-act.on { color: var(--ink); }
-.sl-act:disabled { cursor: default; }
-.sl-act-end { margin-left: auto; }
-
-/* ── the attach grid on Create Post ───────────────────────────────────── */
-.sl-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
-@media (max-width: 700px) { .sl-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-.sl-tile {
-  display: grid; justify-items: center; align-content: center; gap: 8px;
-  min-height: 86px; padding: 12px 5px; border: 0; border-radius: var(--r-2); cursor: pointer;
-  background: var(--face); box-shadow: var(--e1);
-  font-family: var(--sans); font-size: 11.5px; font-weight: 600; color: var(--ink);
-  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease);
-}
-@media (hover: hover) and (pointer: fine) {
-  .sl-tile:hover { transform: translateY(-2px); box-shadow: var(--e2); }
-}
-.sl-tile-l { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sl-tile-ic { display: grid; place-items: center; width: 34px; height: 34px; border-radius: var(--r-1); color: var(--ink); }
-.sl-tile-blue   .sl-tile-ic { background: var(--fold-blue-face); }
-.sl-tile-green  .sl-tile-ic { background: var(--fold-green-face); }
-.sl-tile-purple .sl-tile-ic { background: var(--fold-purple-face); }
-.sl-tile-amber  .sl-tile-ic { background: var(--fold-amber-face); }
-.sl-tile-pink   .sl-tile-ic { background: var(--fold-pink-face); }
-.sl-tile-orange .sl-tile-ic { background: var(--fold-orange-face); }
-.sl-tile-teal   .sl-tile-ic { background: var(--fold-teal-face); }
-.sl-tile-violet .sl-tile-ic { background: var(--fold-violet-face); }
-.sl-tile.on { background: var(--well); box-shadow: var(--press); font-weight: 700; }
-.sl-tile.on:hover { transform: none; }
-
-/* ── a settings list: a label, what it says now, and a way in ─────────── */
-.sl-rows { padding: 2px 16px; }
-.sl-row {
-  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 54px;
-  padding: 0; background: none; border: 0; cursor: pointer; text-align: left;
-  font-family: var(--sans); font-size: 14px; font-weight: 600; color: var(--ink);
-}
-/* A general sibling, not an adjacent one: a row's open panel sits between it
-   and the next row, and `+` would drop the rule the moment anything expands. */
-.sl-rows > .sl-row ~ .sl-row { border-top: 1px solid var(--line); }
-.sl-row-v { margin-left: auto; font-size: 13.5px; font-weight: 500; color: var(--muted); }
-
-/* ── a notice with a mark beside it ───────────────────────────────────── */
-.sl-note { display: flex; gap: 13px; align-items: flex-start; }
-.sl-note-t { min-width: 0; }
-.sl-note-t b { display: block; font-size: 13.5px; font-weight: 700; color: var(--ink); margin-bottom: 3px; }
-.sl-note-t p { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--muted); }
-
-/* ── fields that look like somewhere to type ──────────────────────────────
-   THE SELECTOR IS THAT LONG FOR THE REASON `.mail-search` IS. The global field
-   rule is `input:not([type=checkbox]):not([type=radio]):not([type=range])`,
-   which scores (0,3,1) — more than any sane class. A bare `.sl-field` loses the
-   cascade silently and renders carved, which is the material this block exists
-   to stop using. So the input arm matches it exactly and sits below it. */
-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]).sl-field,
-textarea.sl-field,
-.sl-field {
-  width: 100%; box-sizing: border-box; border: 1px solid var(--line); border-radius: var(--r-2);
-  padding: 13px 15px; background: var(--card); box-shadow: none; outline: none;
-  font-family: var(--sans); font-size: 14.5px; color: var(--ink);
-}
-.sl-field::placeholder { color: var(--muted); }
-.sl-field:focus, .sl-field:focus-visible, .sl-field:focus-within { box-shadow: var(--focus-ring); }
-textarea.sl-field { resize: vertical; line-height: 1.6; min-height: 132px; }
-.sl-lab { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink); margin: 0 0 7px; }
-.sl-lab em { font-style: normal; font-weight: 400; color: var(--muted); }
-.sl-hint { margin: 6px 0 0; font-size: 11.5px; color: var(--faint); }
-.sl-wrap { position: relative; }
-.sl-count { position: absolute; right: 14px; bottom: 12px; font-size: 11.5px; color: var(--faint); pointer-events: none; font-variant-numeric: tabular-nums; }
-/* The hash sits inside the field's own box, so the box is the control. */
-.sl-tagfield { display: flex; align-items: center; gap: 9px; padding: 9px 13px; flex-wrap: wrap; }
-.sl-tagfield input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
-  flex: 1 1 120px; min-width: 0; border: 0; outline: none; background: none; box-shadow: none;
-  border-radius: 0; padding: 8px 0; -webkit-appearance: none; appearance: none;
-  font-family: var(--sans); font-size: 14px; color: var(--ink);
-}
-.sl-tagfield input:focus { box-shadow: none; }
-.sl-tagfield input::placeholder { color: var(--muted); }
-/* The browser's own search furniture: a second rounded box inside this one,
-   and a cancel cross that would sit where a tag does. */
-.sl-tagfield input[type="search"]::-webkit-search-decoration,
-.sl-tagfield input[type="search"]::-webkit-search-results-button,
-.sl-tagfield input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
-.sl-hash { flex: 0 0 auto; display: grid; place-items: center; color: var(--faint); }
-
-/* ── a row of moods ───────────────────────────────────────────────────── */
-.sl-moods { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
-@media (max-width: 560px) { .sl-moods { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-.sl-mood {
-  display: grid; justify-items: center; gap: 6px; min-height: 64px; padding: 11px 4px;
-  border: 1px solid var(--line); border-radius: var(--r-2); background: var(--card); cursor: pointer;
-  font-family: var(--sans); font-size: 11.5px; font-weight: 600; color: var(--ink-soft);
-}
-.sl-mood-l { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sl-mood.on { border-color: var(--fold-amber-tab); background: var(--fold-amber-face); color: var(--ink); font-weight: 700; }
-
-/* ── the quiet block that says who can read this ──────────────────────── */
-.sl-priv { display: flex; align-items: center; gap: 13px; padding: 13px 15px; border-radius: var(--r-2); background: var(--wash); }
-.sl-priv-t b { display: block; font-size: 13px; font-weight: 700; }
-.sl-priv-t span { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
-
 /* ══ THE PRESS ═══════════════════════════════════════════════════════════
    Two faces that exist ONLY inside `[data-press]`, and nowhere else in the
    city. See the block of the same name in tokens.css for why this exception
@@ -3889,3 +3673,58 @@ textarea.sl-field { resize: vertical; line-height: 1.6; min-height: 132px; }
   transform: translate(-50%, -50%);
   min-width: 44px; min-height: 44px;
 }
+
+/* ── THE DAYBOOK ───────────────────────────────────────────────────────────
+   A day, as the person who lived it keeps it. The reference the owner sent is
+   a paper planner — and the useful part of that reference is not paper
+   texture, it is RHYTHM: a date set big, sections that breathe, a writing
+   surface that looks like something you write in rather than a form you fill.
+   Everything here is the city's own material; no new colour exists.        */
+.dayb-date { margin: 2px 0 0; font-size: 30px; letter-spacing: -.02em; }
+.dayb-sec { padding: 18px 20px; margin-top: 14px; }
+.dayb-h { margin: 0 0 12px; font-size: 15px; font-weight: 700; }
+.dayb-label { display: block; margin: 14px 0 6px; font-size: 12.5px; color: var(--muted); }
+.dayb-moods { display: flex; flex-wrap: wrap; gap: 7px; }
+/* The two writing surfaces. A hairline rule under the text rather than a box
+   around it: a page, not a field. */
+.dayb-note, .dayb-journal {
+  width: 100%; font: inherit; color: var(--ink); background: none;
+  border: 0; border-bottom: 1px solid var(--line); border-radius: 0;
+  padding: 8px 0; resize: vertical; box-shadow: none;
+}
+.dayb-journal { font-size: 15.5px; line-height: 1.75; min-height: 220px; border-bottom: 0; }
+.dayb-note::placeholder, .dayb-journal::placeholder { color: var(--faint); }
+.dayb-foot { margin: 10px 0 0; font-size: 11.5px; color: var(--faint); }
+.dayb-empty { font-size: 13px; margin: 0 0 12px; }
+
+.dayb-items { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 2px; }
+.dayb-item { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line-2); }
+.dayb-item.is-done .dayb-what { color: var(--muted); text-decoration: line-through; }
+.dayb-tick {
+  flex: none; min-width: 44px; min-height: 44px; border: 0; background: none;
+  cursor: pointer; font-size: 15px; color: var(--ink);
+}
+.dayb-when { flex: none; width: 48px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.dayb-what { flex: 1; min-width: 0; font-size: 14.5px; }
+/* The kind, set as a small label ahead of the words — it is a fact about the
+   line, not a badge competing with it. */
+.dayb-kind {
+  display: inline-block; margin-right: 8px; font-size: 10px; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--faint);
+}
+.dayb-drop { flex: none; min-width: 44px; min-height: 44px; border: 0; background: none; cursor: pointer; color: var(--faint); }
+.dayb-drop:hover { color: var(--ink); }
+
+.dayb-add { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.dayb-add input[type="text"], .dayb-add input:not([type]) { flex: 1; min-width: 180px; }
+.dayb-add select, .dayb-add input { min-height: 44px; font: inherit; }
+
+.dayb-mira { display: flex; align-items: center; gap: 10px; margin-top: 18px; }
+.dayb-mira .muted { font-size: 13px; }
+.dayb-nav { display: flex; justify-content: space-between; gap: 12px; margin: 22px 0 0; font-size: 13px; }
+
+/* The month grid's marks: a count of what a day holds, and a dot for a day
+   that was written in. What the day SAYS is never on the grid. */
+.cal-day:hover { background: var(--wash) !important; }
+.cal-mark { font-size: 10px; font-weight: 700; color: var(--muted); }
+.cal-written { font-size: 15px; line-height: 0; color: var(--muted); }

@@ -29,6 +29,7 @@ import { persona, confidant, lifePathOf, FREE_CHATS, SUB_INR, PAYWALL_LINE } fro
 import { findInCity, whyWeAsk } from './city';
 import { readSituation, type Read } from './relate';
 import { readForget } from './forget';
+import { DaybookService } from '../daybook/daybook.service';
 
 /**
  * Narrowing helpers, because the hub services return their own shapes.
@@ -291,6 +292,7 @@ export class MiraService {
     // Appended rather than inserted, so the spec's positional stubs stay true.
     private readonly ai: AiService,
     private readonly prisma: PrismaService,
+    private readonly daybook: DaybookService,
   ) {}
 
   async ask(text: string, ctx: AskContext): Promise<MiraTurn> {
@@ -704,6 +706,79 @@ export class MiraService {
     }
 
     record('confide');
+    const left = await this.spendChat(userId, pass);
+    return { text: said, pass: { freeLeft: left } };
+  }
+
+  /**
+   * SHE READS ONE DAY — the citizen's own.
+   *
+   * "Ask Mira about this day", from the daybook. Unlike the chat confidant,
+   * this is not somebody else's words: it is the citizen's own page, so she
+   * reads it FROM THE SERVER rather than from what a screen happened to be
+   * showing. That is the honest source for "what did I say I wanted?" — a
+   * question about a day they may not be looking at.
+   *
+   * The scope is still one day. She is handed that date's page and its lines
+   * and nothing else — not the month, not the neighbouring days, not her own
+   * memory of them — because "what happened on the 15th" is a question about
+   * the 15th, and a friend who answers it by reviewing your year is not
+   * answering it.
+   *
+   * SHE MAY NOT INVENT A DAY. An empty page comes back as an empty page: the
+   * prompt says so and the deterministic line below says so, because the one
+   * unforgivable failure for a diary's reader is confident fiction about a
+   * day somebody actually lived.
+   */
+  async readDay(userId: string, date: string, ask: string, tz?: string): Promise<{
+    text: string; pass?: { freeLeft: number | null }; paywall?: boolean;
+  }> {
+    const record = () => this.ledger.record({ userId, text: ask, lane: 'RETRIEVE', confidence: 1, outcome: 'confide', levity: 0 });
+    const day = await this.daybook.day(userId, date).catch(() => null);
+    const bare = !day || (!day.mood && !day.feelNote && !day.journal && day.items.length === 0);
+
+    if (bare) {
+      record();
+      return { text: `Nothing on ${date} yet — no mood, nothing planned, nothing written. Put something down and I'll have something to read.` };
+    }
+    if (!this.ai.enabled) {
+      record();
+      const done = day.items.filter((i) => i.done).length;
+      return { text: `${date}: ${day.mood ? `${day.mood}, ` : ''}${day.items.length} thing${day.items.length === 1 ? '' : 's'} down${day.items.length ? `, ${done} done` : ''}${day.journal ? ', and a page written' : ''}.` };
+    }
+
+    const pass = await this.passOf(userId);
+    if (!pass.paid && pass.freeLeft <= 0) {
+      record();
+      return { text: PAYWALL_LINE, pass: { freeLeft: 0 }, paywall: true };
+    }
+
+    const lines = [
+      `THE DAY: ${date}${tz ? ` (their clock: ${tz})` : ''}`,
+      day.mood ? `HOW IT FELT: ${day.mood}${day.feelNote ? ` — ${day.feelNote}` : ''}` : null,
+      day.items.length
+        ? `ON THE PAGE:\n${day.items.map((i) => `- [${i.done ? 'done' : 'not done'}] ${i.kind}${i.at ? ` at ${i.at}` : ''}: ${i.title}`).join('\n')}`
+        : null,
+      day.journal ? `WHAT THEY WROTE:\n${day.journal.slice(0, 6000)}` : null,
+    ].filter(Boolean).join('\n\n');
+
+    const system = [
+      'You are Mira, reading one day of a citizen\'s own daybook with them — their moods, their plans, their writing. You are their friend, not a reporting tool.',
+      'THIS IS THE WHOLE OF WHAT YOU CAN SEE: one day. Not the month, not yesterday, not anything you remember from elsewhere. If they ask about another day or a pattern over time, say plainly that you are only looking at this one.',
+      'NEVER INVENT A DAY. Everything you say has to be traceable to what is below. If it is not there, it did not happen as far as you know, and you say so rather than filling the gap — a diary read back wrong is worse than a diary unread.',
+      'You are reading, not grading. No productivity scoring, no "you only completed 2 of 5", no advice they did not ask for. If they ask what it looked like, tell them warmly and briefly, in their own terms.',
+      'Two to four sentences, almost always. A chat bubble, not a report. Contractions. No headers, no bullet lists unless they ask for a list.',
+      'Banned from your mouth, always: "As an AI", "great question", "happy to help", "is there anything else", "I understand how you feel", "absolutely!", "of course!", "based on your query", announcing lists, narrating machinery. You sound like Mira — a person — or you say nothing.',
+      'Reply with the message only — no preamble, no signature, no quotation marks around it.',
+    ].join('\n\n');
+
+    const said = await this.ai.converse(system, [{ role: 'user', content: `${lines}\n\nMY QUESTION: ${ask}` }]);
+    if (!said || violations(said).length) {
+      if (said) this.logger.warn('Mira\'s daybook reply broke voice - the plain line stands');
+      record();
+      return { text: 'I\u2019ve read it. Ask me plainly what you want to know about this day.' };
+    }
+    record();
     const left = await this.spendChat(userId, pass);
     return { text: said, pass: { freeLeft: left } };
   }
