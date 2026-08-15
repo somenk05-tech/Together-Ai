@@ -512,6 +512,11 @@ export function Routine() {
   // are the routine's own figures and neither depends on the bag.
   const routineTotal = everyStep.reduce((n, s) => n + s.priceInr, 0);
   const monthlyTotal = data?.plan?.totalMonthlyInr ?? 0;
+  /** What the routine costs to BUY — the unit the budget is set in. The bar
+   *  above compared `monthlyTotal` against it, which is two different things
+   *  in one sentence: "₹3,535 of ₹21,000" read as 17% used when the routine
+   *  had in fact spent ₹7,165 of it. */
+  const spendTotal = data?.plan?.totalSpendInr ?? 0;
 
   if (routine.isLoading) return <Spinner label="Building your routine…" />;
 
@@ -701,7 +706,7 @@ export function Routine() {
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', margin: '2px 0 9px' }}>
                 <h2 style={{ fontSize: 13, margin: 0, textTransform: 'uppercase', letterSpacing: '.12em' }}>Your budget</h2>
                 <span className="muted" style={{ fontSize: 11.5 }}>
-                  {rupees(monthlyTotal)} of {rupees(data.plan?.totalBudgetInr ?? 0)} a month
+                  {rupees(spendTotal)} of {rupees(data.plan?.totalBudgetInr ?? 0)} · ≈ {rupees(monthlyTotal)}/month to keep
                 </span>
                 {/* THE ONE PLACE A BUDGET IS SET IS THE PROFILE, so this is a
                     way back to it and not a second set of dials. */}

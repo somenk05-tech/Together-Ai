@@ -801,7 +801,7 @@ export function planCategory(
    * spending the rest on things this person does not need.
    */
   const leanReason = !short && spent < targetLow
-    ? `Your ${category} routine comes to ₹${spent.toLocaleString('en-IN')}/month against a ₹${budget.toLocaleString('en-IN')} budget. We've spent what we can on products that suit you at least as well as the ones they'd replace — past this, everything left on the shelf is a worse match for your profile, so we've stopped rather than buy it.`
+    ? `Your ${category} routine comes to ₹${spent.toLocaleString('en-IN')} to buy against a ₹${budget.toLocaleString('en-IN')} budget. We've spent what we can on products that suit you at least as well as the ones they'd replace — past this, everything left on the shelf is a worse match for your profile, so we've stopped rather than buy it.`
     : null;
 
   // What somebody could consider anyway, offered and never taken. Two kinds
