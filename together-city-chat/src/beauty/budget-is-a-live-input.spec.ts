@@ -23,11 +23,13 @@ import { activeFamiliesOf } from './active-families';
  * → and only then price it. planCategory's six passes ARE that order, which is
  * why this file asserts the order's consequences rather than the passes.
  *
- * AND THE RULE THAT OUTRANKS ALL OF IT. Raising ₹5,000 to ₹10,000 does not mean
- * "spend ₹10,000". It means "what is the best routine achievable within
- * ₹10,000". If that is ₹6,200, the answer is ₹6,200 and the rest is reported,
- * not absorbed. This is asserted twice below, in both directions, because it is
- * the one an optimiser reaches for a reason to break.
+ * AND THE RULE THE OWNER REVERSED ON 16 AUG. This header said raising ₹5,000
+ * to ₹10,000 did not mean "spend ₹10,000" — it does now. Utilisation of
+ * 95–105% is the first rule, so a bigger budget is an instruction to spend
+ * it, and the engine climbs even where the products left claim fewer of the
+ * stated concerns. What did NOT reverse: the pool is still decided before
+ * the money looks, safety holds at every budget, no need is ever un-covered,
+ * and a genuinely dry shelf is explained in leanReason rather than padded.
  */
 
 const OILY = assessBeauty({
@@ -110,31 +112,33 @@ describe('the budget is an input to selection, not a display over the answer', (
     expect(tiny).not.toContain('Prep');
   });
 
-  it('does not treat a bigger budget as an instruction to spend it', () => {
+  it('treats a bigger budget as an instruction to spend it, inside the guards', () => {
     /**
-     * THE RULE THAT OUTRANKS THE REST. Once the shelf has nothing left that is
-     * better matched, more money buys the SAME routine and the difference is
-     * reported. Asserted across the whole top of the range rather than at one
-     * pair, because "it stops eventually" is not the property — "it stops at
-     * the right routine and stays there" is.
+     * REVERSED, 16 AUG, AT THE OWNER'S WORD. This test pinned ₹6,000, ₹7,000
+     * and ₹8,000 to the same routine with the rest reported; the band-first
+     * rule spends each of them to 95–105% or explains why the guarded shelf
+     * could not. Spending is monotone — more money never buys a cheaper
+     * routine — and the band is asserted at every point rather than "it grows
+     * eventually".
      */
-    const settled = idsAt(oily, 6000);
+    let prev = 0;
     for (const budget of [6000, 7000, 8000]) {
-      expect({ budget, picks: idsAt(oily, budget) }).toEqual({ budget, picks: settled });
       const plan = at(oily, budget);
-      expect({ budget, spentAll: plan.remainingInr === 0 }).toEqual({ budget, spentAll: false });
+      expect({ budget, monotone: plan.spendInr >= prev }).toEqual({ budget, monotone: true });
+      prev = plan.spendInr;
+      expect({ budget, bandOrExplained: plan.spendInr >= plan.targetLowInr || plan.leanReason !== null })
+        .toEqual({ budget, bandOrExplained: true });
     }
   });
 
-  it('says why it stopped, rather than leaving the gap unexplained', () => {
-    // "You increased your budget, and we are not recommending you spend the
-    // rest" has to be a sentence on the page, not an absence on it.
-    // ₹8,000 rather than ₹10,000: a category is capped there now, so ₹10,000
-    // is clamped on the way in and the sentence would name the clamped figure.
+  it('stays silent in the band, and explains only a genuinely dry shelf', () => {
+    // The lean sentence used to be the normal case at ₹8,000 — the honest
+    // report of an unreachable band. Band-first makes it the exception: this
+    // face shelf reaches 95% of ₹8,000, so there is nothing to explain and
+    // saying something anyway would be the page apologising for succeeding.
     const plan = at(oily, 8000);
-    expect(typeof plan.leanReason).toBe('string');
-    expect(plan.leanReason).toContain('8,000');
-    expect(plan.remainingInr).toBeGreaterThan(0);
+    expect(plan.spendInr).toBeGreaterThanOrEqual(plan.targetLowInr);
+    expect(plan.leanReason).toBeNull();
   });
 
   it('prices the routine it built, and never builds to a price', () => {

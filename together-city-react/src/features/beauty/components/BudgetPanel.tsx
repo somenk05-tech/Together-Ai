@@ -92,8 +92,15 @@ function Dial(
    * NO CAP BEFORE THE FIRST PLAN. The ceiling is computed per profile by the
    * planner, so until a budget exists there is nothing honest to cap with and
    * the track runs to its full range.
+   *
+   * AND NO CAP INSIDE THE BAND. Under the band-first rule (owner, 16 Aug) the
+   * planner spends to 95–105% wherever the guarded shelf allows, so for most
+   * profiles `usefulMaxInr` sits at the top of this track and a cap would be
+   * a tick of noise under the end stop. The cap appears only when the shelf
+   * genuinely cannot absorb even 95% of the dial's range — the case the
+   * control would otherwise lie about.
    */
-  const cap = capInr && capInr > 0 && capInr < MAX ? capInr : null;
+  const cap = capInr && capInr > 0 && capInr < MAX * 0.95 ? capInr : null;
   const sliderMax = cap ? Math.max(Math.ceil(cap / 100) * 100, value) : MAX;
   const commit = (raw: string) => {
     const cleaned = raw.replace(/[^\d]/g, '');
@@ -138,15 +145,15 @@ function Dial(
         </span>
       </div>
 
-      {/* THE CEILING, SAID IN CLAIMS AND NOT IN QUALITY. "Claims fewer of the
-          concerns you listed" is what the engine actually measures; "a worse
-          match" would be heard as "works less well", which no data on this
-          shelf can assert in either direction. */}
+      {/* THE CEILING'S REASON, IN THE SHELF'S OWN TERMS. Past the cap nothing
+          is left that addresses this profile without repeating an active the
+          routine already carries — the guards, not thrift; the planner spends
+          to the band wherever it can. */}
       {cap && (
         <p className="muted" style={{ fontSize: 11, lineHeight: 1.55, margin: '6px 0 0' }}>
           {value > cap
-            ? `Your ${label.toLowerCase()} shelf tops out at about ${rupees(cap)} for your profile — past that, everything left claims fewer of the concerns you listed, so the rest of the ${rupees(value)} you've set stays unspent.`
-            : `For your profile, ${label.toLowerCase()} products past about ${rupees(cap)} claim fewer of the concerns you listed — so the dial stops there rather than offering money the shelf can't use.`}
+            ? `Your ${label.toLowerCase()} shelf tops out at about ${rupees(cap)} for your profile — everything past that either repeats what your routine already carries or doesn't address anything you told us about, so the rest of the ${rupees(value)} you've set can't be spent.`
+            : `Your ${label.toLowerCase()} shelf tops out at about ${rupees(cap)} for your profile, so the dial stops there rather than offering money the shelf can't use.`}
         </p>
       )}
 

@@ -76,13 +76,17 @@ describe('a price grade never buys a swap', () => {
     }
   });
 
-  it('never chooses a product an equally suitable one undercuts by half', () => {
+  it('lets a cheaper equal win only where the band does not need the money', () => {
     // The Paula's Choice case: ₹2,517/month for a step a ₹167 product answered
-    // identically. Stated as a property over every pick at every budget rather
-    // than as that one product, because the next catalogue will have its own.
+    // identically. UNDER BAND-FIRST (owner, 16 Aug) that purchase is exactly
+    // what pass 5d makes once nothing better can absorb the money — so the
+    // property is scoped to where it still holds: a plan that has NOT reached
+    // its band floor has no utilisation excuse, and there a dearer pick over
+    // an equally-suitable cheaper one is still the bug it always was.
     const offenders: string[] = [];
     for (const budget of [500, 1000, 2500, 5000, 8000]) {
       const c = face(budget);
+      if (c.spendInr >= c.targetLowInr) continue; // the band bought this, on purpose
       for (const pick of c.picks) {
         const cheaper = SHELF.filter((p) => p.matched
           && p.category === pick.product.category

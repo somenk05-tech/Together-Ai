@@ -312,14 +312,15 @@ function BudgetCard(
         </span>
       </div>
       {/* THE ONLY TIME THIS ROUTINE COSTS MORE THAN THE NUMBER SOMEBODY SET, and
-          it is said out loud rather than absorbed. The planner may go up to five
-          per cent over when that buys a meaningfully better-matched product, and
-          never a rupee further — so the sentence explains the overrun instead of
-          apologising for it. */}
+          it is said out loud rather than absorbed. The five per cent of headroom
+          is the top half of the 95–105% band: shelf prices can't always land
+          exactly on the number, so the planner may finish up to 5% over — and
+          never a rupee further. The sentence used to justify the overrun with
+          "a better match", which the band pass can no longer promise. */}
       {c.overInr > 0 && (
         <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.55, margin: '7px 0 0' }}>
-          {rupees(c.overInr)} over the {rupees(c.budgetInr)} you set — we allow up to five per cent
-          when it buys a better match for your {meta.label.toLowerCase()}, and never more than that.
+          {rupees(c.overInr)} over the {rupees(c.budgetInr)} you set — shelf prices can&rsquo;t always
+          land exactly on your number, so we allow up to five per cent, and never more than that.
         </p>
       )}
 
@@ -396,16 +397,18 @@ function BudgetCard(
         ≈ {rupees(c.monthlyInr)}/month to keep going
       </div>
 
-      {/* A BUDGET LARGER THAN THE SHELF CAN HONESTLY SPEND. Not a failure to
-          look — the most this profile can absorb, stated as a number so it can
-          be argued with. Said in CLAIMS rather than quality: "a worse match"
-          reads as "works less well", and the engine matches on what products
-          claim to address, not on evidence that they do. */}
-      {!short && c.budgetInr > c.usefulMaxInr && c.usefulMaxInr > 0 && (
+      {/* A BUDGET EVEN THE BAND PASS CANNOT SPEND. Under the band-first rule
+          (owner, 16 Aug) the planner spends to 95–105% wherever the guarded
+          shelf allows, so this paragraph — which used to be the normal state
+          of a big budget — now appears only when the shelf genuinely cannot
+          absorb the band: usefulMaxInr, the plan at the dial's own maximum,
+          sits below this budget's floor. leanReason says why in the planner's
+          own words; this line gives the number a reader can argue with. */}
+      {!short && c.usefulMaxInr > 0 && c.usefulMaxInr < c.targetLowInr && (
         <p className="muted" style={{ fontSize: 12, lineHeight: 1.6, margin: '10px 0 0' }}>
           For your profile this shelf tops out at about {rupees(c.usefulMaxInr)} of {c.category} products —
-          past that, everything left claims fewer of the concerns you listed than what&rsquo;s already here.
-          You&rsquo;ve set {rupees(c.budgetInr)}.
+          everything past that either repeats what your routine already carries or doesn&rsquo;t address
+          anything you told us about. You&rsquo;ve set {rupees(c.budgetInr)}.
         </p>
       )}
 

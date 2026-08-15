@@ -72,22 +72,23 @@ describe('what the citizen already has', () => {
     expect(after.face.leftOut.map((l) => l.role)).not.toContain('Cleanse');
   });
 
-  it('does not move the freed money onto something else', () => {
+  it('moves the freed money up the routine, and never onto the owned step', () => {
     /**
-     * THE RULE THE BUDGET ALREADY OBEYS, APPLIED TO A SMALLER NUMBER. Skipping
-     * a step frees cash inside the same budget, and an optimiser aimed at
-     * B × 0.90 would happily spend it on a dearer version of whatever is left.
-     * Everything still in the plan must be the SAME product it would have been
-     * anyway — and the saving must reach the citizen, not the basket.
+     * REVERSED, 16 AUG, WITH THE BAND. This test held every surviving pick
+     * constant and required the saving to reach the citizen — but utilisation
+     * is measured against the number they set, owned steps or not, so the
+     * freed cash now climbs the rest of the routine toward the band instead
+     * of resting. What did NOT reverse, and what this still catches: the
+     * owned step itself is never re-bought at any budget, and the plan either
+     * lands its band or says why the guarded shelf could not.
      */
-    const before = plan([]);
     const after = plan(['Face Cleanser', 'Moisturizer', 'Sunscreen']);
-    for (const pick of after.face.picks) {
-      const same = before.face.picks.find((x) => x.role === pick.role);
-      expect({ role: pick.role, unchanged: same?.product.id === pick.product.id })
-        .toEqual({ role: pick.role, unchanged: true });
+    const roles = after.face.picks.map((x) => x.role);
+    for (const gone of ['Cleanse', 'Moisturise', 'Protect']) {
+      expect({ role: gone, rebought: roles.includes(gone) }).toEqual({ role: gone, rebought: false });
     }
-    expect(after.face.remainingInr).toBeGreaterThan(before.face.remainingInr);
+    expect({ bandOrExplained: after.face.spendInr >= after.face.targetLowInr || after.face.leanReason !== null })
+      .toEqual({ bandOrExplained: true });
   });
 
   it('works the same on hair, and leaves the other categories alone', () => {

@@ -282,12 +282,15 @@ export interface CategoryPlan {
  * allowed to argue otherwise — which is why every candidate here comes from the
  * matched pool and no rule below ever relaxes that.
  *
- * WHAT THIS DOES NOT DO is buy things to flatten the number. Reaching the target
- * has exactly two honest instruments: a BETTER PRODUCT for a step already in the
- * routine, and a COMPATIBLE STEP the routine does not have yet. If both run out
- * before B × 0.90, the plan stops there and says so in `leanReason` rather than
- * padding itself to look thorough. A twenty-five per cent floor is named below
- * as the point at which stopping deserves an explanation — never as a quota.
+ * THE BAND OUTRANKS THE SCORE — owner's call, 16 Aug, reversing the 15-Aug
+ * position. Reaching the target has three instruments, in order: a BETTER
+ * PRODUCT for a step already in the routine, a COMPATIBLE STEP the routine
+ * does not have yet, and — pass 5d — a DEARER PRODUCT that keeps every
+ * covered need covered even where its match score is lower. The first two
+ * run to exhaustion before the third is allowed a rupee, so fit is only ever
+ * given up when nothing better can absorb the money. Compatibility, safety,
+ * the share cap and the ceiling still bow to nothing. If even that shelf
+ * runs out before B × 0.95, the plan stops and `leanReason` says why.
  */
 /**
  * ── THE BAND ────────────────────────────────────────────────────────────────
@@ -416,7 +419,12 @@ export function planCategory(
   const defs = ROLES[category].filter((d) => !owned.has(d.role));
   const kept: Kept[] = ROLES[category].filter((d) => owned.has(d.role)).map((d) => ({
     role: d.role, tier: d.tier,
-    why: `You told us you already have ${KEPT_NOUN[`${category}:${d.role}`] ?? 'this'}, so we haven't bought you another — and we haven't moved the money onto something else either.`,
+    // "…and we haven't moved the money onto something else either" until
+    // 16 Aug — the band-first rule reversed exactly that half of the sentence,
+    // so it came off rather than stay and lie: the budget is spent toward its
+    // band across the roles that remain. The half that holds, holds: a chip
+    // is a category, not a product, and we never buy a second one.
+    why: `You told us you already have ${KEPT_NOUN[`${category}:${d.role}`] ?? 'this'}, so we haven't bought you another — the budget goes toward the rest of your ${category} routine instead.`,
   }));
   const forRole = (d: RoleDef) => pool.filter((p) => d.match.test(p.category));
 
@@ -745,6 +753,56 @@ export function planCategory(
     picks[at] = toPick(to, was.role, was.tier);
   }
 
+  // ── 5d. the band is the rule — owner's call, 16 Aug ─────────────────────
+  //
+  // 95–105% UTILISATION IS THE FIRST RULE, and it outranks holding the
+  // highest-scoring bottle. Every pass above got the routine as well-matched
+  // as this shelf allows; if it is still under B × 0.95, the remaining money
+  // is now spent on the dearer products that are left — which, on this
+  // catalogue, means products that claim fewer of the stated concerns than
+  // the ones they replace. That is the measured cost of the rule and it is
+  // taken with eyes open, because the owner ranked the band first.
+  //
+  // WHAT STILL HOLDS, because the band never outranked safety or fit:
+  //   · the matched pool — nothing incompatible enters, at any price
+  //   · COVERAGE — every need the routine answers stays answered after the
+  //     swap (`keepsCoverage`); the band may cost score, never a concern
+  //   · the candidate answers at least ONE of this person's needs — money is
+  //     never parked in an anti-ageing serum for a profile that never
+  //     mentioned ageing
+  //   · the overlap and load rules — no second retinoid at any utilisation
+  //   · the share cap and the B × 1.05 ceiling, both unmoved
+  //
+  // SMALLEST SCORE LOSS FIRST, then the price that lands nearest the band —
+  // so the routine gives up as little fit as the rule allows, and the money
+  // spreads rather than landing on one trophy bottle. It stops the moment
+  // the band is reached; if the guarded shelf runs out first, pass 6 says so.
+  for (let guard = 0; guard < 40 && spent < targetLow; guard++) {
+    let best: { at: number; to: RecommendedProduct; loss: number; after: number } | null = null;
+    picks.forEach((pick, at) => {
+      const d = defs.find((x) => x.role === pick.role);
+      if (!d) return;
+      for (const cand of forRole(d)) {
+        if (cand.id === pick.product.id) continue;
+        if (answers(cand) === 0) continue;
+        if (!keepsCoverage(at, cand)) continue;
+        if (!withinShare(cand) || clash(cand, at)) continue;
+        const after = spent - pick.priceInr + cost(cand);
+        if (after > ceiling || after <= spent) continue;
+        const loss = Math.max(0, pick.product.matchScore - cand.matchScore);
+        if (!best || loss < best.loss
+          || (loss === best.loss && Math.abs(targetLow - after) < Math.abs(targetLow - best.after))) {
+          best = { at, to: cand, loss, after };
+        }
+      }
+    });
+    if (!best) break;
+    const { at, to } = best as { at: number; to: RecommendedProduct };
+    const was = picks[at];
+    spent += cost(to) - was.priceInr;
+    picks[at] = toPick(to, was.role, was.tier);
+  }
+
   // ── 5b. the premium alternative, WHICH IS AN OFFER AND NOT A PURCHASE ────
   //
   // THIS PASS USED TO BUY THINGS AND IT MUST NOT.
@@ -857,22 +915,18 @@ export function planCategory(
   })();
 
   /**
-   * WHY IT STOPPED SHORT — and it has to be a real reason, not a shrug. By the
-   * time this runs, passes 4 and 5 have both run out: there is no compatible
-   * product for any step that is more effective than the one chosen, and no
-   * compatible step left to add. Saying that plainly is the alternative to
-   * spending the rest on things this person does not need.
-   *
-   * SAID IN CLAIMS, NOT IN QUALITY. This sentence said "a worse match for
-   * your profile", and a reader hears that as "works less well for you" —
-   * which nothing in `matchScore` can assert in either direction. The score
-   * measures how many of the stated concerns a product CLAIMS to address,
-   * weighted by focus and skin-type fit; it has no efficacy data in it. So
-   * the sentence now says exactly that much and owns the limit out loud —
-   * the truth, and also the argument for getting evidence data one day.
+   * WHY IT STOPPED SHORT — and it has to be a real reason, not a shrug. By
+   * the time this runs, every spending pass INCLUDING the band pass has run
+   * out: whatever is left on the shelf either doesn't address a single thing
+   * this person told us, repeats an active or a family the routine already
+   * carries, or would put more than half the category on one product. Under
+   * the band-first rule this fires far more rarely than it used to — the
+   * planner now spends toward B × 0.95 even at the cost of match score — so
+   * when it does fire, it is the guarded shelf genuinely running dry, and
+   * the sentence says that rather than apologising for thrift.
    */
   const leanReason = !short && spent < targetLow
-    ? `Your ${category} routine comes to ₹${spent.toLocaleString('en-IN')} to buy against a ₹${budget.toLocaleString('en-IN')} budget. We've spent what we can on products that cover what you told us at least as well as the ones they'd replace — past this, everything left on the shelf claims fewer of the concerns you listed, so we've stopped rather than buy it. That's a fact about what products claim, not how well they work; we don't yet have efficacy data for this shelf.`
+    ? `Your ${category} routine comes to ₹${spent.toLocaleString('en-IN')} to buy against a ₹${budget.toLocaleString('en-IN')} budget. We've bought everything on this shelf that addresses what you told us and can sit safely in one routine — what's left either repeats what you already have, doesn't suit your profile, or would put most of the budget on a single product. We've stopped there rather than pad the number.`
     : null;
 
   // What somebody could consider anyway, offered and never taken. Two kinds

@@ -245,18 +245,18 @@ describe('the routine genuinely changes with the budget', () => {
     expect(roomy.picks.length).toBeGreaterThan(lean.picks.length);
   });
 
-  it('does NOT spend the rest of a large budget', () => {
-    // The line the whole feature turns on. ₹10,000, ₹25,000 and ₹60,000 all buy
-    // the same routine, because there is nothing left worth adding — and the
-    // remaining money is reported rather than absorbed.
-    const ten = plan(4000).face;
-    const sixty = plan(8000).face;
-    expect(sixty.picks.map((x) => x.product.id)).toEqual(ten.picks.map((x) => x.product.id));
-    // Was `> 40000`, against a ₹60,000 slider. The cap is ₹8,000 now, so the
-    // number this asserts had to come down with it — the property did not:
-    // money the shelf cannot honestly spend is reported, not absorbed. This
-    // profile's face tops out at ₹2,450.
-    expect(sixty.remainingInr).toBeGreaterThan(5000);
+  it('DOES spend the rest of a large budget, to the band', () => {
+    // THE LINE THE FEATURE TURNED ON, REVERSED BY THE OWNER, 16 AUG. This test
+    // asserted that ₹8,000 bought the same routine as ₹4,000 with the
+    // difference reported — utilisation is the first rule now, so a bigger
+    // budget buys a dearer routine, and the only honest stop short of the
+    // band is a guard biting (coverage, safety, the share cap, the ceiling),
+    // named in leanReason when it does.
+    const four = plan(4000).face;
+    const eight = plan(8000).face;
+    expect(eight.spendInr).toBeGreaterThanOrEqual(four.spendInr);
+    expect({ bandOrExplained: eight.spendInr >= eight.targetLowInr || eight.leanReason !== null })
+      .toEqual({ bandOrExplained: true });
   });
 
   it('is bounded by the roles a routine has, not by the money', () => {
@@ -292,13 +292,16 @@ describe('the routine genuinely changes with the budget', () => {
      * before every single move, so a routine that has reached its target does
      * not then climb.
      */
+    // In SPEND, the unit the budget is set in — this compared `monthlyInr` to
+    // a purchase-price ceiling, two units in one inequality, and only ever
+    // passed because monthly costs used to sit far below purchase totals. The
+    // band pass ended that coincidence. The "never runs to the ceiling"
+    // clause went with the old rule: the headroom is inside the 95–105% band,
+    // and landing in it is now the point rather than a smell.
     for (const n of TIERS) {
       const c = planCategory(SHELF, 'face', n, new Set(NEEDS));
-      expect({ budget: n, aboveCeiling: c.monthlyInr > c.ceilingInr }).toEqual({ budget: n, aboveCeiling: false });
+      expect({ budget: n, aboveCeiling: c.spendInr > c.ceilingInr }).toEqual({ budget: n, aboveCeiling: false });
       expect({ budget: n, overBy: c.overInr <= c.ceilingInr - c.budgetInr }).toEqual({ budget: n, overBy: true });
-      if (c.monthlyInr >= c.targetLowInr) {
-        expect({ budget: n, ranToCeiling: c.monthlyInr === c.ceilingInr }).toEqual({ budget: n, ranToCeiling: false });
-      }
     }
   });
 
@@ -365,18 +368,24 @@ describe('the routine genuinely changes with the budget', () => {
     expect(five.monthlyInr).toBeGreaterThan(5000 * 0.25);
   });
 
-  it('never buys a worse-matched product than one it could have had for the money', () => {
-    // COMPATIBILITY AND EFFECTIVENESS OUTRANK BUDGET UTILISATION, and this is
-    // that ranking as an assertion: for every step in the plan, no product for
-    // the same step answers more of this person's findings. If reaching the
-    // target ever cost effectiveness, this is what would catch it.
+  it('never buys a product that answers nothing, however hungry the band is', () => {
+    // THIS ASSERTED "as good as available" PER STEP, and the owner's band-first
+    // rule (16 Aug) deliberately trades that away: reaching 95% of ₹5,000 on
+    // this shelf means taking dearer products that answer fewer findings. The
+    // floor that remains, and the one this catches if it slips: every product
+    // bought still answers at least ONE of this person's findings, and the
+    // routine as a whole still covers every need the cheap routine covered.
     const c = planCategory(SHELF, 'face', 5000, new Set(NEEDS));
+    const lean = planCategory(SHELF, 'face', 1000, new Set(NEEDS));
     const answers = (p: { profileKeys: string[] }) => p.profileKeys.filter((k) => NEEDS.includes(k)).length;
     for (const pick of c.picks) {
-      const rivals = SHELF.filter((p) => p.matched && p.category === pick.product.category);
-      const best = Math.max(...rivals.map(answers));
-      expect({ role: pick.role, asGoodAsAvailable: answers(pick.product) === best })
-        .toEqual({ role: pick.role, asGoodAsAvailable: true });
+      expect({ role: pick.role, answersSomething: answers(pick.product) > 0 })
+        .toEqual({ role: pick.role, answersSomething: true });
+    }
+    const coveredBy = (picks: typeof c.picks) =>
+      new Set(picks.flatMap((x) => x.product.profileKeys).filter((k) => NEEDS.includes(k)));
+    for (const k of coveredBy(lean.picks)) {
+      expect({ need: k, stillCovered: coveredBy(c.picks).has(k) }).toEqual({ need: k, stillCovered: true });
     }
   });
 
@@ -423,11 +432,13 @@ describe('one category does not spend another category\'s money', () => {
     const p = plan(10000);
     expect(p.totalBudgetInr).toBe(24000);
     expect(p.totalMonthlyInr).toBe(p.face.monthlyInr + p.hair.monthlyInr + p.body.monthlyInr);
-    // WHAT IS LEFT IS MEASURED AGAINST WHAT WAS SPENT, and since 15 Aug that is
-    // the purchase price rather than the amortised monthly cost. `monthlyInr`
-    // is still totalled above — it is what the routine costs to KEEP, printed
-    // beside the price and never subtracted from a budget.
-    expect(p.totalRemainingInr).toBe(24000 - p.totalSpendInr);
+    // WHAT IS LEFT IS THE SUM OF THE CATEGORY FLOORS. A category may now land
+    // up to 5% OVER its own number — the band's headroom — and its remaining
+    // floors at zero rather than going negative, so the total remaining is
+    // the sum of those floors and can exceed 24000 − spend. Asserting the
+    // subtraction would quietly forbid the band's upper half.
+    expect(p.totalRemainingInr).toBe(p.face.remainingInr + p.hair.remainingInr + p.body.remainingInr);
+    expect(p.totalRemainingInr).toBeGreaterThanOrEqual(24000 - p.totalSpendInr);
   });
 });
 

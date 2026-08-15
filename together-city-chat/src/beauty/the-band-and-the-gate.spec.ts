@@ -5,23 +5,22 @@ import { BEAUTY_PRODUCTS } from './beauty-catalog';
 import { buildRoutines } from './routine-engine';
 
 /**
- * ── TWO RULES THAT ARRIVED TOGETHER AND ARGUE WITH EACH OTHER ───────────────
+ * ── TWO RULES THAT ARRIVED TOGETHER, AND WHICH ONE WINS ─────────────────────
  *
- * USE THE BUDGET. The owner's acceptance criterion, 15 Aug: a ₹5,000 routine
- * should land in ₹4,750–₹5,250, and "nothing else is worth the money" is not an
- * answer a citizen can check.
+ * USE THE BUDGET. The owner's acceptance criterion: a ₹5,000 routine lands in
+ * ₹4,750–₹5,250, and "nothing else is worth the money" is not an answer a
+ * citizen can check. On 16 Aug the owner ranked this rule FIRST — above
+ * holding the highest-scoring bottle — reversing the 15-Aug reconciliation
+ * that stopped at the non-inferior shelf and explained the difference. Pass
+ * 5d now spends toward B × 0.95 even where what remains claims fewer of the
+ * stated concerns; the measured cost (a face routine's total match score
+ * falling as the budget rises) is taken with eyes open, at the owner's word.
  *
- * AND NEVER ON A WORSE PRODUCT. The measurement that shaped how: on this shelf,
- * climbing an oily/acne profile toward ₹4,750 by taking the cheapest dearer
- * option each time reached ₹1,425 after twelve swaps and answered FEWER of her
- * findings — 14 down to 13. The dearest routine of any kind answered ten. A
- * band enforced over the whole shelf buys worse skin.
- *
- * The reconciliation is the candidate set. Every swap the band pass makes must
- * be to a product at least as well matched as the one it replaces, so the
- * routine can only move sideways or up; and the dial is capped at the dearest
- * routine in which that is still true. Where the two rules cannot both hold,
- * suitability wins and the plan says why it stopped.
+ * WHAT THE BAND STILL CANNOT BUY, because utilisation never outranked safety
+ * or relevance: anything unmatched, anything answering none of this person's
+ * needs, a second active the routine already carries, a product past the
+ * share cap, a rupee past B × 1.05 — and no swap may un-cover a need the
+ * routine answers (`keepsCoverage`). Fit is spent; coverage and safety never.
  */
 
 const PROFILES = {
@@ -63,36 +62,36 @@ describe('the band', () => {
     expect(inBand / tried).toBeGreaterThanOrEqual(0.7);
   });
 
-  it('never buys a worse-matched product to reach the band', () => {
+  it('reaches the band past the non-inferior shelf, without ever padding', () => {
     /**
-     * THE CLAUSE THE WHOLE RULE HANGS ON. Every step of a fuller routine must be
-     * at least as well matched as the same step in a leaner one — if reaching
-     * the number ever cost suitability, this is what catches it.
+     * THE 15-AUG RULE STOPPED at the dearest non-inferior routine and put the
+     * rest in a sentence; the 16-AUG RULE SPENDS IT — utilisation first, at
+     * the owner's word. What survives the reversal, and what this catches if
+     * it slips: every product bought on the way up still answers at least one
+     * of this person's needs. The band never parks money in an anti-ageing
+     * serum for a profile that never mentioned ageing.
      */
     const a = answers(oily.needs);
-    const lean = planCategory(oily.products, 'face', 1000, oily.needs);
-    const full = planCategory(oily.products, 'face', 4000, oily.needs);
-    for (const before of lean.picks) {
-      const after = full.picks.find((x) => x.role === before.role);
-      if (!after) continue;
-      expect({ role: before.role, notWorse: a(after.product) >= a(before.product) && after.product.matchScore >= before.product.matchScore })
-        .toEqual({ role: before.role, notWorse: true });
+    const full = planCategory(oily.products, 'face', 8000, oily.needs);
+    expect(full.spendInr / 8000).toBeGreaterThanOrEqual(TARGET_LOW);
+    expect(full.spendInr / 8000).toBeLessThanOrEqual(TARGET_CEILING);
+    for (const pick of full.picks) {
+      expect({ role: pick.role, addressesHer: a(pick.product) > 0 })
+        .toEqual({ role: pick.role, addressesHer: true });
     }
   });
 
-  it('stops at what the shelf can honestly absorb, and says the number', () => {
+  it('reports a ceiling that is the band itself, and no longer apologises', () => {
+    // usefulMaxInr is the plan at the dial's own maximum, so the ceiling the
+    // wire reports is a number the planner actually reaches — and with the
+    // band pass in, that number sits at or above 95% of the range. A routine
+    // inside the band has nothing to explain, so leanReason is null; the
+    // sentence is reserved for the guarded shelf genuinely running dry.
     const max = usefulMaxInr(oily.products, 'face', oily.needs);
-    expect(max).toBeGreaterThan(0);
     const over = planCategory(oily.products, 'face', 8000, oily.needs);
-    expect(over.spendInr).toBeLessThanOrEqual(max);
     expect(over.usefulMaxInr).toBe(max);
-    // In CLAIMS, not quality: the score measures coverage of stated concerns,
-    // and "worse match" read as "works less well" — a thing no data on this
-    // shelf can assert. The sentence now says what it measures and owns the
-    // efficacy gap out loud.
-    expect(over.leanReason).toContain('claims fewer of the concerns you listed');
-    expect(over.leanReason).toContain('efficacy data');
-    expect(over.leanReason).not.toContain('worse match');
+    expect(max).toBeGreaterThanOrEqual(Math.round(8000 * TARGET_LOW));
+    expect(over.leanReason).toBeNull();
   });
 
   it('is denominated in what the citizen actually hands over', () => {
@@ -219,22 +218,29 @@ describe('coverage belongs to the routine, not to a product', () => {
     }
   });
 
-  it('never lowers the routine total on the way up', () => {
-    // Dropping the breadth test ALONE was not enough — measured, it let a
-    // routine's total match score fall as the budget rose, which is this
-    // file's own failure wearing a new hat. Only one product changes per swap,
-    // so the routine-level promise reduces to a per-product floor.
+  it('pays for the band in score, never in coverage or relevance', () => {
+    // THE ROUTINE'S TOTAL MATCH SCORE MAY NOW FALL AS THE BUDGET RISES — that
+    // is the measured price of band-first, taken knowingly on 16 Aug, and the
+    // assertion that used to forbid it is gone on purpose. What may still
+    // never happen, at any budget: a need going uncovered, or a product
+    // entering that answers nothing this person raised.
     for (const p of [{ skinType: 'oily', skinConcerns: ['Acne', 'Dark Spots'] },
       { skinType: 'dry', skinConcerns: ['Dryness', 'Fine Lines'] }] as const) {
       const a = assessBeauty(p as never);
       const rd = [...a.skin.readings, ...a.hair.readings];
       const n = new Set(rd.filter((r) => r.level !== 'good').map((r) => r.key));
       const s = recommendProducts({ readings: rd, concerns: [], profile: { skinType: p.skinType }, insights: [] });
-      let prev = -1;
+      let prevCovered = -1;
       for (const budget of [1000, 2000, 3000, 5000, 8000]) {
-        const score = planCategory(s, 'face', budget, n).picks.reduce((t, x) => t + x.product.matchScore, 0);
-        expect({ skin: p.skinType, budget, notWorse: score >= prev }).toEqual({ skin: p.skinType, budget, notWorse: true });
-        prev = score;
+        const c = planCategory(s, 'face', budget, n);
+        const covered = new Set(c.picks.flatMap((x) => x.product.profileKeys).filter((k) => n.has(k))).size;
+        expect({ skin: p.skinType, budget, coverageHeld: covered >= prevCovered })
+          .toEqual({ skin: p.skinType, budget, coverageHeld: true });
+        prevCovered = covered;
+        for (const pick of c.picks) {
+          expect({ skin: p.skinType, budget, role: pick.role, relevant: pick.product.profileKeys.some((k) => n.has(k)) })
+            .toEqual({ skin: p.skinType, budget, role: pick.role, relevant: true });
+        }
       }
     }
   });
