@@ -46,7 +46,7 @@ function SavedCard({ post, onRemove }: { post: Post; onRemove: () => void }) {
           <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}> @{post.author.handle}</span>
         </div>
         {post.placeName && (
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent-ink)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="place" size={13} />{post.placeName}</div>
+          <div className="sl-post-meta"><Icon name="place" size={13} />{post.placeName}</div>
         )}
         {post.text && (
           <p style={{ fontSize: 13.5, lineHeight: 1.5, margin: '6px 0 0',
@@ -74,22 +74,22 @@ export function SocialSaved() {
 
   return (
     <div>
-      <div className="rise" style={{ marginBottom: 28 }}>
-        <div className="eyebrow">Social Life · Saved</div>
-        <h1 style={{ fontSize: 'clamp(26px,3vw,38px)' }}>Kept for later</h1>
-        <p className="lede" style={{ marginTop: 6 }}>
-          Posts you bookmarked from the feed, kept on this device.
-        </p>
+      <div className="sl-head rise">
+        <div className="sl-head-t">
+          <div className="eyebrow">Social Life · Saved</div>
+          <h1>Kept for later</h1>
+          <p>Posts you bookmarked from the feed, kept on this device.</p>
+        </div>
       </div>
 
       {posts.length === 0 ? (
-        <div className="g-slab g-empty">
-          <span className="g-well big" style={{ margin: '0 auto 16px' }}><Icon name="save" size={30} /></span>
+        <div className="card" style={{ textAlign: 'center', padding: '44px 24px' }}>
+          <span className="sl-ic lg" style={{ margin: '0 auto 16px' }}><Icon name="save" size={30} /></span>
           <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-.025em' }}>Nothing saved yet</div>
           <p className="muted" style={{ fontSize: 14, margin: '7px 0 0' }}>
             Tap Save on any post in the feed and it will collect here.
           </p>
-          <Link to="/social/feed" className="g-key g-edge" style={{ marginTop: 20, textDecoration: 'none' }}>
+          <Link to="/social/feed" className="btn btn-accent" style={{ marginTop: 20 }}>
             Go to the feed<Icon name="next" size={16} />
           </Link>
         </div>

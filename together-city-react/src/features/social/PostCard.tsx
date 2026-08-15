@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent, type MutableRefObject, type ReactNode, type Ref } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent, type MutableRefObject, type ReactNode, type Ref } from 'react';
 import { Button, Spinner } from '@/components/ui';
+import { Icon, type IconName } from '@/components/ui/Icon';
 import { useAuth } from '@/hooks/useAuth';
 import { ShareModal } from '@/features/chat/share';
 import type { ShareCard } from '@/types';
@@ -26,7 +27,10 @@ export function Avatar({ name, src }: { name: string; src?: string | null }) {
   );
 }
 
-const AUD_EMOJI: Record<string, string> = { public: '🌍', friends: '👥', family: '👨‍👩‍👧', private: '🔒' };
+/* Who a post was written for, as a mark rather than an emoji: the same line set
+ * the rest of Social Life's chrome uses. `public` has none — it is the default,
+ * and a globe beside every post in a public feed says nothing. */
+const AUD_ICON: Record<string, IconName> = { friends: 'people', family: 'connection', private: 'shield' };
 
 /** 🔖 Saved posts — lightweight local bookmarks (persisted on this device). */
 const SAVED_KEY = 'tc-saved-posts';
@@ -209,14 +213,10 @@ export function PostCard({ post, isNew = false, manage = false, onOpenAuthor, on
   const [showComments, setShowComments] = useState(false);
   const [saved, setSaved] = useState(() => savedIds().has(post.id));
   const [shareOpen, setShareOpen] = useState(false);
-  const actionStyle = (on = false): CSSProperties => ({
-    background: 'none', border: 'none', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit',
-    color: on ? 'var(--accent)' : 'var(--muted)', fontWeight: on ? 700 : 400, padding: 0,
-  });
 
   const images = post.media.filter((m) => m.kind === 'image');
   const videos = post.media.filter((m) => m.kind === 'video');
-  const aud = post.audience && post.audience !== 'public' ? AUD_EMOJI[post.audience] : null;
+  const aud = post.audience ? AUD_ICON[post.audience] : undefined;
 
   const shareCard: ShareCard = {
     kind: 'post',
@@ -230,48 +230,60 @@ export function PostCard({ post, isNew = false, manage = false, onOpenAuthor, on
   const openAuthor = () => onOpenAuthor?.(post.author.handle);
 
   return (
-    <article className="card" style={{ marginBottom: 16, ...(isNew ? { boxShadow: '0 0 0 2px var(--accent)', animation: 'tc-pop var(--dur-base) var(--ease-out)' } : {}) }}>
+    <article className="card sl-post" style={isNew ? { boxShadow: '0 0 0 2px var(--accent)', animation: 'tc-pop var(--dur-base) var(--ease-out)' } : undefined}>
       {post.repostedBy && (
         <div className="muted" style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-          🔁 Shared by {post.repostedBy.name} <span style={{ fontWeight: 400 }}>@{post.repostedBy.handle}</span>
+          <Icon name="share" size={13} /> Shared by {post.repostedBy.name} <span style={{ fontWeight: 400 }}>@{post.repostedBy.handle}</span>
         </div>
       )}
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+      <div className="sl-post-head">
         <button type="button" onClick={openAuthor} aria-label={`View ${post.author.name}'s profile`}
           style={{ background: 'none', border: 'none', padding: 0, cursor: onOpenAuthor ? 'pointer' : 'default', flexShrink: 0 }}>
           <Avatar name={post.author.name} src={post.author.profileImage} />
         </button>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 14 }}>
+        <div className="sl-post-id">
+          <div className="sl-post-name">
             <button type="button" onClick={openAuthor}
-              style={{ background: 'none', border: 'none', padding: 0, cursor: onOpenAuthor ? 'pointer' : 'default', font: 'inherit', fontWeight: 600, color: 'inherit' }}>
+              style={{ background: 'none', border: 'none', padding: 0, cursor: onOpenAuthor ? 'pointer' : 'default', font: 'inherit', color: 'inherit' }}>
               {post.author.name}
             </button>
-            <span className="muted" style={{ fontWeight: 400, fontSize: 12.5 }}> @{post.author.handle}</span>
-            {aud && <span title={post.audience} style={{ fontSize: 12, marginLeft: 6 }}>{aud}</span>}
-            {isNew && <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--on-accent)', background: 'var(--accent)', borderRadius: 999, padding: '2px 8px', marginLeft: 8 }}>New</span>}
+            <span className="sl-at"> @{post.author.handle}</span>
+            {isNew && <span className="tag dark" style={{ fontSize: 10, marginLeft: 8 }}>New</span>}
           </div>
-          <div className="muted" style={{ fontSize: 11.5 }}>
-            {isNew ? 'Just now' : `${timeAgo(post.createdAt)} ago`}
-            {post.feeling ? ` · feeling ${post.feeling}` : ''}
+          {/* Place, time and audience on one line, in that order — where it
+              happened, when, and who it was written for. */}
+          <div className="sl-post-meta">
+            {post.placeName && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <Icon name="place" size={13} />{post.placeName}
+              </span>
+            )}
+            {post.placeName && <span aria-hidden>·</span>}
+            <span>{isNew ? 'Just now' : `${timeAgo(post.createdAt)} ago`}</span>
+            {post.feeling && <span aria-hidden>·</span>}
+            {post.feeling && <span>feeling {post.feeling}</span>}
+            {aud && (
+              <span title={post.audience} style={{ display: 'inline-flex' }}>
+                <Icon name={aud} size={13} />
+              </span>
+            )}
           </div>
-          {post.placeName && (
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent-ink)', marginTop: 2 }}>📍 {post.placeName}</div>
-          )}
         </div>
         {manage && isMine && (
           <div style={{ position: 'relative', flex: 'none' }}>
             <button type="button" aria-label="Post options" onClick={() => setMenuOpen((o) => !o)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, lineHeight: 1, color: 'var(--muted)', padding: '2px 6px' }}>⋯</button>
+              style={{ background: 'none', border: 'none', cursor: 'pointer', lineHeight: 0, color: 'var(--muted)', padding: '4px 2px', minHeight: 44 }}>
+              <Icon name="more" size={19} />
+            </button>
             {menuOpen && (
               <>
                 <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 20 }} />
                 <div style={{ position: 'absolute', top: '100%', right: 0, zIndex: 21, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 12, boxShadow: '0 10px 32px rgba(0,0,0,.16)', overflow: 'hidden', minWidth: 150 }}>
                   <button type="button" onClick={() => { setDraft(post.text ?? ''); setEditing(true); setMenuOpen(false); }}
-                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', color: 'var(--ink)' }}>✏️ Edit post</button>
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', color: 'var(--ink)' }}><Icon name="edit" size={14} /> Edit post</button>
                   <button type="button" disabled={del.isPending}
                     onClick={() => { setMenuOpen(false); if (window.confirm('Delete this post? This cannot be undone.')) del.mutate(post.id); }}
-                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', borderTop: '1px solid var(--line)', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', color: 'var(--danger-ink)' }}>🗑 Delete post</button>
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', borderTop: '1px solid var(--line)', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', color: 'var(--danger-ink)' }}><Icon name="close" size={14} /> Delete post</button>
                 </div>
               </>
             )}
@@ -287,7 +299,7 @@ export function PostCard({ post, isNew = false, manage = false, onOpenAuthor, on
 
       {/* media-first: single image full-bleed; multiple as a swipe carousel */}
       {images.length === 1 && (
-        <div style={{ marginTop: 12, borderRadius: 14, overflow: 'hidden' }}>
+        <div className="sl-media">
           <ImgCell url={images[0].url} adaptive alt={`Photo shared by ${post.author.name}`} />
         </div>
       )}
@@ -316,23 +328,34 @@ export function PostCard({ post, isNew = false, manage = false, onOpenAuthor, on
           </div>
         </div>
       ) : (
-        post.text && <p style={{ fontSize: 14.5, lineHeight: 1.55, margin: '12px 0 0', whiteSpace: 'pre-wrap' }}>{post.text}</p>
+        post.text && <p className="sl-post-text">{post.text}</p>
       )}
 
-      <div style={{ display: 'flex', gap: 20, marginTop: 12, alignItems: 'center' }}>
-        <button type="button" onClick={() => like.mutate(post.id)} style={actionStyle(post.likedByMe)}>
-          {post.likedByMe ? '❤️' : '🤍'} {post.likes}
+      {/* The four things you can do to somebody else's moment, and the one you
+          can do for yourself pushed to the far end — saving is private, and it
+          is the only control here that changes nothing for the author. */}
+      <div className="sl-acts">
+        <button type="button" className={`sl-act${post.likedByMe ? ' on' : ''}`}
+          aria-pressed={post.likedByMe} aria-label={`${post.likes} ${post.likes === 1 ? 'like' : 'likes'}`}
+          onClick={() => like.mutate(post.id)}>
+          <Icon name="heart" size={19} />{post.likes}
         </button>
-        <button type="button" onClick={() => setShowComments((s) => !s)} style={actionStyle()}>
-          💬 {post.comments}
+        <button type="button" className={`sl-act${showComments ? ' on' : ''}`}
+          aria-expanded={showComments} aria-label={`${post.comments} ${post.comments === 1 ? 'comment' : 'comments'}`}
+          onClick={() => setShowComments((s) => !s)}>
+          <Icon name="comment" size={19} />{post.comments}
         </button>
-        <button type="button" onClick={() => setShareOpen(true)} style={actionStyle()}>↗ Share</button>
-        <button type="button" disabled={repost.isPending || reposted}
-          onClick={() => repost.mutate(post.id, { onSuccess: () => setReposted(true) })} style={actionStyle(reposted)}>
-          🔁 {reposted ? 'Shared' : 'Repost'}
+        <button type="button" className="sl-act" onClick={() => setShareOpen(true)}>
+          <Icon name="share" size={18} />Share
         </button>
-        <button type="button" onClick={() => setSaved(toggleSaved(post))} style={actionStyle(saved)}>
-          🔖 {saved ? 'Saved' : 'Save'}
+        <button type="button" className={`sl-act${reposted ? ' on' : ''}`} disabled={repost.isPending || reposted}
+          onClick={() => repost.mutate(post.id, { onSuccess: () => setReposted(true) })}>
+          <Icon name="reorder" size={18} />{reposted ? 'Shared' : 'Repost'}
+        </button>
+        <button type="button" className={`sl-act sl-act-end${saved ? ' on' : ''}`}
+          aria-pressed={saved} aria-label={saved ? 'Saved to your bookmarks' : 'Save this post'}
+          onClick={() => setSaved(toggleSaved(post))}>
+          <Icon name="save" size={19} />
         </button>
       </div>
 

@@ -322,7 +322,7 @@ function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' | 'phot
   if (!count) {
     return (
       <div className="blk rise d1" style={{ textAlign: 'center', padding: '56px 24px', marginTop: 16 }}>
-        <span className="g-well big" style={{ margin: '0 auto 14px' }}><Icon name="grid" size={30} /></span>
+        <span className="sl-ic lg" style={{ margin: '0 auto 14px' }}><Icon name="grid" size={30} /></span>
         <h2 style={{ fontSize: 20, margin: '0 0 6px' }}>No posts yet</h2>
         <p className="muted" style={{ fontSize: 14, margin: '0 0 16px' }}>Share a photo, video or thought with your city.</p>
         <Link className="btn btn-accent btn-sm" to="/social/create">+ New post</Link>
@@ -387,7 +387,7 @@ function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' | 'phot
 
       {view.length === 0 && (
         <div className="blk rise d1" style={{ textAlign: 'center', padding: '44px 24px', marginTop: 16 }}>
-          <span className="g-well big" style={{ margin: '0 auto 14px' }}><Icon name={filter === 'video' ? 'video' : 'camera'} size={30} /></span>
+          <span className="sl-ic lg" style={{ margin: '0 auto 14px' }}><Icon name={filter === 'video' ? 'video' : 'camera'} size={30} /></span>
           <p className="muted" style={{ fontSize: 14, margin: 0 }}>No {noun}s yet.</p>
         </div>
       )}
@@ -618,7 +618,7 @@ function PublicPostsTab({ handle, filter, onOpenAuthor }: { handle: string; filt
   if (view.length === 0) {
     return (
       <div className="blk rise d1" style={{ textAlign: 'center', padding: '44px 24px', marginTop: 16 }}>
-        <span className="g-well big" style={{ margin: '0 auto 14px' }}><Icon name={filter === 'video' ? 'video' : filter === 'photo' ? 'camera' : 'grid'} size={30} /></span>
+        <span className="sl-ic lg" style={{ margin: '0 auto 14px' }}><Icon name={filter === 'video' ? 'video' : filter === 'photo' ? 'camera' : 'grid'} size={30} /></span>
         <p className="muted" style={{ fontSize: 14, margin: 0 }}>No {noun}s to show.</p>
       </div>
     );
@@ -679,7 +679,7 @@ export function PublicProfilePage() {
     <div>
       <button type="button" className="btn btn-line btn-sm" style={{ marginBottom: 18 }} onClick={() => navigate(-1)}><Icon name="back" size={15} /> Back</button>
 
-      <div className="rise g-slab" style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
+      <div className="card rise" style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
         <Avatar src={p.profileImage} name={p.name} size={96} />
         <div style={{ flex: 1, minWidth: 220 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -877,7 +877,7 @@ function EarnView({ posts }: { posts: ProfilePost[] }) {
   ];
   return (
     <div>
-      <div className="g-slab" style={{ marginBottom: 16 }}>
+      <div className="card" style={{ marginBottom: 16 }}>
         <div className="eyebrow">Post &amp; Earn</div>
         <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-.035em', lineHeight: 1.2, marginTop: 6 }}>Not open yet</div>
         <div className="muted" style={{ fontSize: 13.5, lineHeight: 1.65, marginTop: 8, maxWidth: '54ch' }}>
@@ -996,7 +996,7 @@ export function SocialProfile() {
 
   return (
     <div>
-      <div className="rise g-slab" style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
+      <div className="card rise" style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
         <Avatar src={p.profileImage} name={p.name} size={96} />
         <div style={{ flex: 1, minWidth: 220 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -1009,13 +1009,13 @@ export function SocialProfile() {
           {/* Account tabs sit right beside Edit profile (moved out of the content
               tab bar below). */}
           <div style={{ display: 'flex', gap: 9, marginTop: 12, flexWrap: 'wrap' }}>
-            <button type="button" className={`g-key sm g-edge ${tab === 'followers' ? 'on' : ''}`} onClick={() => setTab('followers')} aria-pressed={tab === 'followers'}>
+            <button type="button" className={`chip ${tab === 'followers' ? 'on' : ''}`} onClick={() => setTab('followers')} aria-pressed={tab === 'followers'}>
               <Icon name="people" size={15} />Followers
             </button>
-            <button type="button" className={`g-key sm g-edge ${tab === 'following' ? 'on' : ''}`} onClick={() => setTab('following')} aria-pressed={tab === 'following'}>
+            <button type="button" className={`chip ${tab === 'following' ? 'on' : ''}`} onClick={() => setTab('following')} aria-pressed={tab === 'following'}>
               <Icon name="follow" size={15} />Following
             </button>
-            <button type="button" className={`g-key sm g-edge ${tab === 'earn' ? 'on' : ''}`} onClick={() => setTab('earn')} aria-pressed={tab === 'earn'}>
+            <button type="button" className={`chip ${tab === 'earn' ? 'on' : ''}`} onClick={() => setTab('earn')} aria-pressed={tab === 'earn'}>
               <Icon name="wallet" size={15} />Post &amp; Earn
             </button>
           </div>
@@ -1038,20 +1038,20 @@ export function SocialProfile() {
         </div>
       </div>
 
-      <div className="rise d1 g-tray" style={{ marginTop: 20 }}>
-        <button type="button" className={`g-key sm g-edge ${tab === 'posts' ? 'on' : ''}`} onClick={() => setTab('posts')} aria-pressed={tab === 'posts'}>
+      <div className="sl-tabs rise d1" role="tablist" aria-label="Your posts">
+        <button type="button" role="tab" className={`sl-tab${tab === 'posts' ? ' on' : ''}`} onClick={() => setTab('posts')} aria-selected={tab === 'posts'}>
           <Icon name="grid" size={15} />Posts
         </button>
-        <button type="button" className={`g-key sm g-edge ${tab === 'photos' ? 'on' : ''}`} onClick={() => setTab('photos')} aria-pressed={tab === 'photos'}>
+        <button type="button" role="tab" className={`sl-tab${tab === 'photos' ? ' on' : ''}`} onClick={() => setTab('photos')} aria-selected={tab === 'photos'}>
           <Icon name="camera" size={15} />Photos
         </button>
-        <button type="button" className={`g-key sm g-edge ${tab === 'videos' ? 'on' : ''}`} onClick={() => setTab('videos')} aria-pressed={tab === 'videos'}>
+        <button type="button" role="tab" className={`sl-tab${tab === 'videos' ? ' on' : ''}`} onClick={() => setTab('videos')} aria-selected={tab === 'videos'}>
           <Icon name="video" size={15} />Videos
         </button>
-        <button type="button" className={`g-key sm g-edge ${tab === 'personal' ? 'on' : ''}`} onClick={() => setTab('personal')} aria-pressed={tab === 'personal'}>
+        <button type="button" role="tab" className={`sl-tab${tab === 'personal' ? ' on' : ''}`} onClick={() => setTab('personal')} aria-selected={tab === 'personal'}>
           <Icon name="personal" size={15} />Personal
         </button>
-        <button type="button" className={`g-key sm g-edge ${tab === 'work' ? 'on' : ''}`} onClick={() => setTab('work')} aria-pressed={tab === 'work'}>
+        <button type="button" role="tab" className={`sl-tab${tab === 'work' ? ' on' : ''}`} onClick={() => setTab('work')} aria-selected={tab === 'work'}>
           <Icon name="job" size={15} />Work
         </button>
       </div>

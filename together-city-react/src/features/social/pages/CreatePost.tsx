@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation as useRouteLocation, useNavigate } from 'react-router-dom';
 import { useConnections } from '@/api';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
 import { Icon, type IconName } from '@/components/ui/Icon';
+import { useAuth } from '@/hooks/useAuth';
+import { Avatar } from '../PostCard';
 import { useCreatePost } from '../api';
 import { MUSIC_LIBRARY, type Track } from '../musicLibrary';
 
@@ -344,8 +346,26 @@ function MusicPicker({ selected, onSelect, stopSignal }: { selected: Track | nul
  *  check-ins, feelings, tagged friends, hashtags and audience. Nothing is
  *  mandatory except having SOMETHING to share: a photo alone, a video alone,
  *  a check-in alone or a thought alone all make a post. */
+/** What a post may carry, as tiles. The seventh and eighth things a post has —
+ *  who may read it and which shelf it belongs on — are settings rather than
+ *  attachments, and they are a list below rather than a tile here. */
+const ATTACH: ReadonlyArray<{ key: string; label: string; icon: IconName; tint: string }> = [
+  { key: 'photos', label: 'Photos', icon: 'camera', tint: 'blue' },
+  { key: 'video', label: 'Video', icon: 'video', tint: 'green' },
+  { key: 'location', label: 'Location', icon: 'place', tint: 'purple' },
+  { key: 'feeling', label: 'Feeling', icon: 'mood', tint: 'amber' },
+  { key: 'tag', label: 'Tag people', icon: 'people', tint: 'pink' },
+  { key: 'hashtags', label: 'Hashtags', icon: 'hash', tint: 'orange' },
+];
+
+/** Mirrors CreatePostSchema's `text: z.string().max(2200)`, so the counter under
+ *  the box is the server's ceiling and not a number chosen to look tidy. */
+const TEXT_MAX = 2200;
+
 export function CreatePost() {
   const nav = useNavigate();
+  const route = useRouteLocation();
+  const { user } = useAuth();
   const create = useCreatePost();
   const connections = useConnections('accepted');
   const photoPicker = useRef<HTMLInputElement>(null);
@@ -371,6 +391,31 @@ export function CreatePost() {
   const [coverPick, setCoverPick] = useState<number | null>(null);
   const [editPick, setEditPick] = useState<number | null>(null);
   const busy = phase === 'sharing' || phase === 'success';
+
+  /**
+   * THE FEED'S WRITE-BOX LANDS ON THE CONTROL IT WAS TAPPED WITH.
+   *
+   * SocialFeed's composer is a door, not a second composer, so it arrives here
+   * carrying the name of the tile it was opened from. The router state is
+   * cleared straight away — a back/forward or a refresh must not re-open a
+   * picker somebody has already dismissed.
+   *
+   * A file dialog needs the user's activation and a route change spends most of
+   * it, so the click is best-effort and the tile is FOCUSED either way: if the
+   * browser refuses the dialog, the control is one tap away and visibly so.
+   */
+  useEffect(() => {
+    const tool = (route.state as { tool?: string } | null)?.tool;
+    if (!tool) return;
+    nav(route.pathname, { replace: true, state: null });
+    if (tool === 'photos' || tool === 'video') {
+      (tool === 'photos' ? photoPicker : videoPicker).current?.click();
+      document.getElementById(`sl-attach-${tool}`)?.focus();
+      return;
+    }
+    setOpen(tool);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onFiles = async (files: FileList | null) => {
     if (!files) return;
@@ -505,36 +550,56 @@ export function CreatePost() {
     );
   };
 
-  const tool = (key: string, label: string, icon: IconName, active = false) => (
-    <button key={key} type="button"
+  /** One thing a post can carry. `active` means it is already carrying it —
+   *  a tile that is pressed IN says the photo is attached, not that a panel
+   *  happens to be open. */
+  const tile = (t: (typeof ATTACH)[number], active: boolean, label?: string) => (
+    <button key={t.key} id={`sl-attach-${t.key}`} type="button"
       onClick={() => {
-        if (key === 'photos') { photoPicker.current?.click(); return; }
-        if (key === 'video') { videoPicker.current?.click(); return; }
-        setOpen(open === key ? null : key);
+        if (t.key === 'photos') { photoPicker.current?.click(); return; }
+        if (t.key === 'video') { videoPicker.current?.click(); return; }
+        setOpen(open === t.key ? null : t.key);
       }}
-      aria-pressed={open === key || active}
-      className={`g-key sm g-edge${open === key || active ? ' picked' : ''}`}
-      style={{ whiteSpace: 'nowrap' }}>
-      {!(open === key || active) && <Icon name={icon} size={15} />}{label}
+      aria-pressed={open === t.key || active}
+      className={`sl-tile sl-tile-${t.tint}${open === t.key || active ? ' on' : ''}`}>
+      <span className="sl-tile-ic"><Icon name={t.icon} size={18} /></span>
+      <span className="sl-tile-l">{label ?? t.label}</span>
     </button>
   );
 
   const audDef = AUDIENCES.find((a) => a.key === audience)!;
+  const CATEGORIES = [
+    { key: '', label: 'None' },
+    { key: 'personal', label: 'Personal' },
+    { key: 'work', label: 'Work' },
+  ] as const;
   const connectionOptions = (connections.data ?? [])
     .filter((c) => !tagged.some((t) => t.id === c.user.id))
     .filter((c) => !tagInput.trim() || c.user.name.toLowerCase().includes(tagInput.toLowerCase()) || c.user.handle.includes(tagInput.toLowerCase()));
 
   return (
     <div>
-      <div className="eyebrow rise">Social Life · Create Post</div>
-      <h1 className="rise" style={{ fontSize: 'clamp(24px,3vw,34px)', marginBottom: 14 }}>Share with your city</h1>
+      <div className="sl-head rise">
+        <div className="sl-head-t">
+          <div className="eyebrow">Social Life · Create Post</div>
+          <h1>Share with your city</h1>
+          <p>A photo, a video, a place or a thought — any one of them is a post.</p>
+        </div>
+      </div>
 
       <div className="card rise" style={{ padding: '16px 18px', opacity: busy ? 0.55 : 1, pointerEvents: busy ? 'none' : 'auto', transition: 'opacity .2s' }}>
-        <textarea
-          value={text} onChange={(e) => setText(e.target.value)} rows={4} disabled={busy}
-          placeholder="What's happening today? Share a thought, photo, video or moment with your city."
-          style={{ ...inputStyle, border: 'none', padding: 0, resize: 'vertical', fontSize: 15, lineHeight: 1.6, background: 'transparent' }}
-        />
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          <Avatar name={user?.name ?? 'You'} src={user?.profileImage} />
+          <div className="sl-wrap" style={{ flex: '1 1 auto', minWidth: 0 }}>
+            <textarea
+              value={text} onChange={(e) => setText(e.target.value)} rows={4} disabled={busy} maxLength={TEXT_MAX}
+              aria-label="What's happening today?"
+              placeholder="What's happening today?"
+              style={{ ...inputStyle, border: 'none', padding: '6px 0 22px', resize: 'vertical', fontSize: 16, lineHeight: 1.6, background: 'none', boxShadow: 'none' }}
+            />
+            <span className="sl-count">{text.length}/{TEXT_MAX}</span>
+          </div>
+        </div>
 
         {(feeling || placeName || tagged.length > 0) && (
           <p className="muted" style={{ fontSize: 12.5, margin: '8px 0 0' }}>
@@ -630,25 +695,14 @@ export function CreatePost() {
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 14, borderTop: '1px solid var(--line)', paddingTop: 12 }}>
-          {tool('photos', 'Photos', 'camera', media.some((m) => m.type === 'image'))}
-          {tool('video', 'Video', 'video', media.some((m) => m.type === 'video'))}
-          {tool('location', placeName ? placeName.slice(0, 18) : 'Location', 'place', Boolean(placeName))}
-          {tool('feeling', feeling || 'Feeling', 'mood', Boolean(feeling))}
-          {tool('tag', tagged.length ? `${tagged.length} tagged` : 'Tag people', 'people', tagged.length > 0)}
-          {tool('hashtags', 'Hashtags', 'hash', hashtags.length > 0)}
-          {tool('audience', audDef.label, audDef.icon, audience !== 'public')}
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-          <span className="muted" style={{ fontSize: 12.5, fontWeight: 600 }}>Category</span>
-          {([['', 'None', undefined], ['personal', 'Personal', 'personal'], ['work', 'Work', 'job']] as const).map(([key, label, icon]) => (
-            <button key={key || 'none'} type="button" onClick={() => setCategory(key)}
-              aria-pressed={category === key}
-              className={`g-key sm g-edge${category === key ? ' picked' : ''}`}>
-              {icon && category !== key && <Icon name={icon} size={15} />}{label}
-            </button>
-          ))}
+        <div className="eyebrow" style={{ margin: '18px 0 9px' }}>Add to your post</div>
+        <div className="sl-grid">
+          {tile(ATTACH[0], media.some((m) => m.type === 'image'))}
+          {tile(ATTACH[1], media.some((m) => m.type === 'video'))}
+          {tile(ATTACH[2], Boolean(placeName), placeName ? placeName.slice(0, 16) : undefined)}
+          {tile(ATTACH[3], Boolean(feeling), feeling || undefined)}
+          {tile(ATTACH[4], tagged.length > 0, tagged.length ? `${tagged.length} tagged` : undefined)}
+          {tile(ATTACH[5], hashtags.length > 0)}
         </div>
 
         {media.some((m) => m.type === 'video') && (
@@ -666,12 +720,14 @@ export function CreatePost() {
           onChange={(e) => { void onFiles(e.target.files); e.target.value = ''; }} />
 
         {open === 'location' && (
-          <div style={{ marginTop: 12, padding: 14, borderRadius: 12, background: 'var(--accent-soft)' }}>
+          <div style={{ marginTop: 12, padding: 14, borderRadius: 12, background: 'var(--wash)' }}>
             <label style={{ fontSize: 12.5, fontWeight: 700, display: 'block', marginBottom: 6 }}>Check in — where are you?</label>
             <input value={placeName} onChange={(e) => setPlaceName(e.target.value)}
               placeholder="e.g. Blue Tokai Coffee · Marine Drive · Paris" style={inputStyle} />
             <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <button type="button" className="btn btn-line btn-sm" onClick={useLocation}>📡 Pin my current location</button>
+              <button type="button" className="btn btn-line btn-sm" onClick={useLocation}>
+                <Icon name="locating" size={14} /> Pin my current location
+              </button>
               {geoStat && <span className="muted" style={{ fontSize: 11.5 }}>{geoStat}</span>}
             </div>
             <p className="muted" style={{ fontSize: 11, marginTop: 6 }}>The location shows on your post so people nearby can find it.</p>
@@ -730,20 +786,56 @@ export function CreatePost() {
             />
           </div>
         )}
-        {open === 'audience' && (
-          <div style={{ marginTop: 12, display: 'grid', gap: 6 }}>
-            <p style={{ fontSize: 12.5, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="globe" size={15} />Who can see this?</p>
-            {AUDIENCES.map((a) => (
-              <label key={a.key} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '8px 12px',
-                borderRadius: 10, border: `1.5px solid ${audience === a.key ? 'var(--accent)' : 'var(--line)'}`,
-                background: audience === a.key ? 'var(--accent-soft)' : 'transparent' }}>
-                <input type="radio" name="aud" checked={audience === a.key} onChange={() => setAudience(a.key)} style={{ accentColor: 'var(--accent)' }} />
-                <span style={{ fontSize: 13.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 7 }}><Icon name={a.icon} size={15} />{a.label}</span>
-                <span className="muted" style={{ fontSize: 11.5 }}>{a.hint}</span>
-              </label>
-            ))}
-          </div>
-        )}
+      </div>
+
+      {/* POST SETTINGS. Who may read it and which shelf it belongs on are not
+          attachments — nothing is added to the post by opening them, and both
+          already have an answer. So they are a list that states the answer,
+          rather than two more tiles that look like empty slots. */}
+      <div className="eyebrow" style={{ margin: '20px 0 9px' }}>Post settings</div>
+      <div className="card rise d1" style={{ padding: '2px 18px' }}>
+        <div className="sl-rows" style={{ padding: 0 }}>
+          <button type="button" className="sl-row" aria-expanded={open === 'category'}
+            onClick={() => setOpen(open === 'category' ? null : 'category')}>
+            <span className="sl-ic sm flat"><Icon name="grid" size={16} /></span>
+            Category
+            <span className="sl-row-v">{CATEGORIES.find((c) => c.key === category)!.label}</span>
+            <Icon name="next" size={16} />
+          </button>
+          {open === 'category' && (
+            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', padding: '0 0 14px' }}>
+              {CATEGORIES.map((c) => (
+                <button key={c.key || 'none'} type="button" onClick={() => setCategory(c.key)}
+                  aria-pressed={category === c.key} className={`chip${category === c.key ? ' on' : ''}`}>
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          )}
+          <button type="button" className="sl-row" aria-expanded={open === 'audience'}
+            onClick={() => setOpen(open === 'audience' ? null : 'audience')}>
+            <span className="sl-ic sm flat"><Icon name={audDef.icon} size={16} /></span>
+            Visibility
+            <span className="sl-row-v">{audDef.label}</span>
+            <Icon name="next" size={16} />
+          </button>
+          {open === 'audience' && (
+            <div style={{ display: 'grid', gap: 6, padding: '0 0 14px' }}>
+              {AUDIENCES.map((a) => (
+                <label key={a.key} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '9px 12px',
+                  borderRadius: 10, border: '1px solid var(--line)',
+                  background: audience === a.key ? 'var(--wash)' : 'var(--card)' }}>
+                  <input type="radio" name="aud" checked={audience === a.key} onChange={() => setAudience(a.key)} style={{ accentColor: 'var(--accent)' }} />
+                  <span style={{ fontSize: 13.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 7 }}><Icon name={a.icon} size={15} />{a.label}</span>
+                  <span className="muted" style={{ fontSize: 11.5 }}>{a.hint}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+        <p className="muted" style={{ fontSize: 11.5, margin: '0 0 14px', display: 'flex', gap: 7, alignItems: 'flex-start' }}>
+          <Icon name="shield" size={14} /> {audDef.hint}.
+        </p>
       </div>
 
       {/* POST & EARN, TOLD THE TRUTH — the same correction already shipped on the
@@ -752,13 +844,15 @@ export function CreatePost() {
           in the schema, no route, no review queue: nothing that could ever pay
           anybody or look at a video. Of everything in the invented-data sweep,
           this was the one that asked people for work. */}
-      <div className="rise d1 g-slab no-bubble" style={{ padding: '16px 18px', margin: '14px 0' }}>
-        <div className="g-note">
-          <span className="g-well"><Icon name="wallet" size={18} /></span>
-          <span>
-            <b>Post &amp; Earn is not open yet</b><br />
-            There is no way to earn from your videos on Together City today — no rate, no review,
-            no payout. Post because you want to. The day that changes, you will be told here first.
+      <div className="card rise d2" style={{ padding: '16px 18px', margin: '14px 0' }}>
+        <div className="sl-note">
+          <span className="sl-ic"><Icon name="wallet" size={18} /></span>
+          <span className="sl-note-t">
+            <b>Post &amp; Earn is not open yet</b>
+            <p>
+              There is no way to earn from your videos on Together City today — no rate, no review,
+              no payout. Post because you want to. The day that changes, you will be told here first.
+            </p>
           </span>
         </div>
       </div>
@@ -774,22 +868,17 @@ export function CreatePost() {
           <Link className="btn btn-line" to="/social/feed" style={{ flex: 1, justifyContent: 'center' }}>Cancel</Link>
         )}
         <button type="button" onClick={() => void share()} disabled={busy || !canShare}
-          className="btn"
+          className="btn btn-accent"
           style={{
             // `width: undefined` is `auto`, and auto → 150px is not interpolable, so the
             // width leg snapped while the flex leg tweened and re-ran flex layout for the
             // whole row every frame. Stable value pair + no layout transition.
-            flex: busy ? 'none' : 2, width: busy ? 150 : 'auto', minWidth: 150, justifyContent: 'center',
-            display: 'flex', alignItems: 'center', gap: 8, borderRadius: 999, padding: '11px 18px',
-            fontFamily: 'inherit', fontWeight: 700, fontSize: 14, cursor: busy || !canShare ? 'default' : 'pointer',
-            border: 'none', color: 'var(--on-accent)',
-            background: phase === 'success' ? 'var(--ok-ink)' : 'var(--accent)',
-            opacity: !busy && !canShare ? 0.5 : 1,
-            transition: 'background var(--dur-base) var(--ease-out)',
+            flex: busy ? 'none' : 2, width: busy ? 150 : 'auto', minWidth: 150,
+            ...(phase === 'success' ? { background: 'var(--ok-ink)', color: 'var(--on-accent)' } : {}),
           }}>
           {phase === 'sharing' && (<><span className="tc-spin" /> Sharing…</>)}
           {phase === 'success' && (<><Icon name="accepted" size={16} /> Shared</>)}
-          {(phase === 'idle' || phase === 'error') && (<>Share <Icon name={audDef.icon} size={16} /></>)}
+          {(phase === 'idle' || phase === 'error') && (<><Icon name="plus" size={16} /> Share with my city</>)}
         </button>
       </div>
     </div>

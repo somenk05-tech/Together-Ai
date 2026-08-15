@@ -5,7 +5,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { useAuth } from '@/hooks/useAuth';
-import { PostCard } from '../PostCard';
+import { Avatar, PostCard } from '../PostCard';
 import { Poster } from '../Poster';
 import { ReelsView } from '../ReelsView';
 import { useFeed } from '../api';
@@ -22,6 +22,23 @@ const FILTERS: ReadonlyArray<{ key: string; label: string; icon?: IconName }> = 
   { key: 'friends', label: 'Friends', icon: 'people' },
 ];
 
+/**
+ * THE FOUR DOORS ON THE COMPOSER, AND WHY NONE OF THEM IS A COMPOSER.
+ *
+ * The reference draws a write-box at the top of the feed with Photo, Video,
+ * Thought and Place under it. A second real composer here would be a second
+ * copy of Create Post's upload, compression, audience and error handling —
+ * the shape rule 2 exists to refuse. So the box is a DOOR: it opens the one
+ * composer that exists, already on the control you tapped, and `tool` is the
+ * name Create Post already uses for its own panels.
+ */
+const QUICKS: ReadonlyArray<{ tool: string; label: string; icon: IconName }> = [
+  { tool: 'photos', label: 'Photo', icon: 'camera' },
+  { tool: 'video', label: 'Video', icon: 'video' },
+  { tool: '', label: 'Thought', icon: 'chat' },
+  { tool: 'location', label: 'Place', icon: 'place' },
+];
+
 /** Social Life — one intelligent feed: friends, check-ins, travel moments,
  *  videos, business updates and community posts in a single clean stream. */
 export function SocialFeed() {
@@ -33,6 +50,14 @@ export function SocialFeed() {
   const showFilter = (key: string) => { setOpenKey(null); setFilter(key); };
   const items = feed.data?.pages.flatMap((p) => p.items) ?? [];
   const openAuthor = (h: string) => navigate(`/social/u/${encodeURIComponent(h)}`);
+  /**
+   * A PHONE READS ONE POST AT A TIME; A DESKTOP READS A WALL.
+   *
+   * Mount-time matchMedia at the app's own phone breakpoint, the same way
+   * Chats, Home and the reels player each decide the question. Rendering both
+   * and hiding one in CSS would load every photograph twice.
+   */
+  const phone = typeof window !== 'undefined' && window.matchMedia('(max-width: 899px)').matches;
 
   // Post-share landing: highlight the new post, scroll to top, flash a toast.
   const navState = location.state as { newPostId?: string; justShared?: boolean } | null;
@@ -84,7 +109,7 @@ export function SocialFeed() {
   if (reelAt != null && items.length > 0) {
     return createPortal(
       <div style={{ position: 'fixed', inset: 0, background: 'var(--card)', zIndex: 1000 }}>
-        <button type="button" onClick={() => setReelAt(null)} className="g-key sm"
+        <button type="button" onClick={() => setReelAt(null)} className="btn btn-sm"
           style={{ position: 'absolute', top: 14, left: 14, zIndex: 4 }}>
           <Icon name="back" size={15} /> Back to the feed
         </button>
@@ -98,7 +123,7 @@ export function SocialFeed() {
   if (filter === 'videos') {
     return createPortal(
       <div style={{ position: 'fixed', inset: 0, background: 'var(--card)', zIndex: 1000 }}>
-        <button type="button" onClick={() => setFilter('foryou')} className="g-key sm"
+        <button type="button" onClick={() => setFilter('foryou')} className="btn btn-sm"
           style={{ position: 'absolute', top: 14, left: 14, zIndex: 4 }}>
           <Icon name="back" size={15} /> City Feed
         </button>
@@ -106,7 +131,7 @@ export function SocialFeed() {
         {!feed.isLoading && !feed.isError && items.length === 0 && (
           <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', textAlign: 'center', padding: 24 }}>
             <div>
-              <span className="g-well big" style={{ margin: '0 auto 14px' }}><Icon name="video" size={30} /></span>
+              <span className="sl-ic lg" style={{ margin: '0 auto 14px' }}><Icon name="video" size={30} /></span>
               <p style={{ fontSize: 15, margin: 0 }}>No videos yet — post one and it'll play here, reels-style.</p>
             </div>
           </div>
@@ -125,103 +150,117 @@ export function SocialFeed() {
       {toast && (
         <div role="status" style={{ position: 'fixed', top: 18, left: '50%', transform: 'translateX(-50%)', zIndex: 80,
           background: 'var(--ok-ink)', color: 'var(--on-accent)', borderRadius: 999, padding: '11px 20px', fontSize: 13.5, fontWeight: 600,
-          boxShadow: '0 8px 28px rgba(0,0,0,.28)', animation: 'tc-rise .3s ease-out', display: 'flex', alignItems: 'center', gap: 8 }}>
+          boxShadow: 'var(--e3)', animation: 'tc-rise .3s ease-out', display: 'flex', alignItems: 'center', gap: 8 }}>
           <Icon name="accepted" size={16} /> Your post has been shared to your city.
         </div>
       )}
-      <div className="eyebrow">Social Life</div>
-      <h1 style={{ fontSize: 26, marginBottom: 4 }}>
-        {user ? `What's happening, ${informalName(user.name)}` : 'The city feed'}
-      </h1>
-      <p className="lede" style={{ marginBottom: 16 }}>Discover what's happening around you.</p>
 
-      {/* The column was 640 wide, which is one poster and a lot of margin. The
-          wall takes the page. */}
-      <div>
-        <div>
-          {filter !== 'videos' && (
-            <div style={{ marginBottom: 16 }}>
-              <Link to="/social/create" className="btn btn-accent">
-                <Icon name="plus" size={18} /> New post
-              </Link>
+      <div className="sl-head">
+        <div className="sl-head-t">
+          <div className="eyebrow">City Feed</div>
+          <h1>{user ? `What's happening, ${informalName(user.name)}?` : 'The city feed'}</h1>
+          <p>People, places and moments from your city.</p>
+        </div>
+        <Link to="/social/create" className="btn btn-accent">
+          <Icon name="plus" size={17} /> Create
+        </Link>
+      </div>
+
+      {/* THE WRITE-BOX IS A DOOR. See QUICKS above for why it is not a second
+          composer. It carries the citizen's own avatar so the row reads as
+          "you, about to say something" rather than as a search field. */}
+      <div className="card sl-composer">
+        <Link to="/social/create" className="sl-open">
+          <Avatar name={user?.name ?? 'You'} src={user?.profileImage} />
+          <span>What's on your mind?</span>
+        </Link>
+        <div className="sl-quicks">
+          {QUICKS.map((q) => (
+            <Link key={q.label} className="sl-quick" to="/social/create"
+              state={q.tool ? { tool: q.tool } : null}>
+              <Icon name={q.icon} size={17} />
+              <span className="sl-quick-l">{q.label}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* The rail says which of the five real feeds you are reading. It is the
+          filter the API actually takes — no tab here is a name with nothing
+          behind it. */}
+      <div className="sl-tabs" role="tablist" aria-label="City feed">
+        {FILTERS.map((f) => (
+          <button key={f.key} type="button" role="tab" onClick={() => showFilter(f.key)}
+            className={`sl-tab${filter === f.key ? ' on' : ''}`}
+            aria-selected={filter === f.key}>
+            {f.icon && <Icon name={f.icon} size={15} />}{f.label}
+          </button>
+        ))}
+      </div>
+
+      {feed.isLoading && <Spinner label="Loading the city feed…" />}
+      {feed.isError && <EmptyState title="Couldn't load the feed" hint="Reload in a moment." />}
+
+      {!feed.isLoading && !feed.isError && items.length === 0 && (
+        <EmptyState title={filter === 'foryou' ? 'No moments yet' : 'Nothing here yet'} hint="Be the first to share one." />
+      )}
+
+      {items.length > 0 && (
+        <>
+          <div className="sl-band">
+            <span className="sl-ic"><Icon name="grid" size={19} /></span>
+            <span className="sl-band-t">
+              <b>Today in Together City</b>
+              <span>Real moments. Real people. Right now.</span>
+            </span>
+            <span className="muted" style={{ fontSize: 12.5, fontWeight: 600 }}>
+              {items.length} {items.length === 1 ? 'moment' : 'moments'}
+            </span>
+          </div>
+
+          {phone ? (
+            /* ONE POST AT A TIME, WHOLE. On a phone column the poster tile and
+               the post are the same width, so the tile is no longer a
+               thumbnail of anything — it is the post with its caption cropped
+               and its controls hidden behind a tap. The card shows all of it. */
+            items.map((p) => (
+              <PostCard key={p.key ?? p.id} post={p} isNew={p.id === newPostId} onOpenAuthor={openAuthor} />
+            ))
+          ) : (
+            /* THE WALL. An opened poster takes the full width in the place it
+               already occupied and shows the post whole — caption, likes,
+               comments, share, save — so nothing is lost by making the tile
+               small, and closing it puts you back exactly where you were
+               without restoring a scroll position. */
+            <div className="wall">
+              {items.map((p) => {
+                const key = p.key ?? p.id;
+                return key === openKey ? (
+                  <div className="wall-open" key={key}>
+                    <PostCard post={p} isNew={p.id === newPostId} onOpenAuthor={openAuthor} />
+                    <div style={{ display: 'grid', placeItems: 'center', margin: '-4px 0 4px' }}>
+                      <Button variant="line" size="sm" onClick={() => setOpenKey(null)}>Close</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Poster key={key} post={p} isNew={p.id === newPostId}
+                    onOpen={() => setReelAt(items.findIndex((x) => (x.key ?? x.id) === key))} />
+                );
+              })}
             </div>
           )}
 
-          {/* The tray is the point: the keys are raised out of a carved well, so
-              "which one am I on" is a question about depth rather than colour. */}
-          <div className="g-tray" style={{ marginBottom: 18 }}>
-            {FILTERS.map((f) => (
-              <button key={f.key} type="button" onClick={() => showFilter(f.key)}
-                className={`g-key sm g-edge${filter === f.key ? ' on' : ''}`}
-                aria-pressed={filter === f.key}>
-                {f.icon && <Icon name={f.icon} size={15} />}{f.label}
+          <div className="wall-rule foot">
+            <span>{FILTERS.find((f) => f.key === filter)?.label ?? 'For you'}</span>
+            {feed.hasNextPage ? (
+              <button type="button" className="wall-more" disabled={feed.isFetchingNextPage}
+                onClick={() => void feed.fetchNextPage()}>
+                {feed.isFetchingNextPage ? 'Loading…' : 'Load more'}
               </button>
-            ))}
+            ) : <span>That's everything</span>}
           </div>
-
-          {feed.isLoading && <Spinner label={filter === 'videos' ? 'Loading videos…' : 'Loading the city feed…'} />}
-          {feed.isError && <EmptyState title="Couldn't load the feed" hint="Reload in a moment." />}
-
-          {filter === 'videos' ? (
-            <>
-              {!feed.isLoading && !feed.isError && items.length === 0 && (
-                <EmptyState title="No videos yet" hint="Post a video and it'll play here, reels-style." />
-              )}
-              {items.length > 0 && (
-                <ReelsView items={items} onOpenAuthor={openAuthor}
-                  hasNextPage={feed.hasNextPage} fetchNextPage={() => void feed.fetchNextPage()} isFetchingNextPage={feed.isFetchingNextPage} />
-              )}
-            </>
-          ) : (
-            <>
-              {!feed.isLoading && !feed.isError && items.length === 0 && (
-                <EmptyState title={filter === 'foryou' ? 'No moments yet' : 'Nothing here yet'} hint="Be the first to share one." />
-              )}
-              {items.length > 0 && (
-                <>
-                  <div className="wall-rule">
-                    <span>{FILTERS.find((f) => f.key === filter)?.label ?? 'For you'}</span>
-                    <span>Together City</span>
-                  </div>
-
-                  {/* THE WALL. An opened poster takes the full width in the
-                      place it already occupied and shows the post whole —
-                      caption, likes, comments, share, save — so nothing is lost
-                      by making the tile small, and closing it puts you back
-                      exactly where you were without restoring a scroll
-                      position. */}
-                  <div className="wall">
-                    {items.map((p) => {
-                      const key = p.key ?? p.id;
-                      return key === openKey ? (
-                        <div className="wall-open" key={key}>
-                          <PostCard post={p} isNew={p.id === newPostId} onOpenAuthor={openAuthor} />
-                          <div style={{ display: 'grid', placeItems: 'center', margin: '-4px 0 4px' }}>
-                            <Button variant="line" size="sm" onClick={() => setOpenKey(null)}>Close</Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <Poster key={key} post={p} isNew={p.id === newPostId}
-                          onOpen={() => setReelAt(items.findIndex((x) => (x.key ?? x.id) === key))} />
-                      );
-                    })}
-                  </div>
-
-                  <div className="wall-rule foot">
-                    <span>{items.length} {items.length === 1 ? 'moment' : 'moments'}</span>
-                    {feed.hasNextPage ? (
-                      <button type="button" className="wall-more" disabled={feed.isFetchingNextPage}
-                        onClick={() => void feed.fetchNextPage()}>
-                        {feed.isFetchingNextPage ? 'Loading…' : 'Load more'}
-                      </button>
-                    ) : <span>That's everything</span>}
-                  </div>
-                </>
-              )}
-            </>
-          )}
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }

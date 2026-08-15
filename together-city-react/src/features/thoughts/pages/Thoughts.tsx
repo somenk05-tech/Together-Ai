@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { Icon } from '@/components/ui/Icon';
+import { Icon, type IconName } from '@/components/ui/Icon';
 import {
   TAG_LEN, TAG_MAX,
   useCreateThought, useDeleteThought, useThoughts, useUpdateThought, type Thought,
@@ -25,7 +25,35 @@ import {
  * editing exists the card says when an entry was changed. A journal where an
  * entry can quietly differ from what you remember writing is worse than one you
  * cannot edit at all.
+ *
+ * THE GLASS CAME OFF, 15 Aug. Every control on this page was a `.g-field` — a
+ * white well on a white slab — and the owner's screenshot showed the result: a
+ * form with four inputs in it, none of which looked like somewhere to type, and
+ * a Save key that read as disabled at rest. The fields are hairline boxes on the
+ * city's own paper now, the mood is a row rather than a text box you have to
+ * think of a word for, and the one black button on the screen is the one that
+ * saves. See the SOCIAL LIFE — THE SHEET block in relief.css for the argument.
  */
+
+/** BODY_MAX mirrors CreateThoughtSchema, so the counter under the box is the
+ *  server's real ceiling rather than a number chosen to look tidy. */
+const BODY_MAX = 20_000;
+const TITLE_MAX = 140;
+const MOOD_MAX = 24;
+
+/**
+ * SIX WORDS AND A DOOR. `mood` is free text on the server (24 characters), and
+ * it stayed free text here — these are a shortcut to the six people actually
+ * write, and "More" opens the box for the seventh. A chip that could only ever
+ * set one of six values would be a narrowing of the column, not a shortcut to it.
+ */
+const MOODS: ReadonlyArray<{ label: string; icon: IconName }> = [
+  { label: 'Happy', icon: 'mood' },
+  { label: 'Calm', icon: 'personal' },
+  { label: 'Thoughtful', icon: 'chat' },
+  { label: 'Motivated', icon: 'sparkles' },
+  { label: 'Tired', icon: 'clock' },
+];
 
 function timeAgo(iso: string): string {
   const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
@@ -43,11 +71,6 @@ function timeAgo(iso: string): string {
 const wasEdited = (t: Thought): boolean =>
   new Date(t.updatedAt).getTime() - new Date(t.createdAt).getTime() > 2000;
 
-const fieldBase: React.CSSProperties = {
-  width: '100%', border: '1px solid var(--line)', borderRadius: 10, padding: '9px 12px',
-  fontSize: 13.5, fontFamily: 'inherit', background: 'transparent', outline: 'none',
-};
-
 /** Tag entry, shared by the compose box and the edit form. Enter or comma adds. */
 function TagField({ tags, onChange }: { tags: string[]; onChange: (next: string[]) => void }) {
   const [draft, setDraft] = useState('');
@@ -59,14 +82,15 @@ function TagField({ tags, onChange }: { tags: string[]; onChange: (next: string[
   };
   return (
     <div>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className="sl-field sl-tagfield">
+        <span className="sl-hash" aria-hidden><Icon name="hash" size={15} /></span>
         {tags.map((tag) => (
-          <span key={tag} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, border: '1px solid var(--line)', borderRadius: 999, padding: '3px 6px 3px 10px', fontSize: 11.5 }}>
+          <span key={tag} className="tag">
             {tag}
             <button type="button" onClick={() => onChange(tags.filter((x) => x !== tag))}
               aria-label={`Remove tag ${tag}`}
-              style={{ border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, lineHeight: 1, padding: '2px 4px', color: 'var(--muted)' }}>
-              ×
+              style={{ border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit', lineHeight: 0, padding: 0, color: 'var(--muted)', display: 'inline-flex' }}>
+              <Icon name="close" size={12} />
             </button>
           </span>
         ))}
@@ -76,16 +100,47 @@ function TagField({ tags, onChange }: { tags: string[]; onChange: (next: string[
             onChange={(e) => setDraft(e.target.value.replace(/,/g, ''))}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add(); } }}
             onBlur={add}
-            placeholder={tags.length ? 'another tag' : 'Tags (optional)'}
+            placeholder={tags.length ? 'another tag…' : 'Add a tag…'}
             aria-label="Add a tag"
-            style={{ flex: '0 1 150px', border: '1px solid var(--line)', borderRadius: 999, padding: '6px 12px', fontSize: 12.5, fontFamily: 'inherit', background: 'transparent', outline: 'none' }}
           />
         )}
       </div>
-      {tags.length >= TAG_MAX && (
-        <p className="muted" style={{ fontSize: 11, margin: '6px 0 0' }}>
-          That’s all {TAG_MAX} tags. Remove one to add another.
-        </p>
+      <p className="sl-hint">
+        {tags.length >= TAG_MAX
+          ? `That’s all ${TAG_MAX} tags. Remove one to add another.`
+          : 'Press Enter or a comma to add one.'}
+      </p>
+    </div>
+  );
+}
+
+/** The six-chip row plus the box behind it. `other` is open when the mood in
+ *  hand is not one of the six, so an existing entry never loses its word. */
+function MoodRow({ mood, onChange }: { mood: string; onChange: (next: string) => void }) {
+  const listed = MOODS.some((m) => m.label === mood);
+  const [other, setOther] = useState(Boolean(mood) && !listed);
+  return (
+    <div>
+      <div className="sl-moods">
+        {MOODS.map((m) => (
+          <button key={m.label} type="button" aria-pressed={mood === m.label}
+            className={`sl-mood${mood === m.label ? ' on' : ''}`}
+            onClick={() => { setOther(false); onChange(mood === m.label ? '' : m.label); }}>
+            <Icon name={m.icon} size={19} />
+            <span className="sl-mood-l">{m.label}</span>
+          </button>
+        ))}
+        <button type="button" aria-pressed={other}
+          className={`sl-mood${other ? ' on' : ''}`}
+          onClick={() => { setOther((o) => !o); if (listed) onChange(''); }}>
+          <Icon name="more" size={19} />
+          <span className="sl-mood-l">More</span>
+        </button>
+      </div>
+      {other && (
+        <input className="sl-field" style={{ marginTop: 8 }}
+          value={listed ? '' : mood} onChange={(e) => onChange(e.target.value)} maxLength={MOOD_MAX}
+          placeholder="In a word — how does today feel?" aria-label="Mood" />
       )}
     </div>
   );
@@ -111,19 +166,21 @@ function EditForm({ t, onCancel }: { t: Thought; onCancel: () => void }) {
   };
 
   return (
-    <div style={{ display: 'grid', gap: 10 }}>
-      <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={140}
-        placeholder="Title (optional)" aria-label="Title"
-        style={{ ...fieldBase, fontWeight: 600, fontSize: 15 }} />
-      <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5} maxLength={20000}
-        aria-label="What you wrote"
-        style={{ ...fieldBase, lineHeight: 1.6, resize: 'vertical' }} />
-      <input value={mood} onChange={(e) => setMood(e.target.value)} maxLength={24}
-        placeholder="Mood (optional)" aria-label="Mood"
-        style={{ ...fieldBase, borderRadius: 999, maxWidth: 200, fontSize: 12.5 }} />
-      <TagField tags={tags} onChange={setTags} />
+    <div style={{ display: 'grid', gap: 12 }}>
+      <input className="sl-field" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={TITLE_MAX}
+        placeholder="Title (optional)" aria-label="Title" style={{ fontWeight: 600, fontSize: 15 }} />
+      <textarea className="sl-field" value={body} onChange={(e) => setBody(e.target.value)} rows={5} maxLength={BODY_MAX}
+        aria-label="What you wrote" />
+      <div>
+        <span className="sl-lab">Mood <em>(optional)</em></span>
+        <MoodRow mood={mood} onChange={setMood} />
+      </div>
+      <div>
+        <span className="sl-lab">Tags <em>(optional)</em></span>
+        <TagField tags={tags} onChange={setTags} />
+      </div>
       {error && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, margin: 0 }}>{error}</p>}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <Button size="sm" variant="accent" disabled={update.isPending || !body.trim()} onClick={save}>
           {update.isPending ? 'Saving…' : 'Save changes'}
         </Button>
@@ -155,7 +212,7 @@ function Entry({ t, onDelete, busy }: { t: Thought; onDelete: (id: string) => vo
           {t.tags.length > 0 && (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
               {t.tags.map((tag) => (
-                <span key={tag} className="pill" style={{ border: '1px solid var(--line)', borderRadius: 999, padding: '3px 10px', fontSize: 11.5 }}>{tag}</span>
+                <span key={tag} className="tag">{tag}</span>
               ))}
             </div>
           )}
@@ -164,7 +221,7 @@ function Entry({ t, onDelete, busy }: { t: Thought; onDelete: (id: string) => vo
             // An inline confirm, like the one on People. window.confirm was a
             // blocking browser dialog in an app that confirms everything else
             // in place, and it could not say the one thing worth saying here.
-            <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 10, background: 'rgba(192,57,43,.06)', border: '1px solid rgba(192,57,43,.25)' }}>
+            <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 10, background: 'var(--danger-soft)', border: '1px solid var(--danger-line)' }}>
               <p style={{ fontSize: 13, fontWeight: 700, margin: '0 0 4px' }}>Delete this thought?</p>
               <p className="muted" style={{ fontSize: 12, margin: '0 0 10px', lineHeight: 1.5 }}>
                 It leaves your journal straight away, and there’s no screen here to bring it back.
@@ -218,60 +275,78 @@ export function Thoughts() {
 
   return (
     <div>
-      <div className="eyebrow">Together City</div>
-      <h1 style={{ fontSize: 26 }}>Thoughts</h1>
-      <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px' }}>
-        A private journal. Only you can read these — they never reach the social feed, and no one is notified.
-      </p>
+      <div className="sl-head">
+        <div className="sl-head-t">
+          <div className="eyebrow">Together City</div>
+          <h1 style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+            Thoughts
+            <span className="sl-ic sm flat amber" aria-hidden><Icon name="shield" size={17} /></span>
+          </h1>
+          <p>A private journal. Only you can read these — they never reach the social feed, and no one is notified.</p>
+        </div>
+      </div>
 
-      {/* Every field is a carved well now rather than a hairline underline. On a
-          page this quiet the underline read as decoration, not as somewhere to
-          type — and the Save key looked disabled at rest because a filled
-          accent at 50% opacity is indistinguishable from a broken one. It is a
-          pressed key with the reason beside it instead. */}
-      <div className="g-slab" style={{ marginBottom: 20 }}>
-        <div style={{ display: 'grid', gap: 12 }}>
+      <div className="card" style={{ padding: '18px 20px', marginBottom: 20 }}>
+        <div style={{ display: 'grid', gap: 14 }}>
           <input
-            className="g-field"
-            value={title} onChange={(e) => setTitle(e.target.value)} maxLength={140}
+            className="sl-field"
+            value={title} onChange={(e) => setTitle(e.target.value)} maxLength={TITLE_MAX}
             placeholder="Title (optional)" aria-label="Title"
           />
-          <textarea
-            className="g-field"
-            value={body} onChange={(e) => setBody(e.target.value)} rows={5} maxLength={20000}
-            placeholder="What's on your mind?" aria-label="What's on your mind"
-          />
-          <TagField tags={tags} onChange={setTags} />
-          <input
-            className="g-field"
-            value={mood} onChange={(e) => setMood(e.target.value)} maxLength={24}
-            placeholder="Mood (optional)" aria-label="Mood"
-          />
+          <div className="sl-wrap">
+            <textarea
+              className="sl-field"
+              value={body} onChange={(e) => setBody(e.target.value)} rows={6} maxLength={BODY_MAX}
+              placeholder="What's on your mind?" aria-label="What's on your mind"
+              style={{ paddingBottom: 32 }}
+            />
+            {/* The ceiling is the server's own, not a round number: a counter
+                that stops you somewhere the API would not is a form telling a
+                small lie about the thing behind it. */}
+            <span className="sl-count">{body.length.toLocaleString()} / {BODY_MAX.toLocaleString()}</span>
+          </div>
+          <div>
+            <span className="sl-lab">Add tags <em>(optional)</em></span>
+            <TagField tags={tags} onChange={setTags} />
+          </div>
+          <div>
+            <span className="sl-lab">Mood <em>(optional)</em></span>
+            <MoodRow mood={mood} onChange={setMood} />
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginTop: 16 }}>
-          <span className="g-key sm" style={{ cursor: 'default' }}>
-            <Icon name="journal" size={14} />Private to you
+
+        <div className="sl-priv" style={{ marginTop: 16 }}>
+          <span className="sl-ic sm" aria-hidden><Icon name="shield" size={17} /></span>
+          <span className="sl-priv-t">
+            <b>Private to you</b>
+            <span>This thought is only ever visible to you.</span>
           </span>
+        </div>
+
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginTop: 14 }}>
           {!body.trim() && !create.isPending && (
             <span className="muted" style={{ fontSize: 12.5 }}>Write something to save it.</span>
           )}
           <button
-            type="button" className="g-key g-edge" style={{ marginLeft: 'auto' }}
+            type="button" className="btn btn-accent" style={{ marginLeft: 'auto' }}
             disabled={create.isPending || !body.trim()}
             onClick={submit}
           >
+            <Icon name="journal" size={16} />
             {create.isPending ? 'Saving…' : 'Save thought'}
           </button>
         </div>
       </div>
 
       {(items.length > 0 || q) && (
-        <input
-          className="g-field"
-          value={q} onChange={(e) => setQ(e.target.value)} maxLength={120}
-          placeholder="Search your thoughts" aria-label="Search your thoughts"
-          style={{ marginBottom: 14 }}
-        />
+        <div className="sl-field sl-tagfield" style={{ marginBottom: 14 }}>
+          <span className="sl-hash" aria-hidden><Icon name="search" size={16} /></span>
+          <input
+            type="search"
+            value={q} onChange={(e) => setQ(e.target.value)} maxLength={120}
+            placeholder="Search your thoughts" aria-label="Search your thoughts"
+          />
+        </div>
       )}
 
       {thoughts.isLoading ? (
@@ -287,8 +362,8 @@ export function Thoughts() {
           hint="Nothing has been lost — every entry is still there, we just couldn’t read them just now. Try again in a moment."
         />
       ) : items.length === 0 ? (
-        <div className="g-slab g-empty">
-          <span className="g-well big" style={{ margin: '0 auto 16px' }}><Icon name="journal" size={30} /></span>
+        <div className="card" style={{ textAlign: 'center', padding: '44px 24px' }}>
+          <span className="sl-ic lg" style={{ margin: '0 auto 16px' }}><Icon name="journal" size={30} /></span>
           <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-.025em' }}>
             {q ? 'Nothing matches that' : 'Your journal is empty'}
           </div>

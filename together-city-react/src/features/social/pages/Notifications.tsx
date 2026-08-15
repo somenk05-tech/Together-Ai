@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead } from '@/api';
 import { Spinner } from '@/components/ui';
+import { Icon, type IconName } from '@/components/ui/Icon';
 
 /** THE EMPTY LIST IS A CONSTANT, NOT A LITERAL.
  *  `x ?? []` builds a NEW array on every render, so any useMemo that depends
@@ -12,9 +13,11 @@ const NONE: never[] = [];
 
 const FILTERS = ['All', 'Unread'] as const;
 
-const ICON_FOR: Record<string, string> = {
-  like: '❤️', comment: '💬', follow: '➕', connection_request: '🤝',
-  connection_accepted: '✅', post_live: '🎉', mention: '📣',
+/* Chrome, so it is the line set rather than emoji — Icon.tsx's rule, and the
+ * one the rest of Social Life was brought onto with the redesign. */
+const ICON_FOR: Record<string, IconName> = {
+  like: 'heart', comment: 'comment', follow: 'follow', connection_request: 'connection',
+  connection_accepted: 'accepted', post_live: 'sparkles', mention: 'mention',
 };
 function timeAgo(iso: string): string {
   const s = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
@@ -43,12 +46,13 @@ export function SocialNotifications() {
 
   return (
     <div className="page">
-      <div className="rise" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 16, marginBottom: 22 }}>
-        <div>
+      <div className="sl-head rise" style={{ flexWrap: 'wrap' }}>
+        <div className="sl-head-t">
           <div className="eyebrow">Social Life · Notifications</div>
-          <h1 style={{ fontSize: 'clamp(24px,3vw,34px)' }}>Likes, comments &amp; follows</h1>
+          <h1>Likes, comments &amp; follows</h1>
+          <p>Everything the city did with what you shared.</p>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: '0 0 auto' }}>
           {FILTERS.map((f, i) => (
             <button key={f} type="button" className={`pill ${i === filter ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setFilter(i)}>{f}</button>
           ))}
@@ -59,8 +63,8 @@ export function SocialNotifications() {
       {q.isLoading && <Spinner label="Loading notifications…" />}
 
       {!q.isLoading && q.isError && (
-        <div className="blk rise d1" style={{ textAlign: 'center', padding: '64px 24px' }}>
-          <div style={{ fontSize: 40, marginBottom: 10 }}>⚠️</div>
+        <div className="card rise d1" style={{ textAlign: 'center', padding: '48px 24px' }}>
+          <span className="sl-ic lg" style={{ margin: '0 auto 14px' }}><Icon name="warn" size={30} /></span>
           <h2 style={{ fontSize: 20, margin: '0 0 6px' }}>Couldn't load notifications</h2>
           <p className="muted" style={{ fontSize: 14, margin: '0 0 14px' }}>Check your connection and try again.</p>
           <button type="button" className="btn btn-line btn-sm" onClick={() => void q.refetch()}>Retry</button>
@@ -68,8 +72,8 @@ export function SocialNotifications() {
       )}
 
       {!q.isLoading && !q.isError && shown.length === 0 && (
-        <div className="blk rise d1" style={{ textAlign: 'center', padding: '64px 24px' }}>
-          <div style={{ fontSize: 40, marginBottom: 10 }}>🔔</div>
+        <div className="card rise d1" style={{ textAlign: 'center', padding: '48px 24px' }}>
+          <span className="sl-ic lg" style={{ margin: '0 auto 14px' }}><Icon name="bell" size={30} /></span>
           <h2 style={{ fontSize: 20, margin: '0 0 6px' }}>{filter === 1 ? 'No unread notifications' : "You're all caught up"}</h2>
           <p className="muted" style={{ fontSize: 14, margin: 0 }}>Likes, comments, follows and connection updates show up here.</p>
         </div>
@@ -79,9 +83,9 @@ export function SocialNotifications() {
         {shown.map((n) => (
           <button key={n.id} type="button" onClick={() => open(n.id, n.href, n.read)}
             style={{ display: 'flex', gap: 12, alignItems: 'flex-start', textAlign: 'left', width: '100%', cursor: 'pointer',
-              border: '1px solid var(--line)', borderRadius: 12, padding: '12px 14px', fontFamily: 'inherit',
-              background: n.read ? 'var(--card)' : 'var(--accent-soft)' }}>
-            <span aria-hidden style={{ fontSize: 18, lineHeight: 1.3 }}>{ICON_FOR[n.kind] ?? '🔔'}</span>
+              border: '1px solid var(--line)', borderRadius: 14, padding: '13px 15px', fontFamily: 'inherit',
+              background: n.read ? 'var(--card)' : 'var(--wash)' }}>
+            <span className="sl-ic sm" aria-hidden><Icon name={ICON_FOR[n.kind] ?? 'bell'} size={16} /></span>
             <span style={{ flex: 1, minWidth: 0 }}>
               <span style={{ display: 'block', fontSize: 14, fontWeight: n.read ? 500 : 700 }}>{n.title}</span>
               {n.body && <span className="muted" style={{ display: 'block', fontSize: 12.5, marginTop: 2 }}>{n.body}</span>}
