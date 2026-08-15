@@ -86,7 +86,13 @@ describe('the band', () => {
     const over = planCategory(oily.products, 'face', 8000, oily.needs);
     expect(over.spendInr).toBeLessThanOrEqual(max);
     expect(over.usefulMaxInr).toBe(max);
-    expect(over.leanReason).toContain('worse match');
+    // In CLAIMS, not quality: the score measures coverage of stated concerns,
+    // and "worse match" read as "works less well" — a thing no data on this
+    // shelf can assert. The sentence now says what it measures and owns the
+    // efficacy gap out loud.
+    expect(over.leanReason).toContain('claims fewer of the concerns you listed');
+    expect(over.leanReason).toContain('efficacy data');
+    expect(over.leanReason).not.toContain('worse match');
   });
 
   it('is denominated in what the citizen actually hands over', () => {

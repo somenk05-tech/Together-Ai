@@ -100,4 +100,16 @@ describe('the routine counts down to its next order', () => {
     expect(next).toMatch(/runs out first/);
     expect(next).toMatch(/due\.lastsLabel/);
   });
+
+  it('names the order it is counting, not just the product', () => {
+    // The countdown is a fact about a purchase already made, and it renders
+    // inside a block headed "The whole routine · 14 products" — one card above
+    // a step explaining that a cleanser was deliberately NOT bought. Two true
+    // sentences, set side by side by a layout implying a relationship neither
+    // claims. The one clause that breaks the false adjacency is the order date,
+    // which `orderedAt` carries for exactly this sentence.
+    const next = read('features/beauty/components/NextOrder.tsx');
+    expect(next).toMatch(/due\.orderedAt/);
+    expect(next).toMatch(/from your order of/);
+  });
 });

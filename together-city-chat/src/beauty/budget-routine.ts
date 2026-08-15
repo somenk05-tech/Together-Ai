@@ -862,9 +862,17 @@ export function planCategory(
    * product for any step that is more effective than the one chosen, and no
    * compatible step left to add. Saying that plainly is the alternative to
    * spending the rest on things this person does not need.
+   *
+   * SAID IN CLAIMS, NOT IN QUALITY. This sentence said "a worse match for
+   * your profile", and a reader hears that as "works less well for you" —
+   * which nothing in `matchScore` can assert in either direction. The score
+   * measures how many of the stated concerns a product CLAIMS to address,
+   * weighted by focus and skin-type fit; it has no efficacy data in it. So
+   * the sentence now says exactly that much and owns the limit out loud —
+   * the truth, and also the argument for getting evidence data one day.
    */
   const leanReason = !short && spent < targetLow
-    ? `Your ${category} routine comes to ₹${spent.toLocaleString('en-IN')} to buy against a ₹${budget.toLocaleString('en-IN')} budget. We've spent what we can on products that suit you at least as well as the ones they'd replace — past this, everything left on the shelf is a worse match for your profile, so we've stopped rather than buy it.`
+    ? `Your ${category} routine comes to ₹${spent.toLocaleString('en-IN')} to buy against a ₹${budget.toLocaleString('en-IN')} budget. We've spent what we can on products that cover what you told us at least as well as the ones they'd replace — past this, everything left on the shelf claims fewer of the concerns you listed, so we've stopped rather than buy it. That's a fact about what products claim, not how well they work; we don't yet have efficacy data for this shelf.`
     : null;
 
   // What somebody could consider anyway, offered and never taken. Two kinds

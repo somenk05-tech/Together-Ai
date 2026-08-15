@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui';
-import { useBeautyBudget, useSaveBeautyBudget, type BeautyBudget } from '../api';
+import { useBeautyBudget, useBeautyRoutine, useSaveBeautyBudget, type BeautyBudget } from '../api';
 
 /**
  * What you are willing to spend, per part of the routine.
@@ -67,11 +67,34 @@ export const budgetSummary = (b: { face: number; hair: number; body: number }): 
  * FIELD still takes any rupee, because somebody who types 4973 means it.
  */
 function Dial(
-  { label, hint, value, onChange }:
-  { label: string; hint?: string; value: number; onChange: (n: number) => void },
+  { label, hint, value, capInr, onChange }:
+  { label: string; hint?: string; value: number; capInr?: number; onChange: (n: number) => void },
 ) {
   const [typed, setTyped] = useState<string | null>(null);
   const shown = typed ?? String(value);
+
+  /**
+   * THE DIAL STOPS WHERE THE SHELF DOES. `capInr` is the plan's `usefulMaxInr`
+   * — the most this profile can absorb before everything left on the shelf
+   * claims fewer of the concerns they listed. It used to be a sentence on the
+   * routine page, printed AFTER the money had been set and found partly inert:
+   * a control offering ₹8,000 to a face whose shelf tops out at ₹2,215 is not
+   * offering a choice, it is inviting a disappointment and then explaining it.
+   * The ceiling belongs ON the control, before the choice.
+   *
+   * A BUDGET ALREADY SET ABOVE THE CAP IS NEVER REWRITTEN. The track stretches
+   * to hold the saved number and the note says what the stretch is worth;
+   * silently pulling somebody's ₹8,000 down to ₹2,215 would be the planner
+   * moving their money, which is the one thing this feature refuses. And the
+   * typed field still takes any rupee up to the range's end — someone who
+   * types past the cap has read the note and means it.
+   *
+   * NO CAP BEFORE THE FIRST PLAN. The ceiling is computed per profile by the
+   * planner, so until a budget exists there is nothing honest to cap with and
+   * the track runs to its full range.
+   */
+  const cap = capInr && capInr > 0 && capInr < MAX ? capInr : null;
+  const sliderMax = cap ? Math.max(Math.ceil(cap / 100) * 100, value) : MAX;
   const commit = (raw: string) => {
     const cleaned = raw.replace(/[^\d]/g, '');
     setTyped(null);
@@ -103,24 +126,40 @@ function Dial(
         </span>
       </div>
 
-      <input type="range" min={MIN} max={MAX} step={100} value={value}
+      <input type="range" min={MIN} max={sliderMax} step={100} value={value}
         aria-label={`${label} budget`}
         onChange={(e) => onChange(Number(e.target.value))}
         style={{ width: '100%', margin: '14px 0 6px', accentColor: 'var(--accent)' }} />
 
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
         <span className="muted" style={{ fontSize: 11 }}>{rupees(MIN)}</span>
-        <span className="muted" style={{ fontSize: 11 }}>{rupees(MAX)}</span>
+        <span className="muted" style={{ fontSize: 11 }}>
+          {cap && value <= cap ? `${rupees(sliderMax)} — your shelf tops out here` : rupees(sliderMax)}
+        </span>
       </div>
 
+      {/* THE CEILING, SAID IN CLAIMS AND NOT IN QUALITY. "Claims fewer of the
+          concerns you listed" is what the engine actually measures; "a worse
+          match" would be heard as "works less well", which no data on this
+          shelf can assert in either direction. */}
+      {cap && (
+        <p className="muted" style={{ fontSize: 11, lineHeight: 1.55, margin: '6px 0 0' }}>
+          {value > cap
+            ? `Your ${label.toLowerCase()} shelf tops out at about ${rupees(cap)} for your profile — past that, everything left claims fewer of the concerns you listed, so the rest of the ${rupees(value)} you've set stays unspent.`
+            : `For your profile, ${label.toLowerCase()} products past about ${rupees(cap)} claim fewer of the concerns you listed — so the dial stops there rather than offering money the shelf can't use.`}
+        </p>
+      )}
+
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
-        {QUICK.map((n) => (
+        {/* Chips above a known ceiling are the same inert offer as the long
+            track — they go, and the ceiling itself becomes the top chip. */}
+        {(cap ? [...QUICK.filter((n) => n < cap), cap] : QUICK).map((n) => (
           <button key={n} type="button" onClick={() => { setTyped(null); onChange(n); }}
             style={{ cursor: 'pointer', borderRadius: 999, padding: '5px 11px', fontSize: 11.5, fontFamily: 'inherit', fontWeight: 600,
               border: `1.5px solid ${value === n ? 'var(--accent)' : 'var(--line)'}`,
               background: value === n ? 'var(--accent)' : 'transparent',
               color: value === n ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
-            {chipLabel(n)}
+            {cap && n === cap ? rupees(n) : chipLabel(n)}
           </button>
         ))}
       </div>
@@ -144,6 +183,19 @@ export function BudgetPanel(
 ) {
   const saved = useBeautyBudget();
   const save = useSaveBeautyBudget();
+  /**
+   * THE PER-PROFILE CEILING, off the plan the routine already carries —
+   * `usefulMaxInr`, computed server-side per category. One existing wire
+   * field; nothing new is asked of the API. Saving a budget invalidates the
+   * routine query, so the caps follow every re-plan on their own. A skipped
+   * category reports 0 and 0 means "no cap known", so the first dial anybody
+   * moves is never capped by a plan that hasn't run.
+   */
+  const plan = useBeautyRoutine().data?.plan;
+  const capOf = (k: keyof BudgetDraft): number => {
+    const c = plan?.[k];
+    return c && !c.skipped ? c.usefulMaxInr : 0;
+  };
   const [draft, setDraft] = useState<BudgetDraft>(DEFAULT_DRAFT);
   const [touched, setTouched] = useState(false);
 
@@ -185,9 +237,9 @@ export function BudgetPanel(
         </p>
       )}
 
-      <Dial label="Face" hint="Cleanse, treat, moisturise, protect" value={draft.face} onChange={set('face')} />
-      <Dial label="Hair" hint="Wash, condition, scalp" value={draft.hair} onChange={set('hair')} />
-      <Dial label="Body" hint="Wash, moisturise, hands and lips" value={draft.body} onChange={set('body')} />
+      <Dial label="Face" hint="Cleanse, treat, moisturise, protect" value={draft.face} capInr={capOf('face')} onChange={set('face')} />
+      <Dial label="Hair" hint="Wash, condition, scalp" value={draft.hair} capInr={capOf('hair')} onChange={set('hair')} />
+      <Dial label="Body" hint="Wash, moisturise, hands and lips" value={draft.body} capInr={capOf('body')} onChange={set('body')} />
 
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', borderTop: '1px solid var(--line)', paddingTop: 16, marginTop: 4 }}>
         <span style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '.14em', fontWeight: 700 }}>Total</span>

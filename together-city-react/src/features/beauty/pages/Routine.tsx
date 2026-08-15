@@ -397,12 +397,14 @@ function BudgetCard(
       </div>
 
       {/* A BUDGET LARGER THAN THE SHELF CAN HONESTLY SPEND. Not a failure to
-          look — the most this profile can absorb without taking a worse-matched
-          product, stated as a number so it can be argued with. */}
+          look — the most this profile can absorb, stated as a number so it can
+          be argued with. Said in CLAIMS rather than quality: "a worse match"
+          reads as "works less well", and the engine matches on what products
+          claim to address, not on evidence that they do. */}
       {!short && c.budgetInr > c.usefulMaxInr && c.usefulMaxInr > 0 && (
         <p className="muted" style={{ fontSize: 12, lineHeight: 1.6, margin: '10px 0 0' }}>
-          For your profile this shelf tops out at about {rupees(c.usefulMaxInr)} of {c.category} products
-          before the next thing up is a worse match than what you already have here.
+          For your profile this shelf tops out at about {rupees(c.usefulMaxInr)} of {c.category} products —
+          past that, everything left claims fewer of the concerns you listed than what&rsquo;s already here.
           You&rsquo;ve set {rupees(c.budgetInr)}.
         </p>
       )}
