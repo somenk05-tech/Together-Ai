@@ -33,11 +33,36 @@ export const DayPhotoSchema = z.object({
   url: z.string().nullable(),
   createdAt: z.string().optional(),
 });
+/**
+ * THE LOOKING-BACK SHEET, from the owner's reference (15 Aug). One object
+ * rather than eleven fields on the day, for the reason the API keeps it in one
+ * column: it is a template, and a template's prompts get reworded.
+ *
+ * Every key optional, and the object itself optional — this build talks to a
+ * server that predates it for as long as one deploy takes.
+ */
+export const ReflectionSchema = z.object({
+  feeling: z.number().nullable().optional(),
+  wentWell: z.string().nullable().optional(),
+  proudOf: z.string().nullable().optional(),
+  grateful1: z.string().nullable().optional(),
+  grateful2: z.string().nullable().optional(),
+  grateful3: z.string().nullable().optional(),
+  difficult: z.string().nullable().optional(),
+  learned: z.string().nullable().optional(),
+  win: z.string().nullable().optional(),
+  challenge: z.string().nullable().optional(),
+  tomorrow: z.string().nullable().optional(),
+});
+export type Reflection = z.infer<typeof ReflectionSchema>;
+export type ReflectionKey = keyof Reflection;
+
 export const DaySchema = z.object({
   date: z.string(),
   mood: z.string().nullable(),
   feelNote: z.string().nullable(),
   journal: z.string().nullable(),
+  reflection: ReflectionSchema.optional(),
   items: z.array(DayItemSchema),
   /* OPTIONAL, like every field added after the first deploy: the web and the
      API ship independently, so there is always a window where this build is
@@ -97,8 +122,14 @@ function useDayWrite<TVars>(date: string, run: (v: TVars) => Promise<Day>) {
 }
 
 export function useSaveDay(date: string) {
-  return useDayWrite(date, (patch: { mood?: string | null; feelNote?: string | null; journal?: string | null }) =>
-    apiPut(`/daybook/${date}`, patch, DaySchema));
+  return useDayWrite(date, (patch: {
+    mood?: string | null; feelNote?: string | null; journal?: string | null;
+    /* One answer at a time, not the whole sheet: the server merges what it is
+       given into what is already there, so sending the object the screen
+       happens to be holding would overwrite a box somebody filled in another
+       tab five minutes ago. */
+    reflection?: Reflection;
+  }) => apiPut(`/daybook/${date}`, patch, DaySchema));
 }
 export function useAddDayItem(date: string) {
   return useDayWrite(date, (item: { kind: DayItemKind; title: string; at?: string | null }) =>

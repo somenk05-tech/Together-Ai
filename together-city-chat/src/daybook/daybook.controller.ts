@@ -28,10 +28,36 @@ const KIND = z.enum(['task', 'meeting', 'reminder', 'appointment']);
 /** HH:MM, 24-hour, in the citizen's own clock. */
 const AT = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'a HH:MM time');
 
+/**
+ * THE LOOKING-BACK SHEET (owner's reference, 15 Aug). It lives in one JSON
+ * column so a prompt can be reworded without a migration — and THIS is what
+ * stops that being a free-for-all: every key is named, every answer is
+ * bounded, and zod strips anything else before it reaches the database.
+ *
+ * `feeling` is 1–10 and it is a FEELING, not a grade: nothing computes it,
+ * nothing averages it across days, nothing draws a line through it. A diary
+ * that scores you is a diary you stop telling the truth in.
+ */
+const ANSWER = z.string().max(2000).nullable().optional();
+export const ReflectionSchema = z.object({
+  feeling: z.number().int().min(1).max(10).nullable().optional(),
+  wentWell: ANSWER,
+  proudOf: ANSWER,
+  grateful1: ANSWER,
+  grateful2: ANSWER,
+  grateful3: ANSWER,
+  difficult: ANSWER,
+  learned: ANSWER,
+  win: ANSWER,
+  challenge: ANSWER,
+  tomorrow: ANSWER,
+});
+
 export const SaveDaySchema = z.object({
   mood: z.string().max(40).nullable().optional(),
   feelNote: z.string().max(2000).nullable().optional(),
   journal: z.string().max(20000).nullable().optional(),
+  reflection: ReflectionSchema.optional(),
 });
 export const AddItemSchema = z.object({
   kind: KIND.default('task'),

@@ -3067,6 +3067,18 @@ model DayPage {
   /// The day's page. Private, always — there is no visibility column here
   /// because there is no version of this that is shared.
   journal  String?
+  /// THE LOOKING-BACK SHEET, from the owner's reference (15 Aug): what went
+  /// well, what they are proud of, three things they are grateful for, what
+  /// was difficult, what it taught them, the win, the challenge, tomorrow's
+  /// focus, and a 1–10 reading of the day.
+  ///
+  /// ONE JSON COLUMN RATHER THAN ELEVEN, because it is a TEMPLATE and the one
+  /// certain thing about a template is that its prompts change. The keys are
+  /// named and validated in the controller — this is not a bucket a client can
+  /// fill with whatever it likes — but rewording, adding or retiring a prompt
+  /// costs a line instead of a migration, and a product that must migrate to
+  /// reword a question stops rewording its questions.
+  reflection Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

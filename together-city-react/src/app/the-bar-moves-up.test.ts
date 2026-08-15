@@ -95,20 +95,38 @@ describe('the bar sits with the logo', () => {
     expect(relief).not.toMatch(/\.tc-logo \.mark \{/);
   });
 
-  it('the doors are black on white, not a soft grey between two whites', () => {
+  /**
+   * A BLACK BUTTON ON A WHITE PAGE (owner, 15 Aug, on a reference of a dark
+   * glass lozenge: "background remains white, the button becomes black").
+   *
+   * These five were the palest objects in the header and are now the firmest,
+   * which is what they should always have been: they are the only CONTROLS up
+   * there, and the twelve district tabs beneath them are text.
+   */
+  it('the doors are solid ink with paper letters', () => {
     const relief = read('styles/relief.css');
-    // Both rules, and BOTH matter: the group sets the icons (they inherit
-    // currentColor) and the pill rule sets the labels. `.tc-actionbar, …`
-    // appears twice in this sheet — the first is a gap — so this reads every
-    // block that selector opens rather than the first one it finds.
-    const groups = [...relief.matchAll(/\.tc-actionbar, \.tc-actions \{([^}]*)\}/g)].map((m) => m[1]);
-    expect(groups.length, 'the action-bar group rules are gone').toBeGreaterThan(0);
-    expect(groups.some((r) => /color:\s*var\(--ink\)\s*;/.test(r))).toBe(true);
-    expect(groups.some((r) => /--ink-soft/.test(r))).toBe(false);
     const pill = relief.match(/\.tc-actionbar a, \.tc-actionbar button[^{]*\{([^}]*)\}/)?.[1] ?? '';
     expect(pill, 'the action-bar pill rule not found').toBeTruthy();
-    expect(pill).toMatch(/color:\s*var\(--ink\)\s*;/);
+    expect(pill).toMatch(/background:\s*var\(--ink\)/);
+    expect(pill).toMatch(/color:\s*var\(--card\)/);
     expect(pill).not.toMatch(/--ink-soft/);
+    // The icons inherit currentColor, so the group carries the same reversal —
+    // otherwise five dark glyphs sit on five dark faces.
+    const groups = [...relief.matchAll(/\.tc-actionbar, \.tc-actions \{([^}]*)\}/g)].map((m) => m[1]);
+    expect(groups.some((r) => /color:\s*var\(--card\)/.test(r))).toBe(true);
+    expect(groups.some((r) => /--ink-soft/.test(r))).toBe(false);
+  });
+
+  it('and does not turn solid white in the two night hubs', () => {
+    // `--ink` and `--card` swap meaning on a night surface, so the rule above
+    // would make five SOLID WHITE lozenges there. tokens.css allows exactly
+    // two of those in that room — the primary button and the rail lamp — and
+    // five across the top would beat both. The night keeps its raised face.
+    const relief = read('styles/relief.css');
+    const night = relief.match(/\[data-hub="astrology"\] \.tc-actionbar a[^{]*\{([^}]*)\}/)?.[1] ?? '';
+    expect(night, 'the night-hub action-bar rule not found').toBeTruthy();
+    expect(night).toMatch(/background:\s*var\(--face\)/);
+    expect(night).toMatch(/color:\s*var\(--ink\)/);
   });
 
   /**

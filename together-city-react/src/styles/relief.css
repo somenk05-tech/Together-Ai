@@ -712,26 +712,74 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
 .tc-side .back { color: var(--muted); }
 .tc-side .back:hover { color: var(--ink); }
 
-/* BLACK ON WHITE (owner, 15 Aug: "the second row make the buttons in black and
-   white font"). These were set in `--ink-soft`, a step down from the page's
-   own text colour — which was right when they sat in the corner of the tab
-   row as chrome, and is wrong now that they are the second line of the
-   masthead, centred under the name of the city. Soft grey on a white pill on a
-   white header is three greys in a row and the middle one reads as disabled.
-   Ink, and the hover has nowhere left to go but the lift. */
-.tc-actionbar, .tc-actions { color: var(--ink); }
+/* ── THE DOORS ARE SOLID OBJECTS NOW ────────────────────────────────────────
+   The owner, 15 Aug, with a reference of a dark glass lozenge lit from under
+   itself, and then in one line: "background remains white, the button becomes
+   black."
+
+   It is the right half of that reference to take. The colour in it — green
+   rim, amber bleed — is a hue this city does not own, and five of these sit on
+   every page in the application, over every hub photograph and both night
+   surfaces; a green light under a pill would have to be answered by the cards,
+   the rails and the plates or it reads as a mistake. What carries with no
+   argument is the OBJECT: a face that is one solid dark thing, a lit top edge
+   where the light lands, and its own shadow underneath rather than around it.
+
+   So: ink face, paper letters, on the same white header. They were the palest
+   thing on the page and are now the firmest, which is what they should have
+   been from the start — these five are the only controls in the header, and
+   the twelve district tabs beneath them are text.
+
+   THE LIT EDGE IS ONE HAIRLINE OF WHITE INSIDE THE TOP, and it is what stops a
+   black lozenge reading as a hole cut in the page. The shadow is the system's
+   own `--e2`, not a glow: a coloured glow is a light source, and a light source
+   belongs to a scene rather than to a button. */
+.tc-actionbar, .tc-actions { color: var(--card); }
 .tc-actionbar a, .tc-actionbar button, .tc-actions a, .tc-actions button {
-  background: var(--face); box-shadow: var(--e1); border: 0; border-radius: var(--r-full); color: var(--ink);
+  background: var(--ink); border: 0; border-radius: var(--r-full); color: var(--card);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.20), var(--e2);
 }
 .tc-actionbar a:hover, .tc-actionbar button:hover, .tc-actions a:hover, .tc-actions button:hover {
-  box-shadow: var(--e2-key); color: var(--ink);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.28), var(--e3); color: var(--card);
 }
 @media (hover: hover) and (pointer: fine) {
   .tc-actionbar a:hover, .tc-actionbar button:hover, .tc-actions a:hover, .tc-actions button:hover {
     transform: translateY(-1px);
   }
 }
-.tc-actionbar a:active, .tc-actionbar button:active, .tc-actions a:active, .tc-actions button:active { background: var(--well); box-shadow: var(--press); transform: translateY(1px); }
+/* PRESSED IS THE OBJECT GOING DOWN INTO THE PAGE, not a second colour: the lit
+   edge goes out, the shadow closes up, the face stays the face.
+
+   `--press` RATHER THAN A SHADOW WRITTEN HERE. The first version of this rule
+   was `inset 0 2px 5px rgba(0,0,0,.45)` — measured by eye against a black pill,
+   which is exactly the thing relief.spec's five-depths guard exists to catch:
+   one component's hand-rolled inset and the next one's are two materials that
+   look like one mistake, and nothing but that test would ever say so. The
+   pressed depth already has a name. The old rule also set `background:
+   var(--well)`, which was right for a white pill and would now turn a black one
+   pale under the thumb — the face does not change, only the light on it. */
+.tc-actionbar a:active, .tc-actionbar button:active, .tc-actions a:active, .tc-actions button:active {
+  box-shadow: var(--press); transform: translateY(1px);
+}
+/* THE TWO NIGHT HUBS KEEP THE FACE THEY HAD, and this is the interesting half
+   of the change rather than an exception to it.
+
+   `--ink` and `--card` swap meaning on a night surface, so `background:
+   var(--ink)` would turn these five into solid WHITE lozenges there — and
+   tokens.css spends a paragraph on why exactly two things in that room may be
+   solid white: the primary button, whose one job is to be the loudest object
+   on the screen, and the rail lamp. Five white pills across the top would beat
+   both. "Black on white" is an instruction about a white page; on a page that
+   is already black, the same instruction means the pill goes back to being a
+   raised face — which is what the night was designed with. */
+[data-hub="astrology"] .tc-actionbar a, [data-hub="astrology"] .tc-actionbar button,
+[data-hub="astrology"] .tc-actions a, [data-hub="astrology"] .tc-actions button,
+[data-hub="entertainment"] .tc-actionbar a, [data-hub="entertainment"] .tc-actionbar button,
+[data-hub="entertainment"] .tc-actions a, [data-hub="entertainment"] .tc-actions button {
+  background: var(--face); color: var(--ink); box-shadow: var(--e2);
+}
+[data-hub="astrology"] .tc-actionbar, [data-hub="astrology"] .tc-actions,
+[data-hub="entertainment"] .tc-actionbar, [data-hub="entertainment"] .tc-actions { color: var(--ink); }
 
 .tc-bottomnav {
   background: var(--face-tall); border-top: 0; box-shadow: var(--e2);
@@ -3695,6 +3743,72 @@ textarea.g-field { resize: none; line-height: 1.55; }
 .dayb-add { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .dayb-add input[type="text"], .dayb-add input:not([type]) { flex: 1; min-width: 180px; }
 .dayb-add select, .dayb-add input { min-height: 44px; font: inherit; }
+
+/* ══ THE LOOKING-BACK SHEET ═══════════════════════════════════════════════
+   The owner's reference (15 Aug) is a PRINTED page: rules between the boxes
+   rather than boxes with edges, the questions set small and tracked in the top
+   corner of each field, and a great deal of room to write under them. So this
+   is drawn as a sheet — hairlines, not cards. Nothing here is a control that
+   looks like a control until you are in it. */
+.dayb-sheet .dayb-two { display: grid; grid-template-columns: 1fr 1fr; }
+.dayb-sheet .dayb-six { display: grid; grid-template-columns: 1fr 1fr 1fr; position: relative; }
+.dayb-box {
+  display: block; padding: 13px 14px 12px; border-top: 1px solid var(--line-2);
+  border-right: 1px solid var(--line-2); min-width: 0;
+}
+/* The rules are a grid, so the outer edges of the sheet are the card's own. */
+.dayb-sheet .dayb-two > .dayb-box:last-child,
+.dayb-sheet .dayb-six > .dayb-box:nth-child(3n) { border-right: 0; }
+.dayb-lab {
+  display: block; font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
+  font-weight: 700; color: var(--muted); line-height: 1.35;
+}
+.dayb-ans {
+  display: block; width: 100%; margin-top: 7px; padding: 0; border: 0; background: none;
+  font: inherit; font-size: 14.5px; line-height: 1.6; color: var(--ink); resize: vertical;
+}
+.dayb-ans:focus { outline: none; }
+/* (01)(02)(03) — the numerals are the reference's, and they are decoration:
+   each line is a labelled field of its own underneath. */
+.dayb-grat { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 2px; }
+.dayb-grat li { display: flex; align-items: flex-start; gap: 9px; }
+.dayb-grat li > span[aria-hidden] { flex: none; font-size: 12px; color: var(--faint); padding-top: 20px; font-variant-numeric: tabular-nums; }
+.dayb-grat .dayb-box { flex: 1; min-width: 0; border: 0; padding: 4px 0 0; }
+.dayb-grat .dayb-lab {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
+.dayb-grat .dayb-ans { margin-top: 0; border-bottom: 1px solid var(--line-2); padding-bottom: 4px; }
+/* The hinge the sheet turns on. A ring on the rule between what went wrong and
+   what is carried forward — the reference's own centrepiece, and a label
+   rather than a control, so it is out of the tab order and out of the tree. */
+.dayb-reset {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  display: grid; place-items: center; width: 74px; height: 74px; border-radius: var(--r-full);
+  background: var(--card); border: 1px solid var(--line); color: var(--muted);
+  font-size: 10px; letter-spacing: .09em; text-transform: uppercase; font-weight: 700;
+  line-height: 1.3; text-align: center;
+}
+@media (max-width: 760px) {
+  /* A phone gets one column: the boxes are questions to answer, and answering
+     them in a 90px-wide field is what makes somebody stop. */
+  .dayb-sheet .dayb-two, .dayb-sheet .dayb-six { grid-template-columns: 1fr; }
+  .dayb-box { border-right: 0; }
+  .dayb-reset { display: none; }
+}
+
+/* THE 1–10, beside the mood words. A row of numbered keys, pressed in when
+   chosen — the same "raised by default, carved when you are on it" the nav
+   uses, because it is the same gesture. */
+.dayb-scale-lab { margin-top: 16px; }
+.dayb-scale { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.dayb-dot {
+  min-width: 34px; min-height: 34px; padding: 0; border: 0; border-radius: var(--r-full);
+  background: var(--face-key); box-shadow: var(--e1-key); color: var(--muted);
+  font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.dayb-dot.on { background: var(--well); box-shadow: var(--carve); color: var(--ink); }
 
 /* Something that went wrong, said in the page rather than in a browser bubble:
    a half-written time, an upload that did not land. Quiet, not alarming — the

@@ -8,7 +8,7 @@ import { uploadErrorMessage } from '@/api/media.api';
 import {
   useDay, useSaveDay, useAddDayItem, usePatchDayItem, useRemoveDayItem,
   useAddDayPhoto, useRemoveDayPhoto,
-  type DayItemKind,
+  type DayItemKind, type ReflectionKey,
 } from '@/api/daybook.api';
 
 /**
@@ -20,9 +20,19 @@ import {
  * calendar tells you what is scheduled, and what people actually want is a
  * record of the day. So the grid became the map, and this is the place.
  *
- * FIVE LAYERS, IN THE ORDER A DAY IS ACTUALLY LIVED: how it feels, what is on
- * it, what you want to remember of it, what was written about it, and — quietly
- * at the end — Mira, who can read this one day back to you.
+ * SIX LAYERS, IN THE ORDER A DAY IS ACTUALLY LIVED: how it feels, what is on
+ * it, what you want to remember of it, what you make of it looking back, what
+ * you write about it, and — quietly at the end — Mira, who can read this one
+ * day back to you.
+ *
+ * THE LOOKING-BACK SHEET is the owner's reference (15 Aug), a printed
+ * self-reflection page: what went well, what you are proud of, three things
+ * you are grateful for, what was difficult, what it taught you, the win, the
+ * challenge, tomorrow's focus. Its prompts are the product's words, which is
+ * the one thing this page has refused from the start — so they are QUESTIONS
+ * and never suggestions, every box is optional, and nothing is counted,
+ * scored, chained or compared with yesterday. A sheet you can leave blank is a
+ * sheet you can be honest on.
  *
  * THE PICTURES ARE THE ONE THING HERE THAT LEAVES THE DEVICE AS A FILE, and
  * they go to the private vault, never the public bucket: signed links that
@@ -64,6 +74,32 @@ function shift(date: string, by: number): string {
   return `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, '0')}-${String(at.getDate()).padStart(2, '0')}`;
 }
 
+/**
+ * ONE BOX ON THE LOOKING-BACK SHEET: a question, and room to answer it.
+ *
+ * DECLARED OUT HERE, not inside DayPage, and that is not tidiness. A component
+ * defined inside a render function is a NEW TYPE on every render, so React
+ * unmounts and remounts it — which for a box somebody is typing into means the
+ * caret jumps to the end of their sentence the moment anything else on the page
+ * saves. The answer lives in local state and is written on blur, like every
+ * other field here; the day's copy re-seeds it, and re-seeding with the same
+ * string is a no-op, so nothing moves under a hand mid-word.
+ */
+function AskBox({ label, value, rows, onSave }: {
+  label: string; value: string; rows: number; onSave: (text: string) => void;
+}) {
+  const [v, setV] = useState(value);
+  useEffect(() => { setV(value); }, [value]);
+  return (
+    <label className="dayb-box">
+      <span className="dayb-lab">{label}</span>
+      <textarea className="dayb-ans" rows={rows} value={v}
+        onChange={(e) => setV(e.target.value)}
+        onBlur={() => { if (v !== value) onSave(v); }} />
+    </label>
+  );
+}
+
 export function DayPage() {
   const { date = '' } = useParams();
   const valid = /^\d{4}-\d{2}-\d{2}$/.test(date);
@@ -99,6 +135,18 @@ export function DayPage() {
   const { weekday, rest } = useMemo(() => longDate(valid ? date : '1970-01-01'), [date, valid]);
   const items = day.data?.items ?? [];
   const photos = day.data?.photos ?? [];
+  const look = day.data?.reflection ?? {};
+
+  /** A box on the looking-back sheet, wired to its one key. Each answer is
+   *  saved ALONE — the server merges it into the sheet — so filling in one box
+   *  cannot overwrite a box filled somewhere else. */
+  const ask = (k: ReflectionKey, label: string, rows = 3) => {
+    const now = (look[k] ?? '') as string;
+    return (
+      <AskBox key={k} label={label} rows={rows} value={String(now)}
+        onSave={(text) => { if (text !== now) save.mutate({ reflection: { [k]: text } }); }} />
+    );
+  };
 
   /**
    * KEEP A PICTURE. One at a time through the mutation, so a failure names the
@@ -172,6 +220,30 @@ export function DayPage() {
                 </button>
               ))}
             </div>
+            {/* THE 1–10, FROM THE REFERENCE'S TOP ROW — and it belongs HERE,
+                beside the mood words, rather than on the looking-back sheet
+                where the sheet prints it. Both are the same question, and a
+                page that asks how the day felt twice, four sections apart,
+                gets two different answers from the same person.
+
+                IT IS A FEELING, NOT A MARK. Nothing computes it, nothing
+                averages it across days, nothing draws a line through it, and
+                Mira is told in as many words that it is not a score. Tapping
+                the number again takes it back — a day you cannot un-rate is a
+                day you rate carefully, which is the opposite of a diary. */}
+            <span className="dayb-lab dayb-scale-lab">How am I feeling today?</span>
+            <div className="dayb-scale" role="group" aria-label="How I am feeling today, one to ten">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                <button key={n} type="button"
+                  className={look.feeling === n ? 'dayb-dot on' : 'dayb-dot'}
+                  aria-pressed={look.feeling === n}
+                  aria-label={`${n} out of 10`}
+                  onClick={() => save.mutate({ reflection: { feeling: look.feeling === n ? null : n } })}>
+                  <span aria-hidden>{n}</span>
+                </button>
+              ))}
+            </div>
+
             <label className="dayb-label" htmlFor="dayb-feel">What&rsquo;s behind it?</label>
             <textarea id="dayb-feel" className="dayb-note" rows={2} value={feelNote}
               onChange={(e) => setFeelNote(e.target.value)}
@@ -286,7 +358,39 @@ export function DayPage() {
             {photoErr && <p className="dayb-say" role="alert">{photoErr}</p>}
           </section>
 
-          {/* ── 04 · WRITE ───────────────────────────────────────────────── */}
+          {/* ── 04 · LOOK BACK ───────────────────────────────────────────── */}
+          <section className="card rise dayb-sec dayb-sheet">
+            <h2 className="dayb-h">Looking back on today</h2>
+
+            {ask('wentWell', 'What went well today?', 4)}
+            <div className="dayb-two">
+              {ask('proudOf', 'Something I’m proud of', 4)}
+              <div className="dayb-box">
+                <span className="dayb-lab">Three things I am grateful for</span>
+                <ol className="dayb-grat">
+                  <li><span aria-hidden>(01)</span>{ask('grateful1', 'First thing I am grateful for', 1)}</li>
+                  <li><span aria-hidden>(02)</span>{ask('grateful2', 'Second thing I am grateful for', 1)}</li>
+                  <li><span aria-hidden>(03)</span>{ask('grateful3', 'Third thing I am grateful for', 1)}</li>
+                </ol>
+              </div>
+            </div>
+
+            {/* The reference puts MINDSET RESET in a ring at the centre of the
+                lower six boxes — the hinge the sheet turns on: what went wrong
+                on the left of it, what you carry forward on the right. It is a
+                label rather than a control, so it is `aria-hidden` and every
+                box beside it still carries its own question. */}
+            <div className="dayb-six">
+              {ask('difficult', 'What was difficult or didn’t go as planned?')}
+              {ask('win', 'Win of today')}
+              {ask('challenge', 'Challenge')}
+              {ask('learned', 'What can I learn from it?')}
+              {ask('tomorrow', 'Tomorrow’s focus')}
+              <span className="dayb-reset" aria-hidden>Mindset<br />reset</span>
+            </div>
+          </section>
+
+          {/* ── 05 · WRITE ───────────────────────────────────────────────── */}
           <section className="card rise dayb-sec">
             <h2 className="dayb-h">Write about today</h2>
             <textarea className="dayb-journal" rows={10} value={journal}
@@ -300,7 +404,7 @@ export function DayPage() {
             </p>
           </section>
 
-          {/* ── 05 · MIRA ────────────────────────────────────────────────── */}
+          {/* ── 06 · MIRA ────────────────────────────────────────────────── */}
           <section className="dayb-mira">
             <button type="button" className="mira-door" onClick={() => setAskMira(true)}
               aria-label="Ask Mira about this day" title="Mira can read this day back to you">

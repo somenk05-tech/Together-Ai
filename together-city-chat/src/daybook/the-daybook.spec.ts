@@ -90,7 +90,31 @@ describe('a day, as they left it', () => {
   it('an empty day is empty — nothing is invented to fill it', async () => {
     const svc = bare();
     const d = await svc.day('u1', '2026-08-15');
-    expect(d).toEqual({ date: '2026-08-15', mood: null, feelNote: null, journal: null, items: [], photos: [] });
+    expect(d).toEqual({ date: '2026-08-15', mood: null, feelNote: null, journal: null, reflection: {}, items: [], photos: [] });
+  });
+
+  it('the looking-back sheet fills a box at a time, and never wipes the others', async () => {
+    /* THE FIELD-LEVEL PARTIAL SAVE, ONE LEVEL DOWN. Eleven answers share a
+       single JSON column and each is written on its own as somebody tabs out
+       of a box. A save that replaced the object would mean answering "what
+       went well" erases the three things they were grateful for — which is
+       exactly the bug the partial save exists to prevent, reintroduced inside
+       a column, and invisible until somebody loses an evening's writing. */
+    const svc = bare();
+    await svc.save('u1', '2026-08-15', { reflection: { grateful1: 'the rain', grateful2: 'a call' } });
+    await svc.save('u1', '2026-08-15', { reflection: { wentWell: 'the meeting' } });
+    await svc.save('u1', '2026-08-15', { reflection: { feeling: 7 } });
+    const d = await svc.day('u1', '2026-08-15');
+    expect(d.reflection).toEqual({ grateful1: 'the rain', grateful2: 'a call', wentWell: 'the meeting', feeling: 7 });
+    // …and an emptied box is cleared rather than left standing, the rule the
+    // mood chips earned.
+    await svc.save('u1', '2026-08-15', { reflection: { grateful2: '' } });
+    expect((await svc.day('u1', '2026-08-15')).reflection).toEqual({ grateful1: 'the rain', wentWell: 'the meeting', feeling: 7 });
+    // The sheet does not disturb the writing beside it.
+    await svc.save('u1', '2026-08-15', { journal: 'The long version.' });
+    const after = await svc.day('u1', '2026-08-15');
+    expect(after.journal).toBe('The long version.');
+    expect(after.reflection.wentWell).toBe('the meeting');
   });
 
   it('a partial save touches only what it names', async () => {

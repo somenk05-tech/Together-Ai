@@ -65,11 +65,44 @@ export interface MonthMark {
   photos: number;
 }
 
+/**
+ * THE LOOKING-BACK PAGE, as one object rather than eleven columns.
+ *
+ * The owner's reference (15 Aug) is a printed self-reflection sheet: what went
+ * well, what you are proud of, three things you are grateful for, what was
+ * difficult, what it taught you, the win, the challenge, tomorrow's focus. It
+ * is a TEMPLATE, and the one certain thing about a template is that its
+ * prompts change — so it is a single JSON column and a zod shape in the
+ * controller. Adding a prompt is a line; removing one is a line; neither is a
+ * migration, and a product that has to migrate to reword a question stops
+ * rewording its questions.
+ *
+ * The keys are still NAMED and validated — this is not a free key-value store
+ * a client can fill with anything it likes.
+ */
+export interface Reflection {
+  /** 1–10, their own reading of the day. The one number the daybook keeps, and
+   *  it is a feeling rather than a grade: nothing computes it, nothing sums it
+   *  across days, nothing draws a line through it. */
+  feeling?: number | null;
+  wentWell?: string | null;
+  proudOf?: string | null;
+  grateful1?: string | null;
+  grateful2?: string | null;
+  grateful3?: string | null;
+  difficult?: string | null;
+  learned?: string | null;
+  win?: string | null;
+  challenge?: string | null;
+  tomorrow?: string | null;
+}
+
 export interface DayRecord {
   date: string;
   mood: string | null;
   feelNote: string | null;
   journal: string | null;
+  reflection: Reflection;
   items: DayItemRow[];
   photos: DayPhotoRow[];
 }
@@ -107,6 +140,7 @@ export class DaybookService {
       mood: page?.mood ?? null,
       feelNote: page?.feelNote ?? null,
       journal: page?.journal ?? null,
+      reflection: (page?.reflection ?? {}) as Reflection,
       items: items.map((i: { id: string; kind: string; title: string; at: string | null; done: boolean }) => ({
         id: i.id, kind: i.kind, title: i.title, at: i.at, done: i.done,
       })),
@@ -173,20 +207,41 @@ export class DaybookService {
   }
 
   /**
-   * Write the page. PARTIAL BY DESIGN: the day page is three fields edited at
-   * three different moments — a mood picked in the morning, a line about it at
-   * lunch, the writing at night — and a save that carried all three would let
-   * the last screen to load erase the other two.
+   * Write the page. PARTIAL BY DESIGN: the day page is now a dozen fields
+   * edited at a dozen different moments — a mood picked in the morning, a line
+   * about it at lunch, three gratefuls and the writing at night — and a save
+   * that carried all of them would let the last screen to load erase the rest.
+   *
+   * THE REFLECTION MERGES RATHER THAN REPLACES, for the same reason one level
+   * down: it is one JSON column holding eleven answers, and each answer is
+   * saved on its own as somebody tabs out of the box. A write that replaced
+   * the object would mean answering "what went well" erases the three things
+   * you were grateful for — the exact bug the field-level partial save exists
+   * to prevent, reintroduced inside a column. (Two tabs open on the same day
+   * can still race each other; a diary is one pair of hands, and the cost of
+   * being wrong is one re-typed line rather than a lost page.)
    */
   async save(
     userId: string,
     date: string,
-    patch: { mood?: string | null; feelNote?: string | null; journal?: string | null },
+    patch: { mood?: string | null; feelNote?: string | null; journal?: string | null; reflection?: Reflection },
   ): Promise<DayRecord> {
-    const data: Record<string, string | null> = {};
+    const data: Record<string, unknown> = {};
     if (patch.mood !== undefined) data.mood = patch.mood || null;
     if (patch.feelNote !== undefined) data.feelNote = patch.feelNote || null;
     if (patch.journal !== undefined) data.journal = patch.journal || null;
+    if (patch.reflection !== undefined) {
+      const now = await this.prisma.dayPage.findUnique({ where: { userId_date: { userId, date } } });
+      const merged: Record<string, unknown> = { ...((now?.reflection ?? {}) as Reflection) };
+      for (const [k, v] of Object.entries(patch.reflection)) {
+        // An emptied box is cleared, not left standing — the rule the mood
+        // chips earned. `delete` rather than `null` so the object stays the
+        // size of what is actually written on the page.
+        if (v === null || v === '' || v === undefined) delete merged[k];
+        else merged[k] = v;
+      }
+      data.reflection = merged;
+    }
     await this.prisma.dayPage.upsert({
       where: { userId_date: { userId, date } },
       update: data,

@@ -49,6 +49,25 @@ function num(v: unknown): number | undefined {
   const n = typeof v === 'string' ? Number(v) : v;
   return typeof n === 'number' && Number.isFinite(n) ? n : undefined;
 }
+/**
+ * THE LOOKING-BACK SHEET'S QUESTIONS, so an answer is read back with the
+ * question it was given to. "the meeting" tells her nothing; "what went well:
+ * the meeting" tells her everything. The order is the order on the page.
+ */
+const REFLECTION_PROMPTS: Array<[string, string]> = [
+  ['feeling', 'how the day felt to them, 1–10 (their reading, not a mark)'],
+  ['wentWell', 'what went well today'],
+  ['proudOf', 'something they are proud of'],
+  ['grateful1', 'grateful for'],
+  ['grateful2', 'grateful for'],
+  ['grateful3', 'grateful for'],
+  ['difficult', "what was difficult or didn't go as planned"],
+  ['learned', 'what they can learn from it'],
+  ['win', 'the win of today'],
+  ['challenge', 'the challenge'],
+  ['tomorrow', "tomorrow's focus"],
+];
+
 /** A list, however the hub chose to wrap it. */
 function asList(v: unknown, ...keys: string[]): unknown[] {
   if (Array.isArray(v)) return v;
@@ -740,7 +759,9 @@ export class MiraService {
     // so somebody who kept a picture and no words would have been told there
     // was nothing there — by the one part of the city that had just been handed
     // their memory.
-    const bare = !day || (!day.mood && !day.feelNote && !day.journal && day.items.length === 0 && day.photos.length === 0);
+    const answered = Object.values(day?.reflection ?? {}).filter((v) => v !== null && v !== '').length;
+    const bare = !day || (!day.mood && !day.feelNote && !day.journal
+      && day.items.length === 0 && day.photos.length === 0 && answered === 0);
 
     if (bare) {
       record();
@@ -771,6 +792,17 @@ export class MiraService {
       // pretending the day held nothing; telling her any more than that would
       // be inviting her to describe an image nobody showed her.
       day.photos.length ? `PICTURES THEY KEPT ON THIS DAY: ${day.photos.length}` : null,
+      /* THE LOOKING-BACK SHEET, in the citizen's own words and labelled with
+         the question each answer was given to — an answer read back without
+         its prompt is a sentence with the subject removed. `feeling` is a
+         1–10 reading of the day, and she is told below what it is not. */
+      answered ? `WHAT THEY WROTE LOOKING BACK:\n${REFLECTION_PROMPTS
+        .filter(([k]) => {
+          const v = (day.reflection as Record<string, unknown>)[k];
+          return v !== null && v !== undefined && v !== '';
+        })
+        .map(([k, q]) => `- ${q}: ${String((day.reflection as Record<string, unknown>)[k]).slice(0, 1200)}`)
+        .join('\n')}` : null,
     ].filter(Boolean).join('\n\n');
 
     const system = [
@@ -778,6 +810,7 @@ export class MiraService {
       'THIS IS THE WHOLE OF WHAT YOU CAN SEE: one day. Not the month, not yesterday, not anything you remember from elsewhere. If they ask about another day or a pattern over time, say plainly that you are only looking at this one.',
       'NEVER INVENT A DAY. Everything you say has to be traceable to what is below. If it is not there, it did not happen as far as you know, and you say so rather than filling the gap — a diary read back wrong is worse than a diary unread.',
       'YOU CANNOT SEE THEIR PICTURES. If the day says pictures were kept, you know only how many. Never describe one, never guess what is in it, never say it looks like anything — you have not been shown it, and you say so if asked.',
+      'THE 1-10 IS HOW THE DAY FELT TO THEM, NOT A MARK. Never call it a score, never compare it to another day, never congratulate or commiserate about the number. If they wrote 4, the useful thing is what they said around it.',
       'You are reading, not grading. No productivity scoring, no "you only completed 2 of 5", no advice they did not ask for. If they ask what it looked like, tell them warmly and briefly, in their own terms.',
       'Two to four sentences, almost always. A chat bubble, not a report. Contractions. No headers, no bullet lists unless they ask for a list.',
       'Banned from your mouth, always: "As an AI", "great question", "happy to help", "is there anything else", "I understand how you feel", "absolutely!", "of course!", "based on your query", announcing lists, narrating machinery. You sound like Mira — a person — or you say nothing.',

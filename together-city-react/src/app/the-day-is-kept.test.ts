@@ -191,6 +191,56 @@ describe('a day can be photographed', () => {
   });
 });
 
+/**
+ * THE LOOKING-BACK SHEET — the owner's reference, 15 Aug: a printed
+ * self-reflection page, dropped into the day between what you kept and what
+ * you write.
+ *
+ * Its prompts are the product's words on a page whose whole argument is that
+ * the product does not put words there. That is survivable — a QUESTION is not
+ * a suggestion — and it is survivable only under conditions, which is what
+ * this block holds: every box optional, nothing counted, nothing compared to
+ * yesterday, and the one number on the page a FEELING rather than a mark.
+ */
+describe('a day can be looked back on', () => {
+  const page = stripComments(read('features/daybook/pages/DayPage.tsx'));
+  const api = read('api/daybook.api.ts');
+
+  it('asks the reference’s questions, and asks them as questions', () => {
+    for (const q of [
+      'What went well today', 'proud of', 'grateful for',
+      "didn’t go as planned", 'learn from it', 'Win of today', 'Challenge', 'focus',
+    ]) {
+      expect({ prompt: q, asked: page.includes(q) }).toEqual({ prompt: q, asked: true });
+    }
+  });
+
+  it('saves one box at a time, so filling one cannot wipe another', () => {
+    // Eleven answers share one JSON column; each is written alone and the
+    // server merges. Sending the whole object would overwrite a box somebody
+    // filled in another tab — the partial-save bug, one level down.
+    expect(page).toMatch(/save\.mutate\(\{ reflection: \{ \[k\]: text \} \}\)/);
+    expect(api).toMatch(/reflection\?: Reflection/);
+  });
+
+  it('the 1–10 is a feeling, and it can be taken back', () => {
+    // Tapping the same number again clears it. A day you cannot un-rate is a
+    // day you rate carefully, which is the opposite of a diary.
+    expect(page).toMatch(/feeling: look\.feeling === n \? null : n/);
+  });
+
+  it('and nothing on the sheet is counted, chained or compared', () => {
+    // The whole-file ban already covers score/streak/progress; these are the
+    // shapes a reflection sheet in particular grows.
+    expect(page).not.toMatch(/average|yesterday|last week|out of 10 so far|\btrend\b/i);
+  });
+
+  it('a box that is emptied is cleared rather than left standing', () => {
+    // The rule the mood chips earned, applied inside the JSON column.
+    expect(page).toMatch(/if \(text !== now\)/);
+  });
+});
+
 describe('and Mira reads one day of it', () => {
   const panel = read('features/daybook/MiraDay.tsx');
 
