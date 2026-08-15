@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Icon, type IconName } from '@/components/ui/Icon';
 
@@ -19,19 +20,131 @@ import { Icon, type IconName } from '@/components/ui/Icon';
  * hero art commissioned from a place that does not exist, and no `HubKey`
  * entry: the tab is a `TabKey`, which is a smaller idea (see config/hubs.ts).
  *
- * The plate at the top is the citizen card — the city's own object rather
- * than a photograph of somewhere, which is the honest picture for the one
- * screen in Together City that is about you and not about the city.
+ * ── THE PLATE CAME OFF (owner, 15 Aug, with a new reference) ───────────────
+ *
+ * A brushed-metal CITIZEN CARD sat across the top of this page. It was the
+ * city's own object, which was the argument for it, and it was wrong here for
+ * two reasons the reference makes plain: it is the most corporate surface in
+ * the application sitting above the four most personal rooms in it, and it was
+ * a 1600px picture that said nothing — no name, no number, no state, nothing
+ * that ever changes. Under it, the four rooms were four grey rows.
+ *
+ * The reference is paper: a ruled leaf per room, the room's mark punched onto
+ * the rule, and something of the room's own lying on the page — a date, a
+ * stack, a print. So the page is the four cards and nothing else now, and each
+ * one carries a small drawing of what is behind its door.
+ *
+ * EVERY DRAWING HERE IS BUILT, NOT PHOTOGRAPHED. No new file in /assets and
+ * nothing to re-export when a size changes: the calendar leaf shows the real
+ * dates around today, the drive leaf a stack of paper, the album leaf two
+ * prints at an angle. The reference sets its titles in a display serif and its
+ * asides in a hand; this city has ONE typeface and a guard that proves it, so
+ * the aside is the italic of the same family — the flourish this application
+ * already uses elsewhere — and the hierarchy comes from size rather than from
+ * a second font.
  */
 
-interface Room { to: string; icon: IconName; label: string; line: string }
+interface Room {
+  to: string;
+  icon: IconName;
+  label: string;
+  line: string;
+  /** The aside in the margin, in the family's italic. Not every leaf has one. */
+  aside?: string;
+  motif: 'rules' | 'dates' | 'stack' | 'prints';
+}
 
 const ROOMS: Room[] = [
-  { to: '/thoughts', icon: 'journal', label: 'Thoughts', line: 'Your private journal — nobody sees this but you.' },
-  { to: '/calendar', icon: 'calendar', label: 'Calendar', line: 'Everything the city has you down for, in one week.' },
-  { to: '/drive', icon: 'doc', label: 'Drive', line: 'Your documents, kept where you can find them again.' },
-  { to: '/personal/album', icon: 'image', label: 'Album', line: 'Every photo and video you have posted to the city.' },
+  { to: '/thoughts', icon: 'journal', label: 'Thoughts', line: 'Your private journal — nobody sees this but you.', aside: 'Note down what matters', motif: 'rules' },
+  { to: '/calendar', icon: 'calendar', label: 'Calendar', line: 'Everything the city has you down for, in one week.', motif: 'dates' },
+  { to: '/drive', icon: 'doc', label: 'Drive', line: 'Your documents, kept where you can find them again.', aside: 'Everything in its place', motif: 'stack' },
+  { to: '/personal/album', icon: 'image', label: 'Album', line: 'Every photo and video you have posted to the city.', motif: 'prints' },
 ];
+
+/** A print, the way a photograph printed at home is: a white face, a wider
+ *  margin at the foot, a degree or two off square. The same object the month
+ *  grid pins to a day — drawn rather than imported, so it has no file to
+ *  load and nothing to go missing. */
+function Print({ turn, children }: { turn: number; children?: React.ReactNode }) {
+  return (
+    <span style={{
+      display: 'block', width: 60, padding: '4px 4px 11px', background: 'var(--card)',
+      boxShadow: 'var(--e1)', borderRadius: 2, transform: `rotate(${turn}deg)`,
+    }}>
+      <span style={{ display: 'grid', placeItems: 'center', height: 44, background: 'var(--well)', borderRadius: 1, color: 'var(--faint)' }}>
+        {children}
+      </span>
+    </span>
+  );
+}
+
+/** The three weeks around today in the same weekday column — the shape a month
+ *  grid makes, at the size of a stamp. REAL dates: a drawing of a calendar
+ *  showing somebody else's week is a picture of nothing. */
+function Dates() {
+  const days = useMemo(() => {
+    const now = new Date();
+    return [-8, -7, -6, -1, 0, 1, 6, 7, 8].map((d) => {
+      const at = new Date(now.getFullYear(), now.getMonth(), now.getDate() + d);
+      return { n: at.getDate(), today: d === 0 };
+    });
+  }, []);
+  return (
+    <span style={{
+      display: 'grid', gridTemplateColumns: 'repeat(3, 32px)', gridAutoRows: 29,
+      background: 'var(--wash)', borderRadius: 6, overflow: 'hidden',
+    }}>
+      {days.map((d, i) => (
+        <span key={i} style={{
+          display: 'grid', placeItems: 'center', fontSize: 12,
+          color: d.today ? 'var(--ink)' : 'var(--muted)', fontWeight: d.today ? 700 : 500,
+          borderRight: i % 3 === 2 ? undefined : '1px solid var(--line-2)',
+          borderBottom: i < 6 ? '1px solid var(--line-2)' : undefined,
+        }}>
+          <span style={d.today ? {
+            display: 'grid', placeItems: 'center', width: 22, height: 22,
+            borderRadius: 'var(--r-full)', border: '1px solid var(--ink)',
+          } : undefined}>{d.n}</span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function Motif({ kind }: { kind: Room['motif'] }) {
+  if (kind === 'dates') return <Dates />;
+  if (kind === 'prints') {
+    return (
+      <span style={{ display: 'flex', alignItems: 'flex-end' }}>
+        <Print turn={-4} />
+        <span style={{ marginLeft: -20 }}>
+          <Print turn={3}><Icon name="heart" size={15} /></Print>
+        </span>
+      </span>
+    );
+  }
+  if (kind === 'stack') {
+    // Three leaves of paper, fanned the way a pile of documents sits.
+    return (
+      <span style={{ display: 'block', position: 'relative', width: 74, height: 60 }}>
+        {[0, 1, 2].map((i) => (
+          <span key={i} style={{
+            position: 'absolute', left: i * 5, bottom: i * 5, width: 60, height: 44,
+            background: 'var(--card)', boxShadow: 'var(--e1)', borderRadius: 3,
+          }} />
+        ))}
+      </span>
+    );
+  }
+  // 'rules' — a page waiting to be written on.
+  return (
+    <span style={{ display: 'grid', gap: 9, width: 82 }}>
+      {[100, 100, 68].map((w, i) => (
+        <span key={i} style={{ display: 'block', height: 1, width: `${w}%`, background: 'var(--line)' }} />
+      ))}
+    </span>
+  );
+}
 
 export function PersonalHome() {
   return (
@@ -44,26 +157,48 @@ export function PersonalHome() {
         </div>
       </div>
 
-      {/* The citizen card, the city's own object. `no-case` keeps the image out
-          of the framed-photograph treatment: this is a card, not a view. */}
-      <div className="card rise" style={{ overflow: 'hidden', padding: 0, marginBottom: 18 }}>
-        <img className="no-case" src="/assets/img/citizen-card.webp" alt=""
-          style={{ display: 'block', width: '100%', height: 'auto' }} />
-      </div>
-
-      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+      <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(238px, 1fr))' }}>
         {ROOMS.map((r) => (
           <Link key={r.to} to={r.to} className="card rise"
-            style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '16px 18px',
-              minHeight: 44, textDecoration: 'none', color: 'var(--ink)' }}>
-            <span aria-hidden style={{ flex: 'none', display: 'grid', placeItems: 'center', width: 38, height: 38,
-              borderRadius: 'var(--r-full)', background: 'var(--wash)', color: 'var(--ink)' }}>
-              <Icon name={r.icon} size={17} />
+            style={{
+              position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden',
+              minHeight: 264, padding: '20px 20px 20px 0', textDecoration: 'none', color: 'var(--ink)',
+            }}>
+            {/* THE MARGIN RULE, and the mark punched onto it. It runs the full
+                height of the leaf rather than stopping at the text, which is
+                what makes the card read as a page out of a notebook rather
+                than a box with a line in it. */}
+            <span aria-hidden style={{
+              position: 'absolute', left: 44, top: 0, bottom: 0, width: 1, background: 'var(--line-2)',
+            }} />
+            <span aria-hidden style={{
+              position: 'absolute', left: 26, top: 20, display: 'grid', placeItems: 'center',
+              width: 37, height: 37, borderRadius: 'var(--r-full)',
+              background: 'var(--card)', border: '1px solid var(--line)', color: 'var(--ink)',
+            }}>
+              <Icon name={r.icon} size={16} />
             </span>
-            <span style={{ minWidth: 0 }}>
-              <b style={{ display: 'block', fontSize: 15 }}>{r.label}</b>
-              <span className="muted" style={{ display: 'block', fontSize: 12.5, lineHeight: 1.5, marginTop: 2 }}>{r.line}</span>
-            </span>
+
+            <div style={{ paddingLeft: 76, paddingRight: 4 }}>
+              <b style={{ display: 'block', fontSize: 19, letterSpacing: '-.02em' }}>{r.label}</b>
+              <p className="muted" style={{ fontSize: 13, lineHeight: 1.55, margin: '5px 0 0' }}>{r.line}</p>
+            </div>
+
+            {/* The foot of the leaf: the aside in the margin, the drawing on
+                the page. `marginTop: auto` pins it to the bottom so four cards
+                carrying four different lengths of copy still line up along it. */}
+            <div style={{
+              marginTop: 'auto', paddingLeft: 76, paddingTop: 18, paddingRight: 4,
+              display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12,
+            }}>
+              {r.aside ? (
+                <span className="muted" style={{
+                  fontStyle: 'italic', fontSize: 13, lineHeight: 1.45, maxWidth: 94,
+                  borderBottom: '1px solid var(--line)', paddingBottom: 3,
+                }}>{r.aside}</span>
+              ) : <span />}
+              <span aria-hidden style={{ flex: 'none' }}><Motif kind={r.motif} /></span>
+            </div>
           </Link>
         ))}
       </div>
