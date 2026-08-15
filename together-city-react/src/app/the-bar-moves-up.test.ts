@@ -66,6 +66,36 @@ describe('the bar sits with the logo', () => {
     expect(bar).toMatch(/position:\s*absolute/);
     expect(bar).toMatch(/right:\s*0/);
   });
+
+  /**
+   * AND THE DISTRICTS SIT ON THE SAME MIDDLE (owner, 15 Aug: "center align the
+   * hubs make it aesthetics"). One axis for the whole header — monogram left,
+   * name centred, doors right, tabs centred underneath.
+   *
+   * The trap this guards is the obvious implementation. `.tc-nav` is a SCROLL
+   * container: twelve tabs do not fit a small window. Centring a flex scroller
+   * puts its first item at a negative scroll offset that no browser will let
+   * you reach, so ASTROLOGY would become permanently unreachable at exactly
+   * the width where scrolling begins — and only there, which is why it would
+   * ship. The row centres a nav sized to its tabs instead.
+   */
+  it('centres the tab row without making its first tab unreachable', () => {
+    const layout = read('styles/layout.css');
+    const row = layout.match(/\.tc-navrow \{[^}]*\}/)?.[0] ?? '';
+    const nav = layout.match(/\.tc-nav \{[^}]*\}/)?.[0] ?? '';
+    expect(row, '.tc-navrow rule not found').toBeTruthy();
+    expect(nav, '.tc-nav rule not found').toBeTruthy();
+    // The parent centres…
+    expect(row).toMatch(/justify-content:\s*center/);
+    // …the scroller does not, and still scrolls.
+    expect(nav).not.toMatch(/justify-content:\s*center/);
+    expect(nav).toMatch(/overflow-x:\s*auto/);
+    // …and the nav is only as wide as its tabs, or centring it centres nothing.
+    // Two classes on purpose: relief.css says `flex: 1 1 auto` and loads last.
+    expect(layout).toMatch(/\.tc-navrow \.tc-nav \{[^}]*flex:\s*0 1 auto/);
+    // No left indent survives — an indent is a side, and a centred row has none.
+    expect(nav).not.toMatch(/padding-left/);
+  });
 });
 
 describe('Personal is one of those doors now', () => {

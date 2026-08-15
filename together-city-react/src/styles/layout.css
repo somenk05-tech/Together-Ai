@@ -32,10 +32,29 @@
    step with a font size. What used to live here is one line in relief.css.
    `--logo-filter` goes with it — the lockup inverts wholesale in the two dark
    hubs rather than carrying a drop-shadow stack of its own. */
-/* Row 2 — the hub tabs, pushed left with a small left indent. The row used to
-   carry the action group on its right as well; that is Row 1's now. */
-.tc-navrow { display: flex; align-items: center; gap: 18px; width: 100%; min-width: 0; }
-.tc-nav { display: flex; align-items: center; justify-content: flex-start; gap: 6px; min-width: 0; padding-left: 32px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+/* Row 2 — THE DISTRICTS, CENTRED UNDER THE NAME OF THE CITY (owner, 15 Aug).
+   They used to start at the left edge with a 32px indent, because they were
+   sharing the line with the action bar and had to leave it the right-hand end.
+   Nothing is beside them now, and a row of twelve tabs pinned left under a
+   centred wordmark reads as two rows that were laid out by different people.
+   Centred, the header has one axis: monogram left, name middle, doors right,
+   districts on the same middle underneath.
+
+   THE CENTRING IS ON THE PARENT, DELIBERATELY. `justify-content: center` on
+   `.tc-nav` itself would be the obvious way and is a trap: `.tc-nav` is a
+   scroll container (twelve tabs will not fit a small window), and a centred
+   flex scroller puts its first item at a NEGATIVE scroll offset that no
+   browser lets you reach — ASTROLOGY would be permanently unreachable at the
+   width where scrolling starts. So the row centres a nav that is only as wide
+   as its tabs; when they stop fitting it grows to the full width, and from
+   there it scrolls from the left like any other strip.
+
+   `flex: 0 1 auto` is the "only as wide as its tabs" half, and it is written
+   at two-class specificity on purpose: relief.css gives `.tc-nav` `flex: 1 1
+   auto` and loads last, so a one-class rule here would silently lose. */
+.tc-navrow { display: flex; align-items: center; justify-content: center; gap: 18px; width: 100%; min-width: 0; }
+.tc-nav { display: flex; align-items: center; justify-content: flex-start; gap: 6px; min-width: 0; max-width: 100%; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.tc-navrow .tc-nav { flex: 0 1 auto; }
 .tc-nav::-webkit-scrollbar { display: none; }
 /* The tabs are the one row in the application set in capitals, and relief.css
    says why. The LABELS themselves are sentence case in hubs.ts — the same
@@ -45,12 +64,23 @@
 .tc-actionbar { display: flex; align-items: center; gap: 10px; flex-shrink: 0; margin-left: auto; }
 .tc-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .tc-actionbar a, .tc-actionbar button, .tc-actions a, .tc-actions button { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; font-size: var(--chip-fs); letter-spacing: 0; font-weight: 600; white-space: nowrap; text-transform: none; position: relative; }
-/* Keep all 12 sectors on one line — shrink tabs/gaps on narrower desktops. The
-   action bar shrinks with them: it is on the row above now, but it shares the
-   header's `--chip-fs`, and a bar set two steps larger than the tabs beneath it
-   reads as a different piece of furniture. */
-@media (max-width: 1560px) { .tc-header { --chip-fs: 10.5px; } .tc-navrow { gap: 14px; } .tc-nav { gap: 5px; padding-left: 24px; } .tc-actionbar, .tc-actions { gap: 8px; } }
-@media (max-width: 1340px) { .tc-header { --chip-fs: 9.5px; } .tc-navrow { gap: 12px; } .tc-nav { gap: 4px; padding-left: 14px; } .tc-actionbar, .tc-actions { gap: 6px; } }
+/* Keep all 12 sectors on one line — shrink the type on narrower desktops.
+
+   BOTH STEPS MOVED OUT A WINDOW SIZE. They were at 1560 and 1340, set when the
+   tabs were sharing their line with five buttons: the row ran out of width
+   early, so the type came down early, and a 1440px laptop — the common one —
+   was reading the city's districts at 10.5px for a reason that no longer
+   exists. With the line to themselves the tabs hold 11.5px to 1441 and 10.5px
+   to 1181. Below that they take the last step rather than start scrolling,
+   because a scrolling row with no visible edge is one nobody scrolls.
+
+   The action bar steps with them: it is on the row above now, but it shares
+   the header's `--chip-fs`, and a bar set two sizes larger than the tabs
+   beneath it reads as a different piece of furniture. The `.tc-nav` gap is
+   relief.css's `clamp(14px, 1.7vw, 26px)` at every width — it loads last, so
+   the per-breakpoint gaps that used to sit here were dead letters. */
+@media (max-width: 1440px) { .tc-header { --chip-fs: 10.5px; } .tc-navrow { gap: 14px; } .tc-actionbar, .tc-actions { gap: 8px; } }
+@media (max-width: 1180px) { .tc-header { --chip-fs: 9.5px; } .tc-navrow { gap: 12px; } .tc-actionbar, .tc-actions { gap: 6px; } }
 .tc-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; overflow: hidden; }
 
 .tc-main { padding-top: calc(var(--header-h) + var(--safe-top)); min-height: 100vh; }
@@ -118,8 +148,9 @@
   .tc-scrim { display: block; position: fixed; inset: 0; z-index: 199; background: none; border: 0; padding: 0; margin: 0; }
   .tc-burger { display: flex; }
   .tc-header { padding: 6px 12px; }
-  .tc-nav { padding-left: 0; }
-  /* icons-only actions on the right so the tabs + actions line still fits */
+  /* The tab row's left indent used to be undone here. There is no indent to
+     undo now — the row is centred, so it has no side of its own. */
+  /* icons-only actions beside the logo, so the signature row still fits */
   .tc-actionbar .lab, .tc-actions .lab { display: none; }
   .tc-side { position: fixed; top: 0; left: 0; bottom: 0; z-index: 200; transform: translateX(-100%); transition: transform .28s ease; padding-top: calc(28px + var(--safe-top)); border-radius: 0 var(--r-5) var(--r-5) 0; }
   .tc-side.open { transform: translateX(0); }
