@@ -43,6 +43,24 @@ describe('Mira reads one chat', () => {
     expect(mira).not.toMatch(/\.mira-door \{[^}]*var\(--mira-mark\)/);
   });
 
+  it('and she is in the dating thread too, on the same terms', () => {
+    // The owner, 15 Aug: "add mira to dating chats too". A dating thread is
+    // the conversation people most want a second read on — and the one where
+    // a stranger's words are least anybody's to keep, so the panel it opens
+    // is the SAME one, with the same window-only scope, rather than a second
+    // implementation that could quietly grow a memory.
+    const dating = read('features/dating/pages/DatingChats.tsx');
+    expect(dating).toMatch(/import \{ MiraConfidant \} from '@\/features\/chat\/mira\/MiraConfidant'/);
+    expect(dating).toMatch(/<MiraConfidant otherName=\{chat\.name\} transcript=\{confideTranscript\}/);
+    expect(dating).toMatch(/aria-label="Ask Mira about this conversation"/);
+    expect(dating).toMatch(/title="Mira can analyse this chat for you"/);
+    // The same window rule as the city chats: rendered messages, words only,
+    // last forty, sides told apart the way the bubbles are.
+    expect(dating).toMatch(/\.filter\(\(m\) => !m\.deleted && m\.body\)/);
+    expect(dating).toMatch(/\.slice\(-40\)/);
+    expect(dating).toMatch(/m\.senderId === meId \? \('me' as const\) : \('them' as const\)/);
+  });
+
   it('hovering says what she is for, and a keyboard learns the same thing', () => {
     const mira = read('styles/mira.css');
     expect(mira).toMatch(/\.mira-door::after \{[^}]*content: 'Mira can analyse this chat for you'/);

@@ -9,6 +9,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useDatingChats, useUnmatch, type DatingChatSummary } from '../api';
 import { CallButtons } from '@/features/calls/CallButtons';
 import { SafetyMenu } from '../components/SafetyMenu';
+import { MiraMark } from '@/features/chat/mira/MiraMark';
+import { MiraConfidant } from '@/features/chat/mira/MiraConfidant';
 import { useChatRoom } from '@/hooks/useChatRoom';
 import { useScaleLock } from '@/hooks/useScaleLock';
 
@@ -183,6 +185,14 @@ function Thread({ chat, meId, onBack }: { chat: OpenChat; meId: string; onBack: 
   const [sending, setSending] = useState(false);
   const [local, setLocal] = useState<Message[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  /* MIRA, INVITED INTO THIS CONVERSATION (owner, 15 Aug: "add mira to dating
+     chats too"). The same panel the city chats carry, scoped the same way:
+     what she reads is the window this screen is already showing, handed over
+     as a prop, and the server never queries the chat tables for it. A dating
+     thread is the conversation people most want a second read on, and it is
+     also the one where a stranger's words are least their own to keep — so
+     the rule that she stores nothing matters more here, not less. */
+  const [confide, setConfide] = useState(false);
   /* THE SAME ROOM AS THE CITY CHAT, not merely the same paint. This panel
      already borrowed the stage; on a phone it was still a card sitting in a
      page, under the city's header, above 'Your other chats', with the whole
@@ -195,6 +205,19 @@ function Thread({ chat, meId, onBack }: { chat: OpenChat; meId: string; onBack: 
     const seen = new Set<string>();
     return [...(msgs.data?.items ?? []), ...local].filter((m) => (seen.has(m.id) ? false : (seen.add(m.id), true)));
   }, [msgs.data, local]);
+
+  /* THE WINDOW MIRA MAY READ: this thread as this screen shows it, words
+     only, the last forty turns — the same bound the server enforces. Sides
+     are told apart the way the bubbles are. */
+  const confideTranscript = useMemo(() =>
+    messages
+      .filter((m) => !m.deleted && m.body)
+      .slice(-40)
+      .map((m) => ({
+        who: m.senderId === meId ? ('me' as const) : ('them' as const),
+        text: (m.body ?? '').slice(0, 1000),
+      })),
+  [messages, meId]);
 
   useChatRealtime(chat.conversationId, (m) => setLocal((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m])));
 
@@ -236,6 +259,14 @@ function Thread({ chat, meId, onBack }: { chat: OpenChat; meId: string; onBack: 
               match card showed. Nothing here changes anybody's name. */}
         </div>
         {chat.score != null && <span className="cspip" style={{ minWidth: 44 }}>{chat.score}%</span>}
+        {/* Her whole lockup, as in every other conversation in the city —
+            hovering says what she is for. A press invites her into THIS
+            thread and nothing else. */}
+        <button type="button" className="mira-door" aria-label="Ask Mira about this conversation"
+          title="Mira can analyse this chat for you" onClick={() => setConfide(true)}
+          style={{ flex: 'none' }}>
+          <MiraMark size={48} state="waiting" />
+        </button>
         {/* A call here carries no more identity than the chat does: the avatar
             and name above are already whatever each person chose to show. */}
         <CallButtons conversationId={chat.conversationId} compact />
@@ -256,6 +287,11 @@ function Thread({ chat, meId, onBack }: { chat: OpenChat; meId: string; onBack: 
             somebody else; block ends it and hides you from each other. */}
         <SafetyMenu userId={chat.otherUserId} kind="romantic" compact />
       </div>
+
+      {confide && (
+        <MiraConfidant otherName={chat.name} transcript={confideTranscript}
+          onClose={() => setConfide(false)} />
+      )}
 
       {/* messages */}
       <div ref={scrollRef} className="csmsgs">
