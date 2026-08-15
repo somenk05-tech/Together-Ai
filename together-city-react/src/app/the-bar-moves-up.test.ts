@@ -43,28 +43,72 @@ const stripComments = (s: string): string =>
 describe('the bar sits with the logo', () => {
   const header = stripComments(read('layouts/Header.tsx'));
 
-  it('the action bar is on Row 1, with the signature', () => {
-    const rowOne = header.slice(header.indexOf('tc-header-top'), header.indexOf('tc-navrow'));
-    expect(rowOne).toContain('tc-actionbar');
+  /**
+   * THREE ROWS ON ONE AXIS, in the order a masthead is read: the name of the
+   * city, the citizen's own doors, the districts. The bar left the tab row
+   * first (it was chrome on the districts' shelf) and then left the signature
+   * row too (it was chrome in the corner of the name). It is a line of the
+   * masthead now, so it is in flow and centred like the two rows it sits
+   * between — nothing in this header is pinned to a corner but the burger.
+   */
+  it('carries the doors on their own row, between the name and the districts', () => {
+    const top = header.indexOf('tc-header-top');
+    const bar = header.indexOf('tc-actionrow');
+    const tabs = header.indexOf('tc-navrow');
+    expect(top).toBeGreaterThan(-1);
+    expect(bar).toBeGreaterThan(top);
+    expect(tabs).toBeGreaterThan(bar);
   });
 
-  it('and Row 2 carries the hub tabs and nothing else', () => {
-    const rowTwo = header.slice(header.indexOf('tc-navrow'));
-    expect(rowTwo).not.toContain('tc-actionbar');
-    expect(rowTwo).toContain('tc-nav');
+  it('and each row carries one thing', () => {
+    const signature = header.slice(header.indexOf('tc-header-top'), header.indexOf('tc-actionrow'));
+    const doors = header.slice(header.indexOf('tc-actionrow'), header.indexOf('tc-navrow'));
+    const districts = header.slice(header.indexOf('tc-navrow'));
+    expect(signature).toContain('tc-logo');
+    expect(signature).not.toContain('tc-actionbar');
+    expect(doors).toContain('tc-actionbar');
+    expect(districts).toContain('tc-nav');
+    expect(districts).not.toContain('tc-actionbar');
   });
 
-  it('the wordmark still holds the true centre of the row', () => {
-    // Both halves are needed: the row centres, and the bar is out of the
-    // centring. Lose either and the name of the city sits off-middle.
+  it('every row is centred on the same axis', () => {
     const layout = read('styles/layout.css');
-    const row = layout.match(/\.tc-header-top \{[^}]*\}/)?.[0] ?? '';
-    expect(row, '.tc-header-top rule not found').toBeTruthy();
-    expect(row).toMatch(/justify-content:\s*center/);
-    const bar = layout.match(/\.tc-header-top \.tc-actionbar \{[^}]*\}/)?.[0] ?? '';
-    expect(bar, '.tc-header-top .tc-actionbar rule not found').toBeTruthy();
-    expect(bar).toMatch(/position:\s*absolute/);
-    expect(bar).toMatch(/right:\s*0/);
+    for (const sel of ['\\.tc-header-top', '\\.tc-actionrow', '\\.tc-navrow']) {
+      const rule = layout.match(new RegExp(`${sel} \\{[^}]*\\}`))?.[0] ?? '';
+      expect(rule, `${sel} rule not found`).toBeTruthy();
+      expect(rule, `${sel} is not centred`).toMatch(/justify-content:\s*center/);
+    }
+    // The bar's `margin-left: auto` is what pushed it right when it lived on
+    // the end of a row. Left in place it would defeat the centring silently.
+    expect(layout).toMatch(/\.tc-actionrow \.tc-actionbar \{[^}]*margin:\s*0/);
+  });
+
+  it('and the name of the city is said once, in full', () => {
+    // The hand-lettered TC monogram sat pinned in the corner beside the
+    // hand-lettered name — the same name twice, in two files. On a masthead of
+    // three centred rows the corner mark is the only thing off the axis.
+    expect(header).toContain('tc-word.svg');
+    expect(header).not.toContain('tc-mark.svg');
+    const relief = read('styles/relief.css');
+    // Its rules go with it, or the class-usage guard has a selector pointing at
+    // markup nobody renders.
+    expect(relief).not.toMatch(/\.tc-logo \.mark \{/);
+  });
+
+  it('the doors are black on white, not a soft grey between two whites', () => {
+    const relief = read('styles/relief.css');
+    // Both rules, and BOTH matter: the group sets the icons (they inherit
+    // currentColor) and the pill rule sets the labels. `.tc-actionbar, …`
+    // appears twice in this sheet — the first is a gap — so this reads every
+    // block that selector opens rather than the first one it finds.
+    const groups = [...relief.matchAll(/\.tc-actionbar, \.tc-actions \{([^}]*)\}/g)].map((m) => m[1]);
+    expect(groups.length, 'the action-bar group rules are gone').toBeGreaterThan(0);
+    expect(groups.some((r) => /color:\s*var\(--ink\)\s*;/.test(r))).toBe(true);
+    expect(groups.some((r) => /--ink-soft/.test(r))).toBe(false);
+    const pill = relief.match(/\.tc-actionbar a, \.tc-actionbar button[^{]*\{([^}]*)\}/)?.[1] ?? '';
+    expect(pill, 'the action-bar pill rule not found').toBeTruthy();
+    expect(pill).toMatch(/color:\s*var\(--ink\)\s*;/);
+    expect(pill).not.toMatch(/--ink-soft/);
   });
 
   /**

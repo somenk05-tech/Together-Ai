@@ -634,7 +634,12 @@
      neither exists here. Nothing in three stylesheets ever argued for it. */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 
-  --header-h: 78px;
+  /* THREE ROWS NOW: the wordmark, the citizen's own doors, the district tabs
+     (owner, 15 Aug). 78px carried two of them; the pills took a row of their
+     own and the masthead grew by one. Every surface that clears the header
+     reads this token — the main column, the sidebar's sticky top, four
+     full-height screens — so this is the only place the number is said. */
+  --header-h: 108px;
 
   /* ── THE MEASURE ────────────────────────────────────────────────────────
      THE SURFACE TAKES THE MEASURE, NOT THE TEXT INSIDE IT.

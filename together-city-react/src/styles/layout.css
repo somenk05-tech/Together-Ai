@@ -5,26 +5,30 @@
    the old file mixed "the header is 78px tall" with "the header is white",
    so changing the material meant editing the layout.
    ================================================================== */
-.tc-header { --chip-fs: 11.5px; position: fixed; top: var(--safe-top); left: 0; right: 0; height: var(--header-h); z-index: 100; display: flex; flex-direction: column; justify-content: space-between; gap: 3px; padding: 8px 24px 4px; color: var(--ink); }
-/* Two-row header: Row 1 is the signature row — burger pinned left, the logo on
-   the true centre, the citizen's own doors pinned right (Mail · Chat ·
-   Personal · Alerts · Profile). Row 2 is the hub tabs, and nothing else.
+/* `--header-h` moved 78px → 108px in tokens.css when the bar took a row of its
+   own. Everything that clears the header reads that token — the main column's
+   padding, the sidebar's sticky top, four full-height surfaces — so the whole
+   page moved down with it and nothing here had to know. */
+.tc-header { --chip-fs: 11.5px; position: fixed; top: var(--safe-top); left: 0; right: 0; height: var(--header-h); z-index: 100; display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 8px 24px 6px; color: var(--ink); }
+/* THREE ROWS ON ONE AXIS (owner, 15 Aug, with the layout photographed off the
+   live site): the name of the city, then the citizen's own doors, then the
+   districts. Everything centred, nothing in a corner but the burger.
 
-   THE ACTION BAR CAME UP FROM ROW 2 (owner, 15 Aug: put these buttons on the
-   top layer where the logo is). It has to be OUT OF FLOW to arrive here. This
-   row centres its contents, so a bar sitting in flow beside the wordmark
-   pushes the wordmark left by half the bar — which is the exact reason the
-   monogram is pinned rather than placed, two rules down. Absolute, so the name
-   of the city keeps the middle of the header no matter how many pills the bar
-   grows.
+   It arrived in two moves. The action bar left the TAB row first, because five
+   personal doors on the same shelf as twelve districts made the header say
+   they were the same kind of thing. Then it left the SIGNATURE row too: pinned
+   right of the wordmark it was still a corner of the header, and no longer had
+   to be — the only reason it was out of flow was to stop it pushing the
+   wordmark off centre, and a row of its own has no wordmark to push. So it is
+   an ordinary centred flex row now, and the header reads as one masthead with
+   three lines rather than a logo with chrome around it.
 
-   `right: 0` is the row's content edge, the same edge the mark takes on the
-   left. Row 1 is 34px and the pills are 32px, so the bar rides the row without
-   changing its height, and Row 2 gets the whole width back — the tab row was
-   sharing its line with five buttons and shrinking to 9.5px type to do it. */
+   The burger stays pinned, because on a phone it takes the corner and a
+   monogram is not there to argue with it any more. */
 .tc-header-top { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; min-height: 34px; }
 .tc-header-top .tc-burger { position: absolute; left: 0; top: 50%; transform: translateY(-50%); }
-.tc-header-top .tc-actionbar { position: absolute; right: 0; top: 50%; transform: translateY(-50%); margin-left: 0; }
+.tc-actionrow { display: flex; align-items: center; justify-content: center; width: 100%; min-width: 0; }
+.tc-actionrow .tc-actionbar { margin: 0; }
 .tc-burger { display: none; width: 44px; height: 44px; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; }
 .tc-logo { display: flex; align-items: center; flex-shrink: 0; }
 /* The mark-and-word pair is gone: the brand is one piece of artwork now, so
@@ -190,6 +194,11 @@
   .tc-header-top { flex: 1 1 auto; justify-content: flex-start; padding-left: 40px; min-height: 0; }
   .tc-nav { display: none; }
   .tc-navrow { display: none; }
+  /* A PHONE KEEPS ONE ROW, so the three stacked rows fold back into a line:
+     burger and wordmark on the left, the two doors that survive on the right.
+     `width: auto` is what takes the action row out of the stack — as a
+     full-width centred row it would push the signature off the screen. */
+  .tc-actionrow { width: auto; flex: 0 0 auto; }
   /* Chats, Alerts and Profile are bottom-bar tabs at this width. A second copy
      in the header is not redundancy, it is two places to look. Alerts is a
      button rather than a link — it opens a panel — so it is matched by the

@@ -113,17 +113,25 @@ function NotificationBell() {
 }
 
 /**
- * Global header. Row 1 is the signature and the citizen's own doors — Mail,
- * Chat, Personal, Alerts, Profile. Row 2 is the city: the hub tabs.
+ * Global header — THREE ROWS ON ONE AXIS (owner, 15 Aug, with the layout he
+ * wanted photographed off the live site).
  *
- * THE BAR MOVED UP A ROW (owner, 15 Aug). It sat on the right of the TAB row,
- * which put five personal doors on the same shelf as the districts and left
- * twelve tabs fighting them for width — the reason this header carries two
- * `--chip-fs` step-downs and the tabs shrink to 9.5px on a 1340px window. The
- * two rows say two different things now: who you are on top, where the city is
- * underneath. Like the monogram, the bar is pinned out of flow (layout.css),
- * so the wordmark keeps the true centre of the row rather than being pushed
- * off it by whatever the bar happens to be carrying.
+ *    the name of the city
+ *    Mail · Chat · Personal · Alerts · you
+ *    ASTROLOGY · BEAUTY · DATING · …
+ *
+ * It arrived here in two moves. The bar left the TAB row first, because five
+ * personal doors on the same shelf as twelve districts made the header say
+ * they were the same kind of thing — and left the tabs fighting them for
+ * width, which is why this file once carried two `--chip-fs` step-downs and
+ * 9.5px capitals on a 1340px window. Then the bar came off the signature row
+ * too: pinned to the right of the wordmark it was a corner of the header, and
+ * centred under it, it is the second line of one masthead.
+ *
+ * THE MONOGRAM IS GONE, THE WORDMARK STAYS. Two files in the same hand said
+ * the same name twice — the TC in the corner and "Together City" in the
+ * middle — and at three centred rows the corner one is the only thing on the
+ * page not on the axis. One signature, said once, in full.
  */
 export function Header() {
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
@@ -148,30 +156,28 @@ export function Header() {
     <header className="tc-header">
       <CommandPalette />
       <FloatingSearch />
-      {/* Row 1 — centred logo (burger pinned left for mobile). */}
+      {/* Row 1 — the signature, centred (burger pinned left for mobile). */}
       <div className="tc-header-top">
         <button className="tc-burger" aria-label="Open menu" onClick={() => toggleSidebar()}><Icon name="menu" size={20} /></button>
-        {/* TWO PIECES OF ONE SIGNATURE, IN TWO PLACES.
-            The owner's hand-lettered monogram sits in the top left corner and
-            the name in the same hand sits in the middle — so this is two
-            files rather than the composed lockup it replaces, because the
-            relationship between them is a LAYOUT that changes with the
-            viewport and a composed image cannot come apart. relief.css pins
-            the mark out of flow (which is the only reason the name is on the
-            true centre) and puts the two back together below 1100px, where
-            the burger takes the corner.
-            One alt between them: the mark is `alt=""` because it is the same
-            name said twice, and a screen reader should hear the city once. */}
+        {/* ONE SIGNATURE, SAID ONCE, IN FULL.
+            The owner's hand-lettered monogram used to sit in the top left
+            corner with the name in the same hand in the middle — the city's
+            name written twice, in two files, because the relationship between
+            them was a layout that changed with the viewport. On a masthead of
+            three centred rows the corner mark is the only thing on the page
+            that is not on the axis, so it is gone (owner, 15 Aug) and the
+            wordmark carries the name alone. It keeps the alt text: a screen
+            reader hears the city once, which is what it always did. */}
         <Link to="/" className="tc-logo">
-          <img className="mark" src="/assets/img/tc-mark.svg" alt="" width={42} height={34} />
           <img className="word" src="/assets/img/tc-word.svg" alt="Together City" width={77} height={30} />
         </Link>
-        {/* THE CITIZEN'S OWN DOORS, ON THE SIGNATURE ROW — Mail · Chat ·
-            Personal · Alerts · Profile. Pinned right and out of flow by
-            layout.css for the same reason the monogram is pinned left: this row
-            centres its contents, so anything in flow beside the wordmark moves
-            the wordmark. Out of flow, the bar can grow a pill without the name
-            of the city sliding off the middle of the header. */}
+      </div>
+      {/* Row 2 — THE CITIZEN'S OWN DOORS, centred under the name: Mail · Chat ·
+          Personal · Alerts · Profile. In flow now rather than pinned to the
+          right of the signature, which is the whole of the redesign: on the
+          corner they were chrome, under the name they are the second line of
+          the masthead. */}
+      <div className="tc-actionrow">
         <div className="tc-actionbar">
           {authed ? (
             <>
@@ -201,7 +207,7 @@ export function Header() {
           )}
         </div>
       </div>
-      {/* Row 2 — the districts, and nothing else on the line. */}
+      {/* Row 3 — the districts, on the same centre as the two rows above. */}
       <div className="tc-navrow">
         <nav className="tc-nav" aria-label="Hubs">
           {tabs.map((n) => (

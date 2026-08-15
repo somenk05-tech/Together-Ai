@@ -614,80 +614,45 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
 
 .tc-actionbar, .tc-actions { gap: 8px; }
 
-/* ── THE MARK STANDS IN THE CORNER; THE NAME STANDS IN THE MIDDLE ────────
-   The owner supplied a hand-lettered TC monogram and a hand-lettered
-   "Together City" in the same hand, and asked for the monogram in the top
-   left corner with the name centred. So they are two files, not one — this
-   is a layout that changes with the viewport, and a composed lockup cannot
-   come apart.
+/* ── THE NAME, ONCE, IN THE MIDDLE ──────────────────────────────────────────
+   THE MONOGRAM IS GONE (owner, 15 Aug: "remove the TC logo keep only the full
+   version"). A hand-lettered TC sat pinned in the top left corner with the
+   hand-lettered "Together City" centred beside it — the city's name written
+   twice, in the same hand, in two files, because the relationship between them
+   was a LAYOUT that changed with the viewport and a composed lockup cannot
+   come apart. Everything the mark needed is gone with it: the absolute
+   pinning that kept the word on the true centre, the 1100px rule that put the
+   pair back together where the burger takes the corner, and half of the dark
+   -hub inversion. Three rules and two breakpoints for the second half of a
+   signature that is now said once.
 
-   THE MARK IS OUT OF FLOW, WHICH IS WHY THE NAME IS ACTUALLY CENTRED.
-   `.tc-header-top` centres its contents; if the monogram sat in flow beside
-   the word, the pair would be centred and the word would sit right of centre
-   by half a monogram. Absolute, pinned to the row's left edge — the same
-   trick `.tc-burger` already uses two rules above — takes it out of the
-   centring calculation entirely, so the name lands on the true middle of the
-   header. `left: 0` is the row's content edge, which is also where the first
-   hub tab begins: the mark and ASTROLOGY share a left margin rather than
-   being two near-misses.
+   (The FILE stays on disk. Nothing else references it today, but a monogram is
+   a brand asset, not a component, and deleting artwork to tidy a stylesheet is
+   how a favicon goes missing eighteen months later.)
 
-   AND IT COMES BACK INTO FLOW AT 1100px, WHERE THE BURGER APPEARS. Below
-   that width the burger owns the left corner, and a mark pinned there would
-   be drawn on top of it. So the two rejoin as a pair and ride the centre
-   together — measured at 1100, 1000, 880 and 390, no overlap at any of them.
-
-   BOTH ARE SVG BECAUSE BOTH ARE PEN STROKES. Traced, they are a few KB of
-   path data each — smaller than a 1x raster of the same drawing and correct
-   at every size, with no 2x, no 3x, and nothing to re-export when these
-   clamps move. They also land inside an exemption that already existed:
-   `img[src$=".svg"]` is excused from the global outline-and-shadow every
-   other image wears, so neither needed a rule of its own to stop being
-   framed like a photograph.
-
-   THIRTY-FOUR PIXELS IS THE CEILING BECAUSE IT IS THE ROW. Row 1 of the
-   header is 34px inside a header fixed at 78px; taller does not make the
-   header taller, it overhangs Row 2 and crowds the tabs. The word is set a
-   little shorter than the mark — 30px against 34px — because the two are no
-   longer touching and the mark should still read as the one that leads. */
-.tc-logo .mark {
-  display: block;
-  position: absolute; left: 0; top: 50%; transform: translateY(-50%);
-  height: clamp(26px, 2.4vw, 34px); width: auto;
-  filter: none;
-}
-/* THE NAME IS A THIRD LARGER THAN IT WAS, at the owner's eye. 22–30px became
+   THE NAME IS A THIRD LARGER THAN IT WAS, at the owner's eye: 22–30px became
    30–40px, the same 35% at both ends of the clamp and on the slope between
-   them, so the type does not change shape as the window moves.
+   them, so the type does not change shape as the window moves. The box holds
+   the T's swash above the letters and the y's tail below them, so about half
+   of it is flourish — the letters inside read smaller than the box says.
 
-   IT IS TALLER THAN THE MARK NOW AND THAT IS CORRECT. 40px against the
-   monogram's 34px looks inverted written down and is right on screen: this box
-   contains the T's swash above the letters and the y's tail and the underline
-   below them, so about half of it is flourish. The letters inside read smaller
-   than the monogram, which is the hierarchy that was wanted.
-
-   MEASURED AT THE CEILING, WHICH IS WHERE IT LANDS. Row 1 is 34px and the word
-   now overhangs it by six — deliberately, because it is in flow and the row is
-   the shorter of the two things in it. At 1440 the swash finishes exactly on
-   the tab row's top edge: touching, not crossing, with the tabs' own glyphs
-   starting lower still. There is no room for a fourth larger. */
+   IT IS SVG BECAUSE IT IS A PEN STROKE. Traced, it is a few KB of path data —
+   smaller than a 1x raster of the same drawing and correct at every size, with
+   no 2x, no 3x, and nothing to re-export when this clamp moves. It also lands
+   inside an exemption that already existed: `img[src$=".svg"]` is excused from
+   the global outline-and-shadow every other image wears. */
 .tc-logo .word {
   display: block;
   height: clamp(30px, 2.8vw, 40px); width: auto;
   filter: none;
 }
-/* Below 1100px the burger takes the left corner, so the pair travels
-   together and the gap between them becomes a real gap again. */
-@media (max-width: 1100px) {
-  .tc-logo { gap: 7px; }
-  .tc-logo .mark { position: static; transform: none; }
-}
-/* In the two dark hubs both are inverted rather than given a second asset.
-   The chrome artwork this replaces earned that by staying modelled under a
-   flip; a flat line drawing earns it differently — the stroke is uniform, so
-   inverting produces exactly the drawing the same pen would have made on
-   black paper. Two hubs, two files, no variants. */
-[data-hub="astrology"] .tc-logo .mark, [data-hub="astrology"] .tc-logo .word,
-[data-hub="entertainment"] .tc-logo .mark, [data-hub="entertainment"] .tc-logo .word { filter: invert(1); }
+/* In the two dark hubs it is inverted rather than given a second asset. The
+   chrome artwork this replaces earned that by staying modelled under a flip;
+   a flat line drawing earns it differently — the stroke is uniform, so
+   inverting produces exactly the drawing the same pen would have made on black
+   paper. Two hubs, one file, no variants. */
+[data-hub="astrology"] .tc-logo .word,
+[data-hub="entertainment"] .tc-logo .word { filter: invert(1); }
 .tc-burger {
   background: var(--face-key); border: 0; border-radius: var(--r-2); color: var(--ink);
   box-shadow: var(--e1-key);
@@ -747,9 +712,16 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
 .tc-side .back { color: var(--muted); }
 .tc-side .back:hover { color: var(--ink); }
 
-.tc-actionbar, .tc-actions { color: var(--ink-soft); }
+/* BLACK ON WHITE (owner, 15 Aug: "the second row make the buttons in black and
+   white font"). These were set in `--ink-soft`, a step down from the page's
+   own text colour — which was right when they sat in the corner of the tab
+   row as chrome, and is wrong now that they are the second line of the
+   masthead, centred under the name of the city. Soft grey on a white pill on a
+   white header is three greys in a row and the middle one reads as disabled.
+   Ink, and the hover has nowhere left to go but the lift. */
+.tc-actionbar, .tc-actions { color: var(--ink); }
 .tc-actionbar a, .tc-actionbar button, .tc-actions a, .tc-actions button {
-  background: var(--face); box-shadow: var(--e1); border: 0; border-radius: var(--r-full); color: var(--ink-soft);
+  background: var(--face); box-shadow: var(--e1); border: 0; border-radius: var(--r-full); color: var(--ink);
 }
 .tc-actionbar a:hover, .tc-actionbar button:hover, .tc-actions a:hover, .tc-actions button:hover {
   box-shadow: var(--e2-key); color: var(--ink);
@@ -858,7 +830,12 @@ img:not(:where(.no-case, .bg)), video:not(:where(.no-case, .bg)), .case-auto > i
 
    The earlier `.tc-logo .mark img { background: none }` did not help: it has the
    same specificity as `img:not(.no-case):not(.bg)` and sits ABOVE it, so source
-   order handed the win to the rule it was trying to override. */
+   order handed the win to the rule it was trying to override.
+
+   `.mark img` outlived the monogram it was written for (15 Aug) and stays in
+   the list: it is an exemption, so the cost of a selector nothing matches is
+   nothing, and the cost of removing the wrong one is a grey tile behind
+   somebody's logo. `.tc-logo img` is the one carrying the wordmark now. */
 .tc-logo img, .mark img, .av img, .tc-avatar img, .icon img, svg image,
 .case > img, .case > video, .case > picture > img,
 .pcard .ph img, .hero .bg, .poster-hero img, .cityfallback a img, .citymap .bg,
