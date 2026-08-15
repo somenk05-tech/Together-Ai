@@ -152,7 +152,11 @@ describe('the routine genuinely changes with the budget', () => {
      * build a face routine for ₹300 this comment is the instruction: move the
      * number again, do not delete the test.
      */
-    const BELOW_THE_FLOOR = 300;
+    // ₹1,000 → ₹300 → ₹200. The shelf was 70 products, then 126, now 226, and
+    // the cheapest complete face routine has fallen from ₹1,067/month to ₹311
+    // to ₹215 as mass-market Indian brands joined it. Each time, the number
+    // moved and the assertion did not. Measured against this file's profile.
+    const BELOW_THE_FLOOR = 200;
     const lean = plan(BELOW_THE_FLOOR).face;
     // Not "your budget is insufficient" — a number, so the choice is real.
     expect(typeof lean.minimumInr).toBe('number');
@@ -182,13 +186,36 @@ describe('the routine genuinely changes with the budget', () => {
   });
 
   it('spends more on a better product before it spends on another product', () => {
-    // ₹2,500 buys the same four ROLES as ₹1,000 could not, but the moisturiser
-    // it picks answers more of this person's needs than the cheapest one does.
-    const cheap = plan(1000).face.picks.find((x) => x.role === 'Moisturise')!;
-    const better = plan(2500).face.picks.find((x) => x.role === 'Moisturise')!;
-    expect(better.monthlyInr).toBeGreaterThan(cheap.monthlyInr);
-    const answers = (x: typeof cheap) => x.product.profileKeys.filter((k) => NEEDS.includes(k)).length;
-    expect(answers(better)).toBeGreaterThan(answers(cheap));
+    /**
+     * THIS USED TO NAME THE MOISTURISER, and it was right to while the cheapest
+     * moisturiser on the shelf was also a poorly-matched one. On the 226-row
+     * shelf a ₹47-a-month Biotique moisturiser answers three of this person's
+     * findings — the cheapest is now also the best-matched, so pass 4 has
+     * nothing to improve and ₹2,500 buys the same bottle as ₹1,000. That is the
+     * engine working, not the property failing.
+     *
+     * So the property is asserted directly instead of through one product: a
+     * bigger budget never leaves a step worse matched, and it never pays more
+     * for a step without answering more of this person with it. That second
+     * clause is the one that matters — it is the rule the premium pass used to
+     * break, buying a ₹2,517 toner to replace a ₹167 one on identical merits.
+     */
+    const lean = plan(1000).face;
+    const roomy = plan(2500).face;
+    const answers = (p: { profileKeys: string[] }) => p.profileKeys.filter((k) => NEEDS.includes(k)).length;
+    for (const before of lean.picks) {
+      const after = roomy.picks.find((x) => x.role === before.role);
+      expect({ role: before.role, kept: !!after }).toEqual({ role: before.role, kept: true });
+      expect({ role: before.role, notWorse: answers(after!.product) >= answers(before.product) })
+        .toEqual({ role: before.role, notWorse: true });
+      if (after!.monthlyInr > before.monthlyInr) {
+        const gained = answers(after!.product) > answers(before.product)
+          || after!.product.matchScore > before.product.matchScore;
+        expect({ role: before.role, dearerButBetter: gained }).toEqual({ role: before.role, dearerButBetter: true });
+      }
+    }
+    // And the bigger budget does still buy a bigger routine.
+    expect(roomy.picks.length).toBeGreaterThan(lean.picks.length);
   });
 
   it('does NOT spend the rest of a large budget', () => {
@@ -323,8 +350,31 @@ describe('the routine genuinely changes with the budget', () => {
   });
 
   it('offers what could be added instead of adding it', () => {
+    /**
+     * THIS ASSERTION USED TO BE `not.toContain(u.role)` AND IT WAS RIGHT TO BE,
+     * while `upgrades` could only ever hold a step the routine did not have.
+     * Pass 5b then stopped BUYING the premium alternative and started offering
+     * it — measured, one profile at a ₹10,000 face budget was being moved from
+     * a ₹167-a-month toner to a ₹2,517 one that answered the same findings at
+     * the same match score, on the strength of the word "Premium" in a
+     * spreadsheet column. So an offer for a role that IS in the routine is now
+     * the point rather than the bug.
+     *
+     * WHAT IS BEING GUARDED HAS NOT CHANGED: an upgrade is never taken. The two
+     * shapes it may have are asserted separately, and the second one must carry
+     * the sentence that makes it an offer — an upgrade with no reason attached
+     * is the old behaviour with a new destination.
+     */
     const rich = plan(60000).face;
-    for (const u of rich.upgrades) expect(rich.picks.map((x) => x.role)).not.toContain(u.role);
+    const chosen = new Set(rich.picks.map((x) => x.product.id));
+    for (const u of rich.upgrades) {
+      // Never something already in the routine, whatever kind of offer it is.
+      expect(chosen.has(u.product.id)).toBe(false);
+      if (rich.picks.some((x) => x.role === u.role)) {
+        // A dearer alternative to a step that IS there: it has to say why not.
+        expect(typeof u.reason).toBe('string');
+      }
+    }
   });
 });
 

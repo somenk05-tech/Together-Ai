@@ -85,6 +85,10 @@ export interface ProductsResponse {
   matchedCount: number;
   /** What the sensitivity rule took off this shelf, or null. (K5.66.) */
   allergyNotice: AllergyNoticeShape | null;
+  /** The shelf is shorter because of something they told us about their health,
+   *  not because of what we stock. Separate from allergyNotice because the two
+   *  are different sentences and conflating them explains neither. */
+  conditionNotice: { removed: number; sentence: string } | null;
 }
 /**
  * A product-backed routine step — distinct from the lightweight RoutineStep
@@ -133,6 +137,8 @@ export interface RoutinePick {
   monthlyInr: number; monthsOfUse: number;
   /** "100 ml" — what is on the pack, or '' when the name never said. */
   packLabel: string;
+  /** Only ever on an offer: what spending this would, and would not, buy. */
+  reason?: string;
   /** "about 6 weeks" · "about 2½ months". */
   lastsLabel: string;
 }

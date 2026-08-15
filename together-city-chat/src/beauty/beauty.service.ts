@@ -14,6 +14,7 @@ import {
   type BeautyInsight,
 } from './beauty-engine';
 import { topicalExclusions } from '../shared/topical-sensitivities';
+import { conditionExclusions, conditionsDeclared } from '../shared/topical-contraindications';
 import { allergyNotice } from '../shared/allergen-voice';
 import { buildRoutines } from './routine-engine';
 import { nextReorder, reorderDueFor } from './reorder';
@@ -119,6 +120,29 @@ export class BeautyService {
     const food = String((m as { foodAllergens?: string | null } | null)?.foodAllergens ?? '')
       .split(',').map((s) => s.trim()).filter(Boolean);
     return [...new Set([...mine, ...food])];
+  }
+
+  /**
+   * The conditions a product choice has to respect, from both places they live.
+   *
+   * THE SAME SHAPE AS declaredSensitivities, AND FOR THE SAME REASON. Beauty
+   * asks its own "medical conditions" question and the Master Profile owns the
+   * canonical `healthConditions` column; a citizen who answered on either page
+   * has answered. Unioned at match time, never merged into the profile blob,
+   * so this hub still displays and stores only what this hub asked.
+   *
+   * `pregnancyTrimester` is read as a declaration in its own right. Somebody who
+   * has told the city which trimester they are in has told it they are pregnant,
+   * and asking again in another hub before we will stop recommending retinoids
+   * is the §3 failure with a retinoid on the end of it.
+   */
+  private async declaredConditions(userId: string, own: unknown): Promise<string[]> {
+    const mine = Array.isArray(own) ? own.map(String).map((s) => s.trim()).filter(Boolean) : [];
+    const m = await swallow(this.masterProfile.get(userId), 'beauty: master read', { userId });
+    const master = String((m as { healthConditions?: string | null } | null)?.healthConditions ?? '')
+      .split(',').map((s) => s.trim()).filter(Boolean).filter((s) => s.toLowerCase() !== 'none');
+    const trimester = String((m as { pregnancyTrimester?: string | null } | null)?.pregnancyTrimester ?? '').trim();
+    return [...new Set([...mine, ...master, ...(trimester ? ['pregnant'] : [])])];
   }
 
   private get beauty() {
@@ -457,14 +481,16 @@ export class BeautyService {
     // PRIMARY signal: the saved assessment's per-attribute readings.
     const analysis = profile.analysis as { skin?: { readings?: { key: string; label: string; level: string }[] }; hair?: { readings?: { key: string; label: string; level: string }[] } } | null;
     const readings = [...(analysis?.skin?.readings ?? []), ...(analysis?.hair?.readings ?? [])];
-    const extras = profile.profile as { skinType?: string; budget?: string; allergies?: string[] };
+    const extras = profile.profile as { skinType?: string; budget?: string; allergies?: string[]; medicalConditions?: string[] };
     const declared = await this.declaredSensitivities(userId, extras.allergies);
+    const conditions = await this.declaredConditions(userId, extras.medicalConditions);
     const products = recommendProducts({
       readings,
       concerns: profile.concerns,
       profile: {
         skinType: String(extras.skinType ?? profile.skinType), budget: extras.budget,
         allergies: declared,
+        conditions,
       },
       insights,
     });
@@ -472,15 +498,21 @@ export class BeautyService {
     // on this since the substring test was replaced; it has never mentioned it,
     // and a citizen cannot tell our rule from our range. Counted over the same
     // catalogue the recommender read, with the same matcher.
-    const cut = topicalExclusions(
-      BEAUTY_PRODUCTS.map((p) => ({ name: p.name, ingredients: [...p.actives, p.keyIngredient] })),
-      declared,
-    );
+    const shelf = BEAUTY_PRODUCTS.map((p) => ({ name: p.name, ingredients: [...p.actives, p.keyIngredient] }));
+    const cut = topicalExclusions(shelf, declared);
+    // And the same courtesy for a condition. A pregnant citizen whose shelf is
+    // seven products shorter is owed the sentence saying so — otherwise the one
+    // visible effect of telling us is that the shop looks thinner, which reads
+    // as our range rather than our rule.
+    const held = conditionExclusions(shelf, conditionsDeclared(conditions));
     return {
       products,
       personalisedBy: { concerns: profile.concerns, labs: usedLabs, assessment: readings.length > 0 },
       matchedCount: products.filter((p) => p.matched).length,
       allergyNotice: allergyNotice(cut.matched, cut.removed, { one: 'product', many: 'products' }),
+      conditionNotice: held.removed > 0
+        ? { removed: held.removed, sentence: `${held.removed === 1 ? '1 product is' : `${held.removed} products are`} not shown here because ${held.because.join(' and ')}.` }
+        : null,
     };
   }
 

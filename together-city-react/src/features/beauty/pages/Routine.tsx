@@ -372,16 +372,21 @@ function BudgetCard(
         <p className="muted" style={{ fontSize: 12, lineHeight: 1.6, margin: '12px 0 0' }}>{c.leanReason}</p>
       )}
 
-      {/* Offered, never taken. These are the products that would go in if the
-          budget grew — named, priced by the month, and left alone. */}
+      {/* Offered, never taken. Two kinds: a step the routine does not have, and
+          a dearer version of one it does. The second used to be swapped in
+          silently whenever the routine sat under 90% of the budget, on the
+          strength of a price grade and nothing else — see budget-routine.ts
+          pass 5b. It carries the sentence that made it an offer, and the
+          sentence is why it is down here rather than in the routine. */}
       {!short && c.upgrades.length > 0 && (
         <div style={{ marginTop: 12, borderTop: '1px solid var(--line)', paddingTop: 10 }}>
           <div className="muted" style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase' }}>Optional, if you want it</div>
           <ul style={{ listStyle: 'none', padding: 0, margin: '6px 0 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {c.upgrades.slice(0, 2).map((u) => (
+            {c.upgrades.slice(0, 3).map((u) => (
               <li key={u.productId} style={{ fontSize: 11.5, lineHeight: 1.5 }}>
                 <span style={{ fontWeight: 700 }}>{u.role}</span>
                 <span className="muted"> — {u.name} · ≈ {rupees(u.monthlyInr)}/month</span>
+                {u.reason && <div className="muted" style={{ fontSize: 11, lineHeight: 1.5 }}>{u.reason}</div>}
               </li>
             ))}
           </ul>

@@ -57,11 +57,31 @@ describe('the shelf', () => {
     // A shelf whose links are empty is a catalogue, not a market.
     expect(bad((p) => !/^https:\/\//.test(p.productUrl))).toEqual([]);
     expect(bad((p) => !/^https:\/\//.test(p.image))).toEqual([]);
-    // The second photograph is the whole point of the second photograph: a
-    // hotlinked URL is the field here most certain to rot, and one that is a
-    // copy of the first is not a fallback.
-    expect(bad((p) => !/^https:\/\//.test(p.imageAlt))).toEqual([]);
-    expect(bad((p) => p.image === p.imageAlt)).toEqual([]);
+    /**
+     * THE SECOND PHOTOGRAPH, AND WHY THIS IS NOW A CEILING RATHER THAN A ZERO.
+     *
+     * A hotlinked URL is the field here most certain to rot, so the shelf
+     * carries two from different retailers and ProductShot walks them. The
+     * first two sheets supplied both for every row and this asserted exactly
+     * that. The 170-row sheet supplies ONE for 86 of its rows.
+     *
+     * The three ways to keep the old assertion were all worse than the data:
+     * drop 86 products, copy the first URL into the second (which fails in the
+     * same instant from the same CDN and is not a fallback), or invent a URL.
+     * So a missing second source is '' — ProductShot filters it and walks
+     * straight to the category mark, which is a real answer — and the NUMBER of
+     * products with only one source is capped.
+     *
+     * IT RATCHETS DOWN, NEVER UP. Raising this to admit a thinner sheet is the
+     * failure it exists to prevent; the next sheet that carries alternates for
+     * these rows lowers it.
+     */
+    const singleSource = bad((p) => !p.imageAlt);
+    expect(singleSource.length).toBeLessThanOrEqual(86);
+    // Where there IS a second source it must be usable, and it must be
+    // different — a copy is not a fallback.
+    expect(bad((p) => !!p.imageAlt && !/^https:\/\//.test(p.imageAlt))).toEqual([]);
+    expect(bad((p) => !!p.imageAlt && p.image === p.imageAlt)).toEqual([]);
   });
 
   it('uses only vocabulary the engine understands', () => {

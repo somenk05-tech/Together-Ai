@@ -23,6 +23,7 @@ const cite = (ids: string[]): Citation[] => ids.map((id) => CITATIONS[id]).filte
 
 /** Beauty "need" categories — the vocabulary that links insights to products. */
 import { isTopicallySafe } from '../shared/topical-sensitivities';
+import { conditionsDeclared, isSafeForConditions } from '../shared/topical-contraindications';
 
 export type BeautyTag =
   | 'barrier' | 'hydration' | 'brightening' | 'antioxidant'
@@ -225,24 +226,62 @@ export interface RecommendedProduct extends BeautyProduct {
   reasons: string[];             // legacy combined list (kept for older clients)
 }
 
-export interface ReadingLite { key: string; label: string; level: string }
+export interface ReadingLite { key: string; label: string; level: string; intensity?: number }
 const SEV: Record<string, number> = { priority: 1, attention: 0.85, monitor: 0.6, good: 0 };
+
+/**
+ * ── HOW BADLY THIS PERSON HAS THIS PROBLEM, AS A NUMBER ─────────────────────
+ *
+ * `SEV` has three non-zero values. That was the whole resolution of the primary
+ * signal, and it was not enough: across a matched shelf of twenty-seven products
+ * for one oily/acne profile, `matchScore` took exactly TWO distinct values. Every
+ * comparison downstream that claims to break a tie "on effectiveness" —
+ * `byEffect`, `better()`, the upgrade passes — was therefore falling straight
+ * through to price, which is how a ₹167-a-month toner came to be replaced by a
+ * ₹2,517 one on identical merits.
+ *
+ * So the level sets the band and the RAW SIGNAL COUNT places the reading inside
+ * it. Three separate acne signals and one ticked box are both 'priority' and are
+ * no longer the same number.
+ *
+ * `intensity` is absent on assessments saved before it existed, and absent is
+ * NOT zero — a stored 'attention' with no count means "we knew this was
+ * attention", not "we found nothing". It falls back to the count that level
+ * implies, so an old row scores exactly where it always did.
+ */
+const IMPLIED_INTENSITY: Record<string, number> = { priority: 3, attention: 2, monitor: 1, good: 0 };
+const BAND = 0.12;
+
+export function severityOf(r: ReadingLite): number {
+  const floor = SEV[r.level] ?? 0;
+  if (floor <= 0) return 0;
+  const n = Number.isFinite(r.intensity as number) ? (r.intensity as number) : (IMPLIED_INTENSITY[r.level] ?? 1);
+  // Within a band, a fourth contributing signal is worth less than the second.
+  const inside = Math.min(1, Math.max(0, n - 1) / 3);
+  return Math.min(1, floor + BAND * inside);
+}
 
 /**
  * Profile-first ranking. Weighting: ~85% the skin & hair assessment (AI photo
  * analysis + onboarding profile), ~10% biomarker optimisation, ~5% preferences
  * (budget, allergies). A product is NEVER recommended on biomarkers alone — if
  * nothing in the user's skin/hair assessment calls for it, lab signals add zero.
+ *
+ * `conditions` is the citizen's declared medical conditions, and it is here
+ * because it was not: the assessment printed "avoid retinoids" to a pregnant
+ * citizen and this function, called without that field, handed them 1% retinol
+ * in the same response. See shared/topical-contraindications.ts.
  */
 export function recommendProducts(opts: {
   readings: ReadingLite[];
   concerns: string[];
-  profile: { skinType?: string; budget?: string; allergies?: string[] };
+  profile: { skinType?: string; budget?: string; allergies?: string[]; conditions?: string[] };
   insights: BeautyInsight[];
 }): RecommendedProduct[] {
   const { readings, concerns, profile, insights } = opts;
   const skinType = (profile.skinType ?? 'normal').toLowerCase();
   const allergies = (profile.allergies ?? []).map((a) => a.toLowerCase()).filter(Boolean);
+  const conditions = conditionsDeclared(profile.conditions ?? []);
 
   // Primary signal: assessment readings with an active (non-good) level.
   const need = new Map<string, ReadingLite>();
@@ -282,16 +321,49 @@ export function recommendProducts(opts: {
     // in "salicylic acid". Both passed straight through a line commented "hard
     // filter", which is the worst kind of guard — one that reads as settled.
     .filter((p) => isTopicallySafe(p.name, [...p.actives, p.keyIngredient], allergies))
+    // And never something a declared condition rules out. Separate from the
+    // allergy filter because the two say different things to the citizen: one is
+    // "you told us this reacts with you", the other is "not while you are
+    // pregnant", and a shelf that conflates them explains neither.
+    .filter((p) => isSafeForConditions(p.name, [...p.actives, p.keyIngredient], conditions))
     .map((p) => {
       const matchedAttrs = p.profileKeys.map((k) => need.get(k)).filter(Boolean) as ReadingLite[];
       const suitable = p.suitableSkin.includes('all') || p.suitableSkin.includes(skinType);
 
-      // 85% — skin & hair profile
+      /**
+       * 85% — skin & hair profile, and it is now CONTINUOUS.
+       *
+       * The old formula was `min(1, best + breadth + 0.05)` and it saturated
+       * almost immediately: an 'attention' finding (0.85) plus one more matched
+       * key (0.08) plus the constant already exceeded 1, so most of the shelf
+       * scored identically and the ranking below it was decorative.
+       *
+       * Three things are measured instead, and they are different questions:
+       *
+       *   COVERAGE  how much of what is actually WRONG with this person does
+       *             this product address — severity-weighted, so answering
+       *             their worst finding counts for more than answering their
+       *             mildest. This is the question the old `best` was reaching
+       *             for and could not express.
+       *   FOCUS     how much of the product is FOR them. A cream claiming six
+       *             keys of which two are theirs is a less pointed answer than
+       *             one claiming two, both theirs — and the old formula
+       *             rewarded the scattergun, because breadth counted matches
+       *             and never counted misses.
+       *   FIT       a product that names their skin type is a better answer
+       *             than one that says "all skin types". Both are allowed
+       *             through; only one of them chose.
+       */
       let profilePart = 0;
       if (matchedAttrs.length > 0 && suitable) {
-        const best = Math.max(...matchedAttrs.map((r) => SEV[r.level] ?? 0.6));
-        const breadth = Math.min(2, matchedAttrs.length - 1) * 0.08;
-        profilePart = 0.85 * Math.min(1, best + breadth + 0.05);
+        const demand = [...need.values()].reduce((n, r) => n + severityOf(r), 0);
+        const answered = matchedAttrs.reduce((n, r) => n + severityOf(r), 0);
+        const coverage = demand > 0 ? Math.min(1, answered / demand) : 0;
+        const focus = p.profileKeys.length > 0 ? matchedAttrs.length / p.profileKeys.length : 0;
+        const fit = p.suitableSkin.includes(skinType) ? 1 : 0.94;
+        // Coverage leads because it is the only one of the three that is about
+        // the person rather than about the product.
+        profilePart = 0.85 * fit * Math.min(1, 0.62 * coverage + 0.26 * focus + 0.12);
       }
 
       // 10% — biomarker optimisation (only ever ON TOP of a profile match)

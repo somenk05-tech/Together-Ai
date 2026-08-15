@@ -1,5 +1,6 @@
 import type { RecommendedProduct } from './beauty-engine';
 import { lastsLabel, monthlyCostInr, monthsOfUse, packLabel } from './monthly-cost';
+import { FAMILY_LABEL, overlapRefusal } from './active-families';
 
 /**
  * Choosing a routine that fits what somebody can spend.
@@ -124,6 +125,9 @@ export interface Pick_ {
   tier: Tier;
   monthlyInr: number;
   monthsOfUse: number;
+  /** Set on an OFFER, never on a chosen step: the sentence saying what spending
+   *  this would and would not buy. An offer without one does not get made. */
+  reason?: string;
 }
 
 export interface CategoryPlan {
@@ -321,14 +325,54 @@ export function planCategory(
   const shareCap = budget * 0.5;
   const withinShare = (p: RecommendedProduct) => cost(p) <= shareCap;
 
+  /**
+   * ── NO ACTIVE TWICE, AND NOT TOO MANY AT ONCE ───────────────────────────
+   *
+   * The routine this refuses, measured on the shipped planner at a ₹10,000 face
+   * budget for an oily/acne profile: salicylic acid in the moisturiser, in the
+   * serum AND in the toner, an AHA-and-walnut-shell mask over the top, and 1%
+   * retinol. Five picks, each one individually the best-matched compatible
+   * product for its own role, each one individually affordable, and not one line
+   * anywhere that looked at the other four. A person cannot use that routine.
+   *
+   * THE CAP COMES FROM THE CITIZEN'S OWN READING, not from a constant. `redness`
+   * is on the needs list precisely when the assessment found reactive skin — a
+   * declared sensitive skin type, rosacea or eczema on the medical list, redness
+   * in the concerns, or the photograph. Its own note says "patch-test new
+   * actives", which has been printed on the profile page since it was written
+   * and has never until now changed a single product. One active for a face that
+   * is already complaining; two for one that is not.
+   *
+   * IT IS A LOAD RULE, NOT A CLINICAL ONE. Nothing here claims who reacts to
+   * what — it claims that four exfoliants is more than a routine, which is a
+   * statement about the routine. Contraindications proper live one folder over,
+   * in shared/topical-contraindications.ts, and are applied before this file
+   * ever sees the shelf.
+   */
+  const loadCap = needs.has('redness') ? 1 : 2;
+  /** Why this candidate cannot join what is already chosen, or null. */
+  const clash = (c: RecommendedProduct, exceptAt?: number) =>
+    overlapRefusal(c, picks.filter((_, i) => i !== exceptAt).map((x) => x.product), loadCap);
+
   // ── 1. the floor ────────────────────────────────────────────────────────
+  //
+  // Chosen sequentially rather than in one map, because the second essential
+  // now has to know what the first one took. In clinical order, so a short
+  // budget drops the most substitutable step rather than whichever happened to
+  // be declared last — and so the overlap rule resolves in favour of the step
+  // with no substitute.
   const essentials = defs.filter((d) => d.tier === 'essential');
-  const floorPicks = essentials
-    .map((d) => ({ d, p: [...forRole(d)].sort(byValue)[0] }))
-    .filter((x) => x.p)
-    // In clinical order, so a short budget drops the most substitutable step
-    // rather than whichever happened to be declared last.
-    .sort((a, b) => (a.d.floor ?? 9) - (b.d.floor ?? 9));
+  const floorPicks: Array<{ d: RoleDef; p: RecommendedProduct }> = [];
+  for (const d of [...essentials].sort((a, b) => (a.floor ?? 9) - (b.floor ?? 9))) {
+    const ranked = [...forRole(d)].sort(byValue);
+    if (!ranked.length) continue;
+    // AN ESSENTIAL ROLE IS NEVER LEFT EMPTY BY THIS RULE. If every cleanser on
+    // the shelf carries an acid the moisturiser already has, the answer is a
+    // cleanser, not a bare face — the same argument that exempts the floor from
+    // the share cap. It prefers a clear one and takes the cheapest either way.
+    const sofar = floorPicks.map((x) => x.p);
+    floorPicks.push({ d, p: ranked.find((c) => !overlapRefusal(c, sofar, loadCap)) ?? ranked[0] });
+  }
   const floorCost = floorPicks.reduce((n, x) => n + cost(x.p), 0);
   const short = floorCost > budget;
 
@@ -348,15 +392,21 @@ export function planCategory(
     const candidates = [...forRole(d)]
       .filter((p) => p.profileKeys.some((k) => needs.has(k)))
       .sort(byEffect);
-    const p = candidates.find((c) => withinShare(c) && cost(c) <= room());
+    const p = candidates.find((c) => !clash(c) && withinShare(c) && cost(c) <= room());
     if (p) take(p, d.role, d.tier);
     else if (candidates.length) {
       const cheapest = [...candidates].sort(byValue)[0];
-      // Two different refusals, and they deserve two different sentences: the
-      // budget is full, or this one step would eat half of it by itself.
-      leftOut.push({ role: d.role, tier: d.tier, why: withinShare(cheapest)
-        ? `We haven't included a ${d.role.toLowerCase()} step — the cheapest one that suits you is about ₹${cost(cheapest).toLocaleString('en-IN')} a month and would push you over.`
-        : `We haven't included a ${d.role.toLowerCase()} step — the cheapest one that suits you is about ₹${cost(cheapest).toLocaleString('en-IN')} a month, which is more than half your ${category} budget on one product.` });
+      const blocked = candidates.every((c) => clash(c)) ? clash(candidates[0]) : null;
+      // THREE different refusals now, and they deserve three sentences. The
+      // budget is full; this one step would eat half of it by itself; or the
+      // routine already does this and doing it twice is not doing it better.
+      leftOut.push({ role: d.role, tier: d.tier, why: blocked
+        ? blocked.kind === 'duplicate'
+          ? `We haven't added a separate ${d.role.toLowerCase()} step — your routine already has ${FAMILY_LABEL[blocked.family]} in it, and a second one is not a stronger routine.`
+          : `We haven't added a separate ${d.role.toLowerCase()} step — your assessment flags reactive skin, and what you already have asks enough of it for now.`
+        : withinShare(cheapest)
+          ? `We haven't included a ${d.role.toLowerCase()} step — the cheapest one that suits you is about ₹${cost(cheapest).toLocaleString('en-IN')} a month and would push you over.`
+          : `We haven't included a ${d.role.toLowerCase()} step — the cheapest one that suits you is about ₹${cost(cheapest).toLocaleString('en-IN')} a month, which is more than half your ${category} budget on one product.` });
     }
   }
 
@@ -365,7 +415,7 @@ export function planCategory(
     const already = covered();
     const unmet = (p: RecommendedProduct) => p.profileKeys.some((k) => needs.has(k) && !already.has(k));
     const candidates = [...forRole(d)].filter(unmet).sort(byEffect);
-    const p = candidates.find((c) => withinShare(c) && cost(c) <= room());
+    const p = candidates.find((c) => !clash(c) && withinShare(c) && cost(c) <= room());
     if (p) take(p, d.role, d.tier);
   }
 
@@ -395,6 +445,10 @@ export function planCategory(
         // pass's arithmetic and still most of a ₹5,000 routine.
         if (!withinShare(cand)) continue;
         if (!better(cand, pick.product)) continue;
+        // Measured against the routine WITHOUT the step being replaced — a
+        // salicylic cleanser is not in conflict with the salicylic cleanser it
+        // is standing in for.
+        if (clash(cand, at)) continue;
         // Findings answered dominate; profile match breaks ties within them.
         const gain = (answers(cand) - answers(pick.product)) * 1000 + (cand.matchScore - pick.product.matchScore);
         if (!best || gain > best.gain || (gain === best.gain && extra < best.extra)) best = { at, to: cand, gain, extra };
@@ -424,71 +478,67 @@ export function planCategory(
   while (spent < targetLow) {
     let added = false;
     for (const d of openRoles()) {
-      const cand = [...forRole(d)].sort(byEffect).find((c) => withinShare(c) && cost(c) <= room());
+      const cand = [...forRole(d)].sort(byEffect).find((c) => !clash(c) && withinShare(c) && cost(c) <= room());
       if (cand) { take(cand, d.role, d.tier); added = true; break; }
     }
     if (!added) break;
   }
 
-  // ── 5b. the premium alternative ─────────────────────────────────────────
+  // ── 5b. the premium alternative, WHICH IS AN OFFER AND NOT A PURCHASE ────
   //
-  // THE SECOND HONEST WAY TO USE A BUDGET, and the only one left once every
-  // compatible step is already in the routine. The catalogue carries the
-  // owner's own price grade — Budget, Mid-range, Premium — and a higher grade
-  // is a better-made version of the same step: a formulation with more in it,
-  // a cleaner base, a brand that stands behind it. Somebody who set aside
-  // ₹5,000 for their face and is being handed a ₹1,437 routine of budget-grade
-  // products has not been served well by "we found something cheaper".
+  // THIS PASS USED TO BUY THINGS AND IT MUST NOT.
   //
-  // THREE CONDITIONS, ALL OF THEM, and they are what keep this from being
-  // spending for its own sake:
-  //   · UNDER TARGET. The moment the routine reaches B × 0.90 this stops. A
-  //     budget that is being used does not get upgraded to be used harder.
-  //   · NEVER LESS SUITABLE. The candidate must answer at least as many of this
-  //     person's findings and match their profile at least as well. A premium
-  //     product that suits them less is not an upgrade at any price — this is
-  //     the clause that stops the target dragging the shelf out of shape.
-  //   · A REAL GRADE JUMP. Dearer is not the test; the grade is. Two Mid-range
-  //     moisturisers at ₹196 and ₹640 are the same class of product and the
-  //     ₹444 buys a bigger bottle of the same idea.
+  // The catalogue carries the owner's own price grade — Budget, Mid-range,
+  // Premium — and this pass swapped a chosen step for a higher-graded one
+  // whenever the routine sat under B × 0.90. Its test was `grade(cand) >
+  // grade(cur)` AND `not less suitable`, which is a real guard against getting
+  // WORSE and no guard at all about getting BETTER. Measured on the shipped
+  // planner, one oily/acne profile at a ₹10,000 face budget:
   //
-  // THE SMALLEST QUALIFYING STEP IS TAKEN, EVERY TIME, and that rule is worth
-  // more than it looks. Choosing whichever single swap landed CLOSEST TO THE
-  // BUDGET — the obvious greedy, and the first thing written here — put a
-  // ₹3,300-a-month sunscreen in a ₹5,000 face routine, because one enormous
-  // move hits the number faster than five sensible ones. Climbing in the
-  // smallest increments available spreads the money across the steps somebody
-  // actually uses and stops the instant the target is met, which is the
-  // difference between a better routine and an expensive one.
+  //   Prep         Plum Green Tea Toner ₹167/mo  →  Paula's Choice 2% BHA ₹2,517/mo
+  //   Moisturise   Plum Green Tea ₹196/mo        →  Bioderma Sebium ₹1,080/mo
+  //   Cleanse      Himalaya Neem ₹70/mo          →  Sebamed ₹276/mo
   //
-  // NO STEP MAY TAKE MORE THAN HALF THE CATEGORY — `withinShare`, declared with
-  // the floor above because it governs every pass after it and not only this
-  // one. It was written here first, and keeping it here is what let passes 4
-  // and 5 walk past it for a month.
+  // Same findings answered, same match score, every time. ₹3,519 a month, and
+  // the only thing that changed was a word on a spreadsheet. `tier` is a PRICE
+  // BAND. There is no efficacy field on BeautyProduct, no concentration, no
+  // evidence — nothing that could support "better made", which is what the
+  // comment that used to sit here asserted. An engine that cannot tell two
+  // suitable products apart and reaches for the price tag has stopped
+  // recommending and started upselling.
+  //
+  // SO IT OFFERS INSTEAD. The candidate is found on exactly the same terms and
+  // put in `upgrades` with the sentence that made it an offer rather than a
+  // purchase. If a grade jump ever buys something nameable, pass 4 — which
+  // requires strictly more of this person's findings answered, or the same
+  // number at a better match — takes it already, and takes it whether or not
+  // the budget has room. That is the difference the money is allowed to notice:
+  // none.
+  //
+  // THE CHEAPEST QUALIFYING OFFER PER STEP, not the dearest. A citizen deciding
+  // whether to spend more is owed the smallest real step up, not the biggest
+  // one the ceiling allows — that greedy is what put a ₹3,300-a-month sunscreen
+  // in a ₹5,000 routine when this pass could still take things.
   const GRADE: Record<string, number> = { Budget: 0, 'Mid-range': 1, Premium: 2 };
   const grade = (p: RecommendedProduct) => GRADE[p.tier] ?? 0;
-  for (let guard = 0; guard < 24 && spent < targetLow; guard++) {
-    let best: { at: number; to: RecommendedProduct; step: number } | null = null;
-    picks.forEach((pick, at) => {
-      const d = defs.find((x) => x.role === pick.role);
-      if (!d) return;
-      for (const cand of forRole(d)) {
-        if (cand.id === pick.product.id) continue;
-        if (grade(cand) <= grade(pick.product)) continue;
-        if (answers(cand) < answers(pick.product) || cand.matchScore < pick.product.matchScore) continue;
-        if (!withinShare(cand)) continue;
-        const after = spent - pick.monthlyInr + cost(cand);
-        if (after > ceiling || after <= spent) continue;
-        const step = after - spent;
-        if (!best || step < best.step) best = { at, to: cand, step };
-      }
-    });
-    if (!best) break;
-    const { at, to } = best as { at: number; to: RecommendedProduct };
-    const was = picks[at];
-    spent += cost(to) - was.monthlyInr;
-    picks[at] = toPick(to, was.role, was.tier);
-  }
+  const premiumOffers: Pick_[] = picks.flatMap((pick, at) => {
+    const d = defs.find((x) => x.role === pick.role);
+    if (!d) return [];
+    const cand = [...forRole(d)]
+      .filter((c) => c.id !== pick.product.id
+        && grade(c) > grade(pick.product)
+        && answers(c) >= answers(pick.product) && c.matchScore >= pick.product.matchScore
+        && withinShare(c) && !clash(c, at)
+        && spent - pick.monthlyInr + cost(c) <= ceiling
+        && cost(c) > pick.monthlyInr)
+      .sort((a, b) => cost(a) - cost(b))[0];
+    if (!cand) return [];
+    const extra = cost(cand) - pick.monthlyInr;
+    return [{
+      ...toPick(cand, pick.role, pick.tier),
+      reason: `A ${cand.tier.toLowerCase()} alternative to your ${pick.role.toLowerCase()} step, ₹${extra.toLocaleString('en-IN')}/month more. It answers the same findings and suits you no better than the one we chose, so we haven't swapped it in.`,
+    }];
+  });
 
   // ── 6. what is not here, and why ────────────────────────────────────────
   //
@@ -500,18 +550,29 @@ export function planCategory(
     const any = forRole(d);
     if (!any.length) continue;
     const cheapest = [...any].sort(byValue)[0];
-    // THREE REASONS A ROLE IS OPEN, and only one of them is "you don't need
-    // it". The cap closes a role while the money is still there, and saying
-    // "what you already have covers it" in that case would be a lie the
-    // citizen can check: the shelf has one, they can afford it, and we are
-    // declining to build a routine around it. Say that instead.
+    // FOUR REASONS A ROLE IS OPEN, and only one of them is "you don't need it".
+    // The cap closes a role while the money is still there, and saying "what
+    // you already have covers it" in that case would be a lie the citizen can
+    // check: the shelf has one, they can afford it, and we are declining to
+    // build a routine around it. Say that instead.
+    //
+    // The fourth is the overlap rule, and it is the one most worth spelling
+    // out — "you don't need a separate toner" is true by accident when the
+    // real answer is "everything on this shelf for that step is another acid
+    // and you already have one". Those read the same to us and not to anybody
+    // deciding whether we understood them.
+    const blocked = any.every((c) => clash(c)) ? clash(any[0]) : null;
     leftOut.push({
       role: d.role, tier: d.tier,
-      why: cost(cheapest) > room()
-        ? `A ${d.role.toLowerCase()} step would fit your profile but not this budget.`
-        : !withinShare(cheapest)
-          ? `A ${d.role.toLowerCase()} step that suits you starts at about ₹${cost(cheapest).toLocaleString('en-IN')} a month — more than half your ${category} budget on one product, so we've left the choice to you.`
-          : `You don't need a separate ${d.role.toLowerCase()} step — what you already have covers it.`,
+      why: blocked
+        ? blocked.kind === 'duplicate'
+          ? `You don't need a separate ${d.role.toLowerCase()} step — every one that suits you brings ${FAMILY_LABEL[blocked.family]}, and your routine already has it.`
+          : `We've left the ${d.role.toLowerCase()} step out — your assessment flags reactive skin, and your routine already asks as much of it as we'd want to.`
+        : cost(cheapest) > room()
+          ? `A ${d.role.toLowerCase()} step would fit your profile but not this budget.`
+          : !withinShare(cheapest)
+            ? `A ${d.role.toLowerCase()} step that suits you starts at about ₹${cost(cheapest).toLocaleString('en-IN')} a month — more than half your ${category} budget on one product, so we've left the choice to you.`
+            : `You don't need a separate ${d.role.toLowerCase()} step — what you already have covers it.`,
     });
   }
   const stale = new Set(picks.map((x) => x.role));
@@ -545,11 +606,16 @@ export function planCategory(
     ? `Your ${category} routine comes to ₹${spent.toLocaleString('en-IN')}/month against a ₹${budget.toLocaleString('en-IN')} budget. We haven't added more — nothing else that suits your profile would add enough to be worth the money.`
     : null;
 
-  // What somebody could consider anyway, offered and never taken.
+  // What somebody could consider anyway, offered and never taken. Two kinds
+  // now: a step the routine does not have, and a dearer version of one it does.
+  // The second used to be taken silently and is the whole of 5b above.
   const chosen = new Set(picks.map((x) => x.product.id));
-  const upgrades = openRoles()
-    .flatMap((d) => [...forRole(d)].filter((p) => !chosen.has(p.id)).sort(byEffect).slice(0, 1).map((p) => toPick(p, d.role, d.tier)))
-    .filter((u) => u.monthlyInr <= room());
+  const upgrades = [
+    ...openRoles()
+      .flatMap((d) => [...forRole(d)].filter((p) => !chosen.has(p.id) && !clash(p)).sort(byEffect).slice(0, 1).map((p) => toPick(p, d.role, d.tier)))
+      .filter((u) => u.monthlyInr <= room()),
+    ...premiumOffers,
+  ];
 
   return {
     category, budgetInr: budget, skipped: false, picks,
@@ -599,6 +665,8 @@ export interface WirePick {
   packLabel: string;
   /** "about 6 weeks" · "about 2½ months" — how long one pack lasts. */
   lastsLabel: string;
+  /** Only ever on an offer: what spending this would, and would not, buy. */
+  reason?: string;
 }
 
 export interface WireCategoryPlan {
@@ -623,6 +691,7 @@ const wirePick = (x: Pick_): WirePick => ({
   monthsOfUse: x.monthsOfUse,
   packLabel: packLabel(x.product.name),
   lastsLabel: lastsLabel(x.monthsOfUse),
+  ...(x.reason ? { reason: x.reason } : {}),
 });
 
 const wireCategory = (c: CategoryPlan): WireCategoryPlan => ({

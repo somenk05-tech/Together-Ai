@@ -255,6 +255,15 @@ export function Market() {
 
       <AllergyNote notice={products.data.allergyNotice} manageTo="/beauty/profile" />
 
+      {/* A shorter shelf is only ever OUR RULE or OUR RANGE, and from the outside
+          those look identical. The allergy note has said which since K5.66; a
+          condition held products back silently until it didn't. */}
+      {products.data.conditionNotice && (
+        <p className="muted" style={{ fontSize: 12, lineHeight: 1.55, margin: '0 0 12px' }}>
+          {products.data.conditionNotice.sentence}
+        </p>
+      )}
+
       {/* ── filter · title · sort ───────────────────────────────────────── */}
       <div className="market-bar">
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>

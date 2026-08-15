@@ -7,7 +7,20 @@ import { findSensitivity } from '../shared/topical-sensitivities';
 import { joinTerms } from '../shared/allergen-voice';
 
 export type Level = 'good' | 'monitor' | 'attention' | 'priority';
-export interface Reading { key: string; label: string; level: Level; note: string }
+/**
+ * `intensity` is the RAW SIGNAL COUNT that produced `level`, kept rather than
+ * discarded. `rank()` collapses 0,1,2,3+ into four words, and until now the
+ * number went no further — so a citizen with three separate acne signals and one
+ * with a single ticked box arrived at the recommender indistinguishable. The
+ * scorer needs the difference: with only four severities, and a breadth bonus
+ * capped at two, `matchScore` had exactly two realised values across a matched
+ * shelf and every tie fell through to price.
+ *
+ * Absent on an assessment saved before this field existed. Readers must treat
+ * `undefined` as "whatever the level implies" rather than as zero — see
+ * `intensityOf` in beauty-engine.ts. No backfill, no migration.
+ */
+export interface Reading { key: string; label: string; level: Level; note: string; intensity: number }
 export interface RoutineStep { step: string; ingredient?: string }
 export interface IngredientRec { name: string; why: string }
 export interface MakeupRec { item: string; note: string }
@@ -131,33 +144,33 @@ export function assessBeauty(p: BeautyProfileInput, photoFindings: string[] = []
   // ---- Skin readings ----
   const skin: Reading[] = [];
   const acneN = [has(concerns, 'acne', 'pimple'), has(concerns, 'whitehead', 'blackhead'), has(conds, 'hormonal acne', 'pcos', 'seborrheic'), has(pf, 'acne')].filter(Boolean).length;
-  skin.push({ key: 'acne', label: 'Acne & breakouts', level: worst(rank(acneN), has(goals, 'acne') ? 'monitor' : 'good'), note: acneN ? 'Active breakouts or acne history noted' : 'No active acne reported' });
+  skin.push({ key: 'acne', label: 'Acne & breakouts', level: worst(rank(acneN), has(goals, 'acne') ? 'monitor' : 'good'), note: acneN ? 'Active breakouts or acne history noted' : 'No active acne reported', intensity: acneN });
   const pigN = [has(concerns, 'dark spot', 'hyperpig', 'melasma'), has(concerns, 'tan', 'sun damage'), has(pf, 'pigment')].filter(Boolean).length;
-  skin.push({ key: 'pigmentation', label: 'Pigmentation & spots', level: worst(rank(pigN), has(goals, 'pigment', 'dark spot', 'tan', 'even') ? 'monitor' : 'good'), note: pigN ? 'Uneven tone / dark spots to address' : 'Even tone' });
+  skin.push({ key: 'pigmentation', label: 'Pigmentation & spots', level: worst(rank(pigN), has(goals, 'pigment', 'dark spot', 'tan', 'even') ? 'monitor' : 'good'), note: pigN ? 'Uneven tone / dark spots to address' : 'Even tone', intensity: pigN });
   const wrinkleN = [has(concerns, 'fine line', 'wrinkle'), age >= 40, has(pf, 'wrinkle')].filter(Boolean).length;
-  skin.push({ key: 'wrinkles', label: 'Fine lines & firmness', level: worst(rank(wrinkleN), has(goals, 'ageing', 'aging', 'wrinkle', 'fine line', 'firm') ? 'monitor' : 'good'), note: wrinkleN ? 'Early lines / loss of firmness' : 'Firm, few lines' });
+  skin.push({ key: 'wrinkles', label: 'Fine lines & firmness', level: worst(rank(wrinkleN), has(goals, 'ageing', 'aging', 'wrinkle', 'fine line', 'firm') ? 'monitor' : 'good'), note: wrinkleN ? 'Early lines / loss of firmness' : 'Firm, few lines', intensity: wrinkleN });
   const texN = [has(concerns, 'uneven texture', 'large pore'), has(pf, 'texture', 'pore')].filter(Boolean).length;
-  skin.push({ key: 'texture', label: 'Texture & pores', level: worst(rank(texN), has(goals, 'pore', 'glass', 'glow') ? 'monitor' : 'good'), note: texN ? 'Rough texture / visible pores' : 'Smooth texture' });
+  skin.push({ key: 'texture', label: 'Texture & pores', level: worst(rank(texN), has(goals, 'pore', 'glass', 'glow') ? 'monitor' : 'good'), note: texN ? 'Rough texture / visible pores' : 'Smooth texture', intensity: texN });
   const redN = [has(concerns, 'rosacea', 'redness'), skinType === 'sensitive', has(conds, 'rosacea', 'eczema', 'psoriasis'), has(pf, 'redness')].filter(Boolean).length;
-  skin.push({ key: 'redness', label: 'Redness & sensitivity', level: rank(redN), note: redN ? 'Reactive / inflamed skin — patch-test new actives' : 'Calm, non-reactive' });
+  skin.push({ key: 'redness', label: 'Redness & sensitivity', level: rank(redN), note: redN ? 'Reactive / inflamed skin — patch-test new actives' : 'Calm, non-reactive', intensity: redN });
   const hydN = [has(concerns, 'dry', 'flaky', 'dull'), skinType === 'dry', has(pf, 'dehydrat', 'dry')].filter(Boolean).length;
-  skin.push({ key: 'hydration', label: 'Hydration & barrier', level: worst(rank(hydN), has(goals, 'hydrat', 'barrier', 'glass') ? 'monitor' : 'good'), note: hydN ? 'Dryness / barrier support needed' : 'Well hydrated' });
+  skin.push({ key: 'hydration', label: 'Hydration & barrier', level: worst(rank(hydN), has(goals, 'hydrat', 'barrier', 'glass') ? 'monitor' : 'good'), note: hydN ? 'Dryness / barrier support needed' : 'Well hydrated', intensity: hydN });
   const oilN = [skinType === 'oily', has(concerns, 'oily'), has(goals, 'oil control') ? 1 : 0].filter(Boolean).length;
-  skin.push({ key: 'oil', label: 'Oil balance', level: skinType === 'oily' ? 'attention' : skinType === 'combination' || oilN ? 'monitor' : 'good', note: skinType === 'oily' ? 'Excess sebum — lightweight, non-comedogenic products' : 'Balanced' });
+  skin.push({ key: 'oil', label: 'Oil balance', level: skinType === 'oily' ? 'attention' : skinType === 'combination' || oilN ? 'monitor' : 'good', note: skinType === 'oily' ? 'Excess sebum — lightweight, non-comedogenic products' : 'Balanced', intensity: oilN });
 
   // ---- Hair readings ----
   const hair: Reading[] = [];
   const density = (p.hairDensity ?? 'medium').toLowerCase();
   const fallN = [has(hairC, 'hair fall', 'thinning', 'balding'), density === 'low', has(pf, 'density')].filter(Boolean).length;
-  hair.push({ key: 'density', label: 'Hair fall & density', level: worst(rank(fallN), has(hairG, 'growth', 'hair fall', 'volume') ? 'monitor' : 'good'), note: fallN ? 'Shedding / lower density noted' : 'Healthy density' });
+  hair.push({ key: 'density', label: 'Hair fall & density', level: worst(rank(fallN), has(hairG, 'growth', 'hair fall', 'volume') ? 'monitor' : 'good'), note: fallN ? 'Shedding / lower density noted' : 'Healthy density', intensity: fallN });
   const thick = (p.hairThickness ?? 'medium').toLowerCase();
-  hair.push({ key: 'thickness', label: 'Strand thickness', level: thick === 'fine' ? 'monitor' : 'good', note: thick === 'fine' ? 'Fine strands — volumising, protein care' : 'Medium/thick strands' });
+  hair.push({ key: 'thickness', label: 'Strand thickness', level: thick === 'fine' ? 'monitor' : 'good', note: thick === 'fine' ? 'Fine strands — volumising, protein care' : 'Medium/thick strands', intensity: thick === 'fine' ? 1 : 0 });
   const scalpN = [['oily', 'dry', 'sensitive'].includes(scalp), has(hairC, 'dandruff', 'oily scalp', 'dry scalp', 'itchy'), has(conds, 'seborrheic'), has(pf, 'scalp')].filter(Boolean).length;
-  hair.push({ key: 'scalp', label: 'Scalp health', level: rank(scalpN), note: scalpN ? `${scalp[0].toUpperCase() + scalp.slice(1)} scalp / concerns to manage` : 'Balanced scalp' });
+  hair.push({ key: 'scalp', label: 'Scalp health', level: rank(scalpN), note: scalpN ? `${scalp[0].toUpperCase() + scalp.slice(1)} scalp / concerns to manage` : 'Balanced scalp', intensity: scalpN });
   const dmgN = [has(hairC, 'frizz', 'split end', 'breakage', 'colour damage', 'color damage'), ['frizzy', 'dry', 'damaged'].includes((p.hairTexture ?? '').toLowerCase())].filter(Boolean).length;
-  hair.push({ key: 'damage', label: 'Frizz & damage', level: rank(dmgN), note: dmgN ? 'Dryness / breakage — repair & seal' : 'Smooth, healthy cuticle' });
+  hair.push({ key: 'damage', label: 'Frizz & damage', level: rank(dmgN), note: dmgN ? 'Dryness / breakage — repair & seal' : 'Smooth, healthy cuticle', intensity: dmgN });
   const lineN = [has(hairC, 'receding hairline', 'balding'), has(pf, 'hairline')].filter(Boolean).length;
-  hair.push({ key: 'hairline', label: 'Hairline', level: rank(lineN * 2), note: lineN ? 'Receding / thinning hairline — see a trichologist if progressing' : 'Stable hairline' });
+  hair.push({ key: 'hairline', label: 'Hairline', level: rank(lineN * 2), note: lineN ? 'Receding / thinning hairline — see a trichologist if progressing' : 'Stable hairline', intensity: lineN * 2 });
 
   // ---- Recommendations (allergen & pregnancy aware) ----
   const rec = (name: string) => !avoid(name);
