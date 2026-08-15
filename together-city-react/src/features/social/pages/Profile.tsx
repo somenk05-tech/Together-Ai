@@ -223,7 +223,10 @@ function PostReader({
   );
 }
 
-function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' | 'photo' | 'video'; category?: 'all' | 'work' | 'personal' }) {
+/** The citizen's own tile wall. EXPORTED because Personal's Album draws the
+ *  same pictures — one grid, not two that drift apart the first time a
+ *  video poster or the lightbox changes. */
+export function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' | 'photo' | 'video'; category?: 'all' | 'work' | 'personal' }) {
   const posts = useMyPosts();
   const reorder = useReorderMyPosts();
   const me = useMyProfile();

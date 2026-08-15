@@ -112,6 +112,8 @@ const MedFamily = lazy(() => import('@/features/medical/pages/Family').then((m) 
 const DatingActivity = lazy(() => import('@/features/dating/pages/DatingActivity').then((m) => ({ default: m.DatingActivity })));
 const DatingChats = lazy(() => import('@/features/dating/pages/DatingChats').then((m) => ({ default: m.DatingChats })));
 const Thoughts = lazy(() => import('@/features/thoughts/pages/Thoughts').then((m) => ({ default: m.Thoughts })));
+const PersonalHome = lazy(() => import('@/features/personal/pages/PersonalHome').then((m) => ({ default: m.PersonalHome })));
+const Album = lazy(() => import('@/features/personal/pages/Album').then((m) => ({ default: m.Album })));
 const Avatars = lazy(() => import('@/features/avatars/pages/Avatars').then((m) => ({ default: m.Avatars })));
 const Medicines = lazy(() => import('@/features/medicines/pages/Medicines').then((m) => ({ default: m.Medicines })));
 const DatingAdminStats = lazy(() => import('@/features/dating/pages/DatingAdminStats').then((m) => ({ default: m.DatingAdminStats })));
@@ -222,6 +224,14 @@ export const router = createBrowserRouter([
       { path: '/help', element: wrap(<Info slug="help" />) },
       { path: '/contact', element: wrap(<Info slug="contact" />) },
       { path: '/calendar', element: <RequireAuth>{wrap(<Calendar />)}</RequireAuth> },
+      /* ── PERSONAL: THE CITIZEN'S OWN DRAWER (owner, 15 Aug) ───────────────
+         A tab, not a hub — so its rooms are city-level pages rather than a
+         HubLayout rail, and three of the four were already exactly that and
+         listed nowhere (/thoughts, /calendar above, /drive below). The tab's
+         own page gathers them; the album is the one new room. */
+      { path: '/personal', element: <RequireAuth>{wrap(<PersonalHome />)}</RequireAuth> },
+      { path: '/personal/album', element: <RequireAuth>{wrap(<Album />)}</RequireAuth> },
+      { path: '/thoughts', element: <RequireAuth>{wrap(<Thoughts />)}</RequireAuth> },
       { path: '/chats', element: <RequireAuth>{wrap(<Chats />)}</RequireAuth> },
       // The mobile bottom bar's doors: the whole city on one screen, and the
       // bell as a full page (the header dropdown does not exist on a phone).
@@ -263,10 +273,10 @@ export const router = createBrowserRouter([
       { path: '/social/profile', element: <RequireAuth>{wrap(<SocProfile />)}</RequireAuth> },
       { path: '/social/u/:handle', element: <RequireAuth>{wrap(<SocPublicProfile />)}</RequireAuth> },
       { path: '/social/saved', element: <RequireAuth>{wrap(<SocSaved />)}</RequireAuth> },
-      // The journal, which the Social Life menu now lists. It was rendering
-      // under the Dating hub's layout, so opening it from Social Life put a
-      // sidebar headed "Dating Hub" beside somebody's private writing.
-      { path: '/thoughts', element: <RequireAuth>{wrap(<Thoughts />)}</RequireAuth> },
+      /* The journal moved out with Personal (15 Aug). It rendered here because
+         the Social Life menu listed it — a private journal on the social
+         shelf, which was always the wrong shelf. It is a city-level page now,
+         routed with the rest of Personal's rooms below. */
     ],
   },
   {

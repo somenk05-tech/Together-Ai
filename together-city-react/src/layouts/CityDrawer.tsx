@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { NAV, HUBS } from '@/config/hubs';
-import { HUB_ICON } from '@/nav/registry';
+import type { HubKey } from '@/types';
+import { tabIcon } from '@/nav/registry';
 import { Icon } from '@/components/ui/Icon';
 import { useUiStore } from '@/store/ui.store';
 import { DrawerScrim, useSwipeClose } from './drawerDismiss';
@@ -44,8 +45,8 @@ export function CityDrawer() {
         {NAV.map((n) => (
           <NavLink key={n.key} to={n.path} onClick={() => toggle(false)}
             className={({ isActive }) => (isActive ? 'active' : undefined)}>
-            <span className="n" aria-hidden><Icon name={HUB_ICON[n.key] ?? 'place'} size={15} /></span>
-            <span><span className="l">{n.label}</span><span className="s">{HUBS[n.key]?.tag}</span></span>
+            <span className="n" aria-hidden><Icon name={tabIcon(n.key)} size={15} /></span>
+            <span><span className="l">{n.label}</span><span className="s">{HUBS[n.key as HubKey]?.tag}</span></span>
           </NavLink>
         ))}
       </nav>

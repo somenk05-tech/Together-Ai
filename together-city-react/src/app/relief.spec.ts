@@ -1068,7 +1068,18 @@ describe('Relief stays a system', () => {
    */
   it('gives every hub in the config an accent of its own', () => {
     const hubs = read('src/config/hubs.ts');
-    const keys = [...new Set([...hubs.matchAll(/key:\s*'([a-z]+)'/g)].map((m) => m[1]))];
+    /* THE HUBS MAP, NOT THE WHOLE FILE.
+     *
+     * `NAV` above it now carries one key that is NOT a hub — Personal, the
+     * citizen's own drawer (owner, 15 Aug) — and it has no `[data-hub]` block
+     * on purpose: nothing ever sets data-hub to it, so a block would be dead
+     * CSS asserting a district that does not exist. Scraping the file caught
+     * that tab and failed this test for the one reason it was written to
+     * prevent: a hub inheriting somebody else's light. Starting at the map
+     * makes the assertion mean what its name says.
+     */
+    const map = hubs.slice(hubs.indexOf('export const HUBS'));
+    const keys = [...new Set([...map.matchAll(/key:\s*'([a-z]+)'/g)].map((m) => m[1]))];
     expect(keys.length).toBeGreaterThanOrEqual(14);
     expect(keys.filter((k) => !tokens.includes(`[data-hub="${k}"]`))).toEqual([]);
   });

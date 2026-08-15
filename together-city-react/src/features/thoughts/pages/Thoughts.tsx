@@ -273,8 +273,12 @@ export function Thoughts() {
 
   const items = (thoughts.data?.pages ?? []).flatMap((p) => p.items);
 
+  /* THE JOURNAL CARRIES ITS OWN PAGE GRID NOW. It used to render inside a
+     hub layout, which supplied the 1180px column and the gutter; it moved
+     out with Personal (15 Aug), where its rooms are city-level pages, so
+     the wrapper it was borrowing comes with it. */
   return (
-    <div>
+    <div className="page">
       <div className="sl-head">
         <div className="sl-head-t">
           <div className="eyebrow">Together City</div>

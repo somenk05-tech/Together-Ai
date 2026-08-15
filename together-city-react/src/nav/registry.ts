@@ -1,5 +1,5 @@
 import type { HubKey } from '@/types';
-import { HUBS, NAV } from '@/config/hubs';
+import { HUBS, NAV, type TabKey } from '@/config/hubs';
 import type { IconName } from '@/components/ui/Icon';
 
 export type DestKind = 'hub' | 'page' | 'account' | 'action';
@@ -25,6 +25,19 @@ export const HUB_ICON: Partial<Record<HubKey, IconName>> = {
   financial: 'product', beauty: 'sparkles', fitness: 'star', mail: 'mail', family: 'people',
   services: 'connection',
 };
+
+/**
+ * THE GLYPH A TAB WEARS.
+ *
+ * Every hub has one in HUB_ICON above. Personal is a TAB and not a hub, so it
+ * answers here — in one function, so the drawer, the all-hubs grid and the
+ * command palette cannot end up drawing it three different ways. `place` is
+ * the fallback for a hub that has not been given a glyph; Personal is
+ * explicitly not a place, which is the whole reason it needs this line.
+ */
+export function tabIcon(key: TabKey): IconName {
+  return key === 'personal' ? 'personal' : (HUB_ICON[key] ?? 'place');
+}
 
 /** Top-level account / global destinations that aren't hubs. */
 const ACCOUNT: Dest[] = [
@@ -61,14 +74,32 @@ function buildDestinations(): Dest[] {
   const out: Dest[] = [...ACCOUNT];
 
   for (const nav of NAV) {
-    const cfg = HUBS[nav.key];
+    // Personal is a TAB, not a hub: it has no HUBS entry and no hub art. Both
+    // maps are Partial, so reading them with its key is an undefined rather
+    // than a crash, and the fallbacks below are what it renders with.
+    const cfg = HUBS[nav.key as HubKey];
     out.push({
       id: `hub-${nav.key}`, kind: 'hub', label: cfg?.name ?? nav.label, sub: cfg?.tag,
-      path: nav.path, hub: nav.key, icon: HUB_ICON[nav.key], keywords: nav.label.toLowerCase(),
+      path: nav.path, hub: nav.key as HubKey, icon: tabIcon(nav.key), keywords: nav.label.toLowerCase(),
     });
   }
   // Family Nutrition isn't a header tab but is a real hub.
   out.push({ id: 'hub-family', kind: 'hub', label: HUBS.family.name, sub: HUBS.family.tag, path: '/family', hub: 'family', icon: 'people', keywords: 'family household shared meals' });
+  /* TRAVEL LEFT THE HEADER, NOT THE CITY (owner, 15 Aug). It is out of NAV, so
+     the loop above no longer lists it — and a hub nobody can find is a hub
+     nobody can use. Listed here for exactly the reason Family is: a real hub
+     that is not a header tab. Its ROOMS still arrive below, which walks HUBS
+     rather than NAV. */
+  out.push({ id: 'hub-travel', kind: 'hub', label: HUBS.travel.name, sub: HUBS.travel.tag, path: '/travel', hub: 'travel', icon: 'trip', keywords: 'travel trips flights hotels holiday' });
+  /* The Personal rooms, which have no hub to be walked out of. Three of them
+     existed and were listed nowhere; the palette is where somebody who
+     half-remembers "album" finds it. */
+  out.push(
+    { id: 'p-personal-thoughts', kind: 'page', label: 'Thoughts', sub: 'Your private journal', path: '/thoughts', keywords: 'personal journal diary notes write' },
+    { id: 'p-personal-calendar', kind: 'page', label: 'Calendar', sub: 'Everything you have coming', path: '/calendar', icon: 'calendar', keywords: 'personal schedule events dates' },
+    { id: 'p-personal-drive', kind: 'page', label: 'Drive', sub: 'Your documents', path: '/drive', keywords: 'personal files documents storage upload' },
+    { id: 'p-personal-album', kind: 'page', label: 'Album', sub: 'Every photo and video you have posted', path: '/personal/album', keywords: 'personal photos videos gallery pictures memories' },
+  );
 
   for (const key of Object.keys(HUBS) as HubKey[]) {
     const cfg = HUBS[key];

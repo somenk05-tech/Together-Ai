@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { NAV, HUBS } from '@/config/hubs';
-import { HUB_ICON } from '@/nav/registry';
+import type { HubKey } from '@/types';
+import { tabIcon } from '@/nav/registry';
 import { HUB_HERO } from '@/pages/HubLanding';
 import { Icon } from '@/components/ui/Icon';
 
@@ -35,8 +36,8 @@ export function Hubs() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
         {NAV.filter((n) => n.key !== 'mail').map((n) => {
-          const cfg = HUBS[n.key];
-          const hero = HUB_HERO[n.key];
+          const cfg = HUBS[n.key as HubKey];
+          const hero = HUB_HERO[n.key as HubKey];
           return (
             <Link key={n.key} to={n.path} className="card lift" style={{ padding: 0, overflow: 'hidden', display: 'block' }}>
               <div style={{ aspectRatio: '16 / 10', background: 'var(--media-bg)', position: 'relative' }}>
@@ -45,13 +46,13 @@ export function Hubs() {
                       style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                   : (
                     <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: 'var(--muted)' }}>
-                      <Icon name={HUB_ICON[n.key] ?? 'place'} size={28} />
+                      <Icon name={tabIcon(n.key)} size={28} />
                     </div>
                   )}
               </div>
               <div style={{ padding: '10px 12px 12px', display: 'flex', gap: 9, alignItems: 'center' }}>
                 <span aria-hidden style={{ color: 'var(--accent-ink)', display: 'grid', placeItems: 'center' }}>
-                  <Icon name={HUB_ICON[n.key] ?? 'place'} size={17} />
+                  <Icon name={tabIcon(n.key)} size={17} />
                 </span>
                 <span style={{ minWidth: 0 }}>
                   <span style={{ display: 'block', fontWeight: 700, fontSize: 14, lineHeight: 1.2 }}>{n.label}</span>

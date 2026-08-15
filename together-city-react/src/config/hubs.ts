@@ -1,7 +1,23 @@
 import type { HubKey } from '@/types';
 import { LABELS } from './labels';
 
-export interface NavItem { key: HubKey; label: string; path: string; }
+/**
+ * ONE TAB IS NOT A DISTRICT.
+ *
+ * Personal is the citizen's own drawer — their journal, their calendar, their
+ * documents, their album — and it is deliberately NOT a hub: no district on
+ * the city map, no photograph, no consent gate, no rail of its own. Its rooms
+ * are city-level pages that already existed and were listed nowhere.
+ *
+ * Widened HERE rather than in `types/index.ts` on purpose: `HubKey` is the set
+ * of PLACES the city is made of, and the moment `personal` joins it every map
+ * keyed by hub — heroes, portraits, billboard lines, themes, consent — starts
+ * owing it an answer it does not have. A tab key is a smaller idea than a hub
+ * key, so it gets a smaller type.
+ */
+export type TabKey = HubKey | 'personal';
+
+export interface NavItem { key: TabKey; label: string; path: string; }
 export interface SideItem { path: string; index: string; label: string; sub: string; }
 export interface HubConfig {
   key: HubKey;
@@ -47,9 +63,17 @@ export const NAV: NavItem[] = [
   { key: 'mail', label: 'Mail', path: '/mail' },
   { key: 'medical', label: 'Medical', path: '/medical' },
   { key: 'nutrition', label: 'Nutrition', path: '/nutrition' },
+  // Not a district — the citizen's own drawer. See TabKey above.
+  { key: 'personal', label: 'Personal', path: '/personal' },
   { key: 'realestate', label: 'Real estate', path: '/realestate' },
   { key: 'social', label: 'Social life', path: '/social' },
-  { key: 'travel', label: 'Travel', path: '/travel' },
+  /* TRAVEL LEFT THE STREET (owner, 15 Aug), NOT THE CITY. The hub keeps its
+     config, its rooms, its routes and its art below — /travel and every page
+     under it still answer, Mira can still take you there, and the command
+     palette still finds a flight. What it no longer has is a tab in the
+     header and a building on the home page. A hub that is not being shown is
+     a different thing from a hub that has been deleted, and this is the
+     first. */
 ];
 
 /** Hub metadata — names/taglines ported 1:1 from tc.js SIDE. */
@@ -173,8 +197,10 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/social/feed', index: '01', label: 'City Feed', sub: 'Moments from around you' },
       { path: '/social/profile', index: '02', label: 'My Profile', sub: 'Story, stats & Post & Earn' },
       { path: '/social/saved', index: '03', label: 'Saved', sub: 'Bookmarked posts & places' },
-      // The journal. Built, tested, and listed nowhere.
-      { path: '/thoughts', index: '04', label: 'Thoughts', sub: 'Your private journal' },
+      // Thoughts was here because it was "built, tested, and listed nowhere" —
+      // a journal boarding in the social hub for want of anywhere else. It has
+      // a home of its own now (Personal), and a private journal listed inside
+      // the SOCIAL rail was always the wrong shelf.
     ],
   },
   dating: {

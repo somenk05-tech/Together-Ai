@@ -17,8 +17,11 @@ interface Zone { to: string; label: string; shape: 'poly' | 'ellipse'; points?: 
 // behind them, so they are not zoned — E-Commerce is no longer a district. The
 // Cars building is still in the render and no longer clickable — the hub it led
 // to is gone, and a zone onto a redirect is a link that lies about where it goes.
+// The Travel building is still in the render and no longer clickable, for the
+// same reason the Cars one is not: the owner took Travel off the street
+// (15 Aug). The hub is alive — /travel and every room under it still answer —
+// it simply has no door on this page any more.
 const ZONES: Zone[] = [
-  { to: '/travel', label: 'Travel Hub', shape: 'poly', points: '264.9,227.9 488.7,227.9 488.7,343.8 264.9,343.8' },
   { to: '/nutrition', label: 'Nutrition & Groceries', shape: 'poly', points: '178.4,364.2 461.2,364.2 461.2,496.4 178.4,496.4' },
   { to: '/social', label: 'Social Life', shape: 'poly', points: '173.3,502.5 381.9,502.5 381.9,652.1 173.3,652.1' },
   { to: '/astrology', label: 'Astrology Hub', shape: 'poly', points: '183.5,665.3 381.9,665.3 381.9,794.5 183.5,794.5' },
@@ -33,7 +36,8 @@ const ZONES: Zone[] = [
 
 interface Pavilion { to: string; img: string; title: string; meta: string; blurb: string; }
 const PAVILIONS: Pavilion[] = [
-  { to: '/travel', img: 'travel-hub.webp', title: 'Travel Hub', meta: 'Flights · Trains · Hotels · Packages', blurb: 'Plan your entire journey in one place — chat with friends, split expenses, book together.' },
+  // Travel's tile went with its tab (owner, 15 Aug) — the hub is alive, it is
+  // just not being advertised here.
   { to: '/astrology', img: 'astrology-hub.webp', title: 'Astrology Hub', meta: 'Birth chart · Horoscope · Compatibility', blurb: 'Your natal chart, daily readings and cosmic compatibility — guidance written in the stars, personalised to you.' },
   { to: '/nutrition', img: 'nutrition-and-groceies.webp', title: 'Nutrition & Groceries', meta: 'Meal plans · Grocery · Supplements', blurb: 'Every meal plan and grocery list personalised around your body, blood reports and goals.' },
   { to: '/social', img: 'social-life.webp', title: 'Social Life', meta: 'Feed · Explore · Circles · Events', blurb: 'Discover everything happening around you — and earn rewards for authentic contributions.' },
@@ -74,7 +78,6 @@ const FALLBACK = PAVILIONS;
  * rule forbids, so Services keeps its config copy until it is given a line.
  */
 const DISTRICT_COPY: Partial<Record<HubKey, { name: string; line: string }>> = {
-  travel: { name: 'Travel', line: 'Your world, planned your way.' },
   nutrition: { name: 'Nutrition', line: 'Your food, personalized to you.' },
   dating: { name: 'Matchmaking', line: 'Your connection, intelligently matched.' },
   entertainment: { name: 'Entertainment', line: 'Your world of things you love.' },
@@ -104,7 +107,7 @@ function districtName(key: HubKey): string {
 
 interface Panel { key: HubKey; img: string; }
 const PANELS: Panel[] = [
-  { key: 'travel', img: 'travel-hub.webp' },
+  // No travel plate: the district left the walk (owner, 15 Aug).
   { key: 'astrology', img: 'astrology-hub.webp' },
   { key: 'nutrition', img: 'nutrition-and-groceies.webp' },
   { key: 'social', img: 'social-life.webp' },
