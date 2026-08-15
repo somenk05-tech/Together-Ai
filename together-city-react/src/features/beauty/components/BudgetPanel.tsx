@@ -56,7 +56,7 @@ export const budgetSummary = (b: { face: number; hair: number; body: number }): 
   const parts = ([['Face', b.face], ['Hair', b.hair], ['Body', b.body]] as const)
     .filter(([, n]) => n > 0).map(([k, n]) => `${k} ${rupees(n)}`);
   const total = b.face + b.hair + b.body;
-  return parts.length ? `${parts.join(' · ')} — ${rupees(total)}/month` : 'nothing set aside yet';
+  return parts.length ? `${parts.join(' · ')} — ${rupees(total)} to spend` : 'nothing set aside yet';
 };
 
 /**
@@ -91,7 +91,7 @@ function Dial(
         <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'baseline', gap: 4 }}>
           <span className="muted" style={{ fontSize: 13 }}>₹</span>
           <input
-            aria-label={`${label} monthly budget in rupees`}
+            aria-label={`${label} budget in rupees`}
             inputMode="numeric"
             value={typed ?? value.toLocaleString('en-IN')}
             onChange={(e) => setTyped(e.target.value)}
@@ -99,12 +99,12 @@ function Dial(
             onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
             style={{ width: 78, textAlign: 'right', border: 'none', borderBottom: '1px solid var(--line)', background: 'transparent',
               fontFamily: 'inherit', fontSize: 20, fontWeight: 700, color: 'var(--ink)', padding: '1px 2px', outline: 'none' }} />
-          <span className="muted" style={{ fontSize: 12 }}>/ month</span>
+          <span className="muted" style={{ fontSize: 12 }}>to spend</span>
         </span>
       </div>
 
       <input type="range" min={MIN} max={MAX} step={100} value={value}
-        aria-label={`${label} monthly budget`}
+        aria-label={`${label} budget`}
         onChange={(e) => onChange(Number(e.target.value))}
         style={{ width: '100%', margin: '14px 0 6px', accentColor: 'var(--accent)' }} />
 
@@ -170,10 +170,10 @@ export function BudgetPanel(
       {!compact && (
         <>
           <p className="muted" style={{ fontSize: 13.5, margin: '0 0 4px', maxWidth: 560 }}>
-            Set what you&rsquo;re comfortable spending each month. We&rsquo;ll build your routine around it.
+            Set what you&rsquo;re comfortable handing over for this routine. We&rsquo;ll build it around that.
           </p>
           <p className="muted" style={{ fontSize: 12.5, margin: '0 0 18px', maxWidth: 560 }}>
-            Your budget is a monthly limit. We&rsquo;ll prioritise the products that matter most and keep
+            Your budget is what the routine may cost to buy. We&rsquo;ll prioritise the products that matter most and keep
             your routine lean. Leave a category at nothing and we&rsquo;ll leave it out altogether.
           </p>
         </>
@@ -192,7 +192,7 @@ export function BudgetPanel(
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', borderTop: '1px solid var(--line)', paddingTop: 16, marginTop: 4 }}>
         <span style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '.14em', fontWeight: 700 }}>Total</span>
         <span style={{ marginLeft: 'auto', fontSize: 24, fontWeight: 800, letterSpacing: '-.01em' }}>{rupees(total)}</span>
-        <span className="muted" style={{ fontSize: 12 }}>/ month</span>
+        <span className="muted" style={{ fontSize: 12 }}>to spend</span>
       </div>
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 16 }}>

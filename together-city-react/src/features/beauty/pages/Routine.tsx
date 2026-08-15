@@ -56,9 +56,15 @@ const rupees = (n: number) => `₹${n.toLocaleString('en-IN')}`;
  * spent this month against a budget of ₹5,000 — comfortable. It is nothing of
  * the sort in either direction: the cleanser is a hundred millilitres and lasts
  * a month and a half, the sunscreen at the honest dose is gone in six weeks,
- * and the serum will still be there at Christmas. Against a MONTHLY budget the
- * only honest figure is the monthly one, which is what the plan is built on and
- * what this page now shows beside every price.
+ * and the serum will still be there at Christmas. So the monthly figure sits
+ * beside every price on this page and always will.
+ *
+ * IT IS NO LONGER WHAT THE PLAN IS BUILT ON. The owner reversed that on 15 Aug:
+ * a budget is what somebody hands over at the counter, so the planner spends
+ * PURCHASE PRICES and the upkeep number decides nothing. The two units are one
+ * word apart in the copy — "₹8,000" and "₹8,000 a month" — and this page went
+ * on saying the second about the first for two commits after the change, in
+ * fourteen places. A unit lives in the strings as much as in the arithmetic.
  *
  * AND IT SHOWS ITS WORKING. "₹1,099 ≈ ₹366/month" invites the question "says
  * who?", so every step carries the pack and the answer — "one 88 ml pack —
@@ -288,7 +294,7 @@ function BudgetCard(
       <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>{meta.sub}</div>
 
       <dl style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '7px 12px', margin: '14px 0 0' }}>
-        <dt className="muted" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>Monthly budget</dt>
+        <dt className="muted" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>Budget</dt>
         <dd style={{ margin: 0, fontSize: 13.5, fontWeight: 700, textAlign: 'right' }}>{rupees(c.budgetInr)}</dd>
         <dt className="muted" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>Routine cost</dt>
         <dd style={{ margin: 0, fontSize: 19, fontWeight: 800, letterSpacing: '-.01em', textAlign: 'right', lineHeight: 1.1 }}>
@@ -358,14 +364,14 @@ function BudgetCard(
           <p style={{ fontSize: 12.5, lineHeight: 1.6, margin: 0 }}>
             {short ? (
               <>
-                {rupees(c.budgetInr)} a month won&rsquo;t carry the full base for your {meta.label.toLowerCase()} —
-                the essentials come to about <strong>{rupees(ask)}/month</strong> together. We&rsquo;ve built
+                {rupees(c.budgetInr)} won&rsquo;t carry the full base for your {meta.label.toLowerCase()} —
+                the essentials come to about <strong>{rupees(ask)} to buy</strong> together. We&rsquo;ve built
                 what fits and put the most important steps in first. Nothing has been changed on your behalf.
               </>
             ) : (
               <>
                 The best routine we can build for your {meta.label.toLowerCase()} comes
-                to <strong>{rupees(ask)}/month</strong>, above the {rupees(c.budgetInr)} you set. We&rsquo;ve
+                to <strong>{rupees(ask)} to buy</strong>, above the {rupees(c.budgetInr)} you set. We&rsquo;ve
                 built the best one that fits instead — we won&rsquo;t go over your budget without asking.
               </>
             )}
@@ -552,10 +558,10 @@ export function Routine() {
         <div className="eyebrow">Beauty Hub · Routine</div>
         <h1 style={{ fontSize: 26 }}>Your routine</h1>
         <div className="card" style={{ maxWidth: 560, borderLeft: '4px solid var(--accent)' }}>
-          <h2 style={{ fontSize: 16, margin: 0 }}>Set your monthly beauty budget first</h2>
+          <h2 style={{ fontSize: 16, margin: 0 }}>Set your beauty budget first</h2>
           <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.6, margin: '8px 0 14px' }}>
             We&rsquo;ll use your profile and your budget to build your routine — face, hair and
-            body each with their own monthly limit, and nothing chosen that goes over it. The
+            body each with their own limit, and nothing chosen that goes over it. The
             budget sits on your Skin &amp; Hair Profile, under the assessment.
           </p>
           <Link to="/beauty/profile"><Button variant="accent">Set my budget</Button></Link>
@@ -657,7 +663,7 @@ export function Routine() {
             budget a filter applied afterwards, which is the thing it isn't. */}
         <p className="muted" style={{ fontSize: 12, margin: '16px 0 0', lineHeight: 1.55 }}>
           Built from your saved skin and hair profile, what you told us you want to work on
-          {data?.budget && data.plan ? `, and your ${rupees(data.plan.totalBudgetInr)}/month budget` : ''} —
+          {data?.budget && data.plan ? `, and your ${rupees(data.plan.totalBudgetInr)} budget` : ''} —
           what to use, in what order, and when. Anything you’ve told us you react to is left out.
         </p>
       </div>

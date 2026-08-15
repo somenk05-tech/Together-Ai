@@ -41,6 +41,7 @@ const code = (p: string) => read(p).replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^
  */
 describe('the routine sheet shows what it is spending', () => {
   const routine = code('features/beauty/pages/Routine.tsx');
+  const budgetPanel = code('features/beauty/components/BudgetPanel.tsx');
 
   it('joins the plan to the steps on the id the server actually sends', () => {
     expect(routine).toMatch(/RoutinePick/);
@@ -69,8 +70,34 @@ describe('the routine sheet shows what it is spending', () => {
   });
 
   it('states all three numbers a limit needs', () => {
-    for (const phrase of ['Monthly budget', 'Routine cost', 'remaining']) {
+    // "Monthly budget" until 16 Aug, and by then it had been wrong for two
+    // commits: "The budget is the shopping trip" moved the planner onto
+    // purchase prices and this label kept the old unit, over a figure the
+    // engine now spends at the counter. The word came off rather than being
+    // corrected to "purchase budget" — a budget on this page is what you hand
+    // over, and the monthly number is right underneath it saying what it is.
+    for (const phrase of ['Budget', 'Routine cost', 'remaining']) {
       expect({ phrase, on: routine.includes(phrase) }).toEqual({ phrase, on: true });
+    }
+  });
+
+  it('never says a budget is monthly, anywhere the citizen can read it', () => {
+    /**
+     * THE RATCHET ON THE UNIT. The purchase-price change landed in the
+     * arithmetic and then took three commits to finish landing in the COPY —
+     * "One unit on the page" caught two strings, and fourteen more were still
+     * telling somebody their ₹8,000 was a monthly limit. A unit lives in the
+     * strings as much as in the numbers, and a page that mixes them is lying
+     * twice: once about the money, once about the time.
+     *
+     * `/month` beside a PRICE is the honest one and stays — this only refuses
+     * the word next to the word "budget".
+     */
+    for (const src of [routine, budgetPanel]) {
+      expect(src).not.toMatch(/monthly budget/i);
+      expect(src).not.toMatch(/budget[^.]{0,40}\ba month\b/i);
+      expect(src).not.toMatch(/monthly limit/i);
+      expect(src).not.toMatch(/spending each month/i);
     }
   });
 

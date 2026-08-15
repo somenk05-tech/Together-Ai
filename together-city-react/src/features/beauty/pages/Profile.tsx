@@ -822,7 +822,7 @@ export function Profile() {
           {analysis && (budget.data ? (
             <BeautyPlate
               title={<>Create<br />Your Budget</>}
-              blurb="Set your monthly budget and let us personalise your beauty, wellness and care routine within your comfort."
+              blurb="Set your budget and let us personalise your beauty, wellness and care routine within your comfort."
               meta={budgetSummary(budget.data)}
             >
               <BudgetPanel compact priorities={priorities} />

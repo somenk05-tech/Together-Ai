@@ -111,7 +111,8 @@ export interface ProductRoutine {
   notes: string[];
 }
 /**
- * A monthly limit, per part of the routine. `null` from the server means NOT
+ * What the routine may cost to buy, per part of it — a purchase budget, not a
+ * monthly one. `null` from the server means NOT
  * SET, and that is not the same as zero — the routine is not generated until
  * somebody has said a number, and nothing is defaulted on their behalf.
  */
