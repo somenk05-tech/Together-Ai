@@ -185,3 +185,61 @@ describe('a step is told to go where the product works', () => {
     expect(band.steps.map((s) => s.step)).toEqual(['Wash', 'Exfoliate', 'Moisturise', 'Hands', 'Lips']);
   });
 });
+
+describe('coverage belongs to the routine, not to a product', () => {
+  const profile = assessBeauty({
+    skinType: 'oily', skinConcerns: ['Blackheads', 'Dark Spots', 'Hyperpigmentation', 'Oily Skin'], age: 30,
+  });
+  const readings = [...profile.skin.readings, ...profile.hair.readings];
+  const needs = new Set(readings.filter((r) => r.level !== 'good').map((r) => r.key));
+  const shelf = recommendProducts({ readings, concerns: [], profile: { skinType: 'oily' }, insights: [] });
+
+  it('never drops a need on the way up', () => {
+    /**
+     * THE RULE THIS REPLACED asked whether the CANDIDATE answered as many
+     * findings as the product it displaced, which made a specialist unable to
+     * displace a generalist however good it was. On the live shelf a ₹595
+     * sunscreen claiming [acne, oil, pigmentation] answered three, so nothing
+     * dearer could ever take that step — and the routine came out at ₹4,245 of
+     * ₹8,000 covering oil five times over.
+     *
+     * Coverage is a property of the ROUTINE. The question is whether every
+     * need is still covered afterwards, not whether one bottle claims them all.
+     */
+    for (const budget of [1000, 2000, 3000, 5000, 8000]) {
+      const c = planCategory(shelf, 'face', budget, needs);
+      const covered = new Set(c.picks.flatMap((x) => x.product.profileKeys).filter((k) => needs.has(k)));
+      expect({ budget, covered: covered.size }).toEqual({ budget, covered: needs.size });
+    }
+  });
+
+  it('never lowers the routine total on the way up', () => {
+    // Dropping the breadth test ALONE was not enough — measured, it let a
+    // routine's total match score fall as the budget rose, which is this
+    // file's own failure wearing a new hat. Only one product changes per swap,
+    // so the routine-level promise reduces to a per-product floor.
+    for (const p of [{ skinType: 'oily', skinConcerns: ['Acne', 'Dark Spots'] },
+      { skinType: 'dry', skinConcerns: ['Dryness', 'Fine Lines'] }] as const) {
+      const a = assessBeauty(p as never);
+      const rd = [...a.skin.readings, ...a.hair.readings];
+      const n = new Set(rd.filter((r) => r.level !== 'good').map((r) => r.key));
+      const s = recommendProducts({ readings: rd, concerns: [], profile: { skinType: p.skinType }, insights: [] });
+      let prev = -1;
+      for (const budget of [1000, 2000, 3000, 5000, 8000]) {
+        const score = planCategory(s, 'face', budget, n).picks.reduce((t, x) => t + x.product.matchScore, 0);
+        expect({ skin: p.skinType, budget, notWorse: score >= prev }).toEqual({ skin: p.skinType, budget, notWorse: true });
+        prev = score;
+      }
+    }
+  });
+
+  it('reports a ceiling the planner can actually reach', () => {
+    // usefulMaxInr was a per-role sum computed by a rule the band pass no
+    // longer uses, so the card said "this shelf tops out at ₹7,144" over a
+    // routine the planner stopped building at ₹4,444.
+    const c = planCategory(shelf, 'face', 8000, needs);
+    expect(c.usefulMaxInr).toBeGreaterThanOrEqual(c.spendInr);
+    const atCeiling = planCategory(shelf, 'face', 60000, needs);
+    expect(c.usefulMaxInr).toBe(atCeiling.spendInr);
+  });
+});

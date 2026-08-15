@@ -382,6 +382,8 @@ const toPick = (product: RecommendedProduct, role: string, tier: Tier): Pick_ =>
 export function planCategory(
   all: RecommendedProduct[], category: BudgetCategory, budgetInr: number, needs: Set<string>,
   owned: Set<string> = new Set(),
+  /** Set only by usefulMaxInr's own call, to stop the recursion at one level. */
+  measuringCeiling = false,
 ): CategoryPlan {
   const budget = clampBudget(budgetInr);
 
@@ -428,6 +430,64 @@ export function planCategory(
   const answers = (p: RecommendedProduct) => p.profileKeys.filter((k) => needs.has(k)).length;
   const byEffect = (a: RecommendedProduct, b: RecommendedProduct) =>
     answers(b) - answers(a) || b.matchScore - a.matchScore || cost(a) - cost(b);
+  /**
+   * ── COVERAGE IS A PROPERTY OF THE ROUTINE, NOT OF A PRODUCT ─────────────
+   *
+   * `answers()` counts how many of this person's findings ONE product claims,
+   * and the band pass used to require a swap to answer at least as many. That
+   * reads as caution and is a category error, because it makes a SPECIALIST
+   * unable to replace a GENERALIST however much better it is at its own job.
+   *
+   * Measured on the live shelf, an oily / blackheads / dark-spots profile:
+   * Re'equil's ₹595 sunscreen claims [acne, oil, pigmentation] and answers 3,
+   * so nothing dearer could ever displace it — Eucerin's Thiamidol fluid
+   * claims [pigmentation] and answers 1, and Thiamidol is one of the few
+   * pigmentation actives with published evidence. The routine came out at
+   * ₹4,245 of ₹8,000 covering acne four times over, oil five times, and
+   * bought no dedicated treatment for the thing she actually asked about.
+   *
+   * So the question moves up a level: after this swap, is every need the
+   * routine covers still covered by SOMETHING? Four other products claiming
+   * oil is not a reason to refuse the one product that treats pigmentation.
+   * The candidate must still be no worse on the needs it does address, which
+   * is what stops this becoming "swap to anything and hope".
+   */
+  const coverageOf = (set: Pick_[], swapAt?: number, to?: RecommendedProduct) => {
+    const c = new Map<string, number>();
+    set.forEach((x, i) => {
+      const product = i === swapAt && to ? to : x.product;
+      for (const k of product.profileKeys) if (needs.has(k)) c.set(k, (c.get(k) ?? 0) + 1);
+    });
+    return c;
+  };
+  /** Every need this routine already covers is still covered after the swap. */
+  const keepsCoverage = (at: number, to: RecommendedProduct) => {
+    const before = coverageOf(picks);
+    const after = coverageOf(picks, at, to);
+    for (const [k, n] of before) if (n > 0 && (after.get(k) ?? 0) === 0) return false;
+    return true;
+  };
+  /**
+   * AND THE ROUTINE AS A WHOLE MAY NOT GET WORSE.
+   *
+   * Dropping the per-product breadth test alone was not enough: measured, it
+   * let the total match score of a face routine FALL as the budget rose, which
+   * is the failure this whole file exists to prevent wearing a new hat. Only
+   * one product changes in a swap, so "the routine's total does not fall" is
+   * `cand.matchScore >= cur.matchScore` — a per-product floor derived from a
+   * routine-level promise rather than asserted as one.
+   *
+   * WHAT THIS STILL CANNOT DO, and it is the same gap as everywhere else. It
+   * cannot let a SPECIALIST displace a generalist — Eucerin's Thiamidol fluid
+   * claims pigmentation alone and scores below a sunscreen claiming three
+   * things, because matchScore's coverage term rewards breadth too. Saying the
+   * Thiamidol is the better pigmentation product needs an efficacy field, and
+   * there isn't one. So this buys back the swaps that breadth was blocking for
+   * no reason, and stops short of the ones that need evidence to justify.
+   */
+  const routineNoWorse = (cand: RecommendedProduct, cur: RecommendedProduct) =>
+    cand.matchScore >= cur.matchScore;
+
   /** Strictly more effective — not "different", and not "dearer". */
   const better = (cand: RecommendedProduct, cur: RecommendedProduct) =>
     answers(cand) > answers(cur) || (answers(cand) === answers(cur) && cand.matchScore > cur.matchScore);
@@ -499,7 +559,7 @@ export function planCategory(
    * ever sees the shelf.
    */
   const loadCap = needs.has('redness') ? 1 : 2;
-  const usefulMax = usefulMaxInr(all, category, needs, owned);
+  const usefulMax = measuringCeiling ? 0 : usefulMaxInr(all, category, needs, owned);
   /** Why this candidate cannot join what is already chosen, or null. */
   const clash = (c: RecommendedProduct, exceptAt?: number) =>
     overlapRefusal(c, picks.filter((_, i) => i !== exceptAt).map((x) => x.product), loadCap);
@@ -666,8 +726,11 @@ export function planCategory(
       if (!d) return;
       for (const cand of forRole(d)) {
         if (cand.id === pick.product.id) continue;
-        // NON-INFERIOR, on both measures, against what is already chosen.
-        if (answers(cand) < answers(pick.product) || cand.matchScore < pick.product.matchScore) continue;
+        // NON-INFERIOR AT THE ROUTINE LEVEL. Not "answers as many findings" —
+        // that locked every specialist out; see coverageOf above.
+        if (answers(cand) === 0) continue;
+        if (!keepsCoverage(at, cand)) continue;
+        if (!routineNoWorse(cand, pick.product)) continue;
         if (!withinShare(cand) || clash(cand, at)) continue;
         const after = spent - pick.priceInr + cost(cand);
         if (after > ceiling || after <= spent) continue;
@@ -854,18 +917,13 @@ export function usefulMaxInr(
   all: RecommendedProduct[], category: BudgetCategory, needs: Set<string>,
   owned: Set<string> = new Set(),
 ): number {
-  const pool = all.filter((p) => categoryOf(p.group) === category && p.matched);
-  const answers = (p: RecommendedProduct) => p.profileKeys.filter((k) => needs.has(k)).length;
-  return ROLES[category].filter((d) => !owned.has(d.role)).reduce((total, d) => {
-    const forRole = pool.filter((p) => d.match.test(p.category));
-    if (!forRole.length) return total;
-    // The best available for this step, cheapest among equals — the product the
-    // planner would reach for with no money in play at all.
-    const best = [...forRole].sort((a, b) =>
-      answers(b) - answers(a) || b.matchScore - a.matchScore || monthlyCostInr(a) - monthlyCostInr(b))[0];
-    const noWorse = forRole.filter((p) => answers(p) >= answers(best) && p.matchScore >= best.matchScore);
-    return total + Math.max(...noWorse.map((p) => p.priceInr));
-  }, 0);
+  // WHAT THE PLANNER CAN ACTUALLY REACH, asked by running it with the money
+  // taken out of the question. It used to be a per-role sum of the dearest
+  // non-inferior product, computed by a rule the band pass no longer uses —
+  // so the card said "this shelf tops out at ₹7,144" over a routine the
+  // planner stopped building at ₹4,444. A ceiling nobody can reach is not a
+  // ceiling; it is a second wrong number next to the first.
+  return planCategory(all, category, BUDGET_MAX, needs, owned, true).spendInr;
 }
 
 export interface BudgetPlan {
