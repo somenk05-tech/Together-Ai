@@ -74,7 +74,7 @@ export const SUPPLEMENTS: SupplementFact[] = [
     id: "vitamin-b12",
     name: "Vitamin B12",
     grade: "strong",
-    gradeFor: "Strong",
+    gradeFor: "Deficiency correction",
     form: "Any form — cyanocobalamin is fine",
     typicalDose: "500–1,000 mcg/d oral",
     upperLimit: "None set",
@@ -95,7 +95,7 @@ export const SUPPLEMENTS: SupplementFact[] = [
     id: "omega-3",
     name: "Omega-3",
     grade: "moderate",
-    gradeFor: "Moderate",
+    gradeFor: "Triglycerides",
     form: "By EPA+DHA content; algal if vegan",
     typicalDose: "250–500 mg EPA+DHA/d",
     upperLimit: "FDA: ≤5 g/d",
@@ -115,7 +115,7 @@ export const SUPPLEMENTS: SupplementFact[] = [
     id: "creatine",
     name: "Creatine",
     grade: "strong",
-    gradeFor: "Strong",
+    gradeFor: "Strength & muscle",
     form: "Monohydrate, micronised",
     typicalDose: "3–5 g/d",
     upperLimit: "None; 30 g/d × 5 y safe",
@@ -135,7 +135,7 @@ export const SUPPLEMENTS: SupplementFact[] = [
     id: "psyllium",
     name: "Psyllium",
     grade: "strong",
-    gradeFor: "Strong",
+    gradeFor: "LDL lowering",
     form: "Plain husk powder",
     typicalDose: "~10 g/d with water",
     upperLimit: "—",
@@ -175,7 +175,7 @@ export const SUPPLEMENTS: SupplementFact[] = [
     id: "magnesium",
     name: "Magnesium",
     grade: "moderate",
-    gradeFor: "Moderate",
+    gradeFor: "Blood pressure",
     form: "Citrate (absorption) or glycinate (tolerance)",
     typicalDose: "200–400 mg elemental/d",
     upperLimit: "350 mg supplemental",
@@ -296,7 +296,7 @@ export const SUPPLEMENTS: SupplementFact[] = [
     id: "vitamin-k2",
     name: "Vitamin K2",
     grade: "emerging",
-    gradeFor: "Emerging",
+    gradeFor: "Bone markers, not bone density",
     form: "MK-7 (if at all)",
     typicalDose: "90–180 mcg/d",
     upperLimit: "None set",
@@ -330,88 +330,97 @@ export const SUPPLEMENTS: SupplementFact[] = [
  * so that "Mira does not recommend this" is an answer she can give with a
  * citation, which is the most valuable thing a supplement screen can say.
  * Two of these caused measurable harm in large trials.
+ *
+ * THE THREE FIELDS ARE THREE DIFFERENT SENTENCES and none contains another.
+ * `what` is the claim being refused, `why` is the evidence body ALONE, and
+ * `source` is the citation ALONE. The first cut of this data was pasted from
+ * the review with the title and the citation still fused onto the body — so
+ * the page printed "…the funding pattern is the story.Myung & Park, Am J Med
+ * 2025" and then printed the same citation again underneath it. A spec now
+ * refuses a `why` that starts with its own `what` or ends with its own
+ * `source`; composing them is the page's job, once.
  */
 export interface SkipFact { what: string; why: string; source: string }
 
 export const DO_NOT_RECOMMEND: SkipFact[] = [
   {
     what: "Vitamin E, 400 IU",
-    why: "Vitamin E, 400 IUSELECT, n=34,887 men, median 7 years at final analysis: vitamin E significantly increased prostate cancer risk, HR 1.17 (99% CI 1.004–1.36) — 620 cases versus 529, an excess of 1.6 cancers per 1,000 person-years. Risk appeared at ~3 years and persisted.Klein et al., JAMA 2011",
+    why: "SELECT, n=34,887 men, median 7 years at final analysis: vitamin E significantly increased prostate cancer risk, HR 1.17 (99% CI 1.004–1.36) — 620 cases versus 529, an excess of 1.6 cancers per 1,000 person-years. Risk appeared at ~3 years and persisted.",
     source: "Klein et al., JAMA 2011",
   },
   {
     what: "Beta-carotene, if you smoke",
-    why: "Beta-carotene, if you smokeATBC (>29,000 male smokers) and CARET were both stopped early for statistically significant excess lung cancer incidence and elevated overall mortality. Check any multivitamin for beta-carotene before recommending it to a smoker.ATBC and CARET, reviewed in JNCI",
+    why: "ATBC (>29,000 male smokers) and CARET were both stopped early for statistically significant excess lung cancer incidence and elevated overall mortality. Check any multivitamin for beta-carotene before recommending it to a smoker.",
     source: "ATBC and CARET, reviewed in JNCI",
   },
   {
     what: "Collagen for skin ageing",
-    why: "Collagen for skin ageing23 RCTs, 1,474 participants. Pooled, it looked positive. Stratified, the finding collapses: \"High-quality studies revealed no significant effect in all categories, while low-quality studies revealed a significant improvement.\" Trials without industry funding showed no benefit. Industry bodies have contested the analysis, including some checkable data-extraction errors — but the funding pattern is the story.Myung & Park, Am J Med 2025",
+    why: "23 RCTs, 1,474 participants. Pooled, it looked positive. Stratified, the finding collapses: \"High-quality studies revealed no significant effect in all categories, while low-quality studies revealed a significant improvement.\" Trials without industry funding showed no benefit. Industry bodies have contested the analysis, including some checkable data-extraction errors — but the funding pattern is the story.",
     source: "Myung & Park, Am J Med 2025",
   },
   {
     what: "Multivitamins for disease prevention",
-    why: "Multivitamins for disease preventionPHS-II (11.2 years): no reduction in cardiovascular events or cognitive decline. COSMOS: no reduction in cancer, CVD or mortality. Pooled across 78 RCTs and 715,526 participants: they \"do not reliably reduce chronic disease risk.\" AHA and AICR recommend against. Nutritional insurance, not medicine.NIH ODS multivitamin fact sheet",
+    why: "PHS-II (11.2 years): no reduction in cardiovascular events or cognitive decline. COSMOS: no reduction in cancer, CVD or mortality. Pooled across 78 RCTs and 715,526 participants: they \"do not reliably reduce chronic disease risk.\" AHA and AICR recommend against. Nutritional insurance, not medicine.",
     source: "NIH ODS multivitamin fact sheet",
   },
   {
     what: "Glucosamine and chondroitin",
-    why: "Glucosamine and chondroitinThe BMJ network meta-analysis found no clinically relevant reduction in joint pain versus placebo, alone or combined, and recommended discontinuing reimbursement. GAIT missed its primary endpoint too.Wandel et al., BMJ 2010",
+    why: "The BMJ network meta-analysis found no clinically relevant reduction in joint pain versus placebo, alone or combined, and recommended discontinuing reimbursement. GAIT missed its primary endpoint too.",
     source: "Wandel et al., BMJ 2010",
   },
   {
     what: "\"Bioavailability-enhanced\" curcumin",
-    why: "\"Bioavailability-enhanced\" curcuminIn the 2025 knee OA network meta-analysis, enhanced formulations ranked below plain curcuminoid on WOMAC pain — the reverse of the marketing claim. The famous \"29-fold absorption increase\" for phytosome curcumin traces to a manufacturer press release, not to peer review.Rattanavipanon et al., BMC Complement Med Ther 2025",
+    why: "In the 2025 knee OA network meta-analysis, enhanced formulations ranked below plain curcuminoid on WOMAC pain — the reverse of the marketing claim. The famous \"29-fold absorption increase\" for phytosome curcumin traces to a manufacturer press release, not to peer review.",
     source: "Rattanavipanon et al., BMC Complement Med Ther 2025",
   },
   {
     what: "Methylcobalamin's price premium",
-    why: "Methylcobalamin's price premium\"No evidence indicates that absorption rates of vitamin B12 in supplements vary by form of the vitamin.\" Cyanocobalamin works and costs less.NIH ODS vitamin B12 fact sheet",
+    why: "\"No evidence indicates that absorption rates of vitamin B12 in supplements vary by form of the vitamin.\" Cyanocobalamin works and costs less.",
     source: "NIH ODS vitamin B12 fact sheet",
   },
   {
     what: "Magnesium glycinate's absorption claim",
-    why: "Magnesium glycinate's absorption claimThe one good randomised head-to-head found citrate produced the highest plasma magnesium and the amino-acid chelate was not superior. Glycinate's real advantage is gut tolerability — a legitimate reason to buy it, just not the one on the box.Walker et al., Magnesium Research 2003",
+    why: "The one good randomised head-to-head found citrate produced the highest plasma magnesium and the amino-acid chelate was not superior. Glycinate's real advantage is gut tolerability — a legitimate reason to buy it, just not the one on the box.",
     source: "Walker et al., Magnesium Research 2003",
   },
   {
     what: "Ubiquinol's premium over ubiquinone",
-    why: "Ubiquinol's premium over ubiquinoneEvery source supporting ubiquinol superiority that surfaced in this review was commercial. No peer-reviewed head-to-head bioavailability trial was located. What is uncontroversial: take any CoQ10 with a fatty meal, and oil-based softgels beat dry powder.Unverified claim — flagged as such",
+    why: "Every source supporting ubiquinol superiority that surfaced in this review was commercial. No peer-reviewed head-to-head bioavailability trial was located. What is uncontroversial: take any CoQ10 with a fatty meal, and oil-based softgels beat dry powder.",
     source: "Unverified claim — flagged as such",
   },
   {
     what: "Vitamin D beyond correcting deficiency",
-    why: "Vitamin D beyond correcting deficiencyVITAL: null for cancer and cardiovascular events. VITAL fracture ancillary: null for total, non-vertebral and hip fractures. D-Health: null for mortality. Jolliffe 2024: null for respiratory infection. It corrects deficiency; it does not prevent disease in the replete.VITAL, NEJM 2018–2022; Jolliffe 2024",
+    why: "VITAL: null for cancer and cardiovascular events. VITAL fracture ancillary: null for total, non-vertebral and hip fractures. D-Health: null for mortality. Jolliffe 2024: null for respiratory infection. It corrects deficiency; it does not prevent disease in the replete.",
     source: "VITAL, NEJM 2018–2022; Jolliffe 2024",
   },
   {
     what: "Omega-3 above 1 g/day without an indication",
-    why: "Omega-3 above 1 g/day without an indicationDose-dependent atrial fibrillation risk: HR 1.49 above 1 g/day versus 1.12 at or below. STRENGTH found no cardiovascular benefit at 4 g/day plus more AF.Albert et al., Circulation 2021",
+    why: "Dose-dependent atrial fibrillation risk: HR 1.49 above 1 g/day versus 1.12 at or below. STRENGTH found no cardiovascular benefit at 4 g/day plus more AF.",
     source: "Albert et al., Circulation 2021",
   },
   {
     what: "Generic probiotics for general \"gut health\"",
-    why: "Generic probiotics for general \"gut health\"The AGA endorses only 3 of 8 GI indications and recommends against probiotics for acute paediatric gastroenteritis. The ACG recommends against them for C. difficile prevention — the very indication the AGA rated best. The two societies disagree with each other.AGA 2020 guideline; ACG",
+    why: "The AGA endorses only 3 of 8 GI indications and recommends against probiotics for acute paediatric gastroenteritis. The ACG recommends against them for C. difficile prevention — the very indication the AGA rated best. The two societies disagree with each other.",
     source: "AGA 2020 guideline; ACG",
   },
   {
     what: "Vitamin C megadoses",
-    why: "Vitamin C megadosesAbsorption is 70–90% at 30–180 mg/day and drops below 50% above 1 g. Tissues saturate around 100 mg/day and oral plasma plateaus at ~220 µmol/L regardless of dose. Above 2 g you get osmotic diarrhoea and, in susceptible people, oxalate kidney stones.NIH ODS vitamin C fact sheet",
+    why: "Absorption is 70–90% at 30–180 mg/day and drops below 50% above 1 g. Tissues saturate around 100 mg/day and oral plasma plateaus at ~220 µmol/L regardless of dose. Above 2 g you get osmotic diarrhoea and, in susceptible people, oxalate kidney stones.",
     source: "NIH ODS vitamin C fact sheet",
   },
   {
     what: "BCAAs with adequate protein intake",
-    why: "BCAAs with adequate protein intakeA scoop of whey already delivers ~5.5 g of BCAAs. Buying them separately is buying a subset of a thing you already own.Product labels; Morton BJSM 2018",
+    why: "A scoop of whey already delivers ~5.5 g of BCAAs. Buying them separately is buying a subset of a thing you already own.",
     source: "Product labels; Morton BJSM 2018",
   },
   {
     what: "Vitamin K2 for bone density",
-    why: "Vitamin K2 for bone density3 years, 375 mcg MK-7, in postmenopausal women with osteopenia, on top of calcium and vitamin D: null at total hip, femoral neck and lumbar spine (all p>0.09), and null on microarchitecture — despite successfully carboxylating osteocalcin.Rønn et al., Osteoporos Int 2020",
+    why: "3 years, 375 mcg MK-7, in postmenopausal women with osteopenia, on top of calcium and vitamin D: null at total hip, femoral neck and lumbar spine (all p>0.09), and null on microarchitecture — despite successfully carboxylating osteocalcin.",
     source: "Rønn et al., Osteoporos Int 2020",
   },
   {
     what: "Iron without a ferritin test",
-    why: "Iron without a ferritin testIron deficiency explains under a third of Indian anaemia. Supplementing on the strength of an anaemia headline means giving an agent with a real harm profile to a majority who don't need it.DABS-India, Eur J Clin Nutr 2024",
+    why: "Iron deficiency explains under a third of Indian anaemia. Supplementing on the strength of an anaemia headline means giving an agent with a real harm profile to a majority who don't need it.",
     source: "DABS-India, Eur J Clin Nutr 2024",
   },
 ];

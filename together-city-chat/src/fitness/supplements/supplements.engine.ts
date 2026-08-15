@@ -227,7 +227,16 @@ export function recommend(c: Citizen): {
     if (f.grade === 'null-or-harm') {
       const sk = skipFor(f.name);
       bucket = 'not-recommended';
-      if (sk) flags.push({ kind: 'harm', text: sk.why, source: sk.source });
+      // ONLY WHEN IT ADDS SOMETHING. The refused cards are pushed with this
+      // same skip evidence as their `why`, and this line then repeated the
+      // identical paragraph — citation and all — as a "Harm signal" directly
+      // beneath it. A card whose whole job is one refusal was saying it twice
+      // verbatim, which reads as a rendering bug and cheapens the flags that
+      // genuinely add facts (the smoker's beta-carotene line). The flag now
+      // fires only when the evidence is not already on the card.
+      if (sk && !why.some((w) => w.text === sk.why)) {
+        flags.push({ kind: 'harm', text: sk.why, source: sk.source });
+      }
     }
 
     /* THE DOSE IS COPIED, NEVER COMPUTED — and it is withheld entirely when a

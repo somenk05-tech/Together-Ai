@@ -130,6 +130,19 @@ describe('an educational suggestion is never dressed as a clinical one', () => {
     for (const r of plan) expect(r.why.some((w) => w.source) || r.flags.some((f) => f.source)).toBe(true);
   });
 
+  it('never says the same thing twice on one card', () => {
+    // The refused cards carried their skip evidence as the `why` AND as a
+    // "Harm signal" flag — the identical paragraph, citation and all, twice on
+    // a card whose whole job is one refusal. A flag exists to ADD a fact the
+    // card does not already state.
+    for (const r of recommend(bare).plan) {
+      const said = new Set(r.why.map((w) => w.text));
+      for (const f of r.flags) {
+        expect({ id: r.id, flagRepeatsWhy: said.has(f.text) }).toEqual({ id: r.id, flagRepeatsWhy: false });
+      }
+    }
+  });
+
   it('the things Mira is watching are named before their results exist', () => {
     const { watching } = recommend(bare);
     expect(watching.map((w) => w.text).join(' ')).toMatch(/Vitamin D.*B12.*Ferritin/s);
@@ -148,6 +161,34 @@ describe('the knowledge base itself', () => {
   it('and the sixteen the review says to skip, each with its trial', () => {
     expect(DO_NOT_RECOMMEND).toHaveLength(16);
     for (const s of DO_NOT_RECOMMEND) expect(s.source.length).toBeGreaterThan(3);
+  });
+
+  it('keeps the claim, the evidence and the citation as three separate fields', () => {
+    // The first cut of this data was pasted from the review with the title and
+    // the citation still fused onto the body — the live page printed "…the
+    // funding pattern is the story.Myung & Park, Am J Med 2025" and then the
+    // same citation again on its own line. Composing the three is the page's
+    // job; a `why` that contains either of the others makes the page say
+    // things twice and mid-word.
+    for (const s of DO_NOT_RECOMMEND) {
+      expect({ what: s.what, whyStartsWithWhat: s.why.startsWith(s.what) })
+        .toEqual({ what: s.what, whyStartsWithWhat: false });
+      expect({ what: s.what, whyEndsWithSource: s.why.endsWith(s.source) })
+        .toEqual({ what: s.what, whyEndsWithSource: false });
+    }
+  });
+
+  it('says what a grade is FOR, never the grade again in different type', () => {
+    // "Strong evidence · Strong" was live on psyllium, creatine and B12 —
+    // `gradeFor` holding a copy of the grade instead of the claim the grade
+    // attaches to. The claim is the informative half: "Strong evidence · LDL
+    // lowering" tells somebody what the trials measured.
+    for (const s of SUPPLEMENTS) {
+      expect({ id: s.id, echoesGrade: s.gradeFor.toLowerCase() === s.grade.toLowerCase() })
+        .toEqual({ id: s.id, echoesGrade: false });
+      expect({ id: s.id, echoesWord: ['strong', 'moderate', 'emerging'].includes(s.gradeFor.toLowerCase()) })
+        .toEqual({ id: s.id, echoesWord: false });
+    }
   });
 
   it('marks the three that need a blood test before the first dose', () => {
