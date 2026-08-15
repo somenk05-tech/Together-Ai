@@ -132,7 +132,7 @@ function Step({ s, pick, qty, alreadyIn, onAdd, onRemove }: { s: ProductRoutineS
 
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
           <span className="routine-price">₹{s.priceInr}</span>
-          {pick && <span className="muted" style={{ fontSize: 11 }}>≈ {rupees(pick.monthlyInr)}/month</span>}
+          {pick && <span className="muted" style={{ fontSize: 11 }}>≈ {rupees(pick.monthlyInr)}/month to keep</span>}
         </div>
         {/* THE NAME IS NOT A LINK ANY MORE, at the owner's word, and the
             reasoning it replaces is worth keeping: it used to open the
@@ -274,7 +274,7 @@ function BudgetCard(
   // not. A bar that stops at full while the figure says 102% is a bar telling
   // the truth; a figure clamped to 100 would be the page hiding the headroom it
   // just used.
-  const pct = c.budgetInr > 0 ? Math.round((c.monthlyInr / c.budgetInr) * 100) : 0;
+  const pct = c.budgetInr > 0 ? Math.round((c.spendInr / c.budgetInr) * 100) : 0;
   const short = c.minimumInr !== null && !kept;
   const ideal = c.idealInr !== null && !kept && !short;
   const ask = short ? (c.minimumInr as number) : ideal ? (c.idealInr as number) : null;
@@ -292,7 +292,7 @@ function BudgetCard(
         <dd style={{ margin: 0, fontSize: 13.5, fontWeight: 700, textAlign: 'right' }}>{rupees(c.budgetInr)}</dd>
         <dt className="muted" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>Routine cost</dt>
         <dd style={{ margin: 0, fontSize: 19, fontWeight: 800, letterSpacing: '-.01em', textAlign: 'right', lineHeight: 1.1 }}>
-          {rupees(c.monthlyInr)}<span className="muted" style={{ fontSize: 11.5, fontWeight: 600 }}>/month</span>
+          {rupees(c.spendInr)}<span className="muted" style={{ fontSize: 11.5, fontWeight: 600 }}> to buy</span>
         </dd>
       </dl>
 
@@ -322,6 +322,21 @@ function BudgetCard(
           need a separate toner" and "a treatment step would fit your profile
           but not this budget" are different facts and a lean routine has to say
           which one it means. */}
+      {/* WHAT THEY ALREADY HAVE, ABOVE WHAT WE LEFT OUT, because they are
+          different sentences and the citizen's own answer comes first. A step
+          they told us about is not a step we declined — and until this shipped
+          it was neither: it was a step we sold them twice. */}
+      {c.kept.length > 0 && (
+        <ul style={{ listStyle: 'none', padding: 0, margin: '12px 0 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {c.kept.map((k) => (
+            <li key={k.role} style={{ fontSize: 11.5, lineHeight: 1.5 }}>
+              <span style={{ fontWeight: 700 }}>{k.role}</span>
+              <span className="muted"> — {k.why}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
       {c.leftOut.length > 0 && (
         <ul style={{ listStyle: 'none', padding: 0, margin: '12px 0 0', display: 'flex', flexDirection: 'column', gap: 5 }}>
           {c.leftOut.slice(0, 3).map((l) => (
@@ -368,6 +383,24 @@ function BudgetCard(
           written here. It is the plan explaining its own arithmetic: every
           compatible step is already in, every step already holds the best
           product for it, and the rest of the money buys nothing worth having. */}
+      {/* WHAT IT COSTS TO KEEP, under what it costs to buy. The budget is set in
+          purchase prices — owner's call, 15 Aug — and this is the number that
+          still says a big jar is better value than a small one. */}
+      <div className="muted" style={{ fontSize: 11.5, marginTop: 2 }}>
+        ≈ {rupees(c.monthlyInr)}/month to keep going
+      </div>
+
+      {/* A BUDGET LARGER THAN THE SHELF CAN HONESTLY SPEND. Not a failure to
+          look — the most this profile can absorb without taking a worse-matched
+          product, stated as a number so it can be argued with. */}
+      {!short && c.budgetInr > c.usefulMaxInr && c.usefulMaxInr > 0 && (
+        <p className="muted" style={{ fontSize: 12, lineHeight: 1.6, margin: '10px 0 0' }}>
+          For your profile this shelf tops out at about {rupees(c.usefulMaxInr)} of {c.category} products
+          before the next thing up is a worse match than what you already have here.
+          You&rsquo;ve set {rupees(c.budgetInr)}.
+        </p>
+      )}
+
       {!short && c.leanReason && (
         <p className="muted" style={{ fontSize: 12, lineHeight: 1.6, margin: '12px 0 0' }}>{c.leanReason}</p>
       )}
@@ -385,7 +418,7 @@ function BudgetCard(
             {c.upgrades.slice(0, 3).map((u) => (
               <li key={u.productId} style={{ fontSize: 11.5, lineHeight: 1.5 }}>
                 <span style={{ fontWeight: 700 }}>{u.role}</span>
-                <span className="muted"> — {u.name} · ≈ {rupees(u.monthlyInr)}/month</span>
+                <span className="muted"> — {u.name} · {rupees(u.priceInr)}</span>
                 {u.reason && <div className="muted" style={{ fontSize: 11, lineHeight: 1.5 }}>{u.reason}</div>}
               </li>
             ))}

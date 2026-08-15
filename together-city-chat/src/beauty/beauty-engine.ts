@@ -328,7 +328,27 @@ export function recommendProducts(opts: {
     .filter((p) => isSafeForConditions(p.name, [...p.actives, p.keyIngredient], conditions))
     .map((p) => {
       const matchedAttrs = p.profileKeys.map((k) => need.get(k)).filter(Boolean) as ReadingLite[];
-      const suitable = p.suitableSkin.includes('all') || p.suitableSkin.includes(skinType);
+      /**
+       * ── 'ALL SKIN TYPES' IS NOT A CLAIM ABOUT SENSITIVE SKIN ──────────────
+       *
+       * It is a claim about the oily-to-dry scale, which is what the phrase
+       * means on a bottle: this will not be too rich for you or too stripping.
+       * Sensitivity is a different axis — how readily skin reacts — and a
+       * formula that has not said anything about it has not said it is fine.
+       *
+       * Measured: 76 of 132 face products declared `all`, and a citizen with
+       * sensitive skin reached 91 of them while only FIFTEEN named her. Seven
+       * of the 91 carried a retinoid. That is how a reactive face was offered
+       * Olay Retinol24 and Minimalist Retinol 0.3% in the same routine — not
+       * through a bug, but through a word doing more work than it can bear.
+       *
+       * So `all` covers the four base types and stops. Sensitive skin reaches a
+       * product when the sheet's own Skin/Hair Type column names it, and the
+       * shelf that leaves her is built out of vendors' declarations rather than
+       * out of the adjectives in their marketing copy.
+       */
+      const suitable = p.suitableSkin.includes(skinType)
+        || (p.suitableSkin.includes('all') && skinType !== 'sensitive');
 
       /**
        * 85% — skin & hair profile, and it is now CONTINUOUS.

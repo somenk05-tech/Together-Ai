@@ -621,13 +621,27 @@ export class BeautyService {
     // Typed at the boundary rather than trusted: `analysis` is stored JSON and
     // getProfile hands it back as `unknown`, which is the honest type for it.
     type Readings = { readings?: { key: string; level: string }[] };
-    const analysis = (await this.getProfile(userId)).analysis as { skin?: Readings; hair?: Readings } | null;
+    const saved = await this.getProfile(userId);
+    const analysis = saved.analysis as { skin?: Readings; hair?: Readings } | null;
+    /**
+     * WHAT THEY SAID THEY ALREADY USE, finally read.
+     *
+     * The profile has offered twelve "Current routine" chips since it was
+     * written and stored the answer in the same blob as everything else; no
+     * reader existed. A citizen who ticked Face Cleanser, Moisturizer and
+     * Sunscreen was sold all three again — ₹1,785 a month against roles they
+     * had just told us were covered. The planner takes the chips verbatim and
+     * maps them to roles itself, so the vocabulary lives in one file.
+     */
+    const alreadyHave = Array.isArray((saved.profile as { routine?: unknown })?.routine)
+      ? ((saved.profile as { routine: unknown[] }).routine).map(String)
+      : [];
     // No assessment yet means no named needs, which means the plan builds the
     // essentials and stops — the right answer, and not an error.
     const needs = [...(analysis?.skin?.readings ?? []), ...(analysis?.hair?.readings ?? [])]
       .filter((r) => r.level !== 'good').map((r) => r.key);
 
-    const plan = planWithinBudget(products, budget, needs);
+    const plan = planWithinBudget(products, budget, needs, alreadyHave);
     // Only the products the budget actually bought reach the bands. This is the
     // line that makes the budget real rather than decorative: a step that did
     // not fit is not laid out and then hidden, it was never chosen.

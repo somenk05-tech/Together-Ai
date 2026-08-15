@@ -65,7 +65,7 @@ describe('the budget is an input to selection, not a display over the answer', (
      * rank", every test below starts passing for the wrong reason.
      */
     const pool = oily.products.filter((p) => p.matched).map((p) => p.id).sort();
-    for (const budget of [500, 1500, 3000, 6000, 10000, 60000]) {
+    for (const budget of [500, 1500, 3000, 6000, 8000]) {
       const eligible = oily.products.filter((p) => p.matched).map((p) => p.id).sort();
       expect({ budget, pool: eligible }).toEqual({ budget, pool });
     }
@@ -96,9 +96,12 @@ describe('the budget is an input to selection, not a display over the answer', (
      * keeps Protect and loses the optional steps first. The floor's own
      * ordering, seen from outside.
      */
-    const tiny = at(oily, 300).picks.map((x) => x.role);
-    const small = at(oily, 800).picks.map((x) => x.role);
-    const full = at(oily, 1500).picks.map((x) => x.role);
+    // THESE NUMBERS MOVED WITH THE UNIT, NOT WITH THE RULE. The budget is set
+    // and spent in purchase prices now, so ₹300 buys one sunscreen rather than
+    // a month of four products. The floor for this profile is ₹548 to buy.
+    const tiny = at(oily, 700).picks.map((x) => x.role);
+    const small = at(oily, 1200).picks.map((x) => x.role);
+    const full = at(oily, 3000).picks.map((x) => x.role);
 
     expect(tiny.length).toBeLessThan(full.length);
     expect(tiny).toEqual(expect.arrayContaining(['Protect', 'Moisturise', 'Cleanse']));
@@ -116,7 +119,7 @@ describe('the budget is an input to selection, not a display over the answer', (
      * the right routine and stays there" is.
      */
     const settled = idsAt(oily, 6000);
-    for (const budget of [6000, 10000, 25000, 60000]) {
+    for (const budget of [6000, 7000, 8000]) {
       expect({ budget, picks: idsAt(oily, budget) }).toEqual({ budget, picks: settled });
       const plan = at(oily, budget);
       expect({ budget, spentAll: plan.remainingInr === 0 }).toEqual({ budget, spentAll: false });
@@ -126,9 +129,11 @@ describe('the budget is an input to selection, not a display over the answer', (
   it('says why it stopped, rather than leaving the gap unexplained', () => {
     // "You increased your budget, and we are not recommending you spend the
     // rest" has to be a sentence on the page, not an absence on it.
-    const plan = at(oily, 10000);
+    // ₹8,000 rather than ₹10,000: a category is capped there now, so ₹10,000
+    // is clamped on the way in and the sentence would name the clamped figure.
+    const plan = at(oily, 8000);
     expect(typeof plan.leanReason).toBe('string');
-    expect(plan.leanReason).toContain('10,000');
+    expect(plan.leanReason).toContain('8,000');
     expect(plan.remainingInr).toBeGreaterThan(0);
   });
 
@@ -152,7 +157,7 @@ describe('the budget is an input to selection, not a display over the answer', (
      * the one-per-role rule are asserted across the whole range, in both
      * directions, because a budget pass is exactly where a guard gets skipped.
      */
-    for (const budget of [300, 800, 1500, 3000, 6000, 10000, 25000, 60000]) {
+    for (const budget of [300, 800, 1500, 3000, 6000, 8000]) {
       const picks = at(oily, budget).picks;
       const roles = picks.map((x) => x.role);
       expect({ budget, dupeRoles: roles.length !== new Set(roles).size })

@@ -66,7 +66,29 @@ export interface StoredBudget extends CategoryBudgets {
  * gates the routine entirely.
  */
 export const BUDGET_MIN = 0;
-export const BUDGET_MAX = 60000;
+/**
+ * ── ₹8,000 A CATEGORY, AND IT USED TO BE ₹60,000 ────────────────────────────
+ *
+ * A slider is a claim about the range of sensible answers. ₹60,000 for a face
+ * was not one: measured across three profiles, the dearest routine this shelf
+ * can build in which every step is still a better-or-equal match tops out at
+ * ₹7,144, ₹8,484 and ₹6,722 — and hair at under ₹1,000. Everything above that
+ * was a number the citizen could set and the engine could never honestly
+ * spend, which is how a ₹17,600 hair budget came to sit on the routine page
+ * next to a ₹1,105 hair routine and read as a failure.
+ *
+ * IT IS A FLAT NUMBER RATHER THAN THE PER-PROFILE MAXIMUM, and that is the
+ * owner's call and the better one. `usefulMaxInr` is computed per person and
+ * printed on the routine, but a SLIDER whose end moves when you change your
+ * skin type is a control nobody can learn — and it would leak the shelf's
+ * shape into a form the citizen fills in before we have priced anything.
+ * ₹8,000 sits above every useful maximum measured and below the absurd.
+ *
+ * A STORED BUDGET ABOVE IT IS CLAMPED ON READ, not migrated. Somebody who set
+ * ₹17,600 for hair sees ₹8,000 and a routine built against it, which is the
+ * same routine they were already getting.
+ */
+export const BUDGET_MAX = 8000;
 
 export const clampBudget = (n: number): number =>
   Math.min(BUDGET_MAX, Math.max(BUDGET_MIN, Math.round(Number.isFinite(n) ? n : BUDGET_MIN)));
@@ -116,6 +138,68 @@ const ROLES: Record<BudgetCategory, RoleDef[]> = {
   ],
 };
 
+/**
+ * ── WHAT THEY TOLD US THEY ALREADY USE ──────────────────────────────────────
+ *
+ * The profile has asked "Current routine — what you use now" since it was
+ * written, offers twelve chips, stores the answer, and NOTHING HAS EVER READ
+ * IT. Measured on the shipped planner: a citizen who ticks Face Cleanser,
+ * Moisturizer and Sunscreen is sold all three again — ₹1,785 a month against
+ * roles they have just said are covered.
+ *
+ * IT IS A CATEGORY, NOT A PRODUCT, AND THAT DECIDES WHAT WE MAY DO WITH IT.
+ * "Face Cleanser" does not say which one, so the engine cannot judge whether
+ * theirs suits them; claiming it can would be the keyword derivation problem
+ * with somebody's face on the end of it. So an owned role is not asserted to be
+ * a GOOD choice — it is only not bought again, and the money is not spent
+ * elsewhere to compensate. That is the whole of what the data supports.
+ *
+ * Exfoliator is deliberately absent. There is no exfoliating ROLE in this
+ * planner — the closest thing is a weekly mask, and quietly treating one as the
+ * other would tell somebody their mask is covered because they own an acid.
+ */
+const OWNED_ROLE: Record<BudgetCategory, Record<string, string>> = {
+  face: {
+    'face cleanser': 'Cleanse', moisturizer: 'Moisturise', moisturiser: 'Moisturise',
+    sunscreen: 'Protect', serum: 'Treat', toner: 'Prep', 'face mask': 'Weekly',
+  },
+  hair: {
+    'hair shampoo': 'Wash', shampoo: 'Wash', conditioner: 'Condition',
+    // Both answer the one treat step: a citizen with a weekly mask and a
+    // pre-wash oil has that step covered twice over, not half.
+    'hair oil': 'Treat', 'hair mask': 'Treat', 'hair serum': 'Finish',
+  },
+  body: {},
+};
+
+/** The chips a citizen ticked → the roles this category should not buy again. */
+export function ownedRoles(category: BudgetCategory, declared: readonly string[]): Set<string> {
+  const map = OWNED_ROLE[category] ?? {};
+  const out = new Set<string>();
+  for (const d of declared) {
+    const role = map[String(d ?? '').trim().toLowerCase()];
+    if (role) out.add(role);
+  }
+  return out;
+}
+
+/**
+ * What the step is CALLED, for the sentence about it.
+ *
+ * "You already use one cleanse step" is the role name doing a noun's job.
+ * People own a cleanser, not a Cleanse. Keyed by category as well as role
+ * because Treat, Wash and Moisturise each mean two different objects.
+ */
+const KEPT_NOUN: Record<string, string> = {
+  'face:Cleanse': 'a cleanser', 'face:Moisturise': 'a moisturiser', 'face:Protect': 'a sunscreen',
+  'face:Treat': 'a serum', 'face:Prep': 'a toner', 'face:Weekly': 'a face mask',
+  'hair:Wash': 'a shampoo', 'hair:Condition': 'a conditioner',
+  'hair:Treat': 'a hair oil or mask', 'hair:Finish': 'a hair serum',
+};
+
+/** A step the citizen already has, named so the routine can say so. */
+export interface Kept { role: string; tier: Tier; why: string }
+
 /** Why a role that could have been in the plan is not. */
 export interface LeftOut { role: string; tier: Tier; why: string }
 
@@ -123,6 +207,10 @@ export interface Pick_ {
   product: RecommendedProduct;
   role: string;
   tier: Tier;
+  /** What it costs to buy — the unit the budget is set and spent in. */
+  priceInr: number;
+  /** What it costs to keep, once the pack's life is spread over the months it
+   *  lasts. Shown beside the price; never used to decide anything. */
   monthlyInr: number;
   monthsOfUse: number;
   /** Set on an OFFER, never on a chosen step: the sentence saying what spending
@@ -137,6 +225,9 @@ export interface CategoryPlan {
    *  not to. Nothing is planned, nothing is listed, nothing is suggested. */
   skipped: boolean;
   picks: Pick_[];
+  /** What this routine costs to buy — what the budget is measured against. */
+  spendInr: number;
+  /** What it costs to keep, per month. Reported, never spent against. */
   monthlyInr: number;
   remainingInr: number;
   /** How far over the budget itself the routine went, inside the 5% headroom.
@@ -154,6 +245,12 @@ export interface CategoryPlan {
   /** Set when the routine finished under the target floor: the sentence saying
    *  why nothing else was added. */
   leanReason: string | null;
+  /** Roles the citizen said they already have. Not bought, not charged, and
+   *  not silently dropped either — the routine still names the step. */
+  kept: Kept[];
+  /** The most this profile can absorb without taking a worse-matched product.
+   *  A budget above it is money this shelf cannot honestly spend. */
+  usefulMaxInr: number;
   /** Roles deliberately not included, each with the sentence to show. */
   leftOut: LeftOut[];
   /** Things worth considering with money left over — never auto-added. */
@@ -192,7 +289,29 @@ export interface CategoryPlan {
  * padding itself to look thorough. A twenty-five per cent floor is named below
  * as the point at which stopping deserves an explanation — never as a quota.
  */
-export const TARGET_LOW = 0.90;
+/**
+ * ── THE BAND ────────────────────────────────────────────────────────────────
+ *
+ * B × 0.95 … B × 1.05. The owner's acceptance criterion, and it replaces a
+ * 0.90 floor that was only ever half-believed.
+ *
+ * THE OBJECTION THIS SURVIVED, because it is the reason the rule has the shape
+ * it has. Measured on the 226-product shelf, an oily/acne profile at a ₹5,000
+ * face budget: the routine the engine chose cost ₹1,275 a month, and climbing
+ * toward ₹4,750 by taking the smallest dearer option each time reached ₹1,425
+ * after twelve swaps and answered FEWER of her findings — 14 down to 13 — while
+ * the match score fell from 427 to 412. Every cheap step up was a worse product.
+ * The dearest routine of any kind cost ₹17,473 and answered ten of her findings
+ * against fourteen.
+ *
+ * So a band enforced over the whole shelf buys worse skin. The band enforced
+ * over the NON-INFERIOR shelf does not: the dearest routine in which every
+ * product is at least as well matched as the cheap one it replaces costs
+ * ₹4,874 a month for that same profile — inside the band, and nowhere worse.
+ * That is the number the pass below climbs to, and the ceiling the dial is
+ * capped at, and they are the same number for the same reason.
+ */
+export const TARGET_LOW = 0.95;
 export const TARGET_CEILING = 1.05;
 /**
  * Under a quarter of the budget, "we found something cheaper" stops being an
@@ -202,7 +321,26 @@ export const TARGET_CEILING = 1.05;
  */
 export const MIN_UTILISATION = 0.25;
 
-const cost = (p: RecommendedProduct) => monthlyCostInr(p);
+/**
+ * ── WHAT THE BUDGET IS DENOMINATED IN, AND IT IS THE PRICE ON THE BOTTLE ────
+ *
+ * This was the amortised monthly cost, and the argument for it was good: a
+ * ₹3,200 cleanser lasting four months and a ₹800 serum lasting three weeks are
+ * not a ₹4,000 problem. It is still true, and the routine still prints it —
+ * "₹474 · ≈ ₹158/month · one 50 ml pack, about 3 months".
+ *
+ * But it is not what the citizen is setting. Somebody who moves a slider to
+ * ₹5,000 is saying what they will hand over, and answering them with a basket
+ * costing ₹1,400 because the rest of it is "already paid for in future months"
+ * is arithmetic they never agreed to. Owner's call, 15 Aug: the budget is the
+ * shopping trip. The monthly figure stays on the page beside it, where it
+ * belongs — as the thing that tells them a big jar is cheaper than it looks.
+ *
+ * ONE LINE, BY DESIGN. Every pass, cap and comparison in this file goes through
+ * `cost`, so which unit the plan is built in is a single decision in a single
+ * place, and reversible in the same.
+ */
+const cost = (p: RecommendedProduct) => p.priceInr;
 
 /** Cheapest per month first; a tie goes to the better profile match. Used for
  *  the floor, where the only question is whether a routine is possible at all. */
@@ -210,7 +348,7 @@ const byValue = (a: RecommendedProduct, b: RecommendedProduct) =>
   cost(a) - cost(b) || b.matchScore - a.matchScore;
 
 const toPick = (product: RecommendedProduct, role: string, tier: Tier): Pick_ =>
-  ({ product, role, tier, monthlyInr: cost(product), monthsOfUse: monthsOfUse(product) });
+  ({ product, role, tier, priceInr: product.priceInr, monthlyInr: monthlyCostInr(product), monthsOfUse: monthsOfUse(product) });
 
 /**
  * Plan one category against one monthly budget.
@@ -243,6 +381,7 @@ const toPick = (product: RecommendedProduct, role: string, tier: Tier): Pick_ =>
  */
 export function planCategory(
   all: RecommendedProduct[], category: BudgetCategory, budgetInr: number, needs: Set<string>,
+  owned: Set<string> = new Set(),
 ): CategoryPlan {
   const budget = clampBudget(budgetInr);
 
@@ -253,9 +392,9 @@ export function planCategory(
   // shop reflex this feature exists to refuse.
   if (budget === 0) {
     return {
-      category, budgetInr: 0, skipped: true, picks: [], monthlyInr: 0,
+      category, budgetInr: 0, skipped: true, picks: [], spendInr: 0, monthlyInr: 0,
       remainingInr: 0, overInr: 0, targetLowInr: 0, ceilingInr: 0,
-      minimumInr: null, idealInr: null, leanReason: null, leftOut: [], upgrades: [],
+      minimumInr: null, idealInr: null, leanReason: null, kept: [], usefulMaxInr: 0, leftOut: [], upgrades: [],
     };
   }
 
@@ -266,7 +405,17 @@ export function planCategory(
   // here is chosen out of `pool`, which is this category's matched products and
   // only those. No pass widens it to reach a number.
   const pool = all.filter((p) => categoryOf(p.group) === category && p.matched);
-  const defs = ROLES[category];
+  /**
+   * A ROLE THEY ALREADY HAVE IS NOT A ROLE THIS PLAN FILLS. Removing it from
+   * `defs` rather than filtering at each pass is deliberate: six passes and the
+   * `openRoles`/`idealInr`/`upgrades` derivations all read `defs`, and a rule
+   * applied in five of eight places is a rule that comes back.
+   */
+  const defs = ROLES[category].filter((d) => !owned.has(d.role));
+  const kept: Kept[] = ROLES[category].filter((d) => owned.has(d.role)).map((d) => ({
+    role: d.role, tier: d.tier,
+    why: `You told us you already have ${KEPT_NOUN[`${category}:${d.role}`] ?? 'this'}, so we haven't bought you another — and we haven't moved the money onto something else either.`,
+  }));
   const forRole = (d: RoleDef) => pool.filter((p) => d.match.test(p.category));
 
   /**
@@ -291,7 +440,7 @@ export function planCategory(
   const room = () => ceiling - spent;
   const take = (p: RecommendedProduct, role: string, tier: Tier) => {
     const pick = toPick(p, role, tier);
-    picks.push(pick); spent += pick.monthlyInr;
+    picks.push(pick); spent += pick.priceInr;
   };
 
   /**
@@ -350,6 +499,7 @@ export function planCategory(
    * ever sees the shelf.
    */
   const loadCap = needs.has('redness') ? 1 : 2;
+  const usefulMax = usefulMaxInr(all, category, needs, owned);
   /** Why this candidate cannot join what is already chosen, or null. */
   const clash = (c: RecommendedProduct, exceptAt?: number) =>
     overlapRefusal(c, picks.filter((_, i) => i !== exceptAt).map((x) => x.product), loadCap);
@@ -438,7 +588,7 @@ export function planCategory(
       if (!d) return;
       for (const cand of forRole(d)) {
         if (cand.id === pick.product.id) continue;
-        const extra = cost(cand) - pick.monthlyInr;
+        const extra = cost(cand) - pick.priceInr;
         if (extra > room()) continue;
         // The cap is on what the product IS, not on what the swap costs. A
         // ₹3,300 sunscreen replacing a ₹3,200 one is a ₹100 upgrade by this
@@ -457,7 +607,7 @@ export function planCategory(
     if (!best) break;
     const { at, to } = best as { at: number; to: RecommendedProduct };
     const was = picks[at];
-    spent += cost(to) - was.monthlyInr;
+    spent += cost(to) - was.priceInr;
     picks[at] = toPick(to, was.role, was.tier);
   }
 
@@ -482,6 +632,54 @@ export function planCategory(
       if (cand) { take(cand, d.role, d.tier); added = true; break; }
     }
     if (!added) break;
+  }
+
+  // ── 5c. the band ────────────────────────────────────────────────────────
+  //
+  // USE THE MONEY, AND NEVER ON A WORSE PRODUCT. The one pass whose purpose is
+  // the budget figure itself, and the only reason it is allowed to exist is the
+  // constraint on its candidates: a swap may only be to a product that answers
+  // AT LEAST as many of this person's findings and matches their profile AT
+  // LEAST as well as the one it replaces. Non-inferiority is checked against
+  // the CURRENT pick rather than against some global best, so the routine can
+  // only ever move sideways or up.
+  //
+  // That single clause is the difference between this pass and the one it
+  // replaces. Pass 5b climbed on `tier`, a price band, and bought a ₹2,517
+  // toner to displace a ₹167 one on identical merits. This cannot: if the
+  // dearer product is worse matched by even one point it is not a candidate,
+  // whatever it costs and however short of the band the routine is.
+  //
+  // SMALLEST INCREMENT FIRST, for the reason the ₹3,300 sunscreen taught: one
+  // enormous move reaches a number faster than five sensible ones, and leaves a
+  // routine that is one purchase with four accessories attached. Climbing in
+  // the smallest available steps spreads the money over the things she uses.
+  //
+  // AND IT STOPS WHEN IT RUNS OUT, not when it gives up. If the non-inferior
+  // shelf cannot reach B × 0.95, the plan stops there and pass 6 says so — the
+  // alternative is buying something worse to hit a number, which is the whole
+  // of what this file exists to refuse.
+  for (let guard = 0; guard < 40 && spent < targetLow; guard++) {
+    let best: { at: number; to: RecommendedProduct; step: number } | null = null;
+    picks.forEach((pick, at) => {
+      const d = defs.find((x) => x.role === pick.role);
+      if (!d) return;
+      for (const cand of forRole(d)) {
+        if (cand.id === pick.product.id) continue;
+        // NON-INFERIOR, on both measures, against what is already chosen.
+        if (answers(cand) < answers(pick.product) || cand.matchScore < pick.product.matchScore) continue;
+        if (!withinShare(cand) || clash(cand, at)) continue;
+        const after = spent - pick.priceInr + cost(cand);
+        if (after > ceiling || after <= spent) continue;
+        const step = after - spent;
+        if (!best || step < best.step) best = { at, to: cand, step };
+      }
+    });
+    if (!best) break;
+    const { at, to } = best as { at: number; to: RecommendedProduct };
+    const was = picks[at];
+    spent += cost(to) - was.priceInr;
+    picks[at] = toPick(to, was.role, was.tier);
   }
 
   // ── 5b. the premium alternative, WHICH IS AN OFFER AND NOT A PURCHASE ────
@@ -529,11 +727,11 @@ export function planCategory(
         && grade(c) > grade(pick.product)
         && answers(c) >= answers(pick.product) && c.matchScore >= pick.product.matchScore
         && withinShare(c) && !clash(c, at)
-        && spent - pick.monthlyInr + cost(c) <= ceiling
-        && cost(c) > pick.monthlyInr)
+        && spent - pick.priceInr + cost(c) <= ceiling
+        && cost(c) > pick.priceInr)
       .sort((a, b) => cost(a) - cost(b))[0];
     if (!cand) return [];
-    const extra = cost(cand) - pick.monthlyInr;
+    const extra = cost(cand) - pick.priceInr;
     return [{
       ...toPick(cand, pick.role, pick.tier),
       reason: `A ${cand.tier.toLowerCase()} alternative to your ${pick.role.toLowerCase()} step, ₹${extra.toLocaleString('en-IN')}/month more. It answers the same findings and suits you no better than the one we chose, so we haven't swapped it in.`,
@@ -603,7 +801,7 @@ export function planCategory(
    * spending the rest on things this person does not need.
    */
   const leanReason = !short && spent < targetLow
-    ? `Your ${category} routine comes to ₹${spent.toLocaleString('en-IN')}/month against a ₹${budget.toLocaleString('en-IN')} budget. We haven't added more — nothing else that suits your profile would add enough to be worth the money.`
+    ? `Your ${category} routine comes to ₹${spent.toLocaleString('en-IN')}/month against a ₹${budget.toLocaleString('en-IN')} budget. We've spent what we can on products that suit you at least as well as the ones they'd replace — past this, everything left on the shelf is a worse match for your profile, so we've stopped rather than buy it.`
     : null;
 
   // What somebody could consider anyway, offered and never taken. Two kinds
@@ -613,13 +811,14 @@ export function planCategory(
   const upgrades = [
     ...openRoles()
       .flatMap((d) => [...forRole(d)].filter((p) => !chosen.has(p.id) && !clash(p)).sort(byEffect).slice(0, 1).map((p) => toPick(p, d.role, d.tier)))
-      .filter((u) => u.monthlyInr <= room()),
+      .filter((u) => u.priceInr <= room()),
     ...premiumOffers,
   ];
 
   return {
     category, budgetInr: budget, skipped: false, picks,
-    monthlyInr: spent,
+    spendInr: spent,
+    monthlyInr: picks.reduce((n, x) => n + x.monthlyInr, 0),
     remainingInr: Math.max(0, budget - spent),
     overInr: Math.max(0, spent - budget),
     targetLowInr: targetLow,
@@ -627,13 +826,51 @@ export function planCategory(
     minimumInr: short ? floorCost : null,
     idealInr,
     leanReason,
+    kept,
+    usefulMaxInr: usefulMax,
     leftOut: trimmed, upgrades,
   };
 }
 
+/**
+ * ── THE MOST THIS PROFILE CAN HONESTLY ABSORB ───────────────────────────────
+ *
+ * The dearest routine in which every step is at least as well matched as the
+ * best cheap one — summed per role, directly, rather than read off a greedy
+ * plan. A greedy is path-dependent and returns a slightly different number at
+ * different budgets; a cap has to be an upper bound or it is not a cap.
+ *
+ * IT IS NOT "the dearest routine". That is ₹17,473 a month for an oily/acne
+ * profile on this shelf and it answers ten of her findings against fourteen —
+ * SkinCeuticals C E Ferulic at ₹5,775 answers ONE. Money can buy a great deal
+ * more than this number; it cannot buy a better match than this number, which
+ * is the only thing the citizen is setting a budget in order to get.
+ *
+ * This is what the budget dial is capped to. A slider that runs to ₹60,000 for
+ * a face whose shelf tops out at ₹4,400 is not offering a choice, it is
+ * inviting a disappointment and then explaining it.
+ */
+export function usefulMaxInr(
+  all: RecommendedProduct[], category: BudgetCategory, needs: Set<string>,
+  owned: Set<string> = new Set(),
+): number {
+  const pool = all.filter((p) => categoryOf(p.group) === category && p.matched);
+  const answers = (p: RecommendedProduct) => p.profileKeys.filter((k) => needs.has(k)).length;
+  return ROLES[category].filter((d) => !owned.has(d.role)).reduce((total, d) => {
+    const forRole = pool.filter((p) => d.match.test(p.category));
+    if (!forRole.length) return total;
+    // The best available for this step, cheapest among equals — the product the
+    // planner would reach for with no money in play at all.
+    const best = [...forRole].sort((a, b) =>
+      answers(b) - answers(a) || b.matchScore - a.matchScore || monthlyCostInr(a) - monthlyCostInr(b))[0];
+    const noWorse = forRole.filter((p) => answers(p) >= answers(best) && p.matchScore >= best.matchScore);
+    return total + Math.max(...noWorse.map((p) => p.priceInr));
+  }, 0);
+}
+
 export interface BudgetPlan {
   face: CategoryPlan; hair: CategoryPlan; body: CategoryPlan;
-  totalBudgetInr: number; totalMonthlyInr: number; totalRemainingInr: number;
+  totalBudgetInr: number; totalSpendInr: number; totalMonthlyInr: number; totalRemainingInr: number;
 }
 
 /**
@@ -660,7 +897,7 @@ export interface BudgetPlan {
  */
 export interface WirePick {
   productId: string; name: string; role: string; tier: Tier;
-  monthlyInr: number; monthsOfUse: number;
+  priceInr: number; monthlyInr: number; monthsOfUse: number;
   /** "100 ml" — what is printed on the pack, or '' if the name never said. */
   packLabel: string;
   /** "about 6 weeks" · "about 2½ months" — how long one pack lasts. */
@@ -671,15 +908,16 @@ export interface WirePick {
 
 export interface WireCategoryPlan {
   category: BudgetCategory; budgetInr: number; skipped: boolean;
-  monthlyInr: number; remainingInr: number; overInr: number;
+  spendInr: number; monthlyInr: number; remainingInr: number; overInr: number;
   targetLowInr: number; ceilingInr: number;
   minimumInr: number | null; idealInr: number | null; leanReason: string | null;
-  picks: WirePick[]; leftOut: LeftOut[]; upgrades: WirePick[];
+  usefulMaxInr: number;
+  picks: WirePick[]; kept: Kept[]; leftOut: LeftOut[]; upgrades: WirePick[];
 }
 
 export interface WireBudgetPlan {
   face: WireCategoryPlan; hair: WireCategoryPlan; body: WireCategoryPlan;
-  totalBudgetInr: number; totalMonthlyInr: number; totalRemainingInr: number;
+  totalBudgetInr: number; totalSpendInr: number; totalMonthlyInr: number; totalRemainingInr: number;
 }
 
 const wirePick = (x: Pick_): WirePick => ({
@@ -687,6 +925,7 @@ const wirePick = (x: Pick_): WirePick => ({
   name: x.product.name,
   role: x.role,
   tier: x.tier,
+  priceInr: x.priceInr,
   monthlyInr: x.monthlyInr,
   monthsOfUse: x.monthsOfUse,
   packLabel: packLabel(x.product.name),
@@ -696,10 +935,12 @@ const wirePick = (x: Pick_): WirePick => ({
 
 const wireCategory = (c: CategoryPlan): WireCategoryPlan => ({
   category: c.category, budgetInr: c.budgetInr, skipped: c.skipped,
-  monthlyInr: c.monthlyInr, remainingInr: c.remainingInr, overInr: c.overInr,
+  spendInr: c.spendInr, monthlyInr: c.monthlyInr, remainingInr: c.remainingInr, overInr: c.overInr,
   targetLowInr: c.targetLowInr, ceilingInr: c.ceilingInr,
   minimumInr: c.minimumInr, idealInr: c.idealInr, leanReason: c.leanReason,
+  usefulMaxInr: c.usefulMaxInr,
   picks: c.picks.map(wirePick),
+  kept: c.kept,
   leftOut: c.leftOut,
   upgrades: c.upgrades.map(wirePick),
 });
@@ -710,6 +951,7 @@ export function planForWire(plan: BudgetPlan): WireBudgetPlan {
     hair: wireCategory(plan.hair),
     body: wireCategory(plan.body),
     totalBudgetInr: plan.totalBudgetInr,
+    totalSpendInr: plan.totalSpendInr,
     totalMonthlyInr: plan.totalMonthlyInr,
     totalRemainingInr: plan.totalRemainingInr,
   };
@@ -717,14 +959,17 @@ export function planForWire(plan: BudgetPlan): WireBudgetPlan {
 
 export function planWithinBudget(
   all: RecommendedProduct[], budgets: CategoryBudgets, needs: Iterable<string>,
+  /** The "what you use now" chips, verbatim. Mapped per category inside. */
+  alreadyHave: readonly string[] = [],
 ): BudgetPlan {
   const need = new Set(needs);
-  const face = planCategory(all, 'face', budgets.face, need);
-  const hair = planCategory(all, 'hair', budgets.hair, need);
-  const body = planCategory(all, 'body', budgets.body, need);
+  const face = planCategory(all, 'face', budgets.face, need, ownedRoles('face', alreadyHave));
+  const hair = planCategory(all, 'hair', budgets.hair, need, ownedRoles('hair', alreadyHave));
+  const body = planCategory(all, 'body', budgets.body, need, ownedRoles('body', alreadyHave));
   return {
     face, hair, body,
     totalBudgetInr: face.budgetInr + hair.budgetInr + body.budgetInr,
+    totalSpendInr: face.spendInr + hair.spendInr + body.spendInr,
     totalMonthlyInr: face.monthlyInr + hair.monthlyInr + body.monthlyInr,
     totalRemainingInr: face.remainingInr + hair.remainingInr + body.remainingInr,
   };

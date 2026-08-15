@@ -81,9 +81,12 @@ export class BeautyController {
     // never reaches the planner, and bounded so nobody stores ₹9,000,000.
     // Zero is allowed and means "spend nothing on this part of me" — a real
     // answer, and different from never having set a budget at all.
-    face: z.number().int().min(0).max(60_000),
-    hair: z.number().int().min(0).max(60_000),
-    body: z.number().int().min(0).max(60_000),
+    // BUDGET_MAX, and the schema says the number rather than importing it on
+    // purpose: a zod bound is the contract with the client and it should be
+    // readable here. If they drift, budget-is-a-limit.spec.ts fails.
+    face: z.number().int().min(0).max(8_000),
+    hair: z.number().int().min(0).max(8_000),
+    body: z.number().int().min(0).max(8_000),
     preference: z.string().max(200).optional(),
   })))
   saveBudget(@CurrentUser() user: JwtUser, @Body() dto: { face: number; hair: number; body: number; preference?: string }) {

@@ -35,8 +35,15 @@ import { useBeautyBudget, useSaveBeautyBudget, type BeautyBudget } from '../api'
  * missing. Silence.
  */
 const MIN = 0;
-const MAX = 60000;
-const QUICK = [0, 1000, 2500, 5000, 10000, 20000, 40000, 60000];
+/**
+ * ₹8,000 A CATEGORY. It was ₹60,000, and the top five-sixths of that slider
+ * were a number the engine could never honestly spend — the dearest routine
+ * this shelf can build without taking a worse-matched product tops out around
+ * ₹7,000–₹8,500 for a face and under ₹1,000 for hair. Offering ₹60,000 was
+ * offering a disappointment and then explaining it on the routine page.
+ */
+const MAX = 8000;
+const QUICK = [0, 1000, 2000, 3000, 5000, 6500, 8000];
 
 const rupees = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 const chipLabel = (n: number) => (n === 0 ? 'None' : n >= 1000 ? `₹${n / 1000}K` : `₹${n}`);

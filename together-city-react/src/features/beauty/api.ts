@@ -134,6 +134,9 @@ export type RoutineTier = 'essential' | 'high-value' | 'optional';
  */
 export interface RoutinePick {
   productId: string; name: string; role: string; tier: RoutineTier;
+  /** What it costs to buy — the unit the budget is set and spent in. */
+  priceInr: number;
+  /** What it costs to keep. Printed beside the price; decides nothing. */
   monthlyInr: number; monthsOfUse: number;
   /** "100 ml" — what is on the pack, or '' when the name never said. */
   packLabel: string;
@@ -148,6 +151,9 @@ export interface CategoryPlan {
   /** The citizen set this category to zero. Not "we found nothing" — they said
    *  not to, so the band is not drawn at all. */
   skipped: boolean;
+  /** What this routine costs to buy — what the budget is measured against. */
+  spendInr: number;
+  /** What it costs to keep, per month. Reported, never spent against. */
   monthlyInr: number;
   remainingInr: number;
   /** How far past the budget the routine went, inside the 5% headroom the
@@ -165,12 +171,16 @@ export interface CategoryPlan {
   /** Why the routine stopped under its target, when it did. */
   leanReason: string | null;
   picks: RoutinePick[];
+  /** Steps the citizen said they already have. Not bought, not charged. */
+  kept: { role: string; tier: string; why: string }[];
+  /** The most this profile can absorb without taking a worse-matched product. */
+  usefulMaxInr: number;
   leftOut: { role: string; tier: RoutineTier; why: string }[];
   upgrades: RoutinePick[];
 }
 export interface BudgetPlan {
   face: CategoryPlan; hair: CategoryPlan; body: CategoryPlan;
-  totalBudgetInr: number; totalMonthlyInr: number; totalRemainingInr: number;
+  totalBudgetInr: number; totalSpendInr: number; totalMonthlyInr: number; totalRemainingInr: number;
 }
 
 /**

@@ -63,7 +63,7 @@ describe('a declared condition reaches the shelf', () => {
       profile: { skinType: 'oily', conditions: ['Pregnant'] }, insights: [],
     });
     const offenders: string[] = [];
-    for (const budget of [1000, 2500, 5000, 10000, 25000, 60000]) {
+    for (const budget of [500, 1000, 2500, 5000, 8000]) {
       for (const cat of ['face', 'hair', 'body'] as const) {
         const plan = planCategory(shelf, cat, budget, NEEDS);
         for (const x of [...plan.picks, ...plan.upgrades]) {

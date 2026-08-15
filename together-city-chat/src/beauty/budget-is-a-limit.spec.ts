@@ -27,7 +27,13 @@ const READINGS = [
 ];
 const NEEDS = READINGS.map((r) => r.key);
 const SHELF = recommendProducts({ readings: READINGS, concerns: [], profile: { skinType: 'combination' }, insights: [] });
-const TIERS = [1000, 2500, 5000, 10000, 25000, 60000];
+// THE SIX THE OWNER NAMED, RE-SCALED WITH THE CAP. A category maxes at ₹8,000
+// since 15 Aug — measured, the dearest routine this shelf can build without
+// taking a worse-matched product tops out around ₹7,000–₹8,500 for a face and
+// under ₹1,000 for hair, so the old ₹25,000 and ₹60,000 rungs were asking the
+// planner questions the shelf has no answer to. The SPREAD is what these are
+// for and the spread is intact.
+const TIERS = [500, 1000, 2000, 3000, 5000, 8000];
 const plan = (n: number) => planWithinBudget(SHELF, { face: n, hair: n, body: n }, NEEDS);
 
 describe('what a product costs per month', () => {
@@ -40,7 +46,11 @@ describe('what a product costs per month', () => {
     // The whole point. A ₹195 body wash bought twice a year is not a ₹195
     // monthly expense, and a budget compared against purchase prices is
     // comparing two different things.
-    const wash = { name: 'Body wash (300 ml)', category: 'Body wash', usage: 'Body', priceInr: 195 };
+    // A 300 ml wash is one month at 10 ml a shower, which is no longer a BIG
+    // pack — the doses were re-anchored to the sunscreen figure and body wash
+    // went from 200 ml a month to 300. The property is unchanged; the example
+    // has to be an actually large pack to demonstrate it.
+    const wash = { name: 'Body wash (750 ml)', category: 'Body wash', usage: 'Body', priceInr: 195 };
     expect(monthlyCostInr(wash)).toBeLessThan(wash.priceInr);
     expect(monthsOfUse(wash)).toBeGreaterThan(1);
   });
@@ -83,12 +93,29 @@ describe('what a product costs per month', () => {
 });
 
 describe('the budget is a limit', () => {
-  it.each(TIERS)('never exceeds ₹%i in any category', (n) => {
+  it.each(TIERS)('never exceeds the ceiling on ₹%i in any category', (n) => {
+    /**
+     * TWO CORRECTIONS, AND THE SECOND IS THE INTERESTING ONE.
+     *
+     * `spendInr`, NOT `monthlyInr` — a leftover the ₹8,000 cap found. The
+     * budget has been denominated in purchase price since the unit changed;
+     * comparing the UPKEEP figure against it was a comparison between two
+     * different things that happened to pass while budgets were large.
+     *
+     * And against the CEILING rather than against B. The 5% headroom has always
+     * been the real limit — `overInr` has documented it since it was written —
+     * but it was theoretical while the planner aimed under the budget, so
+     * asserting `<= B` held by accident and read as the rule. The ±5% band aims
+     * the routine AT the budget, so the headroom is now used on purpose: a
+     * ₹1,000 face lands at ₹1,022 because the shelf has no combination at
+     * exactly ₹1,000 and ₹1,022 is nearer than ₹958. That is the feature. What
+     * must never happen is crossing B × 1.05, and that is what this says now.
+     */
     const p = plan(n);
     expect([
-      ['face', p.face.monthlyInr <= n],
-      ['hair', p.hair.monthlyInr <= n],
-      ['body', p.body.monthlyInr <= n],
+      ['face', p.face.spendInr <= p.face.ceilingInr],
+      ['hair', p.hair.spendInr <= p.hair.ceilingInr],
+      ['body', p.body.spendInr <= p.body.ceilingInr],
     ]).toEqual([['face', true], ['hair', true], ['body', true]]);
   });
 
@@ -222,10 +249,14 @@ describe('the routine genuinely changes with the budget', () => {
     // The line the whole feature turns on. ₹10,000, ₹25,000 and ₹60,000 all buy
     // the same routine, because there is nothing left worth adding — and the
     // remaining money is reported rather than absorbed.
-    const ten = plan(10000).face;
-    const sixty = plan(60000).face;
+    const ten = plan(4000).face;
+    const sixty = plan(8000).face;
     expect(sixty.picks.map((x) => x.product.id)).toEqual(ten.picks.map((x) => x.product.id));
-    expect(sixty.remainingInr).toBeGreaterThan(40000);
+    // Was `> 40000`, against a ₹60,000 slider. The cap is ₹8,000 now, so the
+    // number this asserts had to come down with it — the property did not:
+    // money the shelf cannot honestly spend is reported, not absorbed. This
+    // profile's face tops out at ₹2,450.
+    expect(sixty.remainingInr).toBeGreaterThan(5000);
   });
 
   it('is bounded by the roles a routine has, not by the money', () => {
@@ -237,7 +268,7 @@ describe('the routine genuinely changes with the budget', () => {
       expect({ budget: n, over: plan(n).face.picks.length > 6 }).toEqual({ budget: n, over: false });
     }
     // And more money genuinely does not mean more steps beyond that point.
-    expect(plan(60000).face.picks.length).toBeLessThanOrEqual(plan(10000).face.picks.length);
+    expect(plan(8000).face.picks.length).toBeLessThanOrEqual(plan(4000).face.picks.length);
   });
 
   it('holds at most one product per role, at any budget', () => {
@@ -365,7 +396,7 @@ describe('the routine genuinely changes with the budget', () => {
      * the sentence that makes it an offer — an upgrade with no reason attached
      * is the old behaviour with a new destination.
      */
-    const rich = plan(60000).face;
+    const rich = plan(8000).face;
     const chosen = new Set(rich.picks.map((x) => x.product.id));
     for (const u of rich.upgrades) {
       // Never something already in the routine, whatever kind of offer it is.
@@ -382,16 +413,21 @@ describe('one category does not spend another category\'s money', () => {
   it('plans face, hair and body independently', () => {
     // A generous face budget must not buy a better shampoo.
     const even = planWithinBudget(SHELF, { face: 5000, hair: 5000, body: 5000 }, NEEDS);
-    const lopsided = planWithinBudget(SHELF, { face: 60000, hair: 5000, body: 5000 }, NEEDS);
+    const lopsided = planWithinBudget(SHELF, { face: 8000, hair: 5000, body: 5000 }, NEEDS);
     expect(lopsided.hair.picks.map((x) => x.product.id)).toEqual(even.hair.picks.map((x) => x.product.id));
     expect(lopsided.body.picks.map((x) => x.product.id)).toEqual(even.body.picks.map((x) => x.product.id));
   });
 
   it('totals what it actually spent, not what it was given', () => {
+    // Three categories at the ₹8,000 cap: ₹10,000 each is clamped on the way in.
     const p = plan(10000);
-    expect(p.totalBudgetInr).toBe(30000);
+    expect(p.totalBudgetInr).toBe(24000);
     expect(p.totalMonthlyInr).toBe(p.face.monthlyInr + p.hair.monthlyInr + p.body.monthlyInr);
-    expect(p.totalRemainingInr).toBe(30000 - p.totalMonthlyInr);
+    // WHAT IS LEFT IS MEASURED AGAINST WHAT WAS SPENT, and since 15 Aug that is
+    // the purchase price rather than the amortised monthly cost. `monthlyInr`
+    // is still totalled above — it is what the routine costs to KEEP, printed
+    // beside the price and never subtracted from a budget.
+    expect(p.totalRemainingInr).toBe(24000 - p.totalSpendInr);
   });
 });
 

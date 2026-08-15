@@ -36,28 +36,59 @@ import type { BeautyProduct } from './beauty-engine';
  * ALL OF IT IS AN ESTIMATE AND THE UI SAYS SO — "≈ ₹366/month", never "₹366".
  */
 
-/** ml (or g) a person gets through in a month, by display category. */
+/**
+ * ml (or g) a person gets through in a month, by display category.
+ *
+ * ── EVERY FIGURE HERE IS ANCHORED TO THE SUNSCREEN ONE ──────────────────────
+ *
+ * 36 ml a month is two finger-lengths a day over a face and neck — about
+ * 1.2 ml an application, the dose sunscreen is actually tested at. It was
+ * right when it was written and it is the only number in this table that was
+ * derived from anything, so everything else is now stated as a fraction of it
+ * rather than guessed at separately.
+ *
+ * WHAT THAT CORRECTED, AND WHY IT MATTERED MORE THAN IT LOOKS. A moisturiser
+ * was costed at 24 ml a month — 0.4 ml morning and night, which is a pea for
+ * a whole face, and under-application rather than use. A 190 ml Biotique jar
+ * therefore "lasted" eight months and reported ₹47 a month, which is not a
+ * price anybody recognises. And because the planner ranks on monthly cost,
+ * every large cheap pack was being scored as almost free: routines came out at
+ * ₹1,275 against a ₹5,000 budget and the shortfall looked like the engine
+ * refusing to spend when a quarter of it was arithmetic.
+ *
+ * A ROUTINE COSTED ON UNDER-APPLICATION IS A ROUTINE THAT DOES NOT WORK, and
+ * it is also a shelf whose cheap end is fictionally cheap. Both halves of that
+ * are corrected together.
+ *
+ * WHAT IS DELIBERATELY LEFT ALONE. The toner figure is bimodal and no honest
+ * single number exists for it: a hydrating toner is swept on twice a day and a
+ * 2% BHA exfoliant is used on a pad three times a week, and this table cannot
+ * tell them apart because the catalogue does not carry a frequency. 90 ml sits
+ * between the two and is wrong in both directions. The fix is a per-product
+ * dose on the data sheet, not a cleverer average here.
+ */
 const USE_PER_MONTH: Record<string, number> = {
-  // Face. A pump of foaming cleanser is about a millilitre, twice a day.
-  Cleanser: 60,
-  Toner: 90,
-  Serum: 10.5,          // 2–3 drops ≈ 0.35 ml, once a day; doubled below if used twice
-  Moisturiser: 24,      // ≈ 0.4 ml morning and night
-  Sunscreen: 36,        // two finger-lengths, every day — the honest dose
+  // Face, against the 1.2 ml sunscreen application.
+  Cleanser: 90,         // ≈ 1.5 ml a wash, twice a day
+  Toner: 90,            // see the note above — the one number here still guessed
+  Serum: 15,            // 4 drops ≈ 0.5 ml once a day; doubled below if used twice
+  Moisturiser: 45,      // ≈ 0.75 ml over face and neck, morning and night
+  Sunscreen: 36,        // two finger-lengths, every day — the anchor
   'Face mask': 28,      // ≈ 7 ml, once a week
 
   // Hair. Twelve washes a month is roughly every other day.
   Shampoo: 120,
   Conditioner: 120,
-  'Hair mask': 60,
+  'Hair mask': 80,      // ≈ 20 ml, on wash day
   'Hair oil': 60,
   'Hair serum': 20,
 
-  // Body.
-  'Body wash': 200,
-  'Body lotion': 200,
+  // Body — a whole body is a far bigger surface than a face, and these two
+  // were carrying face-sized numbers.
+  'Body wash': 300,     // ≈ 10 ml a shower
+  'Body lotion': 360,   // ≈ 12 ml over a whole body, daily
   'Body scrub': 100,
-  'Hand cream': 20,   // a 30 g tube is about six weeks, not three
+  'Hand cream': 20,     // a 30 g tube is about six weeks, not three
   'Lip balm': 2.5,
 };
 

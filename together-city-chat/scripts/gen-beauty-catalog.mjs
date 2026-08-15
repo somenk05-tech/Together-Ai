@@ -196,7 +196,16 @@ export function splitActives(s) {
 export function suitableSkinFor(group, text) {
   if (group !== 'Skincare') return ['all'];
   const t = (text ?? '').toLowerCase();
-  if (/all skin types|all types/.test(t)) return ['all'];
+  /**
+   * SENSITIVE IS CHECKED FIRST, AND THAT ORDERING IS THE WHOLE FIX. The
+   * "all skin types" short-circuit ran before anything else, so a sheet row
+   * reading "All skin types, including sensitive" — and thirty-one of them do —
+   * came out as ['all'] with the one word that mattered thrown away. Sensitive
+   * skin then had to reach those products through `all`, which is exactly the
+   * route that also handed it three retinoids.
+   */
+  const namesSensitive = /sensitiv/.test(t);
+  if (/all skin types|all types/.test(t)) return namesSensitive ? ['all', 'sensitive'] : ['all'];
   const found = new Set();
   for (const type of SKIN_TYPES) if (new RegExp(`\\b${type}`).test(t)) found.add(type);
   // "dry to normal" is a range and means everything between its ends.
@@ -204,6 +213,7 @@ export function suitableSkinFor(group, text) {
   if (/normal to oily/.test(t)) { found.add('normal'); found.add('oily'); found.add('combination'); }
   if (/dry to very dry/.test(t)) found.add('dry');
   if (/acne.prone|blemish.prone/.test(t)) { found.add('oily'); found.add('combination'); }
+  if (namesSensitive) found.add('sensitive');
   if (!found.size) return ['all'];
   // Three of the four base types is a list excluding one type by accident
   // rather than on purpose.
