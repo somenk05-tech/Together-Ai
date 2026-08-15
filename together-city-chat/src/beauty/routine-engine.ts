@@ -52,7 +52,16 @@ const ORDER: Array<{ match: RegExp; step: string; rank: number; instructions: st
   { match: /face serum|^serum/i, step: 'Treat', rank: 30, instructions: 'Two or three drops on slightly damp skin; press in rather than rub.' },
   { match: /treatment/i, step: 'Treat', rank: 40, instructions: 'A pea-sized amount over the whole face, avoiding the eye area.' },
   { match: /face mask/i, step: 'Mask', rank: 45, instructions: 'A thin, even layer on clean skin. Leave for the time on the pack, then rinse.' },
-  { match: /moisturiser|cream/i, step: 'Moisturise', rank: 50, instructions: 'Seal everything underneath while skin is still slightly damp.' },
+  /* `/cream/` USED TO BE HERE AND IT CAUGHT "Hand cream". classify() matches on
+     the display CATEGORY, and of the sixteen the sheet produces, exactly two
+     contain the word: Moisturiser and Hand cream. ORDER is scanned in array
+     order, so the hand cream matched this line — three lines above its own —
+     and came out labelled MOISTURISE at rank 50. On the live body band that
+     put "apply hand cream" at step 1, ABOVE the body wash at step 2, told the
+     citizen to "seal everything underneath while skin is still slightly damp",
+     and printed MOISTURISE twice in one band. `/moisturiser/` alone reaches
+     the only category this line is for. */
+  { match: /moisturiser/i, step: 'Moisturise', rank: 50, instructions: 'Seal everything underneath while skin is still slightly damp.' },
   { match: /sunscreen/i, step: 'Protect', rank: 90, instructions: 'Two fingers’ length for the face and neck, as the last step. Reapply if you are out for hours.' },
 
   /* HAIR HAS ITS OWN ORDER AND IT IS NOT THE FACE'S. Oil before the wash, then
@@ -74,7 +83,29 @@ const ORDER: Array<{ match: RegExp; step: string; rank: number; instructions: st
   { match: /lip balm/i, step: 'Lips', rank: 78, instructions: 'Whenever they feel tight, and a thicker layer before bed.' },
 ];
 
+/**
+ * A SCALP TREATMENT IS NOT A FINISHING SERUM, AND THE SHEET CANNOT TELL THEM
+ * APART. Both arrive as "Hair Serum/Leave-in", so both were classified 'Finish'
+ * and both were told "a few drops through damp mid-lengths and ends. DO NOT GO
+ * NEAR THE ROOTS." For Ustraa's Hair Growth Vitalizer and Pilgrim's Redensyl +
+ * AnaGain serum that is precisely backwards — the roots are the entire point,
+ * and the instruction was live on the routine page telling somebody to avoid
+ * the only place the product works.
+ *
+ * Detected from the ACTIVES and the name, which are naming facts: Redensyl and
+ * AnaGain are scalp actives and "hair growth vitalizer" is what the bottle
+ * calls itself. Nothing here reads the blurb, and nothing here claims the
+ * product works — only where it goes.
+ */
+const SCALP_TREATMENT = /redensyl|anagain|procapil|capixyl|minoxidil|hair growth|hair fall|scalp (serum|tonic|treatment)|vitalizer|vitaliser/i;
+
 function classify(p: RecommendedProduct) {
+  if (/^Hair serum$/i.test(p.category) && SCALP_TREATMENT.test(`${p.name} ${p.keyIngredient} ${p.actives.join(' ')}`)) {
+    return {
+      step: 'Scalp', rank: 61,
+      instructions: 'Part the hair and apply directly to the scalp, not the lengths. Massage in and leave it — this is not a rinse-out.',
+    };
+  }
   return ORDER.find((o) => o.match.test(p.category)) ?? { step: 'Treat', rank: 45, instructions: 'Apply a thin, even layer.' };
 }
 

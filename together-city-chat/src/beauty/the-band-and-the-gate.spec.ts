@@ -2,6 +2,7 @@ import { recommendProducts } from './beauty-engine';
 import { planCategory, usefulMaxInr, TARGET_LOW, TARGET_CEILING } from './budget-routine';
 import { assessBeauty } from './beauty-analysis';
 import { BEAUTY_PRODUCTS } from './beauty-catalog';
+import { buildRoutines } from './routine-engine';
 
 /**
  * ── TWO RULES THAT ARRIVED TOGETHER AND ARGUE WITH EACH OTHER ───────────────
@@ -122,5 +123,65 @@ describe('"all skin types" is not a claim about sensitive skin', () => {
       readings: [...PROFILES.oily.skin.readings], concerns: [], profile: { skinType: 'oily' }, insights: [],
     }).filter((p) => p.matched && p.suitableSkin.includes('all'));
     expect(forOily.length).toBeGreaterThan(10);
+  });
+});
+
+describe('a step is told to go where the product works', () => {
+  it('does not tell a scalp treatment to avoid the scalp', () => {
+    /**
+     * Found by reading the live routine page. "Hair Serum/Leave-in" is one
+     * column on the sheet and two different objects — a finishing oil for the
+     * ends, and a Redensyl scalp serum for the roots. Both were classified
+     * 'Finish' and both were printed with "do not go near the roots", which for
+     * the second is the opposite of how it is used.
+     */
+    const scalp = BEAUTY_PRODUCTS.filter((p) => p.category === 'Hair serum'
+      && /redensyl|anagain|hair growth|vitalizer/i.test(`${p.name} ${p.actives.join(' ')}`));
+    expect(scalp.length).toBeGreaterThan(0);
+    for (const p of scalp) {
+      const step = buildRoutines([{
+        ...p, matched: true, matchScore: 80, primaryReasons: [], biomarkerReasons: [],
+        explanation: '', reasons: [],
+      }]).flatMap((r) => r.steps).find((s) => s.productId === p.id);
+      expect({ id: p.id, step: step?.step }).toEqual({ id: p.id, step: 'Scalp' });
+      expect(step?.instructions).not.toMatch(/not go near the roots/i);
+      expect(step?.instructions).toMatch(/scalp/i);
+    }
+  });
+
+  it('still sends a finishing serum to the ends', () => {
+    const finish = BEAUTY_PRODUCTS.find((p) => p.category === 'Hair serum'
+      && !/redensyl|anagain|hair growth|vitalizer/i.test(`${p.name} ${p.actives.join(' ')}`))!;
+    const step = buildRoutines([{
+      ...finish, matched: true, matchScore: 80, primaryReasons: [], biomarkerReasons: [],
+      explanation: '', reasons: [],
+    }]).flatMap((r) => r.steps)[0];
+    expect(step.step).toBe('Finish');
+  });
+
+  it('gives every display category a step of its own kind', () => {
+    // The hand cream matched `/moisturiser|cream/` three lines above its own
+    // rule and came out as MOISTURISE at rank 50 — above the body wash, with
+    // "seal everything underneath" for an instruction, and printing MOISTURISE
+    // twice in one band. classify() reads the CATEGORY, and of the sixteen the
+    // sheet produces exactly two contain "cream".
+    const of = (category: string) => {
+      const p = BEAUTY_PRODUCTS.find((x) => x.category === category)!;
+      return buildRoutines([{
+        ...p, matched: true, matchScore: 80, primaryReasons: [], biomarkerReasons: [],
+        explanation: '', reasons: [],
+      }]).flatMap((r) => r.steps)[0];
+    };
+    expect(of('Hand cream').step).toBe('Hands');
+    expect(of('Body lotion').step).toBe('Moisturise');
+    expect(of('Moisturiser').step).toBe('Moisturise');
+    expect(of('Lip balm').step).toBe('Lips');
+    // And the body band runs in the order a body is actually washed.
+    const body = BEAUTY_PRODUCTS.filter((p) => ['Body wash', 'Body scrub', 'Body lotion', 'Hand cream', 'Lip balm']
+      .includes(p.category)).filter((p, i, a) => a.findIndex((q) => q.category === p.category) === i);
+    const band = buildRoutines(body.map((p) => ({
+      ...p, matched: true, matchScore: 80, primaryReasons: [], biomarkerReasons: [], explanation: '', reasons: [],
+    }))).find((r) => r.timeOfDay === 'body')!;
+    expect(band.steps.map((s) => s.step)).toEqual(['Wash', 'Exfoliate', 'Moisturise', 'Hands', 'Lips']);
   });
 });
