@@ -112,16 +112,35 @@ function NotificationBell() {
   );
 }
 
-/** Global header — 12 hub tabs + Requests/Mail/Chat/Profile actions, ported from tc.js buildHeader(). */
+/**
+ * Global header. Row 1 is the signature and the citizen's own doors — Mail,
+ * Chat, Personal, Alerts, Profile. Row 2 is the city: the hub tabs.
+ *
+ * THE BAR MOVED UP A ROW (owner, 15 Aug). It sat on the right of the TAB row,
+ * which put five personal doors on the same shelf as the districts and left
+ * twelve tabs fighting them for width — the reason this header carries two
+ * `--chip-fs` step-downs and the tabs shrink to 9.5px on a 1340px window. The
+ * two rows say two different things now: who you are on top, where the city is
+ * underneath. Like the monogram, the bar is pinned out of flow (layout.css),
+ * so the wordmark keeps the true centre of the row rather than being pushed
+ * off it by whatever the bar happens to be carrying.
+ */
 export function Header() {
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const { user } = useAuth();
   const authed = Boolean(user);
   const firstName = fromName(user?.name) ?? 'Profile';
-  // Mail lives in the actions, not the tab row. The sort is belt-and-braces:
-  // the list in config is already alphabetical, and sorting here means a hub
-  // appended to it lands in its place rather than on the end.
-  const tabs = NAV.filter((n) => n.key !== 'mail')
+  // THE TAB ROW IS DISTRICTS ONLY. Mail has always been lifted out of it into
+  // the action bar; Personal joins it there (owner, 15 Aug) for the same
+  // reason — neither is a district, and a drawer of your own filed
+  // alphabetically between Nutrition and Property reads as one more place in
+  // the city to visit. Both stay in NAV, which is the one list carrying every
+  // tab's path and label for the burger drawer and the Hubs page.
+  const IN_THE_BAR: ReadonlySet<string> = new Set(['mail', 'personal']);
+  // The sort is belt-and-braces: the list in config is already alphabetical,
+  // and sorting here means a hub appended to it lands in its place rather than
+  // on the end.
+  const tabs = NAV.filter((n) => !IN_THE_BAR.has(n.key))
     .slice()
     .sort((a, b) => a.label.localeCompare(b.label));
   useTrackRecent(); // remember where we've been — powers Recently Viewed + breadcrumbs
@@ -147,16 +166,12 @@ export function Header() {
           <img className="mark" src="/assets/img/tc-mark.svg" alt="" width={42} height={34} />
           <img className="word" src="/assets/img/tc-word.svg" alt="Together City" width={77} height={30} />
         </Link>
-      </div>
-      {/* Row 2 — hub tabs (left) + People · Mail · Chat · Alerts · Profile (right), one line. */}
-      <div className="tc-navrow">
-        <nav className="tc-nav" aria-label="Hubs">
-          {tabs.map((n) => (
-            <NavLink key={n.key} to={n.path} className={({ isActive }) => (isActive ? 'on' : undefined)}>
-              {n.label}
-            </NavLink>
-          ))}
-        </nav>
+        {/* THE CITIZEN'S OWN DOORS, ON THE SIGNATURE ROW — Mail · Chat ·
+            Personal · Alerts · Profile. Pinned right and out of flow by
+            layout.css for the same reason the monogram is pinned left: this row
+            centres its contents, so anything in flow beside the wordmark moves
+            the wordmark. Out of flow, the bar can grow a pill without the name
+            of the city sliding off the middle of the header. */}
         <div className="tc-actionbar">
           {authed ? (
             <>
@@ -185,6 +200,16 @@ export function Header() {
             </>
           )}
         </div>
+      </div>
+      {/* Row 2 — the districts, and nothing else on the line. */}
+      <div className="tc-navrow">
+        <nav className="tc-nav" aria-label="Hubs">
+          {tabs.map((n) => (
+            <NavLink key={n.key} to={n.path} className={({ isActive }) => (isActive ? 'on' : undefined)}>
+              {n.label}
+            </NavLink>
+          ))}
+        </nav>
       </div>
     </header>
   );

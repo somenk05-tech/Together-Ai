@@ -27,8 +27,18 @@ const pill: React.CSSProperties = {
 };
 
 /**
- * Search · Mail · Chat quick-action pills. `show` selects which to render:
- * 'all' (default), just the 'search' pill, or the 'links' pair (Mail/Chat).
+ * Search · Mail · Chat · Personal quick-action pills. `show` selects which to
+ * render: 'all' (default), just the 'search' pill, or the 'links' group.
+ *
+ * PERSONAL JOINED THE PILLS on 15 Aug, at the owner's call: "make personal a
+ * button tab like mail and chat and profile". It was a hub tab, sitting in a
+ * row of DISTRICTS in alphabetical order between Nutrition and Property — and
+ * it is not a district. Mail, Chat, Personal and Profile are the four rooms
+ * that belong to the citizen rather than to the city, and they read as a set
+ * only when they sit together. It stays in `NAV` (that list is what the burger
+ * drawer and the Hubs page walk, and its path and label should have one home);
+ * the header simply lifts it out of the tab row, exactly as it has always
+ * lifted Mail.
  *
  * PEOPLE LEFT THIS BAR on 5 Aug and now lives on the profile page as "Other
  * citizens", the same move Calendar made before it. A top bar is for the two or
@@ -70,6 +80,12 @@ export function QuickActions({ show = 'all' }: { show?: 'all' | 'search' | 'link
           <Link to="/chats" aria-label="Chat" style={pill}>
             <Icon name="chat" size={17} /> <span className="lab">Chat</span>
             <Badge count={unreadChats} />
+          </Link>
+          {/* The drawer of one's own — Thoughts, the daybook, Drive, the album.
+              `/personal` is the path `hubs.ts` declares for it, so the pill and
+              the burger drawer cannot drift apart. */}
+          <Link to="/personal" aria-label="Personal" style={pill}>
+            <Icon name="personal" size={17} /> <span className="lab">Personal</span>
           </Link>
         </>
       )}
