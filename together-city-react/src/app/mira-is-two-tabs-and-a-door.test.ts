@@ -24,6 +24,19 @@ describe('Mira is two tabs', () => {
   const thread = read('features/chat/mira/MiraThread.tsx');
   const api = read('features/chat/mira/api.ts');
 
+  it('her room carries its own way back when it is the whole screen', () => {
+    // On a phone the chat page shows one room at a time, and her room
+    // replaces the thread header — the one place the back arrow lived. So
+    // she carries her own, and only where somebody can actually be stuck:
+    // the phone's chat page. The dock keeps its own close instead.
+    expect(thread).toMatch(/onBack\?: \(\) => void/);
+    expect(thread).toMatch(/aria-label="Back to chats"/);
+    const chats = read('features/chat/pages/Chats.tsx');
+    expect(chats).toMatch(/<MiraThread onBack=\{phone \? \(\) => setActiveId\(undefined\) : undefined\} \/>/);
+    const dockSrc = read('layouts/MiraDock.tsx');
+    expect(dockSrc).not.toMatch(/onBack/);
+  });
+
   it('offers Friend and City assistant, and remembers the choice', () => {
     expect(thread).toMatch(/>\s*Friend\s*</);
     expect(thread).toMatch(/>\s*City assistant\s*</);

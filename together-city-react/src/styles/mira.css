@@ -230,7 +230,15 @@
 /* ── The two of her, one press apart ──────────────────────────────────
    Friend and City assistant. Chips in the room's own pair — the lit one is
    the light tile every pressed key in this room already uses. */
-.miratabs { display: flex; gap: 8px; padding: 12px 18px 0; flex-shrink: 0; }
+.miratabs { display: flex; align-items: center; gap: 8px; padding: 12px 18px 0; flex-shrink: 0; }
+/* The way back, when her room is the whole of a phone's screen. The same
+   arrow every human thread has, in the room's own chip shape, sitting
+   where the thread header's back arrow would have been. */
+.mira-back {
+  flex: 0 0 auto; min-width: 44px; min-height: 44px; padding: 0;
+  border: 1px solid var(--mira-line); border-radius: 999px; background: none;
+  color: var(--on-mira); display: grid; place-items: center; cursor: pointer;
+}
 .miratab {
   font: inherit; font-size: 13px; font-weight: 600; min-height: 44px; padding: 0 16px;
   border-radius: 999px; cursor: pointer;

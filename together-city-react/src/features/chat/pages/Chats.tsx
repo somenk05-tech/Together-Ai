@@ -547,7 +547,9 @@ export function Chats() {
         {!(phone && !activeId) && (
         <section className="csthread">
           {activeId === MIRA_ID ? (
-            <MiraThread />
+            /* On a phone her room IS the screen and replaces the thread
+               header — so she carries her own way back to the list. */
+            <MiraThread onBack={phone ? () => setActiveId(undefined) : undefined} />
           ) : activeId ? (
             <>
               <div className="cshead-t">

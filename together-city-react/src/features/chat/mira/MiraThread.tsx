@@ -87,10 +87,18 @@ const seedWelcome = (turns: StoredTurn[], room: 'friend' | 'city'): StoredTurn[]
   return [{ who: 'mira', text: WELCOME, levity: 2 }];
 };
 
-export function MiraThread({ weeksKnown = 0, dial, about }: {
+export function MiraThread({ weeksKnown = 0, dial, about, onBack }: {
   weeksKnown?: number; dial?: 0 | 1 | 2;
   /** The in-app path she was opened over — the dock's "ask about this page". */
   about?: string;
+  /**
+   * The way out, when her room IS the screen. On a phone the chat page shows
+   * one room at a time, and every human conversation gets a back arrow from
+   * the thread header — but her room replaces that header entirely, so it
+   * has to carry its own. Passed only where somebody can actually be stuck:
+   * the phone's chat page. The dock never passes it — it has its own close.
+   */
+  onBack?: () => void;
 }) {
   const caps = useMiraCapabilities();
   /**
@@ -242,7 +250,15 @@ export function MiraThread({ weeksKnown = 0, dial, about }: {
     <div className="mirathread">
       {/* The two of her, one press apart. Chips, not a router — the thread
           and the day's memory are shared; only her register changes. */}
-      <div className="miratabs" role="group" aria-label="Which Mira">
+      <div className="miratabs">
+        {onBack && (
+          <button type="button" className="mira-back" aria-label="Back to chats"
+            onClick={onBack}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+          </button>
+        )}
+        <div role="group" aria-label="Which Mira" style={{ display: 'contents' }}>
         <button type="button" className={`miratab${mode === 'friend' ? ' on' : ''}`}
           aria-pressed={mode === 'friend'} onClick={() => pickMode('friend')}>
           Friend
@@ -251,6 +267,7 @@ export function MiraThread({ weeksKnown = 0, dial, about }: {
           aria-pressed={mode === 'city'} onClick={() => pickMode('city')}>
           City assistant
         </button>
+        </div>
       </div>
       <div className="miraturns">
         {/* The opening is the empty state, not a permanent banner. Once there is
