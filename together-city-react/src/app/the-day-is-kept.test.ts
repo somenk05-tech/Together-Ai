@@ -215,11 +215,13 @@ describe('a day can be looked back on', () => {
     }
   });
 
-  it('saves one box at a time, so filling one cannot wipe another', () => {
-    // Eleven answers share one JSON column; each is written alone and the
-    // server merges. Sending the whole object would overwrite a box somebody
-    // filled in another tab — the partial-save bug, one level down.
-    expect(page).toMatch(/save\.mutate\(\{ reflection: \{ \[k\]: text \} \}\)/);
+  it('saves what changed on the sheet, and only what changed', () => {
+    // Eleven answers share one JSON column and the server merges the keys it is
+    // given, so sending all eleven would overwrite a box filled in another tab
+    // with the blank this screen happens to be holding — the partial-save bug,
+    // one level down. The Save button diffs against the day's own copy.
+    expect(page).toMatch(/if \(now !== was\) patchSheet\[k\] = now/);
+    expect(page).toMatch(/save\.mutate\(\{ reflection: patchSheet \}\)/);
     expect(api).toMatch(/reflection\?: Reflection/);
   });
 
@@ -235,9 +237,41 @@ describe('a day can be looked back on', () => {
     expect(page).not.toMatch(/average|yesterday|last week|out of 10 so far|\btrend\b/i);
   });
 
-  it('a box that is emptied is cleared rather than left standing', () => {
-    // The rule the mood chips earned, applied inside the JSON column.
-    expect(page).toMatch(/if \(text !== now\)/);
+  /**
+   * EVERY SECTION SAYS "KEPT", AND SAYS IT BY CLOSING.
+   *
+   * "All the other tabs need to have a save button, and once saved it gets
+   * collapsed" — the owner, 15 Aug. Every field on this page used to save
+   * silently on blur, which is invisible; a page that never says it kept
+   * anything is a page you cannot trust with a diary.
+   */
+  it('gives every section a button that keeps it and shuts it', () => {
+    for (const id of ['feel', 'todo', 'keep', 'look', 'write']) {
+      expect({ section: id, lidded: page.includes(`id="${id}"`) }).toEqual({ section: id, lidded: true });
+    }
+    expect(page).toMatch(/shut\('look'\)/);
+    expect(page).toMatch(/shut\('write'\)/);
+  });
+
+  it('but a tick, a picture and a mood never wait for a button', () => {
+    // They are ACTIONS, not fields. A tick that waited for Save is a tick you
+    // can lose by closing a tab, and nobody expects to save a checkbox.
+    expect(page).toMatch(/patch\.mutate\(\{ id: it\.id, done: !it\.done \}\)/);
+    expect(page).toMatch(/save\.mutate\(\{ mood:/);
+  });
+
+  it('and the time box opens on the time it is', () => {
+    // An empty time field is where the half-written-time problem came from;
+    // one that opens already filled cannot be half-written. Still optional —
+    // clearing it adds the line without an hour.
+    expect(page).toMatch(/useState\(nowHHMM\)/);
+    expect(page).toMatch(/setAt\(nowHHMM\(\)\)/);
+  });
+
+  it('and a write that fails says so instead of looking like a dead button', () => {
+    // A line typed, a button pressed and nothing appearing is indistinguishable
+    // from a broken product.
+    expect(page).toMatch(/add\.isError/);
   });
 });
 

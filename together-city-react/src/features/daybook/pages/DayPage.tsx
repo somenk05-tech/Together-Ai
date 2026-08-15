@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Icon } from '@/components/ui/Icon';
-import { Spinner } from '@/components/ui';
+import { Fold, Spinner } from '@/components/ui';
 import { MiraMark } from '@/features/chat/mira/MiraMark';
 import { MiraDay } from '@/features/daybook/MiraDay';
 import { uploadErrorMessage } from '@/api/media.api';
 import {
   useDay, useSaveDay, useAddDayItem, usePatchDayItem, useRemoveDayItem,
   useAddDayPhoto, useRemoveDayPhoto,
-  type DayItemKind, type ReflectionKey,
+  type DayItemKind, type Reflection, type ReflectionKey,
 } from '@/api/daybook.api';
 
 /**
@@ -74,29 +74,73 @@ function shift(date: string, by: number): string {
   return `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, '0')}-${String(at.getDate()).padStart(2, '0')}`;
 }
 
+/** The clock, as HH:MM in the citizen's own zone. The line box opens on the
+ *  time it is — the owner, 15 Aug: "the time should start from live time". An
+ *  empty time field is where the half-written-time problem came from, and a
+ *  field that opens already filled cannot be half-written. */
+function nowHHMM(): string {
+  const n = new Date();
+  return `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
+}
+
 /**
  * ONE BOX ON THE LOOKING-BACK SHEET: a question, and room to answer it.
  *
  * DECLARED OUT HERE, not inside DayPage, and that is not tidiness. A component
  * defined inside a render function is a NEW TYPE on every render, so React
  * unmounts and remounts it — which for a box somebody is typing into means the
- * caret jumps to the end of their sentence the moment anything else on the page
- * saves. The answer lives in local state and is written on blur, like every
- * other field here; the day's copy re-seeds it, and re-seeding with the same
- * string is a no-op, so nothing moves under a hand mid-word.
+ * caret jumps to the end of their sentence every time anything else on the page
+ * re-renders.
+ *
+ * IT IS CONTROLLED BY THE SHEET NOW, not by its own state. The sheet has one
+ * Save button (owner, 15 Aug) rather than eleven silent saves on blur, so the
+ * answers have to live where the button can see them.
  */
-function AskBox({ label, value, rows, onSave }: {
-  label: string; value: string; rows: number; onSave: (text: string) => void;
+function AskBox({ label, value, rows, onChange }: {
+  label: string; value: string; rows: number; onChange: (text: string) => void;
 }) {
-  const [v, setV] = useState(value);
-  useEffect(() => { setV(value); }, [value]);
   return (
     <label className="dayb-box">
       <span className="dayb-lab">{label}</span>
-      <textarea className="dayb-ans" rows={rows} value={v}
-        onChange={(e) => setV(e.target.value)}
-        onBlur={() => { if (v !== value) onSave(v); }} />
+      <textarea className="dayb-ans" rows={rows} value={value}
+        onChange={(e) => onChange(e.target.value)} />
     </label>
+  );
+}
+
+/**
+ * A SECTION OF THE DAY, WITH A LID — AND IT IS THE CITY'S FOLD, NOT A NEW ONE.
+ *
+ * "All the other tabs need to have a save button, and once saved it gets
+ * collapsed" — the owner, 15 Aug, and the reason he is right is that every
+ * field on this page saved silently when you clicked away. Silent is invisible,
+ * and a page that never says "kept" is a page you cannot trust with a diary.
+ * The fix is not a toast that fades: it is the section closing, which is what a
+ * notebook does when you have finished with a page.
+ *
+ * THE FIRST VERSION OF THIS WROTE ITS OWN DISCLOSURE — face, panel, state,
+ * `aria-expanded` — and `a-read-section-folds-itself.test.ts` refused it, which
+ * is the entire reason that test exists: a second implementation of a fold is
+ * how one of them quietly stops announcing itself to a screen reader. So `Fold`
+ * learned two things instead (a caller-held open state, and a control beside
+ * the face), and the city still has exactly one disclosure in it.
+ *
+ * Nothing is destroyed by closing, and nothing waits for the button: moods,
+ * lines and pictures write themselves the moment they are touched, because
+ * those are ACTIONS. The button is for the boxes somebody types into.
+ */
+function Sec({ id, title, summary, open, onToggle, action, children }: {
+  id: string; title: string; summary?: string; open: boolean; onToggle: () => void;
+  action?: React.ReactNode; children: React.ReactNode;
+}) {
+  return (
+    <section className="card rise dayb-sec" data-sec={id}>
+      <Fold title={title} meta={!open && summary ? summary : undefined}
+        open={open} onOpenChange={onToggle} action={action}
+        face="dayb-lid" panel="dayb-panel">
+        {children}
+      </Fold>
+    </section>
   );
 }
 
@@ -115,21 +159,34 @@ export function DayPage() {
   const [journal, setJournal] = useState('');
   const [title, setTitle] = useState('');
   const [kind, setKind] = useState<DayItemKind>('task');
-  const [at, setAt] = useState('');
+  /* THE TIME BOX OPENS ON THE TIME IT IS (owner, 15 Aug). An empty time field
+     is where the half-written-time problem came from in the first place, and a
+     field that starts filled cannot be half-written. It is still optional —
+     clearing it adds the line without an hour, which most lines want. */
+  const [at, setAt] = useState(nowHHMM);
   const [askMira, setAskMira] = useState(false);
   const [timeErr, setTimeErr] = useState('');
   const [photoErr, setPhotoErr] = useState('');
   const timeRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  /* Which sections are open. Everything opens open; Save shuts the one it is
+     in; the header opens it again. Not persisted — a lid is about this visit. */
+  const [open, setOpen] = useState<Record<string, boolean>>({
+    feel: true, todo: true, keep: true, look: true, write: true,
+  });
+  const lid = (k: string) => setOpen((o) => ({ ...o, [k]: !o[k] }));
+  const shut = (k: string) => setOpen((o) => ({ ...o, [k]: false }));
 
   /* THE SERVER'S COPY IS THE TRUTH, AND IT ARRIVES AFTER THE FIRST PAINT. The
-     two long fields are typed into, so they hold local state — seeded once the
-     day lands, and never re-seeded under somebody mid-sentence. */
+     typed fields hold local state — seeded once the day lands, and never
+     re-seeded under somebody mid-sentence. */
+  const [sheet, setSheet] = useState<Reflection>({});
   const loaded = day.data?.date;
   useEffect(() => {
     if (!loaded) return;
     setFeelNote(day.data?.feelNote ?? '');
     setJournal(day.data?.journal ?? '');
+    setSheet(day.data?.reflection ?? {});
   }, [loaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { weekday, rest } = useMemo(() => longDate(valid ? date : '1970-01-01'), [date, valid]);
@@ -137,16 +194,38 @@ export function DayPage() {
   const photos = day.data?.photos ?? [];
   const look = day.data?.reflection ?? {};
 
-  /** A box on the looking-back sheet, wired to its one key. Each answer is
-   *  saved ALONE — the server merges it into the sheet — so filling in one box
-   *  cannot overwrite a box filled somewhere else. */
-  const ask = (k: ReflectionKey, label: string, rows = 3) => {
-    const now = (look[k] ?? '') as string;
-    return (
-      <AskBox key={k} label={label} rows={rows} value={String(now)}
-        onSave={(text) => { if (text !== now) save.mutate({ reflection: { [k]: text } }); }} />
-    );
+  /** A box on the looking-back sheet, wired to its one key in the local sheet.
+   *  Nothing is written until Save. */
+  const ask = (k: ReflectionKey, label: string, rows = 3) => (
+    <AskBox key={k} label={label} rows={rows} value={String(sheet[k] ?? '')}
+      onChange={(text) => setSheet((s) => ({ ...s, [k]: text }))} />
+  );
+
+  /**
+   * SAVE THE SHEET — AND ONLY WHAT CHANGED ON IT.
+   *
+   * The server merges the keys it is given, so sending all eleven would
+   * overwrite a box filled in another tab five minutes ago with the blank this
+   * screen happens to be holding. Diffing against the day's own copy means the
+   * button writes what this person just wrote and nothing else.
+   */
+  const saveSheet = () => {
+    const patchSheet: Record<string, string> = {};
+    for (const k of Object.keys(sheet) as ReflectionKey[]) {
+      if (k === 'feeling') continue; // a tap, saved when it is tapped
+      const was = String(look[k] ?? '');
+      const now = String(sheet[k] ?? '');
+      if (now !== was) patchSheet[k] = now;
+    }
+    if (Object.keys(patchSheet).length) save.mutate({ reflection: patchSheet });
+    shut('look');
   };
+
+  /** The one-line summary a shut section shows. Facts about what is inside —
+   *  never a mark, never a fraction of a target, never a comparison. */
+  const answered = (Object.keys(look) as ReflectionKey[])
+    .filter((k) => k !== 'feeling' && String(look[k] ?? '').trim()).length;
+  const words = journal.trim() ? journal.trim().split(/\s+/).length : 0;
 
   /**
    * KEEP A PICTURE. One at a time through the mutation, so a failure names the
@@ -208,8 +287,14 @@ export function DayPage() {
       ) : (
         <>
           {/* ── 01 · FEEL ────────────────────────────────────────────────── */}
-          <section className="card rise dayb-sec">
-            <h2 className="dayb-h">How did today feel?</h2>
+          <Sec id="feel" title="How did today feel?" open={open.feel} onToggle={() => lid('feel')}
+            summary={[day.data?.mood, look.feeling ? `${look.feeling} out of 10` : null].filter(Boolean).join(' · ')}
+            action={(
+              <button type="button" className="btn btn-sm" onClick={() => {
+                if (feelNote !== (day.data?.feelNote ?? '')) save.mutate({ feelNote });
+                shut('feel');
+              }}>Save</button>
+            )}>
             <div className="dayb-moods" role="group" aria-label="How today felt">
               {MOODS.map((m) => (
                 <button key={m} type="button"
@@ -247,13 +332,28 @@ export function DayPage() {
             <label className="dayb-label" htmlFor="dayb-feel">What&rsquo;s behind it?</label>
             <textarea id="dayb-feel" className="dayb-note" rows={2} value={feelNote}
               onChange={(e) => setFeelNote(e.target.value)}
-              onBlur={() => { if (feelNote !== (day.data?.feelNote ?? '')) save.mutate({ feelNote }); }}
               placeholder="Optional — a line, if there is one." />
-          </section>
+          </Sec>
 
           {/* ── 02 · DO ──────────────────────────────────────────────────── */}
-          <section className="card rise dayb-sec">
-            <h2 className="dayb-h">On this day</h2>
+          <Sec id="todo" title="On this day" open={open.todo} onToggle={() => lid('todo')}
+            summary={items.length ? `${items.length} line${items.length === 1 ? '' : 's'}` : undefined}
+            action={(
+              /* SAVE HERE MEANS "PUT THE LINE I HAVE TYPED ON THE DAY, THEN
+                 CLOSE". The ticks and the removals write themselves the moment
+                 they happen — they are actions, and a tick that waited for a
+                 button would be a tick you could lose. What can be pending in
+                 this section is the half-typed line in the box, so that is
+                 what the button commits. */
+              <button type="button" className="btn btn-sm" onClick={() => {
+                const clean = title.trim();
+                if (clean) {
+                  add.mutate({ kind, title: clean, at: at || null });
+                  setTitle(''); setAt(nowHHMM());
+                }
+                setTimeErr(''); shut('todo');
+              }}>Save</button>
+            )}>
             {items.length === 0 && <p className="muted dayb-empty">Nothing down yet.</p>}
             <ul className="dayb-items">
               {items.map((it) => (
@@ -301,7 +401,7 @@ export function DayPage() {
               }
               setTimeErr('');
               add.mutate({ kind, title: clean, at: at || null });
-              setTitle(''); setAt('');
+              setTitle(''); setAt(nowHHMM());
             }}>
               <select aria-label="What kind" value={kind} onChange={(e) => setKind(e.target.value as DayItemKind)}>
                 {KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
@@ -313,11 +413,21 @@ export function DayPage() {
               <button type="submit" className="btn btn-sm" disabled={!title.trim() || add.isPending}>Add</button>
             </form>
             {timeErr && <p className="dayb-say" role="alert">{timeErr}</p>}
-          </section>
+            {/* AND IF THE WRITE ITSELF FAILS, THE PAGE SAYS SO. A line typed,
+                a button pressed and nothing appearing is indistinguishable
+                from a broken product — which is exactly what it looked like
+                from the outside when the time field was refusing the submit. */}
+            {add.isError && (
+              <p className="dayb-say" role="alert">
+                That line didn&rsquo;t reach your day — nothing was saved. Try again in a moment.
+              </p>
+            )}
+          </Sec>
 
           {/* ── 03 · REMEMBER ────────────────────────────────────────────── */}
-          <section className="card rise dayb-sec">
-            <h2 className="dayb-h">Something to remember</h2>
+          <Sec id="keep" title="Something to remember" open={open.keep} onToggle={() => lid('keep')}
+            summary={photos.length ? `${photos.length} picture${photos.length === 1 ? '' : 's'}` : undefined}
+            action={<button type="button" className="btn btn-sm" onClick={() => shut('keep')}>Done</button>}>
             {photos.length > 0 && (
               <ul className="dayb-pics">
                 {photos.map((p) => (
@@ -356,11 +466,13 @@ export function DayPage() {
               Private — only you. Where a photo was taken is removed before it leaves this device.
             </p>
             {photoErr && <p className="dayb-say" role="alert">{photoErr}</p>}
-          </section>
+          </Sec>
 
           {/* ── 04 · LOOK BACK ───────────────────────────────────────────── */}
-          <section className="card rise dayb-sec dayb-sheet">
-            <h2 className="dayb-h">Looking back on today</h2>
+          <Sec id="look" title="Looking back on today" open={open.look} onToggle={() => lid('look')}
+            summary={answered ? `${answered} answered` : undefined}
+            action={<button type="button" className="btn btn-sm" onClick={saveSheet}>Save</button>}>
+            <div className="dayb-sheet">
 
             {ask('wentWell', 'What went well today?', 4)}
             <div className="dayb-two">
@@ -388,21 +500,27 @@ export function DayPage() {
               {ask('tomorrow', 'Tomorrow’s focus')}
               <span className="dayb-reset" aria-hidden>Mindset<br />reset</span>
             </div>
-          </section>
+            </div>
+          </Sec>
 
           {/* ── 05 · WRITE ───────────────────────────────────────────────── */}
-          <section className="card rise dayb-sec">
-            <h2 className="dayb-h">Write about today</h2>
+          <Sec id="write" title="Write about today" open={open.write} onToggle={() => lid('write')}
+            summary={words ? `${words} word${words === 1 ? '' : 's'}` : undefined}
+            action={(
+              <button type="button" className="btn btn-sm" onClick={() => {
+                if (journal !== (day.data?.journal ?? '')) save.mutate({ journal });
+                shut('write');
+              }}>Save</button>
+            )}>
             <textarea className="dayb-journal" rows={10} value={journal}
               aria-label="Write about today"
               onChange={(e) => setJournal(e.target.value)}
-              onBlur={() => { if (journal !== (day.data?.journal ?? '')) save.mutate({ journal }); }}
               placeholder="What do you want to remember about today?" />
             <p className="dayb-foot">
-              {journal.trim() ? `${journal.trim().split(/\s+/).length} words · ` : ''}
-              Private — only you. {save.isPending ? 'Saving…' : 'Saved when you click away.'}
+              {words ? `${words} word${words === 1 ? '' : 's'} · ` : ''}
+              Private — only you. {save.isPending ? 'Saving…' : 'Save keeps it and closes the page.'}
             </p>
-          </section>
+          </Sec>
 
           {/* ── 06 · MIRA ────────────────────────────────────────────────── */}
           <section className="dayb-mira">

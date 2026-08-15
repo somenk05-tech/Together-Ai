@@ -25,7 +25,8 @@ import { useId, useState, type ReactNode } from 'react';
  * already knows, and the word on the right says everything an arrow would.
  */
 export function Fold({
-  title, meta, defaultOpen = false, face = 'fold', panel = 'fold-open', children,
+  title, meta, defaultOpen = false, face = 'fold', panel = 'fold-open',
+  open: openProp, onOpenChange, action, children,
 }: {
   title: ReactNode;
   /**
@@ -40,18 +41,41 @@ export function Fold({
   face?: string;
   /** Class for the panel, which only exists while it is open. */
   panel?: string;
+  /**
+   * CONTROLLED, WHEN SOMETHING ELSE HAS TO BE ABLE TO CLOSE IT. The daybook's
+   * sections shut when their own Save is pressed (owner, 15 Aug), which a fold
+   * holding its own state cannot know about — so the caller may hold it and
+   * hand it back. Omit both and it keeps its own, exactly as every caller
+   * written before this one does.
+   */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /**
+   * A CONTROL BESIDE THE FACE — a Save, a Done. It cannot go INSIDE the face:
+   * that is a button, and a button inside a button is markup no two browsers
+   * agree on. So a fold WITH an action gains a row for the pair to sit in, and
+   * a fold without one renders the DOM every caller before this rendered. A new
+   * capability that changes the markup of the callers not using it is how a
+   * shared component becomes a shared risk.
+   */
+  action?: ReactNode;
   children: ReactNode;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [self, setSelf] = useState(defaultOpen);
+  const open = openProp ?? self;
+  const toggle = () => (onOpenChange ? onOpenChange(!open) : setSelf(!open));
   const id = useId();
+  const lid = (
+    <button type="button" className={face}
+      onClick={toggle} aria-expanded={open} aria-controls={id}>
+      <span className="t">{title}</span>
+      {meta && <span className="m">{meta}</span>}
+      <span className="s" aria-hidden>{open ? 'Close −' : 'Open +'}</span>
+    </button>
+  );
   return (
     <>
-      <button type="button" className={face}
-        onClick={() => setOpen(!open)} aria-expanded={open} aria-controls={id}>
-        <span className="t">{title}</span>
-        {meta && <span className="m">{meta}</span>}
-        <span className="s" aria-hidden>{open ? 'Close −' : 'Open +'}</span>
-      </button>
+      {action ? <div className="fold-hd">{lid}<span className="fold-act">{action}</span></div> : lid}
       {open && <div className={panel} id={id}>{children}</div>}
     </>
   );
