@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { StorageProvider } from '../media/storage.provider';
 
 /**
  * THE DAYBOOK.
@@ -30,27 +31,77 @@ export interface DayItemRow {
   done: boolean;
 }
 
+/** Ten megabytes is a photograph off a phone with room to spare, and nowhere
+ *  near a video. The vault's own ceiling is 50MB and applies to documents. */
+const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+
+/** The extension to store under. Narrow on purpose — `presignPhoto` has
+ *  already refused anything that is not an image, so this list is the whole
+ *  world it has to describe. */
+function extFor(mimeType: string): string {
+  const known: Record<string, string> = {
+    'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png',
+    'image/webp': 'webp', 'image/gif': 'gif', 'image/heic': 'heic', 'image/heif': 'heif',
+  };
+  return known[mimeType] ?? 'jpg';
+}
+
+/** A photograph on a day, as the page needs it: an id to remove it by, and a
+ *  link that stops working. Never the object key — the key is the thing that
+ *  proves ownership, and it has no business in a browser. */
+export interface DayPhotoRow {
+  id: string;
+  url: string | null;
+  createdAt: string;
+}
+
+/** What the month grid is allowed to know about a day: that it holds things,
+ *  how it felt, and the first picture kept on it. Never a word of the writing. */
+export interface MonthMark {
+  items: number;
+  written: boolean;
+  mood: string | null;
+  photo: string | null;
+  photos: number;
+}
+
 export interface DayRecord {
   date: string;
   mood: string | null;
   feelNote: string | null;
   journal: string | null;
   items: DayItemRow[];
+  photos: DayPhotoRow[];
 }
 
 @Injectable()
 export class DaybookService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageProvider,
+  ) {}
 
   /** One day, as they left it. Empty is a real answer, not a miss. */
   async day(userId: string, date: string): Promise<DayRecord> {
-    const [page, items] = await Promise.all([
+    const [page, items, photos] = await Promise.all([
       this.prisma.dayPage.findUnique({ where: { userId_date: { userId, date } } }),
       this.prisma.dayItem.findMany({
         where: { userId, date },
         orderBy: [{ at: 'asc' }, { createdAt: 'asc' }],
       }),
+      this.prisma.dayPhoto.findMany({ where: { userId, date }, orderBy: { createdAt: 'asc' } }),
     ]);
+    /* THE LINK IS MADE HERE, PER READ, AND IT EXPIRES. A diary photograph lives
+       in the private vault; what the page gets is a signed GET that dies in
+       minutes. Fetching the day again mints new ones, which is why the browser
+       never needs — and never receives — the key. */
+    const seen = await Promise.all(
+      (photos as Array<{ id: string; fileKey: string; createdAt: Date }>).map(async (p) => ({
+        id: p.id,
+        url: await this.storage.presignPrivateDownload(p.fileKey),
+        createdAt: p.createdAt.toISOString(),
+      })),
+    );
     return {
       date,
       mood: page?.mood ?? null,
@@ -59,7 +110,66 @@ export class DaybookService {
       items: items.map((i: { id: string; kind: string; title: string; at: string | null; done: boolean }) => ({
         id: i.id, kind: i.kind, title: i.title, at: i.at, done: i.done,
       })),
+      photos: seen,
     };
+  }
+
+  /**
+   * A place to put the bytes. The browser PUTs straight to the vault, so this
+   * is the only moment the server can decide WHERE — hence the namespace, and
+   * hence images only: a diary that accepts any file is a file store, and a
+   * file store with no quota attached to a diary is somebody's backup drive.
+   */
+  presignPhoto(userId: string, mimeType: string, sizeBytes: number) {
+    if (!mimeType.startsWith('image/')) {
+      throw new BadRequestException('A memory kept on a day is a picture.');
+    }
+    if (sizeBytes <= 0 || sizeBytes > MAX_PHOTO_BYTES) {
+      throw new BadRequestException(`A picture may be up to ${Math.round(MAX_PHOTO_BYTES / 1024 / 1024)}MB.`);
+    }
+    return this.storage.presignDaybookUpload(userId, mimeType, extFor(mimeType));
+  }
+
+  /**
+   * File an uploaded picture on a day.
+   *
+   * TWO CHECKS, AND NEITHER IS OPTIONAL. The key comes from the client, so the
+   * first asks whether it is even this citizen's key — the namespace is the
+   * proof, which is why the namespace exists. The second asks whether the
+   * object is actually THERE: a browser PUT that failed silently would
+   * otherwise leave a row pointing at nothing, and a diary showing a broken
+   * frame where a memory was is a worse lie than showing none.
+   */
+  async addPhoto(
+    userId: string,
+    date: string,
+    photo: { fileKey: string; mimeType?: string; sizeBytes?: number },
+  ): Promise<DayRecord> {
+    if (!StorageProvider.isOwnDaybookKey(userId, photo.fileKey)) {
+      throw new ForbiddenException('That file is not yours.');
+    }
+    if (!(await this.storage.privateObjectExists(photo.fileKey))) {
+      throw new BadRequestException('That picture did not finish uploading — try it again.');
+    }
+    await this.prisma.dayPhoto.create({
+      data: {
+        userId, date,
+        fileKey: photo.fileKey,
+        mimeType: photo.mimeType ?? null,
+        sizeBytes: photo.sizeBytes ?? 0,
+      },
+    });
+    return this.day(userId, date);
+  }
+
+  /** Take it off the day — and out of the vault. A picture somebody removed
+   *  from their diary is not a picture they meant to keep somewhere else. */
+  async removePhoto(userId: string, id: string): Promise<DayRecord | null> {
+    const row = await this.prisma.dayPhoto.findFirst({ where: { id, userId } });
+    if (!row) return null;
+    await this.prisma.dayPhoto.delete({ where: { id } });
+    await this.storage.deletePrivateObject(row.fileKey);
+    return this.day(userId, row.date);
   }
 
   /**
@@ -134,23 +244,45 @@ export class DaybookService {
    * month, and the answer is counts rather than contents: the grid is not
    * allowed to leak what a day says, only that it says something.
    */
-  async month(userId: string, ym: string): Promise<Record<string, { items: number; written: boolean; mood: string | null }>> {
+  async month(userId: string, ym: string): Promise<Record<string, MonthMark>> {
     const from = `${ym}-00`;
     const to = `${ym}-99`;
-    const [pages, items] = await Promise.all([
+    const [pages, items, photos] = await Promise.all([
       this.prisma.dayPage.findMany({ where: { userId, date: { gte: from, lte: to } } }),
       this.prisma.dayItem.findMany({ where: { userId, date: { gte: from, lte: to } }, select: { date: true } }),
+      this.prisma.dayPhoto.findMany({
+        where: { userId, date: { gte: from, lte: to } },
+        select: { date: true, fileKey: true },
+        orderBy: { createdAt: 'asc' },
+      }),
     ]);
-    const out: Record<string, { items: number; written: boolean; mood: string | null }> = {};
+    const blank = (): MonthMark => ({ items: 0, written: false, mood: null, photo: null, photos: 0 });
+    const out: Record<string, MonthMark> = {};
     for (const i of items as Array<{ date: string }>) {
-      out[i.date] = out[i.date] ?? { items: 0, written: false, mood: null };
+      out[i.date] = out[i.date] ?? blank();
       out[i.date].items += 1;
     }
     for (const p of pages as Array<{ date: string; mood: string | null; journal: string | null; feelNote: string | null }>) {
-      out[p.date] = out[p.date] ?? { items: 0, written: false, mood: null };
+      out[p.date] = out[p.date] ?? blank();
       out[p.date].written = Boolean((p.journal ?? '').trim() || (p.feelNote ?? '').trim());
       out[p.date].mood = p.mood ?? null;
     }
+    /* ONE PICTURE PER DAY REACHES THE GRID — the first one kept, as a link that
+       expires like every other. This is the ONE thing the month is allowed to
+       show of a day's contents, and it is the owner's call (15 Aug): a month of
+       photographs is what makes this a scrapbook rather than a filing system.
+       The words are a different matter and stay behind the door: a picture
+       glanced at across a room is a memory, a sentence read across a room is
+       something somebody wrote down in confidence. */
+    const firstOf = new Map<string, string>();
+    for (const p of photos as Array<{ date: string; fileKey: string }>) {
+      out[p.date] = out[p.date] ?? blank();
+      out[p.date].photos += 1;
+      if (!firstOf.has(p.date)) firstOf.set(p.date, p.fileKey);
+    }
+    await Promise.all([...firstOf.entries()].map(async ([date, key]) => {
+      out[date].photo = await this.storage.presignPrivateDownload(key);
+    }));
     return out;
   }
 }

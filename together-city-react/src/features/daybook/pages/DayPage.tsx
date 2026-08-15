@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Icon } from '@/components/ui/Icon';
 import { Spinner } from '@/components/ui';
 import { MiraMark } from '@/features/chat/mira/MiraMark';
 import { MiraDay } from '@/features/daybook/MiraDay';
+import { uploadErrorMessage } from '@/api/media.api';
 import {
   useDay, useSaveDay, useAddDayItem, usePatchDayItem, useRemoveDayItem,
+  useAddDayPhoto, useRemoveDayPhoto,
   type DayItemKind,
 } from '@/api/daybook.api';
 
@@ -18,9 +20,15 @@ import {
  * calendar tells you what is scheduled, and what people actually want is a
  * record of the day. So the grid became the map, and this is the place.
  *
- * FOUR LAYERS, IN THE ORDER A DAY IS ACTUALLY LIVED: how it feels, what is on
- * it, what was written about it, and — quietly at the end — Mira, who can read
- * this one day back to you.
+ * FIVE LAYERS, IN THE ORDER A DAY IS ACTUALLY LIVED: how it feels, what is on
+ * it, what you want to remember of it, what was written about it, and — quietly
+ * at the end — Mira, who can read this one day back to you.
+ *
+ * THE PICTURES ARE THE ONE THING HERE THAT LEAVES THE DEVICE AS A FILE, and
+ * they go to the private vault, never the public bucket: signed links that
+ * expire, no permanent address, the coordinates taken out of the bytes before
+ * they leave. A photograph in somebody's diary is the most private image in
+ * this application and the storage has to say so, not the copy.
  *
  * WHAT THIS PAGE REFUSES TO DO. It does not score the day. No "2 of 5 done",
  * no streak, no empty-state cheerleading, no prompt written by the product
@@ -64,6 +72,8 @@ export function DayPage() {
   const add = useAddDayItem(date);
   const patch = usePatchDayItem(date);
   const remove = useRemoveDayItem(date);
+  const addPhoto = useAddDayPhoto(date);
+  const dropPhoto = useRemoveDayPhoto(date);
 
   const [feelNote, setFeelNote] = useState('');
   const [journal, setJournal] = useState('');
@@ -71,6 +81,10 @@ export function DayPage() {
   const [kind, setKind] = useState<DayItemKind>('task');
   const [at, setAt] = useState('');
   const [askMira, setAskMira] = useState(false);
+  const [timeErr, setTimeErr] = useState('');
+  const [photoErr, setPhotoErr] = useState('');
+  const timeRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   /* THE SERVER'S COPY IS THE TRUTH, AND IT ARRIVES AFTER THE FIRST PAINT. The
      two long fields are typed into, so they hold local state — seeded once the
@@ -84,6 +98,26 @@ export function DayPage() {
 
   const { weekday, rest } = useMemo(() => longDate(valid ? date : '1970-01-01'), [date, valid]);
   const items = day.data?.items ?? [];
+  const photos = day.data?.photos ?? [];
+
+  /**
+   * KEEP A PICTURE. One at a time through the mutation, so a failure names the
+   * file it happened to rather than failing the whole selection silently.
+   */
+  const keep = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setPhotoErr('');
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith('image/')) { setPhotoErr(`${file.name} is not a picture.`); continue; }
+      try {
+        await addPhoto.mutateAsync(file);
+      } catch (e) {
+        setPhotoErr(uploadErrorMessage(e));
+        break;
+      }
+    }
+    if (fileRef.current) fileRef.current.value = '';
+  };
 
   if (!valid) {
     return (
@@ -171,10 +205,29 @@ export function DayPage() {
               ))}
             </ul>
 
-            <form className="dayb-add" onSubmit={(e) => {
+            {/* THE TIME IS OPTIONAL, AND THE BROWSER HAD NOT BEEN TOLD.
+                A half-typed time field — :30 with no hour, which is what you
+                get by tabbing in and typing the minutes first — is `badInput`:
+                its value is empty and native validation refuses to submit the
+                form, so Safari answered "Add" with a red "Invalid value"
+                bubble and the line was never added. The field was never
+                required; the browser was enforcing a rule nobody wrote.
+
+                `noValidate` hands the decision back to us, and we make it out
+                loud: a finished time is used, no time at all is used (most of
+                what people mean to do has no hour), and a HALF-WRITTEN time
+                stops and says so rather than being quietly dropped — because
+                somebody who typed 30 meant something by it. */}
+            <form className="dayb-add" noValidate onSubmit={(e) => {
               e.preventDefault();
               const clean = title.trim();
               if (!clean) return;
+              if (timeRef.current?.validity.badInput) {
+                setTimeErr('That time is half-written — finish it, or clear it and add this without one.');
+                timeRef.current.focus();
+                return;
+              }
+              setTimeErr('');
               add.mutate({ kind, title: clean, at: at || null });
               setTitle(''); setAt('');
             }}>
@@ -183,13 +236,57 @@ export function DayPage() {
               </select>
               <input aria-label="What is it" value={title} onChange={(e) => setTitle(e.target.value)}
                 placeholder="Add something to this day…" maxLength={300} />
-              <input aria-label="At what time (optional)" type="time" value={at}
-                onChange={(e) => setAt(e.target.value)} />
+              <input ref={timeRef} aria-label="At what time (optional)" type="time" value={at}
+                onChange={(e) => { setAt(e.target.value); if (timeErr) setTimeErr(''); }} />
               <button type="submit" className="btn btn-sm" disabled={!title.trim() || add.isPending}>Add</button>
             </form>
+            {timeErr && <p className="dayb-say" role="alert">{timeErr}</p>}
           </section>
 
-          {/* ── 03 · WRITE ───────────────────────────────────────────────── */}
+          {/* ── 03 · REMEMBER ────────────────────────────────────────────── */}
+          <section className="card rise dayb-sec">
+            <h2 className="dayb-h">Something to remember</h2>
+            {photos.length > 0 && (
+              <ul className="dayb-pics">
+                {photos.map((p) => (
+                  <li key={p.id} className="dayb-pic">
+                    {p.url ? (
+                      <a href={p.url} target="_blank" rel="noreferrer">
+                        <img src={p.url} alt={`A picture kept on ${rest}`} loading="lazy" />
+                      </a>
+                    ) : (
+                      // Not a broken frame: a picture that is there and cannot
+                      // be shown right now is a different fact from no picture.
+                      <span className="dayb-pic-away muted">Kept — can&rsquo;t be shown just now</span>
+                    )}
+                    <button type="button" className="dayb-drop" aria-label="Remove this picture"
+                      onClick={() => dropPhoto.mutate({ id: p.id })}>
+                      <Icon name="close" size={14} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <label className="btn btn-sm dayb-keep">
+              {/* The formats the vault actually stores, named rather than
+                  `image/*`. Two reasons, and the second is the real one: the
+                  server refuses anything else anyway, so the picker should not
+                  offer it — and `image/*` puts the characters that open a
+                  comment inside a string, which every guard in this repo that
+                  strips comments before reading source would swallow the rest
+                  of the file on. */}
+              <input ref={fileRef} type="file" multiple
+                accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif"
+                onChange={(e) => void keep(e.target.files)} />
+              {addPhoto.isPending ? 'Keeping…' : 'Keep a picture'}
+            </label>
+            <p className="dayb-foot">
+              Private — only you. Where a photo was taken is removed before it leaves this device.
+            </p>
+            {photoErr && <p className="dayb-say" role="alert">{photoErr}</p>}
+          </section>
+
+          {/* ── 04 · WRITE ───────────────────────────────────────────────── */}
           <section className="card rise dayb-sec">
             <h2 className="dayb-h">Write about today</h2>
             <textarea className="dayb-journal" rows={10} value={journal}
@@ -203,7 +300,7 @@ export function DayPage() {
             </p>
           </section>
 
-          {/* ── 04 · MIRA ────────────────────────────────────────────────── */}
+          {/* ── 05 · MIRA ────────────────────────────────────────────────── */}
           <section className="dayb-mira">
             <button type="button" className="mira-door" onClick={() => setAskMira(true)}
               aria-label="Ask Mira about this day" title="Mira can read this day back to you">

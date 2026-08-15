@@ -149,10 +149,23 @@ export function Calendar() {
               return (
                 <Link key={i} to={`/daybook/${dstr}`} className="cal-day"
                   aria-label={`Open ${dstr}${mark ? ' — this day has something on it' : ''}`}
-                  style={{ minHeight: 64, borderRadius: 8, padding: 6, border: '1px solid var(--line)', display: 'block',
+                  style={{ minHeight: 86, borderRadius: 8, padding: 6, border: '1px solid var(--line)', display: 'block',
                     textDecoration: 'none', color: 'var(--ink)',
                     background: isToday ? 'rgba(47,159,224,.10)' : 'transparent', outline: isToday ? '1px solid var(--accent)' : 'none' }}>
                   <div style={{ fontSize: 12, fontWeight: isToday ? 800 : 600, color: isToday ? 'var(--accent)' : 'var(--ink)' }}>{day}</div>
+                  {/* THE MONTH AS A SCRAPBOOK (owner, 15 Aug, with a reference
+                      of polaroids pinned across a month). The first picture
+                      kept on a day is pinned to its square — a photograph, and
+                      never a word of the writing, which is the line this grid
+                      still holds: a picture glanced at across a room is a
+                      memory; a sentence read across a room is something
+                      somebody wrote down in confidence. */}
+                  {mark?.photo ? (
+                    <span className="cal-pic">
+                      <img src={mark.photo} alt="" loading="lazy" />
+                      {mark.photos && mark.photos > 1 ? <span className="cal-pic-n">{mark.photos}</span> : null}
+                    </span>
+                  ) : null}
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 4, alignItems: 'center' }}>
                     {evs.map((e) => <span key={e.id} title={e.title} style={{ width: 6, height: 6, borderRadius: '50%', background: catColor(e.category) }} />)}
                     {mark?.items ? <span className="cal-mark">{mark.items}</span> : null}

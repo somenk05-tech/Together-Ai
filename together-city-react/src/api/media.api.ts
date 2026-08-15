@@ -111,4 +111,23 @@ export const mediaApi = {
     await axios.put(res.uploadUrl, safe, { headers: { 'Content-Type': safe.type } });
     return { fileKey: res.key, mimeType: safe.type, sizeBytes: safe.size };
   },
+
+  /**
+   * Upload a photograph somebody is keeping in their DAYBOOK — the private
+   * vault, the `daybook/<userId>/` namespace, key only.
+   *
+   * It comes through this file rather than the daybook's own api module for the
+   * reason at the top of it: the bytes go browser→bucket, so this is the last
+   * moment anything can be taken out of them, and a picture of a Tuesday
+   * afternoon at home carries the coordinates of the home. The scrub runs
+   * before the presign, because stripping changes the size the URL is signed
+   * against.
+   */
+  async uploadDaybook(file: File): Promise<{ fileKey: string; mimeType: string; sizeBytes: number }> {
+    const { file: safe } = await scrubImage(file, 'private');
+    const res = await apiPost('/daybook/photos/presign', { mimeType: safe.type, sizeBytes: safe.size },
+      z.object({ uploadUrl: z.string(), key: z.string(), expiresInSec: z.number().optional() }));
+    await axios.put(res.uploadUrl, safe, { headers: { 'Content-Type': safe.type } });
+    return { fileKey: res.key, mimeType: safe.type, sizeBytes: safe.size };
+  },
 };

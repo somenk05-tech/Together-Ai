@@ -3719,12 +3719,56 @@ textarea.g-field { resize: none; line-height: 1.55; }
 .dayb-add input[type="text"], .dayb-add input:not([type]) { flex: 1; min-width: 180px; }
 .dayb-add select, .dayb-add input { min-height: 44px; font: inherit; }
 
+/* Something that went wrong, said in the page rather than in a browser bubble:
+   a half-written time, an upload that did not land. Quiet, not alarming — the
+   diary is not the place for a red banner. */
+.dayb-say { margin: 10px 0 0; font-size: 12.5px; color: var(--ink-soft); }
+
+/* THE PICTURES KEPT ON A DAY. A contact sheet rather than a gallery: small,
+   square, in the order they were kept, the frame doing the work so the
+   photographs are the only thing with a shape of their own. */
+.dayb-pics { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+.dayb-pic { position: relative; aspect-ratio: 1; border-radius: var(--r-2); overflow: hidden; background: var(--well); }
+.dayb-pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dayb-pic .dayb-drop { position: absolute; top: 0; right: 0; min-width: 34px; min-height: 34px; color: var(--on-accent); }
+.dayb-pic-away { display: grid; place-items: center; height: 100%; padding: 8px; text-align: center; font-size: 11px; }
+/* The file input itself is never drawn — the label is the button, which is the
+   only way to give a file picker a control that matches everything else. */
+.dayb-keep input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.dayb-keep { position: relative; display: inline-flex; align-items: center; min-height: 44px; cursor: pointer; }
+
 .dayb-mira { display: flex; align-items: center; gap: 10px; margin-top: 18px; }
 .dayb-mira .muted { font-size: 13px; }
 .dayb-nav { display: flex; justify-content: space-between; gap: 12px; margin: 22px 0 0; font-size: 13px; }
 
 /* The month grid's marks: a count of what a day holds, and a dot for a day
    that was written in. What the day SAYS is never on the grid. */
+.cal-day { position: relative; }
 .cal-day:hover { background: var(--wash) !important; }
 .cal-mark { font-size: 10px; font-weight: 700; color: var(--muted); }
 .cal-written { font-size: 15px; line-height: 0; color: var(--muted); }
+
+/* THE PICTURE PINNED TO A DAY — the owner's reference, 15 Aug: a month with
+   photographs taped across it rather than a spreadsheet of dates.
+
+   It is drawn as a print rather than a thumbnail: a white face, a wider margin
+   at the foot the way a photograph printed at home has, and a degree or two of
+   rotation that alternates down the grid so no two neighbours sit at the same
+   angle. The rotation is a static transform and not an animation — there is
+   nothing here for the motion ceiling to count, and a calendar that wobbles
+   when you look at it is a different product. */
+.cal-pic {
+  display: block; width: 100%; max-width: 58px; margin: 5px auto 0;
+  padding: 3px 3px 7px; background: var(--card); box-shadow: var(--e1);
+  border-radius: 2px; transform: rotate(-2deg); position: relative;
+}
+.cal-day:nth-child(even) .cal-pic { transform: rotate(2deg); }
+.cal-day:nth-child(3n) .cal-pic { transform: rotate(-1deg); }
+.cal-pic img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 1px; }
+/* "And more behind this one." A number, not a stack of frames — the grid says
+   how much a day holds, and the day itself shows it. */
+.cal-pic-n {
+  position: absolute; right: -5px; bottom: -5px; min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 999px; background: var(--ink); color: var(--card);
+  font-size: 9.5px; font-weight: 700; display: grid; place-items: center; line-height: 1;
+}

@@ -39,12 +39,18 @@ describe('the calendar is a map now', () => {
     expect(cal).toMatch(/aria-label=\{`Open \$\{dstr\}/);
   });
 
-  it('the grid says a day holds something, never what it says', () => {
+  it('the grid says a day holds something, never what it SAYS', () => {
     expect(cal).toMatch(/useDaybookMonth/);
-    // Counts and a written-dot. If a title or a mood line ever reaches the
-    // grid, a shoulder reads somebody's Tuesday from across the room.
+    // Counts, a written-dot, and — the owner's call on 15 Aug, with a
+    // reference of polaroids taped across a month — the first PICTURE kept on
+    // the day. The line moved, and it moved once, deliberately: a photograph
+    // glanced at across a room is a memory; a sentence read across a room is
+    // something somebody wrote down in confidence. So the words never come out
+    // of the day, and this is the assertion that keeps that true when the next
+    // person adds a field to the month payload.
     expect(cal).toMatch(/mark\?\.items/);
     expect(cal).toMatch(/mark\?\.written/);
+    expect(cal).toMatch(/mark\?\.photo/);
     expect(cal).not.toMatch(/mark\?\.(journal|feelNote|title)/);
   });
 
@@ -87,6 +93,22 @@ describe('a day is a place', () => {
     expect(page).toMatch(/couldn&rsquo;t open this day/i);
   });
 
+  /**
+   * A HALF-WRITTEN TIME IS NOT AN ERROR THE BROWSER GETS TO DECIDE.
+   *
+   * `<input type="time">` with the minutes typed and no hour is `badInput`:
+   * its value is empty and native validation refuses the submit, so Safari
+   * answered "Add" with a red "Invalid value" bubble and the line was never
+   * added — enforcing a rule nobody wrote, on a field that was never required.
+   */
+  it('never lets the browser refuse a line over an optional time', () => {
+    expect(stripComments(page)).toMatch(/noValidate/);
+    // …and the half-written time is not silently dropped either: somebody who
+    // typed 30 meant something by it, so the page stops and says so.
+    expect(stripComments(page)).toMatch(/validity\.badInput/);
+    expect(page).toMatch(/half-written/);
+  });
+
   it('the date is read as a date, never as an instant', () => {
     // `new Date('2026-08-15')` is midnight UTC — the 14th for anybody west of
     // Greenwich. A diary may not rename somebody's day.
@@ -99,6 +121,73 @@ describe('a day is a place', () => {
     // required field the old server has never sent is an error page.
     expect(api).toMatch(/mood: z\.string\(\)\.nullable\(\)/);
     expect(api).toMatch(/journal: z\.string\(\)\.nullable\(\)/);
+  });
+});
+
+/**
+ * A DAY CAN BE PHOTOGRAPHED — "let people attach pictures for the day if they
+ * want to save a memory" (the owner, 15 Aug).
+ *
+ * The whole of the risk in this feature is which bucket. Every other picture
+ * the city stores wants a permanent public address — a post, a listing, a menu
+ * — and the public path is one line shorter to write, so it is the one a hurry
+ * takes. A photograph somebody put in their diary is the single most private
+ * image in the application, and it goes to the private vault: a namespace that
+ * proves whose it is, links that expire, no url column anywhere to leak.
+ */
+describe('a day can be photographed', () => {
+  const page = stripComments(read('features/daybook/pages/DayPage.tsx'));
+  const api = stripComments(read('api/daybook.api.ts'));
+  const media = stripComments(read('api/media.api.ts'));
+
+  it('a picture is kept on the day, and can be taken off it', () => {
+    expect(page).toMatch(/useAddDayPhoto/);
+    expect(page).toMatch(/useRemoveDayPhoto/);
+    // Named formats rather than `image/*` — the vault stores these and no
+    // others, and the wildcard would put a comment-opener inside a string,
+    // which is a thing every guard in this file strips before it reads.
+    expect(page).toMatch(/accept="image\/jpeg,/);
+  });
+
+  it('the bytes go to the private vault, through the one place that scrubs them', () => {
+    // The upload lives in media.api.ts with every other upload, because that is
+    // where the location is taken out of a photograph — a rule that only holds
+    // if no screen is allowed its own presign.
+    expect(media).toMatch(/uploadDaybook/);
+    expect(media).toMatch(/scrubImage\(file, 'private'\)/);
+    expect(media).toMatch(/'\/daybook\/photos\/presign'/);
+    expect(api).toMatch(/mediaApi\.uploadDaybook/);
+  });
+
+  it('and never to the public bucket, whose whole promise is the opposite', () => {
+    expect(api).not.toMatch(/mediaApi\.upload\(/);
+    expect(page).not.toMatch(/mediaApi\.upload\(/);
+    // A url on the record would be a permanent address for it. What the day
+    // carries is a link that expires, minted per read.
+    expect(api).toMatch(/url: z\.string\(\)\.nullable\(\)/);
+  });
+
+  it('a photo that cannot be shown says so, rather than drawing a broken frame', () => {
+    // `url` is nullable — storage may be unconfigured — and "there is a picture
+    // here we cannot show you" is a different fact from "there is no picture".
+    expect(page).toMatch(/p\.url \?/);
+    expect(page).toMatch(/can&rsquo;t be shown just now/);
+  });
+
+  it('and the page says where the picture goes, in the place it is being kept', () => {
+    expect(page).toMatch(/Private — only you/);
+    expect(page).toMatch(/Where a photo was taken is removed/);
+  });
+
+  it('everything kept is filed under its date, and the month is the index of it', () => {
+    // "Make sure everything stored here is stored date wise labeled which is
+    // then shown on the calendar" — the owner, 15 Aug. The date is the key on
+    // every row the daybook writes (the API's models carry `date` rather than
+    // a timestamp), and the month endpoint is what turns that into the grid.
+    const api2 = read('api/daybook.api.ts');
+    expect(api2).toMatch(/\/daybook\/\$\{date\}\/photos/);
+    expect(api2).toMatch(/photo: z\.string\(\)\.nullable\(\)/);
+    expect(read('features/calendar/pages/Calendar.tsx')).toMatch(/cal-pic/);
   });
 });
 

@@ -254,6 +254,47 @@ export class StorageProvider implements OnModuleInit {
   }
 
   /**
+   * Presign a PUT for a DAYBOOK PHOTOGRAPH — a picture somebody put in their
+   * diary. (15 Aug.)
+   *
+   * Its own namespace rather than the health vault's, though both are the same
+   * private bucket. The prefix IS the permission: `isOwnHealthKey` guards three
+   * medical routes that take a client-supplied key, and filing diary photos
+   * under `health/` would mean a key from one feature satisfies another
+   * feature's ownership check. One prefix per thing that can be owned.
+   *
+   * The public bucket was never a candidate. A post, a listing and a menu photo
+   * all want a permanent public address; the picture of the afternoon somebody
+   * wrote about wants the opposite, and the only reason it is a decision at all
+   * is that the public path is one line shorter to write.
+   */
+  async presignDaybookUpload(userId: string, mimeType: string, ext: string): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
+    const safeExt = (ext || 'bin').replace(/[^a-zA-Z0-9]/g, '').slice(0, 10) || 'bin';
+    const key = `daybook/${userId}/${randomUUID()}.${safeExt}`;
+    if (!this.s3) {
+      return { uploadUrl: `${this.publicBase}/__presigned__/${key}`, key, expiresInSec: this.expiresInSec };
+    }
+    const uploadUrl = await getSignedUrl(
+      this.s3,
+      new PutObjectCommand({ Bucket: this.healthBucket, Key: key, ContentType: mimeType }),
+      { expiresIn: this.expiresInSec },
+    );
+    return { uploadUrl, key, expiresInSec: this.expiresInSec };
+  }
+
+  /** True when this key belongs to the given user's daybook namespace. */
+  static isOwnDaybookKey(userId: string, key: string): boolean {
+    return typeof key === 'string' && key.startsWith(`daybook/${userId}/`);
+  }
+
+  /* THE THREE HELPERS BELOW ARE BUCKET-LEVEL, NOT HEALTH-LEVEL. They are named
+     for the vault's first tenant and operate on every object in it — drive,
+     dating and now daybook all use them. These aliases say so at the call site,
+     so a diary photo is not deleted by something called `deleteHealthObject`. */
+  async privateObjectExists(key: string): Promise<boolean> { return this.healthObjectExists(key); }
+  async deletePrivateObject(key: string): Promise<void> { return this.deleteHealthObject(key); }
+
+  /**
    * True when this key belongs to the given user's dating namespace.
    *
    * The same guard Drive and the health vault carry, for the same reason: the

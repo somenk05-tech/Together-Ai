@@ -735,7 +735,12 @@ export class MiraService {
   }> {
     const record = () => this.ledger.record({ userId, text: ask, lane: 'RETRIEVE', confidence: 1, outcome: 'confide', levity: 0 });
     const day = await this.daybook.day(userId, date).catch(() => null);
-    const bare = !day || (!day.mood && !day.feelNote && !day.journal && day.items.length === 0);
+    // A day holding nothing but a photograph is NOT an empty day. It was, for
+    // one commit: the check listed the fields that existed when it was written,
+    // so somebody who kept a picture and no words would have been told there
+    // was nothing there — by the one part of the city that had just been handed
+    // their memory.
+    const bare = !day || (!day.mood && !day.feelNote && !day.journal && day.items.length === 0 && day.photos.length === 0);
 
     if (bare) {
       record();
@@ -744,7 +749,8 @@ export class MiraService {
     if (!this.ai.enabled) {
       record();
       const done = day.items.filter((i) => i.done).length;
-      return { text: `${date}: ${day.mood ? `${day.mood}, ` : ''}${day.items.length} thing${day.items.length === 1 ? '' : 's'} down${day.items.length ? `, ${done} done` : ''}${day.journal ? ', and a page written' : ''}.` };
+      const pics = day.photos.length ? `, ${day.photos.length} picture${day.photos.length === 1 ? '' : 's'} kept` : '';
+      return { text: `${date}: ${day.mood ? `${day.mood}, ` : ''}${day.items.length} thing${day.items.length === 1 ? '' : 's'} down${day.items.length ? `, ${done} done` : ''}${day.journal ? ', and a page written' : ''}${pics}.` };
     }
 
     const pass = await this.passOf(userId);
@@ -760,12 +766,18 @@ export class MiraService {
         ? `ON THE PAGE:\n${day.items.map((i) => `- [${i.done ? 'done' : 'not done'}] ${i.kind}${i.at ? ` at ${i.at}` : ''}: ${i.title}`).join('\n')}`
         : null,
       day.journal ? `WHAT THEY WROTE:\n${day.journal.slice(0, 6000)}` : null,
+      // A COUNT, AND NOTHING ELSE, BECAUSE SHE CANNOT SEE THEM. Telling her a
+      // picture exists lets her say "you kept a photo of it" rather than
+      // pretending the day held nothing; telling her any more than that would
+      // be inviting her to describe an image nobody showed her.
+      day.photos.length ? `PICTURES THEY KEPT ON THIS DAY: ${day.photos.length}` : null,
     ].filter(Boolean).join('\n\n');
 
     const system = [
       'You are Mira, reading one day of a citizen\'s own daybook with them — their moods, their plans, their writing. You are their friend, not a reporting tool.',
       'THIS IS THE WHOLE OF WHAT YOU CAN SEE: one day. Not the month, not yesterday, not anything you remember from elsewhere. If they ask about another day or a pattern over time, say plainly that you are only looking at this one.',
       'NEVER INVENT A DAY. Everything you say has to be traceable to what is below. If it is not there, it did not happen as far as you know, and you say so rather than filling the gap — a diary read back wrong is worse than a diary unread.',
+      'YOU CANNOT SEE THEIR PICTURES. If the day says pictures were kept, you know only how many. Never describe one, never guess what is in it, never say it looks like anything — you have not been shown it, and you say so if asked.',
       'You are reading, not grading. No productivity scoring, no "you only completed 2 of 5", no advice they did not ask for. If they ask what it looked like, tell them warmly and briefly, in their own terms.',
       'Two to four sentences, almost always. A chat bubble, not a report. Contractions. No headers, no bullet lists unless they ask for a list.',
       'Banned from your mouth, always: "As an AI", "great question", "happy to help", "is there anything else", "I understand how you feel", "absolutely!", "of course!", "based on your query", announcing lists, narrating machinery. You sound like Mira — a person — or you say nothing.',

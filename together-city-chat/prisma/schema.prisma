@@ -165,6 +165,7 @@ model User {
   miraTurns            MiraTurn[]
   dayPages             DayPage[]
   dayItems             DayItem[]
+  dayPhotos            DayPhoto[]
   walletTxns           WalletTxn[]
   masterProfile        MasterProfile?
   astroProfile         AstroProfile?
@@ -3089,6 +3090,35 @@ model DayItem {
   /// missing value — most of what people mean to do has no hour.
   at     String?
   done   Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+/// A photograph kept on a day. "Let people attach pictures for the day if they
+/// want to save a memory" — the owner, 15 Aug.
+///
+/// THERE IS NO URL COLUMN HERE, AND THAT IS THE DESIGN. Everything else in the
+/// city that stores a picture wants it public — a post, a listing, a menu — so
+/// it keeps a `fileUrl` into the public bucket. A photograph somebody put in
+/// their diary is the opposite: it goes to the PRIVATE vault under
+/// `daybook/<userId>/`, and the only way to see it is a short-lived signed link
+/// the API issues to the one account it belongs to. A URL column would be a
+/// permanent public address for the most private image in the application.
+model DayPhoto {
+  id     String @id @default(uuid())
+  userId String
+  /// YYYY-MM-DD — the day it belongs to, not the day it was uploaded.
+  date   String
+  /// The object key in the private vault. Ownership is provable from the key
+  /// itself (`daybook/<userId>/…`), which is what stops a key handed in by a
+  /// client from filing somebody else's object as this citizen's memory.
+  fileKey   String
+  mimeType  String?
+  sizeBytes Int     @default(0)
 
   createdAt DateTime @default(now())
 

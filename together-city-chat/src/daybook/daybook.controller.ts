@@ -38,6 +38,18 @@ export const AddItemSchema = z.object({
   title: z.string().min(1).max(300),
   at: AT.nullable().optional(),
 });
+/** What the browser asks for before it uploads, and what it files afterwards.
+ *  The key is checked against the citizen's own namespace in the service — a
+ *  string that arrives from a client is never proof of anything on its own. */
+export const PresignPhotoSchema = z.object({
+  mimeType: z.string().min(1).max(120),
+  sizeBytes: z.number().int().positive(),
+});
+export const AddPhotoSchema = z.object({
+  fileKey: z.string().min(1).max(300),
+  mimeType: z.string().max(120).optional(),
+  sizeBytes: z.number().int().nonnegative().optional(),
+});
 export const PatchItemSchema = z.object({
   done: z.boolean().optional(),
   title: z.string().min(1).max(300).optional(),
@@ -78,6 +90,38 @@ export class DaybookController {
   @Delete('items/:id')
   remove(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.daybook.remove(user.sub, id);
+  }
+
+  /**
+   * A PICTURE ON A DAY, IN TWO STEPS.
+   *
+   * `photos/presign` hands back a URL the browser PUTs the bytes to directly —
+   * the file never passes through this API — and then `:date/photos` files the
+   * key it was given. Two calls rather than one upload endpoint, which is how
+   * every other private picture in the city is stored, and the reason is that
+   * the bytes go browser→vault: nothing here has to hold a photograph in
+   * memory, and nothing here can accidentally log one.
+   *
+   * `photos/presign` is declared before the `:date/…` routes as a matter of
+   * habit rather than necessity — no `:date` route has `photos` as its second
+   * segment — but the day somebody adds `@Post(':date/presign')` the habit is
+   * what stops a citizen's date being read as the word "photos".
+   */
+  @Post('photos/presign')
+  @UsePipes(new ZodValidationPipe(PresignPhotoSchema))
+  presignPhoto(@CurrentUser() user: JwtUser, @Body() dto: z.infer<typeof PresignPhotoSchema>) {
+    return this.daybook.presignPhoto(user.sub, dto.mimeType, dto.sizeBytes);
+  }
+
+  @Post(':date/photos')
+  @UsePipes(new ZodValidationPipe(AddPhotoSchema))
+  addPhoto(@CurrentUser() user: JwtUser, @Param('date') date: string, @Body() dto: z.infer<typeof AddPhotoSchema>) {
+    return this.daybook.addPhoto(user.sub, DATE.parse(date), dto);
+  }
+
+  @Delete('photos/:id')
+  removePhoto(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.daybook.removePhoto(user.sub, id);
   }
 
   /**
