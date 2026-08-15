@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { recommend, type Citizen } from './supplements.engine';
 import { SUPPLEMENTS, DO_NOT_RECOMMEND } from './knowledge';
+import { CUTOFF } from './labs';
+import { AISLES, PRODUCTS, STOCKED, productsFor } from './products';
 
 /**
  * THE SUPPLEMENT ENGINE IS A SAFETY DEVICE BEFORE IT IS A FEATURE.
@@ -149,5 +151,170 @@ describe('the knowledge base itself', () => {
   it('marks the three that need a blood test before the first dose', () => {
     const first = SUPPLEMENTS.filter((s) => s.testFirst).map((s) => s.id).sort();
     expect(first).toEqual(['iron', 'vitamin-b12', 'vitamin-d3']);
+  });
+});
+
+/* ══ THE PANEL THE OWNER ACTUALLY HAS ═══════════════════════════════════════
+   Haemoglobin, HbA1c, LDL, triglycerides. The first version of this engine
+   mapped vitamin D, B12 and ferritin — none of which he has — so his page
+   read him India's base rates while his own results sat one hub away. These
+   are the four rules that fixed it, and the one place they must NOT go. */
+
+const PANEL: Citizen['labs'] = [
+  { name: 'Haemoglobin', value: 14.8, unit: 'g/dL', at: '2026-07-19' },
+  { name: 'HbA1c', value: 6.7, unit: '%', at: '2026-07-19' },
+  { name: 'Triglycerides', value: 427, unit: 'mg/dL', at: '2026-07-19' },
+  { name: 'LDL cholesterol', value: 132, unit: 'mg/dL', at: '2026-07-19' },
+];
+
+describe('a lipid result reaches the shelf, and reaches it differently by marker', () => {
+  it('a raised LDL makes psyllium a priority — with a food dose, not a doctor’s', () => {
+    const p = find({ labs: PANEL }, 'psyllium')!;
+    expect(p.bucket).toBe('priority');
+    expect(p.why[0].from).toBe('lab');
+    expect(p.why[0].text).toContain('132');
+    // The distinguishing property: this one it may actually dose, because the
+    // number is a food quantity out of the knowledge base and not a titration.
+    expect(p.dose).toBe(SUPPLEMENTS.find((s) => s.id === 'psyllium')!.typicalDose);
+    expect(p.needsClinician).toBe(false);
+  });
+
+  it('and with no lipid panel it is still offered — as a base rate, labelled as one', () => {
+    const p = find(bare, 'psyllium')!;
+    expect(p.bucket).toBe('optional');
+    expect(p.why[0].from).toBe('population');
+    expect(p.why[0].text).toMatch(/not a finding about you/i);
+  });
+
+  it('a raised triglyceride moves omega-3 up AND takes the number away', () => {
+    const o = find({ labs: PANEL }, 'omega-3')!;
+    expect(o.bucket).toBe('consider');
+    expect(o.needsClinician).toBe(true);
+    // The whole point. The reliable effect is real, the outcome evidence is
+    // for a 4 g/day prescription drug, and this is where a supplement page
+    // turns into a prescription pad if nobody stops it.
+    expect(o.dose).toBeNull();
+    expect(o.why.map((w) => w.text).join(' ')).toMatch(/prescription/i);
+  });
+
+  it('and with no triglyceride it stays where it was, on a population reason', () => {
+    const o = find(bare, 'omega-3')!;
+    expect(o.bucket).toBe('optional');
+    expect(o.why.every((w) => w.from !== 'lab')).toBe(true);
+  });
+});
+
+describe('a result that is not a supplement question is handed back, not answered', () => {
+  it('an HbA1c in the diabetes range is named, sourced, and sold nothing', () => {
+    const { plan, clinical } = recommend({ labs: PANEL });
+    const a1c = clinical.find((n) => n.marker === 'hba1c')!;
+    expect(a1c.text).toContain('6.7');
+    expect(a1c.source).toBe(CUTOFF.hba1cDiabetes.authority);
+    // NOTHING on the plan may cite it. A supplement recommended "for your
+    // blood sugar" is the exact sentence this subsystem exists to not say.
+    for (const r of plan) {
+      for (const w of r.why) expect(w.text.toLowerCase()).not.toContain('hba1c');
+    }
+  });
+
+  it('every clinical note carries the body that set the band', () => {
+    const { clinical } = recommend({ labs: PANEL });
+    expect(clinical.map((n) => n.marker).sort()).toEqual(['hba1c', 'ldl', 'trig']);
+    for (const n of clinical) expect(n.source.length).toBeGreaterThan(3);
+  });
+
+  it('and a normal haemoglobin says nothing at all', () => {
+    const { clinical } = recommend({ labs: PANEL });
+    expect(clinical.some((n) => n.marker === 'hb')).toBe(false);
+  });
+});
+
+describe('a low haemoglobin does not become a reason to buy iron', () => {
+  const anaemic: Citizen = { sex: 'male', labs: [{ name: 'Haemoglobin', value: 10.9, unit: 'g/dL' }] };
+
+  it('iron stays refused, and the refusal gets MORE specific rather than less', () => {
+    const iron = find(anaemic, 'iron')!;
+    expect(iron.bucket).toBe('not-recommended');
+    expect(iron.dose).toBeNull();
+    expect(iron.why[0].text).toMatch(/under a third of Indian anaemia/i);
+  });
+
+  it('B12 comes forward instead, because it is the next cause on the list', () => {
+    const b12 = find(anaemic, 'vitamin-b12')!;
+    expect(b12.bucket).toBe('consider');
+    expect(b12.why.some((w) => w.from === 'lab' && /haemoglobin/i.test(w.text))).toBe(true);
+  });
+
+  it('and where the sex is unknown the LOWER threshold is used', () => {
+    // 12.4 is anaemia in one WHO sentence and not the other. An engine with no
+    // sex on file does not get to pick which person is reading.
+    expect(recommend({ labs: [{ name: 'Haemoglobin', value: 12.4 }] }).clinical.some((n) => n.marker === 'hb')).toBe(false);
+    expect(recommend({ sex: 'male', labs: [{ name: 'Haemoglobin', value: 12.4 }] }).clinical.some((n) => n.marker === 'hb')).toBe(true);
+  });
+});
+
+describe('every threshold the engine compares against is published by somebody', () => {
+  it('no bare number is compared against a lab result anywhere in the engine', () => {
+    const src = readFileSync(join(__dirname, 'supplements.engine.ts'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+    // `x.value < 20` is how a threshold gets into a codebase unsourced. Every
+    // comparison must name a CUTOFF, and every CUTOFF names an authority.
+    expect(src).not.toMatch(/\.value\s*[<>]=?\s*\d/);
+    // And a cut-off may be compared against. It may not be arithmetic.
+    expect(src).not.toMatch(/CUTOFF\.\w+\.value\s*[*/+-]/);
+  });
+
+  it('and every cut-off says who publishes it', () => {
+    for (const [name, c] of Object.entries(CUTOFF)) {
+      expect({ name, sourced: c.authority.length > 8 }).toEqual({ name, sourced: true });
+      expect({ name, banded: c.band.length > 2 }).toEqual({ name, banded: true });
+    }
+  });
+});
+
+/* ══ THE SHELF ══════════════════════════════════════════════════════════════ */
+
+describe('the store sells nothing this city cannot cite', () => {
+  it('every product resolves to a supplement in the knowledge base', () => {
+    const ids = new Set(SUPPLEMENTS.map((s) => s.id));
+    for (const p of PRODUCTS) {
+      expect({ id: p.id, known: ids.has(p.supplement) }).toEqual({ id: p.id, known: true });
+    }
+  });
+
+  it('and every aisle is built from those same ids', () => {
+    const ids = new Set(SUPPLEMENTS.map((s) => s.id));
+    for (const a of AISLES) for (const s of a.supplements) {
+      expect({ aisle: a.id, s, known: ids.has(s) }).toEqual({ aisle: a.id, s, known: true });
+    }
+  });
+
+  it('there is no affiliate parameter on any link in the catalogue', () => {
+    // The plan page's argument was that the moment a refusal costs revenue,
+    // the refusals get quieter. The cheapest way to keep that true is to
+    // never be in the transaction — asserted rather than promised.
+    for (const p of PRODUCTS) {
+      expect({ id: p.id, https: p.url.startsWith('https://') }).toEqual({ id: p.id, https: true });
+      expect(p.url).not.toMatch(/[?&](tag|aff|affid|ref|utm_|subid|clickid)/i);
+    }
+  });
+
+  it('the refused supplements are still on the shelf, on purpose', () => {
+    // Hiding a multivitamin from somebody who came looking for one does not
+    // stop them buying it. It stops them reading the 78 trials first.
+    expect(productsFor('multivitamin').length).toBeGreaterThan(0);
+    expect(productsFor('collagen').length).toBeGreaterThan(0);
+  });
+
+  it('prescription items sort last and unpriced items sort after priced ones', () => {
+    const d3 = productsFor('vitamin-d3');
+    expect(d3[d3.length - 1].rx).toBe(true);
+    const creatine = productsFor('creatine');
+    expect(creatine.map((p) => p.priceFrom === undefined)).toEqual([false, false, true]);
+  });
+
+  it('and three supplements have no verified Indian product, which the store must be able to say', () => {
+    const missing = SUPPLEMENTS.map((s) => s.id).filter((id) => !STOCKED.includes(id));
+    expect(missing.sort()).toEqual(['folate', 'l-theanine', 'vitamin-k2']);
   });
 });

@@ -86,4 +86,20 @@ export class FitnessController {
   supplementPlan(@CurrentUser() user: JwtUser) {
     return this.supplements.plan(user.sub);
   }
+
+  /**
+   * THE SHELF. Also a GET, also not a Mira reader, and for a sharper reason
+   * than the plan route: the sentence "order me the vitamin D" is one word
+   * away from working, and an assistant that can put a supplement in a basket
+   * is an assistant that can be talked into putting the wrong one there. The
+   * store is a place a person walks into with their eyes open.
+   *
+   * It carries no cart and no checkout because this city does not take the
+   * money — every product links to the retailer selling it, at the price the
+   * evidence review recorded, with no parameter of ours appended.
+   */
+  @Get('store')
+  supplementStore(@CurrentUser() user: JwtUser) {
+    return this.supplements.store(user.sub);
+  }
 }

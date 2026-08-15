@@ -5,6 +5,8 @@ import { MedicalService } from '../../medical/medical.service';
 import { NutritionService } from '../../nutrition/nutrition.service';
 import { swallowed } from '../../shared/swallow';
 import { recommend, type Citizen } from './supplements.engine';
+import { SOURCE, SUPPLEMENTS } from './knowledge';
+import { AISLES, PRODUCTS } from './products';
 
 /**
  * WHAT THE ENGINE IS ALLOWED TO KNOW, AND WHERE IT COMES FROM.
@@ -92,6 +94,70 @@ export class SupplementsService {
       },
     };
   }
+
+  /**
+   * THE STORE — the same 43 products for everybody, with the citizen's own
+   * plan attached to each one.
+   *
+   * THE CATALOGUE IS NOT PERSONALISED AND THAT IS DELIBERATE. Every citizen
+   * sees every product, including the twelve sitting under supplements this
+   * engine refuses. Hiding a multivitamin from somebody who came looking for a
+   * multivitamin does not stop them buying one; it stops them reading the 78
+   * trials first, and sends them to a shop that will sell it without the
+   * footnote. What IS personal is the badge on the card — `yours` — and the
+   * refusal is the loudest badge on the shelf.
+   *
+   * IT REUSES `plan()` RATHER THAN RE-DERIVING. One engine run, one consent
+   * check, one set of answers. A store that computed its own opinion of a
+   * product would eventually disagree with the plan page about the same
+   * bottle, and the citizen would have no way to know which screen was lying.
+   *
+   * IF THE PLAN FAILS THE SHELF STILL LOADS, with no badges. A store that
+   * five-hundreds because a blood test could not be read is a store that
+   * punishes the citizen for the hub being down; an unbadged catalogue is
+   * honest — it is exactly what this city knows about them at that moment.
+   */
+  async store(userId: string) {
+    const built = await this.plan(userId).catch(swallowed('supplements.store', null));
+    const mine = new Map((built?.plan ?? []).map((r) => [r.id, r]));
+
+    const items = PRODUCTS.map((p) => {
+      const f = SUPPLEMENTS.find((s) => s.id === p.supplement);
+      const r = mine.get(p.supplement);
+      return {
+        ...p,
+        supplementName: f?.name ?? p.supplement,
+        grade: f?.grade ?? null,
+        gradeFor: f?.gradeFor ?? null,
+        typicalDose: f?.typicalDose ?? null,
+        upperLimit: f?.upperLimit ?? null,
+        formToBuy: f?.form ?? null,
+        testFirst: Boolean(f?.testFirst),
+        /* THE BADGE. Null means this city has no opinion about this bottle FOR
+           THIS PERSON — which is different from approval, and the screen says
+           so rather than leaving a blank where a tick would go. */
+        yours: r
+          ? {
+              bucket: r.bucket,
+              needsClinician: r.needsClinician,
+              why: r.why[0]?.text ?? null,
+              source: r.why[0]?.source ?? null,
+            }
+          : null,
+      };
+    });
+
+    return {
+      items,
+      aisles: AISLES,
+      source: SOURCE,
+      /* Whether the badges mean anything on this response. False is the state
+         where the plan could not be built at all, and the shelf must not
+         render an absent refusal as a silent yes. */
+      personalised: Boolean(built),
+      basis: built?.basis ?? null,
+    };
+  }
 }
 
 /* ── the defensive readers ────────────────────────────────────────────────
@@ -134,9 +200,30 @@ function goalOf(v: unknown): Citizen['goal'] {
   if (s.includes('recover')) return 'recovery';
   return s ? 'wellness' : undefined;
 }
-/** The medical hub's biomarker keys → the names the engine matches on. Only
- *  the three that change an answer are mapped; an unmapped marker is not a
- *  marker the engine is entitled to reason about. */
+/**
+ * THE MEDICAL HUB'S BIOMARKER KEYS → THE NAMES THE ENGINE MATCHES ON.
+ *
+ * ONLY MARKERS THAT CHANGE AN ANSWER ARE MAPPED. An unmapped marker is not a
+ * marker this engine is entitled to reason about, and the list below is short
+ * on purpose: seven keys out of the medical hub's several dozen. Reading a
+ * result the engine has no cited rule for would mean either ignoring it — a
+ * lie by omission on a screen headed "built from your blood work" — or
+ * improvising one, which is the thing this whole subsystem exists to prevent.
+ *
+ * THE FOUR THAT WERE MISSING. The first version of this file mapped vitamin D,
+ * B12 and ferritin and stopped. The owner's own panel carries none of those
+ * three and four of these: haemoglobin, HbA1c, LDL and triglycerides. So the
+ * page told him what is generally true of Indian adults while his actual
+ * results sat one hub away, unread — which is the specific failure a
+ * personalised page is supposed to be incapable of. Each of the four now has
+ * a cut-off in `labs.ts` with the body that published it, and a rule in the
+ * engine that either moves a bucket or says "this one is your doctor's".
+ *
+ * NOTHING IS CONVERTED HERE. The unit is passed through as the medical hub
+ * stores it, and the engine compares against a cut-off in that same unit. A
+ * conversion is arithmetic on a lab value, and there is exactly one rule in
+ * this subsystem that has no exceptions.
+ */
 function labsFrom(shared: unknown): Citizen['labs'] {
   const values = pick(shared, 'values');
   if (!values || typeof values !== 'object') return [];
@@ -150,5 +237,9 @@ function labsFrom(shared: unknown): Citizen['labs'] {
   add('vitd', '25-OH vitamin D', 'ng/mL');
   add('b12', 'Vitamin B12', 'pg/mL');
   add('ferritin', 'Ferritin', 'ng/mL');
+  add('hb', 'Haemoglobin', 'g/dL');
+  add('hba1c', 'HbA1c', '%');
+  add('ldl', 'LDL cholesterol', 'mg/dL');
+  add('trig', 'Triglycerides', 'mg/dL');
   return out;
 }

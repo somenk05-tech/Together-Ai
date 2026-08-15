@@ -1,4 +1,5 @@
 import { SUPPLEMENTS, DO_NOT_RECOMMEND, INDIA_CONTEXT, SOURCE, type SupplementFact } from './knowledge';
+import { CUTOFF, type ClinicalNote } from './labs';
 
 /**
  * THE SUPPLEMENT ENGINE.
@@ -29,6 +30,15 @@ import { SUPPLEMENTS, DO_NOT_RECOMMEND, INDIA_CONTEXT, SOURCE, type SupplementFa
  *    a multivitamin for disease prevention, beta-carotene for a smoker: the
  *    engine says so, with the trial that says so. A supplement screen that can
  *    only ever suggest buying something is an advertisement with a chart on it.
+ *
+ * 4. AND SOME RESULTS ARE NOT A SUPPLEMENT QUESTION AT ALL. An HbA1c of 6.7%
+ *    is a conversation with a doctor. The engine reads it, says so in
+ *    `clinical`, and pairs it with nothing — because the failure mode of a
+ *    page like this is not naming a bad bottle, it is reading a serious result
+ *    and answering it with fish oil. Every cut-off it compares against lives
+ *    in `labs.ts` with the body that published it, and a cut-off is allowed to
+ *    change a BUCKET and nothing else. It never scales a dose, and it is never
+ *    subtracted from a result to manufacture a "gap".
  */
 
 export type Bucket = 'priority' | 'consider' | 'optional' | 'not-recommended';
@@ -162,7 +172,12 @@ const skipFor = (name: string) =>
  * THE PIPELINE. One supplement at a time, and each stage can only make the
  * answer more conservative than the stage before it.
  */
-export function recommend(c: Citizen): { plan: Recommendation[]; watching: Reason[]; source: typeof SOURCE } {
+export function recommend(c: Citizen): {
+  plan: Recommendation[];
+  watching: Reason[];
+  clinical: ClinicalNote[];
+  source: typeof SOURCE;
+} {
   const out: Recommendation[] = [];
 
   const push = (
@@ -191,6 +206,20 @@ export function recommend(c: Citizen): { plan: Recommendation[]; watching: Reaso
     if (c.pregnant && ['ashwagandha', 'vitamin-c', 'curcumin'].includes(id)) {
       flags.push({ kind: 'condition', text: 'Not while pregnant or breastfeeding — take this decision to your doctor.' });
       bucket = 'not-recommended';
+    }
+    /* PSYLLIUM INTERACTS WITH EVERYTHING AND WITH NOTHING. It is a gel, so it
+       takes whatever is in the gut down with it — which is a timing rule, not
+       a question for a doctor, and so it deliberately does NOT go through the
+       INTERACTIONS table above and does not demote the bucket or withhold the
+       dose. Getting this wrong in the safe direction would still be wrong: a
+       "see your doctor" on a teaspoon of isabgol teaches people to ignore the
+       ones that mean it. */
+    if (id === 'psyllium' && (c.medicines ?? []).length > 0) {
+      flags.push({
+        kind: 'interaction',
+        text: `It is a gel, and it will take your medicines down with it. Separate it from all ${(c.medicines ?? []).length} of them by at least two hours, and take it with a full glass of water — obstruction has happened without one. It may also reduce insulin requirements, which needs monitoring rather than avoidance.`,
+        source: f.interactions,
+      });
     }
     if (has(c.taking, f.name.split(' ')[0].toLowerCase())) {
       flags.push({ kind: 'duplicate', text: `You have already listed ${f.name} in your cabinet — check the two labels add up to less than ${f.upperLimit}.` });
@@ -226,9 +255,9 @@ export function recommend(c: Citizen): { plan: Recommendation[]; watching: Reaso
      with a documented deficiency the dose is a repletion protocol, and a
      repletion protocol is a clinical decision. */
   const vitD = lab(c, '25-oh', '25(oh)', 'vitamin d');
-  if (vitD && vitD.value < 20) {
+  if (vitD && vitD.value < CUTOFF.vitaminDLow.value) {
     push('vitamin-d3', 'priority', [
-      { from: 'lab', text: `Your 25-OH vitamin D came back at ${vitD.value}${vitD.unit ? ' ' + vitD.unit : ''}, below the 20 ng/mL threshold the review uses.`, source: vitD.at ? `blood work, ${vitD.at}` : 'your blood work' },
+      { from: 'lab', text: `Your 25-OH vitamin D came back at ${vitD.value}${vitD.unit ? ' ' + vitD.unit : ''}, below the ${CUTOFF.vitaminDLow.value} ${CUTOFF.vitaminDLow.unit} mark — ${CUTOFF.vitaminDLow.band}.`, source: vitD.at ? `${CUTOFF.vitaminDLow.authority} · blood work, ${vitD.at}` : CUTOFF.vitaminDLow.authority },
       { from: 'evidence', text: 'Correcting a documented deficiency is the part of the vitamin D evidence that is settled.', source: 'VITAL, NEJM 2018–2022' },
     ], { needsClinician: true, parts: [{ label: 'Blood work', note: 'Strong reason' }] });
   } else if (!vitD) {
@@ -237,27 +266,51 @@ export function recommend(c: Citizen): { plan: Recommendation[]; watching: Reaso
     ], { parts: [{ label: 'Blood work', note: 'Not on file' }] });
   }
 
+  /* ── HAEMOGLOBIN, READ BEFORE IRON AND BEFORE B12 ──────────────────────
+     A low haemoglobin is the single most misread result in this country, and
+     the misreading always goes the same way: anaemia, therefore iron. The
+     review's whole point is that iron deficiency explains FEWER THAN ONE IN
+     THREE cases of Indian anaemia. So this is computed early and used to make
+     the iron refusal MORE specific rather than to overturn it, and to put B12
+     and folate — the next causes on the list — in front of the citizen
+     instead.
+
+     WHERE THE SEX IS UNKNOWN, THE LOWER BAND IS USED. WHO sets 13 g/dL for
+     adult men and 12 for non-pregnant women; a profile with no sex on it gets
+     12, because 12.5 is anaemia in one of those sentences and not the other,
+     and this engine does not get to pick which person is reading. */
+  const hb = lab(c, 'haemoglobin', 'hemoglobin');
+  const hbBand = c.sex === 'male' ? CUTOFF.haemoglobinLowMale : CUTOFF.haemoglobinLowFemale;
+  const hbLow = Boolean(hb && hb.value < hbBand.value);
+
   /* ── B12 ── vegetarian diet and metformin are the two Indian reasons. */
   const b12 = lab(c, 'b12', 'cobalamin');
   const b12Reasons: Reason[] = [];
-  if (b12 && b12.value < 200) b12Reasons.push({ from: 'lab', text: `Your B12 is ${b12.value}${b12.unit ? ' ' + b12.unit : ''}.`, source: 'your blood work' });
+  if (b12 && b12.value < CUTOFF.b12Low.value) b12Reasons.push({ from: 'lab', text: `Your B12 is ${b12.value}${b12.unit ? ' ' + b12.unit : ''}, below ${CUTOFF.b12Low.value} ${CUTOFF.b12Low.unit}.`, source: CUTOFF.b12Low.authority });
+  if (hbLow && !b12) b12Reasons.push({ from: 'lab', text: `Your haemoglobin is ${hb!.value} g/dL and there is no B12 result to go with it. When iron is not the cause of an Indian anaemia — and two times in three it isn’t — B12 and folate are the next two to rule out, against a 53% pooled deficiency rate.`, source: 'DABS-India, Eur J Clin Nutr 2024; ' + INDIA_CONTEXT[1].source });
   if (c.vegetarian || c.vegan) b12Reasons.push({ from: 'diet', text: 'B12 comes almost entirely from animal foods, and your diet is listed as vegetarian.', source: 'your nutrition profile' });
   if (has(c.medicines, 'metformin')) b12Reasons.push({ from: 'medicine', text: 'Metformin depletes B12 over time.', source: 'your medicines' });
-  if (b12Reasons.length) push('vitamin-b12', b12 && b12.value < 200 ? 'priority' : 'consider', b12Reasons);
+  if (b12Reasons.length) push('vitamin-b12', b12 && b12.value < CUTOFF.b12Low.value ? 'priority' : 'consider', b12Reasons);
 
   /* ── IRON ── the rule that makes this engine worth trusting. */
   const ferritin = lab(c, 'ferritin');
-  if (ferritin && ferritin.value < 30) {
+  if (ferritin && ferritin.value < CUTOFF.ferritinLow.value) {
     push('iron', 'priority', [
-      { from: 'lab', text: `Your ferritin is ${ferritin.value}${ferritin.unit ? ' ' + ferritin.unit : ''}, which is low.`, source: 'your blood work' },
+      { from: 'lab', text: `Your ferritin is ${ferritin.value}${ferritin.unit ? ' ' + ferritin.unit : ''}, below ${CUTOFF.ferritinLow.value} — ${CUTOFF.ferritinLow.band}.`, source: CUTOFF.ferritinLow.authority },
     ], { needsClinician: true });
   } else {
-    push('iron', 'not-recommended', [
-      { from: 'evidence', text: ferritin
-        ? `Your ferritin is ${ferritin.value}${ferritin.unit ? ' ' + ferritin.unit : ''} — there is no gap here to close.`
-        : 'There is no ferritin result on file, so nothing here establishes that you need iron. Iron given to somebody who is not deficient is the supplement with the clearest harm profile — don’t add it because you are tired.',
-        source: 'DABS-India, Eur J Clin Nutr 2024' },
-    ], { dose: null });
+    const ironWhy: Reason[] = [];
+    if (ferritin) {
+      ironWhy.push({ from: 'lab', text: `Your ferritin is ${ferritin.value}${ferritin.unit ? ' ' + ferritin.unit : ''} — there is no gap here to close.`, source: 'your blood work' });
+    } else if (hbLow) {
+      /* The hardest sentence in the engine, and the one it exists for: a low
+         haemoglobin with no ferritin is the exact moment somebody buys iron,
+         and it is the exact moment they should not. */
+      ironWhy.push({ from: 'lab', text: `Your haemoglobin is ${hb!.value} g/dL, below the ${hbBand.value} g/dL mark for ${hbBand.band} — and there is still no ferritin result on file. That is a reason to get one, with CRP, and it is not a reason to start iron. Iron deficiency explains under a third of Indian anaemia; the rest is B12, folate, haemoglobinopathies and inflammation, and iron will cause constipation while missing the diagnosis.`, source: `${hbBand.authority}; DABS-India, Eur J Clin Nutr 2024` });
+    } else {
+      ironWhy.push({ from: 'evidence', text: 'There is no ferritin result on file, so nothing here establishes that you need iron. Iron given to somebody who is not deficient is the supplement with the clearest harm profile — don’t add it because you are tired.', source: 'DABS-India, Eur J Clin Nutr 2024' });
+    }
+    push('iron', 'not-recommended', ironWhy, { dose: null });
   }
 
   /* ── PROTEIN ── a food answer before a powder answer. */
@@ -276,11 +329,47 @@ export function recommend(c: Citizen): { plan: Recommendation[]; watching: Reaso
     ], { parts: [{ label: 'Fitness goal', note: 'Relevant' }] });
   }
 
-  /* ── OMEGA-3, MAGNESIUM, PSYLLIUM ── population and lifestyle reasons, and
-     labelled as exactly that. */
-  push('omega-3', 'optional', [
-    { from: 'population', text: 'Even India’s highest omega-3 consumers get around 50 mg EPA+DHA a day against a 250–500 mg target.', source: INDIA_CONTEXT[5].source },
-  ]);
+  /* ── LIPIDS ────────────────────────────────────────────────────────────
+     Two markers, two different supplements, and the difference between them
+     is most of what a page like this is for. A raised LDL has an answer with
+     HIGH GRADE certainty behind it that costs ₹320 for six months. A raised
+     triglyceride has an answer that works on the number and has never been
+     shown to work on the outcome at any dose sold over a counter. Both are
+     "yes" — they are not the same yes, and the copy says which is which. */
+  const ldl = lab(c, 'ldl chol', 'ldl-c');
+  const trig = lab(c, 'triglycerid');
+
+  const psylliumWhy: Reason[] = [];
+  if (ldl && ldl.value >= CUTOFF.ldlAboveDesirable.value) {
+    psylliumWhy.push({ from: 'lab', text: `Your LDL is ${ldl.value} mg/dL, ${CUTOFF.ldlAboveDesirable.band}.`, source: ldl.at ? `${CUTOFF.ldlAboveDesirable.authority} · blood work, ${ldl.at}` : CUTOFF.ldlAboveDesirable.authority });
+    psylliumWhy.push({ from: 'evidence', text: '28 randomised trials, 1,924 people, at a median of about 10.2 g a day: LDL down roughly 13 mg/dL, non-HDL down further, and apolipoprotein B down too — at HIGH GRADE certainty. High-certainty evidence for the particle-count marker is rare enough in supplement science that almost nothing else in this review can claim it.', source: 'Jovanovski et al., AJCN 2018' });
+  }
+  push('psyllium', psylliumWhy.length ? 'priority' : 'optional',
+    psylliumWhy.length ? psylliumWhy : [
+      { from: 'population', text: '81% of Indian adults have some dyslipidaemia. This is the best evidence-to-cost ratio in the whole review and it is sold as a kitchen staple — a base rate for the country, not a finding about you.', source: INDIA_CONTEXT[4].source },
+    ],
+    psylliumWhy.length ? { parts: [{ label: 'Blood work', note: 'Strong reason' }] } : {});
+
+  const omegaWhy: Reason[] = [];
+  let omegaBucket: Bucket = 'optional';
+  let omegaClinician = false;
+  if (trig && trig.value >= CUTOFF.triglyceridesHigh.value) {
+    const band = trig.value >= CUTOFF.triglyceridesVeryHigh.value ? CUTOFF.triglyceridesVeryHigh : CUTOFF.triglyceridesHigh;
+    omegaWhy.push({ from: 'lab', text: `Your triglycerides are ${trig.value} mg/dL — ${band.band}.`, source: trig.at ? `${band.authority} · blood work, ${trig.at}` : band.authority });
+    /* THE MOST IMPORTANT PARAGRAPH THIS ENGINE PRINTS. Triglyceride lowering
+       is the one omega-3 effect that reliably happens, and it is exactly the
+       place a supplement page turns into a prescription pad. So the number is
+       WITHHELD here rather than raised: the review's 250–500 mg range is a
+       general intake target and not a treatment for this result, and the only
+       dose ever shown to move events was four grams a day of a prescription
+       drug — in a trial another trial at the same dose contradicted. */
+    omegaWhy.push({ from: 'evidence', text: 'Triglyceride lowering is the reliable omega-3 effect and it is dose-dependent — about 5.9 mg/dL for each extra gram a day. What does not follow is the outcome: REDUCE-IT cut cardiovascular events 25%, but on 4 g/day of PRESCRIPTION icosapent ethyl, and STRENGTH at the same 4 g/day found no benefit and more atrial fibrillation. Over-the-counter fish oil at this result is a decision for the doctor who ordered the test.', source: 'REDUCE-IT, NEJM 2019; STRENGTH; Albert et al., Circulation 2021' });
+    omegaBucket = 'consider';
+    omegaClinician = true;
+  }
+  omegaWhy.push({ from: 'population', text: 'Even India’s highest omega-3 consumers get around 50 mg EPA+DHA a day against a 250–500 mg target.', source: INDIA_CONTEXT[5].source });
+  push('omega-3', omegaBucket, omegaWhy, omegaClinician ? { needsClinician: true } : {});
+
   if (c.goal === 'sleep' || has(c.conditions, 'cramp', 'migraine')) {
     push('magnesium', 'optional', [
       { from: 'goal', text: 'You have asked the city about sleep, and magnesium is the one with a real, small effect there.', source: 'your fitness profile' },
@@ -307,9 +396,33 @@ export function recommend(c: Citizen): { plan: Recommendation[]; watching: Reaso
   if (!vitD) watching.push({ from: 'lab', text: 'Vitamin D — no result on file', source: 'a test would settle it' });
   if (!b12) watching.push({ from: 'lab', text: 'B12 — no result on file', source: 'a test would settle it' });
   if (!ferritin) watching.push({ from: 'lab', text: 'Ferritin — no result on file, which is why iron stays off this list', source: 'a test would settle it' });
+  if (!ldl && !trig) watching.push({ from: 'lab', text: 'A lipid panel — no LDL or triglyceride on file, and psyllium is the one answer here with high-certainty evidence behind it', source: 'a test would settle it' });
   if (c.proteinTargetG && c.proteinIntakeG === undefined) watching.push({ from: 'diet', text: 'Protein intake — not logged for long enough to say', source: 'your nutrition hub' });
+
+  /* ── THE RESULTS THIS PAGE HANDS BACK ──────────────────────────────────
+     Read, named, and deliberately paired with nothing. The engine is at its
+     most dangerous exactly here — a marker in a clinical band is the moment a
+     supplement screen is most tempted to sell — and the rule is that it says
+     what the result is, who set the band, and that the answer is a doctor.
+     None of these appends a product, and the spec asserts it. */
+  const clinical: ClinicalNote[] = [];
+  const a1c = lab(c, 'hba1c', 'a1c');
+  if (a1c && a1c.value >= CUTOFF.hba1cDiabetes.value) {
+    clinical.push({ marker: 'hba1c', text: `Your HbA1c is ${a1c.value}%, which is ${CUTOFF.hba1cDiabetes.band}. No supplement in this review is offered for that and none is offered for it here — it belongs with the doctor who ordered the test. Your medical hub has already flagged it.`, source: CUTOFF.hba1cDiabetes.authority });
+  } else if (a1c && a1c.value >= CUTOFF.hba1cPrediabetes.value) {
+    clinical.push({ marker: 'hba1c', text: `Your HbA1c is ${a1c.value}%, which is ${CUTOFF.hba1cPrediabetes.band}. The evidence for changing that is food and movement, not a bottle — and this review has nothing to sell you for it.`, source: CUTOFF.hba1cPrediabetes.authority });
+  }
+  if (trig && trig.value >= CUTOFF.triglyceridesHigh.value) {
+    clinical.push({ marker: 'trig', text: `Your triglycerides are ${trig.value} mg/dL — ${(trig.value >= CUTOFF.triglyceridesVeryHigh.value ? CUTOFF.triglyceridesVeryHigh : CUTOFF.triglyceridesHigh).band}. Omega-3 is on your plan because of it, with the honest version of what it does; the number itself is a clinical matter and this page is not treating it.`, source: CUTOFF.triglyceridesHigh.authority });
+  }
+  if (ldl && ldl.value >= CUTOFF.ldlAboveDesirable.value) {
+    clinical.push({ marker: 'ldl', text: `Your LDL is ${ldl.value} mg/dL, ${CUTOFF.ldlAboveDesirable.band}. Whether that needs treating depends on your whole cardiovascular risk, which is a conversation and not a threshold.`, source: CUTOFF.ldlAboveDesirable.authority });
+  }
+  if (hbLow) {
+    clinical.push({ marker: 'hb', text: `Your haemoglobin is ${hb!.value} g/dL, below the ${hbBand.value} g/dL mark for ${hbBand.band}. The next step is a cause, not a supplement: ferritin with CRP, B12 and folate.`, source: hbBand.authority });
+  }
 
   const rank: Record<Bucket, number> = { priority: 0, consider: 1, optional: 2, 'not-recommended': 3 };
   out.sort((a, b) => rank[a.bucket] - rank[b.bucket] || b.fit.score - a.fit.score);
-  return { plan: out, watching, source: SOURCE };
+  return { plan: out, watching, clinical, source: SOURCE };
 }
