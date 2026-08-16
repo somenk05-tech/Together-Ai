@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Spinner } from '@/components/ui';
 import { Fold } from '@/components/ui/Fold';
 import { useStore, useBag, useSaveBag, type StoreProduct, type Yours } from '@/api/store.api';
-import { Shot } from '../components/PackShot';
+import { Buy, Shot } from '../components/PackShot';
 
 /**
  * THE SUPPLEMENT STORE.
@@ -91,51 +91,9 @@ function Badge({ yours, personalised }: { yours?: Yours | null; personalised: bo
   );
 }
 
-/**
- * THE BUY CONTROL, AND ITS THREE REFUSALS.
- *
- * A prescription medicine, a product with no single price, and everything
- * else. The first two do not get a disabled button — a greyed-out control
- * that never says why is the shape of a bug — they get a sentence and, where
- * there is somewhere to go, a door.
- */
-function Buy({ p, qty, busy, onSet }: {
-  p: StoreProduct; qty: number; busy: boolean; onSet: (n: number) => void;
-}) {
-  if (p.rx) {
-    return (
-      <div style={{ marginTop: 12 }}>
-        <Link className="btn btn-sm" to="/medical/medicines">Needs a prescription →</Link>
-        <span className="muted" style={{ display: 'block', fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
-          Prescription-only in India. It starts in Medicines, not at a checkout.
-        </span>
-      </div>
-    );
-  }
-  if (!p.sellable) {
-    return (
-      <span className="muted" style={{ display: 'block', fontSize: 11.5, marginTop: 12, lineHeight: 1.5 }}>
-        Not sold here — the review found a price range or no stock, and this city won’t pick a number.
-      </span>
-    );
-  }
-  if (qty > 0) {
-    return (
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12 }}>
-        <button type="button" className="btn btn-sm" disabled={busy}
-          aria-label={`One fewer ${p.name}`} onClick={() => onSet(qty - 1)}>−</button>
-        <b style={{ fontSize: 14, minWidth: 18, textAlign: 'center' }}>{qty}</b>
-        <button type="button" className="btn btn-sm" disabled={busy || qty >= 12}
-          aria-label={`One more ${p.name}`} onClick={() => onSet(qty + 1)}>+</button>
-        <span className="muted" style={{ fontSize: 11.5 }}>in your bag</span>
-      </div>
-    );
-  }
-  return (
-    <button type="button" className="btn btn-sm" style={{ marginTop: 12 }} disabled={busy}
-      onClick={() => onSet(1)}>Add · {rupees(p.priceInr ?? 0)}</button>
-  );
-}
+/* The buy control moved to ../components/PackShot — the plan page sells the
+   products behind its own recommendations now, and a second copy of "what may
+   be bought" is a second answer the first time either is corrected. */
 
 function Tile({ p, personalised, qty, busy, onOpen, onSet }: {
   p: StoreProduct; personalised: boolean; qty: number; busy: boolean;

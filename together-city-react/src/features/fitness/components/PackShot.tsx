@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import type { StoreProduct } from '@/api/store.api';
 
 /**
  * THE PACK, DRAWN RATHER THAN PHOTOGRAPHED — and the photograph, with the
@@ -78,5 +80,60 @@ export function Shot({ image, pack, colour }: { image?: string; pack?: string; c
   return (
     <img src={image} alt="" loading="lazy" onError={() => setBroken(true)}
       style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', background: 'var(--card)' }} />
+  );
+}
+
+const rupees = (n: number) => `₹${n.toLocaleString('en-IN')}`;
+
+/**
+ * THE BUY CONTROL, AND ITS THREE REFUSALS.
+ *
+ * A prescription medicine, a product with no single price, and everything
+ * else. The first two do not get a disabled button — a greyed-out control
+ * that never says why is the shape of a bug — they get a sentence and, where
+ * there is somewhere to go, a door.
+ *
+ * SHARED BY THE SHELF AND THE PLAN, which is why it lives here rather than on
+ * the store page it was written for. The plan page now sells the products
+ * behind its own recommendations, and a second copy of "what may be bought"
+ * is a second answer the first time either is corrected — which for THESE
+ * three rules would mean a prescription medicine growing an Add button on one
+ * screen and not the other.
+ */
+export function Buy({ p, qty, busy, onSet }: {
+  p: StoreProduct; qty: number; busy: boolean; onSet: (n: number) => void;
+}) {
+  if (p.rx) {
+    return (
+      <div style={{ marginTop: 12 }}>
+        <Link className="btn btn-sm" to="/medical/medicines">Needs a prescription →</Link>
+        <span className="muted" style={{ display: 'block', fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
+          Prescription-only in India. It starts in Medicines, not at a checkout.
+        </span>
+      </div>
+    );
+  }
+  if (!p.sellable) {
+    return (
+      <span className="muted" style={{ display: 'block', fontSize: 11.5, marginTop: 12, lineHeight: 1.5 }}>
+        Not sold here — the review found a price range or no stock, and this city won’t pick a number.
+      </span>
+    );
+  }
+  if (qty > 0) {
+    return (
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12 }}>
+        <button type="button" className="btn btn-sm" disabled={busy}
+          aria-label={`One fewer ${p.name}`} onClick={() => onSet(qty - 1)}>−</button>
+        <b style={{ fontSize: 14, minWidth: 18, textAlign: 'center' }}>{qty}</b>
+        <button type="button" className="btn btn-sm" disabled={busy || qty >= 12}
+          aria-label={`One more ${p.name}`} onClick={() => onSet(qty + 1)}>+</button>
+        <span className="muted" style={{ fontSize: 11.5 }}>in your bag</span>
+      </div>
+    );
+  }
+  return (
+    <button type="button" className="btn btn-sm" style={{ marginTop: 12 }} disabled={busy}
+      onClick={() => onSet(1)}>Add · {rupees(p.priceInr ?? 0)}</button>
   );
 }

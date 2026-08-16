@@ -1,7 +1,10 @@
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Spinner } from '@/components/ui';
 import { Fold } from '@/components/ui/Fold';
 import { useSupplementPlan, type Bucket, type Recommendation } from '@/api/supplements.api';
+import { useStore, useBag, useSaveBag, type StoreProduct } from '@/api/store.api';
+import { Buy, Shot } from '../components/PackShot';
 
 /**
  * YOUR SUPPLEMENT PLAN.
@@ -27,12 +30,30 @@ import { useSupplementPlan, type Bucket, type Recommendation } from '@/api/suppl
  * A supplement screen that can only ever suggest buying something is an
  * advertisement with a chart on it.
  *
- * WHERE THE MONEY WENT. There is no price and no "add to kit" anywhere on this
- * page. Selling is a different act from advising, and a page that does both at
- * once cannot be trusted with the second — the moment a refusal costs revenue,
- * the refusals get quieter. The shelf came back as its own screen, at
- * /fitness/store, and it carries this page's verdict on every card it sells —
- * including the twelve products it sells under a refusal.
+ * AND NOW IT SELLS WHAT IT SUPPORTS — owner's call, 16 Aug, and it reverses a
+ * rule, so the argument goes here rather than in a commit nobody re-reads.
+ *
+ * THE OLD RULE was no price and no Add anywhere on this page: selling is a
+ * different act from advising, and a page doing both cannot be trusted with
+ * the second, because the moment a refusal costs revenue the refusals get
+ * quieter. That risk has not gone away. What changed is where the till
+ * stands — a citizen reading "your LDL is 132, and psyllium is the one answer
+ * here with high-certainty evidence behind it" should not then have to go and
+ * find the isabgol themselves on a shelf of forty-three bottles.
+ *
+ * SO THE ASYMMETRY IS THE GUARD. Under a priority, consider or optional card
+ * sits "Available in India" — the products the review found for that
+ * supplement, with an Add. Under a REFUSED card there is no product, no price
+ * and no button, ever. The refusal costs this page revenue BY CONSTRUCTION,
+ * which is what stops it quietly softening to earn some. Those twelve
+ * products are still buyable — hiding them would not stop the purchase, it
+ * would only move it somewhere that never showed anybody the trials — but
+ * they are buyable in the store, where the checkout makes you read the trial
+ * first.
+ *
+ * THE BAG IS THE SAME BAG. One bag, one total, the store's own: added from
+ * here, edited anywhere, paid at /fitness/orders. A second bag on the page
+ * that advises would be exactly the shop this hub refuses to be.
  */
 
 const BUCKETS: Array<{ id: Bucket; dot: string; title: string; blurb: string }> = [
@@ -71,7 +92,58 @@ function Why({ from, text, source }: { from: string; text: string; source?: stri
   );
 }
 
-function Card({ r }: { r: Recommendation }) {
+const rupees = (n: number) => `₹${n.toLocaleString('en-IN')}`;
+
+/**
+ * AVAILABLE IN INDIA — the review's own section, under the recommendation it
+ * belongs to, drawn the way the owner's evidence-review page draws it: the
+ * photograph, the brand, the strength, the review's markers, the price, and
+ * one control.
+ *
+ * ONLY UNDER A SUPPLEMENT THIS PAGE SUPPORTS. The refused bucket never
+ * reaches this component — see the header for why that asymmetry is the whole
+ * safety argument.
+ *
+ * SELLABLE FIRST, THEN CHEAPEST. A prescription-only pack and a product with
+ * no recorded price are still SHOWN, because the review found them and the
+ * page's job is to say what exists — they simply carry a sentence instead of
+ * a button, and they sort below the things somebody can actually buy today.
+ */
+function Shelf({ products, qtyOf, busy, onSet }: {
+  products: StoreProduct[]; qtyOf: (id: string) => number; busy: boolean;
+  onSet: (id: string, n: number) => void;
+}) {
+  if (products.length === 0) return null;
+  return (
+    <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line-2)' }}>
+      <span className="eyebrow">Available in India</span>
+      <div style={{ display: 'grid', gap: 12, marginTop: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))' }}>
+        {products.map((p) => (
+          <article key={p.id} style={{ border: '1px solid var(--line-2)', borderRadius: 'var(--r-2)', padding: 12, display: 'flex', flexDirection: 'column' }}>
+            <span style={{ background: 'var(--well)', borderRadius: 'var(--r-1)', overflow: 'hidden', aspectRatio: '1 / 1', display: 'block' }}>
+              <Shot image={p.image} pack={p.pack} colour={p.colour} />
+            </span>
+            <span className="eyebrow" style={{ marginTop: 10 }}>{p.brand}</span>
+            <b style={{ fontSize: 13.5, lineHeight: 1.35 }}>{p.name}</b>
+            {p.strength ? <span className="muted" style={{ fontSize: 11.5, lineHeight: 1.45 }}>{p.strength}</span> : null}
+            {(p.tags ?? []).length > 0 && (
+              <span style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 6 }}>
+                {(p.tags ?? []).slice(0, 2).map((t) => <span key={t} className="tag" style={{ fontSize: 10 }}>{t}</span>)}
+              </span>
+            )}
+            <span style={{ fontSize: 13.5, fontWeight: 700, marginTop: 'auto', paddingTop: 8 }}>
+              {typeof p.priceInr === 'number' ? rupees(p.priceInr) : <span className="muted" style={{ fontWeight: 400, fontSize: 11.5 }}>No single price recorded</span>}
+            </span>
+            {p.price ? <span className="muted" style={{ fontSize: 11 }}>{p.price}</span> : null}
+            <Buy p={p} qty={qtyOf(p.id)} busy={busy} onSet={(n) => onSet(p.id, n)} />
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Card({ r, shelf }: { r: Recommendation; shelf?: React.ReactNode }) {
   const refused = r.bucket === 'not-recommended';
   return (
     <article className="card rise" style={{ padding: '16px 18px', marginBottom: 12 }}>
@@ -130,6 +202,10 @@ function Card({ r }: { r: Recommendation }) {
           ))}
         </ul>
       )}
+
+      {/* The shelf for THIS supplement, and only where the plan supports it —
+          the parent decides, so a refused card cannot grow one by accident. */}
+      {shelf}
     </article>
   );
 }
@@ -138,6 +214,41 @@ export function Supplements() {
   const q = useSupplementPlan();
   const plan = q.data?.plan ?? [];
   const basis = q.data?.basis;
+
+  /* THE SHELF, THE BAG AND THE TILL ARE THE STORE'S — read here, never
+     re-derived. One catalogue, one bag, one total: a product added from this
+     page is the same line the store shows and the same line /fitness/orders
+     charges for. */
+  const store = useStore();
+  const bagQ = useBag();
+  const save = useSaveBag();
+  const bagLines = useMemo(() => bagQ.data?.lines ?? [], [bagQ.data]);
+  const qtyOf = (id: string) => bagLines.find((l) => l.id === id)?.qty ?? 0;
+  const busy = save.isPending;
+
+  const setQty = (id: string, n: number) => {
+    const next = bagLines
+      .map((l) => ({ id: l.id, qty: l.id === id ? n : l.qty }))
+      .filter((l) => l.qty > 0);
+    if (n > 0 && !bagLines.some((l) => l.id === id)) next.push({ id, qty: n });
+    save.mutate(next);
+  };
+
+  /** Products by the supplement they resolve to — sellable first, then
+   *  cheapest, so what somebody can actually buy today leads the row. */
+  const bySupplement = useMemo(() => {
+    const m = new Map<string, StoreProduct[]>();
+    for (const p of store.data?.items ?? []) {
+      const list = m.get(p.supplement) ?? [];
+      list.push(p);
+      m.set(p.supplement, list);
+    }
+    for (const list of m.values()) {
+      list.sort((a, b) => Number(Boolean(b.sellable)) - Number(Boolean(a.sellable))
+        || (a.priceInr ?? Number.MAX_SAFE_INTEGER) - (b.priceInr ?? Number.MAX_SAFE_INTEGER));
+    }
+    return m;
+  }, [store.data]);
 
   return (
     <div className="page">
@@ -149,13 +260,13 @@ export function Supplements() {
             Built from your blood work, your diet, your medicines and your goal — and from an evidence
             review, not a catalogue. About a third of it is what to stop buying.
           </p>
-          {/* THE DOOR TO THE SHELF, AND IT IS A DOOR RATHER THAN A BUTTON.
-              This page holds the opinion; the store holds the bottles, at the
-              retailers that sell them, with this page's verdict printed on
-              every card. Two screens because they are two acts. */}
-          <p style={{ marginTop: 10, fontSize: 13.5 }}>
-            <Link to="/fitness/store">Every one of these is in the store</Link>
-            <span className="muted"> — 43 products verified in India, at the shops that sell them.</span>
+          {/* WHAT YOU CAN BUY FROM HERE, AND WHAT YOU CANNOT — said before the
+              first Add rather than discovered at the fourth card. */}
+          <p style={{ marginTop: 10, fontSize: 13.5, lineHeight: 1.6 }}>
+            Everything this plan supports is buyable below, from your city wallet.
+            <span className="muted"> The ones it recommends against carry no price and no button
+              here — they are in <Link to="/fitness/store">the whole store</Link>, where the checkout
+              asks you to read the trial first.</span>
           </p>
         </div>
       </div>
@@ -196,13 +307,30 @@ export function Supplements() {
           {BUCKETS.map((b) => {
             const items = plan.filter((r) => r.bucket === b.id);
             if (!items.length) return null;
+            const refusedBucket = b.id === 'not-recommended';
             return (
               <section key={b.id} style={{ marginBottom: 26 }}>
                 <div className="blk-head">
                   <h2 style={{ fontSize: 19 }}><span aria-hidden>{b.dot}</span> {b.title}</h2>
                   <span className="muted" style={{ fontSize: 12 }}>{b.blurb}</span>
                 </div>
-                {items.map((r) => <Card key={r.id} r={r} />)}
+                {items.map((r) => (
+                  <Card key={r.id} r={r}
+                    /* NO SHELF UNDER A REFUSAL, and it is decided here rather
+                       than inside the card so it cannot be turned on by a prop
+                       somebody adds later. */
+                    shelf={refusedBucket ? undefined : (
+                      <Shelf products={bySupplement.get(r.id) ?? []} qtyOf={qtyOf} busy={busy} onSet={setQty} />
+                    )} />
+                ))}
+                {refusedBucket && (
+                  <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.6, margin: '4px 0 0' }}>
+                    These have no price and no button here, on purpose. They are still on the
+                    shelf in <Link to="/fitness/store">the store</Link> — hiding them wouldn’t stop
+                    the purchase, it would only move it somewhere that never showed you the trials —
+                    and the checkout there asks you to read this once before it takes any money.
+                  </p>
+                )}
               </section>
             );
           })}
@@ -234,6 +362,29 @@ export function Supplements() {
                 app does not calculate a dose for you, and where one is needed it says to ask your doctor.
               </p>
             </Fold>
+          )}
+
+          {/* THE SAME BAG BAR AS THE SHELF, and the same last-block-of-the-page
+              rule: you reach it by getting to the end, which is also when you
+              have finished deciding. Checkout is a link; nothing is charged
+              before /fitness/orders. */}
+          {bagLines.length > 0 && (
+            <section className="card rise" style={{
+              marginTop: 22, padding: '14px 18px',
+              display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
+            }}>
+              <div style={{ minWidth: 0 }}>
+                <b style={{ fontSize: 15 }}>
+                  {bagLines.length} item{bagLines.length === 1 ? '' : 's'} · {rupees(bagQ.data?.totalInr ?? 0)}
+                </b>
+                <span className="muted" style={{ display: 'block', fontSize: 12, marginTop: 2 }}>
+                  {bagLines.map((l) => `${l.name ?? 'No longer sold'}${l.qty > 1 ? ` ×${l.qty}` : ''}`).join(', ')}
+                </span>
+              </div>
+              <Link className="btn" style={{ marginLeft: 'auto' }} to="/fitness/orders">
+                Checkout · {rupees(bagQ.data?.totalInr ?? 0)}
+              </Link>
+            </section>
           )}
         </>
       )}
