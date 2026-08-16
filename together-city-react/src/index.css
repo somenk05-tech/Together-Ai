@@ -885,7 +885,10 @@ table.tc td b { color: var(--ink); }
      corner radius — same as every messaging app on a phone */
   .cstage { border-radius: var(--r-3); }
   .cstage .cslist, .cstage .csthread { min-width: 0; overflow: hidden; }
-  .cshead-t { display: flex; align-items: center; gap: 10px; }
+  /* `.cshead-t { display: flex; align-items: center; gap: 10px }` stood here
+     and did nothing: the first two declarations restate relief.css's, and the
+     gap lost the tie to relief's 12px because relief.css is imported second.
+     The phone's row is set in relief.css now, in one place. */
   .csback {
     flex: 0 0 auto; display: grid; place-items: center;
     width: 40px; height: 40px; margin-left: -6px;
@@ -1060,14 +1063,14 @@ html.tc-immersive .csroom > .card {
 html.tc-immersive .cshead-t { padding-top: calc(var(--safe-top) + 16px); padding-bottom: 12px; }
 html.tc-immersive .cscomposer { margin-bottom: calc(var(--safe-bottom) + 14px); }
 
-@media (max-width: 899px) {
-  /* A share card is 280px wide; a row capped at 66% of a 390px screen is
-     257px, so every recipe and property card hung over the right edge. The
-     measure is a phone's, not a desk's. */
-  .csmsgs { padding: 14px 14px 6px; }
-  .csmsgs > div > .tc-msg-row { max-width: 86%; }
-  .cscomposer { margin: 0 12px 14px; }
-}
+/* THE PHONE'S MEASURE MOVED TO relief.css, WHERE IT CAN WIN.
+   These three rules were written on 10 Aug and had never once applied.
+   main.tsx imports index.css and then relief.css, so at equal specificity
+   the later file takes the tie — and `.csmsgs` and
+   `.csmsgs > div > .tc-msg-row` are both stated there, unconditionally. A
+   phone was getting the desk's 24px gutters and the desk's 66% measure the
+   whole time. They are now in relief.css, scoped under `.cstage` so they
+   outrank the rule they are correcting rather than merely following it. */
 
 /* ---- The dock is gone; the screens take the room back (10 Aug) ----
    Three places reserved space for the bottom bar. With no bar to clear, the

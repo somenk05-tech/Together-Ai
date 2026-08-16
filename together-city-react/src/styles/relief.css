@@ -3028,7 +3028,7 @@ textarea.g-field { resize: none; line-height: 1.55; }
 
 /* ── the thread ───────────────────────────────────────────────────────── */
 .csthread { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.cshead-t { display: flex; align-items: center; gap: 12px; padding: 14px 20px;
+.cshead-t { position: relative; display: flex; align-items: center; gap: 12px; padding: 14px 20px;
   border-bottom: 1px solid var(--stage-line); }
 .cshead-t b { font-size: 15px; }
 .cshead-t em { display: block; margin-top: 2px; font-style: normal; font-size: 11px; color: var(--on-stage-faint); }
@@ -3036,7 +3036,11 @@ textarea.g-field { resize: none; line-height: 1.55; }
   cursor: pointer; font-family: inherit; font-size: 14px;
   color: var(--on-stage-soft); background: var(--stage-panel); }
 
-.csmsgs { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; }
+/* UP AND DOWN, AND NOWHERE ELSE. `overflow-y: auto` alone leaves overflow-x
+   computing to `auto` as well, so anything a shade too wide — a header that
+   does not fit, a pasted token with no break in it — turned the thread into
+   something you could pan sideways off the edge of the room. */
+.csmsgs { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 20px 24px; display: flex; flex-direction: column; }
 .csday { align-self: center; margin: 4px 0 14px; padding: 6px 15px; border-radius: var(--r-full);
   font-size: 10px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
   color: var(--on-stage-faint); background: var(--stage-panel); }
@@ -3055,6 +3059,10 @@ textarea.g-field { resize: none; line-height: 1.55; }
 .csmsgs > div > .tc-msg-row { max-width: min(66%, 560px); }
 .csb { align-self: flex-start; max-width: 100%; padding: 11px 16px; border-radius: var(--r-3);
   font-size: 14.5px; line-height: 1.5;
+  /* A pasted link or a forty-character token has no break in it, and the
+     default is to let it stick out of the bubble rather than break it. On a
+     phone that is the whole thread shifted sideways by one message. */
+  overflow-wrap: anywhere;
   color: var(--on-stage-ink); background: var(--on-stage); }
 .csb + .csb { margin-top: 6px; }
 .csb.me { align-self: flex-end; color: var(--on-stage); background: var(--stage-solid); }
@@ -3100,6 +3108,73 @@ textarea.g-field { resize: none; line-height: 1.55; }
   background: var(--danger-ink); animation: csrec-pulse var(--dur-slow) var(--ease) infinite; }
 @keyframes csrec-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { .csrec-dot { animation: none; } }
+
+/* ── THE OVERFLOW KEY, AND WHAT IT HOLDS ──────────────────────────────────
+   A menu on the stage, made of the stage: an opaque ground so the thread
+   does not read through it, and an EDGE rather than a shadow, because
+   the-stage-lies-flat is the rule inside this box and a floating card with
+   a drop under it would be the one raised thing left in the room.
+
+   The scrim is fixed and full-screen so a press anywhere dismisses it. It
+   sits UNDER the menu and OVER everything else, which is the whole trick —
+   no listener on the document, nothing to remove on unmount. */
+/* IT HANGS OFF THE HEADER, NOT OFF THE KEY. Anchored to the ⋯ itself, a
+   240px menu opening leftward from a button that sits 134px in from the
+   right edge starts at -54px on a 320px phone — the first word off the
+   screen. The row is the thing that is always as wide as the room. */
+.cshead-more-scrim { position: fixed; inset: 0; z-index: 40; }
+.cshead-menu {
+  position: absolute; top: calc(100% + 8px); right: 12px; z-index: 41;
+  max-width: calc(100% - 24px); padding: 6px; display: grid; gap: 2px;
+  border-radius: var(--r-3); background: var(--stage-solid);
+  outline: 1px solid var(--stage-line); outline-offset: -1px;
+}
+/* 44px of height, stated, because a row in a menu is a tap target and this
+   is the one place on the stage where the paint can afford to BE the target
+   rather than hide one behind itself. */
+.cshead-menu button {
+  display: flex; align-items: center; gap: 10px; min-height: 44px;
+  padding: 0 12px; border: 0; border-radius: var(--r-2); background: none;
+  cursor: pointer; font-family: inherit; font-size: 14px; text-align: left;
+  white-space: nowrap; color: var(--on-stage);
+}
+@media (hover: hover) and (pointer: fine) {
+  .cshead-menu button:hover { background: var(--stage-hover); }
+}
+
+/* ── THE STAGE ON A PHONE ─────────────────────────────────────────────────
+   Measured in a browser at the widths people actually hold. The header's
+   eight controls wanted 398px before the name got a single pixel, so on
+   every phone the name was zero wide — and `online`, being the shorter
+   string, was the only thing left of who you were talking to. Below 372px
+   the video key was cut off the end of the row entirely.
+
+   It is not crowded by accident; it is a desk's row rendered on a phone.
+   This block is the phone's version of the same row, and it gives up, in
+   order: the avatar — a phone shows one room at a time and the name is
+   directly above the thread, so the disc was saying it twice — then the
+   spacing, then the size of her lockup. The name is what it will not give
+   up. At 390 it goes from 0px to 138px.
+
+   THESE FOUR RULES ALSO LIVED IN index.css AND HAD NEVER ONCE APPLIED.
+   main.tsx imports index.css and then relief.css, so at equal specificity
+   this file wins every tie — and the phone's padding, gap, composer margin
+   and 86% measure were each tying with a rule below. They are here now,
+   which is the file the chat stage is in anyway. */
+@media (max-width: 899px) {
+  .cstage .cshead-t { gap: 8px; padding: 10px 12px; }
+  .cstage .cshead-t > .csav { display: none; }
+  /* Her mark keeps the SOURCE's 48 — mira-reads-one-chat pins that literal,
+     and 48 is the size the word stops being legible below. The stylesheet
+     scales the lockup for a phone so the page and the test go on agreeing. */
+  .cstage .cshead-t .mira-door > svg { width: 34px; height: 34px; }
+  /* A share card is 280px wide; a row capped at 66% of a 390px screen is
+     257px, so every recipe and property card hung over the right edge. The
+     measure is a phone's, not a desk's. */
+  .cstage .csmsgs { padding: 14px 14px 6px; }
+  .cstage .csmsgs > div > .tc-msg-row { max-width: 86%; }
+  .cstage .cscomposer { margin: 0 12px 14px; }
+}
 
 @media (hover: hover) and (pointer: fine) {
   .cstab:hover { color: var(--on-stage); }

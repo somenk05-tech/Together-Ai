@@ -341,7 +341,17 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
               tabIndex={pickable ? 0 : undefined}
               aria-pressed={pickable ? picked : undefined}
               aria-label={pickable ? (picked ? 'Deselect this message' : 'Select this message') : undefined}
-              style={{ alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: m.share ? 320 : '100%',
+              /* THE MEASURE IS THE STYLESHEET'S, AND `100%` WAS TAKING IT AWAY.
+                 An inline style outranks every rule in the cascade, so
+                 `maxWidth: '100%'` beat `.csmsgs > div > .tc-msg-row`'s
+                 `min(66%, 560px)` on a desk AND its 86% on a phone, and every
+                 long message — sent or received — ran the full width of the
+                 stage. A row that wide cannot read as right-aligned no matter
+                 what `align-self` says, which is why the owner's phone showed
+                 outgoing bubbles going edge to edge. A share card still states
+                 its own 320, because that is a card of a fixed size rather
+                 than a measure for prose. */
+              style={{ alignSelf: mine ? 'flex-end' : 'flex-start', ...(m.share ? { maxWidth: 320 } : null),
                 ...(pickable ? { cursor: 'pointer' } : null),
                 /* THREE STATES, ONE OUTLINE. Picked is the bright ink; a
                    selectable-but-unpicked row gets a dashed hint, so the mode

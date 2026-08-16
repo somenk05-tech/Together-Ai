@@ -135,6 +135,14 @@ export function Chats() {
   const ackedRead = useRef<Set<string>>(new Set());
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  /* THE PHONE'S OVERFLOW KEY. Measured in a browser: the header's controls
+     wanted 398px before the name got a single pixel, so on every phone made
+     the name was zero wide and `online` — the shorter string — was the only
+     thing left of who you were talking to. Two of the eight fold in here.
+     They FOLD rather than leave: "mark unread" is reachable from nowhere else
+     in the application, and a control only a desk can find is a feature a
+     phone does not have. */
+  const [moreOpen, setMoreOpen] = useState(false);
   const [kw, setKw] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -200,7 +208,7 @@ export function Chats() {
   }, [peerId]);
 
   // Reset the live buffer whenever the conversation changes.
-  useEffect(() => { setLive([]); setPeerTyping(false); setStatusMap({}); setHiddenIds(new Set()); setTombstoned(new Set()); setEditsMap({}); ackedRead.current = new Set(); setReplyTo(null); setSearchOpen(false); setKw(''); setFrom(''); setTo(''); setJumpToId(null); setJumpNote(null); setStarredOnly(false); setSelected(new Set()); setBulkDelete(false); setReactionsMap({}); setConfide(false); }, [activeId]);
+  useEffect(() => { setLive([]); setPeerTyping(false); setStatusMap({}); setHiddenIds(new Set()); setTombstoned(new Set()); setEditsMap({}); ackedRead.current = new Set(); setReplyTo(null); setSearchOpen(false); setMoreOpen(false); setKw(''); setFrom(''); setTo(''); setJumpToId(null); setJumpNote(null); setStarredOnly(false); setSelected(new Set()); setBulkDelete(false); setReactionsMap({}); setConfide(false); }, [activeId]);
 
   /* THE WHOLE LIST ARRIVES, so this assigns rather than merges. A frame that
      said "+1 on 👍" would need a correct count to add to, and one dropped frame
@@ -606,12 +614,46 @@ export function Chats() {
                       presence expires on a TTL, so silence is not proof. */}
                   <em>{peerTyping ? 'typing…' : peerOnline ? 'online' : 'Together City'}</em>
                 </div>
+                {phone ? (
+                  /* ONE KEY, TWO ERRANDS. The menu is closed by pressing away
+                     from it or by Escape, and by choosing — a menu that stays
+                     open behind the search bar it just opened is a menu you
+                     have to dismiss twice. */
+                  <div className="cshead-more" style={{ flex: 'none' }}
+                    onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setMoreOpen(false); } }}>
+                    <button type="button" className="cstool" aria-label="More actions in this conversation"
+                      aria-haspopup="menu" aria-expanded={moreOpen}
+                      onClick={() => setMoreOpen((v) => !v)}>⋯</button>
+                    {moreOpen && (
+                      <>
+                        {/* The scrim is not a control and says so: it carries
+                            no name and no role, and every errand behind it is
+                            still in the menu itself. */}
+                        <div className="cshead-more-scrim" aria-hidden
+                          onClick={() => setMoreOpen(false)} />
+                        <div className="cshead-menu" role="menu">
+                          <button type="button" role="menuitem"
+                            onClick={() => { setMoreOpen(false); setSearchOpen((v) => !v); }}>
+                            <span aria-hidden>🔍</span>Search this conversation
+                          </button>
+                          <button type="button" role="menuitem"
+                            onClick={() => { setMoreOpen(false); void leaveUnread(activeId); }}>
+                            <span aria-hidden>◍</span>Mark unread
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                <>
                 <button type="button" className="cstool" aria-label="Leave this conversation unread"
                   title="Mark unread" onClick={() => { void leaveUnread(activeId); }}
                   style={{ flex: 'none' }}>◍</button>
                 <button type="button" className="cstool" aria-label="Search this conversation"
                   aria-expanded={searchOpen} onClick={() => setSearchOpen((v) => !v)}
                   style={{ flex: 'none' }}>🔍</button>
+                </>
+                )}
                 {/* Her mark, on every conversation. A press invites Mira into
                     THIS thread — the side panel reads the window on screen and
                     nothing else. THE WHOLE LOCKUP — ring and wordmark — the
