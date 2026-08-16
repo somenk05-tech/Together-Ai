@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui';
-import { useAddWorkout } from '../api';
+import { useAddWorkout, useTodaySession, type TodaySession } from '../api';
 import { useFoodPref, useNutritionTargets } from '@/features/nutrition/hooks';
 
 /* ---------- shared body profile (from the Nutrition food-preference profile) ---------- */
@@ -37,131 +37,72 @@ const kcalWalk = (min: number, weight: number) => Math.round(4.3 * weight * (min
  */
 const goalTagOf = (g: Goal) => ({ gain: 'Hypertrophy', lose: 'Fat loss', maintain: 'Strength' }[g]);
 
-/* ---------- routine data ---------- */
-type Item = { n: string; t?: number; reps?: number; rest?: boolean };
-type Block = { block: string; rounds: number; items: Item[] };
-type Level = 'beginner' | 'intermediate' | 'advanced';
+/* ---------- the session comes from the server ---------- */
+/**
+ * WHAT WAS HERE, AND WHY IT IS NOT ANY MORE.
+ *
+ * Three hardcoded tables — HOME_PLANS (three levels × six fixed blocks), GYM
+ * (six splits × six names) and two gender splices — plus buildHomeSeq,
+ * buildGymSeq, repScheme and buildSeq. Roughly a hundred and twenty lines that
+ * chose a workout from SEVEN inputs, five of them `useState` that reset on
+ * reload: a location, a gym split picked by day-of-week, a three-value level
+ * that was not the saved five-value one, a duration, a walk flag, a gender and
+ * the NUTRITION goal.
+ *
+ * It never read the saved training profile, the body goal, a lab, a declared
+ * condition, the calorie or protein target, or one minute of the citizen's own
+ * history — every one of which the server already held. So a citizen who had
+ * declared joint pain was handed Jump squats and Burpees, while the weekly-plan
+ * engine three screens away was correctly swapping their cardio for something
+ * low-impact.
+ *
+ * The session is built in fitness/session-engine.ts now, where those facts
+ * live, and this file's job is to draw it and run the timer over it. The only
+ * thing left here is the translation from the server's blocks into the timer's
+ * flat step list.
+ */
 type Loc = 'home' | 'gym';
 
 const mmss = (s: number) => { s = Math.max(0, Math.round(s)); const m = Math.floor(s / 60), ss = s % 60; return `${m}:${ss < 10 ? '0' : ''}${ss}`; };
 
-const HOME_PLANS: Record<Level, Block[]> = {
-  beginner: [
-    { block: 'Warm-up', rounds: 1, items: [{ n: 'March in place', t: 60 }, { n: 'Arm circles', t: 30 }, { n: 'Bodyweight squats', t: 40 }, { n: 'Step jacks', t: 40 }, { n: 'Rest', t: 30, rest: true }] },
-    { block: 'Legs & glutes', rounds: 3, items: [{ n: 'Box / chair squats', reps: 12 }, { n: 'Glute bridges', reps: 15 }, { n: 'Standing calf raises', reps: 15 }, { n: 'Rest', t: 50, rest: true }] },
-    { block: 'Push', rounds: 3, items: [{ n: 'Wall / knee push-ups', reps: 10 }, { n: 'Shoulder press (bottles)', reps: 12 }, { n: 'Rest', t: 50, rest: true }] },
-    { block: 'Core', rounds: 3, items: [{ n: 'Dead bug', reps: 12 }, { n: 'Modified plank', t: 25 }, { n: 'Knee raises', reps: 12 }, { n: 'Rest', t: 50, rest: true }] },
-    { block: 'Low-impact cardio', rounds: 2, items: [{ n: 'Marching high knees', t: 40 }, { n: 'Side steps', t: 40 }, { n: 'Rest', t: 40, rest: true }] },
-    { block: 'Cool-down', rounds: 1, items: [{ n: 'Hamstring stretch', t: 40 }, { n: 'Quad stretch', t: 40 }, { n: "Child's pose", t: 60 }] },
-  ],
-  intermediate: [
-    { block: 'Warm-up', rounds: 1, items: [{ n: 'Jumping jacks', t: 60 }, { n: 'Arm circles', t: 30 }, { n: 'Bodyweight squats', t: 45 }, { n: 'High knees', t: 45 }, { n: 'Rest', t: 30, rest: true }] },
-    { block: 'Lower body', rounds: 4, items: [{ n: 'Squats', reps: 15 }, { n: 'Alternating lunges', reps: 24 }, { n: 'Glute bridges', reps: 20 }, { n: 'Rest', t: 45, rest: true }] },
-    { block: 'Upper body', rounds: 4, items: [{ n: 'Push-ups', reps: 12 }, { n: 'Bent-over rows', reps: 15 }, { n: 'Shoulder taps', t: 40 }, { n: 'Rest', t: 45, rest: true }] },
-    { block: 'Core', rounds: 4, items: [{ n: 'Plank', t: 45 }, { n: 'Bicycle crunches', t: 40 }, { n: 'Russian twists', t: 40 }, { n: 'Rest', t: 45, rest: true }] },
-    { block: 'Cardio finisher', rounds: 3, items: [{ n: 'Burpees', t: 40 }, { n: 'Mountain climbers', t: 40 }, { n: 'Rest', t: 40, rest: true }] },
-    { block: 'Cool-down', rounds: 1, items: [{ n: 'Hamstring stretch', t: 40 }, { n: 'Quad stretch', t: 40 }, { n: 'Chest stretch', t: 40 }, { n: "Child's pose", t: 60 }] },
-  ],
-  advanced: [
-    { block: 'Warm-up', rounds: 1, items: [{ n: 'Jumping jacks', t: 60 }, { n: "World's greatest stretch", t: 40 }, { n: 'Jump squats', t: 30 }, { n: 'High knees', t: 45 }, { n: 'Rest', t: 20, rest: true }] },
-    { block: 'Lower power', rounds: 4, items: [{ n: 'Jump squats', reps: 18 }, { n: 'Bulgarian split squats', reps: 20 }, { n: 'Single-leg glute bridge', reps: 20 }, { n: 'Rest', t: 40, rest: true }] },
-    { block: 'Push power', rounds: 4, items: [{ n: 'Push-ups', reps: 20 }, { n: 'Pike push-ups', reps: 14 }, { n: 'Explosive push-ups', reps: 10 }, { n: 'Rest', t: 40, rest: true }] },
-    { block: 'Core', rounds: 4, items: [{ n: 'Hollow hold', t: 45 }, { n: 'V-ups', reps: 18 }, { n: 'Plank to push-up', t: 40 }, { n: 'Rest', t: 40, rest: true }] },
-    { block: 'Conditioning', rounds: 3, items: [{ n: 'Burpees', t: 45 }, { n: 'Mountain climbers', t: 45 }, { n: 'Tuck jumps', t: 30 }, { n: 'Rest', t: 30, rest: true }] },
-    { block: 'Cool-down', rounds: 1, items: [{ n: 'Pigeon stretch', t: 45 }, { n: 'Hamstring stretch', t: 40 }, { n: "Child's pose", t: 60 }] },
-  ],
-};
-const GENDER_HOME: Record<'male' | 'female', Block> = {
-  female: { block: 'Glutes & core (for you)', rounds: 3, items: [{ n: 'Hip thrusts', reps: 18 }, { n: 'Fire hydrants', reps: 14 }, { n: 'Side plank', t: 30 }, { n: 'Bicycle crunches', t: 40 }, { n: 'Rest', t: 40, rest: true }] },
-  male: { block: 'Upper-body burnout (for you)', rounds: 3, items: [{ n: 'Push-ups', reps: 15 }, { n: 'Pike push-ups', reps: 12 }, { n: 'Chair dips', reps: 14 }, { n: 'Plank shoulder taps', t: 40 }, { n: 'Rest', t: 40, rest: true }] },
-};
+interface Step { name: string; block: string; dur: number; reps: number | null; rest?: boolean; walk?: boolean; note?: string; round?: number }
 
-const FOCUSES = ['Chest & Triceps', 'Back & Biceps', 'Legs', 'Shoulders & Abs', 'Arms', 'Full Body'];
-const GYM: Record<string, { n: string; t?: number }[]> = {
-  'Chest & Triceps': [{ n: 'Barbell bench press' }, { n: 'Incline dumbbell press' }, { n: 'Cable chest fly' }, { n: 'Dips' }, { n: 'Triceps rope pushdown' }, { n: 'Overhead triceps extension' }],
-  'Back & Biceps': [{ n: 'Deadlift' }, { n: 'Lat pulldown' }, { n: 'Seated cable row' }, { n: 'Barbell biceps curl' }, { n: 'Hammer curl' }, { n: 'Face pull' }],
-  Legs: [{ n: 'Barbell back squat' }, { n: 'Leg press' }, { n: 'Romanian deadlift' }, { n: 'Leg extension' }, { n: 'Lying leg curl' }, { n: 'Standing calf raise' }],
-  'Shoulders & Abs': [{ n: 'Overhead barbell press' }, { n: 'Dumbbell lateral raise' }, { n: 'Rear-delt fly' }, { n: 'Barbell shrugs' }, { n: 'Hanging leg raise' }, { n: 'Cable crunch' }],
-  Arms: [{ n: 'Barbell curl' }, { n: 'Incline dumbbell curl' }, { n: 'Preacher curl' }, { n: 'Close-grip bench press' }, { n: 'Triceps pushdown' }, { n: 'Overhead extension' }],
-  'Full Body': [{ n: 'Barbell back squat' }, { n: 'Barbell bench press' }, { n: 'Bent-over row' }, { n: 'Overhead press' }, { n: 'Romanian deadlift' }, { n: 'Plank', t: 60 }],
-};
-const GENDER_GYM: Record<'male' | 'female', Record<string, string[]>> = {
-  female: { Legs: ['Barbell hip thrust', 'Glute kickback'], 'Full Body': ['Barbell hip thrust'], 'Shoulders & Abs': ['Cable glute kickback'], 'Back & Biceps': ['Hip thrust'] },
-  male: { 'Chest & Triceps': ['Weighted dips'], Arms: ['Cable curl 21s'], 'Full Body': ['Weighted push-up'], 'Shoulders & Abs': ['Barbell push press'] },
-};
+/** A reasonable clock for one working set, so the timer has something to count
+ *  down on a movement measured in reps. The set itself is the target on the
+ *  screen; this is only how long the page waits before saying "rest". */
+const REP_SECONDS = 3;
 
-const LEVELS: [Level, string][] = [['beginner', 'Beginner'], ['intermediate', 'Intermediate'], ['advanced', 'Advanced']];
-const DURS = [45, 60, 90];
-const levelCfg = (level: Level) => ({
-  beginner: { restAdd: 15, setsAdj: -1, tag: 'Beginner' },
-  intermediate: { restAdd: 0, setsAdj: 0, tag: 'Intermediate' },
-  advanced: { restAdd: -15, setsAdj: 1, tag: 'Advanced' },
-}[level]);
-const durFactor = (dur: number) => ({ 45: 0.82, 60: 1.18, 90: 1.85 } as Record<number, number>)[dur] ?? 1.18;
-
-function repScheme(level: Level, goalKey: Goal) {
-  const base = goalKey === 'gain' ? { sets: 4, reps: '8–10', restSec: 75, repN: 9 }
-    : goalKey === 'lose' ? { sets: 3, reps: '12–15', restSec: 45, repN: 13 }
-    : { sets: 3, reps: '10–12', restSec: 60, repN: 11 };
-  const lc = levelCfg(level);
-  return { ...base, sets: Math.max(2, Math.min(6, base.sets + lc.setsAdj)), restSec: Math.max(30, base.restSec + lc.restAdd) };
-}
-const defaultFocus = () => FOCUSES[[5, 0, 1, 2, 3, 4, 5][new Date().getDay()]];
-
-interface Step { name: string; block: string; round?: string; dur: number; reps: number | null; rest: boolean; walk?: boolean; note?: string }
-const walkStep = (): Step => ({ name: 'Brisk walk', block: 'Walk', dur: WALK_MIN * 60, reps: null, rest: false, walk: true, note: `~${WALK_STEPS.toLocaleString('en-IN')} steps` });
-
-function currentHomePlan(level: Level, gender: Gender): Block[] {
-  const plan = HOME_PLANS[level].slice();
-  const gb = GENDER_HOME[gender];
-  let ci = plan.findIndex((b) => /Cool-down/.test(b.block));
-  if (ci < 0) ci = plan.length - 1;
-  plan.splice(ci, 0, gb);
-  return plan;
-}
-const homeRounds = (dur: number, baseRounds: number) => baseRounds <= 1 ? 1 : Math.max(2, Math.min(8, Math.round(baseRounds * durFactor(dur))));
-
-function focusBase(focus: string, gender: Gender): { n: string; t?: number; gender?: boolean }[] {
-  const base: { n: string; t?: number; gender?: boolean }[] = (GYM[focus] || GYM['Full Body']).map((e) => ({ ...e }));
-  const extra = (GENDER_GYM[gender] || {})[focus] || [];
-  extra.forEach((nm) => base.splice(Math.min(3, base.length), 0, { n: nm, gender: true }));
-  return base;
-}
-const gymExCount = (dur: number) => dur === 45 ? 5 : dur === 90 ? 7 : 6;
-function gymExercises(focus: string, dur: number, gender: Gender) {
-  const base = focusBase(focus, gender);
-  const num = Math.min(base.length, gymExCount(dur));
-  return base.slice(0, num);
-}
-
-function buildHomeSeq(level: Level, dur: number, gender: Gender): Step[] {
-  const seq: Step[] = []; const lc = levelCfg(level);
-  currentHomePlan(level, gender).forEach((b) => {
-    const rounds = homeRounds(dur, b.rounds);
-    for (let r = 1; r <= rounds; r++) b.items.forEach((it) => {
-      const d = it.rest ? Math.max(20, (it.t ?? 40) + lc.restAdd) : (it.t ?? Math.max(20, Math.round((it.reps ?? 10) * 3)));
-      seq.push({ name: it.n, block: b.block, round: rounds > 1 ? `${r}/${rounds}` : '', dur: d, reps: it.reps ?? null, rest: !!it.rest });
-    });
-  });
-  return seq;
-}
-function buildGymSeq(focus: string, level: Level, dur: number, gender: Gender, goalKey: Goal): Step[] {
-  const sc = repScheme(level, goalKey); const seq: Step[] = [];
-  gymExercises(focus, dur, gender).forEach((e) => {
-    const sets = e.t ? 3 : sc.sets;
-    for (let i = 1; i <= sets; i++) {
-      if (e.t) seq.push({ name: e.n, block: focus, round: `${i}/${sets}`, dur: e.t, reps: null, rest: false });
-      else seq.push({ name: e.n, block: focus, round: `${i}/${sets}`, dur: Math.max(25, Math.round(sc.repN * 3)), reps: null, rest: false, note: sc.reps });
-      if (i < sets) seq.push({ name: 'Rest', block: focus, dur: sc.restSec, reps: null, rest: true });
+/**
+ * The server's blocks, flattened into the steps the live timer walks.
+ *
+ * Sets become repeated steps with a rest between them — that is what makes the
+ * timer able to say "set 2 of 3" without the engine knowing a timer exists.
+ */
+function stepsFrom(session: TodaySession | undefined, includeWalk: boolean): Step[] {
+  if (!session) return [];
+  const out: Step[] = [];
+  for (const block of session.blocks) {
+    if (block.title === 'Then walk') continue;
+    for (const ex of block.exercises) {
+      const perSet = ex.seconds ?? Math.round(((ex.reps?.[1] ?? 10)) * REP_SECONDS);
+      for (let i = 1; i <= ex.sets; i++) {
+        out.push({
+          name: ex.name, block: block.title, dur: perSet,
+          reps: ex.reps ? ex.reps[1] : null,
+          note: ex.reps ? `${ex.reps[0]}–${ex.reps[1]} reps${ex.unilateral ? ' each side' : ''}` : undefined,
+          ...(ex.sets > 1 ? { round: i } : {}),
+        });
+        if (i < ex.sets && ex.restSec > 0) out.push({ name: 'Rest', block: block.title, dur: ex.restSec, reps: null, rest: true });
+      }
     }
-    seq.push({ name: 'Rest', block: focus, dur: sc.restSec + 20, reps: null, rest: true });
-  });
-  return seq;
+  }
+  if (includeWalk) out.push(walkStepOf(session.walkMinutes));
+  return out;
 }
-const buildSeq = (loc: Loc, focus: string, level: Level, dur: number, includeWalk: boolean, gender: Gender, goalKey: Goal): Step[] => {
-  const seq = loc === 'gym' ? buildGymSeq(focus, level, dur, gender, goalKey) : buildHomeSeq(level, dur, gender);
-  return includeWalk ? [...seq, walkStep()] : seq;
-};
+const walkStepOf = (minutes: number): Step => ({
+  name: 'Brisk walk', block: 'Finish', dur: minutes * 60, reps: null, walk: true,
+  note: `${minutes} minutes · brisk enough to be breathing, easy enough to talk`,
+});
 
 /** Map the Nutrition food-preference profile onto the fitness body profile. */
 function healthFromPref(
@@ -210,11 +151,20 @@ export function Workout() {
   const addWorkout = useAddWorkout();
   const foodPref = useFoodPref();
   const nutritionTargets = useNutritionTargets();
-  const [level, setLevel] = useState<Level>('intermediate');
-  const [dur, setDur] = useState(60);
-  const [loc, setLoc] = useState<Loc>('home');
-  const [focus, setFocus] = useState(defaultFocus());
+  /**
+   * TODAY'S TWO OVERRIDES, and they are the only two left.
+   *
+   * `undefined` means "whatever my profile says" — the server falls back to the
+   * saved place and session length, so an untouched page is the citizen's own
+   * usual answer rather than this file's opinion of it. The level, the split,
+   * the gender emphasis and the rep scheme are gone from here entirely: they
+   * are the server's, from the profile they saved.
+   */
+  const [dur, setDur] = useState<number | undefined>(undefined);
+  const [loc, setLoc] = useState<Loc | undefined>(undefined);
   const [log, setLog] = useState<Record<string, DayLog>>({});
+  const todays = useTodaySession(dur, loc);
+  const session = todays.data;
 
   // Body profile is shared with the Nutrition food-preference profile — no re-typing.
   const health = useMemo(() => healthFromPref(foodPref.data), [foodPref.data]);
@@ -232,15 +182,18 @@ export function Workout() {
   // choice about which session to show. Printing "Women" on somebody's page is
   // a claim about them, and we only make it when they have said so.
   const genderTag = health.sexKnown ? (gender === 'male' ? 'Men' : 'Women') : null;
-  /** Header segments, with anything we do not know left out rather than shown
-   *  as a gap or, worse, as the word "null". */
-  const seg = (...parts: (string | null | undefined)[]) => parts.filter(Boolean).join(' · ');
-  const genderEmph = health.sexKnown
-    ? (gender === 'male' ? 'upper-body strength & push' : 'glutes, lower-body & core')
-    : 'full-body strength & conditioning';
-  const burnWorkout = kcalWorkout(WORKOUT_MIN, WEIGHT), burnWalk = kcalWalk(WALK_MIN, WEIGHT), burnTotal = burnWorkout + burnWalk;
+  /**
+   * THE BURN FOLLOWS THE SESSION THAT WAS ACTUALLY BUILT.
+   *
+   * It used to be kcalWorkout(WORKOUT_MIN) — the constant 60 — so choosing 45
+   * or 90 minutes changed the routine and left the goal, the three tiles and
+   * the heading all saying sixty. The 743 never moved. It moves now, because
+   * both figures are the session's own minutes.
+   */
+  const sessionMin = session?.minutes ?? 0, walkMin = session?.walkMinutes ?? 0;
+  const burnWorkout = kcalWorkout(sessionMin, WEIGHT), burnWalk = kcalWalk(walkMin, WEIGHT), burnTotal = burnWorkout + burnWalk;
 
-  const workoutSeconds = useMemo(() => buildSeq(loc, focus, level, dur, false, gender, goalKey).reduce((a, s) => a + s.dur, 0), [loc, focus, level, dur, gender, goalKey]);
+  const workoutSeconds = useMemo(() => stepsFrom(session, false).reduce((a, st) => a + st.dur, 0), [session]);
 
   /* live timer runtime kept in a ref to avoid stale closures */
   const rt = useRef({ seq: [] as Step[], idx: 0, remain: 0, paused: false, running: false, workoutSec: 0, walkSec: 0, mode: 'full' as 'full' | 'walk' });
@@ -275,7 +228,7 @@ export function Workout() {
   const advance = () => goStep(rt.current.idx + 1);
 
   const start = (mode: 'full' | 'walk') => {
-    const seq = mode === 'walk' ? [walkStep()] : buildSeq(loc, focus, level, dur, true, gender, goalKey);
+    const seq = mode === 'walk' ? [walkStepOf(walkMin || 20)] : stepsFrom(session, true);
     rt.current = { seq, idx: 0, remain: seq[0]?.dur ?? 0, paused: false, running: true, workoutSec: 0, walkSec: 0, mode };
     force();
     speak(seq[0] ? seq[0].name : 'Start');
@@ -288,7 +241,14 @@ export function Workout() {
     const kcal = kcalWorkout(wMin, WEIGHT) + kcalWalk(kMin, WEIGHT);
     setLog((l) => ({ ...l, [dayKey()]: { status, kcal } }));
     if (status !== 'none') {
-      addWorkout.mutate({ focus: loc === 'gym' ? `${focus} (${goalTag})` : 'Home workout + walk', minutes: Math.round(wMin + kMin), intensity: 'moderate' });
+      // The intensity is the session's own, not the literal 'moderate' this
+      // always sent — a light day logged as moderate is the history lying to
+      // the engine that will read it back.
+      addWorkout.mutate({
+        focus: session ? session.headline : 'Workout + walk',
+        minutes: Math.round(wMin + kMin),
+        intensity: session?.intensity ?? 'moderate',
+      });
     }
     void early;
     force();
@@ -300,7 +260,6 @@ export function Workout() {
   const running = rt.current.running; const s = rt.current.seq[rt.current.idx];
   const next = rt.current.seq[rt.current.idx + 1];
 
-  const sc = repScheme(level, goalKey);
   const weekCells = useMemo(() => {
     const out: { day: string; status: string; kcal: string }[] = [];
     for (let i = 6; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); const e = log[dayKey(d)]; out.push({ day: DAYNAMES[d.getDay()], status: e ? e.status : '', kcal: e ? inr(e.kcal) : '—' }); }
@@ -393,59 +352,98 @@ export function Workout() {
 
       {/* plan + controls */}
       <section className="blk">
-        <div className="blk-head"><h2>Today's plan · 60-min workout + 20-min walk</h2><span className="muted" style={{ fontSize: 12 }}>≈ {Math.round(workoutSeconds / 60)} min {levelCfg(level).tag} {loc === 'gym' ? `${focus} (${goalTag})` : 'home'} workout + {WALK_MIN} min walk</span></div>
+        <div className="blk-head">
+          <h2>Today&rsquo;s plan{session ? ` · ${session.headline}` : ''}</h2>
+          <span className="muted" style={{ fontSize: 12 }}>
+            {todays.isLoading ? 'building your session…' : session ? `≈ ${Math.round(workoutSeconds / 60)} min of work${session.eased ? ' · eased on purpose' : ''}` : ''}
+          </span>
+        </div>
+
+        {/* WHY THIS WORKOUT — the owner's first ask, and the reason the engine
+            moved to the server at all: every clause is made of a named input,
+            so "personalised" is a claim the page can back. */}
+        {session && (
+          <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid var(--accent)' }}>
+            <div className="eyebrow">Why this workout</div>
+            <p style={{ fontSize: 13.5, lineHeight: 1.6, margin: '6px 0 0' }}>{session.why.goal}</p>
+            {session.why.energy && <p style={{ fontSize: 13.5, lineHeight: 1.6, margin: '6px 0 0' }}>{session.why.energy}</p>}
+            <p style={{ fontSize: 13.5, lineHeight: 1.6, margin: '6px 0 0' }}>{session.why.activity}</p>
+            {session.why.ceiling && <p style={{ fontSize: 13.5, lineHeight: 1.6, margin: '6px 0 0', color: 'var(--accent-ink)', fontWeight: 600 }}>{session.why.ceiling}</p>}
+            {/* WHAT IT DID NOT KNOW. Named, with the way to tell us beside it —
+                an input we never asked for is not personalisation we can claim. */}
+            {session.why.missing.length > 0 && (
+              <p className="muted" style={{ fontSize: 12, lineHeight: 1.6, margin: '10px 0 0' }}>
+                Not in this yet: {session.why.missing.join('; ')}.{' '}
+                <Link to="/fitness/profile" style={{ fontWeight: 700 }}>Fill it in →</Link>
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* WHAT WAS SWAPPED, AND WHY. Never silent: a citizen quietly handed an
+            easier movement has been managed rather than trained. */}
+        {session && session.substitutions.length > 0 && (
+          <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid var(--ok-ink)' }}>
+            <div className="eyebrow">Changed for you</div>
+            {session.substitutions.map((sub) => (
+              <p key={`${sub.from}-${sub.to}`} style={{ fontSize: 13, lineHeight: 1.6, margin: '6px 0 0' }}>
+                <b>{sub.to}</b> instead of {sub.from} — you told us about {sub.because === 'jointPain' ? 'joint pain' : sub.because}.
+              </p>
+            ))}
+          </div>
+        )}
+
         <div className="card">
-          <p className="muted" style={{ fontSize: 11.5, margin: '0 0 10px' }}>
-            {genderTag
-              ? <>Tailored for <b style={{ color: 'var(--ink)' }}>{genderTag}</b> · emphasis on {genderEmph}.</>
-              : <>Emphasis on {genderEmph}. Set your sex at birth in Nutrition and this session adapts to it.</>}
-          </p>
-          <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', margin: '0 0 6px' }}>Your experience level</div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{LEVELS.map(([k, l]) => <Seg key={k} on={level === k} onClick={() => setLevel(k)}>{l}</Seg>)}</div>
-          <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', margin: '12px 0 6px' }}>Session length</div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{DURS.map((m) => <Seg key={m} on={dur === m} onClick={() => setDur(m)}>{m} min</Seg>)}</div>
+          <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', margin: '0 0 6px' }}>How long today?</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {[30, 45, 60, 90].map((m) => <Seg key={m} on={(dur ?? session?.minutes) === m} onClick={() => setDur(m)}>{m} min</Seg>)}
+          </div>
           <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', margin: '12px 0 6px' }}>Where are you training?</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <Seg on={loc === 'home'} onClick={() => setLoc('home')}>🏠 At home</Seg>
-            <Seg on={loc === 'gym'} onClick={() => setLoc('gym')}>🏋 At the gym</Seg>
+            <Seg on={(loc ?? session?.place) === 'home'} onClick={() => setLoc('home')}>🏠 At home</Seg>
+            <Seg on={(loc ?? session?.place) === 'gym'} onClick={() => setLoc('gym')}>🏋 At the gym</Seg>
           </div>
-          {loc === 'gym' && (
-            <>
-              <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', margin: '12px 0 6px' }}>Today's focus · {goalTag} split</div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{FOCUSES.map((fc) => <Seg key={fc} on={focus === fc} onClick={() => setFocus(fc)}>{fc}</Seg>)}</div>
-            </>
-          )}
+          {/* The level, the split and the rep scheme are NOT here any more. They
+              are the saved training profile's, which is the only copy of them. */}
+          <p className="muted" style={{ fontSize: 11.5, margin: '10px 0 0' }}>
+            Your level, goal and what you train with come from your{' '}
+            <Link to="/fitness/profile" style={{ fontWeight: 700 }}>training profile</Link>. Today&rsquo;s length and place are just for today.
+          </p>
 
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '16px 0 14px' }}>
-            <Button variant="accent" onClick={() => start('full')}>▶ Start workout + walk</Button>
-            <Button variant="line" onClick={() => start('walk')}>🚶 Skip workout — just walk (20 min)</Button>
+            <Button variant="accent" disabled={!session} onClick={() => start('full')}>▶ Start workout + walk</Button>
+            <Button variant="line" onClick={() => start('walk')}>🚶 Skip workout — just walk ({walkMin || 20} min)</Button>
             <Button variant="ghost" onClick={markSkipAll}>Skip today</Button>
           </div>
           <p className="muted" style={{ fontSize: 11.5, marginBottom: 10 }}>Start the timer and Together City guides you exercise-by-exercise. You can pause, skip an exercise, jump to the walk, or end anytime.</p>
 
-          {/* routine preview */}
-          {loc === 'home' ? (
-            <div>
-              {blkHead(seg(levelCfg(level).tag, genderTag, `emphasis on ${genderEmph}`))}
-              {currentHomePlan(level, gender).map((b) => {
-                const rounds = homeRounds(dur, b.rounds);
-                return (
-                  <div key={b.block}>
-                    {blkHead(`${b.block}${rounds > 1 ? ` · ${rounds} rounds` : ''}`)}
-                    {b.items.filter((it) => !it.rest).map((it, i) => exRow(i + 1, it.n, it.reps ? `target ${it.reps} reps` : `hold / go for ${mmss(it.t ?? 0)}`, it.reps ? `${it.reps} reps` : mmss(it.t ?? 0)))}
-                  </div>
-                );
-              })}
-              {blkHead('Finish · Walk')}
-              {exRow(1, 'Brisk walk', `outdoors or treadmill · ~${WALK_STEPS.toLocaleString('en-IN')} steps`, `${WALK_MIN}:00`)}
+          {todays.isLoading && <p className="muted" style={{ fontSize: 12.5 }}>Building today&rsquo;s session from your profile…</p>}
+          {todays.isError && (
+            <p style={{ fontSize: 12.5, color: 'var(--danger-ink)' }}>
+              We couldn&rsquo;t build today&rsquo;s session. This didn&rsquo;t reach us — nothing about your profile has changed. Try again in a moment.
+            </p>
+          )}
+
+          {session?.blocks.map((block) => (
+            <div key={block.title}>
+              {blkHead(block.note ? `${block.title} · ${block.note}` : block.title)}
+              {block.exercises.map((ex, i) => exRow(
+                i + 1,
+                ex.name,
+                ex.insteadOf ? `instead of ${ex.insteadOf.name}` : ex.seconds ? 'hold / go for the time' : `rest ${ex.restSec}s between sets`,
+                ex.seconds ? (ex.sets > 1 ? `${ex.sets} × ${mmss(ex.seconds)}` : mmss(ex.seconds)) : `${ex.sets} × ${ex.reps?.[0]}–${ex.reps?.[1]}${ex.unilateral ? ' /side' : ''}`,
+              ))}
             </div>
-          ) : (
-            <div>
-              {blkHead(seg(focus, levelCfg(level).tag, genderTag, goalTag, `${sc.sets} sets`, `${sc.restSec}s rest`))}
-              {gymExercises(focus, dur, gender).map((e, i) => exRow(i + 1, e.n, e.t ? 'hold each set' : `rest ${sc.restSec}s between sets`, e.t ? `3 × ${mmss(e.t)}` : `${sc.sets} × ${sc.reps}`))}
-              {blkHead('Finish · Walk')}
-              {exRow(1, 'Brisk walk', `outdoors or treadmill · ~${WALK_STEPS.toLocaleString('en-IN')} steps`, `${WALK_MIN}:00`)}
-            </div>
+          ))}
+
+          {/* READ BEFORE YOU START. The citizen's own words first, then the
+              rules that follow from what they have told us. */}
+          {session && session.cautions.length > 0 && (
+            <ul style={{ listStyle: 'none', padding: 0, margin: '16px 0 0', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {session.cautions.map((c) => (
+                <li key={c} style={{ fontSize: 12, lineHeight: 1.55, color: 'var(--warn-ink)', background: 'var(--warn-soft)', border: '1px solid var(--warn-line)', borderRadius: 8, padding: '7px 11px' }}>{c}</li>
+              ))}
+            </ul>
           )}
         </div>
       </section>

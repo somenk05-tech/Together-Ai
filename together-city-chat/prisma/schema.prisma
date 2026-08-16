@@ -1457,6 +1457,26 @@ model FitnessProfile {
   heightCm   Int?
   weightKg   Int?
   bodyGoal   String   @default("athletic") // buildMuscle | leanDefine | athletic | fatLoss
+  /// WHAT THEY HAVE TO TRAIN WITH — csv of EQUIPMENT_KEYS, empty = not asked.
+  ///
+  /// The single fact that changes a home session most: without it the only
+  /// honest answer is bodyweight, and the old Workout page asked home-or-gym
+  /// and then assumed dumbbells. Empty is NOT "nothing" — 'none' is how a
+  /// citizen says they have nothing. Empty means we never asked, and the
+  /// session says so rather than inventing a barbell.
+  equipment  String   @default("")
+  /// How many days a week they can actually train. Null = never asked; the
+  /// week is derived from `level` until they say, which is a guess wearing a
+  /// number.
+  daysPerWeek Int?
+  /// In their own words, and never parsed. "Bad left shoulder, no overhead" is
+  /// a sentence a machine should print at the top of the session for a human
+  /// to read, not one it should try to understand.
+  limitations String?
+  /// Where and how long they usually train. Defaults for the session, not a
+  /// cage — the page can still change either for today.
+  place      String?  // home | gym
+  sessionMinutes Int?
   updatedAt  DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

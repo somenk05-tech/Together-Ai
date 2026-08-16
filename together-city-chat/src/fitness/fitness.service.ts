@@ -12,9 +12,16 @@ import {
   buildPlan, conditionsFromLabs, conditionsFromDeclared, computeBodyProgram, LEVELS, MODES, BODY_GOALS,
   type ConditionAdjustment,
 } from './fitness-engine';
-import type { SaveFitnessProfileDto, LogWorkoutDto } from './dto/fitness.dto';
+import { buildSession, type LevelKey, type BodyGoalKey, type SessionInput, type Intensity } from './session-engine';
+import { EQUIPMENT_KEYS, type Condition, type Equipment } from './exercise-library';
+import type { SaveFitnessProfileDto, LogWorkoutDto, TodaySessionQueryDto } from './dto/fitness.dto';
 
-const DEFAULT_PROFILE = { age: 35, sex: 'other', level: 'beginner', mode: 'mixed', goal: 'general', conditions: [] as string[], heightCm: null as number | null, weightKg: null as number | null, bodyGoal: 'athletic' };
+const DEFAULT_PROFILE = {
+  age: 35, sex: 'other', level: 'beginner', mode: 'mixed', goal: 'general', conditions: [] as string[],
+  heightCm: null as number | null, weightKg: null as number | null, bodyGoal: 'athletic',
+  equipment: [] as string[], daysPerWeek: null as number | null, limitations: null as string | null,
+  place: null as string | null, sessionMinutes: null as number | null,
+};
 
 /** How a nutrition goal reads in a sentence. The note names the setting that
  *  disagrees with the body goal, and "lose" is a database value, not English. */
@@ -60,6 +67,14 @@ export class FitnessService {
       age, sex, level: row.level, mode: row.mode, goal: row.goal,
       conditions: row.conditions ? row.conditions.split(',').filter(Boolean) : [],
       heightCm, weightKg, bodyGoal: row.bodyGoal,
+      // Empty and null travel as themselves. '' is not 'none' and null is not
+      // a number — the difference between "no equipment" and "never asked" is
+      // the difference between an honest session and an invented one.
+      equipment: row.equipment ? row.equipment.split(',').filter(Boolean) : [],
+      daysPerWeek: row.daysPerWeek ?? null,
+      limitations: row.limitations ?? null,
+      place: row.place ?? null,
+      sessionMinutes: row.sessionMinutes ?? null,
       saved: true, options: this.optionsFor(sex),
     };
   }
@@ -115,6 +130,14 @@ export class FitnessService {
     const data = {
       age: dto.age, sex: dto.sex, level: dto.level, mode: dto.mode, goal: dto.goal,
       conditions: dto.conditions.join(','), heightCm: dto.heightCm ?? null, weightKg: dto.weightKg ?? null, bodyGoal: dto.bodyGoal,
+      // `?? undefined` rather than `?? null`: a form that does not send a field
+      // must LEAVE it, not erase it. The Training Profile and any future
+      // shorter form both write through here.
+      equipment: dto.equipment ? dto.equipment.join(',') : undefined,
+      daysPerWeek: dto.daysPerWeek ?? undefined,
+      limitations: dto.limitations ?? undefined,
+      place: dto.place ?? undefined,
+      sessionMinutes: dto.sessionMinutes ?? undefined,
     };
     // The citizen saved their training profile — this row is no longer defaults.
     await this.prisma.fitnessProfile.upsert({ where: { userId }, update: answeredNow(data), create: { userId, ...answeredNow(data) } });
@@ -131,6 +154,82 @@ export class FitnessService {
       sexAtBirth: dto.sex === 'other' ? undefined : dto.sex,
     }, 'fitness').catch(swallowed('fitness.saveProfile', undefined));
     return this.getProfile(userId);
+  }
+
+  /**
+   * ── TODAY'S SESSION ───────────────────────────────────────────────────────
+   *
+   * Everything the engine needs, gathered in one place: the saved training
+   * profile, the body goal, the conditions the citizen declared AND the ones
+   * their medical records carry, the intensity ceiling the weekly plan derives
+   * from their labs, Nutrition's day, and what they have actually done this
+   * week.
+   *
+   * NONE OF THIS IS NEW DATA. Every one of these was already computed and
+   * already on a screen somewhere; the Workout page simply never asked for any
+   * of it and built the session in the browser from three hardcoded tables.
+   * The gathering IS the feature.
+   *
+   * Every read that can fail is allowed to, and its absence is NAMED rather
+   * than substituted: a session that quietly assumes a body, a lab or a
+   * calorie target is the thing this replaces.
+   */
+  async session(userId: string, q: TodaySessionQueryDto) {
+    const profile = await this.getProfile(userId);
+    const missing: string[] = [];
+
+    // The ceiling comes from the weekly plan, which already reads the labs
+    // through the Medical consent gate. Two readings of a lab result would be
+    // two answers to "how hard may this person work".
+    const plan = await this.plan(userId).catch(swallowed('fitness.session.plan', null));
+    const intensityCap = ((plan as { intensityCap?: string } | null)?.intensityCap ?? 'moderate') as Intensity;
+
+    // The medical records' conditions count exactly as the declared ones do —
+    // a citizen who wrote their arthritis into their records has told us.
+    const recordKeys = await this.recordConditions(userId).catch(swallowed('fitness.session.records', [] as string[]));
+    const declared = [...profile.conditions, ...recordKeys];
+    const conditions = (['hypertension', 'diabetes', 'pregnancy', 'jointPain'] as Condition[])
+      .filter((c) => declared.includes(c));
+
+    const targets = await this.nutrition.targets(userId).catch(swallowed('fitness.session.targets', null)) as
+      { kcal?: unknown; protein?: unknown; goal?: unknown } | null;
+    const num = (v: unknown) => (typeof v === 'number' && v > 0 ? v : null);
+    if (num(targets?.kcal) == null) missing.push('your daily calorie target — set it in Nutrition and this session explains itself against it');
+
+    const log = await this.log(userId).catch(swallowed('fitness.session.log', null)) as
+      { entries?: Array<{ doneAt: Date | string }>; weekMinutes?: number; weekSessions?: number } | null;
+    const last = log?.entries?.[0]?.doneAt ? new Date(log.entries[0].doneAt) : null;
+    const daysSinceLast = last ? Math.floor((Date.now() - last.getTime()) / 86_400_000) : null;
+
+    const equipment = (profile.equipment as string[]).filter((k): k is Equipment => (EQUIPMENT_KEYS as readonly string[]).includes(k));
+    if (equipment.length === 0) missing.push('what you have to train with — without it a home session can only be bodyweight');
+    if (profile.daysPerWeek == null) missing.push('how many days a week you can train');
+
+    const input: SessionInput = {
+      minutes: q.minutes ?? profile.sessionMinutes ?? 45,
+      location: (q.place ?? profile.place ?? 'home') as 'home' | 'gym',
+      // At a gym, the machines and the bars are there whether or not anybody
+      // ticked a box — that is what a gym IS. At home nothing is assumed.
+      equipment: (q.place ?? profile.place) === 'gym'
+        ? ([...new Set<Equipment>([...equipment, 'dumbbells', 'barbell', 'machines', 'bench', 'cardioMachine', 'mat'])])
+        : equipment,
+      level: profile.level as LevelKey,
+      bodyGoal: profile.bodyGoal as BodyGoalKey,
+      conditions,
+      intensityCap,
+      kcalTarget: num(targets?.kcal),
+      proteinG: num(targets?.protein),
+      nutritionGoal: typeof targets?.goal === 'string' ? targets.goal : null,
+      weightKg: profile.weightKg ?? null,
+      recent: {
+        sessionsLast7: log?.weekSessions ?? 0,
+        minutesLast7: log?.weekMinutes ?? 0,
+        daysSinceLast,
+      },
+      limitations: profile.limitations ?? null,
+      missing,
+    };
+    return { ...buildSession(input), place: input.location, equipmentUsed: input.equipment };
   }
 
   // ─────────────── body goal ↔ nutrition (the reverse-connect) ───────────────

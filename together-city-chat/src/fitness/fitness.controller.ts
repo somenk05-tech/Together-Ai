@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Put, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put, Query, UseGuards, UsePipes } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
@@ -7,8 +7,12 @@ import { FitnessService } from './fitness.service';
 import { SupplementsService } from './supplements/supplements.service';
 import { Mira } from '../mira/mira.decorator';
 import {
-  SaveFitnessProfileSchema, type SaveFitnessProfileDto,
-  LogWorkoutSchema, type LogWorkoutDto,
+  LogWorkoutSchema,
+  SaveFitnessProfileSchema,
+  TodaySessionQueryDto,
+  TodaySessionQuerySchema,
+  type LogWorkoutDto,
+  type SaveFitnessProfileDto,
 } from './dto/fitness.dto';
 import {
   SupplementBagSchema, type SupplementBagDto,
@@ -42,6 +46,19 @@ export class FitnessController {
   @Get('plan')
   plan(@CurrentUser() user: JwtUser) {
     return this.fitness.plan(user.sub);
+  }
+
+  /**
+   * GET /api/fitness/session — today's session, built server-side.
+   *
+   * A GET with two optional overrides rather than a POST: it computes and
+   * stores nothing, and "45 minutes, at the gym, today" is a narrowing of a
+   * question the profile already answers, not a change to it.
+   */
+  @Get('session')
+  @UsePipes(new ZodValidationPipe(TodaySessionQuerySchema))
+  session(@CurrentUser() user: JwtUser, @Query() q: TodaySessionQueryDto) {
+    return this.fitness.session(user.sub, q);
   }
 
   @Get('body-goal')

@@ -26,6 +26,22 @@ function Choice({ on, label, onClick }: { on: boolean; label: string; onClick: (
   );
 }
 
+/** What a citizen can tell us they have. The keys are EQUIPMENT_KEYS on the
+ *  server — the session engine matches on them exactly, so a label change here
+ *  is safe and a key change is not. */
+const EQUIPMENT: { key: string; label: string }[] = [
+  { key: 'none', label: 'Nothing — bodyweight' },
+  { key: 'dumbbells', label: 'Dumbbells' },
+  { key: 'barbell', label: 'Barbell' },
+  { key: 'kettlebell', label: 'Kettlebell' },
+  { key: 'bands', label: 'Bands' },
+  { key: 'pullupBar', label: 'Pull-up bar' },
+  { key: 'bench', label: 'Bench / chair' },
+  { key: 'machines', label: 'Machines' },
+  { key: 'cardioMachine', label: 'Treadmill / bike / rower' },
+  { key: 'mat', label: 'A mat' },
+];
+
 /** Fitness Profile — age, ability (basic → super-athletic), modality, goal, conditions. */
 export function Profile() {
   const profile = useFitnessProfile();
@@ -41,6 +57,21 @@ export function Profile() {
   const [heightCm, setHeightCm] = useState<number | ''>('');
   const [weightKg, setWeightKg] = useState<number | ''>('');
   const [bodyGoal, setBodyGoal] = useState('athletic');
+  /**
+   * THE FOUR THE SESSION ENGINE COULD NOT BUILD WITHOUT, and which nobody was
+   * ever asked. Equipment is the one that changes a home session most: without
+   * it the only honest answer is bodyweight, and the old Workout page asked
+   * home-or-gym and then assumed dumbbells.
+   *
+   * Empty is NOT "nothing" — 'none' is how somebody says they have nothing to
+   * train with. Empty means unanswered, and today's session names it as
+   * missing rather than inventing a barbell.
+   */
+  const [equipment, setEquipment] = useState<string[]>([]);
+  const [daysPerWeek, setDaysPerWeek] = useState<number | ''>('');
+  const [limitations, setLimitations] = useState('');
+  const [place, setPlace] = useState<'home' | 'gym' | ''>('');
+  const [sessionMinutes, setSessionMinutes] = useState<number | ''>('');
   const [collapsed, setCollapsed] = useState(false);
 
   // Global validation standard — height & weight are required for real targets.
@@ -63,6 +94,8 @@ export function Profile() {
     setSex(d.sex || (m?.resolvedSex ?? d.sex));
     setLevel(d.level); setMode(d.mode); setGoal(d.goal); setConditions(d.conditions);
     setHeightCm(d.heightCm ?? (m?.heightCm ?? '')); setWeightKg(d.weightKg ?? (m?.weightKg ?? '')); setBodyGoal(d.bodyGoal ?? 'athletic');
+    setEquipment(d.equipment ?? []); setDaysPerWeek(d.daysPerWeek ?? ''); setLimitations(d.limitations ?? '');
+    setPlace((d.place as 'home' | 'gym' | null) ?? ''); setSessionMinutes(d.sessionMinutes ?? '');
     // Already completed before → open as a compact summary, not the full form.
     setCollapsed(Boolean(d.heightCm && d.weightKg));
   }, [profile.data, master.data]);
@@ -191,10 +224,66 @@ export function Profile() {
         </div>
       </div>
 
+      {/* ── WHAT YOU HAVE TO TRAIN WITH ────────────────────────────────────
+          Four questions the app never asked, and the session engine could not
+          build a real workout without. They are the difference between a
+          session that is personal and one that is personal-sounding. */}
+      <div className="card" style={{ marginBottom: 14 }}>
+        <div className="eyebrow">Your training set-up <span className="muted" style={{ fontWeight: 400 }}>· this builds today&rsquo;s session</span></div>
+        <p className="muted" style={{ fontSize: 12, lineHeight: 1.6, margin: '6px 0 10px' }}>
+          Tell us what you actually have. If you have nothing, say so — a bodyweight session built
+          on purpose beats one built on a guess about your dumbbells.
+        </p>
+        <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', margin: '0 0 6px' }}>Equipment</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {EQUIPMENT.map((e) => (
+            <Choice key={e.key} on={equipment.includes(e.key)} label={e.label}
+              onClick={() => setEquipment((cur) => (cur.includes(e.key) ? cur.filter((k) => k !== e.key) : [...cur, e.key]))} />
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', gap: 16, marginTop: 14, flexWrap: 'wrap' }}>
+          <label style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+            Days a week
+            <input type="number" min={1} max={7} value={daysPerWeek} placeholder="—"
+              onChange={(e) => setDaysPerWeek(e.target.value === '' ? '' : Number(e.target.value))}
+              style={{ width: 70, padding: '8px 10px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit' }} />
+          </label>
+          <label style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+            Usual session
+            <input type="number" min={15} max={120} step={5} value={sessionMinutes} placeholder="min"
+              onChange={(e) => setSessionMinutes(e.target.value === '' ? '' : Number(e.target.value))}
+              style={{ width: 78, padding: '8px 10px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit' }} />
+          </label>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>Usually at</span>
+            <Choice on={place === 'home'} label="🏠 Home" onClick={() => setPlace('home')} />
+            <Choice on={place === 'gym'} label="🏋 Gym" onClick={() => setPlace('gym')} />
+          </div>
+        </div>
+
+        <div style={{ marginTop: 14 }}>
+          <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', margin: '0 0 6px' }}>Anything we should work around?</div>
+          {/* NEVER PARSED — printed at the top of the session for a human to
+              read. A machine guessing at "bad left shoulder" is worse than a
+              person reading it. */}
+          <textarea value={limitations} maxLength={280} rows={2}
+            placeholder="e.g. bad left shoulder — nothing overhead"
+            onChange={(e) => setLimitations(e.target.value)}
+            style={{ width: '100%', padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13.5, fontFamily: 'inherit', resize: 'vertical' }} />
+          <p className="muted" style={{ fontSize: 11.5, margin: '6px 0 0' }}>
+            We print this at the top of every session in your own words. We do not try to interpret it,
+            and it is not a substitute for a physiotherapist&rsquo;s instruction.
+          </p>
+        </div>
+      </div>
+
       <ValidationSummary missing={v.missing} />
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
         <Button variant="accent" disabled={save.isPending}
-          onClick={() => { if (!v.validate()) return; save.mutate({ age, sex, level, mode, goal, conditions, heightCm: num(heightCm), weightKg: num(weightKg), bodyGoal }, { onSuccess: () => { setCollapsed(true); successToast('Fitness profile saved successfully.'); } }); }}>
+          onClick={() => { if (!v.validate()) return; save.mutate({ age, sex, level, mode, goal, conditions, heightCm: num(heightCm), weightKg: num(weightKg), bodyGoal,
+            equipment, daysPerWeek: daysPerWeek === '' ? undefined : daysPerWeek, limitations: limitations.trim() || undefined,
+            place: place || undefined, sessionMinutes: sessionMinutes === '' ? undefined : sessionMinutes }, { onSuccess: () => { setCollapsed(true); successToast('Fitness profile saved successfully.'); } }); }}>
           {save.isPending ? 'Saving…' : 'Save & build my plan'}
         </Button>
         {save.isSuccess && <span style={{ fontSize: 13, color: 'var(--accent-ink)', fontWeight: 700 }}>✓ Saved — see My Plan & Body Goal</span>}

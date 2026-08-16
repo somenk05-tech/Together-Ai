@@ -3,13 +3,19 @@ import { http as api } from '@/api/client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 export interface Citation { id: string; label: string; ref: string }
-export type Intensity = 'light' | 'moderate' | 'vigorous';
 
 export interface FitnessOption { key: string; label: string; note: string }
 export interface BodyGoalOption { key: string; label: string; tag: string }
 export interface FitnessProfile {
   age: number; sex: string; level: string; mode: string; goal: string; conditions: string[];
   heightCm: number | null; weightKg: number | null; bodyGoal: string;
+  /** The training set-up. Empty/null mean UNANSWERED, not "none" — 'none' is a
+   *  real equipment answer and the session engine keeps the two apart. */
+  equipment?: string[];
+  daysPerWeek?: number | null;
+  limitations?: string | null;
+  place?: string | null;
+  sessionMinutes?: number | null;
   saved: boolean; prefilled?: boolean; options: { levels: FitnessOption[]; modes: FitnessOption[]; bodyGoals: BodyGoalOption[] };
 }
 export interface BodyProgram {
@@ -65,6 +71,10 @@ export function isConsentBlocked(err: unknown): boolean {
 export interface SaveProfileInput {
   age: number; sex: string; level: string; mode: string; goal: string; conditions: string[];
   heightCm?: number; weightKg?: number; bodyGoal: string;
+  /** Optional so a form that does not ask leaves them alone rather than
+   *  erasing them — the service writes `?? undefined`, never null. */
+  equipment?: string[]; daysPerWeek?: number; limitations?: string;
+  place?: 'home' | 'gym'; sessionMinutes?: number;
 }
 export const fitnessApi = {
   profile: () => api.get<FitnessProfile>('/fitness/profile').then((r) => r.data),
@@ -108,5 +118,47 @@ export function useAddWorkout() {
   return useMutation({
     mutationFn: fitnessApi.addLog,
     onSuccess: (l) => qc.setQueryData(['fitness', 'log'], l),
+  });
+}
+
+/**
+ * ── TODAY'S SESSION ─────────────────────────────────────────────────────────
+ *
+ * Built on the server, from the saved training profile, the body goal, the
+ * declared conditions AND the ones in the medical records, the intensity
+ * ceiling the weekly plan derives from the labs, Nutrition's day, and the
+ * week's own logged minutes. The page renders it; it does not compute it.
+ */
+export type Intensity = 'light' | 'moderate' | 'vigorous';
+export interface SessionExercise {
+  id: string; name: string; pattern: string;
+  sets: number; reps?: [number, number]; seconds?: number; restSec: number; unilateral?: boolean;
+  /** Present when this movement stands in for one a condition ruled out. */
+  insteadOf?: { name: string; because: string };
+}
+export interface TodaySession {
+  headline: string;
+  minutes: number;
+  walkMinutes: number;
+  intensity: Intensity;
+  blocks: { title: string; note?: string; exercises: SessionExercise[] }[];
+  why: { goal: string; energy: string | null; activity: string; ceiling: string | null; missing: string[] };
+  substitutions: { from: string; to: string; because: string }[];
+  cautions: string[];
+  /** True when the session was made shorter or gentler on purpose. */
+  eased: boolean;
+  place: 'home' | 'gym';
+  equipmentUsed: string[];
+}
+
+/**
+ * Today only. `minutes` and `place` narrow the question the saved profile
+ * already answers — "I have 30 minutes and I'm at my sister's" is a fact about
+ * today, not a change of mind, so neither is written back.
+ */
+export function useTodaySession(minutes?: number, place?: 'home' | 'gym') {
+  return useQuery({
+    queryKey: ['fitness', 'session', minutes ?? null, place ?? null],
+    queryFn: () => api.get<TodaySession>('/fitness/session', { params: { minutes, place } }).then((r) => r.data),
   });
 }

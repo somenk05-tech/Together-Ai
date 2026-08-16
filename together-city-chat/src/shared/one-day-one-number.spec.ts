@@ -129,9 +129,34 @@ describe('one body, one day, one number', () => {
     expect(s).toMatch(/private async clinicalTargets\(/);
     expect(s).toMatch(/clinicalProteinG: num\(t\?\.protein\)/);
     expect(s).toMatch(/clinicalKcal: num\(t\?\.kcal\)/);
-    // Two reads of a profile mid-edit is two different days on one screen.
+
+    /**
+     * ONE READ PER REQUEST — which is the rule. "Once in the whole file" is how
+     * this was written on 16 Aug, when there was exactly one consumer, and it
+     * failed the moment a second arrived: today's session (GET /fitness/session)
+     * needs the same day and is a SEPARATE request. Two reads inside one
+     * request is the defect — a screen showing a calorie figure from one read
+     * and a protein figure from another, taken either side of somebody editing
+     * their profile. Two requests each reading once is simply two requests.
+     *
+     * So the count moved onto the METHOD, where the rule actually lives, and it
+     * still has teeth: a third caller fails the total, and a second read inside
+     * either method fails its own count.
+     */
+    const bodyOf = (name: string) => {
+      const at = s.indexOf(`async ${name}(`);
+      if (at < 0) return '';
+      const rest = s.slice(at + 1);
+      const next = rest.search(/\n {2}(?:private )?async /);
+      return next < 0 ? rest : rest.slice(0, next);
+    };
+    const readsIn = (name: string) => (bodyOf(name).match(/this\.nutrition\.targets\(userId\)/g) ?? []).length;
+    expect({ method: 'clinicalTargets', reads: readsIn('clinicalTargets') }).toEqual({ method: 'clinicalTargets', reads: 1 });
+    expect({ method: 'session', reads: readsIn('session') }).toEqual({ method: 'session', reads: 1 });
+
+    // …and those two are the only places in the hub that ask at all.
     const reads = s.match(/this\.nutrition\.targets\(userId\)/g) ?? [];
-    expect(reads.length).toBe(1);
+    expect(reads.length).toBe(2);
   });
 
   it('never pushes a goal back into Nutrition over one already there', () => {
