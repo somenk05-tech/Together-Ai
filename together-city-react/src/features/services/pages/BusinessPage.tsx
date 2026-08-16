@@ -4,6 +4,7 @@ import { SlippyMap } from '@/components/SlippyMap';
 import { Button, Card, Spinner, EmptyState } from '@/components/ui';
 import { MenuView } from '../MenuView';
 import { HoursTable, OpenBadge } from '../HoursEditor';
+import { TrustBadge, TrustNote } from '../Verification';
 import { Gallery, Reviews } from '../ListingPanel';
 import { ReviewBox } from '../ReviewBox';
 import {
@@ -152,6 +153,18 @@ export function BusinessPage() {
           business that never set hours shows nothing at all rather than
           "Closed", which would be this page inventing a claim about
           somebody else's shop. */}
+      {/* WHAT WAS CHECKED, ABOVE THE BUTTON THAT STARTS A CONVERSATION.
+          The sentence is rendered, not left in a tooltip: a claim a citizen can
+          only reach with a mouse is a claim that does not exist on a phone. And
+          it says what it is NOT — nothing on this page may read as Together
+          City standing behind this business. */}
+      {s.trust?.label && (
+        <div style={{ marginTop: 16, display: 'grid', gap: 4, justifyItems: 'start' }}>
+          <TrustBadge trust={s.trust} />
+          <TrustNote trust={s.trust} />
+        </div>
+      )}
+
       {s.hours && (
         <div style={{ marginTop: 16, display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start' }}>
           <div style={{ minWidth: 0 }}>

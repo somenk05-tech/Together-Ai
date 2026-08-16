@@ -88,6 +88,16 @@ model User {
   /// the same wrong number, and only one of them can prove it.
   phoneE164       String?
   phoneVerifiedAt DateTime?
+  /// IDENTITY, AS A VERDICT AND NEVER AS A DOCUMENT.
+  ///
+  /// A government ID matched to this person — today by an admin in the console
+  /// looking at one, later by a KYC provider. Only the verdict and the method
+  /// are stored: there is no product reason to hold a scan of somebody's
+  /// passport and every reason not to. This is on User rather than on a listing
+  /// because a person proves who they are once and it travels with them across
+  /// every business they own.
+  identityVerifiedAt DateTime?
+  identityMethod     String?
   profileImage String?
   bio          String? // short public profile bio
   city         String? // public home city shown on the social profile
@@ -2939,6 +2949,7 @@ model ServiceListing {
   offers    ServiceOffer[]
   reviews   ServiceReview[]
   menu      ServiceMenuItem[]
+  verification ServiceVerification?
   menuScanUrl String? // the photograph the menu was read from — kept so a
                       // citizen can check the transcription against the original
 
@@ -2976,6 +2987,17 @@ model ServiceEnquiry {
   seekerUnread  Int      @default(0)
   ownerUnread   Int      @default(0)
   closed        Boolean  @default(false)
+  /// WHEN THE BUSINESS WAS ACTUALLY GIVEN THIS THREAD — and NULL means it has
+  /// not been. An unverified listing is handed five new conversations a day
+  /// (see local-services/trust-gate.ts); the rest wait here, invisible to the
+  /// owner, until a later day has room or the listing verifies.
+  ///
+  /// It is a queue and not a wall: the citizen sends normally, nothing is
+  /// refused and nothing is lost. Every row that existed before this column
+  /// was backfilled to its own createdAt, because those conversations HAD been
+  /// given away — some of them mid-job — and emptying every inbox in the city
+  /// on deploy is a fair rule applied to people who were never told about it.
+  openedAt      DateTime?
   createdAt     DateTime @default(now())
 
   listing  ServiceListing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
@@ -2985,6 +3007,56 @@ model ServiceEnquiry {
   @@unique([listingId, seekerId]) // one thread per person per business, forever
   @@index([seekerId, lastMessageAt])
   @@index([listingId, lastMessageAt])
+  @@index([listingId, openedAt])
+}
+
+/// TOGETHER CITY TRUST — the evidence, and only the evidence.
+///
+/// THERE IS NO TIER COLUMN HERE, DELIBERATELY. The tier is computed from these
+/// fields by `local-services/trust.ts` every time anybody asks. A stored tier
+/// is a second source of truth that goes wrong the first time a document
+/// expires and no job re-runs — silently, on a badge, which is the worst place
+/// in this product for a stale value to sit.
+///
+/// The document is per listing and the identity is on User, because one is a
+/// fact about a shop and the other is a fact about a person. Someone can prove
+/// exactly who they are and still invent a plumbing company; keeping the two
+/// apart is what lets the badge say which of them was checked.
+model ServiceVerification {
+  id         String  @id @default(uuid())
+  listingId  String  @unique
+  /// individual | proprietor | registered | company. Decides which documents
+  /// are worth asking for — a freelance tutor asked for a CIN learns the form
+  /// was not built for them.
+  entityKind String?
+  /// gstin | udyam | shop_establishment | trade_licence | incorporation |
+  /// fssai | professional | rera. ONE is enough; a form demanding all of them
+  /// is a form nobody finishes.
+  docKind    String?
+  /// As printed on the certificate. Not checksum-validated: a GSTIN has one
+  /// and a trade licence number does not, and a validator right about one
+  /// format and wrong about seven refuses real businesses.
+  docRef     String?
+  /// The certificate itself, which a person has to look at. Read is gated on
+  /// the `business.verify` permission rather than `business.read`.
+  docUrl     String?
+  /// none | submitted | verified | rejected. Nothing but the console writes
+  /// anything other than `submitted` — a route that could write `verified` is
+  /// a route that will one day be reached by something that is not a person.
+  docStatus  String  @default("none")
+  submittedAt DateTime?
+  decidedAt   DateTime?
+  decidedBy   String?
+  /// Shown to the owner verbatim. A refusal with no reason is a support ticket.
+  rejectReason String?
+  /// The pin, checked against the areas the listing claims to serve.
+  placeConfirmedAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  listing ServiceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([docStatus, submittedAt])
 }
 
 // SOMEBODY'S OWN SHORTLIST.

@@ -117,6 +117,16 @@ function harness(opts: { listings?: any[]; enquiries?: any[]; messages?: any[] }
   const svc: any = Object.create(LocalServicesService.prototype);
   svc.prisma = prisma;
   svc.notifications = { create: async (n: any) => { notes.push(n); } };
+  /* THE GATE, STUBBED OPEN. These tests are about who the business can see,
+     not about how many new neighbours a day it is given, and the real rule has
+     its own two suites (trust.spec.ts, trust-gate.spec.ts, verification.spec.ts).
+     "Never hold, release nothing, no badge" is the behaviour of a verified
+     listing, which is what every fixture here is standing in for. */
+  svc.verification = {
+    holdsNewThread: async () => false,
+    releaseFor: async () => 0,
+    badgeFor: async () => null,
+  };
   return { svc, listings, enquiries, messages, notes, userQueries };
 }
 

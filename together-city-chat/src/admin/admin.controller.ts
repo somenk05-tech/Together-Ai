@@ -24,6 +24,17 @@ const SuspendSchema = z.object({
 type SuspendDto = z.infer<typeof SuspendSchema>;
 
 /**
+ * A verification decision. Same reason rule as everything else in here — and
+ * it matters more, because on a refusal this exact sentence is what the owner
+ * is shown. "invalid" is not something a person can act on.
+ */
+const VerifySchema = z.object({
+  decision: z.enum(['verified', 'rejected']),
+  reason: z.string().trim().min(8).max(1000),
+});
+type VerifyDto = z.infer<typeof VerifySchema>;
+
+/**
  * The console's surface. Every route below is behind a permission — the guard
  * is in AdminAccessService and it reads the grants table, so a role revoked a
  * minute ago is a role gone a minute ago.
@@ -50,6 +61,24 @@ export class AdminController {
     @Req() req: { ip?: string },
   ) {
     return this.admin.decide(user.sub, id, dto.decision, dto.reason, req.ip ?? null);
+  }
+
+  /** Businesses that have sent a document. Needs business.verify, not
+   *  business.read — the row carries a registration number and a certificate. */
+  @Get('verification')
+  verificationQueue(@CurrentUser() user: JwtUser) {
+    return this.admin.verificationQueue(user.sub);
+  }
+
+  @Post('verification/:listingId/decision')
+  @UsePipes(new ZodValidationPipe(VerifySchema))
+  decideVerification(
+    @CurrentUser() user: JwtUser,
+    @Param('listingId') listingId: string,
+    @Body() dto: VerifyDto,
+    @Req() req: { ip?: string },
+  ) {
+    return this.admin.decideVerification(user.sub, listingId, dto.decision, dto.reason, req.ip ?? null);
   }
 
   // Declared before ':id'-shaped routes for the usual reason, and named in

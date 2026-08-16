@@ -7,6 +7,7 @@ import {
 } from '../api';
 import { MenuEditor } from '../MenuEditor';
 import { HoursEditor, OpenBadge } from '../HoursEditor';
+import { VerificationTab } from '../Verification';
 
 /**
  * WHAT NEIGHBOURS SAID, AND THE ONE ANSWER YOU GET.
@@ -227,6 +228,11 @@ export function MyBusiness() {
                     : <>(private — nobody sees it)</>}</>
                 )}
               </div>
+              {/* FIRST OF THE SECTIONS, and only while the listing is live.
+                  It is where the count of neighbours nobody has been given
+                  yet is shown, which is the one thing on this card an owner
+                  cannot find out anywhere else. */}
+              {!removed && <VerificationTab listingId={l.id} />}
               {!removed && <HoursEditor listing={l} />}
               {!removed && <MenuEditor listingId={l.id} />}
               {!removed && <Offers listingId={l.id} />}

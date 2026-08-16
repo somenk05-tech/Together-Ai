@@ -3,6 +3,7 @@ import { PrismaService } from '../shared/prisma/prisma.service';
 import { AdminAccessService } from './admin-access.service';
 import { PERMISSIONS, ROLES, type Permission } from './permissions';
 import { CITIZEN_FIELDS, toCitizenView, type CitizenRow } from './citizen-view';
+import { VerificationService } from '../local-services/verification.service';
 
 /**
  * THE FIRST CONSOLE SCREEN, AND THE ONE WITH SOMEBODY WAITING ON IT.
@@ -22,6 +23,10 @@ export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: AdminAccessService,
+    // The reading and writing of a verification lives in the hub that owns it.
+    // What belongs here is the permission and the audit row — the two things a
+    // decision cannot be taken without.
+    private readonly verification: VerificationService,
   ) {}
 
   /**
@@ -114,6 +119,44 @@ export class AdminService {
       await this.prisma.serviceListing.update({ where: { id }, data: { moderation: decision } });
       return { id, moderation: decision };
     });
+  }
+
+  /**
+   * BUSINESSES WAITING TO BE VERIFIED.
+   *
+   * A second queue beside the moderation one, and deliberately not merged with
+   * it: they answer different questions. Moderation asks "should this page be
+   * in the directory at all"; this asks "is this business who it says it is".
+   * A single list would make one reviewer's yes stand for both.
+   *
+   * Reading it needs `business.verify` rather than `business.read`, because the
+   * row carries a registration number and a certificate — documents the owner
+   * sent to be checked, not to be browsed.
+   */
+  async verificationQueue(userId: string) {
+    await this.access.assert(userId, 'business.verify');
+    return this.verification.queue();
+  }
+
+  /**
+   * Verified, or refused with a reason.
+   *
+   * Approving hands this listing an unlimited inbox and puts a badge on it that
+   * a citizen will read as "checked by Together City". Both directions want a
+   * name against them — which is what act() is for — and the refusal reason is
+   * shown to the owner verbatim, so it is written to be read by them and not
+   * about them.
+   */
+  async decideVerification(
+    userId: string, listingId: string,
+    decision: 'verified' | 'rejected', reason: string, ip?: string | null,
+  ) {
+    return this.access.act({
+      actorId: userId, need: 'business.verify',
+      action: `verification.${decision}`, entity: 'listing', entityId: listingId,
+      after: { docStatus: decision },
+      reason, ip,
+    }, () => this.verification.decide(userId, listingId, decision, reason));
   }
 
   /**

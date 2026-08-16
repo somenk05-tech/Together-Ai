@@ -9,6 +9,7 @@ import { boundingBox, haversineKm, parsePoint } from './geo';
 import { looksLikeId, normaliseSlug, slugProblem, SLUG_MESSAGES, suggestSlug } from './slug';
 import { cleanDetails, isBusinessType, readDetails, sectionsFor } from './business-types';
 import { normaliseHours, parseHours } from './hours';
+import { VerificationService } from './verification.service';
 import type { BrowseDto, CreateListingDto, UpdateListingDto, PostOfferDto, SaveMenuDto } from './dto/local-services.dto';
 
 type ListingRow = {
@@ -44,7 +45,8 @@ export function ratingOf(rows: Array<{ rating: number }>): { rating: number | nu
 
 type EnquiryRow = {
   id: string; listingId: string; seekerId: string; alias: string; revealName: boolean;
-  lastMessageAt: Date; seekerUnread: number; ownerUnread: number; closed: boolean; createdAt: Date;
+  lastMessageAt: Date; seekerUnread: number; ownerUnread: number; closed: boolean;
+  openedAt: Date | null; createdAt: Date;
 };
 
 const parse = <T>(json: string | null, fallback: T): T => {
@@ -75,6 +77,10 @@ export class LocalServicesService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly ai: AiService,
+    // The five-a-day gate. It lives next door because it is a fact about a
+    // BUSINESS, not about a conversation — this service only asks it whether a
+    // brand-new thread is handed over or held.
+    private readonly verification: VerificationService,
   ) {}
 
   // ───────────────────────── shaping ─────────────────────────
@@ -319,7 +325,13 @@ export class LocalServicesService {
     // their page, and a page that 404s to the person who wrote it is a bug.
     const ownIt = viewerId != null && l?.ownerId === viewerId;
     if (!l || (l.moderation !== 'approved' && !ownIt)) throw new NotFoundException('listing not found');
-    return ownIt ? this.ownerCard(l) : this.card(l);
+    /* THE BADGE, ON THE ONE PAGE WHERE SOMEBODY IS DECIDING. Null at basic —
+       the absence of a claim, never a claim of absence, because a grey "not
+       verified" chip marks every honest new business in the city on the day it
+       most needs answering. Directory cards do not carry it yet: that is a
+       query per page of results and it belongs with the ranking work. */
+    const trust = await this.verification.badgeFor(l);
+    return { ...(ownIt ? this.ownerCard(l) : this.card(l)), trust };
   }
 
   /**
@@ -491,9 +503,17 @@ export class LocalServicesService {
     }) as EnquiryRow | null;
 
     if (!e) {
+      /* FIVE NEW NEIGHBOURS A DAY UNTIL THE LISTING IS VERIFIED.
+         Asked here and nowhere else, because it is only ever a question about a
+         thread that does not exist yet — one already given away cannot be taken
+         back, and a room open on Monday and gone on Tuesday is worse than one
+         that was never opened.
+         The citizen is refused nothing and told nothing: the thread is made,
+         the message is stored, and it is the BUSINESS that waits. */
+      const held = await this.verification.holdsNewThread(l);
       const soFar = await this.prisma.serviceEnquiry.count({ where: { listingId } });
       e = await this.prisma.serviceEnquiry.create({
-        data: { listingId, seekerId, alias: mintAlias(soFar) },
+        data: { listingId, seekerId, alias: mintAlias(soFar), openedAt: held ? null : new Date() },
       }) as unknown as EnquiryRow;
     }
 
@@ -533,7 +553,12 @@ export class LocalServicesService {
 
     // The business is told somebody wrote; who that is, is the asker's call,
     // and the link goes to this hub's own room rather than to /chats.
-    if (side === 'seeker') {
+    if (side === 'seeker' && e.openedAt == null) {
+      /* A HELD THREAD RAISES NOTHING. The business cannot open this room yet;
+         telling them somebody wrote and then showing them nothing is worse
+         than the silence, and the count of people waiting is on the
+         verification tab where it can be acted on. */
+    } else if (side === 'seeker') {
       /* THE ALERT SAYS WHAT THE INBOX SAYS. A notification naming somebody who
          chose to stay a number would be the leak arriving by push — computed
          before the fire-and-forget below so the read is not hidden inside an
@@ -641,13 +666,24 @@ export class LocalServicesService {
         where: { seekerId: userId }, orderBy: { lastMessageAt: 'desc' }, take: 100,
       }) as unknown as Promise<EnquiryRow[]>,
       this.prisma.serviceListing.findMany({
-        where: { ownerId: userId }, select: { id: true }, take: MAX_LISTINGS_PER_OWNER + 20,
-      }) as unknown as Promise<Array<{ id: string }>>,
+        where: { ownerId: userId },
+        select: { id: true, ownerId: true, businessType: true, createdAt: true },
+        take: MAX_LISTINGS_PER_OWNER + 20,
+      }) as unknown as Promise<Array<{ id: string; ownerId: string; businessType: string | null; createdAt: Date }>>,
     ]);
     const ids = ownListings.map((l) => l.id);
+
+    /* HELD THREADS COME OUT HERE, OLDEST FIRST, INTO WHATEVER ROOM TODAY HAS.
+       Lazily rather than on a schedule: there is no job to run and nothing to
+       drift, and the owner opening their inbox is exactly the moment the
+       answer matters. See trust-gate.ts for the rule and its test. */
+    await Promise.all(ownListings.map((l) => this.verification.releaseFor(l)));
+
     const asOwner = ids.length
       ? await this.prisma.serviceEnquiry.findMany({
-          where: { listingId: { in: ids } }, orderBy: { lastMessageAt: 'desc' }, take: 200,
+          // A thread the business has not been given yet is not in its inbox.
+          where: { listingId: { in: ids }, openedAt: { not: null } },
+          orderBy: { lastMessageAt: 'desc' }, take: 200,
         }) as unknown as EnquiryRow[]
       : [];
 

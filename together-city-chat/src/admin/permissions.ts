@@ -36,6 +36,7 @@ export const PERMISSIONS = {
   'business.approve': 'Approve or reject a listing',
   'business.suspend': 'Take a listing out of the directory',
   'business.feature': 'Promote a listing in the directory',
+  'business.verify': 'Decide a verification submission, and read the document sent with it',
 
   'moderation.read': 'See the report queue',
   'moderation.act': 'Act on a report — hide, warn, remove',
@@ -79,7 +80,7 @@ export const ROLES = {
   // an audit row — the only READ in this system that does.
   admin: [
     'users.read', 'users.suspend',
-    'business.read', 'business.approve', 'business.suspend', 'business.feature',
+    'business.read', 'business.approve', 'business.suspend', 'business.feature', 'business.verify',
     'moderation.read', 'moderation.act',
     'support.read', 'support.reply', 'support.assign',
     'ops.health', 'audit.read',
@@ -93,7 +94,7 @@ export const ROLES = {
   marketing: ['business.read', 'cms.write', 'notify.send'],
   moderator: ['moderation.read', 'moderation.act', 'business.read', 'users.read'],
   engineering: ['ops.health', 'ops.flags', 'ops.deploy', 'audit.read'],
-  business_success: ['business.read', 'business.approve', 'business.feature', 'support.read', 'support.reply'],
+  business_success: ['business.read', 'business.approve', 'business.feature', 'business.verify', 'support.read', 'support.reply'],
 } as const satisfies Record<string, readonly Permission[]>;
 
 export type AdminRole = keyof typeof ROLES;
@@ -136,6 +137,10 @@ export const MUST_AUDIT: readonly Permission[] = [
   'users.contact',
   'users.suspend', 'users.delete',
   'business.approve', 'business.suspend', 'business.feature',
+  // A verification decision hands a listing an unlimited inbox and puts a
+  // badge on it that a citizen will read as "checked". Both directions want a
+  // name against them: the approval, and the refusal the owner is shown.
+  'business.verify',
   'moderation.act',
   'support.reply', 'support.assign',
   'finance.act',

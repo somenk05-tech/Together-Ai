@@ -76,7 +76,54 @@ export interface ServiceCard {
    * supplies the clock.
    */
   hours?: DayHours[] | null;
+  /**
+   * WHAT WAS CHECKED ABOUT THIS BUSINESS, AND BY WHOM.
+   *
+   * Null at the bottom rung, and that is the absence of a claim rather than a
+   * claim of absence — a grey "not verified" chip would mark every honest new
+   * business in the city on the day it most needs answering. Both strings come
+   * from the server so that one wording exists: a page and an API that disagree
+   * about what a badge claims is how "verified" quietly becomes a promise
+   * Together City never made.
+   */
+  trust?: TrustSummary | null;
   createdAt: string;
+}
+
+export type TrustTier = 'basic' | 'identity' | 'business' | 'trusted';
+export type EntityKind = 'individual' | 'proprietor' | 'registered' | 'company';
+export type DocKind =
+  | 'gstin' | 'udyam' | 'shop_establishment' | 'trade_licence'
+  | 'incorporation' | 'fssai' | 'professional' | 'rera';
+export type DocStatus = 'none' | 'submitted' | 'verified' | 'rejected';
+
+export interface TrustSummary { tier: TrustTier; label: string | null; blurb: string | null }
+
+/** The owner's own view: the rungs, what is missing, and who is waiting. */
+export interface ListingTrust extends TrustSummary {
+  entityKind: EntityKind | null;
+  entityKinds: Array<{ kind: string; label: string }>;
+  phoneVerified: boolean;
+  identityVerified: boolean;
+  docKind: DocKind | null;
+  docRef: string | null;
+  docStatus: DocStatus;
+  docRejectReason: string | null;
+  placeConfirmed: boolean;
+  /** Neighbours whose message this business has not been given yet. */
+  waiting: number;
+  freePerDay: number;
+  gateLifted: boolean;
+  nextStep: string | null;
+  accepts: Array<{ kind: DocKind; label: string }>;
+  requires: DocKind[] | null;
+  why: string | null;
+}
+export interface SubmitVerificationInput {
+  entityKind: EntityKind;
+  docKind?: DocKind;
+  docRef?: string;
+  docUrl?: string;
 }
 /** Your own listing, read back — your number is here whether or not it is public. */
 export interface MyServiceCard extends Omit<ServiceCard, 'phone'> {
@@ -251,6 +298,11 @@ export const servicesApi = {
   replyToReview: (reviewId: string, reply: string) =>
     api.post<ServiceReview>(`/services/reviews/${reviewId}/reply`, { reply }).then((r) => r.data),
 
+  verification: (listingId: string) =>
+    api.get<ListingTrust>(`/services/${listingId}/verification`).then((r) => r.data),
+  submitVerification: (listingId: string, input: SubmitVerificationInput) =>
+    api.post<ListingTrust>(`/services/${listingId}/verification`, input).then((r) => r.data),
+
   menu: (listingId: string) => api.get<MenuPage>(`/services/${listingId}/menu`).then((r) => r.data),
   scanMenu: (listingId: string, image: string) =>
     api.post<{ items: MenuDraftItem[]; note: string; review: string }>(`/services/${listingId}/menu/scan`, { image }).then((r) => r.data),
@@ -259,6 +311,23 @@ export const servicesApi = {
   askAboutMenu: (listingId: string, itemIds: string[], note?: string) =>
     api.post<{ threadId: string }>(`/services/${listingId}/menu/ask`, { itemIds, note }).then((r) => r.data),
 };
+
+/** The owner's verification tab. Its own query key so that approving a
+ *  document refreshes the tab and the inbox together. */
+export function useListingTrust(listingId?: string) {
+  return useQuery({
+    queryKey: ['services', 'verification', listingId],
+    queryFn: () => servicesApi.verification(listingId as string),
+    enabled: !!listingId,
+  });
+}
+export function useSubmitVerification(listingId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: SubmitVerificationInput) => servicesApi.submitVerification(listingId as string, v),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['services'] }); },
+  });
+}
 
 export function useMenu(listingId?: string) {
   return useQuery({

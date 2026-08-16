@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../shared/prisma/prisma.module';
+import { LocalServicesModule } from '../local-services/local-services.module';
 import { AdminAccessService } from './admin-access.service';
 import { AdminService } from './admin.service';
 import { AdminController } from './admin.controller';
@@ -18,7 +19,7 @@ import { ConsoleBootstrapService } from './console-bootstrap';
  * inside. See that file for why an environment variable is the right key.
  */
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, LocalServicesModule],
   controllers: [AdminController],
   providers: [AdminAccessService, AdminService, ConsoleBootstrapService],
   exports: [AdminAccessService],
