@@ -309,14 +309,27 @@ export const HUBS: Record<HubKey, HubConfig> = {
     items: [
       { path: '/fitness/profile', index: '01', label: 'Training Profile', sub: 'Age, level, style & body goal' },
       { path: '/fitness/body-goal', index: '02', label: 'Body Goal', sub: 'Diet + workout + health, integrated' },
-      { path: '/fitness/plan', index: '03', label: 'My Plan', sub: 'Age & condition-aware week' },
-      { path: '/fitness/trainer', index: '04', label: 'Trainer Mode', sub: 'Live AI form coach + voice' },
-      { path: '/fitness/workout', index: '05', label: 'Workout', sub: 'Guided live-timer plan' },
-      { path: '/fitness/log', index: '06', label: 'Activity Log', sub: 'What you actually did' },
-      { path: '/fitness/supplements', index: '07', label: 'Supplements', sub: 'Goal-matched kit' },
-      { path: '/fitness/sleep', index: '08', label: 'Sleep Cycle', sub: 'Duration, quality & schedule' },
-      { path: '/fitness/store', index: '09', label: 'The Store', sub: 'Verified in India · we take no cut' },
-      { path: '/fitness/orders', index: '10', label: 'My Orders', sub: 'Your bag & what you bought' },
+      // MY PLAN IS OFF THE MENU (16 Aug), at the owner's word — and the room is
+      // left standing, which is the third time this hub-level decision has been
+      // taken and the third time on the same argument: deleting a working
+      // surface in order to hide it is how a feature comes back as a rewrite,
+      // and taking the door away is one line to put back. FitnessPlan.tsx, the
+      // route and GET /fitness/plan are all untouched, so a saved link still
+      // opens. Same treatment as the Makeup Studio and Activity Dating, and
+      // declared in scripts/nav-audit.mjs for the same reason: hiding a surface
+      // has two halves, and only doing the first leaves the audit failing on a
+      // silence nobody explained.
+      //
+      // The numbering closes up rather than leaving a gap at 03: a menu that
+      // counts 01-02-04 is a menu advertising the thing it is trying not to
+      // advertise.
+      { path: '/fitness/trainer', index: '03', label: 'Trainer Mode', sub: 'Live AI form coach + voice' },
+      { path: '/fitness/workout', index: '04', label: 'Workout', sub: 'Guided live-timer plan' },
+      { path: '/fitness/log', index: '05', label: 'Activity Log', sub: 'What you actually did' },
+      { path: '/fitness/supplements', index: '06', label: 'Supplements', sub: 'Goal-matched kit' },
+      { path: '/fitness/sleep', index: '07', label: 'Sleep Cycle', sub: 'Duration, quality & schedule' },
+      { path: '/fitness/store', index: '08', label: 'The Store', sub: 'Verified in India · we take no cut' },
+      { path: '/fitness/orders', index: '09', label: 'My Orders', sub: 'Your bag & what you bought' },
     ],
   },
   mail: {

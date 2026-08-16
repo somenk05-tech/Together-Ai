@@ -341,6 +341,7 @@ const UNREACHABLE_ON_PURPOSE = new Map([
   // red. An audit that is expected to fail is an audit nobody reads.
   ['/beauty/makeup', 'the Makeup Studio. Off the Beauty menu since 11 Aug at the owner\'s word — page, look engine and GET /beauty/makeup all untouched, and the route still resolves so no saved link breaks. Hidden, not deleted; it returns by putting one line back in config/hubs.ts.'],
   ['/dating/activity', 'Activity Dating. Off the Dating menu since 12 Aug at the owner\'s word, and explicitly "for now" — page, invitation engine and every /dating/activity endpoint untouched, and the route still resolves. Same shape as the Makeup Studio above: hidden, not deleted, and it returns by putting one line back in config/hubs.ts.'],
+  ['/fitness/plan', 'My Plan, the age- and condition-aware training week. Off the Fitness menu since 16 Aug at the owner\'s word — the page, the plan engine and GET /fitness/plan are untouched and the route still resolves, so a saved link opens exactly as it did. Third of the same shape as the Makeup Studio and Activity Dating above: hidden, not deleted, and it returns by putting one line back in config/hubs.ts.'],
 ]);
 
 const referenced = new Set();

@@ -132,10 +132,24 @@ describe('a hidden surface is declared hidden', () => {
     expect(router).toMatch(/path: '\/dating\/activity'/);
   });
 
+  it('takes My Plan off the Fitness menu and leaves that room standing too', () => {
+    // The owner, 16 Aug. Third of the same shape, and the third time the room
+    // is left standing: the page, the plan engine and GET /fitness/plan are
+    // untouched and the route still resolves, so a saved link opens exactly as
+    // it did. Hidden is one line to put back; deleted is a rewrite.
+    expect(hubs).not.toMatch(/label: 'My Plan'/);
+    expect(router).toMatch(/path: '\/fitness\/plan'/);
+    // AND NO DOOR IS LEFT ON IT. Body Goal carried "See my weekly plan →"
+    // pointing straight at it — a link into a room that is off the map is how a
+    // hidden surface comes back by accident, and it is the one thing that would
+    // make nav-audit and the next reader disagree about whether it exists.
+    expect(code('features/fitness/pages/BodyGoal.tsx')).not.toMatch(/to="\/fitness\/plan"/);
+  });
+
   it('declares both hidden surfaces to nav-audit, with a reason', () => {
     // The reason string is not decoration: nav-audit prints it, and it is what
     // tells the next person whether a route is hidden on purpose or stranded.
-    for (const path of ['/beauty/makeup', '/dating/activity']) {
+    for (const path of ['/beauty/makeup', '/dating/activity', '/fitness/plan']) {
       const entry = navAudit.match(new RegExp(`\\['${path}', '([^']*(?:\\\\'[^']*)*)'\\]`));
       expect({ path, declared: Boolean(entry) }).toEqual({ path, declared: true });
       expect(entry![1].length).toBeGreaterThan(40);

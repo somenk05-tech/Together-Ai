@@ -99,7 +99,11 @@ export function BodyGoal() {
       <div className="card" style={{ marginBottom: 14 }}>
         <div className="eyebrow">Training emphasis</div>
         <p style={{ fontSize: 13.5, margin: '6px 0 0' }}>{p.emphasis}</p>
-        <div style={{ marginTop: 10 }}><Link to="/fitness/plan"><Button variant="line" size="sm">See my weekly plan →</Button></Link></div>
+        {/* "See my weekly plan →" pointed at My Plan, which came off the menu
+            on 16 Aug. A door to a room that is no longer on the map is how a
+            hidden surface comes back by accident — and it is also the one thing
+            that would make nav-audit and the next reader disagree about whether
+            the page exists. The room still stands; nothing here advertises it. */}
       </div>
 
       {p.healthImprovements.length > 0 && (
