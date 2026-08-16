@@ -884,12 +884,16 @@
    been a second number that six places do not know about, and a 52px band of
    empty paper under a 56px bar.
 
-   The layout that makes one line happen is in layout.css, at the same
-   breakpoint. Why 1400 and not a round 1440: the row was measured at thirteen
-   widths and needs 1384px once the pill labels are icons and the tab tracking
-   is halved. 1400 is that measurement plus a margin, not a preference. */
-@media (min-width: 1400px) {
-  :root { --header-h: 60px; }
+   The layout that makes the two layers happen is in layout.css, at the same
+   breakpoint. Why 1500 and not a round 1440: the second layer was measured on
+   the live page, in the owner's own browser with the real webfont, at 1458px —
+   and a media query matches `innerWidth` while the row is laid out in
+   `clientWidth`, 15px less because of the scrollbar. 1500 is 1458 plus that
+   15px plus a margin, not a preference. The 1400/60px this replaces came from
+   a headless rig that could not load 'General Sans' and under-measured the
+   district row by 145px; it cropped, and it is corrected here. */
+@media (min-width: 1500px) {
+  :root { --header-h: 90px; }
 }
 
 /* ══ THE WEEK'S PAPERS ═══════════════════════════════════════════════════

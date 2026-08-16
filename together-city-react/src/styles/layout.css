@@ -125,94 +125,70 @@
   transform: none;
 }
 
-/* ── ONE LINE, WHERE ONE LINE FITS ──────────────────────────────────────────
-   The owner, 16 Aug: "make these in one line… and make sure nothing gets
-   cropped." The second half is the hard half, and it is why this is a media
-   query rather than a change to the header's shape.
+/* ── TWO LAYERS, AND A NUMBER THAT WAS FINALLY MEASURED IN THE RIGHT PLACE ──
+   The owner, 17 Aug, 12:40am: "move the together city logo on layer on top and
+   at the center of the page and the make the top hub layer."
 
-   MEASURED FIRST, in a browser, at thirteen widths — the discipline the chat
-   header earned in August. The three rows on one line, exactly as they are
-   today, need 1694px. That fits a 16-inch laptop and crops a 14-inch one, and
-   the two-row header it would replace does NOT crop at 1440: with the line to
-   themselves the tabs have room. So the naive version of this request trades
-   a header that never crops for one that crops on the machine it was asked
-   from.
+   FIRST, THE ADMISSION THIS BLOCK EXISTS TO CORRECT.
+   Two commits earlier the same night put this header on ONE line at 1400 and
+   its words back at 1620, on numbers taken from a headless browser in a Linux
+   sandbox. That rig was wrong in two ways at once: 'General Sans' is a webfont
+   it could not load, so every one of the twelve district labels was set in a
+   substitute, and its computed `.tc-nav` gap came out 6px against the real
+   26px. It reported the row needing 1420px. On the owner's own machine the
+   same row needs 1580px, and with the words 1737px — so the bar he was looking
+   at when he wrote the line above had his own name clipped off the right edge.
 
-   WHAT EACH SAVING IS WORTH, measured rather than guessed:
-     · the five pill labels          225px  → 1469
-     · tab tracking .13em → .06em     85px  → 1609
-     · both                                 → 1384
-   Both, and only both, lands 1440. Nothing tested reaches 1280 without type so
-   small the rest of the city does not use it anywhere.
+   THE REAL NUMBERS, read off the live page in his browser, with his fonts:
+       logo 102 · districts 1123 · pills 267 icons / 424 with words
+       one line, icons ......... 1580     one line, words ......... 1737
+       two layers, icons ....... 1458     two layers, words ....... 1615
+   And the thing that turned a near miss into a visible crop: A MEDIA QUERY
+   MATCHES `innerWidth`, BUT THE ROW IS LAID OUT IN `clientWidth` — 15px less,
+   because the page has a scrollbar. Every breakpoint below is the measured
+   need PLUS that 15px PLUS a margin, and that is why none of them is round.
 
-   So: one line from 1400 up, the three-row masthead below it, and the
-   breakpoint is where the measurement put it rather than a round number.
-   Below 1400 nothing about the header changes — the rows it has had since
-   15 August are still the rows it has.
+   THE SHAPE THE OWNER ASKED FOR IS ALSO THE ONE THAT FITS. The signature goes
+   on a layer of its own, centred on the page; the districts and the citizen's
+   own doors share the layer beneath it. Taking the logo out of the line gives
+   back 122px, which is most of the difference between a row that crops and one
+   that does not. Centring the districts on that second layer was tried and
+   rejected by measurement, not taste: at 1720 the tab row and the pills overlap
+   by 62px.
 
-   THE LABELS BECOME ICONS, NOT NOTHING. `aria-label` and `title` carry the
-   word on every one of them, so a screen reader hears "Mail" exactly as it did
-   and a hover says it. The citizen's own name stays: it is the one pill that
-   is a person rather than a place.
-
-   ── AND THEN, 16 Aug, LATER THE SAME NIGHT ──────────────────────────────────
-   The owner, looking at the landed bar: "make the icons on the right and
-   instead of the icons write the words."
-
-   TWO CHANGES, AND ONLY ONE OF THEM IS FREE.
-
-   THE SIDE IS FREE. The pills move off the centred block and pin to the right
-   edge; the districts sit next to the name. Three right-hand arrangements were
-   rendered before this one was picked. Logo-left / tabs-centred / pills-right
-   splits the slack into two holes, and tabs-and-pills-as-one-block-right
-   leaves the signature stranded alone on the left. This one has a single gap
-   and it falls between the CITY'S districts and the CITIZEN'S own four doors,
-   which is the only line in the bar worth drawing.
-
-   THE WORDS COST 170px, and there is no arguing with it: 1420 → 1590. They
-   cannot be promised at 1400, so they are promised at 1620 and the band
-   between the two keeps the icons. The owner was shown the 1512 crop and chose
-   this over the two alternatives — words everywhere with the district type
-   dropped to 9.5px (the size the city otherwise uses only on a phone), and
-   the three-row masthead returning below 1620.
-
-   The word on the mail pill stays "Mail" — the owner wrote "email", and chose
-   Mail when shown that the drawer, the Hubs page and the hub's own title all
-   say Mail. One name for one room. */
-@media (min-width: 1400px) {
+   So: two layers from 1500 up (1458 + 15 + margin), the words from 1700
+   (1615 + 15 + room for a first name longer than the owner's — that pill is
+   user data), and below 1500 the three-row masthead exactly as it has been
+   since 15 August. */
+@media (min-width: 1500px) {
   .tc-header {
     flex-direction: row;
+    flex-wrap: wrap;
     align-items: center;
-    /* flex-start, not center: the pills claim the right edge below, and a
-       centred main axis would fight the auto margin that puts them there. */
+    align-content: center;
     justify-content: flex-start;
-    gap: 20px;
-    /* height stays var(--header-h) — the token itself is re-pointed to 60px at
+    column-gap: 20px;
+    row-gap: 2px;
+    /* height stays var(--header-h) — the token itself is re-pointed to 90px at
        this breakpoint in tokens.css, so every surface that clears the header
        follows without knowing this rule exists. */
     padding: 8px 24px;
   }
-  /* THE THREE ROWS BECOME ONE, IN THEIR OWN ORDER, ON THE SAME AXIS.
-     Name, then the citizen's own doors, then the districts — the reading order
-     the masthead has had since 15 August, laid end to end and centred as one
-     block rather than pushed to opposite edges. Three compositions were
-     rendered before this one was chosen; the other two (tabs pinned right, and
-     logo-left/tabs-centre/pills-right) both open a two-hundred-pixel hole in
-     the middle of the bar and abandon the single axis the header's whole design
-     argument rests on. */
-  .tc-header-top,
-  .tc-header .tc-actionrow,
-  .tc-header .tc-navrow { width: auto; flex: 0 0 auto; }
-  /* THE CITIZEN'S DOORS GO TO THE RIGHT EDGE, THE DISTRICTS COME FORWARD.
-     `order` rather than a change to Header.tsx, because the source order is
-     the READING order every other surface depends on: the burger drawer, the
-     three-row masthead below 1400 and the tab sequence all walk the markup as
-     it stands. Only the desktop line rearranges it, and only visually.
-     `margin-left: auto` on the pills is the whole right-alignment — it eats
-     every spare pixel in one place instead of spreading it as gaps. */
+  /* LAYER ONE — THE SIGNATURE, ALONE, ON THE CENTRE OF THE PAGE.
+     `flex: 0 0 100%` is what makes it a layer: it claims the whole line, and
+     everything after it wraps beneath. Measured 777px of paper either side of
+     the wordmark at 1720 — centred on the page, not on what is left over. */
+  .tc-header .tc-header-top { flex: 0 0 100%; width: 100%; display: flex; justify-content: center; }
+  /* LAYER TWO — THE CITY'S DISTRICTS, AND THE CITIZEN'S OWN DOORS ON THE RIGHT.
+     `order` rather than a change to Header.tsx, because the source order is the
+     READING order the burger drawer, the masthead below 1500 and the tab
+     sequence all walk. `margin-left: auto` is the whole right-alignment: it
+     collects the slack in ONE gap instead of spreading it as several. */
+  .tc-header .tc-navrow,
+  .tc-header .tc-actionrow { width: auto; flex: 0 0 auto; }
   .tc-header .tc-navrow { order: 2; }
   .tc-header .tc-actionrow { order: 3; margin-left: auto; }
-  /* The word goes; the icon and its aria-label stay. */
+  /* The word goes; the icon, its title and its aria-label stay. */
   .tc-header .tc-actionbar .lab { display: none; }
   .tc-header .tc-actionbar a, .tc-header .tc-actionbar button { padding: 0 10px; }
   /* …except the citizen's own name, which is a person and not a place. */
@@ -223,12 +199,12 @@
 }
 
 /* ── AND THE WORDS COME BACK WHERE THERE IS ROOM FOR THEM ────────────────────
-   1590px is what the row needs with Mail, Chat, Personal and Alerts spelled
-   out; 1420px is what it needs without them. This block is the difference,
-   and 1620 is 1590 plus enough margin for a citizen whose first name is longer
-   than the owner's — that label is user data, and a breakpoint set to the
-   exact measurement is a breakpoint that crops for somebody else. */
-@media (min-width: 1620px) {
+   1615px is the second layer with Mail, Chat, Personal and Alerts spelled out;
+   1458px is that layer without them. 1700 is the larger of those plus the 15px
+   the scrollbar takes and room for a first name longer than the owner's — a
+   breakpoint set to the exact measurement is a breakpoint that crops for
+   somebody else, which is precisely the mistake 1620 made. */
+@media (min-width: 1700px) {
   .tc-header .tc-actionbar .lab { display: inline; }
 }
 
