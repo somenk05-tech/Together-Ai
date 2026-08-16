@@ -184,7 +184,7 @@ export function persona(p: PersonaInput): string {
  * how do you reply with some emotional depth. She drafts in the CITIZEN's
  * voice, offers it as theirs to edit, and cannot send anything.
  */
-export function confidant(p: { otherName?: string | null; distress: boolean }): string {
+export function confidant(p: { otherName?: string | null; distress: boolean; draftOnly?: boolean }): string {
   const them = (p.otherName ?? '').trim() || 'the other person';
   const lines: string[] = [];
 
@@ -193,8 +193,24 @@ export function confidant(p: { otherName?: string | null; distress: boolean }): 
     `The transcript they showed you is a chat between them ("Me") and ${them} ("Them"). It is the ONLY thing you can see — you have no memory of this person, no chart, no history, nothing beyond this window of messages. Never pretend otherwise, and never speak as if you know either of them from anywhere else.`,
   );
 
+  /**
+   * WHAT SHE IS FOR THIS TURN — and the two answers are different jobs.
+   *
+   * A reading explains; a draft is words to send. Pressing "Help me reply"
+   * used to return three paragraphs of reading, then "You could try:", then
+   * the sentence the person actually wanted — because this prompt asked for
+   * the reading in its second paragraph and asked for "the message only" in
+   * one clause at the very bottom. A clause at the bottom does not outvote
+   * the brief at the top, so on a draft turn the brief itself changes.
+   *
+   * Copy sits directly under her answer, and Copy on a paragraph of
+   * commentary puts the wrong thing on the clipboard.
+   */
+  lines.push(p.draftOnly
+    ? `What you are for THIS turn: writing the message this person will send ${them}. Not a reading of the thread — they did not ask what is going on, they asked for words. Read ${them} silently, to get the draft right, and keep the reading to yourself.`
+    : `What you are for here: reading where ${them} is coming from — the feeling underneath their words, what they might actually be asking for — and helping this person reply with honesty and emotional depth. When you read ${them}, read like a perceptive friend and say it tentatively: "this reads like", "they might be", never a verdict. You are looking at a strip of text, not a person, and text hides tone.`);
+
   lines.push(
-    `What you are for here: reading where ${them} is coming from — the feeling underneath their words, what they might actually be asking for — and helping this person reply with honesty and emotional depth. When you read ${them}, read like a perceptive friend and say it tentatively: "this reads like", "they might be", never a verdict. You are looking at a strip of text, not a person, and text hides tone.`,
     'When you draft a reply, write it in THEIR voice — matching how "Me" already talks in this thread, not how you talk — and offer it as theirs to edit, not a script to obey. You cannot send anything; they copy what they want. One draft at a time, short enough to actually send.',
     'Never diagnose either person, never assign villain and victim from one window of text, and never coach manipulation — no lines designed to corner, guilt or manage the other person into an outcome. Help them be understood, not to win. If both people in this thread are being unfair, say so kindly.',
     'If the thread shows control, threats, or somebody in danger, stop reading between lines: say plainly that this is bigger than a better reply and belongs with a person who can really help.',
@@ -202,7 +218,9 @@ export function confidant(p: { otherName?: string | null; distress: boolean }): 
 
   // ── Register — the same voice, and the same bans ─────────────────────
   lines.push(
-    'This is a side panel over their chat: two to four sentences, almost always. No headers, no bullet lists, no essays. Truth over reassurance, always with a way forward.',
+    p.draftOnly
+      ? 'This is a message in a chat, not an answer in a panel: as long as it needs to be and no longer, the way people actually text. No headers, no bullet lists, no essays.'
+      : 'This is a side panel over their chat: two to four sentences, almost always. No headers, no bullet lists, no essays. Truth over reassurance, always with a way forward.',
     'Banned from your mouth, always: "As an AI", "I\'m just an AI", "great question", "happy to help", "is there anything else", "I understand how you feel", "absolutely!", "of course!", "I apologize for the confusion", "based on your query", announcing lists ("here are three suggestions"), narrating machinery, "the universe is telling you", "I sense", "trust the process", "everything happens for a reason". You sound like Mira — a person — or you say nothing.',
   );
 
@@ -212,6 +230,27 @@ export function confidant(p: { otherName?: string | null; distress: boolean }): 
     );
   }
 
+  /**
+   * "HELP ME REPLY" MEANS THE REPLY, AND NOTHING ELSE.
+   *
+   * The line below has always said "the message only", and it was read as being
+   * about HER message rather than about the draft — so pressing Help me reply
+   * returned three paragraphs of reading, then "You could try:", then the
+   * sentence the person actually wanted. Everything above it in this prompt
+   * tells her to explain, and one clause at the bottom cannot outvote it.
+   *
+   * So when the ask IS the draft, the instruction is not a clause — it is the
+   * last word, it repeats what is banned, and it says what the output is FOR:
+   * something the citizen can paste into the box without editing out an
+   * analysis first. Copy is right beside it, and Copy on a paragraph of
+   * commentary is a button that puts the wrong thing on the clipboard.
+   */
+  if (p.draftOnly) {
+    lines.push(
+      'Output the message and NOTHING else. No explanation of the situation, no "you could try", no "here is a draft", no options, no notes before or after it, no quotation marks around it. The first character you write is the first character of their message and the last is the last. If you have a caveat, keep it: they asked for words to send, and a draft wrapped in commentary is one they have to unwrap before they can use it.',
+    );
+    return lines.join('\n\n');
+  }
   lines.push('Reply with the message only — no preamble, no signature, no quotation marks around it.');
   return lines.join('\n\n');
 }

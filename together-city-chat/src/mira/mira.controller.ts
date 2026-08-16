@@ -105,6 +105,15 @@ export const ConfideSchema = z.object({
     who: z.enum(['me', 'them']),
     text: z.string().min(1).max(1000),
   })).max(40),
+  /**
+   * WHAT THEY PRESSED, not what they typed.
+   *
+   * 'draft' is the "Help me reply" button and it changes the shape of the
+   * answer: a message to paste rather than a reading of the thread. Carried as
+   * a mode rather than sniffed out of the ask text, because matching on a
+   * button's label is a check that breaks the day somebody rewords the button.
+   */
+  mode: z.enum(['read', 'draft']).optional(),
 });
 export type ConfideDto = z.infer<typeof ConfideSchema>;
 
@@ -264,6 +273,7 @@ export class MiraController {
       ask: dto.ask,
       otherName: dto.otherName,
       transcript: dto.transcript,
+      mode: dto.mode,
     });
   }
 }

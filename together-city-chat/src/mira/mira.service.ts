@@ -681,7 +681,13 @@ export class MiraService {
    */
   async confide(
     userId: string,
-    input: { otherName?: string; ask: string; transcript: Array<{ who: 'me' | 'them'; text: string }> },
+    input: {
+      otherName?: string; ask: string;
+      transcript: Array<{ who: 'me' | 'them'; text: string }>;
+      /** 'draft' is the Help-me-reply button: a message to paste, not a
+       *  reading of the thread. See `confidant` in persona.ts. */
+      mode?: 'read' | 'draft';
+    },
   ): Promise<{ text: string; pass?: { freeLeft: number | null }; paywall?: boolean }> {
     const record = (outcome: Outcome) =>
       this.ledger.record({ userId, text: input.ask, lane: 'LISTEN', confidence: 1, outcome, levity: 0 });
@@ -705,7 +711,12 @@ export class MiraService {
     }
 
     const them = (input.otherName ?? '').trim() || 'Them';
-    const system = confidant({ otherName: input.otherName, distress: Boolean(situation) });
+    /* A DRAFT IS NOT A READING, and distress outranks the draft. If the thread
+       is heavy she goes back to being present rather than handing over a
+       polished sentence — the one turn where "here are the words" is the wrong
+       help is the turn where somebody is hurting. */
+    const draftOnly = input.mode === 'draft' && !situation;
+    const system = confidant({ otherName: input.otherName, distress: Boolean(situation), draftOnly });
     // One user turn: the window of text, then the question. A single message
     // is trivially a legal transcript, and it keeps the model from mistaking
     // the OTHER person's words for its interlocutor's.

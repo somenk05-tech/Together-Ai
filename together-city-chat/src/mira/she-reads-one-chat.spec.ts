@@ -1,5 +1,5 @@
 import { MiraService } from './mira.service';
-import { PAYWALL_LINE } from './persona';
+import { confidant, PAYWALL_LINE } from './persona';
 
 /**
  * SHE READS ONE CHAT — AND ONLY THAT ONE.
@@ -135,5 +135,68 @@ describe('the hand-off and the meter still outrank the model', () => {
     const t = await svc.confide('u1', { ask: 'help me reply', transcript: CHAT });
     expect(t.text).toContain('isn’t switched on');
     expect(svc.__spent).toBeUndefined();
+  });
+});
+
+/**
+ * "HELP ME REPLY" MEANS THE REPLY.
+ *
+ * The owner, 16 Aug: pressing it returned three paragraphs of reading, then
+ * "You could try:", then the sentence they actually wanted — so the one button
+ * whose output is meant to be pasted into a chat produced something that had to
+ * be unwrapped first, with a Copy button underneath it that copied the wrapper
+ * too.
+ *
+ * The prompt had said "reply with the message only" since it was written. It
+ * lost, because it was one clause at the BOTTOM of a brief whose second
+ * paragraph asked her to explain where the other person is coming from. So the
+ * fix is not a stronger closing line: on a draft turn the brief itself changes,
+ * and these tests are about that difference rather than about the wording of
+ * any one sentence.
+ */
+describe('a draft is not a reading', () => {
+  const read = confidant({ otherName: 'Asha', distress: false });
+  const draft = confidant({ otherName: 'Asha', distress: false, draftOnly: true });
+
+  it('asks for the message on a draft turn and for the reading otherwise', () => {
+    expect(draft).toContain('writing the message this person will send');
+    expect(draft).toContain('keep the reading to yourself');
+    // The instruction that produced the three paragraphs is GONE on this turn,
+    // not merely outranked by something later.
+    expect(draft).not.toContain('What you are for here: reading where');
+    expect(read).toContain('What you are for here: reading where');
+    expect(read).not.toContain('keep the reading to yourself');
+  });
+
+  it('names the exact shapes it came back wearing', () => {
+    // "You could try:" is what the owner saw. A prompt that bans the general
+    // case and not the specific one is a prompt that gets the specific one.
+    expect(draft).toContain('"you could try"');
+    expect(draft).toContain('no "here is a draft"');
+    expect(draft).toContain('NOTHING else');
+  });
+
+  it('stops promising a two-to-four-sentence panel answer', () => {
+    // The register line is what set the length, and a text message is not a
+    // panel answer. Left alone on a reading turn.
+    expect(draft).not.toContain('two to four sentences');
+    expect(read).toContain('two to four sentences');
+  });
+
+  it('keeps every safety line on the draft turn', () => {
+    // A shorter brief must not be a laxer one: the bans, the crisis hand-off
+    // and the voice rules are not part of what a draft drops.
+    for (const line of ['never coach manipulation', 'bigger than a better reply', 'As an AI']) {
+      expect(draft).toContain(line);
+      expect(read).toContain(line);
+    }
+  });
+
+  it('and distress outranks the draft', () => {
+    // The one turn where handing over polished words is the wrong help is the
+    // turn where somebody is hurting. The service passes draftOnly only when
+    // there is no situation; this is the prompt half of that.
+    const heavy = confidant({ otherName: 'Asha', distress: true, draftOnly: true });
+    expect(heavy).toContain('THIS TURN IS HEAVY');
   });
 });

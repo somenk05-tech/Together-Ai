@@ -30,9 +30,22 @@ interface Turn {
   text: string;
 }
 
-/** The three things everybody wants from a reader-over-the-shoulder, one
- *  press each. Sent verbatim as the ask — they are written to be asks. */
-const QUICK = ['What’s going on here?', 'Where are they coming from?', 'Help me reply'] as const;
+/**
+ * The three things everybody wants from a reader-over-the-shoulder, one press
+ * each. The label is sent verbatim as the ask — they are written to be asks.
+ *
+ * `mode` is what separates the third from the other two. "Help me reply" wants
+ * a message to paste; the first two want her reading of the thread. Carried as
+ * a flag rather than matched on the wording, because a check against a button's
+ * label breaks the day somebody rewords the button — and because Copy sits
+ * under her answer, and Copy on a paragraph of commentary puts the wrong thing
+ * on the clipboard.
+ */
+const QUICK = [
+  { label: 'What’s going on here?', mode: 'read' },
+  { label: 'Where are they coming from?', mode: 'read' },
+  { label: 'Help me reply', mode: 'draft' },
+] as const satisfies ReadonlyArray<{ label: string; mode: 'read' | 'draft' }>;
 
 export function MiraConfidant({ otherName, transcript, onClose }: {
   otherName: string;
@@ -56,13 +69,13 @@ export function MiraConfidant({ otherName, transcript, onClose }: {
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [turns.length, confide.isPending]);
 
-  const ask = async (text: string) => {
+  const ask = async (text: string, mode: 'read' | 'draft' = 'read') => {
     const clean = text.trim();
     if (!clean || confide.isPending) return;
     setTurns((t) => [...t, { who: 'you', text: clean }]);
     setDraft('');
     try {
-      const reply = await confide.mutateAsync({ otherName, ask: clean, transcript });
+      const reply = await confide.mutateAsync({ otherName, ask: clean, transcript, mode });
       setPaywalled(Boolean(reply.paywall));
       setTurns((t) => [...t, { who: 'mira', text: reply.text }]);
     } catch {
@@ -143,7 +156,8 @@ export function MiraConfidant({ otherName, transcript, onClose }: {
 
         <div className="mira-confide-chips">
           {QUICK.map((q) => (
-            <button key={q} type="button" className="miratab" onClick={() => { void ask(q); }}>{q}</button>
+            <button key={q.label} type="button" className="miratab"
+              onClick={() => { void ask(q.label, q.mode); }}>{q.label}</button>
           ))}
         </div>
         <form className="miracomposer" onSubmit={(e) => { e.preventDefault(); void ask(draft); }}>

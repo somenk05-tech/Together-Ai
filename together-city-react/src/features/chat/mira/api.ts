@@ -201,11 +201,15 @@ export function useMiraConfide() {
       otherName?: string;
       ask: string;
       transcript: Array<{ who: 'me' | 'them'; text: string }>;
+      /** 'draft' is the Help-me-reply button: she returns a message to paste,
+       *  not a reading of the thread. Absent for anything typed by hand. */
+      mode?: 'read' | 'draft';
     }) =>
       apiPost('/mira/confide', {
         ask: input.ask,
         otherName: input.otherName,
         transcript: input.transcript.slice(-40),
+        mode: input.mode,
       }, ConfideReplySchema),
   });
 }
