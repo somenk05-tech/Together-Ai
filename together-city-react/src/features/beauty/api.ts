@@ -395,16 +395,29 @@ export function useSaveBeautyBag() {
 }
 
 /**
- * Add, remove and clear — what a page does to a bag, with the server's copy as
- * the base each time so two quick taps cannot race.
+ * The signature of a bag as the server would return it — every line, in an
+ * order that does not depend on the order they were added. It exists so a page
+ * can tell "the bag I just wrote" from "the bag as somebody has since changed
+ * it", which is what makes a one-press undo safe to offer: the moment the two
+ * differ, the undo is stale and the page stops offering it.
+ */
+export const bagKey = (lines: { id: string; qty: number }[]) =>
+  lines.map((l) => `${l.id}:${l.qty}`).sort().join('|');
+
+/**
+ * Add, remove, clear — and, once again, add the lot: what a page does to a bag,
+ * with the server's copy as the base each time so two quick taps cannot race.
  *
- * `setMany` was here too, and it went with the Routine page's "Add all to bag".
- * It was written for that button and had exactly one caller; a bulk write left
- * behind with nothing calling it is a loaded gun in a drawer, and the next
- * surface that wants one should write it against its own need rather than
- * inherit this one's assumption that topping up is the right merge. The
- * behaviour, if it is ever wanted back: existing quantities kept, missing ones
- * set to one, nothing removed.
+ * `addAll` is `setMany` come back, at the owner's word, and the terms it comes
+ * back on are the objection that removed it: adding ten products in one press
+ * was the one bag action nobody could undo in one press. So it RETURNS THE BAG
+ * IT REPLACED, and `restore` puts it back. The caller keeps that snapshot only
+ * while the bag still looks like what `addAll` wrote — see `bagKey`.
+ *
+ * The merge is a top-up and nothing else: existing quantities are kept
+ * untouched, ids that were missing arrive at one, and nothing is ever removed.
+ * Somebody who has already put two cleansers in the bag does not get a third
+ * for pressing this, and does not get one taken away either.
  */
 export function useBagActions() {
   const bag = useBeautyBag();
@@ -422,6 +435,14 @@ export function useBagActions() {
       put(at === -1 ? [...cur, { id, qty: 1 }] : cur.map((l, i) => (i === at ? { ...l, qty: l.qty + 1 } : l)));
     },
     remove: (id: string) => put(lines().map((l) => (l.id === id ? { ...l, qty: l.qty - 1 } : l))),
+    addAll: (ids: string[]) => {
+      const prev = lines();
+      const have = new Set(prev.map((l) => l.id));
+      const next = [...prev, ...ids.filter((id) => !have.has(id)).map((id) => ({ id, qty: 1 }))];
+      put(next);
+      return { prev, key: bagKey(next) };
+    },
+    restore: (prev: { id: string; qty: number }[]) => put(prev),
     clear: () => put([]),
   };
 }

@@ -1379,3 +1379,16 @@
 .routine-name { font-size: 14.5px; line-height: 1.35; font-weight: 700; margin: 0; }
 .routine-price { font-size: 17px; font-weight: 800; letter-spacing: -.01em; }
 .routine-foot { margin-top: auto; padding-top: 10px; }
+
+/* ── ADD THE WHOLE ROUTINE ──────────────────────────────────────────────────
+   One control, rendered twice: inside the summary card that prices the routine
+   (a narrow column, so the button takes the full width of it) and again at the
+   foot of the sheet after the last step, where it centres on its own line. The
+   two placements are the same element; only the box around it differs. */
+.routine-addall { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+/* The label never wraps: `.btn-sm` fixes the height at 35px, so a second line
+   leaves the pill rather than growing it. Wrapping happens between the button
+   and the price beside it instead. */
+.routine-addall .btn { flex: 0 0 auto; white-space: nowrap; }
+.beauty-sheet + .routine-addall,
+.routine-day + .routine-addall { justify-content: center; margin: 4px 0 16px; }

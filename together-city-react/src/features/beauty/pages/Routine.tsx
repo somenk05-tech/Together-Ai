@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import {
-  useBagActions, useBeautyProfile, useBeautyRoutine, useSaveBeautyBudget,
+  bagKey, useBagActions, useBeautyProfile, useBeautyRoutine, useSaveBeautyBudget,
   type CategoryPlan, type ProductRoutine, type ProductRoutineStep, type RoutinePick, type RoutineTier,
 } from '../api';
 import { BeautyBagBar } from '../components/BeautyBagBar';
@@ -463,6 +463,14 @@ export function Routine() {
   // asked. Saving a dismissal would be storing an opinion about a number the
   // citizen has already given us.
   const [kept, setKept] = useState<Record<string, boolean>>({});
+  /**
+   * WHAT THE BAG WAS BEFORE "Add the whole routine", and the signature of what
+   * that press wrote. Undo is offered only while the two still agree — one tap
+   * on any step's + or –, or a second surface touching the same bag, and this
+   * snapshot is of a bag that no longer exists, so the page stops offering to
+   * restore it rather than quietly throwing away work that came after.
+   */
+  const [addedAll, setAddedAll] = useState<{ prev: { id: string; qty: number }[]; key: string } | null>(null);
   // THE SEASONAL LINE CAME WITH THE ROUTINE THAT LEFT THE PROFILE PAGE.
   // "Summer: lightweight gel moisturiser, blot excess oil, reapply SPF" is
   // routine advice, so it belongs on the routine — but the product engine is
@@ -607,6 +615,61 @@ export function Routine() {
   const day = [band('morning'), band('evening')].filter(Boolean) as ProductRoutine[];
   const rest = [band('weekly'), band('body')].filter(Boolean) as ProductRoutine[];
 
+  /**
+   * ── ADD THE WHOLE ROUTINE ───────────────────────────────────────────────
+   *
+   * This button was here, was removed at the owner's word — "adding ten
+   * products in one tap is the one bag action nobody can undo in one tap" —
+   * and is back at the owner's word. The objection was right, so it comes
+   * back answered rather than merely overruled: the press is reversible in
+   * one press, for as long as the bag is still what the press made it.
+   *
+   * IT ADDS WHAT IS MISSING, NOT WHAT IS LISTED. Anything already in the bag
+   * keeps the quantity it has — pressing this twice does not buy two of
+   * everything — and `everyStep` is keyed by productId, so a cleanser used
+   * morning and evening is one bottle rather than two.
+   *
+   * ONE CONTROL, RENDERED TWICE. The same element sits in the summary card
+   * that prices the routine and again at the foot, after the last step: on a
+   * phone the summary is a long scroll above the decision, and a button you
+   * have to scroll back up to is a button on a desk. Written once so the two
+   * cannot drift into saying different things.
+   */
+  const missing = everyStep.filter((s) => bagged.qtyOf(s.productId) === 0);
+  const missingTotal = missing.reduce((n, s) => n + s.priceInr, 0);
+  const canUndo = Boolean(addedAll) && addedAll!.key === bagKey((bagged.bag?.lines ?? []).map((l) => ({ id: l.id, qty: l.qty })));
+  const addWhole = empty ? null : canUndo ? (
+    <div className="routine-addall">
+      <span style={{ fontSize: 12, fontWeight: 700 }}>Added to your bag</span>
+      <Button variant="line" size="sm" disabled={bagged.isSaving}
+        onClick={() => { bagged.restore(addedAll!.prev); setAddedAll(null); }}>Undo</Button>
+    </div>
+  ) : missing.length === 0 ? (
+    <div className="routine-addall">
+      <span className="muted" style={{ fontSize: 11.5 }}>Every step is in your bag.</span>
+    </div>
+  ) : (
+    <div className="routine-addall">
+      {/* THE PRICE IS BESIDE THE BUTTON, NOT INSIDE IT. In the summary card the
+          button has about 270px on a phone, and a label carrying a count and a
+          rupee figure wrapped to two lines inside a control whose height is
+          fixed at 35px in the stylesheet — the text left the pill. It is also
+          the more honest arrangement: the button says what it does, the line
+          beside it says what it costs. */}
+      <Button variant="accent" size="sm" disabled={bagged.isSaving}
+        onClick={() => setAddedAll(bagged.addAll(missing.map((s) => s.productId)))}>
+        {missing.length === everyStep.length ? 'Add the whole routine' : `Add the remaining ${missing.length}`}
+      </Button>
+      {/* Only when it is PART of the routine. "9 products · ₹3,535" beside a
+          button in a card that has just printed ₹3,535 and "9 products" is the
+          same fact three times; what is not already on the page anywhere is
+          what the ones still missing come to. */}
+      {missing.length !== everyStep.length && (
+        <span className="muted" style={{ fontSize: 11.5 }}>{rupees(missingTotal)} to add</span>
+      )}
+    </div>
+  );
+
   return (
     <div>
       <div className="eyebrow">Beauty Hub · Routine</div>
@@ -649,16 +712,17 @@ export function Routine() {
               {monthlyTotal > 0 && (
                 <div className="muted" style={{ fontSize: 11 }}>≈ {rupees(monthlyTotal)}/month to keep going</div>
               )}
-              {/* NO "ADD ALL TO BAG", at the owner's word. This card is a
+              {/* "ADD ALL TO BAG" IS BACK, at the owner's word, and what it
+                  cost to remove is worth keeping written down: this card is a
                   READING of the routine — what it costs to buy, what it costs
-                  to keep, how many bottles that is — and the accent button
-                  turned it into a till. Adding ten products in one tap is also
-                  the one bag action nobody can undo in one tap; every step
-                  carries its own Add to bag, which is where a decision that
-                  size belongs. `everyStep` stays: it is what the count and the
-                  total are made of. */}
+                  to keep, how many bottles that is — and an accent button in it
+                  turns a reading into a till. The reason it can stand here now
+                  is the undo beside it; see `addWhole` above. Every step still
+                  carries its own Add to bag, and this one adds only what those
+                  have not already. */}
               <div className="muted" style={{ fontSize: 11 }}>{everyStep.length} products</div>
               {data?.reorder && <NextOrder due={data.reorder} />}
+              {addWhole}
             </div>
           )}
         </div>
@@ -750,6 +814,8 @@ export function Routine() {
               <Band r={r} picks={picks} bagged={bagged} seen={firstSeen} />
             </div>
           ))}
+
+          {addWhole}
 
           <div className="routine-assure beauty-sheet">
             {ASSURANCES.map(([mark, text]) => (
