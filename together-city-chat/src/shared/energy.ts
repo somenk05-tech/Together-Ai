@@ -102,6 +102,27 @@ export const ENERGY_FLOOR: Record<Sex, number> = { female: 1200, male: 1500 };
 export const GOAL_DELTA: Record<Goal, number> = { lose: -0.18, maintain: 0, gain: 0.10 };
 
 /**
+ * The fat share of the day's energy — one for the whole city (owner, 16 Aug).
+ *
+ * The comment above says a goal's character lives in its macros rather than in
+ * a rival calorie policy, and Fitness took that literally: 0.27 for building,
+ * 0.28 for lean/athletic, 0.30 for fat loss, against Nutrition's flat 0.27. So
+ * the same person read 74 g of fat on one screen and 93 g on another, and the
+ * one-point difference was doing none of the work the calorie gap beside it was
+ * being blamed for.
+ *
+ * The owner's call is one share, and the goal expresses itself in protein and
+ * in training emphasis. That is a REVERSAL of the sentence above, kept here
+ * rather than rewritten so the two readings of the same principle are both on
+ * the record.
+ *
+ * Protein is dosed first (clinically, on reference weight), fat is this share
+ * of the energy, and carbohydrate is whatever is left — so the row always adds
+ * back up to the day.
+ */
+export const FAT_KCAL_SHARE = 0.27;
+
+/**
  * Mifflin–St Jeor (1990), the equation the ticket names:
  *   10 × weight(kg) + 6.25 × height(cm) − 5 × age + s,  s = +5 male, −161 female.
  */

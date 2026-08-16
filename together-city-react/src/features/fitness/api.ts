@@ -22,6 +22,10 @@ export interface BodyProgram {
    *  why the clinical number on the screen is lower. */
   trainingProteinG: number | null;
   proteinNote: string | null;
+  /** What this body goal alone would ask for, and why the number on the screen
+   *  is Nutrition's instead. Same shape as the protein pair above. */
+  trainingKcal: number | null;
+  calorieNote: string | null;
   rate: string; emphasis: string;
   nutrition: { goal: 'lose' | 'maintain' | 'gain'; proteinTarget: number; note: string };
   healthImprovements: { title: string; detail: string; citations: Citation[] }[];
@@ -67,7 +71,7 @@ export const fitnessApi = {
   saveProfile: (input: SaveProfileInput) => api.put<FitnessProfile>('/fitness/profile', input).then((r) => r.data),
   plan: () => api.get<WeeklyPlan>('/fitness/plan').then((r) => r.data),
   bodyGoal: () => api.get<BodyProgram>('/fitness/body-goal').then((r) => r.data),
-  syncNutrition: () => api.post<{ synced: boolean; nutritionGoal: string; proteinTarget: number }>('/fitness/sync-nutrition', {}).then((r) => r.data),
+  syncNutrition: () => api.post<{ synced: boolean; nutritionGoal: string; goalWritten: boolean; proteinTarget: number }>('/fitness/sync-nutrition', {}).then((r) => r.data),
   log: () => api.get<FitnessLog>('/fitness/log').then((r) => r.data),
   addLog: (input: { focus: string; minutes: number; intensity: Intensity; note?: string }) =>
     api.post<FitnessLog>('/fitness/log', input).then((r) => r.data),

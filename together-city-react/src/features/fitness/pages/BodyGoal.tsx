@@ -62,7 +62,11 @@ export function BodyGoal() {
       <div className="card" style={{ marginBottom: 14 }}>
         <div className="eyebrow">Your daily diet targets</div>
         <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', marginTop: 10 }}>
-          <Stat label="Calories" value={`${p.calorieTarget}`} sub={`TDEE ${p.tdee} kcal`} />
+          {/* TDEE is what the body BURNS and is a fact about it; the figure
+              above is what to EAT and belongs to Nutrition. Two numbers on one
+              tile only reads as two targets if the sub-label does not say
+              which is which. */}
+          <Stat label="Calories" value={`${p.calorieTarget}`} sub={p.calorieNote ? `your nutrition target · TDEE ${p.tdee}` : `TDEE ${p.tdee} kcal`} />
           {/* The sub-label follows the number. Showing "1.8 g/kg" under a
               figure dosed against reference weight is a unit that does not
               divide into the gram count, and somebody will check. */}
@@ -74,6 +78,16 @@ export function BodyGoal() {
         {/* Training explains; clinical wins. The number this hub would have
             asked for is not hidden — it is named, with the reason it was not
             the one chosen, so the citizen has one target and knows why. */}
+        {/* THE GOAL THAT DISAGREES, NAMED. A body goal called "Athletic" whose
+            calories are actually on a deficit is the exact defect this change
+            was for; showing one number and saying nothing would have swapped a
+            visible contradiction for an invisible one. */}
+        {p.calorieNote && (
+          <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>
+            {p.calorieNote}{' '}
+            <Link to="/nutrition/preferences" style={{ fontWeight: 700 }}>Your nutrition goal →</Link>
+          </p>
+        )}
         {p.proteinNote && (
           <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>{p.proteinNote}</p>
         )}
@@ -113,14 +127,18 @@ export function BodyGoal() {
       <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid var(--accent)' }}>
         <div className="eyebrow">Connect to your diet</div>
         <p style={{ fontSize: 13.5, margin: '6px 0 10px' }}>{p.nutrition.note}</p>
+        {/* THE BUTTON SAYS WHAT IT SENDS NOW. It read "Sync my diet to
+            Nutrition" while writing the GOAL over there — one press moved this
+            citizen's day by 538 kcal and reported only "✓ Synced". It sends the
+            body: height, weight, age, sex. The goal stays where it is decided. */}
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <Button variant="accent" size="sm" disabled={sync.isPending}
             onClick={() => sync.mutate(undefined, { onSuccess: () => setSynced(true) })}>
-            {sync.isPending ? 'Syncing…' : '🍽️ Sync my diet to Nutrition'}
+            {sync.isPending ? 'Sending…' : '🍽️ Send my measurements to Nutrition'}
           </Button>
           {synced && (
             <span style={{ fontSize: 13, color: 'var(--accent-ink)', fontWeight: 700 }}>
-              ✓ Synced — <Link to="/nutrition/weekly" style={{ color: 'var(--accent-ink)' }}>open your meal plan</Link>
+              ✓ Sent — <Link to="/nutrition/weekly" style={{ color: 'var(--accent-ink)' }}>open your meal plan</Link>
             </span>
           )}
         </div>

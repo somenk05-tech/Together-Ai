@@ -1,4 +1,4 @@
-import { GOAL_DELTA, energyTarget, type Sex } from '../shared/energy';
+import { FAT_KCAL_SHARE, GOAL_DELTA, energyTarget, type Sex } from '../shared/energy';
 /**
  * Together City — Fitness Engine
  * ------------------------------------------------------------------
@@ -386,7 +386,6 @@ export interface BodyGoalDef {
   tag: string;
   nutritionGoal: 'lose' | 'maintain' | 'gain';
   proteinPerKg: number;            // g/kg bodyweight
-  fatPct: number;                  // fraction of kcal from fat
   rate: string;                    // safe rate of change
   emphasis: string;                // training emphasis
   citations: string[];
@@ -396,19 +395,19 @@ export interface BodyGoalDef {
 export const BODY_GOALS: BodyGoalDef[] = [
   { key: 'buildMuscle', label: { male: 'Build muscle (strong & muscular)', female: 'Build & tone (strong, sculpted)', other: 'Build muscle & strength' },
     tag: 'Gain lean mass with a controlled surplus and high protein.',
-    nutritionGoal: 'gain', proteinPerKg: 2.0, fatPct: 0.27, rate: '+0.25–0.5% bodyweight/week (minimise fat gain)',
+    nutritionGoal: 'gain', proteinPerKg: 2.0, rate: '+0.25–0.5% bodyweight/week (minimise fat gain)',
     emphasis: 'Progressive resistance training, 6–12 rep hypertrophy range, prioritised over cardio.', citations: ['ISSN-PRO', 'ACSM'] },
   { key: 'leanDefine', label: { male: 'Lean & defined', female: 'Lean & sculpted', other: 'Lean & defined' },
     tag: 'Reveal definition with a mild deficit while holding onto muscle.',
-    nutritionGoal: 'lose', proteinPerKg: 2.1, fatPct: 0.28, rate: '−0.5% bodyweight/week',
+    nutritionGoal: 'lose', proteinPerKg: 2.1, rate: '−0.5% bodyweight/week',
     emphasis: 'Keep lifting heavy to retain muscle; add moderate cardio for the deficit.', citations: ['ISSN-PRO', 'ACSM'] },
   { key: 'athletic', label: { male: 'Athletic / functional', female: 'Athletic / functional', other: 'Athletic / functional' },
     tag: 'Perform and look athletic at roughly maintenance calories.',
-    nutritionGoal: 'maintain', proteinPerKg: 1.8, fatPct: 0.28, rate: 'Hold weight; recompose slowly',
+    nutritionGoal: 'maintain', proteinPerKg: 1.8, rate: 'Hold weight; recompose slowly',
     emphasis: 'Balanced strength + conditioning; train for performance.', citations: ['ISSN-PRO', 'WHO-PA'] },
   { key: 'fatLoss', label: { male: 'Fat loss & metabolic health', female: 'Fat loss & metabolic health', other: 'Fat loss & metabolic health' },
     tag: 'Lose fat and improve metabolic markers with a clear deficit.',
-    nutritionGoal: 'lose', proteinPerKg: 1.9, fatPct: 0.3, rate: '−0.5 to −1% bodyweight/week',
+    nutritionGoal: 'lose', proteinPerKg: 1.9, rate: '−0.5 to −1% bodyweight/week',
     emphasis: 'Resistance training to preserve muscle + more aerobic minutes for the deficit and metabolic health.', citations: ['ISSN-PRO', 'ADA-EX', 'ACSM'] },
 ];
 export function bodyGoalDef(key: string): BodyGoalDef { return BODY_GOALS.find((g) => g.key === key) ?? BODY_GOALS[2]; }
@@ -430,6 +429,10 @@ export interface BodyProgram {
    *  when the clinical prescription is the one on the screen. */
   trainingProteinG: number | null;
   proteinNote: string | null;
+  /** What THIS body goal alone would have asked for, in kcal — kept for the
+   *  explanation even when Nutrition's figure is the one on the screen. */
+  trainingKcal: number | null;
+  calorieNote: string | null;
   rate: string;
   emphasis: string;
   nutrition: { goal: 'lose' | 'maintain' | 'gain'; proteinTarget: number; note: string };
@@ -454,6 +457,23 @@ export function computeBodyProgram(input: {
    * and says so.
    */
   clinicalProteinG?: number | null;
+  /**
+   * The day's energy Nutrition already computed for this person, in kcal.
+   *
+   * Same argument as the protein above, and the same direction of authority:
+   * Nutrition holds the clinical context — the safe-rate cap, the energy
+   * floor, a withheld surplus at BMI ≥ 27, pregnancy and lactation additions,
+   * kidney staging — and it is the number the meal plans, the portions and the
+   * grocery list are actually built from. A second figure on this page was a
+   * second answer to "what do I eat today", and the citizen had no way to know
+   * which one their food was coming from. Absent, this page falls back to its
+   * own goal's figure and says so.
+   */
+  clinicalKcal?: number | null;
+  /** How Nutrition's goal reads in words — "losing weight", "maintaining".
+   *  The note names the setting that disagrees; naming it is the difference
+   *  between an explanation and an apology. */
+  clinicalGoalLabel?: string | null;
 }): BodyProgram {
   const g = bodyGoalDef(input.bodyGoal);
   const hasMetrics = Boolean(input.heightCm && input.weightKg);
@@ -491,6 +511,7 @@ export function computeBodyProgram(input: {
       goalKey: g.key, goalLabel: g.label[input.sex] ?? g.label.other, tag: g.tag,
       hasMetrics, bmr: null, tdee: null, calorieTarget: null, macros: null, missing,
       proteinPerKg: g.proteinPerKg, trainingProteinG: null, proteinNote: null,
+      trainingKcal: null, calorieNote: null,
       rate: g.rate, emphasis: g.emphasis,
       nutrition: {
         goal: g.nutritionGoal, proteinTarget: 0,
@@ -511,7 +532,28 @@ export function computeBodyProgram(input: {
   });
   const bmr = Math.round(energy.bmr);
   const tdee = Math.round(energy.tdee);
-  const calorieTarget = energy.kcal;
+  /**
+   * ONE DAY'S ENERGY PER PERSON, AND IT IS NUTRITION'S.
+   *
+   * BMR and TDEE stay: they are facts about a body — what it burns at rest and
+   * in a day — and neither is a target. `calorieTarget` is what to EAT, and
+   * that had two answers because this person has two goal settings: the body
+   * goal here (Athletic → maintain, ±0%) and the nutrition goal there (lose,
+   * −18%). Same equation, same body, same activity factor; 2993 against 2455,
+   * on a difference nobody had told them about.
+   *
+   * The owner's call is that Nutrition's is the real one, and the reason is
+   * that it is the only one that was ever load-bearing: every meal plan, every
+   * portion, the food journal and the grocery list are built from it. Making
+   * this page follow it changes nothing anybody eats; making Nutrition follow
+   * this page would have moved every plan in the city by 538 kcal.
+   *
+   * What the body goal must NOT be allowed to do is sit on a deficit in
+   * silence. `calorieNote` says the training figure, says the eating figure,
+   * and names the two settings that disagree — see below.
+   */
+  const trainingKcal = energy.kcal;
+  const calorieTarget = input.clinicalKcal ?? trainingKcal;
   /**
    * ONE PROTEIN NUMBER PER PERSON, AND IT IS THE CLINICAL ONE.
    *
@@ -534,8 +576,21 @@ export function computeBodyProgram(input: {
       + `Your target is ${proteinG} g, dosed against a reference weight for your height — protein is prescribed for lean mass, not for body fat. `
       + 'Nutrition, your meal plans and your grocery list all use this same figure.'
     : null;
-  const fatG = Math.round((calorieTarget * g.fatPct) / 9);
+  /**
+   * Both macros are re-derived off whichever energy figure won, with the
+   * city's one fat share — so the row adds back up to the day rather than
+   * only the calorie cell agreeing. The per-goal fat percentages this file
+   * used to carry (0.27 / 0.28 / 0.30) are gone with the second calorie
+   * number; a goal expresses itself in protein and in training emphasis.
+   */
+  const fatG = Math.round((calorieTarget * FAT_KCAL_SHARE) / 9);
   const carbG = Math.max(0, Math.round((calorieTarget - proteinG * 4 - fatG * 9) / 4));
+  const calorieNote = input.clinicalKcal != null && input.clinicalKcal !== trainingKcal
+    ? `This goal on its own would ask for about ${trainingKcal} kcal a day. `
+      + `Your target is ${calorieTarget} kcal, because your nutrition goal is set to "${input.clinicalGoalLabel ?? 'a different goal'}" — `
+      + 'and that is the number your meal plans, portions, food journal and grocery list are all built from. '
+      + 'Change it on your Nutrition profile and this page follows.'
+    : null;
 
   const flags = input.labFlags ?? {};
   const values = input.labValues ?? {};
@@ -553,6 +608,7 @@ export function computeBodyProgram(input: {
     macros: { proteinG, fatG, carbG },
     proteinPerKg: g.proteinPerKg,
     trainingProteinG, proteinNote,
+    trainingKcal, calorieNote,
     rate: g.rate,
     emphasis: g.emphasis,
     nutrition: {
@@ -564,7 +620,11 @@ export function computeBodyProgram(input: {
       // No longer two numbers with a note apologising for the gap: this page
       // shows the figure Nutrition computed, so there is one target to sync to
       // and one to eat.
-      note: `Your goal is synced to Nutrition as "${g.nutritionGoal}", so your meal plans and grocery list follow it. The ${proteinG} g/day protein target is the same one Nutrition uses.`,
+      // THE ARROW TURNED ROUND. This used to say the goal was "synced to
+      // Nutrition", which was true and was the bug: pressing sync overwrote
+      // the nutrition goal and moved the day by 538 kcal without saying so.
+      // Nutrition holds the goal now; this hub reads it.
+      note: `Your ${calorieTarget} kcal and ${proteinG} g protein are the same figures Nutrition uses — the ones your meal plans, portions and grocery list are built from. Your body goal sets your training and your protein emphasis; your nutrition goal sets the day's energy.`,
     },
     healthImprovements: health,
     citations: cite([...new Set([...g.citations, 'MIFFLIN'])]),

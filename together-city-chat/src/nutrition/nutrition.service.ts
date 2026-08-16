@@ -38,7 +38,7 @@ import { JAIN_EXCLUSION_HINTS, explainScreen, screenRecipe, type DietKey } from 
 import { normaliseDietKey, stricterThanOwner, strictestDiet } from './household-diet';
 import { canonicaliseDeclared, findAllergen, isAllergenSafe } from '../shared/allergens';
 import { allergyNotice } from '../shared/allergen-voice';
-import { ACTIVITY_CHOICES, ACTIVITY_FACTORS, GOAL_DELTA, energyTarget, nearestActivityLevel } from '../shared/energy';
+import { ACTIVITY_CHOICES, ACTIVITY_FACTORS, FAT_KCAL_SHARE, GOAL_DELTA, energyTarget, nearestActivityLevel } from '../shared/energy';
 import { itemKey, mergeGroceryList } from './grocery-merge';
 import { targetReadiness } from './target-readiness';
 import { scoreDual, buildScorecard, guidelineCaps } from './plan-score';
@@ -1127,7 +1127,7 @@ export function computeTargets(inp: TargetInput) {
   if (activity >= 1.8 && goal !== 'gain') proteinPerKg = Math.max(proteinPerKg, 1.4); // endurance 1.2–1.7
   if (pregnant || lactating) proteinPerKg = Math.max(proteinPerKg, 1.1);     // pregnancy/lactation ≥1.1 g/kg
   if (pediatric) proteinPerKg = Math.max(proteinPerKg, 1.0);                 // growth
-  const fatPct = 0.27;
+  const fatPct = FAT_KCAL_SHARE;
   let fiber = Math.max(25, Math.min(50, Math.round((kcal / 1000) * 14)));
 
   // One matcher for the whole hub. A term condition-match.ts knows is
@@ -1204,6 +1204,18 @@ export function computeTargets(inp: TargetInput) {
   );
   return {
     kcal, protein, carb, fat, fiber,
+    /**
+     * The goal these numbers were computed under.
+     *
+     * Returned so a surface that SHOWS this day can name why it is what it is.
+     * The Fitness body-goal page needs exactly this: it has its own goal, and
+     * when the two disagree the honest sentence is "this goal alone would ask
+     * for 2993; your target is 2455 because your nutrition goal is losing
+     * weight" — which cannot be written without knowing the second half.
+     * Whether it came from the citizen or from REFERENCE_BODY is already in
+     * `assumed`.
+     */
+    goal,
     waterMl: Math.max(Math.round(weight * 35), geriatricFluidMl),
     sugarMaxG, satFatMaxG, sodiumMaxMg, potassiumMinMg,
     ...(potassiumMaxMg ? { potassiumMaxMg } : {}),

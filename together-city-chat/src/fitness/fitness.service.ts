@@ -16,6 +16,10 @@ import type { SaveFitnessProfileDto, LogWorkoutDto } from './dto/fitness.dto';
 
 const DEFAULT_PROFILE = { age: 35, sex: 'other', level: 'beginner', mode: 'mixed', goal: 'general', conditions: [] as string[], heightCm: null as number | null, weightKg: null as number | null, bodyGoal: 'athletic' };
 
+/** How a nutrition goal reads in a sentence. The note names the setting that
+ *  disagrees with the body goal, and "lose" is a database value, not English. */
+const GOAL_WORDS: Record<string, string> = { lose: 'losing weight', maintain: 'maintaining', gain: 'gaining weight' };
+
 @Injectable()
 export class FitnessService {
   constructor(
@@ -153,39 +157,75 @@ export class FitnessService {
       // second copy of it in this hub is a second copy that drifts. This hub
       // used to dose 1.8 g/kg of actual weight and print 185 g beside
       // Nutrition's 74 g, with nothing to tell the citizen which to eat.
-      clinicalProteinG: await this.clinicalProtein(userId),
+      ...(await this.clinicalTargets(userId)),
       bodyGoal: p.bodyGoal, labFlags: flags, labValues: values,
     });
     return { ...program, consentGranted: granted };
   }
 
   /**
-   * Nutrition's protein target for this citizen, in grams.
+   * The day Nutrition has already prescribed for this citizen: its energy, its
+   * protein, and how its goal reads in words.
+   *
+   * ONE READ, THREE FIELDS. This was `clinicalProtein()` and fetched the same
+   * object to take one number off it; asking twice for the rest would have been
+   * two round trips and, worse, two chances for the kcal and the protein on one
+   * screen to come from two different reads of a profile being edited.
    *
    * Best-effort. If Nutrition cannot answer, this hub falls back to its own
-   * training dose and labels it — a page that refuses to show a number because
-   * the other hub is slow is worse than a page showing the number it can
-   * defend.
+   * goal's figures and labels them — a page that refuses to show a number
+   * because the other hub is slow is worse than a page showing the number it
+   * can defend.
    */
-  private async clinicalProtein(userId: string): Promise<number | null> {
-    const t = await this.nutrition.targets(userId).catch(swallowed('fitness.clinicalProtein', null));
-    const g = (t as { protein?: unknown } | null)?.protein;
-    return typeof g === 'number' && g > 0 ? g : null;
+  private async clinicalTargets(userId: string): Promise<{ clinicalProteinG: number | null; clinicalKcal: number | null; clinicalGoalLabel: string | null }> {
+    const t = await this.nutrition.targets(userId).catch(swallowed('fitness.clinicalTargets', null)) as
+      { protein?: unknown; kcal?: unknown; goal?: unknown } | null;
+    const num = (v: unknown) => (typeof v === 'number' && v > 0 ? v : null);
+    const goal = typeof t?.goal === 'string' ? t.goal : null;
+    return {
+      clinicalProteinG: num(t?.protein),
+      clinicalKcal: num(t?.kcal),
+      clinicalGoalLabel: goal ? (GOAL_WORDS[goal] ?? goal) : null,
+    };
   }
 
-  /** Reverse-connect: push the body-goal-derived nutrition target into the Nutrition Hub. */
+  /**
+   * Push the BODY — and only the body — into the Nutrition Hub.
+   *
+   * THIS USED TO OVERWRITE THE NUTRITION GOAL, and that was the whole defect
+   * the owner saw. A citizen whose body goal is Athletic and whose nutrition
+   * goal is losing weight got 2993 kcal on one page and 2455 on the other; one
+   * press of this button silently moved their day by 538 kcal, regenerated
+   * their week against it, and told them only that it had "synced".
+   *
+   * Height, weight, age and sex are facts about a body and there is no reason
+   * for two copies of them. A GOAL IS A DECISION, and Nutrition is where it is
+   * taken — it is the goal every meal plan, portion, journal entry and grocery
+   * list is built from, and the one the clinical rules (withheld surplus,
+   * pregnancy, kidney staging) are applied to. An existing row keeps whatever
+   * goal it has; a row created here still needs one, and takes the body goal's
+   * as its starting point because that is the only intent on record at that
+   * moment.
+   */
   async syncNutrition(userId: string) {
     const p = await this.getProfile(userId);
     const program = computeBodyProgram({
       age: p.age, sex: p.sex, heightCm: p.heightCm, weightKg: p.weightKg,
       activity: await this.activityFor(userId), bodyGoal: p.bodyGoal,
     });
+    const body = { heightCm: p.heightCm ?? undefined, weightKg: p.weightKg ?? undefined, age: p.age, sex: p.sex === 'other' ? undefined : p.sex };
+    const existing = await this.prisma.foodPref.findUnique({ where: { userId } });
     await this.prisma.foodPref.upsert({
       where: { userId },
-      update: { goal: program.nutrition.goal, heightCm: p.heightCm ?? undefined, weightKg: p.weightKg ?? undefined, age: p.age, sex: p.sex === 'other' ? undefined : p.sex },
-      create: { userId, goal: program.nutrition.goal, heightCm: p.heightCm ?? undefined, weightKg: p.weightKg ?? undefined, age: p.age, sex: p.sex === 'other' ? undefined : p.sex },
+      update: body,
+      create: { userId, goal: program.nutrition.goal, ...body },
     });
-    return { synced: true, nutritionGoal: program.nutrition.goal, proteinTarget: program.nutrition.proteinTarget };
+    return {
+      synced: true,
+      nutritionGoal: existing?.goal ?? program.nutrition.goal,
+      goalWritten: !existing,
+      proteinTarget: program.nutrition.proteinTarget,
+    };
   }
 
   /** Conditions the user carries in their Medical records (kind=condition) mapped to fitness keys. */
