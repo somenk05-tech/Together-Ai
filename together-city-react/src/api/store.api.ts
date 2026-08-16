@@ -11,13 +11,14 @@ import { apiGet, apiPost, apiPut } from '@/api/http';
  * both, so the response types as the input side and every screen reading it
  * quietly stops type-checking. `?? []` at the call site, always.
  *
- * `url` AND `image` ARE BACK ON A PRODUCT — owner's store reference, 16 Aug,
- * reversing the 15-Aug drop. The store shows the retailer's photograph and a
- * "see the product" door on every card, the shape the Beauty market has
- * always had: browsing OUT is allowed, PAYING happens here, from the city
- * wallet. The server holds every url to clean https with no affiliate
- * params; `retailer` still travels as provenance in its own right; and the
- * drawn pack stands behind every photograph as the fallback.
+ * THE PHOTOGRAPH TRAVELS; THE DOOR DOES NOT. Two owner's calls on 16 Aug,
+ * hours apart: the retailer's photograph came back onto every card (with the
+ * drawn pack standing behind it as the fallback), and then "See the product"
+ * came OFF — no screen routes anybody out to a rival checkout, so `url`
+ * stays off the wire where no screen can put it back by accident. Buying
+ * happens here, the Beauty way: Add on the shelf, a bag bar at the foot of
+ * the page, and a checkout PAGE at /fitness/orders where the money moves.
+ * `retailer` still travels as provenance — a name, not a door.
  *
  * TWO FIELDS ARE NOT OPTIONAL, AND THEY ARE THE SAFETY ONES. `yours.bucket` is
  * an enum because a refusal that failed to parse would render as an absence,
@@ -55,10 +56,9 @@ export const ProductSchema = z.object({
   rx: z.boolean().optional(),
   pack: z.string().optional(),
   colour: z.string().optional(),
-  /** The retailer's product page and photograph. Optional on the wire so an
-   *  older payload still parses; the pack drawing stands in wherever either
-   *  is missing or fails to load. */
-  url: z.string().optional(),
+  /** The retailer's photograph. Optional on the wire so an older payload
+   *  still parses; the pack drawing stands in wherever it is missing or
+   *  fails to load. There is deliberately no `url` beside it. */
   image: z.string().optional(),
   retailer: z.string(),
   grade: z.string().nullable().optional(),
@@ -105,6 +105,9 @@ export const BagLineSchema = z.object({
   priceInr: z.number().optional(),
   pack: z.string().optional(),
   colour: z.string().optional(),
+  /** The photograph rides the bag line too, so the checkout page shows the
+   *  thing being paid for and not a diagram of it. */
+  image: z.string().optional(),
   supplement: z.string().optional(),
   rx: z.boolean().optional(),
   sellable: z.boolean().optional(),

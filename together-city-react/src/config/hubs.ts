@@ -309,6 +309,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/fitness/supplements', index: '07', label: 'Supplements', sub: 'Goal-matched kit' },
       { path: '/fitness/sleep', index: '08', label: 'Sleep Cycle', sub: 'Duration, quality & schedule' },
       { path: '/fitness/store', index: '09', label: 'The Store', sub: 'Verified in India · we take no cut' },
+      { path: '/fitness/orders', index: '10', label: 'My Orders', sub: 'Your bag & what you bought' },
     ],
   },
   mail: {

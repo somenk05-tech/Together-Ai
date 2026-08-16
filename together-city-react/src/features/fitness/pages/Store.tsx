@@ -2,10 +2,8 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Spinner } from '@/components/ui';
 import { Fold } from '@/components/ui/Fold';
-import {
-  useStore, useBag, useSaveBag, useOrders, usePlaceOrder, serverSaid,
-  type StoreProduct, type Yours,
-} from '@/api/store.api';
+import { useStore, useBag, useSaveBag, type StoreProduct, type Yours } from '@/api/store.api';
+import { Shot } from '../components/PackShot';
 
 /**
  * THE SUPPLEMENT STORE.
@@ -17,14 +15,14 @@ import {
  * back as its own screen, which is what that argument asked for — with the
  * refusals still standing on it, and now with a till.
  *
- * THE PHOTOGRAPH AND THE DOOR ARE BACK — owner's store reference, 16 Aug,
- * reversing the 15-Aug "nothing leaves the city" rule. Every card shows the
- * retailer's own photograph of the product (the drawn pack stands behind it
- * as the fallback) and carries a "See the product ↗" door to the page that
- * sells it — the shape the Beauty market has always had. What did NOT
- * reverse: the till is the city's. Paying happens here, from the one city
- * wallet, and a bottle of D3 still lands in the Financial hub's monthly
- * spending beside a dinner.
+ * THE PHOTOGRAPH IS BACK; THE DOOR IS NOT. Two owner's calls on 16 Aug,
+ * hours apart: every card shows the retailer's own photograph (the drawn
+ * pack stands behind it as the fallback), and "See the product" came off —
+ * nothing on this page routes anybody out to a rival checkout. Buying is
+ * the Beauty hub's shape now, taken whole: Add on the shelf, ONE BAG BAR at
+ * the foot of the page, and a checkout PAGE at /fitness/orders where the
+ * bag is laid out line by line and the wallet moves. A bottle of D3 still
+ * lands in the Financial hub's monthly spending beside a dinner.
  *
  * TWELVE PRODUCTS SIT UNDER SUPPLEMENTS THE ENGINE REFUSES, and they are
  * buyable. Hiding them does not stop the purchase — it only means it happens
@@ -70,113 +68,9 @@ const GRADE_RANK: Record<string, number> = { strong: 0, moderate: 1, emerging: 2
 
 const rupees = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 
-/**
- * THE PACK, DRAWN RATHER THAN PHOTOGRAPHED.
- *
- * The evidence review rendered every dosage format itself and carried a shape
- * and a colour on each row, so the grid draws its own strips, blisters,
- * sachets and tubs from those two fields. It was already the faster choice;
- * now that this city sells the products rather than pointing at the shops that
- * do, hotlinking those shops' product photography would also be the wrong one.
- */
-function Pack({ shape, colour }: { shape?: string; colour?: string }) {
-  /**
-   * THE PACK IS DRAWN OUT OF TOKENS, AND NOT BECAUSE A TEST SAID SO.
-   *
-   * `colour` is DATA — the evidence review carries one per row and it is the
-   * only thing here allowed to be a literal, because it belongs to the product
-   * rather than to the city. Everything else was: #8a8a8a for a row with no
-   * colour, #f2f2f2 and #d8d8d8 for the pack, #dcdcdc for the printed lines,
-   * #e2e2e2 for a sachet's seal. Five greys chosen against a white card.
-   *
-   * On the night hub's #0e0f10 card those five are a light-grey box floating on
-   * black. A drawn pack that only works on one ground is a picture of a pack.
-   * The body is the recessed surface, the outline is the hairline, and the
-   * printing is the subdued ink at low opacity — so the whole thing re-inks
-   * itself wherever it is put, which is what every other surface in the city
-   * already does.
-   */
-  const ink = colour || 'var(--muted)';
-  const body = { fill: 'var(--wash)', stroke: 'var(--line)', strokeWidth: 1 };
-  /** Printed on the pack rather than part of it: the same ink, much quieter. */
-  const print = { fill: 'var(--muted)', opacity: 0.22 };
-  return (
-    <svg viewBox="0 0 120 120" width="100%" height="100%" role="presentation" aria-hidden="true">
-      {shape === 'strip' && (
-        <g><rect x="26" y="20" width="68" height="80" rx="6" {...body} />
-          <rect x="26" y="20" width="68" height="18" rx="6" fill={ink} />
-          <rect x="36" y="50" width="48" height="3" rx="1.5" {...print} />
-          <rect x="36" y="60" width="48" height="3" rx="1.5" {...print} />
-          <rect x="36" y="70" width="30" height="3" rx="1.5" {...print} /></g>
-      )}
-      {shape === 'blister' && (
-        <g><rect x="22" y="26" width="76" height="68" rx="5" {...body} />
-          {[0, 1, 2].map((r) => [0, 1, 2].map((c) => (
-            <circle key={`${r}-${c}`} cx={38 + c * 22} cy={42 + r * 20} r="7" fill={ink} opacity={0.85} />
-          )))}</g>
-      )}
-      {shape === 'sachet' && (
-        <g><path d="M30 28h60v64H30z" {...body} />
-          <path d="M30 28h60v14H30z" fill={ink} />
-          <path d="M30 88h60v6H30z" {...print} opacity={0.18} /></g>
-      )}
-      {shape === 'syrup' && (
-        <g><rect x="46" y="16" width="28" height="14" rx="3" fill={ink} />
-          <path d="M44 30h32l8 18v46a6 6 0 0 1-6 6H42a6 6 0 0 1-6-6V48z" {...body} />
-          <rect x="46" y="58" width="28" height="26" rx="3" fill={ink} opacity={0.3} /></g>
-      )}
-      {shape === 'jar' && (
-        <g><rect x="30" y="24" width="60" height="12" rx="4" fill={ink} />
-          <rect x="34" y="36" width="52" height="60" rx="7" {...body} />
-          <rect x="42" y="56" width="36" height="22" rx="3" fill={ink} opacity={0.28} /></g>
-      )}
-      {shape === 'pouch' && (
-        <g><path d="M34 24h52v72a4 4 0 0 1-4 4H38a4 4 0 0 1-4-4z" {...body} />
-          <path d="M34 24h52v10H34z" fill={ink} />
-          <rect x="44" y="52" width="32" height="26" rx="3" fill={ink} opacity={0.25} /></g>
-      )}
-      {shape === 'tub' && (
-        <g><rect x="26" y="22" width="68" height="14" rx="5" fill={ink} />
-          <rect x="30" y="36" width="60" height="62" rx="6" {...body} />
-          <rect x="38" y="54" width="44" height="28" rx="3" fill={ink} opacity={0.3} /></g>
-      )}
-      {(shape === 'bottle-tab' || shape === 'bottle-cap' || shape === 'bottle-soft' || !shape) && (
-        <g><rect x="50" y="16" width="20" height="12" rx="3" fill={ink} />
-          <rect x="36" y="28" width="48" height="70" rx="8" {...body} />
-          <rect x="42" y="48" width="36" height="30" rx="3" fill={ink} opacity={0.3} /></g>
-      )}
-    </svg>
-  );
-}
-
-/**
- * THE PHOTOGRAPH, WITH THE DRAWN PACK STANDING BEHIND IT. The image is
- * hotlinked from the retailer's CDN — the same deal the Beauty market makes —
- * so it may be slow and it may be gone. A card must never show a broken
- * frame: no image on the wire, or an image that fails, falls through to the
- * pack this city draws for itself, which is what every card showed before
- * the owner's 16-Aug reference put the photographs back.
- */
-function Shot({ p }: { p: StoreProduct }) {
-  const [broken, setBroken] = useState(false);
-  if (!p.image || broken) return <Pack shape={p.pack} colour={p.colour} />;
-  return (
-    <img src={p.image} alt="" loading="lazy" onError={() => setBroken(true)}
-      style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', background: 'var(--card)' }} />
-  );
-}
-
-/** The door to the page that sells it. A link, not a button — leaving is
- *  allowed, it just isn't the transaction. */
-function SeeIt({ url }: { url?: string }) {
-  if (!url) return null;
-  return (
-    <a href={url} target="_blank" rel="noopener noreferrer"
-      style={{ display: 'inline-block', marginTop: 8, fontSize: 12.5, fontWeight: 600 }}>
-      See the product ↗
-    </a>
-  );
-}
+/* The drawn pack and the photograph live in ../components/PackShot now —
+   the orders page draws the same bag lines, and two copies of a fallback are
+   two behaviours the day one of them is fixed. */
 
 function Badge({ yours, personalised }: { yours?: Yours | null; personalised: boolean }) {
   if (!personalised) return null;
@@ -254,7 +148,7 @@ function Tile({ p, personalised, qty, busy, onOpen, onSet }: {
         border: 0, background: 'var(--well)', borderRadius: 'var(--r-2)', padding: 0,
         cursor: 'pointer', aspectRatio: '1 / 1', position: 'relative', overflow: 'hidden',
       }}>
-        <Shot p={p} />
+        <Shot image={p.image} pack={p.pack} colour={p.colour} />
         {p.rx ? (
           <span style={{
             position: 'absolute', top: 8, left: 8, fontSize: 10, fontWeight: 800,
@@ -285,7 +179,6 @@ function Tile({ p, personalised, qty, busy, onOpen, onSet }: {
       <Badge yours={p.yours} personalised={personalised} />
       <Buy p={p} qty={qty} busy={busy} onSet={onSet} />
       <button type="button" className="btn btn-sm" style={{ marginTop: 8 }} onClick={onOpen}>Read first</button>
-      <SeeIt url={p.url} />
     </article>
   );
 }
@@ -299,7 +192,7 @@ function Detail({ p, personalised, qty, busy, onSet, onClose }: {
     <section className="card rise" style={{ padding: '18px 20px', marginBottom: 18 }}>
       <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
         <div style={{ width: 150, flex: 'none', background: 'var(--well)', borderRadius: 'var(--r-2)', overflow: 'hidden', aspectRatio: '1 / 1' }}>
-          <Shot p={p} />
+          <Shot image={p.image} pack={p.pack} colour={p.colour} />
         </div>
 
         <div style={{ flex: '1 1 300px', minWidth: 0 }}>
@@ -339,8 +232,7 @@ function Detail({ p, personalised, qty, busy, onSet, onClose }: {
             {p.formToBuy ? <span><span className="eyebrow">Form worth buying</span>
               <span style={{ display: 'block', fontSize: 14 }}>{p.formToBuy}</span></span> : null}
             <span><span className="eyebrow">Stocked in India by</span>
-              <span style={{ display: 'block', fontSize: 14 }}>{p.retailer}</span>
-              <SeeIt url={p.url} /></span>
+              <span style={{ display: 'block', fontSize: 14 }}>{p.retailer}</span></span>
           </div>
 
           {(p.tags ?? []).length > 0 && (
@@ -367,16 +259,13 @@ function Detail({ p, personalised, qty, busy, onSet, onClose }: {
 export function Store() {
   const q = useStore();
   const bagQ = useBag();
-  const ordersQ = useOrders();
   const save = useSaveBag();
-  const pay = usePlaceOrder();
 
   const [aisle, setAisle] = useState<string | null>(null);
   const [term, setTerm] = useState('');
   const [sort, setSort] = useState<SortKey>('plan');
   const [mineOnly, setMineOnly] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
-  const [read, setRead] = useState(false);
 
   const personalised = q.data?.personalised ?? false;
   const items = useMemo(() => q.data?.items ?? [], [q.data]);
@@ -414,16 +303,7 @@ export function Store() {
   }, [items, aisles, aisle, term, sort, mineOnly]);
 
   const opened = items.find((p) => p.id === open) ?? null;
-  const busy = save.isPending || pay.isPending;
-
-  /* WHICH LINES THIS CITY RECOMMENDS AGAINST. Read off the plan the store
-     already carries, and checked again by the server — the checkbox below is
-     the question, not the enforcement. */
-  const refusedLines = bagLines.filter(
-    (l) => items.find((p) => p.id === l.id)?.yours?.bucket === 'not-recommended',
-  );
-  const canPay = (bagQ.data?.totalInr ?? 0) > 0 && (refusedLines.length === 0 || read);
-  const payError = serverSaid(pay.error);
+  const busy = save.isPending;
 
   return (
     <div className="page">
@@ -466,104 +346,6 @@ export function Store() {
               </p>
             )}
           </section>
-
-          {/* ── THE BAG ────────────────────────────────────────────────────
-              Above the shelf rather than below it, because it is the thing
-              with money in it and a total somebody is about to agree to
-              should never be the part of a page you have to go looking for. */}
-          {bagLines.length > 0 && (
-            <section className="card rise" style={{ padding: '16px 18px', marginBottom: 18 }}>
-              <b style={{ display: 'block', fontSize: 16, marginBottom: 8 }}>Your bag · {bagLines.length}</b>
-              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 10 }}>
-                {bagLines.map((l) => (
-                  <li key={l.id} style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <span style={{ width: 34, height: 34, flex: 'none', background: 'var(--well)', borderRadius: 'var(--r-1)', overflow: 'hidden' }}>
-                      <Pack shape={l.pack} colour={l.colour} />
-                    </span>
-                    <span style={{ minWidth: 0, flex: '1 1 180px' }}>
-                      <b style={{ fontSize: 13.5 }}>{l.name ?? 'No longer on the shelf'}</b>
-                      <span className="muted" style={{ display: 'block', fontSize: 11.5 }}>
-                        {l.gone
-                          ? 'This one has left the shelf — remove it to pay for the rest'
-                          : l.sellable ? `${l.brand} · ${l.price ?? ''}` : 'Can’t be sold here'}
-                      </span>
-                    </span>
-                    <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                      <button type="button" className="btn btn-sm" disabled={busy}
-                        aria-label={`One fewer ${l.name ?? 'item'}`} onClick={() => setQty(l.id, l.qty - 1)}>−</button>
-                      <b style={{ fontSize: 13.5, minWidth: 16, textAlign: 'center' }}>{l.qty}</b>
-                      <button type="button" className="btn btn-sm" disabled={busy || l.qty >= 12}
-                        aria-label={`One more ${l.name ?? 'item'}`} onClick={() => setQty(l.id, l.qty + 1)}>+</button>
-                    </span>
-                    <b style={{ fontSize: 13.5, minWidth: 64, textAlign: 'right' }}>
-                      {typeof l.lineTotalInr === 'number' ? rupees(l.lineTotalInr) : '—'}
-                    </b>
-                  </li>
-                ))}
-              </ul>
-
-              {(bagQ.data?.unsellable ?? 0) > 0 && (
-                <p className="muted" style={{ fontSize: 12.5, margin: '10px 0 0', lineHeight: 1.55 }}>
-                  {bagQ.data?.unsellable} of these can’t go through this checkout and are not in the total.
-                  They are still listed rather than deleted — a bag that quietly empties itself is a bag
-                  that lies about what you asked for.
-                </p>
-              )}
-
-              {/* THE ONE PIECE OF FRICTION ON THIS PAGE, and it is at the till
-                  rather than at the shelf: adding a refused product is free,
-                  paying for one means reading the trial once. The server
-                  checks this too — a confirmation nothing verifies is
-                  decoration. */}
-              {refusedLines.length > 0 && (
-                <div style={{ marginTop: 14, padding: '12px 14px', background: 'var(--well)', borderRadius: 'var(--r-2)' }}>
-                  <b style={{ display: 'block', fontSize: 14 }}>
-                    {refusedLines.length === 1 ? 'One of these is on your plan’s do-not-buy list' : `${refusedLines.length} of these are on your plan’s do-not-buy list`}
-                  </b>
-                  <ul style={{ listStyle: 'none', margin: '8px 0 0', padding: 0, display: 'grid', gap: 8 }}>
-                    {refusedLines.map((l) => {
-                      const p = items.find((x) => x.id === l.id);
-                      return (
-                        <li key={l.id} style={{ fontSize: 13, lineHeight: 1.55 }}>
-                          <b>{l.name}</b>
-                          {p?.yours?.why ? <span className="muted"> — {p.yours.why}</span> : null}
-                          {p?.yours?.source ? <span className="muted" style={{ display: 'block', fontSize: 11.5 }}>{p.yours.source}</span> : null}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 10, fontSize: 13 }}>
-                    <input type="checkbox" checked={read} onChange={(e) => setRead(e.target.checked)} />
-                    <span>I’ve read that, and I still want to buy it.</span>
-                  </label>
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--line-2)' }}>
-                <span style={{ fontSize: 18, fontWeight: 700 }}>{rupees(bagQ.data?.totalInr ?? 0)}</span>
-                <button type="button" className="btn" disabled={busy || !canPay}
-                  onClick={() => pay.mutate({
-                    items: bagLines.filter((l) => l.sellable).map((l) => ({ id: l.id, qty: l.qty })),
-                    acknowledged: refusedLines.map((l) => l.id),
-                  })}>
-                  {pay.isPending ? 'Paying…' : `Pay ${rupees(bagQ.data?.totalInr ?? 0)} from your wallet`}
-                </button>
-                <button type="button" className="btn btn-sm" disabled={busy} onClick={() => save.mutate([])}>Empty the bag</button>
-              </div>
-
-              {payError ? (
-                <p style={{ fontSize: 13, margin: '10px 0 0', fontWeight: 600 }}>{payError}</p>
-              ) : pay.isError ? (
-                <p style={{ fontSize: 13, margin: '10px 0 0', fontWeight: 600 }}>
-                  That didn’t go through, and nothing was taken. Try again in a moment.
-                </p>
-              ) : null}
-              <p className="muted" style={{ fontSize: 11.5, margin: '10px 0 0', lineHeight: 1.55 }}>
-                Paid from your one city wallet, the same as anything else here, and it shows up in your
-                Financial hub under Fitness. Prices were read when the review was compiled.
-              </p>
-            </section>
-          )}
 
           {/* THE COUNTER. */}
           <section style={{ marginBottom: 18, display: 'grid', gap: 12 }}>
@@ -624,32 +406,6 @@ export function Store() {
             </section>
           ) : null}
 
-          {/* WHAT WAS BOUGHT. Nutrition once shipped a checkout that charged
-              the wallet and rendered none of it, so a citizen paid and had
-              nowhere to look. This is the reader that makes the writer
-              allowed to exist. */}
-          {(ordersQ.data ?? []).length > 0 && (
-            <Fold title="What you’ve bought here" meta={`${(ordersQ.data ?? []).length} orders`}>
-              <ul style={{ listStyle: 'none', margin: '10px 0 0', padding: 0, display: 'grid', gap: 12 }}>
-                {(ordersQ.data ?? []).map((o) => (
-                  <li key={o.id}>
-                    <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
-                      <b style={{ fontSize: 14 }}>{rupees(o.totalInr)}</b>
-                      <span className="muted" style={{ fontSize: 12 }}>{o.createdAt.slice(0, 10)} · {o.status}</span>
-                    </div>
-                    <span className="muted" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
-                      {o.items.map((i) => `${i.name} × ${i.qty}`).join(' · ')}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <p className="muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.55 }}>
-                Each line is what it cost on the day you bought it. A receipt that changes when a shelf
-                price changes is not a receipt.
-              </p>
-            </Fold>
-          )}
-
           {q.data && (
             <Fold title="Where this shelf came from" meta={`${items.length} products · ${q.data.source.assessed} supplements assessed`}>
               <p style={{ fontSize: 14, lineHeight: 1.6, margin: '10px 0 0' }}>
@@ -664,6 +420,37 @@ export function Store() {
                 megadose is either a licensed drug, a grey import, or non-compliant.
               </p>
             </Fold>
+          )}
+
+          {/* ── THE BAG BAR — the Beauty hub's shape, taken whole. ─────────
+              ONE BAR, ONE BAG, ONE TOTAL, and it is the LAST block of the
+              page: you reach it by getting to the end, which is also when
+              you have finished deciding. Checkout is a LINK, not a payment
+              sheet — it goes to My Orders, where the bag is laid out line by
+              line with the wallet under it. Nothing is charged before that
+              page. */}
+          {bagLines.length > 0 && (
+            <section className="card rise" style={{
+              marginTop: 22, padding: '14px 18px',
+              display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
+            }}>
+              <div style={{ minWidth: 0 }}>
+                <b style={{ fontSize: 15 }}>
+                  {bagLines.length} item{bagLines.length === 1 ? '' : 's'} · {rupees(bagQ.data?.totalInr ?? 0)}
+                </b>
+                <span className="muted" style={{ display: 'block', fontSize: 12, marginTop: 2 }}>
+                  {bagLines.map((l) => `${l.name ?? 'No longer sold'}${l.qty > 1 ? ` ×${l.qty}` : ''}`).join(', ')}
+                </span>
+                {(bagQ.data?.unsellable ?? 0) > 0 && (
+                  <span className="muted" style={{ display: 'block', fontSize: 11.5, marginTop: 3 }}>
+                    {bagQ.data?.unsellable} of these can’t be sold here and {(bagQ.data?.unsellable ?? 0) === 1 ? 'is' : 'are'} not in the total.
+                  </span>
+                )}
+              </div>
+              <Link className="btn" style={{ marginLeft: 'auto' }} to="/fitness/orders">
+                Checkout · {rupees(bagQ.data?.totalInr ?? 0)}
+              </Link>
+            </section>
           )}
         </>
       )}

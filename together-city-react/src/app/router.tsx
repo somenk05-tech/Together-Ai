@@ -129,6 +129,7 @@ const RESell = lazy(() => import('@/features/realestate/pages/Sell').then((m) =>
 const FitWorkout = lazy(() => import('@/features/fitness/pages/Workout').then((m) => ({ default: m.Workout })));
 const FitSupplements = lazy(() => import('@/features/fitness/pages/Supplements').then((m) => ({ default: m.Supplements })));
 const FitStore = lazy(() => import('@/features/fitness/pages/Store').then((m) => ({ default: m.Store })));
+const FitOrders = lazy(() => import('@/features/fitness/pages/Orders').then((m) => ({ default: m.Orders })));
 const FitSleep = lazy(() => import('@/features/fitness/pages/Sleep').then((m) => ({ default: m.Sleep })));
 const FamConnect = lazy(() => import('@/features/family/pages/Connect').then((m) => ({ default: m.FamilyConnect })));
 const FamWeekly = lazy(() => import('@/features/family/pages/Weekly').then((m) => ({ default: m.FamilyWeekly })));
@@ -338,6 +339,7 @@ export const router = createBrowserRouter([
       { path: '/fitness/workout', element: <RequireAuth>{wrap(<FitWorkout />)}</RequireAuth> },
       { path: '/fitness/supplements', element: <RequireAuth>{wrap(<FitSupplements />)}</RequireAuth> },
       { path: '/fitness/store', element: <RequireAuth>{wrap(<FitStore />)}</RequireAuth> },
+      { path: '/fitness/orders', element: <RequireAuth>{wrap(<FitOrders />)}</RequireAuth> },
       { path: '/fitness/sleep', element: <RequireAuth>{wrap(<FitSleep />)}</RequireAuth> },
     ],
   },

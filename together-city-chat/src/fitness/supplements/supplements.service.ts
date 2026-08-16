@@ -8,7 +8,7 @@ import { recommend, type Citizen } from './supplements.engine';
 import { BadRequestException } from '@nestjs/common';
 import { FinancialService } from '../../financial/financial.service';
 import { SOURCE, SUPPLEMENTS } from './knowledge';
-import { AISLES, PRODUCTS, sellable } from './products';
+import { AISLES, PRODUCTS, sellable, type Product } from './products';
 import { normaliseBag, parseBag, priceBagForDisplay, priceSupplementOrder, type BagLine } from './supplements.bag';
 import type { PlaceSupplementOrderDto } from '../dto/supplements.dto';
 
@@ -129,18 +129,21 @@ export class SupplementsService {
     const items = PRODUCTS.map((p) => {
       const f = SUPPLEMENTS.find((s) => s.id === p.supplement);
       const r = mine.get(p.supplement);
-      /* THE PHOTOGRAPH AND THE PRODUCT PAGE TRAVEL AGAIN — owner's store
-         reference, 16 Aug, reversing the 15-Aug drop. The argument for the
-         drop was that a shop with a door to a rival checkout is not a shop;
-         the owner's design shows the retailer's photograph on every card and
-         a "see the product" door beside the city's own till — the shape the
-         Beauty market has always had: browsing OUT is allowed, PAYING happens
-         here, from the one city wallet. The catalogue spec still holds every
-         url to clean https with no affiliate params; `retailer` still
-         travels as provenance; and the drawn pack stays behind every
-         photograph as the fallback for a hotlink that doesn't load. */
+      /* THE PHOTOGRAPH TRAVELS; THE DOOR DOES NOT. Two owner's calls on
+         16 Aug, hours apart. First the retailer's photograph came back onto
+         every card — the 15-Aug "nothing leaves the city" drop reversed,
+         with the drawn pack standing behind every photo as the fallback for
+         a hotlink that is slow or gone. Then "See the product" came OFF:
+         this store buys the Beauty way — Add on the shelf, a bag bar at the
+         foot, a checkout page where the wallet moves — and a shop with a
+         door to a rival checkout is not a shop. So `image` rides the wire
+         and `url` is deleted on it, where no screen can put it back by
+         accident. `retailer` still travels as provenance: a name, not a
+         door. */
+      const listed: Omit<Product, 'url'> & { url?: string } = { ...p };
+      delete listed.url;
       return {
-        ...p,
+        ...listed,
         sellable: sellable(p),
         supplementName: f?.name ?? p.supplement,
         grade: f?.grade ?? null,
