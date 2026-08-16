@@ -249,6 +249,81 @@
 .side-menu a .n { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 10.5px; font-weight: 700; flex-shrink: 0; }
 .side-menu a .l { display: block; font-size: 13.5px; font-weight: 600; line-height: 1.25; }
 .side-menu a .s { display: block; font-size: 11px; color: var(--muted); font-weight: 400; margin-top: 1px; }
+/* The rail's own control. Hidden by default: below 900px this aside is the
+   phone drawer, which is dismissed by its scrim, its swipe and the burger that
+   opened it — a fourth way to close it would be a fourth thing to explain. */
+.tc-side .rail-toggle { display: none; }
+
+/* ── THE RAIL IS 112px UNTIL YOU ASK IT FOR MORE ─────────────────────────────
+   The owner, 17 Aug: "reduce the side profile by 60 percent to be more
+   aesthetic with an expandable view."
+
+   280px → 112px is that 60%, exactly, and it is the number the sidebar was
+   MEASURED at on the live page rather than the number this file happened to
+   say. What survives the cut is the part that was already doing the work: the
+   numbered badge, which is 30px and reads as an index whether or not there is
+   a word beside it.
+
+   TWO WAYS OPEN, AND THEY ARE NOT THE SAME PROMISE.
+     · A PEEK — hover, or a tab key landing anywhere inside — floats the full
+       280px panel OVER the page. `margin-right: -168px` (280 − 112) is what
+       keeps the column 112px wide while the panel paints 280, so a mouse
+       crossing the rail never reflows the page under the reader's eyes.
+     · A PIN — the chevron, remembered across sessions — gives back the
+       sidebar exactly as it was: 280px of reserved column, no shadow, nothing
+       overlapping. Somebody who wants the old rail keeps the old rail.
+
+   THE WORDS ARE CLIPPED, NEVER REMOVED. `display: none` on a label is a menu a
+   screen reader reads as "01, 02, 03, 04" — the same mistake the header's pill
+   icons would have made without their aria-labels. These are taken out of the
+   picture and left in the accessibility tree. `.s`, the sub-line, is the one
+   thing genuinely dropped: it repeats on the peek, and it is the reason a rail
+   item is 57px tall. */
+@media (min-width: 900px) {
+  .tc-side { width: 112px; transition: width .16s ease; z-index: 40; }
+  .tc-side .side-menu a { position: relative; justify-content: center; padding-left: 0; padding-right: 0; gap: 0; }
+  .tc-side .back { padding-left: 0; padding-right: 0; text-align: center; }
+  .tc-side .hubtag, .tc-side .side-menu .s { display: none; }
+  .tc-side .hubname, .tc-side .side-menu .l, .tc-side .back .w {
+    position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap;
+  }
+  .tc-side .rail-toggle {
+    display: flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; margin: 0 auto 14px; padding: 0;
+    background: none; border: none; border-radius: 9px; cursor: pointer;
+  }
+  .tc-side .rail-toggle svg { transition: transform .16s ease; }
+  .tc-side.pinned .rail-toggle svg { transform: rotate(180deg); }
+
+  /* OPEN — by hover, by focus, or because it was pinned. */
+  .tc-side:is(:hover, :focus-within, .pinned) { width: 280px; }
+  .tc-side:is(:hover, :focus-within, .pinned) .hubtag,
+  .tc-side:is(:hover, :focus-within, .pinned) .side-menu .s { display: block; }
+  .tc-side:is(:hover, :focus-within, .pinned) .hubname,
+  .tc-side:is(:hover, :focus-within, .pinned) .side-menu .l,
+  .tc-side:is(:hover, :focus-within, .pinned) .back .w {
+    position: static; width: auto; height: auto; clip-path: none;
+  }
+  .tc-side:is(:hover, :focus-within, .pinned) .back { padding-left: 26px; padding-right: 26px; text-align: left; }
+  .tc-side:is(:hover, :focus-within, .pinned) .side-menu a { justify-content: flex-start; padding-left: 14px; padding-right: 14px; gap: 13px; }
+  .tc-side:is(:hover, :focus-within, .pinned) .rail-toggle { margin-left: auto; margin-right: 22px; }
+
+  /* A PEEK OVERLAYS. A PIN RESERVES. The margin is the whole difference
+     between the two, and it is why the pin is worth having.
+
+     THE SHADOW IS --e3 AND NOT A NUMBER I LIKED. It was written here as
+     `12px 0 28px -18px rgb(0 0 0 / .28)` first, and relief.spec.ts rejected it
+     inside a minute: this application has exactly three heights, and a panel
+     floating over the page is the third — the same one `.modal` stands at. A
+     hand-written shadow in one file and a slightly different hand-written
+     shadow in the next are two materials that look like one mistake, and
+     nothing would ever say so. */
+  .tc-side:is(:hover, :focus-within):not(.pinned) {
+    margin-right: -168px;
+    box-shadow: var(--e3);
+  }
+}
 
 .tc-footer { padding: 40px 44px calc(40px + var(--safe-bottom)); display: flex; flex-direction: column; gap: 12px; }
 .tc-footer .word { letter-spacing: -.02em; font-size: 15px; font-weight: 700; color: var(--ink); }
