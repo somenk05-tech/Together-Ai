@@ -245,3 +245,15 @@ export function categoriesByGroup(): Array<{ group: string; items: ServiceCatego
 /** The group names, in order — the browse screen leads with these rather than
  *  with a hundred and forty chips nobody can scan. */
 export const CATEGORY_GROUPS: string[] = [...new Set(SERVICE_CATEGORIES.map((c) => c.group))];
+export const isCategoryGroup = (group: string): boolean => CATEGORY_GROUPS.includes(group);
+
+/**
+ * EVERY TRADE INSIDE ONE GROUP.
+ *
+ * A group is a filter in its own right, not just a heading over other filters.
+ * Somebody who presses "Automotive" has said what they want as clearly as
+ * somebody who presses "Mechanics" did — they have simply not narrowed it yet,
+ * and a directory that answers that press with the whole city has not listened.
+ */
+export const categoryKeysInGroup = (group: string): string[] =>
+  SERVICE_CATEGORIES.filter((c) => c.group === group).map((c) => c.key);

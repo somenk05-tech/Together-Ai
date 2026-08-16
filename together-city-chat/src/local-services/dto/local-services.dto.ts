@@ -60,6 +60,16 @@ export type UpdateListingDto = z.infer<typeof UpdateListingSchema>;
 
 export const BrowseSchema = z.object({
   category: z.string().trim().max(40).optional(),
+  /**
+   * A WHOLE GROUP, which is a filter and not only a heading.
+   *
+   * `category` is one trade; this is all the trades in one family. Both travel
+   * because the screen offers both — the group chips are the first row a
+   * citizen sees, and until this existed pressing one narrowed nothing.
+   * `category` wins when both arrive: it is the more specific of the two, and
+   * a screen that sends a leaf has already sent the group it lives in.
+   */
+  group: z.string().trim().max(60).optional(),
   // "Near me" — a point and a distance. Both or neither; a radius with no
   // centre is a filter that cannot be applied and should say so rather than
   // silently returning everything.

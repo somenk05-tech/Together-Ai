@@ -3,7 +3,7 @@ import { swallowed } from '../shared/swallow';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AiService } from '../ai/ai.service';
-import { categoryGroup, categoryLabel, isCategory } from './categories';
+import { categoryGroup, categoryKeysInGroup, categoryLabel, isCategory, isCategoryGroup } from './categories';
 import { customerLabel, mintAlias } from './alias';
 import { boundingBox, haversineKm, parsePoint } from './geo';
 import { looksLikeId, normaliseSlug, slugProblem, SLUG_MESSAGES, suggestSlug } from './slug';
@@ -234,9 +234,15 @@ export class LocalServicesService {
   async browse(q: BrowseDto, viewerId?: string) {
     const page = Math.max(1, q.page ?? 1);
     if (q.category && !isCategory(q.category)) throw new BadRequestException('unknown category');
+    if (q.group && !isCategoryGroup(q.group)) throw new BadRequestException('unknown category group');
 
     const where: Record<string, unknown> = { moderation: 'approved' };
+    // The leaf wins over the family. A screen that sends a category has already
+    // decided which group it came from, and applying both would be the same
+    // filter written twice — right today, and wrong the first time a trade
+    // moves between groups.
     if (q.category) where.categoryKey = q.category;
+    else if (q.group) where.categoryKey = { in: categoryKeysInGroup(q.group) };
     if (q.city) where.city = { equals: q.city, mode: 'insensitive' };
     // An area filter is a substring of the csv rather than a join. A locality is
     // a name somebody typed, and half the value of "local" is that it accepts

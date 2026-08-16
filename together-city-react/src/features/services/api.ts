@@ -264,7 +264,7 @@ export interface RegularCard extends ServiceCard {
 export const servicesApi = {
   categories: () => api.get<{ groups: CategoryGroup[] }>('/services/categories').then((r) => r.data),
   facets: (city?: string) => api.get<Record<string, number>>('/services/facets', { params: { city } }).then((r) => r.data),
-  browse: (q: { category?: string; city?: string; area?: string; q?: string; page?: number; near?: string; withinKm?: number }) =>
+  browse: (q: { category?: string; group?: string; city?: string; area?: string; q?: string; page?: number; near?: string; withinKm?: number }) =>
     api.get<{ items: ServiceCard[]; total: number; page: number; pages: number; saved: string[] }>('/services', { params: q }).then((r) => r.data),
   businessTypes: () =>
     api.get<{ types: BusinessTypeDef[] }>('/services/business-types').then((r) => r.data),
@@ -550,7 +550,7 @@ export function useServiceCategories() {
 export function useServiceFacets(city?: string) {
   return useQuery({ queryKey: ['services', 'facets', city ?? ''], queryFn: () => servicesApi.facets(city) });
 }
-export function useBrowseServices(q: { category?: string; city?: string; area?: string; q?: string; page?: number; near?: string; withinKm?: number }) {
+export function useBrowseServices(q: { category?: string; group?: string; city?: string; area?: string; q?: string; page?: number; near?: string; withinKm?: number }) {
   return useQuery({ queryKey: ['services', 'browse', q], queryFn: () => servicesApi.browse(q) });
 }
 export function useMyServices() {

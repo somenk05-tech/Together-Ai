@@ -63,8 +63,13 @@ export function ServicesBrowse() {
   const cats = useServiceCategories();
   const facets = useServiceFacets(city || undefined);
   const regulars = useRegulars();
+  /* THE GROUP IS A FILTER, NOT A HEADING. Pressing "Automotive" and being
+     shown a salon is the page not listening: the group chips are the first row
+     on the screen and until this was sent they narrowed nothing at all. The
+     leaf wins when both are set — the server applies the same precedence. */
   const list = useBrowseServices({
-    category: category || undefined, city: city || undefined, area: area || undefined, q: q || undefined,
+    category: category || undefined, group: category ? undefined : (group || undefined),
+    city: city || undefined, area: area || undefined, q: q || undefined,
     ...(near ? { near: `${near.lat},${near.lng}`, withinKm } : {}),
   });
 
