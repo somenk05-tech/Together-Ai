@@ -1568,3 +1568,53 @@ html.tc-immersive .cscomposer { margin-bottom: calc(var(--safe-bottom) + 14px); 
 .mail-sug-opt:hover, .mail-sug-opt.on { background: var(--wash); }
 .mail-sug-name { font-weight: 600; font-size: 13.5px; }
 .mail-sug-addr { font-size: 12px; font-family: monospace; margin-left: auto; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   A PERSON'S ROW, ON A PHONE.
+
+   The connections row was a single flex line: avatar, identity, then Manage /
+   Remove / Message. Those three buttons want about 290px and they do not
+   shrink — text inside a button does not wrap — so at 390px the identity
+   column was crushed to a few dozen pixels. The name broke mid-word ("somen /
+   k", "priya / mandal"), the handle and the relationship were pushed under
+   the buttons, and the "3 connected hubs" toggle wrapped onto three lines.
+
+   Two rules do the work, and the first is the actual bug: the action group
+   must be told not to shrink, and the name must TRUNCATE rather than wrap —
+   one line each, an ellipsis where it runs out. Below 560 the actions then
+   take a line of their own, indented to the text column so they align with
+   the Manage and Remove panels they open, and share the width equally so
+   every one of them is a comfortable thumb target.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.person-row { display: flex; align-items: center; gap: 12px; }
+.person-id { flex: 1 1 auto; min-width: 0; }
+.person-name {
+  font-weight: 600; font-size: 14px; line-height: 1.3;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.person-sub {
+  font-size: 12px; line-height: 1.4; margin-top: 1px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.person-hubs {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 5px;
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font-family: inherit; font-size: 11.5px; font-weight: 600;
+  line-height: 1.3; white-space: nowrap; color: var(--accent-ink);
+}
+.person-hubs-caret { display: inline-block; transition: transform var(--dur-fast) var(--ease-out); }
+.person-hubs[aria-expanded='true'] .person-hubs-caret { transform: rotate(90deg); }
+.person-acts { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+/* Manage and Remove open UNDER the row, indented to the text column so the
+   panel visibly belongs to the person above it. On a phone that indent is 14%
+   of the screen spent on alignment, so it goes — and the action buttons drop
+   to the same full-width line, which is also what makes them thumb-sized. */
+.person-fold { margin-top: 10px; padding-left: 56px; }
+
+@media (max-width: 560px) {
+  .person-row { flex-wrap: wrap; row-gap: 10px; }
+  .person-acts { flex: 1 0 100%; }
+  .person-acts > .btn { flex: 1 1 0; padding-left: 8px; padding-right: 8px; }
+  .person-fold { padding-left: 0; }
+}

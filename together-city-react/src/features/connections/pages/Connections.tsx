@@ -37,17 +37,16 @@ function Row({ c, actions, subtitle, children, collapsible, expanded, onToggle, 
   const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   return (
     <div style={{ padding: '12px 0', borderTop: '1px solid var(--line)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div className="person-row">
         <Avatar name={c.user.name} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 14 }}>{c.user.name}</div>
-          <div className="muted" style={{ fontSize: 12 }}>@{c.user.handle}{subtitle ? ` · ${subtitle}` : ''}</div>
+        <div className="person-id">
+          <div className="person-name">{c.user.name}</div>
+          <div className="person-sub muted">@{c.user.handle}{subtitle ? ` · ${subtitle}` : ''}</div>
           {/* Collapsed: a compact "N hubs" toggle. Expanded (or non-collapsible): full chips. */}
           {hubCount === 0 ? null : collapsible ? (
             <>
-              <button type="button" onClick={onToggle} aria-expanded={expanded}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 5, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, color: 'var(--accent-ink)' }}>
-                <span aria-hidden style={{ display: 'inline-block', transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform var(--dur-fast) var(--ease-out)' }}>▸</span>
+              <button type="button" className="person-hubs" onClick={onToggle} aria-expanded={expanded}>
+                <span aria-hidden className="person-hubs-caret">▸</span>
                 {expanded ? 'Hide' : `${hubCount} connected hub${hubCount > 1 ? 's' : ''}`}
               </button>
               {/* The caret was already rotating; the chips it reveals were not
@@ -70,7 +69,7 @@ function Row({ c, actions, subtitle, children, collapsible, expanded, onToggle, 
             <ModuleChips modules={c.modules ?? DEFAULT_MODULES} caption={chipCaption} />
           )}
         </div>
-        {actions}
+        {actions && <div className="person-acts">{actions}</div>}
       </div>
       {children}
     </div>
@@ -87,8 +86,8 @@ function ManagePanel({ c, onDone }: { c: Connection; onDone: () => void }) {
   const [rel, setRel] = useState<string>(c.relationship ?? 'friend');
   const [selected, setSelected] = useState<string[]>((c.modules ?? DEFAULT_MODULES));
   return (
-    <div style={{ marginTop: 10, paddingLeft: 56 }}>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+    <div className="person-fold">
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
         {RELATIONSHIPS.map((r) => (
           <button key={r.key} type="button"
             onClick={() => { setRel(r.key); setSelected((m) => m.filter((k) => allowedModules(hubs, r.key).includes(k))); }}
@@ -115,7 +114,7 @@ function ManagePanel({ c, onDone }: { c: Connection; onDone: () => void }) {
 function RemoveConfirm({ c, onCancel }: { c: Connection; onCancel: () => void }) {
   const remove = useRemoveConnection();
   return (
-    <div style={{ marginTop: 10, paddingLeft: 56 }}>
+    <div className="person-fold">
       <div style={{ padding: '12px 16px', borderRadius: 10, background: 'rgba(192,57,43,.06)', border: '1px solid rgba(192,57,43,.25)' }}>
         <p style={{ fontSize: 13, fontWeight: 700, margin: '0 0 4px' }}>Remove {c.user.name.split(' ')[0]} from your connections?</p>
         <p className="muted" style={{ fontSize: 12, margin: '0 0 10px' }}>This will disconnect them from all shared hubs.</p>
@@ -190,12 +189,12 @@ export function Connections() {
               subtitle={relLabel(c.relationship) ? `wants to connect with you as ${relLabel(c.relationship)}` : 'wants to connect with you'}
               chipCaption="Hubs they want to open:"
               actions={
-                <div style={{ display: 'flex', gap: 8 }}>
+                <>
                   <Button size="sm" variant="accent" disabled={respond.isPending}
                     onClick={() => respond.mutate({ id: c.id, accept: true })}>Accept</Button>
                   <Button size="sm" variant="line" disabled={respond.isPending}
                     onClick={() => respond.mutate({ id: c.id, accept: false })}>Decline</Button>
-                </div>
+                </>
               }
             />
           ))}
@@ -230,7 +229,7 @@ export function Connections() {
           accepted.map((c) => (
             <Row key={c.id} c={c} subtitle={relLabel(c.relationship) ?? undefined}
               collapsible expanded={expanded.has(c.id)} onToggle={() => toggleOne(c.id)} actions={
-              <div style={{ display: 'flex', gap: 8 }}>
+              <>
                 <Button size="sm" variant="line" onClick={() => { setRemoving(null); setManaging(managing === c.id ? null : c.id); }}>
                   {managing === c.id ? 'Close' : 'Manage'}
                 </Button>
@@ -241,7 +240,7 @@ export function Connections() {
                   onClick={() => void openChat(c.user.handle)}>
                   {opening === c.user.handle ? '…' : 'Message'}
                 </Button>
-              </div>
+              </>
             }>
               {managing === c.id && <ManagePanel c={c} onDone={() => setManaging(null)} />}
               {removing === c.id && <RemoveConfirm c={c} onCancel={() => setRemoving(null)} />}
