@@ -153,12 +153,39 @@
    THE LABELS BECOME ICONS, NOT NOTHING. `aria-label` and `title` carry the
    word on every one of them, so a screen reader hears "Mail" exactly as it did
    and a hover says it. The citizen's own name stays: it is the one pill that
-   is a person rather than a place. */
+   is a person rather than a place.
+
+   ── AND THEN, 16 Aug, LATER THE SAME NIGHT ──────────────────────────────────
+   The owner, looking at the landed bar: "make the icons on the right and
+   instead of the icons write the words."
+
+   TWO CHANGES, AND ONLY ONE OF THEM IS FREE.
+
+   THE SIDE IS FREE. The pills move off the centred block and pin to the right
+   edge; the districts sit next to the name. Three right-hand arrangements were
+   rendered before this one was picked. Logo-left / tabs-centred / pills-right
+   splits the slack into two holes, and tabs-and-pills-as-one-block-right
+   leaves the signature stranded alone on the left. This one has a single gap
+   and it falls between the CITY'S districts and the CITIZEN'S own four doors,
+   which is the only line in the bar worth drawing.
+
+   THE WORDS COST 170px, and there is no arguing with it: 1420 → 1590. They
+   cannot be promised at 1400, so they are promised at 1620 and the band
+   between the two keeps the icons. The owner was shown the 1512 crop and chose
+   this over the two alternatives — words everywhere with the district type
+   dropped to 9.5px (the size the city otherwise uses only on a phone), and
+   the three-row masthead returning below 1620.
+
+   The word on the mail pill stays "Mail" — the owner wrote "email", and chose
+   Mail when shown that the drawer, the Hubs page and the hub's own title all
+   say Mail. One name for one room. */
 @media (min-width: 1400px) {
   .tc-header {
     flex-direction: row;
     align-items: center;
-    justify-content: center;
+    /* flex-start, not center: the pills claim the right edge below, and a
+       centred main axis would fight the auto margin that puts them there. */
+    justify-content: flex-start;
     gap: 20px;
     /* height stays var(--header-h) — the token itself is re-pointed to 60px at
        this breakpoint in tokens.css, so every surface that clears the header
@@ -176,6 +203,15 @@
   .tc-header-top,
   .tc-header .tc-actionrow,
   .tc-header .tc-navrow { width: auto; flex: 0 0 auto; }
+  /* THE CITIZEN'S DOORS GO TO THE RIGHT EDGE, THE DISTRICTS COME FORWARD.
+     `order` rather than a change to Header.tsx, because the source order is
+     the READING order every other surface depends on: the burger drawer, the
+     three-row masthead below 1400 and the tab sequence all walk the markup as
+     it stands. Only the desktop line rearranges it, and only visually.
+     `margin-left: auto` on the pills is the whole right-alignment — it eats
+     every spare pixel in one place instead of spreading it as gaps. */
+  .tc-header .tc-navrow { order: 2; }
+  .tc-header .tc-actionrow { order: 3; margin-left: auto; }
   /* The word goes; the icon and its aria-label stay. */
   .tc-header .tc-actionbar .lab { display: none; }
   .tc-header .tc-actionbar a, .tc-header .tc-actionbar button { padding: 0 10px; }
@@ -184,6 +220,16 @@
   /* .13em over twelve labels is about 150px of pure tracking. Halved, the row
      still reads as the one line in the application set in capitals. */
   .tc-header .tc-nav a { letter-spacing: .06em; }
+}
+
+/* ── AND THE WORDS COME BACK WHERE THERE IS ROOM FOR THEM ────────────────────
+   1590px is what the row needs with Mail, Chat, Personal and Alerts spelled
+   out; 1420px is what it needs without them. This block is the difference,
+   and 1620 is 1590 plus enough margin for a citizen whose first name is longer
+   than the owner's — that label is user data, and a breakpoint set to the
+   exact measurement is a breakpoint that crops for somebody else. */
+@media (min-width: 1620px) {
+  .tc-header .tc-actionbar .lab { display: inline; }
 }
 
 @media (max-width: 1440px) { .tc-header { --chip-fs: 10.5px; } .tc-navrow { gap: 14px; } .tc-actionbar, .tc-actions { gap: 8px; } }
