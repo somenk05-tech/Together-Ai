@@ -207,7 +207,14 @@ export const HUBS: Record<HubKey, HubConfig> = {
     key: 'dating', name: 'Dating Hub', tag: 'Curated, not endless', backPath: '/dating', dark: true,
     items: [
       { path: '/dating/profile', index: '01', label: 'My Dating Profile', sub: 'Birth details & interests' },
-      { path: '/dating/matches', index: '02', label: 'Curated Matches', sub: 'Only real matches, ≥75%' },
+      // THE RAIL IS THE JOURNEY, so it runs in the order the journey does:
+      // introduce yourself, look at the city, keep the people who chose you
+      // back, talk to them. Potential Matches is where every resident is scored
+      // and where liking happens; Curated Matches is only ever MUTUAL, which is
+      // why its line no longer advertises a percentage — nobody arrives there
+      // by scoring well, only by being chosen back.
+      { path: '/dating/browse', index: '02', label: 'Potential Matches', sub: 'Everyone, with your %' },
+      { path: '/dating/matches', index: '03', label: 'Curated Matches', sub: 'You both liked each other' },
       // ACTIVITY DATING IS OFF THE MENU (12 Aug), at the owner's word and
       // explicitly "for now" — which is the reason nothing else moved. The
       // page, the invitation engine and every /dating/activity endpoint are
@@ -226,7 +233,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // The numbering closes up behind it rather than leaving a gap at 04: a
       // menu that counts 01-02-04 is a menu advertising the thing it is trying
       // not to advertise.
-      { path: '/dating/chats', index: '03', label: 'Dating Chats', sub: 'Anonymous, up to three' },
+      { path: '/dating/chats', index: '04', label: 'Dating Chats', sub: 'Anonymous, up to three' },
     ],
   },
   entertainment: {

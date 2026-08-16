@@ -1,449 +1,34 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import {
-  useDatingProfile, useLikeMatch, usePassMatch, useDatingStack, useDatingChats,
-  useLikeAllowance, useSuperLike, useUndoPass,
-  type CuratedMatch, type MatchKind, type CompatibilityBand, type DatingChatSummary,
-} from '../api';
-import { SafetyMenu } from '../components/SafetyMenu';
-
-function ScoreRing({ score }: { score: number }) {
-  return (
-    <div
-      style={{
-        width: 54, height: 54, borderRadius: '50%', display: 'grid', placeItems: 'center', flexShrink: 0,
-        background: `conic-gradient(var(--accent) ${score * 3.6}deg, var(--line) 0deg)`,
-      }}
-    >
-      <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--card)', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 13 }}>
-        {score}%
-      </div>
-    </div>
-  );
-}
-
-/** Photo hero + swipeable thumbnail strip. The primary photo fills a 16:10
- *  banner with a gradient scrim; the name, age and star-line sit on the image,
- *  and the score ring floats top-right. Tap a thumbnail to bring it forward. */
-function MatchGallery({ photos, name, age, theirSign, yourSign, score, href }: {
-  photos: string[]; name: string; age?: number; theirSign: string; yourSign: string; score: number; href?: string;
-}) {
-  const [active, setActive] = useState(0);
-  const hero = photos[active] ?? photos[0];
-  const HeroInner = (
-    <>
-      <img src={hero} alt={name} loading="lazy"
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, var(--scrim-deep) 0%, var(--scrim-top) 44%, var(--scrim-clear) 70%)' }} />
-      <div style={{ position: 'absolute', top: 12, right: 12, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,.45))' }}>
-        <ScoreRing score={score} />
-      </div>
-      <div style={{ position: 'absolute', left: 16, right: 16, bottom: 12, color: 'var(--on-accent)' }}>
-        <div style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 700, lineHeight: 1.15, textShadow: '0 1px 10px rgba(0,0,0,.5)' }}>
-          {name}{age ? `, ${age}` : ''}
-        </div>
-        <div style={{ fontSize: 12.5, opacity: 0.92, textShadow: '0 1px 8px rgba(0,0,0,.6)' }}>
-          {theirSign} · with your {yourSign} — written in the stars
-        </div>
-      </div>
-    </>
-  );
-  const heroStyle: React.CSSProperties = { position: 'relative', display: 'block', aspectRatio: '16 / 10', background: 'var(--paper)', overflow: 'hidden' };
-  return (
-    <div>
-      {href
-        ? <Link to={href} style={heroStyle} aria-label={`Open ${name}'s profile`}>{HeroInner}</Link>
-        : <div style={heroStyle}>{HeroInner}</div>}
-      {photos.length > 1 && (
-        <div style={{ display: 'flex', gap: 6, padding: '8px 10px 2px', overflowX: 'auto' }}>
-          {photos.map((p, i) => (
-            <button key={i} type="button" onClick={() => setActive(i)} aria-label={`Photo ${i + 1}`}
-              style={{ flex: 'none', width: 46, height: 46, padding: 0, borderRadius: 8, overflow: 'hidden', cursor: 'pointer',
-                border: `2px solid ${i === active ? 'var(--accent)' : 'transparent'}`, opacity: i === active ? 1 : 0.8, background: 'none' }}>
-              <img src={p} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+import { useDatingProfile, useDatingStack, useDatingChats, type MatchKind } from '../api';
+import { MatchStack, EngagedPanel } from '../components/MatchCards';
 
 /**
- * THE MATCH STACK.
+ * ── CURATED MATCHES: THE PEOPLE WHO CHOSE YOU BACK ──────────────────────────
  *
- * Owner's reference: one card face-up with the photograph, the rest showing
- * only their foot. The foot is what makes it a list rather than a pile — name,
- * one line, one action — so the deck can be read without opening anything.
+ * The owner, 16 Aug: browsing the whole city belongs in Potential Matches, and
+ * "when someone from potential matches connect with each other they land at
+ * curated matches".
  *
- * TAPPING A BURIED FOOT BRINGS THAT PERSON FORWARD; tapping the PHOTOGRAPH
- * opens the whole profile. Two different targets on one card, which is the
- * only part of this that needs saying out loud: the picture is a link, the
- * foot is a control.
+ * WHAT THIS PAGE STOPPED BEING. It used to be both rooms at once — the mutual
+ * matches at the top, then the ranked deck of candidates, then a histogram,
+ * then "Everyone else" grouped by band with a Like button on every card. That
+ * was the whole hub on one page, and the cost was that a match — the thing the
+ * hub exists to produce — arrived as a section above a shop. Two rooms: one to
+ * look, one to keep.
  *
- * BELOW THREE IT DOES NOT FAN. A stack of two is a pile of two things
- * pretending to be a deck, and this hub's promise is that the page is not
- * busy. Under the threshold they render as ordinary cards side by side.
+ * NOTHING WAS DELETED, IT MOVED. Every card, band, histogram and control that
+ * left this file is in `components/MatchCards.tsx`, rendered by Potential
+ * Matches. This page and that one draw a person identically, on purpose: a
+ * card that means one thing here and something else there is how two rooms
+ * start disagreeing about what a percentage is.
+ *
+ * A MATCH IS NEVER HIDDEN BY THE CAP. The chat limit is three conversations,
+ * and the old page swapped the whole list for the "you're getting to know
+ * someone" panel when you hit it. Here the panel sits BELOW your matches
+ * rather than instead of them: at capacity what is paused is starting
+ * something new, not seeing the people who already chose you.
  */
-const STACK_MAX = 6;
-const STACK_FANS_AT = 3;
-
-function MatchStack({ people, kind }: { people: CuratedMatch[]; kind: MatchKind }) {
-  const [front, setFront] = useState(0);
-  const shown = people.slice(0, STACK_MAX);
-  const fans = shown.length >= STACK_FANS_AT;
-  // The order the deck is drawn in: whoever is at the front comes first, and
-  // everybody else keeps their ranking behind them. Re-ordering the array
-  // rather than juggling z-index means the DOM order and the visual order are
-  // the same thing, which is what keyboard and screen-reader users get.
-  const order = fans
-    ? [shown[front], ...shown.filter((_, i) => i !== front)]
-    : shown;
-
-  return (
-    <div className={`mstack${fans ? '' : ' mflat'}`}
-      style={fans ? { height: `calc(${(380 * 4) / 3}px + ${(shown.length - 1) * 62}px)` } : undefined}>
-      {order.map((m, row) => {
-        const isTop = row === 0;
-        const photo = m.photos?.[0];
-        const href = `/dating/match?u=${m.user.id}&kind=${kind}`;
-        const label = `${m.user.name}${m.age ? `, ${m.age}` : ''}`;
-        return (
-          <article key={m.user.id} className="mcard"
-            style={{ ['--mrow' as string]: row, transform: fans ? `translateY(${row * 62}px)` : undefined }}>
-            {isTop && (
-              <>
-                <span className="mpct">◈ {m.score}%</span>
-                <div className="mtop">
-                  <span className="mbadge">★ {bandFor(m.score).name}</span>
-                  <p className="mwho">{label}</p>
-                </div>
-              </>
-            )}
-            {/* THE PICTURE IS THE LINK. A whole card that navigates would make
-                the foot's own button a button inside a link. */}
-            <Link to={href} aria-label={`Open ${m.user.name}'s profile`} style={{ display: 'block' }}>
-              {photo
-                ? <img className="mshot" src={photo} alt="" loading="lazy" />
-                : <span className="mshot" style={{ display: 'grid', placeItems: 'center', background: 'var(--accent-soft)',
-                    color: 'var(--accent-ink)', fontSize: 54, fontFamily: 'var(--serif)' }}>{m.user.name.slice(0, 1)}</span>}
-            </Link>
-            <div className="mfoot">
-              {photo
-                ? <img className="mav" src={photo} alt="" loading="lazy" />
-                : <span className="tc-avatar mav" aria-hidden>{m.user.name.slice(0, 1)}</span>}
-              <span className="mname">
-                <b>{label}</b>
-                <i>{m.theirSign} · {m.score}% match</i>
-              </span>
-              {isTop
-                ? <Link to={href} className="mgo on">Say hello</Link>
-                : <button type="button" className="mgo"
-                    onClick={() => setFront(shown.findIndex((x) => x.user.id === m.user.id))}>
-                    Connect
-                  </button>}
-            </div>
-          </article>
-        );
-      })}
-    </div>
-  );
-}
-
-function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKind }) {
-  const like = useLikeMatch(kind);
-  const pass = usePassMatch(kind);
-  const superLike = useSuperLike(kind);
-  const allowance = useLikeAllowance();
-  const [result, setResult] = useState<{ matched: boolean; conversationId: string | null } | null>(null);
-  // The server is the authority on the limit; this only decides what the button
-  // looks like before it is pressed. A refusal still arrives as a real message.
-  const supersLeft = allowance.data?.supersLeft ?? 0;
-  const outOfLikes = (allowance.data?.likesLeft ?? 1) < 1;
-  const limitError = (like.error ?? superLike.error) as { response?: { data?: { message?: string } } } | null;
-
-  const matched = result?.matched || match.matched;
-  const photos = match.photos ?? [];
-  const hasPhotos = photos.length > 0;
-  const detailHref = `/dating/match?u=${match.user.id}&kind=${kind}`;
-
-  return (
-    <article className="card" style={{ marginBottom: 16, padding: 0, overflow: 'hidden' }}>
-      {hasPhotos ? (
-        <MatchGallery photos={photos} name={match.user.name} age={match.age}
-          theirSign={match.theirSign} yourSign={match.yourSign} score={match.score} href={detailHref} />
-      ) : (
-        <div style={{ display: 'flex', gap: 14, alignItems: 'center', padding: '18px 18px 0' }}>
-          <ScoreRing score={match.score} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <Link to={detailHref} style={{ fontWeight: 700, fontSize: 16 }}>{match.user.name}{match.age ? `, ${match.age}` : ''}</Link>
-            <div className="muted" style={{ fontSize: 12.5 }}>
-              {match.theirSign} · with your {match.yourSign} — written in the stars
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div style={{ padding: hasPhotos ? '14px 18px 18px' : '12px 18px 18px' }}>
-      {match.bio && <p style={{ fontSize: 14, lineHeight: 1.5, margin: '0 0 0', color: 'var(--ink-soft)' }}>{match.bio}</p>}
-
-      {match.breakdown && (
-        <div style={{ marginTop: 12, background: 'var(--paper)', borderRadius: 12, padding: '12px 14px' }}>
-          <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8 }}>{match.score}% compatibility</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: '6px 14px' }}>
-            {([['Astrology', match.breakdown.astrology], ['Personality', match.breakdown.personality], ['Goals', match.breakdown.relationshipGoals], ['Values', match.breakdown.values], ['Lifestyle', match.breakdown.lifestyle], ['Interests', match.breakdown.interests], ['Location', match.breakdown.location]] as [string, number][]).map(([k, v]) => (
-              <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                <span className="muted">{k}</span><span style={{ fontWeight: 600 }}>{v}%</span>
-              </div>
-            ))}
-          </div>
-          {match.reasons && match.reasons.length > 0 && (
-            <>
-              <div style={{ fontWeight: 600, fontSize: 12.5, margin: '10px 0 4px' }}>Why this match?</div>
-              <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12.5, color: 'var(--ink-soft)' }}>
-                {match.reasons.map((r, i) => <li key={i} style={{ marginBottom: 2 }}>{r}</li>)}
-              </ul>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* On the card, not only the detail page. Most people never open the
-          detail page, and "I had to go looking for it" is exactly the failure
-          this control exists to prevent. Outside the breakdown block, because a
-          match with no score breakdown still has a person behind it. */}
-      <div style={{ marginTop: 12 }}>
-        <SafetyMenu userId={match.user.id} kind={kind} compact />
-      </div>
-
-      {match.interests.length > 0 && (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
-          {match.interests.map((i) => (
-            <span key={i} className="pill" style={{ border: '1px solid var(--line)', borderRadius: 999, padding: '4px 12px', fontSize: 12 }}>
-              {i}
-            </span>
-          ))}
-        </div>
-      )}
-
-      <div style={{ marginTop: 14 }}>
-        {matched ? (
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--accent-ink)' }}>💫 It’s a match!</span>
-            {match.conversationId
-              ? <Link to={`/dating/chats?c=${match.conversationId}`}><Button variant="accent" size="sm">💬 Open chat</Button></Link>
-              : <Link to={detailHref}><Button variant="accent" size="sm">💬 Connect to Chat</Button></Link>}
-          </div>
-        ) : (
-          <>
-            {/* A refused like is not a failed request — it is the rule speaking,
-                and the server's sentence already says when it lifts. */}
-            {limitError?.response?.data?.message && (
-              <p style={{ margin: '0 0 10px', fontSize: 12.5, color: 'var(--ink-soft)', background: 'var(--paper)', borderRadius: 8, padding: '8px 11px' }}>
-                {limitError.response.data.message}
-              </p>
-            )}
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-              <Button
-                variant="accent" size="sm" disabled={like.isPending}
-                onClick={() => like.mutate(match.user.id, { onSuccess: (r) => setResult(r) })}
-              >
-                {like.isPending ? '…' : kind === 'romantic' ? '♥ Like' : '＋ Connect'}
-              </Button>
-              {/* One a day, and it says which day it is. Scarcity you cannot see
-                  is a counter, not scarcity — so the count is on the button. */}
-              {kind === 'romantic' && (
-                <Button
-                  variant="line" size="sm"
-                  disabled={superLike.isPending || supersLeft < 1 || outOfLikes}
-                  title={supersLeft < 1
-                    ? `Your super-like comes back at midnight (${allowance.data?.resetsAtLocal ?? 'your local time'}).`
-                    : 'They will be told you used your one super-like of the day on them.'}
-                  onClick={() => superLike.mutate(match.user.id, { onSuccess: (r) => setResult({ matched: r.matched, conversationId: null }) })}
-                >
-                  {superLike.isPending ? '…' : `⭐ Super-like${supersLeft > 0 ? ` (${supersLeft})` : ''}`}
-                </Button>
-              )}
-              {/* "Skip", not "Pass" — the match detail page has always said Skip,
-                  and the same action on two screens should not have two names. */}
-              <Button variant="line" size="sm" disabled={pass.isPending || outOfLikes} onClick={() => pass.mutate(match.user.id)}>
-                ✕ Skip
-              </Button>
-              {/* Chat is shown here, always, so it is obvious that it exists and
-                  what opens it — but it stays disabled until both people have
-                  chosen each other. A dating hub where a stranger can open a
-                  thread you never agreed to is a harassment surface, and the
-                  whole flow (anonymous, one at a time) is built the other way.
-                  Disabled-with-a-reason beats hidden: hidden looks broken. */}
-              <Button
-                variant="line"
-                size="sm"
-                disabled
-                title={match.likedByMe
-                  ? 'Waiting for them to like you back — chat opens the moment they do.'
-                  : 'Chat opens once you both like each other.'}
-                style={{ opacity: 0.5, cursor: 'not-allowed' }}
-              >
-                💬 Chat
-              </Button>
-            </div>
-            <p className="muted" style={{ fontSize: 11.5, margin: '10px 0 0', textAlign: 'center' }}>
-              {match.likedByMe
-                ? 'You’ve liked them. They’re notified only if you both like each other — chat opens the moment they do.'
-                : 'They’re notified only if you both like each other. Chat opens then, in Dating Chats.'}
-            </p>
-          </>
-        )}
-      </div>
-      </div>
-    </article>
-  );
-}
-
-/** One titled group of match cards — curated, recommended, or a discovery pool. */
-/** A compatibility score's category (band + friendly name).
- *
- *  These are the categories the pool is counted in and the list is grouped by,
- *  so there has to be one for every score a card can carry. The 0–20 row is new:
- *  §15.2 removed the floor that used to drop those people before they reached
- *  the page, and a card with no category would have fallen through to a nameless
- *  "Match" while the histogram counted it somewhere the list did not. */
-const BAND_NAMES: [number, number, string][] = [
-  [90, 100, 'Excellent match'], [80, 90, 'Great match'], [70, 80, 'Strong match'], [60, 70, 'Good match'],
-  [50, 60, 'Fair match'], [40, 50, 'Modest match'], [30, 40, 'Low match'], [20, 30, 'Faint match'],
-  [0, 20, 'Little in common'],
-];
-function bandFor(score: number): { label: string; name: string } {
-  for (const [lo, hi, name] of BAND_NAMES) {
-    if (score >= lo && (score < hi || (hi === 100 && score <= 100))) return { label: `${lo}–${hi}%`, name };
-  }
-  return { label: `${score}%`, name: 'Match' };
-}
-
-/** The candidates grouped into those categories, best first, empty ones dropped.
- *  One pass over BAND_NAMES so the group headers, the counts in them and the
- *  histogram can never disagree about which category somebody is in. */
-function byCategory(matches: CuratedMatch[]): { name: string; label: string; matches: CuratedMatch[] }[] {
-  return BAND_NAMES
-    .map(([lo, hi, name]) => ({
-      name,
-      label: `${lo}–${hi}%`,
-      matches: matches
-        .filter((m) => m.score >= lo && (m.score < hi || (hi === 100 && m.score <= 100)))
-        .sort((a, b) => b.score - a.score),
-    }))
-    .filter((g) => g.matches.length > 0);
-}
-
-/** Compatibility-band histogram — only rendered once there are real people, and
- *  only for bands that actually contain someone. The top match's own band is
- *  highlighted so the user sees which category they're being shown. */
-function Distribution({ bands, total, highlightScore }: { bands: CompatibilityBand[]; total: number; highlightScore?: number }) {
-  const rows = bands.filter((b) => b.count > 0);
-  if (rows.length === 0) return null;
-  const max = Math.max(1, ...rows.map((b) => b.count));
-  return (
-    <div className="card" style={{ marginTop: 22, padding: '16px 18px' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
-        <h2 style={{ fontSize: 16, margin: 0 }}>Your match pool</h2>
-        <span className="muted" style={{ fontSize: 12.5 }}>{total} potential {total === 1 ? 'match' : 'matches'}</span>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-        {rows.map((b) => {
-          const isTop = highlightScore != null && highlightScore >= b.min && highlightScore < (b.max === 100 ? 101 : b.max);
-          // The category's name, not just its numbers — "12 Great match" is a
-          // thing somebody can act on; "12 in 80–90" is a thing they have to
-          // decode. Same lookup the list groups by, so the two always agree.
-          const name = bandFor(b.min).name;
-          return (
-            <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ width: 116, fontSize: 12, fontWeight: isTop ? 800 : 600, color: isTop ? 'var(--accent)' : 'var(--ink-soft)', flex: 'none' }}>
-                {name}
-                <span className="muted" style={{ display: 'block', fontSize: 10.5, fontWeight: 600 }}>{b.label}%</span>
-              </span>
-              <div style={{ flex: 1, height: 16, borderRadius: 999, background: 'var(--paper)', overflow: 'hidden', outline: isTop ? '1.5px solid var(--accent)' : 'none' }}>
-                <div style={{ height: '100%', width: `${Math.max(6, (b.count / max) * 100)}%`, background: 'var(--accent)', opacity: 0.4 + 0.55 * (b.min / 100), borderRadius: 999 }} />
-              </div>
-              <span style={{ width: 30, textAlign: 'right', fontSize: 12.5, fontWeight: 700, flex: 'none' }}>{b.count}</span>
-            </div>
-          );
-        })}
-      </div>
-      <p className="muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.5 }}>
-        {/* This used to say "you meet your single strongest match first", which
-            stopped being true the moment the page started showing everybody.  */}
-        Everyone here fits what you asked for. They are listed strongest first and grouped by
-        category, so you can start at the top or go looking — the percentage is our reading of
-        the two of you, and the choice is yours.
-      </p>
-    </div>
-  );
-}
-
-/** Shown while the user already has an active dating chat — the stack is hidden
- *  so they focus on that one connection. */
-function EngagedPanel({ chat, openChats, cap }: { chat: DatingChatSummary | null; openChats: number; cap: number }) {
-  return (
-    <div className="card" style={{ padding: '22px 20px', textAlign: 'center' }}>
-      <div style={{ fontSize: 34 }}>💬</div>
-      <h2 style={{ fontSize: 18, margin: '6px 0 4px' }}>
-        {openChats === 1 ? `You’re getting to know ${chat ? chat.name : 'someone'}` : `You have ${openChats} conversations going`}
-      </h2>
-      <p className="muted" style={{ fontSize: 13, margin: '0 auto 16px', maxWidth: 380, lineHeight: 1.55 }}>
-        Intentional dating means a few conversations, not endless ones — {cap} at a time.
-        Your match stack is paused while you give these your attention, and every match is still
-        waiting when you unmatch one.
-      </p>
-      <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-        <Link to={chat ? `/dating/chats?c=${chat.conversationId}` : '/dating/chats'}><Button variant="accent">Open your chat</Button></Link>
-        <Link to="/dating/chats"><Button variant="line">Dating chats</Button></Link>
-      </div>
-      <p className="muted" style={{ fontSize: 11.5, marginTop: 14 }}>To start another, unmatch one of these first.</p>
-    </div>
-  );
-}
-
-/** Curated Matches (romantic) / New Friends (platonic) — intentional-dating stack:
- *  a compatibility-band breakdown of the pool + your single strongest match. */
-/**
- * Today's allowance, and the way back from a skip. (M2.)
- *
- * The undo says WHO it gave back. "Undone" on its own leaves somebody scanning
- * a list for a face they only half-saw, which is the state that made them want
- * undo in the first place.
- */
-function UndoAndAllowance({ kind }: { kind: MatchKind }) {
-  const allowance = useLikeAllowance();
-  const undo = useUndoPass(kind);
-  const [said, setSaid] = useState<string | null>(null);
-  const a = allowance.data;
-
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 14, fontSize: 12.5 }}>
-      <Button
-        variant="line" size="sm" disabled={undo.isPending}
-        onClick={() => undo.mutate(undefined, {
-          onSuccess: (r) => setSaid(r.undone
-            ? (r.theyLiked ? 'Skip undone — and they had already liked you.' : 'Skip undone — they are back in your matches.')
-            : r.reason),
-        })}
-      >
-        {undo.isPending ? '…' : '↩ Undo last skip'}
-      </Button>
-      {/* Only ever the real numbers: while the read is in flight this says
-          nothing rather than guessing at a count. */}
-      {a && (
-        <span className="muted">
-          {a.likesLeft} of {a.dailyLikes} likes left today
-          {a.supersLeft > 0 ? ` · ⭐ ${a.supersLeft}` : ' · ⭐ used'}
-        </span>
-      )}
-      {said && <span style={{ color: 'var(--ink-soft)' }}>{said}</span>}
-    </div>
-  );
-}
-
 export function DatingMatches() {
   const kind: MatchKind = 'romantic';
   const profile = useDatingProfile();
@@ -484,29 +69,20 @@ export function DatingMatches() {
     );
   }
 
-  // Paused at the CAP, not at the first conversation. `engaged` meant "has any
-  // chat", so one conversation hid the entire match stack — the page stopped
-  // doing its job the moment it succeeded once.
   const chatCap = stack.data?.chatCap ?? 3;
   const openChats = stack.data?.openChats ?? (chats.data?.filter((c) => c.conversationId).length ?? 0);
   const atCapacity = stack.data?.atCapacity ?? openChats >= chatCap;
   const activeChat = chats.data?.[0] ?? null;
-  const top = stack.data?.top ?? null;
   const matched = stack.data?.matched ?? [];
-  // Everyone below the top card. The page used to render `top` and nothing
-  // else — the whole ranked list was computed server-side and then thrown away
-  // at `cards[0]`. Compatibility is our opinion; who to talk to is theirs.
-  const rest = (stack.data?.candidates ?? []).filter((c) => c.user.id !== top?.user.id);
 
   return (
     <div>
       <div className="eyebrow">Dating Hub</div>
       <h1 style={{ fontSize: 26 }}>Curated Matches</h1>
-      <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 14px' }}>
-        Curated, not endless — a handful of people who actually fit, strongest first, instead of a deck to swipe through. Below is how your whole match pool breaks down by compatibility.
+      <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 14px', lineHeight: 1.6 }}>
+        The people you and they both chose. Nobody arrives here by being scored highly — only by
+        liking you back, which is why this list is short and why chat opens on it.
       </p>
-
-      <UndoAndAllowance kind={kind} />
 
       {/* The same notice the match detail page carries, shown ONCE for the page
           rather than repeated under every card — it is a rule about how this hub
@@ -514,128 +90,64 @@ export function DatingMatches() {
       <div style={{ marginBottom: 18, display: 'flex', gap: 12, alignItems: 'flex-start', background: 'var(--paper)', borderRadius: 14, padding: '13px 16px' }}>
         <span aria-hidden style={{ display: 'grid', placeItems: 'center', width: 34, height: 34, borderRadius: '50%', border: '1.5px solid var(--accent-ink)', color: 'var(--muted)', flex: 'none' }}>🔒</span>
         <div style={{ fontSize: 12.5, lineHeight: 1.5 }}>
-          <strong>We believe in intentional dating.</strong> You can have up to three conversations
+          <strong>We believe in intentional dating.</strong> You can have up to {chatCap} conversations
           going at once. If one isn’t going anywhere, <strong>unmatch</strong> and move forward.
         </div>
       </div>
 
-      {/* Mutual matches lead the page, always — before the engaged panel and
-          before the next candidate. Matching is the thing this hub is for; the
-          person you matched with should not have to be hunted for. Each card
-          carries its own "Open chat" or "Connect to Chat", so this is also how
-          you reach the Dating Chats section for that person. */}
-      {matched.length > 0 && (
-        <section style={{ marginBottom: 26 }}>
+      {stack.isLoading ? (
+        <Spinner label="Looking for your matches…" />
+      ) : stack.isError ? (
+        // The branch this precedes says nobody has matched you back. Said to
+        // somebody whose read simply failed, that is a small, plausible,
+        // disheartening lie.
+        <EmptyState
+          icon="⚠️"
+          title="We couldn’t open your matches"
+          hint="This didn’t reach us — it isn’t a verdict on who’s out there. Try again in a moment."
+        />
+      ) : matched.length > 0 ? (
+        <section>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 12px', flexWrap: 'wrap' }}>
             <h2 style={{ fontSize: 18, margin: 0 }}>{matched.length === 1 ? 'Your match' : 'Your matches'}</h2>
             <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--accent-soft)', color: 'var(--accent-ink)', borderRadius: 999, padding: '3px 11px' }}>
               💫 You both liked each other
             </span>
           </div>
-          {/* MUTUAL MATCHES ARE A DECK TOO, and this was the bug the owner saw.
-              The deck went in below, but this section stayed a full-bleed
-              MatchCard — so any account WITH a mutual match got a 900px
-              photograph at the top of the page and the deck ended up below the
-              fold. From the citizen's side the change had simply not shipped.
-              One person here is the flat single card, which is the right
-              amount of furniture for "you both liked each other". */}
+          {/* MUTUAL MATCHES ARE A DECK, and this was a bug the owner once saw:
+              the section used to be a full-bleed card, so a single match put a
+              900px photograph at the top of the page. One person here is the
+              flat single card, which is the right amount of furniture for
+              "you both liked each other". */}
           <MatchStack people={matched} kind={kind} />
         </section>
+      ) : (
+        <>
+          <EmptyState
+            icon="🌙"
+            title="Nobody has matched you back yet"
+            hint="A match is two people choosing each other, so this page fills up from the other room. Everyone in your city is in Potential Matches, with your compatibility on every card."
+          />
+          <div style={{ textAlign: 'center', marginTop: 14 }}>
+            <Link to="/dating/browse"><Button variant="accent">Browse Potential Matches</Button></Link>
+          </div>
+        </>
       )}
 
-      {stack.isLoading ? (
-        <Spinner label="Scoring compatibility…" />
-      ) : stack.isError ? (
-        // The branch this precedes ends in "No one to show just yet", with the
-        // hint that the city is still filling up. Said to somebody whose matches
-        // simply did not load, it is a small, plausible, disheartening lie.
-        <EmptyState
-          icon="⚠️"
-          title="We couldn’t score your matches"
-          hint="This didn’t reach us — it isn’t a verdict on who’s out there. Try again in a moment."
-        />
-      ) : atCapacity ? (
-        <EngagedPanel chat={activeChat} openChats={openChats} cap={chatCap} />
-      ) : top ? (
-        <>
-          {/* THE STACK, NOT ONE CARD. The page used to render `top` and throw
-              the rest of a server-ranked list away; then it rendered top plus a
-              long column. This is the owner's reference: this week's six as a
-              deck, strongest face-up, everybody else readable at their foot. */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 14px', flexWrap: 'wrap' }}>
-            <h2 style={{ fontSize: 18, margin: 0 }}>
-              {[top, ...rest].slice(0, STACK_MAX).length === 1 ? 'Your match' : "This week's people"}
-            </h2>
-            <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--accent-soft)', color: 'var(--accent-ink)', borderRadius: 999, padding: '3px 11px' }}>
-              {bandFor(top.score).name} · {top.score}%
-            </span>
-          </div>
-          <MatchStack people={[top, ...rest]} kind={kind} />
+      {/* BELOW THE MATCHES, NEVER INSTEAD OF THEM. At capacity what is paused is
+          starting something new — the people who already chose you are still
+          yours to see. */}
+      {atCapacity && !stack.isLoading && !stack.isError && (
+        <div style={{ marginTop: 24 }}>
+          <EngagedPanel chat={activeChat} openChats={openChats} cap={chatCap} />
+        </div>
+      )}
 
-          {/* HOW THIS LIST WAS ORDERED (H2).
-              Recommendations follow what you pick now, so the percentage is
-              about you as well as about them — and that has to be on the screen
-              showing it, not only in the commit that changed it. It renders
-              whether or not anything has been learned: "ranked the standard way,
-              six more decisions to go" is the same promise kept. */}
-          {stack.data?.ranking && (
-            <p className="muted" style={{ fontSize: 12, lineHeight: 1.55, margin: '10px 0 0' }}>
-              {stack.data.ranking.headline}
-              {stack.data.ranking.notes.length > 0 && (
-                <span style={{ display: 'block', marginTop: 4 }}>{stack.data.ranking.notes[0]}</span>
-              )}
-            </p>
-          )}
-
-          {/* Division / breakdown below the card — only once there are real people */}
-          {stack.data && stack.data.totalCandidates > 0 && (
-            <Distribution bands={stack.data.distribution} total={stack.data.totalCandidates} highlightScore={top.score} />
-          )}
-
-          {/* Everyone else, grouped by the same categories the pool is counted
-              in, each group best-first, each card carrying its own percentage. */}
-          {/* MINUS THE ONES ALREADY IN THE DECK. The stack shows the top six;
-              listing them again below under "Everyone else" would be the same
-              faces twice on one page. */}
-          {rest.slice(STACK_MAX - 1).length > 0 && (
-            <section style={{ marginTop: 26 }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, margin: '0 0 6px', flexWrap: 'wrap' }}>
-                <h2 style={{ fontSize: 18, margin: 0 }}>Everyone else</h2>
-                <span className="muted" style={{ fontSize: 12 }}>
-                  {rest.slice(STACK_MAX - 1).length} more {rest.slice(STACK_MAX - 1).length === 1 ? 'person' : 'people'}
-                </span>
-              </div>
-              <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.6, margin: '0 0 18px' }}>
-                Every resident who fits what you asked for, strongest first, grouped by
-                compatibility. The percentage is our reading of the two of you — a starting
-                point, not a verdict — and who you reach out to is your call.
-              </p>
-              {byCategory(rest.slice(STACK_MAX - 1)).map((group) => (
-                <section key={group.label} style={{ marginBottom: 22 }}>
-                  <div style={{
-                    display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap',
-                    margin: '0 0 10px', paddingBottom: 6, borderBottom: '1px solid var(--line)',
-                  }}>
-                    <h3 style={{ fontSize: 15, margin: 0 }}>{group.name}</h3>
-                    <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--accent-soft)', color: 'var(--accent-ink)', borderRadius: 999, padding: '3px 10px' }}>
-                      {group.label}
-                    </span>
-                    <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>
-                      {group.matches.length} {group.matches.length === 1 ? 'person' : 'people'}
-                    </span>
-                  </div>
-                  {group.matches.map((m) => <MatchCard key={m.user.id} match={m} kind={kind} />)}
-                </section>
-              ))}
-            </section>
-          )}
-        </>
-      ) : (
-        <EmptyState
-          icon="🌙"
-          title={kind === 'romantic' ? 'No one to show just yet' : 'No new friends to show yet'}
-          hint="Your city is just getting started here. As more residents join, your strongest match will appear — check back soon."
-        />
+      {matched.length > 0 && !atCapacity && (
+        <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.6, marginTop: 22, textAlign: 'center' }}>
+          Looking for more? <Link to="/dating/browse" style={{ fontWeight: 700 }}>Potential Matches</Link> has
+          everyone in your city, with your compatibility on every card.
+        </p>
       )}
     </div>
   );

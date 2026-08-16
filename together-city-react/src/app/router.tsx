@@ -155,6 +155,7 @@ const MailTrash = lazy(() => import('@/features/mail/pages/Folders').then((m) =>
 const MailCompose = lazy(() => import('@/features/mail/pages/Compose').then((m) => ({ default: m.Compose })));
 const MailMessage = lazy(() => import('@/features/mail/pages/MessageView').then((m) => ({ default: m.MessageView })));
 const DatingMatches = lazy(() => import('@/features/dating/pages/DatingMatches').then((m) => ({ default: m.DatingMatches })));
+const DatingBrowse = lazy(() => import('@/features/dating/pages/DatingBrowse').then((m) => ({ default: m.DatingBrowse })));
 const DatingProfilePage = lazy(() => import('@/features/dating/pages/DatingProfile').then((m) => ({ default: m.DatingProfilePage })));
 const Chats = lazy(() => import('@/features/chat/pages/Chats').then((m) => ({ default: m.Chats })));
 const Settings = lazy(() => import('@/features/settings/pages/Settings').then((m) => ({ default: m.Settings })));
@@ -296,6 +297,7 @@ export const router = createBrowserRouter([
     element: <HubLayout hub={HUBS.dating} />,
     children: [
       { path: '/dating/profile', element: <RequireAuth>{wrap(<DatingProfilePage />)}</RequireAuth> },
+      { path: '/dating/browse', element: <RequireAuth>{wrap(<DatingBrowse />)}</RequireAuth> },
       { path: '/dating/matches', element: <RequireAuth>{wrap(<DatingMatches />)}</RequireAuth> },
       { path: '/dating/activity', element: <RequireAuth>{wrap(<DatingActivity />)}</RequireAuth> },
       { path: '/dating/chats', element: <RequireAuth>{wrap(<DatingChats />)}</RequireAuth> },
