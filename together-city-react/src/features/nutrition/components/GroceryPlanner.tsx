@@ -264,7 +264,7 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
                   city's, so a button reading root --muted would print grey on
                   blue. The card carries the lines themselves — see
                   groceryShareCard for why it has no link. */}
-              <div style={{ display: 'flex', justifyContent: 'center', marginTop: 12 }}>
+              <div className="gsheet-acts">
                 <ShareIconButton
                   card={groceryShareCard({
                     title: mode === 'family' ? 'Family grocery list' : 'Grocery list',
@@ -277,6 +277,20 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
                   variant="ghost"
                   style={{ border: '2px solid var(--grocery-ink)', color: 'var(--grocery-ink)', fontWeight: 700, letterSpacing: '.04em' }}
                 />
+                {/* DOWNLOAD IS PRINT, AND THAT IS NOT A SHORTCUT.
+                    The list is already a printed checklist — masthead, aisles,
+                    tick boxes, leaders — so the file worth having is this
+                    sheet, and every print dialog on every platform offers
+                    "Save as PDF". A hand-built PDF would have been a second
+                    layout to keep in step with this one, a library to carry,
+                    and a file that could not be sent to a printer; a .txt would
+                    have thrown away the boxes, which are the reason you take a
+                    grocery list out of the house. The stylesheet that makes it
+                    print well is in relief.css beside the sheet's own rules. */}
+                <button type="button" className="gsheet-print" onClick={() => window.print()}
+                  aria-label="Download or print this grocery list">
+                  <span aria-hidden>⭳</span> Download
+                </button>
               </div>
             </header>
             <p className="gsheet-intro">

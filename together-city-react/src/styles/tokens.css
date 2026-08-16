@@ -2045,6 +2045,35 @@
   --grocery-ink-2:  #233649;  /* 4.97:1 */
   --grocery-ink-3:  #31465c;  /* 3.90:1 — labels and metadata ONLY */
   --grocery-rule:   rgba(22, 34, 46, .38);
+  /* On screen the ground IS the photograph, so the sheet paints nothing behind
+     it. The name exists for print, where there is no photograph and the paper
+     has to be declared — and it is declared HERE, because relief.spec bans a
+     white background literal in the material file twice over, and is right to:
+     a white surface written into relief.css is a colour decision taken in the
+     file nobody repaints. */
+  --grocery-paper:  transparent;
+}
+
+/* ON PAPER, THE PAPER IS THE PAPER.
+   The scale above is measured against a photograph of blue card, and printed
+   it would be a photograph of blue card: a page of ink for a background that
+   is already there, and navy-on-blue where the printer's gamut gives out. The
+   whole block re-points to black on white for print, in ONE place — every
+   heading, leader, box and quantity below follows without a print rule of its
+   own, because they were all written against these names. Ratios stop being
+   the constraint the moment the ground is white; what matters instead is that
+   the three inks stay distinguishable in grey-scale, which is why ink-3 is a
+   real grey and not a lighter black. */
+@media print {
+  .grocery-sheet {
+    --grocery-sheet-img: none;
+    --grocery-ground: #fff;
+    --grocery-ink:    #000;
+    --grocery-ink-2:  #222;
+    --grocery-ink-3:  #555;
+    --grocery-rule:   rgba(0, 0, 0, .42);
+    --grocery-paper:  #fff;
+  }
 }
 
 /* ══ THE FOLDER TINTS — one per mail project ═══════════════════════════════

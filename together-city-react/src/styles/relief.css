@@ -3756,6 +3756,101 @@ textarea.g-field { resize: none; line-height: 1.55; }
   margin-top: 8px;
 }
 
+/* The masthead's two controls — Send it into the city, or take it away as a
+   file. A row of their own so print can hide both by name. */
+.gsheet-acts {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.gsheet-print {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 2px solid var(--grocery-ink);
+  color: var(--grocery-ink);
+  border-radius: 999px;
+  padding: 4px 11px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  cursor: pointer;
+  position: relative;
+}
+/* Same 44px target as every other small control in the city, paint unchanged. */
+.gsheet-print::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 44px;
+  min-height: 44px;
+  z-index: 0;
+}
+
+/* ── THE SHEET, ON PAPER ────────────────────────────────────────────────────
+   The owner, 16 Aug: a download for the grocery list. It is already a printed
+   checklist — masthead, aisles, tick boxes, dotted leaders to right-aligned
+   quantities — so the file it should produce is the sheet itself, and the way
+   to produce that without a PDF library is to make it print properly. Every
+   phone and desktop print dialog offers "Save as PDF", so one stylesheet gives
+   the download, the print and the share-a-page-to-someone all at once.
+
+   ONLY THE SHEET PRINTS. `visibility` rather than `display: none` on the rest:
+   hiding by display collapses the boxes above and the sheet still starts
+   wherever the flow put it, so the first page comes out with a header-shaped
+   hole in it. Hidden-but-laid-out plus one absolute position puts the masthead
+   at the top of page one.
+
+   The colours are not here — the whole --grocery-* scale re-points to black on
+   white in ONE block in tokens.css, which is where colour decisions live, and
+   every rule above inherits the new ink without being touched.
+
+   A CONTROL IS NOT A THING ON PAPER. The Send and Download buttons go, and so
+   do the − and + of the people stepper; the NUMBER stays, because "for 4
+   people" is part of what the quantities mean. The tick boxes stay: they are
+   the point of a checklist you carry round a shop, and they print as empty
+   squares to mark with a pen. A box already ticked on screen prints ticked. */
+@media print {
+  body * { visibility: hidden; }
+  .grocery-sheet, .grocery-sheet * { visibility: visible; }
+  .grocery-sheet {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background-image: none;
+    background-color: var(--grocery-paper);
+    border-radius: 0;
+    padding: 0;
+  }
+  /* Two columns is right on a screen and wrong on A4 with a 17px box and a
+     leader in each: the quantity ends up nearer the next aisle's name than its
+     own. One column, and an aisle never splits across a page. */
+  .gsheet-cols { columns: 1; margin-top: 14px; }
+  .gsheet-aisle { break-inside: avoid; page-break-inside: avoid; }
+  .gsheet-row { break-inside: avoid; page-break-inside: avoid; }
+  .gsheet-mast { break-after: avoid; page-break-after: avoid; }
+  /* Named, not "every button in the sheet": `.gsheet-box` is a button too and
+     is the whole point of a checklist. */
+  .gsheet-acts { display: none; }
+  /* The stepper's gap was spaced for two 30px keys; with them gone it leaves
+     "Cooking for    1    person" holding the shape of controls that are not
+     there. */
+  .gsheet-people { gap: 6px; }
+  .gsheet-people button { display: none; }
+  /* The leaders are a dotted border; a printer honours it, but the boxes and
+     the ticked fill are backgrounds and browsers drop those by default. */
+  .gsheet-box, .gsheet-box.on { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  @page { margin: 14mm; }
+}
+
 /* ── THE STAGE TAKES A COLOUR ──────────────────────────────────────────────
    The swatch row under the Chats header. Each dot is a ground the stage can
    wear (the token blocks live in tokens.css); the lit ring marks the one it
