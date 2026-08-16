@@ -147,6 +147,14 @@ export class LocalServicesController {
     return this.services.close(user.sub, id);
   }
 
+  // A SECOND, DIFFERENT VERB, and it has its own path rather than a flag on the
+  // one above. `DELETE :id?permanent=true` puts an irreversible act one query
+  // parameter away from a reversible one, and the two read identically in a log.
+  @Delete(':id/forever')
+  deleteForever(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.services.deleteForever(user.sub, id);
+  }
+
   @Get(':id/menu')
   menu(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.services.menu(id, user.sub);

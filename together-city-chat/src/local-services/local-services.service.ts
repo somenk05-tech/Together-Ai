@@ -476,6 +476,51 @@ export class LocalServicesService {
    * conversation about a job keeps the conversation; what stops is the listing
    * appearing to anyone new.
    */
+  /**
+   * DELETE IT FOR GOOD — and only after it has already been closed.
+   *
+   * TWO STEPS ON PURPOSE. Closing takes a page out of the directory and is
+   * reversible in every way that matters; this is not. A single button that
+   * destroys a shopfront, its reviews, its menu and every conversation in it is
+   * a button somebody presses at the end of a bad week. Requiring the listing to
+   * be closed first is one extra press, and it is the press that makes the
+   * decision deliberate rather than fast.
+   *
+   * AND IT BREAKS A PROMISE THIS HUB PRINTED, WHICH IS WHY THE NEIGHBOURS ARE
+   * TOLD. "Closing takes it out of the directory. Conversations already open
+   * stay open" is on the card next to the close button, and a citizen who was
+   * mid-job on Tuesday read it. Deleting ends those rooms. So every person with
+   * a thread here is notified BEFORE the rows go, in the same breath — a
+   * conversation that simply vanishes is the version of this that is not
+   * honest. Their name never enters any of it: the notification is addressed by
+   * seekerId and says nothing about who else was in the room.
+   */
+  async deleteForever(ownerId: string, id: string) {
+    const l = await this.own(ownerId, id);
+    if (l.moderation !== 'removed') {
+      throw new BadRequestException('Close the listing first. Deleting is the step after that.');
+    }
+
+    const threads = await this.prisma.serviceEnquiry.findMany({
+      where: { listingId: id }, select: { seekerId: true }, take: 500,
+    }) as unknown as Array<{ seekerId: string }>;
+
+    // One person, one message, however many threads they somehow have.
+    for (const seekerId of new Set(threads.map((t) => t.seekerId))) {
+      void this.notifications.create({
+        userId: seekerId, kind: 'service_listing_deleted', entityId: id,
+        title: `${l.businessName} has gone`,
+        body: 'They have removed their page from Together City, and your conversation with them has closed.',
+        href: '/services',
+      });
+    }
+
+    // Every relation is onDelete: Cascade — enquiries, messages, reviews,
+    // regulars, offers, menu items and the verification row go with it.
+    await this.prisma.serviceListing.delete({ where: { id } });
+    return { ok: true as const, id };
+  }
+
   async close(ownerId: string, id: string) {
     await this.own(ownerId, id);
     const row = await this.prisma.serviceListing.update({

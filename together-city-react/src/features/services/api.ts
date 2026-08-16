@@ -264,6 +264,8 @@ export const servicesApi = {
   // nothing calls is a hook nobody maintains, so it arrives with the screen.
   update: (id: string, input: Partial<ListingInput>) => api.patch<MyServiceCard>(`/services/${id}`, input).then((r) => r.data),
   close: (id: string) => api.delete<MyServiceCard>(`/services/${id}`).then((r) => r.data),
+  deleteForever: (id: string) =>
+    api.delete<{ ok: true; id: string }>(`/services/${id}/forever`).then((r) => r.data),
   enquire: (id: string, message?: string) =>
     api.post<ServiceThread>(`/services/${id}/enquire`, { message }).then((r) => r.data),
   inbox: () => api.get<{ seeking: ServiceThread[]; receiving: ServiceThread[] }>('/services/inbox').then((r) => r.data),
@@ -561,6 +563,19 @@ export function useCloseService() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => servicesApi.close(id),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['services'] }); },
+  });
+}
+/**
+ * The one that does not come back. Separate from useCloseService because they
+ * are different acts and a shared hook is how a screen ends up calling the
+ * wrong one — and because this invalidates the inbox too: the threads went with
+ * the listing.
+ */
+export function useDeleteServiceForever() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => servicesApi.deleteForever(id),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['services'] }); },
   });
 }

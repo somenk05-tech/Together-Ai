@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, Button, Spinner, EmptyState } from '@/components/ui';
 import {
-  useCloseService, useMyServices, useServiceInbox, useMyOffers, usePostOffer, useRemoveOffer,
-  useReviews, useReplyToReview, rupees, offerWhen, stars,
+  useCloseService, useDeleteServiceForever, useMyServices, useServiceInbox, useMyOffers,
+  usePostOffer, useRemoveOffer, useReviews, useReplyToReview, rupees, offerWhen, stars,
 } from '../api';
 import { MenuEditor } from '../MenuEditor';
 import { HoursEditor, OpenBadge } from '../HoursEditor';
@@ -164,6 +164,51 @@ function Offers({ listingId }: { listingId: string }) {
  * conversation about a job on Tuesday should not find the room gone on
  * Wednesday because the business took a week off.
  */
+/**
+ * DELETING A CLOSED LISTING, IN TWO PRESSES.
+ *
+ * No dialog, and no typed confirmation. What makes this safe is not friction —
+ * it is that the second press states, in the owner's own numbers, exactly what
+ * stops existing. A modal saying "are you sure?" asks a question nobody has the
+ * information to answer.
+ */
+function DeleteForever({ id, name, conversations }: { id: string; name: string; conversations: number }) {
+  const del = useDeleteServiceForever();
+  const [armed, setArmed] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  if (!armed) {
+    return (
+      <Button variant="line" size="sm" onClick={() => { setArmed(true); setErr(null); }}>
+        Delete permanently
+      </Button>
+    );
+  }
+
+  return (
+    <div style={{ display: 'grid', gap: 6 }}>
+      <p style={{ fontSize: 13, margin: 0 }}>
+        Delete <strong>{name}</strong> for good? Its reviews, menu and offers go with it
+        {conversations > 0 && <>, and so do <strong>{conversations} {conversations === 1 ? 'conversation' : 'conversations'}</strong> — we will tell the {conversations === 1 ? 'neighbour' : 'neighbours'} in {conversations === 1 ? 'it' : 'them'}</>}.
+        This cannot be undone.
+      </p>
+      {err && <p role="alert" style={{ color: 'var(--danger-ink)', fontSize: 12.5, margin: 0 }}>{err}</p>}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <Button variant="line" size="sm" onClick={() => setArmed(false)}>Keep it</Button>
+        <Button variant="accent" size="sm" disabled={del.isPending}
+          onClick={() => del.mutate(id, {
+            onError: (e: unknown) => {
+              const raw = (e as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message;
+              setErr(Array.isArray(raw) ? raw.join(', ') : raw ?? 'That could not be deleted just now.');
+            },
+          })}>
+          {del.isPending ? 'Deleting…' : 'Delete it'}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function MyBusiness() {
   const mine = useMyServices();
   const inbox = useServiceInbox();
@@ -245,6 +290,9 @@ export function MyBusiness() {
                   <Link to={`/services/${l.id}/edit`}><Button variant="accent" size="sm">Edit business page</Button></Link>
                 )}
                 <Link to="/services/messages"><Button variant="line" size="sm">Messages</Button></Link>
+                {/* Only on a closed listing. Deleting is the step AFTER closing,
+                    and a live shopfront should not be one press from gone. */}
+                {removed && <DeleteForever id={l.id} name={l.businessName} conversations={n} />}
                 {!removed && (
                   <Button variant="line" size="sm" disabled={close.isPending}
                     onClick={() => close.mutate(l.id)}>
@@ -252,7 +300,11 @@ export function MyBusiness() {
                   </Button>
                 )}
               </div>
-              {!removed && (
+              {removed ? (
+                <p className="muted" style={{ fontSize: 11.5, margin: 0 }}>
+                  Closed and out of the directory. Deleting removes it and everything in it for good.
+                </p>
+              ) : (
                 <p className="muted" style={{ fontSize: 11.5, margin: 0 }}>
                   Closing takes it out of the directory. Conversations already open stay open.
                 </p>

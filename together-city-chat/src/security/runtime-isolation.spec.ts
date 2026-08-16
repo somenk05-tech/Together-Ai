@@ -98,6 +98,7 @@ const PROBES: Probe[] = [
     attempts: (id) => [
       { method: 'PATCH', path: `/api/services/${id}`, body: { businessName: 'mine now' } },
       { method: 'DELETE', path: `/api/services/${id}` },
+      { method: 'DELETE', path: `/api/services/${id}/forever` },
     ],
   },
   {
