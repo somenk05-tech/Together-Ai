@@ -876,6 +876,22 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* ── THE HEADER ON ONE LINE (≥1400px) ───────────────────────────────────────
+   `--header-h` is the one number the whole page clears: the main column's
+   padding, the sticky sidebar's top, and four full-height surfaces all read
+   it. So the one-line header is a re-point of that token and nothing else —
+   the same move the grocery sheet makes for print. A second token would have
+   been a second number that six places do not know about, and a 52px band of
+   empty paper under a 56px bar.
+
+   The layout that makes one line happen is in layout.css, at the same
+   breakpoint. Why 1400 and not a round 1440: the row was measured at thirteen
+   widths and needs 1384px once the pill labels are icons and the tab tracking
+   is halved. 1400 is that measurement plus a margin, not a preference. */
+@media (min-width: 1400px) {
+  :root { --header-h: 60px; }
+}
+
 /* ══ THE WEEK'S PAPERS ═══════════════════════════════════════════════════
    One pair per weekday, keyed by `data-paper` on the sheet itself. A day with
    no block here keeps the white press paper declared above, which is the page

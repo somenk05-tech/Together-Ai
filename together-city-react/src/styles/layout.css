@@ -125,6 +125,67 @@
   transform: none;
 }
 
+/* ── ONE LINE, WHERE ONE LINE FITS ──────────────────────────────────────────
+   The owner, 16 Aug: "make these in one line… and make sure nothing gets
+   cropped." The second half is the hard half, and it is why this is a media
+   query rather than a change to the header's shape.
+
+   MEASURED FIRST, in a browser, at thirteen widths — the discipline the chat
+   header earned in August. The three rows on one line, exactly as they are
+   today, need 1694px. That fits a 16-inch laptop and crops a 14-inch one, and
+   the two-row header it would replace does NOT crop at 1440: with the line to
+   themselves the tabs have room. So the naive version of this request trades
+   a header that never crops for one that crops on the machine it was asked
+   from.
+
+   WHAT EACH SAVING IS WORTH, measured rather than guessed:
+     · the five pill labels          225px  → 1469
+     · tab tracking .13em → .06em     85px  → 1609
+     · both                                 → 1384
+   Both, and only both, lands 1440. Nothing tested reaches 1280 without type so
+   small the rest of the city does not use it anywhere.
+
+   So: one line from 1400 up, the three-row masthead below it, and the
+   breakpoint is where the measurement put it rather than a round number.
+   Below 1400 nothing about the header changes — the rows it has had since
+   15 August are still the rows it has.
+
+   THE LABELS BECOME ICONS, NOT NOTHING. `aria-label` and `title` carry the
+   word on every one of them, so a screen reader hears "Mail" exactly as it did
+   and a hover says it. The citizen's own name stays: it is the one pill that
+   is a person rather than a place. */
+@media (min-width: 1400px) {
+  .tc-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    /* height stays var(--header-h) — the token itself is re-pointed to 60px at
+       this breakpoint in tokens.css, so every surface that clears the header
+       follows without knowing this rule exists. */
+    padding: 8px 24px;
+  }
+  /* THE THREE ROWS BECOME ONE, IN THEIR OWN ORDER, ON THE SAME AXIS.
+     Name, then the citizen's own doors, then the districts — the reading order
+     the masthead has had since 15 August, laid end to end and centred as one
+     block rather than pushed to opposite edges. Three compositions were
+     rendered before this one was chosen; the other two (tabs pinned right, and
+     logo-left/tabs-centre/pills-right) both open a two-hundred-pixel hole in
+     the middle of the bar and abandon the single axis the header's whole design
+     argument rests on. */
+  .tc-header-top,
+  .tc-header .tc-actionrow,
+  .tc-header .tc-navrow { width: auto; flex: 0 0 auto; }
+  /* The word goes; the icon and its aria-label stay. */
+  .tc-header .tc-actionbar .lab { display: none; }
+  .tc-header .tc-actionbar a, .tc-header .tc-actionbar button { padding: 0 10px; }
+  /* …except the citizen's own name, which is a person and not a place. */
+  .tc-header .tc-actionbar a[href="/profile"] .lab { display: inline; }
+  /* .13em over twelve labels is about 150px of pure tracking. Halved, the row
+     still reads as the one line in the application set in capitals. */
+  .tc-header .tc-nav a { letter-spacing: .06em; }
+}
+
 @media (max-width: 1440px) { .tc-header { --chip-fs: 10.5px; } .tc-navrow { gap: 14px; } .tc-actionbar, .tc-actions { gap: 8px; } }
 @media (max-width: 1180px) { .tc-header { --chip-fs: 9.5px; } .tc-navrow { gap: 12px; } .tc-actionbar, .tc-actions { gap: 6px; } }
 .tc-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; overflow: hidden; }

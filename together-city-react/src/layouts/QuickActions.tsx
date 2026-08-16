@@ -74,17 +74,17 @@ export function QuickActions({ show = 'all' }: { show?: 'all' | 'search' | 'link
               The folder is one click IN from there; the mailbox was not one
               click out. The header was the only thing in the app not using the
               hub's own path. */}
-          <Link to="/mail" aria-label="Mail" style={pill}>
+          <Link to="/mail" aria-label="Mail" title="Mail" style={pill}>
             <Icon name="mail" size={17} /> <span className="lab">Mail</span>
           </Link>
-          <Link to="/chats" aria-label="Chat" style={pill}>
+          <Link to="/chats" aria-label="Chat" title="Chat" style={pill}>
             <Icon name="chat" size={17} /> <span className="lab">Chat</span>
             <Badge count={unreadChats} />
           </Link>
           {/* The drawer of one's own — Thoughts, the daybook, Drive, the album.
               `/personal` is the path `hubs.ts` declares for it, so the pill and
               the burger drawer cannot drift apart. */}
-          <Link to="/personal" aria-label="Personal" style={pill}>
+          <Link to="/personal" aria-label="Personal" title="Personal" style={pill}>
             <Icon name="personal" size={17} /> <span className="lab">Personal</span>
           </Link>
         </>

@@ -74,7 +74,7 @@ function NotificationBell() {
 
   return (
     <div ref={ref} style={{ position: 'relative', display: 'inline-flex' }}>
-      <button type="button" aria-label="Notifications" onClick={toggle}
+      <button type="button" aria-label="Notifications" title="Alerts" onClick={toggle}
         // Geometry only — see the note on QuickActions' `pill`. `padding: 0` and
         // `background: transparent` here beat relief.css and flattened this
         // button against a page where everything else was raised.
@@ -193,7 +193,7 @@ export function Header() {
             <>
               <QuickActions show="links" />
               <NotificationBell />
-              <Link to="/profile" aria-label="Profile" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Link to="/profile" aria-label="Profile" title="Profile" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 {user?.profileImage ? (
                   <img src={user.profileImage} alt="" width={24} height={24}
                     style={{ borderRadius: '50%', objectFit: 'cover', display: 'block', border: '1.5px solid var(--line)' }} />
