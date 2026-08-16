@@ -46,7 +46,10 @@ const BUCKET_BADGE: Record<Yours['bucket'], { label: string; strong: boolean }> 
   priority: { label: 'On your plan · needs attention', strong: true },
   consider: { label: 'On your plan · worth considering', strong: true },
   optional: { label: 'On your plan · supporting your goal', strong: false },
-  'not-recommended': { label: 'Mira doesn’t recommend this', strong: true },
+  /* The plan's own words, and they changed with it (owner, 16 Aug): one
+     verdict rendered on two screens under two different names is two
+     verdicts to the person reading them. */
+  'not-recommended': { label: 'We don’t recommend this', strong: true },
 };
 
 const GRADE_LABEL: Record<string, string> = {

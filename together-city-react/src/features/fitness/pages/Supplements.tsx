@@ -60,7 +60,12 @@ const BUCKETS: Array<{ id: Bucket; dot: string; title: string; blurb: string }> 
   { id: 'priority', dot: '🔴', title: 'Needs attention', blurb: 'Your own data points at a gap here.' },
   { id: 'consider', dot: '🟠', title: 'Worth considering', blurb: 'A reasonable fit for your diet, goal or medicines — not essential.' },
   { id: 'optional', dot: '🟢', title: 'Supporting your goal', blurb: 'May help. Your fundamentals matter more.' },
-  { id: 'not-recommended', dot: '⚪', title: 'Mira doesn’t recommend these', blurb: 'The most useful part of this page.' },
+  /* THE CITY'S RECOMMENDATION, NOT AN ASSISTANT'S — owner, 16 Aug. A refusal
+     under a name reads as one voice's opinion; this one is the evidence
+     review resolved against the citizen's own hubs, and every card beneath
+     carries the trial that decided it. The engine is unchanged: this is the
+     heading, and only the heading. */
+  { id: 'not-recommended', dot: '⚪', title: 'We don’t recommend these', blurb: 'The most useful part of this page.' },
 ];
 
 const FROM_LABEL: Record<string, string> = {
@@ -340,7 +345,7 @@ export function Supplements() {
               of a dashboard: it says what would change the answer. */}
           {q.data && (q.data.watching ?? []).length > 0 && (
             <section className="card rise" style={{ padding: '16px 18px', marginBottom: 18 }}>
-              <b style={{ display: 'block', fontSize: 16, marginBottom: 4 }}>What Mira is watching</b>
+              <b style={{ display: 'block', fontSize: 16, marginBottom: 4 }}>What we’re watching</b>
               <p className="muted" style={{ margin: '0 0 8px', fontSize: 13 }}>
                 Not gaps in you — gaps in what this plan was allowed to know.
               </p>
