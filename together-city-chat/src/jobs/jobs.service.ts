@@ -6,6 +6,7 @@ import { ClockService } from '../shared/clock/clock.service';
 import { FEED_CAP, ORDER_HISTORY_CAP } from '../shared/paging';
 import { MasterProfileService } from '../profile/master-profile.service';
 import { parseResume, matchJobs, labelFor, JOB_SEEDS, type ParsedResume, type JobLike } from './jobs-engine';
+import { ExternalJobsService } from './external/external-jobs.service';
 import { AiService } from '../ai/ai.service';
 import { defaultSectionOrder, entryKey, toStartSort } from './cv-entries';
 import type { Prisma } from '@prisma/client';
@@ -654,7 +655,37 @@ export class JobsService implements OnModuleInit {
     return rows.map((r) => this.toJobLike(r, userId));
   }
 
-  /** Matched roles for the saved profile, scored across every open posting. */
+  /**
+   * Postings found on companies' own public ATS boards (the scanner writes
+   * them; see external/external-jobs.service.ts). Bounded two ways, both
+   * honesty rules rather than performance ones: only rows a re-scan has
+   * CONFIRMED inside the serve window (a posting the city has not seen for
+   * a month must not be offered as open), newest first, capped so the
+   * matcher scores a market, not an archive. minYears 0 and salaryLpa 0:
+   * the board did not say, so the matcher's experience and salary terms
+   * stay silent instead of guessing.
+   */
+  private async externalJobs(): Promise<JobLike[]> {
+    const seenSince = new Date(Date.now() - ExternalJobsService.SERVE_WINDOW_DAYS * 24 * 3600 * 1000);
+    const rows = await this.prisma.externalJob.findMany({
+      where: { lastSeenAt: { gte: seenSince } },
+      orderBy: [{ postedAt: { sort: 'desc', nulls: 'last' } }, { firstSeenAt: 'desc' }],
+      take: 500,
+    });
+    return rows.map((r): JobLike => ({
+      id: r.id, title: r.title, company: r.company, location: r.location, remote: r.remote,
+      seniority: r.seniority as ParsedResume['seniority'],
+      skills: r.skills ? r.skills.split(',').filter(Boolean) : [],
+      minYears: 0, salaryLpa: 0, blurb: r.blurb,
+      postedByYou: false,
+      externalUrl: r.url,
+      source: r.source,
+    }));
+  }
+
+  /** Matched roles for the saved profile, scored across every open posting —
+   *  Together City's own board and the live India postings read from
+   *  companies' public ATS boards, one ranked list. */
   async matches(userId: string) {
     const row = await this.prisma.jobProfile.findUnique({ where: { userId } });
     if (!row) return { hasProfile: false, matches: [] };
@@ -662,7 +693,7 @@ export class JobsService implements OnModuleInit {
       headline: row.headline, skills: row.skills ? row.skills.split(',').filter(Boolean) : [],
       experienceYears: row.experienceYears, seniority: row.seniority as ParsedResume['seniority'], location: row.location,
     };
-    const jobs = await this.allJobs(userId);
+    const jobs = (await this.allJobs(userId)).concat(await this.externalJobs());
     // unbounded: their own applications, as a filter set — truncation would
     // re-offer roles they already applied to
     const applied = new Set((await this.prisma.jobApplication.findMany({ where: { userId }, select: { jobId: true } })).map((a) => a.jobId));
@@ -683,7 +714,14 @@ export class JobsService implements OnModuleInit {
       throw new BadRequestException('Add your resume before applying so recruiters can see your skills.');
     }
     const job = await this.prisma.job.findUnique({ where: { id: dto.jobId } });
-    if (!job) throw new NotFoundException('job not found');
+    if (!job) {
+      // An external posting reached the apply route (an old client, or a
+      // hand-built request). The truthful answer is where to actually apply,
+      // not a bare 404 that reads as "this job vanished".
+      const ext = await this.prisma.externalJob.findUnique({ where: { id: dto.jobId } });
+      if (ext) throw new BadRequestException('This role lives on the company’s own site — open it there to apply.');
+      throw new NotFoundException('job not found');
+    }
     await this.prisma.jobApplication.upsert({
       where: { userId_jobId: { userId, jobId: dto.jobId } },
       update: { coverNote: dto.coverNote ?? null },

@@ -143,6 +143,9 @@ export interface JobMatch {
   seniority: string; salaryLpa: number; blurb: string; minYears: number;
   score: number; matchedSkills: Skill[]; missingSkills: Skill[]; reasons: string[];
   applied: boolean; postedByYou?: boolean; fitLabel?: 'strong' | 'good' | 'fair' | 'weak';
+  /** Set when the role was found on the company's own public ATS board:
+   *  the citizen applies THERE, and the card says which board it came from. */
+  externalUrl?: string | null; source?: string | null;
 }
 export interface MatchesResponse { hasProfile: boolean; matches: JobMatch[] }
 export interface Application { id: string; jobId: string; title: string; company: string; status: string; coverNote: string | null; appliedOn: string }

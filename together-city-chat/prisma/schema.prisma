@@ -1811,6 +1811,40 @@ model Job {
   @@index([postedById])
 }
 
+/// A live posting found on a company's own public ATS board (Greenhouse,
+/// Lever, Ashby), filtered to India. Rows are written ONLY by the scheduled
+/// scanner (ExternalJobsService); citizens never create them. `url` is the
+/// natural key — the same posting re-seen refreshes `lastSeenAt`, and a
+/// posting that vanishes from a re-scanned board is deleted, so the table
+/// never claims a job is open on somebody else's site when it cannot know.
+model ExternalJob {
+  id          String    @id @default(uuid())
+  source      String // greenhouse | lever | ashby
+  boardSlug   String // the company's board slug on that ATS
+  company     String
+  title       String
+  location    String
+  remote      Boolean   @default(false)
+  url         String    @unique
+  blurb       String    @default("") // first lines of the posting's own description
+  skills      String    @default("") // csv of skill keys, extracted at ingest
+  seniority   String    @default("mid")
+  postedAt    DateTime?
+  firstSeenAt DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+
+  @@index([lastSeenAt])
+  @@index([source, boardSlug])
+}
+
+/// Where the rotating directory sweep is, per ATS — the company directories
+/// hold thousands of boards, so each run scans a window and the cursor wraps.
+model ExternalScanCursor {
+  ats       String   @id
+  offset    Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
 model JobApplication {
   id        String   @id @default(uuid())
   userId    String

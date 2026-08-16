@@ -13,13 +13,18 @@ const FIT: Record<string, { label: string; color: string }> = {
   weak: { label: 'Low fit', color: 'var(--muted)' },
 };
 
-/** Rich chat share-card for a job. */
+/** The board an external role was read from, said like a place rather than a
+ *  vendor id. Only sources the scanner actually reads have names here. */
+const SOURCE_LABEL: Record<string, string> = { greenhouse: 'Greenhouse', lever: 'Lever', ashby: 'Ashby' };
+
+/** Rich chat share-card for a job. External roles carry no salary — the
+ *  board didn't state one, so the card doesn't either. */
 function jobShareCard(job: JobMatch): ShareCard {
   return {
     kind: 'job', hub: 'Jobs', title: job.title,
     subtitle: [job.company, job.location, job.remote ? 'Remote' : ''].filter(Boolean).join(' • '),
     image: null,
-    meta: [`₹${job.salaryLpa} LPA`, `${job.score}% match`],
+    meta: [job.salaryLpa ? `₹${job.salaryLpa} LPA` : '', `${job.score}% match`].filter(Boolean),
     deepLink: '/jobs/matches',
   };
 }
@@ -43,8 +48,15 @@ function JobCard({ job }: { job: JobMatch }) {
             <strong style={{ fontSize: 15.5 }}>{job.title}</strong>
             {job.fitLabel && <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: FIT[job.fitLabel]?.color, border: `1px solid ${FIT[job.fitLabel]?.color}`, borderRadius: 999, padding: '1px 7px' }}>{FIT[job.fitLabel]?.label}</span>}
             {job.postedByYou && <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent-ink)', border: '1px solid var(--accent)', borderRadius: 999, padding: '1px 7px' }}>Your posting</span>}
+            {job.externalUrl && (
+              <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 999, padding: '1px 7px' }}>
+                via {SOURCE_LABEL[job.source ?? ''] ?? 'company site'}
+              </span>
+            )}
           </div>
-          <div className="muted" style={{ fontSize: 12.5 }}>{job.company} · {job.location}{job.remote ? ' · Remote' : ''} · ₹{job.salaryLpa} LPA</div>
+          {/* Salary prints only when a salary was actually stated — an external
+              board that said nothing must not read as "₹0 LPA". */}
+          <div className="muted" style={{ fontSize: 12.5 }}>{job.company} · {job.location}{job.remote ? ' · Remote' : ''}{job.salaryLpa ? ` · ₹${job.salaryLpa} LPA` : ''}</div>
           <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '8px 0 0' }}>{job.blurb}</p>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
             {job.matchedSkills.map((s) => (
@@ -57,7 +69,18 @@ function JobCard({ job }: { job: JobMatch }) {
           {job.reasons.length > 0 && <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>Why: {job.reasons.join(' · ')}</p>}
 
           <div style={{ marginTop: 12 }}>
-            {applied ? (
+            {job.externalUrl ? (
+              /* THE APPLICATION HAPPENS ON THE COMPANY'S OWN SITE. This role
+                 was read from their public board; Together City holds no
+                 pipeline for it, so an in-city Apply here would collect a
+                 note that no recruiter will ever see. One honest door. */
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <a className="btn btn-accent btn-sm" href={job.externalUrl} target="_blank" rel="noopener noreferrer">
+                  Apply on company site ↗
+                </a>
+                <ShareToChat item={jobShareCard(job)} label="Send" />
+              </div>
+            ) : applied ? (
               <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent-ink)' }}>✓ Applied · <Link to="/jobs/applications" style={{ color: 'var(--accent-ink)' }}>Track it</Link></span>
             ) : open ? (
               <div>

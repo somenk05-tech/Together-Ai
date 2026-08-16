@@ -116,6 +116,14 @@ function detectSkills(lowerPadded: string): string[] {
     .map((s) => s.key);
 }
 
+/** Skill keys present in ANY text — a job title + description as much as a
+ *  CV. The external-jobs ingest runs each fetched posting through this once,
+ *  so an ATS posting and a citizen's resume speak the same skill vocabulary
+ *  and the matcher never has to guess. */
+export function skillsInText(text: string): string[] {
+  return detectSkills(` ${text.toLowerCase().replace(/\s+/g, ' ')} `);
+}
+
 /** Best-effort years-of-experience: prefer an explicit "N years [of] experience",
  *  else the largest dated range (2019–2023), else the largest "N years" mention,
  *  ignoring obvious non-experience numbers. */
@@ -328,11 +336,18 @@ export const JOB_SEEDS: JobSeed[] = [
   { id: 'job_legal', title: 'Legal Associate', company: 'Justitia LLP', location: 'Delhi', remote: false, seniority: 'mid', skills: ['legal', 'communication'], minYears: 2, salaryLpa: 11, blurb: 'Draft contracts and support litigation and compliance.' },
 ];
 
-/** Any postable/matchable role — seeds and company-posted rows share this shape. */
+/** Any postable/matchable role — seeds, company-posted rows and postings
+ *  found on companies' own public ATS boards all share this shape. The two
+ *  optional fields mark the third kind: `externalUrl` is where the citizen
+ *  actually applies (the company's own site) and `source` names the board it
+ *  was read from, so the card can say so instead of implying a Together City
+ *  posting. */
 export interface JobLike {
   id: string; title: string; company: string; location: string; remote: boolean;
   seniority: Seniority; skills: string[]; minYears: number; salaryLpa: number; blurb: string;
   postedByYou?: boolean;
+  externalUrl?: string;
+  source?: string;
 }
 
 export interface JobMatch extends JobLike {

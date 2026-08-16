@@ -4,6 +4,7 @@ import { ProfileModule } from '../profile/profile.module';
 import { AiModule } from '../ai/ai.module';
 import { JobsController } from './jobs.controller';
 import { JobsService } from './jobs.service';
+import { ExternalJobsService } from './external/external-jobs.service';
 
 @Module({
   // AiModule reads an uploaded CV into a profile. The heuristic parser is
@@ -11,6 +12,8 @@ import { JobsService } from './jobs.service';
   // dependency the hub cannot start without.
   imports: [PrismaModule, ProfileModule, AiModule],
   controllers: [JobsController],
-  providers: [JobsService],
+  // ExternalJobsService's @Cron registers with the ScheduleModule that
+  // tasks.module already installs globally — same pattern as retention.
+  providers: [JobsService, ExternalJobsService],
 })
 export class JobsModule {}
