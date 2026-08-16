@@ -108,9 +108,48 @@ describe('and a door on every page', () => {
     expect(dock).toMatch(/<MiraThread about=\{pathname\}/);
   });
 
+  /**
+   * NOT OVER A ROOM THAT IS ALREADY A CONVERSATION — and that used to be one
+   * hard-coded path.
+   *
+   * The reason was written next to it — "she already has the room to herself"
+   * — and it was applied to /chats alone, so every conversation surface built
+   * afterwards kept the floating mark. Dating chats grew its own `.mira-door`
+   * in the header and the dock went on floating over it: two ways into the
+   * same assistant, six inches apart. The Local Services threads got it too,
+   * over a room whose whole promise is that nobody knows who you are.
+   *
+   * `>` would not have been the fix either — the bell-style wrapper means the
+   * mark is a grandchild of nothing in particular; the fix is that the rule is
+   * a LIST, in the place the decision is taken.
+   */
   it('but not over her own room, and not for a stranger', () => {
-    expect(dock).toMatch(/pathname\.startsWith\('\/chats'\)/);
+    for (const room of ['/chats', '/dating/chats', '/services/messages']) {
+      expect(dock).toContain(`'${room}'`);
+    }
+    expect(dock).toMatch(/HER_OWN_ROOMS\.some\(/);
+    // The single-path guard is what drifted. It may not come back.
+    expect(dock).not.toMatch(/pathname\.startsWith\('\/chats'\)/);
     expect(dock).toMatch(/authed/);
+  });
+
+  /**
+   * The other half of the invariant, and the one that stops this drifting
+   * again: if a page carries her mark in its OWN header, the dock has to know
+   * about that page. A third conversation surface with a `.mira-door` now
+   * fails here instead of quietly shipping two doors.
+   */
+  it('accounts for every page that carries her mark in its own header', () => {
+    const WITH_OWN_DOOR: Array<[string, string]> = [
+      ['features/chat/pages/Chats.tsx', '/chats'],
+      ['features/dating/pages/DatingChats.tsx', '/dating/chats'],
+    ];
+    for (const [file, room] of WITH_OWN_DOOR) {
+      expect({ file, hasDoor: read(file).includes('className="mira-door"') })
+        .toEqual({ file, hasDoor: true });
+      expect({ file, dockKnows: dock.includes(`'${room}'`) })
+        .toEqual({ file, dockKnows: true });
+    }
   });
 
   it('closes on the outside tap, on Escape, and on navigation', () => {

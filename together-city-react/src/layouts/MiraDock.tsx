@@ -18,10 +18,25 @@ import { MiraThread } from '@/features/chat/mira/MiraThread';
  * dock continues in /chats and back. Mounted only while open, so a closed
  * dock costs the page nothing and a signed-out visitor fetches nothing.
  *
- * Not on /chats, where she already has the room to herself. Signed-in only:
- * her thread is authenticated, and a door that opens onto a sign-in error is
- * worse than no door.
+ * NOT IN A ROOM THAT IS ALREADY A CONVERSATION. That rule was written for
+ * /chats and applied only to /chats, so the floating mark went on appearing
+ * over Dating chats and over the Local Services threads — and Dating chats
+ * already carries her mark in its own header, which made two doors to the same
+ * assistant on one screen. The list below is the rule, said once.
+ *
+ * Signed-in only: her thread is authenticated, and a door that opens onto a
+ * sign-in error is worse than no door.
  */
+
+/**
+ * Rooms that are already a conversation. Two reasons, and both of them mean
+ * the floating mark is noise rather than a shortcut: /chats and /dating/chats
+ * carry her own door in the header, and the Local Services threads are
+ * anonymous by design — a floating assistant over a room whose whole promise
+ * is that nobody is watching is the wrong furniture.
+ */
+const HER_OWN_ROOMS = ['/chats', '/dating/chats', '/services/messages'];
+
 export function MiraDock() {
   const { pathname } = useLocation();
   const authed = useAuthStore((s) => Boolean(s.tokens?.accessToken && s.user));
@@ -37,7 +52,7 @@ export function MiraDock() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
-  if (!authed || pathname.startsWith('/chats')) return null;
+  if (!authed || HER_OWN_ROOMS.some((room) => pathname.startsWith(room))) return null;
 
   return (
     <>
