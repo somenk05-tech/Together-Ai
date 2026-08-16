@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { SlippyMap } from '@/components/SlippyMap';
 import { Button, Card, Spinner, EmptyState } from '@/components/ui';
 import { MenuView } from '../MenuView';
+import { HoursTable, OpenBadge } from '../HoursEditor';
 import { Gallery, Reviews } from '../ListingPanel';
 import { ReviewBox } from '../ReviewBox';
 import {
@@ -142,6 +143,23 @@ export function BusinessPage() {
           </div>
         </div>
       </div>
+
+      {/* IS IT OPEN — the question somebody standing on the pavement is
+          actually asking, above the button that starts a conversation. It is
+          worked out here, on the reader's own clock, from the week the owner
+          set once; the server sends the hours and never an open/closed flag,
+          because a flag is wrong the moment this page is left open. A
+          business that never set hours shows nothing at all rather than
+          "Closed", which would be this page inventing a claim about
+          somebody else's shop. */}
+      {s.hours && (
+        <div style={{ marginTop: 16, display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          <div style={{ minWidth: 0 }}>
+            <OpenBadge hours={s.hours} />
+            <div style={{ marginTop: 8 }}><HoursTable hours={s.hours} /></div>
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16, alignItems: 'center' }}>
         <Button variant="accent" disabled={enquire.isPending} onClick={chat}>

@@ -1,0 +1,15 @@
+-- THE HOURS ON THE DOOR.
+--
+-- The owner, 16 Aug: let a business say which days it is open and at what
+-- times, set once. One nullable column holding one small document — seven
+-- rows, Monday first, written whole every time.
+--
+-- NULL IS NOT "CLOSED". Every listing that exists today gets NULL, and NULL
+-- means the owner has never told us. A page that rendered that as a closed
+-- week would be putting a claim in the mouths of six hundred businesses that
+-- never made it, so the screens say "hours not set" and the directory keeps
+-- showing them.
+--
+-- No default and no backfill for the same reason: there is no honest week to
+-- invent for somebody else's shop.
+ALTER TABLE "ServiceListing" ADD COLUMN "hoursJson" TEXT;

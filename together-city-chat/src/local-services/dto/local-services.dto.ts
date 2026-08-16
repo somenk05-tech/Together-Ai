@@ -35,6 +35,23 @@ export const CreateListingSchema = z.object({
   lat: z.number().min(-90).max(90).optional(),
   lng: z.number().min(-180).max(180).optional(),
   radiusKm: z.number().int().min(0).max(500).optional(),
+  /**
+   * WHEN THEY ARE OPEN — up to seven rows, Monday first, set once.
+   *
+   * `to` is deliberately NOT required to be after `from`: 18:00–01:00 is a
+   * real answer for a kitchen, and a validator that refuses it teaches people
+   * to type 23:59 and mean something else. The spill past midnight is handled
+   * where it belongs — in hours.ts, by the function that answers "open now".
+   *
+   * Absent means "not changed". An empty array means "take my hours off the
+   * page", which is a thing an owner is allowed to want.
+   */
+  hours: z.array(z.object({
+    day: z.number().int().min(0).max(6),
+    open: z.boolean(),
+    from: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/),
+    to: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/),
+  })).max(7).optional(),
 });
 export type CreateListingDto = z.infer<typeof CreateListingSchema>;
 

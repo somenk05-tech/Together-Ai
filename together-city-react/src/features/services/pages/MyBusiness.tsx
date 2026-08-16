@@ -6,6 +6,7 @@ import {
   useReviews, useReplyToReview, rupees, offerWhen, stars,
 } from '../api';
 import { MenuEditor } from '../MenuEditor';
+import { HoursEditor, OpenBadge } from '../HoursEditor';
 
 /**
  * WHAT NEIGHBOURS SAID, AND THE ONE ANSWER YOU GET.
@@ -203,8 +204,14 @@ export function MyBusiness() {
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
                 <strong style={{ fontSize: 17 }}>{l.businessName}</strong>
                 <span className="muted" style={{ fontSize: 12.5 }}>{l.categoryLabel}</span>
-                {removed && (
+                {removed ? (
                   <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 999, padding: '2px 8px' }}>Closed</span>
+                ) : (
+                  /* OPEN OR CLOSED RIGHT NOW, worked out from the hours below
+                     rather than from a switch somebody has to remember. A
+                     listing taken out of the directory says CLOSED and means
+                     something else entirely, so the two never show at once. */
+                  <OpenBadge hours={l.hours} />
                 )}
               </div>
               <div className="muted" style={{ fontSize: 12.5 }}>
@@ -220,6 +227,7 @@ export function MyBusiness() {
                     : <>(private — nobody sees it)</>}</>
                 )}
               </div>
+              {!removed && <HoursEditor listing={l} />}
               {!removed && <MenuEditor listingId={l.id} />}
               {!removed && <Offers listingId={l.id} />}
               <ReviewsReceived listingId={l.id} />

@@ -2916,6 +2916,13 @@ model ServiceListing {
   /// migration here.
   businessType String?
   detailsJson  String?
+  /// WHEN THEY ARE OPEN — seven rows, Monday first, as JSON:
+  /// [{ day: 0-6, open: bool, from: "HH:MM", to: "HH:MM" }]. NULL means the
+  /// owner has never said, which is not the same as "closed" and is kept
+  /// different everywhere it is read. A column rather than a table because a
+  /// week of opening times is one small document that is always written whole
+  /// — see hours.ts, which is the only thing that parses it.
+  hoursJson    String?
   slug         String?  @unique
   phone        String?
   phonePublic  Boolean  @default(false)

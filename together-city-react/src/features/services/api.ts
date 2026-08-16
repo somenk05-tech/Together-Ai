@@ -1,5 +1,7 @@
 import { http as api } from '@/api/client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { DayHours } from './hours';
+export type { DayHours } from './hours';
 
 export interface ServiceCategory { key: string; label: string; group: string }
 export interface CategoryGroup { group: string; items: ServiceCategory[] }
@@ -63,6 +65,17 @@ export interface ServiceCard {
   count?: number;
   /** Present only when the owner chose to publish it. Absent, never blank. */
   phone?: string;
+  /**
+   * WHEN THEY ARE OPEN — seven rows, Monday first, or null.
+   *
+   * NULL IS "NEVER TOLD US", not "closed", and every screen keeps the two
+   * apart: one is an absence, the other is a claim about somebody's shop.
+   * The open-now answer is NOT on the wire on purpose — it changes on the
+   * minute, and a value baked into a response is wrong the moment a page is
+   * left open. The rule lives in `hours.ts` on both sides; the browser
+   * supplies the clock.
+   */
+  hours?: DayHours[] | null;
   createdAt: string;
 }
 /** Your own listing, read back — your number is here whether or not it is public. */
@@ -106,6 +119,9 @@ export interface ListingInput {
   lat?: number;
   lng?: number;
   radiusKm?: number;
+  /** Seven rows, Monday first. An empty array takes the hours off the page;
+   *  omitting the field leaves them alone. */
+  hours?: DayHours[];
 }
 
 export interface ServiceOffer {

@@ -8,6 +8,7 @@ import { mintAlias } from './alias';
 import { boundingBox, haversineKm, parsePoint } from './geo';
 import { looksLikeId, normaliseSlug, slugProblem, SLUG_MESSAGES, suggestSlug } from './slug';
 import { cleanDetails, isBusinessType, readDetails, sectionsFor } from './business-types';
+import { normaliseHours, parseHours } from './hours';
 import type { BrowseDto, CreateListingDto, UpdateListingDto, PostOfferDto, SaveMenuDto } from './dto/local-services.dto';
 
 type ListingRow = {
@@ -17,6 +18,7 @@ type ListingRow = {
   slug: string | null;
   businessType: string | null;
   detailsJson: string | null;
+  hoursJson: string | null;
   phonePublic: boolean;
   moderation: string; createdAt: Date; updatedAt: Date;
 };
@@ -118,6 +120,15 @@ export class LocalServicesService {
       // The pin. Public on purpose — a shopfront's address is not a secret, and
       // a directory that will not say where anybody is cannot be walked to.
       lat: l.lat, lng: l.lng, radiusKm: l.radiusKm,
+      /**
+       * THE HOURS ON THE DOOR. Seven rows or null, and null is not "closed" —
+       * it is "never told us", which every screen has to keep saying
+       * differently. The OPEN-NOW answer is deliberately not computed here:
+       * it changes on the minute, and a value baked into a response is wrong
+       * the moment the page is left open. The browser has a clock; this has
+       * the rule, in hours.ts, and both sides import the same one.
+       */
+      hours: parseHours(l.hoursJson),
       /**
        * THE NUMBER, AND THE ONE CONDITION ON IT.
        *
@@ -370,6 +381,7 @@ export class LocalServicesService {
         lat: dto.lat ?? null,
         lng: dto.lng ?? null,
         radiusKm: dto.radiusKm ?? null,
+        hoursJson: dto.hours ? JSON.stringify(normaliseHours(dto.hours)) : null,
       },
     }) as unknown as ListingRow;
     return this.ownerCard(row);
@@ -418,6 +430,12 @@ export class LocalServicesService {
     if (dto.lat !== undefined) data.lat = dto.lat;
     if (dto.lng !== undefined) data.lng = dto.lng;
     if (dto.radiusKm !== undefined) data.radiusKm = dto.radiusKm;
+    /* SEVEN ROWS OR NOTHING. An empty array means "take my hours off the page"
+       and stores null, which is the same state as never having set them —
+       there is no third state where a listing has hours that say nothing. */
+    if (dto.hours !== undefined) {
+      data.hoursJson = dto.hours.length ? JSON.stringify(normaliseHours(dto.hours)) : null;
+    }
     const row = await this.prisma.serviceListing.update({ where: { id }, data }) as unknown as ListingRow;
     return this.ownerCard(row);
   }
