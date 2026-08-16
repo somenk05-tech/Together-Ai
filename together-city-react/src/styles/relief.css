@@ -2196,13 +2196,42 @@ textarea.g-field { resize: none; line-height: 1.55; }
    photograph, more than a laptop's fold, and the ingredients would start below
    the screen on a page whose whole argument is that you cook from two columns
    at once. At 390px the clamp floors at 260, which is about 3:2 again. */
-.press-r-photo { width: 100%; height: clamp(260px, 32vw, 420px);
+/* ── THE PLATE IS SHOWN WHOLE ───────────────────────────────────────────────
+   The owner, 17 Aug: "make sure we see the full image instead of a crop image
+   of the food."
+
+   MEASURED ON THE LIVE PAGE BEFORE IT WAS CHANGED. The box was 1180 x 420 and
+   every recipe photograph in this application is 640 x 360 — ten sampled
+   across the whole range, from recipe 3 to recipe 11500, and all ten identical.
+   `cover` scaled to the width and threw the rest away: 63% of the dish was on
+   screen and 37% of it was underneath the fold of the crop, which on a taco is
+   the taco.
+
+   SO THE BOX TAKES THE PHOTOGRAPH'S OWN RATIO, 16/9, and `cover` then crops
+   nothing because there is nothing left over. It costs no sharpness: cover
+   scales by the WIDTH in both versions — 1180/640 = 1.844x either way — so the
+   change shows more of the same pixels rather than fewer, larger ones.
+
+   `aspect-ratio` and NOT a taller clamp: a height in pixels is a second place
+   to keep 16/9 true, and the day somebody regenerates these photographs at a
+   different shape the ratio is one number to change and a clamp is a crop
+   nobody notices for a month. */
+.press-r-photo { width: 100%; aspect-ratio: 16 / 9;
   margin-top: clamp(20px, 2.6vw, 30px); }
 .press-r-photo, .press-r-plate { overflow: hidden;
   background: var(--press-rule-2); display: grid; place-items: center;
   color: var(--press-ink-3); position: relative; }
 .press-r-plate { aspect-ratio: 1 / 1; }
 .press-r-photo img, .press-r-plate img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* THE HERO CONTAINS, THE PLATES COVER, and the difference is a promise.
+   With the box at 16/9 and every photograph 640x360 these two are pixel-for-
+   pixel identical today — `contain` is what makes it stay true if a picture
+   ever arrives at another shape: an odd one is letterboxed on the paper rather
+   than silently cropped, which is the thing that was asked for. The small
+   plates keep `cover` because a square card cannot show a 16/9 photograph
+   whole, and a square grid of letterboxed thumbnails is a worse answer than a
+   crop at that size. */
+.press-r-photo img { object-fit: contain; }
 
 /* A photograph on paper is SET INTO it, not raised off it. Relief cases a
    picture in a shell with a 7px surround and two shadows; the press traded
