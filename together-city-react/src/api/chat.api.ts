@@ -12,6 +12,20 @@ import {
 const ContactSchema = z.object({ id: z.string(), handle: z.string(), name: z.string(), profileImage: z.string().nullable().optional() });
 export type Contact = z.infer<typeof ContactSchema>;
 
+/**
+ * One row's face. `mine` is true when the picture is one this reader chose for
+ * themselves rather than the other person's own account photo — which is what
+ * lets the row offer to put it back instead of guessing whether there is
+ * anything to put back to.
+ */
+const ChatRosterRowSchema = z.object({
+  id: z.string(),
+  photo: z.string().nullable(),
+  mine: z.boolean(),
+});
+export type ChatRosterRow = z.infer<typeof ChatRosterRowSchema>;
+const SetChatPhotoResultSchema = z.object({ ok: z.boolean(), photo: z.string().nullable(), mine: z.boolean() });
+
 /** What the composer hands the socket after the bytes are already in storage.
  *  Mirrors the API's AttachmentSchema — url, size and mimeType are required
  *  there, so they are required here rather than discovered by a 400. */
@@ -146,6 +160,9 @@ export const chatApi = {
     apiPost(`/chat/${conversationId}/rename`, { title }, z.object({ ok: z.boolean() })),
   leaveGroup: (conversationId: string): Promise<{ ok: boolean }> =>
     apiPost(`/chat/${conversationId}/leave`, {}, z.object({ ok: z.boolean() })),
+  roster: () => apiGet('/chat/roster', z.array(ChatRosterRowSchema)),
+  setChatPhoto: (conversationId: string, photo: string | null) =>
+    apiPut(`/chat/${conversationId}/photo`, { photo }, SetChatPhotoResultSchema),
 };
 
 /* ---------------- React Query hooks ---------------- */
@@ -212,6 +229,18 @@ export function useMessages(conversationId: string | undefined) {
 /* ---------------- Realtime (Socket.IO) ---------------- */
 interface TypingPayload { conversationId: string; userId: string }
 
+/* A CARD THAT IS THE WHOLE MESSAGE GETS ITS OWN TYPE.
+   A shared film is a TEXT message with a card attached to it — somebody wrote a
+   line and hung a poster on it. A location and a contact are not: the card IS
+   the message, which is why MessageType has had LOCATION and CONTACT in it
+   since the schema was written and why previewOf already knows to render them
+   as '📍 Location' and '👤 Contact' in a push. Every other kind stays TEXT, so
+   no existing share changes behaviour. */
+const SHARE_MESSAGE_TYPE: Record<string, 'LOCATION' | 'CONTACT'> = {
+  location: 'LOCATION',
+  citizen: 'CONTACT',
+};
+
 export function useChatRealtime(
   conversationId: string | undefined,
   onMessage: (m: Message) => void,
@@ -258,7 +287,7 @@ export function useChatRealtime(
    * offered a way to make one, so voice notes and files were a backend that
    * nothing could reach.
    */
-  const send = useCallback((body: string, attachments?: OutgoingAttachment[], replyToMessageId?: string) => {
+  const send = useCallback((body: string, attachments?: OutgoingAttachment[], replyToMessageId?: string, share?: ShareCard) => {
     if (!conversationId) return;
     const list = attachments?.length ? attachments : undefined;
     socketClient.emit(WS.SEND_MESSAGE, {
@@ -266,6 +295,11 @@ export function useChatRealtime(
       body,
       clientId: crypto.randomUUID(),
       ...(list ? { attachments: list, messageType: messageTypeFor(list) } : null),
+      /* The card, and the type only when the card IS the message. An unknown
+         kind falls through to TEXT rather than to undefined — the send schema
+         defaults it anyway, and a hub coining a new kind should never start
+         failing here. */
+      ...(share ? { share, ...(SHARE_MESSAGE_TYPE[share.kind] ? { messageType: SHARE_MESSAGE_TYPE[share.kind] } : null) } : null),
       // SocketSendSchema has accepted this since it was written.
       ...(replyToMessageId ? { replyToMessageId } : null),
     });
@@ -336,6 +370,48 @@ export function usePinnedMessage(conversationId: string | undefined) {
 
 export function useChatContacts() {
   return useQuery({ queryKey: ['chat', 'contacts'], queryFn: () => chatApi.contacts() });
+}
+
+/**
+ * The face on every row — a second call, cached, deliberately not polled.
+ *
+ * /chat/conversations refetches every fifteen seconds because unread counts and
+ * last-message times go stale in seconds. A photograph does not. Keeping the
+ * pictures out of that payload is the difference between re-downloading every
+ * face four times a minute and fetching them once a session.
+ *
+ * `staleTime` rather than `refetchInterval`: a change made HERE writes straight
+ * into this cache (see useSetChatPhoto), so the only thing a poll would catch
+ * is somebody else changing their own account photo — which can wait for the
+ * next visit.
+ */
+export function useChatRoster() {
+  const authed = useAuthed();
+  return useQuery({
+    queryKey: ['chat', 'roster'],
+    queryFn: () => chatApi.roster(),
+    enabled: authed,
+    staleTime: 5 * 60_000,
+  });
+}
+
+/**
+ * Put a picture on one of my rows, or take it off with `null`.
+ *
+ * The response is written into the roster cache rather than invalidating it: a
+ * face that blinks back to initials while a refetch lands reads as the change
+ * having failed, and the server's answer IS the new row.
+ */
+export function useSetChatPhoto() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { conversationId: string; photo: string | null }) =>
+      chatApi.setChatPhoto(v.conversationId, v.photo),
+    onSuccess: (r, v) => {
+      qc.setQueryData<ChatRosterRow[]>(['chat', 'roster'], (rows) =>
+        (rows ?? []).map((row) => (row.id === v.conversationId ? { ...row, photo: r.photo, mine: r.mine } : row)));
+    },
+  });
 }
 export function useCreateGroup() {
   const qc = useQueryClient();

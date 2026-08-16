@@ -139,6 +139,84 @@ export class ConversationsService {
       this.shape(m.conversation, userId, m.markedUnread ? Math.max(1, unreads[i]) : unreads[i]));
   }
 
+  /**
+   * ── THE FACE ON EVERY ROW ─────────────────────────────────────────────────
+   *
+   * The chats list drew initials because the list payload has never carried a
+   * picture — the photos were already being loaded for these rows and thrown
+   * away in `shape()`. They are here now, in a call of their own.
+   *
+   * TWO CALLS, ONE LIST, AND THE SPLIT IS THE POINT. `profileImage` is a
+   * `data:` URL — tens of kilobytes each — and /chat/conversations is polled
+   * every fifteen seconds by every open client. Faces in that payload would be
+   * re-downloaded four times a minute for something that changes about twice a
+   * year. This endpoint is cheap to cache because nothing in it is
+   * time-sensitive: ids and pictures.
+   *
+   * WHOSE FACE, IN ORDER:
+   *   1. the picture this reader put on the row themselves, if any;
+   *   2. otherwise, for a direct chat, the other person's own account photo;
+   *   3. otherwise nothing, and the row keeps its initials.
+   *
+   * A GROUP GETS NO FACE UNLESS ONE WAS CHOSEN. There is no group photo in
+   * this schema, and borrowing one member's face for a room of six would be
+   * inventing a fact — the initials of the group's name are the honest answer.
+   *
+   * AND AN ANONYMOUS MATCH GETS NOTHING, EVER. A dating conversation below
+   * trust 2 renders a mask, and its whole promise is that the face is not shown
+   * yet; sending it and letting a client decide would put an identity on the
+   * wire that the wire is supposed to be withholding. The reader's OWN chosen
+   * picture is still returned — it is theirs, it is not a disclosure, and
+   * somebody who has put a picture on a row should not find it gone.
+   */
+  async roster(userId: string) {
+    const memberships = await this.prisma.conversationMember.findMany({
+      where: { userId, archived: false },
+      // unbounded: one row per conversation this citizen is in — a truncated
+      // roster is a list where some faces silently fall back to initials.
+      include: {
+        conversation: {
+          select: {
+            id: true, type: true, anonymousTrust: true,
+            members: { select: { userId: true, user: { select: { profileImage: true } } } },
+          },
+        },
+      },
+    });
+    return memberships.map((m) => {
+      const c = m.conversation;
+      const isGroup = c.type === 'GROUP';
+      const anonymous = !isGroup && c.anonymousTrust != null && c.anonymousTrust < 2;
+      const theirs = isGroup || anonymous
+        ? null
+        : c.members.find((x) => x.userId !== userId)?.user?.profileImage ?? null;
+      return {
+        id: c.id,
+        photo: m.photo ?? theirs,
+        /** True when the picture is one this reader chose. The row says so, and
+         *  it is what makes "put it back" an offer rather than a guess. */
+        mine: m.photo != null,
+      };
+    });
+  }
+
+  /**
+   * Put a picture on one of my rows, or take it off.
+   *
+   * The membership row is the authorisation: `updateMany` scoped to
+   * (conversationId, userId) writes nothing at all for somebody who is not in
+   * the conversation, and the count tells us which happened. A non-member gets
+   * the same 404 the rest of this controller gives, so ids cannot be probed.
+   */
+  async setPhoto(userId: string, conversationId: string, photo: string | null) {
+    const { count } = await this.prisma.conversationMember.updateMany({
+      where: { conversationId, userId },
+      data: { photo },
+    });
+    if (count === 0) throw new ForbiddenException('Conversation not found');
+    return { ok: true, photo, mine: photo != null };
+  }
+
   /** The later of two optional instants — null only when both are null. */
   private laterOf(a: Date | null | undefined, b: Date | null | undefined): Date | null {
     if (!a) return b ?? null;

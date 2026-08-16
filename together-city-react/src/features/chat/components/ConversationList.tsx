@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Conversation } from '@/types';
+import { resizeAvatar } from '@/lib/resizeAvatar';
 
 /**
  * The left panel of the stage, with a way to get a conversation off it.
@@ -26,6 +27,21 @@ import type { Conversation } from '@/types';
  * as an incoming message. "The one you are reading" and "the one talking to
  * you" being made of the same thing is what turns two shadows into a language
  * rather than two effects.
+ *
+ * FOURTH, THE FACE. The row drew initials because the list payload never
+ * carried a picture — the photos were being loaded for these very rows on the
+ * server and thrown away. They arrive now on their own cached call, and the
+ * initials stay as the fallback rather than the default: a group has no face,
+ * an anonymous match is not allowed one yet, and somebody who has never set an
+ * account photo still needs a row.
+ *
+ * AND THE PICTURE IS THE READER'S TO CHANGE. A contact photo, in the sense a
+ * phone address book means it — private to the person who set it, and it never
+ * touches the other citizen's account. That is worth saying on the screen and
+ * not only here, because a control that looks like it might be editing
+ * somebody else's profile is one nobody presses. The picker sits beside the
+ * remove control as a THIRD SIBLING, never inside `csopen`: a button inside a
+ * button is invalid and browsers resolve it by guessing.
  */
 /** Two initials from the WORDS, not the first two letters — "Meera Kulkarni"
  *  is MK, not ME, and "Team · Product" is TP. */
@@ -55,19 +71,78 @@ function shortTime(iso: string): string {
   return d.toLocaleDateString([], { day: 'numeric', month: 'short' });
 }
 
-export function ConversationList({ items, activeId, onSelect, onRemove, removingId }: {
+export function ConversationList({ items, activeId, onSelect, onRemove, removingId, faces, onSetPhoto, savingPhotoId }: {
   items: Conversation[];
   activeId?: string;
   onSelect: (id: string) => void;
   onRemove?: (id: string) => void;
   removingId?: string;
+  /** conversation id → the picture to draw, and whether the reader chose it. */
+  faces?: Map<string, { photo: string | null; mine: boolean }>;
+  onSetPhoto?: (conversationId: string, photo: string | null) => void;
+  savingPhotoId?: string;
 }) {
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [pickId, setPickId] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
+
+  const chooseFile = async (conversationId: string, file?: File) => {
+    if (!file) return;
+    setBusy(true);
+    setFailed(null);
+    try {
+      onSetPhoto?.(conversationId, await resizeAvatar(file));
+      setPickId(null);
+    } catch {
+      // Said in the citizen's terms. The two ways this lands here are a file
+      // the browser cannot decode and a canvas it will not give us.
+      setFailed('That picture could not be read. Try another one.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div className="csrows">
       {items.map((c) => {
         const title = c.title ?? 'Conversation';
+        const face = faces?.get(c.id);
+        // An anonymous match is a mask by design, and its own picture is the
+        // one thing this row must not draw — the server does not send it, and
+        // this says so a second time where somebody reading the page can see it.
+        const photo = c.anonymous && !face?.mine ? null : face?.photo ?? null;
+        if (pickId === c.id) {
+          return (
+            <div key={c.id} className="csrow csconfirm">
+              <div style={{ padding: '12px 14px' }}>
+                <p style={{ margin: '0 0 10px', fontSize: 12.5, lineHeight: 1.5 }}>
+                  A picture for <strong>{title}</strong> on your list. Only you see it, and it
+                  changes nothing about their own profile.
+                </p>
+                {failed && (
+                  <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--danger-ink)' }}>{failed}</p>
+                )}
+                <input ref={fileRef} type="file" accept="image/*" hidden
+                  onChange={(e) => { void chooseFile(c.id, e.target.files?.[0]); e.target.value = ''; }} />
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button type="button" className="cstab on" disabled={busy || savingPhotoId === c.id}
+                    onClick={() => fileRef.current?.click()}>
+                    {busy || savingPhotoId === c.id ? 'Just a moment…' : 'Choose a picture'}
+                  </button>
+                  {face?.mine && (
+                    <button type="button" className="cstab" disabled={busy || savingPhotoId === c.id}
+                      onClick={() => { onSetPhoto?.(c.id, null); setPickId(null); }}>
+                      Use their own photo
+                    </button>
+                  )}
+                  <button type="button" className="cstab" onClick={() => { setPickId(null); setFailed(null); }}>Cancel</button>
+                </div>
+              </div>
+            </div>
+          );
+        }
         if (confirmId === c.id) {
           return (
             <div key={c.id} className="csrow csconfirm">
@@ -90,7 +165,11 @@ export function ConversationList({ items, activeId, onSelect, onRemove, removing
         return (
           <div key={c.id} className={c.id === activeId ? 'csrow on' : 'csrow'}>
             <button type="button" className="csopen" onClick={() => onSelect(c.id)}>
-              <span className="csav">{c.anonymous ? '🎭' : initials(title)}</span>
+              <span className="csav">
+                {photo
+                  ? <img className="no-case" src={photo} alt="" loading="lazy" />
+                  : c.anonymous ? '🎭' : initials(title)}
+              </span>
               <span className="cswho">
                 <b>{title}</b>
                 <span>{c.anonymous ? 'anonymous match' : c.isGroup ? 'group' : 'direct'}</span>
@@ -100,6 +179,14 @@ export function ConversationList({ items, activeId, onSelect, onRemove, removing
                 {c.unread > 0 && <span className="cspip">{c.unread}</span>}
               </span>
             </button>
+            {onSetPhoto && (
+              <button type="button" className="csdrop cspic"
+                aria-label={`Change the picture on ${title}`}
+                title="Change the picture — only you see it"
+                onClick={() => { setFailed(null); setPickId(c.id); }}>
+                <span aria-hidden>🖼</span>
+              </button>
+            )}
             {onRemove && (
               <button type="button" className="csdrop"
                 aria-label={`Remove ${title} from your list`}

@@ -322,6 +322,18 @@ model ConversationMember {
   /// high-water mark that never moves backwards by design.
   markedUnread   Boolean    @default(false)
   pinned         Boolean    @default(false)
+  /// The picture THIS member sees on this conversation's row.
+  ///
+  /// A contact photo, in the sense a phone address book means it: it is the
+  /// viewer's own note about somebody, it is private to them, and it never
+  /// touches the other person's account photo. Null — the ordinary case — means
+  /// the row draws whoever is on the other side, from their own profile.
+  ///
+  /// It lives HERE rather than on Conversation because it belongs to one
+  /// reader, which is the same reason markedUnread, clearedAt and pinned are on
+  /// this row: a setting on the conversation would be a picture two people
+  /// chose for each other.
+  photo          String?
   /// Per-participant chat deletion. Deleting a chat from the left panel is not
   /// a shared act — the other person keeps their copy — so it records a moment
   /// rather than removing rows: messages at or before this instant are hidden

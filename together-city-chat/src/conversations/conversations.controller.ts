@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards, UsePipes } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
@@ -13,6 +13,8 @@ import {
   RenameGroupSchema,
   SetRoleDto,
   SetRoleSchema,
+  SetChatPhotoDto,
+  SetChatPhotoSchema,
   StartDirectDto,
   StartDirectSchema,
 } from './dto/conversations.dto';
@@ -39,6 +41,33 @@ export class ConversationsController {
   @Get('conversations')
   list(@CurrentUser() user: JwtUser) {
     return this.conversations.listForUser(user.sub);
+  }
+
+  /**
+   * GET /api/chat/roster — the face on every row, and nothing else.
+   *
+   * A SECOND CALL ON PURPOSE. Photos are `data:` URLs of a few tens of
+   * kilobytes each and the conversation list is polled every fifteen seconds by
+   * every open client; putting them in that payload would re-download every
+   * face four times a minute for a list whose faces almost never change. This
+   * one is fetched once and cached, and carries only ids and pictures.
+   */
+  @Get('roster')
+  roster(@CurrentUser() user: JwtUser) {
+    return this.conversations.roster(user.sub);
+  }
+
+  /**
+   * PUT /api/chat/:id/photo — the picture I see on this row.
+   *
+   * PUT rather than POST because it is one value being set to a new one, and
+   * `{ photo: null }` puts it back to the other person's own photo. Nobody
+   * else's account is touched and nobody else's list changes.
+   */
+  @Put(':id/photo')
+  @UsePipes(new ZodValidationPipe(SetChatPhotoSchema))
+  setPhoto(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: SetChatPhotoDto) {
+    return this.conversations.setPhoto(user.sub, id, dto.photo);
   }
 
   // POST /api/chat/:id/read  → clear unread for this conversation

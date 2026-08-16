@@ -3009,6 +3009,17 @@ textarea.g-field { resize: none; line-height: 1.55; }
 .csav { width: 42px; height: 42px; flex: none; border-radius: var(--r-full); display: grid; place-items: center;
   font-size: 13.5px; font-weight: 700; color: var(--on-stage); background: var(--stage-tile); }
 .csrow.on .csav { color: var(--on-stage); background: var(--on-stage-ink); }
+/* A FACE FILLS THE DISC. The initials are a fallback, not the default, so the
+   img is absolute inside the same 42px circle rather than a second element
+   beside it — and `overflow: hidden` on the disc is what makes a square JPEG a
+   round one. The selected row inverts .csav's ink; a photograph has no ink to
+   invert, and does not want the inverted GROUND showing through either. */
+.csav { overflow: hidden; }
+.csav img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.csrow.on .csav:has(img) { background: none; }
+/* The picture control, wearing the remove control's own shape so the two icons
+   at the end of a row are one pair rather than two decisions. */
+.cspic { font-size: 13px; }
 .cswho { flex: 1; min-width: 0; }
 .cswho b { display: block; font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cswho span { display: block; margin-top: 1px; font-size: 12px; color: var(--on-stage-faint);

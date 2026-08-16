@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { useConversations, useMessages, useChatRealtime, useClearConversation, useMessageSearch, useOnlineContacts, usePinnedMessage, chatApi, socketClient, WS, type OutgoingAttachment } from '@/api';
+import { useConversations, useMessages, useChatRealtime, useClearConversation, useMessageSearch, useOnlineContacts, usePinnedMessage, chatApi, socketClient, WS, type OutgoingAttachment, useChatRoster, useSetChatPhoto } from '@/api';
 import { ConversationList } from '../components/ConversationList';
 import { MiraRow } from '../mira/MiraRow';
 import { MiraThread } from '../mira/MiraThread';
@@ -71,6 +71,20 @@ export function Chats() {
   const requestedId = searchParams.get('c') ?? undefined;
   const [activeId, setActiveId] = useState<string | undefined>(requestedId);
   const clear = useClearConversation();
+  /**
+   * THE FACES, ON THEIR OWN CALL. Photographs are `data:` URLs and the
+   * conversation list refetches every fifteen seconds; a face in that payload
+   * would be re-downloaded four times a minute for something that changes about
+   * twice a year. This one is cached for five minutes and written through on a
+   * change, so the picture is instant and the poll stays light.
+   */
+  const roster = useChatRoster();
+  const setPhoto = useSetChatPhoto();
+  const faces = useMemo(
+    () => new Map<string, { photo: string | null; mine: boolean }>(
+      (roster.data ?? []).map((r) => [r.id, { photo: r.photo, mine: r.mine }] as const)),
+    [roster.data],
+  );
   /* A PHONE SHOWS ONE ROOM AT A TIME (WhatsApp's rule, and the owner's).
      The stage is a two-column desk: a list beside a thread. Below 860px it
      already collapsed to one column — but one column holding BOTH, so a
@@ -548,7 +562,9 @@ export function Chats() {
                 No conversations yet. Start one above, or open a member’s profile and tap Message.
               </p>
             : <ConversationList items={list} activeId={activeId} onSelect={setActiveId}
-                onRemove={onRemove} removingId={clear.isPending ? clear.variables : undefined} />}
+                onRemove={onRemove} removingId={clear.isPending ? clear.variables : undefined}
+                faces={faces} onSetPhoto={(id, photo) => setPhoto.mutate({ conversationId: id, photo })}
+                savingPhotoId={setPhoto.isPending ? setPhoto.variables?.conversationId : undefined} />}
         </aside>
         )}
 
