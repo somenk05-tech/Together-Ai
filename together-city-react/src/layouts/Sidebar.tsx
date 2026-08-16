@@ -11,15 +11,6 @@ const PersonIcon = () => (
     <circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" />
   </svg>
 );
-/* The rail's own chevron. Inline, like the two below it, because this file
-   already owns its small marks and the shared Icon set has no chevron. It
-   points RIGHT when the rail is closed (press to open) and is rotated by CSS
-   when it is pinned, so one glyph carries both states. */
-const ChevronIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-    <path d="M9 6l6 6-6 6" />
-  </svg>
-);
 const PeopleIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="9" cy="8" r="3.4" /><path d="M2.5 20c0-3.4 3-5.2 6.5-5.2s6.5 1.8 6.5 5.2" /><path d="M16 5.2A3.4 3.4 0 0 1 16 12" /><path d="M17.5 14.9c2.7.5 4 2.3 4 5.1" />
@@ -70,13 +61,6 @@ export function Sidebar({ hub }: { hub: HubConfig }) {
     : messageProjectKey;
   const open = useUiStore((s) => s.sidebarOpen);
   const toggle = useUiStore((s) => s.toggleSidebar);
-  /* THE RAIL IS 112px WIDE UNTIL SOMEBODY ASKS IT FOR MORE (owner, 17 Aug).
-     Hover and focus open it as a floating peek, which is CSS and needs nothing
-     from here. This is the other half: a pin that reserves the full column and
-     is remembered, because a peek you have to keep re-summoning is not a
-     sidebar — and because a tablet at 1100px has no hover at all. */
-  const railPinned = useUiStore((s) => s.railPinned);
-  const toggleRail = useUiStore((s) => s.toggleRail);
   const close = () => toggle(false);
   const swipe = useSwipeClose(close);
 
@@ -87,27 +71,22 @@ export function Sidebar({ hub }: { hub: HubConfig }) {
   // green panel and green type in a sidebar on a page where a hub's colour is
   // a dot and a hairline. Selected is now CARVED, like every other thing in
   // this application that is set rather than pressed.
+  // GAP AND PADDING LEFT THIS OBJECT on 17 Aug and live in layout.css with the
+  // rest of the sidebar's geometry. They were inline, which meant a stylesheet
+  // could only reach them with `!important` — the problem relief.css already
+  // records against these same pills. That move outlived the collapsing rail it
+  // was made for, and stays.
   const modeTab = (): React.CSSProperties => ({
-    display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left',
-    padding: '13px 16px', cursor: 'pointer', fontFamily: 'inherit',
+    display: 'flex', alignItems: 'center', width: '100%', textAlign: 'left',
+    cursor: 'pointer', fontFamily: 'inherit',
     fontSize: 16, marginBottom: 4,
   });
 
   return (
     <>
     <DrawerScrim open={open} onClose={close} />
-    <aside className={`tc-side${open ? ' open' : ''}${railPinned ? ' pinned' : ''}`} data-side={hub.key} {...swipe}>
-      {/* `aria-expanded` is the state; the label says what pressing it DOES,
-          which is the pair a screen reader needs to make sense of a control
-          whose whole job is a width. Hidden below 900px by CSS — down there
-          this aside is the drawer, and it already has three ways to close. */}
-      <button type="button" className="rail-toggle" aria-expanded={railPinned}
-        aria-label={railPinned ? 'Collapse the hub rail' : 'Keep the hub rail open'}
-        title={railPinned ? 'Collapse' : 'Keep open'}
-        onClick={() => toggleRail()}>
-        <ChevronIcon />
-      </button>
-      <button className="back" onClick={() => navigate(-1)}>← <span className="w">Back</span></button>
+    <aside className={`tc-side${open ? ' open' : ''}`} data-side={hub.key} {...swipe}>
+      <button className="back" onClick={() => navigate(-1)}>← Back</button>
       <div className="hubname">{hub.key === 'family' ? 'Nutrition Hub' : hub.name}</div>
       <div className="hubtag">{hub.key === 'family' ? 'Eat healthy, live better' : hub.tag}</div>
 
@@ -126,7 +105,7 @@ export function Sidebar({ hub }: { hub: HubConfig }) {
 
       <button type="button" className="back" style={{ minHeight: 44 }}
         onClick={() => { window.dispatchEvent(new Event('tc:command')); toggle(false); }}>
-        ⌕ <span className="w">Search the city</span>
+        ⌕ Search the city
       </button>
       {projectKey ? (
         <MailProjectSideRail projectKey={projectKey} onNavigate={() => toggle(false)} />
