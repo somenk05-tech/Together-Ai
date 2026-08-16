@@ -475,23 +475,28 @@ describe('the till price and the price on the label are the same number', () => 
   });
 });
 
-describe('nothing on this shelf sends anybody somewhere else to buy it', () => {
+describe('the shelf shows the product and still takes the money here', () => {
   const service = readFileSync(join(__dirname, 'supplements.service.ts'), 'utf8')
     .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
 
-  it('the store payload drops the retailer link and the retailer photograph', () => {
-    // Dropped on the WIRE rather than in a component, so no screen can put
-    // either back by accident. This city sells these itself now, and a shop
-    // with a door to a rival checkout is not a shop.
-    expect(service).toMatch(/delete listed\.url;/);
-    expect(service).toMatch(/delete listed\.image;/);
-    expect(service).not.toMatch(/\burl:\s*p\.url\b/);
+  it('the store payload carries the photograph and the product page again', () => {
+    // REVERSED, 16 AUG, AT THE OWNER'S WORD. The 15-Aug rule deleted `url`
+    // and `image` on the wire — "a shop with a door to a rival checkout is
+    // not a shop". The owner's store reference shows the retailer's
+    // photograph on every card and a "see the product" door beside the
+    // city's own till — the same shape the Beauty market has always used:
+    // browsing OUT is allowed, PAYING happens here. The drawn pack stays as
+    // the fallback for a photograph that doesn't load.
+    expect(service).not.toMatch(/delete listed\.url;/);
+    expect(service).not.toMatch(/delete listed\.image;/);
   });
 
-  it('and what survives is provenance, not a route out', () => {
-    // `retailer` stays: it is the claim the review was making — that this is a
-    // real product somebody actually stocks in India — and it is a name, not a
-    // link.
+  it('and every door out is a clean https product page, not an affiliate', () => {
+    // The reversal does not loosen what a link may be: the catalogue spec
+    // already holds every url to https with no affiliate or tracking params,
+    // and `retailer` still travels as provenance in its own right.
+    expect(PRODUCTS.every((p) => p.url.startsWith('https://'))).toBe(true);
+    expect(PRODUCTS.every((p) => !/[?&](tag|aff|affid|ref|utm_|subid|clickid)/i.test(p.url))).toBe(true);
     expect(PRODUCTS.every((p) => p.retailer.length > 1)).toBe(true);
   });
 });

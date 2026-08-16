@@ -17,11 +17,14 @@ import {
  * back as its own screen, which is what that argument asked for — with the
  * refusals still standing on it, and now with a till.
  *
- * NOTHING ON THIS PAGE LEAVES THE CITY. There is no retailer link and no
- * retailer photograph, because the server stopped sending either: this city
- * sells these itself, through the same wallet Restaurants and Beauty charge,
- * so a bottle of D3 lands in the Financial hub's monthly spending beside a
- * dinner instead of in a shop nobody here can see.
+ * THE PHOTOGRAPH AND THE DOOR ARE BACK — owner's store reference, 16 Aug,
+ * reversing the 15-Aug "nothing leaves the city" rule. Every card shows the
+ * retailer's own photograph of the product (the drawn pack stands behind it
+ * as the fallback) and carries a "See the product ↗" door to the page that
+ * sells it — the shape the Beauty market has always had. What did NOT
+ * reverse: the till is the city's. Paying happens here, from the one city
+ * wallet, and a bottle of D3 still lands in the Financial hub's monthly
+ * spending beside a dinner.
  *
  * TWELVE PRODUCTS SIT UNDER SUPPLEMENTS THE ENGINE REFUSES, and they are
  * buyable. Hiding them does not stop the purchase — it only means it happens
@@ -146,6 +149,35 @@ function Pack({ shape, colour }: { shape?: string; colour?: string }) {
   );
 }
 
+/**
+ * THE PHOTOGRAPH, WITH THE DRAWN PACK STANDING BEHIND IT. The image is
+ * hotlinked from the retailer's CDN — the same deal the Beauty market makes —
+ * so it may be slow and it may be gone. A card must never show a broken
+ * frame: no image on the wire, or an image that fails, falls through to the
+ * pack this city draws for itself, which is what every card showed before
+ * the owner's 16-Aug reference put the photographs back.
+ */
+function Shot({ p }: { p: StoreProduct }) {
+  const [broken, setBroken] = useState(false);
+  if (!p.image || broken) return <Pack shape={p.pack} colour={p.colour} />;
+  return (
+    <img src={p.image} alt="" loading="lazy" onError={() => setBroken(true)}
+      style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', background: 'var(--card)' }} />
+  );
+}
+
+/** The door to the page that sells it. A link, not a button — leaving is
+ *  allowed, it just isn't the transaction. */
+function SeeIt({ url }: { url?: string }) {
+  if (!url) return null;
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer"
+      style={{ display: 'inline-block', marginTop: 8, fontSize: 12.5, fontWeight: 600 }}>
+      See the product ↗
+    </a>
+  );
+}
+
 function Badge({ yours, personalised }: { yours?: Yours | null; personalised: boolean }) {
   if (!personalised) return null;
   if (!yours) {
@@ -222,7 +254,7 @@ function Tile({ p, personalised, qty, busy, onOpen, onSet }: {
         border: 0, background: 'var(--well)', borderRadius: 'var(--r-2)', padding: 0,
         cursor: 'pointer', aspectRatio: '1 / 1', position: 'relative', overflow: 'hidden',
       }}>
-        <Pack shape={p.pack} colour={p.colour} />
+        <Shot p={p} />
         {p.rx ? (
           <span style={{
             position: 'absolute', top: 8, left: 8, fontSize: 10, fontWeight: 800,
@@ -236,6 +268,15 @@ function Tile({ p, personalised, qty, busy, onOpen, onSet }: {
       <b style={{ fontSize: 14.5, lineHeight: 1.35, letterSpacing: '-.01em', color: refused ? 'var(--muted)' : 'var(--ink)' }}>{p.name}</b>
       {p.strength ? <span className="muted" style={{ fontSize: 12, lineHeight: 1.45 }}>{p.strength}</span> : null}
 
+      {/* The review's own markers — VEGAN, REPLETION ONLY, LABELLED 100% RDA —
+          on the card face, as the owner's reference draws them. Three at most;
+          the rest wait in the detail. */}
+      {(p.tags ?? []).length > 0 && (
+        <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+          {(p.tags ?? []).slice(0, 3).map((t) => <span key={t} className="tag" style={{ fontSize: 10.5 }}>{t}</span>)}
+        </span>
+      )}
+
       <span style={{ fontSize: 14, fontWeight: 700, marginTop: 6 }}>
         {typeof p.priceInr === 'number' ? rupees(p.priceInr) : <span className="muted" style={{ fontWeight: 400 }}>No single price recorded</span>}
       </span>
@@ -244,6 +285,7 @@ function Tile({ p, personalised, qty, busy, onOpen, onSet }: {
       <Badge yours={p.yours} personalised={personalised} />
       <Buy p={p} qty={qty} busy={busy} onSet={onSet} />
       <button type="button" className="btn btn-sm" style={{ marginTop: 8 }} onClick={onOpen}>Read first</button>
+      <SeeIt url={p.url} />
     </article>
   );
 }
@@ -257,7 +299,7 @@ function Detail({ p, personalised, qty, busy, onSet, onClose }: {
     <section className="card rise" style={{ padding: '18px 20px', marginBottom: 18 }}>
       <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
         <div style={{ width: 150, flex: 'none', background: 'var(--well)', borderRadius: 'var(--r-2)', overflow: 'hidden', aspectRatio: '1 / 1' }}>
-          <Pack shape={p.pack} colour={p.colour} />
+          <Shot p={p} />
         </div>
 
         <div style={{ flex: '1 1 300px', minWidth: 0 }}>
@@ -297,7 +339,8 @@ function Detail({ p, personalised, qty, busy, onSet, onClose }: {
             {p.formToBuy ? <span><span className="eyebrow">Form worth buying</span>
               <span style={{ display: 'block', fontSize: 14 }}>{p.formToBuy}</span></span> : null}
             <span><span className="eyebrow">Stocked in India by</span>
-              <span style={{ display: 'block', fontSize: 14 }}>{p.retailer}</span></span>
+              <span style={{ display: 'block', fontSize: 14 }}>{p.retailer}</span>
+              <SeeIt url={p.url} /></span>
           </div>
 
           {(p.tags ?? []).length > 0 && (

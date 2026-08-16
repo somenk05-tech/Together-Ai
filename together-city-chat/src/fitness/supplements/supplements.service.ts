@@ -8,7 +8,7 @@ import { recommend, type Citizen } from './supplements.engine';
 import { BadRequestException } from '@nestjs/common';
 import { FinancialService } from '../../financial/financial.service';
 import { SOURCE, SUPPLEMENTS } from './knowledge';
-import { AISLES, PRODUCTS, sellable, type Product } from './products';
+import { AISLES, PRODUCTS, sellable } from './products';
 import { normaliseBag, parseBag, priceBagForDisplay, priceSupplementOrder, type BagLine } from './supplements.bag';
 import type { PlaceSupplementOrderDto } from '../dto/supplements.dto';
 
@@ -129,21 +129,18 @@ export class SupplementsService {
     const items = PRODUCTS.map((p) => {
       const f = SUPPLEMENTS.find((s) => s.id === p.supplement);
       const r = mine.get(p.supplement);
-      /* THE OUTBOUND LINK AND THE RETAILER'S PHOTOGRAPH ARE BOTH DROPPED
-         HERE, and they are dropped on the WIRE rather than in the component,
-         so no screen can put either back by accident. `url` is gone because
-         this city sells these itself now and a shop with a door to a rival
-         checkout is not a shop; `image` is gone because hotlinking a
-         retailer's product photography while selling the same product is a
-         different kind of wrong from a slow page. What survives is
-         `retailer` as PROVENANCE — this is a real product somebody actually
-         stocks in India, which is the claim the review was making — and the
-         drawn pack, which this city owns. */
-      const listed: Omit<Product, 'url' | 'image'> & { url?: string; image?: string } = { ...p };
-      delete listed.url;
-      delete listed.image;
+      /* THE PHOTOGRAPH AND THE PRODUCT PAGE TRAVEL AGAIN — owner's store
+         reference, 16 Aug, reversing the 15-Aug drop. The argument for the
+         drop was that a shop with a door to a rival checkout is not a shop;
+         the owner's design shows the retailer's photograph on every card and
+         a "see the product" door beside the city's own till — the shape the
+         Beauty market has always had: browsing OUT is allowed, PAYING happens
+         here, from the one city wallet. The catalogue spec still holds every
+         url to clean https with no affiliate params; `retailer` still
+         travels as provenance; and the drawn pack stays behind every
+         photograph as the fallback for a hotlink that doesn't load. */
       return {
-        ...listed,
+        ...p,
         sellable: sellable(p),
         supplementName: f?.name ?? p.supplement,
         grade: f?.grade ?? null,

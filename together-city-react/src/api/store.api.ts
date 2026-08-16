@@ -11,12 +11,13 @@ import { apiGet, apiPost, apiPut } from '@/api/http';
  * both, so the response types as the input side and every screen reading it
  * quietly stops type-checking. `?? []` at the call site, always.
  *
- * THERE IS NO `url` FIELD ON A PRODUCT AND THAT IS THE POINT. This city sells
- * these itself now; the server stops sending the retailer's link and the
- * retailer's photograph, so a screen cannot route somebody out to a rival
- * checkout even by accident. `retailer` survives as PROVENANCE — the claim
- * that this is a real product somebody actually stocks in India — and it is a
- * name, not a door.
+ * `url` AND `image` ARE BACK ON A PRODUCT — owner's store reference, 16 Aug,
+ * reversing the 15-Aug drop. The store shows the retailer's photograph and a
+ * "see the product" door on every card, the shape the Beauty market has
+ * always had: browsing OUT is allowed, PAYING happens here, from the city
+ * wallet. The server holds every url to clean https with no affiliate
+ * params; `retailer` still travels as provenance in its own right; and the
+ * drawn pack stands behind every photograph as the fallback.
  *
  * TWO FIELDS ARE NOT OPTIONAL, AND THEY ARE THE SAFETY ONES. `yours.bucket` is
  * an enum because a refusal that failed to parse would render as an absence,
@@ -54,6 +55,11 @@ export const ProductSchema = z.object({
   rx: z.boolean().optional(),
   pack: z.string().optional(),
   colour: z.string().optional(),
+  /** The retailer's product page and photograph. Optional on the wire so an
+   *  older payload still parses; the pack drawing stands in wherever either
+   *  is missing or fails to load. */
+  url: z.string().optional(),
+  image: z.string().optional(),
   retailer: z.string(),
   grade: z.string().nullable().optional(),
   gradeFor: z.string().nullable().optional(),
