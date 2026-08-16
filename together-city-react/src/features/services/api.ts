@@ -91,7 +91,20 @@ export interface MyServiceCard extends Omit<ServiceCard, 'phone'> {
 
 export interface ServiceThread {
   id: string;
+  /** The customer number this business knows them by — "#3", whichever side
+   *  is reading. Never a name. */
   alias: string;
+  /**
+   * WHETHER THE PERSON ASKING CHOSE TO BE NAMED, per business. False for every
+   * thread that existed before 16 Aug, and false for every new one: a name
+   * appears because somebody pressed something, never because a screen was
+   * rebuilt.
+   */
+  revealName?: boolean;
+  /** Their display name — present ONLY on the business's side, and only when
+   *  they gave it. Absent, never blank, and never anything else about them:
+   *  no id, no handle, no photo, no profile link. */
+  name?: string;
   listingId: string;
   lastMessageAt: string;
   closed: boolean;
@@ -502,6 +515,25 @@ export function useServiceThread(id?: string) {
     refetchInterval: 8000,
   });
 }
+/**
+ * SHOW MY NAME TO THIS BUSINESS — or take it back down.
+ *
+ * The thread AND the inbox are invalidated: the row in the list says what the
+ * business now sees, and a page that updated one and not the other would tell
+ * somebody two different things about who knows their name.
+ */
+export function useRevealName(id?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (reveal: boolean) =>
+      api.post<ServiceThread>(`/services/threads/${id}/reveal`, { reveal }).then((r) => r.data),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['services', 'thread', id] });
+      void qc.invalidateQueries({ queryKey: ['services', 'inbox'] });
+    },
+  });
+}
+
 export function useSendServiceMessage(id?: string) {
   const qc = useQueryClient();
   return useMutation({

@@ -140,3 +140,12 @@ export const SendMenuItemsSchema = z.object({
   note: z.string().trim().max(500).optional(),
 });
 export type SendMenuItemsDto = z.infer<typeof SendMenuItemsSchema>;
+
+/**
+ * WHETHER TO SHOW THIS BUSINESS YOUR NAME. One boolean, and it is required —
+ * a "toggle" endpoint that flips whatever is there cannot be made idempotent,
+ * and two taps from two devices should land on the state the person chose
+ * rather than back where they started.
+ */
+export const RevealNameSchema = z.object({ reveal: z.boolean() });
+export type RevealNameDto = z.infer<typeof RevealNameSchema>;

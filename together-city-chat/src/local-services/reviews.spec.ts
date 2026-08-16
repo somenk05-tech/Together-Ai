@@ -151,11 +151,16 @@ describe('the review is signed with the alias and nothing else', () => {
     }
   });
 
-  it('tells the business who wrote it only by that alias', async () => {
+  it('tells the business who wrote it only by that customer number', async () => {
+    // A THREAD MINTED UNDER THE OLD WORD, printed the way the hub prints now.
+    // The alert says "#3", the stored signature still says "Neighbour 3", and
+    // both are true: the number is read out at the edge rather than migrated,
+    // because a review's signature is the one it was posted under. (16 Aug —
+    // see alias.ts.)
     const { svc, notes } = harness({ enquiries: [spoke(A, 'Neighbour 3')] });
     await svc.postReview(A, 'L1', 2, 'Slow.');
     expect(notes).toHaveLength(1);
-    expect(notes[0].title).toContain('Neighbour 3');
+    expect(notes[0].title).toContain('#3');
     expect(strings(notes[0])).not.toContain(A);
   });
 

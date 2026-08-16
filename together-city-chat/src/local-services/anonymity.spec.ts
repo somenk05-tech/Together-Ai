@@ -1,14 +1,20 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { LocalServicesService } from './local-services.service';
-import { mintAlias, ALIAS_WORD } from './alias';
+import { customerLabel, mintAlias } from './alias';
 
 /**
- * THE ONE PROMISE THIS HUB MAKES.
+ * THE ONE PROMISE THIS HUB MAKES — and the one door in it, added 16 Aug.
  *
  * A citizen browsing local businesses can message one without telling it who
- * they are. That is the owner's rule, and it is the kind of rule that does not
- * break loudly — it breaks the day somebody adds `include: { seeker: true }` to
- * a query for a perfectly good reason, and a plumber sees a real name.
+ * they are. That is still the default and still the rule; what changed is that
+ * the CITIZEN may open it, per business, and the business sees a customer
+ * number until they do. So the promise is now two claims and both are tested
+ * here: nothing identifying reaches the business side by default, and the only
+ * thing that can change that is the asker's own switch.
+ *
+ * It is the kind of rule that does not break loudly — it breaks the day
+ * somebody adds `include: { seeker: true }` to a query for a perfectly good
+ * reason, and a plumber sees a real name.
  *
  * So the test is not "does the current code hide the name". It is: does any
  * object that reaches the business side contain ANYTHING that identifies the
@@ -26,6 +32,7 @@ import { mintAlias, ALIAS_WORD } from './alias';
 
 const SEEKER = 'user-seeker-1';
 const OWNER = 'user-owner-1';
+const NAMES: Record<string, string> = { [SEEKER]: 'Priya Nair' };
 
 function harness(opts: { listings?: any[]; enquiries?: any[]; messages?: any[] } = {}) {
   const listings = opts.listings ?? [{
@@ -37,6 +44,7 @@ function harness(opts: { listings?: any[]; enquiries?: any[]; messages?: any[] }
   const enquiries = opts.enquiries ?? [];
   const messages = opts.messages ?? [];
   const notes: any[] = [];
+  const userQueries: any[] = [];
   let seq = 0;
 
   const match = (where: any, r: any): boolean => {
@@ -70,7 +78,10 @@ function harness(opts: { listings?: any[]; enquiries?: any[]; messages?: any[] }
       findMany: async ({ where }: any) => enquiries.filter((e) => match(where, e)),
       count: async ({ where }: any) => enquiries.filter((e) => match(where, e)).length,
       create: async ({ data }: any) => {
-        const r = { id: `E${++seq}`, lastMessageAt: new Date('2026-08-05T10:00:00Z'), seekerUnread: 0, ownerUnread: 0, closed: false, createdAt: new Date('2026-08-05T10:00:00Z'), ...data };
+        // `revealName: false` is the COLUMN's default, and the harness carries it
+        // for the same reason it carries `closed: false` — a fake that omits a
+        // default tests a row shape the database will never produce.
+        const r = { id: `E${++seq}`, lastMessageAt: new Date('2026-08-05T10:00:00Z'), seekerUnread: 0, ownerUnread: 0, closed: false, revealName: false, createdAt: new Date('2026-08-05T10:00:00Z'), ...data };
         enquiries.push(r); return r;
       },
       update: async ({ where, data }: any) => {
@@ -90,6 +101,14 @@ function harness(opts: { listings?: any[]; enquiries?: any[]; messages?: any[] }
       findUnique: async () => null,
       count: async () => 0,
     },
+    // The only place a citizen's name can be read from — and the spec below
+    // asserts it is asked for ONLY when that citizen opened the door.
+    user: {
+      findMany: async ({ where, select }: any) => {
+        userQueries.push({ ids: where?.id?.in ?? [], select });
+        return (where?.id?.in ?? []).map((id: string) => ({ id, name: NAMES[id] ?? 'Someone' }));
+      },
+    },
     serviceMessage: {
       findMany: async ({ where }: any) => messages.filter((m) => m.enquiryId === where.enquiryId),
       create: async ({ data }: any) => { const r = { id: `M${++seq}`, createdAt: new Date('2026-08-05T10:05:00Z'), ...data }; messages.push(r); return r; },
@@ -98,7 +117,7 @@ function harness(opts: { listings?: any[]; enquiries?: any[]; messages?: any[] }
   const svc: any = Object.create(LocalServicesService.prototype);
   svc.prisma = prisma;
   svc.notifications = { create: async (n: any) => { notes.push(n); } };
-  return { svc, listings, enquiries, messages, notes };
+  return { svc, listings, enquiries, messages, notes, userQueries };
 }
 
 /** Every string anywhere in a returned object, however deep. */
@@ -116,15 +135,23 @@ function allKeys(v: unknown, out: string[] = []): string[] {
   return out;
 }
 
-describe('the person asking stays anonymous', () => {
-  it('gives the business an alias and no identity of any kind', async () => {
-    const { svc } = harness();
+describe('the person asking stays anonymous until they say otherwise', () => {
+  it('gives the business a customer number and no identity of any kind', async () => {
+    const { svc, userQueries } = harness();
     await svc.enquire(SEEKER, 'L1', 'Do you fix geysers?');
     const inbox = await svc.inbox(OWNER);
 
     expect(inbox.receiving).toHaveLength(1);
     const seen = inbox.receiving[0];
-    expect(seen.alias).toBe(`${ALIAS_WORD} 1`);
+    expect(seen.alias).toBe('#1');
+    // The name is ABSENT, not null — a present-but-empty field invites the
+    // next person to fill it in.
+    expect('name' in seen).toBe(false);
+    expect(seen.revealName).toBe(false);
+    // And the citizen's row was never asked for. An anonymous thread's
+    // seekerId does not reach the user table at all, so there is nothing
+    // sitting in scope to leak by accident later.
+    expect(userQueries).toHaveLength(0);
 
     // Not "the name is absent" — nothing that IS the person is anywhere in here.
     expect(allStrings(seen)).not.toContain(SEEKER);
@@ -165,8 +192,86 @@ describe('the person asking stays anonymous', () => {
   it('numbers aliases per business, so two businesses cannot compare notes', () => {
     // A hash of the user id would be stable across every business they contact.
     // A count of that listing's own threads is meaningless anywhere else.
-    expect(mintAlias(0)).toBe(`${ALIAS_WORD} 1`);
-    expect(mintAlias(7)).toBe(`${ALIAS_WORD} 8`);
+    expect(mintAlias(0)).toBe('#1');
+    expect(mintAlias(7)).toBe('#8');
+  });
+
+  it('prints a thread minted under the old word as the same number', () => {
+    // "Neighbour 3" rows are not rewritten — a review's signature is the one it
+    // was posted under. The number is read out at the edge instead.
+    expect(customerLabel('Neighbour 3')).toBe('#3');
+    expect(customerLabel('#3')).toBe('#3');
+  });
+});
+
+/**
+ * THE DOOR, AND WHO HOLDS THE HANDLE.
+ *
+ * Owner, 16 Aug: businesses should be able to see who is asking, and the asker
+ * decides. Everything below is about the second half of that sentence — the
+ * decision belongs to one side of the thread, it is off until taken, and it is
+ * reversible.
+ */
+describe('a name is the asker\'s to give', () => {
+  it('stays a number until the asker opens the door', async () => {
+    const { svc, enquiries } = harness();
+    await svc.enquire(SEEKER, 'L1', 'hello');
+    expect(enquiries[0].revealName).toBe(false); // the default, and the migration's default
+
+    const before = await svc.inbox(OWNER);
+    expect('name' in before.receiving[0]).toBe(false);
+
+    await svc.setReveal(SEEKER, enquiries[0].id, true);
+    const after = await svc.inbox(OWNER);
+    expect(after.receiving[0].name).toBe('Priya Nair');
+    expect(after.receiving[0].alias).toBe('#1'); // the number stays beside it
+  });
+
+  it('gives the business the NAME and nothing else — no id, no handle, no photo', async () => {
+    const { svc, enquiries, userQueries } = harness();
+    await svc.enquire(SEEKER, 'L1', 'hello');
+    await svc.setReveal(SEEKER, enquiries[0].id, true);
+    const seen = (await svc.inbox(OWNER)).receiving[0];
+
+    expect(allStrings(seen)).not.toContain(SEEKER);
+    for (const k of ['seekerId', 'seeker', 'user', 'handle', 'profileImage', 'email', 'phone', 'city']) {
+      expect(allKeys(seen)).not.toContain(k);
+    }
+    // Even the read that fetched the name asked for one column.
+    expect(userQueries[0].select).toEqual({ id: true, name: true });
+  });
+
+  it('is the asker\'s switch and not the business\'s', async () => {
+    const { svc, enquiries } = harness();
+    await svc.enquire(SEEKER, 'L1', 'hello');
+    // 404 rather than 403: from the owner's side, for this purpose, the thread
+    // does not exist — and a 403 would confirm that it does.
+    await expect(svc.setReveal(OWNER, enquiries[0].id, true)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(svc.setReveal('a-stranger', enquiries[0].id, true)).rejects.toBeInstanceOf(NotFoundException);
+    expect(enquiries[0].revealName).toBe(false);
+  });
+
+  it('takes the name back down again', async () => {
+    // A name shown cannot be unseen; a name shown to somebody unpleasant should
+    // still stop being on their screen.
+    const { svc, enquiries } = harness();
+    await svc.enquire(SEEKER, 'L1', 'hello');
+    await svc.setReveal(SEEKER, enquiries[0].id, true);
+    await svc.setReveal(SEEKER, enquiries[0].id, false);
+    const seen = (await svc.inbox(OWNER)).receiving[0];
+    expect('name' in seen).toBe(false);
+    expect(seen.alias).toBe('#1');
+  });
+
+  it('keeps the alert in step with the inbox, in both directions', async () => {
+    const { svc, enquiries, notes } = harness();
+    await svc.enquire(SEEKER, 'L1', 'hello');            // note 0 — anonymous
+    await svc.setReveal(SEEKER, enquiries[0].id, true);
+    await svc.post(SEEKER, enquiries[0].id, 'still there?'); // note 1 — named
+
+    expect(notes[0].title).toContain('#1');
+    expect(allStrings(notes[0])).not.toContain('Priya Nair');
+    expect(notes[1].title).toContain('Priya Nair');
   });
 });
 
@@ -181,7 +286,7 @@ describe('the thread belongs to this hub and stays in it', () => {
       expect(n.href).not.toMatch(/\/chats/);
     }
     // And the one that went to the business does not name the person.
-    expect(notes[0].title).toContain(ALIAS_WORD);
+    expect(notes[0].title).toContain('#1');
     expect(allStrings(notes[0])).not.toContain(SEEKER);
   });
 

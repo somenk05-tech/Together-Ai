@@ -4,7 +4,7 @@ import { PrismaService } from '../shared/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AiService } from '../ai/ai.service';
 import { categoryGroup, categoryLabel, isCategory } from './categories';
-import { mintAlias } from './alias';
+import { customerLabel, mintAlias } from './alias';
 import { boundingBox, haversineKm, parsePoint } from './geo';
 import { looksLikeId, normaliseSlug, slugProblem, SLUG_MESSAGES, suggestSlug } from './slug';
 import { cleanDetails, isBusinessType, readDetails, sectionsFor } from './business-types';
@@ -43,7 +43,7 @@ export function ratingOf(rows: Array<{ rating: number }>): { rating: number | nu
 }
 
 type EnquiryRow = {
-  id: string; listingId: string; seekerId: string; alias: string;
+  id: string; listingId: string; seekerId: string; alias: string; revealName: boolean;
   lastMessageAt: Date; seekerUnread: number; ownerUnread: number; closed: boolean; createdAt: Date;
 };
 
@@ -171,17 +171,36 @@ export class LocalServicesService {
    * `seekerId` never appears in either. It is needed to authorise the request
    * and it stops at the door.
    */
-  private thread(e: EnquiryRow & { listing?: ListingRow }, side: 'seeker' | 'owner') {
+  private thread(e: EnquiryRow & { listing?: ListingRow; seekerName?: string | null }, side: 'seeker' | 'owner') {
     const base = {
       id: e.id,
-      alias: e.alias,
+      /* THE CUSTOMER NUMBER, always — "#3" whether the row was minted today or
+         in July under the old word. See alias.ts: the stored signature is not
+         rewritten, it is read at the edge. */
+      alias: customerLabel(e.alias),
+      /* WHETHER THE PERSON CHOSE TO BE NAMED, on both sides: the business needs
+         to know whether "#3" is all there is, and the seeker needs to see what
+         they are currently showing without opening a settings page. */
+      revealName: e.revealName === true,
       lastMessageAt: e.lastMessageAt.toISOString(),
       closed: e.closed,
       createdAt: e.createdAt.toISOString(),
       unread: side === 'seeker' ? e.seekerUnread : e.ownerUnread,
       side,
     };
-    if (side === 'owner') return { ...base, listingId: e.listingId };
+    /* THE NAME, AND ONLY THE NAME. Owner's call on how much: a display name
+       and nothing else — no id, no handle, no photograph, no city, no join
+       date, no link to a profile. Enough to greet a customer; nothing to
+       build a file on. It is ABSENT rather than null when it was not given,
+       for the reason the phone number is absent from a public card: a field
+       that is present and empty invites the next person to fill it in. */
+    if (side === 'owner') {
+      return {
+        ...base,
+        listingId: e.listingId,
+        ...(e.revealName && e.seekerName ? { name: e.seekerName } : {}),
+      };
+    }
     return {
       ...base,
       listingId: e.listingId,
@@ -512,12 +531,19 @@ export class LocalServicesService {
       },
     });
 
-    // The business is told a neighbour wrote; it is not told who, and the link
-    // goes to this hub's own room rather than to /chats.
+    // The business is told somebody wrote; who that is, is the asker's call,
+    // and the link goes to this hub's own room rather than to /chats.
     if (side === 'seeker') {
+      /* THE ALERT SAYS WHAT THE INBOX SAYS. A notification naming somebody who
+         chose to stay a number would be the leak arriving by push — computed
+         before the fire-and-forget below so the read is not hidden inside an
+         un-awaited call. */
+      const asker = e.revealName
+        ? (await this.namesFor([e])).get(e.seekerId) ?? customerLabel(e.alias)
+        : customerLabel(e.alias);
       void this.notifications.create({
         userId: l.ownerId, kind: 'service_enquiry', entityId: enquiryId,
-        title: `${e.alias} messaged ${l.businessName}`,
+        title: `${asker} messaged ${l.businessName}`,
         body: body.slice(0, 120),
         href: `/services/messages/${enquiryId}`,
       });
@@ -554,15 +580,61 @@ export class LocalServicesService {
       data: side === 'seeker' ? { seekerUnread: 0 } : { ownerUnread: 0 },
     }).catch(swallowed('localServices.markRead', undefined));
 
+    /* The name is read for the OWNER's side only, and only when it was given.
+       The seeker knows their own name; putting it in their copy of the thread
+       would be a second place it could travel from. */
+    const names = side === 'owner' ? await this.namesFor([e]) : new Map<string, string>();
+
     return {
-      thread: this.thread({ ...e, listing: l }, side),
+      thread: this.thread({ ...e, listing: l, seekerName: names.get(e.seekerId) ?? null }, side),
       // The business's name is public either way; only the seeker's is not.
       business: { id: l.id, businessName: l.businessName, categoryLabel: categoryLabel(l.categoryKey), city: l.city },
       messages: rows.map((r) => this.shapeMessage(r, side)),
     };
   }
 
+  /**
+   * SHOW MY NAME TO THIS BUSINESS — or stop showing it.
+   *
+   * The seeker's call and nobody else's: the owner cannot ask for it, cannot
+   * see that it was asked, and the guard here is the same 404 the rest of the
+   * thread uses — a business that tried this on its own inbox is told the
+   * thread does not exist, because from that side, for this purpose, it
+   * doesn't.
+   *
+   * REVERSIBLE, AND THAT IS NOT DECORATION. A name shown cannot be unseen, but
+   * a name shown to somebody who turned out to be unpleasant should stop being
+   * on their screen — the number comes back the moment this is turned off, and
+   * the thread carries on.
+   */
+  async setReveal(userId: string, enquiryId: string, reveal: boolean) {
+    const { e, side } = await this.sideOf(userId, enquiryId);
+    if (side !== 'seeker') throw new NotFoundException('thread not found');
+    const row = await this.prisma.serviceEnquiry.update({
+      where: { id: e.id }, data: { revealName: reveal },
+    }) as unknown as EnquiryRow;
+    const l = await this.prisma.serviceListing.findUnique({ where: { id: e.listingId } }) as ListingRow | null;
+    return this.thread({ ...row, listing: l ?? undefined }, 'seeker');
+  }
+
   /** Every thread the caller is in, from whichever side they are on. */
+  /**
+   * The display names of the people who chose to be named, and nobody else.
+   *
+   * `select: { id, name }` and a where-clause built ONLY from threads whose
+   * `revealName` is true: an anonymous thread's seekerId never reaches this
+   * query, so there is no row to leak by accident later. Returns an empty map
+   * when nobody has revealed, which is the common case and costs no query.
+   */
+  private async namesFor(rows: EnquiryRow[]): Promise<Map<string, string>> {
+    const ids = [...new Set(rows.filter((e) => e.revealName).map((e) => e.seekerId))];
+    if (!ids.length) return new Map();
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: ids } }, select: { id: true, name: true }, take: 200,
+    }) as unknown as Array<{ id: string; name: string }>;
+    return new Map(users.map((u) => [u.id, u.name]));
+  }
+
   async inbox(userId: string) {
     const [asSeeker, ownListings] = await Promise.all([
       this.prisma.serviceEnquiry.findMany({
@@ -585,9 +657,16 @@ export class LocalServicesService {
     }) as unknown as ListingRow[];
     const byId = new Map(listings.map((l) => [l.id, l]));
 
+    /* NAMES ARE FETCHED FOR THE REVEALED THREADS AND NO OTHERS, in one read.
+       Not a join on the enquiry — a join returns the user row for every thread
+       and leaves a whole citizen sitting in scope next to the loop that shapes
+       the anonymous ones, which is exactly the accident anonymity.spec.ts was
+       written against. This asks for names by id, only where a name was given,
+       and selects the one column. */
+    const names = await this.namesFor(asOwner);
     const seeking = asSeeker.map((e) => this.thread({ ...e, listing: byId.get(e.listingId) }, 'seeker'));
     const receiving = asOwner.map((e) => ({
-      ...this.thread(e, 'owner'),
+      ...this.thread({ ...e, seekerName: names.get(e.seekerId) ?? null }, 'owner'),
       businessName: byId.get(e.listingId)?.businessName ?? null,
     }));
     return { seeking, receiving };
@@ -813,7 +892,7 @@ export class LocalServicesService {
 
     void this.notifications.create({
       userId: l.ownerId, kind: 'service_review', entityId: listingId,
-      title: `${thread.alias} rated ${l.businessName} ${rating}★`,
+      title: `${customerLabel(thread.alias)} rated ${l.businessName} ${rating}★`,
       body: (body ?? '').slice(0, 120) || 'No words, just the rating.',
       href: `/services/mine`,
     });
@@ -842,7 +921,10 @@ export class LocalServicesService {
       id: r.id,
       listingId: r.listingId,
       // The signature, and there is nothing else. No id, no name, no photo.
-      alias: r.alias,
+      /* The signature as the shelf prints it today — "#3" for a review posted
+         under the old word too. The STORED string is not rewritten; see
+         alias.ts on why a signature is not a thing to edit afterwards. */
+      alias: customerLabel(r.alias),
       rating: r.rating,
       body: r.body,
       ownerReply: r.ownerReply,
@@ -874,7 +956,9 @@ export class LocalServicesService {
        * thread since they opened it. It travels so the form can live on the
        * business page instead of squatting under a conversation.
        */
-      alias: (thread as { alias?: string } | null)?.alias ?? null,
+      alias: (thread as { alias?: string } | null)?.alias
+        ? customerLabel((thread as { alias: string }).alias)
+        : null,
       mine: mineRow ? this.reviewCard(mineRow, 'reviewer') : null,
     };
   }

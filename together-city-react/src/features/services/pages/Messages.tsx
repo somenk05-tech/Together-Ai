@@ -4,7 +4,7 @@ import { useScaleLock } from '@/hooks/useScaleLock';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Card, Button, Spinner, EmptyState } from '@/components/ui';
 import {
-  useSendServiceMessage, useServiceInbox, useServiceThread, type ServiceThread,
+  useRevealName, useSendServiceMessage, useServiceInbox, useServiceThread, type ServiceThread,
 } from '../api';
 
 
@@ -21,9 +21,10 @@ import {
  * Two sides, two things worth saying:
  *  · a seeker sees the business's name, because a directory that hides both
  *    sides is not a directory;
- *  · a business sees "Neighbour 3" and there is nothing else to see — the
- *    server never puts an identity in the object, so there is nothing here to
- *    render even by mistake.
+ *  · a business sees a customer number — "#3" — and, since 16 Aug, a NAME if
+ *    that person chose to give it. The choice is the asker's, per business,
+ *    and it is off until taken: the server puts nothing identifying in the
+ *    object otherwise, so there is nothing here to render even by mistake.
  */
 function when(iso: string): string {
   const d = new Date(iso), now = new Date();
@@ -69,8 +70,8 @@ export function ServiceMessages() {
       <div className="eyebrow">Local Services</div>
       <h1 style={{ fontSize: 26 }}>Messages</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px', maxWidth: '62ch' }}>
-        These conversations live here only. They are not in your Chats, and the people you
-        message do not learn your name.
+        These conversations live here only — they are not in your Chats. A business sees a
+        customer number, not your name, until you decide to show it.
       </p>
 
       {seeking.length === 0 && receiving.length === 0 && (
@@ -82,7 +83,12 @@ export function ServiceMessages() {
           <div className="eyebrow" style={{ marginTop: 8 }}>People asking you</div>
           <Card className="mail-list" style={{ padding: 0, overflow: 'hidden', marginBottom: 18 }}>
             {receiving.map((t) => (
-              <ThreadRow key={t.id} t={t} title={t.alias} sub={t.businessName ? `about ${t.businessName}` : 'about your listing'} />
+              /* THE NAME WHEN IT WAS GIVEN, THE NUMBER OTHERWISE — and the
+                 number stays beside the name, because it is what the earlier
+                 messages in that thread were signed with. */
+              <ThreadRow key={t.id} t={t}
+                title={t.name ? `${t.name} · ${t.alias}` : t.alias}
+                sub={t.businessName ? `about ${t.businessName}` : 'about your listing'} />
             ))}
           </Card>
         </>
@@ -95,11 +101,45 @@ export function ServiceMessages() {
             {seeking.map((t) => (
               <ThreadRow key={t.id} t={t}
                 title={t.business?.businessName ?? 'A business'}
-                sub={`${t.business?.categoryLabel ?? ''}${t.business?.city ? ` · ${t.business.city}` : ''} — you appear as ${t.alias}`} />
+                sub={`${t.business?.categoryLabel ?? ''}${t.business?.city ? ` · ${t.business.city}` : ''} — ${t.revealName ? 'they see your name' : `you appear as ${t.alias}`}`} />
             ))}
           </Card>
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * SHOW MY NAME TO THIS BUSINESS.
+ *
+ * Two states, one sentence each, and the sentence says what the OTHER side can
+ * see — not what the switch is called. "Anonymous / Named" would be a label
+ * about a setting; "They see you as #1" is a fact about somebody else's
+ * screen, which is the thing being decided.
+ */
+function NameSwitch({ thread }: { thread: ServiceThread }) {
+  const reveal = useRevealName(thread.id);
+  const named = thread.revealName === true;
+  return (
+    <div style={{
+      display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap',
+      border: '1px solid var(--line)', borderRadius: 12, padding: '10px 13px', marginBottom: 12,
+    }}>
+      <div style={{ minWidth: 0, flex: '1 1 240px' }}>
+        <div style={{ fontSize: 13, fontWeight: 600 }}>
+          {named ? 'This business can see your name' : `This business sees you as ${thread.alias}`}
+        </div>
+        <div className="muted" style={{ fontSize: 11.5, lineHeight: 1.5 }}>
+          {named
+            ? 'Your name only — not your handle, photo, or profile. You can take it back down.'
+            : 'Your name, handle and photo are not shared. Show your name if you would rather they knew.'}
+        </div>
+      </div>
+      <Button variant={named ? 'line' : 'accent'} size="sm" disabled={reveal.isPending}
+        onClick={() => reveal.mutate(!named)}>
+        {reveal.isPending ? 'Saving…' : named ? 'Go back to a number' : 'Show my name'}
+      </Button>
     </div>
   );
 }
@@ -151,11 +191,18 @@ export function ServiceThreadView() {
       <button type="button" onClick={() => nav('/services/messages')}
         style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 999, padding: '4px 12px', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', marginBottom: 12 }}>← Messages</button>
 
-      <h1 style={{ fontSize: 22 }}>{isOwner ? thread.alias : business.businessName}</h1>
+      <h1 style={{ fontSize: 22 }}>
+        {isOwner ? (thread.name ? `${thread.name}` : thread.alias) : business.businessName}
+      </h1>
       <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 14px' }}>
         {isOwner
-          ? `Someone near you, about ${business.businessName}. You do not see their name, and they do not see yours.`
-          : `${business.categoryLabel} · ${business.city}. They see you as “${thread.alias}” — your name, handle and photo are not shared.`}
+          ? (thread.name
+              /* The number stays in the sentence: it is what this person's
+                 earlier messages and any review of yours are signed with, and
+                 dropping it would make the same customer look like two. */
+              ? `${thread.name} — customer ${thread.alias}, about ${business.businessName}. They chose to show you their name; you see nothing else about them.`
+              : `Customer ${thread.alias}, about ${business.businessName}. You do not see their name unless they show it, and they do not see yours.`)
+          : `${business.categoryLabel} · ${business.city}.`}
         {/* The way to their page, and so to their number if they published one.
             The thread deliberately carries only four fields about the business;
             widening it to hold a phone would put a number in a payload whose
@@ -169,6 +216,15 @@ export function ServiceThreadView() {
           </>
         )}
       </p>
+
+      {/* ── WHO THEY SEE, AND THE ONE CONTROL THAT CHANGES IT ─────────────
+          The asker's switch (owner, 16 Aug), and it lives in the room rather
+          than in a settings page because the decision is about THIS business —
+          you are looking at what they said when you decide whether they get
+          your name. Off is the default and stays the default; the reverse is
+          one press away, and the copy says so rather than implying that a name
+          once given is gone. */}
+      {!isOwner && <NameSwitch thread={thread} />}
 
       <Card style={{ padding: 14, display: 'grid', gap: 10, maxHeight: '52vh', overflowY: 'auto' }}>
         {messages.length === 0 && <p className="muted" style={{ fontSize: 13, margin: 0 }}>No messages yet — say what you need.</p>}

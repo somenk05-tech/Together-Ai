@@ -15,6 +15,7 @@ import {
   SaveRegularSchema, type SaveRegularDto,
   PostOfferSchema, type PostOfferDto,
   PostReviewSchema, type PostReviewDto,
+  RevealNameSchema, type RevealNameDto,
   ReplyReviewSchema, type ReplyReviewDto,
   ScanMenuSchema, type ScanMenuDto,
   SaveMenuSchema, type SaveMenuDto,
@@ -97,6 +98,20 @@ export class LocalServicesController {
   @UsePipes(new ZodValidationPipe(SendServiceMessageSchema))
   send(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: SendServiceMessageDto) {
     return this.services.post(user.sub, id, dto.body);
+  }
+
+  /**
+   * SHOW MY NAME TO THIS BUSINESS — the asker's switch, and only theirs.
+   *
+   * A POST rather than a PATCH on the thread because it is one decision with
+   * one meaning, and it is the only field on a ServiceEnquiry a client may
+   * write. The service returns the thread so the screen redraws from the
+   * server's answer rather than from what it hoped happened.
+   */
+  @Post('threads/:id/reveal')
+  @UsePipes(new ZodValidationPipe(RevealNameSchema))
+  reveal(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: RevealNameDto) {
+    return this.services.setReveal(user.sub, id, dto.reveal);
   }
 
   @Post('threads/:id/close')

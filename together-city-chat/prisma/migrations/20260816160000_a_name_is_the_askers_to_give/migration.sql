@@ -1,0 +1,15 @@
+-- A NAME IS THE ASKER'S TO GIVE.
+--
+-- The owner, 16 Aug: businesses should be able to see who is asking — and the
+-- decision is the asker's. One boolean per thread, DEFAULT FALSE.
+--
+-- FALSE IS THE WHOLE POINT OF THE DEFAULT. Every row that exists today was
+-- created while the page said, in as many words, "the people you message do
+-- not learn your name." Backfilling TRUE would publish those names to a party
+-- they never agreed to, on the strength of a promise the application made and
+-- then quietly withdrew. So existing conversations stay numbered until the
+-- person in them presses something.
+--
+-- Per (listing, seeker) rather than per citizen: trusting your barber with
+-- your name is not the same as trusting the directory with it.
+ALTER TABLE "ServiceEnquiry" ADD COLUMN "revealName" BOOLEAN NOT NULL DEFAULT false;

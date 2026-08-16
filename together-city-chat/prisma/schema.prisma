@@ -2962,7 +2962,16 @@ model ServiceEnquiry {
   id            String   @id @default(uuid())
   listingId     String
   seekerId      String
-  alias         String // e.g. "Neighbour 4821" — the business sees this and nothing else
+  alias         String // e.g. "#7" — the customer number this business sees
+  /// WHETHER THIS CITIZEN CHOSE TO SHOW THIS BUSINESS THEIR NAME.
+  ///
+  /// Owner, 16 Aug: the person asking decides, per business. FALSE by default
+  /// and for every row that already exists — the two people who messaged a
+  /// salon under "the people you message do not learn your name" stay a number
+  /// until they say otherwise, which is the only version of this change that
+  /// keeps a promise already made. Per thread rather than per citizen, because
+  /// trusting your barber with your name is not trusting the whole directory.
+  revealName    Boolean  @default(false)
   lastMessageAt DateTime @default(now())
   seekerUnread  Int      @default(0)
   ownerUnread   Int      @default(0)
