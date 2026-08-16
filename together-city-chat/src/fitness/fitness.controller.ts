@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Put, Query, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards, UsePipes } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
@@ -7,10 +7,12 @@ import { FitnessService } from './fitness.service';
 import { SupplementsService } from './supplements/supplements.service';
 import { Mira } from '../mira/mira.decorator';
 import {
+  EditWorkoutSchema,
   LogWorkoutSchema,
   SaveFitnessProfileSchema,
   TodaySessionQueryDto,
   TodaySessionQuerySchema,
+  type EditWorkoutDto,
   type LogWorkoutDto,
   type SaveFitnessProfileDto,
 } from './dto/fitness.dto';
@@ -85,6 +87,24 @@ export class FitnessController {
   @UsePipes(new ZodValidationPipe(LogWorkoutSchema))
   addLog(@CurrentUser() user: JwtUser, @Body() dto: LogWorkoutDto) {
     return this.fitness.addLog(user.sub, dto);
+  }
+
+  /**
+   * AN ENTRY IS ITS OWNER'S TO CHANGE (owner, 17 Aug). Both routes take the id
+   * from the path and the citizen from the token, and the service puts BOTH in
+   * the where-clause - the controller never gets to decide whose row this is.
+   * Neither is a Mira intent: a voice assistant that can delete a training
+   * history on a misheard word is not a feature anybody asked for.
+   */
+  @Patch('log/:id')
+  @UsePipes(new ZodValidationPipe(EditWorkoutSchema))
+  editLog(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: EditWorkoutDto) {
+    return this.fitness.editLog(user.sub, id, dto);
+  }
+
+  @Delete('log/:id')
+  removeLog(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.fitness.removeLog(user.sub, id);
   }
 
   /**

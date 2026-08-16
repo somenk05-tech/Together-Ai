@@ -32,13 +32,33 @@ export const SaveFitnessProfileSchema = z.object({
 });
 export type SaveFitnessProfileDto = z.infer<typeof SaveFitnessProfileSchema>;
 
+/** Where the work happened. The log's own list, longer than the profile's
+ *  `place`: that one instructs the session engine, which can only program the
+ *  two rooms it has movements for, and this one records what a citizen did. */
+export const WORKOUT_STYLES = ['home', 'gym', 'sports', 'studio', 'outdoor'] as const;
+
 export const LogWorkoutSchema = z.object({
   focus: z.string().min(1).max(80),
   minutes: z.number().int().min(1).max(600),
   intensity: z.enum(['light', 'moderate', 'vigorous']).default('moderate'),
+  style: z.enum(WORKOUT_STYLES).optional(),
   note: z.string().max(280).optional(),
 });
 export type LogWorkoutDto = z.infer<typeof LogWorkoutSchema>;
+
+/** EVERY FIELD OPTIONAL, AND AT LEAST ONE REQUIRED. An edit that names nothing
+ *  is a write with no intent behind it, and the one thing a PATCH must never do
+ *  is quietly blank a field the caller did not mention. */
+export const EditWorkoutSchema = z.object({
+  focus: z.string().min(1).max(80).optional(),
+  minutes: z.number().int().min(1).max(600).optional(),
+  intensity: z.enum(['light', 'moderate', 'vigorous']).optional(),
+  style: z.enum(WORKOUT_STYLES).optional(),
+  note: z.string().max(280).optional(),
+}).refine((v) => Object.values(v).some((x) => x !== undefined), {
+  message: 'An edit has to change something',
+});
+export type EditWorkoutDto = z.infer<typeof EditWorkoutSchema>;
 
 /** Today only. The saved profile holds the usual answers; these two override
  *  it for one session, because "I have 30 minutes and I am at my sister's"

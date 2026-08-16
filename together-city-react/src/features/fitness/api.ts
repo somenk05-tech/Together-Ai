@@ -61,7 +61,15 @@ export interface WeeklyPlan {
   habits: string[]; safety: string[]; disclaimer: string;
   usedLabs: boolean; consentGranted: boolean;
 }
-export interface WorkoutEntry { id: string; focus: string; minutes: number; intensity: Intensity; note: string | null; doneAt: string }
+/** Where the work happened. Longer than the training profile's `place`, which
+ *  is home|gym because the session engine can only PROGRAM the two rooms it has
+ *  movements for. This list records what a citizen DID, and "five-a-side on
+ *  Tuesday" is a real answer to that. `null` means nobody was asked — every row
+ *  logged before 17 Aug — and is not the same as any of these. */
+export const WORKOUT_STYLES = ['home', 'gym', 'sports', 'studio', 'outdoor'] as const;
+export type WorkoutStyle = (typeof WORKOUT_STYLES)[number];
+
+export interface WorkoutEntry { id: string; focus: string; minutes: number; intensity: Intensity; style: WorkoutStyle | null; note: string | null; doneAt: string }
 export interface FitnessLog { entries: WorkoutEntry[]; weekMinutes: number; weekSessions: number }
 
 export function isConsentBlocked(err: unknown): boolean {
@@ -83,8 +91,11 @@ export const fitnessApi = {
   bodyGoal: () => api.get<BodyProgram>('/fitness/body-goal').then((r) => r.data),
   syncNutrition: () => api.post<{ synced: boolean; nutritionGoal: string; goalWritten: boolean; proteinTarget: number }>('/fitness/sync-nutrition', {}).then((r) => r.data),
   log: () => api.get<FitnessLog>('/fitness/log').then((r) => r.data),
-  addLog: (input: { focus: string; minutes: number; intensity: Intensity; note?: string }) =>
+  addLog: (input: { focus: string; minutes: number; intensity: Intensity; style?: WorkoutStyle; note?: string }) =>
     api.post<FitnessLog>('/fitness/log', input).then((r) => r.data),
+  editLog: ({ id, ...patch }: { id: string; focus?: string; minutes?: number; intensity?: Intensity; style?: WorkoutStyle; note?: string }) =>
+    api.patch<FitnessLog>(`/fitness/log/${id}`, patch).then((r) => r.data),
+  removeLog: (id: string) => api.delete<FitnessLog>(`/fitness/log/${id}`).then((r) => r.data),
 };
 
 export function useFitnessProfile() {
@@ -117,6 +128,25 @@ export function useAddWorkout() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: fitnessApi.addLog,
+    onSuccess: (l) => qc.setQueryData(['fitness', 'log'], l),
+  });
+}
+/* AN ENTRY IS ITS OWNER'S TO CHANGE (owner, 17 Aug). Both write the whole fresh
+   log straight into the cache, exactly as adding does — the server returns the
+   list after every mutation, so the week's minutes and the row that changed can
+   never disagree. It also means the total moves the instant a 300-minute typo
+   is corrected, which is the reason the owner asked for this. */
+export function useEditWorkout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: fitnessApi.editLog,
+    onSuccess: (l) => qc.setQueryData(['fitness', 'log'], l),
+  });
+}
+export function useRemoveWorkout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: fitnessApi.removeLog,
     onSuccess: (l) => qc.setQueryData(['fitness', 'log'], l),
   });
 }

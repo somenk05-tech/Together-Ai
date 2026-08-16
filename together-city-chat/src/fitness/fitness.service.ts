@@ -1,6 +1,6 @@
 import { swallowed } from '../shared/swallow';
 import { ACTIVITY_FACTORS } from '../shared/energy';
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { answeredNow } from '../shared/prisma/answered-at';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { MasterProfileService } from '../profile/master-profile.service';
@@ -14,7 +14,7 @@ import {
 } from './fitness-engine';
 import { buildSession, type LevelKey, type BodyGoalKey, type SessionInput, type Intensity } from './session-engine';
 import { EQUIPMENT_KEYS, type Condition, type Equipment } from './exercise-library';
-import type { SaveFitnessProfileDto, LogWorkoutDto, TodaySessionQueryDto } from './dto/fitness.dto';
+import type { SaveFitnessProfileDto, LogWorkoutDto, EditWorkoutDto, TodaySessionQueryDto } from './dto/fitness.dto';
 
 const DEFAULT_PROFILE = {
   age: 35, sex: 'other', level: 'beginner', mode: 'mixed', goal: 'general', conditions: [] as string[],
@@ -377,7 +377,7 @@ export class FitnessService {
     const weekAgo = new Date(Date.now() - 7 * 864e5);
     const week = rows.filter((r) => r.doneAt >= weekAgo);
     return {
-      entries: rows.map((r) => ({ id: r.id, focus: r.focus, minutes: r.minutes, intensity: r.intensity, note: r.note, doneAt: r.doneAt.toISOString() })),
+      entries: rows.map((r) => ({ id: r.id, focus: r.focus, minutes: r.minutes, intensity: r.intensity, style: r.style, note: r.note, doneAt: r.doneAt.toISOString() })),
       weekMinutes: week.reduce((s, r) => s + r.minutes, 0),
       weekSessions: week.length,
     };
@@ -385,8 +385,49 @@ export class FitnessService {
 
   async addLog(userId: string, dto: LogWorkoutDto) {
     await this.prisma.workoutLog.create({
-      data: { userId, focus: dto.focus, minutes: dto.minutes, intensity: dto.intensity, note: dto.note ?? null },
+      data: {
+        userId, focus: dto.focus, minutes: dto.minutes, intensity: dto.intensity,
+        // `?? null` and not a default: empty means nobody was asked, and the
+        // rows written before 17 Aug have to keep meaning that.
+        style: dto.style ?? null,
+        note: dto.note ?? null,
+      },
     });
+    return this.log(userId);
+  }
+
+  /**
+   * ── AN ENTRY IS ITS OWNER'S TO CHANGE, AND NOBODY ELSE'S ──────────────────
+   *
+   * `updateMany`/`deleteMany` with the userId IN THE WHERE, rather than a
+   * findUnique-then-check: the scope is part of the query the database runs, so
+   * there is no window between reading a row and deciding about it, and no
+   * branch a later edit can forget to keep. It is also why the COUNT is the
+   * authorisation answer - 0 means "no row of yours has that id", and that is
+   * the same reply whether the id is fictional or belongs to another citizen.
+   * A 404 that distinguishes the two is a membership oracle.
+   */
+  async editLog(userId: string, id: string, dto: EditWorkoutDto) {
+    const { count } = await this.prisma.workoutLog.updateMany({
+      where: { id, userId },
+      // Only the keys the caller actually sent. Spreading the whole dto would
+      // write `undefined` over fields nobody mentioned, which is how an edit to
+      // the duration silently erases a note.
+      data: {
+        ...(dto.focus !== undefined ? { focus: dto.focus } : {}),
+        ...(dto.minutes !== undefined ? { minutes: dto.minutes } : {}),
+        ...(dto.intensity !== undefined ? { intensity: dto.intensity } : {}),
+        ...(dto.style !== undefined ? { style: dto.style } : {}),
+        ...(dto.note !== undefined ? { note: dto.note } : {}),
+      },
+    });
+    if (count === 0) throw new NotFoundException('No workout of yours with that id');
+    return this.log(userId);
+  }
+
+  async removeLog(userId: string, id: string) {
+    const { count } = await this.prisma.workoutLog.deleteMany({ where: { id, userId } });
+    if (count === 0) throw new NotFoundException('No workout of yours with that id');
     return this.log(userId);
   }
 }

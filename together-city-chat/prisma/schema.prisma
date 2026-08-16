@@ -1488,6 +1488,16 @@ model WorkoutLog {
   focus     String
   minutes   Int
   intensity String   @default("moderate") // light | moderate | vigorous
+  // WHERE IT ACTUALLY HAPPENED. home | gym | sports | studio | outdoor.
+  // NULLABLE ON PURPOSE: every row written before 17 Aug was logged without
+  // being asked, and a default would put five hundred workouts in a place
+  // nobody said they were. Empty means "we never asked", not "at home".
+  //
+  // It is deliberately NOT the profile's `place`, which is home|gym: that one
+  // is an instruction to the session engine, which can only program the two
+  // rooms it has movements for. This one is a record of what happened, and
+  // "five-a-side on Tuesday" is a real answer to that question.
+  style     String?
   note      String?
   doneAt    DateTime @default(now())
 
