@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 export interface ModalProps {
   open: boolean;
@@ -68,7 +69,16 @@ export function Modal({ open, onClose, title, children, footer, width = 460 }: M
     }
   };
 
-  return (
+  /* THE PORTAL IS LOAD-BEARING, NOT A STYLE CHOICE. A dialog opened from
+     inside a feed card used to render inside that card's subtree, and the
+     feed's cards now carry `content-visibility: auto` (social.css) — a
+     containment that turns a `position: fixed` descendant into a box measured
+     against the CARD rather than the screen. Rendered at document.body the
+     dialog covers the viewport whatever opened it, and it steps out of every
+     ancestor stacking context and transform for free. React portals bubble
+     events through the REACT tree, so the focus trap, Esc and backdrop close
+     behave exactly as before. */
+  return createPortal(
     <div onMouseDown={onClose}
       style={{ position: 'fixed', inset: 0, zIndex: 1300, background: 'rgba(10,10,12,.45)', backdropFilter: 'blur(3px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 18 }}>
@@ -87,6 +97,7 @@ export function Modal({ open, onClose, title, children, footer, width = 460 }: M
           <div style={{ padding: '14px 20px', borderTop: '1px solid var(--line)' }}>{footer}</div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

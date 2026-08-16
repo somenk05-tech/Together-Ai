@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type MutableRefObject, type ReactNode, type Ref } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, type FormEvent, type MutableRefObject, type ReactNode, type Ref } from 'react';
 import { Button, Spinner } from '@/components/ui';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { useAuth } from '@/hooks/useAuth';
 import { ShareModal } from '@/features/chat/share';
 import type { ShareCard } from '@/types';
+import { setMuted, playWithSharedSound, releasePlayback, knownRatio, rememberRatio } from '@/lib/mediaState';
 import {
   useAddComment, useComments, useToggleLike, useDeletePost, useUpdatePost, useRepost, type Post, type PostMedia,
 } from './api';
@@ -90,11 +91,19 @@ function ImgCell({ url, adaptive, overlay, alt }: { url: string; adaptive: boole
   // Frame to the image's TRUE aspect ratio (any ratio) — nothing is cropped.
   // `contain` guarantees the whole image shows; a tall/wide image just gets a
   // taller/wider frame (capped so it never dominates the screen).
-  const [ar, setAr] = useState(16 / 9); // width / height
+  // THE RATIO IS REMEMBERED BY URL (mediaState), so a card scrolled back to —
+  // or remounted by pagination — frames itself correctly BEFORE the pixels
+  // arrive, instead of re-playing the 16:9 → real-shape layout jump.
+  const [ar, setAr] = useState(() => (adaptive && knownRatio(url)) || 16 / 9); // width / height
   const shown = adaptive ? ar : 16 / 9;
   return (
     <div style={{ position: 'relative', aspectRatio: String(shown), maxHeight: adaptive ? 720 : undefined, background: 'var(--media-bg)' }}>
-      <img src={url} alt={alt} onLoad={(e) => { if (adaptive) setAr(e.currentTarget.naturalWidth / Math.max(1, e.currentTarget.naturalHeight)); }}
+      <img src={url} alt={alt} loading="lazy" decoding="async"
+        onLoad={(e) => {
+          const r = e.currentTarget.naturalWidth / Math.max(1, e.currentTarget.naturalHeight);
+          rememberRatio(url, r);
+          if (adaptive) setAr(r);
+        }}
         style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
       {overlay}
     </div>
@@ -105,9 +114,13 @@ function ImgCell({ url, adaptive, overlay, alt }: { url: string; adaptive: boole
  *  reachable (no more +N cutoff), with dot indicators and a counter. */
 function ImageCarousel({ images, authorName }: { images: PostMedia[]; authorName: string }) {
   const [idx, setIdx] = useState(0);
-  const [ar, setAr] = useState(16 / 9); // true shape from the first image (any ratio)
+  // true shape from the first image (any ratio); remembered by URL so a
+  // remounted carousel opens at the right height with no layout jump.
+  const [ar, setAr] = useState(() => knownRatio(images[0]?.url ?? '') ?? 16 / 9);
   const shown = ar;
   const ref = useRef<HTMLDivElement>(null);
+  // setState with an unchanged index is a no-op render-wise, so this handler
+  // costs a division per scroll event and a render only when the page flips.
   const onScroll = () => {
     const el = ref.current;
     if (el && el.clientWidth) setIdx(Math.round(el.scrollLeft / el.clientWidth));
@@ -120,8 +133,8 @@ function ImageCarousel({ images, authorName }: { images: PostMedia[]; authorName
           <div key={m.id} style={{ flex: '0 0 100%', scrollSnapAlign: 'center', height: '100%' }}>
             {/* contain, so portrait photos are never cropped (letterboxed if the
                 slide's shape differs) */}
-            <img src={m.url} alt={`Photo shared by ${authorName}`} loading="lazy"
-              onLoad={i === 0 ? (e) => setAr(e.currentTarget.naturalWidth / Math.max(1, e.currentTarget.naturalHeight)) : undefined}
+            <img src={m.url} alt={`Photo shared by ${authorName}`} loading="lazy" decoding="async"
+              onLoad={i === 0 ? (e) => { const r = e.currentTarget.naturalWidth / Math.max(1, e.currentTarget.naturalHeight); rememberRatio(m.url, r); setAr(r); } : undefined}
               style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
           </div>
         ))}
@@ -142,7 +155,9 @@ function ImageCarousel({ images, authorName }: { images: PostMedia[]; authorName
  *  `autoInView` makes it autoplay (muted) while scrolled into view and pause when
  *  it leaves — used by the "Videos" feed section. */
 function VideoFrame({ url, isNew, vref, autoInView }: { url: string; isNew: boolean; vref?: Ref<HTMLVideoElement>; autoInView?: boolean }) {
-  const [ar, setAr] = useState(16 / 9); // real width / height
+  // Real width / height — remembered by URL, so scrolling back to a video (or
+  // a pagination remount) frames it correctly before metadata arrives.
+  const [ar, setAr] = useState(() => knownRatio(url) ?? 16 / 9);
   /**
    * THE SRC WAITS UNTIL THE VIDEO IS NEARLY ON SCREEN.
    *
@@ -170,22 +185,53 @@ function VideoFrame({ url, isNew, vref, autoInView }: { url: string; isNew: bool
     return () => io.disconnect();
   }, [near]);
 
+  /**
+   * ONE VIDEO PLAYS, AND IT PLAYS WITH THE CITIZEN'S OWN SOUND.
+   *
+   * The old handler forced `muted = true` on every play, so a citizen who had
+   * unmuted one video was silenced again by the next card — the "audio randomly
+   * cuts out while scrolling" bug. Play goes through the shared media state
+   * now: the video claims playback (pausing whichever one held it), applies
+   * the one app-wide sound preference, and falls back to muted only where the
+   * browser refuses sound. Leaving the viewport pauses WITHOUT touching src,
+   * currentTime or the element itself, so scrolling back resumes instantly.
+   */
   useEffect(() => {
     if (!autoInView) return;
     const el = localRef.current;
     if (!el) return;
+    // The citizen's use of the native controls' speaker IS the preference —
+    // fold it back into the shared state so the next video respects it.
+    const onVolume = () => { if (!el.paused) setMuted(el.muted); };
+    el.addEventListener('volumechange', onVolume);
+    // The card can become mostly-visible BEFORE `near` has attached the src
+    // (a fast fling outruns the preload margin). A play() on a source-less
+    // element rejects and nothing would start it later — so the wish to play
+    // is kept, and honoured the moment the data arrives.
+    let wantsPlay = false;
+    const attempt = () => { if (wantsPlay && el.getAttribute('src')) playWithSharedSound(el); };
+    el.addEventListener('loadeddata', attempt);
     const io = new IntersectionObserver((entries) => {
       const e = entries[0];
-      if (e.isIntersecting && e.intersectionRatio >= 0.6) { el.muted = true; void el.play().catch(() => {}); }
-      else el.pause();
+      if (e.isIntersecting && e.intersectionRatio >= 0.6) { wantsPlay = true; attempt(); }
+      else { wantsPlay = false; el.pause(); releasePlayback(el); }
     }, { threshold: [0, 0.6] });
     io.observe(el);
-    return () => io.disconnect();
+    return () => {
+      io.disconnect();
+      el.removeEventListener('volumechange', onVolume);
+      el.removeEventListener('loadeddata', attempt);
+      releasePlayback(el);
+    };
   }, [autoInView]);
   return (
-    <video ref={setRefs} src={near ? url : undefined} preload={near ? 'metadata' : 'none'}
+    <video ref={setRefs} src={near ? url : undefined} preload={near ? 'auto' : 'none'}
       controls playsInline autoPlay={isNew} muted={isNew || autoInView} loop={isNew || autoInView}
-      onLoadedMetadata={(e) => setAr((e.currentTarget.videoWidth || 16) / Math.max(1, e.currentTarget.videoHeight || 9))}
+      onLoadedMetadata={(e) => {
+        const r = (e.currentTarget.videoWidth || 16) / Math.max(1, e.currentTarget.videoHeight || 9);
+        rememberRatio(url, r);
+        setAr(r);
+      }}
       style={{ width: '100%', aspectRatio: String(ar), maxHeight: 720, objectFit: 'contain', borderRadius: 14, marginTop: 12, background: 'var(--media-bg)', display: 'block' }} />
   );
 }
@@ -195,7 +241,7 @@ function VideoFrame({ url, isNew, vref, autoInView }: { url: string; isNew: bool
  *  `manage` shows the author's Edit/Delete menu (used on the profile, not the feed).
  *  `onOpenAuthor` opens the author's profile (the parent owns the modal, so this
  *  component has no dependency on the profile page — avoids a circular import). */
-export function PostCard({ post, isNew = false, manage = false, onOpenAuthor, onSetCover, coverBusy = false, autoplayVideo = false }: {
+export const PostCard = memo(function PostCard({ post, isNew = false, manage = false, onOpenAuthor, onSetCover, coverBusy = false, autoplayVideo = false }: {
   post: Post; isNew?: boolean; manage?: boolean; onOpenAuthor?: (handle: string) => void;
   onSetCover?: (timeSec: number) => void; coverBusy?: boolean; autoplayVideo?: boolean;
 }) {
@@ -208,6 +254,18 @@ export function PostCard({ post, isNew = false, manage = false, onOpenAuthor, on
   const vidRef = useRef<HTMLVideoElement>(null);
   const isMine = Boolean(user && (user.id === post.author.id || user.handle === post.author.handle));
   const [menuOpen, setMenuOpen] = useState(false);
+  // Outside-tap closes the menu — a document listener, the same pattern the
+  // header's NotificationBell uses. The old full-screen backdrop <div> was
+  // `position: fixed` INSIDE the card, which the card's new
+  // `content-visibility` containment would measure against the card instead
+  // of the screen; a listener has no box to get wrong.
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (e: MouseEvent) => { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false); };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [menuOpen]);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(post.text ?? '');
   const [showComments, setShowComments] = useState(false);
@@ -270,22 +328,19 @@ export function PostCard({ post, isNew = false, manage = false, onOpenAuthor, on
           </div>
         </div>
         {manage && isMine && (
-          <div style={{ position: 'relative', flex: 'none' }}>
+          <div ref={menuRef} style={{ position: 'relative', flex: 'none' }}>
             <button type="button" aria-label="Post options" onClick={() => setMenuOpen((o) => !o)}
               style={{ background: 'none', border: 'none', cursor: 'pointer', lineHeight: 0, color: 'var(--muted)', padding: '4px 2px', minHeight: 44 }}>
               <Icon name="more" size={19} />
             </button>
             {menuOpen && (
-              <>
-                <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 20 }} />
-                <div style={{ position: 'absolute', top: '100%', right: 0, zIndex: 21, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 12, boxShadow: '0 10px 32px rgba(0,0,0,.16)', overflow: 'hidden', minWidth: 150 }}>
+              <div style={{ position: 'absolute', top: '100%', right: 0, zIndex: 21, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 12, boxShadow: '0 10px 32px rgba(0,0,0,.16)', overflow: 'hidden', minWidth: 150 }}>
                   <button type="button" onClick={() => { setDraft(post.text ?? ''); setEditing(true); setMenuOpen(false); }}
                     style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', color: 'var(--ink)' }}><Icon name="edit" size={14} /> Edit post</button>
                   <button type="button" disabled={del.isPending}
                     onClick={() => { setMenuOpen(false); if (window.confirm('Delete this post? This cannot be undone.')) del.mutate(post.id); }}
                     style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', borderTop: '1px solid var(--line)', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', color: 'var(--danger-ink)' }}><Icon name="close" size={14} /> Delete post</button>
-                </div>
-              </>
+              </div>
             )}
           </div>
         )}
@@ -363,4 +418,4 @@ export function PostCard({ post, isNew = false, manage = false, onOpenAuthor, on
       {shareOpen && <ShareModal item={shareCard} onClose={() => setShareOpen(false)} />}
     </article>
   );
-}
+});

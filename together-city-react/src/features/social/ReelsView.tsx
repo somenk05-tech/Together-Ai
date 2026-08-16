@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Button, Spinner } from '@/components/ui';
 import { ShareModal } from '@/features/chat/share';
 import type { ShareCard } from '@/types';
+import { isMuted, setMuted, subscribeMuted, claimPlayback, releasePlayback } from '@/lib/mediaState';
 import { Avatar, savedIds, toggleSaved } from './PostCard';
 import {
   useAddComment, useComments, useToggleLike, useRepost, type Post,
@@ -34,10 +35,10 @@ const BookmarkIcon = ({ filled }: { filled: boolean }) => (
   </svg>
 );
 
-// Global sound preference for reels — starts UNMUTED (sound on) and a single
-// mute/unmute applies to every video and persists across scrolling and remounts
-// for the session. Module-level so it survives component remounts.
-let sharedMuted = false;
+// The sound preference lives in mediaState now — ONE state for reels, the
+// feed's autoplaying cards and the profile reader, so moving between surfaces
+// never flips the citizen's choice. It still starts UNMUTED and still
+// survives remounts; it just stopped being private to this file.
 
 /** Instagram-Reels-style vertical player for the Videos tab: one video per
  *  screen, snap-scroll up/down, autoplay in view, side action rail. */
@@ -68,9 +69,11 @@ export function ReelsView({ items, onOpenAuthor, hasNextPage, fetchNextPage, isF
     jumped.current = true;
     el.scrollTo({ top: startAt * el.clientHeight, behavior: 'auto' });
   }, [startAt]);
-  // One mute state shared by every reel. Toggling it here re-renders all reels.
-  const [muted, setMuted] = useState(sharedMuted);
-  const toggleMute = () => setMuted((m) => { sharedMuted = !m; return !m; });
+  // One mute state shared by every reel AND every other video surface.
+  // Toggling re-renders the mounted reels (a tap, never a scroll frame).
+  const [muted, setMutedState] = useState(isMuted());
+  useEffect(() => subscribeMuted(setMutedState), []);
+  const toggleMute = useCallback(() => setMuted(!isMuted()), []);
   const onScroll = () => {
     const el = scroller.current;
     if (!el || !hasNextPage || isFetchingNextPage) return;
@@ -83,7 +86,10 @@ export function ReelsView({ items, onOpenAuthor, hasNextPage, fetchNextPage, isF
   return (
     <div style={{ position: 'relative', height: fullScreen ? '100dvh' : 'calc(100dvh - 120px)', background: 'var(--card)' }}>
       <div ref={scroller} onScroll={onScroll} className="tc-hscroll"
-        style={{ height: '100%', overflowY: 'auto', scrollSnapType: 'y mandatory' }}>
+        /* `overscroll-behavior: contain` keeps the rubber-band at either end of
+           the reels inside the reels instead of handing the gesture to the page
+           behind the portal; the -webkit property keeps iOS momentum native. */
+        style={{ height: '100%', overflowY: 'auto', scrollSnapType: 'y mandatory', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
         {items.map((p) => <Reel key={p.key ?? p.id} post={p} onOpenAuthor={onOpenAuthor} muted={muted} onToggleMute={toggleMute} />)}
         {isFetchingNextPage && <div style={{ height: 60, display: 'grid', placeItems: 'center' }}><Spinner /></div>}
       </div>
@@ -102,7 +108,10 @@ export function ReelsView({ items, onOpenAuthor, hasNextPage, fetchNextPage, isF
   );
 }
 
-function Reel({ post, onOpenAuthor, muted, onToggleMute }: { post: Post; onOpenAuthor?: (handle: string) => void; muted: boolean; onToggleMute: () => void }) {
+/* memo: appending a page of reels re-renders the list; the reels already
+ * mounted have identical props and skip their render entirely — a scroll
+ * that fetches page 3 does not re-run pages 1 and 2. */
+const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute }: { post: Post; onOpenAuthor?: (handle: string) => void; muted: boolean; onToggleMute: () => void }) {
   // Phone: the reel IS the screen — 9:16 full-bleed like every reels player.
   // The action rail and caption move ONTO the video in white; desktop keeps
   // the white-page card with the rail beside it. Mount-time matchMedia, the
@@ -148,11 +157,14 @@ function Reel({ post, onOpenAuthor, muted, onToggleMute }: { post: Post; onOpenA
     const io = new IntersectionObserver((entries) => {
       const e = entries[0];
       if (e.isIntersecting && e.intersectionRatio >= 0.6) {
+        // The claim pauses whichever video (reel or feed card) played before —
+        // one video at a time, app-wide, without destroying anything.
+        claimPlayback(el);
         void el.play().then(() => { setPaused(false); if (hasMusic) syncAudioPlay(); }).catch(() => {});
-      } else { el.pause(); if (hasMusic) syncAudioPause(); }
+      } else { el.pause(); releasePlayback(el); if (hasMusic) syncAudioPause(); }
     }, { threshold: [0, 0.6] });
     io.observe(el);
-    return () => { io.disconnect(); syncAudioPause(); };
+    return () => { io.disconnect(); releasePlayback(el); syncAudioPause(); };
   }, [hasMusic]);
 
   // Warm the buffer ~1 screen before the reel scrolls into view.
@@ -282,7 +294,7 @@ function Reel({ post, onOpenAuthor, muted, onToggleMute }: { post: Post; onOpenA
       {commentsOpen && <ReelComments postId={post.id} onClose={() => setCommentsOpen(false)} />}
     </div>
   );
-}
+});
 
 /** Bottom-sheet comments for a reel. */
 function ReelComments({ postId, onClose }: { postId: string; onClose: () => void }) {

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { Button, Spinner } from '@/components/ui';
 import { successToast } from '@/components/form-validation';
@@ -123,7 +124,10 @@ export function ShareModal({ item, onClose }: { item: ShareCard; onClose: () => 
 
   const row = (active: boolean): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', borderRadius: 10, cursor: 'pointer', border: `1.5px solid ${active ? 'var(--accent)' : 'transparent'}`, background: active ? 'var(--accent-soft)' : 'transparent' });
 
-  return (
+  /* Portalled to the body for the same reason as Modal: a feed card carries
+     `content-visibility: auto`, and a fixed overlay rendered INSIDE the card
+     would be measured against the card, not the screen. */
+  return createPortal(
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 100, display: 'grid', placeItems: 'center', padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: 'min(460px, 96vw)', maxHeight: '88vh', overflow: 'auto' }}>
         {done ? (
@@ -187,6 +191,7 @@ export function ShareModal({ item, onClose }: { item: ShareCard; onClose: () => 
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

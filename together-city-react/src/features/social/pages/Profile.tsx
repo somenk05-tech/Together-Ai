@@ -179,6 +179,15 @@ function PostReader({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  // ONE SCROLL CONTEXT. The page behind the reader is locked while it is
+  // open, so a flick at the reader's end cannot hand the gesture to the wall
+  // underneath — two scrollable layers under one thumb is the classic "the
+  // feed fights the swipe" bug. Same pattern the reels portal uses.
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
   const chip = (postId: string, cur: string, key: '' | 'personal' | 'work', label: string) => (
     <button key={key || 'none'} type="button" disabled={setCategory.isPending}
       onClick={() => setCategory.mutate({ postId, category: key === '' ? null : key })}
@@ -190,13 +199,19 @@ function PostReader({
   );
 
   return (
-    <div className="sheet-ov is-top" onClick={onClose}>
+    /* `is-reader`: on touch screens the frost drops its backdrop blur (see
+       relief.css) — a full-viewport blur repainted under a scrolling column is
+       the single most expensive thing an iPhone can be asked to composite.
+       `overflow: hidden` because the COLUMN is the one scroller here; the
+       overlay's own `overflow: auto` was a second scroll surface fighting it. */
+    <div className="sheet-ov is-top is-reader" onClick={onClose} style={{ overflow: 'hidden' }}>
       {/* Close is FIXED to the overlay, not placed after the list. Three posts
           down, a button at the end of the column is not a way out. */}
       <button type="button" onClick={onClose} className="btn btn-line btn-sm"
         style={{ position: 'fixed', top: 14, right: 16, zIndex: 2 }}>Close</button>
       <div ref={scroller} onClick={(e) => e.stopPropagation()}
-        style={{ width: 'min(600px,96vw)', maxHeight: '100dvh', overflowY: 'auto', padding: '14px 0 40px', scrollbarWidth: 'thin' }}>
+        style={{ width: 'min(600px,96vw)', maxHeight: '100dvh', overflowY: 'auto', padding: '14px 0 40px', scrollbarWidth: 'thin',
+          overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
         {posts.map(({ post, category }) => (
           <div key={post.id} ref={post.id === startId ? startRef : undefined} style={{ scrollMarginTop: 14, marginBottom: 18 }}>
             <PostCard post={post} autoplayVideo

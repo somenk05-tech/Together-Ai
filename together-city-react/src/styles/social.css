@@ -126,7 +126,16 @@
 .sl-ic.amber { background: var(--fold-amber-face); }
 
 /* ── one post, on a phone ─────────────────────────────────────────────── */
-.sl-post { padding: 14px 15px 4px; margin-bottom: 14px; }
+/* `content-visibility: auto` is the browser's own windowing: cards well off
+   screen are not laid out, painted or hit-tested, so a hundred-post feed
+   scrolls at the cost of the dozen near the viewport — with nothing
+   unmounted, no scroll-position bookkeeping, and no library. The intrinsic
+   size is `auto 640px`: once a card HAS rendered, the browser remembers its
+   real height and uses that while it is skipped, so the scrollbar and the
+   scroll position hold still; 640px is only the estimate for a card's first
+   ever frame. Browsers without the property ignore both lines. */
+.sl-post { padding: 14px 15px 4px; margin-bottom: 14px;
+  content-visibility: auto; contain-intrinsic-size: auto 640px; }
 .sl-post-head { display: flex; align-items: flex-start; gap: 11px; }
 .sl-post-id { flex: 1 1 auto; min-width: 0; }
 .sl-post-name { font-size: 14.5px; font-weight: 700; letter-spacing: -.01em; }

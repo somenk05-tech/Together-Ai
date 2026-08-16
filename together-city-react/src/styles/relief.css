@@ -1264,6 +1264,21 @@ img[src$=".svg"], .no-case {
 }
 .sheet-ov.is-centred { place-items: center; }
 .sheet-ov.is-top { place-items: start center; }
+/* THE READER IS A SCROLLER, AND A SCROLLER DOES NOT SIT ON GLASS ON A PHONE.
+   The profile's post reader scrolls a full-height column of photographs and
+   playing video INSIDE this overlay, and a viewport-sized backdrop-filter is
+   the most expensive surface an iPhone can be asked to hold under a moving
+   layer — it is the difference between the reader scrolling at the display's
+   rate and it stuttering. On a touch screen the column all but fills the
+   overlay anyway, so the frost becomes the paper it was faking: same light,
+   no lens. A desk keeps the glass — a mouse wheel over a 600px column leaves
+   the frost visible and a desktop GPU carries it without dropping a frame. */
+@media (pointer: coarse) {
+  .sheet-ov.is-reader {
+    background: var(--paper);
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+}
 .sheet {
   background: var(--face-tall); border: 0; border-radius: var(--r-5);
   box-shadow: var(--e3); padding: 20px 22px;

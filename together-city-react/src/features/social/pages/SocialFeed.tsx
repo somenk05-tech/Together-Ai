@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { informalName } from '@/lib/salutation';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -49,7 +49,8 @@ export function SocialFeed() {
   const feed = useFeed(filter);
   const showFilter = (key: string) => { setOpenKey(null); setFilter(key); };
   const items = feed.data?.pages.flatMap((p) => p.items) ?? [];
-  const openAuthor = (h: string) => navigate(`/social/u/${encodeURIComponent(h)}`);
+  // Stable, so the memoised PostCards don't all re-render when this page does.
+  const openAuthor = useCallback((h: string) => navigate(`/social/u/${encodeURIComponent(h)}`), [navigate]);
   /**
    * A PHONE READS ONE POST AT A TIME; A DESKTOP READS A WALL.
    *
@@ -82,7 +83,10 @@ export function SocialFeed() {
     if (!navState?.justShared) return;
     setNewPostId(navState.newPostId ?? null);
     setToast(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Instant, not smooth: the citizen just posted and wants to SEE it, not
+    // watch the page travel. (The app's scrolling is native everywhere now —
+    // no animated scrolling anywhere on a gesture path.)
+    window.scrollTo(0, 0);
     // Clear router state so a refresh/back doesn't re-trigger the toast.
     navigate(location.pathname, { replace: true, state: null });
     const t1 = window.setTimeout(() => setToast(false), 3000);
@@ -90,6 +94,27 @@ export function SocialFeed() {
     return () => { window.clearTimeout(t1); window.clearTimeout(t2); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /**
+   * THE NEXT PAGE ARRIVES BEFORE ANYBODY ASKS FOR IT.
+   *
+   * "Load more" was a decision the citizen had to make at the bottom of every
+   * twenty posts — scroll, stop, find the button, tap, wait. The sentinel
+   * fetches the next page while the current one still has ~1200px to run, so
+   * under normal scrolling the join is never seen. The button stays, as the
+   * fallback and the accessible path; the network request never lives inside
+   * a scroll handler.
+   */
+  const moreRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = moreRef.current;
+    if (!el || !feed.hasNextPage) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && !feed.isFetchingNextPage) void feed.fetchNextPage();
+    }, { rootMargin: '1200px 0px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [feed.hasNextPage, feed.isFetchingNextPage, feed]);
 
   // Lock the page behind the full-screen reels so only the reels scroll.
   useEffect(() => {
@@ -222,9 +247,14 @@ export function SocialFeed() {
             /* ONE POST AT A TIME, WHOLE. On a phone column the poster tile and
                the post are the same width, so the tile is no longer a
                thumbnail of anything — it is the post with its caption cropped
-               and its controls hidden behind a tap. The card shows all of it. */
+               and its controls hidden behind a tap. The card shows all of it.
+               `autoplayVideo` is the reader's machinery reused: the one
+               mostly-visible video plays (with the citizen's own sound
+               preference), pauses on the way out, and the next one is already
+               buffered — the phone feed behaves like every reels feed the
+               citizen already knows. */
             items.map((p) => (
-              <PostCard key={p.key ?? p.id} post={p} isNew={p.id === newPostId} onOpenAuthor={openAuthor} />
+              <PostCard key={p.key ?? p.id} post={p} isNew={p.id === newPostId} onOpenAuthor={openAuthor} autoplayVideo />
             ))
           ) : (
             /* THE WALL. An opened poster takes the full width in the place it
@@ -250,6 +280,7 @@ export function SocialFeed() {
             </div>
           )}
 
+          <div ref={moreRef} aria-hidden />
           <div className="wall-rule foot">
             <span>{FILTERS.find((f) => f.key === filter)?.label ?? 'For you'}</span>
             {feed.hasNextPage ? (

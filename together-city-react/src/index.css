@@ -7,7 +7,14 @@
 
 /* ============ base ============ */
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+/* NO `scroll-behavior: smooth` ON THE ROOT. It read as polish and it animated
+   EVERY programmatic scroll in the application — anchor jumps, "back to top",
+   the reader landing on the tile you tapped — so the page glided when it
+   should simply BE somewhere. Native scrolling (the thumb, the wheel, the
+   momentum) was never smooth-scrolled by this rule and does not need it;
+   the places that genuinely want an animated glide ask for it themselves
+   with `behavior: 'smooth'`. Instagram feels immediate because the scroll
+   itself is never animated by the app; same rule here now. */
 body {
   margin: 0;
   font-family: var(--sans);
