@@ -27,6 +27,15 @@ import { Icon } from '@/components/ui/Icon';
  * It works on desktop too (it is reachable, not adapted): the grid simply
  * gets more columns.
  */
+/**
+ * Not every tab in NAV is a district. Mail is an ACTION (it sits with Chat and
+ * Alerts in the corner), and Personal is a DRAWER — the citizen's own thoughts,
+ * calendar, drive and album. Neither has commissioned art, and neither is a
+ * place you *visit*; both belong with the people layer below. Filtering them
+ * out here keeps this grid agreeing with the header about what a hub IS.
+ */
+const NOT_A_DOOR = new Set<string>(['mail', 'personal']);
+
 export function Hubs() {
   return (
     <div className="page">
@@ -35,7 +44,7 @@ export function Hubs() {
       <p className="muted" style={{ fontSize: 13.5, marginBottom: 18 }}>Every hub, one screen. Tap a door.</p>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
-        {NAV.filter((n) => n.key !== 'mail').map((n) => {
+        {NAV.filter((n) => !NOT_A_DOOR.has(n.key)).map((n) => {
           const cfg = HUBS[n.key as HubKey];
           const hero = HUB_HERO[n.key as HubKey];
           return (
@@ -72,6 +81,7 @@ export function Hubs() {
       <div className="eyebrow" style={{ margin: '26px 0 10px' }}>Your city, your people</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
         {[
+          { to: '/personal', label: 'Personal', sub: 'Thoughts, album & more', icon: 'personal' as const },
           { to: '/connections', label: 'People', sub: 'Friends & requests', icon: 'people' as const },
           { to: '/mail', label: 'Mail', sub: 'Your city inbox', icon: 'mention' as const },
           { to: '/calendar', label: 'Calendar', sub: 'Everything booked', icon: 'star' as const },

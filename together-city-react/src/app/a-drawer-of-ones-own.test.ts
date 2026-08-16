@@ -82,6 +82,20 @@ describe('Personal is a drawer, not a district', () => {
     }
   });
 
+  it('stands with the people layer on /hubs, not among the doors', () => {
+    // Owner, 16 Aug: Personal was rendering in the district grid as a black
+    // tile with no picture — because it has no HUB_HERO and never will, being
+    // a drawer rather than a district. A door with no art is a door that looks
+    // broken. It belongs under "Your city, your people", with the calendar and
+    // the drive it actually contains.
+    const hubs = read('pages/Hubs.tsx');
+    expect(hubs).toMatch(/NOT_A_DOOR = new Set<string>\(\['mail', 'personal'\]\)/);
+    expect(hubs).toMatch(/NAV\.filter\(\(n\) => !NOT_A_DOOR\.has\(n\.key\)\)/);
+    // and it is still reachable from this screen — moved, not hidden.
+    const people = hubs.slice(hubs.indexOf('Your city, your people'));
+    expect(people).toMatch(/to: '\/personal'/);
+  });
+
   it('the journal left the social shelf, and took its page grid with it', () => {
     // A private journal listed inside the SOCIAL rail was the wrong shelf; it
     // was there only because it was listed nowhere else.
