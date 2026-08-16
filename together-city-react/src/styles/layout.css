@@ -83,6 +83,48 @@
    beneath it reads as a different piece of furniture. The `.tc-nav` gap is
    relief.css's `clamp(14px, 1.7vw, 26px)` at every width — it loads last, so
    the per-breakpoint gaps that used to sit here were dead letters. */
+/* THE NOTIFICATION PANEL IS INSIDE THE ACTION BAR AND IS NOT AN ACTION-BAR ITEM.
+   
+   The rule above and its twin in relief.css are DESCENDANT selectors —
+   `.tc-actionbar button`, not `.tc-actionbar > button` — and the alerts
+   dropdown is rendered inside the bell's own wrapper, which is inside the bar.
+   So every row in that panel was claiming both: a 32px fixed height and a
+   black pill.
+
+   THE FIXED HEIGHT IS WHAT MADE IT UNREADABLE. A notification row is three
+   stacked lines — title, body, timestamp — which is about 48px of content
+   forced into a 32px box, so each row spilled over the one beneath it and the
+   list read as overlapping text. The black fill arrived at the same time and
+   from the same place, and it only appeared AFTER the panel was opened once:
+   opening marks everything read, and a read row sets no inline background, so
+   `var(--ink)` from relief won every one of them.
+
+   `>` would not be the fix — the bell button is a grandchild of the bar, so
+   scoping to direct children would strip the pill off the control that is
+   meant to have it. The panel says what it is instead, and this resets the
+   material it inherited. Third instance of the failure in
+   no-borrowed-class-names.test.ts, which now asserts this reset exists. */
+.tc-actionbar .notif-panel button,
+.tc-actions .notif-panel button {
+  height: auto;
+  white-space: normal;
+  font-size: inherit;
+  font-weight: 400;
+  letter-spacing: normal;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  box-shadow: none;
+  transform: none;
+}
+.tc-actionbar .notif-panel button:hover,
+.tc-actions .notif-panel button:hover {
+  background: var(--wash);
+  color: var(--ink);
+  box-shadow: none;
+  transform: none;
+}
+
 @media (max-width: 1440px) { .tc-header { --chip-fs: 10.5px; } .tc-navrow { gap: 14px; } .tc-actionbar, .tc-actions { gap: 8px; } }
 @media (max-width: 1180px) { .tc-header { --chip-fs: 9.5px; } .tc-navrow { gap: 12px; } .tc-actionbar, .tc-actions { gap: 6px; } }
 .tc-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; overflow: hidden; }

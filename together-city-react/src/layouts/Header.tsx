@@ -79,7 +79,12 @@ function NotificationBell() {
         <Badge count={unread.data ?? 0} />
       </button>
       {open && (
-        <div style={{ position: 'absolute', top: 'calc(100% + 10px)', right: 0, width: 340, maxHeight: 460, overflowY: 'auto',
+        /* THE PANEL IS NOT AN ACTION-BAR ITEM, AND HAS TO SAY SO OUT LOUD.
+           `.tc-actionbar button` is a DESCENDANT selector in two files — a
+           32px black pill in layout.css and relief.css — and this dropdown is
+           rendered inside the action bar, so every row in it was claiming that
+           rule. See the `.notif-panel` reset in layout.css. */
+        <div className="notif-panel" style={{ position: 'absolute', top: 'calc(100% + 10px)', right: 0, width: 340, maxHeight: 460, overflowY: 'auto',
           background: 'var(--card)', border: 0, borderRadius: 20, boxShadow: 'var(--e3)', zIndex: 90 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderBottom: '1px solid var(--line)' }}>
             <strong style={{ fontSize: 14 }}>Notifications</strong>

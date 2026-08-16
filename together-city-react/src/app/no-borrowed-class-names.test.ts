@@ -172,3 +172,61 @@ describe('The namespaced blocks do not borrow a global class name', () => {
     expect([...new Set(offenders)]).toEqual([]);
   });
 });
+
+/**
+ * THE SAME FAILURE, POINTED THE OTHER WAY — and the third instance of it.
+ *
+ * Above: a class that wears somebody else's rule. Here: markup that inherits a
+ * rule it was never meant to match, because the rule was written as a
+ * DESCENDANT selector and something got nested inside it.
+ *
+ * `.tc-actionbar button` is defined twice — a 32px pill in layout.css and a
+ * black fill in relief.css — and the alerts dropdown renders inside the action
+ * bar. Every row in that panel is three stacked lines, about 48px of content,
+ * and it was being forced into a 32px box: the list rendered as overlapping
+ * text. Worse, it only looked wrong AFTER the panel had been opened once,
+ * because opening marks everything read and a read row sets no inline
+ * background, so relief's `var(--ink)` painted every row black. Found by the
+ * owner looking at a render, like the two before it.
+ *
+ * `>` is not the fix: the bell is a grandchild of the bar and scoping to direct
+ * children would strip the pill off the one control meant to have it. The panel
+ * names itself and resets what it inherited, and this is the assertion that the
+ * reset is still there.
+ */
+describe('a popover inside the action bar is not an action-bar item', () => {
+  const layout = strip(read('src/styles/layout.css'));
+
+  it('the alerts panel names itself', () => {
+    expect(read('src/layouts/Header.tsx')).toContain('className="notif-panel"');
+  });
+
+  it('and the reset undoes both rules it would otherwise inherit', () => {
+    const block = layout.slice(layout.indexOf('.tc-actionbar .notif-panel button'));
+    expect(block).toBeTruthy();
+    // The fixed height is what made it unreadable; the pill is what made it
+    // black. Neither may come back without this failing.
+    expect(block).toMatch(/height:\s*auto/);
+    expect(block).toMatch(/background:\s*transparent/);
+    expect(block).toMatch(/box-shadow:\s*none/);
+    expect(block).toMatch(/white-space:\s*normal/);
+  });
+
+  it('still scopes to the bar, so nothing outside it is touched', () => {
+    // A bare `.notif-panel button` reset would be a third global rule in a
+    // file full of them, and the next popover would inherit THAT. Every
+    // selector mentioning the panel has to name the bar as well — checked by
+    // splitting whole rules rather than by a line-bound regex, because these
+    // selector lists wrap.
+    const unscoped: string[] = [];
+    for (const rule of layout.split('}')) {
+      const head = rule.slice(rule.lastIndexOf('{') === -1 ? 0 : 0, rule.indexOf('{'));
+      if (rule.indexOf('{') < 0 || !head.includes('.notif-panel')) continue;
+      for (const sel of head.split(',')) {
+        const t = sel.trim();
+        if (t.includes('.notif-panel') && !/\.tc-action(bar|s)\b/.test(t)) unscoped.push(t);
+      }
+    }
+    expect(unscoped).toEqual([]);
+  });
+});
