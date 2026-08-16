@@ -11,6 +11,13 @@ import './index.css';
 // paper, and how there came to be two rival [data-hub] palettes fighting over
 // the same variable.
 import './styles/relief.css';
+/* AFTER RELIEF, WHICH IS WHERE IT SAT IN THE CASCADE BEFORE. These rules lived
+   at line 1414 of relief.css and were written to override the `.g-*` glass
+   above them; importing them earlier would put that argument the wrong way
+   round. They are a file of their own now because living inside a 235KB
+   stylesheet is how they came to be deleted by a stale copy without anybody
+   noticing for two days. */
+import './styles/social.css';
 import './styles/mira.css';
 
 const container = document.getElementById('root');

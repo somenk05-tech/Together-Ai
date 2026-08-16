@@ -25,6 +25,11 @@ const index = read('src/index.css');
    to it until it carried a red ground of its own. A stylesheet no ratchet
    reads is a second design system with a head start. */
 const mira = read('src/styles/mira.css');
+/* Social Life's sheet is the fifth, and it is on this list for exactly the
+   reason written above Mira's. It spent two days deleted — a stale copy of
+   relief.css wrote over the 216 lines that held it — and no rule in this file
+   would have said so, because none of them knew the block existed. */
+const social = read('src/styles/social.css');
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(join(APP, dir))) {
@@ -151,7 +156,7 @@ describe('Relief stays a system', () => {
     // they are ink and images, and they carry their own light.
     const ALLOWED = /(text-shadow|drop-shadow|\.hero|\.btn-accent|\.btn-gold|\.btn-primary|\.ask-cta|\.step\.|\.mincal|\.tag\.dark|\.knob|outline|inset 0 1px 0|no-case|img:not|video:not|\.case)/;
     const offenders: string[] = [];
-    for (const [name, css] of [['relief.css', relief], ['layout.css', layout], ['index.css', index], ['mira.css', mira]] as const) {
+    for (const [name, css] of [['relief.css', relief], ['layout.css', layout], ['index.css', index], ['mira.css', mira], ['social.css', social]] as const) {
       for (const block of strip(css).split('}')) {
         const selector = block.split('{')[0].trim();
         const body = block.split('{')[1];
@@ -186,7 +191,7 @@ describe('Relief stays a system', () => {
       return !(h.slice(0, 2) === h.slice(2, 4) && h.slice(2, 4) === h.slice(4, 6));
     };
     const offenders: string[] = [];
-    for (const [name, css] of [['relief.css', relief], ['layout.css', layout], ['index.css', index], ['mira.css', mira]] as const) {
+    for (const [name, css] of [['relief.css', relief], ['layout.css', layout], ['index.css', index], ['mira.css', mira], ['social.css', social]] as const) {
       for (const hex of new Set(strip(css).match(/#[0-9a-fA-F]{3,8}\b/g) ?? [])) {
         if (chromatic(hex)) offenders.push(`${name} → ${hex}`);
       }
@@ -1125,7 +1130,7 @@ describe('Relief stays a system', () => {
    * always fine, because the fallback is the definition.
    */
   it('never asks for a custom property nobody defines', () => {
-    const CSS = [tokens, relief, layout, index, mira].map(strip);
+    const CSS = [tokens, relief, layout, index, mira, social].map(strip);
     const TS = PAGES.map((f) => stripTs(read(f)));
 
     const defined = new Set<string>();
@@ -1138,7 +1143,7 @@ describe('Relief stays a system', () => {
     const files: Array<[string, string]> = [
       ['src/styles/tokens.css', CSS[0]], ['src/styles/relief.css', CSS[1]],
       ['src/styles/layout.css', CSS[2]], ['src/index.css', CSS[3]],
-      ['src/styles/mira.css', CSS[4]],
+      ['src/styles/mira.css', CSS[4]], ['src/styles/social.css', CSS[5]],
       ...PAGES.map((f, i) => [f, TS[i]] as [string, string]),
     ];
     for (const [name, text] of files) {
