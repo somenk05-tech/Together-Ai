@@ -97,7 +97,23 @@ export type DocKind =
   | 'incorporation' | 'fssai' | 'professional' | 'rera';
 export type DocStatus = 'none' | 'submitted' | 'verified' | 'rejected';
 
-export interface TrustSummary { tier: TrustTier; label: string | null; blurb: string | null }
+export interface TrustSummary {
+  tier: TrustTier;
+  label: string | null;
+  blurb: string | null;
+  /**
+   * THE INDIVIDUAL CHECKS BEHIND THE BADGE — present on directory cards, absent
+   * on the single-listing read, which sends the badge alone.
+   *
+   * There is no score here and there is not going to be one. A "Trust Score
+   * 92/100" printed against somebody else's business is a number the platform
+   * cannot show its working for; `done of total` is the same reassurance and
+   * every part of it can be pointed at.
+   */
+  checks?: Array<{ key: 'phone' | 'identity' | 'business' | 'place'; label: string; done: boolean }>;
+  done?: number;
+  total?: number;
+}
 
 /** The owner's own view: the rungs, what is missing, and who is waiting. */
 export interface ListingTrust extends TrustSummary {

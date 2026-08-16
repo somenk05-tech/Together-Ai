@@ -126,6 +126,7 @@ function harness(opts: { listings?: any[]; enquiries?: any[]; messages?: any[] }
     holdsNewThread: async () => false,
     releaseFor: async () => 0,
     badgeFor: async () => null,
+    summariesFor: async () => new Map(),
   };
   return { svc, listings, enquiries, messages, notes, userQueries };
 }

@@ -104,6 +104,7 @@ function harness(opts: { listings?: any[]; regulars?: any[]; offers?: any[] } = 
     holdsNewThread: async () => false,
     releaseFor: async () => 0,
     badgeFor: async () => null,
+    summariesFor: async () => new Map(),
   };
   return { svc, listings, regulars, offers };
 }

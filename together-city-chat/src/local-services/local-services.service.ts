@@ -218,6 +218,19 @@ export class LocalServicesService {
 
   // ───────────────────────── the directory ─────────────────────────
 
+  /**
+   * TRUST FOR A PAGE OF CARDS, in four grouped queries rather than four per
+   * card. What a citizen is deciding between, on a directory page, is which of
+   * these strangers to write to — so the badge belongs on the card and not two
+   * clicks further in.
+   */
+  private async trustFor(rows: ListingRow[]) {
+    const map = await this.verification.summariesFor(
+      rows.map((r) => ({ id: r.id, ownerId: r.ownerId, businessType: r.businessType, createdAt: r.createdAt })),
+    );
+    return map;
+  }
+
   async browse(q: BrowseDto, viewerId?: string) {
     const page = Math.max(1, q.page ?? 1);
     if (q.category && !isCategory(q.category)) throw new BadRequestException('unknown category');
@@ -267,12 +280,15 @@ export class LocalServicesService {
       const slice = withDist.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
       const items = slice.map((x) => ({ ...this.card(x.r), distanceKm: Math.round(x.km * 100) / 100 }));
       const nearIds = items.map((i) => i.id);
-      const [savedNear, ratingsNear] = await Promise.all([
+      const [savedNear, ratingsNear, trustNear] = await Promise.all([
         viewerId ? this.savedIds(viewerId, nearIds) : Promise.resolve([] as string[]),
         this.ratingsFor(nearIds),
+        this.trustFor(slice.map((x) => x.r)),
       ]);
       return {
-        items: items.map((i) => ({ ...i, ...(ratingsNear[i.id] ?? { rating: null, count: 0 }) })),
+        items: items.map((i) => ({
+          ...i, ...(ratingsNear[i.id] ?? { rating: null, count: 0 }), trust: trustNear.get(i.id) ?? null,
+        })),
         total, page, pages: Math.max(1, Math.ceil(total / PAGE_SIZE)), saved: savedNear,
       };
     }
@@ -287,12 +303,15 @@ export class LocalServicesService {
     // Which of these the caller already keeps, and how each is rated — two
     // grouped reads for the page, rather than two per card.
     const ids = items.map((i) => i.id);
-    const [saved, ratings] = await Promise.all([
+    const [saved, ratings, trust] = await Promise.all([
       viewerId ? this.savedIds(viewerId, ids) : Promise.resolve([] as string[]),
       this.ratingsFor(ids),
+      this.trustFor(rows),
     ]);
     return {
-      items: items.map((i) => ({ ...i, ...(ratings[i.id] ?? { rating: null, count: 0 }) })),
+      items: items.map((i) => ({
+        ...i, ...(ratings[i.id] ?? { rating: null, count: 0 }), trust: trust.get(i.id) ?? null,
+      })),
       total, page, pages: Math.max(1, Math.ceil(total / PAGE_SIZE)), saved,
     };
   }

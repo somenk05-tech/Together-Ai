@@ -73,6 +73,7 @@ function harness(opts: { menu?: any[]; extract?: any } = {}) {
     holdsNewThread: async () => false,
     releaseFor: async () => 0,
     badgeFor: async () => null,
+    summariesFor: async () => new Map(),
   };
   return { svc, menu, messages, listings };
 }

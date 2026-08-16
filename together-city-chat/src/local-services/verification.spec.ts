@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
-import { VerificationService } from './verification.service';
+import { summaryOf, VerificationService } from './verification.service';
+import { policyFor, type TrustEvidence } from './trust';
 
 /**
  * THE GATE, AGAINST A DATABASE-SHAPED THING.
@@ -202,5 +203,47 @@ describe('the decision', () => {
     await h.svc.decide('ADMIN', 'L1', 'rejected', 'The certificate has expired.');
     expect(h.notes.at(-1)!.body).toBe('The certificate has expired.');
     expect(h.notes.at(-1)!.title).toContain('could not verify');
+  });
+});
+
+describe('what a directory card is given', () => {
+  const bare: TrustEvidence = {
+    entityKind: 'registered', identityVerified: false, phoneVerified: false,
+    docKind: null, docStatus: 'none', placeConfirmed: false,
+    listedForDays: 0, reviewCount: 0, rating: null, reportsUpheld: 0,
+  };
+
+  it('counts the checks that passed and invents no score', () => {
+    // The whole reason this shape exists. A "Trust Score 92/100" on somebody
+    // else's business is a number the platform cannot show its working for;
+    // "2 of 4 checks" is the same reassurance and every part of it can be
+    // pointed at. If a `score` ever appears on this object, that argument was
+    // lost somewhere and nobody noticed.
+    const s = summaryOf({ ...bare, phoneVerified: true, identityVerified: true });
+    expect(s.done).toBe(2);
+    expect(s.total).toBe(4);
+    expect(s).not.toHaveProperty('score');
+    expect(Object.keys(s).sort()).toEqual(['blurb', 'checks', 'done', 'label', 'tier', 'total']);
+  });
+
+  it('says nothing at all about a listing that has passed nothing', () => {
+    const s = summaryOf(bare);
+    expect(s.tier).toBe('basic');
+    expect(s.label).toBeNull();
+    expect(s.checks.every((c) => !c.done)).toBe(true);
+    expect(s.done).toBe(0);
+  });
+
+  it('agrees with the ladder rather than restating it', () => {
+    // Two code paths compute a tier — the single-listing read and the batched
+    // one behind a page of cards. Both go through tierOf, and if they ever
+    // disagree one of them is a bug rather than a variant.
+    const full: TrustEvidence = {
+      ...bare, phoneVerified: true, identityVerified: true,
+      docKind: 'fssai', docStatus: 'verified', placeConfirmed: true,
+    };
+    expect(summaryOf(full, policyFor('restaurant')).tier).toBe('business');
+    expect(summaryOf(full, policyFor('clinic')).tier).toBe('identity');
+    expect(summaryOf(full, policyFor('clinic')).done).toBe(4);
   });
 });

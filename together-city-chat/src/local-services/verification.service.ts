@@ -32,6 +32,39 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * that has never seen a database. That split is why a rung can be argued about
  * in a test rather than in production.
  */
+/**
+ * WHAT A CARD SHOWS. The tier's own wording, plus the individual checks behind
+ * it — because "Business verified" answers *whether*, and a citizen deciding
+ * between two salons is also asking *what was actually looked at*.
+ */
+export interface TrustSummary {
+  tier: Tier;
+  label: string | null;
+  blurb: string | null;
+  checks: Array<{ key: 'phone' | 'identity' | 'business' | 'place'; label: string; done: boolean }>;
+  done: number;
+  total: number;
+}
+
+export function summaryOf(ev: TrustEvidence, policy = policyFor(null)): TrustSummary {
+  const tier = tierOf(ev, policy);
+  const badge = badgeFor(tier);
+  const checks: TrustSummary['checks'] = [
+    { key: 'phone', label: 'Phone verified', done: ev.phoneVerified },
+    { key: 'identity', label: 'Identity verified', done: ev.identityVerified },
+    { key: 'business', label: 'Business verified', done: ev.docStatus === 'verified' },
+    { key: 'place', label: 'Address verified', done: ev.placeConfirmed },
+  ];
+  return {
+    tier,
+    label: badge?.label ?? null,
+    blurb: badge?.blurb ?? null,
+    checks,
+    done: checks.filter((c) => c.done).length,
+    total: checks.length,
+  };
+}
+
 @Injectable()
 export class VerificationService {
   constructor(
@@ -100,6 +133,74 @@ export class VerificationService {
    *  claim, never a claim of absence. */
   async badgeFor(l: TrustableListing, now = new Date()): Promise<TrustBadge | null> {
     return badgeFor(await this.tierOf(l, now));
+  }
+
+  /**
+   * TRUST FOR A WHOLE PAGE OF THE DIRECTORY, IN FOUR QUERIES.
+   *
+   * `evidenceFor` is four reads per listing, which is fine for one business
+   * page and is a hundred queries for a page of twenty-four cards. This asks
+   * the same four questions once, keyed by listing, and hands each row to the
+   * same pure `tierOf`. There is no second definition of the ladder here — if
+   * this and the single-listing path ever disagree, one of them is a bug.
+   *
+   * WHAT IT DOES NOT RETURN IS A SCORE. There is no number, because there is
+   * nothing behind a number: a "Trust Score 92/100" printed against somebody
+   * else's business is a claim the platform cannot show its working for. What
+   * comes back is the count of checks that actually passed out of the checks
+   * that exist, which is the same reassurance and is true.
+   */
+  async summariesFor(listings: TrustableListing[], now = new Date()): Promise<Map<string, TrustSummary>> {
+    const out = new Map<string, TrustSummary>();
+    if (listings.length === 0) return out;
+
+    const ids = listings.map((l) => l.id);
+    const ownerIds = [...new Set(listings.map((l) => l.ownerId))];
+
+    const [verifications, owners, reviews, rejections] = await Promise.all([
+      this.prisma.serviceVerification.findMany({ where: { listingId: { in: ids } }, take: ids.length }) as unknown as Promise<VerificationRow[]>,
+      this.prisma.user.findMany({
+        where: { id: { in: ownerIds } },
+        select: { id: true, phoneVerifiedAt: true, identityVerifiedAt: true },
+        take: ownerIds.length,
+      }) as unknown as Promise<Array<{ id: string; phoneVerifiedAt: Date | null; identityVerifiedAt: Date | null }>>,
+      this.prisma.serviceReview.groupBy({
+        by: ['listingId'], where: { listingId: { in: ids } }, _count: { _all: true }, _avg: { rating: true },
+      }) as unknown as Promise<Array<{ listingId: string; _count: { _all: number }; _avg: { rating: number | null } }>>,
+      this.prisma.moderationLog.groupBy({
+        by: ['listingId'],
+        where: { listingId: { in: ids }, decision: { in: ['rejected', 'removed'] } },
+        _count: { _all: true },
+      }) as unknown as Promise<Array<{ listingId: string; _count: { _all: number } }>>,
+    ]);
+
+    const vById = new Map(verifications.map((v) => [v.listingId, v]));
+    const oById = new Map(owners.map((o) => [o.id, o]));
+    const rById = new Map(reviews.map((r) => [r.listingId, r]));
+    const mById = new Map(rejections.map((m) => [m.listingId, m._count._all]));
+
+    for (const l of listings) {
+      const v = vById.get(l.id);
+      const o = oById.get(l.ownerId);
+      const r = rById.get(l.id);
+      const count = r?._count._all ?? 0;
+      const ev: TrustEvidence = {
+        entityKind: (v?.entityKind as EntityKind | null) ?? null,
+        identityVerified: o?.identityVerifiedAt != null,
+        phoneVerified: o?.phoneVerifiedAt != null,
+        docKind: (v?.docKind as DocKind | null) ?? null,
+        docStatus: (v?.docStatus as TrustEvidence['docStatus']) ?? 'none',
+        placeConfirmed: v?.placeConfirmedAt != null,
+        listedForDays: Math.max(0, Math.floor((now.getTime() - l.createdAt.getTime()) / DAY_MS)),
+        reviewCount: count,
+        // The same floor as the directory's star average, and for the same
+        // reason: a rating the city will not print cannot hold up a badge.
+        rating: count >= 3 && r?._avg.rating != null ? Math.round(r._avg.rating * 10) / 10 : null,
+        reportsUpheld: mById.get(l.id) ?? 0,
+      };
+      out.set(l.id, summaryOf(ev, policyFor(l.businessType)));
+    }
+    return out;
   }
 
   // ───────────────────────── the gate ─────────────────────────
