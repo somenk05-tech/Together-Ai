@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const SPEND_CATEGORIES = ['nutrition', 'beauty', 'medical', 'dating', 'entertainment', 'travel'] as const;
+export const SPEND_CATEGORIES = ['nutrition', 'beauty', 'medical', 'dating', 'entertainment', 'travel', 'services'] as const;
 
 export const TopUpSchema = z.object({
   amountInr: z.number().int().min(1).max(1_000_000),

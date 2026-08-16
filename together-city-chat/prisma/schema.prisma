@@ -2953,6 +2953,11 @@ model ServiceListing {
   menuScanUrl String? // the photograph the menu was read from — kept so a
                       // citizen can check the transcription against the original
 
+  invoices        Invoice[]
+  merchantAccount MerchantAccount?
+  settlements     Settlement[]
+  merchantLedger  MerchantLedgerEntry[]
+
   @@index([moderation, city])
   @@index([categoryKey, city])
   @@index([ownerId])
@@ -3170,6 +3175,15 @@ model ServiceMessage {
   // to tell the business who wrote it.
   senderSide String
   body       String
+  /// AN INVOICE, DELIVERED WHERE THE CONVERSATION ALREADY IS.
+  ///
+  /// A bill arrives in the thread it belongs to rather than in a separate
+  /// billing inbox, because the thread is where the job was agreed and the
+  /// only place both people already are. The row still carries `body` — the
+  /// sentence a reader gets with notifications off, on an old client, or in a
+  /// search result — so an invoice message is never a blank bubble; the id
+  /// upgrades it to a card wherever the card is known.
+  invoiceId  String?
   createdAt  DateTime @default(now())
 
   enquiry ServiceEnquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
@@ -3273,4 +3287,347 @@ model DayPhoto {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, date])
+}
+
+// ─────────────────────────── The Till ───────────────────────────
+//
+// A BUSINESS BILLS A NEIGHBOUR, THE NEIGHBOUR PAYS, AND THE MONEY LANDS IN A
+// BANK ACCOUNT THE NEXT WORKING DAY. Four sentences, three of which are
+// separate financial events, and the whole reason this is eight tables rather
+// than one is that collapsing them is how a ledger stops being able to answer
+// "where is my money".
+//
+//   Invoice          what was owed, itemised, as the business wrote it
+//   PaymentIntent    one ATTEMPT to pay it — succeeded, failed, or still open
+//   MerchantLedger   the business's running book: sales, fees, refunds, payouts
+//   Settlement       one transfer out, and the invoices it covered
+//
+// WHAT IS NOT HERE, DELIBERATELY: a card number, an expiry, a CVV, an account
+// number, an IFSC. Together City stores a reference the payment provider gave
+// it and the last four digits a human needs to recognise their own account.
+// Everything else is the provider's problem, which is the only arrangement
+// under which it is not ours. See commerce/provider.ts.
+//
+// AMOUNTS ARE WHOLE RUPEES, as integers, like every other price in the city.
+// Paise are not a thing anybody in this app has ever been shown, and a float
+// in a money column is a rounding error waiting for a reconciliation.
+
+/// WHERE A BUSINESS'S MONEY IS SENT — and the state of its permission to be
+/// sent any.
+///
+/// `providerAccountRef` is the whole banking relationship: the id a payout
+/// provider hands back when it has taken and verified the account details.
+/// The columns beside it exist so a person can recognise their own account on
+/// a screen; they could all be printed on a postcard.
+///
+/// `payoutsEnabled` is SEPARATE from `status`. Verification passing is a
+/// statement about documents; payouts being on is a decision, and holds get
+/// applied for reasons that have nothing to do with paperwork.
+model MerchantAccount {
+  id        String @id @default(uuid())
+  listingId String @unique
+  /// Denormalised from the listing so a payout query never has to join to
+  /// find out whose money it is — and so the purge plan can see an owner.
+  ownerId   String
+
+  /// The name the account is in, as the bank has it. Shown back to the owner
+  /// on the payout card; never used as a key.
+  legalName String
+  /// individual | proprietor | registered | company. Mirrors the trust ladder's
+  /// entity kinds — a business does not describe itself twice.
+  entityKind String @default("individual")
+
+  /// THE PROVIDER'S HANDLE ON THE BANK ACCOUNT. Null until the provider has
+  /// accepted it. Nothing in this app can reconstruct an account number from
+  /// this string, which is the point.
+  providerAccountRef String?
+  /// Which provider minted the ref, so a future migration between providers
+  /// can tell the old refs from the new ones instead of guessing.
+  provider           String  @default("mock")
+  /// For a human to recognise their own account by. Four digits and a bank
+  /// name are what every statement in the country already prints.
+  accountLast4       String?
+  bankName           String?
+
+  /// Tax reference as printed on the certificate — GSTIN or PAN. Not
+  /// checksum-validated, for the reason ServiceVerification.docRef gives.
+  taxRef String?
+
+  /// none | submitted | verified | rejected. Nothing but the admin console and
+  /// the provider callback writes anything other than `submitted`.
+  status       String    @default("none")
+  /// The switch the money actually passes through. False until status is
+  /// `verified` AND nothing is holding it.
+  payoutsEnabled Boolean @default(false)
+  /// Why payouts are off while the paperwork says verified. Shown verbatim.
+  holdReason   String?
+  rejectReason String?
+  submittedAt  DateTime?
+  decidedAt    DateTime?
+  decidedBy    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  listing ServiceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
+  @@index([status, submittedAt])
+}
+
+/// WHAT WAS OWED, AS THE BUSINESS WROTE IT.
+///
+/// `totalInr` is stored rather than summed on read, and the two must agree —
+/// commerce/money.ts computes it from the items and the spec beside it proves
+/// the arithmetic. A total recomputed on every read is a total that changes
+/// when a tax rate does, which for a document somebody has already paid is not
+/// a correction but a forgery.
+///
+/// `paidInr` is the sum of succeeded payments and nothing else. It is what
+/// makes `part_paid` a real state rather than a label.
+///
+/// STATUS IS NEVER 'paid' UNTIL A PAYMENT SAYS SO. There is no route that
+/// takes a status from a request body.
+model Invoice {
+  id        String @id @default(uuid())
+  listingId String
+  /// The business owner. Denormalised from the listing for the same reason
+  /// MerchantAccount denormalises it.
+  ownerId   String
+  /// The citizen who owes it.
+  userId    String
+
+  /// TC-10482. Unique across the city, minted once, never reused — see
+  /// commerce/invoice-number.ts.
+  number String @unique
+
+  /// draft | sent | viewed | part_paid | paid | overdue | cancelled | refunded
+  status String @default("draft")
+
+  subtotalInr Int @default(0)
+  discountInr Int @default(0)
+  taxInr      Int @default(0)
+  /// Delivery, call-out, anything the trade adds after tax.
+  extraInr    Int @default(0)
+  totalInr    Int @default(0)
+  /// Sum of succeeded payments. Never written by hand.
+  paidInr     Int @default(0)
+  refundedInr Int @default(0)
+
+  notes String?
+  /// The day it is due, as the business named it — a date, not an instant, for
+  /// the reason SpendLogEntry.spentOn gives.
+  dueOn DateTime? @db.Date
+
+  sentAt      DateTime?
+  viewedAt    DateTime?
+  paidAt      DateTime?
+  cancelledAt DateTime?
+  /// Why the business cancelled it. The citizen reads this.
+  cancelReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  listing  ServiceListing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  items    InvoiceItem[]
+  payments PaymentIntent[]
+
+  @@index([userId, status, createdAt])
+  @@index([listingId, status, createdAt])
+  @@index([listingId, createdAt])
+}
+
+model InvoiceItem {
+  id          String  @id @default(uuid())
+  invoiceId   String
+  name        String
+  description String?
+  /// Whole units. Half a haircut is not a thing, and a quantity that can be
+  /// fractional needs a unit column to mean anything.
+  qty         Int     @default(1)
+  unitPriceInr Int    @default(0)
+  /// qty × unitPrice, stored for the same reason Invoice.totalInr is.
+  amountInr   Int     @default(0)
+  /// The order the business typed them in. A line list that reorders itself
+  /// between the screen and the receipt is a different document.
+  position    Int     @default(0)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId, position])
+}
+
+/// ONE ATTEMPT TO PAY AN INVOICE.
+///
+/// An attempt, not a payment — which is the distinction the whole edge-case
+/// list in the brief turns on. A card that times out, a citizen who closes the
+/// sheet, a processor that answers twice: each of those is a row here with a
+/// status, and none of them is allowed to make an invoice say Paid.
+///
+/// THE SPLIT IS TWO COLUMNS, NOT ONE. `walletInr + cardInr == amountInr`,
+/// always, and the spec proves it. Storing only a total and a method loses the
+/// answer to "how much of this came out of my wallet", which is the one number
+/// the receipt in the brief puts in bold.
+///
+/// THE WALLET LEG IS TAKEN FIRST AND REFUNDED IF THE CARD LEG FAILS. Money
+/// already inside the city is the part we can reverse ourselves; the card is
+/// the part that can say no. Doing it the other way round means a declined card
+/// after a successful external charge.
+model PaymentIntent {
+  id        String @id @default(uuid())
+  invoiceId String
+  /// The payer.
+  userId    String
+  /// Denormalised so the merchant dashboard never joins through Invoice to
+  /// answer "what came in today".
+  listingId String
+
+  amountInr Int
+  walletInr Int @default(0)
+  cardInr   Int @default(0)
+
+  /// created | processing | succeeded | failed | reversed
+  status String @default("created")
+
+  provider    String  @default("mock")
+  /// The processor's own id for the card leg. Null for a wallet-only payment,
+  /// because no processor was involved and inventing a reference would put a
+  /// fiction on a receipt.
+  providerRef String?
+  /// What went wrong, in the provider's vocabulary and then in ours.
+  failureCode    String?
+  failureMessage String?
+
+  /// The caller's name for this attempt, from an Idempotency-Key header. The
+  /// unique index below is what makes a double tap, a retried request or a
+  /// webhook delivered twice charge exactly once — the same mechanism
+  /// WalletTxn uses, for the same reason.
+  idempotencyKey String?
+
+  /// The wallet debit this attempt created, so a reversal knows what to put
+  /// back without searching by amount and hoping.
+  walletTxnId String?
+
+  refundedInr Int @default(0)
+
+  capturedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, idempotencyKey])
+  @@index([invoiceId, createdAt])
+  @@index([listingId, status, createdAt])
+  @@index([userId, createdAt])
+}
+
+/// THE BUSINESS'S OWN BOOK — every rupee that moved, with its sign.
+///
+/// A balance is not a column here. It is the sum of this table, which means it
+/// cannot drift away from the events that produced it: there is no second place
+/// to update and therefore no second place to forget. `sale` is positive, `fee`
+/// `tax` `refund` and `payout` are negative, and the arithmetic is the same
+/// arithmetic a bookkeeper would do by hand.
+///
+/// AVAILABLE vs PENDING is a question about `settlementId`, not a second table.
+/// An entry with no settlement is money the business has earned and not yet
+/// been sent; one with a settlement is money that is on its way or has landed.
+model MerchantLedgerEntry {
+  id        String @id @default(uuid())
+  listingId String
+  ownerId   String
+
+  /// sale | fee | tax | refund | payout | adjustment
+  kind String
+  /// Signed. Negative entries reduce what the business is owed.
+  amountInr Int
+
+  invoiceId       String?
+  paymentIntentId String?
+  /// Null until this entry is swept into a payout.
+  settlementId    String?
+
+  /// One line, in the owner's own terms. It is what the dashboard prints.
+  note String
+
+  createdAt DateTime @default(now())
+
+  listing    ServiceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  settlement Settlement?    @relation(fields: [settlementId], references: [id])
+
+  @@index([listingId, createdAt])
+  @@index([listingId, settlementId])
+  @@index([ownerId])
+}
+
+/// ONE TRANSFER OUT, AND THE INVOICES IT COVERED.
+///
+/// The customer paying and the business being paid are two events with a night
+/// between them, and this table is the second one. It exists separately so the
+/// business can be shown the arithmetic — gross in, fees out, refunds
+/// adjusted, this is the number that reaches your bank — rather than a figure
+/// it has to take on trust.
+///
+/// `expectedOn` IS A DATE. "Tomorrow" is a day in the owner's calendar, and an
+/// instant stored in UTC reads as the day before for five and a half hours
+/// every day in Asia/Kolkata.
+model Settlement {
+  id        String @id @default(uuid())
+  listingId String
+  ownerId   String
+
+  /// TCS-000148. What support asks for on the phone.
+  reference String @unique
+
+  /// pending | processing | scheduled | settled | failed | returned | on_hold | reversed
+  status String @default("pending")
+
+  grossInr Int @default(0)
+  feeInr   Int @default(0)
+  taxInr   Int @default(0)
+  /// Refunds issued after the sale was banked, carried into the next payout.
+  adjustInr Int @default(0)
+  netInr    Int @default(0)
+
+  /// The working day the money is expected to land.
+  expectedOn DateTime  @db.Date
+  settledAt  DateTime?
+
+  provider    String  @default("mock")
+  providerRef String?
+  /// Copied at the moment of transfer, not joined on read: a payout receipt
+  /// must keep saying which account it went to even after the owner changes it.
+  destinationLast4 String?
+  failureReason    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  listing ServiceListing        @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  items   SettlementItem[]
+  ledger  MerchantLedgerEntry[]
+
+  @@index([listingId, expectedOn])
+  @@index([status, expectedOn])
+  @@index([ownerId])
+}
+
+model SettlementItem {
+  id           String @id @default(uuid())
+  settlementId String
+  invoiceId    String
+  paymentIntentId String
+  /// The invoice number, copied. A payout statement that loses its line items
+  /// when an invoice is deleted is not a statement.
+  invoiceNumber String
+  grossInr Int
+  feeInr   Int
+  taxInr   Int
+  netInr   Int
+
+  settlement Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+
+  @@index([settlementId])
 }

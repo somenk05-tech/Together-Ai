@@ -72,6 +72,19 @@ const ALLOW: Array<{ file: string; line: number; why: string }> = [
       + 'this directly can only ever debit the caller\'s own wallet, so a forged '
       + 'amount spends the forger\'s money, and the balance floor still holds.',
   },
+  {
+    file: 'commerce/settlement.service.ts',
+    line: 0,
+    why: 'Not a wallet charge. The flagged line writes a NEGATIVE entry in a '
+      + 'merchant\'s own book when that merchant refunds one of its customers — '
+      + 'money leaving the business, not arriving from one. The amount reaches '
+      + 'it already clamped: payments.service.refund loads the invoice scoped by '
+      + 'ownerId, computes paidInr minus refundedInr, and throws before this is '
+      + 'called if the request exceeds it, so the largest number a caller can '
+      + 'push through is what their own customer actually paid them. The wallet '
+      + 'side of the same refund is a credit, which this guard does not and '
+      + 'should not care about — nobody defrauds themselves by being paid.',
+  },
 ];
 
 function sourceFiles(dir = SRC, out: string[] = []): string[] {

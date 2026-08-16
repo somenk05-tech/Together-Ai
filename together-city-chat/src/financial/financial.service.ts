@@ -13,6 +13,11 @@ export const CATEGORIES = [
   { key: 'entertainment', label: 'Entertainment', hint: 'Events & tickets', defaultBudget: 4000 },
   { key: 'travel', label: 'Travel', hint: 'Trips & flights', defaultBudget: 60000 },
   { key: 'dining', label: 'Dining', hint: 'Restaurants & food orders', defaultBudget: 6000 },
+  // The Till: invoices from businesses in the Local Services directory. It is
+  // a spend category like any other, and it is here so the Spending page's
+  // percentages are shares of something they are actually shares of — money
+  // paid to a plumber lands in `cityTotal` whether or not it has a heading.
+  { key: 'services', label: 'Local services', hint: 'Invoices from businesses near you', defaultBudget: 5000 },
 ] as const;
 
 /**

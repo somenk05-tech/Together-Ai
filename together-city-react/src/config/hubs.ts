@@ -338,6 +338,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/financial/spending', index: '02', label: 'Spending', sub: 'Where your money goes' },
       { path: '/financial/budgets', index: '03', label: 'Budgets', sub: 'Caps that track live' },
       { path: '/financial/transactions', index: '04', label: 'Transactions', sub: 'Every hub, one feed' },
+      { path: '/financial/invoices', index: '05', label: 'Invoices', sub: 'Bills from businesses you use' },
     ],
   },
 };

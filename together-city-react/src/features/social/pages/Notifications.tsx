@@ -18,6 +18,11 @@ const FILTERS = ['All', 'Unread'] as const;
 const ICON_FOR: Record<string, IconName> = {
   like: 'heart', comment: 'comment', follow: 'follow', connection_request: 'connection',
   connection_accepted: 'accepted', post_live: 'sparkles', mention: 'mention',
+  // The Till. Every one of these is money arriving or moving, so they share
+  // the wallet mark rather than each inventing a glyph.
+  invoice_sent: 'wallet', invoice_paid: 'wallet', invoice_paid_business: 'wallet',
+  invoice_cancelled: 'wallet', invoice_refunded: 'wallet',
+  payout_settled: 'wallet', payout_failed: 'wallet',
 };
 function timeAgo(iso: string): string {
   const s = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 1000));

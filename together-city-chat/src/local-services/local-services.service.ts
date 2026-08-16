@@ -653,7 +653,10 @@ export class LocalServicesService {
     return this.shapeMessage(msg, side);
   }
 
-  private shapeMessage(m: { id: string; senderSide: string; body: string; createdAt: Date }, viewerSide: 'seeker' | 'owner') {
+  private shapeMessage(
+    m: { id: string; senderSide: string; body: string; createdAt: Date; invoiceId?: string | null },
+    viewerSide: 'seeker' | 'owner',
+  ) {
     return {
       id: m.id,
       body: m.body,
@@ -661,6 +664,10 @@ export class LocalServicesService {
       // "mine" rather than a sender identity. Neither side needs to know more
       // than which bubble is theirs, and there is nothing else to know.
       mine: m.senderSide === viewerSide,
+      // AN INVOICE ARRIVES IN THE THREAD IT BELONGS TO. The id upgrades the
+      // bubble to a card; `body` still carries the sentence, so a reader whose
+      // client does not know about invoices sees a message rather than a blank.
+      ...(m.invoiceId ? { invoiceId: m.invoiceId } : {}),
     };
   }
 
@@ -668,7 +675,7 @@ export class LocalServicesService {
     const { e, l, side } = await this.sideOf(userId, enquiryId);
     const rows = await this.prisma.serviceMessage.findMany({
       where: { enquiryId }, orderBy: { createdAt: 'asc' }, take: 500,
-    }) as unknown as Array<{ id: string; senderSide: string; body: string; createdAt: Date }>;
+    }) as unknown as Array<{ id: string; senderSide: string; body: string; createdAt: Date; invoiceId: string | null }>;
 
     await this.prisma.serviceEnquiry.update({
       where: { id: enquiryId },

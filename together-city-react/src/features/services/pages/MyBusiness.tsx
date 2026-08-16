@@ -290,6 +290,15 @@ export function MyBusiness() {
                   <Link to={`/services/${l.id}/edit`}><Button variant="accent" size="sm">Edit business page</Button></Link>
                 )}
                 <Link to="/services/messages"><Button variant="line" size="sm">Messages</Button></Link>
+                {/* THE TILL. Two doors rather than one, because writing a bill
+                    and getting paid are different errands on different days —
+                    and the second one is the screen an owner opens most. */}
+                {!removed && (
+                  <Link to={`/services/${l.id}/invoices`}><Button variant="line" size="sm">Invoices</Button></Link>
+                )}
+                {!removed && (
+                  <Link to={`/services/${l.id}/payments`}><Button variant="line" size="sm">Payments &amp; payouts</Button></Link>
+                )}
                 {/* Only on a closed listing. Deleting is the step AFTER closing,
                     and a live shopfront should not be one press from gone. */}
                 {removed && <DeleteForever id={l.id} name={l.businessName} conversations={n} />}

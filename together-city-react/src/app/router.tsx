@@ -64,6 +64,13 @@ const FinWallet = lazy(() => import('@/features/financial/pages/Wallet').then((m
 const FinSpending = lazy(() => import('@/features/financial/pages/Spending').then((m) => ({ default: m.Spending })));
 const FinBudgets = lazy(() => import('@/features/financial/pages/Budgets').then((m) => ({ default: m.Budgets })));
 const FinTransactions = lazy(() => import('@/features/financial/pages/Transactions').then((m) => ({ default: m.Transactions })));
+const FinInvoices = lazy(() => import('@/features/pay/pages/Invoices').then((m) => ({ default: m.Invoices })));
+const InvoiceView = lazy(() => import('@/features/pay/pages/InvoiceView').then((m) => ({ default: m.InvoiceView })));
+const BizInvoices = lazy(() => import('@/features/pay/pages/BusinessInvoices').then((m) => ({ default: m.BusinessInvoices })));
+const BizCreateInvoice = lazy(() => import('@/features/pay/pages/CreateInvoice').then((m) => ({ default: m.CreateInvoice })));
+const BizPayments = lazy(() => import('@/features/pay/pages/BusinessPayments').then((m) => ({ default: m.BusinessPayments })));
+const BizPayoutAccount = lazy(() => import('@/features/pay/pages/PayoutAccount').then((m) => ({ default: m.PayoutAccount })));
+const BizPayoutView = lazy(() => import('@/features/pay/pages/PayoutView').then((m) => ({ default: m.PayoutView })));
 const JobsProfile = lazy(() => import('@/features/jobs/pages/Profile').then((m) => ({ default: m.Profile })));
 const JobsMatches = lazy(() => import('@/features/jobs/pages/Matches').then((m) => ({ default: m.Matches })));
 const JobsApplications = lazy(() => import('@/features/jobs/pages/Applications').then((m) => ({ default: m.Applications })));
@@ -351,6 +358,11 @@ export const router = createBrowserRouter([
       { path: '/financial/spending', element: <RequireAuth>{wrap(<FinSpending />)}</RequireAuth> },
       { path: '/financial/budgets', element: <RequireAuth>{wrap(<FinBudgets />)}</RequireAuth> },
       { path: '/financial/transactions', element: <RequireAuth>{wrap(<FinTransactions />)}</RequireAuth> },
+      // THE TILL, CITIZEN SIDE. The detail route serves the business too — the
+      // server shapes the object by who is asking, so one screen shows one
+      // document rather than two screens showing two versions of it.
+      { path: '/financial/invoices', element: <RequireAuth>{wrap(<FinInvoices />)}</RequireAuth> },
+      { path: '/financial/invoices/:id', element: <RequireAuth>{wrap(<InvoiceView />)}</RequireAuth> },
     ],
   },
   {
@@ -423,6 +435,15 @@ export const router = createBrowserRouter([
       { path: '/services/list', element: <RequireAuth>{wrap(<ListBusiness />)}</RequireAuth> },
       { path: '/services/mine', element: <RequireAuth>{wrap(<MyBusiness />)}</RequireAuth> },
       { path: '/services/:id/edit', element: <RequireAuth>{wrap(<EditBusiness />)}</RequireAuth> },
+      // THE TILL, BUSINESS SIDE. Every one of these is per LISTING rather than
+      // per owner: somebody with a salon and a tuition class keeps two books,
+      // two payout accounts and two sets of invoices, because they are two
+      // businesses however many of them one person runs.
+      { path: '/services/:id/invoices', element: <RequireAuth>{wrap(<BizInvoices />)}</RequireAuth> },
+      { path: '/services/:id/invoices/new', element: <RequireAuth>{wrap(<BizCreateInvoice />)}</RequireAuth> },
+      { path: '/services/:id/payments', element: <RequireAuth>{wrap(<BizPayments />)}</RequireAuth> },
+      { path: '/services/:id/payouts', element: <RequireAuth>{wrap(<BizPayoutAccount />)}</RequireAuth> },
+      { path: '/services/:id/payouts/:payoutId', element: <RequireAuth>{wrap(<BizPayoutView />)}</RequireAuth> },
       // Declared last: every static /services/* path above wins on rank, so
       // 'browse' and 'mine' are never mistaken for a listing id.
       { path: '/services/:id', element: <RequireAuth>{wrap(<BusinessPage />)}</RequireAuth> },

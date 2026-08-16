@@ -133,6 +133,30 @@ export const PURGE_RULES: PurgeRule[] = [
   // written down all the same: audit rows are KEPT.
 { model: 'ServiceListing', by: 'ownerId', action: 'purge', reason: 'Their own business page, and the threads hanging off it — a shopfront for somebody who has left is a door onto nothing.' },
   { model: 'ServiceRegular', by: 'userId', action: 'purge', reason: 'A private shortlist of the businesses they kept going back to. Nobody else has ever seen it, and it says a great deal about a person.' },
+  // ── The Till. Two-sided money, and the asymmetry decides every rule below.
+  //
+  // An invoice is a document between two people, and only one of them has
+  // left. The business still has to be able to show what it billed, what it
+  // was paid and what it settled — to its accountant, to a tax authority, and
+  // to anybody disputing a payout. So the CUSTOMER'S side of these rows is not
+  // destroyed by the customer's deletion, exactly as a Message is not: the
+  // other party keeps their copy, and the citizen is already a tombstone on it.
+  //
+  // The BUSINESS'S side is a different question and gets the opposite answer.
+  // ServiceListing is purged by ownerId two lines above, and every table here
+  // cascades from it — so an owner deleting their account takes the shopfront,
+  // its invoices, its ledger and its payout account with it, which is what the
+  // shopfront rule already promised.
+  { model: 'Invoice', by: 'ownerId', action: 'purge', reason: 'Invoices the business itself wrote. They go with the shopfront when its owner leaves; a bill from a business that no longer exists is a demand nobody can answer.' },
+  { model: 'MerchantAccount', by: 'ownerId', action: 'purge', reason: 'Where their payouts were sent — the provider reference, the last four digits and the name on the account. Nobody but the owner has ever seen it.' },
+  { model: 'MerchantLedgerEntry', by: 'ownerId', action: 'purge', reason: 'The business\u2019s own book of sales, fees and payouts. Private to the owner and meaningless once the shopfront is gone.' },
+  { model: 'Settlement', by: 'ownerId', action: 'purge', reason: 'Transfers out to their bank, with the invoices each covered. The owner\u2019s financial record of their own business.' },
+  // PaymentIntent carries the PAYER\u2019s userId, so a rule keyed on it would
+  // delete the business\u2019s record of being paid when the customer leaves.
+  // Kept, for the same reason a Message is: it is one half of something two
+  // people did, and the surviving half belongs to somebody who deleted
+  // nothing. The rows the OWNER holds go by cascade with the listing.
+  { model: 'PaymentIntent', by: 'userId', action: 'keep', reason: 'One side of a payment between two people. The business needs its record of being paid, and the citizen is already a tombstone on it — the same rule that keeps Messages.' },
   // ServiceReview carries `reviewerId`, which is not one of the link columns the
   // spec scans for, so it needs no rule here — and a rule would read as stale.
   // What happens to it is a decision all the same, so it is written down:

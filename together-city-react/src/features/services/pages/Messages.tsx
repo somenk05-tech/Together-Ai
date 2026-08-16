@@ -6,6 +6,7 @@ import { Card, Button, Spinner, EmptyState } from '@/components/ui';
 import {
   useRevealName, useSendServiceMessage, useServiceInbox, useServiceThread, type ServiceThread,
 } from '../api';
+import { ThreadInvoice } from '@/features/pay/ThreadInvoice';
 
 
 /**
@@ -230,14 +231,26 @@ export function ServiceThreadView() {
         {messages.length === 0 && <p className="muted" style={{ fontSize: 13, margin: 0 }}>No messages yet — say what you need.</p>}
         {messages.map((m) => (
           <div key={m.id} style={{ display: 'flex', justifyContent: m.mine ? 'flex-end' : 'flex-start' }}>
-            <div style={{
-              maxWidth: '78%', padding: '9px 13px', borderRadius: 14, fontSize: 14, lineHeight: 1.45,
-              background: m.mine ? 'var(--accent)' : 'var(--wash)',
-              color: m.mine ? 'var(--on-accent)' : 'var(--ink)',
-            }}>
-              <span style={{ whiteSpace: 'pre-wrap' }}>{m.body}</span>
-              <span style={{ display: 'block', fontSize: 10.5, opacity: .7, marginTop: 3 }}>{when(m.createdAt)}</span>
-            </div>
+            {/* AN INVOICE ARRIVES IN THE THREAD IT BELONGS TO, and it arrives
+                as a card rather than a bubble with a number in it — because
+                what somebody does next is open it or pay it, and neither of
+                those is a thing you can do to a sentence. The body is still
+                there underneath: a client that does not know about invoices
+                shows the sentence, never a blank. */}
+            {m.invoiceId ? (
+              <div style={{ maxWidth: '86%', width: '100%' }}>
+                <ThreadInvoice invoiceId={m.invoiceId} body={m.body} at={when(m.createdAt)} />
+              </div>
+            ) : (
+              <div style={{
+                maxWidth: '78%', padding: '9px 13px', borderRadius: 14, fontSize: 14, lineHeight: 1.45,
+                background: m.mine ? 'var(--accent)' : 'var(--wash)',
+                color: m.mine ? 'var(--on-accent)' : 'var(--ink)',
+              }}>
+                <span style={{ whiteSpace: 'pre-wrap' }}>{m.body}</span>
+                <span style={{ display: 'block', fontSize: 10.5, opacity: .7, marginTop: 3 }}>{when(m.createdAt)}</span>
+              </div>
+            )}
           </div>
         ))}
         <div ref={endRef} />

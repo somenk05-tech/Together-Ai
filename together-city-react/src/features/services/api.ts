@@ -177,7 +177,7 @@ export interface ServiceThread {
   business?: { id: string; businessName: string; categoryLabel: string; city: string } | null;
   businessName?: string | null;
 }
-export interface ServiceMessage { id: string; body: string; createdAt: string; mine: boolean }
+export interface ServiceMessage { id: string; body: string; createdAt: string; mine: boolean; invoiceId?: string }
 
 export interface ListingInput {
   businessName: string;

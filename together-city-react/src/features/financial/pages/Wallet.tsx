@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { Button, EmptyState, Fold, Spinner } from '@/components/ui';
 import { useWallet, useTopUp, useServices, useLinkCard, useRemoveCard, catIcon, inr, type Txn } from '../api';
 import { PrivacyNote } from '@/features/privacy/PrivacyNote';
+import { useMyInvoices } from '@/features/pay/api';
+import { InvoiceCard } from '@/features/pay/InvoiceBits';
 
 const TOPUPS = [500, 1000, 2000, 5000];
 
@@ -51,6 +53,9 @@ export function Wallet() {
         </div>
       </div>
 
+      <WalletActions />
+      <InvoicesWaiting />
+
       <div className="card" style={{ marginBottom: 14 }}>
         <div className="eyebrow">Payment methods</div>
         {w.card ? (
@@ -73,7 +78,7 @@ export function Wallet() {
         )}
       </div>
 
-      <div className="card" style={{ marginBottom: 16 }}>
+      <div className="card" id="top-up" style={{ marginBottom: 16 }}>
         <div className="eyebrow">Top up</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '10px 0' }}>
           {TOPUPS.map((a) => (
@@ -135,6 +140,95 @@ export function Wallet() {
         ))}
         {(services.data ?? []).length === 0 && <p className="muted" style={{ fontSize: 12.5, margin: '6px 0 0' }}>Rates load from the central rate card.</p>}
       </div>
+    </div>
+  );
+}
+
+
+/**
+ * THE FOUR THINGS A WALLET IS FOR — and two of them are not open yet.
+ *
+ * Add money and Pay are real: the first is the top-up below, the second is the
+ * list of invoices waiting for you. Send and Request are person-to-person
+ * transfer, which is a different product with a different licence behind it, so
+ * they say so rather than sitting there greyed out with no explanation.
+ *
+ * A CONTROL THAT DOES NOTHING IS WORSE THAN A CONTROL THAT IS NOT THERE, and
+ * this hub has had that argument once already. The middle answer — the row is
+ * drawn, the two that work work, and the two that do not say what they are
+ * waiting for — is the one that neither lies nor pretends the plan does not
+ * exist.
+ */
+function WalletActions() {
+  const [note, setNote] = useState<string | null>(null);
+  const action = {
+    display: 'grid', placeItems: 'center', gap: 4, minHeight: 66, flex: 1, minWidth: 74,
+    borderRadius: 14, border: '1px solid var(--line)', background: 'var(--card)',
+    fontFamily: 'inherit', fontSize: 12, fontWeight: 600, cursor: 'pointer', color: 'var(--ink)',
+  };
+  const soon = (what: string) => () => setNote(
+    `${what} money between people is not open yet — it needs a payments licence Together City does not hold. Paying a business you have talked to works today.`,
+  );
+
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <a href="#top-up" style={{ ...action, textDecoration: 'none' }}>
+          <span aria-hidden style={{ fontSize: 18 }}>＋</span>
+          Add money
+        </a>
+        <Link to="/financial/invoices" style={{ ...action, textDecoration: 'none' }}>
+          <span aria-hidden style={{ fontSize: 18 }}>▸</span>
+          Pay
+        </Link>
+        <button type="button" style={action} onClick={soon('Sending')}>
+          <span aria-hidden style={{ fontSize: 18 }}>↗</span>
+          Send
+        </button>
+        <button type="button" style={action} onClick={soon('Requesting')}>
+          <span aria-hidden style={{ fontSize: 18 }}>↙</span>
+          Request
+        </button>
+      </div>
+      {note && (
+        <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }} role="status">{note}</p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * WHAT IS WAITING TO BE PAID, on the screen somebody opens to check their money.
+ *
+ * Only when there is something. A permanent empty "Invoices" panel on a wallet
+ * is a panel people learn to scroll past, and the Financial rail already has a
+ * door to the full list.
+ */
+function InvoicesWaiting() {
+  const q = useMyInvoices();
+  if (q.isLoading) return null;
+  if (q.isError) {
+    return (
+      <p className="muted" style={{ fontSize: 12.5, marginBottom: 14 }} role="status">
+        We couldn’t check for invoices just now. Your balance above is unaffected.
+      </p>
+    );
+  }
+  const waiting = (q.data?.items ?? []).filter((i) => i.payable);
+  if (waiting.length === 0) return null;
+
+  return (
+    <div style={{ marginBottom: 14, display: 'grid', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+        <strong style={{ fontSize: 13.5 }}>Waiting to be paid</strong>
+        <span className="muted" style={{ fontSize: 12.5 }}>{inr(q.data?.dueInr ?? 0)} in total</span>
+        <Link to="/financial/invoices" style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--accent-ink)', fontWeight: 600 }}>
+          See all →
+        </Link>
+      </div>
+      {waiting.slice(0, 2).map((i) => (
+        <InvoiceCard key={i.id} inv={i} who={i.businessName ?? 'A business'} />
+      ))}
     </div>
   );
 }

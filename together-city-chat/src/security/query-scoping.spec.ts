@@ -123,6 +123,13 @@ import { stats, unscopedSignatures } from './query-inventory';
  */
 const REVIEWED_UNSCOPED = [
   'auth/auth.service.ts  PasswordReset.update x3',
+  // Minting an invoice number. `count()` over every invoice in the city,
+  // returning a number and no row — shape 4 above. It CANNOT be scoped and be
+  // correct: a per-owner counter would tell anybody holding two invoices how
+  // many customers that business has had, which is the reason the number is
+  // city-wide. The uniqueness of the result is guaranteed by the unique index
+  // on Invoice.number and the retry loop around the insert, not by this read.
+  'commerce/invoices.service.ts  Invoice.count x1',
   // The verification send-throttle. These two MUST span accounts: they count
   // codes issued to one email address or from one IP, and the control they
   // implement is "nobody can bury this address in codes" — which an attacker

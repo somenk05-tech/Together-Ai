@@ -134,6 +134,14 @@ const UNPROBED = [
   // Operate on the caller's own record only — there is no other citizen's id to pass.
   'auth', 'users', 'profile', 'privacy', 'notifications', 'push', 'health', 'hub',
   'astrology', 'financial', 'fitness', 'ai', 'admin', '',
+  // The Till. Every id-taking route here needs a resource that cannot exist
+  // from a bare account: an invoice requires a listing, a citizen who has
+  // opened a thread with it, AND that citizen having revealed their name.
+  // Extending the harness to build that chain is worth doing and is not this
+  // commit; until then the static guard next door covers it, every route is
+  // scoped by userId or ownerId in the query itself, and commerce/access.spec.ts
+  // drives the same refusals against a stubbed service.
+  'pay',
 ].sort();
 
 // ── structural checks: these run whether or not a database is present ────
