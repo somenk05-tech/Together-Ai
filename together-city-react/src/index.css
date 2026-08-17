@@ -775,27 +775,19 @@ table.tc td b { color: var(--ink); }
   div.hubs-feed { height: calc(100dvh - var(--header-h) - var(--safe-top) - var(--safe-bottom) - 16px); }
 }
 
-/* ---- The districts wear glass (9 Aug, owner's second reference — the NASA
-   card): no bordered panel and no repeated name. The photograph runs to the
-   edges; a soft blur rises out of its foot and FADES OUT — a mask, not an
-   edge, which is the whole difference between a sleek card and a box stuck
-   on a picture. On it sits one line and, beside it, one small pill.
+/* ---- The districts on a phone (owner, 17 Aug: no gradient anywhere).
+   The glass band that used to rise out of the foot went with the words it was
+   lifting. It was a good band — masked rather than edged, so it read as
+   weather rather than as a box stuck on a picture — and it was carrying a name
+   and a line that the new billboards paint on their own facades. With nothing
+   left to make legible, a blur over the bottom 40% of every photograph is
+   simply 40% of twelve commissioned pictures, dimmed.
 
-   The hub's name is not written: the billboard in the photograph already
-   says it, in the sign-painter's own type. Repeating it in ours was the
-   noise the owner asked us to drop.
-
-   EVERY SELECTOR CARRIES .district-plate. relief.css imports AFTER this file
-   (main.tsx), so its `.hub-plate .hub-plate-foot` beats a bare `.district-run
-   .hub-plate-foot` on source order at equal specificity — an earlier draft
-   lost `inset: 0` that way and frosted the entire plate. Three classes beat
-   two.
-
-   No shadow is written and no hex: the blur band is a mask and a gradient,
-   the pill is rgba on rgba. Glass has neither elevation nor pigment. ---- */
+   WHAT THE PHONE STILL DOES DIFFERENTLY, and the reason this block survives at
+   all: it does not crop. Desktop takes a 21:9 bite so fourteen thresholds are
+   not twelve thousand pixels of scroll; a phone has one column and can afford
+   the picture's own proportions, so nothing a designer framed is cut. ---- */
 @media (max-width: 899px) {
-  /* the old left-anchored scrim is for a headline this plate no longer sets */
-  .district-run .district-plate::before { background: none; }
   /* NO CROP. The new art is ~1.9:1, and every fixed aspect-ratio here would
      have to be kept in step with whatever the next batch of billboards is
      shaped like — the plate takes the picture's own height instead, so a
@@ -804,80 +796,12 @@ table.tc td b { color: var(--ink); }
     aspect-ratio: auto; height: auto; width: 100%; max-height: none; object-fit: contain;
   }
 
-  /* the blur band: strongest at the foot, gone by its top edge */
-  .district-run .district-plate::after {
-    content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 40%;
-    z-index: 1; pointer-events: none; border-radius: inherit;
-    -webkit-backdrop-filter: blur(20px) saturate(1.1);
-    backdrop-filter: blur(20px) saturate(1.1);
-    background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.34) 50%, rgba(0,0,0,.66) 100%);
-    -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 58%);
-    mask-image: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 58%);
-  }
 
-  .district-run .district-plate .hub-plate-foot {
-    inset: auto 0 0 0; max-width: none; z-index: 2;
-    /* nowrap is load-bearing: relief's 720px rule wraps this foot, and a
-       wrapped foot puts the button on its own row under the line — the exact
-       stacked layout the owner asked to replace. */
-    flex-direction: row; flex-wrap: nowrap;
-    align-items: center; justify-content: space-between; gap: 10px;
-    padding: 0 14px 14px; border: 0; border-radius: 0; background: none;
-    -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none;
-  }
-  /* the name goes: the photograph is already wearing it */
-  /* The hub's name reads above its line, plain and bold at the same size —
-     the desktop foot's treatment, brought to the phone. Deliberately NOT a
-     headline: the billboard behind it already carries the name at
-     architectural scale, and a second big one would argue with the first. */
-  .district-run .district-plate .hub-plate-said h2 {
-    display: block; margin: 0 0 3px;
-    font-size: clamp(10.5px, 3vw, 12.5px); line-height: 1.25;
-    font-weight: 700; letter-spacing: -.012em; text-transform: none;
-    color: rgba(255,255,255,.99); text-shadow: 0 1px 8px rgba(0,0,0,.45);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .district-run .district-plate .hub-plate-said {
-    /* column, not relief's column-reverse: the name reads above its line.
-       basis 0, not auto — an auto basis is the sentence's max-content width,
-       which overflows the row and forces a wrap this layout must not do. */
-    display: flex; flex-direction: column;
-    flex: 1 1 0%; min-width: 0; padding-bottom: 0;
-  }
-  .district-run .district-plate .hub-plate-said p {
-    margin: 0; max-width: none;
-    font-size: clamp(10.5px, 3vw, 12.5px); line-height: 1.25;
-    font-weight: 500; letter-spacing: -.012em;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    text-transform: none; color: rgba(255,255,255,.97);
-    text-shadow: 0 1px 8px rgba(0,0,0,.45);
-  }
-  /* the button is the one SOLID thing on the picture (owner's second
-     reference): near-black, softly rounded — not a circle, not glass. On a
-     photograph that is already blurred and bright at the foot, a translucent
-     pill is one more piece of weather; a solid one is a place to press. */
-  .district-run .district-plate .hub-plate-cta {
-    flex: 0 0 auto; margin: 0; align-self: flex-end;
-    height: 40px; min-height: 40px; padding: 0 14px; border-radius: 12px;
-    font-size: 12.5px; font-weight: 600; letter-spacing: 0; text-transform: none;
-    color: rgba(255,255,255,.97);
-    background: rgba(18,18,20,.88);
-    border: 1px solid rgba(255,255,255,.10);
-    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.10);
-  }
-  .district-run .district-plate .hub-plate-cta span[aria-hidden] { display: none; }
-  .district-run .district-plate.is-soon .hub-plate-cta {
-    background: rgba(18,18,20,.55); color: rgba(255,255,255,.72);
-    font-size: 11.5px; padding: 0 12px;
-  }
 }
 /* Narrow phones (SE, 360px Androids): the row gives back its own margins
    before it gives up a word. Measured — at 360px the longest line was 7px
    over, which is a gutter, not a font size. */
 @media (max-width: 380px) {
-  .district-run .district-plate .hub-plate-foot { padding: 0 12px 12px; gap: 8px; }
-  .district-run .district-plate .hub-plate-cta { padding: 0 12px; font-size: 11.5px; height: 38px; min-height: 38px; }
 }
 
 /* ---- Chats: a phone shows one room at a time (9 Aug, WhatsApp's rule) ----

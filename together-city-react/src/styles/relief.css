@@ -960,57 +960,61 @@ img[src$=".svg"], .no-case {
   box-shadow: var(--case-rim-soft);
 }
 
-.hub-plate-foot {
-  display: flex; align-items: center; gap: clamp(16px, 2vw, 26px);
-  padding: clamp(18px, 2vw, 28px) clamp(12px, 1.4vw, 20px) clamp(10px, 1.1vw, 14px);
-}
-.hub-plate-icon {
-  flex: 0 0 auto; width: clamp(54px, 4.4vw, 78px); height: clamp(54px, 4.4vw, 78px);
-  border-radius: clamp(15px, 1.6vw, 20px);
-  background: var(--face-2); box-shadow: var(--e1);
-  display: grid; place-items: center; color: var(--ink);
-}
-.hub-plate-said { min-width: 0; flex: 1 1 auto; }
-.hub-plate-said h1 {
-  font-size: clamp(28px, 3.2vw, 54px); font-weight: 700;
-  letter-spacing: .01em; text-transform: uppercase; line-height: 1.05; color: var(--ink);
-  text-shadow: 0 1px 0 #fff, 0 2px 1px rgba(0,0,0,.055), 0 4px 10px rgba(0,0,0,.05);
-}
-.hub-plate-said p {
-  margin-top: 9px; font-size: clamp(14px, 1.05vw, 19px); color: var(--muted); font-weight: 400;
-}
+/* ── THE PICTURE IS THE PANEL, AND ONE CONTROL STANDS ON IT ────────────────
+   Owner, 17 Aug, on the new commissioned batch: no gradient, and the Explore
+   button at the foot of the image.
 
-/* THE ONE PLACE GLASS EARNS ITS KEEP. It sits over white here, not over a
-   photograph, so the blur is doing nothing optically — what it buys is a face
-   that is not quite the plate's, which is how the button reads as a separate
-   object rather than a shape drawn on the surface. */
-.hub-plate-cta {
-  flex: 0 0 auto;
-  display: inline-flex; align-items: center; gap: 10px;
-  height: clamp(48px, 4vw, 64px); padding: 0 clamp(22px, 2.2vw, 38px);
+   THIS IS THE THIRD POSITION THIS BLOCK HAS HELD and the argument has not
+   wandered — the artwork has. Version one wrote the hub's name on the
+   photograph and rented a scrim to make it legible. Version two took the words
+   off and moved them to a white foot bar, because these pictures are shot dense
+   to all four edges and there was no version where type survived on them
+   without the gradient. Both were arguments about where to put a NAME.
+
+   The new heroes settle it by carrying their own. Every one of them has the
+   district painted across its facade in a sign-painter's type — ASTROLOGY ZONE,
+   REAL ESTATE HUB — with its own list of what is inside. So the foot bar was
+   printing a name the picture had already said, two hundred pixels below it,
+   and the scrim was dimming the picture to make room for a third copy. Both go.
+   What is left is the photograph, untouched at every width, and one control.
+
+   THE CONTROL IS SOLID, NOT GLASS. Frosted worked when it sat on the plate's
+   own paper. It sits on the photograph now, and with no scrim there is nothing
+   predictable behind it: these twelve frames run from Astrology's lit marble to
+   Medical's white wall. A translucent chip is legible on neither.
+
+   AND IT NAMES ITS DESTINATION. "Explore now" twelve times down a page says
+   nothing about which of the twelve is about to open — and on a phone the
+   picture above the button is usually half off screen by the time the thumb
+   reaches it. The verb is set like every other control in the city; the
+   district's name leans beside it. The change in face is the separation, which
+   is why there is no dash. */
+.hub-plate-go {
+  position: absolute; z-index: 2;
+  left: clamp(16px, 2.4vw, 34px); bottom: clamp(16px, 2.4vw, 30px);
+  display: inline-flex; align-items: center; gap: 9px;
+  padding: 0 clamp(18px, 1.8vw, 26px); height: clamp(42px, 3.4vw, 52px);
   border-radius: var(--r-full);
-  font-size: clamp(14px, 1.1vw, 16px); font-weight: 600; color: var(--ink);
-  background: var(--frost);
-  -webkit-backdrop-filter: blur(10px) saturate(140%);
-  backdrop-filter: blur(10px) saturate(140%);
-  box-shadow: var(--e1);
-  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease);
+  background: var(--card); color: var(--ink); box-shadow: var(--e2);
+  font-size: clamp(10.5px, .95vw, 12px); font-weight: 800;
+  letter-spacing: .18em; text-transform: uppercase; text-decoration: none;
+  transition: background var(--dur-base) var(--ease), color var(--dur-base) var(--ease);
 }
-.hub-plate-cta:hover { box-shadow: var(--e2); color: var(--ink); }
-@media (hover: hover) and (pointer: fine) {
-  .hub-plate-cta:hover { transform: translateY(-2px); }
-}
-.hub-plate-cta:active { transform: translateY(1px); background: var(--well); box-shadow: var(--press); }
-.hub-plate-cta:focus-visible { outline: none; box-shadow: var(--e1), 0 0 0 3px rgba(0,0,0,.14); }
+/* The name is the only italic in the city outside the press, and it is one
+   word inside a button rather than a face granted to a page — see relief.spec,
+   which seals the SERIF, not the slope. */
+.hub-plate-go i { font-style: italic; letter-spacing: .14em; }
+.hub-plate-go:hover { background: var(--ink); color: var(--card); }
+.hub-plate-go:focus-visible { outline: none; box-shadow: var(--e2), 0 0 0 3px rgba(0,0,0,.18); }
+.hub-plate.is-soon .hub-plate-go { background: var(--well); color: var(--muted); box-shadow: var(--e1); }
 
-/* Stacked, and the button goes full width — a 58px pill floating alone on the
-   right of a phone is a target nobody can reach with a thumb. */
 @media (max-width: 720px) {
-  .hub-plate-foot { flex-wrap: wrap; }
-  .hub-plate-said { flex-basis: calc(100% - 80px); }
-  .hub-plate-cta { flex: 1 1 100%; justify-content: center; margin-top: 6px; }
-  .hub-plate-art img { aspect-ratio: 4 / 3; }
+  .hub-plate-go {
+    left: 14px; bottom: 14px; height: 38px; padding: 0 15px;
+    font-size: 10px; letter-spacing: .12em;
+  }
 }
+
 
 /* ── WALK THE DISTRICTS ───────────────────────────────────────────────────
    Fourteen of the same plate, and it is the same plate deliberately: the tile
@@ -1098,91 +1102,6 @@ img[src$=".svg"], .no-case {
    from this rule. Moving it inside the desktop query silently unpinned the
    phone foot — the blur band stayed put and the white line landed underneath
    it on grey. Caught in the harness, not in review. */
-.hub-plate::before {
-  content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
-  border-radius: inherit;
-  background: linear-gradient(90deg,
-    var(--scrim-deep) 0%, rgba(0,0,0,.60) 36%, rgba(0,0,0,.38) 58%, var(--scrim-clear) 82%);
-}
-.hub-plate-foot, .hub-plate .hub-plate-foot {
-  position: absolute; inset: 0; z-index: 2;
-  display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
-  gap: 0; padding: 0 clamp(22px, 4.5vw, 84px);
-  max-width: 62ch;
-}
-/* The badge went when the plate became a picture, at every width — the phone
-   card has no room for it and the desktop foot has no use for it. Global, not
-   desktop-only: the phone rules never hid it themselves, they inherited this. */
-.hub-plate .hub-plate-icon { display: none; }
-.hub-plate .hub-plate-said p {
-  margin: 0 0 clamp(10px, 1.2vw, 16px); max-width: 34ch;
-  font-size: clamp(10.5px, 1vw, 13px); font-weight: 700;
-  letter-spacing: .3em; text-transform: uppercase;
-  color: rgba(255,255,255,.92);
-}
-.hub-plate .hub-plate-said h1,
-.hub-plate .hub-plate-said h2 {
-  margin: 0;
-  font-size: clamp(34px, 5.4vw, 88px); line-height: .98;
-  font-weight: 750; letter-spacing: -.025em;
-  color: rgba(255,255,255,1);
-  text-shadow: 0 2px 18px rgba(0,0,0,.35);
-}
-
-@media (min-width: 900px) {
-  .hub-plate::before { content: none; }
-  .hub-plate-foot, .hub-plate .hub-plate-foot {
-    position: static; inset: auto; z-index: auto;
-    display: flex; flex-direction: row; align-items: center; justify-content: space-between;
-    gap: clamp(24px, 3vw, 56px); max-width: none;
-    padding: clamp(22px, 2.2vw, 34px) clamp(24px, 2.6vw, 44px);
-    background: var(--card);
-  }
-  .hub-plate .hub-plate-said { display: block; min-width: 0; }
-  /* THE NAME COMES BACK, AT THE LINE'S OWN SIZE.
-     It was hidden when the words came off the photograph, on the argument that
-     the building already wears its name — and that is still true of the
-     PICTURE. It was not true of the foot, where the line sat alone with
-     nothing saying which room it belongs to; a citizen scrolling fourteen of
-     these reads fourteen promises and no addresses.
-     The owner's instruction was exact: the same size as the line. Which means
-     the separation cannot come from scale, so it comes from the only two other
-     things a monochrome city has — one step of weight and one of ink. Any more
-     than that and the name starts becoming a headline again, which is the
-     thing that was removed.
-     It is also, quietly, the accessibility fix: this heading is the accessible
-     name of the homepage's link, and it is now visible to everybody rather
-     than only to a screen reader. */
-  .hub-plate .hub-plate-said h1,
-  .hub-plate .hub-plate-said h2 {
-    position: static; width: auto; height: auto; overflow: visible;
-    clip-path: none; white-space: normal;
-    margin: 0 0 2px;
-    font-size: clamp(16px, 1.3vw, 20px); line-height: 1.35;
-    font-weight: 700; letter-spacing: 0; text-transform: none;
-    color: var(--ink); text-shadow: none;
-  }
-  .hub-plate .hub-plate-said p {
-    margin: 0; max-width: 62ch;
-    font-size: clamp(16px, 1.3vw, 20px); font-weight: 400; line-height: 1.5;
-    letter-spacing: 0; text-transform: none;
-    color: var(--ink-soft);
-  }
-  /* Rectangular, not a pill, and filled rather than frosted — the reference's
-     one solid object. It sits on paper now, so the glass it used to need to
-     separate itself from a photograph is doing nothing here. */
-  .hub-plate .hub-plate-cta {
-    flex: 0 0 auto; margin-top: 0;
-    border-radius: var(--r-1);
-    background: var(--ink); color: var(--card);
-    box-shadow: var(--e1);
-    font-size: 12px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase;
-    -webkit-backdrop-filter: none; backdrop-filter: none;
-  }
-  .hub-plate .hub-plate-cta span[aria-hidden] { display: none; }
-  .hub-plate .hub-plate-cta:hover { background: var(--ink-soft); color: var(--card); }
-  .hub-plate .hub-plate-cta:active { background: var(--ink); }
-}
 
 /* ── what stays the DISTRICT'S own: its shape and its link behaviour ── */
 .district-plate { display: block; color: inherit; text-decoration: none; animation: none; }
@@ -1197,9 +1116,9 @@ img[src$=".svg"], .no-case {
   object-position: 50% 26%;
 }
 .district-plate:hover { box-shadow: var(--e3), 0 30px 70px rgba(0,0,0,.06); }
-.district-plate:hover .hub-plate-cta { box-shadow: var(--e2); }
+.district-plate:hover .hub-plate-go { box-shadow: var(--e3); }
 @media (hover: hover) and (pointer: fine) {
-  .district-plate:hover .hub-plate-cta { transform: translateY(-2px); }
+  .district-plate:hover .hub-plate-go { background: var(--ink); color: var(--card); }
 }
 .district-plate:focus-visible { outline: none; box-shadow: var(--e3), 0 0 0 3px rgba(0,0,0,.16); }
 
@@ -1207,13 +1126,9 @@ img[src$=".svg"], .no-case {
    pressable — the CTA reads as a label and the whole plate stops lifting. */
 .district-plate.is-soon { cursor: default; }
 .district-plate.is-soon:hover { box-shadow: var(--e3); }
-.district-plate.is-soon .hub-plate-cta {
-  background: var(--card); color: var(--muted); box-shadow: none; opacity: .86;
-}
-.district-plate.is-soon:hover .hub-plate-cta { transform: none; box-shadow: none; }
+.district-plate.is-soon:hover .hub-plate-go { background: var(--well); color: var(--muted); box-shadow: var(--e1); }
 
 @media (prefers-reduced-motion: reduce) {
-  .district-plate:hover .hub-plate-cta { transform: none; }
 }
 
 /* ══ A WALL OF PICTURES, IN THE HUB'S LANGUAGE ═══════════════════════════
@@ -1301,7 +1216,7 @@ img[src$=".svg"], .no-case {
   .pill:hover, .chip:hover, .tc-nav a:hover, .side-menu a:hover,
   .modal .opt:hover, .tc-actionbar a:hover, .tc-actionbar button:hover, .tc-actions a:hover, .tc-actions button:hover,
   .pcard:hover .ph img, .social-tile:hover, .mode-tab:hover,
-  .btn-discuss:hover, .hub-plate-cta:hover {
+  .btn-discuss:hover {
     transform: none;
   }
 }
@@ -3442,7 +3357,6 @@ textarea.g-field { resize: none; line-height: 1.55; }
    FILE'S LAST reduced-motion block for the no-hover-movement guarantee, so
    this one, now last, carries it alone. */
 @media (prefers-reduced-motion: reduce) {
-  .district-plate:hover .hub-plate-cta { transform: none; }
 }
 
 /* ══ THE BEAUTY WALL ════════════════════════════════════════════════════════

@@ -3,9 +3,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth.store';
 import type { HubKey } from '@/types';
 import { HUBS } from '@/config/hubs';
-import { HUB_ICON } from '@/nav/registry';
 import { useHubTheme } from '@/hooks/useHubTheme';
-import { Icon } from '@/components/ui/Icon';
 import { HubConsentGate } from '@/features/privacy/HubConsentGate';
 
 /**
@@ -213,18 +211,14 @@ export function HubLanding({ hub }: { hub: HubKey }) {
           <div className="hub-plate-art">
             <img className="no-case" src={heroSrc} alt="" />
           </div>
-          <div className="hub-plate-foot">
-            <span className="hub-plate-icon" aria-hidden>
-              <Icon name={HUB_ICON[hub] ?? 'place'} size={30} strokeWidth={2} />
-            </span>
-            <div className="hub-plate-said">
-              <h1>{cfg.name}</h1>
-              <p>{cfg.tag}</p>
-            </div>
-            <Link to={firstInner} className="hub-plate-cta">
-              Explore now<span aria-hidden> →</span>
-            </Link>
-          </div>
+          {/* The threshold takes the district's own treatment, at the
+              district's own instruction: the picture untouched, and the one
+              way in standing on it. "Explore now" became "Explore Astrology"
+              for the reason it did on the home page — a verb alone does not
+              say which door it is. */}
+          <Link to={firstInner} className="hub-plate-go">
+            Explore <i>{cfg.name}</i>
+          </Link>
         </article>
       </div>
     </HubConsentGate>

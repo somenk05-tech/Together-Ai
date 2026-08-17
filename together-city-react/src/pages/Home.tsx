@@ -5,8 +5,6 @@ import { CityHeader } from '@/components/CityHeader';
 import { RecentPanel } from '@/components/RecentPanel';
 import { HUBS } from '@/config/hubs';
 import type { HubKey } from '@/types';
-import { HUB_ICON } from '@/nav/registry';
-import { Icon } from '@/components/ui/Icon';
 import { InstallCity } from '@/components/InstallCity';
 
 /** A clickable building silhouette on the pavilion-city map. */
@@ -251,7 +249,6 @@ export function Home() {
             const cfg = HUBS[p.key];
             const soon = cfg.items.length === 0;   // a hub with no inner pages is not yet a room
             const name = districtName(p.key);
-            const tag = DISTRICT_COPY[p.key]?.line ?? cfg.name;
             // A room nobody can enter is not linked, only labelled. No district
             // is in that state today; the branch stays because the next one to
             // be built will pass through it before its pages exist.
@@ -267,16 +264,22 @@ export function Home() {
                     style={{ opacity: 0, transition: 'opacity .5s ease' }}
                     onLoad={(e) => { e.currentTarget.style.opacity = '1'; }} />
                 </div>
-                <div className="hub-plate-foot">
-                  <span className="hub-plate-icon" aria-hidden>
-                    <Icon name={HUB_ICON[p.key] ?? 'product'} size={30} strokeWidth={2} />
-                  </span>
-                  <div className="hub-plate-said">
-                    <h2>{name}</h2>
-                    <p>{tag}</p>
-                  </div>
-                  <span className="hub-plate-cta">{soon ? 'Coming soon' : 'Explore'}</span>
-                </div>
+                {/* ── ONE CONTROL, ON THE PICTURE, NAMING WHERE IT GOES ──
+                    The foot bar went with the gradient (owner, 17 Aug). It
+                    carried the district's name and its line over a white strip
+                    under the photograph — and every hero in this batch paints
+                    its own name across its facade, so the strip was saying it
+                    twice on one screen.
+
+                    THE NAME IS NOT LOST WITH IT. It is inside this button,
+                    which makes it the accessible name of the link as well as
+                    the visible one: "Explore Astrology" rather than the twelfth
+                    identical "Explore" on the page. Which is also why the
+                    photograph keeps `alt=""` — it is decorative HERE, because
+                    the thing it depicts is named a line below it. */}
+                <span className="hub-plate-go">
+                  {soon ? 'Coming soon' : <>Explore <i>{name}</i></>}
+                </span>
               </>
             );
             return to
