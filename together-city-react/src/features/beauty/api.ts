@@ -133,19 +133,6 @@ export type RoutineTier = 'essential' | 'high-value' | 'optional';
  * arithmetic in the browser would be a second answer the day either was
  * corrected. This file formats rupees; everything else is quoted.
  */
-/**
- * One product a step could be instead — the menu behind its refresh control.
- *
- * Enough to price the swap before making it and nothing more; the photograph,
- * the instruction and the cautions arrive with the routine once the swap has
- * happened, because those are facts about a step in a band and not about a
- * product on a list.
- */
-export interface RoutineOption {
-  productId: string; name: string; brand: string;
-  priceInr: number; monthlyInr: number; packLabel: string; lastsLabel: string;
-}
-
 export interface RoutinePick {
   productId: string; name: string; role: string; tier: RoutineTier;
   /** What it costs to buy — the unit the budget is set and spent in. */
@@ -160,12 +147,6 @@ export interface RoutinePick {
   lastsLabel: string;
   /** Why this product, in the assessment's own words. Three at most. */
   reasons?: string[];
-  /**
-   * Every product this step could be, the chosen one included, in a fixed
-   * order. The refresh control moves to the next one along; the list comes back
-   * round to where it started. Absent on an offer, which is not a step yet.
-   */
-  options?: RoutineOption[];
 }
 export interface CategoryPlan {
   category: 'face' | 'hair' | 'body';
@@ -318,8 +299,6 @@ export const beautyApi = {
   insights: () => api.get<InsightsResponse>('/beauty/insights').then((r) => r.data),
   products: () => api.get<ProductsResponse>('/beauty/products').then((r) => r.data),
   routine: () => api.get<RoutineResponse>('/beauty/routine').then((r) => r.data),
-  swapRoutinePick: (v: { category: string; role: string; productId: string; fromProductId?: string }) =>
-    api.post<RoutineResponse>('/beauty/routine/swap', v).then((r) => r.data),
   budget: () => api.get<BeautyBudget | null>('/beauty/budget').then((r) => r.data),
   saveBudget: (b: { face: number; hair: number; body: number; preference?: string }) =>
     api.put<BeautyBudget>('/beauty/budget', b).then((r) => r.data),
@@ -383,30 +362,6 @@ export function useBeautyProducts() {
 export function useBeautyRoutine() {
   return useQuery({ queryKey: ['beauty', 'routine'], queryFn: () => beautyApi.routine() });
 }
-/**
- * "Not that one, the other one" — one step, swapped for another product.
- *
- * The response IS the new routine, written straight into the cache rather than
- * invalidated: the budget cards, the totals and the countdown all move with a
- * swap, and a page that flickers back to the old product while a refetch lands
- * reads as a control that did not work. The server answers with the routine as
- * it really is, so a swap it could not honour shows the step unchanged rather
- * than a product that is not in the plan.
- */
-export function useSwapRoutinePick() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: beautyApi.swapRoutinePick,
-    onSuccess: (r) => {
-      qc.setQueryData(['beauty', 'routine'], r);
-      // THE BAG MOVED TOO, on the server: a bottle already in the bag follows
-      // the step that replaced it. The sticky bar has to hear about that, or it
-      // goes on offering to sell what has just been swapped out.
-      void qc.invalidateQueries({ queryKey: ['beauty', 'bag'] });
-    },
-  });
-}
-
 /** What is saved, or null. `retry: false` because "not set" is an answer. */
 export function useBeautyBudget() {
   return useQuery({ queryKey: ['beauty', 'budget'], queryFn: () => beautyApi.budget(), retry: false });

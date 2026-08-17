@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Fold, Spinner } from '@/components/ui';
 import {
-  bagKey, useBagActions, useBeautyProfile, useBeautyRoutine, useSaveBeautyBudget, useSwapRoutinePick,
+  bagKey, useBagActions, useBeautyProfile, useBeautyRoutine, useSaveBeautyBudget,
   type CategoryPlan, type ProductRoutine, type ProductRoutineStep, type RoutinePick, type RoutineTier,
 } from '../api';
 import { BeautyBagBar } from '../components/BeautyBagBar';
@@ -77,16 +77,6 @@ const TIER_LABEL: Record<RoutineTier, string> = {
 };
 
 /**
- * A pick, carrying the part of the plan it came out of.
- *
- * A SWAP IS ADDRESSED TO A STEP, and a step is a category and a role together —
- * `face:Treat` is a serum and `hair:Treat` is an oil. The wire pick has the
- * role and not the category, because the category is the key it was filed
- * under; the page puts the two back together at the one point it needs them.
- */
-type PlannedPick = RoutinePick & { category: CategoryPlan['category'] };
-
-/**
  * One step: the number, the picture, what it is, what it costs and how long it
  * lasts.
  *
@@ -115,50 +105,17 @@ type PlannedPick = RoutinePick & { category: CategoryPlan['category'] };
  * the answer to that is a place: it is the same bottle as step 1 this morning.
  */
 /**
- * ── NOT THAT ONE, THE OTHER ONE ─────────────────────────────────────────────
- *
- * A step is a ROLE with a product in it, and until now the product was final:
- * the planner chose the best-matched compatible thing the budget allowed and
- * the citizen's only answer was to change the budget and hope. This is the
- * answer that was missing, and it is one press.
- *
- * IT CYCLES RATHER THAN OPENING A CHOOSER. The list is short, it is ordered,
- * and it comes back round to where it started — so a press is reversible by
- * pressing again rather than by remembering what was there before. A panel of
- * four alternatives is a second shop on top of the shop, on a page whose whole
- * argument is that the choosing has already been done.
- *
- * THE LIST IS THE SERVER'S AND THE GUARD IS THE SERVER'S. Every option came
- * through the same gates the planner buys through — the matched shelf, the
- * overlap and load rules, the share cap, the ceiling — so there is nothing
- * here that could put an incompatible product on somebody's face, and no
- * arithmetic in the browser deciding what is affordable.
+ * WHAT WAS HERE AND IS NOT: a refresh control on the photograph that cycled the
+ * step through the other products that could fill it. It worked and it came out
+ * at the owner's word, 17 Aug — a round arrow on a product shot is not
+ * self-explanatory, and a page whose whole argument is that the choosing has
+ * already been done should not open the choosing again in its top-right corner.
+ * The Market is where somebody browses; this sheet says what to use.
  */
-function SwapButton({ label, busy, onSwap }: { label: string; busy: boolean; onSwap: () => void }) {
-  return (
-    <button type="button" className="routine-swap" onClick={onSwap} disabled={busy}
-      title={`Show a different product for this step — ${label} next`}
-      aria-label={`Show a different product for this step. Next: ${label}`}>
-      <span aria-hidden className={busy ? 'routine-swap-mark is-busy' : 'routine-swap-mark'}>↻</span>
-    </button>
-  );
-}
-
-function Step({ s, pick, qty, alreadyIn, swapping, onSwap, onAdd, onRemove }: {
+function Step({ s, pick, qty, alreadyIn, onAdd, onRemove }: {
   s: ProductRoutineStep; pick?: RoutinePick; qty: number; alreadyIn?: string;
-  swapping: boolean; onSwap?: (toProductId: string) => void;
   onAdd: () => void; onRemove: () => void;
 }) {
-  /**
-   * WHERE THIS PRODUCT SITS IN ITS OWN LIST, and the next one along. The list
-   * contains the current product by construction, so `at` is -1 only when the
-   * plan and the band have disagreed — in which case the control is not drawn
-   * at all rather than guessing which way "next" goes.
-   */
-  const options = pick?.options ?? [];
-  const at = options.findIndex((o) => o.productId === s.productId);
-  const next = onSwap && at !== -1 && options.length > 1 ? options[(at + 1) % options.length] : null;
-
   return (
     <li className="routine-card">
       {/* THE PICTURE FIRST, AND BIG. The owner's catalogue sheet is a well of
@@ -169,7 +126,6 @@ function Step({ s, pick, qty, alreadyIn, swapping, onSwap, onAdd, onRemove }: {
           else. Every fact the old row carried is still here, below. */}
       <div className="routine-well">
         <span aria-hidden className="routine-num">{s.order}</span>
-        {next && <SwapButton label={next.name} busy={swapping} onSwap={() => onSwap!(next.productId)} />}
         <ProductShot image={s.image} imageAlt={s.imageAlt} category={s.category} fill />
       </div>
 
@@ -230,10 +186,17 @@ function Step({ s, pick, qty, alreadyIn, swapping, onSwap, onAdd, onRemove }: {
             THE CAUTIONS DID NOT COME IN HERE, and that is the one deliberate
             exception. "Increases sun sensitivity — daily sunscreen is not
             optional alongside this" is the only alarm this hub allows itself,
-            and an alarm behind a disclosure is a decoration. */}
+            and an alarm behind a disclosure is a decoration.
+
+            THE META IS THE PACK AND NOTHING ELSE. It was the pack AND how long
+            it lasts — "30 ml · about 4 weeks" — and measured on the live page
+            fifteen of the sixteen cards truncated it mid-word: the column is
+            273px and the line had 101px of text in 77px of room. A closed
+            section whose one line ends in an ellipsis reads as broken rather
+            than as folded. The duration is inside, under what it costs. */}
         <Fold face="routine-why" panel="routine-why-open"
           title="Why this step"
-          meta={pick?.packLabel ? `${pick.packLabel} · ${pick.lastsLabel}` : s.frequency.toLowerCase()}>
+          meta={pick?.packLabel || s.frequency.toLowerCase()}>
           {pick && pick.reasons && pick.reasons.length > 0 && (
             <ul className="routine-why-list">
               {pick.reasons.map((r) => <li key={r}>{r}</li>)}
@@ -252,15 +215,6 @@ function Step({ s, pick, qty, alreadyIn, swapping, onSwap, onAdd, onRemove }: {
                 {` · ₹${pick.priceInr} to buy, about ${rupees(pick.monthlyInr)} a month to keep going.`}
               </p>
             </>
-          )}
-          {/* WHAT ELSE IT COULD BE, said in words beside the control that does
-              it. A round arrow on a photograph is not self-explanatory, and
-              the honest place to explain it is where somebody has already
-              chosen to read. */}
-          {next && (
-            <div className="muted routine-why-note">
-              {options.length} products suit this step. The arrow on the photograph moves to {next.name}.
-            </div>
           )}
         </Fold>
 
@@ -313,16 +267,13 @@ function Step({ s, pick, qty, alreadyIn, swapping, onSwap, onAdd, onRemove }: {
  * row the two columns only sometimes agree about.
  */
 function Band(
-  { r, picks, bagged, seen, swappingId, onSwap }:
+  { r, picks, bagged, seen }:
   {
-    r: ProductRoutine; picks: Map<string, PlannedPick>; bagged: ReturnType<typeof useBagActions>;
+    r: ProductRoutine; picks: Map<string, RoutinePick>; bagged: ReturnType<typeof useBagActions>;
     /** productId → the band that already offered it. Built once by the page, in
      *  band order, so "first" means first on the page rather than first
      *  alphabetically or whatever order the API happened to return. */
     seen: Map<string, string>;
-    /** The step waiting on the server, so only its own control shows it. */
-    swappingId: string | null;
-    onSwap: (pick: PlannedPick, toProductId: string) => void;
   },
 ) {
   const meta = BAND[r.timeOfDay];
@@ -351,16 +302,11 @@ function Band(
         </p>
       ) : (
         <ul className="routine-grid" style={{ listStyle: 'none', padding: 0 }}>
-          {r.steps.map((s) => {
-            const pick = picks.get(s.productId);
-            return (
-              <Step key={s.productId} s={s} pick={pick} qty={bagged.qtyOf(s.productId)}
-                alreadyIn={seen.get(s.productId) === r.title ? undefined : seen.get(s.productId)}
-                swapping={swappingId === s.productId}
-                onSwap={pick ? (to) => onSwap(pick, to) : undefined}
-                onAdd={() => bagged.add(s.productId)} onRemove={() => bagged.remove(s.productId)} />
-            );
-          })}
+          {r.steps.map((s) => (
+            <Step key={s.productId} s={s} pick={picks.get(s.productId)} qty={bagged.qtyOf(s.productId)}
+              alreadyIn={seen.get(s.productId) === r.title ? undefined : seen.get(s.productId)}
+              onAdd={() => bagged.add(s.productId)} onRemove={() => bagged.remove(s.productId)} />
+          ))}
         </ul>
       )}
     </section>
@@ -591,10 +537,6 @@ export function Routine() {
   // asked. Saving a dismissal would be storing an opinion about a number the
   // citizen has already given us.
   const [kept, setKept] = useState<Record<string, boolean>>({});
-  // "Show me a different one." The mutation answers with the whole routine —
-  // see useSwapRoutinePick — so nothing here recomputes a price or a total.
-  const swap = useSwapRoutinePick();
-  const [swapping, setSwapping] = useState<string | null>(null);
   /**
    * WHAT THE BAG WAS BEFORE "Add the whole routine", and the signature of what
    * that press wrote. Undo is offered only while the two still agree — one tap
@@ -652,24 +594,12 @@ export function Routine() {
    * error anywhere.
    */
   const picks = useMemo(() => {
-    const m = new Map<string, PlannedPick>();
+    const m = new Map<string, RoutinePick>();
     for (const k of ['face', 'hair', 'body'] as const) {
-      for (const p of data?.plan?.[k].picks ?? []) m.set(p.productId, { ...p, category: k });
+      for (const p of data?.plan?.[k].picks ?? []) m.set(p.productId, p);
     }
     return m;
   }, [data]);
-
-  /**
-   * THE STEP CURRENTLY WAITING ON THE SERVER, held by product id rather than as
-   * a bare boolean: eight cards share one mutation, and a boolean would spin
-   * every arrow on the sheet for a press on one of them.
-   */
-  const onSwap = (pick: PlannedPick, toProductId: string) => {
-    setSwapping(pick.productId);
-    swap.mutate(
-      { category: pick.category, role: pick.role, productId: toProductId, fromProductId: pick.productId },
-      { onSettled: () => setSwapping(null) });
-  };
 
   // What the whole routine costs to buy today, and what it costs to keep. Both
   // are the routine's own figures and neither depends on the bag.
@@ -950,16 +880,12 @@ export function Routine() {
               the only rule on the page and it is what makes them read as two
               halves of one day rather than two lists. */}
           <div className="beauty-sheet is-shop routine-day">
-            {day.map((r) => (
-              <Band key={r.timeOfDay} r={r} picks={picks} bagged={bagged} seen={firstSeen}
-                swappingId={swapping} onSwap={onSwap} />
-            ))}
+            {day.map((r) => <Band key={r.timeOfDay} r={r} picks={picks} bagged={bagged} seen={firstSeen} />)}
           </div>
 
           {rest.filter((r) => r.steps.length > 0).map((r) => (
             <div key={r.timeOfDay} className="beauty-sheet is-shop">
-              <Band r={r} picks={picks} bagged={bagged} seen={firstSeen}
-                swappingId={swapping} onSwap={onSwap} />
+              <Band r={r} picks={picks} bagged={bagged} seen={firstSeen} />
             </div>
           ))}
 

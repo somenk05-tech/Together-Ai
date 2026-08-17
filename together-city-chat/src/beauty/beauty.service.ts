@@ -641,7 +641,7 @@ export class BeautyService {
     const needs = [...(analysis?.skin?.readings ?? []), ...(analysis?.hair?.readings ?? [])]
       .filter((r) => r.level !== 'good').map((r) => r.key);
 
-    const plan = planWithinBudget(products, budget, needs, alreadyHave, await this.getRoutineSwaps(userId));
+    const plan = planWithinBudget(products, budget, needs, alreadyHave);
     // Only the products the budget actually bought reach the bands. This is the
     // line that makes the budget real rather than decorative: a step that did
     // not fit is not laid out and then hidden, it was never chosen.
@@ -673,95 +673,6 @@ export class BeautyService {
       needsBudget: false as const, budget, plan: planForWire(plan), routines, personalisedBy,
       productCount: chosen.size, disclaimer, reorder,
     };
-  }
-
-  /**
-   * ── THE STEPS THE CITIZEN CHOSE FOR THEMSELVES ──────────────────────────
-   *
-   * `{ "face:Treat": "prod-123" }`, in the same `extras` blob as the budget and
-   * for the same reason: it is an answer they gave about their own routine, not
-   * a new kind of object. A column would be a migration and a second place to
-   * look.
-   *
-   * IT IS A PREFERENCE, NOT A PURCHASE. Nothing here is charged, nothing is put
-   * in the bag, and the planner is free to ignore any of it — see pass 5e in
-   * budget-routine.ts. What is stored is "for this step, I'd rather have that
-   * one", which stays true across a re-plan, a new assessment and a moved
-   * budget in a way that the product id of a routine never does.
-   */
-  private async getRoutineSwaps(userId: string): Promise<Record<string, string>> {
-    const row = await swallow(this.beauty.findUnique({ where: { userId } }), 'beauty: profile read', { userId });
-    const extras = safeJson<Record<string, unknown>>(row?.extras, {});
-    const raw = extras.routineSwaps;
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
-    const out: Record<string, string> = {};
-    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-      if (typeof v === 'string' && v) out[k] = v;
-    }
-    return out;
-  }
-
-  /**
-   * Swap one step for another product, and answer with the whole routine.
-   *
-   * THE WHOLE ROUTINE, because a step is not an island: the category's spend,
-   * what is left of the budget, the sentences about what was left out and the
-   * countdown to the next order all move when a product does. Returning the
-   * step alone would leave the page holding one fresh fact and a screenful of
-   * stale ones, and re-deriving the rest in the browser is the second copy of
-   * the arithmetic this hub has spent its life refusing.
-   *
-   * IT DOES NOT VERIFY THE PRODUCT HERE. The planner already refuses a pin it
-   * cannot honour — wrong role, off the matched shelf, over the ceiling — and a
-   * second gate in this method would be the same rule written twice, differing
-   * the first time either was corrected. What comes back is the routine as it
-   * really is, which is the only honest answer to "did that work".
-   */
-  async swapRoutinePick(userId: string, dto: { category: 'face' | 'hair' | 'body'; role: string; productId: string; fromProductId?: string }) {
-    /**
-     * AND THE BAG FOLLOWS THE STEP.
-     *
-     * Somebody who has already put the planned serum in their bag and then asks
-     * for a different one has not asked for two serums, and they have certainly
-     * not asked to be sold the one they just rejected. Without this the old
-     * bottle sits in the bag through checkout while the routine above it shows
-     * the new one — the swap looks like it worked and the order proves it did
-     * not.
-     *
-     * IT MOVES A LINE, IT NEVER ADDS ONE. A step that was not in the bag stays
-     * not in the bag: the swap is a change of mind about a product, not a
-     * decision to buy it. And where the new product is somehow already there,
-     * the two lines merge rather than becoming a duplicate the bag would then
-     * have to explain.
-     *
-     * `fromProductId` COMES FROM THE PAGE because the page is holding it — it
-     * is the product on the card the control was pressed on. Deriving it here
-     * would mean planning the whole routine a second time to ask a question the
-     * caller already knows the answer to.
-     */
-    const from = dto.fromProductId;
-    if (from && from !== dto.productId) {
-      const bag = await this.getBag(userId);
-      const moving = bag.lines.find((l) => l.id === from);
-      if (moving) {
-        const rest = bag.lines.filter((l) => l.id !== from).map((l) => ({ id: l.id, qty: l.qty }));
-        const at = rest.findIndex((l) => l.id === dto.productId);
-        if (at === -1) rest.push({ id: dto.productId, qty: moving.qty });
-        else rest[at] = { ...rest[at], qty: rest[at].qty + moving.qty };
-        await this.saveBag(userId, rest);
-      }
-    }
-
-    const row = await swallow(this.beauty.findUnique({ where: { userId } }), 'beauty: profile read', { userId });
-    const extras = safeJson<Record<string, unknown>>(row?.extras, {});
-    const swaps = await this.getRoutineSwaps(userId);
-    const routineSwaps = { ...swaps, [`${dto.category}:${dto.role}`]: dto.productId };
-    await swallow(this.beauty.upsert({
-      where: { userId },
-      update: { extras: JSON.stringify({ ...extras, routineSwaps }) },
-      create: { userId, extras: JSON.stringify({ routineSwaps }) },
-    }), 'beauty: routine swap write', { userId });
-    return this.routine(userId);
   }
 
   // ─────────────── photo re-upload management (5 analyses / rolling week) ───────────────
