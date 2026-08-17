@@ -2372,13 +2372,146 @@ textarea.g-field { resize: none; line-height: 1.55; }
    Dating is graded, and it is one selector rather than a prop threaded through
    six components, because the pages hold eleven separate <img> call sites and
    every one of them is written as an inline style object.                    */
-/* ── THE SKY IS GONE, AND SO IS THE GLASS OVER IT ────────────────────────
-   The fixed sky layer, the transparent shells and the blurred chrome all
-   existed to hang a saturated wash behind the hub and then keep type legible
-   on top of it. There is no wash now: the ground is the city's white, so the
-   header is var(--card), the rail is var(--rail-well) and the page paints
-   itself — every one of those a line that already existed in this file. What
-   the hub keeps is the one thing that was never about the sky: the grade.  */
+/* ── THE SKY IS BACK, AND THE ROOM ABOVE IT STANDS ASIDE ─────────────────
+   What used to be written here said the sky was gone and that the header, the
+   rail and the page had gone back to painting themselves. Half of that stopped
+   being true the morning tokens.css hung a vertical gradient on --sky-image
+   again — ivory at the head, blue-grey at the foot — and nobody moved the six
+   opaque surfaces standing on top of it. So the sky shipped and only Curated
+   Matches, which builds its own panels, could see it. A wash that exists and
+   cannot be seen is worse than no wash: it is a value in the token file that
+   every screenshot contradicts, and it stays wrong until somebody reads CSS
+   rather than looks at the page.
+
+   SO THE ROOM STANDS ASIDE ONCE, FOR THE WHOLE HUB, rather than page by page.
+   Beauty solved exactly this a thousand lines down and its three lines are the
+   precedent taken here: shell, main and page go transparent so that what the
+   eye lands on is the layer underneath. BODY IS THE ONE THAT IS EASY TO MISS
+   and it is the load-bearing one — a negative-z-index layer paints BELOW the
+   background of an in-flow block, so an opaque body is a lid on the sky no
+   matter what the shell above it does.
+
+   AND THE HUB'S OWN ELEMENT CARRIES THE SAME PICTURE, because the landing has
+   no shell to hang one off. `/dating` is a HubLanding under AppShell — header,
+   main, footer, and no `.tc-shell` for `::before` to exist on — so the one box
+   every route in this hub shares is the element the hub attribute is set on.
+   It paints the same token, fixed, and on the six inner routes it is simply
+   the colour the shell layer would have put there anyway.
+
+   NOTHING HERE DECLARES A GROUND. --ground, --paper, --card and --rail-well
+   are untouched and still the city's white; what moved is what is drawn in
+   FRONT of them. A hub holds a ground when words are read off something that
+   is not the city's white, and words here are read off PANELS — which is the
+   same sentence the tokens block makes, kept true by this file.            */
+[data-hub="dating"] { background-image: var(--sky-image); background-attachment: fixed; }
+[data-hub="dating"] body,
+[data-hub="dating"] .tc-shell,
+[data-hub="dating"] .tc-main,
+[data-hub="dating"] .page { background: transparent; }
+
+/* ── AND EVERY SURFACE THAT HOLDS TEXT GOES TRANSLUCENT, NOT AWAY ────────
+   var(--frost), the root's own translucent white, and nothing else. It is
+   already what Curated Matches is built from and what the two overlays dim
+   with, so the hub gains no second material and this block introduces no name
+   that is not at :root. A surface a citizen reads off cannot become
+   transparent — it can only become thin enough for the atmosphere to carry
+   through it, which is the whole difference between a panel and a hole.   */
+[data-hub="dating"] .tc-header {
+  background: var(--frost);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  backdrop-filter: blur(8px) saturate(120%);
+}
+/* THE RAIL IS A PANEL FLOATING ON THE SKY, NOT A WELL CUT INTO IT. Its face
+   was --rail-well (solid white) over an inset hairline, which is a shape that
+   only reads as a well when there is a wall for it to be cut into. On an
+   atmosphere the same two lines read as a white slab pasted over the picture.
+   Same rail, same radius: the light comes off it now instead of into it. */
+[data-hub="dating"] .tc-side { background: var(--frost); box-shadow: var(--e2); }
+/* The rail's keys need nothing — --lens-face is already translucent white and
+   already carries its own blur, so the sky arrives through them the moment the
+   solid well behind them stops blocking it. */
+[data-hub="dating"] .card,
+[data-hub="dating"] .stat,
+[data-hub="dating"] .row,
+[data-hub="dating"] .console,
+[data-hub="dating"] .pcard,
+[data-hub="dating"] table.tc,
+[data-hub="dating"] .modal,
+[data-hub="dating"] .sheet { background: var(--frost); }
+
+/* ── MUTED INK NEVER SITS ON THE SKY ─────────────────────────────────────
+   The rule the Curated Matches block obeys by hand, made structural for the
+   hub — because obeying it by hand is a job that is never finished. The next
+   component somebody writes for a dating page looks correct in review, since
+   whoever writes it has a panel on screen while they work.
+
+   THE NUMBERS, measured on this gradient rather than assumed. At the muted
+   ink step contrast runs 4.58 at the top of the sky, then falls through 3.8
+   and 2.9 to 2.3 at the foot: the SAME grey passing AA where the page begins
+   and failing it badly where the page ends, which is the worst kind of failure
+   because it looks fine to whoever writes it and only breaks for whoever
+   scrolls. Over a panel — white at .72 across that same sweep — the worst case
+   is 4.53, and it clears.
+
+   SO: --muted and --faint are used ONLY inside a panel. Anything drawn bare on
+   the sky takes --ink or --ink-soft, both of which clear AA at every stop. The
+   shadow-and-restore below is how that is enforced on text no class can reach:
+   custom properties inherit, so re-pointing the two greys inside .tc-main
+   reaches every descendant — including the several hundred inline
+   `color: 'var(--muted)'` styles across these seven pages — and every panel
+   puts the paper's greys back under a name that was not shadowed.
+
+   The breadcrumb is not in this list and does not need to be: the sky's top
+   stop is held light in tokens.css for precisely that one line of type.
+
+   THE RAIL AND THE HEADER ARE OUTSIDE .tc-main, and that is correct rather
+   than an omission — both are panels, and both keep the city's greys. */
+[data-hub="dating"] .tc-main { --muted: var(--ink-soft); --faint: var(--ink-soft); }
+/* ANY CLASS IN THIS HUB THAT PAINTS A PANEL BELONGS ON THIS LIST, the commit
+   it is born — the rule beauty's list learned the hard way. A panel missing
+   from it is not a rendering fault, it is body copy one shade too dark, which
+   is the kind of wrong nobody files a bug about. */
+[data-hub="dating"] .card,
+[data-hub="dating"] .stat,
+[data-hub="dating"] .row,
+[data-hub="dating"] .console,
+[data-hub="dating"] .pcard,
+[data-hub="dating"] table.tc,
+[data-hub="dating"] .modal,
+[data-hub="dating"] .sheet,
+[data-hub="dating"] .dt-lead,
+[data-hub="dating"] .dt-band,
+[data-hub="dating"] .dt-panel,
+[data-hub="dating"] .dt-tile,
+[data-hub="dating"] .mstack .mfoot {
+  --muted: var(--on-paper-muted);
+  --faint: var(--on-paper-faint);
+}
+
+/* ── AND THE PREFERENCE THE SKY OWES BACK ────────────────────────────────
+   A citizen who asked for less transparency is asking for surfaces to be
+   surfaces. The atmosphere goes, the frost becomes the paper it was standing
+   in for, and the room is the white one the rest of the city is. */
+@media (prefers-reduced-transparency: reduce) {
+  [data-hub="dating"] { background-image: none; }
+  [data-hub="dating"] .tc-header,
+  [data-hub="dating"] .tc-side,
+  [data-hub="dating"] .card,
+  [data-hub="dating"] .stat,
+  [data-hub="dating"] .row,
+  [data-hub="dating"] .console,
+  [data-hub="dating"] .pcard,
+  [data-hub="dating"] table.tc,
+  [data-hub="dating"] .modal,
+  [data-hub="dating"] .sheet,
+  [data-hub="dating"] .dt-lead,
+  [data-hub="dating"] .dt-band,
+  [data-hub="dating"] .dt-panel,
+  [data-hub="dating"] .dt-tile {
+    background: var(--card);
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+}
 
 /* ── SPACE, WHICH IS HALF OF WHAT WAS BORROWED ───────────────────────────
    The reference is two thirds empty and the emptiness is the design. Type
@@ -2486,11 +2619,11 @@ textarea.g-field { resize: none; line-height: 1.55; }
 .mstack.mflat .mcard { position: relative; width: 320px; max-width: 100%; transform: none; }
 @media (max-width: 720px) { .mstack.mflat .mcard { width: 100%; } }
 
-/* ── AND THE ONE PREFERENCE THIS STILL OWES ──────────────────────────────
-   Two of the three went with the sky: there is no transparency left to
-   reduce and no fixed layer left to stop moving. The third is the one that
-   was never about the sky, and it matters MORE now that the grade is a
-   greyscale one — a citizen who has asked for more contrast is owed the
+/* ── AND THE PREFERENCE THE GRADE OWES ───────────────────────────────────
+   The transparency one is answered where the frost is declared, above. This
+   is the one that was never about the sky at all, and it matters MORE now
+   that the grade is a greyscale one — a citizen who has asked for more
+   contrast is owed the
    file as it was taken, in its own colour. Removing the grade removes the
    monochrome with it, which is the correct trade and not a hole in the
    design: the room is still white, black and quiet around it. */
@@ -2511,18 +2644,12 @@ textarea.g-field { resize: none; line-height: 1.55; }
    may not introduce a token name that is not at :root, and this one does not.
 
    ── MUTED INK NEVER SITS ON THE SKY ─────────────────────────────────────
-   The reason, measured on this gradient rather than assumed. At the muted
-   step, contrast against the sky itself runs 4.37:1 at the top, 3.79 through
-   the middle, 2.89 low and 2.26 at the foot — the SAME grey passing AA where
-   the page begins and failing it badly where the page ends, which is the
-   worst kind of failure because it looks fine to whoever writes it and only
-   breaks for whoever scrolls. Over a panel (white at .72 over that same
-   sweep) the worst case is 4.53 and it clears.
-
-   So the rule this block obeys, everywhere, without exception: --muted and
-   --faint are used ONLY inside a panel. Anything reading bare on the sky —
-   the crumb, the lede, the section head, the closing line — is --ink or
-   --ink-soft, both of which clear AA at every stop of the gradient.        */
+   This room wrote that rule and obeyed it by hand — the crumb, the lede, the
+   section head and the closing line are all --ink or --ink-soft below, and
+   none of them is a preference. The measurements it was argued from, and the
+   shadow-and-restore that now holds it for the other six routes, live once in
+   the hub block above; they are not repeated here, because two copies of a
+   contrast table is how the second one goes quietly out of date.          */
 
 /* Bare on the sky, all three. The eyebrow's own --faint would be the exact
    failure described above, so the crumb takes its own colour here. */
