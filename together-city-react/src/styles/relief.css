@@ -3357,6 +3357,14 @@ textarea.g-field { resize: none; line-height: 1.55; }
    FILE'S LAST reduced-motion block for the no-hover-movement guarantee, so
    this one, now last, carries it alone. */
 @media (prefers-reduced-motion: reduce) {
+  /* The district panel's own hover movement, cancelled. This block used to
+     carry `.district-plate:hover .hub-plate-cta { transform: none; }` and the
+     comment above says why it must carry SOMETHING — relief.spec reads the
+     file's last reduced-motion block for the no-hover-movement guarantee. The
+     pill it named is gone; the plate's own lift is what is left to cancel, so
+     the guarantee moves onto that rather than leaving with the rule that
+     happened to be holding it. Caught by the guard, which is the point of it. */
+  .district-plate:hover { transform: none; }
 }
 
 /* ══ THE BEAUTY WALL ════════════════════════════════════════════════════════
