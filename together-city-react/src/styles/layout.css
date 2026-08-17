@@ -1507,32 +1507,6 @@
   background: var(--card);
   font-size: 11px; font-weight: 800;
 }
-/* ── SHOW ME A DIFFERENT ONE ────────────────────────────────────────────────
-   Opposite the plate number, on the photograph, because it is a control ABOUT
-   this product rather than one more thing to read about it — and because the
-   only other place it could go is beside "Add to bag", where a second button
-   would compete with the one thing this page wants somebody to press.
-
-   It is the hub's cream on the studio white for the same reason the number is:
-   a white control on a white seamless is a control nobody finds. */
-.routine-swap {
-  position: absolute; top: 8px; right: 8px; width: 27px; height: 27px;
-  display: grid; place-items: center; padding: 0; cursor: pointer;
-  border: 1px solid var(--line); border-radius: 50%;
-  background: var(--card); color: var(--ink-soft);
-}
-.routine-swap:hover { border-color: var(--accent-line); color: var(--accent-ink); }
-.routine-swap:disabled { cursor: progress; }
-.routine-swap-mark { font-size: 13px; line-height: 1; display: block; }
-/* It turns while the server is answering, and only then. The routine it is
-   waiting for is the whole sheet — prices, totals, the countdown — so the wait
-   is real and worth showing on the control that caused it. */
-.routine-swap-mark.is-busy { animation: routine-swap-spin var(--dur-spin) linear infinite; }
-@keyframes routine-swap-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) {
-  .routine-swap-mark.is-busy { animation: none; opacity: .5; }
-}
-
 .routine-body { padding: 13px 15px 15px; display: flex; flex-direction: column; gap: 7px; flex: 1; }
 .routine-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 /* TWO LINES' WORTH WHETHER IT USES THEM OR NOT. "Suganda 10% Niacinamide Face
@@ -1589,3 +1563,43 @@
 .routine-addall .btn { flex: 0 0 auto; white-space: nowrap; }
 .beauty-sheet + .routine-addall,
 .routine-day + .routine-addall { justify-content: center; margin: 4px 0 16px; }
+
+
+/* ══ HOW IT IS DONE, ON THE LIVE TIMER ══════════════════════════════════════
+   The runner is a full-screen dark overlay with a name and a countdown on it,
+   and until now that was all it had: a stopwatch running over the words
+   "Standing hip opener". These rules are the instructions underneath it.
+
+   THE COLOURS ARE THE OVERLAY'S, NOT THE ROOM'S. This panel sits on the ink
+   ground the timer paints over everything, so it inherits — `currentColor` and
+   transparency rather than a second set of tokens for a surface that exists for
+   ninety seconds at a time. Nothing here introduces a colour.
+
+   IT IS CAPPED AND IT SCROLLS. Six steps of prose at reading size is taller
+   than a phone in landscape, and the one thing this panel may never do is push
+   the countdown off the screen. */
+.wk-how {
+  display: flex; gap: 18px; align-items: flex-start; justify-content: center;
+  flex-wrap: wrap; text-align: left;
+  margin-top: 18px; max-width: 620px; width: 100%;
+  max-height: 34vh; overflow-y: auto;
+}
+.wk-how-shot { margin: 0; flex: none; }
+/* The licensed size, in the stylesheet as well as on the element: a rule that
+   says 180 and an attribute that says 180 are one number in two places, and the
+   day somebody "makes it bigger" both have to be changed on purpose. */
+.wk-how-shot img { width: 180px; height: 180px; border-radius: 10px; display: block; background: var(--shot-ground); }
+.wk-how-shot figcaption { font-size: 9.5px; letter-spacing: .04em; opacity: .55; margin-top: 5px; text-align: center; }
+.wk-how-words { flex: 1; min-width: 220px; }
+.wk-how-steps { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+.wk-how-steps li { font-size: 13.5px; line-height: 1.5; opacity: .82; }
+.wk-how-muscles {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  opacity: .5; margin-top: 10px;
+}
+@media (max-width: 560px) {
+  /* On a phone the animation and six steps together are the whole screen. The
+     picture goes; the words are the half that cannot be guessed at. */
+  .wk-how-shot { display: none; }
+  .wk-how { max-height: 30vh; }
+}

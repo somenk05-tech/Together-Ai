@@ -1,5 +1,5 @@
 import {
-  LIBRARY, isAvailable, ruledOutBy, exerciseById,
+  LIBRARY, howTo, isAvailable, mediaFor, ruledOutBy, exerciseById,
   type Condition, type Equipment, type Exercise, type Pattern,
 } from './exercise-library';
 
@@ -129,6 +129,24 @@ export interface SessionExercise {
   unilateral?: boolean;
   /** Present when this movement stands in for one that was ruled out. */
   insteadOf?: { name: string; because: Condition };
+  /**
+   * ── HOW TO DO IT, ON THE SESSION ITSELF ─────────────────────────────────
+   *
+   * Not fetched per exercise from the page, and that is the decision worth
+   * writing down: the runner is a full-screen timer somebody is looking at
+   * mid-movement, often on a phone with the screen at arm's length, and a
+   * second round trip to find out what to do with their hands is a round trip
+   * that lands after they have already guessed. The whole session — eighteen
+   * steps, five or six lines each — is about four kilobytes of text. It
+   * travels with the plan.
+   */
+  steps: string[];
+  /** What it works, in the words the library prints them in. */
+  muscles: string[];
+  /** The still and the animation, or '' where the movement is one of the
+   *  hand-written ones the dataset does not describe. © Gym visual. */
+  thumb: string;
+  gif: string;
 }
 
 export interface SessionBlock {
@@ -194,6 +212,18 @@ function pick(
   return null;
 }
 
+/**
+ * The four fields that turn a name into an instruction, attached in ONE place.
+ *
+ * Every exercise on a session goes through here — warm-up, working set,
+ * cool-down and the walk alike — so there is no block a citizen can reach that
+ * knows what to do and no block that doesn't.
+ */
+const describe = (e: Exercise): Pick<SessionExercise, 'steps' | 'muscles' | 'thumb' | 'gif'> => {
+  const { thumb, gif } = mediaFor(e);
+  return { steps: howTo(e), muscles: e.muscles, thumb, gif };
+};
+
 export function buildSession(input: SessionInput): TodaySession {
   const goal = GOAL_PRESCRIPTION[input.bodyGoal] ?? GOAL_PRESCRIPTION.athletic;
   const lvl = LEVEL_ADJUST[input.level] ?? LEVEL_ADJUST.intermediate;
@@ -241,6 +271,7 @@ export function buildSession(input: SessionInput): TodaySession {
       restSec,
       ...(got.exercise.unilateral ? { unilateral: true } : {}),
       ...(got.insteadOf ? { insteadOf: got.insteadOf } : {}),
+      ...describe(got.exercise),
     });
   }
 
@@ -250,7 +281,7 @@ export function buildSession(input: SessionInput): TodaySession {
   const mobility = (n: number, from: 'start' | 'end'): SessionExercise[] =>
     LIBRARY.filter((e) => e.pattern === 'mobility' && isAvailable(e, input.equipment) && ruledOutBy(e, input.conditions).length === 0)
       .slice(from === 'start' ? 0 : -n, from === 'start' ? n : undefined)
-      .map((e) => ({ id: e.id, name: e.name, pattern: e.pattern, sets: 1, seconds: e.seconds ?? 30, restSec: 0, ...(e.unilateral ? { unilateral: true } : {}) }));
+      .map((e) => ({ id: e.id, name: e.name, pattern: e.pattern, sets: 1, seconds: e.seconds ?? 30, restSec: 0, ...(e.unilateral ? { unilateral: true } : {}), ...describe(e) }));
 
   /**
    * THE WALK IS WHERE AEROBIC MINUTES GO, and it is the one thing that grows
@@ -308,7 +339,13 @@ export function buildSession(input: SessionInput): TodaySession {
       {
         title: 'Then walk',
         note: 'Brisk enough to be breathing, easy enough to talk.',
-        exercises: [{ id: 'brisk-walk', name: 'Brisk walk', pattern: 'cardio', sets: 1, seconds: walkMinutes * 60, restSec: 0 }],
+        exercises: [{
+          id: 'brisk-walk', name: 'Brisk walk', pattern: 'cardio', sets: 1, seconds: walkMinutes * 60, restSec: 0,
+          // The walk is the one exercise not chosen out of the library — it is
+          // the block — so it reads its own row rather than being built by hand
+          // with three empty fields.
+          ...describe(exerciseById('brisk-walk')!),
+        }],
       },
     ],
     why: {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui';
-import { useAddWorkout, useTodaySession, type TodaySession } from '../api';
+import { EXERCISE_MEDIA_ATTRIBUTION, useAddWorkout, useTodaySession, type TodaySession } from '../api';
 import { useFoodPref, useNutritionTargets } from '@/features/nutrition/hooks';
 
 /* ---------- shared body profile (from the Nutrition food-preference profile) ---------- */
@@ -65,7 +65,25 @@ type Loc = 'home' | 'gym';
 
 const mmss = (s: number) => { s = Math.max(0, Math.round(s)); const m = Math.floor(s / 60), ss = s % 60; return `${m}:${ss < 10 ? '0' : ''}${ss}`; };
 
-interface Step { name: string; block: string; dur: number; reps: number | null; rest?: boolean; walk?: boolean; note?: string; round?: number }
+interface Step {
+  name: string; block: string; dur: number; reps: number | null;
+  rest?: boolean; walk?: boolean; note?: string; round?: number;
+  /**
+   * ── WHAT TO ACTUALLY DO, ON THE TIMER ITSELF ────────────────────────────
+   *
+   * The runner was a name, a clock and four buttons. "Standing hip opener" over
+   * a countdown is a stopwatch on a phrase: somebody who has never done one is
+   * left guessing at a movement while the clock runs, which is how people hurt
+   * themselves, and the honest fix is not a link to a page they would have to
+   * leave the timer to read.
+   *
+   * All three travel with the session — see SessionExercise on the server — so
+   * nothing is fetched mid-set.
+   */
+  steps?: string[];
+  muscles?: string[];
+  gif?: string;
+}
 
 /** A reasonable clock for one working set, so the timer has something to count
  *  down on a movement measured in reps. The set itself is the target on the
@@ -91,17 +109,21 @@ function stepsFrom(session: TodaySession | undefined, includeWalk: boolean): Ste
           reps: ex.reps ? ex.reps[1] : null,
           note: ex.reps ? `${ex.reps[0]}–${ex.reps[1]} reps${ex.unilateral ? ' each side' : ''}` : undefined,
           ...(ex.sets > 1 ? { round: i } : {}),
+          steps: ex.steps, muscles: ex.muscles, gif: ex.gif,
         });
         if (i < ex.sets && ex.restSec > 0) out.push({ name: 'Rest', block: block.title, dur: ex.restSec, reps: null, rest: true });
       }
     }
   }
-  if (includeWalk) out.push(walkStepOf(session.walkMinutes));
+  // The walk is a block the timer draws itself, so its own instructions have to
+  // be fetched out of the block it replaces rather than written again here.
+  if (includeWalk) out.push(walkStepOf(session.walkMinutes, session.blocks.find((b) => b.title === 'Then walk')?.exercises[0]));
   return out;
 }
-const walkStepOf = (minutes: number): Step => ({
+const walkStepOf = (minutes: number, from?: { steps?: string[]; muscles?: string[] }): Step => ({
   name: 'Brisk walk', block: 'Finish', dur: minutes * 60, reps: null, walk: true,
   note: `${minutes} minutes · brisk enough to be breathing, easy enough to talk`,
+  steps: from?.steps, muscles: from?.muscles,
 });
 
 /** Map the Nutrition food-preference profile onto the fitness body profile. */
@@ -487,6 +509,38 @@ export function Workout() {
               <div style={{ height: '100%', background: 'var(--ok-line)', width: `${s.dur ? Math.round((1 - rt.current.remain / s.dur) * 100) : 0}%` }} />
             </div>
             <div style={{ fontSize: 13, color: 'rgba(255,255,255,.6)' }}>{next ? `Up next: ${next.rest ? 'Rest' : next.name}` : 'Last one!'}</div>
+
+            {/* ── HOW IT IS DONE, WHILE IT IS BEING DONE ───────────────
+                UNDER THE CLOCK, NOT BESIDE IT. The countdown is what somebody
+                glances at from two metres away mid-set; the instructions are
+                what they read in the first seconds and during the rest before
+                it. One column keeps one reading order on a phone, and costs
+                nothing on a laptop — measured on the live page, this screen was
+                two thirds empty below the progress bar.
+
+                NOT ON A REST STEP. "Rest" needs no instructions, and printing
+                the last movement's over it would have somebody starting the
+                next set during their recovery. */}
+            {!s.rest && (s.gif || (s.steps?.length ?? 0) > 0) && (
+              <div className="wk-how">
+                {s.gif && (
+                  <figure className="wk-how-shot">
+                    {/* 180×180 is the size this media is licensed at — not a
+                        layout choice, and not one to "improve" later. */}
+                    <img src={s.gif} alt="" width={180} height={180} loading="lazy" />
+                    <figcaption>{EXERCISE_MEDIA_ATTRIBUTION}</figcaption>
+                  </figure>
+                )}
+                <div className="wk-how-words">
+                  {(s.steps?.length ?? 0) > 0 && (
+                    <ol className="wk-how-steps">{s.steps!.map((t) => <li key={t}>{t}</li>)}</ol>
+                  )}
+                  {(s.muscles?.length ?? 0) > 0 && (
+                    <div className="wk-how-muscles">Works {s.muscles!.join(' · ')}</div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginTop: 16 }}>
             <button type="button" style={ctrl} onClick={() => { rt.current.paused = !rt.current.paused; force(); }}>{rt.current.paused ? '▶ Resume' : '⏸ Pause'}</button>

@@ -165,7 +165,28 @@ export interface SessionExercise {
   sets: number; reps?: [number, number]; seconds?: number; restSec: number; unilateral?: boolean;
   /** Present when this movement stands in for one a condition ruled out. */
   insteadOf?: { name: string; because: string };
+  /**
+   * How it is done, what it works, and a picture of it happening — carried on
+   * the session rather than fetched per exercise, because the surface that
+   * needs them is a full-screen timer somebody is looking at mid-movement.
+   */
+  steps: string[];
+  muscles: string[];
+  /** 180×180 still and animation, or '' for the movements the dataset does not
+   *  describe. © Gym visual — see EXERCISE_MEDIA_ATTRIBUTION. */
+  thumb: string;
+  gif: string;
 }
+
+/**
+ * THE LINE THAT GOES WHEREVER THE PICTURE GOES.
+ *
+ * The exercise animations are © Gym visual and are used under terms that
+ * require the attribution to travel with the media and the resolution to stay
+ * at 180×180. It is one constant rather than a string typed into each page, so
+ * a fourth surface cannot quietly ship without it.
+ */
+export const EXERCISE_MEDIA_ATTRIBUTION = '© Gym visual — gymvisual.com';
 export interface TodaySession {
   headline: string;
   minutes: number;
