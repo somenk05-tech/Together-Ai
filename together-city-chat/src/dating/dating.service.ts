@@ -72,6 +72,15 @@ const LIST_PHOTOS = 1;
 type Visibility = 'everyone' | 'threshold' | 'paused' | 'hidden';
 interface DXVisibility { visibility?: Visibility; minMatchScore?: number }
 
+/**
+ * The two extras keys DXProfile does not declare, because the matching engine
+ * has no opinion about either: nothing is scored on what somebody does for a
+ * living or which languages they speak. matchDetail already casts for them
+ * one by one; naming the pair once is what lets the LIST carry the same six
+ * fields the detail view does without a second spelling of the same JSON.
+ */
+interface DXCard { profession?: string; languages?: string[] }
+
 type ActivityRow = { id: string; hostId: string; text: string; category: string; date: string; time: string | null; groupSize: string; description: string | null; createdAt: Date };
 type InviteRow = { id: string; activityId: string; invitedUserId: string; compatibility: number; status: string; trustLevel: number; invitedReveal: boolean; hostReveal: boolean; invitedFriends: boolean; hostFriends: boolean; conversationId: string | null; createdAt: Date };
 interface ActivityDelegate { create(a: unknown): Promise<ActivityRow>; findMany(a: unknown): Promise<ActivityRow[]>; findUnique(a: unknown): Promise<ActivityRow | null>; }
@@ -554,7 +563,7 @@ export class DatingService {
       );
       const myInterests = this.splitInterests(mine.interests);
       const theirInterests = this.splitInterests(cand.interests);
-      const candDX = this.parseDX((cand as { extras?: string | null }).extras) as DXProfile & DXVisibility;
+      const candDX = this.parseDX((cand as { extras?: string | null }).extras) as DXProfile & DXVisibility & DXCard;
       // M4: near-empty profiles do not reach the curated shelf, however well
       // the stars align — a strong score over a stub oversells a stranger.
       const candCompletion = profileCompletion({
@@ -589,6 +598,19 @@ export class DatingService {
         likedByMe: state ? this.likedBy(state, userId) : false,
         matched: false,
         conversationId: state?.conversationId ?? null,
+        // ── THE SIX THE CARD READS ──────────────────────────────────────
+        // Off the extras this method has already parsed and scored with, so
+        // this is six more keys in the response and not one more query, one
+        // more filter or one more rule about who is shown. They are the same
+        // six matchDetail returns: a list card that shows a person as a
+        // person, rather than as a percentage with a face, would otherwise
+        // have to fetch the whole profile per row to say what they do.
+        occupation: candDX.profession ?? null,
+        city: candDX.city ?? null,
+        heightCm: candDX.heightCm ?? null,
+        languages: candDX.languages ?? [],
+        relationshipGoal: candDX.relationshipGoal ?? null,
+        personalityTraits: candDX.personalityTraits ?? [],
       });
     }
     // Everyone who passes the filters, best first. There is no slice here any
@@ -919,7 +941,7 @@ export class DatingService {
         { userId: cand.userId, birthDate: cand.birthDate, interests: this.splitInterests(cand.interests) },
       );
       const theirInterests = this.splitInterests(cand.interests);
-      const candDX = this.parseDX((cand as { extras?: string | null }).extras) as DXProfile & DXVisibility & { photos?: string[] };
+      const candDX = this.parseDX((cand as { extras?: string | null }).extras) as DXProfile & DXVisibility & DXCard & { photos?: string[] };
       const breakdown = factorScores(astro, myInterests, theirInterests, myD, candDX);
       // TWO SCORES, DELIBERATELY (H2).
       //
@@ -972,6 +994,16 @@ export class DatingService {
         // to offer "Open chat" versus "Connect to Chat".
         conversationId: state?.conversationId ?? null,
         chatLocked: isMatched && !state?.conversationId,
+        // The same six matches() sends, for the same reason and off the same
+        // parsed extras — see the note there. Curated Matches reads THIS
+        // endpoint, so a field that only existed on the other list would be a
+        // field the page it was added for could not see.
+        occupation: candDX.profession ?? null,
+        city: candDX.city ?? null,
+        heightCm: candDX.heightCm ?? null,
+        languages: candDX.languages ?? [],
+        relationshipGoal: candDX.relationshipGoal ?? null,
+        personalityTraits: candDX.personalityTraits ?? [],
       });
     }
 

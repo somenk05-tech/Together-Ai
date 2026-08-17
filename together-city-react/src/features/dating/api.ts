@@ -55,6 +55,20 @@ export interface CuratedMatch {
   matched: boolean;
   chatLocked?: boolean;
   conversationId: string | null;
+  /**
+   * The six the curated card reads, and they are OPTIONAL because the list
+   * endpoints are not the only thing that has ever built one of these — a
+   * card rendered from a payload written before these existed must still
+   * type-check, and a page that finds them missing has to omit the line
+   * rather than draw an empty one. Same fields, same meaning, as MatchDetail
+   * below; the server sends them off the extras it had already parsed.
+   */
+  occupation?: string | null;
+  city?: string | null;
+  heightCm?: number | null;
+  languages?: string[];
+  relationshipGoal?: string | null;
+  personalityTraits?: string[];
 }
 
 export interface MatchDetail {

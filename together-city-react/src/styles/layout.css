@@ -907,11 +907,20 @@
    reference arrived: the routine masthead and the four plates on the skin &
    hair page are the same editorial title in the same hub, and one hub gets one
    display class. Naming it after the first page that happened to need it is
-   how a second page ends up asking for a sixth grant it does not need. */
+   how a second page ends up asking for a sixth grant it does not need.
+
+   `.dating-display` is the fifth name, and it is one class for the whole hub
+   for exactly the reason above: the page title, the name of the person the
+   page is about, and the one sentence the house says in its own voice are
+   three sizes of the same editorial title. Dating's ground is a sky rather
+   than paper and its only other distinction is a monochrome grade — a room
+   with no colour and no second typeface had nothing left to say "this line
+   is the page" with. It says it in the serif, by name, in this list. */
 .letter-title,
 .letter-archive-day .t,
 .beauty-display,
-.gem-display { font-family: var(--press-serif); font-weight: 400; }
+.gem-display,
+.dating-display { font-family: var(--press-serif); font-weight: 400; }
 
 /* ══ THE BEAUTY PLATE ═══════════════════════════════════════════════════════
    The owner's poster reference, made into the page's furniture.

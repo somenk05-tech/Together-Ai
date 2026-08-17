@@ -131,4 +131,43 @@ describe('curated stack keeps mutually-liked people', () => {
     const res = await svc.stack('me', 'romantic') as unknown as { matched: unknown[] };
     expect(res.matched).toEqual([]);
   });
+
+  /**
+   * A CURATED CARD IS A PERSON, NOT A PERCENTAGE WITH A FACE.
+   *
+   * The list used to carry a name, a picture, a bio and a score, so the page
+   * that leads with one match could say almost nothing about them — what they
+   * do, where they are, what they are looking for all lived on matchDetail,
+   * one request per person away. These six are read straight off the extras
+   * stack() has already parsed for scoring, so the only thing that changed is
+   * what the response says.
+   */
+  const CARD_EXTRAS = JSON.stringify({
+    profession: 'Architect', city: 'Pune', heightCm: 168,
+    languages: ['English', 'Marathi'], relationshipGoal: 'Long-term',
+    personalityTraits: ['Calm', 'Creative'],
+  });
+
+  it('carries the six fields the curated card is written from', async () => {
+    const { svc } = serviceWith([profile('rhea', { extras: CARD_EXTRAS })], [matchedState('rhea')]);
+    const res = await svc.stack('me', 'romantic') as unknown as { matched: Array<Record<string, unknown>> };
+    expect(res.matched[0]).toMatchObject({
+      occupation: 'Architect', city: 'Pune', heightCm: 168,
+      languages: ['English', 'Marathi'], relationshipGoal: 'Long-term',
+      personalityTraits: ['Calm', 'Creative'],
+    });
+  });
+
+  it('says nothing rather than something empty when the profile is bare', async () => {
+    // The card omits a fact it does not have. It can only do that if "absent"
+    // arrives as null and an empty list — `undefined` and `''` both render as
+    // a label with nothing after it, which is the invented blank this hub has
+    // refused everywhere else.
+    const { svc } = serviceWith([profile('rhea')], [matchedState('rhea')]);
+    const res = await svc.stack('me', 'romantic') as unknown as { matched: Array<Record<string, unknown>> };
+    expect(res.matched[0]).toMatchObject({
+      occupation: null, city: null, heightCm: null,
+      languages: [], relationshipGoal: null, personalityTraits: [],
+    });
+  });
 });

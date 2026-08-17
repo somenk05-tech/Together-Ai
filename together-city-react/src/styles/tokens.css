@@ -1663,11 +1663,68 @@
      the depths are inherited rather than re-pointed — they were already
      right, and this look leans on them harder than the candy ever did.    */
 
-  /* the metal, which is no longer a metal */
-  --accent:      #0d0d0d;
-  --accent-ink:  #0d0d0d;
-  --accent-soft: #f2f2f2;
-  --accent-line: #e0e0e0;
+  /* ── THE SKY, AND IT IS NOT A GROUND ────────────────────────────────────
+     Owner, 18 Aug, with a reference: the dating rooms sit inside a soft
+     atmosphere — warm ivory at the top, neutral grey through the middle, cool
+     blue-grey toward the foot — and the panels float in it.
+
+     IT RIDES --sky-image, WHICH IS WHY THIS IS NOT A FOURTH GROUND GRANT. The
+     mechanism is Social Life's, one hub over: `.tc-shell::before` is a fixed
+     layer painting var(--sky-image), `none` at :root and in every hub that
+     does not hang something on it. --ground, --paper and --card are untouched
+     and still white, so relief.spec's granted list stays the three it was
+     argued down to and this hub keeps the ground it handed back. A hub holds a
+     ground when words are read off something that is not white. Words are
+     still read off white here — they are read off PANELS, which float on the
+     sky rather than being painted by it.
+
+     A GRADIENT RATHER THAN THE JPEG, and it is the better answer twice over:
+     colour lives in this file, which is the rule the whole stylesheet is
+     organised around and which an image would route around; and a gradient has
+     no aspect ratio, so it cannot be cropped, letterboxed or re-scaled at any
+     viewport the city is opened at. The stops are read off the owner's own
+     reference.
+
+     BOTH ENDS ARE HELD OFF THE REFERENCE'S, and both are measurements rather
+     than preferences.
+
+     THE FOOT, because body ink at the muted step is 2.26:1 against the
+     reference's deepest slate — a grey that is legible at the top of the page
+     and illegible at the bottom of it. Held here, ink and ink-soft clear AA
+     bare on the sky at every stop.
+
+     THE HEAD, because the one thing that IS drawn bare on the sky and not on a
+     panel is the breadcrumb, which the shell paints in --muted from an inline
+     style no stylesheet can reach without shouting at it. Against the
+     reference's ivory that ran 4.09:1. Four steps lighter and it clears, which
+     is a cheaper fix than a scoped !important on a component eleven other hubs
+     share — and it costs the sky nothing anybody can see.
+
+     Everything else lives on a panel, where the worst case is 4.53:1. The rule
+     that follows is written where it is enforced, in relief.css: MUTED INK
+     NEVER SITS ON THE SKY. */
+  --sky-image: linear-gradient(180deg,
+    #f3ede6 0%, #ebe5de 18%, #d8d9da 38%, #c7cdd3 58%, #b3bcc6 78%, #9aa7b3 100%);
+
+  /* ── THE ONE WARM THING IN A COOL ROOM ───────────────────────────────────
+     These four were the monochrome pass's near-blacks — "the metal, which is
+     no longer a metal". The sky brought a temperature with it and the brief
+     asks for one restrained warm peach, used only where a person is being
+     chosen: the Connect button, the selected rail row, the heart. Everything
+     else in the hub stays achromatic, which is what keeps this an accent
+     rather than a palette.
+
+     THE FILL AND THE INK ARE NOT THE SAME PEACH, and they cannot be. A peach
+     light enough to be a warm FILL is 2.37:1 under white type, so the fill
+     carries near-black type instead (7.21:1) — and a peach dark enough to be
+     TYPE is not the fill's colour at all. Two values, one hue, each measured
+     where it is actually used: the ink clears 6.17:1 on a white panel and
+     4.74:1 at the sky's lightest, which is the worst place it appears. */
+  --accent:      #d99a7c;   /* fill — near-black type on it at 7.2:1 */
+  --on-accent:   #231a15;
+  --accent-ink:  #8c5335;   /* the same hue as type — 6.2:1 on a panel */
+  --accent-soft: #f3e7df;
+  --accent-line: #e3cec0;
 
   /* AND THE LAMP KEEPS ITS ORANGE. See the note in the astrology block: the
      lit key is the city's wayfinding and it is the same key in all

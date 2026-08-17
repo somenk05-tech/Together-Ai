@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { useDatingProfile, useDatingStack, useDatingChats, type MatchKind } from '../api';
-import { MatchStack, EngagedPanel } from '../components/MatchCards';
+import { useDatingProfile, useDatingStack, useDatingChats, type CuratedMatch, type DatingProfile, type MatchKind } from '../api';
+import { EngagedPanel } from '../components/MatchCards';
 
 /**
  * ── CURATED MATCHES: THE PEOPLE WHO CHOSE YOU BACK ──────────────────────────
@@ -19,16 +19,163 @@ import { MatchStack, EngagedPanel } from '../components/MatchCards';
  *
  * NOTHING WAS DELETED, IT MOVED. Every card, band, histogram and control that
  * left this file is in `components/MatchCards.tsx`, rendered by Potential
- * Matches. This page and that one draw a person identically, on purpose: a
- * card that means one thing here and something else there is how two rooms
- * start disagreeing about what a percentage is.
+ * Matches.
  *
  * A MATCH IS NEVER HIDDEN BY THE CAP. The chat limit is three conversations,
  * and the old page swapped the whole list for the "you're getting to know
  * someone" panel when you hit it. Here the panel sits BELOW your matches
  * rather than instead of them: at capacity what is paused is starting
  * something new, not seeing the people who already chose you.
+ *
+ * ── AND WHAT IT IS NOW ──────────────────────────────────────────────────────
+ *
+ * ONE PERSON, SET LIKE A PROFILE RATHER THAN LIKE A ROW. The deck drew a match
+ * as a photograph with a name and a percentage on it, which is the vocabulary
+ * of a queue you are working through — the shape of the room you just left.
+ * A person who chose you back is not a card in a pile, so they get the page:
+ * a portrait, what they do and where, their own words, four facts, the words
+ * they picked for themselves, and two ways forward. The percentage moves onto
+ * the picture and gets small, because it is the least interesting true thing
+ * on the screen.
+ *
+ * EVERYTHING HERE IS SOMETHING THE SERVER SENT. The list payload grew six
+ * fields for this card (occupation, city, height, languages, what they are
+ * looking for, their traits) and every one of them is omitted outright when
+ * the profile behind it is empty. A dash where a fact should be is the same
+ * lie as an invented one, told more quietly.
+ *
+ * THE RAIL IS THREE THINGS THIS PAGE ALREADY KNEW. The hub's rule about
+ * intentional dating, the two counts that are real — matches and open
+ * conversations — and the citizen's own preferences read off their profile.
+ * There is no view count and no likes-received: nothing in the city records
+ * either, and a rail that shows a zero for something nobody measures is worse
+ * than a rail that says so in one line.
  */
+
+/** How somebody's own preferences are stored: keys inside the dating
+ *  profile's `extras` JSON, which travels as a string. Extras that will not
+ *  parse are not an error worth reporting to the person reading them — the
+ *  panel simply has nothing to say and says nothing. */
+interface Prefs { prefAgeMin?: number | null; prefAgeMax?: number | null; prefDistanceKm?: number | null }
+function readPrefs(extras: string | null): Prefs {
+  try { return extras ? (JSON.parse(extras) as Prefs) : {}; } catch { return {}; }
+}
+
+/** The one place the stored value is turned into a sentence. 'any' is not a
+ *  narrower answer than the other three; it is the widest one, and "Everyone"
+ *  is what it means. */
+const SEEKING: Record<DatingProfile['seeking'], string> = {
+  male: 'Men', female: 'Women', nonbinary: 'Non-binary people', any: 'Everyone',
+};
+
+/** A photograph if they uploaded one, the account picture if they did not.
+ *  Null when there is neither, which the card answers with their initial
+ *  rather than with an empty frame. */
+const portraitOf = (m: CuratedMatch) => m.photos?.[0] ?? m.user.profileImage ?? null;
+
+/** `Architect · Pune`, `Architect`, `Pune`, or nothing at all. Built by
+ *  filtering rather than by ternaries so a missing half never leaves the
+ *  separator behind it. */
+const placeLine = (m: CuratedMatch) => [m.occupation, m.city].filter(Boolean).join(' · ');
+
+/**
+ * THE MATCH, AT FULL SIZE.
+ *
+ * Portrait left, person right. The four-cell fact grid is built from whatever
+ * is actually on file — a profile with no height and no languages shows two
+ * cells, not four with two dashes in them.
+ */
+function CuratedLead({ match, kind }: { match: CuratedMatch; kind: MatchKind }) {
+  const href = `/dating/match?u=${match.user.id}&kind=${kind}`;
+  const photo = portraitOf(match);
+  const place = placeLine(match);
+  const facts: Array<[string, string]> = [];
+  if (match.heightCm) facts.push(['Height', `${match.heightCm} cm`]);
+  if (match.languages?.length) facts.push(['Languages', match.languages.join(', ')]);
+  if (match.relationshipGoal) facts.push(['Looking for', match.relationshipGoal]);
+  if (match.theirSign) facts.push(['Sign', match.theirSign]);
+  const traits = match.personalityTraits ?? [];
+
+  return (
+    <article className="dt-lead">
+      <div className="dt-shot">
+        {photo
+          ? <img src={photo} alt="" loading="lazy" />
+          : <span className="dt-shot-none" aria-hidden>{match.user.name.slice(0, 1)}</span>}
+        <span className="dt-pct">{match.score}% match</span>
+      </div>
+
+      <div className="dt-lead-body">
+        <h2 className="dating-display dt-who">
+          {match.user.name}{match.age ? `, ${match.age}` : ''}
+        </h2>
+        {place && <p className="dt-place">{place}</p>}
+
+        {match.bio && match.bio.trim() && (
+          <blockquote className="dt-quote">{match.bio}</blockquote>
+        )}
+
+        {facts.length > 0 && (
+          <dl className="dt-facts">
+            {facts.map(([k, v]) => (
+              <div key={k} className="dt-fact">
+                <dt>{k}</dt>
+                <dd>{v}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+
+        {traits.length > 0 && (
+          <div className="dt-set">
+            <h3 className="dt-set-h">{match.user.name}’s vibe</h3>
+            <p className="dt-words">{traits.map((t) => <span key={t} className="dt-word">{t}</span>)}</p>
+          </div>
+        )}
+
+        {match.interests.length > 0 && (
+          <div className="dt-set">
+            <h3 className="dt-set-h">Interests</h3>
+            <p className="dt-words">{match.interests.map((i) => <span key={i} className="dt-word">{i}</span>)}</p>
+          </div>
+        )}
+
+        {/* TWO WAYS FORWARD AND NO THIRD. Connect goes where connecting
+            actually happens — the chat if one is already open, the profile
+            where Connect to Chat charges and opens it if not. The heart is
+            not a control: it is the reason this person is on this page at
+            all, and a heart you can press here would be a like you have
+            already given. */}
+        <div className="dt-acts">
+          {match.conversationId
+            ? <Link className="dt-cta" to={`/dating/chats?c=${match.conversationId}`}>Open chat</Link>
+            : <Link className="dt-cta" to={href}>Connect</Link>}
+          <Link className="dt-ghost" to={href}>View profile</Link>
+          <span className="dt-heart"><span aria-hidden>♥</span> You both liked each other</span>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+/** One of the rest, small: the photograph, who they are, and the figure. */
+function CuratedTile({ match, kind }: { match: CuratedMatch; kind: MatchKind }) {
+  const photo = portraitOf(match);
+  const place = placeLine(match);
+  return (
+    <Link className="dt-tile" to={`/dating/match?u=${match.user.id}&kind=${kind}`}>
+      <span className="dt-tile-shot">
+        {photo
+          ? <img src={photo} alt="" loading="lazy" />
+          : <span className="dt-shot-none" aria-hidden>{match.user.name.slice(0, 1)}</span>}
+      </span>
+      <b className="dt-tile-who">{match.user.name}{match.age ? `, ${match.age}` : ''}</b>
+      {place && <i className="dt-tile-place">{place}</i>}
+      <i className="dt-tile-pct">{match.score}%</i>
+    </Link>
+  );
+}
+
 export function DatingMatches() {
   const kind: MatchKind = 'romantic';
   const profile = useDatingProfile();
@@ -74,81 +221,118 @@ export function DatingMatches() {
   const atCapacity = stack.data?.atCapacity ?? openChats >= chatCap;
   const activeChat = chats.data?.[0] ?? null;
   const matched = stack.data?.matched ?? [];
+  const rest = matched.slice(1);
+  const prefs = readPrefs(profile.data.extras);
+  const ageRange = prefs.prefAgeMin && prefs.prefAgeMax ? `${prefs.prefAgeMin}–${prefs.prefAgeMax}`
+    : prefs.prefAgeMin ? `${prefs.prefAgeMin} and up`
+    : prefs.prefAgeMax ? `Up to ${prefs.prefAgeMax}` : null;
 
   return (
     <div>
-      <div className="eyebrow">Dating Hub</div>
-      <h1 style={{ fontSize: 26 }}>Curated Matches</h1>
-      <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 14px', lineHeight: 1.6 }}>
+      <div className="dt-crumb">Dating Hub</div>
+      <h1 className="dating-display dt-title">Curated matches</h1>
+      <p className="dt-lede">
         The people you and they both chose. Nobody arrives here by being scored highly — only by
         liking you back, which is why this list is short and why chat opens on it.
       </p>
 
-      {/* The same notice the match detail page carries, shown ONCE for the page
-          rather than repeated under every card — it is a rule about how this hub
-          works, not a property of any one person. */}
-      <div style={{ marginBottom: 18, display: 'flex', gap: 12, alignItems: 'flex-start', background: 'var(--paper)', borderRadius: 14, padding: '13px 16px' }}>
-        <span aria-hidden style={{ display: 'grid', placeItems: 'center', width: 34, height: 34, borderRadius: '50%', border: '1.5px solid var(--accent-ink)', color: 'var(--muted)', flex: 'none' }}>🔒</span>
-        <div style={{ fontSize: 12.5, lineHeight: 1.5 }}>
-          <strong>We believe in intentional dating.</strong> You can have up to {chatCap} conversations
-          going at once. If one isn’t going anywhere, <strong>unmatch</strong> and move forward.
+      <div className="dt-wrap">
+        <div className="dt-col">
+          {stack.isLoading ? (
+            <Spinner label="Looking for your matches…" />
+          ) : stack.isError ? (
+            // The branch this precedes says nobody has matched you back. Said to
+            // somebody whose read simply failed, that is a small, plausible,
+            // disheartening lie.
+            <EmptyState
+              icon="⚠️"
+              title="We couldn’t open your matches"
+              hint="This didn’t reach us — it isn’t a verdict on who’s out there. Try again in a moment."
+            />
+          ) : matched.length > 0 ? (
+            <CuratedLead match={matched[0]} kind={kind} />
+          ) : (
+            <>
+              <EmptyState
+                icon="🌙"
+                title="Nobody has matched you back yet"
+                hint="A match is two people choosing each other, so this page fills up from the other room. Everyone in your city is in Potential Matches, with your compatibility on every card."
+              />
+              <div style={{ textAlign: 'center', marginTop: 14 }}>
+                <Link to="/dating/browse"><Button variant="accent">Browse Potential Matches</Button></Link>
+              </div>
+            </>
+          )}
+
+          {/* The same notice the match detail page carries, shown ONCE for the
+              page rather than repeated under every person — it is a rule about
+              how this hub works, not a property of anybody on it. */}
+          <aside className="dt-band">
+            <p className="dating-display">We believe in intentional dating.</p>
+            <p>
+              You can have up to {chatCap} conversations going at once. If one isn’t going
+              anywhere, <strong>unmatch</strong> and move forward.
+            </p>
+          </aside>
+
+          {rest.length > 0 && (
+            <section className="dt-more">
+              <h2 className="dt-more-h">More curated matches for you</h2>
+              <div className="dt-grid">
+                {rest.map((m) => <CuratedTile key={m.user.id} match={m} kind={kind} />)}
+              </div>
+            </section>
+          )}
+
+          {/* BELOW THE MATCHES, NEVER INSTEAD OF THEM. At capacity what is paused
+              is starting something new — the people who already chose you are
+              still yours to see. */}
+          {atCapacity && !stack.isLoading && !stack.isError && (
+            <div style={{ marginTop: 24 }}>
+              <EngagedPanel chat={activeChat} openChats={openChats} cap={chatCap} />
+            </div>
+          )}
+
+          {matched.length > 0 && !atCapacity && (
+            <p className="dt-onward">
+              Looking for more? <Link to="/dating/browse">Potential Matches</Link> has
+              everyone in your city, with your compatibility on every card.
+            </p>
+          )}
         </div>
+
+        <aside className="dt-rail">
+          <section className="dt-panel">
+            <h2 className="dt-panel-h">Intentional dating</h2>
+            <p>
+              Up to {chatCap} conversations at once. If one isn’t going anywhere, unmatch and
+              move forward.
+            </p>
+          </section>
+
+          <section className="dt-panel">
+            <h2 className="dt-panel-h">Your activity</h2>
+            <dl className="dt-stats">
+              <div><dt>Matches</dt><dd>{matched.length}</dd></div>
+              <div><dt>Conversations</dt><dd>{openChats}</dd></div>
+            </dl>
+            {/* Two numbers, and a line about the ones that are not here. The
+                city counts neither profile views nor likes received, so a
+                third and fourth tile would have had to be invented. */}
+            <p className="dt-note">Views and likes received aren’t counted.</p>
+          </section>
+
+          <section className="dt-panel">
+            <h2 className="dt-panel-h">Your preferences</h2>
+            <dl className="dt-stats">
+              <div><dt>Seeking</dt><dd>{SEEKING[profile.data.seeking]}</dd></div>
+              {ageRange && <div><dt>Age</dt><dd>{ageRange}</dd></div>}
+              {prefs.prefDistanceKm && <div><dt>Within</dt><dd>{prefs.prefDistanceKm} km</dd></div>}
+            </dl>
+            <p className="dt-note"><Link to="/dating/profile">Edit preferences →</Link></p>
+          </section>
+        </aside>
       </div>
-
-      {stack.isLoading ? (
-        <Spinner label="Looking for your matches…" />
-      ) : stack.isError ? (
-        // The branch this precedes says nobody has matched you back. Said to
-        // somebody whose read simply failed, that is a small, plausible,
-        // disheartening lie.
-        <EmptyState
-          icon="⚠️"
-          title="We couldn’t open your matches"
-          hint="This didn’t reach us — it isn’t a verdict on who’s out there. Try again in a moment."
-        />
-      ) : matched.length > 0 ? (
-        <section>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 12px', flexWrap: 'wrap' }}>
-            <h2 style={{ fontSize: 18, margin: 0 }}>{matched.length === 1 ? 'Your match' : 'Your matches'}</h2>
-            <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--accent-soft)', color: 'var(--accent-ink)', borderRadius: 999, padding: '3px 11px' }}>
-              💫 You both liked each other
-            </span>
-          </div>
-          {/* MUTUAL MATCHES ARE A DECK, and this was a bug the owner once saw:
-              the section used to be a full-bleed card, so a single match put a
-              900px photograph at the top of the page. One person here is the
-              flat single card, which is the right amount of furniture for
-              "you both liked each other". */}
-          <MatchStack people={matched} kind={kind} />
-        </section>
-      ) : (
-        <>
-          <EmptyState
-            icon="🌙"
-            title="Nobody has matched you back yet"
-            hint="A match is two people choosing each other, so this page fills up from the other room. Everyone in your city is in Potential Matches, with your compatibility on every card."
-          />
-          <div style={{ textAlign: 'center', marginTop: 14 }}>
-            <Link to="/dating/browse"><Button variant="accent">Browse Potential Matches</Button></Link>
-          </div>
-        </>
-      )}
-
-      {/* BELOW THE MATCHES, NEVER INSTEAD OF THEM. At capacity what is paused is
-          starting something new — the people who already chose you are still
-          yours to see. */}
-      {atCapacity && !stack.isLoading && !stack.isError && (
-        <div style={{ marginTop: 24 }}>
-          <EngagedPanel chat={activeChat} openChats={openChats} cap={chatCap} />
-        </div>
-      )}
-
-      {matched.length > 0 && !atCapacity && (
-        <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.6, marginTop: 22, textAlign: 'center' }}>
-          Looking for more? <Link to="/dating/browse" style={{ fontWeight: 700 }}>Potential Matches</Link> has
-          everyone in your city, with your compatibility on every card.
-        </p>
-      )}
     </div>
   );
 }

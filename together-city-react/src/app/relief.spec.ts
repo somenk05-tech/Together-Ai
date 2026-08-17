@@ -813,8 +813,16 @@ describe('Relief stays a system', () => {
       }
     }
     const borrowed = serifReaders.filter((sel) => !/\.press-|\[data-press\]/.test(sel));
+    //    `.dating-display` is the fifth name on the loan, and it is on the
+    //    SAME selector group as the other four on purpose: one rule means one
+    //    entry here, so the list stays a list of names rather than becoming a
+    //    list of rules that happen to want the face. Dating's whole material
+    //    is a gradient and a monochrome grade — no second colour, no second
+    //    family — so the editorial title is the only thing it had left to set
+    //    the page's own voice apart from the interface's. Lent by name, and
+    //    the name is written here.
     expect(borrowed, 'the display serif is lent by name, and this is the list')
-      .toEqual(['.letter-title,\n.letter-archive-day .t,\n.beauty-display,\n.gem-display']);
+      .toEqual(['.letter-title,\n.letter-archive-day .t,\n.beauty-display,\n.gem-display,\n.dating-display']);
   });
 
   /**
