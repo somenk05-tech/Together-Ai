@@ -944,15 +944,18 @@ img[src$=".svg"], .no-case {
   background: none; box-shadow: none;
   overflow: hidden;
 }
-/* 1800 × 800 — the shape the artwork is delivered in, so nothing is cropped
-   that somebody framed. THE max-height IS NOT DECORATION: at 1800 wide this is
-   800 tall, and with the foot and the gutters that is past the bottom of a
-   1080p laptop. Capping the height lets object-fit crop the picture instead of
-   pushing the hub's name below the fold, which on a page whose whole job is
-   "here is where you are" is the one thing it cannot do. */
+/* NO RATIO, NO CAP, NO CROP — owner, 18 Aug: keep the picture at the size it
+   was made. Every rule that used to be here was a crop with a reason: 9/4 was
+   "the shape the artwork is delivered in", and the max-height stopped an 800px
+   picture pushing the hub's NAME below the fold on a 1080p laptop.
+
+   Both reasons expired with the foot bar. There is no name under the picture to
+   push anywhere — the billboard wears its own — and the delivered shape is now
+   ~1.9:1 rather than 2.25:1, so a 9/4 box was taking a bite off the top and
+   bottom of art nobody framed for it. The picture states its own height and the
+   plate takes it. */
 .hub-plate-art img {
-  display: block; width: 100%; aspect-ratio: 9 / 4; object-fit: cover;
-  max-height: min(800px, 58vh);
+  display: block; width: 100%; height: auto;
   border-radius: 0;
 }
 .hub-plate-art::after {
@@ -1105,16 +1108,17 @@ img[src$=".svg"], .no-case {
 
 /* ── what stays the DISTRICT'S own: its shape and its link behaviour ── */
 .district-plate { display: block; color: inherit; text-decoration: none; animation: none; }
-.district-plate .hub-plate-art img {
-  aspect-ratio: 21 / 9; max-height: min(620px, 52vh);
-  /* THE CROP COMES OFF THE PAVEMENT, NOT OFF THE SIGN. The new heroes are
-     ~1.9:1 and every one of them is built the same way — the hub's name and
-     its list of services across the upper half, pavement and passers-by along
-     the bottom. A centred crop to 21:9 takes an equal bite off both, and the
-     bite off the top eats the name on Medical, Beauty, Financial and Jobs.
-     Anchoring high spends the whole crop on the pavement instead. */
-  object-position: 50% 26%;
-}
+/* The districts take the picture's own height too. This was 21/9 with the crop
+   anchored at 26% from the top — a rule whose entire job was to keep each
+   hub's painted NAME out of the bite, because a centred crop was eating it on
+   Medical, Beauty, Financial and Jobs. Nothing is being cropped now, so there
+   is nothing to anchor.
+
+   TWELVE UNCROPPED PANELS ARE A LONGER PAGE, and that was the original
+   argument for 21:9 — twelve thresholds at full height is a lot of scroll. It
+   is the owner's call and it is the right one: the alternative is showing
+   eleven twelfths of twelve commissioned pictures in order to save a swipe. */
+.district-plate .hub-plate-art img { height: auto; }
 .district-plate:hover { box-shadow: var(--e3), 0 30px 70px rgba(0,0,0,.06); }
 .district-plate:hover .hub-plate-go { box-shadow: var(--e3); }
 @media (hover: hover) and (pointer: fine) {
