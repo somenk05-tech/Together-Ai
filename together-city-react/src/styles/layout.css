@@ -873,9 +873,26 @@
    set only a face budget gets one card that fills the row, not one card and two
    holes. It drops to two up at tablet and one on a phone, which is the point at
    which three columns of prose stop being prose. */
+/* THE THREE CARDS END WHERE EACH OTHER END. `align-items: start` let each one
+   size to its own prose, and the three never carry the same amount: Face has a
+   kept-step sentence, Hair has the over-budget paragraph, Body has neither. On
+   cream that raggedness was quiet. On a grey wall with white cards it is three
+   objects of three different lengths in a row, and the eye reads it as a
+   layout that failed rather than as prose that differs.
+
+   Stretch, not a fixed height — the row is as tall as its longest card and the
+   other two fill it, so nothing is truncated and nothing is guessed at. */
 .routine-budget {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 14px; align-items: start;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 14px;
+  align-items: stretch;
 }
+/* The card was `margin: 0` on a start-aligned grid item, which is a height of
+   its own; as a stretched item it has to say what to do with the extra room.
+   The money goes to the top and the sentences follow it, so a short card holds
+   its whitespace at the FOOT where it reads as air, rather than centring its
+   figures against its neighbours' and making three cards disagree about where
+   a routine cost sits. */
+.routine-budget > .beauty-sheet { display: flex; flex-direction: column; }
 @media (max-width: 620px) { .routine-budget { grid-template-columns: 1fr; } }
 
 .routine-assure {
