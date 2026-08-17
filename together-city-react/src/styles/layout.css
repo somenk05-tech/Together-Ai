@@ -828,8 +828,28 @@
    them. The assurance strip is here because it is a four-up that has to become
    a two-up on a phone. Everything else on that page stays inline, like the rest
    of the beauty hub. */
+/* THREE ROWS, AND BOTH COLUMNS ARE IN THE SAME THREE. Heading, note, steps —
+   owned by this grid rather than by each band, so morning and night share a
+   baseline instead of each starting wherever its own header happened to end.
+
+   THE BUG THIS FIXES was one note. The evening band carries "vitamin C and a
+   retinoid are both here" and the morning band carries nothing, so the evening
+   column began 55px lower and every step in it stayed 55px lower all the way
+   down the sheet. Two columns divided by a hairline and agreeing on no
+   horizontal line at all read as two lists that happen to be adjacent — which
+   is the one thing the divider exists to deny.
+
+   `subgrid` rather than a min-height on the note. A reserved height is a guess
+   that is wrong at every width except the one it was measured at; subgrid asks
+   the two bands what they actually need and gives both the larger answer. Where
+   it is not supported the rule is dropped and the bands lay out exactly as they
+   did before — the old, misaligned, entirely legible page. */
 .routine-day {
   display: grid; grid-template-columns: 1fr 1fr; gap: 0 26px;
+  grid-template-rows: auto auto 1fr; align-items: start;
+}
+.routine-band {
+  display: grid; grid-row: span 3; grid-template-rows: subgrid; min-width: 0;
 }
 /* The divider IS the composition: one hairline between morning and night is
    what makes them read as two halves of a day rather than two lists that
@@ -837,9 +857,16 @@
    above or below anything once they stack. */
 .routine-day > :nth-child(2) { border-left: 1px solid var(--line); padding-left: 26px; }
 @media (max-width: 860px) {
-  .routine-day { grid-template-columns: 1fr; gap: 22px; }
+  .routine-day { grid-template-columns: 1fr; gap: 22px; grid-template-rows: none; }
+  /* STACKED, THE SHARED ROWS ARE A LIE. One column has nothing to line up with,
+     and a band still spanning three of the parent's rows would reserve the
+     other band's note height above its own steps. */
+  .routine-band { display: block; grid-row: auto; }
   .routine-day > :nth-child(2) { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); padding-top: 18px; }
 }
+/* The weekly and body bands stand alone in their own sheet, with nothing to
+   align to. Same three parts, laid out the ordinary way. */
+.beauty-sheet:not(.routine-day) > .routine-band { display: block; }
 
 /* Face, hair and body abreast — one card per budget, and only for the
    categories that have one. `auto-fit` rather than a fixed three: somebody who
@@ -1480,11 +1507,75 @@
   background: var(--card);
   font-size: 11px; font-weight: 800;
 }
+/* ── SHOW ME A DIFFERENT ONE ────────────────────────────────────────────────
+   Opposite the plate number, on the photograph, because it is a control ABOUT
+   this product rather than one more thing to read about it — and because the
+   only other place it could go is beside "Add to bag", where a second button
+   would compete with the one thing this page wants somebody to press.
+
+   It is the hub's cream on the studio white for the same reason the number is:
+   a white control on a white seamless is a control nobody finds. */
+.routine-swap {
+  position: absolute; top: 8px; right: 8px; width: 27px; height: 27px;
+  display: grid; place-items: center; padding: 0; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 50%;
+  background: var(--card); color: var(--ink-soft);
+}
+.routine-swap:hover { border-color: var(--accent-line); color: var(--accent-ink); }
+.routine-swap:disabled { cursor: progress; }
+.routine-swap-mark { font-size: 13px; line-height: 1; display: block; }
+/* It turns while the server is answering, and only then. The routine it is
+   waiting for is the whole sheet — prices, totals, the countdown — so the wait
+   is real and worth showing on the control that caused it. */
+.routine-swap-mark.is-busy { animation: routine-swap-spin var(--dur-spin) linear infinite; }
+@keyframes routine-swap-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .routine-swap-mark.is-busy { animation: none; opacity: .5; }
+}
+
 .routine-body { padding: 13px 15px 15px; display: flex; flex-direction: column; gap: 7px; flex: 1; }
 .routine-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.routine-name { font-size: 14.5px; line-height: 1.35; font-weight: 700; margin: 0; }
+/* TWO LINES' WORTH WHETHER IT USES THEM OR NOT. "Suganda 10% Niacinamide Face
+   Serum" wraps and "Cetaphil Cleanser" does not, and a row of cards where one
+   name is a line taller pushes its own Add to bag out of line with the one
+   beside it. Reserving the second line costs nothing on a card that has one and
+   keeps every foot on the sheet at the same height. Three-line names still
+   grow — a clamp here would be hiding half a product's name to win an
+   alignment argument. */
+.routine-name { font-size: 14.5px; line-height: 1.35; font-weight: 700; margin: 0; min-height: 2.7em; }
 .routine-price { font-size: 17px; font-weight: 800; letter-spacing: -.01em; }
 .routine-foot { margin-top: auto; padding-top: 10px; }
+
+/* ── WHY THIS STEP ──────────────────────────────────────────────────────────
+   The card's own skin on the city's one disclosure. `.fold` is the Financial
+   hub's full-width bar and `.beauty-leaf` is the profile page's tracked contents
+   line; neither is a row inside a 226px product card, so this is the third
+   skin — and it is a skin, not a second implementation. The behaviour, the id
+   and both ARIA attributes are the shared component's, as they are for the
+   other two. */
+.routine-why {
+  display: flex; align-items: baseline; gap: 8px; width: 100%;
+  margin-top: 2px; padding: 7px 0 0; cursor: pointer;
+  background: none; border: 0; border-top: 1px solid var(--line); text-align: left;
+}
+.routine-why .t { font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; flex: none; }
+.routine-why .m { font-size: 10.5px; color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.routine-why .s { margin-left: auto; flex: none; font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.routine-why:hover .t, .routine-why:hover .s { color: var(--accent-ink); }
+.routine-why-open { padding: 8px 0 2px; }
+.routine-why-head {
+  font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--muted); margin-top: 9px;
+}
+.routine-why-head:first-child { margin-top: 0; }
+.routine-why-body { font-size: 12.5px; line-height: 1.55; color: var(--ink-soft); margin: 3px 0 0; }
+.routine-why-note { font-size: 11.5px; line-height: 1.5; margin-top: 4px; }
+/* The assessment's own reasons, first and unlabelled: they answer the question
+   the fold is named after, and a heading over them would be the question asked
+   twice. */
+.routine-why-list { list-style: none; padding: 0; margin: 0 0 2px; display: flex; flex-direction: column; gap: 4px; }
+.routine-why-list li { font-size: 12px; line-height: 1.5; padding-left: 13px; position: relative; }
+.routine-why-list li::before { content: '·'; position: absolute; left: 3px; color: var(--accent-ink); }
 
 /* ── ADD THE WHOLE ROUTINE ──────────────────────────────────────────────────
    One control, rendered twice: inside the summary card that prices the routine

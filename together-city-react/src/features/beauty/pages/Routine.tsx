@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, EmptyState, Spinner } from '@/components/ui';
+import { Button, EmptyState, Fold, Spinner } from '@/components/ui';
 import {
-  bagKey, useBagActions, useBeautyProfile, useBeautyRoutine, useSaveBeautyBudget,
+  bagKey, useBagActions, useBeautyProfile, useBeautyRoutine, useSaveBeautyBudget, useSwapRoutinePick,
   type CategoryPlan, type ProductRoutine, type ProductRoutineStep, type RoutinePick, type RoutineTier,
 } from '../api';
 import { BeautyBagBar } from '../components/BeautyBagBar';
@@ -77,6 +77,16 @@ const TIER_LABEL: Record<RoutineTier, string> = {
 };
 
 /**
+ * A pick, carrying the part of the plan it came out of.
+ *
+ * A SWAP IS ADDRESSED TO A STEP, and a step is a category and a role together —
+ * `face:Treat` is a serum and `hair:Treat` is an oil. The wire pick has the
+ * role and not the category, because the category is the key it was filed
+ * under; the page puts the two back together at the one point it needs them.
+ */
+type PlannedPick = RoutinePick & { category: CategoryPlan['category'] };
+
+/**
  * One step: the number, the picture, what it is, what it costs and how long it
  * lasts.
  *
@@ -104,7 +114,51 @@ const TIER_LABEL: Record<RoutineTier, string> = {
  * product turns up twice is whether they have missed a second one to buy, and
  * the answer to that is a place: it is the same bottle as step 1 this morning.
  */
-function Step({ s, pick, qty, alreadyIn, onAdd, onRemove }: { s: ProductRoutineStep; pick?: RoutinePick; qty: number; alreadyIn?: string; onAdd: () => void; onRemove: () => void }) {
+/**
+ * ── NOT THAT ONE, THE OTHER ONE ─────────────────────────────────────────────
+ *
+ * A step is a ROLE with a product in it, and until now the product was final:
+ * the planner chose the best-matched compatible thing the budget allowed and
+ * the citizen's only answer was to change the budget and hope. This is the
+ * answer that was missing, and it is one press.
+ *
+ * IT CYCLES RATHER THAN OPENING A CHOOSER. The list is short, it is ordered,
+ * and it comes back round to where it started — so a press is reversible by
+ * pressing again rather than by remembering what was there before. A panel of
+ * four alternatives is a second shop on top of the shop, on a page whose whole
+ * argument is that the choosing has already been done.
+ *
+ * THE LIST IS THE SERVER'S AND THE GUARD IS THE SERVER'S. Every option came
+ * through the same gates the planner buys through — the matched shelf, the
+ * overlap and load rules, the share cap, the ceiling — so there is nothing
+ * here that could put an incompatible product on somebody's face, and no
+ * arithmetic in the browser deciding what is affordable.
+ */
+function SwapButton({ label, busy, onSwap }: { label: string; busy: boolean; onSwap: () => void }) {
+  return (
+    <button type="button" className="routine-swap" onClick={onSwap} disabled={busy}
+      title={`Show a different product for this step — ${label} next`}
+      aria-label={`Show a different product for this step. Next: ${label}`}>
+      <span aria-hidden className={busy ? 'routine-swap-mark is-busy' : 'routine-swap-mark'}>↻</span>
+    </button>
+  );
+}
+
+function Step({ s, pick, qty, alreadyIn, swapping, onSwap, onAdd, onRemove }: {
+  s: ProductRoutineStep; pick?: RoutinePick; qty: number; alreadyIn?: string;
+  swapping: boolean; onSwap?: (toProductId: string) => void;
+  onAdd: () => void; onRemove: () => void;
+}) {
+  /**
+   * WHERE THIS PRODUCT SITS IN ITS OWN LIST, and the next one along. The list
+   * contains the current product by construction, so `at` is -1 only when the
+   * plan and the band have disagreed — in which case the control is not drawn
+   * at all rather than guessing which way "next" goes.
+   */
+  const options = pick?.options ?? [];
+  const at = options.findIndex((o) => o.productId === s.productId);
+  const next = onSwap && at !== -1 && options.length > 1 ? options[(at + 1) % options.length] : null;
+
   return (
     <li className="routine-card">
       {/* THE PICTURE FIRST, AND BIG. The owner's catalogue sheet is a well of
@@ -115,6 +169,7 @@ function Step({ s, pick, qty, alreadyIn, onAdd, onRemove }: { s: ProductRoutineS
           else. Every fact the old row carried is still here, below. */}
       <div className="routine-well">
         <span aria-hidden className="routine-num">{s.order}</span>
+        {next && <SwapButton label={next.name} busy={swapping} onSwap={() => onSwap!(next.productId)} />}
         <ProductShot image={s.image} imageAlt={s.imageAlt} category={s.category} fill />
       </div>
 
@@ -155,15 +210,59 @@ function Step({ s, pick, qty, alreadyIn, onAdd, onRemove }: { s: ProductRoutineS
             the page is for. */}
         <div className="routine-name">{s.name}</div>
         <div className="muted" style={{ fontSize: 11.5, marginTop: 1 }}>{s.brand}{s.keyIngredient ? ` · ${s.keyIngredient}` : ''}</div>
-        {/* The working behind the monthly figure. Without it "≈ ₹366/month" is
-            an assertion; with it, it is arithmetic anybody can check. */}
-        {pick && (
-          <div className="muted" style={{ fontSize: 11.5, marginTop: 2 }}>
-            {pick.packLabel ? `One ${pick.packLabel} pack — ${pick.lastsLabel}` : `Lasts ${pick.lastsLabel}`}
-          </div>
-        )}
-        <p style={{ fontSize: 12.5, color: 'var(--ink-soft)', margin: '6px 0 0', lineHeight: 1.55 }}>{s.instructions}</p>
-        <div className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>{s.frequency}</div>
+
+        {/* ── WHY THIS, HOW TO USE IT, AND WHAT IT COSTS TO KEEP ─────────────
+            FOLDED, AND EVERY WORD OF IT KEPT. Eight cards each printing four
+            paragraphs made a sheet nobody could scan: the thing somebody is
+            looking for on this page is which bottle, in what order — and the
+            reasoning, which is the best thing this hub has, was the reason
+            they had to scroll past it. So the card answers WHAT and the fold
+            answers WHY, and the fold names what is inside it rather than
+            saying "more", because a section that only says its own name is a
+            section nobody opens.
+
+            IT IS THE SHARED `Fold`. A disclosure is four things done together
+            — the state, the id, `aria-expanded`, `aria-controls` — and a
+            second implementation still looks correct while it stops announcing
+            itself. `routine-why` is this card's skin on the city's one
+            behaviour.
+
+            THE CAUTIONS DID NOT COME IN HERE, and that is the one deliberate
+            exception. "Increases sun sensitivity — daily sunscreen is not
+            optional alongside this" is the only alarm this hub allows itself,
+            and an alarm behind a disclosure is a decoration. */}
+        <Fold face="routine-why" panel="routine-why-open"
+          title="Why this step"
+          meta={pick?.packLabel ? `${pick.packLabel} · ${pick.lastsLabel}` : s.frequency.toLowerCase()}>
+          {pick && pick.reasons && pick.reasons.length > 0 && (
+            <ul className="routine-why-list">
+              {pick.reasons.map((r) => <li key={r}>{r}</li>)}
+            </ul>
+          )}
+          <div className="routine-why-head">How to use it</div>
+          <p className="routine-why-body">{s.instructions}</p>
+          <div className="muted routine-why-note">{s.frequency}</div>
+          {/* The working behind the monthly figure. Without it "≈ ₹366/month"
+              is an assertion; with it, it is arithmetic anybody can check. */}
+          {pick && (
+            <>
+              <div className="routine-why-head">What it costs to keep</div>
+              <p className="routine-why-body">
+                {pick.packLabel ? `One ${pick.packLabel} pack — ${pick.lastsLabel}` : `Lasts ${pick.lastsLabel}`}
+                {` · ₹${pick.priceInr} to buy, about ${rupees(pick.monthlyInr)} a month to keep going.`}
+              </p>
+            </>
+          )}
+          {/* WHAT ELSE IT COULD BE, said in words beside the control that does
+              it. A round arrow on a photograph is not self-explanatory, and
+              the honest place to explain it is where somebody has already
+              chosen to read. */}
+          {next && (
+            <div className="muted routine-why-note">
+              {options.length} products suit this step. The arrow on the photograph moves to {next.name}.
+            </div>
+          )}
+        </Fold>
 
         {s.warnings.length > 0 && (
           <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -196,31 +295,55 @@ function Step({ s, pick, qty, alreadyIn, onAdd, onRemove }: { s: ProductRoutineS
   );
 }
 
+/**
+ * ── ONE BAND, IN THREE ROWS ─────────────────────────────────────────────────
+ *
+ * THE HEADING, THE NOTE, THE STEPS — and they are three wrappers rather than a
+ * loose stack because morning and evening have to line up with each other. They
+ * did not: the evening band carries the vitamin C / retinoid note and the
+ * morning one does not, so the whole of the evening column started 55px below
+ * the morning column and every row after it was out by the same amount. Two
+ * columns that do not share a baseline read as two lists that happen to be
+ * adjacent, which is exactly what the divider between them exists to deny.
+ *
+ * The alignment itself is `subgrid`, in layout.css — the rows belong to
+ * `.routine-day` and both bands take their heights from it, so a note on one
+ * side reserves the same space on the other. The note row is rendered whether
+ * or not there is a note in it, because a row that only sometimes exists is a
+ * row the two columns only sometimes agree about.
+ */
 function Band(
-  { r, picks, bagged, seen }:
+  { r, picks, bagged, seen, swappingId, onSwap }:
   {
-    r: ProductRoutine; picks: Map<string, RoutinePick>; bagged: ReturnType<typeof useBagActions>;
+    r: ProductRoutine; picks: Map<string, PlannedPick>; bagged: ReturnType<typeof useBagActions>;
     /** productId → the band that already offered it. Built once by the page, in
      *  band order, so "first" means first on the page rather than first
      *  alphabetically or whatever order the API happened to return. */
     seen: Map<string, string>;
+    /** The step waiting on the server, so only its own control shows it. */
+    swappingId: string | null;
+    onSwap: (pick: PlannedPick, toProductId: string) => void;
   },
 ) {
   const meta = BAND[r.timeOfDay];
   return (
-    <section style={{ minWidth: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, paddingBottom: 4 }}>
-        <span aria-hidden style={{ fontSize: 15, color: 'var(--accent-ink)' }}>{meta.icon}</span>
-        <h2 style={{ fontSize: 15, margin: 0, textTransform: 'uppercase', letterSpacing: '.09em' }}>{r.title}</h2>
-        <span className="muted" style={{ marginLeft: 'auto', fontSize: 11.5 }}>
-          {r.steps.length === 0 ? 'nothing yet' : `${r.steps.length} step${r.steps.length === 1 ? '' : 's'}`}
-        </span>
+    <section className="routine-band">
+      <div className="routine-band-head">
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, paddingBottom: 4 }}>
+          <span aria-hidden style={{ fontSize: 15, color: 'var(--accent-ink)' }}>{meta.icon}</span>
+          <h2 style={{ fontSize: 15, margin: 0, textTransform: 'uppercase', letterSpacing: '.09em' }}>{r.title}</h2>
+          <span className="muted" style={{ marginLeft: 'auto', fontSize: 11.5 }}>
+            {r.steps.length === 0 ? 'nothing yet' : `${r.steps.length} step${r.steps.length === 1 ? '' : 's'}`}
+          </span>
+        </div>
+        <div className="muted" style={{ fontSize: 11.5 }}>{meta.sub}</div>
       </div>
-      <div className="muted" style={{ fontSize: 11.5, marginBottom: 4 }}>{meta.sub}</div>
 
-      {r.notes.map((n) => (
-        <p key={n} style={{ fontSize: 12.5, lineHeight: 1.55, margin: '8px 0 0', background: 'var(--paper)', borderRadius: 10, padding: '9px 12px' }}>{n}</p>
-      ))}
+      <div className="routine-band-note">
+        {r.notes.map((n) => (
+          <p key={n} style={{ fontSize: 12.5, lineHeight: 1.55, margin: '8px 0 0', background: 'var(--paper)', borderRadius: 10, padding: '9px 12px' }}>{n}</p>
+        ))}
+      </div>
 
       {r.steps.length === 0 ? (
         <p className="muted" style={{ fontSize: 12.5, margin: '12px 0 0' }}>
@@ -228,11 +351,16 @@ function Band(
         </p>
       ) : (
         <ul className="routine-grid" style={{ listStyle: 'none', padding: 0 }}>
-          {r.steps.map((s) => (
-            <Step key={s.productId} s={s} pick={picks.get(s.productId)} qty={bagged.qtyOf(s.productId)}
-              alreadyIn={seen.get(s.productId) === r.title ? undefined : seen.get(s.productId)}
-              onAdd={() => bagged.add(s.productId)} onRemove={() => bagged.remove(s.productId)} />
-          ))}
+          {r.steps.map((s) => {
+            const pick = picks.get(s.productId);
+            return (
+              <Step key={s.productId} s={s} pick={pick} qty={bagged.qtyOf(s.productId)}
+                alreadyIn={seen.get(s.productId) === r.title ? undefined : seen.get(s.productId)}
+                swapping={swappingId === s.productId}
+                onSwap={pick ? (to) => onSwap(pick, to) : undefined}
+                onAdd={() => bagged.add(s.productId)} onRemove={() => bagged.remove(s.productId)} />
+            );
+          })}
         </ul>
       )}
     </section>
@@ -463,6 +591,10 @@ export function Routine() {
   // asked. Saving a dismissal would be storing an opinion about a number the
   // citizen has already given us.
   const [kept, setKept] = useState<Record<string, boolean>>({});
+  // "Show me a different one." The mutation answers with the whole routine —
+  // see useSwapRoutinePick — so nothing here recomputes a price or a total.
+  const swap = useSwapRoutinePick();
+  const [swapping, setSwapping] = useState<string | null>(null);
   /**
    * WHAT THE BAG WAS BEFORE "Add the whole routine", and the signature of what
    * that press wrote. Undo is offered only while the two still agree — one tap
@@ -520,12 +652,24 @@ export function Routine() {
    * error anywhere.
    */
   const picks = useMemo(() => {
-    const m = new Map<string, RoutinePick>();
+    const m = new Map<string, PlannedPick>();
     for (const k of ['face', 'hair', 'body'] as const) {
-      for (const p of data?.plan?.[k].picks ?? []) m.set(p.productId, p);
+      for (const p of data?.plan?.[k].picks ?? []) m.set(p.productId, { ...p, category: k });
     }
     return m;
   }, [data]);
+
+  /**
+   * THE STEP CURRENTLY WAITING ON THE SERVER, held by product id rather than as
+   * a bare boolean: eight cards share one mutation, and a boolean would spin
+   * every arrow on the sheet for a press on one of them.
+   */
+  const onSwap = (pick: PlannedPick, toProductId: string) => {
+    setSwapping(pick.productId);
+    swap.mutate(
+      { category: pick.category, role: pick.role, productId: toProductId, fromProductId: pick.productId },
+      { onSettled: () => setSwapping(null) });
+  };
 
   // What the whole routine costs to buy today, and what it costs to keep. Both
   // are the routine's own figures and neither depends on the bag.
@@ -806,12 +950,16 @@ export function Routine() {
               the only rule on the page and it is what makes them read as two
               halves of one day rather than two lists. */}
           <div className="beauty-sheet is-shop routine-day">
-            {day.map((r) => <Band key={r.timeOfDay} r={r} picks={picks} bagged={bagged} seen={firstSeen} />)}
+            {day.map((r) => (
+              <Band key={r.timeOfDay} r={r} picks={picks} bagged={bagged} seen={firstSeen}
+                swappingId={swapping} onSwap={onSwap} />
+            ))}
           </div>
 
           {rest.filter((r) => r.steps.length > 0).map((r) => (
             <div key={r.timeOfDay} className="beauty-sheet is-shop">
-              <Band r={r} picks={picks} bagged={bagged} seen={firstSeen} />
+              <Band r={r} picks={picks} bagged={bagged} seen={firstSeen}
+                swappingId={swapping} onSwap={onSwap} />
             </div>
           ))}
 

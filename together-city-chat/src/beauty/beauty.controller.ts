@@ -127,6 +127,28 @@ export class BeautyController {
     return this.beauty.routine(user.sub);
   }
 
+  /**
+   * POST /api/beauty/routine/swap — "not that one, the other one".
+   *
+   * A STEP IS A CATEGORY AND A ROLE, never a product id on its own: the id says
+   * what is there now, and the citizen is expressing a preference about the
+   * step, which survives the next re-plan. The answer is the whole routine —
+   * see the service — because the budget below it moves with the swap.
+   */
+  @Post('routine/swap')
+  @UsePipes(new ZodValidationPipe(z.object({
+    category: z.enum(['face', 'hair', 'body']),
+    role: z.string().min(1).max(40),
+    productId: z.string().min(1).max(120),
+    /** What is in the step now, so a bagged bottle moves with the swap rather
+     *  than being left behind to be paid for. Optional: a step nobody has
+     *  bagged does not need it, and neither does a caller that isn't the page. */
+    fromProductId: z.string().min(1).max(120).optional(),
+  })))
+  swapRoutinePick(@CurrentUser() user: JwtUser, @Body() dto: { category: 'face' | 'hair' | 'body'; role: string; productId: string; fromProductId?: string }) {
+    return this.beauty.swapRoutinePick(user.sub, dto);
+  }
+
   // ─────────────── Makeup reference decode (brief item 23) ───────────────
 
   /** POST /api/beauty/looks — read a reference photo into steps you can follow. */

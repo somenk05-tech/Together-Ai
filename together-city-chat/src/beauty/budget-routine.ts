@@ -216,6 +216,19 @@ export interface Pick_ {
   /** Set on an OFFER, never on a chosen step: the sentence saying what spending
    *  this would and would not buy. An offer without one does not get made. */
   reason?: string;
+  /**
+   * ── THE OTHER PRODUCTS THIS STEP COULD BE ───────────────────────────────
+   *
+   * Every product that could stand in this step's place on the same terms the
+   * planner itself buys on: the matched pool, the overlap and load rules, the
+   * share cap and the B × 1.05 ceiling. It INCLUDES the chosen one, in a fixed
+   * order, because the page cycles through the list and has to be able to come
+   * back to where it started.
+   *
+   * Only ever set on a chosen pick. An offer in `upgrades` is not a step yet,
+   * so it has nothing to be swapped for.
+   */
+  options?: RecommendedProduct[];
 }
 
 export interface CategoryPlan {
@@ -387,6 +400,15 @@ export function planCategory(
   owned: Set<string> = new Set(),
   /** Set only by usefulMaxInr's own call, to stop the recursion at one level. */
   measuringCeiling = false,
+  /**
+   * ROLE → PRODUCT ID: the swaps the citizen has made for themselves. Applied
+   * as a pass like any other and subject to the same gates, so a pin can never
+   * put something incompatible, duplicated or unaffordable into a routine. A
+   * pin that no longer holds — the product left the shelf, the budget moved
+   * under it — is ignored rather than obeyed or reported: the step simply
+   * shows what the planner would have chosen anyway.
+   */
+  pinned: ReadonlyMap<string, string> = new Map(),
 ): CategoryPlan {
   const budget = clampBudget(budgetInr);
 
@@ -803,6 +825,41 @@ export function planCategory(
     picks[at] = toPick(to, was.role, was.tier);
   }
 
+  // ── 5e. THE SWAP THE CITIZEN MADE THEMSELVES ────────────────────────────
+  //
+  // Last of the passes that change a product, and last on purpose: everything
+  // above is the planner's opinion, and this is the citizen overruling it for
+  // one step. It runs after the band passes so their arithmetic is not undone
+  // by a swap they never saw, and before the offers and the sentences below so
+  // those describe the routine as it now stands.
+  //
+  // IT IS A CHOICE BETWEEN PRODUCTS, NOT A WAY ROUND THE RULES. The candidate
+  // has to be in the matched pool for this role — nothing incompatible, nothing
+  // they have told us they react to — and it still has to pass the overlap and
+  // load rules, the share cap and the B × 1.05 ceiling. A pin that fails any of
+  // them is dropped silently, because the alternative is a page that says a
+  // product is chosen while the routine below shows another.
+  //
+  // IT MAY MAKE THE ROUTINE CHEAPER, OR WORSE MATCHED, AND THAT IS ALLOWED.
+  // Every other pass here optimises; this one obeys. Somebody who prefers the
+  // ₹699 serum to the ₹1,400 one has said something the match score cannot.
+  let pinnedApplied = false;
+  for (const [role, productId] of pinned) {
+    const at = picks.findIndex((x) => x.role === role);
+    if (at === -1) continue;
+    const pick = picks[at];
+    if (pick.product.id === productId) continue;
+    const d = defs.find((x) => x.role === role);
+    if (!d) continue;
+    const cand = forRole(d).find((p) => p.id === productId);
+    if (!cand || !withinShare(cand) || clash(cand, at)) continue;
+    const after = spent - pick.priceInr + cost(cand);
+    if (after > ceiling) continue;
+    spent = after;
+    picks[at] = toPick(cand, pick.role, pick.tier);
+    pinnedApplied = true;
+  }
+
   // ── 5b. the premium alternative, WHICH IS AN OFFER AND NOT A PURCHASE ────
   //
   // THIS PASS USED TO BUY THINGS AND IT MUST NOT.
@@ -925,7 +982,11 @@ export function planCategory(
    * when it does fire, it is the guarded shelf genuinely running dry, and
    * the sentence says that rather than apologising for thrift.
    */
-  const leanReason = !short && spent < targetLow
+  // AND IT IS NOT SAID OVER A ROUTINE THE CITIZEN EDITED. "We've bought
+  // everything on this shelf that addresses what you told us" is a claim about
+  // the planner's own reasoning; after a swap to a cheaper product it would be
+  // the page blaming the shelf for a choice the citizen made.
+  const leanReason = !short && !pinnedApplied && spent < targetLow
     ? `Your ${category} routine comes to ₹${spent.toLocaleString('en-IN')} to buy against a ₹${budget.toLocaleString('en-IN')} budget. We've bought everything on this shelf that addresses what you told us and can sit safely in one routine — what's left either repeats what you already have, doesn't suit your profile, or would put most of the budget on a single product. We've stopped there rather than pad the number.`
     : null;
 
@@ -940,8 +1001,44 @@ export function planCategory(
     ...premiumOffers,
   ];
 
+  /**
+   * ── WHAT ELSE THIS STEP COULD BE ────────────────────────────────────────
+   *
+   * The list behind the refresh control on a step, and it is built by the same
+   * gates the planner buys through rather than by a looser "similar products"
+   * rule: the matched pool for this role, the overlap and load rules measured
+   * with THIS step taken out, the coverage promise, the share cap and the
+   * ceiling. Anything the citizen can reach from the page is something the
+   * planner would have been allowed to choose.
+   *
+   * THE CHOSEN PRODUCT IS IN IT, and it is why this is a list rather than a set
+   * of "others": the page cycles, and a cycle has to come back round. Ordered
+   * by effectiveness — the same comparator the passes use — so the first press
+   * moves toward the next best thing rather than somewhere arbitrary, and the
+   * order does not change between two reads of the same routine.
+   *
+   * FIVE. A control that has to be pressed nine times to get back where it
+   * started is a control nobody trusts.
+   */
+  const optionsFor = (pick: Pick_, at: number): RecommendedProduct[] => {
+    const d = defs.find((x) => x.role === pick.role);
+    if (!d) return [];
+    // The four best OTHERS, and then the chosen one put back among them. Taking
+    // the top five of a list that happens to contain the chosen product would
+    // drop it whenever it ranked sixth — which is exactly the case a swap
+    // creates, and it would leave the page cycling with no way home.
+    const others = [...forRole(d)]
+      .filter((c) => c.id !== pick.product.id
+        && withinShare(c) && !clash(c, at) && keepsCoverage(at, c)
+        && spent - pick.priceInr + cost(c) <= ceiling)
+      .sort(byEffect)
+      .slice(0, 4);
+    return [pick.product, ...others].sort(byEffect);
+  };
+
   return {
-    category, budgetInr: budget, skipped: false, picks,
+    category, budgetInr: budget, skipped: false,
+    picks: picks.map((p, at) => ({ ...p, options: optionsFor(p, at) })),
     spendInr: spent,
     monthlyInr: picks.reduce((n, x) => n + x.monthlyInr, 0),
     remainingInr: Math.max(0, budget - spent),
@@ -1015,6 +1112,16 @@ export interface BudgetPlan {
  * copy of that judgement, and the two would disagree the first time either was
  * corrected. The client formats rupees and nothing else.
  */
+/**
+ * One product this step could be, as the page needs it: enough to price the
+ * swap before it is made, and nothing more. The product itself arrives with the
+ * routine band once the swap has happened — this is the menu, not the meal.
+ */
+export interface WireOption {
+  productId: string; name: string; brand: string;
+  priceInr: number; monthlyInr: number; packLabel: string; lastsLabel: string;
+}
+
 export interface WirePick {
   productId: string; name: string; role: string; tier: Tier;
   priceInr: number; monthlyInr: number; monthsOfUse: number;
@@ -1024,6 +1131,16 @@ export interface WirePick {
   lastsLabel: string;
   /** Only ever on an offer: what spending this would, and would not, buy. */
   reason?: string;
+  /**
+   * WHY THIS PRODUCT AND NOT ANOTHER, in the assessment's own words — the
+   * primary reasons the recommendation engine already computed. It has been on
+   * the market's cards since the shelf was written and never reached the
+   * routine, where the question "why am I being told to put this on my face"
+   * is asked far more often. Three at most; a fourth is a paragraph.
+   */
+  reasons: string[];
+  /** Every product this step could be, chosen one included. Never on an offer. */
+  options?: WireOption[];
 }
 
 export interface WireCategoryPlan {
@@ -1040,6 +1157,16 @@ export interface WireBudgetPlan {
   totalBudgetInr: number; totalSpendInr: number; totalMonthlyInr: number; totalRemainingInr: number;
 }
 
+const wireOption = (p: RecommendedProduct): WireOption => ({
+  productId: p.id,
+  name: p.name,
+  brand: p.brand,
+  priceInr: p.priceInr,
+  monthlyInr: monthlyCostInr(p),
+  packLabel: packLabel(p.name),
+  lastsLabel: lastsLabel(monthsOfUse(p)),
+});
+
 const wirePick = (x: Pick_): WirePick => ({
   productId: x.product.id,
   name: x.product.name,
@@ -1050,7 +1177,9 @@ const wirePick = (x: Pick_): WirePick => ({
   monthsOfUse: x.monthsOfUse,
   packLabel: packLabel(x.product.name),
   lastsLabel: lastsLabel(x.monthsOfUse),
+  reasons: x.product.primaryReasons.slice(0, 3),
   ...(x.reason ? { reason: x.reason } : {}),
+  ...(x.options ? { options: x.options.map(wireOption) } : {}),
 });
 
 const wireCategory = (c: CategoryPlan): WireCategoryPlan => ({
@@ -1077,15 +1206,35 @@ export function planForWire(plan: BudgetPlan): WireBudgetPlan {
   };
 }
 
+/**
+ * The swaps a citizen has made, as they are stored: `"face:Treat"` → product id.
+ *
+ * ONE KEY PER STEP, and the step is the category and the role together, because
+ * Treat, Wash and Moisturise each name two different objects. Storing it against
+ * the role alone is how a swapped face serum quietly becomes a swapped hair oil.
+ */
+export type RoutineSwaps = Readonly<Record<string, string>>;
+
+const pinsFor = (category: BudgetCategory, swaps: RoutineSwaps): Map<string, string> => {
+  const out = new Map<string, string>();
+  for (const [key, productId] of Object.entries(swaps ?? {})) {
+    const [c, role] = key.split(':');
+    if (c === category && role && typeof productId === 'string' && productId) out.set(role, productId);
+  }
+  return out;
+};
+
 export function planWithinBudget(
   all: RecommendedProduct[], budgets: CategoryBudgets, needs: Iterable<string>,
   /** The "what you use now" chips, verbatim. Mapped per category inside. */
   alreadyHave: readonly string[] = [],
+  /** The steps the citizen has chosen a different product for. */
+  swaps: RoutineSwaps = {},
 ): BudgetPlan {
   const need = new Set(needs);
-  const face = planCategory(all, 'face', budgets.face, need, ownedRoles('face', alreadyHave));
-  const hair = planCategory(all, 'hair', budgets.hair, need, ownedRoles('hair', alreadyHave));
-  const body = planCategory(all, 'body', budgets.body, need, ownedRoles('body', alreadyHave));
+  const face = planCategory(all, 'face', budgets.face, need, ownedRoles('face', alreadyHave), false, pinsFor('face', swaps));
+  const hair = planCategory(all, 'hair', budgets.hair, need, ownedRoles('hair', alreadyHave), false, pinsFor('hair', swaps));
+  const body = planCategory(all, 'body', budgets.body, need, ownedRoles('body', alreadyHave), false, pinsFor('body', swaps));
   return {
     face, hair, body,
     totalBudgetInr: face.budgetInr + hair.budgetInr + body.budgetInr,
