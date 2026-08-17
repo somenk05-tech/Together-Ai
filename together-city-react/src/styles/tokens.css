@@ -1851,190 +1851,149 @@
    agreeing by hand. That is what a grant buys, and the reason this hub took
    one back. */
 
-/* ── BEAUTY IS A SAND ROOM, AND THE ARGUMENT IS ABOUT TONE ─────────────────
-   THE THIRD GROUND GRANT, AND IT IS THE ONE CASE THE THREE RETURNS DO NOT
-   COVER.
+/* ── BEAUTY IS A COOL GREY ROOM ─────────────────────────────────────────────
+   Owner, 18 Aug, with a reference: medium-light cool grey behind, pure white
+   cards raised off it on visible shadows, charcoal type instead of brown, and
+   one very restrained blue-grey where an accent is needed. Editorial and airy
+   rather than warm luxury.
 
-   Social and dating both asked for a tint and both were refused with the same
-   answer: a wall of photographs on white is a contact sheet, and the fix for a
-   contact sheet is CASING and SPACE, not colour. That answer is correct and it
-   is still in force — relief.css cases every image in the city.
+   THIS IS THE SAME GRANT REPAINTED, NOT A NEW ONE. Beauty has held a ground
+   since the sand room, and the machinery that makes a ground repaintable at
+   all — two materials, the ink-restore list in relief.css, the three inks the
+   spec measures against the ground rather than against white — is exactly what
+   makes a change of mind cost values instead of a rewrite. The wall has now
+   been black, then white, then sand, and today grey; the file has not grown a
+   mechanism for any of them.
 
-   It does not reach this hub, because the problem here is not density. It is
-   VALUE. A skincare catalogue is photographed cut-out: a white cream, an ivory
-   balm, a translucent gel, a bare shoulder, a sachet — the owner's own
-   reference is literally three near-white smears and nothing else in the
-   frame. Those photographs are `.no-case` by necessity (a box drawn round a
-   cut-out is a box round nothing) and they are the same VALUE as the city's
-   paper. A cased picture of a person on white loses its frame; an uncased
-   white cream on white loses the cream. Casing cannot fix a subject that is
-   the colour of the page, and space cannot either — the more air you give a
-   #f8f6f2 jar on #ffffff, the more of nothing there is around it.
+   WHAT MOVED AND WHAT DID NOT. Every value below is colour. Not one radius,
+   gap, size, weight or shadow GEOMETRY is touched — this is a light room lit
+   from above like every other light room in the city, so the five depths are
+   inherited exactly as they were. The layout, the hierarchy, the navigation
+   and the copy are untouched by construction, because a hub block can only
+   say what things are made of.
 
-   So the ground moves DOWN in value, by enough for the merchandise to sit on
-   it, and stops there. The sand is the owner's reference photograph, sampled;
-   the card is the cream smear in it. Everything a citizen reads is on one of
-   those two and every ink below is measured against them by relief.spec at
-   build time.
+   THE SEAM IS NOW THE SHADOW'S JOB. On sand, a cream plate on a lighter cream
+   ground read as a plate because the two materials differed in hue as well as
+   value. White on grey is 1.21:1 — nearly nothing — so what separates a card
+   from the wall here is the depth under it, which is why the ground had to be
+   MEDIUM light rather than near-white. Take the grey up toward white and the
+   cards stop being objects; take it down and the room stops being airy. This
+   value is the top of the band where the city's own --e2 still reads.
 
-   THE ACCENT HUE IS NOT THE GROUND. This is the line the removed nutrition
-   tint crossed and the one every grant since has had to clear. Beauty's hue is
-   magenta; there is not a trace of it here. The room is a neutral warm sand
-   with the magenta left where it has always been — in the lit key of the rail,
-   nowhere else — exactly as charcoal keeps its gold in the fill and the dark
-   room keeps its green in the fill.
+   THE HUE DISCIPLINE IS UNCHANGED, and it is the rule every grant in this file
+   has had to clear: the accent hue is not the ground. Beauty's key is magenta
+   and there is not a trace of it in the room. What is here is a neutral cool
+   grey and one blue-grey for the states that need to be found — the ocean tone
+   from the owner's reference, which is a NEUTRAL near enough to be one.
 
-   AND NOTHING BUT COLOUR CHANGES. No radius, gap, size, weight or shadow
-   GEOMETRY. This is a light room, lit from above like every other light room
-   in the city, so the five depths are inherited untouched rather than
-   inverted — which is what makes this the cheapest of the three grants and,
-   if it is ever handed back, the cleanest to return.                        */
+   THE LAMP STAYS MAGENTA, and that is deliberate against the brief's word
+   "monochromatic". It is not page material: it is this hub's key in
+   twenty-five rooms of wayfinding, the one object whose whole job is to be
+   found, and relief.spec requires every hub in the config to own an accent
+   nobody else has. A monochrome room with a single point of colour in the one
+   place you are looking for is the reference's own logic, not a departure from
+   it. Say the word and it goes; it is one declaration.                      */
 [data-hub="beauty"] {
-  /* ── THE WALL IS WHITE NOW, AND THE PLATES STAYED CREAM ──────────────────
-     IT WAS NEAR-BLACK, GRAINED AND VIGNETTED — the owner's own backdrop
-     photograph, generated in four lines of CSS rather than shipped. It went at
-     the owner's word, and the argument it was built on is kept here because
-     the half of it that was structural is the half that survived.
+  /* ── THE WALL AND THE PRINT ──────────────────────────────────────────────
+     TWO MATERIALS, STILL. --ground is only ever BEHIND things; --paper and
+     --card are the print, and everything a citizen reads is on one of them.
+     The distinction survives every repaint because it is structural: the edge
+     of a plate against the wall is what makes it a plate.
 
-     STRUCTURAL, AND UNCHANGED: this hub has TWO materials where every other
-     grant in this file has one. --ground is only ever BEHIND things; --paper
-     and --card are the PRINT, and everything a citizen reads is on one of
-     them. The seam between them IS the design — the edge of a plate against
-     the ground is what makes it a plate — which is why --paper is not
-     --ground here, and why putting the cream on `.page` globally was refused
-     when it was proposed. Taste, and the owner's: which value the ground is.
+     THE PRINT IS PURE WHITE NOW rather than a cream a step off it. Both names
+     resolve to the same value today and both stay declared, for the reason the
+     three ground inks stay declared below: two materials that happen to agree
+     on a value have not become one material, and collapsing them is how a hub
+     loses the machinery it needs the next time somebody changes their mind. */
+  --ground: #e8eaed;
+  --paper:  #ffffff;
+  --card:   #ffffff;
+  /* The one surface that is neither wall nor print — a field, a track, a
+     pressed state. A hair off the print so it reads as recessed against it
+     without becoming the wall. */
+  --wash:   #f2f4f6;
+  /* The hairline, mixed cool from the ground rather than from neutral grey.
+     A warm rule on a cool ground reads pink, which is the tell of a palette
+     that was tinted halfway — the same mistake the sand room's #e6e6e6 note
+     was written to prevent, arriving from the other side. */
+  --line:      #dee2e7;
 
-     WHITE AND NOT THE PAPER'S CREAM, deliberately, and it is the same refusal
-     as `.page` arrived at from the other side. Cream behind cream is one
-     undifferentiated slab and the plates stop reading as plates. White is a
-     step LIGHTER than the print rather than darker, so the seam survives the
-     inversion: a cream plate on white reads as a plate the way it did on
-     black, and the shadow under it does the work it was always drawn to do.
-
-     AND NOTE WHAT DID NOT MOVE, because it is the receipt for this grant being
-     the cheap one it claimed to be. The plates, the cards, the hairline, the
-     paper inks, the five depths, every radius and gap: untouched. One ground
-     changed value and the three inks measured against it followed. A wall that
-     costs two declarations to repaint is a wall that was built properly. */
-  --ground: #ffffff;
-  --paper:  #e7ded1;
-  --card:   #f6f1e8;
-  --wash:   #efe8dc;
-  /* The hairline, mixed from the paper rather than from grey. A #e6e6e6 rule on
-     a warm ground reads blue, which is the tell of a palette that was tinted
-     halfway. */
-  --line:      #d5c7b3;
-
-  /* ── THE TEXTURE IS NOT DECLARED, AND THAT IS THE WHOLE REMOVAL ──────────
-     --sky-image was three layers here and every one of them was drawn FOR the
-     near-black: fractal grain at .16 opacity, because a flat near-black reads
-     as an unloaded screen; an off-centre highlight, the soft box up and to the
-     left; and a vignette falling to true black at the corners, which is what
-     made the wall read as lit rather than as a colour.
-
-     ALL THREE ARE WRONG ON WHITE AND NOT ONE OF THEM IS SALVAGEABLE. Grain on
-     white is dirt. A white highlight on white is nothing. A vignette to black
-     on white is a grey smudge in the corners of a clean room — the single
-     most obvious way to make a light page look like a mistake.
-
-     So it is not re-tuned, it is not declared. It falls back to the `none` at
-     :root, `.tc-shell::before` paints --ground and nothing else, and the fixed
-     layer stays in place unscoped for Social, which still hangs a wash on it.
-     Retuning a texture for a ground it was not drawn for is how a hub ends up
-     with an effect nobody can defend and nobody dares delete. */
-
-  /* The seamless the merchandise was photographed on. It was white while the
-     room was black and it is white still — the same value the ground now
-     happens to be, and for an unrelated reason. It stays declared: a well is
-     white because a retailer lit a bottle on white, not because the wall is,
-     and merging the two would tie a photographic fact to a taste decision that
-     has already moved once today.
-
-     IT IS READ ON NOW, WHICH IT WAS NOT. This said "nothing is READ on it — it
-     holds pictures — so it is not in the ink table above", and that stopped
-     being true when the product sections came off the cream: the routine's
-     bands, the routine cards and the market's shop sheet all wear it, and every
-     one of them carries type. The claim is retired rather than quietly left
-     standing, because "no text on this surface" is exactly the sort of note a
-     later reader trusts instead of checking.
-
-     Nothing had to move to make it safe, and that is worth stating rather than
-     assuming: these surfaces are on the ink-restore list in relief.css, so they
-     carry --on-paper (#171310), and relief.spec already measures that value
-     against a white ground under the --on-ground names — 18.5:1 against the 4.5
-     required, better than it was on the cream it left. */
+  /* The seamless the merchandise was photographed on, and the one value here
+     that is a photographic fact rather than a taste decision: these bottles
+     were lit on white by a retailer. It stays declared even though the card is
+     now the same white, because the day the print moves again the well must
+     not move with it. */
   --shot-ground: #ffffff;
 
-  /* ── THE INK ON THE WALL, WHICH IS NOW THE INK ON THE PAPER ──────────────
-     These three are for the little that is drawn STRAIGHT onto the ground — a
-     page heading, a tab rule, the index between two plates. They existed as
-     their own scale because the ground was near-black and the paper was cream:
-     two grounds, two directions, and relief.spec measures both, because a hub
-     with two grounds and one checked ground is a hub with an unchecked ground.
+  /* ── THE INK ON THE WALL ─────────────────────────────────────────────────
+     For the little that is drawn STRAIGHT onto the ground — a page heading, a
+     tab rule, the index between two plates. They point at the print's inks
+     through one var() hop rather than being copied, so the two lists cannot
+     drift, and relief.spec follows that hop and recomputes every one of them
+     against THIS ground at build time.
 
-     They were near-whites — #ede9e2 at 15.7:1 on #101010, deliberately not
-     pure white, because #ffffff on near-black is 19:1 and it glares.
+     The grey is darker than the print, so a ground ink is always the tighter
+     measurement of the two. All three clear it with room: 14.9:1, 11.2:1 and
+     5.2:1 against 4.5 required. */
+  --on-ground:       var(--on-paper);        /* 14.9:1 on the grey */
+  --on-ground-soft:  var(--on-paper-soft);   /* 11.2:1 */
+  --on-ground-muted: var(--on-paper-muted);  /*  5.2:1 — the floor, clear */
 
-     ON A WHITE GROUND THEY POINT AT THE PAPER'S INKS, and they are declared
-     through `var()` rather than copied so the two lists cannot drift. White is
-     LIGHTER than the cream, so any ink safe on the paper is safe here by
-     construction and by more than it was: #171310 is 13.9:1 on the paper and
-     18.5:1 here. That is arithmetic rather than a hope, and relief.spec
-     recomputes it at build time either way — it follows one hop through a
-     var(), which is exactly why one hop is all this is.
+  /* ── THE INK, MEASURED ───────────────────────────────────────────────────
+     CHARCOAL, NOT BROWN — the brief's plainest instruction. The sand room's
+     scale was warm by construction (#171310, #5b5145): a hand-picked warm grey
+     is what a brown ink IS, and on a cool ground it reads as a stain. These
+     are the same four steps with the warmth taken out and a trace of blue left
+     in, so the type belongs to the room rather than sitting on top of it.
 
-     THE THREE NAMES STAY even though they now resolve to what --ink already
-     resolves to. The wall's ink and the paper's ink coinciding is a property of
-     today's value, not of the design: the mechanism in relief.css that swaps
-     one for the other on every lit surface is what makes the ground repaintable
-     at all, and collapsing it because the two happen to agree is how a hub
-     loses the machinery it needs the next time somebody changes their mind. */
-  --on-ground:       var(--on-paper);        /* 18.5:1 on white */
-  --on-ground-soft:  var(--on-paper-soft);   /* 14.6:1 */
-  --on-ground-muted: var(--on-paper-muted);  /*  7.8:1 — the floor, well clear */
-
-  /* THE INKS, MEASURED. Every figure is this hub's own ground, not white —
-     relief.spec recomputes all of them at build time, which is the whole
-     reason a ground is granted rather than approximated. */
-  --on-paper:       #171310;   /* 13.9:1 on the paper */
-  --on-paper-soft:  #2e2822;   /* 12.9:1 on a card    */
-  --on-paper-muted: #5b5145;   /*  5.82:1 */
-  --on-paper-faint: #5f564a;   /*  5.41:1 — the floor of the scale, and the
-                                            step a hand-picked warm palette
-                                            always fails */
+     Every figure is measured against this hub's own surfaces — the grey wall,
+     which is the tightest, and the white print. relief.spec recomputes all of
+     them, which is the whole reason a ground is granted rather than
+     approximated. */
+  --on-paper:       #14171a;   /* 18.0:1 on the print · 14.9:1 on the wall */
+  --on-paper-soft:  #2a2f34;   /* 13.5:1 · 11.2:1 */
+  --on-paper-muted: #59626b;   /*  6.2:1 ·  5.2:1 */
+  --on-paper-faint: #5f6871;   /*  5.7:1 ·  4.7:1 — the floor of the scale */
   /* Declared through the four above rather than beside them: two lists of the
      same four greys is two lists that disagree the first time one is nudged. */
   --ink:        var(--on-paper);
   --ink-soft:   var(--on-paper-soft);
   --muted:      var(--on-paper-muted);
   --faint:      var(--on-paper-faint);
-  --accent-ink: #1c1c1c;   /* 12.8:1 */
 
-  /* The accent stays the city's near-black — this hub never had a coloured one
-     and is not getting one with a ground. Only its two pale companions move,
-     because a #f2f2f2 pill on sand is a grey smudge rather than a quiet chip. */
-  --accent-soft: #efe6d6;
-  --accent-line: #d9c8b0;
+  /* ── THE ACCENT, AND IT IS THE ONE THING THAT GAINED A HUE ───────────────
+     The sand room's accent was the city's near-black, on the argument that
+     this hub never had a coloured one. The brief asks for a restrained
+     blue-grey — the ocean tone in the reference — for active states, and this
+     is it: a NEUTRAL with enough blue in it to read as chosen, dark enough to
+     be type on either surface at 7.5:1 and 6.2:1.
 
-  /* STATUS. The two inks that fail on this ground are the two that always do:
-     green and amber sit close to the sand in luminance where red and blue do
-     not. Both are the root hue taken down until they clear, hue unchanged. */
-  --ok-ink:     #145a26;   /*  6.26:1 — the root value reads 4.36 on this paper */
-  --warn-ink:   #664509;   /*  6.51:1 — the root value reads 4.48 */
-  --danger-ink: #a5231f;   /*  5.51:1 */
-  --info-ink:   #14568f;   /*  5.72:1 */
-  /* Their washes are near-white at the root. A mint-white banner on sand is a
-     cold rectangle, so each is the card's cream carried toward its own hue. */
-  --ok-soft:     #e9efe0;  --ok-line:     #c6d7bb;
-  --warn-soft:   #f5ecd6;  --warn-line:   #e2d0a6;
-  --danger-soft: #f6e6de;  --danger-line: #e8c7ba;
-  --info-soft:   #e4ecef;  --info-line:   #c2d3dd;
+     It is not the magenta and it is not near it. An accent that approached the
+     lamp would put this hub's key on every chip in the room, which is the
+     failure the hue rule above exists to name. */
+  --accent-ink:  #425768;  /* 7.5:1 on the print · 6.2:1 on the wall */
+  --accent-soft: #dde5ec;
+  --accent-line: #c2ceda;
 
-  /* THE LAMP, MOVED HERE UNCHANGED. Not one value edited — the magenta key is
-     this hub's identity in all twenty-five rooms of wayfinding and a warm
-     neutral room is exactly where a hue belongs: in the one object whose job
-     is to be found. It lives in this block instead of the accent list above so
-     there is one place that says what Beauty looks like. */
+  /* STATUS. Cool-tuned rather than warm, and re-measured: the sand room took
+     green and amber DOWN because they sat close to the sand in luminance. On a
+     grey wall the same two are the tight pair for the same reason, so both
+     keep their hue and their depth, and red and blue come back toward the root
+     now that there is no warmth to fight. */
+  --ok-ink:     #1a6b30;   /*  6.6:1 on the print · 5.5:1 on the wall */
+  --warn-ink:   #6b4a0a;   /*  8.1:1 · 6.7:1 */
+  --danger-ink: #a52420;   /*  7.3:1 · 6.1:1 */
+  --info-ink:   #1a5c96;   /*  7.0:1 · 5.8:1 */
+  /* Their washes were the card's cream carried toward each hue. They are the
+     print's white carried the same distance now — a warm mint banner in a cool
+     room is the one thing that would give the repaint away. */
+  --ok-soft:     #e4efe7;  --ok-line:     #c3d8c9;
+  --warn-soft:   #f3ecdd;  --warn-line:   #ded0b0;
+  --danger-soft: #f6e5e4;  --danger-line: #e7c4c2;
+  --info-soft:   #e2ebf2;  --info-line:   #c1d2e0;
+
+  /* THE LAMP, UNTOUCHED. See the block comment above for why the one magenta
+     object in a grey room is the reference's logic rather than a breach of it. */
   --lamp-face: linear-gradient(180deg, #c05289 0%, #96406b 44%, #723151 100%);
   --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
           inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
