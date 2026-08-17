@@ -5,7 +5,7 @@ import { resizeAvatar } from '@/lib/resizeAvatar';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/store/auth.store';
 import { ModuleChips } from '@/features/connections/components/ModuleToggles';
-import { Card, Button, Spinner, EmptyState, ValueOrEmpty } from '@/components/ui';
+import { Avatar, Card, Button, Spinner, EmptyState, ValueOrEmpty } from '@/components/ui';
 import { useProfileSummary, useProfileCompletion, useHealthScore } from '../hooks';
 import { profileApi } from '../api';
 import { useWebPush } from '@/hooks/useWebPush';
@@ -26,16 +26,6 @@ import { codeBand, sexMark, splitName, visaPages } from '../passport';
    section at the foot of the page. It was never a tab's worth of content and
    a tab is a place things go to not be found. */
 type Tab = 'overview' | 'notifications';
-
-/** Round avatar — the uploaded photo (data URL) or the user's initials. */
-function Avatar({ src, name, size = 56 }: { src?: string | null; name: string; size?: number }) {
-  if (src) return <img src={src} alt="" style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />;
-  return (
-    <div className="tc-avatar" style={{ width: size, height: size, fontSize: size / 3, flexShrink: 0 }}>
-      {(name || 'You').slice(0, 2).toUpperCase()}
-    </div>
-  );
-}
 
 /**
  * A wellness summary of recorded measurements.

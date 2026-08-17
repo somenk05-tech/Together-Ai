@@ -1,26 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, EmptyState, Spinner } from '@/components/ui';
+import { Avatar, Button, EmptyState, Spinner } from '@/components/ui';
 import { useConnections, useRespondConnection, chatApi } from '@/api';
 import type { Connection } from '@/api/schemas';
 import { MemberFinder } from '../components/MemberFinder';
 import { useHubs, useRemoveConnection, useUpdateModules } from '@/api/connections.api';
 import { DEFAULT_MODULES, RELATIONSHIPS, allowedModules, optionalOf } from '../modules';
 import { ModuleChips, ModuleToggles } from '../components/ModuleToggles';
-
-function Avatar({ name }: { name: string }) {
-  return (
-    <div
-      style={{
-        width: 44, height: 44, borderRadius: '50%', display: 'grid', placeItems: 'center', flexShrink: 0,
-        background: 'var(--accent-soft)', color: 'var(--accent-ink)', fontWeight: 700, fontSize: 15,
-      }}
-    >
-      {name.split(' ').map((w) => w[0]).slice(0, 2).join('')}
-    </div>
-  );
-}
 
 function Row({ c, actions, subtitle, children, collapsible, expanded, onToggle, chipCaption }: {
   c: Connection; actions?: React.ReactNode; subtitle?: string; children?: React.ReactNode;
@@ -38,7 +25,7 @@ function Row({ c, actions, subtitle, children, collapsible, expanded, onToggle, 
   return (
     <div style={{ padding: '12px 0', borderTop: '1px solid var(--line)' }}>
       <div className="person-row">
-        <Avatar name={c.user.name} />
+        <Avatar src={c.user.profileImage} name={c.user.name} />
         <div className="person-id">
           <div className="person-name">{c.user.name}</div>
           <div className="person-sub muted">@{c.user.handle}{subtitle ? ` · ${subtitle}` : ''}</div>

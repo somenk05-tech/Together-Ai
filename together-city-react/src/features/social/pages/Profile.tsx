@@ -2,13 +2,12 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Spinner } from '@/components/ui';
+import { Avatar, Button, Spinner } from '@/components/ui';
 import { chatApi } from '@/api';
 import { useConnections, useRequestConnection, useRespondConnection } from '@/api/connections.api';
 import { ModuleChips } from '@/features/connections/components/ModuleToggles';
 import { profileApi } from '@/features/profile/api';
 import { useAuthStore } from '@/store/auth.store';
-import { initials } from '../shared';
 import {
   useMyProfile, useMyPosts, usePeopleSearch, usePublicProfile, usePublicPosts, useUpdateProfile, useReorderMyPosts,
   type MyProfile, type ProfilePost, type PersonResult, type PublicProfile, type Relationship,
@@ -36,15 +35,6 @@ function resizeToDataUrl(file: File, size = 240): Promise<string> {
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('bad image')); };
     img.src = url;
   });
-}
-
-function Avatar({ src, name, size = 96 }: { src?: string | null; name: string; size?: number }) {
-  if (src) return <img src={src} alt="" style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />;
-  return (
-    <div style={{ width: size, height: size, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--on-accent)', fontFamily: 'var(--serif)', fontSize: size / 3, flexShrink: 0, background: 'var(--accent)' }}>
-      {initials(name)}
-    </div>
-  );
 }
 
 /** Blue verified check — shown when the account's email is verified. */

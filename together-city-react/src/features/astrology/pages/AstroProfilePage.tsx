@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Card, Spinner, Tag } from '@/components/ui';
+import { Avatar, Button, Card, Spinner, Tag } from '@/components/ui';
 import { SearchSelect } from '@/components/SearchSelect';
 import { useLookups } from '@/api/lookups.api';
 import { useAuth } from '@/hooks/useAuth';
@@ -11,21 +11,6 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useAstroProfile, useSaveAstroProfile } from '../hooks';
 import { allKnownZones, isKnownZone, zoneCity, zoneForBirthPlace, zonesForCountry } from '../birthZone';
 import { PrivacyNote } from '@/features/privacy/PrivacyNote';
-
-/** Photo-or-initials avatar (same look as the main profile page). */
-function Avatar({ src, name, size = 56 }: { src?: string | null; name: string; size?: number }) {
-  if (src) {
-    return <img src={src} alt={name} width={size} height={size}
-      style={{ borderRadius: '50%', objectFit: 'cover', display: 'block', border: '2px solid var(--line)' }} />;
-  }
-  const initials = name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
-  return (
-    <div style={{ width: size, height: size, borderRadius: '50%', background: 'var(--accent-soft)', color: 'var(--accent-ink)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: size / 2.6, border: '2px solid var(--line)' }}>
-      {initials}
-    </div>
-  );
-}
 
 /** Downscale to a small square data-URL (same approach as the profile Photo tab). */
 function resizeToDataUrl(file: File, size = 200): Promise<string> {

@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Spinner } from '@/components/ui';
+import { Avatar, Button, Spinner } from '@/components/ui';
 import { usersApi, useConnections, type LookupResult } from '@/api';
 import { useHubs, useRequestConnection, useRespondConnection } from '@/api/connections.api';
 import { RELATIONSHIPS, moduleDef } from '../modules';
@@ -117,7 +117,7 @@ export function AddHubMemberDialog({
         {!busy && result && (
           <div style={{ marginTop: 14, border: '1px solid var(--line)', borderRadius: 14, padding: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div className="tc-avatar" style={{ width: 44, height: 44, fontSize: 15, flexShrink: 0 }}>{result.name.slice(0, 2).toUpperCase()}</div>
+              <Avatar src={result.profileImage} name={result.name} size={44} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 15, fontWeight: 600 }}>{result.name}</div>
                 <div className="muted" style={{ fontSize: 12, fontFamily: 'monospace' }}>@{result.handle}</div>

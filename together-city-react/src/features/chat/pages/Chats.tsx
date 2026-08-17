@@ -520,7 +520,14 @@ export function Chats() {
     });
   };
 
-  const activeTitle = list.find((c) => c.id === activeId)?.title || 'Conversation';
+  const activeConv = list.find((c) => c.id === activeId);
+  const activeTitle = activeConv?.title || 'Conversation';
+  /* The room's own face, under the rule the rows already draw under: an
+     anonymous match keeps its mask unless the picture on it is one the reader
+     chose. A group and an unmasked stranger never reach the roster with a
+     photo at all, so nothing else has to be excluded here. */
+  const activeFace = faces.get(activeId ?? '');
+  const activePhoto = activeConv?.anonymous && !activeFace?.mine ? null : activeFace?.photo ?? null;
   const pinnedMsg = pinned.data?.pinned ?? null;
 
   return (
@@ -612,7 +619,15 @@ export function Chats() {
                       strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
                   </button>
                 )}
-                <span className="csav">{activeTitle.split(/[\s·]+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase()}</span>
+                {/* The stage paints its own avatar slot — .csav and .csav img
+                    are written for this room's ink — so the header wears that
+                    rather than the shared disc, and the initials stay as the
+                    fallback exactly as they are on the rows. */}
+                <span className="csav">
+                  {activePhoto
+                    ? <img className="no-case" src={activePhoto} alt="" loading="lazy" />
+                    : activeTitle.split(/[\s·]+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase()}
+                </span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   {activeIsGroup ? (
                     <button type="button" onClick={() => setGroupOpen(true)}

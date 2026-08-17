@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { chatApi, useChatContacts, type GroupMember } from '@/api';
+import { Avatar } from '@/components/ui';
 
 /**
  * WHO IS IN THIS GROUP, AND WHO MAY CHANGE IT.
@@ -75,6 +76,7 @@ export function GroupPanel({ conversationId, title, meId, onClose, onChanged, on
           <div style={{ display: 'grid', gap: 8, marginBottom: 16 }}>
             {members.map((m) => (
               <div key={m.userId} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Avatar src={m.profileImage} name={m.name} size={32} />
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ display: 'block', fontSize: 13.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {m.name}{m.userId === meId ? ' (you)' : ''}

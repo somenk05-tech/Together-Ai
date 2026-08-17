@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Card, Button, Spinner } from '@/components/ui';
+import { Avatar, Card, Button, Spinner } from '@/components/ui';
 import { usersApi, chatApi, useConnections, type LookupResult } from '@/api';
 import { useHubs, useRequestConnection, useRespondConnection } from '@/api/connections.api';
 import { DEFAULT_MODULES, RELATIONSHIPS, allowedModules } from '../modules';
@@ -117,9 +117,7 @@ export function MemberFinder() {
       {!busy && result && (
         <>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 4px', borderTop: '1px solid var(--line)' }}>
-          <div className="tc-avatar" style={{ width: 40, height: 40, fontSize: 14, flexShrink: 0 }}>
-            {result.name.slice(0, 2).toUpperCase()}
-          </div>
+          <Avatar src={result.profileImage} name={result.name} size={40} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 14, fontWeight: 600 }}>{result.name}</div>
             <div className="muted" style={{ fontSize: 12, fontFamily: 'monospace' }}>@{result.handle}</div>
