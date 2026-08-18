@@ -1891,7 +1891,35 @@
   --on-loud: #f4faec;
 
   /* A frosted panel over a dark room is smoke, not milk. */
-  --frost: rgba(6,10,10,.74);
+  /* ── FROST LIFTS HERE, WHERE EVERYWHERE ELSE IN THE CITY IT DIMS ──────────
+     rgba(6,10,10,.74) is what this said until the black sky arrived, and it was
+     right for a hub whose page was a flat near-black: a dark veil over a dark
+     page is a panel a step further into the room. Over a sky that RANGES from
+     #020202 to #1a1a1a it stops being one thing. The same veil is a visible
+     darkening where the light falls and nothing at all in the top corner —
+     one surface reading as two materials on one screen, which is the precise
+     failure the five depths exist to prevent.
+
+     A translucent surface is worth having because it is a fixed OFFSET from
+     whatever is behind it, and on a black ground the offset has to point up.
+     At .06 a panel sits 13 to 15 sRGB points above the sky at every stop: it
+     is always a panel, the sky's own modelling still shows through it, and
+     nothing has to know which part of the picture it landed on.
+
+     .06 AND NOT MORE, AND THE FLOOR OF THE INK SCALE IS WHY. This hub's greys
+     were measured on near-black — --faint is #8a938f at 6.1:1 on --paper — and
+     they fail upward: the lighter the panel, the worse the smallest text on it.
+     At .06 the brightest panel is #282828 and --faint still reads 4.67, --muted
+     6.15, --ink 14.74. At .085 --faint drops to 3.60 and the bottom rung of the
+     scale would have had to be merged into the one above it. Six hundredths of
+     white is the whole difference between keeping this hub's ink scale and
+     spending it.
+
+     THE TWO SCRIMS DO NOT FOLLOW IT. --frost is also what .modal-ov and
+     .sheet-ov dim with, and a dim that lifts is not a dim. They are pointed at
+     --scrim-deep for this hub in relief.css — an existing name, and the one
+     that means what they are. */
+  --frost: rgba(255,255,255,.06);
 
   /* The outline button. Its fill is the card it would sit on and its top edge
      is the sliver of light along that card's rim — two values on this ground,
@@ -1911,45 +1939,27 @@
   --purple: var(--accent-ink);
   --navy: var(--ink);
 
-  /* ── THE SKY, AND IT IS THE FIRST DARK ONE ────────────────────────────────
-     Owner, 18 Aug, with a reference: a soft slate falling to deep navy, lit
-     from the top-left corner. Fifth hub, same machinery, no new machinery —
-     it rides --sky-image, which is `none` at :root and in every hub that hangs
-     nothing on it, so the fixed layer every sky in the city already uses paints
-     this one too. And no fourth ground grant: this hub has had its ground since
-     the cinema, and the sky does not touch it.
+  /* ── THE SKY, AND IT IS THE FIRST BLACK ONE ──────────────────────────────
+     Owner, 18 Aug, second reference the same day: not slate — BLACK, with soft
+     light moving across it, brightest around two-thirds down and never brighter
+     than #1a1a1a. The slate went the way financial's first sage did, and this
+     replaces it outright rather than sitting beside it. Same machinery either
+     way: --sky-image, `none` at :root, painted by the one fixed layer every sky
+     in the city already uses.
 
-     A GRADIENT RATHER THAN A PHOTOGRAPH, for the reason every sky before it is
-     one: colour lives in this file, and a gradient has no aspect ratio, so it
-     cannot be cropped or letterboxed at any viewport the city is opened at.
-     The reference is four corners and a linear-gradient is one axis, so it is
-     read as the axis it actually is — the light corner to the dark one, with
-     the two mid corners averaged into the middle stop, because they sit on the
-     anti-diagonal and differ by 0.004 in luminance. Nothing is lost that a
-     linear gradient could have carried.
+     THE INK NEEDED NOTHING, WHICH IS THE FIRST TIME A SKY HAS COST NOTHING.
+     The slate's lit corner had to be darkened by a fifth before this hub's
+     white ink cleared it. On black there is no such corner: --ink reads 17.40
+     at the sky's brightest point and --ink-soft 14.43. The reference is used
+     exactly as measured, and the axis it is read on is the vertical one it
+     actually has — dark at the top, lifting through the middle, easing back a
+     step at the foot.
 
-     AND THE LIT CORNER WAS DARKENED, WHICH IS FINANCIAL'S MOVE IN REVERSE AND
-     IS OWED A NUMBER. The reference's highlight is #767882. Every ink in this
-     hub is LIGHT — it is the city's one remaining night room — so a light
-     corner is exactly where they fail, and on #767882 they do: --ink 4.39,
-     --ink-soft 3.64, --accent-ink 3.24, all under AA on the one part of the
-     picture that catches the eye first. Financial's sage was lifted off its
-     reference until dark ink cleared it; this is the same correction pointing
-     the other way, and it costs 20% of one corner's luminance. On #5e6068
-     --ink reads 6.27, --ink-soft 5.20 and --accent-ink 4.62 — the three that
-     are ever drawn straight onto a ground, all clear, and the corner still
-     reads as a light.
-
-     --muted AND --faint ARE NOT SAFE BARE AND ARE NOT MADE SO. They run 1.83
-     and 1.39 on that corner, and no darkening that keeps the reference would
-     fix them. They take dating's shadow-and-restore in relief.css instead:
-     pointed at --ink-soft for as long as they are out in the open, put back on
-     every panel. The status inks are not measured here for the reason they
-     never were — ok, warn, danger and info are drawn on their own --*-soft
-     washes inside a card, never on the ground. */
-  --sky-image: linear-gradient(135deg,
-    #5e6068 0%, #4e515c 16%, #3f424e 32%, #363840 50%,
-    #2e3240 66%, #262b3c 82%, #1f243a 100%);
+     BUT THE PANEL HAD TO INVERT, AND THAT IS THE REAL CHANGE — see --frost
+     directly below. */
+  --sky-image: linear-gradient(180deg,
+    #020202 0%, #080808 18%, #0e0e0e 34%, #141414 50%,
+    #1a1a1a 66%, #181818 84%, #171717 100%);
 
   /* The press surface — the recipe-card typography — is not worn by anything
      in this hub. Left alone rather than guessed at. */

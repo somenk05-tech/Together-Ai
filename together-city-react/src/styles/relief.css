@@ -4748,31 +4748,36 @@ textarea.g-field { resize: none; line-height: 1.55; }
   }
 }
 
-/* ══ THE CINEMA GETS A SKY, AND IT IS THE FIRST DARK ONE ════════════════════
-   FIFTH HUB, SAME FOUR LINES. --sky-image on the hub's own element, fixed;
-   body, shell, main and page out of the way so the fixed layer can be seen.
-   The mechanism has not changed since dating and it does not change here,
-   which is the argument for having built it as a token rather than as a hub.
+/* ══ THE CINEMA GETS A BLACK SKY ════════════════════════════════════════════
+   SAME FOUR LINES AS SIX OTHER HUBS. --sky-image on the hub's own element,
+   fixed; body, shell, main and page out of the way so the fixed layer can be
+   seen. The mechanism has not changed since dating and it does not change
+   here, which is the whole argument for having built it as a token.
 
-   WHAT IS NEW IS THE DIRECTION OF THE LIGHT. Every sky before this one is
-   pale, and every hub that hung one reads dark ink off panels of white frost.
-   This room is the city's last night room: its --frost is rgba(6,10,10,.74),
-   its ink is white, and the whole relationship inverts — a panel here is a
-   DARKENING of the sky rather than a lightening of it, and it still reads as
-   a panel for the same reason, because it is a different material and not a
-   different colour. Nothing in the machinery had to learn that; the hub's own
-   frost was already dark, declared the day it got its ground.
+   IT WORE A SLATE FOR AN AFTERNOON. The owner sent a second reference the same
+   day and this is it: black, with soft light moving across it, never brighter
+   than #1a1a1a. The slate is deleted rather than kept beside it — a hub with
+   two skies is a hub with a preference nobody can read.
 
-   THE PANELS STAY GREEN-BLACK ON A SLATE SKY, AND THAT IS DELIBERATE. This
-   hub's surfaces are a cinema's near-black with green in it, and the sky the
-   owner sent is slate falling to navy. Re-hueing sixty tokens to match a
-   background is how a background stops being a background — beauty's cool
-   white cards sit on a warm dawn for the same reason, and it is the tint
-   between the two that makes a print read as a print.
+   WHAT IS NEW, AND IT IS NOT THE COLOUR. Every sky before this one is pale
+   enough that a white-frost panel reads as a lightening. This room is the
+   city's night room: its ink is white, and its --frost USED to be a dark veil,
+   which was right while its page was a flat near-black. Over a sky that RANGES
+   from #020202 to #1a1a1a a dark veil stops being one thing — a visible
+   darkening where the light falls, nothing at all in the top corner, one
+   surface reading as two materials on one screen. So --frost inverts for this
+   hub: rgba(255,255,255,.06), a fixed lift of 13 to 15 sRGB points above the
+   sky at every stop. The argument and the numbers are in tokens.css, and .06
+   rather than .085 is what keeps this hub's ink scale intact.
 
-   BODY IS THE LOAD-BEARING LINE, for the fourth time and the last time it
-   will be written out: a negative-z-index fixed layer paints BELOW the
-   background of an in-flow block, so an opaque body is a lid on the sky
+   THE PANELS STAY GREEN-BLACK ON A NEUTRAL SKY, AND THAT IS DELIBERATE. This
+   hub's surfaces are a cinema's near-black with green in it. Re-hueing sixty
+   tokens to match a background is how a background stops being a background —
+   beauty's cool white cards sit on a warm dawn for the same reason, and it is
+   the tint between the two that makes a panel read as a panel.
+
+   BODY IS THE LOAD-BEARING LINE: a negative-z-index fixed layer paints BELOW
+   the background of an in-flow block, so an opaque body is a lid on the sky
    whatever the shell above it does.                                        */
 [data-hub="entertainment"] { background-image: var(--sky-image); background-attachment: fixed; }
 [data-hub="entertainment"] body,
@@ -4797,6 +4802,15 @@ textarea.g-field { resize: none; line-height: 1.55; }
    for the first time. Its keys need nothing: --lens-face is translucent and
    carries its own blur, and frost over them would paint out the lamp. */
 [data-hub="entertainment"] .tc-side { background: var(--frost); box-shadow: var(--e2); }
+/* ── AND THE TWO SCRIMS DO NOT COME WITH IT ─────────────────────────────────
+   .modal-ov and .sheet-ov dim the page with var(--frost), which is right in
+   every hub where frost is a translucent white over a light room. Here frost
+   now LIFTS, and a dim that lifts is not a dim — a modal would open by making
+   the page behind it brighter, which is the one thing an overlay must not do.
+   --scrim-deep is the name that means what these two are, it is already
+   declared for this hub, and it is what they take. */
+[data-hub="entertainment"] .modal-ov,
+[data-hub="entertainment"] .sheet-ov { background: var(--scrim-deep); }
 [data-hub="entertainment"] .card,
 [data-hub="entertainment"] .stat,
 [data-hub="entertainment"] .row,
@@ -4806,40 +4820,20 @@ textarea.g-field { resize: none; line-height: 1.55; }
 [data-hub="entertainment"] .modal,
 [data-hub="entertainment"] .sheet { background: var(--frost); }
 
-/* ── MUTED INK NEVER SITS ON THE SKY ────────────────────────────────────────
-   IT IS DATING'S SHADOW-AND-RESTORE, AND THIS HUB NEEDS IT MOST. Bare on the
-   lit corner --muted reads 1.83 and --faint 1.39 — not marginal, not a
-   judgement call, unreadable — and no darkening of that corner that keeps the
-   owner's reference would fix them. --ink at 6.27, --ink-soft at 5.20 and
-   --accent-ink at 4.62 are safe anywhere on it, so the two that are not are
-   pointed at --ink-soft for as long as they are out in the open.
+/* ── AND NOTHING IS SHADOWED, WHICH THE SLATE COULD NOT SAY ─────────────────
+   The version of this hub that lasted an afternoon carried dating's
+   shadow-and-restore, and it had to: on the slate's lit corner --muted read
+   1.83 and --faint 1.39. On black they read 8.66 and 6.57 at the top of the
+   picture and 7.27 and 5.51 at its brightest point — safe bare, everywhere, by
+   a margin. On a panel, which is the sky plus six hundredths of white, the
+   worst they reach is 6.15 and 4.67. So the whole apparatus comes out rather
+   than being kept with its numbers rewritten.
 
-   Custom properties inherit, so re-pointing the pair inside .tc-main reaches
-   every descendant — className="muted", and the inline color: 'var(--muted)'
-   a page sets from a style object that no stylesheet could otherwise reach.
-   Not one .tsx is edited to do it, which is the point: the rule holds for the
-   page nobody has written yet. The list below puts the hub's pair back under
-   names that were not shadowed.
-
-   ANY CLASS IN THIS HUB THAT PAINTS A PANEL BELONGS ON BOTH LISTS, the commit
-   it is born. A panel missing from the frost list is a near-black slab pasted
-   over the picture; a panel missing from THIS one is body copy one shade too
-   pale, which is the kind of wrong nobody files a bug about.
-
-   THE RAIL AND THE HEADER ARE OUTSIDE .tc-main, and that is correct rather
-   than an omission — both are panels, and both keep the hub's greys. */
-[data-hub="entertainment"] .tc-main { --muted: var(--ink-soft); --faint: var(--ink-soft); }
-[data-hub="entertainment"] .card,
-[data-hub="entertainment"] .stat,
-[data-hub="entertainment"] .row,
-[data-hub="entertainment"] .console,
-[data-hub="entertainment"] .pcard,
-[data-hub="entertainment"] table.tc,
-[data-hub="entertainment"] .modal,
-[data-hub="entertainment"] .sheet {
-  --muted: var(--on-paper-muted);
-  --faint: var(--on-paper-faint);
-}
+   THAT IS THE SECOND TIME A DARKER OR LIGHTER REFERENCE HAS BOUGHT A SIMPLER
+   HUB — astrology's sheet did the same thing for the same reason. A sky whose
+   range sits entirely on one side of the ink is a sky that needs no apparatus;
+   one that crosses it needs all of it. It is worth knowing which kind arrived
+   before writing eighty lines about it. */
 
 /* ── AND THE PREFERENCE THE SKY OWES BACK ───────────────────────────────────
    A citizen who asked for less transparency is asking for surfaces to be
