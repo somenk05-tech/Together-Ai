@@ -5306,6 +5306,110 @@ textarea.g-field { resize: none; line-height: 1.55; }
   }
 }
 
+/* ══ THE PROPERTY ROOM GETS A PERIWINKLE ════════════════════════════════════
+   TENTH HUB, AND THE INSTRUCTION NAMED DATING BY NAME. That is the same four
+   lines every hub since has used, which is the whole return on having built
+   this as a token: "like dating" is now a complete specification.
+
+   TWO THINGS ARE IN TOKENS.CSS RATHER THAN HERE AND BOTH ARE WORTH THE TRIP.
+   The sky is read on one axis where the reference has a blob of warmth on the
+   right at mid-height — the second lit-object reference in a row, and the same
+   reduction. And --frost is .80 in this hub rather than the city's .72, for a
+   0.12 miss on --faint over the blue end; the number is the one financial's
+   block already names, doing the opposite job.
+
+   BODY IS THE LOAD-BEARING LINE: a negative-z-index fixed layer paints below
+   the background of an in-flow block, so an opaque body is a lid on the sky. */
+[data-hub="realestate"] { background-image: var(--sky-image); background-attachment: fixed; }
+[data-hub="realestate"] body,
+[data-hub="realestate"] .tc-shell,
+[data-hub="realestate"] .tc-main,
+[data-hub="realestate"] .page { background: transparent; }
+
+/* ── AND EVERY SURFACE THAT HOLDS TEXT GOES TRANSLUCENT, NOT AWAY ───────────
+   var(--frost) — this hub's own, which is at :root under the same name, so this
+   block introduces no name that is not there. The list is dating's, class for
+   class. */
+[data-hub="realestate"] .tc-header {
+  background: var(--frost);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  backdrop-filter: blur(8px) saturate(120%);
+}
+/* THE RAIL IS A PANEL FLOATING ON THE SKY, NOT A WELL CUT INTO IT. Its keys
+   need nothing: --lens-face is already translucent white and carries its own
+   blur, and frost over them would paint out the lamp — which is the slate this
+   hub has always had, and which turns out to be the deep end of the very blue
+   the owner sent. Nothing to argue about for once. */
+[data-hub="realestate"] .tc-side { background: var(--frost); box-shadow: var(--e2); }
+[data-hub="realestate"] .card,
+[data-hub="realestate"] .stat,
+[data-hub="realestate"] .row,
+[data-hub="realestate"] .console,
+[data-hub="realestate"] .pcard,
+[data-hub="realestate"] table.tc,
+[data-hub="realestate"] .modal,
+[data-hub="realestate"] .sheet { background: var(--frost); }
+
+/* ── AND A LISTING PHOTOGRAPH DOES NOT FLOAT ───────────────────────────────
+   This hub is a wall of somebody's rooms, and a photograph is not a surface a
+   citizen reads off — it is the thing itself. Every image here paints its own
+   well from --media-bg or --shot-ground, both opaque and both declared in
+   tokens.css, so what is written here is the absence and not a rule. Fifth
+   time: beauty's bottles, astrology's letter, nutrition's fourteen sheets,
+   fitness's demonstrations, and now these. */
+
+/* ── MUTED INK NEVER SITS ON THE SKY ────────────────────────────────────────
+   IT IS DATING'S SHADOW-AND-RESTORE. Bare on this sky --muted runs 3.45 to
+   4.07 and --faint 3.02 to 3.56: it fails at every stop, which is unusual —
+   most skies in this city fail at one end and pass at the other, and this one
+   is uniformly just too dark for a mid grey. --ink at 12.61 and --ink-soft at
+   10.23 are safe everywhere, so the two that are not are pointed at --ink-soft
+   while they are out in the open and put back on every panel, where the .80
+   frost carries them at 5.23 and 4.58.
+
+   Custom properties inherit, so re-pointing the pair inside .tc-main reaches
+   every descendant, including the inline color: 'var(--muted)' a page sets
+   from a style object that no stylesheet could otherwise reach.
+
+   THE RAIL AND THE HEADER ARE OUTSIDE .tc-main, and that is correct rather
+   than an omission — both are panels, and both keep the city's greys. */
+[data-hub="realestate"] .tc-main { --muted: var(--ink-soft); --faint: var(--ink-soft); }
+[data-hub="realestate"] .card,
+[data-hub="realestate"] .stat,
+[data-hub="realestate"] .row,
+[data-hub="realestate"] .console,
+[data-hub="realestate"] .pcard,
+[data-hub="realestate"] table.tc,
+[data-hub="realestate"] .modal,
+[data-hub="realestate"] .sheet {
+  --muted: var(--on-paper-muted);
+  --faint: var(--on-paper-faint);
+}
+
+/* ── AND THE PREFERENCE THE SKY OWES BACK ───────────────────────────────────
+   A citizen who asked for less transparency is asking for surfaces to be
+   surfaces. The atmosphere goes and the frost becomes the white it was
+   standing in for. THE SHELL LAYER IS TURNED OFF BY NAME: `.tc-shell::before`
+   is unscoped, so clearing the picture on the hub element alone would leave
+   the fixed layer still showing it on every route but the landing. */
+@media (prefers-reduced-transparency: reduce) {
+  [data-hub="realestate"] { background-image: none; }
+  [data-hub="realestate"] .tc-shell::before { background-image: none; }
+  [data-hub="realestate"] .tc-header,
+  [data-hub="realestate"] .tc-side,
+  [data-hub="realestate"] .card,
+  [data-hub="realestate"] .stat,
+  [data-hub="realestate"] .row,
+  [data-hub="realestate"] .console,
+  [data-hub="realestate"] .pcard,
+  [data-hub="realestate"] table.tc,
+  [data-hub="realestate"] .modal,
+  [data-hub="realestate"] .sheet {
+    background: var(--card);
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+}
+
 /* ── THE PHONE DRAWER IS AN OBJECT, NOT A WINDOW ────────────────────────────
    On a desktop `.tc-side` is a COLUMN: it sits beside the page, nothing is
    behind it, and a translucent rail is free to take its tint from the sky the

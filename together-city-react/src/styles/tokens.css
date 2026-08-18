@@ -1227,6 +1227,61 @@
           inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
           0 1px 1px rgba(74,90,114,.30), 0 8px 20px rgba(74,90,114,.34), 0 20px 46px rgba(74,90,114,.22);
   --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
+
+  /* ── AND A SKY, ON DATING'S EXACT TERMS ──────────────────────────────────
+     Owner, 18 Aug: pale periwinkle with a pink-lilac glow warming the right of
+     the frame. Tenth hub, same machinery, and the instruction named dating,
+     which is the same four lines every hub since has used — --sky-image on the
+     hub element, fixed, panels in frost.
+
+     THE PINK IS A BLOB AND A GRADIENT IS AN AXIS. In the reference the warmth
+     gathers on the right at mid-height while the left edge stays blue top to
+     bottom; a linear sweep cannot hold a shape like that, so it is read on the
+     axis it most nearly has — blue at the left, through lilac to the pink at
+     74%, and easing back toward blue at the far edge so the warmth is a GLOW
+     inside the frame rather than a wall at the end of it. Second reference in
+     a row that is a lit object rather than a field, and the same reduction
+     applies: keep what one axis can carry and say what was dropped.
+
+     NOTHING IS LIFTED, WHICH IS WHY --frost MOVED INSTEAD — see below. Every
+     stop of this sky is used exactly as measured, because the city's ink is
+     safe on all of them: --ink 12.61 at the worst, --ink-soft 10.23.
+
+     NO GROUND: --ground, --paper, --card and --rail-well are untouched and
+     still the city's white. relief.spec's granted set still reads exactly
+     astrology/beauty/entertainment.
+
+     AND THE LAMP NEEDED NO ARGUMENT, for once. It has been #4a5a72 since the
+     hub had a key — a deep slate — and the sky the owner sent is the pale end
+     of that same blue. Dating's lamp had to move today because a terracotta
+     key sat in a hue its picture did not contain. This one was already the
+     picture's own colour, three months before the picture arrived. */
+  --sky-image: linear-gradient(100deg,
+    #aecceb 0%, #b2cbe9 20%, #bfcbe6 40%, #d2cee4 58%,
+    #e2d5e5 74%, #d8d2e6 88%, #bfcbe8 100%);
+
+  /* ── AND THE PANEL IS EIGHT HUNDREDTHS THICKER HERE ──────────────────────
+     .72 IS THE CITY'S FROST AND IT MISSES ON THIS ONE SKY BY 0.12. The blue
+     end is the deepest stop, and --faint on a .72 panel over it computes 4.40
+     against the 4.5 it owes. Three ways out and only one of them is free:
+     lighten the blue (the periwinkle is the hub's colour — it would have to go
+     to #c6ddf3 before the ink cleared, which is a different reference);
+     collapse --faint into --muted on panels (a rung of the ink scale, spent);
+     or make the panel itself slightly more opaque.
+
+     .80 IS NOT A NUMBER PICKED TO PASS. It is the value financial's block
+     already names — "muted on frost over the sage bottoms out at 3.48 and only
+     clears at .80 white" — where it was quoted as the reason financial could
+     NOT float its dense surfaces. Here it is the reason this hub can: the same
+     figure, doing the opposite job, because this sky starts 0.24 luminance
+     higher than that one. On .80 --muted reads 5.23 at the worst stop and
+     --faint 4.58, and the reference survives untouched.
+
+     THE TWO SCRIMS COME WITH IT AND SHOULD. .modal-ov and .sheet-ov dim with
+     --frost, and in a light room a slightly more opaque white dim is a
+     slightly better dim. This is the opposite of entertainment's case, where
+     frost had to invert and the scrims had to be pulled off it by name. */
+  --frost: rgba(255,255,255,.80);
 }
 [data-hub="jobs"] {
   --lamp-face: linear-gradient(180deg, #765f36 0%, #5c4a2a 44%, #463820 100%);
