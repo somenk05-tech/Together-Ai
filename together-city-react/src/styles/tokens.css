@@ -1335,6 +1335,40 @@
           inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
           0 1px 1px rgba(122,74,52,.30), 0 8px 20px rgba(122,74,52,.34), 0 20px 46px rgba(122,74,52,.22);
   --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
+
+  /* ── AND A SKY, WHICH IS THE PALEST ONE IN THE CITY ──────────────────────
+     Owner, 18 Aug: a chrome ribbon turning through a near-white field —
+     silver-blue, a warm gold where the light catches the inside of the curve,
+     and four-fifths of the frame simply pale. Ninth hub, same machinery:
+     --sky-image, `none` at :root and in every hub that hangs nothing on it.
+
+     A GRADIENT CANNOT BE A RIBBON, AND IT SHOULD NOT TRY. This is the first
+     reference that is an OBJECT rather than a field, and the honest reduction
+     is to keep what a linear sweep can actually carry: the field, its cool
+     shade where the ribbon turns away, and the warm note where it catches.
+     Chasing the S-curve would mean a photograph, and a photograph in this hub
+     costs the two things the whole file is organised to keep — colour living
+     in tokens.css, and a background with no aspect ratio to crop.
+
+     THE WARM STOP IS THE ONE DECISION WORTH DEFENDING. #ddd6cf sits at 64%,
+     between two cool stops and at the same luminance as the cool shade before
+     it (0.639 against 0.643, which is why it reads as a turn of the light
+     rather than as a band). Take it out and this is a grey gradient; the gold
+     is the only thing in the reference that says metal rather than paper.
+
+     NO GROUND, and this hub is the easiest case for it in the city: the sky is
+     so pale that --ink reads 14.57 at its worst stop and --ink-soft 11.83. The
+     city's white is still the ground, still under everything, and the picture
+     is a shade of it.
+
+     --muted AND --faint ARE THE WHOLE COST. They run 3.98 and 3.49 at the two
+     shaded stops — the ONLY thing on this sky that fails, and it fails by a
+     hair rather than by a mile, which is the version of this that ships
+     unnoticed. On frost they clear at 5.21 and 4.56. Dating's
+     shadow-and-restore, in relief.css. */
+  --sky-image: linear-gradient(135deg,
+    #f1f3f6 0%, #e9edf2 18%, #dde4ec 34%, #cfd8e2 50%,
+    #ddd6cf 64%, #e2e7ec 78%, #eef1f5 100%);
 }
 [data-hub="profile"] {
   --lamp-face: linear-gradient(180deg, #5f5f69 0%, #4a4a52 44%, #38383e 100%);

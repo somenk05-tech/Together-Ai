@@ -5193,6 +5193,119 @@ textarea.g-field { resize: none; line-height: 1.55; }
   }
 }
 
+/* ══ THE HIGH STREET GETS A SHEET OF CHROME ═════════════════════════════════
+   NINTH HUB, SAME FOUR LINES, AND THE PALEST SKY IN THE CITY. --sky-image on
+   the hub's own element, fixed; body, shell, main and page out of the way so
+   the fixed layer can be seen.
+
+   IT IS THE FIRST REFERENCE THAT IS AN OBJECT. Eight skies in, every one has
+   been a field — a dusk, a dawn, a sage, a sheet, a black. This one is a
+   chrome ribbon turning through a near-white frame, and a linear gradient
+   cannot be a ribbon. What it can carry is the field the ribbon lies in, the
+   cool shade where the curve turns away, and the warm catch on its inside
+   edge; the argument for stopping there rather than reaching for a photograph
+   is in tokens.css and it is the same argument dating made about its JPEG.
+
+   AND THE LAMP STAYS TERRACOTTA, WHICH IS A DECISION AND NOT AN OVERSIGHT.
+   Dating's peach key moved today because it was warm against a picture with no
+   warmth in it. This picture HAS warmth — the gold on the inside of the curve
+   is the second thing anyone sees in it — so a bronze key here is a note the
+   room already plays rather than one imported into it. The rule that came out
+   of dating is not "lamps follow skies", it is "a lamp must not be the only
+   hue on the screen".
+
+   BODY IS THE LOAD-BEARING LINE: a negative-z-index fixed layer paints below
+   the background of an in-flow block, so an opaque body is a lid on the sky. */
+[data-hub="services"] { background-image: var(--sky-image); background-attachment: fixed; }
+[data-hub="services"] body,
+[data-hub="services"] .tc-shell,
+[data-hub="services"] .tc-main,
+[data-hub="services"] .page { background: transparent; }
+
+/* ── AND EVERY SURFACE THAT HOLDS TEXT GOES TRANSLUCENT, NOT AWAY ───────────
+   var(--frost), the root's own translucent white, and nothing else: a hub block
+   may not introduce a name that is not at :root, and this one introduces none.
+   The list is dating's, class for class.
+
+   THE FROST IS DOING LESS WORK HERE THAN ANYWHERE, and that is the honest
+   description of a near-white sky: a 72% white panel over a stop that is
+   already 0.64 luminance is a small step, not a slab. What makes a panel read
+   in this hub is the DEPTH — the rim and the shadow the five elevations carry —
+   with the frost holding the small difference in tint. That is the same
+   division of labour the monochrome argument at the top of this file makes,
+   arriving in the one hub pale enough to need it. */
+[data-hub="services"] .tc-header {
+  background: var(--frost);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  backdrop-filter: blur(8px) saturate(120%);
+}
+/* THE RAIL IS A PANEL FLOATING ON THE SKY, NOT A WELL CUT INTO IT. Its keys
+   need nothing: --lens-face is already translucent white and carries its own
+   blur, and frost over them would paint out the lamp. */
+[data-hub="services"] .tc-side { background: var(--frost); box-shadow: var(--e2); }
+[data-hub="services"] .card,
+[data-hub="services"] .stat,
+[data-hub="services"] .row,
+[data-hub="services"] .console,
+[data-hub="services"] .pcard,
+[data-hub="services"] table.tc,
+[data-hub="services"] .modal,
+[data-hub="services"] .sheet { background: var(--frost); }
+
+/* ── MUTED INK NEVER SITS ON THE SKY ────────────────────────────────────────
+   IT IS DATING'S SHADOW-AND-RESTORE, AND HERE IT CATCHES THE NARROWEST MISS IN
+   THE CITY. --muted reads 3.98 at the two shaded stops and --faint 3.49 —
+   under AA, but by a hair rather than by a mile, which is precisely the version
+   that ships unnoticed. Every other failure this apparatus has caught was
+   obvious once measured (1.39 on entertainment's old slate, 1.09 in fitness's
+   trough); this one looks fine on any screen anybody will check it on. --ink at
+   14.57 and --ink-soft at 11.83 are safe everywhere, so the two that are not
+   are pointed at --ink-soft while they are out in the open and put back on
+   every panel, where they clear at 5.21 and 4.56.
+
+   Custom properties inherit, so re-pointing the pair inside .tc-main reaches
+   every descendant — className="muted", which this hub uses a hundred and five
+   times, most of them inside an inline style object no stylesheet could reach.
+
+   THE RAIL AND THE HEADER ARE OUTSIDE .tc-main, and that is correct rather
+   than an omission — both are panels, and both keep the city's greys. */
+[data-hub="services"] .tc-main { --muted: var(--ink-soft); --faint: var(--ink-soft); }
+[data-hub="services"] .card,
+[data-hub="services"] .stat,
+[data-hub="services"] .row,
+[data-hub="services"] .console,
+[data-hub="services"] .pcard,
+[data-hub="services"] table.tc,
+[data-hub="services"] .modal,
+[data-hub="services"] .sheet {
+  --muted: var(--on-paper-muted);
+  --faint: var(--on-paper-faint);
+}
+
+/* ── AND THE PREFERENCE THE SKY OWES BACK ───────────────────────────────────
+   A citizen who asked for less transparency is asking for surfaces to be
+   surfaces. The atmosphere goes and the frost becomes the white it was
+   standing in for. THE SHELL LAYER IS TURNED OFF BY NAME: `.tc-shell::before`
+   is unscoped, so clearing the picture on the hub element alone would leave
+   the fixed layer still showing it on every route but the landing. */
+@media (prefers-reduced-transparency: reduce) {
+  [data-hub="services"] { background-image: none; }
+  [data-hub="services"] .tc-shell::before { background-image: none; }
+  [data-hub="services"] .tc-header,
+  [data-hub="services"] .tc-side,
+  [data-hub="services"] .card,
+  [data-hub="services"] .stat,
+  [data-hub="services"] .row,
+  [data-hub="services"] .console,
+  [data-hub="services"] .pcard,
+  [data-hub="services"] table.tc,
+  [data-hub="services"] .modal,
+  [data-hub="services"] .sheet {
+    background: var(--card);
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+}
+
 /* ── THE PHONE DRAWER IS AN OBJECT, NOT A WINDOW ────────────────────────────
    On a desktop `.tc-side` is a COLUMN: it sits beside the page, nothing is
    behind it, and a translucent rail is free to take its tint from the sky the
