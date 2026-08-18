@@ -8,7 +8,6 @@ import { useConnectionSync } from '@/api/connections.api';
 import { CookRoot } from '@/features/nutrition/components/CookMode';
 import { NotificationToaster } from './NotificationToaster';
 import { CityDrawer } from './CityDrawer';
-import { MiraDock } from './MiraDock';
 import { VerifyEmailBanner } from '@/features/auth/VerifyEmailBanner';
 
 /** Root layout for full-width hub landings & the city home. */
@@ -32,7 +31,14 @@ export function AppShell() {
       <CityDrawer /> {/* the burger's door on pages without a hub rail */}
       <main className="tc-main" style={isChat ? { minHeight: 0, overflow: 'hidden' } : undefined}><Outlet /></main>
       {!isChat && <Footer />}
-      <MiraDock /> {/* her mark on every page; a press pops the chat up over it */}
+      {/* MIRA IS NOT MOUNTED HERE ANY MORE, and the comment that used to sit on
+          this line is why: "her mark on every page" was true of this subtree
+          and false of the application. AppShell is one of nineteen top-level
+          route blocks; every hub INNER page is a HubLayout sibling of it, so
+          the dock reached the landings and none of the rooms. She is mounted
+          once in RootChrome now, above all nineteen — the third time this
+          codebase has had to lift something out of this exact file, after
+          CallCenter and the zoom guard. */}
       <CookRoot /> {/* guided cook overlay + background timer — only renders while cooking */}
       <NotificationToaster /> {/* app-wide live toasts for notifications + chat */}
     </>

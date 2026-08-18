@@ -1,6 +1,7 @@
 import { lazy } from 'react';
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate, type RouteObject } from 'react-router-dom';
 import { AppShell } from '@/layouts/AppShell';
+import { RootChrome } from '@/layouts/RootChrome';
 import { HubLayout } from '@/layouts/HubLayout';
 import { HUBS } from '@/config/hubs';
 import { REMOVED_ROUTES } from '@/config/labels';
@@ -176,7 +177,12 @@ const wrap = (el: JSX.Element) => <ChunkBoundary>{el}</ChunkBoundary>;
  * live under a HubLayout (sidebar). Nutrition is fully migrated as the reference;
  * other inner routes are migrated one at a time, following the same pattern.
  */
-export const router = createBrowserRouter([
+/**
+ * THE ROUTE BLOCKS, AS THEY HAVE ALWAYS BEEN — and now a list rather than the
+ * router itself, so that one root route can sit above all nineteen of them.
+ * See RootChrome for what that root is for and why it had to exist.
+ */
+const ROUTE_BLOCKS: RouteObject[] = [
   {
     element: <AppShell />,
     children: [
@@ -541,4 +547,14 @@ export const router = createBrowserRouter([
   // The 404 renders INSIDE the app shell (consumer review #8): full header,
   // menu and search — a wrong turn, not a locked exit.
   { element: <AppShell />, children: [{ path: '*', element: wrap(<NotFound />) }] },
+];
+
+/**
+ * ONE ROOT, ABOVE EVERY BLOCK. RootChrome renders an Outlet and the chrome that
+ * is true of the whole application rather than of one layout — today that is
+ * Mira's door. Adding a twentieth route block below costs nothing and cannot
+ * lose her, which is the entire point of the wrapper.
+ */
+export const router = createBrowserRouter([
+  { element: <RootChrome />, children: ROUTE_BLOCKS },
 ]);
