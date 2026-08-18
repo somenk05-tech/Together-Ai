@@ -3820,22 +3820,27 @@ textarea.g-field { resize: none; line-height: 1.55; }
 }
 
 /* ══ THE BEAUTY WALL ════════════════════════════════════════════════════════
-   THE WALL IS WHITE. It was the owner's backdrop photograph — near-black,
-   grained, lit from up and to the left — until the owner said otherwise. What
-   did not change is the relationship this whole section is about: the prints
-   hang ON the ground, every plate, card, photograph and field stays cream, and
-   the edge between the two is what makes a plate read as a plate. The value
-   moved; the two materials did not become one. See tokens.css for the argument.
+   THE WALL IS A DAWN. It was the owner's backdrop photograph — near-black,
+   grained, lit from up and to the left — then it was white, and this morning it
+   is a gradient sky. What did not change across all three is the relationship
+   this whole section is about: the prints hang ON the ground, and the edge
+   between the two is what makes a plate read as a plate. What DID change today
+   is what the print is made of. It was cream, then white, and it is frost now —
+   thin enough for the atmosphere to carry through it, which is the whole
+   difference between a panel and a hole. The two materials still did not become
+   one. See tokens.css for the argument and for the numbers.
 
-   THE SHELL STAYS TRANSPARENT. It is three lines social needs anyway, and with
-   --sky-image back at its `none` the fixed layer simply paints the ground —
-   which is the colour that would have been there regardless. Unpicking it would
-   be a change to a mechanism another hub is using, in order to remove nothing.
+   AND THE THREE TRANSPARENT LINES BELOW STOPPED BEING SPARE PARTS. They were
+   social's mechanism, left standing here while --sky-image sat at `none` and the
+   fixed layer painted nothing but the ground. tokens.css hangs a dawn on that
+   token now, so the same layer carries a picture — and those lines are the only
+   reason it can be seen.
 
    AND THE INK SCALE IS STILL RE-POINTED ON THE PAGE, NOT ON THE HUB. This is
-   the part worth reading, and it is worth reading MORE now than it was, because
-   today the two scales resolve to the same greys and the whole apparatus below
-   looks like it does nothing.
+   the part worth reading, and the sky has just made it earn its keep again. For
+   one repaint the two scales resolved to the same greys and the apparatus below
+   looked like it did nothing; they part company again the moment the page's two
+   greys are shadowed for the atmosphere, three rules down.
 
    It does not do nothing; it is the reason the ground could be repainted this
    morning by editing two declarations. Custom properties inherit, so
@@ -3850,24 +3855,83 @@ textarea.g-field { resize: none; line-height: 1.55; }
    The alternative was auditing four pages by eye for anything not inside a
    card, which is a job that is never finished: the next component somebody adds
    to a beauty page looks fine in review, because whoever writes it has the card
-   they were working in on screen. That was true when the wall was black and it
-   will be true again the day it is anything but white. DO NOT COLLAPSE THIS
-   BECAUSE THE TWO LISTS CURRENTLY AGREE. */
-[data-hub="beauty"] body { background: transparent; }
-/* THE RAIL IS FURNITURE IN THE ROOM, NOT A HOLE IN THE WALL. It stayed the
-   city's white while every surface beside it went cream, so the one permanent
-   object on screen was the one object that did not belong to the hub. Its ink
-   is already the paper's, from the list below; this is the face. */
-[data-hub="beauty"] .tc-side { background: var(--card); }
+   they were working in on screen. That was true when the wall was black, it was
+   true while it was white, and it is true again now that it is a sky. DO NOT
+   COLLAPSE THIS — AND THE TWO LISTS DO NOT EVEN AGREE ANY MORE. */
+/* AND THE HUB'S OWN ELEMENT CARRIES THE SAME PICTURE, because the landing has
+   no shell to hang one off. `/beauty` is a HubLanding under AppShell — header,
+   main, footer, and no `.tc-shell` for `::before` to exist on — so the one box
+   every route in this hub shares is the element the hub attribute is set on. On
+   the five inner routes it is simply the colour that layer would have put there
+   anyway.
+
+   BODY IS THE ONE THAT IS EASY TO MISS AND IT IS THE LOAD-BEARING ONE. A
+   negative-z-index fixed layer paints BELOW the background of an in-flow block,
+   so an opaque body is a lid on the sky no matter what the shell above it does.
+   Dating shipped a sky that could be seen on exactly one page for that reason,
+   and the lesson is cheaper to inherit than to learn twice. */
+[data-hub="beauty"] { background-image: var(--sky-image); background-attachment: fixed; }
+[data-hub="beauty"] body,
 [data-hub="beauty"] .tc-shell,
 [data-hub="beauty"] .tc-main,
 [data-hub="beauty"] .page { background: transparent; }
 
+/* ── AND EVERY SURFACE GOES TRANSLUCENT, NOT AWAY ───────────────────────────
+   var(--frost), the root's own translucent white, and nothing else: a hub block
+   may not introduce a name that is not at :root, and this one introduces none.
+   A surface a citizen reads off cannot become transparent — it can only become
+   thin enough for the atmosphere to carry through it.
+
+   AND THIS HUB FLOATS ALL OF IT, WHERE FINANCIAL COULD FLOAT ONLY ITS CHROME.
+   The number is in tokens.css and it is the whole difference: muted ink on
+   frost over THIS sky clears at every stop, where on the sage sky it bottomed
+   out at 3.48 and the dense tables had to stay on paper. Nothing is left behind
+   on white here but the photographs' own wells, and a well is not a surface —
+   see the note at the foot of this section. */
+[data-hub="beauty"] .tc-header {
+  background: var(--frost);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  backdrop-filter: blur(8px) saturate(120%);
+}
+/* THE RAIL IS A PANEL FLOATING ON THE SKY, NOT A WELL CUT INTO IT. It was made
+   the city's white while every surface beside it went cream, so that the one
+   permanent object on screen belonged to the hub; against an atmosphere that
+   same white slab reads as something pasted over the picture instead. Same
+   rail, same radius: the light comes off it now instead of into it. Its FACE is
+   on the list below with every other floating surface — one list, so the rail
+   cannot drift from the cards it stands beside — and this is the lift.
+
+   ITS KEYS NEED NOTHING, which is dating's finding and holds here for dating's
+   reason: --lens-face is already translucent white and already carries its own
+   blur, so the sky arrives through the rows the moment the solid well behind
+   them stops blocking it. Frost over them would also paint over the lamp, which
+   is the one lit object in the room and the city's wayfinding in all
+   twenty-five. */
+[data-hub="beauty"] .tc-side { box-shadow: var(--e2); }
+
+/* ── MUTED INK NEVER SITS ON THE SKY ────────────────────────────────────────
+   THE TWO GREYS GO INTO SHADOW HERE AND COME BACK ON EVERY SURFACE. Bare on
+   this sky --muted runs 3.75–5.32 and --faint 3.43–4.86: the same grey passing
+   where the page begins and failing where it ends, which is the worst kind of
+   failure because it looks right to whoever writes it, who has a card on screen
+   while they work. --ink at 10.89 and --ink-soft at 8.17 are safe anywhere on
+   it, so the two that are not are pointed at --ink-soft for as long as they are
+   out in the open.
+
+   IT IS DATING'S SHADOW-AND-RESTORE, TAKEN WHOLE. Custom properties inherit, so
+   re-pointing the pair inside `.tc-main` reaches every descendant —
+   `className="muted"`, and the inline `color: 'var(--muted)'` a page sets from a
+   style object no stylesheet could otherwise reach. Not one .tsx is edited to do
+   it, which is the point: the rule holds for the page nobody has written yet.
+   The list below puts the paper's pair back under names that were not shadowed.
+
+   THE HEADER IS OUTSIDE .tc-main, and that is correct rather than an omission —
+   it is a panel, and it keeps the hub's greys. */
 [data-hub="beauty"] .tc-main {
   --ink:      var(--on-ground);
   --ink-soft: var(--on-ground-soft);
-  --muted:    var(--on-ground-muted);
-  --faint:    var(--on-ground-muted);
+  --muted:    var(--ink-soft);
+  --faint:    var(--ink-soft);
   color: var(--on-ground);
 }
 /* Every lit surface, and the list is the point: a surface missing from it is a
@@ -3888,6 +3952,11 @@ textarea.g-field { resize: none; line-height: 1.55; }
    will take. It will look perfect right until the ground moves again, and then
    it is a fresh instance of exactly the bug above, shipped by somebody who
    checked. */
+/* AND IT IS ONE LIST, CARRYING THE FACE AND THE INK TOGETHER. The frost could
+   have been written as a second list of the same eight names beside this one.
+   Two lists of the same classes is two lists that disagree the first time one is
+   nudged — the sentence tokens.css makes about the ink scale, arriving here. A
+   surface floats and restores in the same breath, or it does neither. */
 [data-hub="beauty"] .card,
 [data-hub="beauty"] .beauty-plate,
 [data-hub="beauty"] .beauty-sheet,
@@ -3895,7 +3964,14 @@ textarea.g-field { resize: none; line-height: 1.55; }
 [data-hub="beauty"] .routine-card,
 [data-hub="beauty"] .modal,
 [data-hub="beauty"] .sheet,
-[data-hub="beauty"] .tc-side,
+[data-hub="beauty"] .tc-side {
+  background: var(--frost);
+  --ink:      var(--on-paper);
+  --ink-soft: var(--on-paper-soft);
+  --muted:    var(--on-paper-muted);
+  --faint:    var(--on-paper-faint);
+  color: var(--ink);
+}
 /* A CONTROL IS A LIT SURFACE TOO, which is the third time this list has been
    the answer and the first time it has been about something other than a card.
    An outline button, a select and a text field all paint themselves in --paper
@@ -3903,7 +3979,14 @@ textarea.g-field { resize: none; line-height: 1.55; }
    near-white and the button read as empty. Measured on the live Market page:
    the sort control's face was rgb(231,222,209) and its text rgb(237,233,226).
    .btn-loud and .btn-accent are deliberately NOT here — those are black faces
-   that set their own --on-loud, and dark ink would erase them instead. */
+   that set their own --on-loud, and dark ink would erase them instead.
+
+   AND THE FOUR OF THEM TAKE THE INK WITHOUT TAKING THE FROST, which is why they
+   are a rule of their own rather than four more names on the list above. Every
+   one of them sits INSIDE a card that is already frost, and §12's rule is that a
+   light translucent surface never stands on another one: a thin field on a thin
+   panel is two veils and no edge, and the field stops reading as somewhere you
+   can type. */
 [data-hub="beauty"] .btn-line,
 [data-hub="beauty"] select,
 [data-hub="beauty"] input,
@@ -3913,6 +3996,45 @@ textarea.g-field { resize: none; line-height: 1.55; }
   --muted:    var(--on-paper-muted);
   --faint:    var(--on-paper-faint);
   color: var(--ink);
+}
+
+/* ── AND THE ONE SURFACE THAT DOES NOT FLOAT ────────────────────────────────
+   --shot-ground stays the opaque studio white it has always been, and there is
+   deliberately no rule here turning it into frost. Every product photograph in
+   this hub is hotlinked from a retailer and every one was lit on a white
+   seamless, most of them cut out; a translucent well behind a cut-out bottle is
+   a dawn showing through glass the bottle was never photographed against. The
+   well is not a surface a citizen reads off — it is the rest of the picture, and
+   a picture does not float. It is declared in tokens.css and spent in
+   layout.css, which is why what is written here is the absence and not a rule. */
+
+/* ── AND THE PREFERENCE THE SKY OWES BACK ───────────────────────────────────
+   A citizen who asked for less transparency is asking for surfaces to be
+   surfaces. The atmosphere goes and the frost becomes the paper it was standing
+   in for — which is the job --ground, --paper, --card and --wash are still
+   declared for, one hub block over in tokens.css. This is the room they
+   describe, and it is the room this hub shipped yesterday.
+
+   THE SHELL LAYER IS TURNED OFF BY NAME. `.tc-shell::before` is unscoped — it
+   paints --sky-image for whichever hub hangs something on it — so clearing the
+   picture on the hub element alone would leave the fixed layer still showing it
+   on every route that has a shell, which is all of them but the landing. Its
+   --ground background-colour stays, so what is left is the wall. */
+@media (prefers-reduced-transparency: reduce) {
+  [data-hub="beauty"] { background-image: none; }
+  [data-hub="beauty"] .tc-shell::before { background-image: none; }
+  [data-hub="beauty"] .tc-header,
+  [data-hub="beauty"] .tc-side,
+  [data-hub="beauty"] .card,
+  [data-hub="beauty"] .beauty-plate,
+  [data-hub="beauty"] .beauty-sheet,
+  [data-hub="beauty"] .beauty-leaf-open,
+  [data-hub="beauty"] .routine-card,
+  [data-hub="beauty"] .modal,
+  [data-hub="beauty"] .sheet {
+    background: var(--card);
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
 }
 
 /* ═══ THE FOOD PREFERENCE PROFILE PRINTS ON TUESDAY'S SHEET ══════════════════

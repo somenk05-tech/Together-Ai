@@ -1997,7 +1997,15 @@
      resolve to the same value today and both stay declared, for the reason the
      three ground inks stay declared below: two materials that happen to agree
      on a value have not become one material, and collapsing them is how a hub
-     loses the machinery it needs the next time somebody changes their mind. */
+     loses the machinery it needs the next time somebody changes their mind.
+
+     AND SINCE THE SKY ARRIVED THEY HAVE A SECOND JOB: THEY ARE THE HONEST
+     FALLBACK. Everything a citizen reads in this hub now floats in frost on
+     the gradient declared below, so what these four describe is the room with
+     the atmosphere switched off — which is exactly what somebody asking for
+     prefers-reduced-transparency is asking for. They break nothing by staying
+     declared, because this hub is on relief.spec's granted list already; they
+     were the ground, and they are now also the answer to a preference. */
   --ground: #e8eaed;
   --paper:  #ffffff;
   --card:   #ffffff;
@@ -2011,11 +2019,50 @@
      was written to prevent, arriving from the other side. */
   --line:      #dee2e7;
 
+  /* ── THE SKY, AND THIS TIME EVERYTHING FLOATS ON IT ────────────────────
+     Owner, 18 Aug: the beauty rooms sit inside a dawn — pale blue overhead,
+     warming through cream to peach, then rose and lilac, and back to pale blue
+     at the foot. It is dating's mechanism, taken the same week and on purpose:
+     it rides --sky-image, which is `none` at :root and in every hub that hangs
+     nothing on it, so the one fixed layer every sky in the city already uses
+     paints this one too. No second machinery, and no fourth ground grant —
+     this hub has had its ground since the gallery wall, and the sky does not
+     touch it.
+
+     A GRADIENT RATHER THAN A PHOTOGRAPH, for dating's two reasons: colour
+     lives in this file, which is the rule the whole stylesheet is organised
+     around, and a gradient has no aspect ratio, so it cannot be cropped or
+     letterboxed at any viewport the city is opened at.
+
+     AND NOTHING HAD TO BE HELD BACK THIS TIME, WHICH IS A MEASUREMENT AND NOT
+     A NERVE. Bare on this sky the hub's own ink reads 10.89:1 at its worst
+     stop and ink-soft 8.17:1, so both are safe anywhere on it — no held head
+     for the breadcrumb, the way dating had to hold one, and no whole gradient
+     lifted off its reference, the way financial's was. --muted runs 3.75–5.32
+     across the same sweep and --faint 3.43–4.86: the SAME grey passing where
+     the page begins and failing where it ends, which is the worst kind of
+     failure because it looks right to whoever writes it. So those two are NOT
+     safe bare. On a frost panel at the city's own --frost every stop clears —
+     muted 5.17 at its worst, faint 4.72.
+
+     THAT ONE NUMBER IS WHY BEAUTY CAN FLOAT EVERYTHING AND FINANCIAL COULD
+     NOT. On the sage sky the same panel bottomed out at 3.48 and the tables
+     had to stay on paper. Here the panel clears at every stop, so every
+     surface in the hub can go translucent and nothing is left behind on white
+     to explain itself. The rule that follows — MUTED INK NEVER SITS ON THE
+     SKY — is written where it is enforced, in relief.css. */
+  --sky-image: linear-gradient(180deg,
+    #bcd4e7 0%, #cfe0ec 18%, #f4eddd 42%, #f0d5c4 62%,
+    #e2c8cf 78%, #cdc6dc 90%, #bcd0e4 100%);
+
   /* The seamless the merchandise was photographed on, and the one value here
      that is a photographic fact rather than a taste decision: these bottles
      were lit on white by a retailer. It stays declared even though the card is
      now the same white, because the day the print moves again the well must
-     not move with it. */
+     not move with it. AND THE SKY MADE IT LOAD-BEARING AGAIN THE SAME DAY: it
+     is the one surface in the hub that does not go translucent, because a
+     cut-out bottle over a thin well is a bottle with a dawn showing through
+     the glass it was never photographed against. */
   --shot-ground: #ffffff;
 
   /* ── THE INK ON THE WALL ─────────────────────────────────────────────────

@@ -365,19 +365,31 @@ describe('the beauty hub prints on its own paper', () => {
     // local harness restored the ink by hand. A surface class missing from
     // this list is that bug again.
     const relief = read('styles/relief.css');
-    const list = relief.slice(relief.indexOf('[data-hub="beauty"] .card,'));
+    // THE LIST IS TWO RULES NOW, AND THIS READS BOTH. The sky split it: a
+    // surface both FLOATS and restores, a control only restores — a carved
+    // field on a translucent panel is two veils and no edge — so the frost
+    // could not be written onto one selector list without either frosting the
+    // fields or naming eight classes twice. What is pinned here is the
+    // invariant, which has not moved: every lit surface puts the paper's ink
+    // back. Found by what a rule DOES rather than by where one starts, so the
+    // next split does not have to come back and edit this line.
+    const code = relief.replace(/\/\*[\s\S]*?\*\//g, ' ');
+    const list = [...code.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+      .filter(([, sel, body]) => /\[data-hub="beauty"\]/.test(sel)
+        && /--muted:\s*var\(--on-paper-muted\)/.test(body))
+      .map(([, sel]) => sel).join(',');
     // Controls joined the list after the live Market page was measured: the
     // sort select's face was cream and its label near-white. A form control is
     // a lit surface exactly like a card, and it is the kind of thing nobody
     // thinks of as a "surface" until it is invisible.
     for (const cls of ['.beauty-plate', '.beauty-sheet', '.beauty-leaf-open', '.routine-card',
                        '.btn-line', 'select', 'input', 'textarea']) {
-      expect(list.slice(0, list.indexOf('{'))).toContain(`[data-hub="beauty"] ${cls}`);
+      expect(list).toContain(`[data-hub="beauty"] ${cls}`);
     }
     // …and the loud button must stay OUT of it: it is a black face with its own
     // foreground, and the paper's ink would erase its label instead of saving it.
     for (const cls of ['.btn-loud', '.btn-accent']) {
-      expect(list.slice(0, list.indexOf('{'))).not.toContain(`[data-hub="beauty"] ${cls}`);
+      expect(list).not.toContain(`[data-hub="beauty"] ${cls}`);
     }
   });
 
@@ -494,8 +506,17 @@ describe('the beauty hub prints on its own paper', () => {
     }
   });
 
-  it('gives the rail the hub own paper', () => {
+  it('floats the rail on the sky instead of cutting a well into it', () => {
     const relief = read('styles/relief.css');
-    expect(relief).toMatch(/\[data-hub="beauty"\] \.tc-side \{ background: var\(--card\); \}/);
+    // IT WAS `background: var(--card)`, AND THAT WAS RIGHT ON A WALL. The rail
+    // was the one permanent object on screen and it had to belong to the hub,
+    // so it took the hub's paper while every surface beside it went cream.
+    // The wall is a sky now, and a solid white slab standing on an atmosphere
+    // is something pasted over the picture. Its FACE moved onto the hub's one
+    // surface list with every other floating panel — checked by the test
+    // above, which reads that list — and what is pinned here is the half that
+    // is only about the rail: it is lit from outside now rather than carved in.
+    expect(relief).toMatch(/\[data-hub="beauty"\] \.tc-side \{ box-shadow: var\(--e2\); \}/);
+    expect(relief).not.toMatch(/\[data-hub="beauty"\] \.tc-side \{ background: var\(--card\); \}/);
   });
 });
