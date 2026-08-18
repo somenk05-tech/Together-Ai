@@ -1164,6 +1164,41 @@
           inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
           0 1px 1px rgba(45,99,87,.30), 0 8px 20px rgba(45,99,87,.34), 0 20px 46px rgba(45,99,87,.22);
   --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
+
+  /* ── AND A SKY, IN BEAUTY'S MANNER ───────────────────────────────────────
+     Owner, 18 Aug, with an astronomy poster: pale mauve-pink at the head,
+     falling through to a slate blue in the middle, and rising back to the same
+     pink at the foot. Eighth hub, same machinery: it rides --sky-image, `none`
+     at :root and in every hub that hangs nothing on it.
+
+     IT IS A SWEEP THAT RETURNS, WHICH IS BEAUTY'S SHAPE AND NOT DATING'S. The
+     instruction was to match beauty, and the reference happens to be built the
+     way beauty's dawn is: it leaves a colour, travels, and comes back to it.
+     That is why both read as a room with light in it rather than as a surface
+     tilted from one colour to another — the eye finds the same value at the
+     top and the bottom of a scroll and reads the middle as depth. Dating,
+     financial, nutrition and medical all run one way and stop.
+
+     AND NO GROUND, for the reason nutrition's block gives at length: --ground,
+     --paper, --card and --rail-well are untouched and still the city's white.
+     relief.spec's granted set still reads exactly astrology/beauty/
+     entertainment.
+
+     THE TROUGH IS LIFTED AND THE TWO PINK ENDS ARE VERBATIM. This hub reads
+     the city's black ink and the reference's slate bottoms at #5d6d87 — --ink
+     4.00, --ink-soft 3.25, both under AA across the middle third, which is
+     where a scrolled page spends most of its time. Financial's correction,
+     fourth time: the slate climbs to #778cad and the pinks are used exactly as
+     measured, because they were never the problem. Worst stop: --ink 6.14,
+     --ink-soft 4.98.
+
+     --muted AND --faint ARE NOT SAFE ANYWHERE ON IT — 3.51 at the palest pink,
+     1.68 in the trough — so they take dating's shadow-and-restore in
+     relief.css. The reference is pale and they still fail on it, which is the
+     tell that this pink is a mid-value colour wearing a light one's clothes. */
+  --sky-image: linear-gradient(180deg,
+    #dcc4cf 0%, #c8b4c4 14%, #a6a3b8 30%, #8792ae 48%,
+    #778cad 60%, #9096b0 76%, #b3a8bd 88%, #d5bfcd 100%);
 }
 [data-hub="family"] {
   --lamp-face: linear-gradient(180deg, #4e893c 0%, #3d6b2f 44%, #2e5124 100%);
@@ -1497,6 +1532,36 @@
   --faint:      #5f5a52;   /*  5.60:1 */
   --accent-ink: #1c1c1c;   /* 13.9:1 */
 
+  /* ── AND THE LAMP FINALLY LEAVES THE ORANGE ──────────────────────────────
+     This hub argued about the lamp twice and kept it both times, and the
+     second argument was explicitly the owner's: the orange IS the wayfinding,
+     twenty-five rooms and the lit key says which one you are standing in
+     without being read. That held while the room was night, where an orange
+     key was the one warm thing in a black box.
+
+     THE SHEET IS WHAT CHANGES IT. This room is a pale warm surface with black
+     type and no hue in it at all, and an orange lozenge on that is not
+     furniture — it is the most saturated object on the screen by a distance,
+     and the eye lands on the navigation instead of on the letter. That is the
+     sentence entertainment made for its green and the spec accepted, and it is
+     true here for the first time.
+
+     A WARM STONE RATHER THAN A CHARCOAL, because the sheet is warm and a
+     neutral grey key on it reads blue. #55514a is the sheet's own greige taken
+     down until white sits on it at 7.89:1 — 5.80:1 once the lamp's bottom
+     highlight lifts it, which is the number that counts.
+
+     --on-lamp IS DECLARED RATHER THAN INHERITED. It resolves to :root's white
+     either way; writing it is what the spec's face-and-ink clause asks for,
+     and the clause is right — a lamp whose face moved and whose label did not
+     is white type on a white pill. */
+  --lamp-face: linear-gradient(180deg, #6b665e 0%, #55514a 44%, #413e38 100%);
+  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
+          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
+          0 1px 1px rgba(85,81,74,.30), 0 8px 20px rgba(85,81,74,.34), 0 20px 46px rgba(85,81,74,.22);
+  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
+  --on-lamp: #ffffff;
+
   /* ── THE SKY, AND IT IS A SHEET OF LIGHT RATHER THAN A SKY ─────────────
      Owner, 18 Aug, with a reference: not a colour so much as a lit surface —
      near-white through a diagonal band running top-left to bottom-right, warm
@@ -1745,6 +1810,57 @@
   --accent:      #d99a7c;   /* fill — near-black type on it at 7.2:1 */
   --on-accent:   #231a15;
   --accent-ink:  #8c5335;   /* the same hue as type — 6.2:1 on a panel */
+
+  /* ── AND THE LAMP COMES INTO THE ROOM ────────────────────────────────────
+     Owner, 18 Aug, looking at the rail on the dusk: the lit key was the city's
+     orange, and on a peach-to-slate sky it was the one object that had not
+     been told where it was standing. Twenty-three of the twenty-five rooms
+     already carry a lamp of their own; dating and astrology were the last two
+     on the citywide one, and this is dating's.
+
+     ITS MIDDLE STOP IS --accent-ink EXACTLY, which is the part worth keeping.
+     The lit key and the hub's coloured type are now the same colour rather
+     than two warm browns that nearly agree — the failure this file keeps
+     catching in other forms. The top and bottom stops are that value opened
+     and closed, the shape every other hub's lamp is built on.
+
+     AND ITS INK MOVES WITH IT, WHICH THE SPEC REQUIRES AND THIS HUB ACTUALLY
+     NEEDS. --on-lamp reads --on-accent at :root, and dating re-points
+     --on-accent to near-black for its PALE peach fills — pointing the lamp at
+     that would have put #231a15 on a mid terracotta. The label is white here,
+     declared rather than inherited.
+
+     AND THEN THE SKY ARRIVED AND THE LAMP CHANGED SIDES. Owner, 18 Aug, with a
+     screenshot of this rail: the lit key is to take its colour from the
+     BACKGROUND, not from the hub's type. That reverses the sentence this
+     paragraph used to end on — "the middle stop is --accent-ink, so the lit
+     key and the hub's coloured type stay one colour" — and the reversal is
+     right for a reason that did not exist when it was written. The peach was
+     chosen while the page behind the rail was white, where a warm key is the
+     only warm object and reads as the room's signature. On the dusk it is a
+     terracotta pill on a slate gradient: the one saturated thing on the
+     screen, in the one hue the picture does not contain. That is not a
+     signature, it is a sticker.
+
+     SO THE KEY IS THE SKY'S OWN DEEP END, DARKENED UNTIL ITS LABEL CLEARS.
+     #9aa7b3 is the last stop of --sky-image directly above; this is that hue
+     (208.8°) held and its value taken down, with the saturation opened from
+     .14 to .26 so the key is still a COLOUR and not a grey pill — a lamp that
+     cannot be told from the chrome around it has stopped doing its one job.
+     The white label reads 4.82 at the highlight, 6.27 at the middle and 8.52
+     at the foot, against the 4.72 the peach managed at the same measurement.
+     It is a better lamp by the lamp's own numbers as well as by the eye.
+
+     --accent-ink IS NOT FOLLOWING IT. The peach stays where it always was, on
+     the hub's coloured type inside a panel, which is the surface it was
+     measured against. What has ended is the coincidence that the key and the
+     type were the same object. */
+  --lamp-face: linear-gradient(180deg, #627485 0%, #536270 44%, #424e59 100%);
+  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
+          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
+          0 1px 1px rgba(83,98,112,.30), 0 8px 20px rgba(83,98,112,.34), 0 20px 46px rgba(83,98,112,.22);
+  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
+  --on-lamp: #ffffff;
   --accent-soft: #f3e7df;
   --accent-line: #e3cec0;
 

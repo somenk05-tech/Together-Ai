@@ -5084,6 +5084,115 @@ textarea.g-field { resize: none; line-height: 1.55; }
   }
 }
 
+/* ══ THE GYM GETS BEAUTY'S KIND OF SKY ══════════════════════════════════════
+   EIGHTH HUB, SAME FOUR LINES, AND THE INSTRUCTION WAS THE STYLE RATHER THAN
+   THE COLOUR: match beauty. Beauty floats EVERYTHING — chrome, rail, cards,
+   overlays — where financial could float only its chrome, and the difference
+   between those two was never taste, it was one measurement. So the test was
+   whether this sky could carry the same: muted ink on frost over it, at every
+   stop. It can, and the list below is beauty's list rather than financial's.
+
+   BODY, SHELL, MAIN, PAGE. A negative-z-index fixed layer paints below the
+   background of an in-flow block, so an opaque body is a lid on the sky. */
+[data-hub="fitness"] { background-image: var(--sky-image); background-attachment: fixed; }
+[data-hub="fitness"] body,
+[data-hub="fitness"] .tc-shell,
+[data-hub="fitness"] .tc-main,
+[data-hub="fitness"] .page { background: transparent; }
+
+/* ── AND EVERY SURFACE THAT HOLDS TEXT GOES TRANSLUCENT, NOT AWAY ───────────
+   var(--frost), the root's own translucent white, and nothing else: a hub block
+   may not introduce a name that is not at :root, and this one introduces none.
+   The list is dating's, class for class, which is also beauty's for every class
+   the two hubs share. */
+[data-hub="fitness"] .tc-header {
+  background: var(--frost);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  backdrop-filter: blur(8px) saturate(120%);
+}
+/* THE RAIL IS A PANEL FLOATING ON THE SKY, NOT A WELL CUT INTO IT. Its keys
+   need nothing: --lens-face is already translucent white and carries its own
+   blur, and frost over them would paint out the lamp — which stays the green it
+   has always been. Dating's peach key moved to its sky's own hue today, and it
+   moved because a warm pill on a slate gradient was the one saturated thing on
+   the screen in the one hue the picture did not contain. This key has no such
+   quarrel with this sky: a deep green on mauve and slate is a colour the room
+   does not otherwise hold, which is the whole job of a lamp, and it is not
+   fighting the picture to do it. A sky is not by itself a reason to repaint a
+   lamp — the argument has to be about that lamp and that sky. */
+[data-hub="fitness"] .tc-side { background: var(--frost); box-shadow: var(--e2); }
+[data-hub="fitness"] .card,
+[data-hub="fitness"] .stat,
+[data-hub="fitness"] .row,
+[data-hub="fitness"] .console,
+[data-hub="fitness"] .pcard,
+[data-hub="fitness"] table.tc,
+[data-hub="fitness"] .modal,
+[data-hub="fitness"] .sheet { background: var(--frost); }
+
+/* ── AND THE EXERCISE PHOTOGRAPH DOES NOT FLOAT ─────────────────────────────
+   `.wk-how-shot img` paints --shot-ground, the studio white beauty declared
+   for its bottles, and it is spent here for the same reason one file over:
+   every demonstration frame in the catalogue was shot on a white seamless, and
+   a translucent well behind a cut-out figure is a sky showing through a room
+   the photograph was never taken in. It is declared in tokens.css and spent in
+   layout.css, which is why what is written here is the absence and not a rule.
+   Fourth time this paragraph has been needed — beauty's bottles, astrology's
+   letter, nutrition's fourteen sheets, and now this. */
+
+/* ── MUTED INK NEVER SITS ON THE SKY ────────────────────────────────────────
+   IT IS DATING'S SHADOW-AND-RESTORE. Bare on this sweep --muted reads 3.51 at
+   the palest pink and 1.68 in the slate trough — it fails at BOTH ends and in
+   the middle, which is the tell that this pink is a mid-value colour wearing a
+   light one's clothes. Whoever writes a page here will have the pale head on
+   screen and read 3.51 as fine. --ink at 6.14 and --ink-soft at 4.98 are safe
+   at every stop, so the two that are not are pointed at --ink-soft while they
+   are out in the open.
+
+   Custom properties inherit, so re-pointing the pair inside .tc-main reaches
+   every descendant — className="muted", which this hub uses a hundred and
+   three times across ten pages, and the inline color: 'var(--muted)' no
+   stylesheet could otherwise reach. Not one .tsx is edited to do it.
+
+   THE RAIL AND THE HEADER ARE OUTSIDE .tc-main, and that is correct rather
+   than an omission — both are panels, and both keep the city's greys. */
+[data-hub="fitness"] .tc-main { --muted: var(--ink-soft); --faint: var(--ink-soft); }
+[data-hub="fitness"] .card,
+[data-hub="fitness"] .stat,
+[data-hub="fitness"] .row,
+[data-hub="fitness"] .console,
+[data-hub="fitness"] .pcard,
+[data-hub="fitness"] table.tc,
+[data-hub="fitness"] .modal,
+[data-hub="fitness"] .sheet {
+  --muted: var(--on-paper-muted);
+  --faint: var(--on-paper-faint);
+}
+
+/* ── AND THE PREFERENCE THE SKY OWES BACK ───────────────────────────────────
+   A citizen who asked for less transparency is asking for surfaces to be
+   surfaces. The atmosphere goes and the frost becomes the white it was
+   standing in for. THE SHELL LAYER IS TURNED OFF BY NAME: `.tc-shell::before`
+   is unscoped, so clearing the picture on the hub element alone would leave
+   the fixed layer still showing it on every route but the landing. */
+@media (prefers-reduced-transparency: reduce) {
+  [data-hub="fitness"] { background-image: none; }
+  [data-hub="fitness"] .tc-shell::before { background-image: none; }
+  [data-hub="fitness"] .tc-header,
+  [data-hub="fitness"] .tc-side,
+  [data-hub="fitness"] .card,
+  [data-hub="fitness"] .stat,
+  [data-hub="fitness"] .row,
+  [data-hub="fitness"] .console,
+  [data-hub="fitness"] .pcard,
+  [data-hub="fitness"] table.tc,
+  [data-hub="fitness"] .modal,
+  [data-hub="fitness"] .sheet {
+    background: var(--card);
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+}
+
 /* ── THE PHONE DRAWER IS AN OBJECT, NOT A WINDOW ────────────────────────────
    On a desktop `.tc-side` is a COLUMN: it sits beside the page, nothing is
    behind it, and a translucent rail is free to take its tint from the sky the
