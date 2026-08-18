@@ -455,6 +455,89 @@ describe('Relief stays a system', () => {
   });
 
   /**
+   * AND EVERY SKY IS READABLE AT EVERY STOP — COMPUTED, PER HUB.
+   *
+   * THE GUARD ABOVE CANNOT SEE A GRADIENT, AND FIVE HUBS NOW HANG ONE. It
+   * measures a hub's ink against `--paper`, which is a hex; a sky is seven
+   * hexes on a token the AA machinery has never read. So a hub can hang a
+   * picture its own ink cannot be read on and pass every test in this file —
+   * and the failure is invisible to whoever ships it, because a gradient is
+   * legible at the stop they happen to have on screen and not at the one at the
+   * other end. That is the exact shape of the bug the ink scales were checked
+   * for in the first place, arriving through a token nobody thought of as a
+   * ground.
+   *
+   * IT WAS FOUR HUBS OF ARITHMETIC IN COMMENTS. Dating held its sky's head
+   * light for the breadcrumb; Financial lifted its whole sage off the reference
+   * until dark ink cleared it; Beauty measured 10.89 and declared nothing had
+   * to move; Entertainment darkened one corner by a fifth for the opposite
+   * reason. Every one of those is a real measurement and not one of them was
+   * checked by anything. A number in a comment is a claim about the file as it
+   * was the afternoon somebody typed it.
+   *
+   * --ink AND --ink-soft, AND NOT THE WHOLE SCALE, and the boundary is dating's
+   * own sentence rather than a convenience: "anything drawn bare on the sky
+   * takes --ink or --ink-soft". --muted and --faint are shadowed on `.tc-main`
+   * in three of these hubs precisely BECAUSE they fail out in the open, so
+   * requiring them here would fail the hubs that already did the right thing.
+   * --accent-ink is out for the same reason and it is worth naming: dating's
+   * peach reads 2.51 on its own dusk and is correct, because it appears only
+   * inside a panel. What this measures is the set that has no panel to hide in.
+   */
+  it('clears AA on every stop of every sky a hub hangs', () => {
+    const css = strip(tokens);
+    const root = css.split(/\[data-hub=/)[0];
+    const lin = (c: number) => (c / 255 <= 0.03928 ? c / 255 / 12.92 : (((c / 255) + 0.055) / 1.055) ** 2.4);
+    const lum = (hex: string) => {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+      return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    };
+    const ratio = (a: string, b: string) => {
+      const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+      return (hi + 0.05) / (lo + 0.05);
+    };
+    const raw = (body: string, n: string) => body.match(new RegExp(`${n}:\\s*([^;]+);`, 'i'))?.[1]?.trim();
+    // The hub's own value, then the city's — a hub that hangs a sky need not
+    // re-point an ink, and four of the five do not. One hop through a var(),
+    // for the AA guard's reason: `--ink: var(--on-paper)` is what beauty writes
+    // and reading hexes only would skip the hub silently.
+    const val = (body: string, n: string): string | undefined => {
+      for (const scope of [body, root]) {
+        const v = raw(scope, n);
+        if (!v) continue;
+        if (/^#[0-9a-f]{6}$/i.test(v)) return v;
+        const hop = /^var\(\s*(--[a-z0-9-]+)\s*\)$/i.exec(v)?.[1];
+        const via = hop ? (raw(body, hop) ?? raw(root, hop)) : undefined;
+        if (via && /^#[0-9a-f]{6}$/i.test(via)) return via;
+      }
+      return undefined;
+    };
+
+    const failures: string[] = [];
+    let skies = 0;
+    for (const [, hub, body] of css.matchAll(/\[data-hub="([a-z]+)"\]\s*\{([\s\S]*?)\n\}/g)) {
+      const sky = raw(body, '--sky-image');
+      if (!sky || sky === 'none') continue;
+      skies += 1;
+      const stops = [...sky.matchAll(/#[0-9a-f]{6}/gi)].map((m) => m[0].toLowerCase());
+      if (!stops.length) { failures.push(`${hub} hangs a sky with no stop this can read`); continue; }
+      for (const name of ['--ink', '--ink-soft']) {
+        const ink = val(body, name);
+        if (!ink) { failures.push(`${hub} ${name} unreadable to this test`); continue; }
+        for (const stop of stops) {
+          const r = ratio(ink, stop);
+          if (r < 4.5) failures.push(`${hub} ${name} on ${stop} at ${r.toFixed(2)}:1`);
+        }
+      }
+    }
+    expect(failures).toEqual([]);
+    // AND THE TEST IS ACTUALLY READING SOMETHING. A regex that stops matching
+    // is a suite that goes green by finding nothing, which is how a guard dies
+    // without a commit ever mentioning it.
+    expect({ skies: skies >= 5 }).toEqual({ skies: true });
+  });
+
+  /**
    * AND EVERY PAPER THE WEEK OWNS IS READABLE — COMPUTED, PER SHEET.
    *
    * The grants above measure a hub's ink against a hub's ground. The nutrition
@@ -551,21 +634,36 @@ describe('Relief stays a system', () => {
   });
 
   /**
-   * A NIGHT GROUND IS NOT A DARK MODE — AND A ROOM WITH NO HUE STILL OWES ITS
-   * FURNITURE AN INK.
+   * A ROOM WITH ITS OWN LIGHT STILL OWES ITS FURNITURE AN INK.
    *
-   * The difference between a night ground and a dark mode is not the colour,
-   * it is who chooses. A dark mode is a second copy of every screen behind a
-   * switch, and half-converted it reads as a bug — which is why it was
-   * removed. A room with its own light is a property of the room: nothing
-   * toggles, and a citizen who never opens Astrology never sees a dark pixel.
+   * THE NIGHT THIS TEST WAS WRITTEN AROUND IS GONE — owner, 18 Aug. The
+   * observatory wore a dark palette twice: once as the whole hub, then scoped
+   * to the header and the rail as the furniture around a lit page. Both are
+   * removed, because the hub now hangs a sheet of light and its chrome floats
+   * on it in frost, and the night's ink computed 1.03:1 there.
    *
-   * 1. THE ROOM CARRIES ITS OWN INK, AND ITS WELL FOLLOWS ITS GROUND. Ink,
-   *    ground and the readable accent are re-pointed together or the "Birth
-   *    Details" failure comes back: a colour and its background becoming the
-   *    same colour, which nothing else here can see. And the rail's labels
-   *    read --ink / --faint, so a white well under near-white text is the hub
-   *    name gone — a hub that re-points --paper MUST re-point --rail-well.
+   * SO WHY IS THIS TEST STILL HERE, AND WHY IS IT LONGER. Because only ONE of
+   * its four clauses was about the night. The other three are invariants about
+   * a hub that re-points a ground, and deleting the test with the palette would
+   * have thrown them away for a reason that has nothing to do with them — the
+   * exact move that loses a guard silently. The clause that WAS about the night
+   * has been replaced by the thing it was really protecting, and the
+   * replacement is stronger than the original.
+   *
+   * 1. THE ROOM CARRIES ITS OWN INK. Ink, ground and the readable accent are
+   *    re-pointed together or the "Birth Details" failure comes back: a colour
+   *    and its background becoming the same colour, which nothing else here
+   *    can see.
+   *
+   * 1b. AND ITS RAIL IS READABLE, WHICH IS THE CLAUSE THAT CHANGED. It used to
+   *    read "a hub that re-points --paper MUST re-point --rail-well", because
+   *    the rail's labels take --ink and --faint and a white well under
+   *    near-white text is the hub name gone. That was the SHAPE of the fix, not
+   *    the requirement — and it fails open the moment a hub's answer is to have
+   *    dark ink instead, which is this hub's answer now. So the requirement is
+   *    written directly and computed: re-point the well, or prove the ink you
+   *    kept is legible on the well you did not. A hub can no longer satisfy
+   *    this by declaring --rail-well and putting the wrong ink on it either.
    *
    * 2. --on-accent IS STILL THE CITY'S. It is read by SEVEN dark surfaces:
    *    the black primary button, .tag.dark, the mini-calendar's today, the
@@ -574,25 +672,12 @@ describe('Relief stays a system', () => {
    *    not a contrast regression, an invisible button, and no test outside
    *    this one would see it.
    *
-   * 3. BUT THE LAMP MAY LEAVE, AND IF IT LEAVES ITS INK GOES WITH IT.
-   *    This clause replaces a flat ban, and the swap is the interesting part.
-   *    The ban said the rail keeps its orange in all twenty-five rooms
-   *    because the rail is the city's furniture. That held while every room
-   *    had a hue of its own for the eye to land on. Monochrome breaks it: an
-   *    orange lamp in a room with no other colour is the most saturated
-   *    object on the screen, so the eye goes to the navigation instead of to
-   *    the content. Entertainment already made this argument for its green
-   *    and the spec accepted it; writing it down for a second hub turns a
-   *    precedent into a rule.
-   *
-   *    What replaces the ban is the invariant the ban was really protecting:
-   *    A LAMP'S FACE AND A LAMP'S INK MOVE TOGETHER. The failure mode was
-   *    never "the lamp changed colour", it was "the lamp changed and its
-   *    label did not" — which is how you get white type on a white pill and
-   *    a rail whose current room is unreadable. Same shape as the
-   *    ground/well pairing above, and it is a STRONGER guard than the ban
-   *    was, because the ban could be satisfied by a hub that never touched
-   *    the lamp and still broke it through --on-lamp.
+   * 3. AND IF THE LAMP LEAVES, ITS INK GOES WITH IT. The failure mode was
+   *    never "the lamp changed colour", it was "the lamp changed and its label
+   *    did not" — white type on a white pill, and a rail whose current room is
+   *    unreadable. This hub touches neither now, so the clause holds vacuously;
+   *    it is kept because the next hub to try monochrome will reach for exactly
+   *    this and the precedent is what makes it cheap.
    *
    * 4. NO SURFACE HARDCODES ITS OWN LIGHT GROUND, AND NO THEME SWITCH
    *    RETURNS. `.btn-secondary` was `background: #fff` under a label that
@@ -600,44 +685,71 @@ describe('Relief stays a system', () => {
    *    invisible-by-luck on white; on a night ground it is a control you can
    *    neither read nor see.
    */
-  it('gives the night hub its own ink, and moves the lamp and its label as one', () => {
+  it('gives the observatory its own ink, and keeps its rail legible', () => {
     const css = strip(tokens);
-    // THE HUB IS TWO PALETTES NOW, AND THIS TEST READS BOTH. The content
-    // column is the letter's paper; the night moved, verbatim, onto the header
-    // and the rail. `page` is the block whose selector is the bare attribute;
-    // `night` is the one scoped to the chrome. Matching on `\s*\{` is what
-    // tells them apart, and it is why the chrome selector must stay on its own
-    // lines rather than being folded into the attribute.
+    // ONE PALETTE AGAIN. The block whose selector is the bare attribute is the
+    // whole hub: content column, header and rail all read it. The chrome
+    // scope this test used to find beside it no longer exists, and clause 1b
+    // below is what replaced the assertion that it did.
     const page = /\[data-hub="astrology"\]\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
-    const night = /\[data-hub="astrology"\] \.tc-header,[^{]*\{([^}]*)\}/.exec(css)?.[1] ?? '';
-    expect({ page: page !== '', night: night !== '' }).toEqual({ page: true, night: true });
+    expect({ page: page !== '' }).toEqual({ page: true });
 
     // 0. THE PAPER IS ONE COLOUR WITH TWO NAMES, AND THEY MUST AGREE.
     //    `--paper` here cannot read `--letter-paper` — a var() is unreadable to
     //    the contrast assertion, which parses hexes out of this file. So the
     //    literal is duplicated on purpose and checked here instead of trusted.
+    //    IT IS THREE NAMES AS OF THE SHEET: the sky's darkest stop is set to
+    //    the same value, so the ground every ink is measured against is also
+    //    the worst point of the gradient. That is asserted below rather than
+    //    left in a comment, because it is the whole safety argument for hanging
+    //    a picture over a ground the AA guard cannot see.
     const letterPaper = /--letter-paper:\s*(#[0-9a-f]{6})/i.exec(css)?.[1]?.toLowerCase();
     const hubPaper = /--paper:\s*(#[0-9a-f]{6})/i.exec(page)?.[1]?.toLowerCase();
     expect({ letterPaper, hubPaper }).toEqual({ letterPaper, hubPaper: letterPaper });
 
-    // 1. ink, ground and the readable accent are re-pointed together — on the
-    //    PAGE, which is the surface a citizen reads.
+    const sky = /--sky-image:\s*([^;]+);/i.exec(page)?.[1] ?? '';
+    const stops = [...sky.matchAll(/#[0-9a-f]{6}/gi)].map((m) => m[0].toLowerCase());
+    expect({ hung: stops.length > 0 }).toEqual({ hung: true });
+    // NO STOP MAY BE DARKER THAN THE GROUND THE INK WAS CHECKED ON. Luminance,
+    // not lightness: a warm stop and a cool one at the same L differ here, and
+    // it is here that a grey stops clearing 4.5.
+    const lin = (c: number) => (c / 255 <= 0.03928 ? c / 255 / 12.92 : (((c / 255) + 0.055) / 1.055) ** 2.4);
+    const lum = (hex: string) => {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+      return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    };
+    const ratio = (a: string, b: string) => {
+      const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+      return (hi + 0.05) / (lo + 0.05);
+    };
+    expect(stops.filter((c) => lum(c) < lum(hubPaper!))).toEqual([]);
+
+    // 1. ink, ground and the readable accent are re-pointed together.
     for (const t of ['--ground', '--paper', '--card', '--ink', '--muted', '--accent-ink']) {
       expect({ token: t, present: new RegExp(`${t}\\s*:`).test(page) })
         .toEqual({ token: t, present: true });
     }
-    //    ...and the well follows the ground OF THE SURFACE IT IS ON. The rail
-    //    is night, so its well is in the night block, not the page's.
-    expect({ ground: /--paper\s*:/.test(night), well: /--rail-well\s*:/.test(night) })
-      .toEqual({ ground: true, well: true });
+
+    // 1b. AND THE RAIL IS LEGIBLE — computed, whichever way the hub answered.
+    //     Re-point the well and this hub owns both halves; leave it and the
+    //     city's white is what the hub's own ink must clear. Both labels the
+    //     rail draws are checked, not just --ink: --faint is the hub name's
+    //     tag line and it is the one that fails first.
+    const rootWell = /--rail-well:\s*(#[0-9a-f]{6})/i.exec(css.split(/\[data-hub=/)[0])?.[1] ?? '#ffffff';
+    const well = /--rail-well:\s*(#[0-9a-f]{6})/i.exec(page)?.[1] ?? rootWell;
+    const railInk = ['--ink', '--faint']
+      .map((t) => [t, new RegExp(`${t}:\\s*(#[0-9a-f]{6})`, 'i').exec(page)?.[1]] as const)
+      .filter(([, hex]) => Boolean(hex));
+    expect(railInk.length).toBeGreaterThan(0);
+    expect(railInk.filter(([, hex]) => ratio(hex!, well) < 4.5).map(([t]) => t)).toEqual([]);
 
     // 2. the city's seven dark surfaces keep their white.
-    expect({ token: '--on-accent', rePointed: /--on-accent\s*:/.test(night) })
+    expect({ token: '--on-accent', rePointed: /--on-accent\s*:/.test(page) })
       .toEqual({ token: '--on-accent', rePointed: false });
 
     // 3. the lamp may go — with its ink. Either both move or neither does.
-    const lampFace = /--lamp-face\s*:/.test(night);
-    const lampInk = /--on-lamp\s*:/.test(night);
+    const lampFace = /--lamp-face\s*:/.test(page);
+    const lampInk = /--on-lamp\s*:/.test(page);
     expect({ lampFace, lampInk }).toEqual({ lampFace, lampInk: lampFace });
     // and nothing scopes a rail rule to this hub by the back door — whatever
     // the lamp is made of, it is made of it in the TOKEN layer where this

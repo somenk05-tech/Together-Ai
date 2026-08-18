@@ -646,12 +646,17 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
   height: clamp(30px, 2.8vw, 40px); width: auto;
   filter: none;
 }
-/* In the two dark hubs it is inverted rather than given a second asset. The
-   chrome artwork this replaces earned that by staying modelled under a flip;
-   a flat line drawing earns it differently — the stroke is uniform, so
-   inverting produces exactly the drawing the same pen would have made on black
-   paper. Two hubs, one file, no variants. */
-[data-hub="astrology"] .tc-logo .word,
+/* In the dark hub it is inverted rather than given a second asset. The chrome
+   artwork this replaces earned that by staying modelled under a flip; a flat
+   line drawing earns it differently — the stroke is uniform, so inverting
+   produces exactly the drawing the same pen would have made on black paper.
+   One hub, one file, no variants.
+
+   IT WAS TWO HUBS UNTIL 18 AUG. Astrology's header is lit now — it floats on
+   the sheet the hub hangs, on the paper palette — and a wordmark inverted onto
+   near-white is white on white. The rule did not name astrology because
+   astrology asked for it; it named the set "the two dark hubs", and that set
+   has one member again. */
 [data-hub="entertainment"] .tc-logo .word { filter: invert(1); }
 .tc-burger {
   background: var(--face-key); border: 0; border-radius: var(--r-2); color: var(--ink);
@@ -772,13 +777,14 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
    both. "Black on white" is an instruction about a white page; on a page that
    is already black, the same instruction means the pill goes back to being a
    raised face — which is what the night was designed with. */
-[data-hub="astrology"] .tc-actionbar a, [data-hub="astrology"] .tc-actionbar button,
-[data-hub="astrology"] .tc-actions a, [data-hub="astrology"] .tc-actions button,
+/* AND ASTROLOGY LEFT THIS SET ON 18 AUG, for the reason it left the invert one
+   screen up: the sentence above is about a page that is already black, and this
+   hub's page is a sheet of light now. Its action bar takes the city's, on the
+   paper palette, like every other lit room. */
 [data-hub="entertainment"] .tc-actionbar a, [data-hub="entertainment"] .tc-actionbar button,
 [data-hub="entertainment"] .tc-actions a, [data-hub="entertainment"] .tc-actions button {
   background: var(--face); color: var(--ink); box-shadow: var(--e2);
 }
-[data-hub="astrology"] .tc-actionbar, [data-hub="astrology"] .tc-actions,
 [data-hub="entertainment"] .tc-actionbar, [data-hub="entertainment"] .tc-actions { color: var(--ink); }
 
 .tc-bottomnav {
@@ -4609,6 +4615,243 @@ textarea.g-field { resize: none; line-height: 1.55; }
   position: absolute; right: -5px; bottom: -5px; min-width: 16px; height: 16px; padding: 0 4px;
   border-radius: 999px; background: var(--ink); color: var(--card);
   font-size: 9.5px; font-weight: 700; display: grid; place-items: center; line-height: 1;
+}
+
+/* ══ THE OBSERVATORY IS A SHEET OF LIGHT ════════════════════════════════════
+   THE FOURTH SKY, AND THE FIRST ONE THAT IS NOT A SKY. Dating hangs a dusk,
+   Financial a sage field, Beauty a dawn; the owner's reference for this hub is
+   a lit SURFACE — near-white through a diagonal band, warm greige gathering in
+   the two corners the light misses. The mechanism is identical and deliberately
+   so: --sky-image on the hub's own element, fixed, with the shell's existing
+   ::before carrying the same picture on every route that has a shell. Four hubs,
+   one machine, and the argument for the machine is that a fifth costs a gradient
+   and a surface list rather than an invention.
+
+   AND THE NIGHT LEFT TO MAKE ROOM FOR IT. See tokens.css for the whole of that
+   — the short version is that the rail's old ink computes 1.03:1 on frost over
+   this sheet, so a floating rail and a dark rail were never both available.
+
+   BODY IS THE LOAD-BEARING LINE AND IT IS THE ONE THAT IS EASY TO MISS. A
+   negative-z-index fixed layer paints BELOW the background of an in-flow block,
+   so an opaque body is a lid on the sky whatever the shell above it does.
+   Dating shipped a sky visible on exactly one page for that reason. Third time
+   this comment has been written; still cheaper than learning it again.       */
+[data-hub="astrology"] { background-image: var(--sky-image); background-attachment: fixed; }
+[data-hub="astrology"] body,
+[data-hub="astrology"] .tc-shell,
+[data-hub="astrology"] .tc-main,
+[data-hub="astrology"] .page,
+/* AND THE TWO PAGES THAT PAINT THEIR OWN GROUND. `.ask-stage` and
+   `.tarot-night` each fill the content column with var(--ground) — they are
+   not panels, they are the page, written before the page had anything behind
+   it. Left opaque they would be a #ebe8e3 slab over the exact spot the light
+   band crosses, on the two screens that most look like weather. */
+[data-hub="astrology"] .ask-stage,
+[data-hub="astrology"] .tarot-night { background: transparent; }
+
+/* ── AND EVERY SURFACE THAT HOLDS TEXT GOES TRANSLUCENT, NOT AWAY ───────────
+   var(--frost), the root's own translucent white, and nothing else: a hub block
+   may not introduce a name that is not at :root, and this one introduces none.
+   A surface a citizen reads off cannot become transparent — it can only become
+   thin enough for the atmosphere to carry through it.
+
+   THE LIST IS DATING'S, CLASS FOR CLASS, and that is the instruction rather
+   than laziness — "the same feel as dating" is a request for the same surfaces
+   to behave the same way. Any class in this hub that paints a panel belongs
+   here the commit it is born; a panel missing from it is not a rendering fault,
+   it is a white slab pasted over the picture, which is the kind of wrong nobody
+   files a bug about. */
+[data-hub="astrology"] .tc-header {
+  background: var(--frost);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  backdrop-filter: blur(8px) saturate(120%);
+}
+/* THE RAIL IS A PANEL FLOATING ON THE SHEET, NOT A WELL CUT INTO IT — dating's
+   sentence, and it arrives here having been true twice already. Its keys need
+   nothing: --lens-face is already translucent white and already carries its own
+   blur, so the light arrives through them the moment the solid well behind them
+   stops blocking it, and frost over them would paint out the lamp. */
+[data-hub="astrology"] .tc-side { background: var(--frost); box-shadow: var(--e2); }
+[data-hub="astrology"] .card,
+[data-hub="astrology"] .stat,
+[data-hub="astrology"] .row,
+[data-hub="astrology"] .console,
+[data-hub="astrology"] .pcard,
+[data-hub="astrology"] table.tc,
+[data-hub="astrology"] .modal,
+[data-hub="astrology"] .sheet,
+/* AND THE HUB'S OWN THREE, which is where dating's list stops being enough.
+   Every one of them paints --face-tall and holds body copy: the framed slab
+   Tarot and Gemstones are built out of, Ask's question panel, and an answered
+   question in the archive under it. `.gem-choice` is deliberately NOT here — a
+   control inside a frost card is §12's two veils and no edge, and it keeps the
+   opaque white face it needs to read as something you can press. */
+[data-hub="astrology"] .astro-frame,
+[data-hub="astrology"] .ask-card,
+[data-hub="astrology"] .ask-past { background: var(--frost); }
+
+/* ── AND NOTHING IS SHADOWED, WHICH IS NEW ──────────────────────────────────
+   Dating and Beauty both carry a shadow-and-restore: --muted and --faint
+   re-pointed at --ink-soft inside .tc-main, put back on every panel, because
+   both greys fail bare on the darker end of their own skies. There is no such
+   rule here and its absence is a measurement, not an oversight. The sheet's
+   darkest stop IS this hub's --paper — set there on purpose, see tokens.css —
+   so --muted reads 4.70:1 and --faint 5.60:1 anywhere on it, which are the two
+   figures already written beside them and already recomputed by relief.spec.
+   Text drawn straight onto this ground was checked the day the ground was
+   granted, and the sky did not move the number.
+
+   AND THE LETTER DOES NOT FLOAT, which is the other absence worth naming.
+   `.letter-page` keeps its photographed paper and its own --letter-ink scale on
+   beauty's --shot-ground precedent: a texture you can see through is not a
+   texture, and the one thing this hub is for is a letter you can feel the paper
+   of. It is declared in layout.css and it stays there. The desk survives; the
+   desk is lit now. */
+
+/* ── AND THE PREFERENCE THE SKY OWES BACK ───────────────────────────────────
+   A citizen who asked for less transparency is asking for surfaces to be
+   surfaces. The atmosphere goes and the frost becomes the paper it was standing
+   in for — which is the job --ground, --paper, --card and --wash are still
+   declared for, one file over. THE SHELL LAYER IS TURNED OFF BY NAME:
+   `.tc-shell::before` is unscoped, so clearing the picture on the hub element
+   alone would leave the fixed layer still showing it on every route but the
+   landing. */
+@media (prefers-reduced-transparency: reduce) {
+  [data-hub="astrology"] { background-image: none; }
+  [data-hub="astrology"] .tc-shell::before { background-image: none; }
+  [data-hub="astrology"] .tc-header,
+  [data-hub="astrology"] .tc-side,
+  [data-hub="astrology"] .card,
+  [data-hub="astrology"] .stat,
+  [data-hub="astrology"] .row,
+  [data-hub="astrology"] .console,
+  [data-hub="astrology"] .pcard,
+  [data-hub="astrology"] table.tc,
+  [data-hub="astrology"] .modal,
+  [data-hub="astrology"] .sheet,
+  [data-hub="astrology"] .astro-frame,
+  [data-hub="astrology"] .ask-card,
+  [data-hub="astrology"] .ask-past {
+    background: var(--card);
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+}
+
+/* ══ THE CINEMA GETS A SKY, AND IT IS THE FIRST DARK ONE ════════════════════
+   FIFTH HUB, SAME FOUR LINES. --sky-image on the hub's own element, fixed;
+   body, shell, main and page out of the way so the fixed layer can be seen.
+   The mechanism has not changed since dating and it does not change here,
+   which is the argument for having built it as a token rather than as a hub.
+
+   WHAT IS NEW IS THE DIRECTION OF THE LIGHT. Every sky before this one is
+   pale, and every hub that hung one reads dark ink off panels of white frost.
+   This room is the city's last night room: its --frost is rgba(6,10,10,.74),
+   its ink is white, and the whole relationship inverts — a panel here is a
+   DARKENING of the sky rather than a lightening of it, and it still reads as
+   a panel for the same reason, because it is a different material and not a
+   different colour. Nothing in the machinery had to learn that; the hub's own
+   frost was already dark, declared the day it got its ground.
+
+   THE PANELS STAY GREEN-BLACK ON A SLATE SKY, AND THAT IS DELIBERATE. This
+   hub's surfaces are a cinema's near-black with green in it, and the sky the
+   owner sent is slate falling to navy. Re-hueing sixty tokens to match a
+   background is how a background stops being a background — beauty's cool
+   white cards sit on a warm dawn for the same reason, and it is the tint
+   between the two that makes a print read as a print.
+
+   BODY IS THE LOAD-BEARING LINE, for the fourth time and the last time it
+   will be written out: a negative-z-index fixed layer paints BELOW the
+   background of an in-flow block, so an opaque body is a lid on the sky
+   whatever the shell above it does.                                        */
+[data-hub="entertainment"] { background-image: var(--sky-image); background-attachment: fixed; }
+[data-hub="entertainment"] body,
+[data-hub="entertainment"] .tc-shell,
+[data-hub="entertainment"] .tc-main,
+[data-hub="entertainment"] .page { background: transparent; }
+
+/* ── AND EVERY SURFACE THAT HOLDS TEXT GOES TRANSLUCENT, NOT AWAY ───────────
+   var(--frost) — the hub's own, which is at :root under the same name, so this
+   block introduces no name that is not there. A surface a citizen reads off
+   cannot become transparent; it can only become thin enough for the atmosphere
+   to carry through it. The list is dating's, class for class. */
+[data-hub="entertainment"] .tc-header {
+  background: var(--frost);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  backdrop-filter: blur(8px) saturate(120%);
+}
+/* THE RAIL IS A PANEL FLOATING ON THE SKY, NOT A WELL CUT INTO IT — and here
+   the sentence finally costs something. Its face was --rail-well, a near-black
+   that was INDISTINGUISHABLE from the near-black page beside it, so the rail
+   was read as a rail entirely by its inset hairline. On the sky it has an edge
+   for the first time. Its keys need nothing: --lens-face is translucent and
+   carries its own blur, and frost over them would paint out the lamp. */
+[data-hub="entertainment"] .tc-side { background: var(--frost); box-shadow: var(--e2); }
+[data-hub="entertainment"] .card,
+[data-hub="entertainment"] .stat,
+[data-hub="entertainment"] .row,
+[data-hub="entertainment"] .console,
+[data-hub="entertainment"] .pcard,
+[data-hub="entertainment"] table.tc,
+[data-hub="entertainment"] .modal,
+[data-hub="entertainment"] .sheet { background: var(--frost); }
+
+/* ── MUTED INK NEVER SITS ON THE SKY ────────────────────────────────────────
+   IT IS DATING'S SHADOW-AND-RESTORE, AND THIS HUB NEEDS IT MOST. Bare on the
+   lit corner --muted reads 1.83 and --faint 1.39 — not marginal, not a
+   judgement call, unreadable — and no darkening of that corner that keeps the
+   owner's reference would fix them. --ink at 6.27, --ink-soft at 5.20 and
+   --accent-ink at 4.62 are safe anywhere on it, so the two that are not are
+   pointed at --ink-soft for as long as they are out in the open.
+
+   Custom properties inherit, so re-pointing the pair inside .tc-main reaches
+   every descendant — className="muted", and the inline color: 'var(--muted)'
+   a page sets from a style object that no stylesheet could otherwise reach.
+   Not one .tsx is edited to do it, which is the point: the rule holds for the
+   page nobody has written yet. The list below puts the hub's pair back under
+   names that were not shadowed.
+
+   ANY CLASS IN THIS HUB THAT PAINTS A PANEL BELONGS ON BOTH LISTS, the commit
+   it is born. A panel missing from the frost list is a near-black slab pasted
+   over the picture; a panel missing from THIS one is body copy one shade too
+   pale, which is the kind of wrong nobody files a bug about.
+
+   THE RAIL AND THE HEADER ARE OUTSIDE .tc-main, and that is correct rather
+   than an omission — both are panels, and both keep the hub's greys. */
+[data-hub="entertainment"] .tc-main { --muted: var(--ink-soft); --faint: var(--ink-soft); }
+[data-hub="entertainment"] .card,
+[data-hub="entertainment"] .stat,
+[data-hub="entertainment"] .row,
+[data-hub="entertainment"] .console,
+[data-hub="entertainment"] .pcard,
+[data-hub="entertainment"] table.tc,
+[data-hub="entertainment"] .modal,
+[data-hub="entertainment"] .sheet {
+  --muted: var(--on-paper-muted);
+  --faint: var(--on-paper-faint);
+}
+
+/* ── AND THE PREFERENCE THE SKY OWES BACK ───────────────────────────────────
+   A citizen who asked for less transparency is asking for surfaces to be
+   surfaces. The atmosphere goes and the frost becomes the card it was standing
+   in for. THE SHELL LAYER IS TURNED OFF BY NAME: `.tc-shell::before` is
+   unscoped, so clearing the picture on the hub element alone would leave the
+   fixed layer still showing it on every route but the landing. */
+@media (prefers-reduced-transparency: reduce) {
+  [data-hub="entertainment"] { background-image: none; }
+  [data-hub="entertainment"] .tc-shell::before { background-image: none; }
+  [data-hub="entertainment"] .tc-header,
+  [data-hub="entertainment"] .tc-side,
+  [data-hub="entertainment"] .card,
+  [data-hub="entertainment"] .stat,
+  [data-hub="entertainment"] .row,
+  [data-hub="entertainment"] .console,
+  [data-hub="entertainment"] .pcard,
+  [data-hub="entertainment"] table.tc,
+  [data-hub="entertainment"] .modal,
+  [data-hub="entertainment"] .sheet {
+    background: var(--card);
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
 }
 
 /* ── THE PHONE DRAWER IS AN OBJECT, NOT A WINDOW ────────────────────────────
