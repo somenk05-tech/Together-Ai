@@ -212,7 +212,8 @@ function Step({ s, pick, qty, alreadyIn, onAdd, onRemove }: {
               <div className="routine-why-head">What it costs to keep</div>
               <p className="routine-why-body">
                 {pick.packLabel ? `One ${pick.packLabel} pack — ${pick.lastsLabel}` : `Lasts ${pick.lastsLabel}`}
-                {` · ₹${pick.priceInr} to buy, about ${rupees(pick.monthlyInr)} a month to keep going.`}
+                {` · ${rupees(pick.priceInr)} to buy`}
+                {` · ≈ ${rupees(pick.monthlyInr)}/month to keep going.`}
               </p>
             </>
           )}
