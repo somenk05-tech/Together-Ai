@@ -4610,3 +4610,40 @@ textarea.g-field { resize: none; line-height: 1.55; }
   border-radius: 999px; background: var(--ink); color: var(--card);
   font-size: 9.5px; font-weight: 700; display: grid; place-items: center; line-height: 1;
 }
+
+/* ── THE PHONE DRAWER IS AN OBJECT, NOT A WINDOW ────────────────────────────
+   On a desktop `.tc-side` is a COLUMN: it sits beside the page, nothing is
+   behind it, and a translucent rail is free to take its tint from the sky the
+   hub hangs — which is exactly what Dating, Financial and Beauty ask it to do,
+   and why it reads as material there rather than as a panel.
+
+   Below 1100px the same element is a DRAWER, and that is a different object
+   with a different job. It is fixed, it is over the page, and the page is
+   still fully painted underneath it. Translucency there does not read as
+   glass, it reads as two screens printed on top of each other: on a phone the
+   masthead's BACK sits inside the burger, the breadcrumb runs through the
+   page title, and a Financial invoice's red card comes up THROUGH rows 04 and
+   05 of the city menu. Nothing is unreadable in isolation; everything is
+   unreadable together. (Owner, 18 Aug, with a screenshot of exactly that.)
+
+   So the drawer goes solid at the width where it becomes a drawer, and only
+   there. `--rail-well` is the right value and not a new one: it is the rail's
+   own ground, already defined per hub — white in the light rooms, near-black
+   in Astrology's, so the drawer stays the colour its own ink was contrasted
+   against and no hub needs a second answer here. The blur goes with it,
+   because a backdrop-filter behind an opaque surface is work the phone does
+   for nothing. And the inset hairline the desktop rail wears becomes a real
+   elevation: an inset right border says "this column is beside you", which is
+   a lie about a panel that is on top of you.
+
+   THE WEBSITE ABOVE 1100px IS UNTOUCHED, which is the other half of the
+   instruction. Doubling the class is what carries this over the three hubs'
+   own `[data-hub="…"] .tc-side` frost without giving any of them a rule of
+   their own to keep in step — one place says what a drawer is. */
+@media (max-width: 1100px) {
+  .tc-side.tc-side {
+    background: var(--rail-well);
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+    box-shadow: var(--e3);
+  }
+}
