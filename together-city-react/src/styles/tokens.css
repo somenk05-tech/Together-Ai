@@ -1166,6 +1166,42 @@
           inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
           0 1px 1px rgba(63,81,54,.30), 0 8px 20px rgba(63,81,54,.34), 0 20px 46px rgba(63,81,54,.22);
   --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
+
+  /* ── THE SKY, AND IT IS NOT A GROUND ────────────────────────────────────
+     Owner, with a sage-green reference: the money rooms sit inside a soft
+     green atmosphere lit from the lower left, and the chrome floats in it.
+
+     IT RIDES --sky-image, WHICH IS WHY THIS IS NOT A FOURTH GROUND GRANT.
+     The mechanism is dating's, and social's before it: `.tc-shell::before` is
+     a fixed layer painting var(--sky-image), `none` at :root and in every hub
+     that hangs nothing on it. --ground, --paper, --card, --wash and
+     --rail-well are untouched and still white, so relief.spec's granted list
+     stays the three it was argued down to. A hub holds a ground when words
+     are read off something that is not the city's white. Words here are read
+     off PAPER, which floats on the sky rather than being painted by it — and
+     in this hub, unlike dating's, that is literal paper rather than frost.
+     The argument for the difference lives in relief.css, where it is spent.
+
+     160deg RATHER THAN THE VERTICAL, because the reference is a portrait lit
+     from the lower left, and a flat top-to-bottom wash throws that light away
+     — the one thing in the picture that is actually a decision. A diagonal
+     keeps the lit corner where the reference put it, and a gradient keeps
+     what the JPEG could not: colour that lives in this file, and no aspect
+     ratio to be cropped or letterboxed at any viewport the city opens at.
+
+     BOTH ENDS ARE LIFTED OFF THE REFERENCE'S OWN, AND THE REASON IS A
+     MEASUREMENT RATHER THAN A PREFERENCE. The reference's darkest corner is
+     #4e5f57, where near-black body ink measures 2.51:1 and the muted grey
+     1.27:1 — it fails before the ink scale is even considered, which is to
+     say the picture is lovely and illegible in the same breath. Held at
+     #93a38f the same hue survives contact with type: bare on the sky, ink is
+     6.39:1 at the darkest stop and ink-soft 4.27:1. That is the whole reason
+     these six stops are these six stops, and it is why lowering any of them
+     to look more like the photograph is a change that has to be measured
+     again rather than eyeballed. The rule that follows from it is written
+     where it is enforced, in relief.css: MUTED INK NEVER SITS ON THE SKY. */
+  --sky-image: linear-gradient(160deg,
+    #93a38f 0%, #a8b69b 20%, #c9d2b6 42%, #e4e8d6 58%, #c2ccae 78%, #adb996 100%);
 }
 [data-hub="legal"] {
   --lamp-face: linear-gradient(180deg, #5f5f69 0%, #4a4a52 44%, #38383e 100%);

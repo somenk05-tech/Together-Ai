@@ -2817,6 +2817,136 @@ textarea.g-field { resize: none; line-height: 1.55; }
   .dt-cta, .dt-ghost, .dt-tile { transition: none; transform: none; }
 }
 
+/* ══ FINANCIAL, ON A SAGE SKY ════════════════════════════════════════════
+   Same mechanism as dating's, four hundred lines up, and deliberately the
+   same four lines of it: the hub's own element paints var(--sky-image) fixed,
+   and body, shell, main and page stand aside so that what the eye lands on is
+   the layer underneath. See the block in tokens.css for the gradient and for
+   why its dark end is held well off the reference's own.
+
+   BODY IS THE ONE THAT IS EASY TO MISS AND THE LOAD-BEARING ONE — a
+   negative-z-index fixed layer paints BELOW the background of an in-flow
+   block, so an opaque body is a lid on the sky no matter what the shell above
+   it does. Dating shipped a sky nobody could see for exactly that reason, and
+   the lesson is cheaper to inherit than to learn twice.
+
+   AND THE HUB'S OWN ELEMENT CARRIES THE PICTURE TOO, because `/financial` is
+   a HubLanding under AppShell — header, main, footer, and no `.tc-shell` for
+   `::before` to exist on. On the inner routes it is simply the colour that
+   layer would have put there anyway.
+
+   ── AND HERE IS WHERE IT PARTS COMPANY WITH DATING ──────────────────────
+   Dating put every surface that holds text on frost, and dating could: it
+   shows one considered thing at a time, so a translucent panel carries a
+   photograph and a paragraph and stops. Financial is the densest hub in the
+   city — budget tables, wallet rows, statements, transaction lists, invoice
+   cards — and nearly all of its secondary type is muted grey at 11.5 and
+   12.5px, hundreds of glyphs to a screen.
+
+   THE MEASUREMENT SETTLES IT. Muted grey on a frost panel over THIS sky
+   bottoms out at 3.48:1, and it only clears 4.5 once the panel composites at
+   .80 white or higher — which is not translucency any more, it is white with
+   a rumour of green in it. A material that has to be thickened until it stops
+   being the material is not the material.
+
+   SO THE HUB IS SPLIT, AND THE SPLIT IS THE HONEST ANSWER RATHER THAN A
+   COMPROMISE. CHROME FLOATS: the header and the rail take var(--frost). They
+   carry almost no body copy, they are the two things that frame every route,
+   and they are where an atmosphere is actually felt. CONTENT STAYS PAPER:
+   `.card`, the tables, the rows, the statements and every other dense surface
+   keep var(--card) and are not touched below — which is why there is no list
+   of frosted surfaces in this block, and the absence is the design.
+
+   What a citizen gets is the sky in the page's margins, over its head and
+   behind the rail, with the reading surfaces sitting on it the way paper sits
+   on a desk. That is what an atmosphere looks like when it arrives at a
+   working room and is not allowed to cost anything.
+
+   NOTHING HERE DECLARES A GROUND, and the whole approach depends on it: the
+   ground stays white and the sky floats above it, so relief.spec's granted
+   list is still the three it was argued down to.                           */
+[data-hub="financial"] { background-image: var(--sky-image); background-attachment: fixed; }
+[data-hub="financial"] body,
+[data-hub="financial"] .tc-shell,
+[data-hub="financial"] .tc-main,
+[data-hub="financial"] .page { background: transparent; }
+
+/* var(--frost) IS THE ROOT'S OWN TRANSLUCENT WHITE and it is the only
+   material this hub gains. A hub block may not introduce a token name that is
+   not at :root, and this one introduces none. */
+[data-hub="financial"] .tc-header {
+  background: var(--frost);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  backdrop-filter: blur(8px) saturate(120%);
+}
+/* THE RAIL IS A PANEL FLOATING ON THE SKY, NOT A WELL CUT INTO IT. Dating's
+   sentence, true here for dating's reason: --rail-well over an inset hairline
+   only reads as a well when there is a wall to cut it into, and against an
+   atmosphere the same two lines read as a white slab pasted over the picture.
+   Same rail, same radius; the light comes off it now instead of into it. */
+[data-hub="financial"] .tc-side { background: var(--frost); box-shadow: var(--e2); }
+
+/* ── MUTED INK NEVER SITS ON THE SKY ─────────────────────────────────────
+   THE NUMBERS, measured on this gradient rather than assumed. Bare on the
+   sky, --ink runs 6.39:1 at its worst stop and --ink-soft 4.27:1; both are
+   safe anywhere the sky shows. --muted is 2.0:1 at its worst and --faint sits
+   below that. The same grey, on the same page, is a caption at the top and a
+   rumour at the bottom — and it is the worst kind of failure, because it
+   looks right to whoever writes it, who has a card on screen while they work.
+
+   THE SHADOW-AND-RESTORE IS DATING'S AND IS TAKEN WHOLE. Custom properties
+   inherit, so re-pointing the two greys inside `.tc-main` reaches every
+   descendant — `.muted`, which is how nearly all of this hub's secondary type
+   is written, and any inline `color: 'var(--muted)'` a page sets from a style
+   object no stylesheet could otherwise reach. Every solid surface then puts
+   the paper's greys back under a name that was never shadowed. Not one .tsx
+   is edited to do it, which is the point: the rule holds for the page nobody
+   has written yet.
+
+   THE HEADER AND THE RAIL ARE OUTSIDE .tc-main, and that is correct rather
+   than an omission — both are panels, and both keep the city's greys. */
+[data-hub="financial"] .tc-main { --muted: var(--ink-soft); --faint: var(--ink-soft); }
+/* ANY CLASS IN THIS HUB THAT PAINTS PAPER BELONGS ON THIS LIST, the commit it
+   is born — the rule beauty's list learned the hard way. A surface missing
+   from it is not a rendering fault, it is body copy one shade too dark, which
+   is the kind of wrong nobody files a bug about. `.fold` and `.fold-open` are
+   on it because this is the hub the fold was generalised for; the rest are
+   the city's own furniture. */
+[data-hub="financial"] .card,
+[data-hub="financial"] .stat,
+[data-hub="financial"] .row,
+[data-hub="financial"] .console,
+[data-hub="financial"] .fold,
+[data-hub="financial"] .fold-open,
+[data-hub="financial"] table.tc,
+[data-hub="financial"] .modal,
+[data-hub="financial"] .sheet {
+  --muted: var(--on-paper-muted);
+  --faint: var(--on-paper-faint);
+}
+
+/* ── AND THE PREFERENCE THE SKY OWES BACK ────────────────────────────────
+   A citizen who asked for less transparency is asking for surfaces to be
+   surfaces. The atmosphere goes, the two frosted pieces of chrome become the
+   paper they were standing in for, and the room is the white one the rest of
+   the city is. There is nothing to put back below the rail, because nothing
+   below the rail ever left the paper.
+
+   THE SHELL LAYER IS TURNED OFF BY NAME. `.tc-shell::before` is unscoped —
+   it paints --sky-image for whichever hub hangs something on it — so clearing
+   the picture on the hub element alone would leave the fixed layer still
+   showing it on every route that has a shell, which is all of them but the
+   landing. Its --ground background-colour stays, so what is left is white. */
+@media (prefers-reduced-transparency: reduce) {
+  [data-hub="financial"] { background-image: none; }
+  [data-hub="financial"] .tc-shell::before { background-image: none; }
+  [data-hub="financial"] .tc-header,
+  [data-hub="financial"] .tc-side {
+    background: var(--card);
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+}
+
 /* ══ THE OBSERVATORY OWNS NOTHING IN THIS FILE ═══════════════════════════
    It had one rule: a letterpress correction on the consultation title,
    because a white hairline under white type on a near-black ground is a
