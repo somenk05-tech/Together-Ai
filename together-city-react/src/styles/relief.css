@@ -3791,24 +3791,35 @@ textarea.g-field { resize: none; line-height: 1.55; }
   .cvskills span { box-shadow: none; outline: 1.5px solid var(--stage-line); outline-offset: -1.5px; }
 }
 
-/* ══ MEDICAL HAS NO ENTRY HERE EITHER ════════════════════════════════════
+/* ══ MEDICAL'S FIRST ATMOSPHERE, AND WHY THE SECOND ONE IS DOWN THE FILE ═══
    The gradient environment — a cool out-of-focus field with a warm ember at
    the corner, a frosted sheet over it, an `ma`-prefixed landing built as a
    stage, a fixed shell layer with its own isolation context, chrome and rail
-   in milk glass, and three preference fallbacks for the blur — shipped this
-   morning and is gone by evening. It was good and it is not what the city is
-   any more: every room is black and white, and each owns one colour, its
-   lamp.
+   in milk glass, and three preference fallbacks for the blur — shipped one
+   morning and was gone by evening. The reason written here was: "It was good
+   and it is not what the city is any more: every room is black and white, and
+   each owns one colour, its lamp."
 
-   The deletion is total rather than partial, which is the point. A hub that
-   keeps half an atmosphere is a hub with a second design system in it. What
-   replaces all of it: var(--card), var(--rail-well), var(--face-tall) — the
-   lines that were always in this file — and a teal key in the rail.
+   THAT SENTENCE IS NO LONGER TRUE AND THIS COMMENT IS NOT GOING TO PRETEND
+   OTHERWISE. Six rooms hang a sky as of today, medical is the seventh, and the
+   block that does it for this hub is at the foot of this file. Leaving the
+   paragraph above standing as written would make the stylesheet argue with
+   itself, which is worse than either decision.
+
+   BUT THE DELETION WAS STILL RIGHT, AND FOR THE OTHER REASON IT GAVE. "A hub
+   that keeps half an atmosphere is a hub with a second design system in it."
+   That is what was actually wrong: a frosted sheet, a stage, an isolation
+   context and three fallbacks, all of them belonging to one room. What the
+   hub has now is --sky-image — one token, the same four lines as six other
+   hubs, with no machinery of its own — and every stop of it computed against
+   the ink at build time. The first attempt was an atmosphere the city could
+   not check; this one is an atmosphere the city checks itself.
 
    THE ONE THING WORTH KEEPING WAS NEVER CSS. The measured-contrast harness
    this look forced into existence (glyph-removed ground pass, alpha
    compositing, both luminance ends) outlived the look by a week and has
-   checked every room since. The atmosphere paid for the instrument.       */
+   checked every room since — including, this afternoon, the seven skies. The
+   atmosphere paid for the instrument, and the instrument bought it back.  */
 
 /* A FIXED background is a MOVING background to anybody scrolling past it —
    the rule outlived every fixed layer in the city, and relief.spec reads the
@@ -4849,6 +4860,231 @@ textarea.g-field { resize: none; line-height: 1.55; }
   [data-hub="entertainment"] table.tc,
   [data-hub="entertainment"] .modal,
   [data-hub="entertainment"] .sheet {
+    background: var(--card);
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+}
+
+/* ══ THE KITCHEN GETS A MORNING ═════════════════════════════════════════════
+   SIXTH HUB, SAME FOUR LINES, AND THIS ONE HAS THE MOST TO LOSE. Nutrition is
+   the hub with PAPER IN IT — fourteen photographed sheets, two per weekday,
+   each with its own measured ink scale, plus the food-preference sheet that
+   borrows Tuesday's. None of that floats, and the section below is as much
+   about what is left opaque as about what is made thin.
+
+   BODY, SHELL, MAIN, PAGE. A negative-z-index fixed layer paints below the
+   background of an in-flow block, so an opaque body is a lid on the sky. */
+[data-hub="nutrition"] { background-image: var(--sky-image); background-attachment: fixed; }
+[data-hub="nutrition"] body,
+[data-hub="nutrition"] .tc-shell,
+[data-hub="nutrition"] .tc-main,
+[data-hub="nutrition"] .page { background: transparent; }
+
+/* ── AND EVERY SURFACE THAT HOLDS TEXT GOES TRANSLUCENT, NOT AWAY ───────────
+   var(--frost), the root's own translucent white, and nothing else: a hub block
+   may not introduce a name that is not at :root, and this one introduces none.
+   The list is dating's, class for class. */
+[data-hub="nutrition"] .tc-header {
+  background: var(--frost);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  backdrop-filter: blur(8px) saturate(120%);
+}
+/* THE RAIL IS A PANEL FLOATING ON THE SKY, NOT A WELL CUT INTO IT. Its keys
+   need nothing: --lens-face is already translucent white and carries its own
+   blur, and frost over them would paint out the lamp — which in this hub is
+   the green one, the only colour the block in tokens.css has ever owned. */
+[data-hub="nutrition"] .tc-side { background: var(--frost); box-shadow: var(--e2); }
+[data-hub="nutrition"] .card,
+[data-hub="nutrition"] .stat,
+[data-hub="nutrition"] .row,
+[data-hub="nutrition"] .console,
+[data-hub="nutrition"] .pcard,
+[data-hub="nutrition"] table.tc,
+[data-hub="nutrition"] .modal,
+[data-hub="nutrition"] .sheet { background: var(--frost); }
+
+/* ── AND THE PAPER DOES NOT FLOAT, WHICH IS THE POINT OF THE PAPER ──────────
+   `.press-recto`, `.press-verso` and `.food-paper` are PHOTOGRAPHS with a veil
+   over them, and every ink on them was measured against the worst pixel of
+   their own sheet — that is what scripts/paper.mjs and the per-sheet AA guard
+   in relief.spec exist for. A translucent sheet is a photograph with a sky
+   coming through it: a different image, at every viewport, with none of the
+   numbers still true. They are absent from the list above deliberately and it
+   is the same absence as beauty's --shot-ground and astrology's letter.
+
+   AND A CARD ON A SHEET COMES BACK TO WHITE WITH THEM. `.card` is on the
+   float list and it is the right place for it — thirty-six of them across this
+   hub stand on the page — but a handful stand on Tuesday's paper instead, and
+   frost over a photograph is the same wrong answer one level down. A card
+   paints its own ground; on a sheet, its own ground is white. */
+[data-hub="nutrition"] .food-paper .card,
+[data-hub="nutrition"] .press-recto .card,
+[data-hub="nutrition"] .press-verso .card { background: var(--card); }
+
+/* ── MUTED INK NEVER SITS ON THE SKY ────────────────────────────────────────
+   IT IS DATING'S SHADOW-AND-RESTORE. Bare on this sweep --muted runs 5.09 on
+   the cream and 1.66 on the last green, --faint 4.45 down to 1.45: the same
+   grey passing where the picture begins and failing where it ends, which is
+   the worst kind of failure because it looks right to whoever writes it, who
+   has the top of the page on screen. --ink at 6.07 and --ink-soft at 4.92 are
+   safe at every stop, so the two that are not are pointed at --ink-soft for as
+   long as they are out in the open.
+
+   Custom properties inherit, so re-pointing the pair inside .tc-main reaches
+   every descendant — className="muted", which this hub uses a hundred and
+   forty-one times, and the inline color: 'var(--muted)' no stylesheet could
+   otherwise reach. Not one .tsx is edited to do it.
+
+   THE SHEETS NEED NOTHING FROM THIS AND ALREADY DID IT RIGHT. `.food-paper
+   .muted` sets a COLOUR rather than re-pointing the token — its own comment
+   explains why, and the effect here is that a shadowed var it never reads
+   cannot reach it. The cards on it are on the restore list below like every
+   other card, so their greys come back the city's.
+
+   THE RAIL AND THE HEADER ARE OUTSIDE .tc-main, and that is correct rather
+   than an omission — both are panels, and both keep the city's greys. */
+[data-hub="nutrition"] .tc-main { --muted: var(--ink-soft); --faint: var(--ink-soft); }
+[data-hub="nutrition"] .card,
+[data-hub="nutrition"] .stat,
+[data-hub="nutrition"] .row,
+[data-hub="nutrition"] .console,
+[data-hub="nutrition"] .pcard,
+[data-hub="nutrition"] table.tc,
+[data-hub="nutrition"] .modal,
+[data-hub="nutrition"] .sheet,
+[data-hub="nutrition"] .food-paper,
+[data-hub="nutrition"] .press-recto,
+[data-hub="nutrition"] .press-verso {
+  --muted: var(--on-paper-muted);
+  --faint: var(--on-paper-faint);
+}
+
+/* ── AND THE PREFERENCE THE SKY OWES BACK ───────────────────────────────────
+   A citizen who asked for less transparency is asking for surfaces to be
+   surfaces. The atmosphere goes and the frost becomes the white it was
+   standing in for. THE SHELL LAYER IS TURNED OFF BY NAME: `.tc-shell::before`
+   is unscoped, so clearing the picture on the hub element alone would leave
+   the fixed layer still showing it on every route but the landing. */
+@media (prefers-reduced-transparency: reduce) {
+  [data-hub="nutrition"] { background-image: none; }
+  [data-hub="nutrition"] .tc-shell::before { background-image: none; }
+  [data-hub="nutrition"] .tc-header,
+  [data-hub="nutrition"] .tc-side,
+  [data-hub="nutrition"] .card,
+  [data-hub="nutrition"] .stat,
+  [data-hub="nutrition"] .row,
+  [data-hub="nutrition"] .console,
+  [data-hub="nutrition"] .pcard,
+  [data-hub="nutrition"] table.tc,
+  [data-hub="nutrition"] .modal,
+  [data-hub="nutrition"] .sheet {
+    background: var(--card);
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+}
+
+/* ══ THE SURGERY GETS ITS SKY BACK ══════════════════════════════════════════
+   SEVENTH HUB, SAME FOUR LINES, AND THE ONLY ONE THAT IS A RETURN. Medical had
+   an atmosphere once and it was deleted — the tombstone is up the file, and it
+   has been corrected rather than left standing, because the reason it gave
+   ("every room is black and white") stopped being true six hubs ago. What has
+   NOT stopped being true is the other half of that argument: a hub with its
+   own frosted sheet, its own stage and its own isolation context is a hub with
+   a second design system in it. This is the citywide one. No stage, no
+   fallbacks of its own, no isolation context — --sky-image, fixed, and the
+   same eight class names every other room floats.
+
+   BODY, SHELL, MAIN, PAGE. A negative-z-index fixed layer paints below the
+   background of an in-flow block, so an opaque body is a lid on the sky. */
+[data-hub="medical"] { background-image: var(--sky-image); background-attachment: fixed; }
+[data-hub="medical"] body,
+[data-hub="medical"] .tc-shell,
+[data-hub="medical"] .tc-main,
+[data-hub="medical"] .page { background: transparent; }
+
+/* ── AND EVERY SURFACE THAT HOLDS TEXT GOES TRANSLUCENT, NOT AWAY ───────────
+   var(--frost), the root's own translucent white, and nothing else: a hub block
+   may not introduce a name that is not at :root, and this one introduces none.
+
+   AND THIS IS THE DENSE HUB, WHICH IS WHY table.tc IS ON THE LIST AND NOT AN
+   EXCEPTION. Financial kept its tables on paper because muted ink on frost
+   over the sage bottomed out at 3.48; that measurement was about the sage, not
+   about tables. On this sky the same panel clears everywhere — the restore
+   below puts the city's greys back on every one of these surfaces, so a blood
+   panel reads exactly the greys it read yesterday, on a thinner white. */
+[data-hub="medical"] .tc-header {
+  background: var(--frost);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  backdrop-filter: blur(8px) saturate(120%);
+}
+/* THE RAIL IS A PANEL FLOATING ON THE SKY, NOT A WELL CUT INTO IT. Its keys
+   need nothing: --lens-face is already translucent white and carries its own
+   blur. AND THE LAMP IS THE REASON TO SAY SO TWICE HERE — this hub's key is
+   teal and this hub's sky is blue, which are neighbours. The lamp stands on
+   frost, 72% white over any stop of it, so what it is actually contrasted
+   against is a near-white panel and not the sky at all. */
+[data-hub="medical"] .tc-side { background: var(--frost); box-shadow: var(--e2); }
+[data-hub="medical"] .card,
+[data-hub="medical"] .stat,
+[data-hub="medical"] .row,
+[data-hub="medical"] .console,
+[data-hub="medical"] .pcard,
+[data-hub="medical"] table.tc,
+[data-hub="medical"] .modal,
+[data-hub="medical"] .sheet { background: var(--frost); }
+
+/* ── MUTED INK NEVER SITS ON THE SKY ────────────────────────────────────────
+   IT IS DATING'S SHADOW-AND-RESTORE, AND ON THIS SKY IT IS NOT CLOSE. --muted
+   reads 3.45 at the LIGHTEST stop and 1.52 at the deepest — it fails across
+   the whole picture rather than at one end, which is the one case where the
+   apparatus is easy to justify and easy to forget, because the page still
+   looks blue and calm while a label is unreadable. --faint runs 3.02 to 1.33.
+   --ink at 5.96 and --ink-soft at 4.84 are safe at every stop, so the two that
+   are not are pointed at --ink-soft for as long as they are out in the open.
+
+   Custom properties inherit, so re-pointing the pair inside .tc-main reaches
+   every descendant — className="muted", which this hub uses seventy-eight
+   times, and the inline color: 'var(--muted)' no stylesheet could otherwise
+   reach. Not one .tsx is edited to do it.
+
+   THE RAIL AND THE HEADER ARE OUTSIDE .tc-main, and that is correct rather
+   than an omission — both are panels, and both keep the city's greys. */
+[data-hub="medical"] .tc-main { --muted: var(--ink-soft); --faint: var(--ink-soft); }
+[data-hub="medical"] .card,
+[data-hub="medical"] .stat,
+[data-hub="medical"] .row,
+[data-hub="medical"] .console,
+[data-hub="medical"] .pcard,
+[data-hub="medical"] table.tc,
+[data-hub="medical"] .modal,
+[data-hub="medical"] .sheet {
+  --muted: var(--on-paper-muted);
+  --faint: var(--on-paper-faint);
+}
+
+/* ── AND THE PREFERENCE THE SKY OWES BACK ───────────────────────────────────
+   A citizen who asked for less transparency is asking for surfaces to be
+   surfaces. The atmosphere goes and the frost becomes the white it was
+   standing in for. THE SHELL LAYER IS TURNED OFF BY NAME: `.tc-shell::before`
+   is unscoped, so clearing the picture on the hub element alone would leave
+   the fixed layer still showing it on every route but the landing.
+
+   THE FIRST ATMOSPHERE SHIPPED THREE FALLBACKS OF ITS OWN FOR THIS. This is
+   the same one every hub uses, which is the entire difference between the two
+   attempts written as CSS. */
+@media (prefers-reduced-transparency: reduce) {
+  [data-hub="medical"] { background-image: none; }
+  [data-hub="medical"] .tc-shell::before { background-image: none; }
+  [data-hub="medical"] .tc-header,
+  [data-hub="medical"] .tc-side,
+  [data-hub="medical"] .card,
+  [data-hub="medical"] .stat,
+  [data-hub="medical"] .row,
+  [data-hub="medical"] .console,
+  [data-hub="medical"] .pcard,
+  [data-hub="medical"] table.tc,
+  [data-hub="medical"] .modal,
+  [data-hub="medical"] .sheet {
     background: var(--card);
     -webkit-backdrop-filter: none; backdrop-filter: none;
   }

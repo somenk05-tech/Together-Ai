@@ -1110,6 +1110,46 @@
           inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
           0 1px 1px rgba(31,95,120,.30), 0 8px 20px rgba(31,95,120,.34), 0 20px 46px rgba(31,95,120,.22);
   --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
+
+  /* ── AND A SKY, WHICH THIS HUB HAS HAD BEFORE ────────────────────────────
+     Owner, 18 Aug: a blue field, pale steel at the top-right falling on the
+     diagonal to a deep royal at the bottom-left. Seventh hub, same machinery:
+     it rides --sky-image, `none` at :root and in every hub that hangs nothing
+     on it.
+
+     THIS IS THE ONE HUB WHERE THAT SENTENCE HAS A HISTORY. Medical shipped a
+     gradient environment in the morning and had it deleted by the evening —
+     the tombstone is in relief.css and it is worth reading, because the reason
+     given was "every room is black and white, and each owns one colour, its
+     lamp". That was true when it was written and it is not true now: six rooms
+     hang a sky, on one token, with the contrast of every one of them computed
+     at build time. What was actually wrong with the first attempt was that it
+     was a SECOND DESIGN SYSTEM — its own frosted sheet, its own stage, its own
+     isolation context and three preference fallbacks, for one hub. This is
+     four declarations that already exist, and the harness that deletion left
+     behind is what checks it.
+
+     THE DEEP END IS LIFTED — third time, and the arithmetic is the same each
+     time. This hub reads the city's black ink, and the reference's royal
+     corner is #324173: --ink 2.14, --ink-soft 1.74, which is not marginal.
+     The three lightest stops are the reference VERBATIM (#b8cbdb, #a7bed3,
+     #8db2cd — the steel end is most of the picture and it needed nothing) and
+     the royal climbs until the ink clears. Worst stop: --ink 5.96,
+     --ink-soft 4.84.
+
+     THE LAMP IS TEAL AND THE SKY IS BLUE, WHICH IS NOTED RATHER THAN FIXED.
+     They are neighbours in hue and the lamp is the city's wayfinding, so it is
+     fair to ask. It stands on the rail, and the rail is frost — 72% white over
+     any of these stops — so the lamp is a saturated dark teal on a near-white
+     panel, which is the contrast it was designed for. If it ever stops reading
+     it is the RAIL that changed, not the sky.
+
+     --muted AND --faint ARE NOT SAFE BARE anywhere on this one — 3.45 at the
+     lightest stop, 1.52 at the deepest — so they take dating's
+     shadow-and-restore in relief.css. */
+  --sky-image: linear-gradient(225deg,
+    #b8cbdb 0%, #a7bed3 16%, #8db2cd 32%, #7aa8c8 50%,
+    #6f9ec2 66%, #7095bd 84%, #7389b3 100%);
 }
 [data-hub="medicines"] {
   --lamp-face: linear-gradient(180deg, #287a9a 0%, #1f5f78 44%, #18485b 100%);
@@ -1348,6 +1388,45 @@
           0 1px 1px rgba(20,70,48,.20), 0 8px 20px rgba(31,93,67,.34), 0 20px 46px rgba(31,93,67,.22);
   --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30),
                 inset 0 -3px 6px rgba(10,45,30,.34);
+
+  /* ── AND A SKY, WHICH IS THE SECOND DECLARATION THIS HUB HAS EVER OWNED ──
+     Owner, 18 Aug: an earthy mesh — butter cream in the top-left corner
+     falling on the diagonal through sage to a deep forest green. Sixth hub,
+     same machinery: it rides --sky-image, `none` at :root and in every hub
+     that hangs nothing on it, so the one fixed layer every sky in the city
+     already uses paints this one too.
+
+     AND STILL NO GROUND. The block above is famous in this file for being
+     four declarations where a whole palette used to be — the warm paper was
+     deleted because the city at :root already says every other line of it.
+     This does not put any of that back. --ground, --paper, --card and
+     --rail-well are untouched and still the city's white; what moved is what
+     is drawn in FRONT of them, so relief.spec's granted set still reads
+     exactly astrology/beauty/entertainment.
+
+     THE FOREST END IS LIFTED, AND IT IS FINANCIAL'S CORRECTION AGAIN. This is
+     the hub that reads the city's own black ink, and the reference's deep end
+     is #32502e — luminance 0.066, where --ink lands at 3.05 and --ink-soft at
+     2.47. Both under AA, on roughly half the picture. Financial's sage went up
+     from #4e5f57 to #93a38f for exactly this and the same arithmetic applies
+     here, so the sweep keeps its two lightest stops VERBATIM from the
+     reference — #f6f2d8 and #ece8ba, the butter corner that gives this sky its
+     character — and the green end climbs until the city's ink clears it.
+     Worst stop: --ink 6.07, --ink-soft 4.92.
+
+     IT IS NOT FINANCIAL'S SKY AND THAT IS WORTH SAYING OUT LOUD, because a
+     lifted green is where the two hubs could have collided. Financial is a
+     flat sage between 0.34 and 0.45 luminance with no yellow in it at all;
+     this runs 0.25 to 0.88 and starts in cream. Side by side they are a field
+     and a morning, and the thing that keeps them apart is the corner that was
+     kept rather than the end that was moved.
+
+     --muted AND --faint ARE NOT SAFE BARE. They clear on the cream and fail
+     from the middle down — 1.66 and 1.45 on the last stop — so they take
+     dating's shadow-and-restore in relief.css. */
+  --sky-image: linear-gradient(135deg,
+    #f6f2d8 0%, #ece8ba 16%, #cfd3a6 32%, #b3c09f 50%,
+    #99ab8b 68%, #86997a 84%, #7b9070 100%);
 }
 
 /* ══ ASTROLOGY'S NIGHT — THE SECOND SURFACE EXCEPTION ══════════════════════
