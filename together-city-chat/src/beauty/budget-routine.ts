@@ -82,13 +82,41 @@ export const BUDGET_MIN = 0;
  * printed on the routine, but a SLIDER whose end moves when you change your
  * skin type is a control nobody can learn — and it would leak the shelf's
  * shape into a form the citizen fills in before we have priced anything.
- * ₹8,000 sits above every useful maximum measured and below the absurd.
+ * ₹8,000 sat above every useful maximum measured and below the absurd.
  *
  * A STORED BUDGET ABOVE IT IS CLAMPED ON READ, not migrated. Somebody who set
  * ₹17,600 for hair sees ₹8,000 and a routine built against it, which is the
  * same routine they were already getting.
+ *
+ * ── RE-MEASURED ON THE 2026-08 SHELF, AND THE LAST PARAGRAPH NO LONGER HOLDS ─
+ *
+ * Every figure above was measured on a 226-product shelf whose cheapest tier
+ * was mass-market. That shelf is gone. On 1,259 routine-eligible products from
+ * 27 salon and premium brands, across four profiles:
+ *
+ *   face   spends ₹7,635–₹8,122 against the cap; unbounded ideal ₹9,505–₹12,447
+ *   hair   spends ₹7,614–₹7,823 against the cap; unbounded ideal up to ₹13,938
+ *   body   spends ₹6,467–₹7,838
+ *   dearest whole routine the planner will build: ₹23,294 (13 products)
+ *
+ * "Hair at under ₹1,000" was true and is now wrong by more than an order of
+ * magnitude — a litre of Olaplex No.4 alone is ₹11,999. ₹8,000 is therefore no
+ * longer headroom above every useful maximum; it is a REAL CEILING that face
+ * and hair both press against, and `idealInr` now fires routinely rather than
+ * rarely, printing "your ideal routine is ₹13,938, your budget is ₹8,000".
+ *
+ * SO THE CAP MOVES TO ₹15,000, on the owner's call and on the original
+ * principle rather than a new one: the slider's end sits ABOVE every useful
+ * maximum the shelf can produce and below the absurd. ₹15,000 clears the
+ * highest measured ideal (₹13,938, hair) with room, and a whole routine can
+ * now reach ₹45,000 — which is what four bond-repair litres and a salon facial
+ * kit genuinely cost, not an invitation to spend it.
+ *
+ * `usefulMaxInr` is still computed per person and still printed, so a citizen
+ * whose shelf tops out at ₹4,000 is told so rather than left staring at a
+ * slider that goes three times further than anything they can buy.
  */
-export const BUDGET_MAX = 8000;
+export const BUDGET_MAX = 15000;
 
 export const clampBudget = (n: number): number =>
   Math.min(BUDGET_MAX, Math.max(BUDGET_MIN, Math.round(Number.isFinite(n) ? n : BUDGET_MIN)));
@@ -365,6 +393,29 @@ export const MIN_UTILISATION = 0.25;
  */
 const cost = (p: RecommendedProduct) => p.priceInr;
 
+/**
+ * ── A COMPUTED PRICE MAY NOT SET WHAT SOMEBODY IS TOLD TO SPEND ─────────────
+ *
+ * 65 rows on the 2026-08 shelf are multi-packs whose price is ARITHMETIC, not
+ * observed: every Remy Laure "x 3" is exactly 0.85 × (3 × single) and every
+ * pack of 5 or 10 exactly 0.6917 ×. The verification pass flagged them and the
+ * catalogue sheet labels them "Derived pack price — verify before use".
+ *
+ * They are real products and they stay on the shelf, buyable and recommendable.
+ * What they may not do is LEAD A ROLE. Left alone they did: at the top of the
+ * face budget the planner filled four of six roles with them, and the dearest
+ * was a ₹21,114 serum 3-pack — so the single most expensive thing the engine
+ * would ever tell a citizen to buy rested on a number nobody had seen on a
+ * shelf. The routine is advice with a price attached; the price has to be one
+ * somebody actually charged.
+ *
+ * Matched on the pack shape in the product NAME, which is where the sheet puts
+ * it, and deliberately not on price or brand — a dear product is not suspect,
+ * and Remy Laure's single-unit prices are sound and still lead roles freely.
+ */
+const DERIVED_PACK = /\((?:[^)]*\b(?:x\s*\d+|pack of \d+)\b[^)]*)\)/i;
+export const isDerivedPackPrice = (p: { name: string }) => DERIVED_PACK.test(p.name);
+
 /** Cheapest per month first; a tie goes to the better profile match. Used for
  *  the floor, where the only question is whether a routine is possible at all. */
 const byValue = (a: RecommendedProduct, b: RecommendedProduct) =>
@@ -429,7 +480,10 @@ export function planCategory(
   // COMPATIBILITY IS THE GATE AND NOTHING BELOW REOPENS IT. Everything from
   // here is chosen out of `pool`, which is this category's matched products and
   // only those. No pass widens it to reach a number.
-  const pool = all.filter((p) => categoryOf(p.group) === category && p.matched);
+  const pool = all.filter((p) => categoryOf(p.group) === category && p.matched
+    // A derived pack price may not be the product a routine step recommends.
+    // See DERIVED_PACK above; these stay on the Market shelf either way.
+    && !isDerivedPackPrice(p));
   /**
    * A ROLE THEY ALREADY HAVE IS NOT A ROLE THIS PLAN FILLS. Removing it from
    * `defs` rather than filtering at each pass is deliberate: six passes and the

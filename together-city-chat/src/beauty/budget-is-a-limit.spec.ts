@@ -468,17 +468,24 @@ describe('one category does not spend another category\'s money', () => {
   });
 
   it('totals what it actually spent, not what it was given', () => {
-    // Three categories at the ₹8,000 cap: ₹10,000 each is clamped on the way in.
-    const p = plan(10000);
-    expect(p.totalBudgetInr).toBe(24000);
+    // Three categories at the cap: anything above it is clamped on the way in.
+    //
+    // WRITTEN AS BUDGET_MAX RATHER THAN 8000, WHICH IS WHY IT BROKE. The
+    // literal ₹10,000 was chosen to be above the cap and the literal ₹24,000
+    // was 3 × 8,000; when the cap moved to ₹15,000 for the 2026-08 shelf,
+    // ₹10,000 stopped being clamped and the test failed for a reason that had
+    // nothing to do with what it is checking — that a total is the sum of what
+    // each category was GIVEN after clamping, not of what was asked for.
+    const p = plan(BUDGET_MAX + 2000);
+    expect(p.totalBudgetInr).toBe(BUDGET_MAX * 3);
     expect(p.totalMonthlyInr).toBe(p.face.monthlyInr + p.hair.monthlyInr + p.body.monthlyInr);
     // WHAT IS LEFT IS THE SUM OF THE CATEGORY FLOORS. A category may now land
     // up to 5% OVER its own number — the band's headroom — and its remaining
     // floors at zero rather than going negative, so the total remaining is
-    // the sum of those floors and can exceed 24000 − spend. Asserting the
+    // the sum of those floors and can exceed the total budget − spend. Asserting the
     // subtraction would quietly forbid the band's upper half.
     expect(p.totalRemainingInr).toBe(p.face.remainingInr + p.hair.remainingInr + p.body.remainingInr);
-    expect(p.totalRemainingInr).toBeGreaterThanOrEqual(24000 - p.totalSpendInr);
+    expect(p.totalRemainingInr).toBeGreaterThanOrEqual(BUDGET_MAX * 3 - p.totalSpendInr);
   });
 });
 
