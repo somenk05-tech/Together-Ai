@@ -99,11 +99,17 @@ describe('Mira is two tabs', () => {
 
 describe('and a door on every page', () => {
   const dock = read('layouts/MiraDock.tsx');
+  // Her one mounting point is RootChrome — the pathless root route — not
+  // AppShell, which is one of nineteen sibling blocks. RootChrome's own
+  // comment carries the full argument; this pins both halves of it: the dock
+  // is above every block, and no block grows a second copy.
+  const chrome = read('layouts/RootChrome.tsx');
   const shell = read('layouts/AppShell.tsx');
   const css = read('styles/mira.css');
 
   it('her mark floats on every page, and a press pops the chat up', () => {
-    expect(shell).toMatch(/<MiraDock \/>/);
+    expect(chrome).toMatch(/<MiraDock \/>/);
+    expect(shell).not.toMatch(/<MiraDock \/>/);
     expect(dock).toMatch(/<MiraMark/);
     expect(dock).toMatch(/<MiraThread about=\{pathname\}/);
   });

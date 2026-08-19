@@ -31,8 +31,11 @@ export function RestaurantsHome() {
 
       {/* Entry cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16, marginTop: 22 }}>
+        {/* Keyed by title, not path: two cards deliberately lead to /explore
+            (browse and book are one room), and duplicate keys make React
+            recycle the wrong card. Titles are the unique thing here. */}
         {ENTRIES.map((e) => (
-          <Link key={e.to} to={e.to} className="card lift" style={{ display: 'block', textDecoration: 'none', color: 'inherit', borderTop: e.accent ? '3px solid var(--gold-bright)' : undefined }}>
+          <Link key={e.title} to={e.to} className="card lift" style={{ display: 'block', textDecoration: 'none', color: 'inherit', borderTop: e.accent ? '3px solid var(--gold-bright)' : undefined }}>
             <div style={{ fontSize: 30, marginBottom: 8 }}>{e.icon}</div>
             <h3 style={{ margin: '0 0 4px', fontSize: 18 }}>{e.title}</h3>
             <p className="muted" style={{ fontSize: 13, lineHeight: 1.5, margin: 0 }}>{e.blurb}</p>

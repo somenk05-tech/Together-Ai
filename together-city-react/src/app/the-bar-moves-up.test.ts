@@ -117,13 +117,16 @@ describe('the bar sits with the logo', () => {
     expect(groups.some((r) => /--ink-soft/.test(r))).toBe(false);
   });
 
-  it('and does not turn solid white in the two night hubs', () => {
+  it('and does not turn solid white in the night hub', () => {
     // `--ink` and `--card` swap meaning on a night surface, so the rule above
     // would make five SOLID WHITE lozenges there. tokens.css allows exactly
     // two of those in that room — the primary button and the rail lamp — and
     // five across the top would beat both. The night keeps its raised face.
+    // Astrology left this set on 18 Aug when its page became a sheet of light
+    // (relief.css carries the argument next to the rule); entertainment is the
+    // one night room left, and it keeps the raised face.
     const relief = read('styles/relief.css');
-    const night = relief.match(/\[data-hub="astrology"\] \.tc-actionbar a[^{]*\{([^}]*)\}/)?.[1] ?? '';
+    const night = relief.match(/\[data-hub="entertainment"\] \.tc-actionbar a[^{]*\{([^}]*)\}/)?.[1] ?? '';
     expect(night, 'the night-hub action-bar rule not found').toBeTruthy();
     expect(night).toMatch(/background:\s*var\(--face\)/);
     expect(night).toMatch(/color:\s*var\(--ink\)/);

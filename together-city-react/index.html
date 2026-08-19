@@ -19,6 +19,26 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon-180.png" />
     <title>Together City — Everything. Personalized.</title>
+    <!-- WHAT A CRAWLER SEES. This is a client-rendered app, so for search
+         engines and link unfurlers this file IS the page: without these tags
+         Google writes its own snippet and a pasted link unfurls as a bare URL.
+         Static and site-wide on purpose — per-route tags would need SSR, and a
+         truthful site-wide card beats a wrong per-page one. No canonical tag:
+         every route serves this same file, and a canonical here would tell
+         crawlers that every page IS the homepage, de-indexing the rest. -->
+    <meta name="description" content="Together City is one personalized city for your whole life — nutrition, health, fitness, beauty, dating, social life, jobs, money and more, all reading from one profile you set once." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Together City" />
+    <meta property="og:title" content="Together City — Everything. Personalized." />
+    <meta property="og:description" content="One personalized city for your whole life — nutrition, health, fitness, beauty, dating, social life, jobs and money, all reading from one profile you set once." />
+    <meta property="og:url" content="https://togethercity.app/" />
+    <meta property="og:image" content="https://togethercity.app/assets/img/og-card.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Together City — Everything. Personalized." />
+    <meta name="twitter:description" content="One personalized city for your whole life — every hub reads from one profile you set once." />
+    <meta name="twitter:image" content="https://togethercity.app/assets/img/og-card.jpg" />
   </head>
   <body>
     <div id="root"></div>

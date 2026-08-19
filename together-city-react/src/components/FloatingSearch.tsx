@@ -40,6 +40,20 @@ export function FloatingSearch() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Re-clamp once the REAL pill has painted. The measuring pass above reads
+  // the hidden placeholder — which is an EMPTY button, ~6px wide — so the
+  // first computed x sits `realWidth - placeholderWidth` (~88px) past the
+  // right edge, and on a phone that left nothing visible but a sliver of the
+  // pill. One more clamp against the rendered width pulls it fully on-screen;
+  // it is a no-op whenever the position was already legal (drags re-clamp on
+  // their own, so this never fights the user's chosen spot).
+  useLayoutEffect(() => {
+    if (!pos) return;
+    const next = clamp(pos.x, pos.y);
+    if (next.x !== pos.x || next.y !== pos.y) setLocal(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pos?.x, pos?.y]);
+
   // Keep it on-screen if the window resizes.
   useEffect(() => {
     const onResize = () => setLocal((p) => (p ? clamp(p.x, p.y) : p));

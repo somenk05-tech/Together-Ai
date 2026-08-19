@@ -165,13 +165,13 @@ export function SignIn({ initialMode = 'login' }: { initialMode?: Mode } = {}) {
                   <div style={wrap}>
                     <span style={iconWrap}><PersonIcon /></span>
                     <span style={{ color: 'rgba(255,255,255,.55)', fontSize: 15 }}>@</span>
-                    <input autoFocus required value={handle} placeholder="handle" name="username" autoComplete="username"
+                    <input autoFocus required value={handle} placeholder="handle" aria-label="Handle" name="username" autoComplete="username"
                       onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, ''))}
                       style={{ ...inp, paddingLeft: 2 }} />
                   </div>
                   <div style={wrap}>
                     <span style={iconWrap}><LockIcon /></span>
-                    <input required type={showPw ? 'text' : 'password'} value={password} placeholder="Password" name="current-password" autoComplete="current-password"
+                    <input required type={showPw ? 'text' : 'password'} value={password} placeholder="Password" aria-label="Password" name="current-password" autoComplete="current-password"
                       onChange={(e) => setPassword(e.target.value)} style={inp} />
                     <button type="button" aria-label={showPw ? 'Hide password' : 'Show password'} onClick={() => setShowPw((s) => !s)}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,.55)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
@@ -183,7 +183,7 @@ export function SignIn({ initialMode = 'login' }: { initialMode?: Mode } = {}) {
 
               {(mode === 'forgot' || mode === 'reset') && (
                 <div style={wrap}>
-                  <input required autoFocus={mode === 'forgot'} value={identifier} placeholder="Your primary email, phone, or handle"
+                  <input required autoFocus={mode === 'forgot'} value={identifier} placeholder="Your primary email, phone, or handle" aria-label="Your primary email, phone, or handle"
                     onChange={(e) => setIdentifier(e.target.value)} style={inp} />
                 </div>
               )}
@@ -210,7 +210,7 @@ export function SignIn({ initialMode = 'login' }: { initialMode?: Mode } = {}) {
                   </div>
                   <div style={wrap}>
                     <span style={iconWrap}><LockIcon /></span>
-                    <input required type={showPw ? 'text' : 'password'} value={password} placeholder="New password" name="new-password" autoComplete="new-password" onChange={(e) => setPassword(e.target.value)} style={inp} />
+                    <input required type={showPw ? 'text' : 'password'} value={password} placeholder="New password" aria-label="New password" name="new-password" autoComplete="new-password" onChange={(e) => setPassword(e.target.value)} style={inp} />
                     <button type="button" aria-label={showPw ? 'Hide password' : 'Show password'} onClick={() => setShowPw((s) => !s)}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,.55)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                       {showPw ? <EyeOffIcon /> : <EyeIcon />}

@@ -158,20 +158,33 @@ export function Home() {
         </div>
         {/* Looping city background video. The still image is the poster, so the
             page looks identical until the video loads (and if the video is ever
-            missing) — the clickable building zones below never break. */}
-        <video
-          className="bg"
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-          poster={img('final-homepage.webp')}
-          aria-label="Together City — golden-hour pavilion city on the waterfront"
-        >
-          <source src="/assets/video/together-city-loop.webm" type="video/webm" />
-          <source src="/assets/video/together-city-loop.mp4" type="video/mp4" />
-        </video>
+            missing) — the clickable building zones below never break.
+
+            A PHONE GETS THE STILL, exactly as SignIn already decided for the
+            same loop: `autoPlay preload="auto"` downloads the 9–15 MB file on
+            page one over mobile data, for a backdrop. Same 900px line, same
+            mount-time decision — rotating a phone never crosses 900px. */}
+        {window.matchMedia('(min-width: 900px)').matches ? (
+          <video
+            className="bg"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            poster={img('final-homepage.webp')}
+            aria-label="Together City — golden-hour pavilion city on the waterfront"
+          >
+            <source src="/assets/video/together-city-loop.webm" type="video/webm" />
+            <source src="/assets/video/together-city-loop.mp4" type="video/mp4" />
+          </video>
+        ) : (
+          <img
+            className="bg"
+            src={img('final-homepage.webp')}
+            alt="Together City — golden-hour pavilion city on the waterfront"
+          />
+        )}
         <svg className="bmap" viewBox="0 0 1903 826" preserveAspectRatio="xMidYMid slice" aria-label="Together City map">
           {ZONES.map((z) => (
             <g key={z.to} role="link" aria-label={z.label} onClick={() => navigate(z.to)} style={{ cursor: 'pointer' }}>

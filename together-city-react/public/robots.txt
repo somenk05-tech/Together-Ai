@@ -1,0 +1,16 @@
+# Together City — togethercity.app
+# The public rooms are crawlable; everything behind sign-in returns the same
+# app shell anyway, but these paths are personal by definition and there is
+# nothing for an index to say about them.
+User-agent: *
+Disallow: /chats
+Disallow: /mail
+Disallow: /personal
+Disallow: /daybook
+Disallow: /thoughts
+Disallow: /profile
+Disallow: /settings
+Disallow: /console
+Disallow: /moderation
+Disallow: /dev
+Allow: /

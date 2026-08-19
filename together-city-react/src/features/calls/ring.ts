@@ -20,6 +20,12 @@ class CallRinger {
   private ctx: AudioContext | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private nodes: { osc: OscillatorNode; gain: GainNode }[] = [];
+  /** Only true after start() actually asked the body to buzz — so stop() never
+      calls vibrate(0) on a page the citizen has not touched. Chrome refuses
+      pre-gesture vibrate WITH A CONSOLE ERROR, and stop() runs on every mount's
+      cleanup: that was three red lines per page, on every page, before any
+      call existed. `userActivation` is the same gate Chrome itself applies. */
+  private vibrating = false;
 
   start(kind: RingKind): void {
     this.stop();
@@ -39,8 +45,8 @@ class CallRinger {
 
     // A phone in a pocket rings with its body too. Vibration is gated on the
     // same user-gesture rules as audio; a refusal is silent and fine.
-    if (kind === 'ring') {
-      try { navigator.vibrate?.([400, 200, 400]); } catch { /* not on this device */ }
+    if (kind === 'ring' && navigator.userActivation?.hasBeenActive) {
+      try { this.vibrating = navigator.vibrate?.([400, 200, 400]) === true; } catch { /* not on this device */ }
     }
   }
 
@@ -49,7 +55,10 @@ class CallRinger {
     for (const { osc, gain } of this.nodes.splice(0)) {
       try { gain.gain.cancelScheduledValues(0); gain.gain.value = 0; osc.stop(); } catch { /* already stopped */ }
     }
-    try { navigator.vibrate?.(0); } catch { /* not on this device */ }
+    if (this.vibrating) {
+      this.vibrating = false;
+      try { navigator.vibrate?.(0); } catch { /* not on this device */ }
+    }
   }
 
   /** One on-off-on cadence: dual tone (400 + 450 Hz), two 0.4s bursts. */

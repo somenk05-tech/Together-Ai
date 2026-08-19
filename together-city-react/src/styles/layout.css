@@ -1629,3 +1629,38 @@
   .wk-how-shot { display: none; }
   .wk-how { max-height: 30vh; }
 }
+
+/* ── THE THUMB GETS THE 44px IT WAS PROMISED, WITHOUT THE PILLS GROWING ─────
+   Apple and Android both put the minimum comfortable target at ~44px. The
+   header's five doors draw at 32px tall, the breadcrumb's Back pill at 27px,
+   and the crumb links are one line of 12.5px text — all correct to the eye
+   and all under the thumb's floor. Growing the drawn boxes would re-argue the
+   masthead's whole geometry, so the HIT AREA grows instead: a transparent
+   ::after pane extending each control past its painted edge. No colour, no
+   shadow, no layout change — a finger's landing zone only, and only where
+   the pointer is a finger. Horizontal reach stays small (±4px) because these
+   controls sit shoulder to shoulder; vertical reach does the real work.
+   `z-index` on the host keeps the invisible pane from sliding UNDER a
+   neighbouring card's edge and stealing its first press. */
+@media (pointer: coarse) {
+  .tc-actionbar a, .tc-actionbar button, .tc-actions a, .tc-actions button,
+  .tc-logo,
+  .tc-nav a,
+  nav[aria-label="Breadcrumb"] button,
+  nav[aria-label="Breadcrumb"] a {
+    position: relative;
+  }
+  .tc-actionbar a::after, .tc-actionbar button::after,
+  .tc-actions a::after, .tc-actions button::after,
+  .tc-logo::after,
+  .tc-nav a::after,
+  nav[aria-label="Breadcrumb"] button::after,
+  nav[aria-label="Breadcrumb"] a::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: calc(100% + 8px);
+    height: max(44px, 100%);
+  }
+}

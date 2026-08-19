@@ -187,7 +187,13 @@ export function crumbsFor(pathname: string): Crumb[] {
   if (hubKey) {
     const meta = hubMeta(hubKey);
     crumbs.push({ label: meta.name, path: meta.path });
-    if (pathname !== meta.path) crumbs.push({ label: titleFor(pathname) });
+    if (pathname !== meta.path) {
+      const label = titleFor(pathname);
+      // A page that carries its hub's own name (the Beauty hub is "Beauty
+      // Market" and so is its shop page) would print "Beauty Market › Beauty
+      // Market" — the same place said twice. Once is the truth.
+      if (label !== meta.name) crumbs.push({ label });
+    }
     return crumbs;
   }
 
