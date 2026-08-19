@@ -23,8 +23,28 @@ import { conditionsDeclared, findContraindication } from '../shared/topical-cont
  */
 
 const RETINOID = /retin(ol|al|aldehyde|yl|oid)|tretinoin|adapalene|tazarotene|hydroquinone/i;
-const carriesRetinoid = (p: { name: string; actives: string[]; keyIngredient: string }) =>
-  RETINOID.test([p.name, p.keyIngredient, ...p.actives].join(' '));
+/**
+ * "RETINOL ALTERNATIVE" IS NOT A RETINOID, AND THIS TEST USED TO SAY IT WAS.
+ *
+ * Two Moroccanoil Night Body Serum sizes list "Retinol Alternative" among their
+ * actives — a bakuchiol-class ingredient, named for what it replaces. The blunt
+ * regex above matched the word 'Retinol' inside it and failed the shelf.
+ *
+ * The engine was right and this test was wrong: topical-contraindications.ts
+ * has carried `except: ['retinol alternative', 'retinol free', ...]` since the
+ * rule was written, with a comment saying that blocking the alternative would
+ * be "the exact opposite of this rule" — because a retinol alternative is
+ * precisely what the pregnancy caution RECOMMENDS in place of a retinoid.
+ *
+ * The exception is mirrored here rather than the regex loosened. Widening
+ * RETINOID would blunt the guard; naming the phrase keeps it sharp and keeps
+ * the two files agreeing about one fact.
+ */
+const NOT_A_RETINOID = /retinol[- ](alternative|free)|vitamin a rich|beta[- ]carotene/i;
+const carriesRetinoid = (p: { name: string; actives: string[]; keyIngredient: string }) => {
+  const hay = [p.name, p.keyIngredient, ...p.actives].join(' ');
+  return RETINOID.test(hay.replace(NOT_A_RETINOID, ''));
+};
 
 const PREGNANT = assessBeauty({
   skinType: 'oily', skinConcerns: ['Acne', 'Fine Lines'], skinGoals: ['Anti Ageing'],

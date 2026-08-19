@@ -87,6 +87,46 @@ const CATEGORY = {
   'Lip Balm': 'Lip balm',
 };
 
+/**
+ * ── THE 2026-08 SHEET SPEAKS THE SHELF'S OWN VOCABULARY ─────────────────────
+ *
+ * The three sheets before it came from one retailer's export and used that
+ * retailer's sixteen category names, which `CATEGORY` above translates. The
+ * 2026-08 sheet is assembled from twenty-nine brands' own storefronts and has
+ * no single vendor vocabulary to inherit, so the mapping was done upstream and
+ * it arrives already speaking the shelf's terms. These are those terms — the
+ * original sixteen, plus what a catalogue eight times the size actually
+ * contains and the old one had no word for.
+ *
+ * THE THREE NEW GROUPS ARE NOT ROUTINE GROUPS. Skincare, Hair Care and Body
+ * Care are bands of a routine; Makeup, Fragrance and Tools are things you buy.
+ * A perfume does not answer a finding in a skin assessment and a beard trimmer
+ * is not a step. They are on the shelf because the citizen shops for them, and
+ * they are kept out of the routine by `ROUTINE_GROUPS` in routine-engine.ts
+ * rather than by giving them a reading key they do not earn.
+ */
+const SELF_CATEGORIES = new Set([
+  // Skincare
+  'Cleanser', 'Toner', 'Serum', 'Moisturiser', 'Night cream', 'Eye cream',
+  'Sunscreen', 'Face mask', 'Face scrub', 'Face oil', 'Facial kit', 'Lip care',
+  // Hair Care
+  'Shampoo', 'Dry shampoo', 'Conditioner', 'Hair mask', 'Hair oil', 'Hair serum',
+  'Scalp treatment', 'Hair colour', 'Hair treatment', 'Hair styling',
+  'Hair extensions', 'Hair kit',
+  // Body Care
+  'Body wash', 'Body lotion', 'Body scrub', 'Body mask', 'Body oil', 'Hand cream',
+  'Lip balm', 'Foot care', 'Soap', 'Hair removal',
+  // Makeup
+  'Lipstick', 'Lip gloss', 'Lip liner', 'Foundation', 'Concealer', 'Compact',
+  'Blush', 'Highlighter', 'Kajal', 'Eyeliner', 'Mascara', 'Eyeshadow', 'Brow',
+  'Primer', 'Nail', 'Makeup kit',
+  // Fragrance
+  'Perfume', 'Body mist', 'Deodorant', 'Attar',
+  // Tools
+  'Trimmer', 'Shaver', 'Hair dryer', 'Hair straightener', 'Hair styler',
+  'Epilator', 'Grooming tool',
+]);
+
 /** When it is used, by category — then two overrides, and the ORDER MATTERS. */
 const USAGE = {
   Cleanser: 'Morning & Night', Toner: 'Morning & Night', Serum: 'Morning & Night',
@@ -95,6 +135,28 @@ const USAGE = {
   'Hair serum': 'Night',
   'Body wash': 'Body', 'Body lotion': 'Body', 'Body scrub': 'Body',
   'Hand cream': 'Body', 'Lip balm': 'Body',
+
+  // ── added with the 2026-08 sheet ──
+  'Night cream': 'Night', 'Eye cream': 'Morning & Night', 'Face scrub': 'Weekly',
+  'Face oil': 'Night', 'Facial kit': 'Weekly', 'Lip care': 'Morning & Night',
+  'Dry shampoo': 'Weekly', 'Scalp treatment': 'Night', 'Hair colour': 'Weekly',
+  'Hair treatment': 'Weekly', 'Hair styling': 'Morning', 'Hair extensions': 'Morning',
+  'Hair kit': 'Weekly',
+  'Body mask': 'Body', 'Body oil': 'Body', 'Foot care': 'Body', 'Soap': 'Body',
+  'Hair removal': 'Body',
+  // Makeup, fragrance and tools are not routine steps. They still need a legal
+  // usage string because the field is not optional; 'Morning' is where a shop
+  // browser sorts them and no routine ever reads it, because ROUTINE_GROUPS
+  // stops them long before slotsFor() is called.
+  Lipstick: 'Morning', 'Lip gloss': 'Morning', 'Lip liner': 'Morning',
+  Foundation: 'Morning', Concealer: 'Morning', Compact: 'Morning', Blush: 'Morning',
+  Highlighter: 'Morning', Kajal: 'Morning', Eyeliner: 'Morning', Mascara: 'Morning',
+  Eyeshadow: 'Morning', Brow: 'Morning', Primer: 'Morning', Nail: 'Morning',
+  'Makeup kit': 'Morning',
+  Perfume: 'Morning', 'Body mist': 'Morning', Deodorant: 'Morning', Attar: 'Morning',
+  Trimmer: 'Weekly', Shaver: 'Morning', 'Hair dryer': 'Weekly',
+  'Hair straightener': 'Weekly', 'Hair styler': 'Weekly', Epilator: 'Weekly',
+  'Grooming tool': 'Weekly',
 };
 
 const RETINOID = /retinol|retinal|retinaldehyde|retinyl|retinoid|tretinoin|adapalene/i;
@@ -122,6 +184,29 @@ const KEYS_FOR_GROUP = {
   Skincare: ['acne', 'oil', 'texture', 'hydration', 'pigmentation', 'wrinkles', 'redness'],
   'Hair Care': ['scalp', 'density', 'damage', 'thickness'],
   'Body Care': ['hydration', 'texture', 'redness'],
+
+  /**
+   * MAKEUP GETS THE THREE FACE KEYS IT CAN HONESTLY EARN, AND ONLY WHEN ITS OWN
+   * COPY SAYS SO. A mattifying compact really does answer `oil`; a colour-
+   * correcting concealer really does answer `pigmentation`; a tinted balm
+   * really does answer `hydration`. What it must never get is `acne` or
+   * `wrinkles` — coverage is not treatment, and a foundation that "blurs fine
+   * lines" is describing an optical effect, not a finding it resolves.
+   *
+   * FRAGRANCE AND TOOLS GET NOTHING, ON PURPOSE. There is no reading in a skin
+   * and hair assessment that a perfume or a beard trimmer answers, and the
+   * shelf has a rule that no product may have an empty `profileKeys` because an
+   * empty list is a silent deletion. That rule was written when every product
+   * on the shelf was a treatment product. It is now scoped to the three routine
+   * groups in catalog-is-shoppable.spec.ts, because the alternative — handing a
+   * perfume `hydration` so it clears a guard — puts a false claim in the data
+   * to make a test go green, and the engine would then recommend it for dry
+   * skin. An empty list here means exactly what it says: this is browsed, not
+   * matched. It still sells; it is never prescribed.
+   */
+  Makeup: ['oil', 'pigmentation', 'hydration'],
+  Fragrance: [],
+  Tools: [],
 };
 
 /** Where nothing matched, the category still says something true. Never empty:
@@ -134,6 +219,18 @@ const KEY_FALLBACK = {
   'Hair serum': ['damage'],
   'Body wash': ['hydration'], 'Body lotion': ['hydration'], 'Body scrub': ['texture'],
   'Hand cream': ['hydration'], 'Lip balm': ['hydration'],
+
+  // ── added with the 2026-08 sheet ──
+  'Night cream': ['hydration'], 'Eye cream': ['hydration'], 'Face scrub': ['texture'],
+  'Face oil': ['hydration'], 'Facial kit': ['texture'], 'Lip care': ['hydration'],
+  'Dry shampoo': ['scalp'], 'Scalp treatment': ['scalp'], 'Hair colour': ['damage'],
+  'Hair treatment': ['damage'], 'Hair styling': ['damage'], 'Hair extensions': ['thickness'],
+  'Hair kit': ['damage'],
+  'Body mask': ['texture'], 'Body oil': ['hydration'], 'Foot care': ['hydration'],
+  Soap: ['hydration'], 'Hair removal': ['texture'],
+  // Makeup falls back to nothing rather than to a key. A lipstick whose copy
+  // never mentions hydration is not a hydrating product, and the fallback here
+  // exists to stop a TREATMENT going unreachable, not to give cosmetics a claim.
 };
 
 /** Biomarker tags — the SECONDARY signal, and only ever added on top of a
@@ -153,7 +250,16 @@ const TAGS_FOR_GROUP = {
   Skincare: ['barrier', 'hydration', 'brightening', 'antioxidant', 'collagen', 'soothing', 'spf'],
   'Hair Care': ['scalp', 'hair-density', 'hydration', 'antioxidant'],
   'Body Care': ['barrier', 'hydration', 'soothing', 'antioxidant'],
+  // Tags are the biomarker signal and only ever ADD to an existing profile
+  // match. With no profile keys, Fragrance and Tools can never have one to add
+  // to, so a tag on them would be dead weight that still had to be maintained.
+  Makeup: ['hydration', 'brightening', 'soothing'],
+  Fragrance: [],
+  Tools: [],
 };
+
+/** The three bands of a routine. Everything else on the shelf is shop-only. */
+const ROUTINE_GROUPS = new Set(['Skincare', 'Hair Care', 'Body Care']);
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -223,7 +329,11 @@ export function suitableSkinFor(group, text) {
 }
 
 export function deriveOne(row) {
-  const category = CATEGORY[row.category];
+  // A sheet may speak the old retailer vocabulary, which CATEGORY translates, or
+  // the shelf's own, which needs no translation. An unrecognised category is
+  // still a hard stop rather than a guess: the display category drives the
+  // routine ROLE, the monthly dose and the application order.
+  const category = CATEGORY[row.category] ?? (SELF_CATEGORIES.has(row.category) ? row.category : undefined);
   if (!category) throw new Error(`unmapped sheet category: "${row.category}" (${row.name})`);
   const group = row.group;
   const text = `${row.name} ${row.ingredients} ${row.benefits}`;
@@ -235,16 +345,68 @@ export function deriveOne(row) {
   let usage = USAGE[category] ?? 'Morning & Night';
   if (category === 'Serum' || category === 'Moisturiser') {
     if (VITAMIN_C.test(text)) usage = 'Morning';
-    if (RETINOID.test(text)) usage = 'Night';
   }
+  /**
+   * ── THE RETINOID RULE IS NO LONGER SCOPED TO TWO CATEGORIES ───────────────
+   *
+   * It used to read `if (category === 'Serum' || category === 'Moisturiser')`,
+   * which was true of every retinoid the first three sheets contained. The
+   * 2026-08 sheet contains Lotus Professional's Retemin PLANT RETINOL range as
+   * an EYE CREAM and a FACIAL KIT, and both came out scheduled 'Morning &
+   * Night' — a retinoid on the face at 9am, from a rule whose entire purpose is
+   * to prevent exactly that.
+   *
+   * Photosensitivity is a property of the molecule, not of the packaging. The
+   * rule now applies wherever a retinoid appears on a face or body product, and
+   * it still runs LAST so that a retinoid whose copy also mentions vitamin C
+   * cannot be flipped back to the morning.
+   *
+   * Hair products are excluded: 'Night' is not a band a shampoo can be in, and
+   * `catalog-is-shoppable` checks the retinoid rule against name and actives,
+   * which no hair product on this shelf trips.
+   */
+  if (RETINOID.test(text) && (group === 'Skincare' || group === 'Makeup')) usage = 'Night';
+  else if (RETINOID.test(text) && group === 'Body Care') usage = 'Body';
 
   const allowedKeys = KEYS_FOR_GROUP[group] ?? [];
+  /**
+   * THE SHEET'S OWN CONCERN COLUMN IS READ FIRST, WHERE IT HAS ONE.
+   *
+   * The 2026-08 sheet carries a `concern` field that was derived upstream from
+   * the same ingredients and claims this function reads — so it agrees with the
+   * keyword pass most of the time and is not new evidence. It earns its place on
+   * the cases where the keyword pass finds NOTHING: a product whose copy is pure
+   * brand poetry ("a ritual for the modern woman") would otherwise fall to the
+   * category fallback and claim whatever its shelf neighbours claim. The concern
+   * column at least came from that product's own ingredient list.
+   *
+   * It can only ever ADD a key the group already allows. It cannot let a
+   * shampoo claim acne.
+   */
+  const CONCERN_KEYS = {
+    'Acne & Breakouts': 'acne', 'Pigmentation & Tan': 'pigmentation',
+    'Ageing & Wrinkles': 'wrinkles', 'Dryness & Dehydration': 'hydration',
+    'Sensitivity & Redness': 'redness', 'Dullness & Shine': 'texture',
+    'Sun Protection': 'pigmentation', 'Hair Fall & Thinning': 'density',
+    'Dandruff & Scalp Health': 'scalp', 'Damage & Breakage': 'damage',
+    'Frizz & Unmanageability': 'damage', 'Colour Protection': 'damage',
+  };
   let profileKeys = allowedKeys.filter((k) => PROFILE_WORDS[k].test(text));
+  if (!profileKeys.length && row.concern) {
+    const fromConcern = String(row.concern).split(',')
+      .map((c) => CONCERN_KEYS[c.trim()])
+      .filter((k) => k && allowedKeys.includes(k));
+    if (fromConcern.length) profileKeys = [...new Set(fromConcern)];
+  }
   // A sunscreen always answers pigmentation. It is the single most effective
   // step against pigment deepening, every reviewed sunscreen on the shelf
   // carries the key, and a copy deck that forgets to say so is a copy deck.
   if (category === 'Sunscreen' && !profileKeys.includes('pigmentation')) profileKeys = [...profileKeys, 'pigmentation'];
-  if (!profileKeys.length) profileKeys = KEY_FALLBACK[category] ?? [allowedKeys[0]].filter(Boolean);
+  // The fallback is for TREATMENT products only. A perfume with no keys is
+  // correct; a serum with no keys is a product nobody can ever be shown.
+  if (!profileKeys.length && ROUTINE_GROUPS.has(group)) {
+    profileKeys = KEY_FALLBACK[category] ?? [allowedKeys[0]].filter(Boolean);
+  }
 
   const allowedTags = TAGS_FOR_GROUP[group] ?? [];
   const tags = allowedTags.filter((t) => {
@@ -254,7 +416,11 @@ export function deriveOne(row) {
 
   const actives = splitActives(row.ingredients);
   return {
-    id: idFor(row.name), name: row.name, brand: row.brand, category, group,
+    // The 2026-08 sheet carries its own id, because 454 of its rows are shade
+    // and size variants whose names collide once idFor() truncates at 47
+    // characters. Disambiguating upstream keeps every one of them; letting
+    // idFor() decide would silently drop a quarter of the shelf.
+    id: row.id ?? idFor(row.name), name: row.name, brand: row.brand, category, group,
     priceInr: row.priceInr, tier: row.tier,
     tags, profileKeys,
     suitableSkin: suitableSkinFor(group, row.skinHair),
@@ -369,6 +535,75 @@ if (repriced.length) {
   console.log(`\n! ${repriced.length} product(s) carry a different price on the sheet than on the shelf.`);
   console.log('  Reported, not applied — a price move is a real diff and belongs in its own commit.');
   for (const r of repriced.slice(0, 10)) console.log(`    ${r.name}  shelf ₹${priceByName.get(norm(r.name))} → sheet ₹${r.priceInr}`);
+}
+
+if (flag('--replace')) {
+  /**
+   * ── REPLACE, WHICH THIS SCRIPT SPENT ITS WHOLE LIFE REFUSING TO DO ────────
+   *
+   * Everything above the fold in this file argues for appending, and that
+   * argument was right for the three sheets it was written against: each was a
+   * partial view of the same retail catalogue, none was a superset, and
+   * treating any of them as the shelf would have silently deleted products the
+   * specs pin by name.
+   *
+   * The 2026-08 sheet is a different object. It is not another export of the
+   * same retailer — it is twenty-nine brands' own catalogues, and the owner
+   * asked for it to BE the shelf. So this mode exists, and what it costs is
+   * stated rather than absorbed:
+   *
+   *   · The 226 products already on the shelf are DELETED, including every
+   *     hand-reviewed derived field on them. Three rounds of review are thrown
+   *     away. That is the price of the instruction and it is not recoverable
+   *     from here — it is recoverable from git.
+   *   · The mass-market rows go with them. Minimalist, CeraVe, Cetaphil, The
+   *     Ordinary, Plum, Biotique, Clinic Plus. Those are what produced the
+   *     ₹215 cheapest-complete-routine floor, and the new shelf is salon and
+   *     premium weighted, so that floor MOVES. BELOW_THE_FLOOR is a test with
+   *     a number in it, and the number is now wrong in the honest direction.
+   *   · Every derived field on all 1,841 rows is machine-derived and unreviewed.
+   *     `--check` cannot help here: it replays against rows that no longer
+   *     exist. catalog-is-shoppable.spec.ts is the only guard left standing,
+   *     which is why it checks the WHOLE catalogue and names offenders by id.
+   *
+   * Append remains the default. You have to ask for this one.
+   */
+  const all = sheet.map(deriveOne);
+  const ids = new Map();
+  for (const p of all) ids.set(p.id, (ids.get(p.id) ?? 0) + 1);
+  const collisions = [...ids].filter(([, n]) => n > 1);
+  if (collisions.length) {
+    console.error(`REFUSING: ${collisions.length} duplicate id(s) in the sheet, e.g. ${collisions.slice(0, 5).map(([i]) => i).join(', ')}`);
+    console.error('Two products sharing an id means buying the wrong thing, silently.');
+    process.exit(1);
+  }
+
+  const head = src.slice(0, src.indexOf('export const BEAUTY_PRODUCTS'));
+  const byGroup = new Map();
+  for (const p of all) {
+    if (!byGroup.has(p.group)) byGroup.set(p.group, []);
+    byGroup.get(p.group).push(p);
+  }
+  const ORDER_OF_GROUPS = ['Skincare', 'Hair Care', 'Body Care', 'Makeup', 'Fragrance', 'Tools'];
+  let body = '';
+  for (const g of ORDER_OF_GROUPS) {
+    const rows = byGroup.get(g);
+    if (!rows?.length) continue;
+    rows.sort((a, b) => a.category.localeCompare(b.category) || a.brand.localeCompare(b.brand) || a.name.localeCompare(b.name));
+    const rule = '─'.repeat(Math.max(4, 66 - g.length));
+    body += `\n  // ── ${g} ${rule}\n` + rows.map(emit).join('\n') + '\n';
+  }
+  const out = head + 'export const BEAUTY_PRODUCTS: BeautyProduct[] = [' + body + '];\n';
+  if (flag('--write')) {
+    writeFileSync(CATALOG, out);
+    console.log(`\nREPLACED the shelf: ${all.length} products, ${new Set(all.map((p) => p.brand)).size} brands`);
+    for (const g of ORDER_OF_GROUPS) if (byGroup.get(g)) console.log(`  ${g.padEnd(11)} ${byGroup.get(g).length}`);
+    const noKeys = all.filter((p) => !p.profileKeys.length);
+    console.log(`  browsed-not-matched (no profileKeys, by design): ${noKeys.length}`);
+  } else {
+    console.log(`\n(dry run — --replace --write would write ${all.length} products over the existing shelf)`);
+  }
+  process.exit(0);
 }
 
 if (flag('--write')) {

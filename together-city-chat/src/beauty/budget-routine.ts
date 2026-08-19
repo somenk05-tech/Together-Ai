@@ -93,10 +93,30 @@ export const BUDGET_MAX = 8000;
 export const clampBudget = (n: number): number =>
   Math.min(BUDGET_MAX, Math.max(BUDGET_MIN, Math.round(Number.isFinite(n) ? n : BUDGET_MIN)));
 
+/**
+ * The three groups that are BANDS OF A ROUTINE. The shelf also carries Makeup,
+ * Fragrance and Tools, and they are not steps — you do not apply a beard
+ * trimmer after your serum.
+ *
+ * This set exists because `categoryOf` used to send everything that was not
+ * hair or body to 'face', and that was safe only while the shelf held nothing
+ * but skincare, haircare and body care. The 2026-08 catalogue put 446 makeup,
+ * fragrance and tool products on it, 27 of which score as `matched`, and every
+ * one of those was landing in the FACE skincare budget — competing for the same
+ * rupees as a cleanser, and counted against the cap that stops one product
+ * eating the routine. A lipstick is not a skincare purchase and a citizen's
+ * face budget should never have been asked to carry one.
+ */
+export const ROUTINE_GROUPS: ReadonlySet<string> = new Set(['Skincare', 'Hair Care', 'Body Care']);
+
+/** Whether a product belongs in a routine at all. */
+export const isRoutineProduct = (group: string): boolean => ROUTINE_GROUPS.has(group);
+
 /** Which budget a product is charged to — its group, never the band it lands in.
- *  A face mask and a shampoo share the weekly band and nothing else. */
-export const categoryOf = (group: string): BudgetCategory =>
-  group === 'Hair Care' ? 'hair' : group === 'Body Care' ? 'body' : 'face';
+ *  A face mask and a shampoo share the weekly band and nothing else.
+ *  Returns null for a product no routine has a place for. */
+export const categoryOf = (group: string): BudgetCategory | null =>
+  group === 'Hair Care' ? 'hair' : group === 'Body Care' ? 'body' : group === 'Skincare' ? 'face' : null;
 
 /**
  * The ROLE a product plays, and what that role is worth.

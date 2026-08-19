@@ -1,4 +1,5 @@
 import type { RecommendedProduct } from './beauty-engine';
+import { isRoutineProduct } from './budget-routine';
 
 /**
  * Turning a shelf of recommended products into a routine somebody can follow.
@@ -200,7 +201,18 @@ const TITLES: Record<TimeOfDay, string> = {
  * of silently showing two sections where there should be three.
  */
 export function buildRoutines(products: RecommendedProduct[]): Routine[] {
-  const matched = products.filter((p) => p.matched);
+  /**
+   * MATCHED IS NOT ENOUGH ANY MORE. `classify()` reads the display category and
+   * falls through to 'Treat' at rank 45 for anything it does not recognise —
+   * which was fine while every product on the shelf was a routine step, and is
+   * not fine now that the shelf carries lipstick, perfume and hair dryers. A
+   * matched foundation would have been printed into the evening skincare
+   * routine as a Treat step, with "apply a thin, even layer" under it.
+   *
+   * Those products stay on the shelf and stay recommendable in the Market. They
+   * are simply not steps, so they are not put in a list of steps.
+   */
+  const matched = products.filter((p) => p.matched && isRoutineProduct(p.group));
   // The whole shelf as text, for interactions that span two routines.
   const everything = matched.map((p) => `${p.name} ${p.keyIngredient} ${p.actives.join(' ')}`).join(' ');
 

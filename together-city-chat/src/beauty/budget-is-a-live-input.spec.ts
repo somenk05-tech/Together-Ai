@@ -101,9 +101,21 @@ describe('the budget is an input to selection, not a display over the answer', (
     // THESE NUMBERS MOVED WITH THE UNIT, NOT WITH THE RULE. The budget is set
     // and spent in purchase prices now, so ₹300 buys one sunscreen rather than
     // a month of four products. The floor for this profile is ₹548 to buy.
-    const tiny = at(oily, 700).picks.map((x) => x.role);
-    const small = at(oily, 1200).picks.map((x) => x.role);
-    const full = at(oily, 3000).picks.map((x) => x.role);
+    /**
+     * ₹700 / ₹1,200 / ₹3,000 → ₹900 / ₹1,300 / ₹5,000, and all three moved for
+     * the same reason: the 2026-08 catalogue REPLACED the shelf and the
+     * mass-market tier left with the old one. Measured on the new shelf for
+     * this profile — ₹700 no longer carries the three essentials (it drops
+     * Moisturise), ₹900 is the first budget that does, and the sixth role is
+     * not affordable until ₹5,000 where ₹3,000 used to reach it.
+     *
+     * The RULE is untouched and still asserted below: a short budget keeps
+     * Protect, fills essentials in clinical order, and loses the optional steps
+     * first. Only the prices the shelf can offer moved.
+     */
+    const tiny = at(oily, 900).picks.map((x) => x.role);
+    const small = at(oily, 1300).picks.map((x) => x.role);
+    const full = at(oily, 5000).picks.map((x) => x.role);
 
     expect(tiny.length).toBeLessThan(full.length);
     expect(tiny).toEqual(expect.arrayContaining(['Protect', 'Moisturise', 'Cleanse']));

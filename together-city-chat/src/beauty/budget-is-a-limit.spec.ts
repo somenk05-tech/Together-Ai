@@ -267,8 +267,26 @@ describe('the routine genuinely changes with the budget', () => {
     for (const n of TIERS) {
       expect({ budget: n, over: plan(n).face.picks.length > 6 }).toEqual({ budget: n, over: false });
     }
-    // And more money genuinely does not mean more steps beyond that point.
-    expect(plan(8000).face.picks.length).toBeLessThanOrEqual(plan(4000).face.picks.length);
+    /**
+     * WHAT THIS LINE USED TO SAY, AND WHY IT DOES NOT SAY IT ANY MORE.
+     *
+     * It asserted `plan(8000).picks.length <= plan(4000).picks.length` — more
+     * money does not buy more steps. That held on the old shelf for a reason
+     * that had nothing to do with the planner: mass-market skincare was cheap
+     * enough that ₹4,000 already bought all six face roles, so there was no
+     * seventh for ₹8,000 to add and the counts tied.
+     *
+     * The 2026-08 shelf is twenty-nine salon and premium brands with no
+     * mass-market tier at all. ₹4,000 now reaches five roles and ₹8,000 reaches
+     * six, so the inequality flips — not because the planner grew a new step to
+     * sell, but because the sixth step finally became affordable. Asserting
+     * `<=` here would now be asserting that a bigger budget must NOT complete
+     * the routine.
+     *
+     * The real invariant is the structural cap above — never more than the six
+     * roles that exist — plus this: more money never buys FEWER roles.
+     */
+    expect(plan(8000).face.picks.length).toBeGreaterThanOrEqual(plan(4000).face.picks.length);
   });
 
   it('holds at most one product per role, at any budget', () => {
@@ -319,7 +337,24 @@ describe('the routine genuinely changes with the budget', () => {
     for (const n of TIERS) {
       for (const cat of ['face', 'hair', 'body'] as const) {
         const c = planCategory(SHELF, cat, n, new Set(NEEDS));
-        const dominant = c.picks.filter((x) => x.monthlyInr > c.budgetInr * 0.5);
+    /**
+     * ── priceInr, NOT monthlyInr, AND THAT IS THE WHOLE FIX ─────────────────
+     *
+     * The planner budgets in PURCHASE PRICES. `cost()` is `p.priceInr`, `spent`
+     * accumulates purchase prices, and `shareCap` is `budget * 0.5` measured
+     * against them. `monthlyInr` is a display figure derived from the pack size
+     * and is a different unit entirely.
+     *
+     * This assertion read `monthlyInr` against a purchase-price budget, which is
+     * comparing rupees-per-month with rupees-once. It passed for as long as it
+     * did because the old shelf's packs were mostly a month or more of product,
+     * so the two numbers were close enough to never disagree. The 2026-08
+     * catalogue carries 10 ml serums and 50 ml oils — a ₹435 hair oil in a 50 ml
+     * bottle costs ₹522 a MONTH — and the units came apart.
+     *
+     * The cap itself was never violated: ₹435 is comfortably inside a ₹500 cap.
+     */
+        const dominant = c.picks.filter((x) => x.priceInr > c.budgetInr * 0.5);
         // Anything over the cap can only be there because the floor put it
         // there — which means the routine could not have been built without it.
         const excusable = dominant.every((x) => c.picks.length === 1 || x.tier === 'essential');
@@ -347,8 +382,10 @@ describe('the routine genuinely changes with the budget', () => {
     const hair = planCategory(SHELF, 'hair', 1000, new Set(NEEDS));
     const added = hair.picks.filter((x) => x.tier !== 'essential');
     expect(added.length).toBeGreaterThan(0);
+    // priceInr, not monthlyInr — see the note in 'never lets one product become
+    // most of the routine'. The cap is on what the citizen pays at the till.
     for (const x of added) {
-      expect({ role: x.role, name: x.product.name, withinHalf: x.monthlyInr <= 500 })
+      expect({ role: x.role, name: x.product.name, withinHalf: x.priceInr <= 500 })
         .toEqual({ role: x.role, name: x.product.name, withinHalf: true });
     }
   });
@@ -360,12 +397,15 @@ describe('the routine genuinely changes with the budget', () => {
     // the quarter-of-the-budget line with a sentence saying why.
     for (const n of [2500, 5000, 10000]) {
       const c = planCategory(SHELF, 'face', n, new Set(NEEDS));
-      const ok = c.monthlyInr >= c.targetLowInr || c.leanReason !== null;
+      // spendInr, not monthlyInr. `targetLowInr` is budget × 0.95 in purchase
+      // prices and `leanReason` fires on `spent < targetLow` in the same unit;
+      // asserting a monthly total against it compared two different things.
+      const ok = c.spendInr >= c.targetLowInr || c.leanReason !== null;
       expect({ budget: n, reachedOrExplained: ok }).toEqual({ budget: n, reachedOrExplained: true });
     }
     // And at ₹5,000 specifically it does reach it, because this shelf can.
     const five = planCategory(SHELF, 'face', 5000, new Set(NEEDS));
-    expect(five.monthlyInr).toBeGreaterThan(5000 * 0.25);
+    expect(five.spendInr).toBeGreaterThan(5000 * 0.25);
   });
 
   it('never buys a product that answers nothing, however hungry the band is', () => {

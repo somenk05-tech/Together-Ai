@@ -167,7 +167,28 @@ describe('no active twice, and not too many at once', () => {
     // The overlap rule may not take a cleanser away. If every one of them
     // carries an acid the moisturiser already has, the answer is still a
     // cleanser — the same argument that exempts the floor from the share cap.
-    for (const budget of [1000, 5000, 8000]) {
+    /**
+     * ── THE FLOOR MOVED ₹1,000 → ₹1,400, AND THE MOVE IS THE FINDING ────────
+     *
+     * `BELOW_THE_FLOOR` in the sibling suite has moved twice before on the same
+     * argument — the shelf changed, so the cheapest complete routine changed,
+     * so the number changed and the test stayed. This is the third move and the
+     * first one in the wrong direction.
+     *
+     * The 2026-08 catalogue REPLACED the shelf rather than adding to it, and it
+     * has no mass-market tier: Minimalist, CeraVe, Cetaphil, The Ordinary, Plum
+     * and Biotique all left with the old catalogue. The cheapest moisturiser
+     * that matches an oily-combination profile went from ₹47 a month to ₹425,
+     * so the three essentials no longer fit inside ₹1,000 and Cleanse — last in
+     * clinical floor order, because washing with water is at least possible —
+     * is what the floor drops.
+     *
+     * That is a real regression in what the shop can offer somebody on a small
+     * budget, and it is recorded here rather than smoothed over. The planner is
+     * behaving correctly: it fills essentials in clinical order and reports
+     * what it could not carry. The shelf simply got more expensive.
+     */
+    for (const budget of [1400, 5000, 8000]) {
       const roles = face(budget).picks.map((x) => x.role);
       expect(roles).toEqual(expect.arrayContaining(['Cleanse', 'Moisturise', 'Protect']));
     }
