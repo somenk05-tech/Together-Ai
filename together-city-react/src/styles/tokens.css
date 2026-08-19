@@ -1320,6 +1320,20 @@
           0 1px 1px rgba(92,74,42,.30), 0 8px 20px rgba(92,74,42,.34), 0 20px 46px rgba(92,74,42,.22);
   --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
 }
+
+/* PET CARE — the amber off its own neon, and nothing else.
+   The hub has no rooms yet, so nothing in the app ever sets `data-hub="pets"`;
+   this block exists because the accent guard reads the HUBS map from source and
+   holds every key in it to an accent of its own. Lamp tokens only: the ground
+   is granted to astrology, beauty and entertainment alone, and a hub that
+   declares --sky-image owes an AA check on every stop in it. */
+[data-hub="pets"] {
+  --lamp-face: linear-gradient(180deg, #b06a34 0%, #8f5528 44%, #71421e 100%);
+  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
+          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
+          0 1px 1px rgba(143,85,40,.30), 0 8px 20px rgba(143,85,40,.34), 0 20px 46px rgba(143,85,40,.22);
+  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
+}
 [data-hub="financial"] {
   --lamp-face: linear-gradient(180deg, #516845 0%, #3f5136 44%, #303e29 100%);
   --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),

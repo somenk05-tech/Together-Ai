@@ -117,9 +117,11 @@ const PANELS: Panel[] = [
   { key: 'beauty', img: 'beautymarket.webp' },
   { key: 'fitness', img: 'fitness-hero.webp' },
   { key: 'financial', img: 'financial-district.webp' },
-  // Waiting on its photograph. The plate is built for that — the well is lit
-  // and the picture fades onto it when local-services.webp lands in assets/img.
   { key: 'services', img: 'local-services.webp' },
+  // The one district that is a photograph and nothing else yet: HUBS.pets has
+  // an empty rail, so this plate renders as `is-soon` — "Coming soon" where the
+  // other twelve say "Explore <name>", and no link under it.
+  { key: 'pets', img: 'pets-hub.webp' },
 ];
 
 /**

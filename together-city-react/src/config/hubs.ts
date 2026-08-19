@@ -361,4 +361,21 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/financial/invoices', index: '05', label: 'Invoices', sub: 'Bills from businesses you use' },
     ],
   },
+  /* PET CARE IS A FACADE, NOT YET A ROOM.
+     Its plate is on the home walk because the district is being built and the
+     photograph exists; `items: []` is what says so. Home.tsx reads an empty
+     rail as `soon`, and a hub with no rooms is LABELLED rather than linked —
+     "Coming soon" on the plate, no href, no route, no consent gate. That is
+     the branch Home.tsx:263 has carried unused since the E-Commerce plate went
+     ("the next one to be built will pass through it before its pages exist");
+     Pet Care is the first hub to actually stand in it.
+
+     Deliberately absent from NAV: a header tab is a door, and there is nothing
+     behind this one yet. It joins the tabs and the /hubs grid on the same day
+     its first room does. `backPath` names where that room will be reached
+     from — nothing links there today. */
+  pets: {
+    key: 'pets', name: 'Pet Care', tag: 'Everything your pet needs, in one place', backPath: '/pets',
+    items: [],
+  },
 };
