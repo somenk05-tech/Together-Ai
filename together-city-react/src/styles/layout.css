@@ -1365,6 +1365,44 @@
   margin: 26px 0 8px; font-size: 10px; letter-spacing: .26em; text-transform: uppercase; font-weight: 700;
 }
 .gem-body { font-size: 13.5px; line-height: 1.85; max-width: 400px; margin: 0 auto; }
+/* THE REFERENCE FOLDS, ON THE SHEET'S OWN VOCABULARY. `Fold` is the city's one
+   disclosure and this is its third skin, because a second implementation is how
+   one of them quietly stops announcing itself — see components/ui/Fold.tsx.
+   What it must NOT borrow is `.fold`, the ordinary rounded card: this sheet is
+   centred, tracked and borderless, and a rounded card with a shadow in the
+   middle of it is the one thing on the page from another design. So the face is
+   a tracked capital line between two hairlines, which is `.gem-sub` wearing a
+   rule — the vocabulary already on the card.
+
+   Colour comes from --gem-title, set on the card element from the owner's
+   catalogue payload beside the photograph. Nothing here names a colour. */
+.gem-fold {
+  display: flex; align-items: baseline; justify-content: center;
+  gap: 6px 14px; flex-wrap: wrap; width: 100%; min-height: 44px;
+  margin: 30px 0 0; padding: 13px 8px; text-align: center;
+  background: none; border: 0;
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  font-family: inherit; color: var(--gem-title, var(--ink)); cursor: pointer;
+}
+.gem-fold .t {
+  font-size: 10px; letter-spacing: .26em; text-transform: uppercase; font-weight: 700;
+}
+/* The closed line's payload — the finger, the metal, the day and the stand-in.
+   Sentence case against the tracked capitals, because it is a fact rather than
+   a heading. */
+.gem-fold .m { font-size: 12px; opacity: .82; }
+.gem-fold .s {
+  font-size: 10px; letter-spacing: .16em; text-transform: uppercase;
+  font-weight: 700; opacity: .62;
+}
+.gem-fold-open { padding-top: 2px; }
+/* On a phone the three parts stack rather than squeezing: the tracked name is
+   the one that has to stay whole, the same treatment .fold and the beauty leaf
+   already get. */
+@media (max-width: 560px) {
+  .gem-fold { flex-direction: column; row-gap: 5px; }
+  .gem-fold .m { order: 3; }
+}
 .gem-price {
   display: inline-block; margin-top: 28px; padding: 9px 22px; border: 1px solid; border-radius: 999px;
   font-size: 11px; letter-spacing: .16em; font-weight: 700;

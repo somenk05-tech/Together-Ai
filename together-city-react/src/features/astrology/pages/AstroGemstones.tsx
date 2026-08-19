@@ -1,6 +1,7 @@
 import { useId, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Card, Spinner } from '@/components/ui';
+import { Fold } from '@/components/ui/Fold';
 import { useAstroGemstones, useGemCart } from '../hooks';
 import { AstroHeader, AstroTabs, NeedsProfileCard } from '../shared';
 import type { GemAtWeight, GemPriority, GemRecommendation, GemRole, GemstonesResponse } from '../api';
@@ -167,6 +168,33 @@ function StoneSheet({ rec }: { rec: GemRecommendation }) {
       <h2 className="gem-display" style={{ color: 'var(--gem-title)' }}>{gem.name}</h2>
       <p className="gem-body" style={{ color: 'var(--gem-body)' }}>{gem.description}</p>
 
+      {/* ── the reference, folded ───────────────────────────────────────────
+          EIGHT LABELLED SECTIONS TIMES FOUR STONES IS A WALL. Everything from
+          here to the weight is reference: true, worth having, and read once.
+          Printed open on every visit it buries the three things that are not
+          reference — which stone, how much of it, and the way in — under four
+          screens of prose somebody has already read.
+
+          So it folds, on the sheet's own vocabulary rather than the city's
+          rounded card: a tracked capital line between two hairlines. The
+          rounded card is the one thing on this page from another design, which
+          is the whole argument of `.gem-sub` above it.
+
+          THE CLOSED LINE CARRIES THE FACTS, not the section count. "How it is
+          worn, and why" alone is a section nobody opens; the finger, the metal
+          and the day are the answer most people came for, and the stand-in with
+          its price is the one thing here that changes a decision. */}
+      <Fold face="gem-fold" panel="gem-fold-open"
+        title="How it is worn, and why"
+        meta={[
+          `${wearing.finger}, ${wearing.hand.toLowerCase()}`,
+          wearing.metal.toLowerCase(),
+          wearing.day,
+          rec.substitutes[0]
+            ? `${rec.substitutes[0].gem.name.toLowerCase()} in its place`
+            : null,
+        ].filter(Boolean).join(' · ')}
+      >
       {/* ── the personalised section, and the reason this page exists ────────
           The reference is a catalogue sheet and has nothing like it. It goes
           first among the labelled sections because it is the only one written
@@ -251,6 +279,13 @@ function StoneSheet({ rec }: { rec: GemRecommendation }) {
         </>
       )}
 
+      </Fold>
+
+      {/* THE WEIGHT, THE PRICE AND THE WAY IN STAY OUT OF THE FOLD. Everything
+          above is the reference; this is the decision. A carat figure, what it
+          costs at that figure and the button that starts the commission are
+          the three things somebody came to the page for, and a fold is a very
+          good way to make a way in invisible. */}
       {/* ── how much stone, and therefore what it costs ─────────────────────
           A PRICE PER CARAT IS NOT A PRICE. "₹8,000 – ₹25,000 per carat" tells
           nobody anything until they know how many carats they are prescribed,
