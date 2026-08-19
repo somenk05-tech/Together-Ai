@@ -660,13 +660,24 @@
   /* THE CARD SHAPE, IN ONE PLACE, because a back and a face that disagree means
      a card changes shape as it turns.
 
-     1 / 1.14 IS MEASURED, NOT CHOSEN. A tarot card is 1 : 1.72 and that is what
-     this was — but the 78 artwork files are not tarot-shaped. Their height/width
-     ratios run from 0.607 (pentacles-4 is landscape) to 1.809 (major-0), with a
-     median of 1.14. Held in a 1:1.72 box with object-fit: contain, the typical
-     card floated in the middle of a tall white frame with a third of the box
-     empty above and below it. No box fits all 78; this one fits most of them. */
-  --tarot-card: 1 / 1.14;
+     1 / 1.5 IS THE DECK'S OWN MEDIAN, STILL MEASURED. This was 1 / 1.14, and
+     that was the honest number while the 78 files were unedited crops - their
+     ratios ran 0.607 (pentacles-4 is landscape) to 1.809 (major-0). The deck
+     has since been padded to 2:3, so the median moved to 1.5 and this moved
+     with it. relief.spec.ts re-measures the files on every run; the token did
+     not overrule the artwork, the artwork was changed first.
+
+     NOTHING WAS CROPPED TO GET HERE. Each card keeps every pixel it had, at
+     the size it had, laid on a darkened blur of itself with a soft shadow
+     under the join. The fifteen landscape cards read as an inset on a mat
+     rather than a full bleed, which is what a landscape crop can honestly be
+     in a card-shaped frame - the alternative was cover, which took 25% off the
+     median card and 60% off pentacles-4. */
+  --tarot-card: 1 / 1.5;
+
+  /* The ground under the card back, shown for the instant before the artwork
+     lands. It is the artwork's own navy, so the card never flashes white. */
+  --tarot-back-ground: #0b1730;
 
   /* ── ONE TYPEFACE ───────────────────────────────────────────────────────
      General Sans, self-hosted. --serif and --mono still exist because they are

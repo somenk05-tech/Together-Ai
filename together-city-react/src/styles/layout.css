@@ -574,8 +574,12 @@
 .tarot-back { width: 92px; aspect-ratio: var(--tarot-card); border: 0; background: none; padding: 0; cursor: pointer; perspective: 900px; }
 .tarot-back:focus-visible { outline: none; }
 .tarot-back:focus-visible .tarot-back-face { box-shadow: var(--e2), 0 0 0 3px rgba(0,0,0,.16); }
+/* THE BACK IS PAINTED, NOT CARVED. It used to be var(--face) with the emblem
+   carved into it; it is now the deck's own artwork, which carries its own gold
+   frame - so no border and no second rim. */
 .tarot-back-face {
-  width: 100%; height: 100%; border-radius: 12px; background: var(--face);
+  width: 100%; height: 100%; border-radius: 12px;
+  background: var(--tarot-back-ground) url('/assets/img/tarot-back.webp') center / cover no-repeat;
   box-shadow: var(--e2); display: grid; place-items: center;
   transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease);
 }
@@ -583,9 +587,9 @@
 @media (hover: hover) and (pointer: fine) {
   .tarot-back:hover .tarot-back-face { transform: translateY(-6px) rotate(-1.2deg); }
 }
-/* The emblem is carved into the back rather than printed on it. */
-.tarot-back-mark { width: 46px; height: 46px; border-radius: 50%; background: var(--well); box-shadow: var(--carve); display: grid; place-items: center; }
-.tarot-back-mark::after { content: '✦'; font-size: 17px; color: var(--muted); }
+/* The emblem was the back when the back was blank. The artwork replaces it.
+   The span stays in the markup as the flip target; it just has nothing to draw. */
+.tarot-back-mark { display: none; }
 @media (max-width: 560px) { .tarot-back { width: 68px; } }
 
 .tarot-table { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
