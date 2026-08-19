@@ -763,10 +763,27 @@ table.tc td b { color: var(--ink); }
     color: rgba(255,255,255,.62);
   }
   .hp-after b { font-weight: 700; color: rgba(255,255,255,.96); }
+  /* THE DOOR IS THE SAME SIZE AS THE ONES ON THE WALK (owner, 19 Aug).
+     It was 48px tall and 24px of padding — sized when it was the only control
+     on a phone screen. The district pills were halved to 19 x 108 the same
+     day, so a citizen walking from the run into a hub met a button two and a
+     half times the height of the one they had just pressed. Same 19 x 108
+     footprint here, so the phone has ONE control size.
+
+     The type is 7px rather than the walk's 5px, and that is deliberate: the
+     walk's label is tracked uppercase across thirteen repeats of a word you
+     already know, and this is sentence case, on a photograph, and it is the
+     ONLY door on the page. Radius halves with everything else, which at 19px
+     tall reads as very nearly the pill the walk wears.
+
+     The dark glass stays. The walk's control is white because it sits on a
+     plate; this one sits on a full-bleed photograph that runs from Astrology's
+     lit marble to Medical's white wall, and dark glass is the treatment that
+     survives both. */
   .hposter-cta {
-    display: inline-flex; align-items: center; gap: 8px;
-    height: 48px; padding: 0 24px; border-radius: 14px;
-    font-size: 14px; font-weight: 600; text-decoration: none;
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+    height: 19px; width: 108px; padding: 0 7.5px; border-radius: 7px;
+    font-size: 7px; font-weight: 600; text-decoration: none;
     color: rgba(255,255,255,.98); background: rgba(18,18,20,.9);
     border: 1px solid rgba(255,255,255,.12);
     -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
