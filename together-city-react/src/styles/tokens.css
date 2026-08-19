@@ -629,6 +629,16 @@
   --switch-on: #ffb500;
   --switch-off: #05012c;
 
+  /* THE VISA PAGE'S INTERIOR. A cover has an outside and an inside, and the
+     inside of this one is dark — so it needs its own ink, because --ink on a
+     near-black ground is unreadable and --card is the cover, not the page.
+     Four names rather than a re-pointed ground: re-pointing --ground is a hub
+     privilege, granted to three hubs by name, and this is a component. */
+  --pg-ground: #101010;
+  --pg-ink:    #f4f4f2;
+  --pg-soft:   #a5a5a1;
+  --pg-line:   #2a2a29;
+
   --dur-fast: 130ms; --dur-base: 220ms; --dur-slow: 420ms;
   /* The entrance. 280ms, not the 600ms .rise shipped with: it is the
      most-used motion in the application and the UI budget is 300ms. */

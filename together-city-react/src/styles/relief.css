@@ -3175,8 +3175,19 @@ textarea.g-field { resize: none; line-height: 1.55; }
    is built from a handle and a join date and says TC, because a convincing
    copy of a state's passport is not a thing to leave lying in a codebase.
 
-   Everything is achromatic but the stamps, which take the root accent. Real
-   visa pages differ by STAMP and by wording, not by repainting the paper. */
+   IT USED TO SAY "everything is achromatic but the stamps, which take the
+   root accent — real visa pages differ by STAMP and by wording, not by
+   repainting the paper." The stamps are gone (owner, 19 Aug) and the sentence
+   went with them rather than being left to argue for something that is no
+   longer on the screen.
+
+   WHAT REPLACED THEM IS A COVER, which is a stronger version of the same
+   claim. A stamp says a page has been issued; a cover says a page is a page,
+   and the book still holds fourteen of them under one bearer. The paper moved
+   from the page to the cover, the page went dark, and the difference between
+   an issued page and an empty one is now what the page SAYS — a summary, or
+   the sentence inviting you to open the hub once. Still achromatic; still no
+   page repainted to mean something. */
 
 .pbook { max-width: 1120px; }
 
@@ -3280,35 +3291,74 @@ textarea.g-field { resize: none; line-height: 1.55; }
    Flex column with the foot pushed down by `margin-top: auto` cannot collide
    with anything, at any length, ever. */
 .pvisa {
-  position: relative; overflow: hidden; isolation: isolate;
+  position: relative; isolation: isolate; z-index: 1;
   display: flex; flex-direction: column;
-  min-height: 164px; padding: 14px 16px; text-decoration: none; color: inherit;
-  border-radius: var(--r-2); background: var(--card); box-shadow: var(--e1);
+  min-height: 164px; padding: 14px 16px; text-decoration: none;
+  border-radius: var(--r-2); background: var(--pg-ground); color: var(--pg-ink);
+  box-shadow: var(--e1); perspective: 1500px;
   transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
 }
-/* A visa page is cut from the middle of the same sheet — 260% and off-centre
-   so no crop can catch the mark, the seal or the spine strip, which belong to
-   the data page and would read as fourteen copies of them here. */
-.pvisa {
-  background-image: var(--passport-paper);
-  background-size: 260% auto; background-position: 34% 38%;
-}
+/* A LEAF THAT SWINGS PAST ITS OWN EDGE MUST PASS OVER ITS NEIGHBOURS, not
+   under them. `overflow: hidden` is gone from this rule for the same reason —
+   it would clip the cover to the card and the turn would read as a wipe. */
+.pvisa:hover { z-index: 5; }
+/* THE PAPER MOVED TO THE COVER. A visa page used to be cut from the middle of
+   the same sheet; now the sheet is what you see before you open it, and the
+   page under it is dark and plain. The crop is unchanged — 260% and
+   off-centre, so no crop catches the mark, the seal or the spine strip, which
+   belong to the data page and would read as fourteen copies of them here. */
 .pvisa > * { position: relative; z-index: 1; }
 @media (hover: hover) and (pointer: fine) { .pvisa:hover { transform: translateY(-3px); box-shadow: var(--e2); } }
 .pvisa:active { transform: translateY(1px); }
 
-.pvisa .phead { display: flex; align-items: baseline; gap: 8px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
-.pvisa .pcode { font-size: 9.5px; font-weight: 700; letter-spacing: .16em; color: var(--ink-soft); }
+/* ══ THE COVER ═══════════════════════════════════════════════════════════
+   /profile is a travel document and a document has a cover. This is the
+   passport's own paper, the hub's name, and nothing else — a cover that
+   carries the summary is a cover with no reason to open.
+
+   PAST 90 DEGREES A LEAF SHOWS ITS BACK, and a back with a name on it renders
+   the name mirrored. `backface-visibility: hidden` means the cover ceases to
+   exist the moment it turns edge-on, which also stops it intercepting the
+   pointer once it is out of the way.
+
+   HOVER ONLY, and gated the way the lift above it is gated. A phone has no
+   pointer, so the cover never renders there and the grid is exactly the page —
+   which is the right answer rather than a fallback, because a cover you cannot
+   open is a cover that hides fourteen pages for good. */
+.pcover {
+  position: absolute; inset: 0; z-index: 2; border-radius: var(--r-2);
+  background: var(--card); background-image: var(--passport-paper);
+  background-size: 260% auto; background-position: 12% 20%;
+  border: 1px solid var(--line); box-shadow: var(--e2);
+  display: grid; place-items: center; padding: 20px;
+  transform-origin: left center;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  transition: transform var(--dur-slow) var(--ease-out), box-shadow var(--dur-slow) var(--ease-out);
+}
+.pcover b { font-size: 19px; font-weight: 700; letter-spacing: -.015em; text-align: center; color: var(--ink); }
+/* The spine it turns on. */
+.pcover::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  border-radius: var(--r-2) 0 0 var(--r-2); background: rgb(0 0 0 / .10);
+}
+@media (hover: hover) and (pointer: fine) {
+  .pvisa:hover .pcover { transform: rotateY(-105deg); box-shadow: var(--e3); }
+}
+@media (prefers-reduced-motion: reduce) { .pcover { transition: none; } }
+
+.pvisa .phead { display: flex; align-items: baseline; gap: 8px; border-bottom: 1px solid var(--pg-line); padding-bottom: 8px; }
+.pvisa .pcode { font-size: 9.5px; font-weight: 700; letter-spacing: .16em; color: var(--pg-soft); }
 .pvisa .phead b { font-size: 15px; font-weight: 700; }
 /* The right inset is the stamp's room. A stamp that lands ON the words is a
    stamp; a stamp that lands on the FIRST words is a bug. */
-.pvisa .psum, .pvisa .pnone { font-size: 12.5px; line-height: 1.55; margin: 10px 76px 0 0; }
-.pvisa .psum { color: var(--ink); }
-.pvisa .pnone { color: var(--ink-soft); }
+ /* No stamp to clear any more, so the summary takes the whole measure. */
+.pvisa .psum, .pvisa .pnone { font-size: 12.5px; line-height: 1.55; margin: 12px 0 0; }
+.pvisa .psum { color: var(--pg-ink); }
+.pvisa .pnone { color: var(--pg-soft); }
 .pvisa .pfoot {
   margin-top: auto; padding-top: 14px;
   display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
-  font-size: 9.5px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; color: var(--faint);
+  font-size: 9.5px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; color: var(--pg-soft);
 }
 
 /* THE STAMP. Rotated by an angle the hub's own name decides, so the page

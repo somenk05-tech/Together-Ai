@@ -46,16 +46,16 @@ export function Visa({ page }: { page: VisaPage }) {
         ? <p className="psum">{page.summary}</p>
         : <p className="pnone">No entries yet. Open the hub once and this page fills itself.</p>}
 
-      {/* Short enough to fit a 66px disc at every zoom. "TOGETHER CITY" set
-          round a stamp this size is four wrapped lines of nothing. */}
-      <span className={issued ? 'pstamp' : 'pstamp waiting'} aria-hidden="true">
-        {issued ? <><b>{page.complete ? 'VALID' : 'ISSUED'}</b>TC</> : <>No<b>ENTRY</b></>}
-      </span>
-
       <div className="pfoot">
         <span>{page.percent != null ? `Complete ${page.percent}%` : 'No record'}</span>
         <span>Enter →</span>
       </div>
+
+      {/* The cover, last in the source so it sits over the page without a
+          z-index race. aria-hidden because the name is already the link's
+          own accessible text — a screen reader announcing it twice is the
+          decoration leaking into the content. */}
+      <span className="pcover" aria-hidden="true"><b>{page.label}</b></span>
     </Link>
   );
 }
