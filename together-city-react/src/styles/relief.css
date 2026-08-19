@@ -1003,6 +1003,26 @@ img[src$=".svg"], .no-case {
   left: clamp(16px, 2.4vw, 34px); bottom: clamp(16px, 2.4vw, 30px);
   display: inline-flex; align-items: center; gap: 9px;
   padding: 0 clamp(18px, 1.8vw, 26px); height: clamp(42px, 3.4vw, 52px);
+  /* ONE WIDTH, NOT ONE PER NAME (owner, 19 Aug — after the phone).
+     The pill used to be as wide as the label inside it: "Explore FITNESS" at
+     186px beside "Explore FINANCIAL DISTRICT" at 306px, on plates stacked in
+     one column. The phone run was given a fixed 108px the same day and the
+     desk has the same problem in a wider frame.
+
+     27em RATHER THAN A PIXEL COUNT, because everything else on this control is
+     fluid: the font is clamped between 10.5px and 12px and the padding between
+     18px and 26px, so a fixed px width would be generous at 1600 and too tight
+     at 900. `em` is the button's OWN font-size, so the box tracks the type it
+     holds - 324px when the type is at 12, 284px when it is at 10.5. The
+     longest label in the city, "Explore FINANCIAL DISTRICT", measures 306px
+     and 259px at those two sizes, so both ends keep about 18px of air.
+     `nowrap` is the belt: at a browser text size this file cannot predict, a
+     label that outgrew its box would wrap to two lines and take the height
+     with it, and one two-line pill in a column of one-line pills is worse than
+     a label that runs a little close to the rim.
+
+     The phone rule below replaces this with its own 108px. */
+  width: 27em; justify-content: center; white-space: nowrap;
   border-radius: var(--r-full);
   background: var(--card); color: var(--ink); box-shadow: var(--e2);
   font-size: clamp(10.5px, .95vw, 12px); font-weight: 800;
