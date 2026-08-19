@@ -1017,10 +1017,28 @@ img[src$=".svg"], .no-case {
 .hub-plate-go:focus-visible { outline: none; box-shadow: var(--e2), 0 0 0 3px rgba(0,0,0,.18); }
 .hub-plate.is-soon .hub-plate-go { background: var(--well); color: var(--muted); box-shadow: var(--e1); }
 
+/* ── ON A PHONE THE CONTROL IS HALVED, AND IT IS ONE SIZE ─────────────────
+   Owner, 19 Aug, looking at the run on a phone: the pill was reading as a
+   label stuck ON the photograph rather than a control resting in the corner
+   of it. Every number here is half what it was — 38px tall becomes 19, 10px
+   type becomes 5, 15px of padding becomes 7.5, and the 14px inset becomes 7.
+
+   AND IT IS THE SAME PILL ON ALL THIRTEEN. It used to be as wide as whatever
+   the district happened to be called — 125px on Pet Care, 212px on Local
+   Services — so scrolling the run was watching one white shape breathe in and
+   out down the column. A fixed width stops that: 108px, which is the widest
+   label ("Explore LOCAL SERVICES", 106px at this size) plus a hair of slack,
+   with the text centred inside it. Half of the 212px it used to reach, and
+   every plate now wears the identical rectangle.
+
+   The width is a phone rule only. On a desktop the plates sit far enough
+   apart that the pill is read one at a time, and a fixed width there would
+   just be an arbitrary box around a short word. */
 @media (max-width: 720px) {
   .hub-plate-go {
-    left: 14px; bottom: 14px; height: 38px; padding: 0 15px;
-    font-size: 10px; letter-spacing: .12em;
+    left: 7px; bottom: 7px; height: 19px; padding: 0 7.5px;
+    width: 108px; justify-content: center;
+    font-size: 5px; letter-spacing: .12em; gap: 4.5px;
   }
 }
 
