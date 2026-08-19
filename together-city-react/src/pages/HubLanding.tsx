@@ -108,6 +108,12 @@ export const HUB_PORTRAIT: Partial<Record<HubKey, string>> = {
   beauty: 'hub-poster/beauty.webp',
   fitness: 'hub-poster/fitness.webp',
   services: 'hub-poster/services.webp',
+  /* Pet Care has a poster before it has a landing. Nothing routes to
+     /pets yet, so this line renders nothing today — it is here because the
+     rule for this map is "hubs whose poster exists are listed", and the file
+     is on disk with the other thirteen. The day the hub opens, its phone
+     arrival is already built. */
+  pets: 'hub-poster/pets.webp',
 };
 
 /**

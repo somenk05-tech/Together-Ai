@@ -695,12 +695,20 @@ table.tc td b { color: var(--ink); }
 }
 
 /* ---- On a phone the hub landing is the poster (9 Aug) ----
-   The art is the shape of the screen (9:19.5) and already carries the hub's
-   name and line, painted into the picture. So the picture IS the screen: full
-   bleed between the header and the floating dock, nothing boxed, nothing
-   cropped worth speaking of. All we add is the hub's line and the door, on a
-   blur that rises from the foot and fades to nothing — the same weather the
-   districts wear, so the city speaks one language. */
+   The art is TALL and already carries the hub's name and line, painted into
+   the picture. So the picture IS the screen: full bleed between the header and
+   the floating dock, nothing boxed. All we add is the hub's line and the door,
+   on a blur that rises from the foot and fades to nothing — the same weather
+   the districts wear, so the city speaks one language.
+
+   IT NO LONGER MATCHES THE SCREEN EXACTLY (19 Aug). The first posters were cut
+   at 9:19.5 — the shape of the phone, so `cover` had nothing to take. The new
+   set is 941×1672, which is 9:16, and the frame on a 390×844 handset is 9:17.5
+   after the header comes off. `cover` therefore spends about 12% of the WIDTH,
+   six per cent off each side, and that is the right axis to lose: these
+   pictures are built outward from a centred sign, so the crop eats pavement
+   and sky while "ASTROLOGY ZONE", "LOCAL MARKET" and the rest stay whole.
+   Cropping the other way would take the sign. */
 @media (max-width: 899px) {
   .hposter {
     position: relative; overflow: hidden; background: rgba(0,0,0,1);
