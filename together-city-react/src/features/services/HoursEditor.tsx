@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button } from '@/components/ui';
+import { Button , Switch} from '@/components/ui';
 import { useUpdateService, type MyServiceCard } from './api';
 import {
   DAY_LONG, DAY_SHORT, blankWeek, clockLabel, openSentence, openStateNow, summarise, todayIdx,
@@ -138,11 +138,12 @@ export function HoursEditor({ listing }: { listing: MyServiceCard }) {
         <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
           {week.map((d) => (
             <div key={d.day} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 132, fontSize: 13 }}>
-                <input type="checkbox" checked={d.open} onChange={(e) => set(d.day, { open: e.target.checked })}
-                  aria-label={`Open on ${DAY_LONG[d.day]}`} />
-                <span style={{ fontWeight: 600 }}>{DAY_LONG[d.day]}</span>
-              </label>
+              {/* Open or closed, and it takes effect as it moves — a switch,
+                  not a tick. The day is the name; role="switch" says on/off. */}
+              <span style={{ minWidth: 132, fontWeight: 600 }}>
+                <Switch checked={d.open} onChange={(open) => set(d.day, { open })}
+                  label={DAY_LONG[d.day]} />
+              </span>
               {d.open ? (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <input type="time" style={field} value={d.from} aria-label={`${DAY_LONG[d.day]} opening time`}

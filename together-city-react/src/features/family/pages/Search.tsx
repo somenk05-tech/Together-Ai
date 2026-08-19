@@ -1,6 +1,6 @@
 import { useMemo, useState, type KeyboardEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { PageHeader, Button, EmptyState, Spinner } from '@/components/ui';
+import { PageHeader, Button, EmptyState, Spinner , Switch} from '@/components/ui';
 import { useSearchRecipes, useFamilyMembers, useBuildCart } from '@/features/nutrition/hooks';
 import { recipeImageUrl } from '@/features/nutrition/recipeImages';
 import type { Recipe, DietKey } from '@/features/nutrition/types';
@@ -132,9 +132,10 @@ export function FamilySearch() {
             style={{ flex: 1, minWidth: 180, border: '1px solid var(--line)', borderRadius: 999, padding: '12px 18px', fontSize: 13.5, background: 'var(--paper)', color: 'var(--ink)', outline: 'none', fontFamily: 'inherit' }} />
           <Button variant="accent" size="sm" onClick={() => { if (draft.trim()) { addIng(draft); setDraft(''); } }}>Search →</Button>
         </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink-soft)', marginTop: 16 }}>
-          <input type="checkbox" checked={safe} onChange={(e) => setSafe(e.target.checked)} /> Family-safe results only — excludes non-vegetarian dishes for vegetarian members
-        </label>
+        <div style={{ marginTop: 16 }}>
+          <Switch checked={safe} onChange={setSafe}
+            label="Family-safe results only — excludes non-vegetarian dishes for vegetarian members" />
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 28, alignItems: 'start' }} className="tc-dashgrid">

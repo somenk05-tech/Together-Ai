@@ -620,6 +620,15 @@
     transparent 0, #000 var(--page-gutter),
     #000 calc(100% - var(--page-gutter)), transparent 100%);
 
+  /* THE SWITCH, THE ONE CONTROL THAT IS THE SAME IN EVERY HUB. Every other
+     accent in the city is the room's — rose in Nutrition, periwinkle in Real
+     Estate — because an accent says where you are. A switch says something
+     else: on, or off. That is the same answer in every room, so it is the same
+     amber in every room, and it is written here because a colour written in a
+     stylesheet is a decision made outside the system. */
+  --switch-on: #ffb500;
+  --switch-off: #05012c;
+
   --dur-fast: 130ms; --dur-base: 220ms; --dur-slow: 420ms;
   /* The entrance. 280ms, not the 600ms .rise shipped with: it is the
      most-used motion in the application and the UI budget is 300ms. */

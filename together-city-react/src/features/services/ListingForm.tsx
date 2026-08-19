@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Card, Button, Spinner, EmptyState } from '@/components/ui';
+import { Card, Button, Spinner, EmptyState , Switch} from '@/components/ui';
 import { LocationPicker, type LocationValue } from '@/components/LocationPicker';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
 import { servicesApi, useServiceCategories, useBusinessTypes } from './api';
@@ -439,17 +439,17 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
               them, and clearing the field un-publishes it — otherwise a stale
               tick would publish the next number typed into an empty box.
             */}
-            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 8, minHeight: 44, cursor: phone.trim() ? 'pointer' : 'default' }}>
-              <input type="checkbox" checked={phonePublic && !!phone.trim()} disabled={!phone.trim()}
-                onChange={(e) => setPhonePublic(e.target.checked)} style={{ marginTop: 3, flexShrink: 0 }} />
-              <span style={{ fontSize: 12.5 }}>
-                Show this number on my page so people can ring me
-                <span className="muted" style={{ display: 'block', fontSize: 11.5 }}>
-                  Leave it off and people reach you only through the message room, where they
-                  stay anonymous and so does your number.
-                </span>
-              </span>
-            </label>
+            <div style={{ marginTop: 8 }}>
+              <Switch checked={phonePublic && !!phone.trim()} disabled={!phone.trim()}
+                onChange={setPhonePublic}
+                label={<>
+                  Show this number on my page so people can ring me
+                  <span className="muted" style={{ display: 'block', fontSize: 11.5 }}>
+                    Leave it off and people reach you only through the message room, where they
+                    stay anonymous and so does your number.
+                  </span>
+                </>} />
+            </div>
           </div>
         </div>
 

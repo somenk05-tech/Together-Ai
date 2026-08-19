@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useFormValidation, ValidationSummary, FieldError, successToast } from '@/components/form-validation';
-import { Button, Spinner } from '@/components/ui';
+import { Button, Spinner , Switch} from '@/components/ui';
 import { useFoodPref, useNutritionTargets, useUpdateFoodPref } from '../hooks';
 import { TargetsRefusal } from '../components/TargetsDisclosure';
 import { MedicalRecs } from '../components/MedicalRecs';
@@ -520,18 +520,17 @@ export function Preferences() {
           </div>
 
           {/* Lock cuisine: strict weeks — only the chosen cuisines' mains are used. */}
-          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginTop: 12, cursor: 'pointer', fontSize: 12.5 }}>
-            <input type="checkbox"
+          <div style={{ marginTop: 12 }}>
+            <Switch
               checked={!!(ex.cuisineLocks && Object.values(ex.cuisineLocks).some(Boolean))}
-              onChange={(e) => setEx({ ...ex, cuisineLocks: e.target.checked ? { breakfast: true, lunch: true, dinner: true } : undefined })}
-              style={{ marginTop: 2, accentColor: 'var(--accent)', cursor: 'pointer' }} />
-            <span>
-              <strong>Lock to these cuisines</strong>
-              <span className="muted" style={{ display: 'block', fontSize: 11.5, marginTop: 1 }}>
-                Every main comes strictly from your chosen cuisines. Leave off to keep them as a strong preference with some variety.
-              </span>
-            </span>
-          </label>
+              onChange={(on) => setEx({ ...ex, cuisineLocks: on ? { breakfast: true, lunch: true, dinner: true } : undefined })}
+              label={<>
+                <strong>Lock to these cuisines</strong>
+                <span className="muted" style={{ display: 'block', fontSize: 11.5, marginTop: 1 }}>
+                  Every main comes strictly from your chosen cuisines. Leave off to keep them as a strong preference with some variety.
+                </span>
+              </>} />
+          </div>
         </div>
 
         {/* 2 · Dietary preference */}
@@ -571,10 +570,10 @@ export function Preferences() {
                 </div>
               ))}
               {!isVegDiet && (
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--ink-soft)', marginTop: 4, cursor: 'pointer' }}>
-                  <input type="checkbox" checked={showIntl} onChange={toggleIntl} style={{ accentColor: 'var(--accent)' }} />
-                  Show international ingredients (beef, pork)
-                </label>
+                <div style={{ marginTop: 4 }}>
+                  <Switch checked={showIntl} onChange={() => toggleIntl()}
+                    label="Show international ingredients (beef, pork)" />
+                </div>
               )}
               <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>
                 {isVegDiet
