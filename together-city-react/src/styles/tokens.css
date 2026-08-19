@@ -1644,6 +1644,13 @@
   --ground: #ebe8e3;
   --paper:  #ebe8e3;
   --card:   #ffffff;
+  /* THE RAIL TAKES THE PAPER (owner, 19 Aug). --rail-well is #ffffff at the
+     root, and a white rail beside a cream letter is a seam down the middle of
+     the screen — two surfaces where the hub means one. The keys are
+     --lens-face, which is translucent, so they take the cream with it and stay
+     legible: every ink this hub declares clears AA on #ebe8e3 — black 17.2,
+     --ink-soft 14.0, --muted 4.70, --faint 5.60. */
+  --rail-well: #ebe8e3;
   --wash:   #f4f2ee;
   --ink:        #000000;   /* 17.2:1 on the paper */
   --ink-soft:   #1c1c1c;   /* 17.0:1 on a card    */

@@ -103,7 +103,15 @@ describe('the gemstone marketplace', () => {
     expect(gems).toMatch(/rec\.weight\.fromRatti/);
     expect(gems).toMatch(/rec\.weight\.bound/);
     expect(gems).toMatch(/customarily worn between/);
-    expect(gems).toMatch(/Custom rather than calculation/);
+    // THE SENTENCE CHANGED, THE RULE DID NOT (owner, 19 Aug). It read "Custom
+    // rather than calculation. A chart-specific weight is an astrologer's call
+    // on your whole chart — have this confirmed before you commission the
+    // stone." The owner found it apologetic about a figure that IS worked out
+    // for the wearer, so it now names the two inputs instead of naming what
+    // they are not. What must not go is the page naming them at all: the chart
+    // chooses the STONE and has no part in the WEIGHT, and a page that lets
+    // somebody infer otherwise is selling a five-figure commission on it.
+    expect(gems).toMatch(/against the weight this stone is traditionally worn at/);
   });
 
   it('is the owner\'s sheet, not a product row', () => {

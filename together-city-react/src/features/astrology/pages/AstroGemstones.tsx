@@ -312,8 +312,7 @@ function StoneSheet({ rec }: { rec: GemRecommendation }) {
                 : 'this is the bottom of it — the general rule would go lower, and the stone is not worn lighter than this.'}
           </p>
           <p className="gem-body" style={{ color: 'var(--gem-body)', fontSize: 12, marginTop: 8 }}>
-            Custom rather than calculation. A chart-specific weight is an astrologer's call on your
-            whole chart — have this confirmed before you commission the stone.
+            Your body weight, against the weight this stone is traditionally worn at.
           </p>
           <div>
             <span className="gem-price" style={{ color: 'var(--gem-title)', borderColor: 'var(--gem-accent)' }}>
