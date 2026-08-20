@@ -1383,43 +1383,40 @@
                 inset 0 -3px 6px rgba(10,45,30,.34);
 
   /* ── AND A SKY, WHICH IS THE SECOND DECLARATION THIS HUB HAS EVER OWNED ──
-     Owner, 18 Aug: an earthy mesh — butter cream in the top-left corner
-     falling on the diagonal through sage to a deep forest green. Sixth hub,
-     same machinery: it rides --sky-image, `none` at :root and in every hub
-     that hangs nothing on it, so the one fixed layer every sky in the city
-     already uses paints this one too.
+     It was an earthy mesh (18 Aug): butter cream in the top-left corner
+     falling on the diagonal through sage to a deep forest green. Replaced on
+     the owner's call of 20 Aug with the pale one above it — the same dawn the
+     week's sheets print on, cooled and flattened so a sheet still reads as an
+     object lying ON the room rather than a patch of the same colour.
 
-     AND STILL NO GROUND. The block above is famous in this file for being
-     four declarations where a whole palette used to be — the warm paper was
-     deleted because the city at :root already says every other line of it.
-     This does not put any of that back. --ground, --paper, --card and
-     --rail-well are untouched and still the city's white; what moved is what
-     is drawn in FRONT of them, so relief.spec's granted set still reads
-     exactly astrology/beauty/entertainment.
+     WHY THE GREEN WENT. It was the last surface in the hub with a strong
+     opinion, and everything that stands on it stopped having one on the same
+     day: the fourteen press photographs went, the profile gave back Tuesday's
+     paper, the grocery list gave back its blue card. A green room around four
+     pale documents reads as a frame somebody forgot to remove, and the green
+     is not lost — it is where it always did the work, in the lamp on the rail
+     and in --press-green on the figures.
 
-     THE FOREST END IS LIFTED, AND IT IS FINANCIAL'S CORRECTION AGAIN. This is
-     the hub that reads the city's own black ink, and the reference's deep end
-     is #32502e — luminance 0.066, where --ink lands at 3.05 and --ink-soft at
-     2.47. Both under AA, on roughly half the picture. Financial's sage went up
-     from #4e5f57 to #93a38f for exactly this and the same arithmetic applies
-     here, so the sweep keeps its two lightest stops VERBATIM from the
-     reference — #f6f2d8 and #ece8ba, the butter corner that gives this sky its
-     character — and the green end climbs until the city's ink clears it.
-     Worst stop: --ink 6.07, --ink-soft 4.92.
+     AND STILL NO GROUND. The block above is famous in this file for being four
+     declarations where a whole palette used to be. This does not put any of
+     that back: --ground, --paper, --card and --rail-well are untouched and
+     still the city's white; what moved is what is drawn in FRONT of them, so
+     relief.spec's granted set still reads exactly astrology/beauty/
+     entertainment.
 
-     IT IS NOT FINANCIAL'S SKY AND THAT IS WORTH SAYING OUT LOUD, because a
-     lifted green is where the two hubs could have collided. Financial is a
-     flat sage between 0.34 and 0.45 luminance with no yellow in it at all;
-     this runs 0.25 to 0.88 and starts in cream. Side by side they are a field
-     and a morning, and the thing that keeps them apart is the corner that was
-     kept rather than the end that was moved.
-
-     --muted AND --faint ARE NOT SAFE BARE. They clear on the cream and fail
-     from the middle down — 1.66 and 1.45 on the last stop — so they take
-     dating's shadow-and-restore in relief.css. */
+     EVERY INK IS SAFE BARE NOW, WHICH IS THE OTHER HALF OF THE DELETION AND
+     WHAT SET THE DARKEST STOP. The green ran 0.25 to 0.88 in luminance, so
+     --ink landed at 6.07 at the worst stop, --ink-soft at 4.92, and --muted
+     and --faint failed outright from the middle down — 1.66 and 1.45 — which
+     is why they took dating's shadow-and-restore in relief.css. Removing that
+     shadow puts --faint back out in the open, and --faint is the ink that runs
+     out first: at #eceff5 it was 4.36 and under AA, which is how a deletion
+     quietly costs contrast. The sweep starts at #f0f3f8 for that one number.
+     Worst stop: --ink 18.7, --ink-soft 15.2, --muted 5.16, --faint 4.52 — all
+     four clear AA bare, so nothing in this hub needs protecting from its own
+     room any more. See relief.css. */
   --sky-image: linear-gradient(135deg,
-    #f6f2d8 0%, #ece8ba 16%, #cfd3a6 32%, #b3c09f 50%,
-    #99ab8b 68%, #86997a 84%, #7b9070 100%);
+    #f0f3f8 0%, #f3f5f8 30%, #f6f7f9 58%, #f4f5f8 82%, #f1f3f7 100%);
 }
 
 /* ══ ASTROLOGY'S NIGHT — THE SECOND SURFACE EXCEPTION ══════════════════════
@@ -2258,49 +2255,47 @@
   --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
 }
 
-/* ═══ THE GROCERY LIST PRINTS ON ITS OWN BLUE SHEET ══════════════════════════
-   One page taking one paper, not a hub ground. It is the last of these: the
-   Food Preference Profile gave its sheet back on 20 Aug and reads on the
-   city's white. The sheet is the owner's flat dusty-blue paper (13 Aug), printed in
-   navy: the reference art was WHITE ink on this blue, which is 1.95:1 against
-   the sheet's lightest pixel and no veil fixes ink that is lighter than the
-   paper. So the ink flips dark and the paper stays light, which keeps the
-   look's dominant half.
+/* ═══ THE GROCERY LIST PRINTS ON THE SAME SHEET AS THE PLAN ═════════════════
+   It had a blue paper of its own — the owner's flat dusty-blue card of 13 Aug,
+   printed navy, because the reference art's white ink was 1.95:1 against the
+   sheet's lightest pixel and no veil fixes ink lighter than its paper. That
+   was a good answer to a question that has stopped being asked: the week was
+   fourteen photographs then, so a page with a paper of its own was one more
+   among many. The week prints on `--press-sky` now, and a basket that comes
+   OUT of a plan reading on a different paper from the plan is two documents
+   where the citizen has one.
 
-   Every ratio is against the sheet's WORST pixel (darkest, #95a6b8 L .3712 —
-   dark ink fails first where the paper is darkest), the press papers' own
-   method:
-     --grocery-ink    6.47:1   body, headings, quantities
-     --grocery-ink-2  4.97:1   secondary copy, intro, notes
-     --grocery-ink-3  3.90:1   labels and metadata ONLY, never body copy
-   The rule alpha composites lighter than ink-3 and draws leaders and boxes,
-   not text. */
+   SO IT TAKES THE PRESS'S SHEET AND THE PRESS'S INK, by reference rather than
+   by copy — one paper, one scale, and no second place to fix either. The
+   ratios are the sky's own, already recomputed at every stop by relief.spec:
+   14.0:1, 6.8:1 and 3.3:1 against the darkest.
+
+   `--grocery-paper` STAYS DECLARED AND STAYS TRANSPARENT. On screen the
+   gradient IS the ground so the sheet paints nothing behind it; the name
+   exists for print, where the block below re-points every one of these to
+   black on white. relief.spec bans a white background literal in the material
+   file twice over and is right to — a white surface written into relief.css is
+   a colour decision taken in the file nobody repaints. */
 .grocery-sheet {
-  --grocery-sheet-img: url('/assets/img/press-grocery.jpg');
-  --grocery-ground: #95a6b8;  /* darkest pixel, unveiled */
-  --grocery-ink:    #16222e;  /* 6.47:1 */
-  --grocery-ink-2:  #233649;  /* 4.97:1 */
-  --grocery-ink-3:  #31465c;  /* 3.90:1 — labels and metadata ONLY */
-  --grocery-rule:   rgba(22, 34, 46, .38);
-  /* On screen the ground IS the photograph, so the sheet paints nothing behind
-     it. The name exists for print, where there is no photograph and the paper
-     has to be declared — and it is declared HERE, because relief.spec bans a
-     white background literal in the material file twice over, and is right to:
-     a white surface written into relief.css is a colour decision taken in the
-     file nobody repaints. */
+  --grocery-sheet-img: var(--press-sky);
+  --grocery-ground: var(--press-sky-worst);
+  --grocery-ink:    var(--press-ink);
+  --grocery-ink-2:  var(--press-ink-2);
+  --grocery-ink-3:  var(--press-ink-3);
+  --grocery-rule:   var(--press-rule);
   --grocery-paper:  transparent;
 }
 
 /* ON PAPER, THE PAPER IS THE PAPER.
-   The scale above is measured against a photograph of blue card, and printed
-   it would be a photograph of blue card: a page of ink for a background that
-   is already there, and navy-on-blue where the printer's gamut gives out. The
-   whole block re-points to black on white for print, in ONE place — every
-   heading, leader, box and quantity below follows without a print rule of its
-   own, because they were all written against these names. Ratios stop being
-   the constraint the moment the ground is white; what matters instead is that
-   the three inks stay distinguishable in grey-scale, which is why ink-3 is a
-   real grey and not a lighter black. */
+   The sheet above is a gradient, and printed it would be a page of ink laid
+   down for a background the paper already provides — pale, but not free, and
+   pale ink over it where the printer's gamut gives out. The whole block
+   re-points to black on white for print, in ONE place: every heading, leader,
+   box and quantity below follows without a print rule of its own, because they
+   were all written against these names. Ratios stop being the constraint the
+   moment the ground is white; what matters instead is that the three inks stay
+   distinguishable in grey-scale, which is why ink-3 is a real grey and not a
+   lighter black. */
 @media print {
   .grocery-sheet {
     --grocery-sheet-img: none;
