@@ -39,14 +39,38 @@ describe('the header keeps the name', () => {
     return relief.slice(at, relief.indexOf('\n}', at));
   })();
 
-  it('drops the avatar, which was saying what the name says', () => {
-    // A phone shows one room at a time and the name sits directly above the
-    // thread. The disc cost 42px and one gap to repeat it.
-    expect(phone).toMatch(/\.cstage \.cshead-t > \.csav \{ display: none; \}/);
+  it('keeps the face, and pays for it out of the controls', () => {
+    // THIS ASSERTION USED TO SAY THE OPPOSITE. The disc was `display: none`
+    // here from 16 Aug, on the argument that a phone shows one room at a time
+    // and the name above the thread already said whose it was. The owner
+    // looked at it on 20 Aug and disagreed, and he is right: a photograph is
+    // not a second copy of the name, it is the one thing on this row that says
+    // whose room this is without being read — and it is the SAME picture the
+    // list outside shows, so losing it here made the two screens two apps.
+    //
+    // The budget the old rule was protecting is real, so it is found elsewhere
+    // instead: 32px for the face, 34 for each key, 36 for her mark, 6px gaps.
+    expect(phone).not.toMatch(/\.cstage \.cshead-t > \.csav \{ display: none/);
+    expect(phone).toMatch(/\.cstage \.cshead-t > \.csav \{ width: 32px; height: 32px;/);
+    expect(phone).toMatch(/\.cstage \.cshead-t \.cstool \{ width: 34px; height: 34px;/);
   });
 
   it('tightens the row rather than letting it run off the end', () => {
-    expect(phone).toMatch(/\.cstage \.cshead-t \{ gap: 8px; padding: 10px 12px; \}/);
+    expect(phone).toMatch(/\.cstage \.cshead-t \{ gap: 6px; padding: 10px 12px; \}/);
+  });
+
+  it('finds the last twenty pixels on the narrowest phones', () => {
+    // Measured: at 320 the block above leaves the name 58px, which renders
+    // "Shru…" — and the name is the one thing this header may not give up. A
+    // second, narrower block takes 20px back in the same order: the gaps, then
+    // the face, then the keys. Nothing is removed; the name goes back to 78px.
+    const narrow = (() => {
+      const at = relief.indexOf('@media (max-width: 374px) {');
+      expect({ found: at >= 0 }).toEqual({ found: true });
+      return relief.slice(at, relief.indexOf('\n}', at));
+    })();
+    expect(narrow).toMatch(/\.cstage \.cshead-t \{ gap: 4px; \}/);
+    expect(narrow).toMatch(/\.cstage \.cshead-t > \.csav \{ width: 28px/);
   });
 
   it('scales her lockup in the stylesheet, not in the page', () => {
@@ -129,8 +153,12 @@ describe('the measure of a bubble belongs to the stylesheet', () => {
     // desk's 24px gutters the whole time.
     const main = stripTs(read('main.tsx'));
     expect(main.indexOf("'./index.css'")).toBeLessThan(main.indexOf("'./styles/relief.css'"));
-    expect(relief).toMatch(/\.cstage \.csmsgs > div > \.tc-msg-row \{ max-width: 86%; \}/);
-    expect(relief).toMatch(/\.cstage \.csmsgs \{ padding: 14px 14px 6px; \}/);
+    expect(relief).toMatch(/\.cstage \.csmsgs > div > \.tc-msg-row \{ max-width: 84%; \}/);
+    // 6px of floor was the whole clearance between the newest bubble and the
+    // composer, and the composer had no bottom margin of its own (see
+    // `.csdock`) — so the last message read as tucked under the bar. That is
+    // the crop in the second photograph the owner sent.
+    expect(relief).toMatch(/\.cstage \.csmsgs \{ padding: 14px 12px 12px; \}/);
   });
 
   it('leaves no copy behind in index.css to disagree with it', () => {
@@ -139,5 +167,67 @@ describe('the measure of a bubble belongs to the stylesheet', () => {
     // went to change a number that could not move.
     expect(index).not.toMatch(/\.csmsgs > div > \.tc-msg-row/);
     expect(index).not.toMatch(/\n\s*\.csmsgs \{ padding/);
+  });
+});
+
+/**
+ * THE COMPOSER SAT ON THE BOTTOM EDGE OF THE PHONE.
+ *
+ * Four `.cscomposer` margins were written for this — the 20px sides, the
+ * safe-area bottom, the immersive room's 14, the phone's 12 — and not one of
+ * them had ever applied, because the <form> carries `style={{ margin: 0 }}`
+ * inline and its wrapper carried an inline `margin: '0 20px 0'`. An inline
+ * style outranks the cascade, so the real spacing was that wrapper's: 20px at
+ * the sides and NOTHING underneath. On an iPhone the send key sat in the home
+ * indicator; above it the thread's own floor was 6px.
+ *
+ * The wrapper wears `.csdock` now and the numbers are in the stylesheet.
+ */
+describe('the composer keeps its own floor', () => {
+  const composer = stripTs(read('features/chat/components/Composer.tsx'));
+
+  it('does not set its gutter inline, where no stylesheet can reach it', () => {
+    expect(composer).not.toMatch(/margin: '0 20px 0'/);
+    expect(composer).toMatch(/<div className="csdock">/);
+  });
+
+  it('clears the home indicator, on the phone and in the immersive room', () => {
+    const rule = relief.slice(relief.indexOf('.csdock {'));
+    expect(rule.slice(0, rule.indexOf('}'))).toMatch(/margin: 0 20px calc\(20px \+ var\(--safe-bottom\)\)/);
+    // …and it is the flex child of the immersive column, so it is the thing
+    // that must refuse to shrink.
+    expect(rule.slice(0, rule.indexOf('}'))).toMatch(/flex: 0 0 auto/);
+    expect(index).toMatch(/html\.tc-immersive \.csdock \{ margin-bottom: calc\(var\(--safe-bottom\) \+ 12px\); \}/);
+    expect(index).toMatch(/html\.tc-immersive \.cshead-t, html\.tc-immersive \.csdock \{ flex: 0 0 auto; \}/);
+  });
+});
+
+/**
+ * THE FACE IS THE SAME FACE, INSIDE THE ROOM AND OUTSIDE IT.
+ *
+ * The owner, 20 Aug: profile photos on the chat page, the same as outside. The
+ * roster is already one cached call for the whole screen — the thread is handed
+ * the picture the header is drawing, rather than fetching it a second time.
+ */
+describe('a face inside the room', () => {
+  const thread2 = stripTs(read('features/chat/components/MessageThread.tsx'));
+
+  it('draws the photo on the attribution line, with initials as the fallback', () => {
+    expect(thread2).toMatch(/<span className="csav csface" aria-hidden>/);
+    expect(thread2).toMatch(/peerPhoto\s*\n?\s*\? <img className="no-case" src=\{peerPhoto\}/);
+    expect(thread2).toMatch(/: initials\(peerName\)/);
+    expect(relief).toMatch(/\.csatt \.csface \{ width: 26px; height: 26px;/);
+  });
+
+  it('is handed the roster’s picture rather than fetching its own', () => {
+    expect(chats).toMatch(/peerName=\{activeTitle\} peerPhoto=\{activePhoto\}/);
+    // activePhoto is already the masked-aware one the header uses, so an
+    // anonymous match’s thread cannot draw a face the list is withholding.
+    expect(chats).toMatch(/activeConv\?\.anonymous && !activeFace\?\.mine \? null : activeFace\?\.photo \?\? null/);
+  });
+
+  it('sits on the line rather than hanging off its baseline', () => {
+    const rule = relief.slice(relief.indexOf('.csatt {'));
+    expect(rule.slice(0, rule.indexOf('}'))).toMatch(/align-items: center/);
   });
 });

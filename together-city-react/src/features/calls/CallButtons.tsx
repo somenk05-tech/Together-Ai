@@ -17,14 +17,23 @@ export function CallButtons({ conversationId, compact = false }: { conversationI
     void start(conversationId, type).catch(() => undefined);
   };
 
-  const style = {
+  /* COMPACT IS A DISC, NOT A SHORTER PILL. Compact is only ever worn in the
+     chat header, where every other key — the overflow, the search, the mark —
+     is a 34px circle; a pill among them read as a different kind of control,
+     and two of them cost the name 12px it did not have to spare on a 320px
+     phone. Same target, same shape, one row. */
+  const style = compact ? {
     border: '1px solid var(--line)', background: 'transparent', cursor: inCall ? 'default' : 'pointer',
-    borderRadius: 999, padding: compact ? '4px 10px' : '6px 12px', fontSize: compact ? 12 : 13,
+    borderRadius: 999, width: 34, height: 34, padding: 0, display: 'grid', placeItems: 'center',
+    fontSize: 13, fontFamily: 'inherit', color: 'inherit', opacity: inCall || busy ? 0.5 : 1,
+  } as const : {
+    border: '1px solid var(--line)', background: 'transparent', cursor: inCall ? 'default' : 'pointer',
+    borderRadius: 999, padding: '6px 12px', fontSize: 13,
     fontFamily: 'inherit', color: 'inherit', opacity: inCall || busy ? 0.5 : 1,
   } as const;
 
   return (
-    <div style={{ display: 'flex', gap: 6 }}>
+    <div style={{ display: 'flex', gap: compact ? 4 : 6, flex: 'none' }}>
       <button type="button" style={style} disabled={inCall || busy} onClick={() => ring('audio')} title="Voice call">
         📞{compact ? '' : ' Call'}
       </button>

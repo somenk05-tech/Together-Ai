@@ -3547,7 +3547,11 @@ textarea.g-field { resize: none; line-height: 1.55; }
 .cshead-t { position: relative; display: flex; align-items: center; gap: 12px; padding: 14px 20px;
   border-bottom: 1px solid var(--stage-line); }
 .cshead-t b { font-size: 15px; }
-.cshead-t em { display: block; margin-top: 2px; font-style: normal; font-size: 11px; color: var(--on-stage-faint); }
+/* One line, always. `Together City` wrapping to two lines took the header
+   from 73px to 90px on a 320px phone and pushed the thread down with it —
+   a status line is a line. */
+.cshead-t em { display: block; margin-top: 2px; font-style: normal; font-size: 11px; color: var(--on-stage-faint);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cstool { width: 38px; height: 38px; border-radius: var(--r-full); display: grid; place-items: center; border: 0;
   cursor: pointer; font-family: inherit; font-size: 14px;
   color: var(--on-stage-soft); background: var(--stage-panel); }
@@ -3562,7 +3566,15 @@ textarea.g-field { resize: none; line-height: 1.55; }
   color: var(--on-stage-faint); background: var(--stage-panel); }
 /* The attribution line: who and when ABOVE the bubble, so a run of messages
    from one person needs it once instead of four times. */
-.csatt { display: flex; gap: 8px; align-items: baseline; margin: 14px 0 6px; font-size: 11.5px; }
+.csatt { display: flex; gap: 8px; align-items: center; margin: 14px 0 6px; font-size: 11.5px; }
+/* THE FACE ON THE ATTRIBUTION LINE. The same picture the list outside shows,
+   at the top of each run of messages rather than beside every bubble: a run of
+   six from one person needs the face once, for the same reason the name and
+   the clock print once. It wears `.csav`, so the circle, the crop and the
+   initials fallback are the row's — one avatar in this block, three places.
+   Centre-aligned rather than on the baseline, because a 26px disc hung off a
+   text baseline sits a third of itself below the line. */
+.csatt .csface { width: 26px; height: 26px; font-size: 10.5px; }
 .csatt b { font-size: 12px; font-weight: 700; color: var(--on-stage-soft); }
 .csatt i { font-style: normal; color: var(--on-stage-faint); }
 .csatt.me { justify-content: flex-end; }
@@ -3585,10 +3597,26 @@ textarea.g-field { resize: none; line-height: 1.55; }
 .csb.gone { color: var(--on-stage-faint); background: none; box-shadow: none;
   font-style: italic; font-size: 13px; outline: 1px dashed var(--stage-line); outline-offset: -1px; }
 
-.cscomposer { display: flex; align-items: center; gap: 10px; margin: 0 20px 20px;
+/* ── THE COMPOSER'S GUTTER ────────────────────────────────────
+   The bar the composer sits in, and the only thing that sets its margins.
+
+   Every margin `.cscomposer` states below — the 20px sides, the safe-area
+   bottom, the phone's 12 — had never once applied: the <form> carries
+   `style={{ margin: 0 }}` inline, and an inline style outranks the whole
+   cascade. So the capsule's real spacing was a wrapper's inline `0 20px 0`,
+   which is why the send key sat ON the bottom edge of the room with the home
+   indicator drawn through it, and why the newest message had six pixels of
+   air under it. This is that wrapper, wearing a class instead, so the numbers
+   are in the file that is read when somebody goes looking for them.
+
+   `flex: 0 0 auto` because in the immersive column the wrapper — not the form
+   — is the flex child, and a composer that may shrink is a composer that gets
+   shorter as the thread gets longer. */
+.csdock { flex: 0 0 auto; margin: 0 20px calc(20px + var(--safe-bottom)); }
+
+.cscomposer { display: flex; align-items: center; gap: 10px; margin: 0;
   padding: 8px 8px 8px 18px; border-radius: var(--r-full);
-  background: var(--stage-panel);
-  margin-bottom: calc(20px + var(--safe-bottom)); }
+  background: var(--stage-panel); }
 /* The global field rule is `input:not([type=checkbox]):not([type=radio])
    :not([type=range])` at 0,3,1, so a plain `.cscomposer input` loses and the
    composer renders a white pill inside its own capsule. Matching the shape is
@@ -3678,18 +3706,48 @@ textarea.g-field { resize: none; line-height: 1.55; }
    and 86% measure were each tying with a rule below. They are here now,
    which is the file the chat stage is in anyway. */
 @media (max-width: 899px) {
-  .cstage .cshead-t { gap: 8px; padding: 10px 12px; }
-  .cstage .cshead-t > .csav { display: none; }
+  .cstage .cshead-t { gap: 6px; padding: 10px 12px; }
+  /* THE FACE COMES BACK TO THE ROOM (owner, 20 Aug).
+     It used to be `display: none` here, and the reasoning was arithmetic:
+     eight controls wanted 398px before the name got a pixel, and the disc was
+     the cheapest 42px to give up. The reasoning was right about the budget and
+     wrong about the disc — a photograph is not a repeat of the name, it is the
+     one thing on this row that says at a glance whose room this is, and it is
+     the same face the list outside shows.
+     So the disc STAYS and the budget is found in the controls instead: 32 for
+     the face, 34 for each key, 36 for her mark, 6px gaps. Measured at 320,
+     360, 375, 390 and 430 — the narrowest of those still leaves the name 66px,
+     which is where it was never allowed to fall below. */
+  .cstage .cshead-t > .csav { width: 32px; height: 32px; font-size: 11.5px; }
+  .cstage .cshead-t .cstool { width: 34px; height: 34px; font-size: 13px; }
   /* Her mark keeps the SOURCE's 48 — mira-reads-one-chat pins that literal,
      and 48 is the size the word stops being legible below. The stylesheet
      scales the lockup for a phone so the page and the test go on agreeing. */
+  .cstage .cshead-t .mira-door { min-width: 36px; min-height: 36px; }
   .cstage .cshead-t .mira-door > svg { width: 34px; height: 34px; }
   /* A share card is 280px wide; a row capped at 66% of a 390px screen is
      257px, so every recipe and property card hung over the right edge. The
-     measure is a phone's, not a desk's. */
-  .cstage .csmsgs { padding: 14px 14px 6px; }
-  .cstage .csmsgs > div > .tc-msg-row { max-width: 86%; }
-  .cstage .cscomposer { margin: 0 12px 14px; }
+     measure is a phone's, not a desk's.
+
+     THE FOOT OF THE THREAD IS NOT 6px. Six was the whole clearance between the
+     newest bubble and the composer, and with the composer's own gutter gone
+     (see .csdock) the last message read as tucked under the bar — the crop in
+     the owner's photograph. Twelve, and the composer states its own margin. */
+  .cstage .csmsgs { padding: 14px 12px 12px; }
+  .cstage .csmsgs > div > .tc-msg-row { max-width: 84%; }
+  .cstage .csdock { margin: 0 12px calc(12px + var(--safe-bottom)); }
+}
+
+/* THE NARROWEST PHONES STILL GET THE WHOLE NAME. At 320 the row above leaves
+   the name 58px, which is "Shru…" — and the name is the one thing this header
+   was never allowed to give up. Twenty pixels are found here in the same order
+   as above: the gaps, then the face, then the keys. Nothing is removed. */
+@media (max-width: 374px) {
+  .cstage .cshead-t { gap: 4px; }
+  .cstage .cshead-t > .csav { width: 28px; height: 28px; font-size: 10.5px; }
+  .cstage .cshead-t .cstool { width: 32px; height: 32px; }
+  .cstage .cshead-t .mira-door { min-width: 32px; min-height: 32px; }
+  .cstage .cshead-t .mira-door > svg { width: 30px; height: 30px; }
 }
 
 @media (hover: hover) and (pointer: fine) {

@@ -856,7 +856,7 @@ html.tc-immersive .csmsgs {
   overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
 }
 /* Neither row gives up a pixel to a long message or a two-line name. */
-html.tc-immersive .cshead-t, html.tc-immersive .cscomposer { flex: 0 0 auto; }
+html.tc-immersive .cshead-t, html.tc-immersive .csdock { flex: 0 0 auto; }
 /* ---- A ROOM THAT IS NOT THE DARK STAGE (10 Aug) ----
    The services thread is a white card with a black bubble and belongs to a
    business's world, so it is not repainted; it is only re-seated. Everything
@@ -882,7 +882,7 @@ html.tc-immersive .csroom > .card {
 
 /* the notch, and room for the name under it */
 html.tc-immersive .cshead-t { padding-top: calc(var(--safe-top) + 16px); padding-bottom: 12px; }
-html.tc-immersive .cscomposer { margin-bottom: calc(var(--safe-bottom) + 14px); }
+html.tc-immersive .csdock { margin-bottom: calc(var(--safe-bottom) + 12px); }
 
 /* THE PHONE'S MEASURE MOVED TO relief.css, WHERE IT CAN WIN.
    These three rules were written on 10 Aug and had never once applied.

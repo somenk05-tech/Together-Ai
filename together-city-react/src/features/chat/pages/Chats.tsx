@@ -794,7 +794,7 @@ export function Chats() {
                       </div>
                     )}
                     <MessageThread messages={messages} currentUserId={user?.id} typing={peerTyping}
-                      peerName={activeTitle} onDelete={deleteMessage} onEdit={editMessage}
+                      peerName={activeTitle} peerPhoto={activePhoto} onDelete={deleteMessage} onEdit={editMessage}
                       onReply={setReplyTo} onForward={(m) => setForwarding([m])} onStar={(m, on) => { void starMessage(m, on); }}
                       onJump={(id) => { void jumpTo(id); }} jumpToId={jumpToId}
                       selectedIds={selected} onSelect={toggleSelect}

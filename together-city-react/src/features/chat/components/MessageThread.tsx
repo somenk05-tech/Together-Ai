@@ -4,6 +4,11 @@ import { ShareCardView } from '../share';
 
 const fmtSize = (n?: number): string =>
   !n ? '' : n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
+/** The fallback under a missing face: at most two letters, from whatever the
+ *  room is called. The same shape ConversationList draws on the rows outside,
+ *  so a chat with no picture reads the same in both places. */
+const initials = (name?: string): string =>
+  (name ?? 'Them').split(/[\s·]+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 const fmtClock = (sec?: number): string =>
   typeof sec === 'number' && sec > 0
     ? `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}`
@@ -165,10 +170,16 @@ export function ConfirmDelete({ mine, canEveryone, count = 1, onCancel, onDelete
   );
 }
 
-export function MessageThread({ messages, currentUserId, typing, peerName, onDelete, onEdit, onReply, onForward, onStar, onJump, fetchInfo, jumpToId, selectedIds, onSelect, onReact, onPin, pinnedId }: {
+export function MessageThread({ messages, currentUserId, typing, peerName, peerPhoto, onDelete, onEdit, onReply, onForward, onStar, onJump, fetchInfo, jumpToId, selectedIds, onSelect, onReact, onPin, pinnedId }: {
   messages: Message[]; currentUserId?: string; typing?: boolean;
   /** Whose thread this is, for the attribution line above each run. */
   peerName?: string;
+  /** Their face, if the room has one — the SAME picture the conversation list
+   *  outside is showing, handed down rather than fetched again: the roster is
+   *  one cached call for the whole screen and a second one here would be the
+   *  same data:URL downloaded twice. Null is not a failure, it is the ordinary
+   *  case, and the initials below are what it draws instead. */
+  peerPhoto?: string | null;
   onDelete?: (messageId: string, scope: 'ME' | 'EVERYONE') => Promise<void> | void;
   onEdit?: (messageId: string, body: string) => Promise<void> | void;
   onReply?: (m: Message) => void;
@@ -331,7 +342,17 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
               <div className={mine ? 'csatt me' : 'csatt'}>
                 {mine
                   ? <><i>{at(m.createdAt)}</i><b>You</b></>
-                  : <><b>{peerName ?? 'Them'}</b><i>{at(m.createdAt)}</i></>}
+                  : <>
+                      {/* THEIR FACE, ONCE PER RUN. `aria-hidden` because the
+                          name is right beside it and a reader that announced
+                          both would say the person twice. */}
+                      <span className="csav csface" aria-hidden>
+                        {peerPhoto
+                          ? <img className="no-case" src={peerPhoto} alt="" loading="lazy" />
+                          : initials(peerName)}
+                      </span>
+                      <b>{peerName ?? 'Them'}</b><i>{at(m.createdAt)}</i>
+                    </>}
               </div>
             )}
             <div

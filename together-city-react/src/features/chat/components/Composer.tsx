@@ -148,7 +148,13 @@ export function Composer({ onSend, onTyping, replyTo, onCancelReply }: {
   const recording = recSec !== null;
 
   return (
-    <div style={{ margin: '0 20px 0' }}>
+    /* `.csdock` — the composer's gutter, and the safe area under it. It was an
+       inline `margin: '0 20px 0'` here, which is why the send key sat on the
+       very bottom edge of a phone with the home indicator drawn through it:
+       an inline margin outranks every rule in the cascade, including the four
+       `.cscomposer` margins written for exactly this. The numbers live in
+       relief.css now, where somebody looking for them will find them. */
+    <div className="csdock">
       {(error || busy) && (
         <p style={{
           margin: '0 0 8px', fontSize: 12.5, lineHeight: 1.5,
