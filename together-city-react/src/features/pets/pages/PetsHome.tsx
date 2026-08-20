@@ -35,14 +35,47 @@ export function PetsHome() {
 
   return (
     <div style={{ display: 'grid', gap: 'clamp(28px, 5vw, 52px)' }}>
+      {/* ── THE DISTRICT'S FRONT DOOR SAYS WHAT THE DISTRICT IS FOR ────────
+          The plate was the city-at-night composite; it is now a photograph of
+          one street dog, and the words over it are the campaign's.
+
+          THE WORDS ARE TEXT, NOT PIXELS, and that was the whole point of doing
+          it this way. The artwork supplied had the headline, the tagline and
+          the four marks burned into the JPEG — which meant a misspelling
+          ("PET CAHE WITH PUPPOSE") could only be fixed by re-rendering the
+          image, the sentence below could not be reworded without one, and none
+          of it was selectable, translatable or readable by a screen reader.
+          Set as type, every one of those is an edit.
+
+          THE SENTENCE BELOW IS A CLAIM ABOUT MONEY. It says profits from pet
+          purchases reach street animals and shelters, which is a statement the
+          business has to be able to stand behind — India's ASCI code and the
+          Consumer Protection Act 2019 both bite on a charitable claim that
+          does not hold. It is the owner's copy, kept verbatim. It is also now
+          one line in this file rather than a layer in Photoshop, which is the
+          form a claim should take: cheap to correct.
+
+          `scrim="floor"` and `focus` are both measured rather than chosen.
+          The ink lands bottom-left on asphalt that reads 77–137 in luminance;
+          white on that bare is 3.5:1 and fails AA. Rendered and sampled at
+          1440, 1024 and 390, with the text hidden so the plate itself is what
+          gets measured: --on-stage now holds at 10.6 / 9.5 / 9.3 : 1 and
+          --on-stage-soft at 6.8 / 6.1 / 5.9 : 1. Two earlier attempts are in
+          DistrictHero's own notes — a floor-only gradient passed on a desk and
+          failed at 2.5:1 on a phone, which is why the narrow case falls back
+          to the flat sheet.
+
+          `focus="62% 50%"` is where the dog is. A phone crops a 2.3:1
+          photograph to portrait and keeps the middle, which was a slice of ear
+          and a great deal of tarmac. */}
       <DistrictHero
-        eyebrow="Together City"
-        title="Pets"
-        line="Everything your pet needs. All in one place."
-        /* The district's own commissioned plate, which is already on disk at
-           public/assets/img/pets-hub.webp. Missing in the standalone prototype,
-           where the drawn scene stands in — see DistrictHero. */
-        image="/assets/img/pets-hub.webp"
+        eyebrow="Together City Pets · Pet care with purpose"
+        title="You feed your furry babies. We feed the ones on the streets."
+        line="Profits from every pet purchase help feed street animals and support shelters across India."
+        marks={['Feeding street animals', 'Supporting shelters', 'Rescue & medical care', 'Building a kinder tomorrow']}
+        image="/assets/img/pets-street.webp"
+        scrim="floor"
+        focus="62% 50%"
         actions={
           <>
             <button

@@ -22,6 +22,33 @@
 
 import { useState, type ReactNode } from 'react';
 
+/**
+ * THE SCRIM IS A MEDIA QUERY, WHICH IS WHY IT IS NOT AN INLINE STYLE.
+ *
+ * `floor` darkens the plate from the bottom and from the left, so the words
+ * get their contrast and the picture keeps its top-right corner. That only
+ * works while there IS a top-right corner the words do not reach. Narrow the
+ * viewport and the ink block grows to the full width and most of the height of
+ * the plate — there is no clear region left to protect, and the gradient's own
+ * light end ends up behind the headline.
+ *
+ * Measured on the Pet world plate: floor-only held at 10.4:1 on a 1440 desk
+ * and fell to 2.5:1 at 1024 and 2.6:1 at 390. So below the fold-out width the
+ * flat sheet takes over — the same sheet that is the default everywhere else,
+ * for the same reason.
+ */
+const SCRIM_CSS = `
+.tc-hero-scrim{position:absolute;inset:0;z-index:-1;background:var(--scrim-deep)}
+.tc-hero-scrim.drawn{background:linear-gradient(to top,var(--scrim-top),var(--scrim-clear) 62%)}
+@media (min-width:1100px){
+  .tc-hero-scrim.floor{
+    background:
+      linear-gradient(to top,var(--scrim-deep),var(--scrim-deep) 30%,var(--scrim-top) 66%,var(--scrim-clear)),
+      linear-gradient(to right,var(--scrim-deep),var(--scrim-deep) 28%,var(--scrim-top) 62%,var(--scrim-clear) 82%);
+  }
+}
+`;
+
 interface Props {
   eyebrow: string;
   title: string;
@@ -29,9 +56,38 @@ interface Props {
   image?: string | null;
   actions?: ReactNode;
   tall?: boolean;
+  /**
+   * Short claims that belong to the plate rather than under it — the four
+   * things a cause line is actually promising, in the reader's line of sight
+   * while they are reading the promise. Optional, because a hero that has
+   * nothing to promise should not grow a row of empty ticks.
+   */
+  marks?: string[];
+  /**
+   * 'sheet' lays --scrim-deep flat over the whole plate. 'floor' weights it to
+   * the bottom, where the words are, and leaves the top of the picture alone.
+   *
+   * THE DEFAULT IS THE SAFE ONE and stays the default. A flat sheet is right
+   * for a crop nobody controls: white sky can arrive behind a headline at any
+   * viewport, and a gradient that assumed otherwise fails silently on the
+   * phone nobody tested. 'floor' is for a plate whose bottom-left has actually
+   * been measured against the ink that lands on it — see the contrast check in
+   * the Pet world page's own note.
+   */
+  scrim?: 'sheet' | 'floor';
+  /**
+   * Where the subject of the photograph is, as a CSS `object-position`.
+   *
+   * The plate is `object-fit: cover`, so a landscape photograph in a portrait
+   * frame loses most of its width — and what it loses is whatever is not in
+   * the middle. On the Pet world plate the dog sits at about 62% across, so a
+   * phone cropping to centre showed a slice of ear and a lot of tarmac. This
+   * is the knob for that, and its default is the behaviour it replaces.
+   */
+  focus?: string;
 }
 
-export function DistrictHero({ eyebrow, title, line, image, actions, tall = true }: Props) {
+export function DistrictHero({ eyebrow, title, line, image, actions, tall = true, marks, scrim = 'sheet', focus = '50% 50%' }: Props) {
   // The commissioned plate is a file that may not be on disk yet — in the
   // standalone prototype it certainly is not. An <img> that 404s renders as
   // nothing, so the failure is caught and the drawn scene takes over, and the
@@ -52,13 +108,14 @@ export function DistrictHero({ eyebrow, title, line, image, actions, tall = true
         isolation: 'isolate',
       }}
     >
+      <style>{SCRIM_CSS}</style>
       {art ? (
         <img
           src={art}
           alt=""
           aria-hidden
           onError={() => setArtFailed(true)}
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: -2 }}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: focus, zIndex: -2 }}
         />
       ) : (
         <FallbackScene />
@@ -82,25 +139,24 @@ export function DistrictHero({ eyebrow, title, line, image, actions, tall = true
           do not control can put white sky behind the word "Pets"; the drawn
           scene cannot, so it keeps its own contrast and takes a soft floor
           gradient instead of a sheet of black over the whole plate. */}
-      <div
-        aria-hidden
-        style={{
-          position: 'absolute', inset: 0, zIndex: -1,
-          background: art
-            ? 'var(--scrim-deep)'
-            : 'linear-gradient(to top, var(--scrim-top), var(--scrim-clear) 62%)',
-        }}
-      />
+      <div aria-hidden className={`tc-hero-scrim${art ? (scrim === 'floor' ? ' floor' : '') : ' drawn'}`} />
 
       <div style={{ padding: 'clamp(22px, 5vw, 54px)', display: 'grid', gap: 16, maxWidth: 760 }}>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.28em', textTransform: 'uppercase', color: 'var(--on-stage-soft)' }}>
           {eyebrow}
         </span>
+        {/* ONE WORD AND ONE SENTENCE ARE NOT THE SAME HEADLINE. "Pets" wants
+            to be enormous; a sentence set at 118px is four lines of a word
+            each and falls off a phone. The ramp is chosen from the length
+            rather than from a prop, so it is a rule the next headline inherits
+            instead of a setting the next author has to know about. */}
         <h1
           style={{
             margin: 0, color: 'var(--on-stage)',
-            fontSize: 'clamp(44px, 11vw, 118px)', lineHeight: 0.92,
-            fontWeight: 300, letterSpacing: '-.03em',
+            ...(title.length > 28
+              ? { fontSize: 'clamp(29px, 5.2vw, 58px)', lineHeight: 1.06, letterSpacing: '-.02em' }
+              : { fontSize: 'clamp(44px, 11vw, 118px)', lineHeight: 0.92, letterSpacing: '-.03em' }),
+            fontWeight: 300,
           }}
         >
           {title}
@@ -108,6 +164,21 @@ export function DistrictHero({ eyebrow, title, line, image, actions, tall = true
         <p style={{ margin: 0, color: 'var(--on-stage-soft)', fontSize: 'clamp(15px, 2.2vw, 21px)', lineHeight: 1.45, maxWidth: 460 }}>
           {line}
         </p>
+        {marks && marks.length > 0 && (
+          <ul style={{ listStyle: 'none', margin: '2px 0 0', padding: 0, display: 'flex', flexWrap: 'wrap', gap: '6px 18px' }}>
+            {marks.map((m) => (
+              <li key={m} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 'clamp(10.5px, 1.4vw, 12px)',
+                fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--on-stage-soft)' }}>
+                {/* A rule rather than a tick: a tick is a claim that the thing
+                    is done, and these are the four things the money is for.
+                    --on-stage-soft rather than --on-stage-faint: faint ink is
+                    for a solid ground, and it measured 1.8:1 over this one. */}
+                <span aria-hidden style={{ width: 14, height: 1, background: 'var(--on-stage-soft)', flex: 'none' }} />
+                {m}
+              </li>
+            ))}
+          </ul>
+        )}
         {actions && <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 6 }}>{actions}</div>}
       </div>
     </section>
