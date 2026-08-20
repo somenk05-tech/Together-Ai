@@ -732,10 +732,15 @@
 
      Every value on that page comes from the personalisation engine. These are
      the only colours it may use, and none of them is a number. */
-  --press-paper:  #ffffff;
-  --press-ink:    #24231f;   /* 15.7:1 on the paper */
-  --press-ink-2:  #57544c;   /*  7.6:1 — descriptions */
-  --press-ink-3:  #8a857a;   /*  3.7:1 — labels and metadata ONLY, never body copy */
+  /* THE PRESS IS A NUTRITION SURFACE AND NOWHERE ELSE, which is why its own
+     scale moves with that hub rather than being re-pointed inside it: the
+     guard in relief.spec reads these names at :root, so a hub-scoped override
+     would render one thing and measure another. Green-black on mint, against
+     the sheet's darkest stop #cfe9d5: 12.6:1, 8.3:1 and 4.7:1. */
+  --press-paper:  #daf1de;
+  --press-ink:    #0a2422;   /* 12.6:1 on the sheet's darkest stop */
+  --press-ink-2:  #1c453c;   /*  8.3:1 — descriptions */
+  --press-ink-3:  #3d6b5c;   /*  4.7:1 — labels and metadata ONLY, never body copy */
   /* THE RULES CAME OFF THE BEIGE TOO. A warm hairline on warm paper is just a
      hairline; the same line on white is the only warm thing left on the page,
      and it reads as a stain rather than a rule. These are the old values with
@@ -781,9 +786,9 @@
   --page-top: var(--s-4);
   --page-bottom: var(--s-7);
 
-  --press-band:   #f4f1ec;
-  --press-rule:   #d9d9d9;
-  --press-rule-2: #e8e8e8;
+  --press-band:   #cfe9d5;
+  --press-rule:   #a9cfb5;
+  --press-rule-2: #c2e0ca;
   --press-green:  #1f5d43;   /*  7.8:1 — deep emerald */
   --press-macro-1:#1f5d43;
   --press-macro-2:#5b957a;
@@ -832,14 +837,13 @@
      giving one page its own warm ground was the obvious move and the wrong
      one. It keeps white. Nothing about it changes here. */
   --press-sky: linear-gradient(157deg,
-    #f0f4f9  0%,    /* pale blue overhead */
-    #f7f5f3 34%,
-    #fdfbf9 62%,
-    #f8f1ea 100%);  /* warming to cream at the foot */
+    #e4f4e7  0%,    /* the reference's front pill, caught by the light */
+    #daf1de 46%,
+    #cfe9d5 100%);  /* and falling into its own shadow */
   /* The darkest stop of that gradient. Every ink below is measured against it,
      which is the pessimistic reading and the only safe one — the head and the
      foot are within a hair of each other, so there is no "mostly fine" here. */
-  --press-sky-worst: #f8f1ea;
+  --press-sky-worst: #cfe9d5;
 
   --press-recto-sheet: var(--press-sky);
   --press-recto-veil:  transparent;
@@ -1382,69 +1386,103 @@
   --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30),
                 inset 0 -3px 6px rgba(10,45,30,.34);
 
-  /* ── AND A SKY, WHICH IS THE SECOND DECLARATION THIS HUB HAS EVER OWNED ──
-     It was an earthy mesh (18 Aug): butter cream in the top-left corner
-     falling on the diagonal through sage to a deep forest green. Replaced on
-     the owner's call of 20 Aug with the pale one above it — the same dawn the
-     week's sheets print on, cooled and flattened so a sheet still reads as an
-     object lying ON the room rather than a patch of the same colour.
+  /* ══ THE FOREST — AND NUTRITION TAKES A GROUND ═══════════════════════════
+     Owner, 21 Aug, with a reference: six greens, #051F20 through #DAF1DE.
+     This hub has been white, then warm paper, then white again, then a pale
+     dawn, and it is deep green from today. The churn is worth naming rather
+     than hiding: what has stayed constant is the RULE, not the colour — a hub
+     holds a ground when words are read off something that is not the city's
+     white, and hands it back the moment that stops being true. Words here are
+     read off green panels in a green room, so it holds one. relief.spec's
+     granted list goes from four to five and names this hub.
 
-     WHY THE GREEN WENT. It was the last surface in the hub with a strong
-     opinion, and everything that stands on it stopped having one on the same
-     day: the fourteen press photographs went, the profile gave back Tuesday's
-     paper, the grocery list gave back its blue card. A green room around four
-     pale documents reads as a frame somebody forgot to remove, and the green
-     is not lost — it is where it always did the work, in the lamp on the rail
-     and in --press-green on the figures.
+     THE SIX COLOURS MAP TO THE SIX THINGS THIS HUB HAS. The reference is a
+     stack of pills getting lighter and the front one — nearly white mint — is
+     what the eye lands on. In this hub that object is the DAY, so #DAF1DE is
+     the press sheet, declared at :root with the rest of the press because the
+     press is a nutrition surface and nowhere else. The other five are the
+     room, the page, a panel, a field, and the floor of the ink scale.
 
-     AND STILL NO GROUND. The block above is famous in this file for being four
-     declarations where a whole palette used to be. This does not put any of
-     that back: --ground, --paper, --card and --rail-well are untouched and
-     still the city's white; what moved is what is drawn in FRONT of them, so
-     relief.spec's granted set still reads exactly astrology/beauty/
-     entertainment.
+     THE INK FLOOR SET THE FACES, NOT TASTE. --faint is labels, placeholders
+     and timestamps, and on #235347 it lands at 3.88:1 — under AA. So every
+     lit surface in this room is capped one step darker, at #1c453c, where it
+     clears 4.74. #235347 is still the accent fill and still a field; it is
+     simply never something small grey type is set on.
 
-     EVERY INK IS SAFE BARE NOW, WHICH IS THE OTHER HALF OF THE DELETION AND
-     WHAT SET THE DARKEST STOP. The green ran 0.25 to 0.88 in luminance, so
-     --ink landed at 6.07 at the worst stop, --ink-soft at 4.92, and --muted
-     and --faint failed outright from the middle down — 1.66 and 1.45 — which
-     is why they took dating's shadow-and-restore in relief.css. Removing that
-     shadow puts --faint back out in the open, and --faint is the ink that runs
-     out first: at #eceff5 it was 4.36 and under AA, which is how a deletion
-     quietly costs contrast. The sweep starts at #f0f3f8 for that one number.
-     Worst stop: --ink 18.7, --ink-soft 15.2, --muted 5.16, --faint 4.52 — all
-     four clear AA bare, so nothing in this hub needs protecting from its own
-     room any more. See relief.css. */
-  --sky-image: linear-gradient(135deg,
-    #f0f3f8 0%, #f3f5f8 30%, #f6f7f9 58%, #f4f5f8 82%, #f1f3f7 100%);
+     AND THE LAMP LEAVES THE PALETTE ON PURPOSE. This hub's key has always been
+     the emerald #1f5d43, which sits inside the reference's own range — so on
+     this room it would stop being the one lit object in the rail and become
+     another panel. It lifts to the pale end. The hue is unchanged; what
+     changed is the room it has to be found in. */
+  --ground:      #051f20;   /* the room */
+  --paper:       #0b2b26;   /* the page */
+  --card:        #163832;   /* a panel */
+  --wash:        #235347;   /* a field, a track, a pressed state */
+  --rail-well:   #03191a;
+  --line:        #235347;
+  --frost:       rgba(22, 56, 50, .66);
 
-  /* ── AND THE HAIRLINE HAS TO CARRY THE ROOM NOW ──────────────────────────
-     MEASURED, ON THE LIVE PAGE, BECAUSE THE FIRST DIAGNOSIS WAS WRONG. The
-     complaint was that these pages "cut from the edge", and the obvious
-     suspect was the gutter. It is not: `.page` computes to
-     `126.5px 1180px 126.5px` on a 1433px column — the air is there.
+  --ink:         #daf1de;   /* 14.4:1 on the room · 10.7:1 on a panel */
+  --ink-soft:    #c2ddc9;   /* 11.8:1 ·  8.8:1 */
+  --muted:       #a5c9b0;   /*  9.5:1 ·  7.0:1 */
+  --faint:       #8eb69b;   /*  7.6:1 ·  5.7:1 · 4.74 on the lightest face */
+  --on-ground:       #daf1de;   /* 14.4:1 on the wall */
+  --on-ground-soft:  #c2ddc9;   /* 11.8:1 */
+  --on-ground-muted: #a5c9b0;   /*  9.5:1 */
+  /* The pair a panel hands back after relief.css shadows them. Declared here
+     for the reason Beauty and Dating declare theirs: at :root they resolve to
+     the city's greys, which on #163832 cannot be read. */
+  --on-paper-muted: #a5c9b0;
+  --on-paper-faint: #8eb69b;
 
-     What is missing is the EDGE. A panel here is `--frost`, white at .72, and
-     over this sky it composites to #fbfcfd against a #f0f3f8 ground: a step of
-     1.08:1. That is not a panel on a room, it is one continuous white field
-     running into the frame, which is exactly what it looks like. Deepening the
-     sky does not fix it either — frost whitens whatever is behind it, so at
-     #d8e0ec the step is still only 1.23:1 and --faint has gone under AA.
+  --accent:      #235347;   /* fill — --on-accent sits on it at 7.3:1 */
+  --on-accent:   #daf1de;
+  --accent-ink:  #8eb69b;   /* the same hue as type — 5.7:1 on a panel */
+  --accent-soft: #123029;
+  --accent-line: #2c6353;
 
-     TWO NEAR-WHITE SURFACES ARE SEPARATED BY A LINE, NOT BY CONTRAST, and the
-     line already exists: --rim, the hairline inside --shadow that every card,
-     stat, row, modal and sheet in the city already draws. At the root it is
-     black at .055 — correct on white paper, invisible on a white panel on a
-     white room. It is re-pointed here and nowhere else, so one declaration
-     gives every surface in the hub its edge back without a single component
-     learning a new class.
+  /* No panel in this room is another colour: the washes take the room and the
+     INK carries the meaning. --warn and --danger keep a hue for the reason
+     they keep one everywhere — a warning that reads as body copy is not a
+     style choice. */
+  --ok-soft:     #123029;
+  --warn-soft:   #123029;
+  --danger-soft: #17302b;
+  --info-soft:   #123029;
+  --ok-ink:      #c2ddc9;
+  --info-ink:    #a5c9b0;
+  --warn-ink:    #ebc57c;
+  --danger-ink:  #f4a3a3;
 
-     NOT A GROUND GRANT. --rim is not in {ground, paper, card, wash,
-     rail-well}, so relief.spec's granted list still reads exactly
-     astrology/beauty/dating/entertainment. This hub still reads its words off
-     the city's white. */
-  --rim:        inset 0 0 0 1px rgba(19, 32, 54, .16), inset 0 1px 0 rgba(255,255,255,1), inset 0 -1px 0 rgba(19,32,54,.10);
-  --rim-strong: inset 0 0 0 1px rgba(19, 32, 54, .22), inset 0 1.5px 0 rgba(255,255,255,1), inset 0 -1.5px 0 rgba(19,32,54,.13);
+  /* ── GROUNDS, INKS AND FACES, AND THE THIRD IS THE ONE THAT GETS FORGOTTEN.
+     --face and its four siblings are literal white gradients at :root, and a
+     tag, a chip, a door, a hub pill and the mobile tab strip are all built out
+     of them. Re-pointing grounds and inks without these is how a room ends up
+     with near-white type on white lozenges — it happened in Dating one commit
+     ago and it is written here so it does not happen twice. Same shape as the
+     root's, lit at the top edge and darker at the foot, in the room's green.
+     --well inverts: a pressed control is a dent, and a dent is dark where the
+     light would have been. */
+  --face:      linear-gradient(180deg, #1c453c 0%, #1a3f37 44%, #163832 100%);
+  --face-2:    linear-gradient(180deg, #1c453c 0%, #183b34 48%, #14342e 100%);
+  --face-tall: linear-gradient(180deg, #1c453c 0%, #1c453c calc(100% - min(96px, 40%)), #163832 100%);
+  --face-key:  linear-gradient(180deg, #1c453c 0%, #193d35 52%, #15352f 100%);
+  --well:      linear-gradient(180deg, #051f20 0%, #0b2b26 58%, #163832 100%);
+  --lens-face: linear-gradient(180deg,
+    rgba(35,83,71,.62) 0%, rgba(22,56,50,.40) 34%, rgba(18,48,41,.34) 56%,
+    rgba(28,69,60,.52) 82%, rgba(35,83,71,.62) 100%);
+
+  /* The hairline that separates two greens, for the reason the pale room
+     needed one to separate two whites — and inverted, because on a dark ground
+     the light lands on the top edge and the base is the shadow. */
+  --rim:        inset 0 0 0 1px rgba(218,241,222,.10), inset 0 1px 0 rgba(218,241,222,.16), inset 0 -1px 0 rgba(0,0,0,.34);
+  --rim-strong: inset 0 0 0 1px rgba(218,241,222,.14), inset 0 1.5px 0 rgba(218,241,222,.20), inset 0 -1.5px 0 rgba(0,0,0,.42);
+
+  --lamp-face: linear-gradient(180deg, #a8cfb5 0%, #8eb69b 44%, #6f9a7e 100%);
+  --on-lamp:   #051f20;
+
+  --sky-image: radial-gradient(120% 90% at 12% 4%,
+    #17453c 0%, #0d2f2a 38%, #051f20 100%);
 }
 
 /* ══ ASTROLOGY'S NIGHT — THE SECOND SURFACE EXCEPTION ══════════════════════
