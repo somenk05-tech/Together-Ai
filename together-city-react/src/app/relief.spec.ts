@@ -624,6 +624,54 @@ describe('Relief stays a system', () => {
     expect(failures).toEqual([]);
   });
 
+  /**
+   * AND A SHEET THAT PAINTS THE SKY MEASURES AGAINST THE SKY.
+   *
+   * FOUND BY LOOKING AT THE LIVE GROCERY LIST at 1.08:1 — a whole page of
+   * fifty-seven items in mint on mint, unreadable, the same fault the meal
+   * planner had and one commit AFTER it was fixed there.
+   *
+   * The cause is a name that means two things. `--press-ink` is green-black at
+   * `:root`, for the mint sheet — and the forest grant re-points it to the
+   * PAGE's light ink inside `[data-hub="nutrition"] .tc-main`, correctly, so
+   * that press-dressed components standing on the dark page can be read.
+   * `.press-recto` and `.press-verso` re-point it back for their own subtree.
+   * `.grocery-sheet` paints the same sky and did NOT: it read the shadowed
+   * name and got page ink on sheet paper.
+   *
+   * SO THE RULE IS STRUCTURAL, not a colour. Any block that paints
+   * `--press-sky` is standing on mint, and mint takes the `:root` scale —
+   * `--press-recto-*`, the literal one the AA guard above actually measures.
+   * Reading `var(--press-ink*)` there is reading a name whose value depends on
+   * which hub the sheet happens to be inside, which is the definition of a
+   * colour that renders one thing and measures another.
+   */
+  it('lets no sheet on the sky take its ink from a shadowed name', () => {
+    const css = strip(tokens);
+    const offenders: string[] = [];
+
+    for (const block of css.split('}')) {
+      const selector = block.split('{')[0]?.trim();
+      const body = block.split('{')[1];
+      if (!body || !selector) continue;
+      // The sheet is the sky: this block's surface is the pale mint gradient.
+      if (!/--[\w-]*sheet(?:-img)?:\s*var\(--press-sky\)/.test(body)) continue;
+
+      for (const decl of body.split(';')) {
+        const [name, value] = decl.split(':');
+        if (!name || !value) continue;
+        if (!/var\(--press-ink(-[23])?\)|var\(--press-rule(-2)?\)|var\(--press-paper\)/.test(value)) continue;
+        offenders.push(`${selector} { ${name.trim()}: ${value.trim()} }`);
+      }
+    }
+
+    expect(
+      offenders,
+      'a sheet painted with --press-sky read a hub-shadowed press name; ' +
+        'point it at the literal --press-recto-* scale instead',
+    ).toEqual([]);
+  });
+
   it('lets no photograph back onto the week', () => {
     const css = strip(tokens);
     // The key itself is gone. A block keyed on it is somebody restoring the

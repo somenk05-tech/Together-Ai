@@ -2574,11 +2574,26 @@
 .grocery-sheet {
   --grocery-sheet-img: var(--press-sky);
   --grocery-ground: var(--press-sky-worst);
-  --grocery-ink:    var(--press-ink);
-  --grocery-ink-2:  var(--press-ink-2);
-  --grocery-ink-3:  var(--press-ink-3);
-  --grocery-rule:   var(--press-rule);
+  /* IT TAKES THE SHEET SCALE, NOT THE PAGE SCALE. `--press-ink` is shadowed
+     inside `[data-hub="nutrition"] .tc-main` so that press-dressed components
+     standing on the DARK PAGE read light — which is right for them and fatal
+     here, because this sheet is mint. Reading it gave #daf1de on #cfe9d5:
+     1.08:1, the entire list invisible. `--press-recto-ink*` is the literal
+     scale at :root, the same one `.press-recto` re-points to, and it is what
+     a mint sheet must measure against. The press names are re-pointed too, so
+     anything press-dressed that lands inside the sheet follows it. */
+  --grocery-ink:    var(--press-recto-ink);
+  --grocery-ink-2:  var(--press-recto-ink-2);
+  --grocery-ink-3:  var(--press-recto-ink-3);
+  --grocery-rule:   var(--press-recto-rule);
   --grocery-paper:  transparent;
+
+  --press-paper:  var(--press-recto-ground);
+  --press-ink:    var(--press-recto-ink);
+  --press-ink-2:  var(--press-recto-ink-2);
+  --press-ink-3:  var(--press-recto-ink-3);
+  --press-rule:   var(--press-recto-rule);
+  --press-rule-2: var(--press-recto-rule);
 }
 
 /* ON PAPER, THE PAPER IS THE PAPER.
