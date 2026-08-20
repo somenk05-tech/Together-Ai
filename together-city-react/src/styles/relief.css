@@ -1634,6 +1634,13 @@ textarea.g-field { resize: none; line-height: 1.55; }
      inset shadow: an inset would be a sixth depth, and this is an EDGE, which
      the spec names as a different thing on purpose. */
   border-top: 1px solid var(--press-recto-lift);
+  /* AND THE SHEET SITS ON THE ROOM RATHER THAN DISSOLVING INTO IT. A white
+     top edge was the whole separation while the room was green; on the pale
+     one it says nothing, and a pale sheet on a pale ground with no edge is
+     the "cutting from the frame" this page was reported for. --shadow is the
+     city's own first depth, not a new one — the sheet is a piece of paper
+     lying on a surface, which is what it was always meant to look like. */
+  box-shadow: var(--shadow);
 }
 .press-verso { border-top-color: var(--press-verso-lift); }
 /* A SHEET RE-POINTS THE PRESS'S OWN TOKENS AND EVERY COMPONENT FOLLOWS.
@@ -4266,11 +4273,12 @@ textarea.g-field { resize: none; line-height: 1.55; }
   border-radius: 18px;
   padding: 34px 30px 26px;
   color: var(--grocery-ink);
-  /* The same light along the top edge the day sheets take, from the same
-     token: the basket and the plan are one document, and an edge is the
-     cheapest place for two surfaces to disagree without anybody being able to
-     say why they look unrelated. */
+  /* The same light along the top edge the day sheets take, and the same depth
+     under it, from the same tokens: the basket and the plan are one document,
+     and an edge is the cheapest place for two surfaces to disagree without
+     anybody being able to say why they look unrelated. */
   border-top: 1px solid var(--press-recto-lift);
+  box-shadow: var(--shadow);
 }
 .gsheet-mast {
   text-align: center;

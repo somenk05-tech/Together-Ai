@@ -340,9 +340,27 @@ describe('Relief stays a system', () => {
    * The list is written out rather than counted, exactly like the press's
    * wearers, so a fourth entry costs an argument instead of a nod.
    */
-  it('keeps a re-pointed ground inside the three hubs it was granted to', () => {
+  it('keeps a re-pointed ground inside the four hubs it was granted to', () => {
     const css = strip(tokens);
-    const GRANTED = ['astrology', 'beauty', 'entertainment'];
+    /**
+     * DATING IS THE FOURTH, SINCE 20 AUG, AND THE ARGUMENT IS WRITTEN HERE
+     * BECAUSE THE COMMENT ABOVE SAYS A GRANT COSTS ONE.
+     *
+     * The rule this list enforces has never been "three hubs". It is: a hub
+     * holds a ground when words are read off something that is not the city's
+     * white, and hands it back the moment that stops being true. Dating has
+     * been on both sides of that sentence — it took a ground for the candy
+     * room, gave it back for the monochrome pass, and takes one again now
+     * that the room is Crimson Velvet (#2C0F12 to #6B1E23, owner's
+     * reference). Words in it are read off crimson panels on a crimson wall.
+     *
+     * A HUB THAT HANGS ONLY A SKY IS STILL NOT ON THIS LIST, and that
+     * distinction is the reason the list is worth keeping. Nutrition,
+     * Financial and Social hang a picture BEHIND white panels; their text is
+     * still read off the city's white. This is four hubs whose PAPER is not
+     * white, which is a different and much rarer thing.
+     */
+    const GRANTED = ['astrology', 'beauty', 'dating', 'entertainment'];
 
     // 1. only the granted hubs re-point a ground token. Sorted: the file's
     //    order is editorial and a re-order must not read as a breach.
@@ -365,7 +383,7 @@ describe('Relief stays a system', () => {
     // 3. and a ground is only ever reached through the hub attribute — never
     //    pinned to a page, which is how a scope quietly becomes a default.
     const wearers = PAGES.filter((f) =>
-      /data-hub=["'](nutrition|astrology|beauty|entertainment)["']/.test(stripTs(read(f))));
+      /data-hub=["'](nutrition|astrology|beauty|dating|entertainment)["']/.test(stripTs(read(f))));
     expect(wearers).toEqual([]);
   });
 
@@ -394,7 +412,7 @@ describe('Relief stays a system', () => {
       return (hi + 0.05) / (lo + 0.05);
     };
     const failures: string[] = [];
-    for (const hub of ['astrology', 'beauty', 'entertainment']) {
+    for (const hub of ['astrology', 'beauty', 'dating', 'entertainment']) {
       // The block that owns the ground, found by the thing that makes it that
       // block rather than by position: nutrition and entertainment each once
       // had a plain accent one-liner elsewhere in the file, and matching the
