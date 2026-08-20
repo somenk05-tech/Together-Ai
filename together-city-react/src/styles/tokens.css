@@ -2828,3 +2828,616 @@
 .cstheme [data-t="pistachio"] { background: #98cfae; }
 .cstheme [data-t="lavender"]  { background: #c9bce6; }
 .cstheme [data-t="cream"]     { background: #fcf6ed; }
+
+/* ══ THE EIGHT SKINS — A ROOM A CITIZEN CHOOSES ═════════════════════════════
+   Owner, 20 Aug: "White and black remains default, let users have these
+   colour options for both email and chat systems."
+
+   WHITE AND BLACK IS STILL THE CITY. Nothing above this line moves, no skin is
+   applied unless somebody picks one, and the two rooms that can be re-skinned
+   are Mail and Chat — the two you sit in longest and the two whose content is
+   entirely the citizen's own. Every other hub keeps the palette the city gave
+   it.
+
+   ── THIS IS NOT THE DARK MODE THAT WAS REMOVED ────────────────────────────
+   relief.spec has banned `[data-theme` since dark mode came out, and the ban
+   stays. What it was written against was a HALF-REMOVED switch: a theme store
+   nothing imported that still set an attribute the moment a lazy chunk loaded,
+   repainting screens nobody expected. The failure was an abandoned mechanism
+   left half-wired, not the idea of a second palette.
+
+   So this is deliberately the opposite shape, and the difference is checked
+   rather than asserted:
+     · ONE attribute, `data-skin`, set in ONE place (hooks/useHubTheme.ts),
+       from ONE store, and only for hubs on an allow-list of two.
+     · Every skin declares a COMPLETE scale — grounds, four inks, line, accent
+       pair, lamp, frost, and on a dark skin the five faces — because a partial
+       re-point is exactly how dating shipped white chips on a crimson wall.
+     · Every ink is measured against every stop of its own sky by
+       `a-room-can-be-reskinned`, computed from this file. A skin that cannot
+       be read cannot ship.
+
+   ── A SWATCH IS A COLOUR, NOT A ROOM ──────────────────────────────────────
+   The six confectionery swatches arrived as single fills. Making each one the
+   FIELD of its own room failed six times out of eight when measured: a
+   mid-tone ground carries neither dark nor light type. Mocha fudge #7B5F5F is
+   the clearest case — white on it is 3.53:1 and black is 5.94:1, so a room
+   painted in it is a room with no readable ink.
+
+   Every skin therefore commits to being LIGHT or DARK, and the named swatch
+   takes the role it can actually hold:
+     · dark rooms  — the swatch is the LIT stop, the sky falls away from it.
+     · light rooms — the swatch is the SHADED stop, the sky rises from it, and
+       the swatch (or a shade of it) becomes the LAMP, which is where a colour
+       that cannot be a wall is still unmistakably itself.
+
+   ── WHERE A SCALE COLLAPSES, IT SAYS SO ───────────────────────────────────
+   Sugar blue, ruby chocolate and mocha fudge set `--faint` to the same value
+   as `--muted`. That is not a copy-paste: a fourth ink below the third would
+   fail AA on those grounds, and the honest answer is three inks rather than a
+   fourth nobody can read. The city's other rooms do the same thing at runtime
+   with shadow-and-restore; these do it in the token file, where it is visible.
+
+   No skin needs shadow-and-restore, because every one of them clears AA on the
+   sky ITSELF — that is the bar this whole block was measured to. */
+/* ── DEEP BURGUNDY · #681D2C ────────────────────────────────
+   A DARK ROOM. Measured on the worst stop of its own sky:
+   ink 8.78 · soft 7.31 · muted 5.92 · faint 5.32 · accent 6.90. */
+html[data-skin="burgundy"] {
+  --sky-image: linear-gradient(158deg,
+    #7d2436 0%,
+    #681d2c 33%,
+    #551724 66%,
+    #3b0f19 100%);
+  --ground: #551724;
+  --paper:  #681d2c;
+  --card:   #681d2c;
+  --wash:   #551724;
+  --rail-well: #551724;
+
+  --ink:       #fbf2f4;
+  --ink-soft:  #eddce1;
+  --muted:     #dcc5cb;
+  --faint:     #d4bac1;
+  --line:      rgba(251,242,244,.16);
+  --on-paper:       #fbf2f4;
+  --on-paper-soft:  #eddce1;
+  --on-paper-muted: #dcc5cb;
+  --on-paper-faint: #d4bac1;
+
+  --accent:      #f0d3d9;
+  --accent-ink:  #f0d3d9;
+  --on-accent:   #4a1420;
+  --accent-soft: rgba(240,211,217,.14);
+  --accent-line: rgba(240,211,217,.32);
+
+  --lamp-face: linear-gradient(180deg, #f7e6ea 0%, #f0d3d9 44%, #d5b0b8 100%);
+  --on-lamp:   #4a1420;
+
+  --frost: rgba(255,255,255,.085);
+  /* THE FACES, BECAUSE A ROOM IS GROUNDS, INKS AND FACES. Tags, chips, doors,
+     hub pills and the phone's tab strip all paint one of these, and at :root
+     every one of them is a literal WHITE gradient. Re-point the grounds and
+     the inks without these and every lozenge in the room stays white with the
+     room's near-white type on it — the exact bug dating shipped on 20 Aug. */
+  --face:      linear-gradient(180deg, rgba(255,255,255,.13) 0%, rgba(255,255,255,.085) 44%, rgba(255,255,255,.05) 100%);
+  --face-2:    linear-gradient(180deg, rgba(255,255,255,.115) 0%, rgba(255,255,255,.075) 48%, rgba(255,255,255,.045) 100%);
+  --face-tall: linear-gradient(180deg, rgba(255,255,255,.13) 0%, rgba(255,255,255,.10) calc(100% - min(96px, 40%)), rgba(255,255,255,.05) 100%);
+  --face-key:  linear-gradient(180deg, rgba(255,255,255,.145) 0%, rgba(255,255,255,.095) 52%, rgba(255,255,255,.055) 100%);
+  --well:      linear-gradient(180deg, rgba(0,0,0,.20) 0%, rgba(0,0,0,.12) 58%, rgba(0,0,0,.06) 100%);
+  --lens-face: linear-gradient(180deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.08) 52%, rgba(255,255,255,.045) 100%);
+}
+
+/* ── SOFT TRUFFLE · #4B3237 ─────────────────────────────────
+   A DARK ROOM. Measured on the worst stop of its own sky:
+   ink 8.28 · soft 6.97 · muted 5.58 · faint 5.05 · accent 6.37. */
+html[data-skin="truffle"] {
+  --sky-image: linear-gradient(158deg,
+    #5e4149 0%,
+    #4b3237 33%,
+    #3c282d 66%,
+    #291b1f 100%);
+  --ground: #3c282d;
+  --paper:  #4b3237;
+  --card:   #4b3237;
+  --wash:   #3c282d;
+  --rail-well: #3c282d;
+
+  --ink:       #faf4f1;
+  --ink-soft:  #ebe0db;
+  --muted:     #d9c8c1;
+  --faint:     #d1beb7;
+  --line:      rgba(250,244,241,.16);
+  --on-paper:       #faf4f1;
+  --on-paper-soft:  #ebe0db;
+  --on-paper-muted: #d9c8c1;
+  --on-paper-faint: #d1beb7;
+
+  --accent:      #e8d5cc;
+  --accent-ink:  #e8d5cc;
+  --on-accent:   #332226;
+  --accent-soft: rgba(232,213,204,.14);
+  --accent-line: rgba(232,213,204,.32);
+
+  --lamp-face: linear-gradient(180deg, #f3e5de 0%, #e8d5cc 44%, #c9b1a6 100%);
+  --on-lamp:   #332226;
+
+  --frost: rgba(255,255,255,.085);
+  /* THE FACES, BECAUSE A ROOM IS GROUNDS, INKS AND FACES. Tags, chips, doors,
+     hub pills and the phone's tab strip all paint one of these, and at :root
+     every one of them is a literal WHITE gradient. Re-point the grounds and
+     the inks without these and every lozenge in the room stays white with the
+     room's near-white type on it — the exact bug dating shipped on 20 Aug. */
+  --face:      linear-gradient(180deg, rgba(255,255,255,.13) 0%, rgba(255,255,255,.085) 44%, rgba(255,255,255,.05) 100%);
+  --face-2:    linear-gradient(180deg, rgba(255,255,255,.115) 0%, rgba(255,255,255,.075) 48%, rgba(255,255,255,.045) 100%);
+  --face-tall: linear-gradient(180deg, rgba(255,255,255,.13) 0%, rgba(255,255,255,.10) calc(100% - min(96px, 40%)), rgba(255,255,255,.05) 100%);
+  --face-key:  linear-gradient(180deg, rgba(255,255,255,.145) 0%, rgba(255,255,255,.095) 52%, rgba(255,255,255,.055) 100%);
+  --well:      linear-gradient(180deg, rgba(0,0,0,.20) 0%, rgba(0,0,0,.12) 58%, rgba(0,0,0,.06) 100%);
+  --lens-face: linear-gradient(180deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.08) 52%, rgba(255,255,255,.045) 100%);
+}
+
+/* ── ROLEX GREEN & GOLD · #D9B64A ───────────────────────────
+   A DARK ROOM. Measured on the worst stop of its own sky:
+   ink 12.45 · soft 9.95 · muted 6.84 · faint 5.63 · accent 7.32. */
+html[data-skin="rolex"] {
+  --sky-image: linear-gradient(158deg,
+    #0d3025 0%,
+    #0a2a20 33%,
+    #08231a 66%,
+    #061a14 100%);
+  --ground: #08231a;
+  --paper:  #0a2a20;
+  --card:   #0a2a20;
+  --wash:   #08231a;
+  --rail-well: #08231a;
+
+  --ink:       #f2efe6;
+  --ink-soft:  #dcd7c8;
+  --muted:     #b9b3a1;
+  --faint:     #a9a290;
+  --line:      rgba(242,239,230,.15);
+  --on-paper:       #f2efe6;
+  --on-paper-soft:  #dcd7c8;
+  --on-paper-muted: #b9b3a1;
+  --on-paper-faint: #a9a290;
+
+  --accent:      #d9b64a;
+  --accent-ink:  #d9b64a;
+  --on-accent:   #08231a;
+  --accent-soft: rgba(217,182,74,.14);
+  --accent-line: rgba(217,182,74,.34);
+
+  --lamp-face: linear-gradient(180deg, #e8cd77 0%, #d9b64a 44%, #a8862a 100%);
+  --on-lamp:   #08231a;
+
+  --frost: rgba(255,255,255,.085);
+  /* THE FACES, BECAUSE A ROOM IS GROUNDS, INKS AND FACES. Tags, chips, doors,
+     hub pills and the phone's tab strip all paint one of these, and at :root
+     every one of them is a literal WHITE gradient. Re-point the grounds and
+     the inks without these and every lozenge in the room stays white with the
+     room's near-white type on it — the exact bug dating shipped on 20 Aug. */
+  --face:      linear-gradient(180deg, rgba(255,255,255,.13) 0%, rgba(255,255,255,.085) 44%, rgba(255,255,255,.05) 100%);
+  --face-2:    linear-gradient(180deg, rgba(255,255,255,.115) 0%, rgba(255,255,255,.075) 48%, rgba(255,255,255,.045) 100%);
+  --face-tall: linear-gradient(180deg, rgba(255,255,255,.13) 0%, rgba(255,255,255,.10) calc(100% - min(96px, 40%)), rgba(255,255,255,.05) 100%);
+  --face-key:  linear-gradient(180deg, rgba(255,255,255,.145) 0%, rgba(255,255,255,.095) 52%, rgba(255,255,255,.055) 100%);
+  --well:      linear-gradient(180deg, rgba(0,0,0,.20) 0%, rgba(0,0,0,.12) 58%, rgba(0,0,0,.06) 100%);
+  --lens-face: linear-gradient(180deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.08) 52%, rgba(255,255,255,.045) 100%);
+}
+
+/* ── JAGUAR OXBLOOD & CHROME · #DFE3E7 ──────────────────────
+   A DARK ROOM. Measured on the worst stop of its own sky:
+   ink 10.63 · soft 8.48 · muted 6.03 · faint 5.16 · accent 9.27. */
+html[data-skin="jaguar"] {
+  --sky-image: linear-gradient(158deg,
+    #6b1712 0%,
+    #5c120e 33%,
+    #4a0e0c 66%,
+    #2a0706 100%);
+  --ground: #4a0e0c;
+  --paper:  #5c120e;
+  --card:   #5c120e;
+  --wash:   #4a0e0c;
+  --rail-well: #4a0e0c;
+
+  --ink:       #f4f1ef;
+  --ink-soft:  #ded8d5;
+  --muted:     #c0b6b3;
+  --faint:     #b3a8a5;
+  --line:      rgba(244,241,239,.15);
+  --on-paper:       #f4f1ef;
+  --on-paper-soft:  #ded8d5;
+  --on-paper-muted: #c0b6b3;
+  --on-paper-faint: #b3a8a5;
+
+  --accent:      #dfe3e7;
+  --accent-ink:  #dfe3e7;
+  --on-accent:   #2a0706;
+  --accent-soft: rgba(223,227,231,.13);
+  --accent-line: rgba(223,227,231,.30);
+
+  --lamp-face: linear-gradient(180deg, #f6f8f9 0%, #dfe3e7 44%, #a8b0b8 100%);
+  --on-lamp:   #2a0706;
+
+  --frost: rgba(255,255,255,.085);
+  /* THE FACES, BECAUSE A ROOM IS GROUNDS, INKS AND FACES. Tags, chips, doors,
+     hub pills and the phone's tab strip all paint one of these, and at :root
+     every one of them is a literal WHITE gradient. Re-point the grounds and
+     the inks without these and every lozenge in the room stays white with the
+     room's near-white type on it — the exact bug dating shipped on 20 Aug. */
+  --face:      linear-gradient(180deg, rgba(255,255,255,.13) 0%, rgba(255,255,255,.085) 44%, rgba(255,255,255,.05) 100%);
+  --face-2:    linear-gradient(180deg, rgba(255,255,255,.115) 0%, rgba(255,255,255,.075) 48%, rgba(255,255,255,.045) 100%);
+  --face-tall: linear-gradient(180deg, rgba(255,255,255,.13) 0%, rgba(255,255,255,.10) calc(100% - min(96px, 40%)), rgba(255,255,255,.05) 100%);
+  --face-key:  linear-gradient(180deg, rgba(255,255,255,.145) 0%, rgba(255,255,255,.095) 52%, rgba(255,255,255,.055) 100%);
+  --well:      linear-gradient(180deg, rgba(0,0,0,.20) 0%, rgba(0,0,0,.12) 58%, rgba(0,0,0,.06) 100%);
+  --lens-face: linear-gradient(180deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.08) 52%, rgba(255,255,255,.045) 100%);
+}
+
+/* ── SUGAR BLUE · #B2C9DA ───────────────────────────────────
+   A LIGHT ROOM. Measured on the worst stop of its own sky:
+   ink 10.11 · soft 7.70 · muted 4.91 · faint 4.91 · accent 5.93. */
+html[data-skin="sugar"] {
+  --sky-image: linear-gradient(158deg,
+    #f2f7fb 0%,
+    #e4eef5 33%,
+    #d2e2ed 66%,
+    #b2c9da 100%);
+  --ground: #e4eef5;
+  --paper:  #ffffff;
+  --card:   #ffffff;
+  --wash:   #e4eef5;
+  --rail-well: #e4eef5;
+
+  --ink:       #0f1c25;
+  --ink-soft:  #1f3242;
+  --muted:     #3a5060;
+  --faint:     #3a5060;
+  --line:      #cbdae5;
+  --on-paper:       #0f1c25;
+  --on-paper-soft:  #1f3242;
+  --on-paper-muted: #3a5060;
+  --on-paper-faint: #3a5060;
+
+  --accent:      #1b4560;
+  --accent-ink:  #1b4560;
+  --on-accent:   #f2f7fb;
+  --accent-soft: #e2edf4;
+  --accent-line: #c6d8e5;
+
+  --lamp-face: linear-gradient(180deg, #2f6688 0%, #1b4560 44%, #123448 100%);
+  --on-lamp:   #f2f7fb;
+
+  --frost: rgba(255,255,255,.74);
+}
+
+/* ── RUBY CHOCOLATE · #BEAAAC ───────────────────────────────
+   A LIGHT ROOM. Measured on the worst stop of its own sky:
+   ink 8.19 · soft 6.93 · muted 4.69 · faint 4.69 · accent 4.88. */
+html[data-skin="ruby"] {
+  --sky-image: linear-gradient(158deg,
+    #f7f2f2 0%,
+    #ece3e3 33%,
+    #ddd0d1 66%,
+    #beaaac 100%);
+  --ground: #ece3e3;
+  --paper:  #ffffff;
+  --card:   #ffffff;
+  --wash:   #ece3e3;
+  --rail-well: #ece3e3;
+
+  --ink:       #1d1416;
+  --ink-soft:  #2f2224;
+  --muted:     #4d3c3f;
+  --faint:     #4d3c3f;
+  --line:      #dccfd0;
+  --on-paper:       #1d1416;
+  --on-paper-soft:  #2f2224;
+  --on-paper-muted: #4d3c3f;
+  --on-paper-faint: #4d3c3f;
+
+  --accent:      #6d2434;
+  --accent-ink:  #6d2434;
+  --on-accent:   #f7f2f2;
+  --accent-soft: #f0e5e6;
+  --accent-line: #dcc6c9;
+
+  --lamp-face: linear-gradient(180deg, #8f3346 0%, #6d2434 44%, #4e1926 100%);
+  --on-lamp:   #f7f2f2;
+
+  --frost: rgba(255,255,255,.74);
+}
+
+/* ── MOCHA FUDGE · #7B5F5F ──────────────────────────────────
+   A LIGHT ROOM. Measured on the worst stop of its own sky:
+   ink 9.64 · soft 7.87 · muted 5.31 · faint 5.31 · accent 4.66. */
+html[data-skin="mocha"] {
+  --sky-image: linear-gradient(158deg,
+    #f8f4f3 0%,
+    #efe7e5 33%,
+    #e2d6d4 66%,
+    #cdbcba 100%);
+  --ground: #efe7e5;
+  --paper:  #ffffff;
+  --card:   #ffffff;
+  --wash:   #efe7e5;
+  --rail-well: #efe7e5;
+
+  --ink:       #1f1717;
+  --ink-soft:  #332727;
+  --muted:     #52403f;
+  --faint:     #52403f;
+  --line:      #e0d3d1;
+  --on-paper:       #1f1717;
+  --on-paper-soft:  #332727;
+  --on-paper-muted: #52403f;
+  --on-paper-faint: #52403f;
+
+  --accent:      #5e4747;
+  --accent-ink:  #5e4747;
+  --on-accent:   #f8f4f3;
+  --accent-soft: #efe7e5;
+  --accent-line: #dccdcb;
+
+  --lamp-face: linear-gradient(180deg, #7b5f5f 0%, #5e4747 44%, #453333 100%);
+  --on-lamp:   #f8f4f3;
+
+  --frost: rgba(255,255,255,.74);
+}
+
+/* ── CURRANT ZEPHYR · #D5CECB ───────────────────────────────
+   A LIGHT ROOM. Measured on the worst stop of its own sky:
+   ink 10.85 · soft 8.56 · muted 5.46 · faint 4.95 · accent 6.07. */
+html[data-skin="zephyr"] {
+  --sky-image: linear-gradient(158deg,
+    #f4f1f0 0%,
+    #eae5e3 33%,
+    #dfd9d6 66%,
+    #d5cecb 100%);
+  --ground: #eae5e3;
+  --paper:  #ffffff;
+  --card:   #ffffff;
+  --wash:   #eae5e3;
+  --rail-well: #eae5e3;
+
+  --ink:       #211c1b;
+  --ink-soft:  #352e2c;
+  --muted:     #544b48;
+  --faint:     #5b514e;
+  --line:      #ddd5d2;
+  --on-paper:       #211c1b;
+  --on-paper-soft:  #352e2c;
+  --on-paper-muted: #544b48;
+  --on-paper-faint: #5b514e;
+
+  --accent:      #5a3f43;
+  --accent-ink:  #5a3f43;
+  --on-accent:   #f6f1ef;
+  --accent-soft: #ece5e3;
+  --accent-line: #d8cdca;
+
+  --lamp-face: linear-gradient(180deg, #7a575c 0%, #5a3f43 44%, #412c30 100%);
+  --on-lamp:   #f6f1ef;
+
+  --frost: rgba(255,255,255,.74);
+}
+
+
+/* ── SAN MARINO · #476D9E ───────────────────────────────────────────────────
+   A DARK ROOM, and the ninth. Owner, 20 Aug, with the wet-iris photograph.
+
+   THE SWATCH IS THE LAMP, NOT THE WALL, and it is the third time this file has
+   had to make that call. #476D9E measures 0.15 luminance — a mid-tone, the one
+   place on the scale where neither white nor black type clears AA. Painted as
+   a wall it gives 4.86:1 for the ink and 3.39:1 for the greys; three of four
+   inks fail and the room is unreadable. Mocha fudge was resolved by going
+   LIGHT and keeping the swatch as the lamp; San Marino goes the other way —
+   the sky is the deep navy the photograph's shadows actually are, and the
+   swatch is the lit petal on top of it.
+
+   ON THE LAMP, THE INK IS 4.86:1 — the tightest reversal in this file and
+   deliberately not tightened further. Pushing the lamp darker to buy contrast
+   would take the colour past the swatch and the skin would stop being the one
+   that was asked for; #476D9E clears AA on its own face, so it stays exactly
+   the colour on the card.
+
+   Measured on the worst stop of its own sky:
+   ink 8.41 · soft 7.30 · muted 5.99 · faint 5.42 · accent 5.12. */
+html[data-skin="sanmarino"] {
+  --sky-image: linear-gradient(158deg,
+    #2e496b 0%,
+    #253b58 33%,
+    #1c2e46 66%,
+    #131f30 100%);
+  --ground: #1c2e46;
+  --paper:  #253b58;
+  --card:   #253b58;
+  --wash:   #1c2e46;
+  --rail-well: #1c2e46;
+
+  --ink:       #f1f5fa;
+  --ink-soft:  #dce6f2;
+  --muted:     #c3d2e5;
+  --faint:     #b8c8df;
+  --line:      rgba(241,245,250,.16);
+  --on-paper:       #f1f5fa;
+  --on-paper-soft:  #dce6f2;
+  --on-paper-muted: #c3d2e5;
+  --on-paper-faint: #b8c8df;
+
+  --accent:      #a8c4e4;
+  --accent-ink:  #a8c4e4;
+  --on-accent:   #131f30;
+  --accent-soft: rgba(168,196,228,.14);
+  --accent-line: rgba(168,196,228,.32);
+
+  --lamp-face: linear-gradient(180deg, #476d9e 0%, #3a5b85 44%, #2c4566 100%);
+  --on-lamp:   #f1f5fa;
+
+  --frost: rgba(255,255,255,.085);
+  /* THE FACES, BECAUSE A ROOM IS GROUNDS, INKS AND FACES. Tags, chips, doors,
+     hub pills and the phone's tab strip all paint one of these, and at :root
+     every one of them is a literal WHITE gradient. Re-point the grounds and
+     the inks without these and every lozenge in the room stays white with the
+     room's near-white type on it — the exact bug dating shipped on 20 Aug. */
+  --face:      linear-gradient(180deg, rgba(255,255,255,.13) 0%, rgba(255,255,255,.085) 44%, rgba(255,255,255,.05) 100%);
+  --face-2:    linear-gradient(180deg, rgba(255,255,255,.115) 0%, rgba(255,255,255,.075) 48%, rgba(255,255,255,.045) 100%);
+  --face-tall: linear-gradient(180deg, rgba(255,255,255,.13) 0%, rgba(255,255,255,.10) calc(100% - min(96px, 40%)), rgba(255,255,255,.05) 100%);
+  --face-key:  linear-gradient(180deg, rgba(255,255,255,.145) 0%, rgba(255,255,255,.095) 52%, rgba(255,255,255,.055) 100%);
+  --well:      linear-gradient(180deg, rgba(0,0,0,.20) 0%, rgba(0,0,0,.12) 58%, rgba(0,0,0,.06) 100%);
+  --lens-face: linear-gradient(180deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.08) 52%, rgba(255,255,255,.045) 100%);
+}
+
+/* ── NINE MORE STAGES, 20 AUG ───────────────────────────────────────────────
+   Owner, with the confectionery palette, the Rolex dial, the Jaguar bonnet and
+   San Marino: let citizens have these colours in mail and chat.
+
+   THE CHAT HALF IS THIS BLOCK AND NOTHING ELSE, and that is the whole point.
+   Chat ALREADY had this feature — eight stages, a swatch row beside the header,
+   a stored preference and a guard test — built the day the owner asked for
+   palette cards. Mail did not, so Mail got a mechanism. Building Mail's
+   mechanism a second time inside Chat would have been two colour systems in
+   one room, disagreeing the first time either was touched: exactly the failure
+   the comment at the top of this file spends a page on.
+
+   So the nine palettes arrive as nine more stages, under the rule the eight
+   above already keep: EVERY THEME IS ALL ELEVEN TOKENS, TOGETHER, and
+   `the-stage-takes-a-colour` parses these blocks and fails on a partial one.
+
+   THE PAIR WITH MAIL'S SKINS IS BY NAME, NOT BY MECHANISM. `data-skin="rolex"`
+   and `data-stage="rolex"` are the same palette reached two ways, because the
+   inbox is a page with a rail and the chat room is a stage on the city's white.
+   Keeping the KEYS identical is what lets a citizen who picked Rolex in both
+   places get the same green — and it is also the thing to check first if they
+   ever stop matching.
+
+   Measured against every ground each stage declares, gradient stops and the
+   phone's solid alike:
+     burgundy  ink  8.78 · soft 7.31 · faint 5.92
+     truffle   ink  8.28 · soft 6.97 · faint 5.58
+     rolex     ink 12.45 · soft 9.95 · faint 6.84
+     jaguar    ink 10.63 · soft 8.48 · faint 6.03
+     sanmarino ink  8.41 · soft 7.30 · faint 5.99
+     sugar     ink 10.11 · soft 7.70 · faint 4.91
+     ruby      ink  8.19 · soft 6.93 · faint 4.69
+     mocha     ink  9.64 · soft 7.87 · faint 5.31
+     zephyr    ink 10.85 · soft 8.56 · faint 5.46
+
+   THE FIVE DARK ONES USE WHITE GLASS AND THE FOUR LIGHT ONES SMOKED, which is
+   the sign-flip the eight above describe: a white tile on a pale ground is not
+   a tile, it is a smudge. */
+.cstage[data-stage="burgundy"] {
+  --stage: linear-gradient(158deg, #7d2436 0%, #551724 42%, #3b0f19 100%);
+  --stage-panel: rgba(255,255,255,.07);
+  --stage-tile:  rgba(255,255,255,.16);
+  --stage-hover: rgba(255,255,255,.11);
+  --stage-well:  rgba(0,0,0,.20);
+  --stage-line: rgba(255,255,255,.18);
+  --stage-solid: #3b0f19;
+  --on-stage: #fbf2f4;
+  --on-stage-soft: #eddce1;
+  --on-stage-faint: #dcc5cb;
+  --on-stage-ink: #4a1420;
+}
+.cstage[data-stage="truffle"] {
+  --stage: linear-gradient(158deg, #5e4149 0%, #3c282d 42%, #291b1f 100%);
+  --stage-panel: rgba(255,255,255,.07);
+  --stage-tile:  rgba(255,255,255,.16);
+  --stage-hover: rgba(255,255,255,.11);
+  --stage-well:  rgba(0,0,0,.20);
+  --stage-line: rgba(255,255,255,.18);
+  --stage-solid: #291b1f;
+  --on-stage: #faf4f1;
+  --on-stage-soft: #ebe0db;
+  --on-stage-faint: #d9c8c1;
+  --on-stage-ink: #332226;
+}
+.cstage[data-stage="rolex"] {
+  --stage: linear-gradient(158deg, #0d3025 0%, #08231a 42%, #061a14 100%);
+  --stage-panel: rgba(255,255,255,.07);
+  --stage-tile:  rgba(255,255,255,.16);
+  --stage-hover: rgba(255,255,255,.11);
+  --stage-well:  rgba(0,0,0,.20);
+  --stage-line: rgba(255,255,255,.18);
+  --stage-solid: #061a14;
+  --on-stage: #f2efe6;
+  --on-stage-soft: #dcd7c8;
+  --on-stage-faint: #b9b3a1;
+  --on-stage-ink: #08231a;
+}
+.cstage[data-stage="jaguar"] {
+  --stage: linear-gradient(158deg, #6b1712 0%, #4a0e0c 42%, #2a0706 100%);
+  --stage-panel: rgba(255,255,255,.07);
+  --stage-tile:  rgba(255,255,255,.16);
+  --stage-hover: rgba(255,255,255,.11);
+  --stage-well:  rgba(0,0,0,.20);
+  --stage-line: rgba(255,255,255,.18);
+  --stage-solid: #2a0706;
+  --on-stage: #f4f1ef;
+  --on-stage-soft: #ded8d5;
+  --on-stage-faint: #c0b6b3;
+  --on-stage-ink: #2a0706;
+}
+.cstage[data-stage="sanmarino"] {
+  --stage: linear-gradient(158deg, #2e496b 0%, #1c2e46 42%, #131f30 100%);
+  --stage-panel: rgba(255,255,255,.07);
+  --stage-tile:  rgba(255,255,255,.16);
+  --stage-hover: rgba(255,255,255,.11);
+  --stage-well:  rgba(0,0,0,.20);
+  --stage-line: rgba(255,255,255,.18);
+  --stage-solid: #131f30;
+  --on-stage: #f1f5fa;
+  --on-stage-soft: #dce6f2;
+  --on-stage-faint: #c3d2e5;
+  --on-stage-ink: #131f30;
+}
+.cstage[data-stage="sugar"] {
+  --stage: linear-gradient(158deg, #e4eef5 0%, #d2e2ed 42%, #b2c9da 100%);
+  --stage-panel: rgba(0,0,0,.05);
+  --stage-tile:  rgba(0,0,0,.14);
+  --stage-hover: rgba(0,0,0,.08);
+  --stage-well:  rgba(0,0,0,.09);
+  --stage-line: rgba(0,0,0,.16);
+  --stage-solid: #d2e2ed;
+  --on-stage: #0f1c25;
+  --on-stage-soft: #1f3242;
+  --on-stage-faint: #3a5060;
+  --on-stage-ink: #f2f7fb;
+}
+.cstage[data-stage="ruby"] {
+  --stage: linear-gradient(158deg, #ece3e3 0%, #ddd0d1 42%, #beaaac 100%);
+  --stage-panel: rgba(0,0,0,.05);
+  --stage-tile:  rgba(0,0,0,.14);
+  --stage-hover: rgba(0,0,0,.08);
+  --stage-well:  rgba(0,0,0,.09);
+  --stage-line: rgba(0,0,0,.16);
+  --stage-solid: #ddd0d1;
+  --on-stage: #1d1416;
+  --on-stage-soft: #2f2224;
+  --on-stage-faint: #4d3c3f;
+  --on-stage-ink: #f7f2f2;
+}
+.cstage[data-stage="mocha"] {
+  --stage: linear-gradient(158deg, #efe7e5 0%, #e2d6d4 42%, #cdbcba 100%);
+  --stage-panel: rgba(0,0,0,.05);
+  --stage-tile:  rgba(0,0,0,.14);
+  --stage-hover: rgba(0,0,0,.08);
+  --stage-well:  rgba(0,0,0,.09);
+  --stage-line: rgba(0,0,0,.16);
+  --stage-solid: #e2d6d4;
+  --on-stage: #1f1717;
+  --on-stage-soft: #332727;
+  --on-stage-faint: #52403f;
+  --on-stage-ink: #f8f4f3;
+}
+.cstage[data-stage="zephyr"] {
+  --stage: linear-gradient(158deg, #eae5e3 0%, #dfd9d6 42%, #d5cecb 100%);
+  --stage-panel: rgba(0,0,0,.05);
+  --stage-tile:  rgba(0,0,0,.14);
+  --stage-hover: rgba(0,0,0,.08);
+  --stage-well:  rgba(0,0,0,.09);
+  --stage-line: rgba(0,0,0,.16);
+  --stage-solid: #dfd9d6;
+  --on-stage: #211c1b;
+  --on-stage-soft: #352e2c;
+  --on-stage-faint: #544b48;
+  --on-stage-ink: #f6f1ef;
+}

@@ -5772,3 +5772,83 @@ button.own-month-day:hover { border-color: var(--accent); }
   border: 1px solid var(--press-rule); border-radius: 999px; }
 .own-people button:disabled { opacity: .4; cursor: default; }
 .own-people-n { font-family: var(--press-mono); font-size: 17px; color: var(--press-ink); min-width: 1.4ch; text-align: center; }
+
+/* ══ A SKINNED ROOM ═════════════════════════════════════════════════════════
+   The material half of the eight skins declared in tokens.css. ONE block, not
+   eight — every per-skin difference is a token, and what changes here is only
+   the machinery a re-pointed ground needs: the sky gets painted, the shell
+   layers go transparent so it shows through, and every surface that holds text
+   goes translucent instead of going away.
+
+   THIS IS THE SAME BLOCK EVERY GRANTED HUB WRITES FOR ITSELF, and writing it
+   once is the point. Dating, Nutrition, Local Services and Beauty each carry a
+   near-identical copy, and the drift between those copies is where two of this
+   week's bugs came from — a class on one list and not another. A skin can be
+   added to tokens.css tomorrow and it inherits a version of this that has
+   already been debugged four times.
+
+   NO SHADOW-AND-RESTORE, and that is a property of the palettes rather than an
+   omission. Every skin's four inks clear AA on every stop of its own sky —
+   measured by `a-room-can-be-reskinned`, which fails if that stops being true.
+   The hubs that need the restore need it because their greys DON'T clear on
+   their own ground; these never had that problem, so adding the mechanism
+   would be machinery guarding nothing. */
+[data-skin] { background-image: var(--sky-image); background-attachment: fixed; }
+[data-skin] body,
+[data-skin] .tc-shell,
+[data-skin] .tc-main,
+[data-skin] .page { background: transparent; }
+
+/* THE SURFACES, AND THE LIST IS THE POINT — a class missing from it is a panel
+   painting the city's white inside a room that is no longer white. It is
+   dating's list, class for class, because these are the same rooms wearing a
+   different coat. */
+[data-skin] .tc-header {
+  background: var(--frost);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  backdrop-filter: blur(8px) saturate(120%);
+}
+[data-skin] .tc-side { background: var(--frost); box-shadow: var(--e2); }
+[data-skin] .card,
+[data-skin] .stat,
+[data-skin] .row,
+[data-skin] .console,
+[data-skin] .pcard,
+[data-skin] table.tc,
+[data-skin] .modal,
+[data-skin] .sheet { background: var(--frost); }
+
+/* A CONTROL IS A SURFACE TOO. An outline button, a select and a field all paint
+   themselves in --paper and draw a label on top; in a dark skin that label is
+   near-white, and without this the control reads as an empty lozenge. They take
+   the INK without taking the frost — a thin field on a thin panel is two veils
+   and no edge. .btn-loud and .btn-accent are deliberately absent: those set
+   their own --on-accent and this would erase them. */
+[data-skin] .btn-line,
+[data-skin] select,
+[data-skin] input,
+[data-skin] textarea {
+  --ink:      var(--on-paper);
+  --ink-soft: var(--on-paper-soft);
+  --muted:    var(--on-paper-muted);
+  --faint:    var(--on-paper-faint);
+  color: var(--ink);
+}
+
+/* AND THE PREFERENCE THE SKY OWES BACK. Somebody who asked their system for
+   less transparency is asking for surfaces to be surfaces; the atmosphere goes
+   and the frost becomes the ground it was standing in for. Same shape as every
+   other room in this file. */
+@media (prefers-reduced-transparency: reduce) {
+  [data-skin] { background-image: none; background-color: var(--ground); }
+  [data-skin] .tc-header,
+  [data-skin] .tc-side,
+  [data-skin] .card,
+  [data-skin] .stat,
+  [data-skin] .row,
+  [data-skin] .console,
+  [data-skin] .pcard,
+  [data-skin] table.tc,
+  [data-skin] .modal,
+  [data-skin] .sheet { background: var(--paper); backdrop-filter: none; -webkit-backdrop-filter: none; }
+}

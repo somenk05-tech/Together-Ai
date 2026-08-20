@@ -7,6 +7,7 @@ import { authApi, type SessionInfo } from '@/api/auth.api';
 import { http } from '@/api/client';
 import { useMyProfile } from '@/features/social/myProfile.api';
 import { DeleteAccountCard } from '../components/DeleteAccountCard';
+import { SkinPicker } from '../components/SkinPicker';
 
 
 /** A labelled row inside a settings card. */
@@ -138,6 +139,22 @@ export function Settings() {
         <Row title="Family" desc="Share conditions with linked family TC-IDs" right={<Link to="/medical/consent" className="tag">Manage</Link>} />
         <Row title="Beauty Market" desc="Skin conditions inform personalised beauty recommendations" right={<Link to="/medical/consent" className="tag">Manage</Link>} />
         <Row title="Social Life" desc="Only consent-scoped shares (e.g. sharing a blood report)" right={<Link to="/medical/consent" className="tag">Manage</Link>} />
+      </Card>
+
+      {/* Appearance. TWO CONTROLS AND NOT ONE, at the owner's word: the inbox
+          and the chat room are read in different postures and at different
+          hours, and somebody who wants a dark inbox at night does not
+          necessarily want their conversations to move with it. One control
+          would be a smaller settings page and a worse answer. */}
+      <Card style={{ marginTop: 18 }}>
+        <SectionTitle eyebrow="Appearance" title="The colour of your two rooms" />
+        <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 4px' }}>
+          White and black is the city, and it stays the default. Mail and Chat are the two rooms whose
+          contents are entirely yours, so they are the two you can repaint. This is remembered on this
+          device — your phone and your laptop can wear different colours.
+        </p>
+        <SkinPicker hub="mail" label="Mail" hint="Your inbox, drafts, sent and trash." />
+        <SkinPicker hub="chat" label="Chat" hint="Every conversation, and Mira." />
       </Card>
 
       {/* Notifications */}

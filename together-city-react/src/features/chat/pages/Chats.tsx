@@ -40,6 +40,17 @@ const STAGE_THEMES = [
   { id: 'pistachio', name: 'Pistachio Mint Cream' },
   { id: 'lavender', name: 'Lavender Cream' },
   { id: 'cream', name: 'Cream Veil' },
+  /* NINE MORE, 20 AUG — the same palettes Mail's skins offer, and the keys are
+     deliberately identical so that "Rolex" means one green in both rooms. */
+  { id: 'burgundy', name: 'Deep Burgundy' },
+  { id: 'truffle', name: 'Soft Truffle' },
+  { id: 'rolex', name: 'Rolex Dial' },
+  { id: 'jaguar', name: 'Jaguar Lacquer' },
+  { id: 'sanmarino', name: 'San Marino' },
+  { id: 'sugar', name: 'Sugar Blue' },
+  { id: 'ruby', name: 'Ruby Chocolate' },
+  { id: 'mocha', name: 'Mocha Fudge' },
+  { id: 'zephyr', name: 'Currant Zephyr' },
 ] as const;
 type StageTheme = (typeof STAGE_THEMES)[number]['id'];
 const THEME_KEY = 'chat.stage';
