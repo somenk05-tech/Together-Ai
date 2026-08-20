@@ -14,7 +14,7 @@
 import { useNavigate } from 'react-router-dom';
 import { DistrictHero } from '../components/DistrictHero';
 import { PetCard } from '../components/PetCard';
-import { Empty, ErrorState } from '../components/States';
+import { Empty } from '../components/States';
 import { usePets } from '../store';
 
 const ROOMS = [
@@ -32,8 +32,6 @@ export function PetsHome() {
   const plans = usePets((s) => s.plans);
   const activePetId = usePets((s) => s.activePetId);
   const setActive = usePets((s) => s.setActive);
-  const error = usePets((s) => s.error);
-  const setError = usePets((s) => s.setError);
 
   return (
     <div style={{ display: 'grid', gap: 'clamp(28px, 5vw, 52px)' }}>
@@ -66,19 +64,6 @@ export function PetsHome() {
           </>
         }
       />
-
-      {/* THE ERROR STATE, ACTUALLY RENDERED.
-          `store.error` and `setError` existed from the first commit and nothing
-          read them — the dead-export audit caught the other half of that: an
-          ErrorState component nobody imported. A screen whose failure branch is
-          written but never mounted is a screen with no failure branch, and the
-          day api.ts starts talking to a server is the wrong day to find out. */}
-      {error && (
-        <ErrorState
-          line={error}
-          onRetry={() => setError(null)}
-        />
-      )}
 
       <section style={{ display: 'grid', gap: 16 }}>
         <SectionTitle

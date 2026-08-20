@@ -21,27 +21,47 @@ export function Cart() {
   const cart = usePets((s) => s.cart);
   const setCartQty = usePets((s) => s.setCartQty);
   const clearCart = usePets((s) => s.clearCart);
+  /* ONE BAG FOR THE WHOLE HOUSE, AND IT SAYS SO LINE BY LINE.
+     The bag was always shared — a cart is a cart — but nothing on it said which
+     animal a line was for, so a person with two pets could only check the order
+     covered both of them by remembering. The grocery list already knows: it is
+     what merged these lines in the first place. */
+  const shopping = usePets((s) => s.shopping);
+  const pets = usePets((s) => s.pets);
   const { data: products } = useProductsByIds(cart.map((l) => l.productId));
 
   if (cart.length === 0) {
     return <Empty glyph="🛍️" title="Your bag is empty" line="The shopping list from your pet’s meal plan is the fastest way to fill it." action={<div style={{ display: 'flex', gap: 8 }}><button type="button" className="btn" onClick={() => nav('/pets/shop')}>Browse the shop</button><button type="button" className="btn btn-line" onClick={() => nav('/pets/monthly')}>Open shopping list</button></div>} />;
   }
 
+  const forPet = new Map(shopping.map((i) => [i.productId, i.forPets]));
   const lines = cart.map((line) => {
     const product = products.find((p) => p.id === line.productId);
     const variant = product?.variants[line.variantIndex] ?? product?.variants[0] ?? null;
-    return { line, product, variant, priced: Boolean(variant?.priceInr) };
+    return {
+      line, product, variant, priced: Boolean(variant?.priceInr),
+      /* Empty for something browsed off the shelf rather than taken from a
+         plan — which is a real way to shop, and a line that invented an owner
+         for it would be worse than one that says nothing. */
+      whose: forPet.get(line.productId) ?? [],
+    };
   }).filter((l) => l.product);
+  /* Only worth naming names where there is more than one animal to confuse. */
+  const household = pets.length > 1;
 
   const total = lines.reduce((sum, l) => sum + (l.variant?.priceInr ?? 0) * l.line.qty, 0);
   const unpriced = lines.filter((l) => !l.priced).length;
 
   return (
     <div style={{ display: 'grid', gap: 20, maxWidth: 820 }}>
-      <SectionTitle title="Your bag" line={`${lines.length} line${lines.length === 1 ? '' : 's'}`} action={<button type="button" className="btn btn-sm btn-line" onClick={clearCart}>Empty bag</button>} />
+      <SectionTitle
+        title="Your bag"
+        line={household
+          ? `${lines.length} line${lines.length === 1 ? '' : 's'} · one order for ${pets.map((p) => p.name).join(', ')}`
+          : `${lines.length} line${lines.length === 1 ? '' : 's'}`} action={<button type="button" className="btn btn-sm btn-line" onClick={clearCart}>Empty bag</button>} />
 
       <div style={{ display: 'grid', gap: 10 }}>
-        {lines.map(({ line, product, variant, priced }) => (
+        {lines.map(({ line, product, variant, priced, whose }) => (
           <article key={`${line.productId}-${line.variantIndex}`} className="card" style={{ display: 'flex', gap: 14, padding: 14, alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ width: 56, flexShrink: 0 }}>
               <PackShot src={product!.imageUrl} alt={product!.name} category={product!.category} height={56} drawnSize={40} />
@@ -53,6 +73,7 @@ export function Cart() {
               </button>
               <span className="muted" style={{ fontSize: 11.5 }}>
                 {variant?.pack ?? 'standard pack'}
+                {household && whose.length > 0 && ` · for ${whose.map((w) => w.name).join(' and ')}`}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

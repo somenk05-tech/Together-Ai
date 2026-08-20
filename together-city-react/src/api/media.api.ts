@@ -130,4 +130,24 @@ export const mediaApi = {
     await axios.put(res.uploadUrl, safe, { headers: { 'Content-Type': safe.type } });
     return { fileKey: res.key, mimeType: safe.type, sizeBytes: safe.size };
   },
+
+  /**
+   * Upload a photograph of somebody's ANIMAL — the private vault, the
+   * `pets/<userId>/` namespace, key only.
+   *
+   * THE SCRUB HERE IS THE SECOND ONE AND IT STAYS. `features/pets/engine/photos`
+   * has already run `scrubImage` and then squared the picture through a canvas,
+   * which by itself leaves no Exif block to find — so on that path this call
+   * finds nothing and costs a decode. It is here anyway, because the guarantee
+   * this file exists to make is "nothing reaches storage unscrubbed", and a
+   * guarantee that depends on every caller having done it first is a guarantee
+   * held by whoever writes the next caller.
+   */
+  async uploadPet(file: File): Promise<{ fileKey: string; mimeType: string; sizeBytes: number }> {
+    const { file: safe } = await scrubImage(file, 'private');
+    const res = await apiPost('/pets/photos/presign', { mimeType: safe.type, sizeBytes: safe.size },
+      z.object({ uploadUrl: z.string(), key: z.string(), expiresInSec: z.number().optional() }));
+    await axios.put(res.uploadUrl, safe, { headers: { 'Content-Type': safe.type } });
+    return { fileKey: res.key, mimeType: safe.type, sizeBytes: safe.size };
+  },
 };

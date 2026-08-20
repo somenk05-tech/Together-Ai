@@ -22,7 +22,7 @@ import { SectionTitle } from './PetsHome';
 import { newPetId, usePets } from '../store';
 import { breedsFor } from '../data/breeds';
 import { ACTIVITY_LABEL, GOAL_LABEL, readAge } from '../engine/nutrition';
-import type { ActivityLevel, BodyCondition, DietStyle, Goal, Housing, Pet, Sex, Species } from '../types';
+import type { ActivityLevel, BodyCondition, DietStyle, Goal, Housing, Pet, PetPhoto, Sex, Species } from '../types';
 import { EMPTY_MEDICAL } from '../engine/medical';
 
 const blank = (species: Species): Pet => ({
@@ -43,6 +43,7 @@ export function Profiles() {
   const addPet = usePets((s) => s.addPet);
   const updatePet = usePets((s) => s.updatePet);
   const removePet = usePets((s) => s.removePet);
+  const setPhotos = usePets((s) => s.setPhotos);
   const generatePlan = usePets((s) => s.generatePlan);
   const buildShopping = usePets((s) => s.buildShopping);
 
@@ -59,7 +60,7 @@ export function Profiles() {
 
   const close = () => { setDraft(null); setParams({}); };
 
-  const save = () => {
+  const save = async () => {
     if (!draft) return;
     if (!draft.name.trim() || !draft.weightKg) return;
     /* TRIMMED ON THE WAY IN, NOT ON THE WAY OUT. A trailing space typed into
@@ -68,17 +69,63 @@ export function Profiles() {
        `{pet.name}’s`. Trimming at each of the nine call sites is nine chances
        to miss one; trimming once, here, is the fix. */
     const clean: Pet = { ...draft, name: draft.name.trim(), currentFood: draft.currentFood.trim() };
-    if (pets.some((p) => p.id === clean.id)) updatePet(clean.id, clean);
-    else addPet(clean);
+    const existing = pets.some((p) => p.id === clean.id);
+    /* PHOTOGRAPHS ARE NOT A FIELD OF THIS FORM, even though they are drawn at
+       the top of it. They are their own resource with their own three calls —
+       upload, remove, promote — and an existing pet's gallery has been writing
+       straight to the account since the moment it was touched. Sending them
+       again here would take the array this form happened to be holding and
+       overwrite the one the account actually has.
+
+       A copy and a delete rather than destructuring the key away: an unused
+       binding is an error in this repo's lint, not a style. */
+    const fields: Partial<Pet> = { ...clean };
+    delete fields.photos;
+    /* THE SAVED PET, NOT THE DRAFT, IS WHAT THE PLAN IS BUILT FOR. A new pet
+       leaves here with the id the server gave it; building the plan against the
+       one the form invented would produce a month of meals that disappears at
+       the next load, which is exactly the bug this whole change is about. */
+    const saved = existing
+      ? await updatePet(clean.id, fields)
+      : await addPet(clean);
+    /* The form stays open when the save did not happen. The store has put the
+       reason in `error` and the banner above is already showing it; closing
+       would throw away everything they typed and tell them it went through. */
+    if (!saved) return;
+    /* A NEW PET'S PHOTOGRAPHS GO UP NOW, because until this line there was no
+       account row to hang them on. An existing pet's are already there. */
+    if (!existing && clean.photos.length) await setPhotos(saved.id, clean.photos);
     // The plan is built the moment the profile is saved, so a citizen never
     // has to go and ask for one — see the note on the Diet planner page.
-    generatePlan(clean.id);
-    buildShopping(clean.id);
+    generatePlan(saved.id);
+    buildShopping();
     close();
   };
 
   if (draft) {
-    return <PetForm draft={draft} setDraft={setDraft} onSave={save} onCancel={close} existing={pets.some((p) => p.id === draft.id)} onDelete={() => { removePet(draft.id); close(); }} />;
+    const onAccount = pets.find((p) => p.id === draft.id) ?? null;
+    return (
+      <PetForm
+        draft={draft}
+        setDraft={setDraft}
+        onSave={() => void save()}
+        onCancel={close}
+        existing={Boolean(onAccount)}
+        onDelete={() => { void removePet(draft.id); close(); }}
+        /* AN EXISTING PET'S GALLERY IS A WINDOW ON THE ACCOUNT, NOT A FORM
+           FIELD. It shows what the account holds and writes to it directly —
+           so a photograph is kept the moment it is added, and Cancel does not
+           un-add it. That is the honest reading of the act: choosing a picture
+           of your dog is a whole decision, not a pending edit to one.
+
+           A pet that does not exist yet has nowhere to put a photograph, so its
+           gallery is a draft and `save` uploads it the moment the row exists. */
+        photos={onAccount ? onAccount.photos : draft.photos}
+        onPhotos={onAccount
+          ? (photos) => setPhotos(onAccount.id, photos)
+          : (photos) => setDraft({ ...draft, photos })}
+      />
+    );
   }
 
   return (
@@ -113,8 +160,12 @@ export function Profiles() {
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 function PetForm(
-  { draft, setDraft, onSave, onCancel, existing, onDelete }:
-  { draft: Pet; setDraft: (p: Pet) => void; onSave: () => void; onCancel: () => void; existing: boolean; onDelete: () => void },
+  { draft, setDraft, onSave, onCancel, existing, onDelete, photos, onPhotos }:
+  {
+    draft: Pet; setDraft: (p: Pet) => void; onSave: () => void; onCancel: () => void;
+    existing: boolean; onDelete: () => void;
+    photos: PetPhoto[]; onPhotos: (photos: PetPhoto[]) => void | Promise<void>;
+  },
 ) {
   const set = <K extends keyof Pet>(key: K, value: Pet[K]) => setDraft({ ...draft, [key]: value });
   const age = readAge(draft);
@@ -143,12 +194,17 @@ function PetForm(
           because this is the one screen in the district that is about the
           animal rather than about the data, and because a form that opens with
           your own dog's face is a form people finish. */}
-      <Fieldset legend="Photos" note="Up to five. The first is the one the city shows on every card — location data is removed here on your device, before anything is saved.">
+      <Fieldset
+        legend="Photos"
+        note={existing
+          ? 'Up to five. The first is the one the city shows on every card. Location data is removed on your device before anything leaves it, and each photo is saved to your account as you add it.'
+          : 'Up to five. The first is the one the city shows on every card. Location data is removed on your device before anything leaves it; these are saved with the profile.'}
+      >
         <PetPhotos
           petName={draft.name}
           species={draft.species}
-          photos={draft.photos}
-          onChange={(photos) => set('photos', photos)}
+          photos={photos}
+          onChange={onPhotos}
         />
       </Fieldset>
 

@@ -13,9 +13,12 @@
  *   useRecipes(species)  → GET  /pets/recipes?species=
  *   useServices(k, city) → GET  /pets/services?kind=&city=
  *
- * The pet itself is NOT behind a hook here. It is the citizen's own record and
- * it lives in the store, which is what every page already reads it from; a
- * wrapper that only re-exported that would be a second name for one thing.
+ * The pet itself is NOT behind a hook here, and its server did arrive first.
+ * It is the citizen's own record: `api/pets.api.ts` is its wire and
+ * `features/pets/store.ts` loads from it and writes through to it, which is
+ * where every page already reads a pet from. A hook in this file that only
+ * re-exported that would be a second name for one thing — and, worse, a second
+ * cache beside the store that also holds the plan derived from the pet.
  *
  * `loading` and `error` are on the return of every one of them even though
  * nothing can fail locally, because a page that has no error branch until the

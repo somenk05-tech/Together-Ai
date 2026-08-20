@@ -50,7 +50,7 @@ export function DietPlanner() {
   useEffect(() => {
     if (pet && ready && !plan) {
       generatePlan(pet.id);
-      buildShopping(pet.id);
+      buildShopping();
     }
   }, [pet, ready, plan, generatePlan, buildShopping]);
 
@@ -90,7 +90,7 @@ export function DietPlanner() {
         action={
           <div style={{ display: 'flex', gap: 8 }}>
             <button type="button" className="btn btn-sm btn-line" onClick={() => nav(`/pets/profiles?edit=${pet.id}`)}>Edit profile</button>
-            <button type="button" className="btn btn-sm btn-line" onClick={() => { generatePlan(pet.id); buildShopping(pet.id); }}>Rebuild month</button>
+            <button type="button" className="btn btn-sm btn-line" onClick={() => { generatePlan(pet.id); buildShopping(); }}>Rebuild month</button>
           </div>
         }
       />
@@ -166,11 +166,21 @@ export function DietPlanner() {
         ))}
       </section>
 
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        <button type="button" className="btn" onClick={() => nav('/pets/monthly')} style={{ background: 'var(--accent)', color: 'var(--on-accent)', border: 'none' }}>
-          Open the monthly plan
-        </button>
-        <button type="button" className="btn btn-line" onClick={() => nav('/pets/today')}>Today’s meals</button>
+      <div style={{ display: 'grid', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button type="button" className="btn" onClick={() => nav('/pets/monthly')} style={{ background: 'var(--accent)', color: 'var(--on-accent)', border: 'none' }}>
+            Open the monthly plan
+          </button>
+          <button type="button" className="btn btn-line" onClick={() => nav('/pets/today')}>Today’s meals</button>
+        </div>
+        {pets.length > 1 && (
+          /* This page is about one animal. The shop is not — so the button that
+             leads there says what it leads to, rather than letting somebody
+             assume they will have to do this once per pet. */
+          <p className="muted" style={{ margin: 0, fontSize: 12.5, lineHeight: 1.6 }}>
+            The grocery list under the month covers every pet in the house — {pets.map((p) => p.name).join(', ')} — as one order.
+          </p>
+        )}
       </div>
 
       <Disclaimer />

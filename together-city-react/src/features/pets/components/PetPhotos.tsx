@@ -30,7 +30,17 @@ interface Props {
   petName: string;
   species: 'dog' | 'cat';
   photos: PetPhoto[];
-  onChange: (photos: PetPhoto[]) => void;
+  /**
+   * The array the gallery wants to exist. It may return a promise — the store's
+   * `setPhotos` uploads to the vault and files the key — and this component
+   * AWAITS IT, which is what keeps the spinner up until the bytes have landed.
+   *
+   * That matters for more than tidiness: "Make main" is a server call that
+   * needs a photograph's saved id, so nothing may offer it while an upload is
+   * still in flight. Holding `busy` across the write is what makes that true
+   * rather than merely likely.
+   */
+  onChange: (photos: PetPhoto[]) => void | Promise<void>;
 }
 
 export function PetPhotos({ petName, species, photos, onChange }: Props) {
@@ -48,7 +58,7 @@ export function PetPhotos({ petName, species, photos, onChange }: Props) {
     setRejected([]);
     try {
       const result = await acceptPetPhotos(Array.from(files), photos);
-      if (result.photos.length) onChange([...photos, ...result.photos]);
+      if (result.photos.length) await onChange([...photos, ...result.photos]);
       setRejected(result.rejected);
     } finally {
       setBusy(false);
@@ -58,12 +68,21 @@ export function PetPhotos({ petName, species, photos, onChange }: Props) {
     }
   };
 
-  const remove = (id: string) => {
-    onChange(photos.filter((p) => p.id !== id));
-    setRejected([]);
+  /** Both of these are server calls now, so both hold `busy` — a gallery that
+   *  accepts a second click while the first is in flight is a gallery that can
+   *  ask for two reorderings of an order that no longer exists. */
+  const write = async (next: PetPhoto[]) => {
+    if (busy) return;
+    setBusy(true);
+    try { await onChange(next); } finally { setBusy(false); }
   };
 
-  const makeMain = (id: string) => onChange(promotePhoto(photos, id));
+  const remove = (id: string) => {
+    setRejected([]);
+    void write(photos.filter((p) => p.id !== id));
+  };
+
+  const makeMain = (id: string) => void write(promotePhoto(photos, id));
 
   const scrubbed = scrubbedCount(photos);
 

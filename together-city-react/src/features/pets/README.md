@@ -1,17 +1,18 @@
 # Pet District — `src/features/pets`
 
 The Pet hub for Together City: profiles, a veterinary-sourced feeding engine, a
-month-long meal plan with its own grocery list, an ingredient-safety desk,
-home-cooked recipes, a 184-product Indian marketplace, editable kits, wellness
-and activity.
+month-long meal plan whose grocery list covers every pet in the house as a
+single order, an ingredient-safety desk, home-cooked recipes, a 184-product
+Indian marketplace, editable kits, wellness and activity.
 
 Written to drop into `together-city-react` as it stands: TypeScript, inline
 styles reading `tokens.css` variables only, `zustand` for state, `react-router`
-for routes, and no new dependencies.
+for routes, and no new dependencies. The pet record lives on the citizen's
+account — `src/pets` on the NestJS side, `src/api/pets.api.ts` on the wire.
 
 ---
 
-## Wiring it in — four edits, none of them destructive
+## Wiring it in — five edits, none of them destructive
 
 **1 · Routes.** In `src/app/router.tsx`, add the landing beside the other hub
 landings and the rooms as a `HubLayout` block:
@@ -64,6 +65,27 @@ pets: 'Everything your pet needs. All in one place.',
 Until that file exists the hub draws its own night-street scene, so nothing is
 broken while the art is in production.
 
+**5 · The record.** A pet is stored on the citizen's account, so this half is a
+migration and a Nest module rather than an import:
+
+```
+together-city-chat/prisma/schema.prisma          model Pet, model PetPhoto
+together-city-chat/prisma/migrations/…_a_pet_is_a_citizens_record
+together-city-chat/src/pets/                     module, controller, service
+together-city-chat/src/media/storage.provider.ts presignPetUpload · isOwnPetKey
+together-city-chat/src/app.module.ts             PetsModule
+together-city-react/src/api/pets.api.ts          the wire
+together-city-react/src/api/media.api.ts         uploadPet — the chokepoint
+```
+
+```sh
+cd together-city-chat && npx prisma migrate deploy && npx prisma generate
+```
+
+Photographs go browser→private vault under `pets/<userId>/`, exactly as the
+daybook's do, and the browser is handed a link that expires rather than an
+address. There is no URL column, and the object key never leaves the server.
+
 ---
 
 ## What this does NOT touch
@@ -102,17 +124,29 @@ data/        catalogue.ts     184 real products, every one with a source URL
 engine/      nutrition.ts     RER / MER, portions, treats, water, meal times
              plan.ts          today and the 30 days after it, from the above
              recommend.ts     product suggestions, each with its reason
-             shopping.ts      the month's list, split shop vs kitchen
+             shopping.ts      ONE list for the whole house — every pet's month
+                              merged product by product, each line carrying
+                              whose share is whose, so a two-animal home places
+                              one order instead of two
              packs.ts         pack-size arithmetic for price-per-kg
              medical.ts       the fields a vet asks for, stored and never read
              scorecard.ts     the eight-dimension pet scorecard
              naming.ts        brand-name de-duplication
 
-api.ts       the seam. Every page reads through these hooks; when the NestJS
-             endpoints land, this file changes and the pages do not.
+api.ts       the reference seam — catalogue, ingredients, recipes, kits. Every
+             page reads through these hooks and none of them imports a data
+             file directly.
 
-store.ts     zustand, in memory. No localStorage — a pet profile belongs on the
-             server behind the citizen's account, not in one browser.
+store.ts     zustand, and the hub's single source of truth. The PET is loaded
+             from the account and written back to it through
+             `src/api/pets.api.ts`; the plan, the grocery list and the cart are
+             derived from it and rebuilt on load, so they are not stored and
+             cannot disagree with the weight they were calculated from.
+
+components/PetsBoot.tsx
+             a pathless layout route around every room. Fetches the citizen's
+             pets on the first mount, whatever door they came in by, and is
+             where a failed write is announced.
 ```
 
 ---
@@ -148,6 +182,14 @@ microchip, the policy. Nothing in the engine reads them: a condition never
 changes a calorie target, never filters the shelf, never becomes a
 recommendation. The card says so, and says to take the conditions to a vet.
 
+**A household shops once.** The month's calendar is one pet's — two animals'
+meals in one grid is unreadable — but the list under it is not. Every pet's
+month is added up and merged: one line per product, quantities summed, and the
+per-pet split printed under each line so a total can be checked rather than
+just trusted. The bag names the pets on every line, and a pet with no plan yet
+is named as missing rather than quietly left out. `engine/shopping.spec.ts`
+holds the four claims that makes.
+
 **An estimated portion says it is estimated.** When a listing publishes its own
 kcal/kg the meal card prints one number. When it does not, `density.ts` supplies
 a cited band for that species and food form and the card prints a range with the
@@ -180,4 +222,10 @@ conversation — see sheet 14 of the data workbook.
   hindgut fermenter and a guinea pig has a dietary vitamin C requirement —
   neither is a variation on a dog.
 - **Checkout is not wired.** Payments belong to the city's Pay service.
-- **State is in memory.** `api.ts` is where the server replaces it.
+- **The cart and the wellness log are still in memory.** The pet is on the
+  account; a cart belongs to the city's commerce module rather than to this
+  hub, and the wellness and activity logs are the next tables to write.
+- **Dedupe of photographs is per session.** The city does not keep the original
+  filename or a file's modification time, so "you already added that one" is
+  answerable until a reload and not after it. That is the trade, made on
+  purpose — see `thisSession` in `store.ts`.

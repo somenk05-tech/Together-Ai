@@ -15,6 +15,7 @@
 
 import { lazy } from 'react';
 import type { RouteObject } from 'react-router-dom';
+import { PetsBoot } from './components/PetsBoot';
 
 const PetsHome = lazy(() => import('./pages/PetsHome').then((m) => ({ default: m.PetsHome })));
 const Profiles = lazy(() => import('./pages/Profiles').then((m) => ({ default: m.Profiles })));
@@ -35,8 +36,15 @@ const Activity = lazy(() => import('./pages/Activity').then((m) => ({ default: m
 const Quiz = lazy(() => import('./pages/Quiz').then((m) => ({ default: m.Quiz })));
 
 /** The hub's inner rooms. `/pets` itself is a HubLanding, registered beside the
- *  other landings in router.tsx — see README.md. */
-export const petsRoutes: RouteObject[] = [
+ *  other landings in router.tsx — see README.md.
+ *
+ *  ONE PATHLESS ROUTE WRAPS ALL OF THEM. `PetsBoot` fetches the citizen's pets
+ *  the first time any room mounts, so a bookmark straight to `/pets/monthly`
+ *  arrives with the same data the world page would have had. It is not eager:
+ *  a citizen who never opens Pets never asks for them. */
+export const petsRoutes: RouteObject[] = [{
+  element: <PetsBoot />,
+  children: [
   { path: '/pets/world', element: <PetsHome /> },
   { path: '/pets/profiles', element: <Profiles /> },
   { path: '/pets/plan', element: <DietPlanner /> },
@@ -57,7 +65,8 @@ export const petsRoutes: RouteObject[] = [
   { path: '/pets/wellness', element: <Wellness /> },
   { path: '/pets/activity', element: <Activity /> },
   { path: '/pets/quiz', element: <Quiz /> },
-];
+  ],
+}];
 
 /** The sidebar, in the shape `HubConfig.items` expects.
  *

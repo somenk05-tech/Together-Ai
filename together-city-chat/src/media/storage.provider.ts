@@ -282,6 +282,33 @@ export class StorageProvider implements OnModuleInit {
     return { uploadUrl, key, expiresInSec: this.expiresInSec };
   }
 
+  /**
+   * A PLACE TO PUT A PHOTOGRAPH OF SOMEBODY'S ANIMAL.
+   *
+   * The private vault, under `pets/<userId>/`, for the same reason the daybook
+   * uses it: the public bucket hands out a permanent address, and a photo of a
+   * dog is a photo of the room the dog is standing in. The bytes go
+   * browser→vault; nothing here ever holds them.
+   */
+  async presignPetUpload(userId: string, mimeType: string, ext: string): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
+    const safeExt = (ext || 'bin').replace(/[^a-zA-Z0-9]/g, '').slice(0, 10) || 'bin';
+    const key = `pets/${userId}/${randomUUID()}.${safeExt}`;
+    if (!this.s3) {
+      return { uploadUrl: `${this.publicBase}/__presigned__/${key}`, key, expiresInSec: this.expiresInSec };
+    }
+    const uploadUrl = await getSignedUrl(
+      this.s3,
+      new PutObjectCommand({ Bucket: this.healthBucket, Key: key, ContentType: mimeType }),
+      { expiresIn: this.expiresInSec },
+    );
+    return { uploadUrl, key, expiresInSec: this.expiresInSec };
+  }
+
+  /** True when this key belongs to the given user's pet namespace. */
+  static isOwnPetKey(userId: string, key: string): boolean {
+    return typeof key === 'string' && key.startsWith(`pets/${userId}/`);
+  }
+
   /** True when this key belongs to the given user's daybook namespace. */
   static isOwnDaybookKey(userId: string, key: string): boolean {
     return typeof key === 'string' && key.startsWith(`daybook/${userId}/`);

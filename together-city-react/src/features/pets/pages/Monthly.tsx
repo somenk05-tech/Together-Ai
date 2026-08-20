@@ -11,6 +11,16 @@
  * expanded cards. A day opens when it is tapped. The shape people actually
  * read a month in is a calendar, and the thing they scan for is "which days
  * are different" — so the repeated days stay quiet and a tap gets the detail.
+ *
+ * THE CALENDAR IS ONE PET'S. THE LIST IS THE WHOLE HOUSE'S.
+ *
+ * Two animals' meals in one grid is unreadable, so the month above follows the
+ * pet in the header. The shopping does not: a home with a dog and a cat makes
+ * one trip and places one order, so the list below adds every pet's month
+ * together, merges the lines that are the same product, and says on each line
+ * whose it is. Switching pets up top changes the calendar and leaves the list
+ * alone — which is the correct answer to "am I looking at everything I need to
+ * buy?" being yes, always.
  */
 
 import { useEffect, useState } from 'react';
@@ -22,6 +32,7 @@ import { rupees } from '../engine/format';
 import { usePets } from '../store';
 import { CATALOGUE } from '../data/catalogue';
 import { ESTIMATE_CAVEAT } from '../data/density';
+import type { ShoppingItem } from '../types';
 
 const DAY_NAME = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const byId = new Map(CATALOGUE.map((p) => [p.id, p]));
@@ -49,12 +60,16 @@ export function Monthly() {
   const pet = pets.find((p) => p.id === activePetId) ?? null;
   const plan = pet ? plans[pet.id] ?? null : null;
 
-  // The list is derived from the plan, so it is rebuilt whenever the plan on
-  // screen has no list behind it — rather than left empty until somebody finds
-  // the button that used to live on the old Shopping page.
+  /* The list is derived from the plans, so it is rebuilt whenever there are
+     plans and no list behind them — rather than left empty until somebody finds
+     the button that used to live on the old Shopping page. `planCount` rather
+     than the active pet's plan: the list covers the house, so a second pet
+     getting its first plan has to rebuild it even if the pet on screen has
+     had one all along. */
+  const planCount = Object.keys(plans).length;
   useEffect(() => {
-    if (pet && plan && shopping.length === 0) buildShopping(pet.id);
-  }, [pet, plan, shopping.length, buildShopping]);
+    if (planCount && shopping.length === 0) buildShopping();
+  }, [planCount, shopping.length, buildShopping]);
 
   if (!pet || !plan) {
     return (
@@ -73,6 +88,16 @@ export function Monthly() {
   const kitchen = shopping.filter((i) => i.source === 'home-kitchen');
   const inCart = cart.reduce((n, l) => n + l.qty, 0);
 
+  /* Who the list is actually for — the pets that have a plan behind them, in
+     the order the house was added. Named in the heading so a person can see at
+     a glance whether somebody has been left out of the shop. */
+  const fed = pets.filter((p) => plans[p.id]);
+  const unplanned = pets.filter((p) => !plans[p.id]);
+  const names = fed.map((p) => p.name);
+  const forWhom = names.length > 1
+    ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+    : names[0] ?? '';
+
   const estimatedTotal = city.reduce((sum, item) => {
     const product = item.productId ? byId.get(item.productId) : null;
     return sum + (product?.priceFrom ?? 0);
@@ -85,7 +110,7 @@ export function Monthly() {
         line={`${plan.merKcal} kcal a day across ${plan.mealsPerDay} meals · ${plan.days.length} days · ${done} of ${meals.length} meals marked fed`}
         action={
           <div style={{ display: 'flex', gap: 8 }}>
-            <button type="button" className="btn btn-sm btn-line" onClick={() => { generatePlan(pet.id); buildShopping(pet.id); }}>Rebuild month</button>
+            <button type="button" className="btn btn-sm btn-line" onClick={() => { generatePlan(pet.id); buildShopping(); }}>Rebuild month</button>
             <button type="button" className="btn btn-sm" onClick={() => nav('/pets/cart')} style={{ background: 'var(--accent)', color: 'var(--on-accent)', border: 'none' }}>
               Cart · {inCart}
             </button>
@@ -161,8 +186,10 @@ export function Monthly() {
       {/* ── THE MONTH'S GROCERY LIST ─────────────────────────────────────── */}
       <section style={{ display: 'grid', gap: 16 }}>
         <SectionTitle
-          title="This month’s grocery list"
-          line="Every meal above, added up. Two halves, because they are bought in two different places."
+          title={fed.length > 1 ? 'This month’s grocery list — the whole house' : 'This month’s grocery list'}
+          line={fed.length > 1
+            ? `Every meal for ${forWhom}, added up and merged into one order. Two halves, because they are bought in two different places.`
+            : 'Every meal above, added up. Two halves, because they are bought in two different places.'}
           action={
             <button
               type="button"
@@ -170,15 +197,30 @@ export function Monthly() {
               style={{ background: 'var(--accent)', color: 'var(--on-accent)', border: 'none' }}
               onClick={() => city.forEach((i) => i.productId && addToCart(i.productId, 0))}
             >
-              Add everything to cart
+              {fed.length > 1 ? 'Add the whole order to cart' : 'Add everything to cart'}
             </button>
           }
         />
+
+        {unplanned.length > 0 && (
+          /* NAMED, NOT SILENTLY OMITTED. A list that quietly covers two of three
+             animals is worse than one that covers none, because it looks
+             complete. A pet with no weight has no calorie target and therefore
+             no month to add up — the planner is where that is fixed. */
+          <p className="muted" style={{ margin: 0, fontSize: 12.5, lineHeight: 1.6 }}>
+            {unplanned.map((p) => p.name).join(', ')} {unplanned.length === 1 ? 'is' : 'are'} not in this list — no plan yet.{' '}
+            <button type="button" onClick={() => nav('/pets/profiles')} style={{ border: 'none', background: 'none', padding: 0, font: 'inherit', color: 'var(--accent-ink)', cursor: 'pointer', textDecoration: 'underline' }}>
+              Add a weight
+            </button>{' '}
+            and they join it.
+          </p>
+        )}
 
         <List
           title="Buy from Together City"
           line={`Complete diets, treats and supplies · ${city.length} line${city.length === 1 ? '' : 's'}${estimatedTotal ? ` · about ${rupees(estimatedTotal)} at listed prices` : ''}`}
           items={city}
+          split={fed.length > 1}
           onToggle={toggleShopping}
           onQty={setShoppingQty}
           onOpen={(id) => nav(`/pets/shop/${id}`)}
@@ -186,8 +228,11 @@ export function Monthly() {
         />
         <List
           title="Buy for home cooking"
-          line="From your own kitchen shop — quantities are for the month’s home-cooked meals."
+          line={fed.length > 1
+            ? 'From your own kitchen shop — one quantity per ingredient, for every pet’s home-cooked meals this month.'
+            : 'From your own kitchen shop — quantities are for the month’s home-cooked meals.'}
           items={kitchen}
+          split={fed.length > 1}
           onToggle={toggleShopping}
           onQty={setShoppingQty}
         />
@@ -225,12 +270,15 @@ function MiniBtn({ children, onClick }: { children: React.ReactNode; onClick: ()
 }
 
 function List(
-  { title, line, items, onToggle, onQty, onOpen, onAdd }:
+  { title, line, items, onToggle, onQty, onOpen, onAdd, split }:
   {
     title: string; line: string;
-    items: { id: string; label: string; qty: string; checked: boolean; productId: string | null }[];
+    items: ShoppingItem[];
     onToggle: (id: string) => void; onQty: (id: string, qty: string) => void;
     onOpen?: (productId: string) => void; onAdd?: (productId: string) => void;
+    /** Show whose share is whose. Only worth the line in a house with more
+     *  than one pet on a plan — for one animal every line is obviously theirs. */
+    split?: boolean;
   },
 ) {
   if (!items.length) return null;
@@ -244,12 +292,24 @@ function List(
         {items.map((item) => (
           <li key={item.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '9px 0', borderBottom: '1px solid var(--line)', flexWrap: 'wrap' }}>
             <input type="checkbox" checked={item.checked} onChange={() => onToggle(item.id)} aria-label={`Mark ${item.label} as bought`} style={{ width: 18, height: 18, accentColor: 'var(--accent)' }} />
-            <span style={{ flex: '1 1 180px', minWidth: 0, fontSize: 13.5, textDecoration: item.checked ? 'line-through' : 'none', opacity: item.checked ? 0.55 : 1 }}>
+            <span style={{ flex: '1 1 180px', minWidth: 0, display: 'grid', gap: 2, fontSize: 13.5, textDecoration: item.checked ? 'line-through' : 'none', opacity: item.checked ? 0.55 : 1 }}>
               {onOpen && item.productId ? (
                 <button type="button" onClick={() => onOpen(item.productId!)} style={{ border: 'none', background: 'none', padding: 0, font: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
                   {item.label}
                 </button>
               ) : item.label}
+              {/* THE TOTAL, TRACED BACK. "2.40 kg" is a number to act on;
+                  "2.40 kg — Max 2.00 kg · Bruno 400 g" is a number to check,
+                  and a merged line nobody can check is a merged line nobody
+                  trusts. Shown only where more than one animal contributed. */}
+              {split && item.forPets.length > 1 && (
+                <span className="muted" style={{ fontSize: 11, lineHeight: 1.45 }}>
+                  {item.forPets.map((f) => `${f.name} ${f.qty}`).join(' · ')}
+                </span>
+              )}
+              {split && item.forPets.length === 1 && (
+                <span className="muted" style={{ fontSize: 11, lineHeight: 1.45 }}>for {item.forPets[0].name}</span>
+              )}
             </span>
             <input
               value={item.qty}

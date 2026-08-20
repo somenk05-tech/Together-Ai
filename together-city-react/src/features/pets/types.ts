@@ -44,16 +44,33 @@ export type Verdict = 'SAFE' | 'LIMIT' | 'AVOID';
 
 export interface PetPhoto {
   id: string;
-  /** A square JPEG data URL today; a media id once the server exists. */
+  /** A SHORT-LIVED SIGNED LINK into the private vault once this photograph is
+   *  saved, and the square JPEG data URL the browser made while it is still on
+   *  its way there. Not an address, either way — see `api/pets.api.ts`. */
   url: string;
   name: string;
   bytes: number;
-  /** name:size:mtime — what makes "already added" answerable. */
+  /** name:size:mtime — what makes "already added" answerable.
+   *
+   *  EMPTY FOR A PHOTOGRAPH READ BACK FROM THE SERVER, and deliberately: the
+   *  city does not keep the original filename or the moment it was last edited
+   *  on a citizen's own disk. So "you already added that one" is answerable
+   *  within a session and not across a reload, which is the honest trade for
+   *  not storing a person's file listing. */
   fingerprint: string;
   /** What the scrubber removed, so the UI can be specific about privacy
-   *  instead of claiming a thing it did not do to this particular file. */
+   *  instead of claiming a thing it did not do to this particular file.
+   *
+   *  Also empty after a reload — what was taken out of a file is a fact about
+   *  an upload, not about the picture. The notice only speaks when this is
+   *  non-empty, so silence is "we no longer know" rather than "nothing was
+   *  removed". */
   removed: string[];
   addedAt: string;
+  /** False while the bytes are still on their way to the vault. The gallery
+   *  draws it either way — the optimistic tile is the point — but nothing may
+   *  ask the server to reorder a photograph it has not been given yet. */
+  saved: boolean;
 }
 
 /**
@@ -291,6 +308,15 @@ export interface CartLine {
   qty: number;
 }
 
+/** Which animal a line on the list is for, and how much of it is theirs. One
+ *  entry per pet that needs the thing — see `ShoppingItem.forPets`. */
+export interface ShoppingShare {
+  petId: string;
+  name: string;
+  /** That pet's own share, in the same words the line uses for the total. */
+  qty: string;
+}
+
 export interface ShoppingItem {
   id: string;
   label: string;
@@ -299,6 +325,15 @@ export interface ShoppingItem {
   productId: string | null;
   checked: boolean;
   custom: boolean;
+  /**
+   * WHO IN THE HOUSE THIS LINE IS FOR.
+   *
+   * A home with a dog and a cat buys one bag of rice and two different foods,
+   * and the person doing the shopping needs both facts on one list: the total
+   * to buy, and whose it is. Empty for an item somebody typed in themselves —
+   * a mop is not for a pet.
+   */
+  forPets: ShoppingShare[];
 }
 
 export interface ServiceListing {

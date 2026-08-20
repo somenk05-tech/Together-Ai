@@ -232,6 +232,8 @@ model User {
   @@index([onlineStatus])
   dailyTargets      DailyTargetSnapshot[]
   groceryList       GroceryListItem[]
+  pets              Pet[]
+  petPhotos         PetPhoto[]
   adminGrants  AdminGrant[] @relation("adminGrantHolder")
   adminAudits  AdminAudit[] @relation("adminAuditActor")
 }
@@ -3707,4 +3709,111 @@ model SettlementItem {
   settlement Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
 
   @@index([settlementId])
+}
+
+// ─────────────────────────── The Pet District ───────────────────────────
+//
+// A PET IS A CITIZEN'S RECORD, NOT A BROWSER'S.
+//
+// The hub shipped with its state in memory and said so: a reload started the
+// demo again. That was honest for a prototype and wrong for a product — the
+// profile a person fills in on their laptop is the same profile their phone
+// needs at the vet's counter, and a feeding plan is only worth building
+// because the animal it is for outlives the tab.
+//
+// SPECIES IS A STRING, NOT AN ENUM, for the reason DayItem.kind is: the hub
+// serves dogs and cats today and names birds, rabbits, guinea pigs and fish in
+// its own UI as not yet built. When the first rabbit arrives, the API's zod
+// enum is one line and a migration is not standing in the way of it.
+model Pet {
+  id     String @id @default(uuid())
+  userId String
+
+  name    String
+  /// "dog" | "cat" today — see the note above.
+  species String
+  breed   String @default("")
+  /// ISO date. AGE IS ALWAYS DERIVED FROM THIS and never stored: a stored age
+  /// is wrong the day after it is written, and a feeding plan reads age.
+  dob     String?
+  /// For the owner who knows the age and not the birthday — an adoption, a
+  /// street rescue. Set at intake and not maintained; `dob` wins where both
+  /// exist. Nullable rather than defaulted, because "we did not ask" and
+  /// "zero months old" are different facts.
+  ageMonths Int?
+  sex       String?
+
+  weightKg       Float?
+  targetWeightKg Float?
+  bodyCondition  String @default("ideal")
+  activity       String @default("moderate")
+  housing        String @default("indoor")
+  sterilised     Boolean?
+
+  /// Three lists of the owner's own words. JSON rather than three tables
+  /// because nothing joins on them, nothing aggregates them, and a food
+  /// allergy is not an entity in this application — it is a sentence the
+  /// planner has to avoid.
+  allergies     Json?
+  sensitivities Json?
+  restrictions  Json?
+
+  currentFood String @default("")
+  dietStyle   String @default("commercial")
+  goal        String @default("maintain")
+  healthNotes String @default("")
+
+  /// WHAT A VET ASKS FOR AT THE DOOR — conditions, medication, the clinic's
+  /// number, the microchip, the insurer, the blood group.
+  ///
+  /// STORED AND NEVER INTERPRETED. Nothing on the server or in the hub reads a
+  /// key of this object: a condition does not change a calorie target, does
+  /// not filter the shelf, and does not become a recommendation. It is one
+  /// JSON column for the same reason the daybook's reflection is — the fields
+  /// are a form, and a form gets reworded — and that is also what keeps it
+  /// out of every query that might otherwise start reasoning about it.
+  medical Json?
+
+  /// The drawn fallback the district uses until there is a photograph, and
+  /// whenever one fails to load. A pet with no photo is not a pet with no
+  /// portrait.
+  portrait String @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  photos PetPhoto[]
+
+  @@index([userId])
+}
+
+/// A PHOTOGRAPH OF SOMEBODY'S ANIMAL, IN THE PRIVATE VAULT.
+///
+/// Same shape and same reasoning as DayPhoto: the bytes go browser→vault under
+/// `pets/<userId>/`, this row holds the key, and the browser is handed a link
+/// that expires. No URL column — a URL column is a permanent public address,
+/// and a photograph of a house-trained dog in a garden is a photograph of a
+/// garden.
+///
+/// `position` is the whole ordering model: 0 is the face every card in the
+/// district draws. One integer rather than an `isPrimary` flag, because a flag
+/// and a sort order can disagree and an index cannot.
+model PetPhoto {
+  id     String @id @default(uuid())
+  petId  String
+  userId String
+
+  fileKey   String
+  mimeType  String?
+  sizeBytes Int     @default(0)
+  position  Int     @default(0)
+
+  createdAt DateTime @default(now())
+
+  pet  Pet  @relation(fields: [petId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([petId, position])
+  @@index([userId])
 }

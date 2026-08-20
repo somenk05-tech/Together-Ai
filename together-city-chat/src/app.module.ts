@@ -51,6 +51,7 @@ import { AstrologyModule } from './astrology/astrology.module';
 import { PrivacyModule } from './privacy/privacy.module';
 import { ThoughtsModule } from './thoughts/thoughts.module';
 import { DaybookModule } from './daybook/daybook.module';
+import { PetsModule } from './pets/pets.module';
 import { PrescriptionsModule } from './prescriptions/prescriptions.module';
 import { CallsModule } from './calls/calls.module';
 import { AvatarsModule } from './avatars/avatars.module';
@@ -113,6 +114,7 @@ import { AvatarsModule } from './avatars/avatars.module';
     PrivacyModule,
     ThoughtsModule,
     DaybookModule,
+    PetsModule,
     PrescriptionsModule,
     CallsModule,
     AvatarsModule,

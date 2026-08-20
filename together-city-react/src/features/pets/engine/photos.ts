@@ -121,6 +121,9 @@ export async function acceptPetPhotos(
          *  claim a privacy feature it did not perform on this file. */
         removed: scrubbed.removed,
         addedAt: new Date().toISOString(),
+        /* Not yet. The store uploads it and swaps in the row the server
+           returns; until that resolves this tile is optimistic. */
+        saved: false,
       });
     } catch (err) {
       rejected.push({
@@ -133,6 +136,23 @@ export async function acceptPetPhotos(
   }
 
   return { photos, rejected };
+}
+
+/**
+ * The square JPEG, back as a file the vault can be given.
+ *
+ * `acceptPetPhotos` hands back a data URL because that is what a tile draws.
+ * The uploader needs bytes, and re-encoding through a canvas a second time
+ * would cost another generation of JPEG loss for nothing — so this decodes the
+ * base64 the resize already produced and wraps it, unchanged.
+ */
+export function photoFile(photo: PetPhoto): File {
+  const [head, b64] = photo.url.split(',');
+  const type = /data:([^;]+)/.exec(head)?.[1] ?? 'image/jpeg';
+  const binary = atob(b64 ?? '');
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return new File([bytes], photo.name || 'pet.jpg', { type });
 }
 
 /** The photo a card draws. First is main — reordering IS choosing. */
