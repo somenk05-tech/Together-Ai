@@ -34,7 +34,13 @@ function ProfileGate() {
 
 /** A single 0–100 score dial with a caption. */
 function ScoreDial({ label, value, hint }: { label: string; value: number; hint: string }) {
-  const color = value >= 85 ? '#2e7d32' : value >= 65 ? '#8a6a1f' : '#c0392b';
+  /* AN ORDERED SCALE, LIFTED FOR A DARK ROOM. These three were measured on
+     white: #2e7d32 / #8a6a1f / #c0392b. On the forest ground the middle one
+     came out at 1.03:1 against its own panel — a score nobody could read. They
+     keep their order and their meaning and move to the light end of the same
+     three hues, which is the correction every dark room in this file has had
+     to make. */
+  const color = value >= 85 ? '#7dd39b' : value >= 65 ? '#ebc57c' : '#f4a3a3';
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 11, flex: '1 1 240px', minWidth: 220 }}>
       <div role="img" aria-label={`${label}: ${value} out of 100`} style={{ display: 'grid', placeItems: 'center', width: 48, height: 48, borderRadius: '50%', border: `4px solid ${color}`, flex: '0 0 auto' }}>

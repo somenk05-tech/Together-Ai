@@ -5028,7 +5028,10 @@ textarea.g-field { resize: none; line-height: 1.55; }
    need nothing: --lens-face is already translucent white and carries its own
    blur, and frost over them would paint out the lamp — which in this hub is
    the green one, the only colour the block in tokens.css has ever owned. */
-[data-hub="nutrition"] .tc-side { background: var(--frost); box-shadow: var(--e2); }
+/* THE RAIL IS WHITE IN THIS HUB (owner, 21 Aug) — the ground, the faces and the
+   ink are re-pointed inside `.tc-side` in tokens.css, and this is the surface
+   that carries them. Frost over a dark room would be a dark rail. */
+[data-hub="nutrition"] .tc-side { background: var(--card); box-shadow: var(--e2); }
 [data-hub="nutrition"] .card,
 [data-hub="nutrition"] .stat,
 [data-hub="nutrition"] .row,

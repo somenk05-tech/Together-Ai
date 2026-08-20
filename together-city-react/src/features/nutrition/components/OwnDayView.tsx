@@ -520,6 +520,13 @@ export function OwnDayView({ plan, loading, failed, onRetry, onRemove, onLock, o
 
       {open && open.meals.length ? sheet(open, true) : (
         <div data-press style={{ padding: '26px 0 8px' }}>
+          {/* THE EMPTY DAY IS STILL A SHEET, AND THIS IS WHERE IT STOPPED BEING
+              ONE. The built day wraps in `.press-recto`, which is what carries
+              the paper AND the 26–56px of padding; the empty state was a bare
+              `press-hero`, so on a room the same colour as the sheet it read as
+              type running into the frame with no page under it. Reported as
+              "cutting from the edge", and it was — one missing wrapper. */}
+          <section className="press-recto">
           <header className="press-hero" style={{ marginBottom: 0 }}>
             <div className="press-hero-row">
               <div>
@@ -535,6 +542,7 @@ export function OwnDayView({ plan, loading, failed, onRetry, onRemove, onLock, o
               next dish you add starts the following day.
             </p>
           </header>
+          </section>
         </div>
       )}
 

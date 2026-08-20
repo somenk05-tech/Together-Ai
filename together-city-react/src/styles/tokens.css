@@ -1481,8 +1481,72 @@
   --lamp-face: linear-gradient(180deg, #a8cfb5 0%, #8eb69b 44%, #6f9a7e 100%);
   --on-lamp:   #051f20;
 
+  /* ── THE PRESS SCALE, FOR PRESS COMPONENTS NOT ON A SHEET ────────────────
+     FOUND BY AUDITING THE LIVE PAGE, and it is the mistake the forest grant
+     shipped with. `--press-ink` is green-black because the SHEET is mint — and
+     the meal planner puts press-dressed components on the PAGE too: the
+     "How we calculated this" table, the August-plan band, the plan notes. On
+     the dark page those came out at 1.08:1. Fifteen nodes of it.
+
+     The fix is not a colour, it is a SCOPE. The page's press tokens follow the
+     page, and `.press-recto` / `.press-verso` re-point the same names back to
+     the mint scale for their own subtree — a mechanism relief.css already had,
+     which is why this is eight lines and not a rewrite. `--press-recto-*` and
+     `--press-sky` are untouched at :root, so the AA guard still measures the
+     sheet the citizen actually sees. */
+  --press-paper:  var(--card);
+  --press-ink:    var(--ink);
+  --press-ink-2:  var(--ink-soft);
+  --press-ink-3:  var(--muted);
+  --press-rule:   var(--line);
+  --press-rule-2: var(--line);
+  --press-band:   var(--wash);
+  --press-green:  var(--accent-ink);
+
   --sky-image: radial-gradient(120% 90% at 12% 4%,
     #17453c 0%, #0d2f2a 38%, #051f20 100%);
+}
+
+/* ══ AND THE NUTRITION RAIL STAYS WHITE ══════════════════════════════════════
+   Owner, 21 Aug: white rail, white keys with dark-green type, and the key you
+   are standing in filled green with white type.
+
+   IT IS A SCOPE, NOT A SET OF OVERRIDES ON EVERY KEY. The rail is built from
+   the city's faces and the city's ink like everything else, so re-pointing
+   those names inside `.tc-side` reaches the keys, their numbers, their
+   sub-labels, the mode tabs and anything added to the rail next month —
+   without a single component learning that it is in Nutrition. That is the
+   same mechanism the room itself uses one block up.
+
+   `--on-lamp` IS WHAT MAKES THE ACTIVE KEY READ. The lit key draws its face
+   from `--lamp-face` and its type from `--on-lamp`; the hub sets that pair
+   pale-on-dark for a dark room, and in a white rail it has to invert. White on
+   the emerald is 7.8:1 at the middle stop and 5.2:1 at the lightest.
+
+   --faint IS #456e5d AND THAT IS A MEASUREMENT. The sub-label under each key is
+   the smallest type in the rail; at #4f7a68 it lands at 4.36:1 against the
+   face's own darkest stop, which is under AA. This clears at 5.17. */
+[data-hub="nutrition"] .tc-side {
+  --paper:      #ffffff;
+  --card:       #ffffff;
+  --rail-well:  #ffffff;
+  --wash:       #f2f7f4;
+  --ink:        #051f20;   /* 15.4:1 on the face's darkest stop */
+  --ink-soft:   #0b2b26;   /* 13.6:1 */
+  --muted:      #3d6b5c;   /*  5.5:1 */
+  --faint:      #456e5d;   /*  5.2:1 — the sub-label, and the number that set it */
+  --line:       #dbe8df;
+  --accent-ink: #1f5d43;   /*  7.0:1 — the hub's own emerald, back on white */
+  --frost:      rgba(255, 255, 255, .92);
+  --lens-face: linear-gradient(180deg, #ffffff 0%, #fbfdfc 52%, #eef4f0 100%);
+  --face:      linear-gradient(180deg, #ffffff 0%, #fcfdfc 44%, #eef4f0 100%);
+  --face-2:    linear-gradient(180deg, #ffffff 0%, #fafcfb 48%, #eaf2ed 100%);
+  --face-key:  linear-gradient(180deg, #ffffff 0%, #fafcfa 52%, #eef4f0 100%);
+  --well:      linear-gradient(180deg, #eef4f0 0%, #f7faf8 58%, #ffffff 100%);
+  --lamp-face: linear-gradient(180deg, #2f7a56 0%, #1f5d43 44%, #17462f 100%);
+  --on-lamp:   #ffffff;
+  --rim:        inset 0 0 0 1px rgba(11,43,38,.10), inset 0 1px 0 rgba(255,255,255,1), inset 0 -1px 0 rgba(11,43,38,.07);
+  --rim-strong: inset 0 0 0 1px rgba(11,43,38,.14), inset 0 1.5px 0 rgba(255,255,255,1), inset 0 -1.5px 0 rgba(11,43,38,.09);
 }
 
 /* ══ ASTROLOGY'S NIGHT — THE SECOND SURFACE EXCEPTION ══════════════════════

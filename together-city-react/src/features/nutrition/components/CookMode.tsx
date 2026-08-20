@@ -1,3 +1,19 @@
+/**
+ * COOK MODE PAINTS THE ROOM'S WALL, NOT ITS INK.
+ *
+ * The shell was `background: linear-gradient(var(--ink), var(--ink))` with
+ * `color: var(--on-accent)` — a dark surface written as "the ink colour",
+ * which was true for as long as --ink was near-black. On 21 Aug the Nutrition
+ * room went deep green and --ink became #daf1de, so a full-screen overlay
+ * rendered pale mint type on a pale mint ground: every word on the screen,
+ * invisible, mid-recipe, with a timer running.
+ *
+ * --ground and --on-ground are the pair that MEANS this. They are a wall and
+ * the ink measured against it, in every room, and they stay a valid pair the
+ * next time somebody repaints one. The rgba(255,255,255,…) overlays below are
+ * unchanged and still correct: they are light ON a dark wall, which is what
+ * this surface is for.
+ */
 import { useEffect, useRef } from 'react';
 import { useCookStore } from '../cook.store';
 
@@ -140,7 +156,7 @@ function useCookEngine() {
 
 /* ---------- UI ---------- */
 
-const ctrl: React.CSSProperties = { borderRadius: 999, padding: '12px 18px', fontSize: 14, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(255,255,255,.35)', background: 'transparent', color: 'var(--on-accent)' };
+const ctrl: React.CSSProperties = { borderRadius: 999, padding: '12px 18px', fontSize: 14, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(255,255,255,.35)', background: 'transparent', color: 'var(--on-ground)' };
 const ACCENT = 'var(--ok-line)';
 
 function Overlay() {
@@ -164,7 +180,7 @@ function Overlay() {
           </div>
           {s.steps.map((st, i) => (
             <button key={i} type="button" onClick={() => s.resumeFrom(i)}
-              style={{ display: 'block', width: '100%', textAlign: 'left', margin: '0 0 8px', padding: '13px 15px', borderRadius: 12, cursor: 'pointer', color: 'var(--on-accent)', background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.18)', fontFamily: 'inherit', fontSize: 14 }}>
+              style={{ display: 'block', width: '100%', textAlign: 'left', margin: '0 0 8px', padding: '13px 15px', borderRadius: 12, cursor: 'pointer', color: 'var(--on-ground)', background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.18)', fontFamily: 'inherit', fontSize: 14 }}>
               <span style={{ color: ACCENT, fontWeight: 700 }}>{st.kind === 'prep' ? 'Prep' : `Step ${i}`} ✓ </span>{st.text.slice(0, 110)}{st.text.length > 110 ? '…' : ''}
             </button>
           ))}
@@ -210,7 +226,7 @@ function Overlay() {
         {/* timer */}
         {timed && (
           <>
-            <div style={{ fontSize: 'clamp(48px,15vw,110px)', fontWeight: 700, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.02em', color: s.rung ? ACCENT : 'var(--on-accent)' }}>{mmss(s.remain)}</div>
+            <div style={{ fontSize: 'clamp(48px,15vw,110px)', fontWeight: 700, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.02em', color: s.rung ? ACCENT : 'var(--on-ground)' }}>{mmss(s.remain)}</div>
             <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,.15)', overflow: 'hidden', width: 260 }}>
               {/* Was `width: N%` with `transition: width .4s linear`, re-triggered every
                   second: layout+paint+composite on every frame for the whole cooking step.
@@ -224,7 +240,7 @@ function Overlay() {
               }} />
             </div>
             {!s.ticking && !s.rung && (
-              <button type="button" style={{ ...ctrl, background: ACCENT, color: 'var(--ink)', borderColor: ACCENT }} onClick={() => { if (!step.active) void requestNotify(); s.startTimer(); }}>▶ Start {mmss(step.durationSec)} timer</button>
+              <button type="button" style={{ ...ctrl, background: ACCENT, color: 'var(--ground)', borderColor: ACCENT }} onClick={() => { if (!step.active) void requestNotify(); s.startTimer(); }}>▶ Start {mmss(step.durationSec)} timer</button>
             )}
             {s.ticking && !step.active && (
               <button type="button" style={ctrl} onClick={() => { void requestNotify(); s.minimize(true); }}>⤵ Do other things — I'll chime you</button>
@@ -250,7 +266,7 @@ function Overlay() {
         {timed && s.ticking && <button type="button" style={ctrl} onClick={s.togglePause}>{s.paused ? '▶ Resume' : '⏸ Pause'}</button>}
         {timed && (s.ticking || s.rung) && <button type="button" style={ctrl} onClick={s.addMinute}>＋1 min</button>}
         {timed && (s.ticking || s.paused) && <button type="button" style={{ ...ctrl, borderColor: 'var(--danger-line)', color: 'var(--danger-soft)' }} onClick={s.stop}>⏹ Stop</button>}
-        <button type="button" style={{ ...ctrl, background: ACCENT, color: 'var(--ink)', borderColor: ACCENT }} onClick={s.next}>{next ? 'Next step ▸' : 'Finish ✓'}</button>
+        <button type="button" style={{ ...ctrl, background: ACCENT, color: 'var(--ground)', borderColor: ACCENT }} onClick={s.next}>{next ? 'Next step ▸' : 'Finish ✓'}</button>
       </div>
     </div>
   );
@@ -269,7 +285,7 @@ function Pill() {
   return (
     <button type="button" onClick={() => minimize(false)}
       style={{ position: 'fixed', left: 16, bottom: 16, zIndex: 9998, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer',
-        background: rung ? 'var(--ok-ink)' : 'linear-gradient(160deg,var(--ink),var(--ink))', color: 'var(--on-accent)', border: '1px solid rgba(255,255,255,.25)',
+        background: rung ? 'var(--ok-ink)' : 'var(--ground)', color: 'var(--on-ground)', border: '1px solid rgba(255,255,255,.25)',
         borderRadius: 999, padding: '11px 18px', boxShadow: '0 8px 24px rgba(0,0,0,.35)', fontFamily: 'inherit', fontWeight: 700, fontSize: 13.5 }}>
       <span style={{ fontSize: 18 }}>🍳</span>
       <span style={{ textAlign: 'left' }}><span style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.7)' }}>{name}</span>{label}</span>
@@ -278,9 +294,9 @@ function Pill() {
   );
 }
 
-const shell: React.CSSProperties = { position: 'fixed', inset: 0, background: 'linear-gradient(160deg,var(--ink),var(--ink))', color: 'var(--on-accent)', display: 'flex', flexDirection: 'column', zIndex: 9999, padding: 22 };
+const shell: React.CSSProperties = { position: 'fixed', inset: 0, background: 'var(--ground)', color: 'var(--on-ground)', display: 'flex', flexDirection: 'column', zIndex: 9999, padding: 22 };
 const topBar: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: 'rgba(255,255,255,.7)' };
-const endBtn: React.CSSProperties = { background: 'rgba(255,255,255,.14)', color: 'var(--on-accent)', border: '1px solid rgba(255,255,255,.3)' };
+const endBtn: React.CSSProperties = { background: 'rgba(255,255,255,.14)', color: 'var(--on-ground)', border: '1px solid rgba(255,255,255,.3)' };
 
 /** Mounted once at the app root: the timing engine + the overlay/pill. */
 export function CookRoot() {
