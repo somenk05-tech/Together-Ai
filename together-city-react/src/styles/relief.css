@@ -4189,10 +4189,31 @@ textarea.g-field { resize: none; line-height: 1.55; }
    assessment, the orders, the budget cards — keeps the frost, because nothing
    is standing on those but type, and type on frost is the hub's whole look.
 
-   NO WHITE LITERAL: `--paper` is #ffffff at :root and the hub declares it
-   again. A surface colour written here is a decision taken in the file nobody
-   repaints, which relief.spec bans and is right to. */
-[data-hub="beauty"] .beauty-sheet.is-shop { background: var(--paper); }
+   AND THE RULE ALREADY EXISTED — IT WAS JUST LOSING. layout.css says
+
+       .beauty-sheet.is-shop, .routine-card { background: var(--shot-ground); }
+
+   which is this exact decision, taken by whoever built the shop and correct
+   since the day they wrote it. It never rendered. `[data-hub="beauty"]
+   .beauty-sheet` in this file scores 0,2,0 — one attribute, one class — and so
+   does `.beauty-sheet.is-shop`; at equal specificity the LAST stylesheet wins,
+   main.tsx imports relief.css after index.css, and the hub's frost quietly ate
+   a rule nobody had reason to suspect. Nothing looked broken: frost over paper
+   is nearly paper, so the seam only shows where a cut-out photograph's own
+   white meets it.
+ 
+   So this rule is 0,3,0 and it is the shop's own intent, restored rather than
+   invented. `.routine-card` comes with it — the step cards were in that same
+   layout.css rule for the same reason and lost the same way, and a white plate
+   under frost cards is the seam moved rather than removed.
+
+   `--shot-ground` IS THE RIGHT NAME, not --paper. It is the studio white the
+   product wells already paint, declared #ffffff in this hub, and the whole
+   point is that the plate, the card and the well are ONE white with nothing
+   between them. Reading --paper would happen to match today and would stop
+   matching the first time either name moved. */
+[data-hub="beauty"] .beauty-sheet.is-shop,
+[data-hub="beauty"] .routine-card { background: var(--shot-ground); }
 
 /* A CONTROL IS A LIT SURFACE TOO, which is the third time this list has been
    the answer and the first time it has been about something other than a card.

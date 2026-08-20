@@ -39,6 +39,10 @@ export const REMOVED_ROUTES: Readonly<Record<string, string>> = {
   '/nutrition/supplements': '/fitness/supplements',
   '/nutrition/dietitian': '/medical/consults',
   '/social/map': '/social/feed',
+  // Trainer Mode, the camera form coach (20 Aug). Workout is the nearest
+  // surviving page — a guided session with a timer, which is what somebody
+  // following an old Trainer link was after.
+  '/fitness/trainer': '/fitness/workout',
   // The family Daily Planner (7 Aug). It rendered today's slice of the same
   // household plan the weekly view shows in full, so the weekly view is where
   // an old link belongs.

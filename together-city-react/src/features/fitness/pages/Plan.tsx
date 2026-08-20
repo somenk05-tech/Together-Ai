@@ -71,7 +71,6 @@ export function Plan() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <h1 style={{ fontSize: 26, margin: 0 }}>Your week</h1>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-          <Link to="/fitness/trainer"><Button variant="accent" size="sm">🎥 Trainer Mode</Button></Link>
         </div>
       </div>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 14px' }}>

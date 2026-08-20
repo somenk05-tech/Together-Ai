@@ -329,13 +329,25 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // The numbering closes up rather than leaving a gap at 03: a menu that
       // counts 01-02-04 is a menu advertising the thing it is trying not to
       // advertise.
-      { path: '/fitness/trainer', index: '03', label: 'Trainer Mode', sub: 'Live AI form coach + voice' },
-      { path: '/fitness/workout', index: '04', label: 'Workout', sub: 'Guided live-timer plan' },
-      { path: '/fitness/log', index: '05', label: 'Activity Log', sub: 'What you actually did' },
-      { path: '/fitness/supplements', index: '06', label: 'Supplements', sub: 'Goal-matched kit' },
-      { path: '/fitness/sleep', index: '07', label: 'Sleep Cycle', sub: 'Duration, quality & schedule' },
-      { path: '/fitness/store', index: '08', label: 'The Store', sub: 'Verified in India · we take no cut' },
-      { path: '/fitness/orders', index: '09', label: 'My Orders', sub: 'Your bag & what you bought' },
+      // TRAINER MODE IS GONE (20 Aug), at the owner's word — and it is DELETED
+      // rather than hidden, which breaks the run of three above it and is worth
+      // saying why. My Plan, the Makeup Studio and Activity Dating are working
+      // surfaces taken off a menu; the argument for leaving them standing is
+      // that the door is one line to put back. Trainer Mode is a camera page
+      // that loaded a pose model from a CDN and a speech synthesiser, for three
+      // exercises. Left standing it is a route nothing links to, two modules
+      // nothing else imports, and a third-party model URL still in the bundle
+      // graph — carrying cost with no door. `/fitness/trainer` redirects to
+      // Workout in config/labels.ts, so a saved link still lands somewhere real.
+      //
+      // The numbering closes up, same as it did at 03: a menu that counts
+      // 01-02-04 advertises the thing it is trying not to advertise.
+      { path: '/fitness/workout', index: '03', label: 'Workout', sub: 'Guided live-timer plan' },
+      { path: '/fitness/log', index: '04', label: 'Activity Log', sub: 'What you actually did' },
+      { path: '/fitness/supplements', index: '05', label: 'Supplements', sub: 'Goal-matched kit' },
+      { path: '/fitness/sleep', index: '06', label: 'Sleep Cycle', sub: 'Duration, quality & schedule' },
+      { path: '/fitness/store', index: '07', label: 'The Store', sub: 'Verified in India · we take no cut' },
+      { path: '/fitness/orders', index: '08', label: 'My Orders', sub: 'Your bag & what you bought' },
     ],
   },
   mail: {

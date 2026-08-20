@@ -208,7 +208,7 @@ export function Log() {
       </form>
 
       {log.data.entries.length === 0 ? (
-        <EmptyState icon="📋" title="No workouts logged yet" hint="Log your first session above — or finish one in Trainer Mode." />
+        <EmptyState icon="📋" title="No workouts logged yet" hint="Log your first session above — or finish one in Workout." />
       ) : (
         <div className="card">
           {log.data.entries.map((e) => <Row key={e.id} e={e} />)}

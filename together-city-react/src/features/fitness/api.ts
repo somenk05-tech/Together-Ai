@@ -121,13 +121,14 @@ export function useFitnessPlan() {
 export function useBodyProgram() {
   return useQuery({ queryKey: ['fitness', 'bodyGoal'], queryFn: () => fitnessApi.bodyGoal() });
 }
-export function useSyncNutrition() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: () => fitnessApi.syncNutrition(),
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['nutrition'] }); },
-  });
-}
+/* `useSyncNutrition` LIVED HERE and went with the "Connect to your diet" card
+   it was the only caller of (owner, 20 Aug). The hook is deleted rather than
+   left standing: dead-export-audit exists precisely so that an unreachable
+   export does not sit around long enough for somebody to build a second
+   feature on top of it. `fitnessApi.syncNutrition` and POST /fitness/sync-
+   nutrition are both untouched — the endpoint is a real capability and the
+   client wrapper is one line, so re-adding a caller is a component, not an
+   excavation. */
 export function useFitnessLog() {
   return useQuery({ queryKey: ['fitness', 'log'], queryFn: () => fitnessApi.log() });
 }

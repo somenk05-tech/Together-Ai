@@ -1,7 +1,6 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { useBodyProgram, useSyncNutrition, type Citation } from '../api';
+import { useBodyProgram, type Citation } from '../api';
 
 function Chips({ citations }: { citations: Citation[] }) {
   return null; // guideline citations are backend-only, hidden from the user view
@@ -27,8 +26,6 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
 /** Body Goal — the integrated program tying target composition → diet → workout → health. */
 export function BodyGoal() {
   const q = useBodyProgram();
-  const sync = useSyncNutrition();
-  const [synced, setSynced] = useState(false);
 
   if (q.isLoading) return <Spinner label="Building your program…" />;
   if (q.isError || !q.data) return <EmptyState title="Couldn't load your program" hint="Set your profile (with a body goal) first." />;
@@ -127,26 +124,6 @@ export function BodyGoal() {
           <Link to="/medical/consent"><Button variant="line" size="sm">Manage consent</Button></Link>
         </div>
       )}
-
-      <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid var(--accent)' }}>
-        <div className="eyebrow">Connect to your diet</div>
-        <p style={{ fontSize: 13.5, margin: '6px 0 10px' }}>{p.nutrition.note}</p>
-        {/* THE BUTTON SAYS WHAT IT SENDS NOW. It read "Sync my diet to
-            Nutrition" while writing the GOAL over there — one press moved this
-            citizen's day by 538 kcal and reported only "✓ Synced". It sends the
-            body: height, weight, age, sex. The goal stays where it is decided. */}
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Button variant="accent" size="sm" disabled={sync.isPending}
-            onClick={() => sync.mutate(undefined, { onSuccess: () => setSynced(true) })}>
-            {sync.isPending ? 'Sending…' : '🍽️ Send my measurements to Nutrition'}
-          </Button>
-          {synced && (
-            <span style={{ fontSize: 13, color: 'var(--accent-ink)', fontWeight: 700 }}>
-              ✓ Sent — <Link to="/nutrition/weekly" style={{ color: 'var(--accent-ink)' }}>open your meal plan</Link>
-            </span>
-          )}
-        </div>
-      </div>
 
       <p className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>{p.disclaimer}</p>
     </div>
