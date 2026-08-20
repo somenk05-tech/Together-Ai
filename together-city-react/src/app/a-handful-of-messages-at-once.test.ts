@@ -13,6 +13,9 @@ const strip = (s: string) =>
 const page = strip(read('features', 'chat', 'pages', 'Chats.tsx'));
 const thread = strip(read('features', 'chat', 'components', 'MessageThread.tsx'));
 const fwd = strip(read('features', 'chat', 'components', 'ForwardPanel.tsx'));
+/** The window and the gesture's timings moved here when MessageThread stopped
+ *  being allowed to export non-components beside components. */
+const rules = strip(read('features', 'chat', 'components', 'messageRules.ts'));
 
 /**
  * A HANDFUL OF MESSAGES CAN BE MOVED AT ONCE.
@@ -54,12 +57,18 @@ describe('deleting a selection', () => {
     expect(page).toMatch(/picked\.every\(\(m\) => !m\.deleted && withinWindow\(m\)\)/);
   });
 
-  it('asks the thread for the window rather than restating it', () => {
-    expect(page).toMatch(/import \{ MessageThread, ConfirmDelete, withinWindow \}/);
+  it('asks for the window rather than restating it', () => {
+    /* The import moved from MessageThread to messageRules — the thread now
+       exports components only, which is what Fast Refresh needs. WHAT IS BEING
+       PINNED HAS NOT CHANGED: the page reads the rule, it does not own a second
+       copy of the number. */
+    expect(page).toMatch(/import \{ withinWindow \} from '\.\.\/components\/messageRules'/);
     // A second copy of the number would look correct for exactly as long as the
     // two happened to agree.
     expect(page).not.toMatch(/15 \* 60 \* 1000/);
-    expect(thread).toMatch(/export const withinWindow/);
+    expect(rules).toMatch(/export const withinWindow/);
+    // And exactly one place still writes it down.
+    expect(thread).not.toMatch(/15 \* 60 \* 1000/);
   });
 
   it('uses the thread\'s own delete wording, widened for a count', () => {
@@ -70,11 +79,22 @@ describe('deleting a selection', () => {
 });
 
 describe('picking a message', () => {
-  it('adds no second gesture — the long-press still opens the action bar', () => {
-    // One 450ms timer, doing one thing. Repurposing it would have put Reply,
-    // Keep, Copy, Edit and Info out of reach on a phone.
-    expect(thread.match(/450/g) ?? []).toHaveLength(1);
-    expect(thread).toMatch(/title="Select messages"/);
+  it('adds no second gesture — the long-press still opens the actions', () => {
+    /* THE POINT SURVIVES ITS WORDING. The action bar became a floating overlay
+       and the 450 moved to messageRules as HOLD_MS, but the thing this test is
+       for is unchanged: press-and-hold means "show me what I can do with this
+       message" and nothing else. Giving it a second meaning — entering
+       selection mode — would put Reply, Keep, Copy, Edit and Info out of reach
+       on a phone, because a phone has no other way to ask.
+
+       So: one timing, in one place, and "Select messages" reached from the
+       menu that timing opens. */
+    expect(rules.match(/450/g) ?? []).toHaveLength(1);
+    expect(thread).not.toMatch(/\b450\b/);
+    // ONE timer armed, in the whole file. Two would be two meanings.
+    expect(thread.match(/longPress\.current = setTimeout/g) ?? []).toHaveLength(1);
+    expect(thread).toMatch(/}, HOLD_MS\)/);
+    expect(thread).toMatch(/label: 'Select messages'/);
   });
 
   it('intercepts the tap in the capture phase', () => {
