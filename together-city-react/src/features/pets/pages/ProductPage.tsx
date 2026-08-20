@@ -27,7 +27,7 @@ import { Disclaimer } from '../components/Disclaimer';
 import { useCatalogue, useProduct } from '../api';
 import { usePets } from '../store';
 import { scoreProduct } from '../engine/recommend';
-import { CADENCES, SUBSCRIBE_SAVE_NOTE, packGrams, runOut } from '../engine/subscription';
+import { packGrams } from '../engine/packs';
 import { readAge } from '../engine/nutrition';
 import { shortName } from '../engine/naming';
 import { PackShot } from '../components/PackShot';
@@ -38,16 +38,13 @@ export function ProductPage() {
   const { data: product } = useProduct(id);
   const pets = usePets((s) => s.pets);
   const activePetId = usePets((s) => s.activePetId);
-  const plans = usePets((s) => s.plans);
   const addToCart = usePets((s) => s.addToCart);
-  const subscribe = usePets((s) => s.subscribe);
   const toggleWishlist = usePets((s) => s.toggleWishlist);
   const toggleCompare = usePets((s) => s.toggleCompare);
   const wishlist = usePets((s) => s.wishlist);
   const compare = usePets((s) => s.compare);
   const cart = usePets((s) => s.cart);
   const [variant, setVariant] = useState(0);
-  const [cadence, setCadence] = useState<string>('');
 
   const pet = pets.find((p) => p.id === activePetId) ?? null;
   const { data: related } = useCatalogue({ category: product?.category ?? 'all', species: product?.species, sort: 'relevance' });
@@ -57,8 +54,6 @@ export function ProductPage() {
   }
 
   const rec = pet ? scoreProduct(product, pet) : null;
-  const plan = pet ? plans[pet.id] ?? null : null;
-  const countdown = runOut(product, variant, plan);
   const alternatives = related.filter((p) => p.id !== product.id).slice(0, 4);
   const age = pet ? readAge(pet) : null;
 
@@ -156,38 +151,6 @@ export function ProductPage() {
             <button type="button" className="btn btn-line" onClick={() => { addToCart(product.id, variant); nav('/pets/cart'); }}>Buy now</button>
             <button type="button" className="btn btn-line" onClick={() => toggleWishlist(product.id)}>{wishlist.includes(product.id) ? '♥ Saved' : '♡ Wishlist'}</button>
             <button type="button" className="btn btn-line" onClick={() => toggleCompare(product.id)}>{compare.includes(product.id) ? '✓ Comparing' : 'Compare'}</button>
-          </div>
-
-          <div style={{ display: 'grid', gap: 8, padding: 14, borderRadius: 'var(--r-2)', border: '1px solid var(--line)' }}>
-            <strong style={{ fontSize: 12.5 }}>Subscribe & save — never run out</strong>
-            {countdown.unknownReason ? (
-              <p className="muted" style={{ margin: 0, fontSize: 12, lineHeight: 1.6 }}>{countdown.unknownReason}</p>
-            ) : (
-              <p className="muted" style={{ margin: 0, fontSize: 12, lineHeight: 1.6 }}>
-                At {countdown.gramsPerDay} g a day this {product.variants[variant]?.pack ?? 'pack'} lasts about{' '}
-                <strong>{countdown.daysLeft} days</strong> — running out around {countdown.runsOut}.
-                We suggest {CADENCES.find((c) => c.key === countdown.suggested)?.label.toLowerCase()}.
-              </p>
-            )}
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-              <select
-                value={cadence}
-                onChange={(e) => setCadence(e.target.value)}
-                style={{ font: 'inherit', fontSize: 13, padding: '8px 11px', borderRadius: 'var(--r-2)', border: '1px solid var(--line)', background: 'var(--card)' }}
-              >
-                <option value="">One-time purchase</option>
-                {CADENCES.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
-              </select>
-              <button
-                type="button"
-                className="btn btn-sm btn-line"
-                disabled={!cadence}
-                onClick={() => { subscribe(product.id, cadence as never); nav('/pets/subscriptions'); }}
-              >
-                Start subscription
-              </button>
-            </div>
-            <p className="muted" style={{ margin: 0, fontSize: 11 }}>{SUBSCRIBE_SAVE_NOTE}</p>
           </div>
 
           <SourceLine retailer={product.retailer} url={product.sourceUrl} date={product.lastVerified} />

@@ -23,13 +23,14 @@ import { newPetId, usePets } from '../store';
 import { breedsFor } from '../data/breeds';
 import { ACTIVITY_LABEL, GOAL_LABEL, readAge } from '../engine/nutrition';
 import type { ActivityLevel, BodyCondition, DietStyle, Goal, Housing, Pet, Sex, Species } from '../types';
+import { EMPTY_MEDICAL } from '../engine/medical';
 
 const blank = (species: Species): Pet => ({
   id: newPetId(), name: '', species, breed: '', dob: null, ageMonths: null, sex: null,
   weightKg: null, targetWeightKg: null, bodyCondition: 'ideal', activity: 'moderate',
   housing: species === 'cat' ? 'indoor' : 'both', sterilised: null, allergies: [], sensitivities: [],
   restrictions: [], currentFood: '', dietStyle: 'commercial', goal: 'maintain', healthNotes: '',
-  photos: [], portrait: species, createdAt: new Date().toISOString().slice(0, 10),
+  photos: [], medical: { ...EMPTY_MEDICAL }, portrait: species, createdAt: new Date().toISOString().slice(0, 10),
 });
 
 export function Profiles() {
@@ -43,6 +44,7 @@ export function Profiles() {
   const updatePet = usePets((s) => s.updatePet);
   const removePet = usePets((s) => s.removePet);
   const generatePlan = usePets((s) => s.generatePlan);
+  const buildShopping = usePets((s) => s.buildShopping);
 
   const editId = params.get('edit');
   const isNew = params.get('new') === '1';
@@ -60,9 +62,18 @@ export function Profiles() {
   const save = () => {
     if (!draft) return;
     if (!draft.name.trim() || !draft.weightKg) return;
-    if (pets.some((p) => p.id === draft.id)) updatePet(draft.id, draft);
-    else addPet(draft);
-    generatePlan(draft.id);
+    /* TRIMMED ON THE WAY IN, NOT ON THE WAY OUT. A trailing space typed into
+       the name field reached every possessive in the district — "Aura ’s day",
+       "Aura ’s week", "Aura ’s wellbeing" — because each of those is
+       `{pet.name}’s`. Trimming at each of the nine call sites is nine chances
+       to miss one; trimming once, here, is the fix. */
+    const clean: Pet = { ...draft, name: draft.name.trim(), currentFood: draft.currentFood.trim() };
+    if (pets.some((p) => p.id === clean.id)) updatePet(clean.id, clean);
+    else addPet(clean);
+    // The plan is built the moment the profile is saved, so a citizen never
+    // has to go and ask for one — see the note on the Diet planner page.
+    generatePlan(clean.id);
+    buildShopping(clean.id);
     close();
   };
 

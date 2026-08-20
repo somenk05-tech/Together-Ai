@@ -25,6 +25,11 @@ const recipeById = new Map(RECIPES.map((r) => [r.id, r]));
 
 const round50 = (g: number) => Math.max(50, Math.round(g / 50) * 50);
 
+/** The mid-point of an estimated band, for totalling a month of it. The card
+ *  shows the range; a shopping list has to commit to one number to add up, and
+ *  it says "about" where it does. */
+const mid = (r: [number, number] | null) => (r ? Math.round((r[0] + r[1]) / 2) : 0);
+
 export function shoppingFor(pet: Pet, plan: NutritionPlan): ShoppingItem[] {
   const home = new Map<string, number>();      // ingredient label → grams
   const shop = new Map<string, number>();      // product id → grams (or 0 = unknown)
@@ -38,7 +43,8 @@ export function shoppingFor(pet: Pet, plan: NutritionPlan): ShoppingItem[] {
           home.set(item.label, (home.get(item.label) ?? 0) + meal.grams * item.share);
         }
       } else if (meal.productId) {
-        shop.set(meal.productId, (shop.get(meal.productId) ?? 0) + (meal.grams ?? 0));
+        const grams = meal.grams ?? mid(meal.gramsRange);
+        shop.set(meal.productId, (shop.get(meal.productId) ?? 0) + grams);
       }
     }
   };
@@ -52,7 +58,9 @@ export function shoppingFor(pet: Pet, plan: NutritionPlan): ShoppingItem[] {
     items.push({
       id: `shop-${id}`,
       label: fullName(product),
-      qty: grams > 0 ? `${(round50(grams) / 1000).toFixed(2)} kg for the week` : `1 pack — ${product.packSizes[0] ?? 'see pack'}`,
+      qty: grams > 0
+        ? `${(round50(grams) / 1000).toFixed(2)} kg for the month`
+        : `1 pack — ${product.packSizes[0] ?? 'see pack'}`,
       source: 'together-city',
       productId: id,
       checked: false,

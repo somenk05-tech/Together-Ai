@@ -56,6 +56,28 @@ export interface PetPhoto {
   addedAt: string;
 }
 
+/**
+ * WHAT A VET WOULD ASK FOR, KEPT WHERE THE OWNER CAN FIND IT.
+ *
+ * This is a RECORD, not a diagnosis engine. Nothing in this hub infers a
+ * condition, scores one, or recommends a treatment for one — it stores what the
+ * owner or their vet already knows, so that it is in a pocket at 11pm when the
+ * emergency clinic asks what the dog is on. Every field is free text for the
+ * same reason: a dropdown of conditions would be this product deciding which
+ * illnesses exist.
+ */
+export interface PetMedical {
+  conditions: string;
+  medications: string;
+  vetName: string;
+  vetPhone: string;
+  microchipId: string;
+  insurer: string;
+  policyNumber: string;
+  bloodGroup: string;
+  notes: string;
+}
+
 export interface Pet {
   id: string;
   name: string;
@@ -79,6 +101,8 @@ export interface Pet {
   dietStyle: DietStyle;
   goal: Goal;
   healthNotes: string;
+  /** See PetMedical — stored, never interpreted. */
+  medical: PetMedical;
   /** Up to five photographs, first one is the face the city draws.
    *  See engine/photos.ts — scrubbed of location before they are ever stored. */
   photos: PetPhoto[];
@@ -227,6 +251,10 @@ export interface MealSlot {
   title: string;
   detail: string;
   grams: number | null;
+  /** When the listing published no kcal/kg — an estimated band, not a guess.
+   *  See data/density.ts for where both edges come from. */
+  gramsRange: [number, number] | null;
+  portionBasis: string;
   kcal: number | null;
   kind: MealKind;
   recipeId: string | null;
@@ -261,15 +289,7 @@ export interface CartLine {
   productId: string;
   variantIndex: number;
   qty: number;
-  subscription: SubscriptionCadence | null;
 }
-
-export type SubscriptionCadence =
-  | 'weekly'
-  | 'fortnightly'
-  | 'monthly'
-  | 'six-weekly'
-  | 'two-monthly';
 
 export interface ShoppingItem {
   id: string;

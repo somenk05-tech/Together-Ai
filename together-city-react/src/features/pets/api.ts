@@ -26,7 +26,6 @@ import { useMemo } from 'react';
 import { CATALOGUE } from './data/catalogue';
 import { INGREDIENTS, NEVER_FEED } from './data/ingredients';
 import { RECIPES } from './data/recipes';
-import { SERVICES } from './data/services';
 import { BUNDLES } from './data/bundles';
 import type { Ingredient, Product, ProductCategory, SpeciesScope, ToxicFood, Verdict } from './types';
 
@@ -235,6 +234,4 @@ export const useNeverFeed = (): Query<ToxicFood[]> => ok(NEVER_FEED);
 export const useRecipes = (species: 'dog' | 'cat'): Query<typeof RECIPES> =>
   ok(useMemo(() => RECIPES.filter((r) => r.species === species || r.species === 'both'), [species]));
 export const useRecipe = (id: string | undefined) => ok(RECIPES.find((r) => r.id === id) ?? null);
-export const useServices = (kind: string, city: string) =>
-  ok(useMemo(() => SERVICES.filter((s) => (kind === 'all' || s.kind === kind) && (city === 'all' || s.city === city)), [kind, city]));
 export const useBundles = () => ok(BUNDLES);

@@ -13,7 +13,6 @@ import { rupees } from '../engine/format';
 import { SectionTitle } from './PetsHome';
 import { useProductsByIds } from '../api';
 import { usePets } from '../store';
-import { CADENCES } from '../engine/subscription';
 import { shortName } from '../engine/naming';
 import { PackShot } from '../components/PackShot';
 
@@ -25,7 +24,7 @@ export function Cart() {
   const { data: products } = useProductsByIds(cart.map((l) => l.productId));
 
   if (cart.length === 0) {
-    return <Empty glyph="🛍️" title="Your bag is empty" line="The shopping list from your pet’s meal plan is the fastest way to fill it." action={<div style={{ display: 'flex', gap: 8 }}><button type="button" className="btn" onClick={() => nav('/pets/shop')}>Browse the shop</button><button type="button" className="btn btn-line" onClick={() => nav('/pets/shopping')}>Open shopping list</button></div>} />;
+    return <Empty glyph="🛍️" title="Your bag is empty" line="The shopping list from your pet’s meal plan is the fastest way to fill it." action={<div style={{ display: 'flex', gap: 8 }}><button type="button" className="btn" onClick={() => nav('/pets/shop')}>Browse the shop</button><button type="button" className="btn btn-line" onClick={() => nav('/pets/monthly')}>Open shopping list</button></div>} />;
   }
 
   const lines = cart.map((line) => {
@@ -54,7 +53,6 @@ export function Cart() {
               </button>
               <span className="muted" style={{ fontSize: 11.5 }}>
                 {variant?.pack ?? 'standard pack'}
-                {line.subscription ? ` · ${CADENCES.find((c) => c.key === line.subscription)?.label.toLowerCase()}` : ''}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

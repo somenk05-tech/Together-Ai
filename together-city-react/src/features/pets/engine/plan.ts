@@ -22,7 +22,8 @@
  */
 
 import type { DayPlan, MealSlot, NutritionPlan, Pet, Product, Recipe } from '../types';
-import { energyFor, mealsPerDay, mealTimes, portionFor, readAge, treatAllowance, waterMl } from './nutrition';
+import { energyFor, mealsPerDay, mealTimes, portionRead, readAge, treatAllowance, waterMl } from './nutrition';
+import { foodForm } from '../data/density';
 import { RECIPES } from '../data/recipes';
 import { FOOD } from '../data/composition';
 import { CATALOGUE } from '../data/catalogue';
@@ -170,9 +171,18 @@ export function buildDay(pet: Pet, date: Date, dayIndex: number): DayPlan {
     const staple = pool.length ? pick(pool, base + dayIndex) : null;
 
     const kind: 'complete' | 'complementary' = recipe ? 'complementary' : 'complete';
-    const grams = recipe
-      ? recipeGramsFor(recipe, perMeal)
-      : portionFor(perMeal, staple?.nutrition.kcalPerKg ?? null);
+
+    // A home-cooked bowl is weighed exactly, because the composition table
+    // knows what it is made of. A commercial food is exact only when the
+    // retailer published its energy density, and a cited range otherwise.
+    const portion = recipe
+      ? { grams: recipeGramsFor(recipe, perMeal), range: null, estimated: false, basis: 'IFCT 2017 composition' }
+      : portionRead(
+          perMeal,
+          staple?.nutrition.kcalPerKg ?? null,
+          pet.species,
+          staple ? foodForm(staple.name, staple.subcategory, staple.category) : 'unknown',
+        );
 
     meals.push({
       id: `${ISO(date)}-${slot}-${i}`,
@@ -184,7 +194,9 @@ export function buildDay(pet: Pet, date: Date, dayIndex: number): DayPlan {
         : staple
           ? `${staple.subcategory || 'Complete and balanced'} · ${staple.packSizes[0] ?? 'see pack'}`
           : 'Choose a complete and balanced food for this meal',
-      grams,
+      grams: portion.grams,
+      gramsRange: portion.range,
+      portionBasis: portion.basis,
       kcal: perMeal,
       kind,
       recipeId: recipe?.id ?? null,
@@ -196,11 +208,18 @@ export function buildDay(pet: Pet, date: Date, dayIndex: number): DayPlan {
   return { date: ISO(date), meals, treatKcal: treat, waterMl: waterMl(pet) };
 }
 
-/** Seven days from `from`, inclusive. */
+/** THE PLAN IS A MONTH.
+ *
+ *  It was seven days, because a week is what a meal planner usually is. A pet
+ *  eats the same thing most days and the useful question is not "what is
+ *  Thursday" but "how much food does this animal need before I next shop" —
+ *  which is a month's question, and the one the grocery list answers. */
+export const PLAN_DAYS = 30;
+
 export function buildPlan(pet: Pet, from = new Date()): NutritionPlan {
   const energy = energyFor(pet, from);
   const days: DayPlan[] = [];
-  for (let i = 0; i < 7; i += 1) {
+  for (let i = 0; i < PLAN_DAYS; i += 1) {
     const d = new Date(from);
     d.setDate(d.getDate() + i);
     days.push(buildDay(pet, d, i));
@@ -257,17 +276,25 @@ export function regenerateMeal(pet: Pet, day: DayPlan, mealId: string, bump: num
           title: recipe.name,
           detail: recipe.items.map((it) => it.label).join(' · '),
           grams: m.kcal ? recipeGramsFor(recipe, m.kcal) : null,
+          gramsRange: null,
+          portionBasis: 'IFCT 2017 composition',
           recipeId: recipe.id,
           productId: null,
         };
       }
       if (staples.length) {
         const staple = pick(staples, n);
+        const portion = portionRead(
+          m.kcal ?? 0, staple.nutrition.kcalPerKg, pet.species,
+          foodForm(staple.name, staple.subcategory, staple.category),
+        );
         return {
           ...m,
           title: fullName(staple),
           detail: `${staple.subcategory || 'Complete and balanced'} · ${staple.packSizes[0] ?? 'see pack'}`,
-          grams: m.kcal ? portionFor(m.kcal, staple.nutrition.kcalPerKg) : null,
+          grams: portion.grams,
+          gramsRange: portion.range,
+          portionBasis: portion.basis,
           productId: staple.id,
           recipeId: null,
         };

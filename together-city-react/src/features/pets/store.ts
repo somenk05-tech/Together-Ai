@@ -16,7 +16,7 @@
 import { create } from 'zustand';
 import type {
   ActivityEntry, CartLine, DayPlan, NutritionPlan, Pet, PetPhoto, ShoppingItem,
-  SubscriptionCadence, WellnessEntry,
+  WellnessEntry,
 } from './types';
 import { buildPlan, regenerateMeal } from './engine/plan';
 import { shoppingFor } from './engine/shopping';
@@ -29,7 +29,6 @@ export interface PetsState {
   cart: CartLine[];
   wishlist: string[];
   compare: string[];
-  subscriptions: { productId: string; cadence: SubscriptionCadence }[];
   shopping: ShoppingItem[];
   wellness: WellnessEntry[];
   activity: ActivityEntry[];
@@ -54,13 +53,11 @@ export interface PetsState {
   addShoppingItem: (label: string, qty: string) => void;
   setShoppingQty: (id: string, qty: string) => void;
 
-  addToCart: (productId: string, variantIndex: number, subscription?: SubscriptionCadence | null) => void;
+  addToCart: (productId: string, variantIndex: number) => void;
   setCartQty: (productId: string, variantIndex: number, qty: number) => void;
   clearCart: () => void;
   toggleWishlist: (id: string) => void;
   toggleCompare: (id: string) => void;
-  subscribe: (productId: string, cadence: SubscriptionCadence) => void;
-  unsubscribe: (productId: string) => void;
 
   addWellness: (entry: WellnessEntry) => void;
   toggleWellness: (id: string) => void;
@@ -80,7 +77,6 @@ export const usePets = create<PetsState>((set, get) => ({
   cart: [],
   wishlist: [],
   compare: [],
-  subscriptions: [],
   shopping: [],
   wellness: [],
   activity: [],
@@ -93,7 +89,7 @@ export const usePets = create<PetsState>((set, get) => ({
      instead — which exercises the real path rather than a fixture. */
   clearAll: () => set({
     pets: [], activePetId: null, plans: {}, shopping: [], cart: [], wishlist: [],
-    compare: [], subscriptions: [], wellness: [], activity: [], favourites: [],
+    compare: [], wellness: [], activity: [], favourites: [],
   }),
 
   addPet: (pet) => set((s) => ({ pets: [...s.pets, pet], activePetId: pet.id })),
@@ -175,11 +171,11 @@ export const usePets = create<PetsState>((set, get) => ({
     shopping: s.shopping.map((i) => (i.id === id ? { ...i, qty } : i)),
   })),
 
-  addToCart: (productId, variantIndex, subscription = null) => set((s) => {
+  addToCart: (productId, variantIndex) => set((s) => {
     const found = s.cart.find((l) => l.productId === productId && l.variantIndex === variantIndex);
     return found
-      ? { cart: s.cart.map((l) => (l === found ? { ...l, qty: l.qty + 1, subscription: subscription ?? l.subscription } : l)) }
-      : { cart: [...s.cart, { productId, variantIndex, qty: 1, subscription }] };
+      ? { cart: s.cart.map((l) => (l === found ? { ...l, qty: l.qty + 1 } : l)) }
+      : { cart: [...s.cart, { productId, variantIndex, qty: 1 }] };
   }),
   setCartQty: (productId, variantIndex, qty) => set((s) => ({
     cart: qty <= 0
@@ -196,10 +192,6 @@ export const usePets = create<PetsState>((set, get) => ({
       ? s.compare.filter((c) => c !== id)
       : s.compare.length >= 3 ? [...s.compare.slice(1), id] : [...s.compare, id],
   })),
-  subscribe: (productId, cadence) => set((s) => ({
-    subscriptions: [...s.subscriptions.filter((x) => x.productId !== productId), { productId, cadence }],
-  })),
-  unsubscribe: (productId) => set((s) => ({ subscriptions: s.subscriptions.filter((x) => x.productId !== productId) })),
 
   addWellness: (entry) => set((s) => ({ wellness: [...s.wellness, entry] })),
   toggleWellness: (id) => set((s) => ({

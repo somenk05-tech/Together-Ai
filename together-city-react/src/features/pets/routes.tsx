@@ -20,7 +20,7 @@ const PetsHome = lazy(() => import('./pages/PetsHome').then((m) => ({ default: m
 const Profiles = lazy(() => import('./pages/Profiles').then((m) => ({ default: m.Profiles })));
 const DietPlanner = lazy(() => import('./pages/DietPlanner').then((m) => ({ default: m.DietPlanner })));
 const Today = lazy(() => import('./pages/Today').then((m) => ({ default: m.Today })));
-const Weekly = lazy(() => import('./pages/Weekly').then((m) => ({ default: m.Weekly })));
+const Monthly = lazy(() => import('./pages/Monthly').then((m) => ({ default: m.Monthly })));
 const EatThis = lazy(() => import('./pages/EatThis').then((m) => ({ default: m.EatThis })));
 const Cook = lazy(() => import('./pages/Cook').then((m) => ({ default: m.Cook })));
 const RecipeDetail = lazy(() => import('./pages/Cook').then((m) => ({ default: m.RecipeDetail })));
@@ -30,11 +30,8 @@ const Specialist = lazy(() => import('./pages/Specialist').then((m) => ({ defaul
 const Compare = lazy(() => import('./pages/Compare').then((m) => ({ default: m.Compare })));
 const Cart = lazy(() => import('./pages/Cart').then((m) => ({ default: m.Cart })));
 const Bundles = lazy(() => import('./pages/Bundles').then((m) => ({ default: m.Bundles })));
-const Subscriptions = lazy(() => import('./pages/Subscriptions').then((m) => ({ default: m.Subscriptions })));
-const Shopping = lazy(() => import('./pages/Shopping').then((m) => ({ default: m.Shopping })));
 const Wellness = lazy(() => import('./pages/Wellness').then((m) => ({ default: m.Wellness })));
 const Activity = lazy(() => import('./pages/Activity').then((m) => ({ default: m.Activity })));
-const Services = lazy(() => import('./pages/Services').then((m) => ({ default: m.Services })));
 const Quiz = lazy(() => import('./pages/Quiz').then((m) => ({ default: m.Quiz })));
 
 /** The hub's inner rooms. `/pets` itself is a HubLanding, registered beside the
@@ -44,7 +41,10 @@ export const petsRoutes: RouteObject[] = [
   { path: '/pets/profiles', element: <Profiles /> },
   { path: '/pets/plan', element: <DietPlanner /> },
   { path: '/pets/today', element: <Today /> },
-  { path: '/pets/weekly', element: <Weekly /> },
+  { path: '/pets/monthly', element: <Monthly /> },
+  /* The week's URL still resolves — somebody has it bookmarked and a 404 is a
+     worse answer than the page that replaced it. */
+  { path: '/pets/weekly', element: <Monthly /> },
   { path: '/pets/eat', element: <EatThis /> },
   { path: '/pets/cook', element: <Cook /> },
   { path: '/pets/cook/:id', element: <RecipeDetail /> },
@@ -54,31 +54,32 @@ export const petsRoutes: RouteObject[] = [
   { path: '/pets/compare', element: <Compare /> },
   { path: '/pets/cart', element: <Cart /> },
   { path: '/pets/bundles', element: <Bundles /> },
-  { path: '/pets/subscriptions', element: <Subscriptions /> },
-  { path: '/pets/shopping', element: <Shopping /> },
   { path: '/pets/wellness', element: <Wellness /> },
   { path: '/pets/activity', element: <Activity /> },
-  { path: '/pets/services', element: <Services /> },
   { path: '/pets/quiz', element: <Quiz /> },
 ];
 
-/** The sidebar, in the shape `HubConfig.items` expects. Paste into
- *  `config/hubs.ts` under the `pets` key, which currently has `items: []`. */
+/** The sidebar, in the shape `HubConfig.items` expects.
+ *
+ *  THIRTEEN ROOMS, DOWN FROM SIXTEEN. Shopping list and Never run out both
+ *  described the same month of food the plan already knows about, so the list
+ *  moved under the monthly plan that generates it and the repeat-delivery room
+ *  went entirely — a subscription is a commerce feature, and this hub has no
+ *  checkout to hang it on yet. Services went with them: the real directory is
+ *  Together City's own Local Services hub, and a second one here was a sample
+ *  directory pretending to be a room. */
 export const PETS_SIDEBAR = [
   { path: '/pets/world', index: '01', label: 'Pet world', sub: 'Your pets and the district' },
   { path: '/pets/profiles', index: '02', label: 'Pet profiles', sub: 'Add and edit your pets' },
-  { path: '/pets/plan', index: '03', label: 'Diet planner', sub: 'Build a personalised plan' },
+  { path: '/pets/plan', index: '03', label: 'Diet plan', sub: 'Built from the profile' },
   { path: '/pets/today', index: '04', label: 'Today', sub: 'Meals, treats and water' },
-  { path: '/pets/weekly', index: '05', label: 'Weekly planner', sub: 'Seven days of meals' },
+  { path: '/pets/monthly', index: '05', label: 'Monthly plan', sub: 'A month of meals and the grocery list' },
   { path: '/pets/eat', index: '06', label: 'Can my pet eat this?', sub: 'Ingredient safety' },
   { path: '/pets/cook', index: '07', label: 'Cook for my pet', sub: 'Indian home recipes' },
   { path: '/pets/shop', index: '08', label: 'Pet shop', sub: 'Food, treats and supplies' },
   { path: '/pets/specialist', index: '09', label: 'Pet specialist', sub: 'Shop by need' },
-  { path: '/pets/bundles', index: '10', label: 'Bundles', sub: 'Curated kits' },
-  { path: '/pets/shopping', index: '11', label: 'Shopping list', sub: 'From this week’s plan' },
-  { path: '/pets/subscriptions', index: '12', label: 'Never run out', sub: 'Repeat deliveries' },
-  { path: '/pets/wellness', index: '13', label: 'Health & wellness', sub: 'Weight and reminders' },
-  { path: '/pets/activity', index: '14', label: 'Activity', sub: 'Walks and play' },
-  { path: '/pets/services', index: '15', label: 'Services', sub: 'Vets, groomers, boarding' },
-  { path: '/pets/quiz', index: '16', label: 'Pet scorecard', sub: 'What does your pet need?' },
+  { path: '/pets/bundles', index: '10', label: 'Bundles', sub: 'Curated kits you can edit' },
+  { path: '/pets/wellness', index: '11', label: 'Health & wellness', sub: 'Weight, medical records, reminders' },
+  { path: '/pets/activity', index: '12', label: 'Activity', sub: 'Walks and play' },
+  { path: '/pets/quiz', index: '13', label: 'Pet scorecard', sub: 'What does your pet need?' },
 ];

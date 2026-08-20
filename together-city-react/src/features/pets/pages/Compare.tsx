@@ -23,7 +23,7 @@ import { SectionTitle } from './PetsHome';
 import { useProductsByIds } from '../api';
 import { usePets } from '../store';
 import { scoreProduct } from '../engine/recommend';
-import { packGrams } from '../engine/subscription';
+import { packGrams } from '../engine/packs';
 import type { Product } from '../types';
 import { shortName } from '../engine/naming';
 import { PackShot } from '../components/PackShot';

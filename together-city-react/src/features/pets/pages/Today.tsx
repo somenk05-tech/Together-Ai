@@ -17,6 +17,7 @@ import { Empty } from '../components/States';
 import { PetPortrait } from '../components/PetPortrait';
 import { usePets } from '../store';
 import { NEVER_FEED } from '../data/ingredients';
+import { ESTIMATE_CAVEAT } from '../data/density';
 
 export function Today() {
   const nav = useNavigate();
@@ -56,8 +57,8 @@ export function Today() {
             {plan.merKcal} kcal target · {fed} of {day.meals.length} meals given · treats up to {plan.treatKcal} kcal
           </p>
         </div>
-        <button type="button" className="btn btn-sm btn-line" style={{ marginLeft: 'auto' }} onClick={() => nav('/pets/weekly')}>
-          Weekly planner →
+        <button type="button" className="btn btn-sm btn-line" style={{ marginLeft: 'auto' }} onClick={() => nav('/pets/monthly')}>
+          Monthly plan →
         </button>
       </header>
 
@@ -76,6 +77,10 @@ export function Today() {
           ))}
         </div>
       </section>
+
+      {day.meals.some((m) => m.gramsRange) && (
+        <p className="muted" style={{ margin: 0, fontSize: 11.5, lineHeight: 1.6, maxWidth: 760 }}>{ESTIMATE_CAVEAT}</p>
+      )}
 
       <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
         <Panel title="Treat allowance" glyph="🦴">

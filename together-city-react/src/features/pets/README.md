@@ -1,8 +1,9 @@
 # Pet District — `src/features/pets`
 
 The Pet hub for Together City: profiles, a veterinary-sourced feeding engine, a
-weekly planner, an ingredient-safety desk, home-cooked recipes, a 184-product
-Indian marketplace, wellness, activity and services.
+month-long meal plan with its own grocery list, an ingredient-safety desk,
+home-cooked recipes, a 184-product Indian marketplace, editable kits, wellness
+and activity.
 
 Written to drop into `together-city-react` as it stands: TypeScript, inline
 styles reading `tokens.css` variables only, `zustand` for state, `react-router`
@@ -95,14 +96,15 @@ data/        catalogue.ts     184 real products, every one with a source URL
              recipes.ts       14 home-cooked recipes, all complementary
              breeds.ts        size and life-stage reference, Indie breeds first
              bundles.ts       8 kits assembled from real catalogue rows
-             services.ts      SAMPLE listings, labelled as such in the UI
-             samplePets.ts    two pets so the hub can be read before a form
+             density.ts       cited kcal/kg bands, so a portion can be a range
+                              instead of an invented number
 
 engine/      nutrition.ts     RER / MER, portions, treats, water, meal times
-             plan.ts          today and the week, built from the above
+             plan.ts          today and the 30 days after it, from the above
              recommend.ts     product suggestions, each with its reason
-             shopping.ts      the week's list, split shop vs kitchen
-             subscription.ts  run-out estimation, and honest when it can't
+             shopping.ts      the month's list, split shop vs kitchen
+             packs.ts         pack-size arithmetic for price-per-kg
+             medical.ts       the fields a vet asks for, stored and never read
              scorecard.ts     the eight-dimension pet scorecard
              naming.ts        brand-name de-duplication
 
@@ -140,6 +142,17 @@ AAHA. Every constant is in `data/evidence.ts` with its quote and URL.
 because owners need to find them, and they carry a vet-guidance flag everywhere
 they appear. No product page claims a product treats or prevents anything.
 
+**Medical information is stored, not interpreted.** Wellness holds the fields a
+vet asks for at the door — conditions, medications, the clinic's number, the
+microchip, the policy. Nothing in the engine reads them: a condition never
+changes a calorie target, never filters the shelf, never becomes a
+recommendation. The card says so, and says to take the conditions to a vet.
+
+**An estimated portion says it is estimated.** When a listing publishes its own
+kcal/kg the meal card prints one number. When it does not, `density.ts` supplies
+a cited band for that species and food form and the card prints a range with the
+band's source under it, so a guess is never dressed as a measurement.
+
 **Retailer photography is not republished.** `imageUrl` is held for catalogue
 research; the shelf draws its own pack shapes. Clearing images is a merchant
 conversation — see sheet 14 of the data workbook.
@@ -162,7 +175,6 @@ conversation — see sheet 14 of the data workbook.
 
 - **Nutrition data is thin** — 10 of 184 products publish a guaranteed analysis.
   The product works without it; the fix is merchant data feeds, not more scraping.
-- **Services are sample rows.** The real directory is a join to Local Services.
 - **Species beyond dogs and cats are stubs.** Birds, rabbits, guinea pigs and
   fish are in the schema and named in the UI as not yet built. A rabbit is a
   hindgut fermenter and a guinea pig has a dietary vitamin C requirement —

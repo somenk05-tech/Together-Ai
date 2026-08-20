@@ -17,6 +17,7 @@ import { Empty } from '../components/States';
 import { Bar } from '../components/Meters';
 import { SectionTitle } from './PetsHome';
 import { newEntryId, usePets } from '../store';
+import { EMPTY_MEDICAL, MEDICAL_FIELDS, hasMedical } from '../engine/medical';
 import { bodyConditionRead, energyFor, readAge } from '../engine/nutrition';
 import type { WellnessEntry } from '../types';
 
@@ -37,6 +38,8 @@ export function Wellness() {
   const wellness = usePets((s) => s.wellness);
   const addWellness = usePets((s) => s.addWellness);
   const toggleWellness = usePets((s) => s.toggleWellness);
+  const updatePet = usePets((s) => s.updatePet);
+  const [editingMedical, setEditingMedical] = useState(false);
   const [kind, setKind] = useState<WellnessEntry['kind']>('vaccination');
   const [label, setLabel] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -94,6 +97,67 @@ export function Wellness() {
           )}
         </section>
       </div>
+
+      {/* ── MEDICAL RECORD ────────────────────────────────────────────────
+          The thing an owner is asked for at the worst possible moment: what is
+          he on, who is your vet, is he chipped. It is stored and never
+          interpreted — no score, no inferred condition, no suggestion that a
+          product treats what is written here. That restraint is the whole
+          reason it is safe to keep this in a shopping app at all. */}
+      <section className="card" style={{ padding: 18, display: 'grid', gap: 14 }}>
+        <header style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <div style={{ display: 'grid', gap: 3 }}>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Medical information</h3>
+            <p className="muted" style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55, maxWidth: 560 }}>
+              What a vet would ask for, kept where you can read it out. Together City stores this and does not
+              interpret it — nothing here changes a recommendation, and no product on this site treats a condition.
+            </p>
+          </div>
+          <button type="button" className="btn btn-sm btn-line" onClick={() => setEditingMedical(!editingMedical)}>
+            {editingMedical ? 'Done' : hasMedical(pet.medical) ? 'Edit' : 'Add details'}
+          </button>
+        </header>
+
+        {editingMedical ? (
+          <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+            {MEDICAL_FIELDS.map((field) => (
+              <label key={field.key} style={{ display: 'grid', gap: 5, gridColumn: field.wide ? '1 / -1' : undefined }}>
+                <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+                  {field.label}
+                </span>
+                <input
+                  value={pet.medical[field.key]}
+                  onChange={(e) => updatePet(pet.id, { medical: { ...(pet.medical ?? EMPTY_MEDICAL), [field.key]: e.target.value } })}
+                  placeholder={field.hint}
+                  style={{ font: 'inherit', fontSize: 13.5, padding: '9px 12px', borderRadius: 'var(--r-2)', border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink)' }}
+                />
+                {field.hint && <span className="muted" style={{ fontSize: 11, lineHeight: 1.45 }}>{field.hint}</span>}
+              </label>
+            ))}
+          </div>
+        ) : hasMedical(pet.medical) ? (
+          <dl style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', margin: 0 }}>
+            {MEDICAL_FIELDS.filter((f) => pet.medical[f.key].trim()).map((f) => (
+              <div key={f.key} style={{ gridColumn: f.wide ? '1 / -1' : undefined }}>
+                <dt className="muted" style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase' }}>{f.label}</dt>
+                <dd style={{ margin: '3px 0 0', fontSize: 13.5, lineHeight: 1.5 }}>{pet.medical[f.key]}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <p className="muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.6 }}>
+            Nothing recorded yet. Conditions, medication, your vet’s number and the microchip are the four that matter
+            in an emergency.
+          </p>
+        )}
+
+        {pet.medical.conditions.trim() && (
+          <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.6, padding: '10px 13px', borderRadius: 'var(--r-2)', background: 'var(--warn-soft)', border: '1px solid var(--warn-line)', color: 'var(--warn-ink)' }}>
+            A pet with a diagnosed condition needs a diet their own vet has agreed to. The plans in this hub are general
+            guidance and do not account for what is written above.
+          </p>
+        )}
+      </section>
 
       <section style={{ display: 'grid', gap: 12 }}>
         <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>The record</h3>

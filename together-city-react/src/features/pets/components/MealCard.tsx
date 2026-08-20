@@ -55,7 +55,15 @@ export function MealCard({ meal, onToggle, onRegenerate, onOpen, favourite, onFa
       </div>
 
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'baseline' }}>
-        <Figure label="Portion" value={meal.grams ? `${meal.grams} g` : 'See pack guide'} muted={!meal.grams} />
+        <Figure
+          label="Portion"
+          value={
+            meal.grams ? `${meal.grams} g`
+            : meal.gramsRange ? `≈ ${meal.gramsRange[0]}–${meal.gramsRange[1]} g`
+            : 'See pack guide'
+          }
+          muted={!meal.grams && !meal.gramsRange}
+        />
         <Figure label="Energy" value={meal.kcal ? `${meal.kcal} kcal` : '—'} />
         <span
           style={{
@@ -70,9 +78,19 @@ export function MealCard({ meal, onToggle, onRegenerate, onOpen, favourite, onFa
         </span>
       </div>
 
-      {!meal.grams && (
+      {/* The portion always says where it came from. An exact figure names the
+          listing that published it; an estimate names the band and defers to
+          the pack, because a number in grams is the one thing on this card
+          somebody acts on without reading the rest. */}
+      {meal.gramsRange && (
         <p className="muted" style={{ margin: 0, fontSize: 11.5, lineHeight: 1.5 }}>
-          This listing doesn’t publish calories per kilogram, so we can’t convert the target into grams. Use the feeding chart on the pack for {meal.kcal} kcal.
+          Estimated from {meal.portionBasis} — this listing doesn’t publish its own. Weigh to your pack’s
+          feeding guide for {meal.kcal} kcal; it is the figure that counts.
+        </p>
+      )}
+      {!meal.grams && !meal.gramsRange && (
+        <p className="muted" style={{ margin: 0, fontSize: 11.5, lineHeight: 1.5 }}>
+          We can’t convert this one into grams. Use the feeding chart on the pack for {meal.kcal} kcal.
         </p>
       )}
 

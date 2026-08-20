@@ -18,11 +18,11 @@ import { Empty, ErrorState } from '../components/States';
 import { usePets } from '../store';
 
 const ROOMS = [
-  { to: '/pets/plan', glyph: '🥣', title: 'Nutrition', line: 'Personalised meal plans for your pet.', cta: 'Create diet plan' },
-  { to: '/pets/wellness', glyph: '❤️', title: 'Health & Wellness', line: 'Track your pet’s everyday wellbeing.', cta: 'Open wellness' },
+  { to: '/pets/plan', glyph: '🥣', title: 'Nutrition', line: 'A diet plan, built from the profile.', cta: 'Open the plan' },
+  { to: '/pets/monthly', glyph: '📅', title: 'The month', line: 'Thirty days of meals, and the grocery list they add up to.', cta: 'See the month' },
+  { to: '/pets/wellness', glyph: '❤️', title: 'Health & Wellness', line: 'Weight, medical records and reminders.', cta: 'Open wellness' },
   { to: '/pets/activity', glyph: '🐕', title: 'Activity', line: 'Walks, play and exercise.', cta: 'Log today' },
   { to: '/pets/shop', glyph: '🛍️', title: 'Shop', line: 'Food, treats, toys and essentials.', cta: 'Enter the market' },
-  { to: '/pets/services', glyph: '✂️', title: 'Services', line: 'Find vets, groomers, walkers and more.', cta: 'Find services' },
   { to: '/pets/eat', glyph: '🥕', title: 'Can my pet eat this?', line: 'Search any food or ingredient.', cta: 'Check a food' },
 ];
 

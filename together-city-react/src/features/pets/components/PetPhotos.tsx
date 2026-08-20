@@ -96,10 +96,15 @@ export function PetPhotos({ petName, species, photos, onChange }: Props) {
                 // given its own aspect-ratio, because a square image in a cell
                 // that is two rows plus a gap tall leaves a strip of background
                 // under it — which is exactly what the first version did.
+                // THE MAIN TILE CARRIES ITS OWN ASPECT RATIO TOO.
+                // It spans two rows, and with a single photo uploaded there is
+                // no second row to give it height — so the row collapsed and
+                // the photograph rendered as a two-pixel strip. Spanning is for
+                // WIDTH; the height has to come from the tile itself.
                 gridColumn: i === 0 ? 'span 2' : undefined,
                 gridRow: i === 0 ? 'span 2' : undefined,
                 position: 'relative',
-                aspectRatio: i === 0 ? undefined : '1 / 1',
+                aspectRatio: '1 / 1',
                 borderRadius: 'var(--r-2)', overflow: 'hidden',
                 border: `1px solid ${i === 0 ? 'var(--accent-line)' : 'var(--line)'}`,
                 background: 'var(--wash)',

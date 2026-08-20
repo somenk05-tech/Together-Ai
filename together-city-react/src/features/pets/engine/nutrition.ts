@@ -33,6 +33,7 @@
 
 import type { ActivityLevel, Goal, Pet, Species } from '../types';
 import { EVIDENCE } from '../data/evidence';
+import { DENSITY, type FoodForm } from '../data/density';
 import { findBreed } from '../data/breeds';
 
 /** Merck's exponential form. The linear approximation is only valid 2–45 kg,
@@ -123,7 +124,16 @@ export function energyFor(pet: Pet, today = new Date()): EnergyRead {
     weightNote = toLose > 0
       ? `${toLose.toFixed(1)} kg to lose. At a safe ${pet.species === 'dog' ? '1–2%' : '0.5–2%'} of body weight a week that is about ${weeks} week${weeks === 1 ? '' : 's'}. Faster is not better — in cats, rapid loss risks hepatic lipidosis.`
       : null;
-  } else if (pet.goal === 'weight-gain' || pet.bodyCondition === 'under') {
+  } else if (
+    pet.goal === 'weight-gain'
+    || pet.bodyCondition === 'under'
+    // A target ABOVE the current weight is a gain plan even when the goal
+    // select still says "maintain" — the two fields disagreed on a real
+    // profile (2.6 kg cat, 3.1 kg target) and the plan quietly fed for
+    // maintenance. The number the owner typed wins over the dropdown they
+    // left alone.
+    || (pet.targetWeightKg !== null && pet.weightKg !== null && pet.targetWeightKg > pet.weightKg + 0.2)
+  ) {
     key = 'weightGain';
   } else if (pet.sterilised === false) {
     key = 'intactAdult';
@@ -212,6 +222,49 @@ export function mealTimes(count: number): string[] {
 export function portionFor(kcal: number, kcalPerKg: number | null): number | null {
   if (!kcalPerKg || kcalPerKg <= 0) return null;
   return Math.round((kcal / kcalPerKg) * 1000);
+}
+
+export interface PortionRead {
+  /** Exact grams, when the product published its energy density. */
+  grams: number | null;
+  /** A gram range from the published density band — see data/density.ts. */
+  range: [number, number] | null;
+  estimated: boolean;
+  basis: string;
+}
+
+/**
+ * WHAT TO PUT IN THE BOWL.
+ *
+ * Exact when the listing published kcal/kg; otherwise a range off the AAFCO
+ * band, marked as an estimate and carrying its own basis line. The third state
+ * — neither — happens only for a food we cannot even classify as dry or wet,
+ * and it still says something ("use the pack's guide for N kcal") rather than
+ * nothing.
+ */
+export function portionRead(
+  kcal: number,
+  kcalPerKg: number | null,
+  species: Species,
+  form: FoodForm,
+): PortionRead {
+  const exact = portionFor(kcal, kcalPerKg);
+  if (exact !== null) {
+    return { grams: exact, range: null, estimated: false, basis: `${kcalPerKg} kcal/kg, published on the listing` };
+  }
+  if (form === 'dry' || form === 'wet') {
+    const band = DENSITY[form][species];
+    // High density → fewer grams, so the LOW gram figure comes from the HIGH kcal.
+    const low = Math.round((kcal / band.high) * 1000);
+    const high = Math.round((kcal / band.low) * 1000);
+    return {
+      grams: null,
+      range: [low, high],
+      estimated: true,
+      basis: `${band.low.toLocaleString('en-IN')}–${band.high.toLocaleString('en-IN')} kcal/kg assumed`,
+    };
+  }
+  return { grams: null, range: null, estimated: false, basis: '' };
 }
 
 /** Body-condition wording. WSAVA: 4–5 of 9 is ideal; each point above ideal is
