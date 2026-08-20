@@ -1976,6 +1976,33 @@
   --ok-ink:      #eedcdd;   /* 11.8:1 on the wash — the room's own voice */
   --info-ink:    #c6a2a5;   /*  6.8:1 */
 
+  /* ── AND EVERY SMALL CONTROL IS MADE OF THE ROOM ─────────────────────────
+     THIS IS THE ONE THAT WAS ACTUALLY BROKEN, and it is worth naming the shape
+     of the mistake: I re-pointed the GROUNDS and the INKS and stopped, and the
+     city's relief is made of a third thing — FACES. `--face` and its four
+     siblings are literal white gradients (#ffffff → #eeeeee), and a tag, a
+     chip, a door, a hub pill and the mobile tab strip are all built from them.
+     Re-pointing --ink to near-white without re-pointing these produced exactly
+     what the owner photographed: near-white type on a white lozenge, on a
+     crimson page. Invisible, everywhere, on the smallest and most numerous
+     controls in the hub.
+
+     Same shape as the root's — lighter at the top edge, darker at the foot, so
+     a control still reads as lit from above — in the room's velvet. --well
+     inverts it, because a pressed control is a dent and a dent is darker where
+     the light would have been.
+
+     THE LIGHTEST STOP IS #4e2024 AND THAT IS A MEASUREMENT. At #552327 --faint
+     lands at 4.27:1 and goes under AA; #4e2024 puts it at 4.54. The whole
+     family is capped there rather than each gradient being tuned separately —
+     five tokens with five different ceilings is five numbers to re-derive the
+     next time anything moves. */
+  --face:      linear-gradient(180deg, #4e2024 0%, #481c21 44%, #3a1418 100%);
+  --face-2:    linear-gradient(180deg, #4e2024 0%, #451a1f 48%, #371316 100%);
+  --face-tall: linear-gradient(180deg, #4e2024 0%, #4e2024 calc(100% - min(96px, 40%)), #3a1418 100%);
+  --face-key:  linear-gradient(180deg, #4e2024 0%, #461b20 52%, #38131a 100%);
+  --well:      linear-gradient(180deg, #2f1013 0%, #37151a 58%, #40191d 100%);
+
   /* AND THE LAMP KEEPS ITS ORANGE. See the note in the astrology block: the
      lit key is the city's wayfinding and it is the same key in all
      twenty-five rooms. It is therefore the ONE hue in this otherwise
