@@ -4166,6 +4166,34 @@ textarea.g-field { resize: none; line-height: 1.55; }
   --faint:    var(--on-paper-faint);
   color: var(--ink);
 }
+/* ── AND THE SHOP PLATE IS PAPER, NOT FROST ─────────────────────────────────
+   Owner, 20 Aug, pointing at the routine's morning and evening bands: "white
+   plate just behind the products".
+
+   THE FROST IS RIGHT EVERYWHERE ELSE IN THIS HUB AND WRONG HERE, and the
+   reason is the thing standing on it. Every product photograph in this shelf
+   was lit on a white seamless and most are cut out — `--shot-ground` is opaque
+   studio white for exactly that reason, argued three rules below. A cut-out
+   bottle on an opaque white well, on a translucent panel, on a cream-and-blue
+   sky is THREE grounds in twelve millimetres: the well reads as a patch rather
+   than as the plate continuing behind the bottle, and the eye finds the seam
+   before it finds the product.
+
+   ON PAPER THERE IS NO SEAM. The well and the plate are the same white, the
+   photograph's own background disappears into the page it is printed on, and
+   the sky goes back to being what it is — something the whole sheet floats on,
+   not something showing through the middle of a product grid.
+
+   IT IS THE SHOP PLATE ONLY, which is what `.is-shop` marks: the market's
+   grid and the routine's day bands. Every other `.beauty-sheet` — the
+   assessment, the orders, the budget cards — keeps the frost, because nothing
+   is standing on those but type, and type on frost is the hub's whole look.
+
+   NO WHITE LITERAL: `--paper` is #ffffff at :root and the hub declares it
+   again. A surface colour written here is a decision taken in the file nobody
+   repaints, which relief.spec bans and is right to. */
+[data-hub="beauty"] .beauty-sheet.is-shop { background: var(--paper); }
+
 /* A CONTROL IS A LIT SURFACE TOO, which is the third time this list has been
    the answer and the first time it has been about something other than a card.
    An outline button, a select and a text field all paint themselves in --paper

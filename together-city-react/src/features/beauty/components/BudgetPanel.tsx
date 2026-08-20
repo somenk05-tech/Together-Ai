@@ -41,9 +41,38 @@ const MIN = 0;
  * this shelf can build without taking a worse-matched product tops out around
  * ₹7,000–₹8,500 for a face and under ₹1,000 for hair. Offering ₹60,000 was
  * offering a disappointment and then explaining it on the routine page.
+ *
+ * ── ₹20,000 A CATEGORY, owner, 20 Aug ───────────────────────────────────────
+ *
+ * THE NUMBER ABOVE WENT STALE AND THIS CONSTANT DID NOT MOVE WITH IT. "Under
+ * ₹1,000 for hair" was true of the 2025 shelf; a litre of Olaplex No.4 is
+ * ₹11,999, and the dearest hair routine the planner will build now measures
+ * ₹13,938. The server's BUDGET_MAX moved to ₹15,000 for that shelf. This did
+ * not, and neither did the wire's zod bound — so "Set ₹15,171" on the routine
+ * page posted a number the API rejected, and the one door out of a budget that
+ * cannot carry a routine was a button that did nothing.
+ *
+ * THREE NUMBERS HAVE TO AGREE: the planner's cap, the wire's bound, and this.
+ * They are now all ₹20,000, and `the wire bound is the planner's bound` in
+ * budget-is-a-limit.spec.ts reads this file and fails if this line drifts
+ * again. That is why the declaration is on one plain line — a spec matches it
+ * as text, so do not fold it into an expression.
+ *
+ * THE RANGE IS NOT A PROMISE THAT THE SHELF CAN SPEND IT. `capInr` below stops
+ * each dial at that profile's own useful maximum and prints why; at ₹8,000
+ * that ceiling fired rarely, and at ₹20,000 it is the normal case. Raising the
+ * range and showing the real ceiling are the same decision — the range is what
+ * a citizen is ALLOWED to say, the cap is what this shelf can honestly do with
+ * it, and the citizen sees both.
  */
-const MAX = 8000;
-const QUICK = [0, 1000, 2000, 3000, 5000, 6500, 8000];
+const MAX = 20000;
+/**
+ * THE CHIPS RESCALE WITH THE RANGE. Seven shortcuts that stopped at ₹8,000
+ * under a track running to ₹20,000 would put every chip in the bottom two
+ * fifths and leave the rest of the slider with no handhold at all. Same count,
+ * same shape — nothing, a starter, a real routine, and the end.
+ */
+const QUICK = [0, 2000, 5000, 8000, 12000, 16000, 20000];
 
 const rupees = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 const chipLabel = (n: number) => (n === 0 ? 'None' : n >= 1000 ? `₹${n / 1000}K` : `₹${n}`);

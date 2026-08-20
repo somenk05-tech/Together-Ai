@@ -83,10 +83,21 @@ export class BeautyController {
     // answer, and different from never having set a budget at all.
     // BUDGET_MAX, and the schema says the number rather than importing it on
     // purpose: a zod bound is the contract with the client and it should be
-    // readable here. If they drift, budget-is-a-limit.spec.ts fails.
-    face: z.number().int().min(0).max(8_000),
-    hair: z.number().int().min(0).max(8_000),
-    body: z.number().int().min(0).max(8_000),
+    // readable here.
+    //
+    // THE CLAIM UNDER THIS COMMENT USED TO BE "if they drift, budget-is-a-limit
+    // .spec.ts fails". IT DID NOT. No test read this file, the bound stayed at
+    // ₹8,000 when BUDGET_MAX moved to ₹15,000, and the routine page's "Set
+    // ₹15,171" button — the one door out of a budget that will not carry the
+    // routine — posted a number this schema rejected. A 400, no toast, and a
+    // button that looked broken because it was. A guard that is described and
+    // not written is worse than none: it is a reason not to check.
+    //
+    // `the wire bound is the planner's bound` in budget-is-a-limit.spec.ts now
+    // reads this file as text and fails on the drift.
+    face: z.number().int().min(0).max(20_000),
+    hair: z.number().int().min(0).max(20_000),
+    body: z.number().int().min(0).max(20_000),
     preference: z.string().max(200).optional(),
   })))
   saveBudget(@CurrentUser() user: JwtUser, @Body() dto: { face: number; hair: number; body: number; preference?: string }) {

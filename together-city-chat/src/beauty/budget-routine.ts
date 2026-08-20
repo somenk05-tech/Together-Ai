@@ -115,8 +115,26 @@ export const BUDGET_MIN = 0;
  * `usefulMaxInr` is still computed per person and still printed, so a citizen
  * whose shelf tops out at ₹4,000 is told so rather than left staring at a
  * slider that goes three times further than anything they can buy.
+ *
+ * ── AND TO ₹20,000, on the owner's call, 20 Aug ─────────────────────────────
+ *
+ * ₹15,000 cleared the highest measured ideal by ₹1,062 — about seven per cent.
+ * That is not headroom, it is a rounding error, and the shelf moves: a single
+ * new litre-sized bond repair or one salon-grade kit puts an ideal through the
+ * ceiling again and `idealInr` goes back to firing on every re-plan. ₹20,000
+ * restores a real margin over the dearest routine the planner will build
+ * (₹13,938 measured, hair) and keeps the same principle — above every useful
+ * maximum, below the absurd.
+ *
+ * THE PER-PROFILE CEILING IS WHAT KEEPS THIS HONEST, and it now does more work
+ * than it used to. The dial's own cap fires when `usefulMaxInr` sits below 95%
+ * of the range, which at ₹8,000 was rare and at ₹20,000 is the normal case: a
+ * face whose shelf tops out at ₹7,200 now SEES it stop at ₹7,200 with the
+ * reason printed, instead of a track running two and a half times past
+ * anything it can buy. Raising the ceiling and printing the real one are the
+ * same decision, not opposing ones.
  */
-export const BUDGET_MAX = 15000;
+export const BUDGET_MAX = 20000;
 
 export const clampBudget = (n: number): number =>
   Math.min(BUDGET_MAX, Math.max(BUDGET_MIN, Math.round(Number.isFinite(n) ? n : BUDGET_MIN)));

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { recommendProducts } from './beauty-engine';
 import { planCategory, planWithinBudget, planForWire, categoryOf, clampBudget, BUDGET_MIN, BUDGET_MAX } from './budget-routine';
 import { monthlyCostInr, monthsOfUse, packSize, lastsLabel } from './monthly-cost';
@@ -591,5 +593,55 @@ describe('the plan the browser receives', () => {
     expect(none.body.skipped).toBe(true);
     expect(none.body.picks).toEqual([]);
     expect(none.body.upgrades).toEqual([]);
+  });
+});
+
+describe('the wire bound is the planner\'s bound', () => {
+  /**
+   * THE GUARD THAT WAS DESCRIBED AND NEVER WRITTEN.
+   *
+   * beauty.controller.ts bounds the saved budget with a zod `.max()` literal
+   * rather than importing BUDGET_MAX, deliberately — a wire contract should be
+   * readable at the wire. The comment beside it claimed this file would fail if
+   * the two drifted. This file did not read that file. Nothing did.
+   *
+   * So the bound sat at ₹8,000 while BUDGET_MAX moved to ₹15,000, and the one
+   * escape hatch from a budget too small to carry a routine — "Set ₹15,171" on
+   * the routine page — POSTed a number the schema rejected. 400, no toast, a
+   * button that did nothing. Three numbers have to agree for that button to
+   * work: the planner's cap, the wire's bound, and the client dial's max.
+   *
+   * This reads the controller as text on purpose. Importing it would drag Nest
+   * into a pure planner spec, and the thing worth asserting is what a reader of
+   * that file sees — the literal.
+   */
+  it('bounds the saved budget at exactly BUDGET_MAX', () => {
+    const src = readFileSync(join(__dirname, 'beauty.controller.ts'), 'utf8');
+    const bounds = [...src.matchAll(/(face|hair|body):\s*z\.number\(\)\.int\(\)\.min\(0\)\.max\(([\d_]+)\)/g)]
+      .map((m) => [m[1], Number(m[2].replace(/_/g, ''))] as const);
+
+    // A guard that finds nothing passes. There are three categories.
+    expect(bounds.map(([k]) => k)).toEqual(['face', 'hair', 'body']);
+    // Compared as a whole object so a failure PRINTS the drift — "wire 8000 vs
+    // planner 20000" — rather than one bare number that has to be looked up.
+    expect(Object.fromEntries(bounds)).toEqual({ face: BUDGET_MAX, hair: BUDGET_MAX, body: BUDGET_MAX });
+  });
+
+  /**
+   * AND THE THIRD NUMBER — the dial the citizen actually drags. A wire that
+   * accepts ₹20,000 over a slider that stops at ₹8,000 is the same drift one
+   * layer further out, and it fails the same way: silently, in the direction
+   * of the citizen not being able to spend what they said they would.
+   */
+  it('is the same number the dial offers', () => {
+    const dial = readFileSync(
+      join(__dirname, '../../../together-city-react/src/features/beauty/components/BudgetPanel.tsx'),
+      'utf8',
+    );
+    const max = Number(dial.match(/^const MAX = (\d+);$/m)?.[1]);
+    // Not-declared and drifted are different failures, and NaN would read as
+    // the second. `{ declared, dial, planner }` says which happened.
+    expect({ declared: Number.isFinite(max), dial: max, planner: BUDGET_MAX })
+      .toEqual({ declared: true, dial: BUDGET_MAX, planner: BUDGET_MAX });
   });
 });
