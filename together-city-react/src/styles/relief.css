@@ -1491,7 +1491,7 @@ textarea.g-field { resize: none; line-height: 1.55; }
   border-bottom: 1px solid var(--press-rule); padding: 21px 0; gap: 18px 0; }
 .press-stats > div { padding: 0 24px; border-left: 1px solid var(--press-rule-2); }
 .press-stats > div:first-child { padding-left: 0; border-left: 0; }
-.press-stats dt { font-size: 9.5px; font-weight: 500; letter-spacing: .19em; text-transform: uppercase;
+.press-stats dt { font-size: 9.5px; font-weight: 500; letter-spacing: .24em; text-transform: uppercase;
   color: var(--press-ink-3); margin: 0 0 10px; }
 .press-stats dd { margin: 0; font-family: var(--press-mono); font-size: clamp(20px, 2.2vw, 26px); letter-spacing: -.02em; }
 .press-stats dd small { font-family: var(--sans); font-size: 11.5px; font-weight: 500; color: var(--press-ink-3); margin-left: 5px; }
@@ -1512,7 +1512,7 @@ textarea.g-field { resize: none; line-height: 1.55; }
    the course above it, which is the one thing a printed menu may not do. */
 .press-grid { display: grid; grid-template-columns: minmax(0,1fr) 62px 46px 46px 46px 178px; column-gap: 10px; }
 .press-colhead { display: contents; }
-.press-colhead span { font-size: 9px; font-weight: 500; letter-spacing: .17em; text-transform: uppercase;
+.press-colhead span { font-size: 9px; font-weight: 500; letter-spacing: .24em; text-transform: uppercase;
   color: var(--press-ink-3); text-align: right; padding: 10px 0 9px; border-bottom: 1px solid var(--press-rule-2); }
 .press-colhead span:first-child { text-align: left; }
 .press-dish { display: contents; }
@@ -1547,14 +1547,19 @@ textarea.g-field { resize: none; line-height: 1.55; }
 .press-dish.is-off .press-name > svg { opacity: .4; }
 
 /* ── the sidebar ──────────────────────────────────────────────────────── */
-.press-aside h3 { font-size: 9.5px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase;
+.press-aside h3 { font-size: 9.5px; font-weight: 500; letter-spacing: .24em; text-transform: uppercase;
   color: var(--press-ink-3); margin: 0 0 16px; padding-bottom: 10px; border-bottom: 1px solid var(--press-rule); }
 .press-aside section { margin-bottom: 42px; }
 .press-bar { display: grid; grid-template-columns: 64px 1fr auto; gap: 14px; align-items: center;
   padding: 11px 0; border-bottom: 1px solid var(--press-rule-2); font-size: 12.5px; }
 .press-bar:last-of-type { border-bottom: 0; }
 .press-bar .press-lab { font-weight: 500; }
-.press-bar .press-track { height: 2px; background: var(--press-rule); position: relative; }
+/* A HAIRLINE, NOT A BAR. Beauty's rule is one thin line with the figure at the
+   end of it, and a 2px filled track beside 12px type was the loudest thing in
+   a column of numbers. The proportion is not lost — the run that has been
+   reached is drawn in the ink and the rest in the rule, on the same hairline —
+   it has simply stopped shouting. */
+.press-bar .press-track { height: 1px; background: var(--press-rule); position: relative; }
 .press-bar .press-track i { position: absolute; inset: 0 auto 0 0; background: var(--press-green); }
 .press-bar .press-val { font-family: var(--press-mono); font-size: 12px; }
 .press-bar .press-val em { font-style: normal; color: var(--press-ink-3); margin-left: 6px; }
@@ -1578,7 +1583,7 @@ textarea.g-field { resize: none; line-height: 1.55; }
   display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 18px 0; }
 .press-foot > div { padding: 0 22px; border-left: 1px solid var(--press-rule-2); }
 .press-foot > div:first-child { padding-left: 0; border-left: 0; }
-.press-foot dt { font-size: 9px; font-weight: 500; letter-spacing: .18em; text-transform: uppercase;
+.press-foot dt { font-size: 9px; font-weight: 500; letter-spacing: .24em; text-transform: uppercase;
   color: var(--press-ink-3); margin: 0 0 8px; }
 .press-foot dd { margin: 0; font-family: var(--press-mono); font-size: 18px; }
 
@@ -1623,7 +1628,14 @@ textarea.g-field { resize: none; line-height: 1.55; }
   border-radius: 14px;
   background-size: cover; background-position: center;
   padding: clamp(26px, 4vw, 48px) clamp(18px, 4vw, 56px) clamp(24px, 3vw, 38px);
+  /* THE GLASS IS THE PALETTE, NOT ALPHA. The sheet is dawn light — pale blue
+     at the head, cream at the foot — and what makes it read as glass rather
+     than as paper is the light caught along its top edge. A border, not an
+     inset shadow: an inset would be a sixth depth, and this is an EDGE, which
+     the spec names as a different thing on purpose. */
+  border-top: 1px solid var(--press-recto-lift);
 }
+.press-verso { border-top-color: var(--press-verso-lift); }
 /* A SHEET RE-POINTS THE PRESS'S OWN TOKENS AND EVERY COMPONENT FOLLOWS.
    The masthead block below already dresses Relief's pills, chips, buttons and
    tags for the press — reading --press-ink, --press-rule, --press-paper and
@@ -1634,9 +1646,12 @@ textarea.g-field { resize: none; line-height: 1.55; }
    selectors, and a control that has never heard of a recto comes out in the
    recto's ink.
 
-   --press-green BECOMES THE SHEET'S INK, which is not a colour change so much
-   as an admission: the emerald is 7.8:1 on white and unreadable on Saturday's
-   olive, and an accent hue that has to survive seven grounds is not an accent.
+   --press-green KEEPS THE EMERALD SINCE 20 AUG. It used to become the sheet's
+   ink, and that was the right call while there were seven grounds: an accent
+   hue that has to survive Saturday's olive is not an accent. There is one
+   ground now and the emerald is 6.7:1 against its darkest stop, so the figure
+   that says how much of your day this is can be the hub's own colour again
+   rather than the same near-black as everything around it.
    Filled-with-the-ink is the press's own emphasis rule anyway, and it inverts a
    pair whose ratio is already computed — so the loud button is exactly as
    readable as the body copy, on every paper.  */
@@ -1648,7 +1663,6 @@ textarea.g-field { resize: none; line-height: 1.55; }
   --press-ink-3:  var(--press-recto-ink-3);
   --press-rule:   var(--press-recto-rule);
   --press-rule-2: var(--press-recto-rule);
-  --press-green:  var(--press-recto-ink);
   /* AND THE CITY'S OWN INK SCALE, WHICH IS WHERE THE FIRST VERSION LEAKED.
      The two panels on the recto are Relief components handed printed material,
      and they carry inline `color: var(--muted)` / `var(--ink-soft)` — root
@@ -1674,7 +1688,6 @@ textarea.g-field { resize: none; line-height: 1.55; }
   --press-ink-3:  var(--press-verso-ink-3);
   --press-rule:   var(--press-verso-rule);
   --press-rule-2: var(--press-verso-rule);
-  --press-green:  var(--press-verso-ink);
   /* AND THE CITY'S OWN INK SCALE, WHICH IS WHERE THE FIRST VERSION LEAKED.
      The two panels on the recto are Relief components handed printed material,
      and they carry inline `color: var(--muted)` / `var(--ink-soft)` — root
@@ -1705,16 +1718,16 @@ textarea.g-field { resize: none; line-height: 1.55; }
    the verso needing a second PressCourse. */
 .press-recto .press-desc, .press-recto .press-quote { color: var(--press-recto-ink-2); }
 .press-recto .press-colhead span, .press-recto .press-stats dt,
-.press-recto .press-aside h3 { color: var(--press-recto-ink-2); font-size: 10.5px; letter-spacing: .15em; }
+.press-recto .press-aside h3 { color: var(--press-recto-ink-2); font-size: 10.5px; letter-spacing: .24em; }
 .press-verso .press-desc, .press-verso .press-quote { color: var(--press-verso-ink-2); }
-.press-verso .press-colhead span, .press-verso .press-aside h3 { color: var(--press-verso-ink-2); font-size: 10.5px; letter-spacing: .15em; }
+.press-verso .press-colhead span, .press-verso .press-aside h3 { color: var(--press-verso-ink-2); font-size: 10.5px; letter-spacing: .24em; }
 /* the dish table is the thing this page exists to be read down */
 .press-verso .press-name { font-size: 16.5px; }
 .press-verso .press-desc { font-size: 13.5px; line-height: 1.55; }
 .press-verso .press-v { font-size: 14px; }
 .press-verso .press-v.dim { font-size: 13px; }
 .press-verso .press-acts button { font-size: 12px; }
-.press-recto .press-foot dt, .press-verso .press-foot dt { font-size: 10.5px; letter-spacing: .15em; }
+.press-recto .press-foot dt, .press-verso .press-foot dt { font-size: 10.5px; letter-spacing: .24em; }
 .press-verso .press-course-head { border-bottom-color: var(--press-verso-rule); }
 .press-verso .press-course-head h2 { color: var(--press-verso-ink); }
 .press-verso .press-course-head .press-kcal { color: var(--press-verso-ink);
@@ -4200,83 +4213,42 @@ textarea.g-field { resize: none; line-height: 1.55; }
   }
 }
 
-/* ═══ THE FOOD PREFERENCE PROFILE PRINTS ON TUESDAY'S SHEET ══════════════════
-   Not a hub ground grant: no [data-hub] block is touched, so relief.spec.ts's
-   grounded set still reads exactly astrology/beauty/entertainment. One page
-   taking a day's paper — the owner's call of 12 Aug. .food-paper carries no
-   data-press, so the press wearer list still finds three files.
+/* ═══ THE FOOD PREFERENCE PROFILE IS A PLAIN SHEET ══════════════════════════
+   It printed on Tuesday's press paper: a photograph under a .52 veil, with its
+   own ground (#c2a094) and three re-pointed inks measured against that ground.
+   Taken off on the owner's call of 20 Aug — the picture came through the white
+   summary table as a stain, and a page you read your own conditions and body
+   measurements off is not a place for a texture.
 
-   The veil stays at .52. Veiling until the city's inks cleared AA needs .78,
-   which erases 78% of the photograph. The press's method is the opposite: veil
-   to the minimum that makes a ground, then re-point the inks. On this ground
-   (#c2a094) only three city tokens fail — --muted 2.39, --faint 2.09,
-   --line 2.05 — and they take --press-recto-ink-2 / -ink-3 / -rule, already
-   solved for this sheet and reused rather than restated.
+   WHAT REPLACES IT NEEDS NO MEASUREMENT, which is the whole reason it is a
+   smaller block than the one it replaces. Every ink on this page is a root
+   token already contrasted against white, so the three ink re-points, the
+   --line override inside the summary and the borrowed edge under the edit
+   form's cards all went WITH the photograph rather than being restated against
+   a new ground. A sheet that needs a paragraph of contrast ratios to be safe
+   is a sheet carrying a picture; this one is not.
+
+   THE LAYOUT DID NOT CHANGE. The saved profile still reads as a printed table
+   of rows rather than a stack of cards, the edit form still keeps its cards,
+   and .food-print is still what says so.
    ═══════════════════════════════════════════════════════════════════════════ */
 .food-paper {
-  background-image:
-    linear-gradient(var(--press-recto-veil), var(--press-recto-veil)),
-    var(--press-recto-sheet);
-  background-size: cover;
-  background-position: center;
+  background: var(--card);
+  border-radius: 18px;
+  padding: clamp(18px, 2.4vw, 30px);
+  box-shadow: var(--shadow);
 }
 
-/* THE INK IS SET, THE TOKENS ARE NOT RE-POINTED.
-   This is `.cstage`'s shape, and for `.cstage`'s reason: re-pointing --muted on
-   the page would carry it into all thirteen cards of the edit form, which stand
-   on white and need the city's grey. Setting `color` instead leaves var(--muted)
-   holding its root value, so the restore below is a plain reference rather than
-   a second copy of #666666 living in relief.css. `muted` and `card` are on
-   no-borrowed-class-names' allow-list for exactly this. */
-.food-paper .muted   { color: var(--press-recto-ink-2); }
-.food-paper .eyebrow { color: var(--press-recto-ink-3); }
-
-/* …and the cards take the city's ink straight back. A card paints its own
-   ground, so it must paint its own foreground — the general rule
-   a-stage-does-not-export-its-ink.test.ts was written to hold. */
-.food-paper .card           { color: var(--ink); }
-.food-paper .card .muted    { color: var(--muted); }
-.food-paper .card .eyebrow  { color: var(--faint); }
-
 /* ── THE SAVED VIEW IS PRINTED, NOT CARDED ───────────────────────────────────
-   A white surface is 1.01:1 against this sheet — its lightest pixel is pure
-   white, and no white veil changes that. The summary card did not dissolve a
-   little; it had no edge at all.
-
-   Two ways out: give it an edge, or stop being a card. The saved view stops
-   being a card, because a page listing what you eat, printed on paper, is the
-   thing itself rather than a panel describing it.
-
-   --line is re-pointed HERE, on the variable, because the row rules are written
-   inline (`borderTop: '1px solid var(--line)'`) and no selector can reach them.
-   That is safe in this block and nowhere else: the saved view contains no card,
-   so there is nothing inside it to restore. */
+   Two ways to sit a summary on a sheet: give it an edge, or stop being a card.
+   It stops being a card, because a page listing what you eat, printed on
+   paper, is the thing itself rather than a panel describing it. It keeps no
+   ground, no edge and no radius inside the sheet it is already on. */
 .food-paper .food-print {
-  --line: var(--press-recto-rule);
   background: transparent;
   box-shadow: none;
   border-radius: 0;
   padding: 0;
-}
-
-/* ── THE EDIT FORM KEEPS ITS CARDS, AND GAINS AN EDGE ────────────────────────
-   Behind "Edit Food Preference Profile" there are THIRTEEN cards, plus every
-   text input, which paints `background: var(--card)`. That is not a document,
-   it is a long form, and a text field with no ground on a photograph is
-   unusable rather than merely undecorated. So the form stays lit and takes an
-   edge instead.
-
-   NOT --press-recto-rule: rgba(51,44,37,.32) composites to #bebbb9 on a white
-   card — 1.89:1, which is not an edge. That token draws rules ON the paper, not
-   a boundary against it. The two read as the same kind of line and are not.
-
-   --press-ink-3 is 3.64:1 against the sheet and 3.67:1 against the card
-   interior. Balanced both ways: it separates without becoming a border.
-
-   One rule, so a fourteenth card added next month is edged the day it is
-   written. There is no list. */
-.food-paper .card {
-  box-shadow: 0 0 0 1px var(--press-ink-3), var(--shadow);
 }
 
 /* ═══ THE GROCERY SHEET — a printed checklist, not a stack of cards ══════════
@@ -5044,19 +5016,24 @@ textarea.g-field { resize: none; line-height: 1.55; }
 [data-hub="nutrition"] .sheet { background: var(--frost); }
 
 /* ── AND THE PAPER DOES NOT FLOAT, WHICH IS THE POINT OF THE PAPER ──────────
-   `.press-recto`, `.press-verso` and `.food-paper` are PHOTOGRAPHS with a veil
-   over them, and every ink on them was measured against the worst pixel of
-   their own sheet — that is what scripts/paper.mjs and the per-sheet AA guard
-   in relief.spec exist for. A translucent sheet is a photograph with a sky
-   coming through it: a different image, at every viewport, with none of the
-   numbers still true. They are absent from the list above deliberately and it
-   is the same absence as beauty's --shot-ground and astrology's letter.
+   `.press-recto` and `.press-verso` were PHOTOGRAPHS until 20 Aug, and every
+   ink on them was measured against the worst pixel of their own sheet. They
+   are one pale gradient now, and they stay off the float list for the reason
+   that argument always rested on: a translucent sheet is a surface with a sky
+   coming through it — a different colour at every viewport, with none of the
+   numbers still true. `--press-sky` is opaque and its stops are measured in
+   relief.spec, which is what makes the ratios exact rather than hopeful. The
+   glass is the palette, not alpha.
+
+   `.food-paper` is on the list for a different reason since 20 Aug: it stopped
+   being a photograph and became the city's own white sheet, and a frosted
+   surface floating on an opaque one is a surface that has been drawn twice.
 
    AND A CARD ON A SHEET COMES BACK TO WHITE WITH THEM. `.card` is on the
    float list and it is the right place for it — thirty-six of them across this
-   hub stand on the page — but a handful stand on Tuesday's paper instead, and
-   frost over a photograph is the same wrong answer one level down. A card
-   paints its own ground; on a sheet, its own ground is white. */
+   hub stand on the page — but a handful stand on a sheet instead, and frost
+   over a sheet is the same wrong answer one level down. A card paints its own
+   ground; on a sheet, its own ground is white. */
 [data-hub="nutrition"] .food-paper .card,
 [data-hub="nutrition"] .press-recto .card,
 [data-hub="nutrition"] .press-verso .card { background: var(--card); }
@@ -5075,11 +5052,10 @@ textarea.g-field { resize: none; line-height: 1.55; }
    forty-one times, and the inline color: 'var(--muted)' no stylesheet could
    otherwise reach. Not one .tsx is edited to do it.
 
-   THE SHEETS NEED NOTHING FROM THIS AND ALREADY DID IT RIGHT. `.food-paper
-   .muted` sets a COLOUR rather than re-pointing the token — its own comment
-   explains why, and the effect here is that a shadowed var it never reads
-   cannot reach it. The cards on it are on the restore list below like every
-   other card, so their greys come back the city's.
+   THE SHEETS NEED NOTHING FROM THIS AND ALREADY DID IT RIGHT — they carry
+   their own inks, measured against their own paper. `.food-paper` is a plain
+   white sheet since 20 Aug, so it takes the restore below like any other card
+   and its greys are simply the city's.
 
    THE RAIL AND THE HEADER ARE OUTSIDE .tc-main, and that is correct rather
    than an omission — both are panels, and both keep the city's greys. */
@@ -5592,3 +5568,122 @@ textarea.g-field { resize: none; line-height: 1.55; }
     box-shadow: var(--e3);
   }
 }
+
+/* ══ THE DAY A CITIZEN BUILT, SET AS A MENU ══════════════════════════════
+   The dishes somebody chose by hand were a five-column table: name, kcal, P,
+   C, F, and a Remove link. That is the right shape for a plan the ENGINE
+   composed — you read down it checking the arithmetic. It is the wrong shape
+   for a day you are choosing, where the question is "do I want to eat that",
+   and the corpus already holds the one thing that answers it: the photograph.
+
+   So a course prints as a menu. The plate carries the picture, the name and
+   the calories on the same rule — the position a menu puts a price in, which
+   is the position a reader's eye already goes to. The macros drop to a
+   metadata line: still there, no longer the loudest thing about a bowl of dal.
+
+   NO PLATE INVENTS ITS PHOTOGRAPH. A dish with no image in the corpus gets a
+   tinted panel with its name set on it, exactly as the recipe tiles do. The
+   alternative — a stock photograph of something similar — is a picture of
+   food nobody is going to cook. `--press-rule` is the tint because it is the
+   one ink that is already contrasted against every one of the thirteen
+   papers; a fixed grey would vanish on Saturday's olive and glare on Sunday's.
+
+   It adds no depth and no colour. The plate has no shadow: the picture is its
+   own edge, and the rule under the name is the same hairline the dish table
+   drew.  */
+.press-menu { display: grid; grid-template-columns: repeat(auto-fill, minmax(214px, 1fr));
+  gap: clamp(20px, 2.4vw, 30px) 22px; padding-top: 22px; }
+.press-plate { display: flex; flex-direction: column; min-width: 0; }
+.press-plate-fig { position: relative; margin: 0; aspect-ratio: 4 / 3; overflow: hidden;
+  background: var(--press-rule); display: grid; place-items: center; }
+.press-plate-fig img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.press-plate-fig figcaption { font-family: var(--press-serif); font-size: 19px; line-height: 1.2;
+  text-align: center; padding: 0 16px; color: var(--press-ink); }
+.press-plate-line { display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  border-bottom: 1px solid var(--press-ink); padding: 13px 0 9px; }
+.press-plate-name { font-family: var(--press-serif); font-size: 18px; line-height: 1.25;
+  display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.press-plate-name > svg { position: relative; top: 2px; flex: none; }
+.press-plate-name a { color: inherit; text-decoration: none; border-bottom: 1px solid transparent; }
+.press-plate-name a:hover { border-bottom-color: var(--press-ink-3); }
+.press-plate-kcal { font-family: var(--press-mono); font-size: 14px; white-space: nowrap; color: var(--press-green); }
+.press-plate-kcal small { font-family: var(--sans); font-size: 10px; color: var(--press-ink-3); margin-left: 4px; }
+.press-plate-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding-top: 8px; font-size: 11.5px; color: var(--press-ink-3); }
+.press-plate-macros { font-family: var(--press-mono); letter-spacing: .02em; }
+.press-plate-foot button { font-family: var(--sans); font-size: 11px; font-weight: 500; letter-spacing: .05em;
+  color: var(--press-ink-3); background: none; border: 0; padding: 0; cursor: pointer;
+  border-bottom: 1px solid transparent; white-space: nowrap; }
+.press-plate-foot button:hover:not(:disabled) { color: var(--press-green); border-bottom-color: var(--press-green); }
+.press-plate-foot button:disabled { opacity: .45; cursor: default; }
+
+/* ── the day knows what time it is ────────────────────────────────────────
+   A course carries the hour it is eaten at, and until now the page threw that
+   away — Breakfast and Dinner were two identical headings and you found your
+   place by reading. The time prints beside the course, the course you are
+   actually in says so, and the ones that have gone fade.
+
+   A course counts as gone when the NEXT one's hour has come, not on a timer of
+   its own: no dish carries an end time, so any duration written here would be
+   invented. That is why the last course of the day never dims. */
+.press-course-title { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; min-width: 0; }
+.press-course-when { font-family: var(--press-mono); font-size: 11px; letter-spacing: .24em;
+  text-transform: uppercase; color: var(--press-ink-3); white-space: nowrap; }
+.press-course-when.is-now { color: var(--press-green); border-bottom: 1px solid var(--press-green); }
+.press-course.is-past { opacity: .45; }
+
+/* ── every other day, one line each ───────────────────────────────────────
+   Locked days and days left open used to print in full, one press sheet
+   apiece, under two separate headings — so a citizen who had settled a week
+   scrolled past seven complete newspapers to reach the one they were building.
+   A day you are not editing is a row: its weekday, what it came to, whether it
+   is locked. Open it and the sheet is still there, unchanged. */
+.own-days { border-top: 1px solid var(--line); margin-top: 30px; padding-top: 16px; }
+.own-day-row { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; width: 100%;
+  font: inherit; color: inherit; text-align: left; background: none; border: 0;
+  border-bottom: 1px solid var(--line); padding: 15px 2px; cursor: pointer; min-height: 44px; }
+.own-day-row:hover .own-day-when { border-bottom-color: var(--ink); }
+.own-day-when { font-size: 15px; font-weight: 700; border-bottom: 1px solid transparent; }
+.own-day-meta { font-size: 12.5px; color: var(--muted); }
+.own-day-sum { margin-left: auto; font-size: 12.5px; white-space: nowrap; }
+.own-day-mark { font-size: 10.5px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--muted); }
+
+/* ── the month, as a strip ────────────────────────────────────────────────
+   The citizen-built plan has always been a calendar month — the server anchors
+   day 0 to the 1st and re-anchors when the month turns — and the page showed
+   one day of it with no way to tell whether that was the 2nd or the 30th.
+
+   The strip is a NAVIGATION, not a picker: a day with food on it opens, a day
+   without is not a control at all. Which day new dishes land on is the
+   server's to decide, and locking is what moves it — the sentence under the
+   strip says so, because a grid of dates that cannot be chosen has to explain
+   itself once or it reads as broken.
+
+   State is never colour alone. Locked is filled AND the strip's own rows below
+   say "Locked"; today is underlined; the day being built takes the ring. Each
+   cell carries the whole sentence as its label. */
+.own-month { margin-bottom: 4px; }
+.own-month-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+  gap: 5px; margin-bottom: 10px; }
+.own-month-day { display: grid; place-items: center; min-height: 34px; padding: 0;
+  font: inherit; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums;
+  color: var(--muted); background: none; border: 1px solid var(--line); border-radius: 8px; }
+.own-month-day.is-filled { color: var(--accent-ink); border-color: var(--accent); }
+.own-month-day.is-locked { color: var(--on-accent); background: var(--accent); border-color: var(--accent); }
+.own-month-day.is-today { text-decoration: underline; text-underline-offset: 3px; }
+.own-month-day.is-building { outline: 2px solid var(--accent); outline-offset: 1px; }
+button.own-month-day { cursor: pointer; }
+button.own-month-day:hover { border-color: var(--accent); }
+.own-month-note { font-size: 12.5px; line-height: 1.6; color: var(--muted); margin: 0 0 4px; max-width: 68ch; }
+
+/* ── who the shopping is for ──────────────────────────────────────────────
+   The count lived on the Grocery page, so the citizen chose the dishes on one
+   screen and found out on another that the quantities were for one. It sits in
+   the day's own column now. It moves what is BOUGHT and nothing above it. */
+.own-people { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--press-ink-2); }
+.own-people button { width: 30px; height: 30px; display: grid; place-items: center; cursor: pointer;
+  font: inherit; font-size: 15px; color: var(--press-ink); background: none;
+  border: 1px solid var(--press-rule); border-radius: 999px; }
+.own-people button:disabled { opacity: .4; cursor: default; }
+.own-people-n { font-family: var(--press-mono); font-size: 17px; color: var(--press-ink); min-width: 1.4ch; text-align: center; }

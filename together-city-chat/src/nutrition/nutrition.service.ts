@@ -3053,12 +3053,27 @@ export class NutritionService implements OnModuleInit {
     // closing it — a hand-built day that quietly gets topped up is not one.
     const prescription = await this.targets(userId).catch(swallowed('nutrition.ownPlan targets', null, { userId }));
 
+    // HOW MANY PEOPLE THE SHOPPING IS FOR. The same stored count the grocery
+    // list already reads and already clamps — returned here so the page that
+    // builds the day can set it beside the food instead of sending the citizen
+    // to the basket to find out what their list is buying for. It scales what
+    // is BOUGHT and nothing else: the day's calories and macros are one
+    // person's intake, and multiplying those by the household would turn a
+    // citizen's own target into a number about the kitchen.
+    const peopleRaw = Number((ex as { groceryPeople?: unknown }).groceryPeople);
+    const people = Number.isFinite(peopleRaw) && peopleRaw >= 1 ? Math.min(12, Math.round(peopleRaw)) : 1;
+
     return {
       planStartDate,
+      // The month this plan covers, so the page can draw all of it. Derived
+      // here rather than in the browser: two answers to "how long is this
+      // month" is how a 31st appears on one screen and not the other.
+      planDays,
       todayIndex: todayIdx,
       targetDay: targetDay(todayIdx, locks, planDays),
       locks: [...locks].sort((a, b) => a - b),
       days,
+      people,
       targets: prescription,
     };
   }

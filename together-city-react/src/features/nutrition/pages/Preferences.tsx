@@ -422,7 +422,7 @@ export function Preferences() {
   };
 
   return (
-    <div className="food-paper" data-paper="tue">
+    <div className="food-paper">
       <div className="eyebrow">Nutrition Hub · 02</div>
       <h1 style={{ fontSize: 26 }}>Food Preference Profile 🌿</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 0' }}>

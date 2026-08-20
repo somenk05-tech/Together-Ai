@@ -3,10 +3,9 @@ import { Link } from 'react-router-dom';
 import { Card, Spinner, EmptyState, Button, Chip } from '@/components/ui';
 import { LABELS } from '@/config/labels';
 import { useRecipeLibrary, type RecipeCard } from '../library.api';
-import { useAddToOwnPlan, useLockOwnDay, useOwnPlan, useRemoveFromOwnPlan, useUnlockOwnDay } from '../composed.api';
+import { useAddToOwnPlan, useLockOwnDay, useOwnPlan, useRemoveFromOwnPlan, useSetOwnPeople, useUnlockOwnDay } from '../composed.api';
 import { OwnDayView } from '../components/OwnDayView';
 import { VegMark } from '../components/VegMark';
-import { OwnRecipes } from '../components/OwnRecipes';
 
 /** Debounce a fast-changing value (e.g. a search box) so it only settles after
  *  the user pauses — keeps the input responsive while throttling query-key churn. */
@@ -99,6 +98,7 @@ export function RecipeLibrary() {
   const removeDish = useRemoveFromOwnPlan();
   const lockDay = useLockOwnDay();
   const unlockDay = useUnlockOwnDay();
+  const setPeople = useSetOwnPeople();
   // What is already on the day being built — the tiles read this so "Added" is
   // the plan's own answer rather than a second list that can drift from it.
   const target = own.data?.days.find((d) => d.dayIndex === own.data?.targetDay);
@@ -209,7 +209,8 @@ export function RecipeLibrary() {
       onRemove={(day: number, recipeId: string) => removeDish.mutate({ day, recipeId })}
       onLock={(day: number) => lockDay.mutate({ day })}
       onUnlock={(day: number) => unlockDay.mutate({ day })}
-      busy={removeDish.isPending || lockDay.isPending || unlockDay.isPending || addDish.isPending}
+      onPeople={(n: number) => setPeople.mutate(n)}
+      busy={removeDish.isPending || lockDay.isPending || unlockDay.isPending || addDish.isPending || setPeople.isPending}
     />
   );
 
@@ -279,8 +280,10 @@ export function RecipeLibrary() {
         <h1 style={{ fontSize: 26 }}>{LABELS.createYourOwnMealPlan}</h1>
         <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px' }}>
           Add the dishes you want and they build the day below. Lock a day and its ingredients go
-          straight to your grocery list — then the next dish you add starts the day after. Browse a
-          cuisine for ideas, or add a dish you cook yourself, further down this page.
+          straight to your grocery list — then the next dish you add starts the day after, which is
+          how you fill a month. Say how many people you are cooking for and every quantity on that
+          list scales. Browse a cuisine for ideas, or add a dish you cook yourself under{' '}
+          <Link to="/nutrition/saved">Saved recipes</Link>.
         </p>
 
         {buildBar}
@@ -291,11 +294,6 @@ export function RecipeLibrary() {
         {lib.isLoading && <Spinner label="Loading recipes…" />}
         {lib.isError && !lib.isLoading && errorState}
         {!lib.isError && lib.isFetching && !lib.isLoading && <p className="muted" style={{ fontSize: 12, margin: '0 0 10px' }}>Updating…</p>}
-
-        {/* Adding your own dish used to be a second page. It is the same job as
-            everything above it — deciding what you are going to eat — so it now
-            happens here, and /nutrition/recipes/own redirects. */}
-        <OwnRecipes />
 
         {cuisineIndex}
       </div>

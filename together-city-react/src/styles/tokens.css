@@ -797,73 +797,67 @@
      asks for it breaks, and it now asks for nothing. */
   --press-grain: none;
 
-  /* ══ THE DAY IS TWO SHEETS, AND EVERY WEEKDAY HAS ITS OWN PAIR ═══════════
-     The paragraph above gave the press its ground back and meant it. This puts
-     a photograph behind the meal-plan day anyway, so the difference has to be
-     argued rather than assumed — from a distance it looks like the removed
-     beige walking back in.
+  /* ══ THE DAY IS TWO SHEETS, AND THE WEEK PRINTS ON ONE SKY ══════════════
+     This was fourteen photographs — a recto and a verso for each weekday, each
+     with a veil, a declared worst-pixel ground and an ink scale of its own,
+     because two of the sheets were dark enough to need cream and four were
+     light enough to need near-black. Retired on the owner's call of 20 Aug:
+     the week now prints on Beauty's dawn, one pale gradient, and the day's
+     identity is carried by the thing that actually differs — the weekday, the
+     date and the day number — rather than by the picture behind it.
 
-     WHAT WAS REMOVED WAS AN INVENTED TINT. #faf7f0 was a colour this
-     application picked and washed the page in, and the objection was that
-     nothing on the page was the reason for it: take the beige away and the menu
-     was still a menu, which is precisely what happened. These are not a tint.
-     They are the owner's own reference sheets, and the day was redrawn ON them.
-     Take one away and there is no page left, which is the test the beige failed.
+     WHAT THE DELETION BUYS is not weight, though it is 13 photographs of that.
+     It is that a sheet no longer needs an argument to be readable. Every ink
+     on this page is now the press's own scale on a ground four shades off
+     white, so `--press-ink` runs 13.8:1, `--press-ink-2` 6.6:1 and
+     `--press-ink-3` 3.2:1 against the darkest stop of the gradient — one set
+     of numbers for the whole week instead of fourteen, and the guard in
+     relief.spec.ts recomputes them from the stops rather than from a hex
+     somebody wrote down after looking at a JPEG.
 
-     TWO SHEETS, BECAUSE THE DAY IS TWO DECISIONS. The RECTO is what you decide
-     — the weekday, the five figures, the lock, what to buy. The VERSO is what
-     you eat — every dish with its macros, the totals, the ring. They were one
-     scrolling sheet, which left the lock bar stranded above a menu it was not
-     about.
+     TWO SHEETS, BECAUSE THE DAY IS STILL TWO DECISIONS. The RECTO is what you
+     decide — the weekday, the five figures, the lock, what to buy. The VERSO
+     is what you eat — every dish with its macros, the totals, the ring. That
+     split survives the pictures going; it was never the pictures that made it.
 
-     SEVEN PAIRS, NOT ONE. A week of the same paper is a template; the point of
-     the pair is that Thursday does not look like Friday. The defaults below are
-     the WHITE PRESS PAPER, so a weekday with no pair yet is exactly the page
-     that shipped before this — a day is opted IN by name and there is no
-     half-dressed state.
+     THE SHEET IS OPAQUE AND THE FEEL IS THE PALETTE. relief.css already argues
+     this, under "the paper does not float": a translucent sheet is a
+     photograph with a sky coming through it — a different colour at every
+     viewport, with none of the numbers still true. The glassiness here is
+     dawn light and a white top edge, not alpha, which is why the ratios above
+     are exact rather than hopeful.
 
-     `--press-paper` IS UNCHANGED AND THAT IS DELIBERATE. The press is granted
-     to three files. RecipeDetail's grant says, in relief.spec.ts, that it takes
-     the press's paper unchanged and that giving one page its own warm ground
-     was the obvious move and the wrong one. It keeps white. Nothing about it
-     changes here.
+     `--press-paper` IS UNCHANGED AND THAT IS DELIBERATE. RecipeDetail's grant
+     in relief.spec.ts says it takes the press's paper unchanged and that
+     giving one page its own warm ground was the obvious move and the wrong
+     one. It keeps white. Nothing about it changes here. */
+  --press-sky: linear-gradient(157deg,
+    #f0f4f9  0%,    /* pale blue overhead */
+    #f7f5f3 34%,
+    #fdfbf9 62%,
+    #f8f1ea 100%);  /* warming to cream at the foot */
+  /* The darkest stop of that gradient. Every ink below is measured against it,
+     which is the pessimistic reading and the only safe one — the head and the
+     foot are within a hair of each other, so there is no "mostly fine" here. */
+  --press-sky-worst: #f8f1ea;
 
-     THE ARGUMENT THIS OWES. OwnDayView was granted the press so a day you
-     compose and a day the engine composed print on the SAME paper. That is true
-     today and stops being true when this lands: the engine's day moves onto the
-     pairs, the hand-built one stays white. Named here rather than discovered
-     later. It is a debt on the next commit, not a licence.
-
-     A GROUND HEX IS NOT DECORATION — IT IS THE CONTRAST ARGUMENT. A photograph
-     has no single colour for a build-time check to measure, so each `-ground`
-     below is the WORST pixel of its own sheet under its own veil: the lightest
-     where the ink is cream, the darkest where the ink is dark. Every ratio in
-     the comments is against that, not an average, which is why they read
-     pessimistically. relief.spec.ts recomputes all of them.
-
-     A VEIL EXISTS ONLY FOR THAT, AND THREE SHEETS DO NOT NEED ONE. Untinted,
-     Thursday's blue puts cream at 2.14:1 and Friday's flower swings from
-     10.03:1 at the petal tips to 1.39:1 in the shadow — no ink survives that
-     photograph, so it is veiled until it is a paper. Friday's wall and
-     Saturday's olive are flat enough to take type as they are, and are left
-     alone. A veil is one flat overlay: no gradient, no mood. */
-  --press-recto-sheet: none;
+  --press-recto-sheet: var(--press-sky);
   --press-recto-veil:  transparent;
-  --press-recto-ground:var(--press-paper);
+  --press-recto-ground:var(--press-sky-worst);
   --press-recto-ink:   var(--press-ink);
   --press-recto-ink-2: var(--press-ink-2);
   --press-recto-ink-3: var(--press-ink-3);
   --press-recto-rule:  var(--press-rule);
-  --press-recto-lift:  transparent;
+  --press-recto-lift:  rgba(255, 255, 255, .72);
 
-  --press-verso-sheet: none;
+  --press-verso-sheet: var(--press-sky);
   --press-verso-veil:  transparent;
-  --press-verso-ground:var(--press-paper);
+  --press-verso-ground:var(--press-sky-worst);
   --press-verso-ink:   var(--press-ink);
   --press-verso-ink-2: var(--press-ink-2);
   --press-verso-ink-3: var(--press-ink-3);
   --press-verso-rule:  var(--press-rule);
-  --press-verso-lift:  transparent;
+  --press-verso-lift:  rgba(255, 255, 255, .72);
   --press-verso-macro-1:var(--press-macro-1);
   --press-verso-macro-2:var(--press-macro-2);
   --press-verso-macro-3:var(--press-macro-3);
@@ -926,188 +920,19 @@
   :root { --header-h: 90px; }
 }
 
-/* ══ THE WEEK'S PAPERS ═══════════════════════════════════════════════════
-   One pair per weekday, keyed by `data-paper` on the sheet itself. A day with
-   no block here keeps the white press paper declared above, which is the page
-   exactly as it shipped — there is no half-dressed state and no fallback that
-   looks like a mistake.
+/* ══ THE WEEK'S PAPERS, AND WHY THERE ARE NONE ═══════════════════════════
+   Thirteen blocks stood here: `[data-paper="thu"] .press-recto` and its
+   twelve siblings, each naming a JPEG, a veil, a worst-pixel ground and three
+   inks measured against it. They are gone with the photographs, on the
+   owner's call of 20 Aug — the week prints on `--press-sky` above and every
+   day takes the same one.
 
-   EACH PAIR CARRIES ITS OWN INK SCALE AND THAT IS THE WHOLE COST OF THIS.
-   Two of these sheets are dark enough to need cream and four are light enough
-   to need near-black, and there is no scale that works on both: the cream that
-   reads on Thursday's blue at 5.03:1 is 1.5:1 on Sunday's linen. A paper
-   without its ink is half a decision.
-
-   THE `-ground` IS THE WORST PIXEL, VEILED — never an average, because the
-   average of a photograph is a colour that appears nowhere in it. relief.spec
-   .ts recomputes every ratio in the comments below against these hexes.
-
-   THREE OF THE SEVEN NEED NO VEIL. Friday's wall, Saturday's olive and
-   Sunday's linen are flat enough to take type as they are, and are left alone;
-   a veil on a paper that does not need one is the beige again. The other four
-   are photographs with a range, and the veil is what turns a picture into a
-   ground: one flat overlay, no gradient, no mood. Sunday's is the heaviest at
-   .68 and the reason is visible in the image — the cosmos stems go to #1b0203,
-   and thin near-black lines under body copy are the one thing a veil cannot be
-   polite about. */
-[data-paper="thu"] .press-recto {
-  --press-recto-sheet: url('/assets/img/press-thu-recto.jpg');
-  --press-recto-veil:  rgba(22, 42, 60, .55);
-  --press-recto-ground:#4c6172;  /* lightest pixel, veiled */
-  --press-recto-ink:   #ece2d4;  /* 5.03:1 */
-  --press-recto-ink-2: #dfd8cc;  /* 4.55:1 */
-  --press-recto-ink-3: #bfbeb8;  /* 3.46:1 — labels and metadata ONLY */
-  --press-recto-rule:  rgba(12, 26, 38, .42);
-  --press-recto-lift:  rgba(255, 255, 255, .17);
-}
-[data-paper="thu"] .press-verso {
-  --press-verso-sheet: url('/assets/img/press-thu-verso.jpg');
-  --press-verso-veil:  rgba(255, 253, 250, .18);
-  --press-verso-ground:#b8a480;  /* darkest pixel, veiled */
-  --press-verso-ink:   #332c25;  /* 5.67:1 */
-  --press-verso-ink-2: #433b30;  /* 4.54:1 */
-  --press-verso-ink-3: #594e40;  /* 3.35:1 — labels and metadata ONLY */
-  --press-verso-rule:  rgba(51, 44, 37, .34);
-  --press-verso-lift:  rgba(255, 253, 250, .62);
-  --press-verso-macro-1:#5c4a38;
-  --press-verso-macro-2:#8f7659;
-  --press-verso-macro-3:#bda284;
-  --press-verso-macro-0:rgba(51, 44, 37, .18);
-}
-[data-paper="fri"] .press-recto {
-  --press-recto-sheet: url('/assets/img/press-fri-recto.jpg');
-  --press-recto-ground:#b8b4b1;  /* darkest pixel, unveiled */
-  --press-recto-ink:   #332c25;  /* 6.68:1 */
-  --press-recto-ink-2: #433b30;  /* 5.35:1 */
-  --press-recto-ink-3: #594e40;  /* 3.94:1 — labels and metadata ONLY */
-  --press-recto-rule:  rgba(51, 44, 37, .34);
-  --press-recto-lift:  rgba(255, 255, 255, .7);
-}
-[data-paper="fri"] .press-verso {
-  --press-verso-sheet: url('/assets/img/press-fri-verso.jpg');
-  --press-verso-veil:  rgba(255, 253, 250, .53);
-  --press-verso-ground:#a9a4ab;  /* darkest pixel, veiled */
-  --press-verso-ink:   #332c25;  /* 5.62:1 */
-  --press-verso-ink-2: #433b30;  /* 4.50:1 */
-  --press-verso-ink-3: #594e40;  /* 3.32:1 — labels and metadata ONLY */
-  --press-verso-rule:  rgba(51, 44, 37, .34);
-  --press-verso-lift:  rgba(255, 253, 250, .66);
-  --press-verso-macro-1:#4a4350;
-  --press-verso-macro-2:#8a7f92;
-  --press-verso-macro-3:#c3b8c8;
-  --press-verso-macro-0:rgba(51, 44, 37, .18);
-}
-/* Saturday's second sheet has not arrived — the file that came through was
-   fully transparent. The recto takes its olive; the verso stays white press
-   paper, which is a whole page and not a gap. */
-[data-paper="sat"] .press-recto {
-  --press-recto-sheet: url('/assets/img/press-sat-recto.jpg');
-  --press-recto-ground:#57554a;  /* lightest pixel, unveiled */
-  --press-recto-ink:   #ece2d4;  /* 5.85:1 */
-  --press-recto-ink-2: #dfd8cc;  /* 5.29:1 */
-  --press-recto-ink-3: #bfbeb8;  /* 4.02:1 — labels and metadata ONLY */
-  --press-recto-rule:  rgba(14, 14, 8, .42);
-  --press-recto-lift:  rgba(255, 255, 255, .16);
-}
-[data-paper="sun"] .press-recto {
-  --press-recto-sheet: url('/assets/img/press-sun-recto.jpg');
-  --press-recto-veil:  rgba(255, 253, 250, .65);
-  --press-recto-ground:#aea5a2;  /* darkest pixel, veiled */
-  --press-recto-ink:   #332c25;  /* 5.70:1 */
-  --press-recto-ink-2: #433b30;  /* 4.56:1 */
-  --press-recto-ink-3: #594e40;  /* 3.36:1 — labels and metadata ONLY */
-  --press-recto-rule:  rgba(51, 44, 37, .34);
-  --press-recto-lift:  rgba(255, 253, 250, .66);
-}
-[data-paper="sun"] .press-verso {
-  --press-verso-sheet: url('/assets/img/press-sun-verso.jpg');
-  --press-verso-ground:#e5d9c9;  /* darkest pixel, unveiled */
-  --press-verso-ink:   #332c25;  /* 9.88:1 */
-  --press-verso-ink-2: #433b30;  /* 7.92:1 */
-  --press-verso-ink-3: #594e40;  /* 5.83:1 — labels and metadata ONLY */
-  --press-verso-rule:  rgba(51, 44, 37, .30);
-  --press-verso-lift:  rgba(255, 252, 246, .8);
-  --press-verso-macro-1:#5c4a38;
-  --press-verso-macro-2:#8f7659;
-  --press-verso-macro-3:#bda284;
-  --press-verso-macro-0:rgba(51, 44, 37, .18);
-}
-[data-paper="mon"] .press-recto {
-  --press-recto-sheet: url('/assets/img/press-mon-recto.jpg');
-  --press-recto-veil:  rgba(255, 253, 250, .53);
-  --press-recto-ground:#c39d9a;  /* darkest pixel, veiled */
-  --press-recto-ink:   #332c25;  /* 5.64:1 */
-  --press-recto-ink-2: #433b30;  /* 4.52:1 */
-  --press-recto-ink-3: #594e40;  /* 3.33:1 — labels and metadata ONLY */
-  --press-recto-rule:  rgba(51, 44, 37, .32);
-  --press-recto-lift:  rgba(255, 253, 250, .66);
-}
-[data-paper="mon"] .press-verso {
-  --press-verso-sheet: url('/assets/img/press-mon-verso.jpg');
-  --press-verso-ground:#9bacbb;  /* darkest pixel, unveiled */
-  --press-verso-ink:   #332c25;  /* 5.90:1 */
-  --press-verso-ink-2: #433b30;  /* 4.73:1 */
-  --press-verso-ink-3: #594e40;  /* 3.48:1 — labels and metadata ONLY */
-  --press-verso-rule:  rgba(51, 44, 37, .32);
-  --press-verso-lift:  rgba(255, 255, 255, .5);
-  --press-verso-macro-1:#33475c;
-  --press-verso-macro-2:#6d8296;
-  --press-verso-macro-3:#adbecc;
-  --press-verso-macro-0:rgba(51, 44, 37, .18);
-}
-[data-paper="wed"] .press-recto {
-  --press-recto-sheet: url('/assets/img/press-wed-recto.jpg');
-  --press-recto-veil:  rgba(255, 253, 250, .62);
-  --press-recto-ground:#c39e9d;  /* darkest pixel, veiled */
-  --press-recto-ink:   #332c25;  /* 5.69:1 */
-  --press-recto-ink-2: #433b30;  /* 4.56:1 */
-  --press-recto-ink-3: #594e40;  /* 3.36:1 — labels and metadata ONLY */
-  --press-recto-rule:  rgba(51, 44, 37, .32);
-  --press-recto-lift:  rgba(255, 253, 250, .7);
-}
-[data-paper="wed"] .press-verso {
-  --press-verso-sheet: url('/assets/img/press-wed-verso.jpg');
-  --press-verso-ground:#ceb98c;  /* darkest pixel, unveiled */
-  --press-verso-ink:   #332c25;  /* 7.16:1 */
-  --press-verso-ink-2: #433b30;  /* 5.74:1 */
-  --press-verso-ink-3: #594e40;  /* 4.23:1 — labels and metadata ONLY */
-  --press-verso-rule:  rgba(51, 44, 37, .32);
-  --press-verso-lift:  rgba(255, 252, 244, .7);
-  --press-verso-macro-1:#5c4a38;
-  --press-verso-macro-2:#8f7659;
-  --press-verso-macro-3:#bda284;
-  --press-verso-macro-0:rgba(51, 44, 37, .18);
-}
-/* Tuesday's verso asks for .04, which is the smallest veil in the week and
-   very nearly none: the blue brushstroke lands ink-2 at 4.38:1 untouched, and
-   four hundredths of white is what carries it over. It is written rather than
-   rounded away because the next person to "tidy" it back to none puts a
-   description under AA and nothing on the page looks different. */
-[data-paper="tue"] .press-recto,
-.food-paper[data-paper="tue"] {
-  --press-recto-sheet: url('/assets/img/press-tue-recto.jpg');
-  --press-recto-veil:  rgba(255, 253, 250, .52);
-  --press-recto-ground:#c2a094;  /* darkest pixel, veiled */
-  --press-recto-ink:   #332c25;  /* 5.73:1 */
-  --press-recto-ink-2: #433b30;  /* 4.59:1 */
-  --press-recto-ink-3: #594e40;  /* 3.38:1 — labels and metadata ONLY */
-  --press-recto-rule:  rgba(51, 44, 37, .32);
-  --press-recto-lift:  rgba(255, 253, 250, .7);
-}
-[data-paper="tue"] .press-verso {
-  --press-verso-sheet: url('/assets/img/press-tue-verso.jpg');
-  --press-verso-veil:  rgba(255, 253, 250, .04);
-  --press-verso-ground:#97a9ac;  /* darkest pixel, veiled */
-  --press-verso-ink:   #332c25;  /* 5.62:1 */
-  --press-verso-ink-2: #433b30;  /* 4.50:1 */
-  --press-verso-ink-3: #594e40;  /* 3.32:1 — labels and metadata ONLY */
-  --press-verso-rule:  rgba(51, 44, 37, .32);
-  --press-verso-lift:  rgba(255, 255, 255, .55);
-  --press-verso-macro-1:#3c4f4a;
-  --press-verso-macro-2:#7a8f8a;
-  --press-verso-macro-3:#b6c4c0;
-  --press-verso-macro-0:rgba(51, 44, 37, .18);
-}
+   THIS TOMBSTONE IS NOT SENTIMENT. `[data-paper]` was a real key with a real
+   fallback, and the fastest way to reintroduce it is for somebody to find a
+   `press-thu-recto.jpg` reference in an old commit and assume the block was
+   lost rather than removed. It was removed. If a day should look different
+   again, the argument to make is why the weekday, the date and the day number
+   are not enough — not whether the file still exists. */
 
 /* ── PER-HUB IDENTITY ──────────────────────────────────────────────────────
    One line each. --accent is the fill; --accent-ink is the readable version;
@@ -2434,8 +2259,9 @@
 }
 
 /* ═══ THE GROCERY LIST PRINTS ON ITS OWN BLUE SHEET ══════════════════════════
-   One page taking one paper — the same grant shape as .food-paper, not a hub
-   ground. The sheet is the owner's flat dusty-blue paper (13 Aug), printed in
+   One page taking one paper, not a hub ground. It is the last of these: the
+   Food Preference Profile gave its sheet back on 20 Aug and reads on the
+   city's white. The sheet is the owner's flat dusty-blue paper (13 Aug), printed in
    navy: the reference art was WHITE ink on this blue, which is 1.95:1 against
    the sheet's lightest pixel and no veil fixes ink that is lighter than the
    paper. So the ink flips dark and the paper stays light, which keeps the

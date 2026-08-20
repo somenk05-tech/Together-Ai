@@ -288,10 +288,18 @@ export interface OwnDay {
 }
 export interface OwnPlan {
   planStartDate: string;
+  /** Days in the calendar month this plan covers — the server's count, not the
+   *  browser's. Two answers to "how long is this month" is how a 31st appears
+   *  on one screen and not the other. */
+  planDays: number;
   todayIndex: number;
   targetDay: number;
   locks: number[];
   days: OwnDay[];
+  /** How many people the shopping is for. It multiplies ingredient quantities
+   *  on the grocery list and nothing else — the day's calories and macros are
+   *  one person's intake. */
+  people: number;
   targets?: { kcal?: number; protein?: number; carb?: number; fat?: number; fiber?: number } | null;
 }
 
@@ -310,6 +318,28 @@ function useOwnMutation<TArgs>(path: string) {
       // Locking a day pushes its ingredients into the basket, so the grocery
       // list on the next screen must not still be yesterday's.
       void qc.invalidateQueries({ queryKey: ['nutrition', 'grocery'] });
+    },
+  });
+}
+
+/**
+ * How many people the grocery list buys for.
+ *
+ * The setter is the grocery endpoint itself: `GET /nutrition/grocery/plan`
+ * persists `people` when it is sent, which is the one place the count has ever
+ * been written. A second writer for one stored number is how the basket and
+ * the planner come to disagree about who is eating — so this calls the same
+ * one and then re-reads the plan, which is where the page gets the count back.
+ */
+export function useSetOwnPeople() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (people: number) =>
+      api.get('/nutrition/grocery/plan', { params: { mode: 'individual', people } }).then(() => people),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: OWN_KEY });
+      void qc.invalidateQueries({ queryKey: ['nutrition', 'grocery'] });
+      void qc.invalidateQueries({ queryKey: ['nutrition', 'grocery-plan'] });
     },
   });
 }

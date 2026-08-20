@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Card, Spinner, EmptyState, Button } from '@/components/ui';
 import { useSavedRecipes, useToggleSave } from '../hooks';
 import { VegMark } from '../components/VegMark';
+import { OwnRecipes } from '../components/OwnRecipes';
 import { recipeImageUrl } from '../recipeImages';
 import type { Recipe } from '../types';
 
@@ -100,6 +101,12 @@ export function SavedRecipes() {
         <div style={{ textAlign: 'center' }}>
           <Link to="/nutrition/recipes"><Button variant="line" size="sm">Browse recipes →</Button></Link>
         </div>
+        {/* ALSO ON THE EMPTY PAGE, and that is the whole reason it is written
+            twice rather than once below the grid. Adding a dish you cook is now
+            only reachable from here, and somebody who has saved nothing yet is
+            exactly the person most likely to be adding one. An empty state that
+            hides the only way in is a dead end. */}
+        <OwnRecipes />
       </div>
     );
   }
@@ -143,6 +150,13 @@ export function SavedRecipes() {
           ))}
         </div>
       )}
+
+      {/* YOUR OWN DISHES ARE ON THE SAME SHELF AS THE ONES YOU KEPT.
+          This was a section at the foot of Create Your Own Meal Plan, a page
+          whose job is deciding what you will eat this week — and a form for
+          entering ingredient weights is not that job. It is the same shelf as
+          "the ones you kept": a list of recipes that are yours. */}
+      <OwnRecipes />
     </div>
   );
 }

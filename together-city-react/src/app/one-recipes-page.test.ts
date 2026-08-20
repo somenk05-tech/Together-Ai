@@ -34,14 +34,41 @@ function walk(dir: string, out: string[] = []): string[] {
  * worse answer than a redirect for a page that still exists — it just lives
  * somewhere else now.
  */
-describe('your own recipes live on the recipes page', () => {
+describe('your own recipes live on the saved-recipes page', () => {
   const router = read('app/router.tsx');
   const library = read('features/nutrition/pages/RecipeLibrary.tsx');
+  const saved = read('features/nutrition/pages/SavedRecipes.tsx');
   const hubs = read('config/hubs.ts');
 
-  it('renders the add-your-own section on the library page', () => {
-    expect(library).toMatch(/<OwnRecipes\s*\/>/);
-    expect(library).toMatch(/from '\.\.\/components\/OwnRecipes'/);
+  it('renders the add-your-own section on the saved page and not the library', () => {
+    // /nutrition/recipes is where you decide what you are eating this week, and
+    // a form asking for ingredient weights in grams is not that decision. It
+    // sat under the plan, the search, the filters and two hundred tiles, making
+    // the page longer for everyone not using it. Saved recipes is already "the
+    // ones you kept" — the same shelf, and no new key in a rail that has nine.
+    expect(saved).toMatch(/<OwnRecipes\s*\/>/);
+    expect(saved).toMatch(/from '\.\.\/components\/OwnRecipes'/);
+    expect(library).not.toMatch(/OwnRecipes/);
+  });
+
+  it('offers it even when nothing is saved yet', () => {
+    // SavedRecipes returns early on an empty list. Somebody who has saved
+    // nothing is exactly the person most likely to be adding a dish of their
+    // own, so the only way in cannot sit behind the non-empty branch. Moving a
+    // feature is easy to half-do: nothing crashes, it just becomes unreachable.
+    expect((saved.match(/<OwnRecipes\s*\/>/g) ?? []).length).toBe(2);
+    const early = saved.indexOf('Nothing saved yet');
+    const grid = saved.indexOf('shown.map(');
+    expect(early).toBeGreaterThan(-1);
+    expect(saved.indexOf('<OwnRecipes />')).toBeGreaterThan(early);
+    expect(saved.indexOf('<OwnRecipes />')).toBeLessThan(grid);
+  });
+
+  it('says on the plan page where the form went', () => {
+    // Taking a section off a page silently is how somebody concludes the
+    // feature was deleted. The page that used to carry it points at the one
+    // that does.
+    expect(library).toMatch(/to="\/nutrition\/saved"/);
   });
 
   it('has no second page for it', () => {
@@ -54,7 +81,7 @@ describe('your own recipes live on the recipes page', () => {
       .split('\n')
       .find((l) => l.includes("path: '/nutrition/recipes/own'"));
     expect(own, '/nutrition/recipes/own is no longer declared at all').toBeTruthy();
-    expect(own).toMatch(/<Navigate to="\/nutrition\/recipes" replace \/>/);
+    expect(own).toMatch(/<Navigate to="\/nutrition\/saved" replace \/>/);
 
     // React Router matches in order, so the redirect has to be declared before
     // the :id route or "own" is read as a recipe id and the page 404s from the

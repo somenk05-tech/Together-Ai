@@ -63,11 +63,15 @@ describe('the recipes page asks once', () => {
     expect(library).not.toMatch(/\{c\.count\.toLocaleString\(\)\} recipes/);
   });
 
-  it('puts the index at the foot, under the add-your-own section', () => {
-    const own = library.indexOf('<OwnRecipes />');
+  it('puts the index at the foot, under everything else', () => {
+    // The add-your-own form used to sit between the tiles and this index; it
+    // lives on Saved recipes now. The index is still the last thing on the
+    // page, which is where an index belongs.
+    const picker = library.indexOf('{ingredientPicker}');
     const index = library.indexOf('{cuisineIndex}');
-    expect(own).toBeGreaterThan(-1);
-    expect(index).toBeGreaterThan(own);
+    expect(picker).toBeGreaterThan(-1);
+    expect(index).toBeGreaterThan(picker);
+    expect(library).not.toMatch(/OwnRecipes/);
   });
 
   it('survives page two, where the facet comes back empty', () => {

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { PressCourse } from './PressCourse';
 import { NIc } from './NIcon';
 import type { ComposedDay } from '../composed.api';
-import { longDate, weekdayFull, paperFor } from '../planDates';
+import { longDate, weekdayFull } from '../planDates';
 import { ShareIconButton } from '@/components/share/ShareButton';
 import { dayShareCard } from '../shareMeal';
 
@@ -66,7 +66,7 @@ export function PressDay({
   restored, summary, action, aboutLeft, aboutRight, totals, under, sign, household,
 }: PressDayProps) {
   return (
-    <div data-paper={paperFor(date)}>
+    <div>
 
       <section className="press-recto">
         <div className="press-slug">

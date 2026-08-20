@@ -538,32 +538,32 @@ describe('Relief stays a system', () => {
   });
 
   /**
-   * AND EVERY PAPER THE WEEK OWNS IS READABLE — COMPUTED, PER SHEET.
+   * AND THE ONE SHEET THE WEEK PRINTS ON IS READABLE AT EVERY STOP.
    *
-   * The grants above measure a hub's ink against a hub's ground. The nutrition
-   * day does not go through that machinery: it is not a hub ground, it is
-   * fourteen photographs, two per weekday, declared in `[data-paper]` blocks and
-   * reached only from the meal plan's own two sheets.
+   * This used to be fourteen photographs — two per weekday, in `[data-paper]`
+   * blocks, each declaring a worst-pixel `-ground` hex because the average of a
+   * photograph is a colour that appears nowhere in it. That system was retired
+   * on 20 Aug: the week prints on `--press-sky`, one pale gradient, and the
+   * day's identity is the weekday, the date and the day number.
    *
-   * A PHOTOGRAPH HAS NO COLOUR TO MEASURE, which is the whole difficulty. The
-   * average of a photograph is a colour that appears nowhere in it, so each
-   * block declares a `-ground` hex that is the WORST PIXEL of its own sheet
-   * under its own veil — the lightest where the ink is cream, the darkest where
-   * the ink is dark. That hex is a claim about an image, and this recomputes
-   * every ink against it. It cannot verify the claim itself; scripts/paper.mjs
-   * re-derives the hexes from the files in public/assets/img, and the numbers
-   * in the comments beside each token come from that.
+   * WHAT THE GUARD MEASURES NOW IS THE GRADIENT ITSELF, which is strictly
+   * better than what it replaces. A hex somebody typed after opening a JPEG in
+   * an editor is a CLAIM about an image — the old guard could recompute the
+   * ratios but never verify the claim, which is why scripts/paper.mjs existed.
+   * A gradient carries its stops in the token file. There is nothing left to
+   * take on trust: every stop is read out of the CSS and every press ink is
+   * measured against every one of them.
    *
-   * `-ink-3` IS HELD TO 3:1 AND NOT 4.5, deliberately and exactly as
-   * `--press-ink-3` already is at 3.7:1 on white: it is the floor of the scale
-   * and it is for labels, eyebrows and metadata. Nothing sets body copy in it.
-   * The other two are body text and are held to AA.
+   * `-ink-3` IS HELD TO 3:1 AND NOT 4.5, exactly as it is on white at 3.7:1:
+   * it is the floor of the scale and it is for labels, eyebrows and metadata.
+   * Nothing sets body copy in it. The other two are body text and take AA.
    *
-   * A DAY WITH NO BLOCK IS NOT A FAILURE. The defaults are the white press
-   * paper, so an undressed weekday is the page exactly as it shipped — this
-   * checks what has been declared, not that seven days have been.
+   * AND NO PHOTOGRAPH COMES BACK BY THE OLD DOOR. The `[data-paper]` key is
+   * gone from the token file and from both pages that used to set it; a rule
+   * that re-declares a sheet as a `url()` is the exact drift this deletion was
+   * for, so it fails here rather than being discovered on a phone.
    */
-  it('clears AA for every ink each of the week\'s papers declares', () => {
+  it('clears AA at every stop of the sheet the week prints on', () => {
     const css = strip(tokens);
     const lin = (c: number) => (c / 255 <= 0.03928 ? c / 255 / 12.92 : (((c / 255) + 0.055) / 1.055) ** 2.4);
     const lum = (hex: string) => {
@@ -575,32 +575,40 @@ describe('Relief stays a system', () => {
       return (hi + 0.05) / (lo + 0.05);
     };
 
-    const blocks = [...css.matchAll(/\[data-paper="([a-z]{3})"\]\s*\.press-(recto|verso)\s*\{([\s\S]*?)\n\}/g)];
-    // A guard that finds nothing passes. This one has to be reading real blocks.
-    expect(blocks.length).toBeGreaterThan(6);
+    const sky = css.match(/--press-sky:\s*linear-gradient\(([\s\S]*?)\);/)?.[1];
+    expect(sky, '--press-sky is not declared in tokens.css').toBeTruthy();
+    const stops = [...(sky ?? '').matchAll(/#[0-9a-f]{6}/gi)].map((m) => m[0].toLowerCase());
+    // A guard that finds nothing passes. A gradient is at least two colours.
+    expect(stops.length).toBeGreaterThan(1);
 
+    const inks: Array<[string, number]> = [['ink', 4.5], ['ink-2', 4.5], ['ink-3', 3]];
     const failures: string[] = [];
-    const seen: string[] = [];
-    for (const [, day, side, body] of blocks) {
-      seen.push(`${day}-${side}`);
-      const val = (n: string) => body.match(new RegExp(`--press-${side}-${n}:\\s*(#[0-9a-f]{6})`, 'i'))?.[1];
-      const ground = val('ground');
-      if (!ground) { failures.push(`${day} ${side}: a paper with no ground hex to measure against`); continue; }
-      for (const [name, floor] of [['ink', 4.5], ['ink-2', 4.5], ['ink-3', 3]] as const) {
-        const ink = val(name);
-        if (!ink) { failures.push(`${day} ${side}: --press-${side}-${name} not declared`); continue; }
-        const r = ratio(ink, ground);
-        if (r < floor) failures.push(`${day} ${side} ${name} at ${r.toFixed(2)}:1 (needs ${floor})`);
+    for (const [name, floor] of inks) {
+      const ink = css.match(new RegExp(`--press-${name}:\\s*(#[0-9a-f]{6})`, 'i'))?.[1];
+      if (!ink) { failures.push(`--press-${name} not declared`); continue; }
+      for (const stop of stops) {
+        const r = ratio(ink, stop);
+        if (r < floor) failures.push(`--press-${name} at ${r.toFixed(2)}:1 on ${stop} (needs ${floor})`);
       }
-      // A sheet declares a picture or it is not a sheet. A block that re-points
-      // the inks and forgets the paper leaves the day white with somebody
-      // else's ink on it, which is the one failure that looks deliberate.
-      if (!/--press-\w+-sheet:\s*url\(/.test(body)) failures.push(`${day} ${side}: ink re-pointed with no sheet behind it`);
     }
+
+    // The declared worst stop has to BE the worst stop, or every ratio quoted
+    // beside it is a number about a colour the reader never sees.
+    const worst = css.match(/--press-sky-worst:\s*(#[0-9a-f]{6})/i)?.[1]?.toLowerCase();
+    expect(worst, '--press-sky-worst is not declared').toBeTruthy();
+    const darkest = stops.reduce((a, b) => (lum(a) <= lum(b) ? a : b));
+    if (worst !== darkest) failures.push(`--press-sky-worst is ${worst}, but the darkest stop is ${darkest}`);
+
     expect(failures).toEqual([]);
-    // and every declared side belongs to a real weekday
-    const DAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-    expect(seen.filter((k) => !DAYS.includes(k.slice(0, 3)))).toEqual([]);
+  });
+
+  it('lets no photograph back onto the week', () => {
+    const css = strip(tokens);
+    // The key itself is gone. A block keyed on it is somebody restoring the
+    // thirteen papers from an old commit rather than making the argument.
+    expect(css).not.toMatch(/\[data-paper=/);
+    // And no sheet token names a file, on any selector.
+    expect(css.match(/--press-\w+-sheet:\s*url\([^)]*\)/g) ?? []).toEqual([]);
   });
 
   /**

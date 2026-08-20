@@ -276,7 +276,7 @@ const ROUTE_BLOCKS: RouteObject[] = [
       { path: '/nutrition/recipes', element: <RequireAuth>{wrap(<RecipeLibrary />)}</RequireAuth> },
       // Before :id, or "own" is read as a recipe id. Your own recipes are part
       // of /nutrition/recipes now; the old URL still resolves for saved links.
-      { path: '/nutrition/recipes/own', element: <Navigate to="/nutrition/recipes" replace /> },
+      { path: '/nutrition/recipes/own', element: <Navigate to="/nutrition/saved" replace /> },
       { path: '/nutrition/recipes-classic', element: <Navigate to="/nutrition/recipes" replace /> },
       { path: '/nutrition/recipes/:id', element: wrap(<RecipeDetail />) },
       { path: '/nutrition/shared-meal', element: wrap(<SharedMeal />) },
