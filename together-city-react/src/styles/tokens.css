@@ -845,22 +845,38 @@
      foot are within a hair of each other, so there is no "mostly fine" here. */
   --press-sky-worst: #cfe9d5;
 
+  /* ── THE SHEET'S SCALE IS WRITTEN OUT, NOT DERIVED ────────────────────────
+     THIS COST 192 UNREADABLE NODES AND IT IS WORTH THE PARAGRAPH.
+     These eight used to read `var(--press-ink)` and friends, which was fine
+     while the press had one ink. Then the Nutrition hub re-pointed
+     `--press-ink` to its own light ink — correctly, so that press-dressed
+     components standing on the DARK PAGE could be read — and every one of
+     these inherited it. `.press-recto` then does `--press-ink:
+     var(--press-recto-ink)`, so the two names pointed at each other: the
+     resolution is undefined, and what it resolved to was #daf1de on #cfe9d5.
+     Pale mint on pale mint. The entire weekly plan, at 1.08:1.
+
+     A DERIVED TOKEN IS A TOKEN SOMEBODY ELSE CAN MOVE. The sheet's scale is
+     measured against the SHEET — 12.6:1, 8.3:1 and 4.7:1 against #cfe9d5 —
+     and it has no business tracking whatever the page around it is doing. It
+     is written out, so a hub can re-point the page's press ink freely and the
+     paper stays readable. */
   --press-recto-sheet: var(--press-sky);
   --press-recto-veil:  transparent;
   --press-recto-ground:var(--press-sky-worst);
-  --press-recto-ink:   var(--press-ink);
-  --press-recto-ink-2: var(--press-ink-2);
-  --press-recto-ink-3: var(--press-ink-3);
-  --press-recto-rule:  var(--press-rule);
+  --press-recto-ink:   #0a2422;   /* 12.6:1 on the sheet's darkest stop */
+  --press-recto-ink-2: #1c453c;   /*  8.3:1 */
+  --press-recto-ink-3: #3d6b5c;   /*  4.7:1 — labels and metadata ONLY */
+  --press-recto-rule:  #a9cfb5;
   --press-recto-lift:  rgba(255, 255, 255, .72);
 
   --press-verso-sheet: var(--press-sky);
   --press-verso-veil:  transparent;
   --press-verso-ground:var(--press-sky-worst);
-  --press-verso-ink:   var(--press-ink);
-  --press-verso-ink-2: var(--press-ink-2);
-  --press-verso-ink-3: var(--press-ink-3);
-  --press-verso-rule:  var(--press-rule);
+  --press-verso-ink:   #0a2422;
+  --press-verso-ink-2: #1c453c;
+  --press-verso-ink-3: #3d6b5c;
+  --press-verso-rule:  #a9cfb5;
   --press-verso-lift:  rgba(255, 255, 255, .72);
   --press-verso-macro-1:var(--press-macro-1);
   --press-verso-macro-2:var(--press-macro-2);

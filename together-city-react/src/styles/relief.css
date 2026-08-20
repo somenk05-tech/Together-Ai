@@ -4289,6 +4289,19 @@ textarea.g-field { resize: none; line-height: 1.55; }
      anybody being able to say why they look unrelated. */
   border-top: 1px solid var(--press-recto-lift);
   box-shadow: var(--shadow);
+  /* AND THE CITY'S OWN INK SCALE, FOR THE SAME REASON `.press-recto` CARRIES
+     ONE. Half the marks on this sheet set no colour of their own —
+     `.gsheet-name` is `background: none` and nothing else — so they inherit
+     `--ink` from the room. In a dark room that is a light ink, and the sheet
+     is light: the whole list rendered at 1.08:1. A surface that paints its own
+     ground has to paint its own foreground. */
+  --ink:       var(--grocery-ink);
+  --ink-soft:  var(--grocery-ink);
+  --muted:     var(--grocery-ink-2);
+  --faint:     var(--grocery-ink-3);
+  --line:      var(--grocery-rule);
+  --accent-ink:var(--grocery-ink);
+  color: var(--grocery-ink);
 }
 .gsheet-mast {
   text-align: center;
