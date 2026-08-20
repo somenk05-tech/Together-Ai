@@ -29,6 +29,9 @@ export interface AtsPosting {
   description: string;
   /** epoch ms when the board reports a date; undefined when it doesn't */
   postedAt?: number;
+  /** ₹ lakhs per annum, ONLY when the source stated a real figure — never a
+   *  prediction, never a guess. 0/undefined = the source did not say. */
+  salaryLpa?: number;
 }
 
 /** A board slug is interpolated into a URL, so it is validated first — the
@@ -197,3 +200,87 @@ export function seniorityFromTitle(title: string): 'junior' | 'mid' | 'senior' |
 export function companyFromSlug(slug: string): string {
   return slug;
 }
+
+/* ══ THE AGGREGATORS — Adzuna and Jooble ═══════════════════════════════════
+   Licensed APIs, keyed by the owner (see .env.example), that index boards
+   the three ATS vendors don't host. They are QUERY services, not company
+   directories, so the sweep asks them a rotating set of questions instead
+   of walking a list of boards. Both requests are country-scoped to India by
+   construction — Adzuna's /jobs/in/ endpoint, Jooble's location field — so
+   their answers are NOT re-filtered through the city list: a posting in
+   Salem or Guwahati is an India posting whether or not the list has heard
+   of the town. The endpoint is the authority; the list is only for boards
+   that mix countries. */
+
+export const AGGREGATOR_SOURCES = ['adzuna', 'jooble'] as const;
+export type AggregatorSource = (typeof AGGREGATOR_SOURCES)[number];
+
+/** What the sweep asks the aggregators, one industry at a time — the same
+ *  breadth the skill dictionary covers, so a nurse's CV has postings to
+ *  match against, not only an engineer's. Rotated a few per run. */
+export const AGGREGATOR_QUERIES: readonly string[] = [
+  'software engineer', 'react developer', 'python developer', 'java developer', 'devops engineer',
+  'data analyst', 'machine learning', 'product manager', 'ui ux designer', 'mobile developer',
+  'accountant', 'financial analyst', 'nurse', 'teacher', 'sales manager',
+  'human resources', 'operations manager', 'customer support', 'content writer', 'marketing',
+  'legal associate', 'project manager',
+];
+
+export function adzunaSearchUrl(appId: string, appKey: string, what: string, page = 1): string {
+  const q = new URLSearchParams({
+    app_id: appId, app_key: appKey, what,
+    results_per_page: '50', 'content-type': 'application/json',
+  });
+  return `https://api.adzuna.com/v1/api/jobs/in/search/${page}?${q.toString()}`;
+}
+
+export const JOOBLE_HOST = 'https://jooble.org/api/';
+export function joobleRequestBody(what: string, page = 1): string {
+  return JSON.stringify({ keywords: what, location: 'India', page: String(page) });
+}
+
+/** INR/year → ₹ LPA, kept ONLY when the figure is stated (not predicted) and
+ *  lands in a sane band. Everything else is 0 = "the source did not say". */
+export function inrYearToLpa(min: unknown, max: unknown, predicted: unknown): number {
+  if (predicted === '1' || predicted === 1 || predicted === true) return 0;
+  const lo = typeof min === 'number' && min > 0 ? min : 0;
+  const hi = typeof max === 'number' && max > 0 ? max : 0;
+  const mid = lo && hi ? (lo + hi) / 2 : lo || hi;
+  const lpa = Math.round(mid / 100_000);
+  return lpa >= 1 && lpa <= 500 ? lpa : 0;
+}
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+/** api.adzuna.com /v1/api/jobs/in/search/{page} */
+export function normalizeAdzuna(json: any): AtsPosting[] {
+  const jobs = Array.isArray(json?.results) ? json.results : [];
+  return jobs.map((j: any): AtsPosting => ({
+    title: str(j?.title).replace(/<[^>]+>/g, '').trim(),
+    company: str(j?.company?.display_name),
+    location: str(j?.location?.display_name),
+    url: str(j?.redirect_url),
+    description: htmlToText(str(j?.description)),
+    postedAt: toEpochMs(j?.created),
+    salaryLpa: inrYearToLpa(j?.salary_min, j?.salary_max, j?.salary_is_predicted),
+  })).filter((p: AtsPosting) => p.title && p.url && p.company);
+}
+
+/** jooble.org /api/{key} (POST). Salary arrives as a free-text string in
+ *  assorted formats — not parsed, because a misread "₹40,000/month" printed
+ *  as 40 LPA is worse than no salary line at all. */
+export function normalizeJooble(json: any): AtsPosting[] {
+  const jobs = Array.isArray(json?.jobs) ? json.jobs : [];
+  return jobs.map((j: any): AtsPosting => ({
+    title: htmlToText(str(j?.title)),
+    company: str(j?.company),
+    location: str(j?.location),
+    url: str(j?.link),
+    description: htmlToText(str(j?.snippet)),
+    postedAt: toEpochMs(j?.updated),
+  })).filter((p: AtsPosting) => p.title && p.url && p.company && p.location.trim() !== '');
+  // company required on both aggregators: a role nobody claims to be hiring
+  // for is not something the city can honestly put a name to on a card.
+}
+
+/* eslint-enable @typescript-eslint/no-explicit-any */

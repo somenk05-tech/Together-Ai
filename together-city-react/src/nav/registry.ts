@@ -23,7 +23,7 @@ export const HUB_ICON: Partial<Record<HubKey, IconName>> = {
   travel: 'trip', astrology: 'sparkles', nutrition: 'recipe', entertainment: 'movie',
   social: 'people', dating: 'heart', realestate: 'property', jobs: 'job', medical: 'heart',
   financial: 'product', beauty: 'sparkles', fitness: 'star', mail: 'mail', family: 'people',
-  services: 'connection',
+  services: 'connection', pets: 'paw',
 };
 
 /**

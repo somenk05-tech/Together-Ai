@@ -1,0 +1,119 @@
+#!/bin/bash
+# land-one-routine.sh — the beauty hub stops answering "what do I do" twice.
+#
+# PRECONDITION: land-three-photos.sh. This patch is written against the
+# Profile.tsx that script produces.
+#
+# FRONTEND ONLY (together-city-react).
+set -euo pipefail
+
+cd "$(dirname "$0")"
+[ -d together-city-react ] || { echo "!! Run this from the Together-Ai repo root."; exit 1; }
+
+if [ -f .git/index.lock ] && [ ! -s .git/index.lock ]; then
+  echo "== clearing a stale empty .git/index.lock"
+  rm -f .git/index.lock
+fi
+
+NEEDS="One question, one answer, on the tab named after it"
+LOG="$(git log --oneline -40)"
+case "$LOG" in
+  *"$NEEDS"*) echo "== \"$NEEDS\" is already here. Nothing to do."; exit 0 ;;
+esac
+case "$LOG" in
+  *"Three photographs, taken however suits you"*) ;;
+  *) echo "!! Run land-three-photos.sh first — this is written against the tree it produces."; exit 1 ;;
+esac
+
+ALLOWED='^ M together-city-react/(public/assets/img/(apple-touch-icon-180|tc-icon-1024|tc-icon-192|tc-icon-512|tc-icon-maskable-512)\.png|public/downloads/TogetherCity\.apk)$'
+DIRTY="$(git status --porcelain \
+  | grep -Ev '^\?\? (land-.*\.sh|push-.*\.sh|.*\.patch)$' \
+  | grep -Ev "$ALLOWED" || true)"
+if [ -n "$DIRTY" ]; then
+  echo "!! The tree carries changes this script did not expect:"; echo "$DIRTY"; exit 1
+fi
+
+PATCH="$(mktemp "${TMPDIR:-/tmp}/land.XXXXXX")"
+trap 'rm -f "$PATCH"' EXIT
+cat <<'B64EOF' | tr -d '\n' | openssl base64 -d -A > "$PATCH"
+ZGlmZiAtLWdpdCBhL3RvZ2V0aGVyLWNpdHktcmVhY3Qvc3JjL2FwcC9vbmUtcm91dGluZS50ZXN0LnRzIGIvdG9nZXRoZXItY2l0eS1yZWFjdC9zcmMvYXBwL29uZS1yb3V0aW5lLnRlc3QudHMKbmV3IGZpbGUgbW9kZSAxMDA2NDQKaW5kZXggMDAwMDAwMC4uMGVmMzc4MQotLS0gL2Rldi9udWxsCisrKyBiL3RvZ2V0aGVyLWNpdHktcmVhY3Qvc3JjL2FwcC9vbmUtcm91dGluZS50ZXN0LnRzCkBAIC0wLDAgKzEsNjAgQEAKK2ltcG9ydCB7IGRlc2NyaWJlLCBpdCwgZXhwZWN0IH0gZnJvbSAndml0ZXN0JzsKK2ltcG9ydCB7IHJlYWRGaWxlU3luYyB9IGZyb20gJ25vZGU6ZnMnOworaW1wb3J0IHsgZGlybmFtZSwgam9pbiB9IGZyb20gJ25vZGU6cGF0aCc7CitpbXBvcnQgeyBmaWxlVVJMVG9QYXRoIH0gZnJvbSAnbm9kZTp1cmwnOworCitjb25zdCBTUkMgPSBqb2luKGRpcm5hbWUoZmlsZVVSTFRvUGF0aChpbXBvcnQubWV0YS51cmwpKSwgJy4uJyk7Citjb25zdCByZWFkID0gKHA6IHN0cmluZykgPT4gcmVhZEZpbGVTeW5jKGpvaW4oU1JDLCBwKSwgJ3V0ZjgnKTsKKworLyoqCisgKiBUSEUgQkVBVVRZIEhVQiBBTlNXRVJTICJXSEFUIERPIEkgRE8iIElOIE9ORSBQTEFDRS4KKyAqCisgKiBJdCBhbnN3ZXJlZCBpdCBpbiB0d28uIFRhYiAwMSwgU2tpbiAmIEhhaXIgUHJvZmlsZSwgcHJpbnRlZCBhIGNhcmQgaGVhZGVkCisgKiAiWW91ciByb3V0aW5lIiBsaXN0aW5nIHBsYWluIHN0ZXBzIOKAlCBHZW50bGUgY2xlYW5zZXIsIFZpdGFtaW4tQyBzZXJ1bSwKKyAqIE1vaXN0dXJpc2VyLiBUYWIgMDIsIFlvdXIgUm91dGluZSwgaG9sZHMgdGhlIHJlYWwgb25lOiB0aGUgc2FtZSBzdGVwcyBhcworICogYWN0dWFsIHByb2R1Y3RzLCB3aXRoIGJyYW5kcywgcHJpY2VzLCBvcmRlciwgaW5zdHJ1Y3Rpb25zLCBmcmVxdWVuY3kgYW5kCisgKiBwZXItc3RlcCB3YXJuaW5ncy4gU2FtZSBxdWVzdGlvbiwgdHdvIGFuc3dlcnMsIGFuZCB0aGUgd2Vha2VyIG9mIHRoZW0gd2FzIG9uCisgKiB0aGUgcGFnZSBhYm91dCBwaG90b2dyYXBocy4KKyAqCisgKiBXSFkgQSBURVNUIEFORCBOT1QgSlVTVCBBIERFTEVURS4gVGhlIGFzc2Vzc21lbnQgb2JqZWN0IHN0aWxsIGNhcnJpZXMKKyAqIGByb3V0aW5lYCDigJQgdGhlIHByb2R1Y3QgZW5naW5lIGlzIHB1cmUgYW5kIGNhbm5vdCB3b3JrIG91dCBhIHNlYXNvbmFsIG5vdGUsCisgKiBzbyB0aGUgYXNzZXNzbWVudCBpcyB3aGVyZSB0aGF0IGNvbWVzIGZyb20g4oCUIGFuZCBhIGZpZWxkIHRoYXQgZXhpc3RzIGFuZCBpcworICogbm90IHJlbmRlcmVkIGlzIGFuIGludml0YXRpb24uIFNvbWVib2R5IGFkZGluZyB0byB0aGUgYXNzZXNzbWVudCB2aWV3IHdpbGwKKyAqIGZpbmQgYGEucm91dGluZS5hbWAgc2l0dGluZyB0aGVyZSB1bnVzZWQgYW5kIHB1dCBpdCBiYWNrLCByZWFzb25hYmx5LCBpbgorICogYWJvdXQgYSBtaW51dGUuCisgKgorICogVGhlIHNlYXNvbmFsIHNlbnRlbmNlIGlzIHRoZSBvbmUgcGFydCB0aGF0IG1vdmVkIHJhdGhlciB0aGFuIHdlbnQsIHNvIGl0IGlzCisgKiBhc3NlcnRlZCBhdCBpdHMgbmV3IGFkZHJlc3MgdG9vLiBEZWxldGluZyBhIGNhcmQgYW5kIHF1aWV0bHkgbG9zaW5nIGEgbGluZQorICogb2YgY29udGVudCBvdXQgb2YgdGhlIGJvdHRvbSBvZiBpdCBpcyB0aGUgZmFpbHVyZSBtb2RlIG9mIGV2ZXJ5IHRpZHktdXAuCisgKi8KK2Rlc2NyaWJlKCd0aGUgcm91dGluZSBsaXZlcyBvbiB0aGUgcm91dGluZSB0YWInLCAoKSA9PiB7CisgIGNvbnN0IHByb2ZpbGUgPSByZWFkKCdmZWF0dXJlcy9iZWF1dHkvcGFnZXMvUHJvZmlsZS50c3gnKTsKKyAgY29uc3Qgcm91dGluZSA9IHJlYWQoJ2ZlYXR1cmVzL2JlYXV0eS9wYWdlcy9Sb3V0aW5lLnRzeCcpOworCisgIGl0KCdpcyBub3QgcmVuZGVyZWQgb24gdGhlIHNraW4gJiBoYWlyIHByb2ZpbGUgcGFnZScsICgpID0+IHsKKyAgICAvLyBUaGUgdGhyZWUgc3RlcCBsaXN0cywgYnkgdGhlIGZpZWxkcyB0aGV5IHJlYWQuIE5hbWVkIGluZGl2aWR1YWxseSBzbyB0aGUKKyAgICAvLyBmYWlsdXJlIHNheXMgd2hpY2ggb25lIGNhbWUgYmFjay4KKyAgICBleHBlY3QoeworICAgICAgYW06IC9hXC5yb3V0aW5lXC5hbS8udGVzdChwcm9maWxlKSwKKyAgICAgIHBtOiAvYVwucm91dGluZVwucG0vLnRlc3QocHJvZmlsZSksCisgICAgICB3ZWVrbHk6IC9hXC5yb3V0aW5lXC53ZWVrbHkvLnRlc3QocHJvZmlsZSksCisgICAgfSkudG9FcXVhbCh7IGFtOiBmYWxzZSwgcG06IGZhbHNlLCB3ZWVrbHk6IGZhbHNlIH0pOworICB9KTsKKworICBpdCgnaGFzIG5vIHNlY29uZCBoZWFkaW5nIGNhbGxpbmcgaXRzZWxmIGEgcm91dGluZScsICgpID0+IHsKKyAgICAvLyBgPvCfl5PvuI8gWW91ciByb3V0aW5lPGAgd2FzIHRoZSBjYXJkJ3MgdGl0bGUuIEEgaGVhZGluZyBpcyB3aGF0IG1hZGUgdHdvCisgICAgLy8gbGlzdHMgcmVhZCBhcyB0d28gZGlmZmVyZW50IHJvdXRpbmVzIHJhdGhlciB0aGFuIG9uZSByZXBlYXRlZC4KKyAgICBleHBlY3QocHJvZmlsZSkubm90LnRvTWF0Y2goLzxoWzEtNl1bXj5dKj5bXjxdKllvdXIgcm91dGluZS9pKTsKKyAgfSk7CisKKyAgaXQoJ3N0aWxsIHBvaW50cyBzb21lYm9keSBhdCB3aGVyZSB0aGUgcm91dGluZSBpcycsICgpID0+IHsKKyAgICAvLyBBIGJsb2NrIHRoYXQgZGlzYXBwZWFycyB3aXRoIG5vdGhpbmcgaW4gaXRzIHBsYWNlIHJlYWRzIGFzIGEgcm91dGluZQorICAgIC8vIHRoYXQgd2FzIG5ldmVyIGdlbmVyYXRlZC4KKyAgICBleHBlY3QocHJvZmlsZSkudG9NYXRjaCgvdG89IlwvYmVhdXR5XC9yb3V0aW5lIi8pOworICB9KTsKKworICBpdCgna2VlcHMgdGhlIHNlYXNvbmFsIG5vdGUsIGF0IHRoZSBhZGRyZXNzIHRoZSByb3V0aW5lIG5vdyBoYXMnLCAoKSA9PiB7CisgICAgZXhwZWN0KHByb2ZpbGUpLm5vdC50b01hdGNoKC9yb3V0aW5lXC5zZWFzb25hbC8pOworICAgIGV4cGVjdChyb3V0aW5lKS50b01hdGNoKC9yb3V0aW5lXD9cLnNlYXNvbmFsLyk7CisgIH0pOworfSk7CmRpZmYgLS1naXQgYS90b2dldGhlci1jaXR5LXJlYWN0L3NyYy9mZWF0dXJlcy9iZWF1dHkvcGFnZXMvUHJvZmlsZS50c3ggYi90b2dldGhlci1jaXR5LXJlYWN0L3NyYy9mZWF0dXJlcy9iZWF1dHkvcGFnZXMvUHJvZmlsZS50c3gKaW5kZXggNTk5MmY0Yy4uOGNmM2IyZiAxMDA2NDQKLS0tIGEvdG9nZXRoZXItY2l0eS1yZWFjdC9zcmMvZmVhdHVyZXMvYmVhdXR5L3BhZ2VzL1Byb2ZpbGUudHN4CisrKyBiL3RvZ2V0aGVyLWNpdHktcmVhY3Qvc3JjL2ZlYXR1cmVzL2JlYXV0eS9wYWdlcy9Qcm9maWxlLnRzeApAQCAtMjU4LDI2ICsyNTgsMjMgQEAgZnVuY3Rpb24gQXNzZXNzbWVudFZpZXcoeyBhLCBhbmFseXplZEF0IH06IHsgYTogQmVhdXR5QXNzZXNzbWVudDsgYW5hbHl6ZWRBdD86IHMKICAgICAgIDxCbG9jayB0aXRsZT0iU2tpbiIgaWNvbj0i8J+ntCIgcGFydD17YS5za2lufSAvPgogICAgICAgPEJsb2NrIHRpdGxlPSJIYWlyICYgc2NhbHAiIGljb249IvCfkociIHBhcnQ9e2EuaGFpcn0gLz4KIAotICAgICAgey8qIEFNIC8gUE0gLyB3ZWVrbHkgcm91dGluZSAqL30KKyAgICAgIHsvKiBUSEUgUk9VVElORSBJUyBOT1QgSEVSRSBBTlkgTU9SRSwgQU5EIElUIFdBUyBUSEUgU0VDT05EIE9GIFRXTy4KKyAgICAgICAgICBUaGlzIGNhcmQgbGlzdGVkICJHZW50bGUgY2xlYW5zZXIgwrcgVml0YW1pbi1DIHNlcnVtIMK3IE1vaXN0dXJpc2VyIiBhcworICAgICAgICAgIHBsYWluIHN0ZXBzLCB1bmRlciBhIGhlYWRpbmcgY2FsbGVkICJZb3VyIHJvdXRpbmUiLCBvbiBhIHBhZ2UgY2FsbGVkCisgICAgICAgICAgU2tpbiAmIEhhaXIgUHJvZmlsZSDigJQgd2hpbGUgdGFiIDAyLCBhbHNvIGNhbGxlZCAiWW91ciBSb3V0aW5lIiwgaG9sZHMKKyAgICAgICAgICB0aGUgcmVhbCBvbmU6IHRoZSBzYW1lIHN0ZXBzIGFzIGFjdHVhbCBwcm9kdWN0cywgd2l0aCBicmFuZHMsIHByaWNlcywKKyAgICAgICAgICBvcmRlciwgaW5zdHJ1Y3Rpb25zLCBmcmVxdWVuY3kgYW5kIHBlci1zdGVwIHdhcm5pbmdzLiBUd28gYW5zd2VycyB0bworICAgICAgICAgIG9uZSBxdWVzdGlvbiwgYW5kIHRoZSB3ZWFrZXIgb2YgdGhlbSB3YXMgb24gdGhlIHdyb25nIHBhZ2UuCisKKyAgICAgICAgICBBIExJTkUsIE5PVCBBIENBUkQuIFdoYXQgaXMgbGVmdCBpcyBhIHNlbnRlbmNlIHBvaW50aW5nIGF0IHRoZSB0YWIsCisgICAgICAgICAgYmVjYXVzZSBkZWxldGluZyBhIHdob2xlIGJsb2NrIGFuZCBsZWF2aW5nIG5vdGhpbmcgaXMgaG93IHNvbWVib2R5CisgICAgICAgICAgY29uY2x1ZGVzIHRoZWlyIHJvdXRpbmUgd2FzIG5ldmVyIGdlbmVyYXRlZC4gKi99CiAgICAgICB7YS5yb3V0aW5lICYmICgKLSAgICAgICAgPGRpdiBjbGFzc05hbWU9ImNhcmQiIHN0eWxlPXt7IG1hcmdpbkJvdHRvbTogMTQgfX0+Ci0gICAgICAgICAgPGgzIHN0eWxlPXt7IGZvbnRTaXplOiAxNiwgbWFyZ2luOiAwIH19PvCfl5PvuI8gWW91ciByb3V0aW5lPC9oMz4KLSAgICAgICAgICA8ZGl2IHN0eWxlPXt7IGRpc3BsYXk6ICdncmlkJywgZ3JpZFRlbXBsYXRlQ29sdW1uczogJ3JlcGVhdChhdXRvLWZpdCxtaW5tYXgoMTgwcHgsMWZyKSknLCBnYXA6IDE0LCBtYXJnaW5Ub3A6IDEwIH19PgotICAgICAgICAgICAgeyhbWyfimIDvuI8gTW9ybmluZycsIGEucm91dGluZS5hbV0sIFsn8J+MmSBFdmVuaW5nJywgYS5yb3V0aW5lLnBtXSwgWyfinKggV2Vla2x5JywgYS5yb3V0aW5lLndlZWtseV1dIGFzIGNvbnN0KS5tYXAoKFt0LCBzdGVwc10pID0+ICgKLSAgICAgICAgICAgICAgPGRpdiBrZXk9e3R9PgotICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJtdXRlZCIgc3R5bGU9e3sgZm9udFNpemU6IDEwLjUsIGZvbnRXZWlnaHQ6IDcwMCwgdGV4dFRyYW5zZm9ybTogJ3VwcGVyY2FzZScsIGxldHRlclNwYWNpbmc6ICcuMDVlbScsIG1hcmdpbkJvdHRvbTogNiB9fT57dH08L2Rpdj4KLSAgICAgICAgICAgICAgICA8b2wgc3R5bGU9e3sgbWFyZ2luOiAwLCBwYWRkaW5nTGVmdDogMTYsIGRpc3BsYXk6ICdmbGV4JywgZmxleERpcmVjdGlvbjogJ2NvbHVtbicsIGdhcDogNCB9fT4KLSAgICAgICAgICAgICAgICAgIHtzdGVwcy5tYXAoKHMsIGkpID0+ICgKLSAgICAgICAgICAgICAgICAgICAgPGxpIGtleT17aX0gc3R5bGU9e3sgZm9udFNpemU6IDEyLjUgfX0+e3Muc3RlcH17cy5pbmdyZWRpZW50ICYmIDxzcGFuIGNsYXNzTmFtZT0ibXV0ZWQiPiDCtyB7cy5pbmdyZWRpZW50fTwvc3Bhbj59PC9saT4KLSAgICAgICAgICAgICAgICAgICkpfQotICAgICAgICAgICAgICAgIDwvb2w+Ci0gICAgICAgICAgICAgIDwvZGl2PgotICAgICAgICAgICAgKSl9Ci0gICAgICAgICAgPC9kaXY+Ci0gICAgICAgICAge2Eucm91dGluZS5zZWFzb25hbCAmJiAoCi0gICAgICAgICAgICA8cCBjbGFzc05hbWU9Im11dGVkIiBzdHlsZT17eyBmb250U2l6ZTogMTIsIG1hcmdpbjogJzEycHggMCAwJywgcGFkZGluZ1RvcDogMTAsIGJvcmRlclRvcDogJzFweCBzb2xpZCB2YXIoLS1saW5lKScgfX0+8J+Mpu+4jyB7YS5yb3V0aW5lLnNlYXNvbmFsfTwvcD4KLSAgICAgICAgICApfQotICAgICAgICA8L2Rpdj4KKyAgICAgICAgPHAgc3R5bGU9e3sgZm9udFNpemU6IDEyLjUsIG1hcmdpbjogJzAgMCAxNHB4JyB9fT4KKyAgICAgICAgICA8TGluayB0bz0iL2JlYXV0eS9yb3V0aW5lIiBzdHlsZT17eyBmb250V2VpZ2h0OiA3MDAsIGNvbG9yOiAndmFyKC0tYWNjZW50LWluayknIH19PgorICAgICAgICAgICAgWW91ciByb3V0aW5lLCBzdGVwIGJ5IHN0ZXAgd2l0aCBwcm9kdWN0cyAmcmFycjsKKyAgICAgICAgICA8L0xpbms+CisgICAgICAgIDwvcD4KICAgICAgICl9CiAKICAgICAgIHsvKiBJbmdyZWRpZW50cyDigJQgd2h5IGZvciB5b3UgKi99CmRpZmYgLS1naXQgYS90b2dldGhlci1jaXR5LXJlYWN0L3NyYy9mZWF0dXJlcy9iZWF1dHkvcGFnZXMvUm91dGluZS50c3ggYi90b2dldGhlci1jaXR5LXJlYWN0L3NyYy9mZWF0dXJlcy9iZWF1dHkvcGFnZXMvUm91dGluZS50c3gKaW5kZXggZjA2YjExNS4uMmNjYjJhMiAxMDA2NDQKLS0tIGEvdG9nZXRoZXItY2l0eS1yZWFjdC9zcmMvZmVhdHVyZXMvYmVhdXR5L3BhZ2VzL1JvdXRpbmUudHN4CisrKyBiL3RvZ2V0aGVyLWNpdHktcmVhY3Qvc3JjL2ZlYXR1cmVzL2JlYXV0eS9wYWdlcy9Sb3V0aW5lLnRzeApAQCAtMSw2ICsxLDYgQEAKIGltcG9ydCB7IExpbmsgfSBmcm9tICdyZWFjdC1yb3V0ZXItZG9tJzsKIGltcG9ydCB7IEJ1dHRvbiwgRW1wdHlTdGF0ZSwgU3Bpbm5lciB9IGZyb20gJ0AvY29tcG9uZW50cy91aSc7Ci1pbXBvcnQgeyB1c2VCZWF1dHlSb3V0aW5lLCB0eXBlIFByb2R1Y3RSb3V0aW5lLCB0eXBlIFByb2R1Y3RSb3V0aW5lU3RlcCB9IGZyb20gJy4uL2FwaSc7CitpbXBvcnQgeyB1c2VCZWF1dHlQcm9maWxlLCB1c2VCZWF1dHlSb3V0aW5lLCB0eXBlIFByb2R1Y3RSb3V0aW5lLCB0eXBlIFByb2R1Y3RSb3V0aW5lU3RlcCB9IGZyb20gJy4uL2FwaSc7CiAKIGNvbnN0IElDT046IFJlY29yZDxQcm9kdWN0Um91dGluZVsndGltZU9mRGF5J10sIHN0cmluZz4gPSB7IG1vcm5pbmc6ICfimIDvuI8nLCBldmVuaW5nOiAn8J+MmScsIHdlZWtseTogJ/Cfk4UnIH07CiAKQEAgLTc1LDYgKzc1LDE1IEBAIGZ1bmN0aW9uIFJvdXRpbmVDYXJkKHsgciB9OiB7IHI6IFByb2R1Y3RSb3V0aW5lIH0pIHsKIC8qKiBUaGUgd2hvbGUgcm91dGluZTogd2hhdCB0byB1c2UsIGluIHdoYXQgb3JkZXIsIG1vcm5pbmcgLyBldmVuaW5nIC8gd2Vla2x5LiAqLwogZXhwb3J0IGZ1bmN0aW9uIFJvdXRpbmUoKSB7CiAgIGNvbnN0IHJvdXRpbmUgPSB1c2VCZWF1dHlSb3V0aW5lKCk7CisgIC8vIFRIRSBTRUFTT05BTCBMSU5FIENBTUUgV0lUSCBUSEUgUk9VVElORSBUSEFUIExFRlQgVEhFIFBST0ZJTEUgUEFHRS4KKyAgLy8gIlN1bW1lcjogbGlnaHR3ZWlnaHQgZ2VsIG1vaXN0dXJpc2VyLCBibG90IGV4Y2VzcyBvaWwsIHJlYXBwbHkgU1BGIiBpcworICAvLyByb3V0aW5lIGFkdmljZSwgc28gaXQgYmVsb25ncyBvbiB0aGUgcm91dGluZSDigJQgYnV0IHRoZSBwcm9kdWN0IGVuZ2luZSBpcworICAvLyBwdXJlIGFuZCBoYXMgbm8gY2xvY2sgb3IgY2xpbWF0ZSBpbiBpdCwgYW5kIGl0IGlzIHRoZSBhc3Nlc3NtZW50IHRoYXQKKyAgLy8gd29ya3MgdGhpcyBvdXQuIFJhdGhlciB0aGFuIHBsdW1iIGl0IHRocm91Z2ggdGhlIHNlcnZlciBmb3Igb25lIHNlbnRlbmNlLAorICAvLyB0aGUgcGFnZSB0aGF0IHNob3dzIHJvdXRpbmVzIHJlYWRzIHRoZSBhc3Nlc3NtZW50IGl0IGlzIGFscmVhZHkgYnVpbHQKKyAgLy8gZnJvbS4gRGVsZXRpbmcgdGhlIHNlbnRlbmNlIHdpdGggdGhlIGNhcmQgaXQgc2F0IGluIHdvdWxkIGhhdmUgYmVlbiB0aGUKKyAgLy8gcXVpZXQgY29zdCBvZiB0aWR5aW5nIHVwLgorICBjb25zdCBzZWFzb25hbCA9IHVzZUJlYXV0eVByb2ZpbGUoKS5kYXRhPy5hbmFseXNpcz8ucm91dGluZT8uc2Vhc29uYWw7CiAKICAgaWYgKHJvdXRpbmUuaXNMb2FkaW5nKSByZXR1cm4gPFNwaW5uZXIgbGFiZWw9IkJ1aWxkaW5nIHlvdXIgcm91dGluZeKApiIgLz47CiAKQEAgLTExNiw2ICsxMjUsMTIgQEAgZXhwb3J0IGZ1bmN0aW9uIFJvdXRpbmUoKSB7CiAgICAgICAgIDwvZGl2PgogICAgICAgKX0KIAorICAgICAgeyFlbXB0eSAmJiBzZWFzb25hbCAmJiAoCisgICAgICAgIDxwIHN0eWxlPXt7IGZvbnRTaXplOiAxMi41LCBsaW5lSGVpZ2h0OiAxLjU1LCBtYXJnaW46ICcwIDAgMTRweCcsIGJhY2tncm91bmQ6ICd2YXIoLS1wYXBlciknLCBib3JkZXJSYWRpdXM6IDEwLCBwYWRkaW5nOiAnMTBweCAxMnB4JyB9fT4KKyAgICAgICAgICDwn4ym77iPIHtzZWFzb25hbH0KKyAgICAgICAgPC9wPgorICAgICAgKX0KKwogICAgICAge2VtcHR5ID8gKAogICAgICAgICA8PgogICAgICAgICAgIDxFbXB0eVN0YXRlCg==
+B64EOF
+WANT="f5ae9ed67bbe237c76c192f5ba186c8d3b73378aed2aacb57a22ee5e209f70d9"
+GOT="$(shasum -a 256 "$PATCH" | awk '{print $1}')"
+[ "$GOT" = "$WANT" ] || { echo "!! Patch is corrupt."; echo "   want $WANT"; echo "   got  $GOT"; exit 1; }
+echo "== patch verified"
+git apply --check -C1 "$PATCH" || { echo "!! Patch does not apply cleanly. Nothing written."; exit 1; }
+git apply -C1 "$PATCH"
+echo "== applied"
+
+cd together-city-react
+npx tsc --noEmit
+npx vitest run
+node scripts/a11y-audit.mjs
+node scripts/motion-ceiling.mjs
+node scripts/lint-ceiling.mjs
+npx vite build
+cd ..
+
+git add together-city-react/src/features/beauty/pages/Profile.tsx \
+        together-city-react/src/features/beauty/pages/Routine.tsx \
+        together-city-react/src/app/one-routine.test.ts
+git commit -F - <<'MSG'
+One question, one answer, on the tab named after it
+
+Scroll to the bottom of Skin & Hair Profile and there is a card headed "Your
+routine": Gentle cleanser, Vitamin-C serum, Hydrating serum, Moisturiser,
+Sunscreen SPF 50, morning / evening / weekly. Two rows up the sidebar there is
+a tab headed "Your Routine". They are the same question answered twice, on a
+hub with five tabs, one of which exists for this.
+
+AND THE ONE ON THE WRONG PAGE WAS THE WEAKER ONE. Tab 02 has the same steps as
+actual PRODUCTS — brand, price, the order to use them in, how to apply each one,
+how often, and the warnings that apply to that product in that routine
+("Vitamin C and a retinoid are both here — use one in the morning and one at
+night rather than layering them"). The card being removed is a list of
+categories. Somebody who reads it has been told what to buy in the abstract on
+the page about photographs, and has no idea the real one is a click away.
+
+The page it was on is Skin & Hair PROFILE: photographs, an assessment, and
+goals. A routine is what you do about that, which is the next page.
+
+A LINE, NOT A HOLE. What replaces the card is one sentence linking to the tab.
+A block that disappears leaving nothing is how somebody concludes their routine
+was never generated — the deletion has to say where the thing went.
+
+THE SEASONAL SENTENCE MOVED RATHER THAN WENT, and it is the part of this diff
+worth reading. "Summer: lightweight gel moisturiser, blot excess oil, reapply
+SPF. Winter: add a hydrating serum so you don't over-strip" was the last line
+of the deleted card, and it exists nowhere else: routine-engine.ts is pure —
+no clock, no climate, no profile lookup — and works from a shelf of recommended
+products, so it cannot produce that sentence. Only the assessment can. Rather
+than plumb one string through the server, the Routine page now reads the
+assessment it is already built from and prints it at the top. Deleting a card
+and quietly losing a line of content out of the bottom of it is the failure
+mode of every tidy-up, and this is the one line that would have gone.
+
+`analysis.routine` STAYS ON THE OBJECT. It is where the seasonal note comes
+from, and the assessment is stored per dated entry in the timeline, so the
+field is not dead — it is read from somewhere else now.
+
+WHICH IS EXACTLY WHY THERE IS A TEST. A populated `a.routine` sitting in scope
+in a view that does not render it is an invitation: the next person extending
+the assessment finds `a.routine.am` unused and puts the card back, reasonably,
+in about a minute. one-routine.test.ts names the three step fields
+individually so a failure says which one returned, refuses a second heading
+calling itself a routine, requires the link to still be there, and asserts the
+seasonal note at its new address. All four fail against the page as it was.
+
+tsc clean, vitest green (56 files, 448 tests), a11y / motion / lint ceilings
+clear, vite build clean.
+
+MSG
+echo "== committed"
+
+echo
+echo "==============================================================="
+echo " Landed: $NEEDS"
+echo " The routine is on the Routine tab and nowhere else."
+echo " Push, and Vercel ships it."
+echo "==============================================================="

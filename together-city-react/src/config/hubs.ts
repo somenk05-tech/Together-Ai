@@ -1,5 +1,6 @@
 import type { HubKey } from '@/types';
 import { LABELS } from './labels';
+import { PETS_SIDEBAR } from '@/features/pets/routes';
 
 /**
  * ONE TAB IS NOT A DISTRICT.
@@ -65,6 +66,11 @@ export const NAV: NavItem[] = [
   { key: 'nutrition', label: 'Nutrition', path: '/nutrition' },
   // Not a district — the citizen's own drawer. See TabKey above.
   { key: 'personal', label: 'Personal', path: '/personal' },
+  /* AFTER Personal, not before it: 'Per' < 'Pet'. This list is asserted to be
+     in `localeCompare` order by a-drawer-of-ones-own.test.ts, which caught the
+     wrong one — the two labels differ at the third letter and the eye reads
+     them as the same word. */
+  { key: 'pets', label: 'Pets', path: '/pets' },
   { key: 'realestate', label: 'Real estate', path: '/realestate' },
   { key: 'social', label: 'Social life', path: '/social' },
   /* TRAVEL LEFT THE STREET (owner, 15 Aug), NOT THE CITY. The hub keeps its
@@ -361,21 +367,22 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/financial/invoices', index: '05', label: 'Invoices', sub: 'Bills from businesses you use' },
     ],
   },
-  /* PET CARE IS A FACADE, NOT YET A ROOM.
-     Its plate is on the home walk because the district is being built and the
-     photograph exists; `items: []` is what says so. Home.tsx reads an empty
-     rail as `soon`, and a hub with no rooms is LABELLED rather than linked —
-     "Coming soon" on the plate, no href, no route, no consent gate. That is
-     the branch Home.tsx:263 has carried unused since the E-Commerce plate went
-     ("the next one to be built will pass through it before its pages exist");
-     Pet Care is the first hub to actually stand in it.
+  /* PET CARE OPENED ON 19 AUG, AND THIS NOTE IS THE OLD ONE CORRECTED.
+     It read "a facade, not yet a room": `items: []`, which Home.tsx reads as
+     `soon`, so the plate was LABELLED rather than linked — the first hub ever
+     to stand in that branch. And it was deliberately absent from NAV, on the
+     reasoning that a header tab is a door and there was nothing behind it.
 
-     Deliberately absent from NAV: a header tab is a door, and there is nothing
-     behind this one yet. It joins the tabs and the /hubs grid on the same day
-     its first room does. `backPath` names where that room will be reached
-     from — nothing links there today. */
+     Both halves are now false and the reasoning behind them is the reason why:
+     the door has sixteen rooms behind it, so it joins the tabs, the /hubs grid
+     and the walk on the same day its first room does, exactly as this comment
+     said it would. The walk's plate says "Explore Pet Products" rather than
+     "Explore Pet Care" — see DISTRICT_COPY in Home.tsx, which is the only map
+     that override touches. */
   pets: {
     key: 'pets', name: 'Pet Care', tag: 'Everything your pet needs, in one place', backPath: '/pets',
-    items: [],
+    /* The sixteen rooms live with the feature that owns them, so adding a room
+       is one edit there rather than two — one here and one in the router. */
+    items: PETS_SIDEBAR,
   },
 };

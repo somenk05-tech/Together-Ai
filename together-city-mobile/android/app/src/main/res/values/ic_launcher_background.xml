@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  THE FIELD THE TILE SITS IN, AND IT IS NOT WHITE ANY MORE.
+
+  The adaptive icon is two layers: this colour behind, and ic_launcher_foreground
+  in front, which is the badge held inside Android's 66.7% safe zone so no
+  launcher mask can crop the wordmark. That leaves a ring of THIS colour visible
+  around it on every phone, and #FFFFFF made the badge look like a sticker on a
+  sheet of printer paper -- pure white is the one value the artwork contains
+  nowhere.
+
+  #F3EDE2 is the cream of the badge's own name plate, so the ring reads as more
+  of the same felt rather than as the paper behind it.
+-->
+<resources>
+    <color name="ic_launcher_background">#F3EDE2</color>
+</resources>

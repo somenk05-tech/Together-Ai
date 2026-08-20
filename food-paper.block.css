@@ -1,0 +1,79 @@
+
+/* ═══ THE FOOD PREFERENCE PROFILE PRINTS ON TUESDAY'S SHEET ══════════════════
+   Not a hub ground grant: no [data-hub] block is touched, so relief.spec.ts's
+   grounded set still reads exactly astrology/beauty/entertainment. One page
+   taking a day's paper — the owner's call of 12 Aug. .food-paper carries no
+   data-press, so the press wearer list still finds three files.
+
+   The veil stays at .52. Veiling until the city's inks cleared AA needs .78,
+   which erases 78% of the photograph. The press's method is the opposite: veil
+   to the minimum that makes a ground, then re-point the inks. On this ground
+   (#c2a094) only three city tokens fail — --muted 2.39, --faint 2.09,
+   --line 2.05 — and they take --press-recto-ink-2 / -ink-3 / -rule, already
+   solved for this sheet and reused rather than restated.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.food-paper {
+  background-image:
+    linear-gradient(var(--press-recto-veil), var(--press-recto-veil)),
+    var(--press-recto-sheet);
+  background-size: cover;
+  background-position: center;
+}
+
+/* THE INK IS SET, THE TOKENS ARE NOT RE-POINTED.
+   This is `.cstage`'s shape, and for `.cstage`'s reason: re-pointing --muted on
+   the page would carry it into all thirteen cards of the edit form, which stand
+   on white and need the city's grey. Setting `color` instead leaves var(--muted)
+   holding its root value, so the restore below is a plain reference rather than
+   a second copy of #666666 living in relief.css. `muted` and `card` are on
+   no-borrowed-class-names' allow-list for exactly this. */
+.food-paper .muted   { color: var(--press-recto-ink-2); }
+.food-paper .eyebrow { color: var(--press-recto-ink-3); }
+
+/* …and the cards take the city's ink straight back. A card paints its own
+   ground, so it must paint its own foreground — the general rule
+   a-stage-does-not-export-its-ink.test.ts was written to hold. */
+.food-paper .card           { color: var(--ink); }
+.food-paper .card .muted    { color: var(--muted); }
+.food-paper .card .eyebrow  { color: var(--faint); }
+
+/* ── THE SAVED VIEW IS PRINTED, NOT CARDED ───────────────────────────────────
+   A white surface is 1.01:1 against this sheet — its lightest pixel is pure
+   white, and no white veil changes that. The summary card did not dissolve a
+   little; it had no edge at all.
+
+   Two ways out: give it an edge, or stop being a card. The saved view stops
+   being a card, because a page listing what you eat, printed on paper, is the
+   thing itself rather than a panel describing it.
+
+   --line is re-pointed HERE, on the variable, because the row rules are written
+   inline (`borderTop: '1px solid var(--line)'`) and no selector can reach them.
+   That is safe in this block and nowhere else: the saved view contains no card,
+   so there is nothing inside it to restore. */
+.food-paper .food-print {
+  --line: var(--press-recto-rule);
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0;
+}
+
+/* ── THE EDIT FORM KEEPS ITS CARDS, AND GAINS AN EDGE ────────────────────────
+   Behind "Edit Food Preference Profile" there are THIRTEEN cards, plus every
+   text input, which paints `background: var(--card)`. That is not a document,
+   it is a long form, and a text field with no ground on a photograph is
+   unusable rather than merely undecorated. So the form stays lit and takes an
+   edge instead.
+
+   NOT --press-recto-rule: rgba(51,44,37,.32) composites to #bebbb9 on a white
+   card — 1.89:1, which is not an edge. That token draws rules ON the paper, not
+   a boundary against it. The two read as the same kind of line and are not.
+
+   --press-ink-3 is 3.64:1 against the sheet and 3.67:1 against the card
+   interior. Balanced both ways: it separates without becoming a border.
+
+   One rule, so a fourteenth card added next month is edged the day it is
+   written. There is no list. */
+.food-paper .card {
+  box-shadow: 0 0 0 1px var(--press-ink-3), var(--shadow);
+}

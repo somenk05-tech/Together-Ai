@@ -6,6 +6,8 @@ import {
   ATS_SOURCES, type AtsSource, type AtsPosting,
   boardUrl, directoryUrl, isSafeSlug, normalize,
   isIndiaPosting, isRemoteLocation, seniorityFromTitle, companyFromSlug,
+  AGGREGATOR_QUERIES, adzunaSearchUrl, JOOBLE_HOST, joobleRequestBody,
+  normalizeAdzuna, normalizeJooble,
 } from './ats';
 
 /**
@@ -59,7 +61,7 @@ export class ExternalJobsService implements OnModuleInit {
     await this.scan();
   }
 
-  /** One window across all three vendors. Never throws. */
+  /** One window across all sources. Never throws. */
   async scan(): Promise<void> {
     if (this.running) return; // a slow run and the next cron tick must not overlap
     this.running = true;
@@ -67,11 +69,79 @@ export class ExternalJobsService implements OnModuleInit {
       for (const source of ATS_SOURCES) {
         await this.scanSource(source);
       }
+      await this.scanAggregators();
+      // Aggregator rows go stale differently from board rows: a board re-read
+      // PROVES which of its postings closed, but an aggregator answers
+      // queries, so a posting simply stops appearing. Two weeks unseen on an
+      // aggregator = no longer offered. (Board rows keep the 30-day serve
+      // window; their re-reads delete closed roles outright.)
+      await this.prisma.externalJob.deleteMany({
+        where: { source: { in: ['adzuna', 'jooble'] }, lastSeenAt: { lt: new Date(Date.now() - 14 * 24 * 3600 * 1000) } },
+      });
     } catch (e) {
       this.log.warn(`scan aborted: ${(e as Error).message}`);
     } finally {
       this.running = false;
     }
+  }
+
+  /**
+   * THE AGGREGATORS — keyed, optional, and query-driven.
+   *
+   * Adzuna and Jooble are licensed APIs the owner holds keys for (see
+   * .env.example); with no key a source is skipped and the log says so once
+   * per sweep, because a silently absent source looks identical to a broken
+   * one. Each sweep asks a rotating handful of the industry queries, so the
+   * free tiers are never leaned on: 6 queries × ≤4 sweeps/day ≈ 24 calls a
+   * day per aggregator. The requests are India-scoped by construction —
+   * Adzuna's /jobs/in/ path, Jooble's location field — so results are taken
+   * at the endpoint's word rather than re-filtered through the city list.
+   */
+  private static readonly QUERIES_PER_RUN = 6;
+
+  private async scanAggregators(): Promise<void> {
+    const adzunaId = process.env.ADZUNA_APP_ID, adzunaKey = process.env.ADZUNA_APP_KEY;
+    const joobleKey = process.env.JOOBLE_API_KEY;
+
+    if (adzunaId && adzunaKey) {
+      await this.scanQueries('adzuna', (q) => this.fetchJson(adzunaSearchUrl(adzunaId, adzunaKey, q)).then(normalizeAdzuna));
+    } else this.log.log('adzuna: no ADZUNA_APP_ID/ADZUNA_APP_KEY — skipped');
+
+    if (joobleKey) {
+      await this.scanQueries('jooble', (q) =>
+        this.fetchJson(`${JOOBLE_HOST}${encodeURIComponent(joobleKey)}`, { method: 'POST', body: joobleRequestBody(q) }).then(normalizeJooble));
+    } else this.log.log('jooble: no JOOBLE_API_KEY — skipped');
+  }
+
+  private async scanQueries(source: 'adzuna' | 'jooble', run: (q: string) => Promise<AtsPosting[]>): Promise<void> {
+    const cursor = await this.prisma.externalScanCursor.findUnique({ where: { ats: source } });
+    const start = (cursor?.offset ?? 0) % AGGREGATOR_QUERIES.length;
+    let kept = 0, failed = 0;
+    for (let i = 0; i < ExternalJobsService.QUERIES_PER_RUN; i++) {
+      const query = AGGREGATOR_QUERIES[(start + i) % AGGREGATOR_QUERIES.length];
+      try {
+        const postings = await run(query);
+        const now = new Date();
+        for (const p of postings) {
+          const row = this.toRow(source, `q:${query.replace(/\s+/g, '-')}`, p, now);
+          await this.prisma.externalJob.upsert({
+            where: { url: row.url },
+            update: { title: row.title, company: row.company, location: row.location, remote: row.remote, blurb: row.blurb, skills: row.skills, seniority: row.seniority, salaryLpa: row.salaryLpa, postedAt: row.postedAt, lastSeenAt: now },
+            create: row,
+          });
+          kept++;
+        }
+      } catch {
+        failed++; // one query failing must not cost the rest of the handful
+      }
+    }
+    const nextOffset = (start + ExternalJobsService.QUERIES_PER_RUN) % AGGREGATOR_QUERIES.length;
+    await this.prisma.externalScanCursor.upsert({
+      where: { ats: source },
+      update: { offset: nextOffset },
+      create: { ats: source, offset: nextOffset },
+    });
+    this.log.log(`${source}: ${ExternalJobsService.QUERIES_PER_RUN} queries from #${start} — ${kept} postings, ${failed} queries failed`);
   }
 
   private async scanSource(source: AtsSource): Promise<void> {
@@ -145,7 +215,7 @@ export class ExternalJobsService implements OnModuleInit {
     return postings.length;
   }
 
-  private toRow(source: AtsSource, slug: string, p: AtsPosting, now: Date) {
+  private toRow(source: AtsSource | 'adzuna' | 'jooble', slug: string, p: AtsPosting, now: Date) {
     const text = `${p.title}. ${p.description}`;
     return {
       source,
@@ -159,6 +229,7 @@ export class ExternalJobsService implements OnModuleInit {
       blurb: p.description.slice(0, 220),
       skills: skillsInText(text).join(','),
       seniority: seniorityFromTitle(p.title),
+      salaryLpa: p.salaryLpa ?? 0,
       postedAt: p.postedAt ? new Date(p.postedAt) : null,
       firstSeenAt: now,
       lastSeenAt: now,
@@ -175,14 +246,20 @@ export class ExternalJobsService implements OnModuleInit {
     }
   }
 
-  private async fetchJson(url: string): Promise<unknown> {
+  private async fetchJson(url: string, opts?: { method?: string; body?: string }): Promise<unknown> {
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), ExternalJobsService.FETCH_TIMEOUT_MS);
     try {
       const res = await fetch(url, {
         signal: ctl.signal,
         redirect: 'error',
-        headers: { accept: 'application/json', 'user-agent': 'TogetherCity-JobsHub/1.0 (+https://togethercity.app)' },
+        method: opts?.method ?? 'GET',
+        body: opts?.body,
+        headers: {
+          accept: 'application/json',
+          'user-agent': 'TogetherCity-JobsHub/1.0 (+https://togethercity.app)',
+          ...(opts?.body ? { 'content-type': 'application/json' } : {}),
+        },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return await res.json();

@@ -1,0 +1,32 @@
+node_modules/
+www-dist/
+ios/App/Pods/
+ios/App/App.xcworkspace/xcuserdata/
+android/.gradle/
+android/app/build/
+android/build/
+sideload/gen/
+sideload/obj/
+sideload/dist/
+sideload/classes.dex
+.DS_Store
+
+# ── ADDED THE DAY THIS PROJECT JOINED THE REPO (19 Aug) ──────────────────────
+# together-city-mobile/ lived in .git/info/exclude — a LOCAL rule, on one
+# machine, invisible to the remote and to everybody else. That is why the felt
+# app icon could be written to disk and then refuse to be committed. The folder
+# is tracked now, and these two lines are what had to be true first.
+
+# 141 MB. A snapshot of the web build's public/ folder, taken once to seed www/.
+# GitHub refuses any single file over 100 MB, so without this line `git add`
+# on this folder cannot succeed at all — it is not a preference, it is the
+# blocker.
+_public-assets.tar.gz
+
+# Built APKs. sideload/ holds the hand-rolled build's SOURCES — its manifest,
+# its assets — and those stay tracked. The .apk it produces is output, and a
+# binary that changes wholesale on every build is the worst thing a history can
+# carry. The download the site serves is versioned in the web project, at
+# together-city-react/public/downloads/, which is where a shipped artifact
+# belongs.
+sideload/*.apk

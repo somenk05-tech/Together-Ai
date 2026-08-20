@@ -5,7 +5,7 @@ import { PrismaService } from '../shared/prisma/prisma.service';
 import { ClockService } from '../shared/clock/clock.service';
 import { FEED_CAP, ORDER_HISTORY_CAP } from '../shared/paging';
 import { MasterProfileService } from '../profile/master-profile.service';
-import { parseResume, matchJobs, labelFor, JOB_SEEDS, type ParsedResume, type JobLike } from './jobs-engine';
+import { parseResume, matchJobs, relevantMatches, labelFor, JOB_SEEDS, type ParsedResume, type JobLike } from './jobs-engine';
 import { ExternalJobsService } from './external/external-jobs.service';
 import { AiService } from '../ai/ai.service';
 import { defaultSectionOrder, entryKey, toStartSort } from './cv-entries';
@@ -676,7 +676,7 @@ export class JobsService implements OnModuleInit {
       id: r.id, title: r.title, company: r.company, location: r.location, remote: r.remote,
       seniority: r.seniority as ParsedResume['seniority'],
       skills: r.skills ? r.skills.split(',').filter(Boolean) : [],
-      minYears: 0, salaryLpa: 0, blurb: r.blurb,
+      minYears: 0, salaryLpa: r.salaryLpa, blurb: r.blurb,
       postedByYou: false,
       externalUrl: r.url,
       source: r.source,
@@ -697,7 +697,10 @@ export class JobsService implements OnModuleInit {
     // unbounded: their own applications, as a filter set — truncation would
     // re-offer roles they already applied to
     const applied = new Set((await this.prisma.jobApplication.findMany({ where: { userId }, select: { jobId: true } })).map((a) => a.jobId));
-    const matches = matchJobs(parsed, jobs).map((m) => ({
+    // The shortlist rule (jobs-engine.relevantMatches): no weak fits, and an
+    // external role must share at least one skill with the CV — the page
+    // shows roles matched to the citizen, not everything the sweep found.
+    const matches = relevantMatches(matchJobs(parsed, jobs)).map((m) => ({
       ...m,
       matchedSkills: m.matchedSkills.map((k) => ({ key: k, label: labelFor(k) })),
       missingSkills: m.missingSkills.map((k) => ({ key: k, label: labelFor(k) })),

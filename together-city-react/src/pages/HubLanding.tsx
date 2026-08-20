@@ -26,6 +26,12 @@ export const HUB_HERO: Partial<Record<HubKey, string>> = {
   financial: 'financial-district.webp',
   beauty: 'beautymarket.webp',
   fitness: 'fitness-hero.webp',
+  /* The desktop plate. Without this line `heroSrc` falls back to `pets.webp`,
+     which is not a file that exists — the poster is `hub-poster/pets.webp` and
+     the landscape plate is `pets-hub.webp`, and the two are not the same
+     picture. That fallback is exactly how Mail ended up drawing an empty frame
+     for a file that had never existed. */
+  pets: 'pets-hub.webp',
   // Commissioned for this hub and genuinely informative rather than
   // atmospheric: the billboards on it ARE the eighteen category groups, so the
   // picture tells a first-time visitor what is inside before they read a word.
@@ -59,6 +65,7 @@ export const HUB_LINE: Partial<Record<HubKey, string>> = {
   beauty: 'Your look, your way.',
   social: 'Your people. Your communities. Your world.',
   astrology: 'Your stars. Your journey. Your timing.',
+  pets: 'Everything your pet needs. All in one place.',
 };
 
 /**
@@ -108,11 +115,9 @@ export const HUB_PORTRAIT: Partial<Record<HubKey, string>> = {
   beauty: 'hub-poster/beauty.webp',
   fitness: 'hub-poster/fitness.webp',
   services: 'hub-poster/services.webp',
-  /* Pet Care has a poster before it has a landing. Nothing routes to
-     /pets yet, so this line renders nothing today — it is here because the
-     rule for this map is "hubs whose poster exists are listed", and the file
-     is on disk with the other thirteen. The day the hub opens, its phone
-     arrival is already built. */
+  /* Pet Care had a poster before it had a landing, and this line rendered
+     nothing for as long as that was true. The hub opened on 19 Aug; the phone
+     arrival it was waiting for is the one it now draws. */
   pets: 'hub-poster/pets.webp',
 };
 

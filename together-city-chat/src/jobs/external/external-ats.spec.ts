@@ -9,9 +9,10 @@
 import {
   isSafeSlug, boardUrl, htmlToText,
   normalizeGreenhouse, normalizeLever, normalizeAshby,
+  normalizeAdzuna, normalizeJooble, adzunaSearchUrl, joobleRequestBody, inrYearToLpa,
   isIndiaPosting, isRemoteLocation, seniorityFromTitle,
 } from './ats';
-import { skillsInText } from '../jobs-engine';
+import { skillsInText, relevantMatches, type JobMatch } from '../jobs-engine';
 
 describe('board slugs are validated before they touch a URL', () => {
   it('accepts the shapes the public directories actually contain', () => {
@@ -101,5 +102,69 @@ describe('a posting speaks the same vocabulary as a CV', () => {
 
   it('htmlToText strips markup without inventing words', () => {
     expect(htmlToText('&lt;div&gt;GST &amp; taxation&lt;/div&gt;<style>p{}</style>')).toBe('GST & taxation');
+  });
+});
+
+describe('the aggregators — Adzuna and Jooble', () => {
+  it('adzuna: India-scoped by URL, salary kept only when stated, never predicted', () => {
+    expect(adzunaSearchUrl('id1', 'key1', 'software engineer'))
+      .toBe('https://api.adzuna.com/v1/api/jobs/in/search/1?app_id=id1&app_key=key1&what=software+engineer&results_per_page=50&content-type=application%2Fjson');
+    const out = normalizeAdzuna({
+      results: [
+        { title: 'Backend <strong>Engineer</strong>', company: { display_name: 'Zed Corp' }, location: { display_name: 'Salem, Tamil Nadu' }, redirect_url: 'https://www.adzuna.in/land/ad/1', description: 'Node and SQL work.', created: '2026-08-12T00:00:00Z', salary_min: 1200000, salary_max: 1800000, salary_is_predicted: '0' },
+        { title: 'Analyst', company: { display_name: 'Guess Ltd' }, location: { display_name: 'Pune' }, redirect_url: 'https://www.adzuna.in/land/ad/2', description: '', salary_min: 900000, salary_max: 900000, salary_is_predicted: '1' },
+        { title: 'No Company', company: {}, location: { display_name: 'Pune' }, redirect_url: 'https://x/3', description: '' }, // nameless → dropped
+      ],
+    });
+    expect(out).toHaveLength(2);
+    expect(out[0]).toMatchObject({ title: 'Backend Engineer', company: 'Zed Corp', location: 'Salem, Tamil Nadu', salaryLpa: 15 });
+    expect(out[1].salaryLpa).toBe(0); // predicted salary is a guess, and a guess is not a fact
+  });
+
+  it('jooble: a POST with keywords + location India; snippet HTML stripped; free-text salary NOT parsed', () => {
+    expect(JSON.parse(joobleRequestBody('nurse'))).toEqual({ keywords: 'nurse', location: 'India', page: '1' });
+    const out = normalizeJooble({
+      jobs: [
+        { title: 'Staff <b>Nurse</b>', company: 'Apollo', location: 'Chennai', snippet: 'ICU &nbsp;patient care', salary: '₹40,000/month', link: 'https://jooble.org/jdp/1', updated: '2026-08-14T00:00:00Z' },
+        { title: 'Ghost role', company: '', location: 'Delhi', snippet: '', link: 'https://jooble.org/jdp/2' }, // nameless → dropped
+      ],
+    });
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ title: 'Staff Nurse', company: 'Apollo', location: 'Chennai', description: 'ICU patient care' });
+    expect(out[0].salaryLpa).toBeUndefined(); // "₹40,000/month" misread as 40 LPA would be worse than silence
+  });
+
+  it('inrYearToLpa refuses predictions, nonsense and out-of-band figures', () => {
+    expect(inrYearToLpa(1200000, 1800000, '0')).toBe(15);
+    expect(inrYearToLpa(1200000, 1800000, '1')).toBe(0);
+    expect(inrYearToLpa(0, 0, '0')).toBe(0);
+    expect(inrYearToLpa(999999999, 999999999, '0')).toBe(0); // 10,000 LPA is not a salary, it is a typo
+  });
+});
+
+describe('the shortlist rule — relevant to the CV, or not shown', () => {
+  const base = { id: 'x', title: 't', company: 'c', location: 'l', remote: false, seniority: 'mid' as const, skills: [], minYears: 0, salaryLpa: 0, blurb: '', score: 50, missingSkills: [], reasons: [] };
+
+  it('drops weak fits entirely, internal and external alike', () => {
+    const out = relevantMatches([
+      { ...base, id: 'a', matchedSkills: ['react'], fitLabel: 'good' },
+      { ...base, id: 'b', matchedSkills: ['react'], fitLabel: 'weak' },
+    ] as JobMatch[]);
+    expect(out.map((m) => m.id)).toEqual(['a']);
+  });
+
+  it('an external role must share at least one skill with the CV; a city posting may stretch', () => {
+    const out = relevantMatches([
+      { ...base, id: 'ext-none', matchedSkills: [], fitLabel: 'fair', externalUrl: 'https://x/1' },
+      { ...base, id: 'ext-one', matchedSkills: ['sql'], fitLabel: 'fair', externalUrl: 'https://x/2' },
+      { ...base, id: 'city-none', matchedSkills: [], fitLabel: 'fair' },
+    ] as JobMatch[]);
+    expect(out.map((m) => m.id)).toEqual(['ext-one', 'city-none']);
+  });
+
+  it('caps the page at a shortlist, keeping the top of the score order it was given', () => {
+    const many = Array.from({ length: 120 }, (_, i) => ({ ...base, id: `m${i}`, matchedSkills: ['sql'], fitLabel: 'good' })) as JobMatch[];
+    expect(relevantMatches(many)).toHaveLength(80);
+    expect(relevantMatches(many)[0].id).toBe('m0');
   });
 });

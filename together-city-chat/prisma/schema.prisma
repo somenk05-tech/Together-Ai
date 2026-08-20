@@ -1829,6 +1829,7 @@ model ExternalJob {
   blurb       String    @default("") // first lines of the posting's own description
   skills      String    @default("") // csv of skill keys, extracted at ingest
   seniority   String    @default("mid")
+  salaryLpa   Int       @default(0) // ₹ LPA when the source STATED one; 0 = it didn't
   postedAt    DateTime?
   firstSeenAt DateTime  @default(now())
   lastSeenAt  DateTime  @default(now())

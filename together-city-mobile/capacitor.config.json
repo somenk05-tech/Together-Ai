@@ -1,0 +1,16 @@
+{
+  "appId": "app.togethercity.mobile",
+  "appName": "Together City",
+  "webDir": "www",
+  "server": {
+    "url": "https://togethercity.app",
+    "allowNavigation": ["togethercity.app", "*.togethercity.app"]
+  },
+  "backgroundColor": "#faf9f6",
+  "android": {
+    "allowMixedContent": false
+  },
+  "ios": {
+    "contentInset": "automatic"
+  }
+}

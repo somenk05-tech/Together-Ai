@@ -363,6 +363,33 @@ export interface MatchOpts {
   excludeOwn?: boolean;
 }
 
+/**
+ * THE SHORTLIST RULE — what "Jobs for you" actually shows.
+ *
+ * The page's promise is roles matched to YOUR CV, and with thousands of
+ * postings flowing in from the web that promise has to be enforced, not
+ * implied. Two cuts, then a cap:
+ *
+ *   1. No weak fits. A 'weak' label is the matcher saying "this is not for
+ *      you"; showing it anyway made the label decoration.
+ *   2. An EXTERNAL role must share at least one skill with the CV. Its
+ *      score can clear 'weak' on seniority alone — external rows carry no
+ *      experience bar to be penalised against — and a page of plausible
+ *      scores with zero matched skills is the feed inventing relevance.
+ *      Together City's own postings are exempt from this second cut: the
+ *      board is employer-curated and small, and a citizen may want to see
+ *      a neighbour's posting even at a stretch.
+ *
+ * The cap keeps the page a shortlist rather than an archive; matches arrive
+ * sorted by score, so the cap keeps the best.
+ */
+export function relevantMatches(matches: JobMatch[], cap = 80): JobMatch[] {
+  return matches
+    .filter((m) => m.fitLabel !== 'weak')
+    .filter((m) => !m.externalUrl || m.matchedSkills.length > 0)
+    .slice(0, cap);
+}
+
 function fitLabelFor(score: number): JobMatch['fitLabel'] {
   return score >= 75 ? 'strong' : score >= 55 ? 'good' : score >= 35 ? 'fair' : 'weak';
 }

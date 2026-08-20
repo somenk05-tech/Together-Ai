@@ -1,0 +1,409 @@
+From 3fbad94f87568af720202bf25d596471111c7145 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 7 Aug 2026 10:12:20 +0000
+Subject: [PATCH] Astrology: a night ground, scoped to the hub and guarded
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Answers the question the Relief rollout left open — whether the tarot page
+and the letter should keep a night surface as a deliberate one-room
+exception, "a decision to make before this lands, not after". It landed
+white and the decision was never made. This is that decision, made the way
+the press exception was: named in tokens.css, scoped to one hub, pinned by
+a guard.
+
+Three things say the room was always meant to be dark: the gold-on-black
+artwork it was drawn for is still in the tree, the hub config still declares
+dark: true (read by nothing since the rollout), and the near-white guard
+records the casualty of turning it white - cream text on a surface that had
+stopped being dark, on the page whose heading says "Birth Details".
+
+Not a dark mode. A dark mode is a second copy of every screen behind a
+switch, and half-converted it reads as a bug. This is one room with its own
+light: nothing toggles, there is no [data-theme], and a citizen who never
+opens Astrology never sees a dark pixel.
+
+The relief is unchanged - five depths, no sixth, same geometry. On white the
+highlight was invisible and the shadow did the work; on charcoal the shadow
+has nothing to darken and the highlight does it, so the rim's bright edge
+stays on top at a much lower alpha and the drop shadow deepens.
+
+THE CITY'S FURNITURE STAYS THE CITY'S. The orange lamp, --on-accent and the
+black primary button are deliberately NOT re-pointed. --on-accent is read by
+seven surfaces and every one of them is dark; giving the hub a gold FILL
+would have required inverting it, which turns the black button's own label
+black. The metal lives in --accent-ink, where it is text, and --accent stays
+dark enough for the white the city puts on it.
+
+The rail WELL does follow the room, because it must: every label on it reads
+--ink and --faint, so a white well under ivory text is the hub name gone.
+
+One latent bug, fixed in one word: .btn-secondary was `background: #fff`
+under `color: var(--ink)` — a face that follows nothing beneath a label that
+follows the room. It is var(--card) now, which IS #ffffff at the root, so
+nothing changes for the other twenty-four hubs. It was the only hardcoded
+light background in the material; a guard now keeps it the only one.
+
+Guards: the ground exception names two hubs and still refuses a third; the
+night hub must re-point its own ink and its well, must NOT re-point the
+city's furniture, and may never acquire a theme switch. All verified by
+breaking them.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01CAbEJRcJHr4J7qyyfM2Xqg
+---
+ together-city-react/src/app/relief.spec.ts | 147 +++++++++++++++++----
+ together-city-react/src/styles/relief.css  |   9 +-
+ together-city-react/src/styles/tokens.css  | 140 +++++++++++++++++++-
+ 3 files changed, 266 insertions(+), 30 deletions(-)
+
+diff --git a/together-city-react/src/app/relief.spec.ts b/together-city-react/src/app/relief.spec.ts
+index 260c1de..68ddbac 100644
+--- a/together-city-react/src/app/relief.spec.ts
++++ b/together-city-react/src/app/relief.spec.ts
+@@ -183,45 +183,138 @@ describe('Relief stays a system', () => {
+   });
+ 
+   /**
+-   * ONE HUB HAS ITS OWN PAPER, AND IT IS SCOPED OR IT IS NOT AN EXCEPTION.
+-   *
+-   * Nutrition is the one hub read rather than operated, and it already held the
+-   * only other surface exception ([data-press]). It now sets a warm ground for
+-   * the whole hub. The argument is written out in tokens.css; this is the part
+-   * that keeps it from spreading.
+-   *
+-   * THE ACCENT HUE IS NOT THE GROUND. The tint that was removed years-of-commits
+-   * ago washed the page in the hub's GREEN. This one is warm paper with the
+-   * green left in the fill and the hairline — which is why it is allowed and
+-   * why a second hub asking for "a tint like nutrition's" is asking for the
+-   * removed thing, not this one.
+-   *
+-   * So: exactly one hub may re-point a ground token, and the depth tokens it
+-   * re-points must keep their names. A hub inventing --e6 is a sixth depth
+-   * wearing a scope.
++   * TWO HUBS HAVE THEIR OWN GROUND, AND EACH IS SCOPED OR IT IS NOT AN
++   * EXCEPTION.
++   *
++   * Both are hubs you READ rather than operate, which is the whole of the
++   * argument and the reason a third is not automatic:
++   *
++   *   nutrition — warm paper. It already held the only other surface exception
++   *     ([data-press], granted because a day of food is read the way a menu is),
++   *     and the press pages had become an ivory island inside a white hub.
++   *   astrology — charcoal. This one ANSWERS a question the rollout left open
++   *     ("whether the tarot page and the letter should keep a night surface …
++   *     a decision to make before this lands, not after") rather than reopening
++   *     a settled one. The artwork it was drawn for is still in the tree.
++   *
++   * THE ACCENT HUE IS NEVER THE GROUND. The tint that was removed washed the
++   * page in the hub's GREEN. Neither of these does that: one is paper with the
++   * green left in the fill, one is charcoal with the gold left in the fill. A
++   * third hub asking for "a tint like nutrition's" is asking for the removed
++   * thing, not for either of these, and gets its own line here or nothing.
++   *
++   * The list is written out rather than counted, exactly like the press's
++   * wearers, so a third entry costs an argument instead of a nod.
+    */
+-  it('keeps the warm ground inside the one hub it was granted to', () => {
++  it('keeps a re-pointed ground inside the two hubs it was granted to', () => {
+     const css = strip(tokens);
+-    // 1. every [data-hub] block that re-points a ground token is nutrition's
++    const GRANTED = ['astrology', 'nutrition'];
++
++    // 1. only the granted hubs re-point a ground token. Sorted: the file's
++    //    order is editorial and a re-order must not read as a breach.
+     const blocks = [...css.matchAll(/\[data-hub="([a-z]+)"\][^{]*\{([^}]*)\}/g)];
+     const grounded = blocks
+       .filter(([, , body]) => /--(ground|paper|card|wash|rail-well)\s*:/.test(body))
+       .map(([, hub]) => hub);
+-    expect([...new Set(grounded)]).toEqual(['nutrition']);
++    expect([...new Set(grounded)].sort()).toEqual(GRANTED);
+ 
+-    // 2. it re-points depths, and invents none. Five depths, no sixth — a
+-    //    scope may change what a depth is made of, never how many there are.
+-    const nutrition = blocks.filter(([, hub]) => hub === 'nutrition').map(([, , b]) => b).join(' ');
+-    const declared = [...nutrition.matchAll(/--([a-z0-9-]+)\s*:/g)].map((m) => m[1]);
++    // 2. they re-point depths and invent none. Five depths, no sixth — a scope
++    //    may change what a depth is MADE OF, never how many there are.
+     const rootNames = new Set([...css.split(/\[data-hub=/)[0].matchAll(/--([a-z0-9-]+)\s*:/g)].map((m) => m[1]));
+-    expect(declared.filter((n) => !rootNames.has(n))).toEqual([]);
++    for (const hub of GRANTED) {
++      const body = blocks.filter(([, h]) => h === hub).map(([, , b]) => b).join(' ');
++      const declared = [...body.matchAll(/--([a-z0-9-]+)\s*:/g)].map((m) => m[1]);
++      expect({ hub, invented: declared.filter((n) => !rootNames.has(n)) })
++        .toEqual({ hub, invented: [] });
++    }
+ 
+-    // 3. and the warm ground is only ever reached through the hub attribute —
+-    //    never pinned to a page, which is how a scope becomes a default.
+-    const wearers = PAGES.filter((f) => /data-hub="nutrition"|data-hub='nutrition'/.test(stripTs(read(f))));
++    // 3. and a ground is only ever reached through the hub attribute — never
++    //    pinned to a page, which is how a scope quietly becomes a default.
++    const wearers = PAGES.filter((f) =>
++      /data-hub=["'](nutrition|astrology)["']/.test(stripTs(read(f))));
+     expect(wearers).toEqual([]);
+   });
+ 
++  /**
++   * A NIGHT GROUND IS NOT A DARK MODE.
++   *
++   * The difference is not the colour, it is who chooses. A dark mode is a
++   * second copy of every screen behind a switch, and half-converted it reads as
++   * a bug — which is why it was removed. A room with its own light is a
++   * property of the room: nothing toggles, and a citizen who never opens
++   * Astrology never sees a dark pixel.
++   *
++   * So the night surface must never acquire a switch, it must carry its own
++   * readable ink rather than inheriting ink chosen for white, and it must leave
++   * the city's furniture alone.
++   */
++  it('gives the night hub its own ink, and leaves the city furniture alone', () => {
++    const css = strip(tokens);
++    const night = /\[data-hub="astrology"\]\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
++    expect(night).not.toEqual('');
++
++    // 1. Ink, ground and the readable accent are re-pointed together. Any one
++    //    left behind is the "Birth Details" failure: a colour and its background
++    //    becoming the same colour, which nothing else here can see.
++    for (const t of ['--ground', '--paper', '--card', '--ink', '--muted', '--accent-ink']) {
++      expect({ token: t, present: new RegExp(`${t}\\s*:`).test(night) })
++        .toEqual({ token: t, present: true });
++    }
++
++    /**
++     * 2. THE RAIL, THE LAMP AND THE BUTTON ARE THE CITY'S, NOT THE ROOM'S.
++     *
++     * --on-accent is read by SEVEN surfaces and every one of them is dark: the
++     * black primary button, .tag.dark, the mini-calendar's today, the media
++     * bar, the lit glass key, and the rail lamp's label and badge. Re-pointing
++     * it to a dark ink for one hub — which a gold FILL would require — turns
++     * the black button's own label black. That is not a contrast regression,
++     * it is an invisible button, and no test outside this one would see it.
++     *
++     * So the fill stays dark enough for white (--accent), the metal lives in
++     * --accent-ink where it is text, and the rail keeps its material and its
++     * orange in all twenty-five rooms.
++     */
++    for (const t of ['--on-accent', '--lamp', '--lamp-face', '--lamp-badge']) {
++      expect({ token: t, rePointed: new RegExp(`${t}\\s*:`).test(night) })
++        .toEqual({ token: t, rePointed: false });
++    }
++    // and nothing scopes a rail rule to this hub by the back door — the lamp
++    // keeps its white label because --on-accent is untouched, not because some
++    // selector patched it back afterwards.
++    expect(css).not.toMatch(/\[data-hub="astrology"\][^{]*\.side-menu/);
++
++    /**
++     * 3. BUT THE WELL IS WALL, NOT FURNITURE, AND MUST FOLLOW.
++     *
++     * The rail's own labels read --ink / --ink-soft / --faint, which the room
++     * re-points to ivory. A white well under ivory text is the hub name gone.
++     * So a hub that re-points the ground MUST re-point the well with it — the
++     * two cannot disagree, and this is the pairing that says so.
++     */
++    expect({ ground: /--paper\s*:/.test(night), well: /--rail-well\s*:/.test(night) })
++      .toEqual({ ground: true, well: true });
++
++    /**
++     * 4. AND NO SURFACE MAY HARDCODE ITS OWN LIGHT GROUND.
++     *
++     * `.btn-secondary` was `background: #fff` with `color: var(--ink)` — a face
++     * that follows nothing under a label that follows the room. On white that
++     * is invisible-by-luck-only; on the night ground it is ivory on white, a
++     * control you cannot read and cannot see is a control.
++     *
++     * It is achromatic, so the colour guard allowed it, and it was the ONLY one
++     * in the material — which is why the fix was one word and why this line
++     * exists to keep it that way.
++     */
++    const litBg = [...strip(relief).matchAll(/background(?:-color)?:\s*(#f[0-9a-fA-F]{2,5}\b|#ffffff\b|white\b)/g)]
++      .map((m) => m[1]);
++    expect(litBg).toEqual([]);
++
++    // 3. no theme switch comes back with it
++    expect(css).not.toContain('[data-theme');
++  });
++
+   /**
+    * DARK MODE IS GONE, NOT HALF-GONE.
+    *
+diff --git a/together-city-react/src/styles/relief.css b/together-city-react/src/styles/relief.css
+index a7ba5ce..c5bfedb 100644
+--- a/together-city-react/src/styles/relief.css
++++ b/together-city-react/src/styles/relief.css
+@@ -308,9 +308,14 @@ table.tc th { background: var(--well); box-shadow: var(--edge-in); color: var(--
+   box-shadow: inset 0 1px 0 rgba(255,255,255,.24), 0 4px 10px rgba(0,0,0,.24), 0 0 0 3px rgba(0,0,0,.28);
+ }
+ 
+-/* Outline — raised, but only just. The rim does the work. */
++/* Outline — raised, but only just. The rim does the work.
++   THE FACE IS --card, NOT #fff. Its label is var(--ink), so a hardcoded white
++   here is a button whose background follows nothing and whose text follows the
++   room — which on any ground but white is ivory on white, an invisible control.
++   --card IS #ffffff at the root, so this changes nothing for twenty-four hubs
++   and is the whole of what the twenty-fifth needed. */
+ .btn-line, .btn-outline, .btn-secondary {
+-  background: #fff; color: var(--ink);
++  background: var(--card); color: var(--ink);
+   box-shadow: inset 0 0 0 1.5px rgba(0,0,0,.16), inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.05), 0 3px 6px rgba(0,0,0,.04);
+ }
+ .btn-line:not(:disabled):hover, .btn-outline:not(:disabled):hover, .btn-secondary:not(:disabled):hover {
+diff --git a/together-city-react/src/styles/tokens.css b/together-city-react/src/styles/tokens.css
+index 292afec..2a03b0a 100644
+--- a/together-city-react/src/styles/tokens.css
++++ b/together-city-react/src/styles/tokens.css
+@@ -469,7 +469,9 @@
+    below rather than here, with its reasoning and its guard. Read that block
+    before adding a second one: every other hub is green/red/blue in its dot,
+    its hairline and its chips, and white everywhere a citizen reads.         */
+-[data-hub="astrology"]     { --accent:#8a6a12; --accent-ink:#6f5510; --accent-soft:#f7f3e8; --accent-line:#e6dcc2; }
++/* Astrology's accent is set with its night surface below, not here: on a dark
++   ground the fill, the readable ink and the wash all invert, and splitting them
++   across two blocks is how one of the four gets left behind. */
+ [data-hub="dating"]        { --accent:#a83553; --accent-ink:#8e2743; --accent-soft:#fbeff2; --accent-line:#eed3da; }
+ [data-hub="beauty"]        { --accent:#96406b; --accent-ink:#7d3358; --accent-soft:#faf0f5; --accent-line:#ecd4e0; }
+ [data-hub="nutrition"]     { --accent:#214e34; --accent-ink:#214e34; --accent-soft:#dde5d4; --accent-line:#cbd8be; }
+@@ -600,3 +602,139 @@
+   --press-macro-3:#a4b56a;
+   --press-macro-0:#eae5d8;
+ }
++
++/* ══ ASTROLOGY'S NIGHT — THE SECOND SURFACE EXCEPTION ══════════════════════
++   THIS ANSWERS A QUESTION THIS FILE LEFT OPEN RATHER THAN REOPENING A CLOSED
++   ONE, WHICH IS THE WHOLE DIFFERENCE.
++
++   The Relief rollout removed a half-converted dark theme and said so: "every
++   background white" and a night ground cannot both be true. It also left one
++   sentence unresolved — whether the tarot page and the letter should KEEP a
++   night surface as a deliberate one-room exception, "a decision to make before
++   this lands, not after". It landed white and the decision was never made.
++   This is that decision, made the way the press exception was made: named
++   here, scoped to one hub, and pinned by a guard.
++
++   Three things say the room was always meant to be dark. The gold-on-near-black
++   artwork it was drawn for is still in the tree (celestial-frame-tall.webp,
++   celestial-frame-wide.webp, tarot-frame.webp) and was kept on the grounds that
++   putting it back "is a CSS change, not a re-commission". The hub config still
++   declares `dark: true`, read by nothing since the rollout. And the near-white
++   guard in relief.spec.ts records the casualty of turning it white: cream text
++   on a surface that had stopped being dark, "the page whose heading says Birth
++   Details".
++
++   WHY THIS IS NOT A DARK MODE. A dark mode is a second copy of every screen,
++   toggled globally, and half-converted is exactly how it looks like a bug. This
++   is one room with its own light — the same thing a planetarium is. Nothing
++   toggles; there is no switch and no [data-theme]; a citizen who never opens
++   Astrology never sees a dark pixel.
++
++   THE RELIEF IS UNCHANGED, THE LIGHT IS INVERTED. Five depths, no sixth, same
++   geometry. On white the highlight was invisible and the shadow did the work;
++   on charcoal the shadow has nothing to darken and the HIGHLIGHT does it — so
++   the rim's bright edge stays on top at a much lower alpha and the drop shadow
++   deepens. Cards are pressed into the surface, never glossy.
++
++   NO NEW TOKEN NAMES. Every name below already exists in :root; removing this
++   block removes the entire treatment.                                       */
++[data-hub="astrology"] {
++  /* ── Grounds. Soft charcoal, never pure black. ── */
++  --ground: #26242a;
++  --paper:  #26242a;
++  --card:   #333039;
++  --wash:   #302d35;
++  --media-bg: #1c1a1f;
++
++  /* ── THE RAIL FOLLOWS THE ROOM. THE ORANGE DOES NOT. ──────────────────────
++     The lamp is the CITY's — the key you are on, orange, in all twenty-five
++     hubs — and it stays orange here. So does --on-accent, and so does the
++     black primary button. Those are the furniture, and re-lettering a signpost
++     per room is how a citizen has to learn the building twice.
++
++     The WELL the rail sits in is not furniture, it is wall, and it has to
++     follow: every label on the rail reads --ink, --ink-soft and --faint, the
++     same tokens the room re-points. Left white, the rail keeps a white
++     background under ivory text and the hub name disappears — the "Birth
++     Details" failure again, one panel to the left. The keys darken with it for
++     the reason the token above gives: white glass has nothing to bend on a
++     dark well and collapses to a pale rectangle.
++
++     White on the orange lamp is 4.7:1 and the lamp is unchanged, so its label
++     and its subtitle both keep working with no override anywhere. */
++  --rail-well: #242228;
++  --rail-well-shadow: inset -1px 0 0 #3a3640;
++  --lens-face: linear-gradient(180deg, #3a3640 0%, #333039 52%, #2c2a32 100%);
++  --lens: inset 0 0 0 1.5px rgba(255,255,255,.07),
++          inset 0 0 0 4px rgba(184,147,85,.10),
++          inset 0 8px 12px -8px rgba(0,0,0,.45),
++          inset 0 -10px 14px -7px rgba(255,255,255,.05),
++          0 1px 1px rgba(0,0,0,.30), 0 6px 16px rgba(0,0,0,.34), 0 18px 40px rgba(0,0,0,.30);
++  --lens-key: inset 0 0 0 1.2px rgba(255,255,255,.06),
++              inset 0 0 0 3px rgba(184,147,85,.08),
++              inset 0 6px 9px -7px rgba(0,0,0,.40),
++              inset 0 -8px 11px -6px rgba(255,255,255,.045),
++              0 1px 1px rgba(0,0,0,.28), 0 3px 8px rgba(0,0,0,.30);
++
++  /* ── Ink. Warm ivory, never pure white. Contrast on the ground above. ── */
++  --ink:      #f3efe7;   /* 12.4:1 */
++  --ink-soft: #e6e1d8;   /* 10.7:1 */
++  --muted:    #b9b2a8;   /*  6.7:1 — descriptions */
++  --faint:    #8e8984;   /*  3.9:1 — labels and metadata ONLY */
++  --line:     #4e4952;
++  --line-2:   #5b555e;
++
++  /* ── Faces. Same construction, lit from above, in charcoal. ── */
++  --face:      linear-gradient(180deg, #39353f 0%, #343039 52%, #2e2b34 100%);
++  --face-2:    linear-gradient(180deg, #3b3742 0%, #35313b 48%, #2f2c35 100%);
++  --face-tall: linear-gradient(180deg, #39353f 0%, #39353f calc(100% - min(96px, 40%)), #2e2b34 100%);
++  --face-key:  linear-gradient(180deg, #3a3640 0%, #343039 52%, #2d2a33 100%);
++  --well:      linear-gradient(180deg, #232128 0%, #292731 58%, #302d37 100%);
++
++  /* ── The rim, inverted: the bright edge is the one doing the work now. ── */
++  --rim:        inset 0 0 0 1px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.055), inset 0 -1px 0 rgba(0,0,0,.30);
++  --rim-strong: inset 0 0 0 1px rgba(0,0,0,.42), inset 0 1.5px 0 rgba(255,255,255,.07), inset 0 -1.5px 0 rgba(0,0,0,.36);
++
++  /* ── The five depths. Same geometry, deeper shadow. ── */
++  --e1: var(--rim),        0 1px 1px rgba(0,0,0,.22), 0 2px 4px rgba(0,0,0,.24), 0 6px 13px rgba(0,0,0,.30);
++  --e2: var(--rim-strong), 0 1px 1px rgba(0,0,0,.24), 0 3px 6px rgba(0,0,0,.28), 0 11px 24px rgba(0,0,0,.38), 0 22px 48px rgba(0,0,0,.30);
++  --e3: var(--rim-strong), 0 2px 2px rgba(0,0,0,.26), 0 7px 14px rgba(0,0,0,.32), 0 20px 42px rgba(0,0,0,.42), 0 40px 88px rgba(0,0,0,.36);
++
++  --e1-key: var(--rim),        0 1px 1px rgba(0,0,0,.30), 0 2px 4px rgba(0,0,0,.32), 0 5px 10px rgba(0,0,0,.26);
++  --e2-key: var(--rim-strong), 0 2px 3px rgba(0,0,0,.34), 0 5px 10px rgba(0,0,0,.38), 0 10px 20px rgba(0,0,0,.30);
++
++  --carve:      inset 0 0 0 1px rgba(0,0,0,.40), inset 0 3px 6px rgba(0,0,0,.46), inset 0 -1px 0 rgba(255,255,255,.05), inset 3px 0 5px -3px rgba(0,0,0,.30), inset -3px 0 5px -3px rgba(0,0,0,.30);
++  --carve-deep: inset 0 0 0 1px rgba(0,0,0,.46), inset 0 4px 10px rgba(0,0,0,.55), inset 0 -1px 0 rgba(255,255,255,.05);
++  --press:      inset 0 0 0 1px rgba(0,0,0,.44), inset 0 3px 6px rgba(0,0,0,.50), 0 1px 0 rgba(255,255,255,.05);
++
++  --edge-up: 0 1px 0 rgba(255,255,255,.05);
++  --edge-in: inset 0 -1px 0 rgba(0,0,0,.30);
++
++  /* ── Brass, in the two jobs the design already separates.
++       --accent is a FILL and the contract on it is fixed city-wide: WHITE sits
++       on it (the pill, the step dot, the calendar's today). So it is the deep
++       bronze, which white reads on at 4.7:1 — bright gold as a fill would be
++       2.1:1 and the contract has no way to say otherwise.
++       --accent-ink is the same metal as TEXT on the charcoal, and THAT is the
++       antique gold the brief asks for: links, section labels, small accents.
++       --on-accent is deliberately NOT re-pointed. Every surface that reads it
++       is dark — the black primary button, the orange rail lamp, .tag.dark, the
++       media bar — so it stays white for all of them. ── */
++  --accent:      #8b6a42;
++  --accent-ink:  #c9a468;   /* 6.4:1 on the ground above */
++  --accent-soft: #35302c;   /* a wash on a night ground is dark, not near-white */
++  --accent-line: #6b5730;
++  --focus-ring: 0 0 0 3px rgba(184,147,85,.34);
++
++  /* ── Status. Inverted for a dark ground: the ink lightens so it can be read,
++       and the brief's own values become the hairline, where they are a fill
++       behind no words. A status that cannot be read is worse than one that is
++       not coloured — the rule does not change, only which end is light. ── */
++  --ok-ink: #8db395;     --ok-soft: #2c3a30;     --ok-line: #54765b;
++  --warn-ink: #d6ac72;   --warn-soft: #383026;   --warn-line: #a07a46;
++  --danger-ink: #d9908c; --danger-soft: #382a29; --danger-line: #8a4a48;
++  --info-ink: #9dbbcc;   --info-soft: #29323a;   --info-line: #4a6272;
++
++
++}
++
+-- 
+2.43.0
+

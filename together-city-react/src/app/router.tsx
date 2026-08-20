@@ -19,6 +19,7 @@ import { ServiceMessages, ServiceThreadView } from '@/features/services/pages/Me
 import { Regulars } from '@/features/services/pages/Regulars';
 import { DailyOffers } from '@/features/services/pages/DailyOffers';
 import { HubLanding } from '@/pages/HubLanding';
+import { petsRoutes } from '@/features/pets/routes';
 import { AstroToday } from '@/features/astrology/pages/AstroToday';
 import { AstroMonthly } from '@/features/astrology/pages/AstroMonthly';
 import { AstroAsk } from '@/features/astrology/pages/AstroAsk';
@@ -201,6 +202,7 @@ const ROUTE_BLOCKS: RouteObject[] = [
       { path: '/financial', element: <HubLanding hub="financial" /> },
       { path: '/beauty', element: <HubLanding hub="beauty" /> },
       { path: '/fitness', element: <HubLanding hub="fitness" /> },
+      { path: '/pets', element: <HubLanding hub="pets" /> },
       // THIS ONE EARNS ITS LANDING, and the distinction is worth stating
       // because the 5 Aug design audit argued against exactly this pattern.
       //
@@ -341,6 +343,19 @@ const ROUTE_BLOCKS: RouteObject[] = [
       { path: '/beauty/makeup', element: <RequireAuth>{wrap(<BeautyMakeup />)}</RequireAuth> },
       { path: '/beauty/routine', element: <RequireAuth>{wrap(<BeautyRoutine />)}</RequireAuth> },
     ],
+  },
+  {
+    /* PET DISTRICT.
+       The feature exports its rooms as plain route objects; the auth gate and
+       the chunk boundary are applied HERE, in one line, rather than written
+       into twenty page entries inside the feature. A room that forgot its
+       RequireAuth would look identical until the day it leaked somebody's pet
+       profile, and this is the shape that makes forgetting impossible. */
+    element: <HubLayout hub={HUBS.pets} />,
+    children: petsRoutes.map((route) => ({
+      ...route,
+      element: <RequireAuth>{wrap(route.element as JSX.Element)}</RequireAuth>,
+    })),
   },
   {
     // Fitness hub inner pages (reads Medical biomarkers via the consent gate).

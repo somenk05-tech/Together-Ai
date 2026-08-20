@@ -1,0 +1,208 @@
+diff --git a/together-city-react/src/app/relief.spec.ts b/together-city-react/src/app/relief.spec.ts
+index 6be620b..260c1de 100644
+--- a/together-city-react/src/app/relief.spec.ts
++++ b/together-city-react/src/app/relief.spec.ts
+@@ -163,19 +163,65 @@ describe('Relief stays a system', () => {
+   });
+ 
+   /**
+-   * THE GROUND IS WHITE.
++   * THE GROUND IS WHITE — EVERYWHERE THE ROOT DECIDES IT.
+    *
+-   * --paper and --card are the ground. If either stops being white the page
+-   * splits into two tones again and every relief in the application loses the
+-   * thing it is measured against.
++   * --paper and --card are the ground. If either stops being white AT THE ROOT
++   * the page splits into two tones again and every relief in the application
++   * loses the thing it is measured against.
++   *
++   * The `:root` slice is taken deliberately. Asserting against the whole file
++   * would have kept passing the moment a hub re-pointed the ground in its own
++   * block — `toMatch` only needs the string to survive SOMEWHERE — and a guard
++   * that cannot fail is worse than no guard, because it is read as proof.
+    */
+-  it('keeps the ground white', () => {
++  it('keeps the ground white at the root', () => {
++    const root = strip(tokens).split(/\[data-hub=/)[0];
+     for (const t of ['--ground', '--paper', '--card']) {
+-      expect(strip(tokens)).toMatch(new RegExp(`${t}:\\s*#ffffff`));
++      expect(root).toMatch(new RegExp(`${t}:\\s*#ffffff`));
+     }
+     expect(strip(tokens)).not.toContain('[data-theme="dark"]');
+   });
+ 
++  /**
++   * ONE HUB HAS ITS OWN PAPER, AND IT IS SCOPED OR IT IS NOT AN EXCEPTION.
++   *
++   * Nutrition is the one hub read rather than operated, and it already held the
++   * only other surface exception ([data-press]). It now sets a warm ground for
++   * the whole hub. The argument is written out in tokens.css; this is the part
++   * that keeps it from spreading.
++   *
++   * THE ACCENT HUE IS NOT THE GROUND. The tint that was removed years-of-commits
++   * ago washed the page in the hub's GREEN. This one is warm paper with the
++   * green left in the fill and the hairline — which is why it is allowed and
++   * why a second hub asking for "a tint like nutrition's" is asking for the
++   * removed thing, not this one.
++   *
++   * So: exactly one hub may re-point a ground token, and the depth tokens it
++   * re-points must keep their names. A hub inventing --e6 is a sixth depth
++   * wearing a scope.
++   */
++  it('keeps the warm ground inside the one hub it was granted to', () => {
++    const css = strip(tokens);
++    // 1. every [data-hub] block that re-points a ground token is nutrition's
++    const blocks = [...css.matchAll(/\[data-hub="([a-z]+)"\][^{]*\{([^}]*)\}/g)];
++    const grounded = blocks
++      .filter(([, , body]) => /--(ground|paper|card|wash|rail-well)\s*:/.test(body))
++      .map(([, hub]) => hub);
++    expect([...new Set(grounded)]).toEqual(['nutrition']);
++
++    // 2. it re-points depths, and invents none. Five depths, no sixth — a
++    //    scope may change what a depth is made of, never how many there are.
++    const nutrition = blocks.filter(([, hub]) => hub === 'nutrition').map(([, , b]) => b).join(' ');
++    const declared = [...nutrition.matchAll(/--([a-z0-9-]+)\s*:/g)].map((m) => m[1]);
++    const rootNames = new Set([...css.split(/\[data-hub=/)[0].matchAll(/--([a-z0-9-]+)\s*:/g)].map((m) => m[1]));
++    expect(declared.filter((n) => !rootNames.has(n))).toEqual([]);
++
++    // 3. and the warm ground is only ever reached through the hub attribute —
++    //    never pinned to a page, which is how a scope becomes a default.
++    const wearers = PAGES.filter((f) => /data-hub="nutrition"|data-hub='nutrition'/.test(stripTs(read(f))));
++    expect(wearers).toEqual([]);
++  });
++
+   /**
+    * DARK MODE IS GONE, NOT HALF-GONE.
+    *
+diff --git a/together-city-react/src/styles/tokens.css b/together-city-react/src/styles/tokens.css
+index 0e93d79..292afec 100644
+--- a/together-city-react/src/styles/tokens.css
++++ b/together-city-react/src/styles/tokens.css
+@@ -465,14 +465,14 @@
+    One line each. --accent is the fill; --accent-ink is the readable version;
+    --accent-soft is the pill wash; --accent-line is the hairline.
+ 
+-   Nutrition's surface tint is deliberately NOT here. It used to re-point
+-   --paper, --card and --line so the whole hub went green, which is exactly
+-   the thing this design stopped doing. Nutrition is green in its dot, its
+-   hairline and its chips, and white everywhere a citizen reads.             */
++   Nutrition's surface treatment is the ONE exception, and it is declared
++   below rather than here, with its reasoning and its guard. Read that block
++   before adding a second one: every other hub is green/red/blue in its dot,
++   its hairline and its chips, and white everywhere a citizen reads.         */
+ [data-hub="astrology"]     { --accent:#8a6a12; --accent-ink:#6f5510; --accent-soft:#f7f3e8; --accent-line:#e6dcc2; }
+ [data-hub="dating"]        { --accent:#a83553; --accent-ink:#8e2743; --accent-soft:#fbeff2; --accent-line:#eed3da; }
+ [data-hub="beauty"]        { --accent:#96406b; --accent-ink:#7d3358; --accent-soft:#faf0f5; --accent-line:#ecd4e0; }
+-[data-hub="nutrition"]     { --accent:#2f6b3d; --accent-ink:#255730; --accent-soft:#eff6f1; --accent-line:#d3e5d8; }
++[data-hub="nutrition"]     { --accent:#214e34; --accent-ink:#214e34; --accent-soft:#dde5d4; --accent-line:#cbd8be; }
+ [data-hub="restaurants"]   { --accent:#8a4a1c; --accent-ink:#733c16; --accent-soft:#faf2ec; --accent-line:#e9d8c8; }
+ [data-hub="medical"]       { --accent:#1f5f78; --accent-ink:#194f64; --accent-soft:#eef5f8; --accent-line:#cfe1e9; }
+ [data-hub="medicines"]     { --accent:#1f5f78; --accent-ink:#194f64; --accent-soft:#eef5f8; --accent-line:#cfe1e9; }
+@@ -496,3 +496,107 @@
+ [data-hub="services"]      { --accent:#7a4a34; --accent-ink:#633c2a; --accent-soft:#f8f2ef; --accent-line:#e9d8d0; }
+ [data-hub="profile"]       { --accent:#4a4a52; --accent-ink:#3d3d44; --accent-soft:#f3f3f4; --accent-line:#dedee1; }
+ [data-hub="settings"]      { --accent:#4a4a52; --accent-ink:#3d3d44; --accent-soft:#f3f3f4; --accent-line:#dedee1; }
++
++/* ══ NUTRITION'S PAPER — THE ONE SURFACE EXCEPTION ═════════════════════════
++   THIS REVERSES A PREVIOUS DECISION, ON PURPOSE, AND THE DIFFERENCE MATTERS.
++
++   The old nutrition tint re-pointed --paper and --card to a pale GREEN and was
++   removed because a hub that washes the page in its own hue reads as a
++   different product rather than a different room. That reasoning still stands
++   and this is not that: the accent hue is NOT the ground. The ground is warm
++   paper — the colour of a printed page — and the botanical green stays where
++   every other hub's accent stays, in the fill, the hairline and the chip.
++   A room with paper walls is still the same building; a room painted green is
++   not. Aesop, Kinfolk, Muji: warm neutral ground, one deep accent.
++
++   WHY THE HUB AND NOT THE APP. Nutrition is the one hub a citizen READS rather
++   than operates — a day of food, a recipe, a shopping list — and it already
++   holds the only other surface exception in the application ([data-press],
++   granted for exactly that reason). This finishes that argument rather than
++   opening a new one: the press pages stop being an ivory island inside a white
++   hub, because the hub is now the paper they were always drawn for.
++
++   THE RELIEF IS UNCHANGED. Five depths, no sixth. Every component still says
++   box-shadow: var(--e1) and still gets a lit face, a layered drop shadow and a
++   hairline rim. What changes is the COLOUR of the light: a white ground wants a
++   pure-black shadow, and warm paper wants a warm one — a black shadow on cream
++   greys it and reads as dirt rather than depth. So the shadow ink becomes a
++   warm taupe (#6b5c3e at low alpha) and the rim highlight a warm white. The
++   alphas are ~1.7x their achromatic values because a mid-brown at .06 is not
++   as dark as black at .06; the amount of relief a citizen SEES is the constant.
++
++   NOTHING BELOW IS A NEW TOKEN. Every name already exists in :root — this
++   block only re-points them inside the hub, which is why no component, no
++   layout and no spacing changes, and why removing this block removes the
++   entire treatment. relief.spec.ts pins the scope.                          */
++[data-hub="nutrition"] {
++  /* ── Ground, card, rail ── */
++  --ground: #f6f3ea;
++  --paper:  #f6f3ea;
++  --card:   #fcfbf7;
++  --wash:   #f2eedc;          /* the alternate section band */
++  --rail-well: #efe9db;       /* the sidebar, one step darker than the page */
++  --rail-well-shadow: inset -1px 0 0 #e6e0d3;
++  --media-bg: #ebe6d9;
++
++  /* ── Ink. Never pure black; every value AA on the paper above. ── */
++  --ink:      #243126;        /* 12.9:1 */
++  --ink-soft: #2f3a30;        /* 10.4:1 */
++  --muted:    #5f665a;        /*  5.9:1 — descriptions */
++  --faint:    #82877b;        /*  3.6:1 — labels and metadata ONLY */
++  --line:     #e6e0d3;
++  --line-2:   #ddd6c9;
++
++  /* ── The faces. Same three-stop construction, warmed. ── */
++  --face:      linear-gradient(180deg, #fefdf9 0%, #fbf9f2 44%, #efeadc 100%);
++  --face-2:    linear-gradient(180deg, #fefdf9 0%, #f9f7ee 48%, #eae4d4 100%);
++  --face-tall: linear-gradient(180deg, #fefdf9 0%, #fefdf9 calc(100% - min(96px, 40%)), #f1ecde 100%);
++  --face-key:  linear-gradient(180deg, #fefdf9 0%, #f7f4e9 52%, #e8e2d1 100%);
++  --well:      linear-gradient(180deg, #eae5d8 0%, #f3f0e6 58%, #fcfbf6 100%);
++
++  /* ── The rim: warm white above, warm taupe below. ── */
++  --rim:        inset 0 0 0 1px rgba(107,92,62,.09), inset 0 1px 0 rgba(255,254,248,1), inset 0 -1px 0 rgba(107,92,62,.075);
++  --rim-strong: inset 0 0 0 1px rgba(107,92,62,.12), inset 0 1.5px 0 rgba(255,254,248,1), inset 0 -1.5px 0 rgba(107,92,62,.10);
++
++  /* ── The five depths. Identical geometry; warm shadow ink. ── */
++  --e1: var(--rim),        0 1px 1px rgba(107,92,62,.09), 0 2px 4px rgba(107,92,62,.10), 0 6px 13px rgba(107,92,62,.12);
++  --e2: var(--rim-strong), 0 1px 1px rgba(107,92,62,.10), 0 3px 6px rgba(107,92,62,.13), 0 11px 24px rgba(107,92,62,.17), 0 22px 48px rgba(107,92,62,.13);
++  --e3: var(--rim-strong), 0 2px 2px rgba(107,92,62,.11), 0 7px 14px rgba(107,92,62,.14), 0 20px 42px rgba(107,92,62,.18), 0 40px 88px rgba(107,92,62,.16);
++
++  --e1-key: var(--rim),        0 1px 1px rgba(107,92,62,.13), 0 2px 4px rgba(107,92,62,.15), 0 5px 10px rgba(107,92,62,.10);
++  --e2-key: var(--rim-strong), 0 2px 3px rgba(107,92,62,.17), 0 5px 10px rgba(107,92,62,.20), 0 10px 20px rgba(107,92,62,.13);
++
++  --carve:      inset 0 0 0 1px rgba(107,92,62,.12), inset 0 3px 6px rgba(107,92,62,.22), inset 0 -1px 0 rgba(255,254,248,.95), inset 3px 0 5px -3px rgba(107,92,62,.12), inset -3px 0 5px -3px rgba(107,92,62,.12);
++  --carve-deep: inset 0 0 0 1px rgba(107,92,62,.15), inset 0 4px 10px rgba(107,92,62,.30), inset 0 -1px 0 rgba(255,254,248,.95);
++  --press:      inset 0 0 0 1px rgba(107,92,62,.17), inset 0 3px 6px rgba(107,92,62,.27), 0 1px 0 rgba(255,254,248,.9);
++
++  --edge-up: 0 1px 0 #fefdf9;
++  --edge-in: inset 0 -1px 0 rgba(107,92,62,.10);
++
++  /* ── Status. The INKS are not the brief's indicator greens: those are chart
++       values and none of them clears AA as text. A status that cannot be read
++       is worse than one that is not coloured, so the inks stay dark and only
++       warm; the brief's lighter scale lives on the macro tokens below, where
++       it is a fill behind no words. ── */
++  --ok-soft: #edf3e6;     --ok-line: #cfe0c4;
++  --warn-soft: #f7f1e0;   --warn-line: #e5d9b8;
++  --danger-soft: #f8ede8; --danger-line: #e8cbbf;
++  --info-soft: #edf2f3;   --info-line: #cfdde0;
++
++  /* ── The press pages inherit the hub's paper instead of holding their own.
++       They were left white when the hub was white, deliberately, so that two
++       authors of the same day printed on the same stock. That rule is kept —
++       the stock simply changed underneath both of them. ── */
++  --press-paper:  #f6f3ea;
++  --press-band:   #f2eedc;
++  --press-rule:   #ddd6c9;
++  --press-rule-2: #e6e0d3;
++  --press-ink:    #243126;
++  --press-ink-2:  #5f665a;
++  --press-ink-3:  #82877b;
++  --press-green:  #214e34;
++  --press-macro-1:#214e34;
++  --press-macro-2:#4d6f47;
++  --press-macro-3:#a4b56a;
++  --press-macro-0:#eae5d8;
++}

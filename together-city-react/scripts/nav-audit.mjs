@@ -237,6 +237,22 @@ for (const file of files) {
     // Line comments too: "the user can edit this" is an engineer talking to an
     // engineer and is correct there. The voice governs what a citizen reads.
     const line = raw.replace(/\/\/.*$/, '');
+    // A VERBATIM CITATION IS NOT OUR VOICE, AND EDITING IT IS MISQUOTING.
+    //
+    // The Pet District's evidence file carries the sentences its numbers came
+    // from — Merck's "adjust as needed for the individual patient", AAHA's
+    // "modified based on how the patient responds", Cornell's "depends on the
+    // individual cat". Every one trips the third-person rule, and every one is
+    // somebody else's words under a `quote:` or `caveat:` key beside the URL
+    // they were read from. Rewriting them to fit this rule would change what a
+    // veterinary source is recorded as saying, which is a worse failure than
+    // the one this rule prevents.
+    //
+    // Scoped to those two keys on purpose: prose in a `notes:` or a `label:` is
+    // ours and still answers to the voice. One line of the pet catalogue said
+    // "the individual product page returned a server error" and was reworded
+    // rather than exempted.
+    if (/^\s*"?(?:quote|caveat)"?\s*:/.test(line)) return;
     for (const [re, why] of VOICE) {
       if (re.test(line)) problems.push(`${rel}:${i + 1}  voice — ${why}`);
     }

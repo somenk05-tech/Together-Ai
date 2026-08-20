@@ -87,6 +87,14 @@ const DISTRICT_COPY: Partial<Record<HubKey, { name: string; line: string }>> = {
   beauty: { name: 'Beauty', line: 'Your look, your way.' },
   social: { name: 'Social Life', line: 'Your people. Your communities. Your world.' },
   astrology: { name: 'Astrology', line: 'Your stars. Your journey. Your timing.' },
+  /* THE ONE DISTRICT WHOSE PLATE IS NOT ITS HUB'S NAME, and the override exists
+     for exactly that: the hub is Pet Care in the tab bar, the rail and the
+     breadcrumb, because that is what the district IS. On the walk it says Pet
+     Products, on the owner's instruction — the walk is a shop window, and the
+     plate that reads "Explore Pet Products" says what is behind it more
+     usefully than one reading "Explore Pet Care". Nothing else moves: this map
+     is read by the home run alone. */
+  pets: { name: 'Pet Products', line: 'Everything your pet needs. All in one place.' },
 };
 
 /**
@@ -118,9 +126,10 @@ const PANELS: Panel[] = [
   { key: 'fitness', img: 'fitness-hero.webp' },
   { key: 'financial', img: 'financial-district.webp' },
   { key: 'services', img: 'local-services.webp' },
-  // The one district that is a photograph and nothing else yet: HUBS.pets has
-  // an empty rail, so this plate renders as `is-soon` — "Coming soon" where the
-  // other twelve say "Explore <name>", and no link under it.
+  // Pet Care spent four days on this walk as a photograph with "Coming soon"
+  // under it — the first hub ever to stand in the `is-soon` branch below. It
+  // has sixteen rooms now, so the branch is unused again and this plate is a
+  // link like the other twelve.
   { key: 'pets', img: 'pets-hub.webp' },
 ];
 

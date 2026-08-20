@@ -17,6 +17,7 @@ import {
   // button did, which is the only review a control icon ever gets.
   Volume2, VolumeX,
   type LucideIcon,
+  PawPrint,
 } from 'lucide-react';
 
 /**
@@ -35,7 +36,7 @@ export type IconName =
   | 'camera' | 'video' | 'globe' | 'hash' | 'mood' | 'personal' | 'wallet' | 'edit'
   | 'image' | 'reorder' | 'grid' | 'plus' | 'back' | 'next' | 'journal' | 'more'
   | 'music' | 'close' | 'flag' | 'block' | 'sort' | 'locating' | 'warn'
-  | 'play' | 'pause'
+  | 'play' | 'pause' | 'paw'
   // Marks the mail folders derive from a project's name.
   | 'megaphone' | 'doc' | 'chart'
   // Mira reading her replies aloud, and not.
@@ -58,6 +59,10 @@ const MAP: Record<IconName, LucideIcon> = {
   // plain folder every unmatched name falls back to and was already present.
   megaphone: Megaphone, doc: FileText, chart: LineChart,
   speak: Volume2, mute: VolumeX,
+  // The Pet District's mark. lucide 1.26 ships PawPrint; it is the only glyph
+  // added for this hub, because every other district already answers with one
+  // of the fifty above and a second paw would be a second answer.
+  paw: PawPrint,
 };
 
 export function Icon({ name, size = 18, strokeWidth = 1.75, className, style }: {

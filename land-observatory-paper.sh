@@ -1,0 +1,139 @@
+#!/bin/bash
+# land-observatory-paper.sh — the whole astrology hub reads on paper. The night
+# does not leave; it becomes the header and the rail.
+#
+# PRECONDITION: land-letter-page.sh. This patch is written against the tree
+# that script produces.
+#
+# FRONTEND ONLY (together-city-react). Push, and Vercel ships it.
+set -euo pipefail
+
+cd "$(dirname "$0")"
+[ -d together-city-react ] || { echo "!! Run this from the Together-Ai repo root."; exit 1; }
+
+if [ -f .git/index.lock ] && [ ! -s .git/index.lock ]; then
+  echo "== clearing a stale empty .git/index.lock"
+  rm -f .git/index.lock
+fi
+
+NEEDS="The observatory is the rail now"
+LOG="$(git log --oneline -40)"
+case "$LOG" in
+  *"$NEEDS"*) echo "== \"$NEEDS\" is already here. Nothing to do."; exit 0 ;;
+esac
+case "$LOG" in
+  *"The letter is printed on paper"*) ;;
+  *) echo "!! Run land-letter-page.sh first — this is written against the tree it produces."; exit 1 ;;
+esac
+
+ALLOWED='^ M together-city-react/(public/assets/img/(apple-touch-icon-180|tc-icon-1024|tc-icon-192|tc-icon-512|tc-icon-maskable-512)\.png|public/downloads/TogetherCity\.apk)$'
+DIRTY="$(git status --porcelain \
+  | grep -Ev '^\?\? (land-.*\.sh|push-.*\.sh|.*\.patch)$' \
+  | grep -Ev "$ALLOWED" || true)"
+if [ -n "$DIRTY" ]; then
+  echo "!! The tree carries changes this script did not expect:"; echo "$DIRTY"; exit 1
+fi
+
+PATCH="$(mktemp "${TMPDIR:-/tmp}/land.XXXXXX")"
+trap 'rm -f "$PATCH"' EXIT
+cat <<'B64EOF' | tr -d '\n' | openssl base64 -d -A > "$PATCH"
+LS0tIGEvdG9nZXRoZXItY2l0eS1yZWFjdC9zcmMvc3R5bGVzL3Rva2Vucy5jc3MJMjAyNi0wOC0xMCAxOToxMzoxMi44NDQ0ODU2NzUgKzAwMDAKKysrIGIvdG9nZXRoZXItY2l0eS1yZWFjdC9zcmMvc3R5bGVzL3Rva2Vucy5jc3MJMjAyNi0wOC0xMCAxOTozOToxMy4wODczNTE1NDMgKzAwMDAKQEAgLTk1Myw3ICs5NTMsNjIgQEAKIAogICAgTk8gTkVXIFRPS0VOIE5BTUVTLiBFdmVyeSBuYW1lIGJlbG93IGFscmVhZHkgZXhpc3RzIGluIDpyb290OyByZW1vdmluZyB0aGlzCiAgICBibG9jayByZW1vdmVzIHRoZSBlbnRpcmUgdHJlYXRtZW50LiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICovCisvKiDilZDilZAgQVNUUk9MT0dZIFJFQURTIE9OIFBBUEVSIOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkAorICAgVGhlIGh1YidzIGNvbnRlbnQgY29sdW1uIGlzIHRoZSBsZXR0ZXIncyBvd24gcGFwZXIg4oCUIHRoZSBkYWlseSBhbmQgbW9udGhseQorICAgbGV0dGVycywgYW5kIG5vdyBBc2ssIFRhcm90IGFuZCB0aGUgcHJvZmlsZSB3aXRoIHRoZW0uIE9ubHkgdGhlIHZhbHVlcyB0aGF0CisgICBkaWZmZXIgZnJvbSB0aGUgY2l0eSBhcmUgaGVyZTsgZXZlcnl0aGluZyBlbHNlIHRoZSBodWIgc2ltcGx5IGluaGVyaXRzLAorICAgd2hpY2ggaXMgd2h5IHRoaXMgYmxvY2sgaXMgbmluZSBsaW5lcyBhbmQgdGhlIG5pZ2h0IGJlbG93IGl0IGlzIHNldmVudHkuCisKKyAgICNlYmU4ZTMgSVMgLS1sZXR0ZXItcGFwZXIsIFdSSVRURU4gT1VULiBBIGh1YiBibG9jayBjYW5ub3QgcmVhZCBhIHRva2VuIHRvCisgICBkZWZpbmUgb25lIOKAlCBgLS1wYXBlcjogdmFyKC0tbGV0dGVyLXBhcGVyKWAgaXMgbGVnYWwgQ1NTIGFuZCB1bnJlYWRhYmxlIHRvCisgICB0aGUgY29udHJhc3QgYXNzZXJ0aW9uIGluIHJlbGllZi5zcGVjLCB3aGljaCBwYXJzZXMgaGV4ZXMgb3V0IG9mIHRoaXMgZmlsZQorICAgdG8gY29tcHV0ZSBpbmsgYWdhaW5zdCBncm91bmQgYXQgYnVpbGQgdGltZS4gQSBkdXBsaWNhdGVkIGxpdGVyYWwgaXMgYSBzbWVsbCwKKyAgIHNvIGl0IGlzIG5vdCBsZWZ0IGFzIG9uZTogdGhlIHNwZWMgYXNzZXJ0cyB0aGUgdHdvIGFyZSB0aGUgc2FtZSBjb2xvdXIsIGFuZAorICAgYSBjaGFuZ2UgdG8gZWl0aGVyIHRoYXQgaXMgbm90IG1hZGUgdG8gYm90aCBmYWlscyB0aGUgYnVpbGQuCisKKyAgIC0tZmFpbnQgSVMgVEhFIE9ORSBJTksgVEhBVCBIQUQgVE8gTU9WRS4gVGhlIGNpdHkncyAjNmY2ZjZmIGlzIDQuNToxIG9uCisgICB3aGl0ZSBhbmQgNC4xMToxIG9uIHRoaXMgcGFwZXIsIGFuZCBpdCBpcyBsYWJlbHMsIHBsYWNlaG9sZGVycyBhbmQKKyAgIG1ldGFkYXRhIOKAlCBzbWFsbCB0ZXh0LCB3aGljaCBuZWVkcyA0LjUuIFdhcm1lZCBhbmQgZGFya2VuZWQgdG8gNS42OjEgcmF0aGVyCisgICB0aGFuIG51ZGdlZCB0byBhIGJhcmUgcGFzcywgYmVjYXVzZSBpdCBpcyBhbHNvIHRoZSBsZWFzdCBsaWtlbHkgdGhpbmcgYW55b25lCisgICByZS1tZWFzdXJlcy4gLS1tdXRlZCBhdCAjNjY2NjY2IGNsZWFycyBpdCBhdCA0LjcwIGFuZCBzdGF5cy4KKworICAgQ0FSRFMgR08gV0hJVEUsIHdoaWNoIHRoZXkgYWxyZWFkeSBhcmUgYXQgOnJvb3QuIEEgd2hpdGUgY2FyZCBvbiB3YXJtIHBhcGVyCisgICBpcyB0aGUgcmVmZXJlbmNlIHRoZSBvd25lciBzZW50OiB0aGUgcGFnZSBpcyB0aGUgcGFwZXIsIHRoZSBjYXJkIGlzIGEgbGVhZgorICAgc2V0IG9uIGl0LCBhbmQgdGhlIGRpZmZlcmVuY2UgaXMgYSB0aW50IHJhdGhlciB0aGFuIGEgYm9yZGVyLiAqLwogW2RhdGEtaHViPSJhc3Ryb2xvZ3kiXSB7CisgIC0tZ3JvdW5kOiAjZWJlOGUzOworICAtLXBhcGVyOiAgI2ViZThlMzsKKyAgLS1jYXJkOiAgICNmZmZmZmY7CisgIC0td2FzaDogICAjZjRmMmVlOworICAtLWluazogICAgICAgICMwMDAwMDA7ICAgLyogMTcuMjoxIG9uIHRoZSBwYXBlciAqLworICAtLWluay1zb2Z0OiAgICMxYzFjMWM7ICAgLyogMTcuMDoxIG9uIGEgY2FyZCAgICAqLworICAtLW11dGVkOiAgICAgICM2NjY2NjY7ICAgLyogIDQuNzA6MSAqLworICAtLWZhaW50OiAgICAgICM1ZjVhNTI7ICAgLyogIDUuNjA6MSAqLworICAtLWFjY2VudC1pbms6ICMxYzFjMWM7ICAgLyogMTMuOToxICovCit9CisKKy8qIOKVkOKVkCBUSEUgT0JTRVJWQVRPUlkgSVMgVEhFIFJBSUwgTk9XIOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkAorICAgRXZlcnl0aGluZyBiZWxvdyB3YXMgdGhlIHdob2xlIGh1YiB1bnRpbCB0b2RheS4gVGhlIG93bmVyIGFza2VkIGZvciB0aGUKKyAgIGxldHRlcidzIHBhcGVyIGJlaGluZCBldmVyeSBhc3Ryb2xvZ3kgdGFiLCBhbmQgYSBwYWdlIGNhbm5vdCBiZSBwYXBlciB3aGlsZQorICAgdGhlIHBhbGV0dGUgaXQgaW5oZXJpdHMgaXMgbmlnaHQg4oCUIGV2ZXJ5IGhlYWRpbmcgb24gVGFyb3QgYW5kIGhhbGYgb2YgQXNrCisgICBhcmUgZHJhd24gc3RyYWlnaHQgb250byB0aGUgZ3JvdW5kLCBhbmQgdGhleSB3b3VsZCBoYXZlIHZhbmlzaGVkLgorCisgICBTTyBUSEUgTklHSFQgTU9WRUQgUkFUSEVSIFRIQU4gTEVGVC4gSXQgaXMgc2NvcGVkIHRvIHRoZSBoZWFkZXIgYW5kIHRoZSByYWlsCisgICBoZXJlLCB2ZXJiYXRpbSwgbm90IG9uZSB2YWx1ZSBjaGFuZ2VkOiB0aGUgZGFyayByb29tIHN1cnZpdmVzIGV4YWN0bHkgYXMgaXQKKyAgIHdhcyBkZXNpZ25lZCwgYXMgdGhlIEZVUk5JVFVSRSBhcm91bmQgYSBsaXQgcGFnZS4gQSBkYXJrIHJhaWwgYmVzaWRlIHBhcGVyCisgICBpcyBhIGRlc2sgd2l0aCBhIGxldHRlciBvbiBpdCwgd2hpY2ggaXMgYSBiZXR0ZXIgcGljdHVyZSB0aGFuIGVpdGhlciBoYWxmLgorCisgICBXSFkgQSBTQ09QRSBBTkQgTk9UIEEgU0VDT05EIFBBTEVUVEUuIEN1c3RvbSBwcm9wZXJ0aWVzIGluaGVyaXQgYW5kCisgICBgW2RhdGEtaHViXWAgc2l0cyBvbiA8aHRtbD4sIHNvIHRoZXJlIGlzIG5vIHdheSB0byB1bi1pbmhlcml0IG5pZ2h0IGluc2lkZQorICAgdGhlIGNvbnRlbnQgY29sdW1uIOKAlCB0aGUgb25seSBhbHRlcm5hdGl2ZXMgd2VyZSB0aGlzLCBvciByZS1kZWNsYXJpbmcgYWxsCisgICBzZXZlbnR5LXR3byBvZiB0aGUgY2l0eSdzIGxpZ2h0IHZhbHVlcyBvbiBgLnRjLW1haW5gLCB3aGljaCBpcyBhIHNlY29uZAorICAgc291cmNlIG9mIHRydXRoIGZvciB0aGUgY2l0eSdzIGNvbG91ciBhbmQgdGhlIGV4YWN0IHRoaW5nIHJlbGllZi5zcGVjCisgICBleGlzdHMgdG8gcHJldmVudC4gTW92aW5nIHRoZSBzY29wZSBrZWVwcyBvbmUuCisKKyAgIFRoZSBwYXBlciBwYWxldHRlIHRoZSBjb250ZW50IG5vdyByZWFkcyBpcyB0aGUgc2hvcnQgYmxvY2sgZGlyZWN0bHkgYWJvdmUuCisgICDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZAgKi8KK1tkYXRhLWh1Yj0iYXN0cm9sb2d5Il0gLnRjLWhlYWRlciwKK1tkYXRhLWh1Yj0iYXN0cm9sb2d5Il0gLnRjLXNpZGUgewogICAvKiDilIDilIAgVEhFIE9CU0VSVkFUT1JZIEdPRVMgTU9OT0NIUk9NRSDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIAKICAgICAgVGhlIHJvb20gcmV0dXJucyB0byBuaWdodCwgYW5kIHRoaXMgdGltZSBpdCBicmluZ3Mgbm8gbWV0YWwgd2l0aCBpdC4KICAgICAgQXN0cm9sb2d5IGhhcyB3b3JuIGNoYXJjb2FsLXdpdGgtZ29sZCB0d2ljZTsgYm90aCB0aW1lcyB0aGUgZ29sZCB3YXMgdGhlCi0tLSBhL3RvZ2V0aGVyLWNpdHktcmVhY3Qvc3JjL3N0eWxlcy9yZWxpZWYuY3NzCTIwMjYtMDgtMTAgMTk6MTM6MTIuODQ0NTUxNzA0ICswMDAwCisrKyBiL3RvZ2V0aGVyLWNpdHktcmVhY3Qvc3JjL3N0eWxlcy9yZWxpZWYuY3NzCTIwMjYtMDgtMTAgMTk6Mzk6MTMuMDg4NzAxNjQxICswMDAwCkBAIC0yMTY1LDI1ICsyMTY1LDE3IEBACiAgIFtkYXRhLWh1Yj0iZGF0aW5nIl0gLnRjLW1haW4gdmlkZW8geyBmaWx0ZXI6IG5vbmU7IH0KIH0KIAotLyog4pWQ4pWQIFRIRSBNT05PQ0hST01FIE9CU0VSVkFUT1JZOiBPTkUgTElORSwgQU5EIElUIElTIExFVFRFUlBSRVNTIOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkAotICAgVGhlIGh1YiBvd25zIGV4YWN0bHkgb25lIHJ1bGUgaW4gdGhpcyBmaWxlLCBhbmQgaXQgZXhpc3RzIGJlY2F1c2Ugb2YgYQotICAgZGV0YWlsIHRoZSB0b2tlbiBsYXllciBjYW5ub3QgcmVhY2guIGxheW91dC5jc3MgZ2l2ZXMgdGhlIGNvbnN1bHRhdGlvbgotICAgdGl0bGUgYSBMRVRURVJQUkVTUyBzaGFkb3cg4oCUIGEgd2hpdGUgaGFpcmxpbmUgYWxvbmcgdGhlIGJvdHRvbSBvZiB0aGUKLSAgIGdseXBoLCB3aGljaCBpcyBob3cgaW5rIHNpdHMgaW4gcGFwZXIuIFRoYXQgZWZmZWN0IG5lZWRzIHBhcGVyLiBPbiBhCi0gICBuZWFyLWJsYWNrIGdyb3VuZCBpdCBpcyBhIHdoaXRlIGVkZ2UgdW5kZXIgd2hpdGUgdHlwZSwgd2hpY2ggaXMgbm90IGRlcHRoLAotICAgaXQgaXMgYSBzbWVhci4KKy8qIOKVkOKVkCBUSEUgT0JTRVJWQVRPUlkgT1dOUyBOT1RISU5HIElOIFRISVMgRklMRSDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZAKKyAgIEl0IGhhZCBvbmUgcnVsZTogYSBsZXR0ZXJwcmVzcyBjb3JyZWN0aW9uIG9uIHRoZSBjb25zdWx0YXRpb24gdGl0bGUsCisgICBiZWNhdXNlIGEgd2hpdGUgaGFpcmxpbmUgdW5kZXIgd2hpdGUgdHlwZSBvbiBhIG5lYXItYmxhY2sgZ3JvdW5kIGlzIGEKKyAgIHNtZWFyIHJhdGhlciB0aGFuIGRlcHRoLiBUaGUgY29udGVudCBjb2x1bW4gaXMgcGFwZXIgbm93LCBzbyB0aGUgdHlwZSBpcworICAgZGFyayBvbiBsaWdodCBhbmQgdGhlIGNvcnJlY3Rpb24gaXMgbm90IG1lcmVseSB1bm5lY2Vzc2FyeSDigJQgaXQgd291bGQgYmUKKyAgIHRoZSBvcmlnaW5hbCBkZWZlY3QsIGFwcGxpZWQgdGhlIHdyb25nIHdheSByb3VuZC4KIAotICAgU28gdGhlIGhpZ2hsaWdodCBnb2VzIGFuZCB0aGUgZHJvcCBzdGF5czogdGhlIHNhbWUgcnVsZSB0aGUgd2hvbGUgcm9vbQotICAgZm9sbG93cyDigJQgb24gd2hpdGUgdGhlIHNoYWRvdyBkb2VzIHRoZSB3b3JrLCBhbmQgaGVyZSB0aGUgbGlnaHQgZG9lcywKLSAgIHdoaWNoIGZvciBURVhUIG1lYW5zIHRoZSB0eXBlIGl0c2VsZiBpcyB0aGUgbGlnaHQgYW5kIGl0IG5lZWRzIHRoZSBkYXJrCi0gICB1bmRlcm5lYXRoIGl0IHJhdGhlciB0aGFuIGEgc2Vjb25kIGhpZ2hsaWdodC4KLQotICAgVEhFIERST1AgQ0FQIFVTRUQgVE8gQkUgSEVSRSBUT08sIGFuZCBpdCBsZWZ0IHdpdGggdGhlIGxldHRlci4gVGhlIGxldHRlcgotICAgaXMgcHJpbnRlZCBvbiBwYXBlciBub3cg4oCUIGl0cyBvd24gcGFwZXIsIG5vdCB0aGUgcm9vbSdzIOKAlCBzbyBpdCBuZWVkcyBubwotICAgY29ycmVjdGlvbiBmb3IgYSBkYXJrIGdyb3VuZCBhbmQgdGFrZXMgbm9uZS4gKi8KLVtkYXRhLWh1Yj0iYXN0cm9sb2d5Il0gLmFzay10aXRsZSB7Ci0gIHRleHQtc2hhZG93OiAwIDJweCA4cHggcmdiYSgwLDAsMCwuNTUpOwotfQorICAgVGhlIGRhcmsgcm9vbSBkaWQgbm90IGdvIGFueXdoZXJlOyBpdCBpcyB0aGUgaGVhZGVyIGFuZCB0aGUgcmFpbCwgYW5kIGl0CisgICBpcyBleHByZXNzZWQgZW50aXJlbHkgaW4gdG9rZW5zLmNzcy4gQSBodWIgd2hvc2Ugd2hvbGUgY2hhcmFjdGVyIGlzIGNvbG91cgorICAgYW5kIHdoaWNoIG5lZWRzIG5vIHJ1bGUgaW4gdGhlIG1hdGVyaWFsIGZpbGUgaXMgdGhlIHN0cm9uZ2VzdCBmb3JtIG9mIHRoZQorICAgYXJndW1lbnQgdGhpcyBmaWxlIGhhcyBiZWVuIG1ha2luZyBhbGwgYWxvbmcuICovCiAKIC8qIOKVkOKVkCBBTkQgTk9USElORyBFTFNFLCBXSElDSCBJUyBUSEUgUE9JTlQg4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQCiAgICBBc3Ryb2xvZ3kgdXNlZCB0byBvd24gdGhlIGxvbmdlc3QgaHViIGJsb2NrIGluIHRoaXMgZmlsZTogYSBmaXhlZCBza3kKLS0tIGEvdG9nZXRoZXItY2l0eS1yZWFjdC9zcmMvYXBwL3JlbGllZi5zcGVjLnRzCTIwMjYtMDgtMTAgMTk6MTM6MTIuODQ0NjI0MDAxICswMDAwCisrKyBiL3RvZ2V0aGVyLWNpdHktcmVhY3Qvc3JjL2FwcC9yZWxpZWYuc3BlYy50cwkyMDI2LTA4LTEwIDE5OjM5OjQxLjQwNzEyMjk4OCArMDAwMApAQCAtNDM2LDE1ICs0MzYsMzIgQEAKICAgICovCiAgIGl0KCdnaXZlcyB0aGUgbmlnaHQgaHViIGl0cyBvd24gaW5rLCBhbmQgbW92ZXMgdGhlIGxhbXAgYW5kIGl0cyBsYWJlbCBhcyBvbmUnLCAoKSA9PiB7CiAgICAgY29uc3QgY3NzID0gc3RyaXAodG9rZW5zKTsKLSAgICBjb25zdCBuaWdodCA9IC9cW2RhdGEtaHViPSJhc3Ryb2xvZ3kiXF1ccypceyhbXn1dKilcfS8uZXhlYyhjc3MpPy5bMV0gPz8gJyc7Ci0gICAgZXhwZWN0KG5pZ2h0KS5ub3QudG9FcXVhbCgnJyk7CisgICAgLy8gVEhFIEhVQiBJUyBUV08gUEFMRVRURVMgTk9XLCBBTkQgVEhJUyBURVNUIFJFQURTIEJPVEguIFRoZSBjb250ZW50CisgICAgLy8gY29sdW1uIGlzIHRoZSBsZXR0ZXIncyBwYXBlcjsgdGhlIG5pZ2h0IG1vdmVkLCB2ZXJiYXRpbSwgb250byB0aGUgaGVhZGVyCisgICAgLy8gYW5kIHRoZSByYWlsLiBgcGFnZWAgaXMgdGhlIGJsb2NrIHdob3NlIHNlbGVjdG9yIGlzIHRoZSBiYXJlIGF0dHJpYnV0ZTsKKyAgICAvLyBgbmlnaHRgIGlzIHRoZSBvbmUgc2NvcGVkIHRvIHRoZSBjaHJvbWUuIE1hdGNoaW5nIG9uIGBccypce2AgaXMgd2hhdAorICAgIC8vIHRlbGxzIHRoZW0gYXBhcnQsIGFuZCBpdCBpcyB3aHkgdGhlIGNocm9tZSBzZWxlY3RvciBtdXN0IHN0YXkgb24gaXRzIG93bgorICAgIC8vIGxpbmVzIHJhdGhlciB0aGFuIGJlaW5nIGZvbGRlZCBpbnRvIHRoZSBhdHRyaWJ1dGUuCisgICAgY29uc3QgcGFnZSA9IC9cW2RhdGEtaHViPSJhc3Ryb2xvZ3kiXF1ccypceyhbXn1dKilcfS8uZXhlYyhjc3MpPy5bMV0gPz8gJyc7CisgICAgY29uc3QgbmlnaHQgPSAvXFtkYXRhLWh1Yj0iYXN0cm9sb2d5IlxdIFwudGMtaGVhZGVyLFtee10qXHsoW159XSopXH0vLmV4ZWMoY3NzKT8uWzFdID8/ICcnOworICAgIGV4cGVjdCh7IHBhZ2U6IHBhZ2UgIT09ICcnLCBuaWdodDogbmlnaHQgIT09ICcnIH0pLnRvRXF1YWwoeyBwYWdlOiB0cnVlLCBuaWdodDogdHJ1ZSB9KTsKIAotICAgIC8vIDEuIGluaywgZ3JvdW5kIGFuZCB0aGUgcmVhZGFibGUgYWNjZW50IGFyZSByZS1wb2ludGVkIHRvZ2V0aGVyLi4uCisgICAgLy8gMC4gVEhFIFBBUEVSIElTIE9ORSBDT0xPVVIgV0lUSCBUV08gTkFNRVMsIEFORCBUSEVZIE1VU1QgQUdSRUUuCisgICAgLy8gICAgYC0tcGFwZXJgIGhlcmUgY2Fubm90IHJlYWQgYC0tbGV0dGVyLXBhcGVyYCDigJQgYSB2YXIoKSBpcyB1bnJlYWRhYmxlIHRvCisgICAgLy8gICAgdGhlIGNvbnRyYXN0IGFzc2VydGlvbiwgd2hpY2ggcGFyc2VzIGhleGVzIG91dCBvZiB0aGlzIGZpbGUuIFNvIHRoZQorICAgIC8vICAgIGxpdGVyYWwgaXMgZHVwbGljYXRlZCBvbiBwdXJwb3NlIGFuZCBjaGVja2VkIGhlcmUgaW5zdGVhZCBvZiB0cnVzdGVkLgorICAgIGNvbnN0IGxldHRlclBhcGVyID0gLy0tbGV0dGVyLXBhcGVyOlxzKigjWzAtOWEtZl17Nn0pL2kuZXhlYyhjc3MpPy5bMV0/LnRvTG93ZXJDYXNlKCk7CisgICAgY29uc3QgaHViUGFwZXIgPSAvLS1wYXBlcjpccyooI1swLTlhLWZdezZ9KS9pLmV4ZWMocGFnZSk/LlsxXT8udG9Mb3dlckNhc2UoKTsKKyAgICBleHBlY3QoeyBsZXR0ZXJQYXBlciwgaHViUGFwZXIgfSkudG9FcXVhbCh7IGxldHRlclBhcGVyLCBodWJQYXBlcjogbGV0dGVyUGFwZXIgfSk7CisKKyAgICAvLyAxLiBpbmssIGdyb3VuZCBhbmQgdGhlIHJlYWRhYmxlIGFjY2VudCBhcmUgcmUtcG9pbnRlZCB0b2dldGhlciDigJQgb24gdGhlCisgICAgLy8gICAgUEFHRSwgd2hpY2ggaXMgdGhlIHN1cmZhY2UgYSBjaXRpemVuIHJlYWRzLgogICAgIGZvciAoY29uc3QgdCBvZiBbJy0tZ3JvdW5kJywgJy0tcGFwZXInLCAnLS1jYXJkJywgJy0taW5rJywgJy0tbXV0ZWQnLCAnLS1hY2NlbnQtaW5rJ10pIHsKLSAgICAgIGV4cGVjdCh7IHRva2VuOiB0LCBwcmVzZW50OiBuZXcgUmVnRXhwKGAke3R9XFxzKjpgKS50ZXN0KG5pZ2h0KSB9KQorICAgICAgZXhwZWN0KHsgdG9rZW46IHQsIHByZXNlbnQ6IG5ldyBSZWdFeHAoYCR7dH1cXHMqOmApLnRlc3QocGFnZSkgfSkKICAgICAgICAgLnRvRXF1YWwoeyB0b2tlbjogdCwgcHJlc2VudDogdHJ1ZSB9KTsKICAgICB9Ci0gICAgLy8gICAgLi4uYW5kIHRoZSB3ZWxsIGZvbGxvd3MgdGhlIGdyb3VuZC4KKyAgICAvLyAgICAuLi5hbmQgdGhlIHdlbGwgZm9sbG93cyB0aGUgZ3JvdW5kIE9GIFRIRSBTVVJGQUNFIElUIElTIE9OLiBUaGUgcmFpbAorICAgIC8vICAgIGlzIG5pZ2h0LCBzbyBpdHMgd2VsbCBpcyBpbiB0aGUgbmlnaHQgYmxvY2ssIG5vdCB0aGUgcGFnZSdzLgogICAgIGV4cGVjdCh7IGdyb3VuZDogLy0tcGFwZXJccyo6Ly50ZXN0KG5pZ2h0KSwgd2VsbDogLy0tcmFpbC13ZWxsXHMqOi8udGVzdChuaWdodCkgfSkKICAgICAgIC50b0VxdWFsKHsgZ3JvdW5kOiB0cnVlLCB3ZWxsOiB0cnVlIH0pOwogCg==
+B64EOF
+WANT="f00b89cdef91f0021311caa1342f52a05062071f35a42b1876c45f9325d535e6"
+GOT="$(shasum -a 256 "$PATCH" | awk '{print $1}')"
+[ "$GOT" = "$WANT" ] || { echo "!! Patch is corrupt."; echo "   want $WANT"; echo "   got  $GOT"; exit 1; }
+echo "== patch verified"
+git apply --check -C1 "$PATCH" || { echo "!! Patch does not apply cleanly. Nothing written."; exit 1; }
+git apply -C1 "$PATCH"
+echo "== applied"
+
+cd together-city-react
+npx tsc --noEmit
+npx vitest run
+node scripts/a11y-audit.mjs
+node scripts/motion-ceiling.mjs
+node scripts/lint-ceiling.mjs
+npx vite build
+cd ..
+
+git add together-city-react/src/styles/tokens.css \
+        together-city-react/src/styles/relief.css \
+        together-city-react/src/app/relief.spec.ts
+git commit -F - <<'MSG'
+The observatory is the rail now
+
+The letter got its paper yesterday. The owner asked for the same paper behind
+every astrology tab — Ask, Tarot, the profile — and that is not a background
+change, because on Tarot the page title, the intro, "Card of the Day" and the
+disclaimer are all drawn straight onto the ground rather than inside a card.
+Paper behind that text without re-inking it makes it disappear.
+
+SO THE NIGHT MOVED RATHER THAN LEFT. The seventy-two declarations that made
+this hub an observatory are scoped to `.tc-header` and `.tc-side` — verbatim,
+not one value changed. The dark room survives exactly as designed, as the
+FURNITURE around a lit page. A dark rail beside paper is a desk with a letter
+on it, which is a better picture than either half was alone, and it is what the
+owner asked for when he said the sidebar stays.
+
+WHY A SCOPE AND NOT A SECOND PALETTE. Custom properties inherit and `[data-hub]`
+sits on <html>, so there is no way to un-inherit night inside the content
+column. The only two shapes this change could take were moving the scope, or
+re-declaring all seventy-two of the city's light values on `.tc-main` — which
+is a second source of truth for the city's colour, and the exact thing
+relief.spec exists to prevent. Moving keeps one. The content column now inherits
+the city's ordinary light palette, and the hub block above it is nine lines
+naming only what differs: the paper, and one ink.
+
+--faint IS THAT ONE INK. The city's #6f6f6f is 4.5:1 on white and 4.11:1 on this
+paper, and it is labels, placeholders and metadata — small text, which needs
+4.5. It is #5f5a52 here, 5.60:1, warmed and darkened rather than nudged to a
+bare pass, because it is also the least likely value anyone re-measures. Every
+other ink clears on paper unchanged: ink 17.2, ink-soft 17.0 on a white card,
+muted 4.70, accent-ink 13.9.
+
+#ebe8e3 IS --letter-paper, WRITTEN OUT TWICE ON PURPOSE. A hub block cannot
+define a ground by reading a token — `var(--letter-paper)` is legal CSS and
+unreadable to the contrast assertion, which parses hexes out of tokens.css to
+compute ink against ground at build time. So the literal is duplicated, and
+because a duplicated literal is a smell it is not left as one: the spec now
+asserts the two are the same colour and fails the build if either moves without
+the other.
+
+THE HUB NOW OWNS NOTHING IN relief.css. Its one rule there was a letterpress
+correction on the consultation title — a dark drop-shadow, because a white
+hairline under white type on a near-black ground is a smear rather than depth.
+On paper that correction is not merely unnecessary, it is the original defect
+applied the wrong way round, and it was clearly visible as a grey halo behind
+"Ask the Astrologer" in the emulation. Gone. A hub whose whole character is
+colour and which needs no rule in the material file is the strongest form of
+the argument that file has been making all along.
+
+THE SPEC'S NIGHT TEST NOW READS BOTH PALETTES. It asserted that the hub gives
+itself its own ink; the hub now gives itself two, and which one a token belongs
+in is the decision worth guarding. `page` is the block whose selector is the
+bare attribute, `night` is the one scoped to the chrome, and they are told apart
+by `\s*\{` — which is why the chrome selector has to stay on its own lines. The
+rail's well moved to the night block with the rail, because a well follows the
+ground of the surface it is on, not the ground of the hub.
+
+VERIFIED BY EMULATION ON THE LIVE SITE, not by reading the diff. Both palettes
+were injected into the running application at their real selectors and Ask and
+Tarot were read back: content ground #ebe8e3, rail #0b0c0d, header #17181a,
+body copy resolving to #000000, the title's halo gone. An earlier attempt that
+scoped the light palette to `.tc-main` instead of moving the night showed half
+the copy on Ask as white-on-paper — an artefact of the shortcut, and a useful
+one: it is exactly what this change would look like if the scope were put in
+the wrong place.
+
+tsc clean, vitest green, a11y 0, motion at ceiling, lint at ceiling, vite build
+clean.
+
+MSG
+echo "== committed"
+
+echo
+echo "==============================================================="
+echo " Landed: $NEEDS — push and Vercel ships it."
+echo " All five astrology tabs read on paper. The header and the"
+echo " rail are still the observatory, unchanged."
+echo "==============================================================="
