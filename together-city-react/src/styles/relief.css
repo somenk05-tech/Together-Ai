@@ -5852,3 +5852,57 @@ button.own-month-day:hover { border-color: var(--accent); }
   [data-skin] .modal,
   [data-skin] .sheet { background: var(--paper); backdrop-filter: none; -webkit-backdrop-filter: none; }
 }
+
+/* ── THE SWATCH ROW ─────────────────────────────────────────────────────────
+   Ten colours a citizen can put on a room, drawn twice: full in the Appearance
+   card in Settings, compact at the head of the mailbox.
+
+   THE CHIP IS TWO BANDS AND NOT ONE, ground then lamp, because either alone is
+   a lie about the room — the reasoning is beside the component. 62/38 rather
+   than half and half: the wall is most of what you see and the lamp is a
+   handful of keys and one button, so an even split over-promises the accent.
+
+   THE COMPACT ROW KEEPS THE 44px TARGET. It drops the NAME, not the hit area —
+   `tap-targets.test.ts` is not a formality, and a 22px swatch is a thing you
+   miss on a phone. The name survives as a title and an aria-label, so the row
+   is still legible to a hover and to a screen reader.
+
+   NO COLOUR IS DECIDED HERE. Every value on this row comes from the token file
+   or from the chip pair in config/skins.ts, which is the one place the nine
+   palettes are named. */
+.skin-row { display: flex; flex-wrap: wrap; gap: 7px; }
+.skin-key {
+  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  border-radius: var(--r-full); padding: 6px 13px 6px 7px;
+  font-family: inherit; font-size: 12px; font-weight: 600; min-height: 44px;
+  border: 1.5px solid var(--line); background: transparent; color: var(--ink);
+}
+.skin-key.on { border-color: var(--accent); background: var(--accent-soft); }
+/* A HAIRLINE, NOT A DEPTH. The first draft gave the chip `box-shadow:
+   var(--rim)` and `draws every surface at one of the five depths` caught it —
+   correctly. A swatch is not a surface sitting above the page; it is a printed
+   sample OF a surface, the way a paint card is not a wall. Claiming a depth
+   would also make the white chip cast a shadow the burgundy chip does not,
+   which is a difference between two colours that has nothing to do with
+   colour. The hairline is `--line`, so it follows the room the row is drawn
+   in — including a skinned mailbox, where the city's grey would be wrong. */
+.skin-chip {
+  display: inline-flex; width: 34px; height: 22px; flex: none;
+  border-radius: 7px; overflow: hidden; border: 1px solid var(--line);
+}
+.skin-chip > span:first-child { width: 62%; }
+.skin-chip > span:last-child  { width: 38%; }
+.skin-name { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.25; }
+.skin-name small { font-size: 10px; font-weight: 500; }
+
+/* Compact: swatch only, and square-ish, so a row of ten fits a phone without
+   wrapping into three lines above a mailbox. */
+.skin-row.is-compact { gap: 6px; }
+.skin-row.is-compact .skin-key { padding: 0; width: 44px; justify-content: center; }
+.skin-row.is-compact .skin-chip { width: 26px; height: 26px; border-radius: 8px; }
+
+/* The row sits under the mailbox's own two lines, centred with them — the head
+   is a centred block and a left-aligned strip under it reads as a fragment of
+   some other layout that wandered in. */
+.mproj-skin { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+.mproj-skin .eyebrow { margin: 0; }

@@ -201,6 +201,43 @@ describe('a room can be reskinned', () => {
   });
 
   /**
+   * THE PICKER IS ONE ROW, DRAWN IN TWO PLACES.
+   *
+   * Settings has it under Appearance; the mailbox has a compact copy at its own
+   * head, because a colour is judged by looking at it and sending somebody to a
+   * settings page to choose one means choosing blind and walking back to check.
+   * Chat has had swatches beside its header since palettes arrived — the
+   * mailbox being different was an accident of where the control got built
+   * first.
+   *
+   * TWO PLACEMENTS, ONE COMPONENT. Two copies of a swatch row is two rows that
+   * disagree the first time a palette is added, and that failure has happened
+   * twice this week already in other shapes. So no file except the component
+   * itself may build options out of SKINS.
+   */
+  it('draws the swatch row from one component in both places', () => {
+    const builders = SOURCES.filter((f) => /SKINS\.map\(/.test(read(f)));
+    expect(builders).toEqual(['components/SkinSwatches.tsx']);
+
+    for (const page of ['features/settings/pages/Settings.tsx', 'features/mail/pages/Projects.tsx']) {
+      expect({ page, reaches: /SkinSwatches|SkinPicker/.test(read(page)) }).toEqual({ page, reaches: true });
+    }
+  });
+
+  /**
+   * AND IT OFFERS TEN: the city, and the nine. The count is asserted because
+   * "only the new colours" was the ask — a palette that exists in the token
+   * file but never reaches the row is a colour nobody can choose, and one that
+   * reaches the row without a block behind it is a button that does nothing.
+   * Both directions are already covered above; this is the arithmetic.
+   */
+  it('offers the city and nine skins, and nothing else', () => {
+    const swatches = read('components/SkinSwatches.tsx');
+    expect(swatches).toMatch(/key: null, label: 'White & black'/);
+    expect(skinBlocks.size).toBe(9);
+  });
+
+  /**
    * AND THE MATERIAL HALF IS WRITTEN ONCE.
    *
    * Every granted hub carries a near-identical copy of this block — paint the

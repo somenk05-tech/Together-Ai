@@ -8,6 +8,7 @@ import {
   PROJECT_CAP, mailError, type MailProject,
 } from '../api';
 import { iconForName, tintOf, FOLD_TINTS } from '../folderLook';
+import { SkinSwatches } from '@/components/SkinSwatches';
 
 /**
  * TOGETHER CITY MAIL — THE DOOR, AS A WALL OF FOLDERS.
@@ -243,6 +244,18 @@ export function MailProjects() {
       <header className="mproj-head">
         <h1>All Emails</h1>
         <p className="muted">All your emails in one place — {a?.address ?? '…'}</p>
+        {/* THE COLOUR OF THE ROOM, CHANGED IN THE ROOM. It is also in Settings
+            → Appearance, and this is the same component reading the same store
+            rather than a second control — but a colour is a thing you judge by
+            looking at it, and sending somebody to a settings page to pick one
+            means choosing blind and walking back to check. Chat has had its
+            swatches beside its own header since the day palettes arrived; the
+            mailbox having to be different was an accident of where the picker
+            got built first, not a decision. */}
+        <div className="mproj-skin">
+          <span className="eyebrow">Colour</span>
+          <SkinSwatches hub="mail" compact />
+        </div>
       </header>
 
       {/* "No projects yet" is a claim about this citizen's mailbox, and when the
