@@ -1,96 +1,33 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Message, MediaAttachment } from '@/types';
-import { ShareCardView } from '../share';
+import type { Message } from '@/types';
+import { MessageBody } from './MessageBody';
+import { MessageSpotlight, type SpotlightAction } from './MessageSpotlight';
+import { HOLD_MS, MORE_REACTIONS, REACTIONS, SLOP, withinWindow } from './messageRules';
 
-const fmtSize = (n?: number): string =>
-  !n ? '' : n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
 /** The fallback under a missing face: at most two letters, from whatever the
  *  room is called. The same shape ConversationList draws on the rows outside,
  *  so a chat with no picture reads the same in both places. */
 const initials = (name?: string): string =>
   (name ?? 'Them').split(/[\s·]+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
-const fmtClock = (sec?: number): string =>
-  typeof sec === 'number' && sec > 0
-    ? `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}`
-    : '';
-
-/**
- * WHAT ARRIVED, RENDERED AS WHAT IT IS.
- *
- * A voice note is a player with its length on it; a photo is the photo; a file
- * is a row you can read the name and the weight of before deciding to open it.
- * All three used to be the same thing — nothing at all, because the thread
- * rendered `body` and `share` and ignored `media` entirely, on a schema that
- * has carried attachments since it was written.
- *
- * The audio element is the browser's own. A hand-drawn waveform here would be
- * a picture of a sound nobody has decoded — and the native player brings
- * keyboard control, scrubbing and the platform's own accessibility for free.
- */
-function Attachment({ a, mine }: { a: MediaAttachment; mine: boolean }) {
-  const name = a.name ?? 'Attachment';
-  const sub = [a.name ? fmtSize(a.sizeBytes) : '', fmtClock(a.durationSec)].filter(Boolean).join(' · ');
-
-  if (a.kind === 'image') {
-    return (
-      <a href={a.url} target="_blank" rel="noreferrer" style={{ display: 'block', maxWidth: 260 }}>
-        <img src={a.thumbUrl || a.url} alt={a.name ?? 'Shared photo'} loading="lazy"
-          style={{ width: '100%', borderRadius: 14, display: 'block', background: 'var(--stage-tile)' }} />
-      </a>
-    );
-  }
-  if (a.kind === 'video') {
-    return <video src={a.url} controls preload="metadata" style={{ maxWidth: 260, width: '100%', borderRadius: 14, display: 'block' }} />;
-  }
-  if (a.kind === 'audio') {
-    return (
-      <div className={mine ? 'csb me' : 'csb'} style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 232 }}>
-        {/* No caption track: a voice note is speech nobody has transcribed, and
-            an empty <track> would be a promise of subtitles that do not exist.
-            The duration is stated below instead, and the native player brings
-            the platform's own keyboard and screen-reader handling. */}
-        <audio src={a.url} controls preload="metadata" style={{ width: '100%', height: 34 }} />
-        <span style={{ fontSize: 11, opacity: .75 }}>
-          Voice note{fmtClock(a.durationSec) ? ` · ${fmtClock(a.durationSec)}` : ''}
-        </span>
-      </div>
-    );
-  }
-  return (
-    <a href={a.url} target="_blank" rel="noreferrer" download={a.name}
-      className={mine ? 'csb me' : 'csb'}
-      style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', maxWidth: 280 }}>
-      <span aria-hidden style={{ fontSize: 20, flex: 'none' }}>📄</span>
-      <span style={{ minWidth: 0 }}>
-        <span style={{ display: 'block', fontWeight: 700, fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-        {sub && <span style={{ display: 'block', fontSize: 11, opacity: .75 }}>{sub}</span>}
-      </span>
-    </a>
-  );
-}
-
-/** WhatsApp-style delivery ticks (shown on your own messages only). */
-function Ticks({ status }: { status?: Message['status'] }) {
-  if (!status) return null;
-  const read = status === 'READ';
-  const double = status === 'DELIVERED' || status === 'READ';
-  /* On the stage there is no info-blue to read against black. Read is the
-     bright ink, delivered is the soft one. */
-  const color = read ? 'var(--on-stage)' : 'var(--on-stage-faint)';
-  return (
-    <span aria-label={status.toLowerCase()} style={{ color, marginLeft: 4, letterSpacing: -2, fontSize: 12, fontWeight: 700 }}>
-      {double ? '✓✓' : '✓'}
-    </span>
-  );
-}
 
 const CSS = `
 .tc-msg-row{position:relative}
-.tc-msg-actions{opacity:0;pointer-events:none;transition:opacity var(--dur-fast) var(--ease);position:absolute;top:-16px;display:flex;gap:2px;background:var(--stage-solid);border:1px solid var(--stage-line);border-radius:999px;padding:3px 5px;box-shadow:var(--soft-out);z-index:5}
-.tc-msg-row:hover .tc-msg-actions,.tc-msg-row.touch-open .tc-msg-actions{opacity:1;pointer-events:auto}
-.tc-msg-actions button{border:none;background:none;cursor:pointer;font-size:12px;padding:4px 7px;border-radius:999px;font-family:inherit;color:var(--on-stage-soft);line-height:1}
-.tc-msg-actions button:hover{background:var(--stage-tile)}
-.tc-msg-actions button.danger{color:var(--on-stage)}
+/* WHAT USED TO BE HERE: .tc-msg-actions, a nine-button pill positioned
+   inside this row. It was wider than a phone, so it overflowed onto the
+   messages either side of it, and it scrolled with the thread because it was
+   part of the thread. It is now MessageSpotlight — a fixed overlay anchored to
+   the pressed message, outside this scroll container.
+
+   THE CHEVRON IS WHAT A MOUSE HAS INSTEAD OF A LONG PRESS. A pointer cannot
+   press and hold, and right-click alone is not discoverable, so a single small
+   button appears on hover and opens the same overlay. It is gated on a device
+   that actually has a pointer — a phone must never see it, because a phone has
+   the gesture. */
+@media (hover:hover) and (pointer:fine){
+  .tc-msg-more{opacity:0;pointer-events:none;transition:opacity var(--dur-fast) var(--ease);position:absolute;top:2px;width:26px;height:26px;border-radius:999px;border:1px solid var(--stage-line);background:var(--stage-solid);color:var(--on-stage-soft);cursor:pointer;font-family:inherit;font-size:13px;line-height:1;padding:0;z-index:5}
+  .tc-msg-row:hover .tc-msg-more,.tc-msg-more:focus-visible{opacity:1;pointer-events:auto}
+}
+@media not all and (hover:hover){ .tc-msg-more{display:none} }
 /* Was max-height: 2000px -> 0 over 250ms. A message is ~60px, so 97% of the
    duration passed with nothing visible and the collapse happened in the last
    7ms. grid-template-rows: 1fr -> 0fr collapses to the row's *actual* height
@@ -108,37 +45,13 @@ const CSS = `
 .tc-react.mine{border-color:var(--on-stage-faint);color:var(--on-stage)}
 .tc-react::after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);min-width:44px;min-height:44px;z-index:0}
 .tc-react > span{position:relative;z-index:1}
-.tc-msg-actions button.tc-emoji{font-size:15px;padding:2px 5px}
 `;
 
 /**
- * THE SIX.
- *
- * A closed set, and the same closed set the API enforces in
- * messages/dto/messages.dto.ts — the two packages share no code, so this is a
- * copy and the guard pins both ends of it. Six is what fits on one row of a
- * phone beside the other actions, which is the reason there is no picker to
- * open: the picker IS the row.
- */
-export const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'] as const;
-
-/**
- * 15-minute edit / delete-for-everyone window (matches the server policy).
- *
- * EXPORTED because the bulk bar has to ask the same question of a whole
- * selection: "for everyone" is offered only when every message in it is yours
- * and still inside the window. A second copy of the rule in the page would go
- * on looking correct for exactly as long as the two numbers happened to agree,
- * which is the kind of duplication this repo does factor out — the test is
- * whether it can fail SILENTLY, not whether there are two callers.
- */
-const WINDOW_MS = 15 * 60 * 1000;
-export const withinWindow = (m: Message) => Date.now() - new Date(m.createdAt).getTime() < WINDOW_MS;
-
-/**
- * Exported for the same reason. The wording of a delete is the safety-critical
- * part of it — what it promises about other people's copies — and a bulk delete
- * that invented its own phrasing is how the two drift apart.
+ * Shared with the bulk bar, for the same reason `withinWindow` is. The wording
+ * of a delete is the safety-critical part of it — what it promises about other
+ * people's copies — and a bulk delete that invented its own phrasing is how the
+ * two drift apart.
  */
 export function ConfirmDelete({ mine, canEveryone, count = 1, onCancel, onDelete }: {
   mine: boolean; canEveryone: boolean;
@@ -223,12 +136,17 @@ export function MessageThread({ messages, currentUserId, typing, peerName, peerP
   const box = useRef<HTMLDivElement>(null);
   const [confirmFor, setConfirmFor] = useState<Message | null>(null);
   const [collapsing, setCollapsing] = useState<Set<string>>(new Set());
-  const [touchOpen, setTouchOpen] = useState<string | null>(null);
-  /* Which message's action bar is currently showing the six instead of its
-     buttons. One bar with two faces rather than a second floating row: the
-     stage is a locked viewport and every new floating thing on it is another
-     element that can land under a keyboard. */
-  const [reactFor, setReactFor] = useState<string | null>(null);
+  /* THE PRESSED MESSAGE, AND WHERE IT WAS WHEN IT WAS PRESSED.
+     The rect is captured at press time and not recomputed: the overlay draws a
+     copy at those coordinates, and the thread underneath is frozen for as long
+     as it is up (the scroll listener below closes on any movement), so a rect
+     that went stale would mean the copy had drifted off the message it is a
+     copy of. */
+  const [spot, setSpot] = useState<{ m: Message; rect: DOMRect } | null>(null);
+  /** Whether the rail is showing the tray. Resets with each press. */
+  const [tray, setTray] = useState(false);
+  /** The overflow half of the menu — Pin, Edit, Info, Select — behind "More". */
+  const [more, setMore] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const [flashId, setFlashId] = useState<string | null>(null);
@@ -269,11 +187,29 @@ export function MessageThread({ messages, currentUserId, typing, peerName, peerP
     return () => window.clearTimeout(t);
   }, [jumpToId, messages.length]);
 
-  /* A bar that is showing the six belongs to the message it opened on. When
-     the thread changes underneath it — a message arrives, one is deleted — the
-     row it was anchored to may not be where it was, so it closes rather than
-     hovering over whatever moved into its place. */
-  useEffect(() => { setReactFor(null); }, [messages.length]);
+  /* AN OVERLAY BELONGS TO THE MESSAGE IT OPENED ON, AND TO WHERE THAT MESSAGE
+     WAS. When the thread changes underneath it — a message arrives and the box
+     scrolls itself to the bottom, one is deleted — the row it was anchored to
+     is no longer under the copy, so it closes rather than hovering over
+     whatever moved into its place. */
+  useEffect(() => { setSpot(null); }, [messages.length]);
+
+  /* And the same for a scroll. A citizen who starts scrolling has stopped
+     looking at the message they pressed; leaving a copy pinned to coordinates
+     the original has left is the one way this overlay can lie. */
+  useEffect(() => {
+    if (!spot) return;
+    const el = box.current;
+    if (!el) return;
+    const close = () => setSpot(null);
+    el.addEventListener('scroll', close, { passive: true });
+    window.addEventListener('resize', close);
+    return () => { el.removeEventListener('scroll', close); window.removeEventListener('resize', close); };
+  }, [spot]);
+
+  /* One press, one set of choices. Opening on a different message must not
+     inherit the tray the last one was left showing. */
+  useEffect(() => { setTray(false); setMore(false); }, [spot?.m.id]);
 
   /* INFO IS FETCHED WHEN IT IS ASKED FOR, never alongside the thread: it is
      one row per recipient per message, and pre-loading it for a hundred
@@ -299,7 +235,17 @@ export function MessageThread({ messages, currentUserId, typing, peerName, peerP
     }
   };
 
-  const startEdit = (m: Message) => { setEditingId(m.id); setEditText(m.body); setTouchOpen(null); };
+  /* WHERE THE MESSAGE IS, MEASURED FROM THE ROW ITSELF. The overlay is a
+     fixed layer over the viewport, so it needs viewport coordinates — and the
+     row is the right element to measure rather than the bubble inside it,
+     because the row is what carries the alignment that decides which side the
+     rail and the menu hang off. */
+  const open = (m: Message, el: HTMLElement | null) => {
+    if (!el) return;
+    setSpot({ m, rect: el.getBoundingClientRect() });
+  };
+
+  const startEdit = (m: Message) => { setEditingId(m.id); setEditText(m.body); setSpot(null); };
   const saveEdit = async (m: Message) => {
     const next = editText.trim();
     setEditingId(null);
@@ -324,13 +270,6 @@ export function MessageThread({ messages, currentUserId, typing, peerName, peerP
         /* A tombstone cannot be picked: forwarding it would send "this message
            was deleted" to somebody, and deleting it again is a no-op. */
         const pickable = selecting && !deleted;
-        const isPinned = Boolean(pinnedId && pinnedId === m.id);
-        /* At most one, by construction on the server — so this is a find, not a
-           filter, and the picker can light the one you already chose. */
-        const myReaction = currentUserId
-          ? (m.reactions ?? []).find((r) => r.userIds.includes(currentUserId))?.emoji ?? null
-          : null;
-        const canEdit = mine && !deleted && Boolean(m.body) && withinWindow(m) && Boolean(onEdit);
         /* THE ATTRIBUTION LINE PRINTS ONCE PER RUN. Four messages from one
            person do not need the name and the clock four times — that is the
            thing that makes a long thread look like a form. */
@@ -357,7 +296,7 @@ export function MessageThread({ messages, currentUserId, typing, peerName, peerP
             )}
             <div
               data-mid={m.id}
-              className={`tc-msg-row tc-msg-collapse${isCollapsing ? ' tc-msg-collapsing' : ''}${touchOpen === m.id ? ' touch-open' : ''}`}
+              className={`tc-msg-row tc-msg-collapse${isCollapsing ? ' tc-msg-collapsing' : ''}`}
               role={pickable ? 'button' : undefined}
               tabIndex={pickable ? 0 : undefined}
               aria-pressed={pickable ? picked : undefined}
@@ -401,75 +340,70 @@ export function MessageThread({ messages, currentUserId, typing, peerName, peerP
                 if (!pickable) return;
                 if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect?.(m); }
               }}
-              onTouchStart={() => {
-                /* One long-press, one meaning. While picking, the bar it would
-                   open is suppressed anyway, so the timer stays home. */
-                if (selecting) return;
-                longPress.current = setTimeout(() => setTouchOpen((t) => (t === m.id ? null : m.id)), 450);
-              }}
-              onTouchEnd={() => { if (longPress.current) clearTimeout(longPress.current); }}
-              onTouchMove={() => { if (longPress.current) clearTimeout(longPress.current); }}>
+              /* ── PRESS AND HOLD ────────────────────────────────────────
+                 Pointer events rather than touch events, so one code path
+                 serves a finger, a stylus and a mouse held down. A tombstone
+                 has nothing to offer and selection mode has already claimed
+                 the tap, so neither arms the timer.
 
-              {/* hover / long-press actions — never on deleted messages, and
-                  never while picking: in selection mode the row IS the control,
-                  and an action bar on top of it is a second thing a tap means. */}
-              {!deleted && !selecting && onDelete && (
-                <div className="tc-msg-actions" style={mine ? { right: 0 } : { left: 0 }}>
-                  {/* THE BAR HAS TWO FACES. Asked for the six, it shows the
-                      six and nothing else — there is no room on a phone for a
-                      picker beside eight other controls, and a second floating
-                      row on a locked viewport is a thing that lands under a
-                      keyboard. Choosing one, or tapping away, puts it back. */}
-                  {onReact && reactFor === m.id ? (
-                    <>
-                      {REACTIONS.map((e) => (
-                        <button key={e} type="button" className="tc-emoji" title={`React ${e}`}
-                          aria-label={`React with ${e}`}
-                          onClick={() => { onReact(m, myReaction === e ? null : e); setReactFor(null); setTouchOpen(null); }}>
-                          <span style={myReaction === e ? { filter: 'none' } : undefined}>{e}</span>
-                        </button>
-                      ))}
-                      <button type="button" aria-label="Close reactions" onClick={() => setReactFor(null)}>✕</button>
-                    </>
-                  ) : (
-                  <>
-                  {onReact && <button type="button" title="React" onClick={() => setReactFor(m.id)}>☺ React</button>}
-                  {onReply && <button type="button" title="Reply" onClick={() => { onReply(m); setTouchOpen(null); }}>↩ Reply</button>}
-                  {/* THE WAY IN. No new gesture: this bar is already what a
-                      long-press opens and what a hover shows, and a button in
-                      it is also the only version of "select" that a mouse can
-                      find. */}
-                  {onSelect && !deleted && (
-                    <button type="button" title="Select messages"
-                      onClick={() => { onSelect(m); setTouchOpen(null); }}>☑ Select</button>
-                  )}
-                  {onStar && !deleted && (
-                    <button type="button" title={m.starred ? 'Remove star' : 'Keep this message'}
-                      onClick={() => { onStar(m, !m.starred); setTouchOpen(null); }}>
-                      {m.starred ? '★ Kept' : '☆ Keep'}
-                    </button>
-                  )}
-                  {onForward && !deleted && <button type="button" title="Forward" onClick={() => { onForward(m); setTouchOpen(null); }}>⤳ Forward</button>}
-                  {m.body && <button type="button" title="Copy" onClick={() => { void navigator.clipboard?.writeText(m.body); setTouchOpen(null); }}>⧉ Copy</button>}
-                  {canEdit && <button type="button" title="Edit" onClick={() => startEdit(m)}>✎ Edit</button>}
-                  {mine && fetchInfo && <button type="button" title="Message info" onClick={() => { setInfoFor(m); setTouchOpen(null); }}>ⓘ Info</button>}
-                  {onPin && (
-                    <button type="button" title={isPinned ? 'Unpin' : 'Pin'}
-                      onClick={() => { onPin(m, !isPinned); setTouchOpen(null); }}>
-                      {isPinned ? '📌 Unpin' : '📌 Pin'}
-                    </button>
-                  )}
-                  <button type="button" className="danger" title="Delete" onClick={() => { setConfirmFor(m); setTouchOpen(null); }}>🗑 Delete</button>
-                  </>
-                  )}
-                </div>
+                 A SCROLL IS NOT A PRESS, and telling them apart is the whole
+                 reason this is not a naive setTimeout: a citizen flicking the
+                 thread has their finger down for well over 450ms. The press is
+                 abandoned the moment the finger travels more than SLOP in any
+                 direction, which is the number the platform pickers use and
+                 large enough to forgive the wobble of holding still. */
+              onPointerDown={(e) => {
+                if (selecting || deleted) return;
+                /* Secondary buttons are the desktop's own gesture — handled by
+                   onContextMenu below, which fires without a wait. */
+                if (e.pointerType === 'mouse' && e.button !== 0) return;
+                const startX = e.clientX, startY = e.clientY;
+                const el = e.currentTarget;
+                const cancel = () => {
+                  if (longPress.current) { clearTimeout(longPress.current); longPress.current = null; }
+                  window.removeEventListener('pointermove', onMove);
+                  window.removeEventListener('pointerup', cancel);
+                  window.removeEventListener('pointercancel', cancel);
+                };
+                function onMove(ev: PointerEvent) {
+                  if (Math.abs(ev.clientX - startX) > SLOP || Math.abs(ev.clientY - startY) > SLOP) cancel();
+                }
+                window.addEventListener('pointermove', onMove, { passive: true });
+                window.addEventListener('pointerup', cancel);
+                window.addEventListener('pointercancel', cancel);
+                longPress.current = setTimeout(() => {
+                  cancel();
+                  open(m, el);
+                }, HOLD_MS);
+              }}
+              /* The OS menu is the wrong menu. Suppressing it on a phone also
+                 stops the browser's own text-selection callout landing on top
+                 of ours; on a desktop, right-click IS the way in. */
+              onContextMenu={(e) => {
+                if (selecting || deleted) return;
+                e.preventDefault();
+                open(m, e.currentTarget);
+              }}>
+
+              {/* THE MOUSE'S WAY IN. One 26px chevron, on hover only, on a
+                  device that has a pointer — see the media query in CSS. A
+                  finger never sees it and does not need to: it has the press. */}
+              {!deleted && !selecting && (
+                <button
+                  type="button"
+                  className="tc-msg-more"
+                  aria-label="Message actions"
+                  aria-haspopup="dialog"
+                  style={mine ? { right: -32 } : { left: -32 }}
+                  onClick={(e) => { e.stopPropagation(); open(m, e.currentTarget.parentElement as HTMLElement); }}
+                >
+                  <span aria-hidden>⋯</span>
+                </button>
               )}
 
               {/* single in-flow child: the grid row that collapses 1fr -> 0fr */}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start' }}>
-                {deleted ? (
-                  <div className="csb gone">🚫 This message was deleted</div>
-                ) : editingId === m.id ? (
+                {editingId === m.id ? (
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                     <input autoFocus aria-label="Edit your message" value={editText} onChange={(e) => setEditText(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') void saveEdit(m); if (e.key === 'Escape') setEditingId(null); }}
@@ -478,71 +412,8 @@ export function MessageThread({ messages, currentUserId, typing, peerName, peerP
                     <button type="button" className="cstab" aria-label="Cancel editing" onClick={() => setEditingId(null)}>✕</button>
                   </div>
                 ) : (
-                  <>
-                    {/* WHAT THIS ANSWERS, ABOVE WHAT IT SAYS. Tapping it goes
-                        to the original — which is the entire point of a quote
-                        and the thing a static blockquote fails to be. */}
-                    {m.replyTo && (
-                      <button type="button" onClick={() => onJump?.(m.replyTo!.id)}
-                        aria-label="Go to the message this answers"
-                        style={{
-                          display: 'block', textAlign: 'left', width: '100%', maxWidth: 320,
-                          border: 'none', cursor: 'pointer', font: 'inherit',
-                          background: 'var(--stage-tile)', borderLeft: '3px solid var(--on-stage-faint)',
-                          borderRadius: 10, padding: '6px 10px', marginBottom: 4,
-                        }}>
-                        <span style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--on-stage-soft)' }}>
-                          {m.replyTo.senderId === currentUserId ? 'You' : (peerName ?? 'Them')}
-                        </span>
-                        <span style={{ display: 'block', fontSize: 12.5, color: 'var(--on-stage-faint)',
-                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {m.replyTo.deleted ? 'This message was deleted' : (m.replyTo.body || 'Attachment')}
-                        </span>
-                      </button>
-                    )}
-                    {m.body && <div className={mine ? 'csb me' : 'csb'}>{m.body}</div>}
-                    {(m.media ?? []).map((a, i) => (
-                      <div key={a.id} style={{ marginTop: m.body || i ? 6 : 0 }}>
-                        <Attachment a={a} mine={mine} />
-                      </div>
-                    ))}
-                    {m.share && <div style={{ marginTop: m.body || (m.media ?? []).length ? 6 : 0 }}><ShareCardView card={m.share} compact clickable /></div>}
-                  </>
-                )}
-
-                {/* WHAT THE ROOM ANSWERED. Under the bubble rather than over
-                    its corner: a chip laid on the bubble covers the last line
-                    of a short message, and every count in this app that hides
-                    a word has been a bug report. Tapping your own chip clears
-                    it, which is the only gesture people try. */}
-                {!deleted && (m.reactions ?? []).length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4,
-                    justifyContent: mine ? 'flex-end' : 'flex-start', maxWidth: 260 }}>
-                    {(m.reactions ?? []).map((r) => {
-                      const isMine = Boolean(currentUserId && r.userIds.includes(currentUserId));
-                      return (
-                        <button key={r.emoji} type="button"
-                          className={isMine ? 'tc-react mine' : 'tc-react'}
-                          aria-pressed={isMine}
-                          aria-label={`${r.emoji} · ${r.userIds.length}${isMine ? ', including you — tap to remove yours' : ''}`}
-                          onClick={() => onReact?.(m, isMine ? null : r.emoji)}
-                          disabled={!onReact}>
-                          <span aria-hidden>{r.emoji}</span>
-                          <span aria-hidden>{r.userIds.length}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Only the facts the attribution line does not already carry:
-                    an edit, and how far a message of yours has got. */}
-                {(m.edited || m.starred || (mine && !deleted && m.status)) && !deleted && (
-                  <div style={{ fontSize: 10.5, marginTop: 3, color: 'var(--on-stage-faint)' }}>
-                    {m.starred && <span aria-label="You kept this message" style={{ marginRight: 4 }}>★</span>}
-                    {m.edited && <span style={{ marginRight: 4 }}>edited</span>}
-                    {mine && <Ticks status={m.status} />}
-                  </div>
+                  <MessageBody m={m} mine={mine} currentUserId={currentUserId} peerName={peerName}
+                    onJump={onJump} onReact={onReact} />
                 )}
               </div>
             </div>
@@ -550,6 +421,62 @@ export function MessageThread({ messages, currentUserId, typing, peerName, peerP
         );
       })}
       {typing && <div className="csatt"><i>{peerName ?? 'They'} is typing…</i></div>}
+
+      {/* ── THE PRESSED MESSAGE ───────────────────────────────────────────
+          Built here rather than inside the overlay because only this component
+          knows what a given message may be asked to do: a tombstone offers
+          nothing, somebody else's message cannot be edited, and "Unpin" is the
+          honest word on exactly one message in the room.
+
+          THE ORDER IS THE OWNER'S: Reply, Copy, Forward, Keep, Delete, More.
+          Everything else — Pin, Edit, Info, Select — is behind More, because a
+          menu long enough to need a scroller is a menu that has stopped being
+          faster than the thing it replaced. */}
+      {spot && (() => {
+        const m = spot.m;
+        const mine = m.senderId === currentUserId;
+        const isPinned = Boolean(pinnedId && pinnedId === m.id);
+        const myReaction = currentUserId
+          ? (m.reactions ?? []).find((r) => r.userIds.includes(currentUserId))?.emoji ?? null
+          : null;
+        const canEdit = mine && Boolean(m.body) && withinWindow(m) && Boolean(onEdit);
+
+        const primary: SpotlightAction[] = [];
+        if (onReply) primary.push({ key: 'reply', label: 'Reply', glyph: '↩', onSelect: () => onReply(m) });
+        if (m.body) primary.push({ key: 'copy', label: 'Copy', glyph: '⧉', onSelect: () => { void navigator.clipboard?.writeText(m.body); } });
+        if (onForward) primary.push({ key: 'forward', label: 'Forward', glyph: '⤳', onSelect: () => onForward(m) });
+        if (onStar) primary.push({ key: 'star', label: m.starred ? 'Remove from Kept' : 'Keep', glyph: m.starred ? '★' : '☆', onSelect: () => onStar(m, !m.starred) });
+
+        const overflow: SpotlightAction[] = [];
+        if (onPin) overflow.push({ key: 'pin', label: isPinned ? 'Unpin from chat' : 'Pin in chat', glyph: '📌', onSelect: () => onPin(m, !isPinned) });
+        if (canEdit) overflow.push({ key: 'edit', label: 'Edit', glyph: '✎', onSelect: () => startEdit(m) });
+        if (mine && fetchInfo) overflow.push({ key: 'info', label: 'Message info', glyph: 'ⓘ', onSelect: () => setInfoFor(m) });
+        if (onSelect) overflow.push({ key: 'select', label: 'Select messages', glyph: '☑', onSelect: () => onSelect(m) });
+
+        const actions: SpotlightAction[] = [...primary];
+        if (onDelete) actions.push({ key: 'delete', label: 'Delete', glyph: '🗑', destructive: true, onSelect: () => setConfirmFor(m) });
+        if (overflow.length) {
+          if (more) actions.push(...overflow);
+          /* `keepOpen` is what stops the overlay dismissing on this one: it
+             grows the menu it is in rather than doing anything to the message. */
+          else actions.push({ key: 'more', label: 'More…', glyph: '⋯', keepOpen: true, onSelect: () => setMore(true) });
+        }
+
+        return (
+          <MessageSpotlight
+            rect={spot.rect}
+            mine={mine}
+            body={<MessageBody m={m} mine={mine} currentUserId={currentUserId} peerName={peerName} inert />}
+            reactions={tray ? MORE_REACTIONS : REACTIONS}
+            myReaction={myReaction}
+            onReact={onReact ? (emoji) => onReact(m, emoji) : undefined}
+            onMore={onReact ? () => setTray((t) => !t) : undefined}
+            moreOpen={tray}
+            actions={actions}
+            onDismiss={() => setSpot(null)}
+          />
+        );
+      })()}
 
       {infoFor && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 9500, background: 'rgba(20,18,12,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}

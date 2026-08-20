@@ -47,7 +47,8 @@ const storedTheme = (): StageTheme => {
   const t = localStorage.getItem(THEME_KEY);
   return STAGE_THEMES.some((s) => s.id === t) ? (t as StageTheme) : 'slate';
 };
-import { MessageThread, ConfirmDelete, withinWindow } from '../components/MessageThread';
+import { MessageThread, ConfirmDelete } from '../components/MessageThread';
+import { withinWindow } from '../components/messageRules';
 import { Composer } from '../components/Composer';
 import { ChatStarter } from '../components/ChatStarter';
 import { GroupPanel } from '../components/GroupPanel';
@@ -805,7 +806,7 @@ export function Chats() {
                   </>}
               {forwarding && (
                 <ForwardPanel messages={forwarding} fromConversationId={activeId}
-                  conversations={list}
+                  conversations={list} faces={faces}
                   onClose={() => setForwarding(null)}
                   onSent={(toId) => {
                     setForwarding(null);

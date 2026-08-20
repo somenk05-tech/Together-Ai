@@ -109,19 +109,34 @@ export const StarMessageSchema = z.object({ on: z.boolean() });
 export type StarMessageDto = z.infer<typeof StarMessageSchema>;
 
 /**
- * The six, closed HERE rather than only in the picker.
+ * The set, closed HERE rather than only in the picker.
  *
- * An open emoji field is an open text field wearing a smaller name, and this
- * one is persisted and then broadcast to everybody in the room. Six is also
- * what fits on one row of a phone without a scroller, which is why the picker
- * needs no picker. `null` clears whatever you had — one per person, so setting
- * a second replaces the first rather than adding to it.
+ * AN OPEN EMOJI FIELD IS AN OPEN TEXT FIELD WEARING A SMALLER NAME, and this
+ * one is persisted and then broadcast to everybody in the room. That is the
+ * rule, and it has not changed. `null` clears whatever you had — one per
+ * person, so setting a second replaces the first rather than adding to it.
  *
- * The web client keeps its own copy of this list (features/chat/MessageThread)
- * because the two packages share no code. Change one, change the other.
+ * IT WAS SIX, AND THE REASON WAS THE PICKER'S SHAPE: six is what fitted on one
+ * row of a phone beside the other message actions, so the row WAS the picker
+ * and there was nothing to open. The web client moved those actions into a
+ * menu under the pressed message, which freed the row — so the quick rail is
+ * now seven, with a `+` that opens the tray below it.
+ *
+ * The tray is longer and still enumerated. Every emoji a citizen can send is a
+ * value written down here first; the plus opens a list, never a keyboard.
+ *
+ * The web client keeps its own copy of both lists (features/chat/MessageThread,
+ * REACTIONS and MORE_REACTIONS) because the two packages share no code. Change
+ * one, change the other.
  */
+export const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏', '😡'] as const;
+export const TRAY_REACTIONS = [
+  '🎉', '🔥', '👏', '💯', '🙌', '😍', '🥰', '😅',
+  '🤔', '😴', '👀', '🤝', '💪', '☕', '🍰', '🐾',
+  '✅', '❌', '⭐', '💔', '😭', '🤯', '🙃', '🫶',
+] as const;
 export const ReactMessageSchema = z.object({
-  emoji: z.enum(['👍', '❤️', '😂', '😮', '😢', '🙏']).nullable(),
+  emoji: z.enum([...QUICK_REACTIONS, ...TRAY_REACTIONS]).nullable(),
 });
 export type ReactMessageDto = z.infer<typeof ReactMessageSchema>;
 

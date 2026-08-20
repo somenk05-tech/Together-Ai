@@ -9,6 +9,9 @@ const strip = (s: string) =>
   s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/.*$/gm, '$1 ');
 
 const thread = strip(read('features', 'chat', 'components', 'MessageThread.tsx'));
+const spotlight = strip(read('features', 'chat', 'components', 'MessageSpotlight.tsx'));
+const rules = strip(read('features', 'chat', 'components', 'messageRules.ts'));
+const bubble = strip(read('features', 'chat', 'components', 'MessageBody.tsx'));
 const page = strip(read('features', 'chat', 'pages', 'Chats.tsx'));
 const types = strip(read('types', 'index.ts'));
 const schemas = strip(read('api', 'schemas.ts'));
@@ -46,11 +49,29 @@ describe('the wire shape of a reaction', () => {
   });
 });
 
-describe('the six', () => {
-  it('is a closed set of exactly six in the client', () => {
-    const m = thread.match(/export const REACTIONS = \[([^\]]*)\]/);
-    expect(m).toBeTruthy();
-    expect((m![1].match(/'/g) ?? []).length / 2).toBe(6);
+describe('the quick rail and the tray', () => {
+  /* IT WAS SIX AND THE ASSERTION SAID SO. Six was never the point — a CLOSED
+     SET is, because this field is persisted and broadcast to a whole room, and
+     an open one is a text field wearing a smaller name. The rail grew to seven
+     when the other message actions left it for a menu; what this now pins is
+     that both lists are literals and that neither has become a free field. */
+  it('is a closed set of literals, quick rail and tray alike', () => {
+    const quick = rules.match(/export const REACTIONS = \[([^\]]*)\]/);
+    const tray = rules.match(/export const MORE_REACTIONS = \[([^\]]*)\]/);
+    expect(quick).toBeTruthy();
+    expect(tray).toBeTruthy();
+    expect((quick![1].match(/'/g) ?? []).length / 2).toBe(7);
+    expect((tray![1].match(/'/g) ?? []).length / 2).toBeGreaterThan(0);
+    // Both end `as const`, so neither can be pushed to at runtime.
+    expect(rules).toMatch(/export const REACTIONS = \[[^\]]*\] as const/);
+    expect(rules).toMatch(/export const MORE_REACTIONS = \[[\s\S]*?\] as const/);
+  });
+
+  it('never offers a keyboard — the plus opens the tray, not a text field', () => {
+    // The whole argument for enumerating these lives in the API's DTO. The
+    // failure this catches is somebody "improving" the picker into an input.
+    expect(spotlight).not.toMatch(/<input/);
+    expect(thread).toMatch(/setTray\(\(t\) => !t\)/);
   });
 
   it('is one per person, so the picker can light the one you chose', () => {
@@ -60,14 +81,49 @@ describe('the six', () => {
   });
 
   it('clears your reaction by tapping your own chip', () => {
-    expect(thread).toMatch(/onReact\?\.\(m, isMine \? null : r\.emoji\)/);
+    /* The chips moved to MessageBody when the overlay arrived — it draws an
+       inert copy of the same bubble, and the alternative was a second
+       hand-written version of one. The gesture is unchanged. */
+    expect(bubble).toMatch(/onReact\?\.\(m, isMine \? null : r\.emoji\)/);
   });
 
-  it('opens in the action bar rather than a second floating row', () => {
-    // The stage is a locked viewport; every extra floating element on it is
-    // another thing that can land under a keyboard.
-    expect(thread).toMatch(/reactFor === m\.id \?/);
-    expect(thread).not.toMatch(/position: 'fixed'[^}]*REACTIONS/);
+  it('draws the overlay copy from the same bubble, with nothing to press', () => {
+    // Two live sets of chips for one message is two places to tap for one fact.
+    expect(bubble).toMatch(/inert\?: boolean/);
+    expect(thread).toMatch(/<MessageBody[\s\S]*?inert/);
+  });
+
+  /* WHAT THIS ASSERTION USED TO SAY, AND WHY IT NO LONGER SAYS IT.
+     It read "opens in the action bar rather than a second floating row", and
+     the reasoning was that the stage is a locked viewport and every floating
+     element on it is another thing that can land under a keyboard. The owner
+     asked for the WhatsApp gesture — press and hold, the room dims, a rail of
+     reactions floats over the message — so the floating row is now the design.
+
+     THE ORIGINAL WORRY IS STILL REAL AND IS WHAT THESE ASSERT INSTEAD: the
+     overlay is dismissed by anything that would move the message out from
+     under it, so it can never be left stranded over a room that has scrolled
+     or resized beneath it — which is the keyboard case, arriving as a resize. */
+  it('floats over the message it was opened on, anchored to a measured rect', () => {
+    expect(thread).toMatch(/getBoundingClientRect\(\)/);
+    expect(spotlight).toMatch(/createPortal\(/);
+    expect(spotlight).toMatch(/position: 'fixed'/);
+  });
+
+  it('closes on anything that would move the message underneath it', () => {
+    expect(thread).toMatch(/addEventListener\('scroll', close/);
+    expect(thread).toMatch(/addEventListener\('resize', close\)/);
+    expect(thread).toMatch(/useEffect\(\(\) => \{ setSpot\(null\); \}, \[messages\.length\]\)/);
+  });
+
+  it('is reached by holding, not by a bar that scrolls with the thread', () => {
+    // The pill this replaced lived inside the scroll container and was wider
+    // than a phone. Its class name going missing is the point of this line.
+    expect(thread).not.toMatch(/className="tc-msg-actions"/);
+    expect(thread).toMatch(/onPointerDown=/);
+    expect(thread).toMatch(/HOLD_MS/);
+    // A scroll is not a press.
+    expect(thread).toMatch(/SLOP/);
   });
 });
 
