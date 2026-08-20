@@ -672,6 +672,90 @@ describe('Relief stays a system', () => {
     ).toEqual([]);
   });
 
+  /**
+   * AND THE CITY'S NAME IS LEGIBLE IN EVERY HUB.
+   *
+   * FOUND BY THE OWNER, TWICE, on two different headers — a black signature on
+   * forest green and the same one on crimson velvet, 1.95:1 and 1.84:1.
+   *
+   * The wordmark is one black drawing. `.tc-logo .word` inverted it for
+   * exactly one named hub, entertainment, which was the whole set of dark
+   * skies on the day that line was written. Two hubs went dark afterwards and
+   * neither edit walked back to a rule in a different file to say so. That is
+   * the failure mode worth a guard: not a wrong colour, but a rule keyed on a
+   * SET THAT CHANGES, maintained by remembering.
+   *
+   * So the set is computed instead of listed. Every hub declares its sky in
+   * the token file; the lightest stop of that sky is the friendliest ground a
+   * black signature will ever get, and if the signature fails AA even there,
+   * the hub is dark and owes `--word-filter: invert(1)`. If it passes
+   * comfortably, the hub is pale and must NOT invert — white on near-white is
+   * the same bug with the polarity swapped, and it is how astrology broke the
+   * last time this was a list.
+   */
+  it('inverts the signature in exactly the hubs whose sky is dark', () => {
+    const css = strip(tokens);
+    const lin = (c: number) => (c / 255 <= 0.03928 ? c / 255 / 12.92 : (((c / 255) + 0.055) / 1.055) ** 2.4);
+    const lum = (hex: string) => {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+      return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    };
+    const ratio = (a: string, b: string) => {
+      const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+      return (hi + 0.05) / (lo + 0.05);
+    };
+
+    // The name has to exist at :root, or every hub below is re-pointing air.
+    expect(css, '--word-filter is not declared at :root').toMatch(/--word-filter:\s*none/);
+
+    const failures: string[] = [];
+    let skies = 0;
+
+    for (const block of css.split('}')) {
+      const selector = block.split('{')[0]?.trim();
+      const body = block.split('{')[1];
+      if (!body || !selector?.startsWith('[data-hub=')) continue;
+      const sky = body.match(/--sky-image:\s*([\s\S]*?);/)?.[1];
+      if (!sky) continue;
+      const stops = [...sky.matchAll(/#[0-9a-f]{6}/gi)].map((m) => m[0].toLowerCase());
+      if (!stops.length) continue;
+      skies++;
+
+      const lightest = stops.reduce((a, b) => (lum(a) >= lum(b) ? a : b));
+      const darkest = stops.reduce((a, b) => (lum(a) <= lum(b) ? a : b));
+      const inverts = /--word-filter:\s*invert\(1\)/.test(body);
+      const onBlack = ratio('#000000', lightest);
+      const onWhite = ratio('#ffffff', darkest);
+
+      if (onBlack < 4.5 && !inverts) {
+        failures.push(`${selector} is dark (a black signature is ${onBlack.toFixed(2)}:1 on its LIGHTEST stop) but does not set --word-filter: invert(1)`);
+      }
+      if (onBlack >= 4.5 && inverts) {
+        failures.push(`${selector} is pale (a black signature is ${onBlack.toFixed(2)}:1) but inverts the signature to white at ${onWhite.toFixed(2)}:1`);
+      }
+    }
+
+    // A guard that finds no skies passes. The city has several.
+    expect(skies).toBeGreaterThan(4);
+    expect(failures).toEqual([]);
+  });
+
+  /**
+   * AND NOTHING PAINTS THE WORDMARK THROUGH A NODE THAT ISN'T THERE.
+   *
+   * The first attempt at a white name in dating set `fill` and `color` on
+   * `.tc-logo svg` and `.tc-logo svg *`. The wordmark is an `<img src=".svg">`
+   * — an external document, with no inline `<svg>` in the page for either
+   * selector to reach. The rule was valid CSS, matched zero nodes, broke
+   * nothing, and shipped; the name stayed black for three days.
+   *
+   * A rule that cannot match is worse than a wrong one, because a wrong one
+   * shows. This is cheap to check and the mistake is easy to repeat.
+   */
+  it('paints the wordmark on a node that exists', () => {
+    expect(strip(relief)).not.toMatch(/\.tc-logo\s+svg/);
+  });
+
   it('lets no photograph back onto the week', () => {
     const css = strip(tokens);
     // The key itself is gone. A block keyed on it is somebody restoring the

@@ -437,6 +437,25 @@
      hub that hangs a photograph. One mechanism, not two. */
   --sky-image: none;
 
+  /* ── AND THE CITY'S NAME IS READ AGAINST THAT SKY ────────────────────────
+     The wordmark is one piece of artwork drawn in black — a pen stroke, traced
+     to a path, correct at every size and with nothing to re-export. On a pale
+     sky that is the drawing the pen made. On a DARK sky it is a black
+     signature on a dark ground: 1.95:1 in nutrition, 1.84:1 in dating, both
+     of them the owner pointing at a header and saying he cannot see it.
+
+     INVERTING IS NOT A SECOND ASSET. The stroke is uniform and the ground of
+     the file is transparent, so `invert(1)` produces exactly the drawing the
+     same pen would have made in white ink — no variant file, no 2x, nothing
+     that can fall out of step with the original.
+
+     IT IS A NAME AND NOT A HUB LIST because the question "is my sky dark?" is
+     one every hub answers for itself and three currently answer yes. relief
+     .spec measures the skies and requires this line of exactly the hubs whose
+     lightest stop fails a black signature, so a hub that darkens later cannot
+     ship with an invisible name. */
+  --word-filter: none;
+
   /* ── THE GROUND A PRODUCT WAS PHOTOGRAPHED ON ────────────────────────────
      Every product shot in this catalogue is hotlinked from a retailer — Nykaa,
      Tira, the brands' own stores — and every one of them was shot on a white
@@ -1362,6 +1381,8 @@
    layout and no spacing changes, and why removing this block removes the
    entire treatment. relief.spec.ts pins the scope.                          */
 [data-hub="nutrition"] {
+  /* The sky is dark, so the signature is white ink — forest, 1.95:1 black. */
+  --word-filter: invert(1);
   /* ── ONE LAMP, AND NOTHING ELSE ──────────────────────────────────────────
      The whole hub, and it is four declarations. Everything that used to be
      here — the warm paper ground, the card, the wash, the rail well, the
@@ -1816,6 +1837,8 @@
 
    Every number is measured on this hub's own ground. */
 [data-hub="dating"] {
+  /* The sky is dark, so the signature is white ink — crimson velvet, 1.84:1 black. */
+  --word-filter: invert(1);
   /* ── WHITE, BLACK AND AIR ────────────────────────────────────────────────
      The owner's Swiss-portfolio reference, taken for exactly two things: its
      COLOUR and its SPACE. Not its typography — that reference is flat, ruled
@@ -2159,6 +2182,8 @@
    lighter charcoal down, a low-alpha white edge on top, a black edge below.
    Same three layers, same direction of light, different ratio between them.  */
 [data-hub="entertainment"] {
+  /* The sky is dark, so the signature is white ink — near-black, 1.21:1 black. */
+  --word-filter: invert(1);
   /* Grounds. Four steps, and they are four because the shell, the page, a
      card and a field have to be told apart without a single border. */
   --ground: #0a1010;

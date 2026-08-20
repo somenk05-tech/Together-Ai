@@ -644,20 +644,18 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
 .tc-logo .word {
   display: block;
   height: clamp(30px, 2.8vw, 40px); width: auto;
-  filter: none;
+  /* THE INK OF THE NAME IS A DECISION THE TOKEN FILE MAKES, like every other
+     colour. This rule used to be `filter: none` with a hub named underneath
+     it, and the hub named was entertainment — written when entertainment was
+     the only dark sky in the city. Nutrition went forest and dating went
+     crimson velvet after it, and neither edit came back to this line, so the
+     signature stayed black on both: 1.95:1 and 1.84:1, the owner reading his
+     own masthead off a screenshot. A stylesheet that has to be revisited every
+     time a hub changes colour will be missed every time a hub changes colour,
+     so it is one name here and the answer lives with the sky that decides it.
+     `--word-filter` is `none` at :root and `invert(1)` in the dark hubs. */
+  filter: var(--word-filter);
 }
-/* In the dark hub it is inverted rather than given a second asset. The chrome
-   artwork this replaces earned that by staying modelled under a flip; a flat
-   line drawing earns it differently — the stroke is uniform, so inverting
-   produces exactly the drawing the same pen would have made on black paper.
-   One hub, one file, no variants.
-
-   IT WAS TWO HUBS UNTIL 18 AUG. Astrology's header is lit now — it floats on
-   the sheet the hub hangs, on the paper palette — and a wordmark inverted onto
-   near-white is white on white. The rule did not name astrology because
-   astrology asked for it; it named the set "the two dark hubs", and that set
-   has one member again. */
-[data-hub="entertainment"] .tc-logo .word { filter: invert(1); }
 .tc-burger {
   background: var(--face-key); border: 0; border-radius: var(--r-2); color: var(--ink);
   box-shadow: var(--e1-key);
@@ -2498,9 +2496,12 @@ textarea.g-field { resize: none; line-height: 1.55; }
    fill follows the ink here rather than the file. Scoped to this hub because
    it is the only room whose header is not white; the day the second one
    arrives, this becomes a rule about `.tc-logo` instead of about dating. */
-[data-hub="dating"] .tc-logo,
-[data-hub="dating"] .tc-logo svg,
-[data-hub="dating"] .tc-logo svg * { fill: var(--ink); color: var(--ink); }
+/* WHAT USED TO BE HERE MATCHED NOTHING. Three selectors painted `fill` and
+   `color` on `.tc-logo svg` — and the wordmark is an `<img>`, so no inline SVG
+   node has ever existed for them to reach. It was written the first time the
+   owner asked for a white name in dating, it looked like the fix, it passed
+   review because a rule that matches nothing also breaks nothing, and the name
+   stayed black. The wordmark now inverts with `--word-filter`, above. */
 /* The rail's keys need nothing — --lens-face is already translucent white and
    already carries its own blur, so the sky arrives through them the moment the
    solid well behind them stops blocking it. */
