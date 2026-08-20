@@ -1865,10 +1865,8 @@
   /* Status keeps meaning what it means. Lifted until each clears the panel,
      which on a dark ground means lightening rather than deepening — the same
      correction every dark room in this file has had to make. */
-  --ok-ink:      #90d6a6;   /* 9.6:1 */
-  --warn-ink:    #ebc57c;   /* 9.9:1 */
-  --danger-ink:  #f4a3a3;   /* 8.2:1 */
-  --info-ink:    #a6c8f0;   /* 9.4:1 */
+  --warn-ink:    #ebc57c;   /* 9.3:1 on the wash */
+  --danger-ink:  #f4a3a3;   /* 7.7:1 on the wash */
 
   /* ── AND THE ACCENT IS THE SECOND RED ────────────────────────────────────
      The monochrome pass made the accent a POSITION rather than a colour —
@@ -1933,6 +1931,50 @@
   --on-lamp: #ffffff;
   --accent-soft: #4a181c;
   --accent-line: #7a2a2f;
+
+  /* ── THE RAIL KEYS ARE VELVET, NOT MILK ──────────────────────────────────
+     `--lens-face` is the city's key: a white gradient, .94 down to .40 and
+     back. On white paper it is a pressed lozenge. On this room it was a pale
+     pink pill with near-white type in it — the sub-label under each key
+     ("Birth details & interests") washed out entirely, which read as the text
+     being CLIPPED rather than as contrast being spent. Nothing was clipped:
+     the key is 57px tall with overflow visible. It was the face.
+
+     Same gradient shape, the room's own red: light at the lip, deeper through
+     the middle, light again at the foot, so the key still reads as a lozenge
+     catching light rather than as a flat tile. Over the rail well it runs
+     #2c0e11 to #4c151a, where --ink-soft is 11.1:1 and --faint — the sub-label
+     — is 4.9:1 at the worst point. The active key is untouched: it has always
+     been --lamp-face and the lamp is already this hub's red. */
+  --lens-face: linear-gradient(180deg,
+    rgba(107,30,35,.55) 0%, rgba(74,24,28,.34) 34%, rgba(60,20,24,.30) 56%,
+    rgba(90,28,33,.46) 82%, rgba(107,30,35,.55) 100%);
+
+  /* ── AND NO PANEL IN THIS ROOM IS ANOTHER COLOUR ─────────────────────────
+     The four status washes are near-white at the root — #f1f8f2, #fbf6ea,
+     #fdf1f0, #eff5fb — so "Live — matching active" came out as a white-green
+     card in the middle of a crimson page, which is the one thing the owner
+     asked this hub not to do. All four take the room's own wash. They are
+     still four names and still four meanings; what carries the meaning is the
+     INK on them, not the panel behind them.
+
+     --ok-ink AND --info-ink GO WITH THEM, for the same instruction: a green
+     "Live" and a blue "nearby" are exactly the other colours. They become the
+     room's own inks, and a status that is simply PRESENT is stated in the
+     room's voice.
+
+     --warn-ink AND --danger-ink KEEP A HUE, and this is the one place I did
+     not follow the instruction to the letter. A warning that looks like body
+     copy is not a style choice, it is a safety regression — "Reported" and
+     "Photo pending" have to be findable by somebody scanning. They are the
+     only two hues left in the room and both sit at 7.7:1+ on the wash. If
+     they should go too, they go in one line each. */
+  --ok-soft:     #3a1a1c;
+  --warn-soft:   #3a1a1c;
+  --danger-soft: #40191d;
+  --info-soft:   #3a1a1c;
+  --ok-ink:      #eedcdd;   /* 11.8:1 on the wash — the room's own voice */
+  --info-ink:    #c6a2a5;   /*  6.8:1 */
 
   /* AND THE LAMP KEEPS ITS ORANGE. See the note in the astrology block: the
      lit key is the city's wayfinding and it is the same key in all

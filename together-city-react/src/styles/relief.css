@@ -2491,6 +2491,16 @@ textarea.g-field { resize: none; line-height: 1.55; }
    atmosphere the same two lines read as a white slab pasted over the picture.
    Same rail, same radius: the light comes off it now instead of into it. */
 [data-hub="dating"] .tc-side { background: var(--frost); box-shadow: var(--e2); }
+/* THE WORDMARK IS PAINTED, NOT INHERITED. `.tc-logo` sets `color` and the mark
+   inside it carries `fill="#000"` on the path — so on every white hub it is
+   near-black by accident of agreement, and on this one it was black on
+   crimson: the city's name, invisible, in the middle of its own header. The
+   fill follows the ink here rather than the file. Scoped to this hub because
+   it is the only room whose header is not white; the day the second one
+   arrives, this becomes a rule about `.tc-logo` instead of about dating. */
+[data-hub="dating"] .tc-logo,
+[data-hub="dating"] .tc-logo svg,
+[data-hub="dating"] .tc-logo svg * { fill: var(--ink); color: var(--ink); }
 /* The rail's keys need nothing — --lens-face is already translucent white and
    already carries its own blur, so the sky arrives through them the moment the
    solid well behind them stops blocking it. */
