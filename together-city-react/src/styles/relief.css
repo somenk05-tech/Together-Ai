@@ -5406,14 +5406,20 @@ textarea.g-field { resize: none; line-height: 1.55; }
 
 /* ── MUTED INK NEVER SITS ON THE SKY ────────────────────────────────────────
    IT IS DATING'S SHADOW-AND-RESTORE, AND HERE IT CATCHES THE NARROWEST MISS IN
-   THE CITY. --muted reads 3.98 at the two shaded stops and --faint 3.49 —
-   under AA, but by a hair rather than by a mile, which is precisely the version
-   that ships unnoticed. Every other failure this apparatus has caught was
+   THE CITY — narrower still since the sky became Cloud. On the chrome ribbon
+   this replaced, --muted read 3.98 at the two shaded stops and --faint 3.49:
+   two failures. On Cloud, --muted clears at 4.56 and only --faint is left, at
+   3.99. That is under AA by four hundredths, which is precisely the version
+   that ships unnoticed — every other failure this apparatus has caught was
    obvious once measured (1.39 on entertainment's old slate, 1.09 in fitness's
-   trough); this one looks fine on any screen anybody will check it on. --ink at
-   14.57 and --ink-soft at 11.83 are safe everywhere, so the two that are not
-   are pointed at --ink-soft while they are out in the open and put back on
-   every panel, where they clear at 5.21 and 4.56.
+   trough); this one looks fine on any screen anybody will check it on.
+
+   BOTH ARE STILL SHADOWED, and the pair is kept together deliberately. --muted
+   passing today is a property of one gradient, not of the hub; splitting them
+   so that only --faint is held would mean the next re-tint of this sky has to
+   remember to rejoin them. --ink at 16.70 and --ink-soft at 13.55 are safe
+   everywhere, so both greys point at --ink-soft while they are out in the open
+   and are put back on every panel, where they clear at 5.41 and 4.73.
 
    Custom properties inherit, so re-pointing the pair inside .tc-main reaches
    every descendant — className="muted", which this hub uses a hundred and five

@@ -1299,39 +1299,40 @@
           0 1px 1px rgba(122,74,52,.30), 0 8px 20px rgba(122,74,52,.34), 0 20px 46px rgba(122,74,52,.22);
   --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
 
-  /* ── AND A SKY, WHICH IS THE PALEST ONE IN THE CITY ──────────────────────
-     Owner, 18 Aug: a chrome ribbon turning through a near-white field —
-     silver-blue, a warm gold where the light catches the inside of the curve,
-     and four-fifths of the frame simply pale. Ninth hub, same machinery:
-     --sky-image, `none` at :root and in every hub that hangs nothing on it.
+  /* ── AND A SKY: CLOUD ────────────────────────────────────────────────────
+     Owner, 21 Aug, with the swatch: CLOUD, #f4f3f0. The reference under it is
+     whipped cream — a near-white field with soft folds, the crests lit almost
+     to paper and the troughs falling to a warm cream. No blue anywhere in it.
 
-     A GRADIENT CANNOT BE A RIBBON, AND IT SHOULD NOT TRY. This is the first
-     reference that is an OBJECT rather than a field, and the honest reduction
-     is to keep what a linear sweep can actually carry: the field, its cool
-     shade where the ribbon turns away, and the warm note where it catches.
-     Chasing the S-curve would mean a photograph, and a photograph in this hub
-     costs the two things the whole file is organised to keep — colour living
-     in tokens.css, and a background with no aspect ratio to crop.
+     THIS REPLACES A CHROME RIBBON, and the replacement is the easier picture
+     to keep honest. The ribbon was an OBJECT, and a linear sweep cannot carry
+     an S-curve; what shipped was the field, its cool shade and the gold where
+     the light caught — a reduction that had to be argued for. Cream is a
+     FIELD. A gradient is the right instrument for it, and the reduction costs
+     nothing: highlight, the named tone, the trough, and the light returning.
 
-     THE WARM STOP IS THE ONE DECISION WORTH DEFENDING. #ddd6cf sits at 64%,
-     between two cool stops and at the same luminance as the cool shade before
-     it (0.639 against 0.643, which is why it reads as a turn of the light
-     rather than as a band). Take it out and this is a grey gradient; the gold
-     is the only thing in the reference that says metal rather than paper.
+     #f4f3f0 IS THE FIELD, NOT A STOP AMONG STOPS. It holds 34%–46% flat
+     because a named colour that appears for one percent of a sweep is a colour
+     nobody can point at — the swatch has to be the thing the eye settles on,
+     or the hub is not the colour it was asked to be. The crest above it and
+     the trough below it are the same tone lit and shaded, and every stop is
+     warm-neutral: the ribbon's silver-blue would read as a stain here, which
+     is exactly what the old gold read as once the field went cool.
 
-     NO GROUND, and this hub is the easiest case for it in the city: the sky is
-     so pale that --ink reads 14.57 at its worst stop and --ink-soft 11.83. The
-     city's white is still the ground, still under everything, and the picture
-     is a shade of it.
+     NO GROUND, as before, and even more easily: --ink reads 16.70 at the worst
+     stop, --ink-soft 13.55. The city's white is still under everything and
+     this picture is a shade of it.
 
-     --muted AND --faint ARE THE WHOLE COST. They run 3.98 and 3.49 at the two
-     shaded stops — the ONLY thing on this sky that fails, and it fails by a
-     hair rather than by a mile, which is the version of this that ships
-     unnoticed. On frost they clear at 5.21 and 4.56. Dating's
-     shadow-and-restore, in relief.css. */
+     IT IS ALSO A CONTRAST IMPROVEMENT, which was not the point but is worth
+     recording. The ribbon failed BOTH grey inks on its shaded stops — 3.98 and
+     3.49. Cloud carries --muted at 4.56, clear of AA, and leaves only --faint
+     at 3.99. The shadow-and-restore in relief.css already re-points both
+     inside `.tc-main` and hands them back on frost, so neither is ever set on
+     the sky; the number that matters is that the hub now has one hairline
+     failure held by that machinery instead of two. */
   --sky-image: linear-gradient(135deg,
-    #f1f3f6 0%, #e9edf2 18%, #dde4ec 34%, #cfd8e2 50%,
-    #ddd6cf 64%, #e2e7ec 78%, #eef1f5 100%);
+    #fdfcfa 0%, #f8f7f4 14%, #f4f3f0 34%, #f4f3f0 46%,
+    #eeece6 62%, #e9e5db 74%, #f1efe9 88%, #faf9f6 100%);
 }
 [data-hub="profile"] {
   --lamp-face: linear-gradient(180deg, #5f5f69 0%, #4a4a52 44%, #38383e 100%);
