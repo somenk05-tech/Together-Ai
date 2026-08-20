@@ -116,6 +116,31 @@ export interface SessionInput {
   limitations: string | null;
   /** Inputs nobody has given us yet. Named, not guessed. */
   missing: string[];
+  /**
+   * WHICH DAY OF THE WEEK'S PLAN THIS IS.
+   *
+   * Until 21 Aug the two engines did not speak. The weekly plan said "Push" and
+   * this one built a full-body session, every day, for everybody — so the page
+   * that told you Tuesday was pull day opened a workout with squats in it, and
+   * nothing in the application could have told you they disagreed. A citizen
+   * following the plan was following two plans.
+   *
+   * OPTIONAL, AND ABSENT MEANS EXACTLY WHAT IT MEANT BEFORE. Every caller that
+   * does not pass a day gets the byte-for-byte session it got yesterday, which
+   * is what lets a 232-line spec stay green through this change rather than
+   * being rewritten alongside the thing it guards.
+   *
+   * It orders the patterns; it does not choose the exercises, set the volume or
+   * touch the ceiling. A day cannot ask for more than the labs allow — that
+   * rule is older than this field and this field does not get an exception.
+   */
+  day?: {
+    title: string;
+    trains: string[];
+    /** In the order they should be reached for. Empty = not a resistance day. */
+    patterns: Pattern[];
+    kind: 'aerobic' | 'strength' | 'balance' | 'mobility' | 'recovery';
+  };
 }
 
 export interface SessionExercise {
@@ -168,6 +193,10 @@ export interface TodaySession {
     energy: string | null;
     activity: string;
     ceiling: string | null;
+    /** Which day of the week's plan this is, and what it trains. Null when the
+     *  caller did not say — the two engines were strangers until 21 Aug and a
+     *  session built without a day says so rather than inventing one. */
+    day: string | null;
     /** Inputs we did not have. The page turns each into a way to give it. */
     missing: string[];
   };
@@ -245,9 +274,19 @@ export function buildSession(input: SessionInput): TodaySession {
   const sets = Math.max(2, goal.sets + lvl.sets - (eased ? 1 : 0));
   const restSec = Math.max(30, goal.restSec + lvl.restSec + (eased ? 15 : 0));
 
-  // The order the body wants: big patterns first, then the goal's emphasis,
-  // then whatever is left to fill the budget.
+  /**
+   * The order the body wants: THE DAY'S OWN PATTERNS FIRST, then the goal's
+   * emphasis, then whatever is left to fill the budget.
+   *
+   * The tail is why this is an ORDER and not a filter. A pull day reaches for
+   * pulling first and gets as much of it as the budget allows; what it does not
+   * do is refuse to put a single leg movement in a 60-minute session because
+   * the label said "Pull". A day's name is what it emphasises, not a fence —
+   * and a fence is what would have made this change break the rule that a
+   * session never answers a constraint by removing work.
+   */
   const wanted: Pattern[] = [];
+  for (const p of input.day?.patterns ?? []) if (!wanted.includes(p)) wanted.push(p);
   for (const p of goal.emphasis) if (!wanted.includes(p)) wanted.push(p);
   for (const p of ['squat', 'hinge', 'push', 'pull', 'core', 'carry'] as Pattern[]) {
     if (!wanted.includes(p)) wanted.push(p);
@@ -305,7 +344,11 @@ export function buildSession(input: SessionInput): TodaySession {
   cautions.push('If something hurts — not burns, hurts — stop. This is a starting stimulus, not a prescription, and a physiotherapist’s instruction overrides it.');
 
   const strengthMinutes = Math.max(15, input.minutes - (eased ? 10 : 0));
-  const headline = `${strengthMinutes} min ${input.bodyGoal === 'fatLoss' ? 'strength' : 'full-body strength'} + ${walkMinutes} min walk`;
+  /* THE HEADLINE NAMES THE DAY WHEN THERE IS ONE. It said "full-body strength"
+     unconditionally, which was true while every session was full-body and
+     became a lie the moment Tuesday started leading with pulling. */
+  const dayName = input.day && input.day.kind === 'strength' ? input.day.title.toLowerCase() : null;
+  const headline = `${strengthMinutes} min ${dayName ?? (input.bodyGoal === 'fatLoss' ? 'strength' : 'full-body strength')} + ${walkMinutes} min walk`;
 
   const energy = input.kcalTarget != null
     ? `Nutrition has you at ${input.kcalTarget.toLocaleString('en-IN')} kcal today${input.proteinG ? ` and ${input.proteinG} g of protein` : ''}${input.nutritionGoal === 'lose' ? ', on a deficit' : ''}.`
@@ -316,6 +359,10 @@ export function buildSession(input: SessionInput): TodaySession {
     : heavyWeek
       ? `You have already done ${input.recent.minutesLast7} minutes across ${input.recent.sessionsLast7} sessions this week — this one is lighter on purpose.`
       : `${input.recent.sessionsLast7} session${input.recent.sessionsLast7 === 1 ? '' : 's'} and ${input.recent.minutesLast7} minutes so far this week.`;
+
+  const dayWhy = input.day
+    ? `Your plan has today as ${input.day.title} — ${input.day.trains.join(', ')} — so that is what leads.`
+    : null;
 
   const ceiling = cap !== 'vigorous'
     ? cap === 'light'
@@ -353,6 +400,7 @@ export function buildSession(input: SessionInput): TodaySession {
       energy,
       activity,
       ceiling,
+      day: dayWhy,
       missing: input.missing,
     },
     substitutions,

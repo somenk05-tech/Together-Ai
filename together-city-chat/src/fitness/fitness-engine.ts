@@ -1,4 +1,5 @@
 import { FAT_KCAL_SHARE, GOAL_DELTA, energyTarget, type Sex } from '../shared/energy';
+import type { Pattern } from './exercise-library';
 /**
  * Together City — Fitness Engine
  * ------------------------------------------------------------------
@@ -167,6 +168,29 @@ export function conditionsFromDeclared(keys: string[], source: 'records' | 'decl
 }
 
 // ─────────────────────────── weekly plan ───────────────────────────
+
+/**
+ * WHAT A DAY TRAINS, SAID OUT LOUD.
+ *
+ * A week used to be seven one-line `focus` strings, and body parts appeared in
+ * exactly one of the four modes — a citizen on `mixed` read "Full-body
+ * strength" four times and had no way to know that Tuesday and Thursday were
+ * not the same session. A trainer names the day. So does this.
+ *
+ * It is a LIST rather than a sentence because two different readers need it:
+ * the page prints it, and session-engine builds Tuesday out of it. A sentence
+ * would have to be parsed back by one of them, which is how the two come to
+ * disagree about what Tuesday is.
+ *
+ * `heart & lungs` is in here and is not a muscle, deliberately. A run trains
+ * something real and naming it "legs" to fit the shape of the list would be
+ * the plan flattering itself.
+ */
+export type Trains =
+  | 'chest' | 'back' | 'shoulders' | 'arms' | 'core'
+  | 'quads' | 'hamstrings' | 'glutes' | 'calves'
+  | 'full body' | 'heart & lungs';
+
 export interface Session {
   day: string;
   focus: string;
@@ -174,6 +198,14 @@ export interface Session {
   intensity: Intensity;
   minutes: number;
   kind: 'aerobic' | 'strength' | 'balance' | 'mobility' | 'recovery';
+  /** What this day trains. Never empty — a day with nothing to say here is a
+   *  day the citizen cannot plan around. */
+  trains: Trains[];
+  /** The movement patterns the day's session is built from, in the order they
+   *  should be reached for. Empty on a day that is not resistance work: there
+   *  is nothing for session-engine to bias, and an empty list says so rather
+   *  than a default that looks like a choice. */
+  patterns: Pattern[];
 }
 
 export interface WeeklyPlan {
@@ -203,6 +235,69 @@ const GOAL_LABEL: Record<string, string> = {
   general: 'General health', weightLoss: 'Weight loss', strength: 'Strength', endurance: 'Endurance',
 };
 
+/**
+ * THE SPLIT — WHICH BODY PART ON WHICH DAY.
+ *
+ * A trainer's week is not N copies of one session. It is a rotation chosen so
+ * that what you trained on Monday has recovered before you train it again, and
+ * the number of training days is what decides which rotation is even possible.
+ * Three days cannot be a push/pull/legs split without leaving each pattern
+ * eight days apart; six days cannot be full-body without training the same
+ * tissue six mornings running.
+ *
+ * ABILITY STILL DECIDES THE NUMBER OF DAYS (owner's call, 21 Aug) — `level.days`
+ * as before. What changed is that the number now selects a real rotation
+ * instead of a label, and it does so in EVERY mode rather than only in
+ * `strength`. `daysPerWeek` on the profile is still unread, and still visible
+ * in the form; that is a live inconsistency and it is named here rather than
+ * quietly fixed, because fixing it changes what every existing plan looks like.
+ *
+ * The patterns are what session-engine builds the day out of. A day and the
+ * workout it opens are the same day now.
+ */
+const SPLITS: Record<number, Array<{ title: string; trains: Trains[]; patterns: Pattern[] }>> = {
+  1: [{ title: 'Full body', trains: ['full body'], patterns: ['squat', 'push', 'pull', 'hinge', 'core'] }],
+  2: [
+    { title: 'Upper body', trains: ['chest', 'back', 'shoulders', 'arms'], patterns: ['push', 'pull', 'core'] },
+    { title: 'Lower body', trains: ['quads', 'hamstrings', 'glutes', 'calves'], patterns: ['squat', 'hinge', 'carry'] },
+  ],
+  3: [
+    { title: 'Full body', trains: ['full body'], patterns: ['squat', 'push', 'pull', 'hinge', 'core'] },
+    { title: 'Full body', trains: ['full body'], patterns: ['hinge', 'pull', 'push', 'squat', 'core'] },
+    { title: 'Full body', trains: ['full body'], patterns: ['push', 'squat', 'pull', 'carry', 'core'] },
+  ],
+  4: [
+    { title: 'Upper body', trains: ['chest', 'back', 'shoulders', 'arms'], patterns: ['push', 'pull', 'core'] },
+    { title: 'Lower body', trains: ['quads', 'hamstrings', 'glutes', 'calves'], patterns: ['squat', 'hinge', 'carry'] },
+    { title: 'Upper body', trains: ['back', 'shoulders', 'chest', 'arms'], patterns: ['pull', 'push', 'core'] },
+    { title: 'Lower body', trains: ['hamstrings', 'glutes', 'quads', 'calves'], patterns: ['hinge', 'squat', 'core'] },
+  ],
+  5: [
+    { title: 'Push', trains: ['chest', 'shoulders', 'arms'], patterns: ['push', 'core'] },
+    { title: 'Pull', trains: ['back', 'arms'], patterns: ['pull', 'carry'] },
+    { title: 'Legs', trains: ['quads', 'hamstrings', 'glutes', 'calves'], patterns: ['squat', 'hinge'] },
+    { title: 'Upper body', trains: ['chest', 'back', 'shoulders', 'arms'], patterns: ['push', 'pull', 'core'] },
+    { title: 'Lower body', trains: ['glutes', 'hamstrings', 'quads', 'core'], patterns: ['hinge', 'squat', 'core'] },
+  ],
+  6: [
+    { title: 'Push', trains: ['chest', 'shoulders', 'arms'], patterns: ['push', 'core'] },
+    { title: 'Pull', trains: ['back', 'arms'], patterns: ['pull', 'carry'] },
+    { title: 'Legs', trains: ['quads', 'hamstrings', 'glutes', 'calves'], patterns: ['squat', 'hinge'] },
+    { title: 'Push', trains: ['shoulders', 'chest', 'arms'], patterns: ['push', 'core'] },
+    { title: 'Pull', trains: ['back', 'core', 'arms'], patterns: ['pull', 'core'] },
+    { title: 'Legs', trains: ['glutes', 'hamstrings', 'quads', 'calves'], patterns: ['hinge', 'squat'] },
+  ],
+};
+
+/** The rotation for a number of training days, clamped to what is written. */
+export function splitFor(days: number): Array<{ title: string; trains: Trains[]; patterns: Pattern[] }> {
+  const k = Math.min(6, Math.max(1, Math.round(days)));
+  return SPLITS[k] ?? SPLITS[3];
+}
+
+/** A day of cardio still trains something, and it is not a muscle group. */
+const CARDIO_TRAINS: Trains[] = ['heart & lungs'];
+
 type BareSession = Omit<Session, 'day'>;
 
 /** Compose the training days for a modality + level, respecting the resolved intensity cap. */
@@ -212,23 +307,20 @@ function composeSessions(o: {
 }): BareSession[] {
   const { level, clamp, deload, aerobicEmphasis, lowImpact, strengthLoadNote } = o;
   const days = level.days;
-  const S = (focus: string, detail: string, intensity: Intensity, minutes: number, kind: Session['kind']): BareSession =>
-    ({ focus, detail, intensity, minutes, kind });
+  const S = (
+    focus: string, detail: string, intensity: Intensity, minutes: number,
+    kind: Session['kind'], trains: Trains[], patterns: Pattern[] = [],
+  ): BareSession => ({ focus, detail, intensity, minutes, kind, trains, patterns });
   const cardioName = lowImpact ? 'Low-impact cardio (cycle / swim)' : 'Brisk cardio';
   const out: BareSession[] = [];
+  const split = splitFor(days);
 
   if (o.mode === 'strength') {
-    // Weight-training split by level, plus cardio for heart health.
-    const splits = level.key === 'athlete'
-      ? ['Push (chest/shoulders/triceps)', 'Pull (back/biceps)', 'Legs', 'Upper power', 'Lower power', 'Accessory / arms']
-      : level.key === 'advanced'
-      ? ['Push', 'Pull', 'Legs', 'Upper', 'Lower']
-      : level.key === 'intermediate'
-      ? ['Upper body', 'Lower body', 'Full-body', 'Full-body']
-      : ['Full-body strength', 'Full-body strength', 'Full-body strength'];
+    // The rotation, plus one cardio day for the heart the weights do not train.
     for (let i = 0; i < days; i++) {
-      out.push(S(splits[i % splits.length] + ' — weights', strengthLoadNote, clamp(deload ? 'light' : 'moderate'), 45, 'strength'));
-      if (i === 1) out.push(S(cardioName, 'Zone-2 cardio for recovery & heart health', clamp(deload ? 'light' : 'moderate'), 30, 'aerobic'));
+      const d = split[i % split.length];
+      out.push(S(`${d.title} — weights`, strengthLoadNote, clamp(deload ? 'light' : 'moderate'), 45, 'strength', d.trains, d.patterns));
+      if (i === 1) out.push(S(cardioName, 'Zone-2 cardio for recovery & heart health', clamp(deload ? 'light' : 'moderate'), 30, 'aerobic', CARDIO_TRAINS));
     }
   } else if (o.mode === 'walking') {
     // Progressive walking volume; power-walk intervals for higher levels.
@@ -236,33 +328,43 @@ function composeSessions(o: {
     for (let i = 0; i < days; i++) {
       const interval = (level.key === 'advanced' || level.key === 'athlete') && i === Math.floor(days / 2);
       out.push(interval
-        ? S('Power-walk intervals', '3 min brisk / 2 min easy × 5 — hills if available', clamp('vigorous'), base, 'aerobic')
-        : S('Steady walk', `${base} min at a conversational-to-brisk pace`, clamp(deload ? 'light' : 'moderate'), base, 'aerobic'));
+        ? S('Power-walk intervals', '3 min brisk / 2 min easy × 5 — hills if available', clamp('vigorous'), base, 'aerobic', ['heart & lungs', 'calves', 'glutes'])
+        : S('Steady walk', `${base} min at a conversational-to-brisk pace`, clamp(deload ? 'light' : 'moderate'), base, 'aerobic', ['heart & lungs', 'calves']));
     }
-    out.push(S('Full-body strength', '2 sets of 8–12, supports posture & bone', clamp('moderate'), 25, 'strength'));
+    // The one resistance day a walking week gets is full-body on purpose: it is
+    // the only session there is, and a split needs more than one day to be one.
+    out.push(S('Full-body strength', '2 sets of 8–12, supports posture & bone', clamp('moderate'), 25, 'strength', ['full body'], ['squat', 'push', 'pull', 'hinge', 'core']));
   } else if (o.mode === 'running') {
     // Run plan scaled to level: walk-run → continuous → tempo/interval/long.
+    const runs: Trains[] = ['heart & lungs', 'quads', 'calves'];
     if (level.key === 'basic' || level.key === 'beginner') {
-      for (let i = 0; i < days; i++) out.push(S('Walk–run intervals', 'Run 1 min / walk 2 min × 8 (build the run portion weekly)', clamp(deload ? 'light' : 'moderate'), 30, 'aerobic'));
+      for (let i = 0; i < days; i++) out.push(S('Walk–run intervals', 'Run 1 min / walk 2 min × 8 (build the run portion weekly)', clamp(deload ? 'light' : 'moderate'), 30, 'aerobic', runs));
     } else if (level.key === 'intermediate') {
-      out.push(S('Easy run', 'Continuous easy pace', clamp('moderate'), 35, 'aerobic'));
-      out.push(S('Tempo run', 'Comfortably-hard middle 20 min', clamp('vigorous'), 40, 'aerobic'));
-      out.push(S('Long run', 'Slow, longer distance', clamp('moderate'), 55, 'aerobic'));
-      out.push(S('Easy run', 'Recovery pace', clamp('moderate'), 30, 'aerobic'));
+      out.push(S('Easy run', 'Continuous easy pace', clamp('moderate'), 35, 'aerobic', runs));
+      out.push(S('Tempo run', 'Comfortably-hard middle 20 min', clamp('vigorous'), 40, 'aerobic', runs));
+      out.push(S('Long run', 'Slow, longer distance', clamp('moderate'), 55, 'aerobic', runs));
+      out.push(S('Easy run', 'Recovery pace', clamp('moderate'), 30, 'aerobic', runs));
     } else {
-      out.push(S('Interval session', '6–8 × 800 m at 5K effort, jog recovery', clamp('vigorous'), 50, 'aerobic'));
-      out.push(S('Easy run', 'Aerobic base', clamp('moderate'), 45, 'aerobic'));
-      out.push(S('Tempo run', 'Threshold effort 25–30 min', clamp('vigorous'), 50, 'aerobic'));
-      out.push(S('Easy run', 'Recovery pace', clamp('moderate'), 35, 'aerobic'));
-      out.push(S('Long run', 'Endurance builder', clamp('moderate'), 75, 'aerobic'));
-      if (level.key === 'athlete') out.push(S('Hill / strides', 'Short hill repeats + strides', clamp('vigorous'), 40, 'aerobic'));
+      out.push(S('Interval session', '6–8 × 800 m at 5K effort, jog recovery', clamp('vigorous'), 50, 'aerobic', runs));
+      out.push(S('Easy run', 'Aerobic base', clamp('moderate'), 45, 'aerobic', runs));
+      out.push(S('Tempo run', 'Threshold effort 25–30 min', clamp('vigorous'), 50, 'aerobic', runs));
+      out.push(S('Easy run', 'Recovery pace', clamp('moderate'), 35, 'aerobic', runs));
+      out.push(S('Long run', 'Endurance builder', clamp('moderate'), 75, 'aerobic', runs));
+      if (level.key === 'athlete') out.push(S('Hill / strides', 'Short hill repeats + strides', clamp('vigorous'), 40, 'aerobic', runs));
     }
-    out.push(S('Runner strength', 'Single-leg, core & glute work', clamp('moderate'), 30, 'strength'));
+    out.push(S('Runner strength', 'Single-leg, core & glute work', clamp('moderate'), 30, 'strength', ['glutes', 'hamstrings', 'core'], ['hinge', 'squat', 'core']));
   } else {
-    // mixed / balanced
+    // mixed / balanced — the resistance days take the rotation too, which is the
+    // change a citizen on the default mode actually feels: four identical
+    // "Full-body strength" lines become Upper, Lower, Upper, Lower.
+    let s = 0;
     for (let i = 0; i < days; i++) {
-      if (i % 2 === 0) out.push(S('Full-body strength', strengthLoadNote, clamp(deload ? 'light' : 'moderate'), 40, 'strength'));
-      else out.push(S(cardioName, aerobicEmphasis ? 'Steady moderate effort — a key session for your labs' : (o.cap === 'vigorous' && !deload ? 'Intervals / conditioning' : 'Sustained moderate effort'), clamp(deload ? 'light' : (o.cap === 'vigorous' && !aerobicEmphasis ? 'vigorous' : 'moderate')), 35, 'aerobic'));
+      if (i % 2 === 0) {
+        const d = split[s++ % split.length];
+        out.push(S(d.title, strengthLoadNote, clamp(deload ? 'light' : 'moderate'), 40, 'strength', d.trains, d.patterns));
+      } else {
+        out.push(S(cardioName, aerobicEmphasis ? 'Steady moderate effort — a key session for your labs' : (o.cap === 'vigorous' && !deload ? 'Intervals / conditioning' : 'Sustained moderate effort'), clamp(deload ? 'light' : (o.cap === 'vigorous' && !aerobicEmphasis ? 'vigorous' : 'moderate')), 35, 'aerobic', CARDIO_TRAINS));
+      }
     }
   }
   return out.slice(0, 6); // leave room for balance/mobility/recovery
@@ -328,12 +430,14 @@ export function buildPlan(input: {
 
   // Age: older adults get balance/functional sessions (fall prevention)
   if (addBalance && !plan.some((p) => p.kind === 'balance')) {
-    plan.push({ focus: 'Balance & functional', detail: 'Standing balance, sit-to-stand, step-ups — fall prevention', intensity: 'light', minutes: 25, kind: 'balance' });
+    plan.push({ focus: 'Balance & functional', detail: 'Standing balance, sit-to-stand, step-ups — fall prevention', intensity: 'light', minutes: 25, kind: 'balance', trains: ['glutes', 'quads', 'core'], patterns: ['squat', 'carry'] });
   }
   if (!plan.some((p) => p.kind === 'mobility')) {
-    plan.push({ focus: 'Mobility & stretch', detail: 'Full-body mobility and breathing', intensity: 'light', minutes: 20, kind: 'mobility' });
+    plan.push({ focus: 'Mobility & stretch', detail: 'Full-body mobility and breathing', intensity: 'light', minutes: 20, kind: 'mobility', trains: ['full body'], patterns: ['mobility'] });
   }
-  while (plan.length < 7) plan.push({ focus: 'Rest / active recovery', detail: 'Walk, light stretch, sleep', intensity: 'light', minutes: 0, kind: 'recovery' });
+  // A rest day trains recovery, and saying so is not a joke — it is the line
+  // that stops a citizen reading a blank Sunday as the plan running out.
+  while (plan.length < 7) plan.push({ focus: 'Rest / active recovery', detail: 'Walk, light stretch, sleep', intensity: 'light', minutes: 0, kind: 'recovery', trains: ['full body'], patterns: [] });
   for (let i = 0; i < 7; i++) sessions.push({ day: week[i], ...plan[i % plan.length] });
 
   // Habits (condition-driven daily practices)

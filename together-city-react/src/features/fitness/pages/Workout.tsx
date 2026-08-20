@@ -387,6 +387,14 @@ export function Workout() {
         {session && (
           <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid var(--accent)' }}>
             <div className="eyebrow">Why this workout</div>
+            {/* WHICH DAY OF THE WEEK THIS IS, FIRST. The plan said "Tuesday —
+                Pull" and this page opened a full-body session; the two engines
+                did not speak until 21 Aug. This line is the join, and it is at
+                the top of the explanation because it is the thing a citizen
+                following a plan checks first. */}
+            {session.why.day && (
+              <p style={{ fontSize: 13.5, lineHeight: 1.6, margin: '6px 0 0', fontWeight: 600 }}>{session.why.day}</p>
+            )}
             <p style={{ fontSize: 13.5, lineHeight: 1.6, margin: '6px 0 0' }}>{session.why.goal}</p>
             {session.why.energy && <p style={{ fontSize: 13.5, lineHeight: 1.6, margin: '6px 0 0' }}>{session.why.energy}</p>}
             <p style={{ fontSize: 13.5, lineHeight: 1.6, margin: '6px 0 0' }}>{session.why.activity}</p>

@@ -1,4 +1,4 @@
-import { computeBodyProgram, BODY_GOALS } from './fitness-engine';
+import { buildPlan, computeBodyProgram, BODY_GOALS } from './fitness-engine';
 import { ACTIVITY_FACTORS, ENERGY_FLOOR, MAX_DAILY_DELTA } from '../shared/energy';
 
 /**
@@ -88,5 +88,73 @@ describe('the recorded behaviours, now changed', () => {
     // A big, very active body on fatLoss requests far more than 550 kcal/day.
     const big = computeBodyProgram({ age: 30, sex: 'male', heightCm: 190, weightKg: 120, activity: ACTIVITY_FACTORS.veryActive, bodyGoal: 'fatLoss' });
     expect(big.tdee! - big.calorieTarget!).toBeLessThanOrEqual(MAX_DAILY_DELTA + 1); // ±1 for rounding
+  });
+});
+
+/**
+ * A WEEK NAMES WHAT IT TRAINS, ON EVERY DAY, IN EVERY MODE.
+ *
+ * `buildPlan` was the least-tested thing in this hub — this file did not import
+ * it — and it showed: body parts appeared in exactly one of the four modes, so
+ * a citizen on the default `mixed` read "Full-body strength" four times and had
+ * no way to know Tuesday and Thursday were not the same session. A trainer
+ * names the day.
+ *
+ * ABILITY STILL DECIDES HOW MANY DAYS (owner's call, 21 Aug). What the number
+ * of days now decides is WHICH ROTATION — three days cannot be push/pull/legs
+ * without leaving each pattern eight days apart, and six cannot be full-body
+ * without training the same tissue six mornings running.
+ */
+describe('the week is a split, and it says so', () => {
+  const plan = (over: Partial<Parameters<typeof buildPlan>[0]> = {}) => buildPlan({
+    age: 34, sex: 'male', level: 'intermediate', goal: 'general', mode: 'mixed',
+    labConditions: [], declaredConditions: [], usedLabs: false, ...over,
+  });
+
+  it('gives every one of the seven days something to say', () => {
+    for (const mode of ['mixed', 'strength', 'walking', 'running']) {
+      for (const s of plan({ mode }).sessions) {
+        expect({ mode, day: s.day, trains: s.trains.length }).toEqual({ mode, day: s.day, trains: expect.any(Number) });
+        expect(s.trains.length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('names muscles on the resistance days of every mode, not only strength', () => {
+    // This is the bug in one line: `mixed` used to name none.
+    for (const mode of ['mixed', 'strength']) {
+      const lifts = plan({ mode }).sessions.filter((s) => s.kind === 'strength');
+      expect(lifts.length).toBeGreaterThan(0);
+      expect(lifts.some((s) => s.trains.some((t) => t !== 'full body' && t !== 'heart & lungs'))).toBe(true);
+    }
+  });
+
+  it('does not call a run a leg day', () => {
+    // A day trains something real. Naming a tempo run "legs" to make the list
+    // look uniform would be the plan flattering itself.
+    const runs = plan({ mode: 'running', level: 'advanced' }).sessions.filter((s) => s.kind === 'aerobic');
+    expect(runs.length).toBeGreaterThan(0);
+    for (const r of runs) expect(r.trains).toContain('heart & lungs');
+  });
+
+  it('rotates rather than repeating: more days means a real split', () => {
+    const four = plan({ mode: 'strength', level: 'intermediate' }).sessions.filter((s) => s.kind === 'strength');
+    const six = plan({ mode: 'strength', level: 'athlete' }).sessions.filter((s) => s.kind === 'strength');
+    expect(new Set(four.map((s) => s.focus)).size).toBeGreaterThan(1);
+    expect(new Set(six.map((s) => s.focus)).size).toBeGreaterThan(2);
+  });
+
+  it('hands the session engine something to build the day out of', () => {
+    // `patterns` is the contract between the two engines. A resistance day with
+    // an empty list would send session-engine back to full-body, silently.
+    for (const s of plan({ mode: 'strength', level: 'advanced' }).sessions) {
+      if (s.kind === 'strength') expect(s.patterns.length).toBeGreaterThan(0);
+      else if (s.kind === 'aerobic') expect(s.patterns).toEqual([]);
+    }
+  });
+
+  it('still gives ability the number of days', () => {
+    const training = (level: string) => plan({ mode: 'strength', level }).sessions.filter((s) => s.kind === 'strength').length;
+    expect(training('basic')).toBeLessThan(training('athlete'));
   });
 });

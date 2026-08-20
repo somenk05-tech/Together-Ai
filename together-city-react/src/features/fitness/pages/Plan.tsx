@@ -39,6 +39,16 @@ function DayRow({ s }: { s: Session }) {
       <span style={{ fontSize: 20 }}>{kindIcon[s.kind]}</span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 700, fontSize: 14 }}>{s.focus}</div>
+        {/* WHAT THE DAY TRAINS, ON THE ROW ITSELF. A week of four lines reading
+            "Full-body strength" is not a plan somebody can follow — it is the
+            same sentence four times. The engine names the day now; this is the
+            line that shows it. Rest days say "recovery" rather than nothing,
+            because a blank Sunday reads as the plan running out. */}
+        {s.trains?.length > 0 && (
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent-ink)', letterSpacing: '.01em', margin: '2px 0 1px' }}>
+            {s.kind === 'recovery' ? 'Recovery' : s.trains.join(' · ')}
+          </div>
+        )}
         <div className="muted" style={{ fontSize: 12.5 }}>{s.detail}</div>
       </div>
       {s.minutes > 0 && <span className="muted" style={{ fontSize: 12 }}>{s.minutes}m</span>}
@@ -106,6 +116,21 @@ export function Plan() {
       <div className="card" style={{ marginTop: 16 }}>
         <div className="eyebrow">Your 7-day plan</div>
         {p.sessions.map((s) => <DayRow key={s.day} s={s} />)}
+        {/* THE PROMISE, AND WHAT MAKES IT TRUE. A trainer's plan is not a
+            document, it is the first version of one — and a page that says so
+            has to be able to point at the thing that changes it. What changes
+            it today is the profile and the log: ability sets the days, the log
+            eases a heavy week, and Nutrition's target explains the session.
+            The weekly check-in that reads a weigh-in and how the week actually
+            FELT is the next piece of this and is not built yet, so this says
+            what it does rather than what it will do. */}
+        <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.65, margin: '14px 0 0', paddingTop: 12, borderTop: '1px solid var(--line)' }}>
+          This is week one of your plan, not a fixed programme. Keep your{' '}
+          <Link to="/fitness/log">workout log</Link> and your{' '}
+          <Link to="/fitness/profile">training profile</Link> current — weight, ability, days you can
+          train — and the week rebuilds around them: a heavy week is eased on purpose, and a ceiling
+          from your labs is never raised by anything you tell it.
+        </p>
       </div>
 
       {p.habits.length > 0 && (

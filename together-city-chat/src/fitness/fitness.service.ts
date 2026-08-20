@@ -13,7 +13,7 @@ import {
   type ConditionAdjustment,
 } from './fitness-engine';
 import { buildSession, type LevelKey, type BodyGoalKey, type SessionInput, type Intensity } from './session-engine';
-import { EQUIPMENT_KEYS, type Condition, type Equipment } from './exercise-library';
+import { EQUIPMENT_KEYS, type Condition, type Equipment , type Pattern } from './exercise-library';
 import type { SaveFitnessProfileDto, LogWorkoutDto, EditWorkoutDto, TodaySessionQueryDto } from './dto/fitness.dto';
 
 const DEFAULT_PROFILE = {
@@ -184,6 +184,36 @@ export class FitnessService {
     const plan = await this.plan(userId).catch(swallowed('fitness.session.plan', null));
     const intensityCap = ((plan as { intensityCap?: string } | null)?.intensityCap ?? 'moderate') as Intensity;
 
+    /**
+     * AND TODAY'S DAY OUT OF THE SAME PLAN.
+     *
+     * The ceiling came from the week and nothing else did, so the plan could
+     * say "Tuesday: Pull" while this built a full-body session with squats in
+     * it — and no screen in the application would have shown the two
+     * disagreeing. They are the same day now.
+     *
+     * MONDAY-FIRST, BECAUSE THE PLAN IS. `sessions` is built over
+     * ['Mon'…'Sun'], and Date#getDay is Sunday-first; reading the array with
+     * getDay() directly would hand a citizen Sunday's rest day on a Monday
+     * morning, which is the sort of off-by-one that looks like the feature
+     * simply not working.
+     *
+     * A DAY THE PLAN CANNOT PRODUCE IS NOT INVENTED. If the plan failed to
+     * build, or is an older shape with no `patterns` on it, this stays
+     * undefined and the session is exactly what it was before.
+     */
+    const sessions = (plan as { sessions?: Array<{ day: string; focus: string; kind: string; trains?: string[]; patterns?: string[] }> } | null)?.sessions;
+    const todayIdx = (new Date().getDay() + 6) % 7;   // Mon = 0
+    const planDay = sessions?.[todayIdx];
+    const day = planDay && Array.isArray(planDay.patterns)
+      ? {
+        title: planDay.focus.replace(/ — weights$/, ''),
+        trains: planDay.trains ?? [],
+        patterns: planDay.patterns as Pattern[],
+        kind: planDay.kind as NonNullable<SessionInput['day']>['kind'],
+      }
+      : undefined;
+
     // The medical records' conditions count exactly as the declared ones do —
     // a citizen who wrote their arthritis into their records has told us.
     const recordKeys = await this.recordConditions(userId).catch(swallowed('fitness.session.records', [] as string[]));
@@ -206,6 +236,7 @@ export class FitnessService {
     if (profile.daysPerWeek == null) missing.push('how many days a week you can train');
 
     const input: SessionInput = {
+      day,
       minutes: q.minutes ?? profile.sessionMinutes ?? 45,
       location: (q.place ?? profile.place ?? 'home') as 'home' | 'gym',
       // At a gym, the machines and the bars are there whether or not anybody

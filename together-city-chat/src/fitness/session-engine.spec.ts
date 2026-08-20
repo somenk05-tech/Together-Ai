@@ -230,3 +230,72 @@ describe('the session is built, not looked up', () => {
     expect(buildSession(at({}))).toEqual(buildSession(at({})));
   });
 });
+
+/**
+ * THE WEEK AND THE DAY ARE THE SAME DAY.
+ *
+ * Until 21 Aug the two engines did not speak: the weekly plan said "Tuesday —
+ * Pull" and this one built a full-body session for everybody, every day. A
+ * citizen following the plan was following two plans, and no screen in the
+ * application could have shown them disagreeing.
+ *
+ * The rule this adds is narrow on purpose. A day ORDERS the patterns. It does
+ * not choose the exercises, set the volume, or touch the ceiling — those were
+ * decided by rules older than this field, and a day gets no exception to any
+ * of them.
+ */
+describe('today follows the week it belongs to', () => {
+  const day = (title: string, patterns: string[]) =>
+    ({ title, trains: ['back', 'arms'], patterns, kind: 'strength' }) as NonNullable<SessionInput['day']>;
+  const work = (s: ReturnType<typeof buildSession>) =>
+    s.blocks.find((b) => b.title === 'The work')!.exercises;
+  const built = (over: Partial<SessionInput>) => buildSession(at(over));
+
+  it('leads with the day\u2019s own patterns', () => {
+    expect(work(built({ minutes: 45, day: day('Pull', ['pull', 'carry']) }))[0].pattern).toBe('pull');
+  });
+
+  it('gives two different days two different sessions', () => {
+    const pull = work(built({ minutes: 45, day: day('Pull', ['pull', 'carry']) }));
+    const legs = work(built({ minutes: 45, day: day('Legs', ['squat', 'hinge']) }));
+    expect(pull.map((e) => e.id)).not.toEqual(legs.map((e) => e.id));
+    expect(legs[0].pattern === 'squat' || legs[0].pattern === 'hinge').toBe(true);
+  });
+
+  it('emphasises rather than fences \u2014 a long day still fills its budget', () => {
+    // The failure this rules out is a "Pull day" answering a 60-minute session
+    // with two exercises because only two were on the label. Removing work to
+    // satisfy a constraint is the one thing this engine never does.
+    const long = work(built({ minutes: 60, day: day('Pull', ['pull']) }));
+    expect(long.length).toBeGreaterThan(2);
+    expect(new Set(long.map((e) => e.pattern)).size).toBeGreaterThan(1);
+  });
+
+  it('names the day in the headline and in the explanation', () => {
+    const s = built({ minutes: 45, day: day('Pull', ['pull']) });
+    expect(s.headline).toContain('pull');
+    expect(s.why.day).toContain('Pull');
+    expect(s.why.day).toContain('back');
+  });
+
+  it('says nothing about a day it was not given', () => {
+    // A session built without a week must not invent one \u2014 which is also what
+    // keeps every test above this block describing the same engine.
+    expect(built({ minutes: 45 }).why.day).toBeNull();
+  });
+
+  it('changes nothing else about the session', () => {
+    const without = built({ minutes: 45 });
+    const withDay = built({ minutes: 45, day: day('Pull', ['pull']) });
+    expect(withDay.minutes).toBe(without.minutes);
+    expect(withDay.intensity).toBe(without.intensity);
+    expect(work(withDay).length).toBe(work(without).length);
+    expect(work(withDay)[0].sets).toBe(work(without)[0].sets);
+  });
+
+  it('never lets a day raise the ceiling', () => {
+    const capped = built({ minutes: 45, intensityCap: 'light', day: day('Legs', ['squat', 'hinge']) });
+    expect(capped.intensity).toBe('light');
+    expect(capped.eased).toBe(true);
+  });
+});

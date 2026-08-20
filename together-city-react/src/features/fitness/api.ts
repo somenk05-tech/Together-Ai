@@ -40,6 +40,13 @@ export interface BodyProgram {
 export interface Session {
   day: string; focus: string; detail: string; intensity: Intensity; minutes: number;
   kind: 'aerobic' | 'strength' | 'balance' | 'mobility' | 'recovery';
+  /** What this day trains, in the engine's own words. Never empty — a day with
+   *  nothing to say here is a day nobody can plan around. */
+  trains: string[];
+  /** The movement patterns today's session is built from. Empty on a day that
+   *  is not resistance work. The page does not render this; it is the contract
+   *  between the two engines and it is typed here so it cannot be dropped. */
+  patterns: string[];
 }
 export interface ConditionAdjustment {
   key: string; source: 'labs' | 'records' | 'declared'; title: string; detail: string; effect: string; citations: Citation[];
@@ -193,7 +200,7 @@ export interface TodaySession {
   walkMinutes: number;
   intensity: Intensity;
   blocks: { title: string; note?: string; exercises: SessionExercise[] }[];
-  why: { goal: string; energy: string | null; activity: string; ceiling: string | null; missing: string[] };
+  why: { goal: string; energy: string | null; activity: string; ceiling: string | null; day: string | null; missing: string[] };
   substitutions: { from: string; to: string; because: string }[];
   cautions: string[];
   /** True when the session was made shorter or gentler on purpose. */
