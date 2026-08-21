@@ -103,6 +103,11 @@ export interface ProductRoutineStep {
    *  and then to a category mark rather than showing a broken frame. */
   image: string; imageAlt: string; productUrl: string;
   instructions: string; frequency: string; warnings: string[];
+  /** A step the citizen told us they already have. No product, no price, no
+   *  bag — it holds its position in the order and says why there is nothing
+   *  to buy. Without it the sequence simply omitted the step. */
+  owned?: true;
+  ownedWhy?: string;
 }
 export interface ProductRoutine {
   timeOfDay: 'morning' | 'evening' | 'weekly' | 'body';
@@ -179,6 +184,8 @@ export interface CategoryPlan {
   /** The most this profile can absorb without taking a worse-matched product. */
   usefulMaxInr: number;
   leftOut: { role: string; tier: RoutineTier; why: string }[];
+  /** Findings this routine does not answer. Reported, never acted on. */
+  uncoveredNeeds: string[];
   upgrades: RoutinePick[];
 }
 export interface BudgetPlan {

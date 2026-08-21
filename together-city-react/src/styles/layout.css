@@ -1639,6 +1639,19 @@
   background: var(--card);
   font-size: 11px; font-weight: 800;
 }
+/* ── A STEP THE CITIZEN ALREADY OWNS ────────────────────────────────────────
+   No well, because there is no photograph: we did not choose a product for this
+   step, and a 210px studio panel with nothing in it is the page pretending we
+   did. It is a card in the same grid, at the same width, so the sequence still
+   reads as one column of numbered steps — and it is quieter than the ones
+   around it, because it is the one step that asks nothing of anybody. */
+.routine-card.is-owned {
+  border: 1px dashed var(--line);
+  border-radius: var(--r-2);
+  background: transparent;
+  justify-content: center;
+  min-height: 96px;
+}
 .routine-body { padding: 13px 15px 15px; display: flex; flex-direction: column; gap: 7px; flex: 1; }
 .routine-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 /* TWO LINES' WORTH WHETHER IT USES THEM OR NOT. "Suganda 10% Niacinamide Face
