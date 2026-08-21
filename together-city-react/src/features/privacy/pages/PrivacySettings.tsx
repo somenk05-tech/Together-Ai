@@ -9,7 +9,7 @@ import { PERMISSIONS, SENSITIVE_HUBS } from '../consent.config';
 function Toggle({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) {
   return (
     <button type="button" onClick={onClick} aria-pressed={on} aria-label={`${label}: ${on ? 'on' : 'off'}`}
-      style={{ width: 46, height: 26, borderRadius: 999, border: 'none', cursor: 'pointer',
+      style={{ width: 46, height: 26, borderRadius: 'var(--r-full)', border: 'none', cursor: 'pointer',
         background: on ? 'var(--accent)' : 'var(--line)', position: 'relative', transition: 'background .15s', flexShrink: 0 }}>
       <span style={{ position: 'absolute', top: 3, left: on ? 23 : 3, width: 20, height: 20, borderRadius: '50%', background: 'var(--card)', transition: 'left .15s' }} />
     </button>
@@ -49,7 +49,7 @@ export function PrivacySettings() {
       {PERMISSIONS.map((p) => (
         <div key={p.key} className="card" style={{ marginBottom: 10, display: 'flex', gap: 14, alignItems: 'center' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: 14.5 }}>{p.label}</div>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>{p.label}</div>
             <div className="muted" style={{ fontSize: 12.5, marginTop: 2, lineHeight: 1.5 }}>{p.desc}</div>
           </div>
           <Toggle on={Boolean(prefs[p.key])} onClick={() => toggle(p.key)} label={p.label} />

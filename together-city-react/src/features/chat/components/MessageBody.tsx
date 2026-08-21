@@ -42,12 +42,12 @@ function Attachment({ a, mine }: { a: MediaAttachment; mine: boolean }) {
     return (
       <a href={a.url} target="_blank" rel="noreferrer" style={{ display: 'block', maxWidth: 260 }}>
         <img src={a.thumbUrl || a.url} alt={a.name ?? 'Shared photo'} loading="lazy"
-          style={{ width: '100%', borderRadius: 14, display: 'block', background: 'var(--stage-tile)' }} />
+          style={{ width: '100%', borderRadius: 'var(--r-2)', display: 'block', background: 'var(--stage-tile)' }} />
       </a>
     );
   }
   if (a.kind === 'video') {
-    return <video src={a.url} controls preload="metadata" style={{ maxWidth: 260, width: '100%', borderRadius: 14, display: 'block' }} />;
+    return <video src={a.url} controls preload="metadata" style={{ maxWidth: 260, width: '100%', borderRadius: 'var(--r-2)', display: 'block' }} />;
   }
   if (a.kind === 'audio') {
     return (
@@ -185,7 +185,7 @@ export function MessageBody({ m, mine, currentUserId, peerName, onJump, onReact,
 const QUOTE: React.CSSProperties = {
   display: 'block', maxWidth: 320,
   background: 'var(--stage-tile)', borderLeft: '3px solid var(--on-stage-faint)',
-  borderRadius: 10, padding: '6px 10px', marginBottom: 4,
+  borderRadius: 'var(--r-1)', padding: '6px 10px', marginBottom: 4,
 };
 const QUOTE_WHO: React.CSSProperties = {
   display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--on-stage-soft)',

@@ -352,7 +352,7 @@ export function AstroTarot() {
 
       {/* ── Paid spreads ── */}
       <Card className="rise" style={{ padding: '24px 26px', marginBottom: 22 }}>
-        <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, marginBottom: 4 }}>Ask the Cards</h3>
+        <h3 style={{ fontFamily: 'var(--serif)', fontSize: 17, marginBottom: 4 }}>Ask the Cards</h3>
         <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.6, marginBottom: 16 }}>
           Bring a real question — the cards answer situations better than they answer yes or no.
         </p>
@@ -362,10 +362,10 @@ export function AstroTarot() {
             <button key={o.kind} type="button" onClick={() => pickSpread(o.kind as 'three' | 'celtic')}
               style={{
                 flex: '1 1 220px', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
-                padding: '14px 16px', borderRadius: 14, background: kind === o.kind ? 'var(--accent-soft)' : 'var(--paper)',
+                padding: '14px 16px', borderRadius: 'var(--r-2)', background: kind === o.kind ? 'var(--accent-soft)' : 'var(--paper)',
                 border: `1.5px solid ${kind === o.kind ? 'var(--accent)' : 'var(--line)'}`,
               }}>
-              <div style={{ fontSize: 14.5, fontWeight: 700, marginBottom: 3 }}>{o.name}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 3 }}>{o.name}</div>
               <div className="muted" style={{ fontSize: 12.5 }}>{o.cards} cards · {o.priceInr ? `₹${o.priceInr}` : 'Free'}</div>
             </button>
           ))}
@@ -452,7 +452,7 @@ export function AstroTarot() {
       {result && (
         <Card className="rise" style={{ padding: '24px 26px', marginBottom: 22 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
-            <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, margin: 0 }}>{result.spreadName}</h3>
+            <h3 style={{ fontFamily: 'var(--serif)', fontSize: 17, margin: 0 }}>{result.spreadName}</h3>
             <span className="muted" style={{ fontSize: 12.5 }}>just drawn</span>
           </div>
           {result.question && <p style={{ fontSize: 14, fontStyle: 'italic', margin: '6px 0 6px' }}>“{result.question}”</p>}
@@ -467,7 +467,7 @@ export function AstroTarot() {
       )}
 
       {/* ── Archive ── */}
-      <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, margin: '26px 0 12px' }}>My Readings</h3>
+      <h3 style={{ fontFamily: 'var(--serif)', fontSize: 17, margin: '26px 0 12px' }}>My Readings</h3>
       {history.isLoading && <Spinner label="Loading your readings…" />}
       {history.data?.length === 0 && (
         <EmptyState icon="🂠" title="No readings yet" hint="Your Card of the Day and every spread you draw are kept here." />

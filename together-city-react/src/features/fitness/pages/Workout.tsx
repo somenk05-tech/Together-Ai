@@ -289,7 +289,7 @@ export function Workout() {
   }, [log]);
 
   const Seg = ({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) => (
-    <button type="button" onClick={onClick} style={{ border: `1px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'var(--card)', color: on ? 'var(--on-accent)' : 'var(--ink)', borderRadius: 999, padding: '8px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>{children}</button>
+    <button type="button" onClick={onClick} style={{ border: `1px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'var(--card)', color: on ? 'var(--on-accent)' : 'var(--ink)', borderRadius: 'var(--r-full)', padding: '8px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>{children}</button>
   );
   const exRow = (i: number, name: string, meta: string, tgt: string) => (
     <div key={`${name}-${i}`} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '9px 4px', borderBottom: '1px solid var(--line)' }}>
@@ -309,7 +309,7 @@ export function Workout() {
       </div>
 
       <div style={{ marginBottom: 14 }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 13, padding: '6px 14px', borderRadius: 999, background: STATUS_STYLE[tStatus].bg, color: STATUS_STYLE[tStatus].c }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 13, padding: '6px 14px', borderRadius: 'var(--r-full)', background: STATUS_STYLE[tStatus].bg, color: STATUS_STYLE[tStatus].c }}>
           {tStatus === 'rest' ? '○' : tStatus === 'none' ? '✕' : '✓'} {STATUS_LABEL[tStatus]}{today && today.kcal ? ` · ${inr(today.kcal)} kcal` : ''}
         </span>
       </div>
@@ -484,7 +484,7 @@ export function Workout() {
         <div className="card">
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {weekCells.map((c, i) => (
-              <div key={i} style={{ flex: 1, minWidth: 52, textAlign: 'center', border: '1px solid var(--line)', borderRadius: 10, padding: '9px 4px' }}>
+              <div key={i} style={{ flex: 1, minWidth: 52, textAlign: 'center', border: '1px solid var(--line)', borderRadius: 'var(--r-1)', padding: '9px 4px' }}>
                 <div style={{ fontSize: 10.5, color: 'var(--muted)' }}>{c.day}</div>
                 <div style={{ width: 14, height: 14, borderRadius: '50%', margin: '6px auto 3px', background: DOT_COLOR[c.status] ?? 'var(--line)' }} />
                 <div style={{ fontSize: 10, color: 'var(--ink-soft)' }}>{c.kcal}</div>
@@ -513,7 +513,7 @@ export function Workout() {
             <div style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(30px,7vw,54px)', lineHeight: 1.1 }}>{s.rest ? 'Rest' : s.name}</div>
             <div style={{ fontSize: 20, color: 'var(--ok-line)', fontWeight: 700 }}>{s.walk ? s.note : s.note ? `Target ${s.note}` : s.reps ? `Target ${s.reps} reps` : s.rest ? 'Recover' : `Hold / go for ${mmss(s.dur)}`}</div>
             <div style={{ fontSize: 'clamp(52px,16vw,120px)', fontWeight: 700, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.02em' }}>{mmss(rt.current.remain)}</div>
-            <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,.15)', overflow: 'hidden', marginTop: 8, width: 240 }}>
+            <div style={{ height: 6, borderRadius: 'var(--r-full)', background: 'rgba(255,255,255,.15)', overflow: 'hidden', marginTop: 8, width: 240 }}>
               <div style={{ height: '100%', background: 'var(--ok-line)', width: `${s.dur ? Math.round((1 - rt.current.remain / s.dur) * 100) : 0}%` }} />
             </div>
             <div style={{ fontSize: 13, color: 'rgba(255,255,255,.6)' }}>{next ? `Up next: ${next.rest ? 'Rest' : next.name}` : 'Last one!'}</div>
@@ -562,4 +562,4 @@ export function Workout() {
   );
 }
 
-const ctrl: React.CSSProperties = { borderRadius: 999, padding: '12px 20px', fontSize: 14, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(255,255,255,.35)', background: 'transparent', color: 'var(--on-accent)' };
+const ctrl: React.CSSProperties = { borderRadius: 'var(--r-full)', padding: '12px 20px', fontSize: 14, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(255,255,255,.35)', background: 'transparent', color: 'var(--on-accent)' };

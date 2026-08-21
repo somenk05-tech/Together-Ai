@@ -316,7 +316,7 @@ export function Supplements() {
             return (
               <section key={b.id} style={{ marginBottom: 26 }}>
                 <div className="blk-head">
-                  <h2 style={{ fontSize: 19 }}><span aria-hidden>{b.dot}</span> {b.title}</h2>
+                  <h2 style={{ fontSize: 20 }}><span aria-hidden>{b.dot}</span> {b.title}</h2>
                   <span className="muted" style={{ fontSize: 12 }}>{b.blurb}</span>
                 </div>
                 {items.map((r) => (

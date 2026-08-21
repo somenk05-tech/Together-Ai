@@ -79,7 +79,7 @@ const KIND_LABEL: Record<Kind, string> = { house: 'Houses', office: 'Offices', s
 
 interface Listing { id: string; kind: Kind; fields: Record<string, string>; desc: string; asking: string; perSqft: string; photos: Photo[] }
 
-const inputS = { width: '100%', border: '1px solid var(--line)', borderRadius: 10, padding: '12px 14px', fontSize: 14, background: 'var(--card)', color: 'var(--ink)', fontFamily: 'inherit', outline: 'none' } as const;
+const inputS = { width: '100%', border: '1px solid var(--line)', borderRadius: 'var(--r-1)', padding: '12px 14px', fontSize: 14, background: 'var(--card)', color: 'var(--ink)', fontFamily: 'inherit', outline: 'none' } as const;
 const digits = (s: string) => Number(String(s).replace(/[^\d]/g, '')) || 0;
 
 // The form speaks in labels ("Semi Furnished", "North-East"); the API speaks
@@ -316,10 +316,10 @@ export function Sell() {
                 <div key={l.id} className="card" style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 12 }}>
                   {l.photos[0]?.url
                     ? <img className="thumb" src={l.photos[0].url} alt="" style={{ width: 74, height: 56, borderRadius: 9, objectFit: 'cover', flex: '0 0 auto', background: 'var(--ink-soft)' }} />
-                    : <div style={{ width: 74, height: 56, borderRadius: 9, flex: '0 0 auto', background: 'var(--line)', display: 'grid', placeItems: 'center', fontSize: 18 }}>🏠</div>}
+                    : <div style={{ width: 74, height: 56, borderRadius: 9, flex: '0 0 auto', background: 'var(--line)', display: 'grid', placeItems: 'center', fontSize: 17 }}>🏠</div>}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 3 }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', padding: '2px 8px', borderRadius: 999, background: 'var(--accent-soft)', color: 'var(--accent-ink)' }}>{l.kind}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', padding: '2px 8px', borderRadius: 'var(--r-full)', background: 'var(--accent-soft)', color: 'var(--accent-ink)' }}>{l.kind}</span>
                       <b style={{ fontSize: 14 }}>{l.fields[SCHEMA[l.kind].titleKey] || KIND_LABEL[l.kind]}</b>
                     </div>
                     <div className="muted" style={{ fontSize: 12 }}>{summaryOf(l)}</div>

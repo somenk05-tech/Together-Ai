@@ -226,7 +226,7 @@ export function Wellness() {
               onClick={() => setKind(k.key)}
               aria-pressed={kind === k.key}
               style={{
-                font: 'inherit', fontSize: 12, padding: '6px 12px', borderRadius: 999, cursor: 'pointer',
+                font: 'inherit', fontSize: 12, padding: '6px 12px', borderRadius: 'var(--r-full)', cursor: 'pointer',
                 border: `1px solid ${kind === k.key ? 'var(--accent-line)' : 'var(--line)'}`,
                 background: kind === k.key ? 'var(--accent-soft)' : 'var(--card)',
                 color: kind === k.key ? 'var(--accent-ink)' : 'var(--ink-soft)',

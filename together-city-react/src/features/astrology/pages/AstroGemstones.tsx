@@ -461,7 +461,7 @@ function BudgetPicker({ data }: { data: GemstonesResponse }) {
             onBlur={(e) => { setBudget(clampBudget(Number(e.target.value.replace(/[^\d]/g, '')) || 0, ceiling)); setTyped(null); }}
             onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
             style={{ width: 96, textAlign: 'right', border: 'none', borderBottom: '1px solid var(--line)', background: 'transparent',
-              fontFamily: 'inherit', fontSize: 18, fontWeight: 700, color: 'var(--ink)', padding: '1px 2px', outline: 'none' }} />
+              fontFamily: 'inherit', fontSize: 17, fontWeight: 700, color: 'var(--ink)', padding: '1px 2px', outline: 'none' }} />
         </span>
       </div>
 

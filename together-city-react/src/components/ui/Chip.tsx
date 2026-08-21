@@ -28,7 +28,7 @@ export interface ChipProps {
 export function Chip({ children, tone = 'default', icon, onClick, selected, title, style }: ChipProps) {
   const t = selected ? TONES.accent : TONES[tone];
   const base: React.CSSProperties = {
-    display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 11px', borderRadius: 999,
+    display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 11px', borderRadius: 'var(--r-full)',
     fontSize: 12.5, fontWeight: 600, lineHeight: 1.2, background: t.bg, color: t.fg,
     border: `1px solid ${selected ? 'var(--accent)' : t.bd}`, whiteSpace: 'nowrap', ...style,
   };

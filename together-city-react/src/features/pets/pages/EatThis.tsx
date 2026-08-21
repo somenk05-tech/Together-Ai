@@ -53,7 +53,7 @@ export function EatThis() {
               aria-pressed={species === s}
               style={{
                 font: 'inherit', fontSize: 13, fontWeight: species === s ? 700 : 500, padding: '8px 18px',
-                borderRadius: 999, cursor: 'pointer', textTransform: 'capitalize',
+                borderRadius: 'var(--r-full)', cursor: 'pointer', textTransform: 'capitalize',
                 border: `1px solid ${species === s ? 'var(--accent-line)' : 'var(--line)'}`,
                 background: species === s ? 'var(--accent-soft)' : 'var(--card)',
                 color: species === s ? 'var(--accent-ink)' : 'var(--ink-soft)',
@@ -81,7 +81,7 @@ export function EatThis() {
               key={q}
               type="button"
               onClick={() => setTerm(q)}
-              style={{ font: 'inherit', fontSize: 12, padding: '5px 12px', borderRadius: 999, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink-soft)', cursor: 'pointer' }}
+              style={{ font: 'inherit', fontSize: 12, padding: '5px 12px', borderRadius: 'var(--r-full)', border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink-soft)', cursor: 'pointer' }}
             >
               {q}
             </button>
@@ -124,7 +124,7 @@ export function EatThis() {
             <h3 style={{ margin: 0, fontSize: 'clamp(22px, 4vw, 32px)', fontWeight: 600, letterSpacing: '-.02em' }}>{hit.ingredient.name}</h3>
             {hit.ingredient.indianName && <p className="muted" style={{ margin: '3px 0 0', fontSize: 13 }}>{hit.ingredient.indianName}</p>}
           </div>
-          <p style={{ margin: 0, fontSize: 14.5, lineHeight: 1.7 }}>
+          <p style={{ margin: 0, fontSize: 15, lineHeight: 1.7 }}>
             {species === 'dog' ? hit.ingredient.dogReason : hit.ingredient.catReason}
           </p>
           <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(228px, 1fr))' }}>
@@ -152,7 +152,7 @@ export function EatThis() {
 
       {term.trim() && !hit.toxic && !hit.ingredient && (
         <article className="card" style={{ padding: 24, display: 'grid', gap: 10 }}>
-          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Not in the database</h3>
+          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 600 }}>Not in the database</h3>
           <p className="muted" style={{ margin: 0, fontSize: 13.5, lineHeight: 1.6 }}>
             “{term}” isn’t one of the {51} ingredients or {toxic.length} toxic foods we have veterinary sources for.
             That is not the same as safe — ask your vet before offering it.
@@ -160,7 +160,7 @@ export function EatThis() {
           {hit.suggestions.length > 0 && (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {hit.suggestions.map((s) => (
-                <button key={s} type="button" onClick={() => setTerm(s)} style={{ font: 'inherit', fontSize: 12, padding: '5px 12px', borderRadius: 999, border: '1px solid var(--line)', background: 'var(--card)', cursor: 'pointer' }}>{s}</button>
+                <button key={s} type="button" onClick={() => setTerm(s)} style={{ font: 'inherit', fontSize: 12, padding: '5px 12px', borderRadius: 'var(--r-full)', border: '1px solid var(--line)', background: 'var(--card)', cursor: 'pointer' }}>{s}</button>
               ))}
             </div>
           )}
@@ -227,7 +227,7 @@ function Related({ names, onPick }: { names: string[]; onPick: (n: string) => vo
           key={n}
           type="button"
           onClick={() => onPick(n)}
-          style={{ font: 'inherit', fontSize: 11.5, padding: '4px 11px', borderRadius: 999, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink-soft)', cursor: 'pointer' }}
+          style={{ font: 'inherit', fontSize: 11.5, padding: '4px 11px', borderRadius: 'var(--r-full)', border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink-soft)', cursor: 'pointer' }}
         >
           {n}
         </button>

@@ -220,17 +220,17 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
             <strong style={{ fontSize: 15 }}>{checkedCount}/{itemCount}</strong>
             <span className="muted" style={{ fontSize: 12.5 }}>items checked off</span>
           </div>
-          <div style={{ height: 6, borderRadius: 999, background: 'var(--line)', marginTop: 6, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${itemCount ? (checkedCount / itemCount) * 100 : 0}%`, background: 'var(--accent)', borderRadius: 999, transition: 'width .2s' }} />
+          <div style={{ height: 6, borderRadius: 'var(--r-full)', background: 'var(--line)', marginTop: 6, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${itemCount ? (checkedCount / itemCount) * 100 : 0}%`, background: 'var(--accent)', borderRadius: 'var(--r-full)', transition: 'width .2s' }} />
           </div>
         </div>
-        <div style={{ display: 'inline-flex', background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 999, padding: 3 }}>
+        <div style={{ display: 'inline-flex', background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: 3 }}>
           {(['grocery', 'recipe'] as View[]).map((v) => (
             <button
               key={v}
               onClick={() => setView(v)}
               style={{
-                border: 'none', cursor: 'pointer', borderRadius: 999, padding: '6px 16px', fontSize: 12.5, fontWeight: 700,
+                border: 'none', cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '6px 16px', fontSize: 12.5, fontWeight: 700,
                 background: view === v ? 'var(--card)' : 'transparent',
                 color: view === v ? 'var(--ink)' : 'var(--muted)',
                 boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none', transition: 'box-shadow var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease)',
@@ -335,7 +335,7 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
           {recipes.map((r, ri) => (
             <div key={ri} className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 14, borderRadius: 16 }}>
               <div style={{ padding: '13px 16px', background: 'var(--paper)' }}>
-                <h3 style={{ fontSize: 15.5, margin: 0, textTransform: 'capitalize' }}>{r.recipe}</h3>
+                <h3 style={{ fontSize: 15, margin: 0, textTransform: 'capitalize' }}>{r.recipe}</h3>
                 <span className="muted" style={{ fontSize: 11.5 }}>{r.items.length} ingredients</span>
               </div>
               <div>

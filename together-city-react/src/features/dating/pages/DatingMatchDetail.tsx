@@ -13,7 +13,7 @@ import { SafetyMenu } from '../components/SafetyMenu';
 const photoBox: CSSProperties = { position: 'relative', borderRadius: 16, overflow: 'hidden', background: 'var(--paper)' };
 const cover: CSSProperties = { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' };
 const sectionH: CSSProperties = { margin: '0 0 6px', fontSize: 14, fontWeight: 700 };
-const pill: CSSProperties = { border: '1px solid var(--line)', borderRadius: 999, padding: '5px 13px', fontSize: 12.5, background: 'var(--accent-soft)' };
+const pill: CSSProperties = { border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '5px 13px', fontSize: 12.5, background: 'var(--accent-soft)' };
 
 function matchLabel(score: number): { label: string; blurb: string } {
   if (score >= 85) return { label: 'Great Match', blurb: 'You share similar values & life goals.' };
@@ -65,7 +65,7 @@ function Collage({ d }: { d: MatchDetail }) {
         )}
 
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, var(--scrim-deep) 0%, var(--scrim-top) 46%, var(--scrim-clear) 72%)', pointerEvents: 'none' }} />
-        <span style={{ position: 'absolute', top: 22, left: 12, display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: 'var(--on-accent)', fontSize: 11.5, fontWeight: 700, borderRadius: 999, padding: '6px 12px', boxShadow: '0 2px 8px rgba(0,0,0,.3)' }}>
+        <span style={{ position: 'absolute', top: 22, left: 12, display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: 'var(--on-accent)', fontSize: 11.5, fontWeight: 700, borderRadius: 'var(--r-full)', padding: '6px 12px', boxShadow: '0 2px 8px rgba(0,0,0,.3)' }}>
           <span aria-hidden>✦</span> Intentional Dating
         </span>
         <div style={{ position: 'absolute', left: 18, right: 18, bottom: 16, color: 'var(--on-accent)', pointerEvents: 'none' }}>
@@ -99,7 +99,7 @@ function Collage({ d }: { d: MatchDetail }) {
         <div style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '10px 2px 2px', WebkitOverflowScrolling: 'touch' }}>
           {photos.map((p, k) => (
             <button key={k} type="button" onClick={() => setI(k)} aria-label={`Show photo ${k + 1}`}
-              style={{ flex: 'none', width: 58, height: 58, borderRadius: 10, overflow: 'hidden', padding: 0, cursor: 'pointer',
+              style={{ flex: 'none', width: 58, height: 58, borderRadius: 'var(--r-1)', overflow: 'hidden', padding: 0, cursor: 'pointer',
                 border: `2px solid ${k === active ? 'var(--accent)' : 'transparent'}`, opacity: k === active ? 1 : 0.75, background: 'none' }}>
               <img src={p} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </button>
@@ -195,7 +195,7 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
         </div>
 
         {/* Intentional-dating notice */}
-        <div style={{ marginTop: 12, display: 'flex', gap: 12, alignItems: 'flex-start', background: 'var(--paper)', borderRadius: 14, padding: '13px 16px' }}>
+        <div style={{ marginTop: 12, display: 'flex', gap: 12, alignItems: 'flex-start', background: 'var(--paper)', borderRadius: 'var(--r-2)', padding: '13px 16px' }}>
           <span aria-hidden style={{ display: 'grid', placeItems: 'center', width: 34, height: 34, borderRadius: '50%', border: '1.5px solid var(--accent-ink)', color: 'var(--muted)', flex: 'none' }}>🔒</span>
           <div style={{ fontSize: 12.5, lineHeight: 1.5 }}>
             <strong>We believe in intentional dating.</strong> You can have up to three conversations

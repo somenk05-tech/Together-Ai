@@ -16,14 +16,14 @@ export function PlannerModeToggle({
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '0 0 18px' }}>
       <div role="tablist" aria-label="Meal planner mode"
-        style={{ display: 'inline-flex', padding: 4, gap: 4, background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 999 }}>
+        style={{ display: 'inline-flex', padding: 4, gap: 4, background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 'var(--r-full)' }}>
         {opts.map((o) => {
           const active = mode === o.key;
           return (
             <button key={o.key} role="tab" aria-selected={active} type="button" disabled={busy}
               onClick={() => onChange(o.key)}
               style={{
-                cursor: busy ? 'wait' : 'pointer', borderRadius: 999, padding: '8px 18px', fontSize: 13, fontFamily: 'inherit',
+                cursor: busy ? 'wait' : 'pointer', borderRadius: 'var(--r-full)', padding: '8px 18px', fontSize: 13, fontFamily: 'inherit',
                 fontWeight: active ? 800 : 600, border: 'none', transition: 'background .15s, color .15s',
                 background: active ? 'var(--accent)' : 'transparent',
                 color: active ? 'var(--on-accent)' : 'var(--ink-soft)',

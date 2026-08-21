@@ -248,7 +248,7 @@ export function BusinessPage() {
       {s.about && (
         <div style={section} className="biz-split">
           <Head lite="About" bold={s.businessName} />
-          <p style={{ fontSize: 14.5, lineHeight: 1.65, margin: 0, whiteSpace: 'pre-wrap' }}>{s.about}</p>
+          <p style={{ fontSize: 15, lineHeight: 1.65, margin: 0, whiteSpace: 'pre-wrap' }}>{s.about}</p>
         </div>
       )}
 

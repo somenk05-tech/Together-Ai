@@ -235,7 +235,7 @@ export function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKin
       {match.interests.length > 0 && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
           {match.interests.map((i) => (
-            <span key={i} className="pill" style={{ border: '1px solid var(--line)', borderRadius: 999, padding: '4px 12px', fontSize: 12 }}>
+            <span key={i} className="pill" style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '4px 12px', fontSize: 12 }}>
               {i}
             </span>
           ))}
@@ -400,8 +400,8 @@ export function Distribution({ bands, total, highlightScore }: { bands: Compatib
                 {name}
                 <span className="muted" style={{ display: 'block', fontSize: 10.5, fontWeight: 600 }}>{b.label}%</span>
               </span>
-              <div style={{ flex: 1, height: 16, borderRadius: 999, background: 'var(--paper)', overflow: 'hidden', outline: isTop ? '1.5px solid var(--accent)' : 'none' }}>
-                <div style={{ height: '100%', width: `${Math.max(6, (b.count / max) * 100)}%`, background: 'var(--accent)', opacity: 0.4 + 0.55 * (b.min / 100), borderRadius: 999 }} />
+              <div style={{ flex: 1, height: 16, borderRadius: 'var(--r-full)', background: 'var(--paper)', overflow: 'hidden', outline: isTop ? '1.5px solid var(--accent)' : 'none' }}>
+                <div style={{ height: '100%', width: `${Math.max(6, (b.count / max) * 100)}%`, background: 'var(--accent)', opacity: 0.4 + 0.55 * (b.min / 100), borderRadius: 'var(--r-full)' }} />
               </div>
               <span style={{ width: 30, textAlign: 'right', fontSize: 12.5, fontWeight: 700, flex: 'none' }}>{b.count}</span>
             </div>
@@ -424,7 +424,7 @@ export function EngagedPanel({ chat, openChats, cap }: { chat: DatingChatSummary
   return (
     <div className="card" style={{ padding: '22px 20px', textAlign: 'center' }}>
       <div style={{ fontSize: 34 }}>💬</div>
-      <h2 style={{ fontSize: 18, margin: '6px 0 4px' }}>
+      <h2 style={{ fontSize: 17, margin: '6px 0 4px' }}>
         {openChats === 1 ? `You’re getting to know ${chat ? chat.name : 'someone'}` : `You have ${openChats} conversations going`}
       </h2>
       <p className="muted" style={{ fontSize: 13, margin: '0 auto 16px', maxWidth: 380, lineHeight: 1.55 }}>

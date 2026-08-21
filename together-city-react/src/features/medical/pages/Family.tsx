@@ -22,7 +22,7 @@ function Score({ label, value }: { label: string; value: number | null }) {
   const col = value == null ? 'var(--muted)' : value >= 85 ? 'var(--ok-ink)' : value >= 70 ? 'var(--warn-ink)' : 'var(--danger-ink)';
   return (
     <div style={{ minWidth: 84 }}>
-      <div style={{ fontSize: 19, fontWeight: 800, color: col }}>{value == null ? '🔒' : `${value}`}</div>
+      <div style={{ fontSize: 20, fontWeight: 800, color: col }}>{value == null ? '🔒' : `${value}`}</div>
       <div className="muted" style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</div>
     </div>
   );
@@ -50,7 +50,7 @@ function MemberCard({ m }: { m: FamilyHealthMember }) {
           <h4 style={{ margin: 0 }}>{m.name}{m.isSelf && <span className="muted" style={{ fontSize: 12, fontWeight: 400 }}> · You</span>}</h4>
           <p className="muted" style={{ fontSize: 12, margin: '2px 0 0', textTransform: 'capitalize' }}>{m.relationship} · {m.age}y · {m.sex}</p>
         </div>
-        <span style={{ flex: 'none', fontSize: 10.5, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: st.color, background: st.soft, borderRadius: 999, padding: '4px 11px' }}>{st.label}</span>
+        <span style={{ flex: 'none', fontSize: 10.5, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: st.color, background: st.soft, borderRadius: 'var(--r-full)', padding: '4px 11px' }}>{st.label}</span>
       </div>
 
       {/* scores */}
@@ -77,7 +77,7 @@ function MemberCard({ m }: { m: FamilyHealthMember }) {
       {!m.privacy.bloodTests && m.alerts.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
           {m.alerts.map((a, i) => (
-            <span key={i} style={{ fontSize: 11, fontWeight: 600, borderRadius: 999, padding: '3px 10px', background: ALERT[a.level].bg, color: ALERT[a.level].fg }}>{a.label}</span>
+            <span key={i} style={{ fontSize: 11, fontWeight: 600, borderRadius: 'var(--r-full)', padding: '3px 10px', background: ALERT[a.level].bg, color: ALERT[a.level].fg }}>{a.label}</span>
           ))}
         </div>
       )}

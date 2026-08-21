@@ -78,7 +78,7 @@ function CommentsPanel({ postId }: { postId: string }) {
       ))}
       <form onSubmit={submit} style={{ display: 'flex', gap: 8 }}>
         <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Add a comment…"
-          style={{ flex: 1, border: '1.5px solid var(--line)', borderRadius: 999, padding: '9px 14px', fontSize: 13, fontFamily: 'inherit', outline: 'none', background: 'var(--card)', color: 'var(--ink)' }} />
+          style={{ flex: 1, border: '1.5px solid var(--line)', borderRadius: 'var(--r-full)', padding: '9px 14px', fontSize: 13, fontFamily: 'inherit', outline: 'none', background: 'var(--card)', color: 'var(--ink)' }} />
         <Button type="submit" variant="line" size="sm" disabled={add.isPending || !text.trim()}>Reply</Button>
       </form>
     </div>
@@ -128,7 +128,7 @@ function ImageCarousel({ images, authorName }: { images: PostMedia[]; authorName
   return (
     <div style={{ position: 'relative', marginTop: 12 }}>
       <div ref={ref} onScroll={onScroll} className="tc-hscroll"
-        style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', borderRadius: 14, scrollbarWidth: 'none', aspectRatio: String(shown), maxHeight: 640, background: 'var(--media-bg)' }}>
+        style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', borderRadius: 'var(--r-2)', scrollbarWidth: 'none', aspectRatio: String(shown), maxHeight: 640, background: 'var(--media-bg)' }}>
         {images.map((m, i) => (
           <div key={m.id} style={{ flex: '0 0 100%', scrollSnapAlign: 'center', height: '100%' }}>
             {/* contain, so portrait photos are never cropped (letterboxed if the
@@ -139,7 +139,7 @@ function ImageCarousel({ images, authorName }: { images: PostMedia[]; authorName
           </div>
         ))}
       </div>
-      <div style={{ position: 'absolute', top: 8, right: 10, background: 'rgba(0,0,0,.55)', color: 'var(--on-accent)', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, pointerEvents: 'none' }}>
+      <div style={{ position: 'absolute', top: 8, right: 10, background: 'rgba(0,0,0,.55)', color: 'var(--on-accent)', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 'var(--r-full)', pointerEvents: 'none' }}>
         {idx + 1} / {images.length}
       </div>
       <div style={{ position: 'absolute', bottom: 8, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 5, pointerEvents: 'none' }}>
@@ -232,7 +232,7 @@ function VideoFrame({ url, isNew, vref, autoInView }: { url: string; isNew: bool
         rememberRatio(url, r);
         setAr(r);
       }}
-      style={{ width: '100%', aspectRatio: String(ar), maxHeight: 720, objectFit: 'contain', borderRadius: 14, marginTop: 12, background: 'var(--media-bg)', display: 'block' }} />
+      style={{ width: '100%', aspectRatio: String(ar), maxHeight: 720, objectFit: 'contain', borderRadius: 'var(--r-2)', marginTop: 12, background: 'var(--media-bg)', display: 'block' }} />
   );
 }
 
@@ -374,7 +374,7 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
       {editing ? (
         <div style={{ marginTop: 12 }}>
           <textarea aria-label="Edit your post" value={draft} onChange={(e) => setDraft(e.target.value)} rows={3} maxLength={2200} autoFocus
-            style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', resize: 'vertical' }} />
+            style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit', resize: 'vertical' }} />
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
             <button type="button" disabled={upd.isPending}
               onClick={() => upd.mutate({ postId: post.id, text: draft }, { onSuccess: () => setEditing(false) })}

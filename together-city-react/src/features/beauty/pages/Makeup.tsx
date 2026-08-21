@@ -87,7 +87,7 @@ function Thumb({ it, tier }: { it: Item; tier: Tier }) {
     <div style={{ flex: '0 0 auto', width: 76, height: 76, borderRadius: 13, display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center', gap: 1, boxShadow: 'inset 0 0 0 1px rgba(20,20,18,.06)', overflow: 'hidden',
       background: `linear-gradient(135deg, hsl(${it.hue},44%,91%), hsl(${(it.hue + 38) % 360},40%,80%))` }}>
-      <span style={{ fontSize: 27, lineHeight: 1 }}>{it.emoji}</span>
+      <span style={{ fontSize: 26, lineHeight: 1 }}>{it.emoji}</span>
       <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: '.04em', color: 'rgba(20,20,18,.5)', textTransform: 'uppercase',
         maxWidth: 70, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '0 4px' }}>{tier.brand}</span>
     </div>
@@ -97,7 +97,7 @@ function Thumb({ it, tier }: { it: Item; tier: Tier }) {
 const finishChip = (fin: string): React.CSSProperties => {
   const c = fin === 'matte' ? { background: 'var(--info-soft)', color: 'var(--info-ink)' }
     : fin === 'dewy' ? { background: 'var(--info-soft)', color: 'var(--ok-ink)' } : { background: 'var(--accent-soft)', color: 'var(--warn-ink)' };
-  return { fontSize: 10, fontWeight: 700, letterSpacing: '.03em', padding: '3px 8px', borderRadius: 999, textTransform: 'capitalize', ...c };
+  return { fontSize: 10, fontWeight: 700, letterSpacing: '.03em', padding: '3px 8px', borderRadius: 'var(--r-full)', textTransform: 'capitalize', ...c };
 };
 
 /** Makeup Studio — one matched pick per need, with budget / AI / premium tiers and a budget-built everyday look. */
@@ -162,7 +162,7 @@ export function Makeup() {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
           {(look.data?.occasions ?? ['Everyday Natural']).map((o) => (
             <button key={o} type="button" onClick={() => setOccasion(o)}
-              style={{ fontSize: 12, fontWeight: 600, padding: '6px 13px', borderRadius: 999, cursor: 'pointer', font: 'inherit',
+              style={{ fontSize: 12, fontWeight: 600, padding: '6px 13px', borderRadius: 'var(--r-full)', cursor: 'pointer', font: 'inherit',
                 border: `1.5px solid ${occasion === o ? 'var(--accent)' : 'var(--line)'}`,
                 background: occasion === o ? 'var(--accent)' : 'transparent', color: occasion === o ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
               {o}
@@ -238,7 +238,7 @@ export function Makeup() {
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
         {TABS.map((t) => (
           <button key={t.key} type="button" onClick={() => setTab(t.key)}
-            style={{ fontSize: 12.5, fontWeight: 600, padding: '8px 15px', borderRadius: 999, cursor: 'pointer', font: 'inherit',
+            style={{ fontSize: 12.5, fontWeight: 600, padding: '8px 15px', borderRadius: 'var(--r-full)', cursor: 'pointer', font: 'inherit',
               border: `1px solid ${tab === t.key ? 'var(--accent)' : 'var(--line)'}`,
               background: tab === t.key ? 'var(--accent)' : 'var(--card)', color: tab === t.key ? 'var(--on-accent)' : 'var(--ink)' }}>
             {t.label}
@@ -248,7 +248,7 @@ export function Makeup() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2.2fr) minmax(240px, 1fr)', gap: 28, alignItems: 'start' }}>
         <div>
-          <div style={{ fontSize: 12.5, color: 'var(--ink-soft)', background: 'var(--accent-soft)', borderRadius: 10, padding: '10px 14px', marginBottom: 16 }}>
+          <div style={{ fontSize: 12.5, color: 'var(--ink-soft)', background: 'var(--accent-soft)', borderRadius: 'var(--r-1)', padding: '10px 14px', marginBottom: 16 }}>
             ◈ Products below are matched to your <b>{(look.data?.finish ?? 'natural').toLowerCase()} finish</b> {occasion} look — shades from your {look.data?.season ?? 'colour'} palette above. Each pick has a lower-cost and premium option.
           </div>
 
@@ -270,9 +270,9 @@ export function Makeup() {
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--accent-ink)' }}>{it.slot}</div>
                           <h4 style={{ margin: '2px 0' }}>
-                            <span style={{ display: 'inline-block', fontSize: 11, fontWeight: 800, color: 'var(--accent-ink)', background: 'var(--accent-soft)', padding: '2px 8px', borderRadius: 999, marginRight: 6 }}>{eff.brand}</span>
+                            <span style={{ display: 'inline-block', fontSize: 11, fontWeight: 800, color: 'var(--accent-ink)', background: 'var(--accent-soft)', padding: '2px 8px', borderRadius: 'var(--r-full)', marginRight: 6 }}>{eff.brand}</span>
                             {eff.name} <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-ink)' }}>⭐ Recommended</span>
-                            {lab.text && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999, marginLeft: 6, background: lab.bg, color: lab.fg }}>{lab.text}</span>}
+                            {lab.text && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 'var(--r-full)', marginLeft: 6, background: lab.bg, color: lab.fg }}>{lab.text}</span>}
                           </h4>
                           <p className="muted" style={{ fontSize: 12 }}><span style={finishChip(it.finish)}>{it.finish}</span> · ★{it.derm} derm</p>
                         </div>
@@ -335,7 +335,7 @@ export function Makeup() {
               return (
                 <div key={s} className="row" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 10px' }}>
                   <div className="grow">
-                    <div className="t" style={{ fontSize: 13 }}>{eff.name.split(' ').slice(0, 4).join(' ')}{lab.text && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999, marginLeft: 6, background: lab.bg, color: lab.fg }}>{lab.text}</span>}</div>
+                    <div className="t" style={{ fontSize: 13 }}>{eff.name.split(' ').slice(0, 4).join(' ')}{lab.text && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 'var(--r-full)', marginLeft: 6, background: lab.bg, color: lab.fg }}>{lab.text}</span>}</div>
                     <div className="m">{eff.brand}</div>
                   </div>
                   <b>₹{inr(eff.price)}</b>
@@ -349,7 +349,7 @@ export function Makeup() {
             <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12, marginTop: 12, fontSize: 13 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}><span className="muted">Subtotal ({inCartSlots.length})</span><span>₹{inr(subtotal)}</span></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, color: 'var(--ok-ink)' }}><span>You Save</span><span>−₹{inr(save)}</span></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18, fontFamily: 'var(--serif)', borderTop: '1px solid var(--line)', paddingTop: 10 }}><span>Total</span><span style={over ? { color: 'var(--danger-ink)', fontWeight: 600 } : undefined}>₹{inr(total)}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 17, fontFamily: 'var(--serif)', borderTop: '1px solid var(--line)', paddingTop: 10 }}><span>Total</span><span style={over ? { color: 'var(--danger-ink)', fontWeight: 600 } : undefined}>₹{inr(total)}</span></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginTop: 6 }}>
                 <span className="muted">Budget</span>
                 <span style={{ color: over ? 'var(--danger-ink)' : 'var(--ok-ink)', fontWeight: over ? 600 : 400 }}>{over ? `over by ₹${inr(total - budget)}` : `₹${inr(budget - total)} to spare`} · ₹{inr(budget)}</span>

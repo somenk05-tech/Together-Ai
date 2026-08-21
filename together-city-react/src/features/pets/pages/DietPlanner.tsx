@@ -192,7 +192,7 @@ function Figure({ label, value, note }: { label: string; value: string; note: st
   return (
     <div style={{ padding: 14, borderRadius: 'var(--r-2)', background: 'var(--wash)', display: 'grid', gap: 3 }}>
       <span className="muted" style={{ fontSize: 10, letterSpacing: '.09em', textTransform: 'uppercase' }}>{label}</span>
-      <strong style={{ fontSize: 19, fontWeight: 700 }}>{value}</strong>
+      <strong style={{ fontSize: 20, fontWeight: 700 }}>{value}</strong>
       <span className="muted" style={{ fontSize: 11 }}>{note}</span>
     </div>
   );

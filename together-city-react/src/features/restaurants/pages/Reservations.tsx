@@ -10,10 +10,10 @@ function ResCard({ v }: { v: Reservation }) {
       <div style={{ width: 8, background: 'var(--warn-ink)' }} />
       <div style={{ flex: 1, padding: '14px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 18 }}>📅</span>
+          <span style={{ fontSize: 17 }}>📅</span>
           <strong style={{ fontSize: 16 }}>{v.restaurantName}</strong>
           <span className="muted" style={{ fontSize: 12.5 }}>{v.area}</span>
-          <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--ok-ink)', background: 'var(--ok-soft)', borderRadius: 999, padding: '2px 10px' }}>{v.status}</span>
+          <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--ok-ink)', background: 'var(--ok-soft)', borderRadius: 'var(--r-full)', padding: '2px 10px' }}>{v.status}</span>
         </div>
         <div style={{ display: 'flex', gap: 20, marginTop: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div><div className="eyebrow" style={{ margin: 0 }}>Date</div><div style={{ fontWeight: 700, fontSize: 14 }}>{fmtDate(v.date)}</div></div>
@@ -22,7 +22,7 @@ function ResCard({ v }: { v: Reservation }) {
           <div><div className="eyebrow" style={{ margin: 0 }}>Under</div><div style={{ fontWeight: 700, fontSize: 14 }}>{v.guestName}</div></div>
           <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
             <div className="eyebrow" style={{ margin: 0 }}>Reservation code</div>
-            <div style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: 18, letterSpacing: '.06em' }}>{v.code}</div>
+            <div style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: 17, letterSpacing: '.06em' }}>{v.code}</div>
           </div>
         </div>
       </div>

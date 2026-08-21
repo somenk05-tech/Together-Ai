@@ -174,7 +174,7 @@ export function SocialFeed() {
     <div>
       {toast && (
         <div role="status" style={{ position: 'fixed', top: 18, left: '50%', transform: 'translateX(-50%)', zIndex: 80,
-          background: 'var(--ok-ink)', color: 'var(--on-accent)', borderRadius: 999, padding: '11px 20px', fontSize: 13.5, fontWeight: 600,
+          background: 'var(--ok-ink)', color: 'var(--on-accent)', borderRadius: 'var(--r-full)', padding: '11px 20px', fontSize: 13.5, fontWeight: 600,
           boxShadow: 'var(--e3)', animation: 'tc-rise .3s ease-out', display: 'flex', alignItems: 'center', gap: 8 }}>
           <Icon name="accepted" size={16} /> Your post has been shared to your city.
         </div>

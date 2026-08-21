@@ -18,12 +18,12 @@ function Card({ r }: { r: RestaurantCard }) {
       <article className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ position: 'relative', aspectRatio: '16 / 10', background: 'var(--line)' }}>
           <img src={r.heroUrl} alt={r.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          <span style={{ position: 'absolute', top: 10, left: 10, fontSize: 11, fontWeight: 700, color: 'var(--on-accent)', background: 'rgba(0,0,0,.5)', borderRadius: 999, padding: '3px 10px' }}>{r.icon} {r.cuisineLabel}</span>
-          {r.vegFriendly && <span style={{ position: 'absolute', top: 10, right: 10, fontSize: 10.5, fontWeight: 700, color: 'var(--on-accent)', background: 'rgba(27,122,58,.9)', borderRadius: 999, padding: '3px 9px' }}>Veg-friendly</span>}
+          <span style={{ position: 'absolute', top: 10, left: 10, fontSize: 11, fontWeight: 700, color: 'var(--on-accent)', background: 'rgba(0,0,0,.5)', borderRadius: 'var(--r-full)', padding: '3px 10px' }}>{r.icon} {r.cuisineLabel}</span>
+          {r.vegFriendly && <span style={{ position: 'absolute', top: 10, right: 10, fontSize: 10.5, fontWeight: 700, color: 'var(--on-accent)', background: 'rgba(27,122,58,.9)', borderRadius: 'var(--r-full)', padding: '3px 9px' }}>Veg-friendly</span>}
         </div>
         <div style={{ padding: '12px 14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ fontWeight: 700, fontSize: 15.5 }}>{r.name}</div>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>{r.name}</div>
             <span style={{ marginLeft: 'auto' }}><Stars rating={r.rating} /></span>
           </div>
           <div className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>{r.tagline}</div>
@@ -47,7 +47,7 @@ export function Discover() {
   const [vegOnly, setVegOnly] = useState(false);
   const list = useRestaurants({ cuisine: cuisine || undefined, vegOnly: vegOnly || undefined });
 
-  const chip = (active: boolean) => ({ cursor: 'pointer', borderRadius: 999, padding: '7px 15px', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', border: `1.5px solid ${active ? 'var(--accent)' : 'var(--line)'}`, background: active ? 'var(--accent)' : 'transparent', color: active ? 'var(--on-accent)' : 'var(--ink-soft)' } as const);
+  const chip = (active: boolean) => ({ cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '7px 15px', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', border: `1.5px solid ${active ? 'var(--accent)' : 'var(--line)'}`, background: active ? 'var(--accent)' : 'transparent', color: active ? 'var(--on-accent)' : 'var(--ink-soft)' } as const);
 
   return (
     <div className="page">

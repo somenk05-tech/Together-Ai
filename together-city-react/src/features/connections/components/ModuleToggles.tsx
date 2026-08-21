@@ -119,7 +119,7 @@ export function ModuleChips({ modules, caption = 'Connected hubs:' }: { modules:
         const def = moduleDef(hubs, key);
         return (
           <span key={key} title={def.label}
-            style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 999,
+            style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 'var(--r-full)',
               background: 'var(--paper)', border: '1px solid var(--line)', whiteSpace: 'nowrap' }}>
             {def.emoji} {def.label}
           </span>

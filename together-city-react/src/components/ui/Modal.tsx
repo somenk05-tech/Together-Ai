@@ -89,7 +89,7 @@ export function Modal({ open, onClose, title, children, footer, width = 460 }: M
           border: '1px solid var(--line)', borderRadius: 18, boxShadow: '0 24px 70px rgba(0,0,0,.32)', outline: 'none' }}>
         {title != null && (
           <div style={{ padding: '18px 20px 0' }}>
-            <h2 id={titleId} style={{ fontSize: 19, margin: 0 }}>{title}</h2>
+            <h2 id={titleId} style={{ fontSize: 20, margin: 0 }}>{title}</h2>
           </div>
         )}
         <div style={{ padding: '14px 20px 18px' }}>{children}</div>

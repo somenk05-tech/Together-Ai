@@ -140,7 +140,7 @@ export function PetPhotos({ petName, species, photos, onChange }: Props) {
                   style={{
                     position: 'absolute', top: 8, left: 8, fontSize: 9.5, fontWeight: 800,
                     letterSpacing: '.09em', textTransform: 'uppercase', padding: '3px 8px',
-                    borderRadius: 999, background: 'var(--accent-soft)', color: 'var(--accent-ink)',
+                    borderRadius: 'var(--r-full)', background: 'var(--accent-soft)', color: 'var(--accent-ink)',
                     border: '1px solid var(--accent-line)',
                   }}
                 >

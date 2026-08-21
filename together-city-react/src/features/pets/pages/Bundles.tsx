@@ -79,7 +79,7 @@ export function Bundles() {
                 <span className="muted" style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase' }}>
                   {b.species === 'both' ? 'Dogs & cats' : b.species === 'dog' ? 'Dogs' : 'Cats'}
                 </span>
-                <h3 style={{ margin: 0, fontSize: 19, fontWeight: 600 }}>{b.name}</h3>
+                <h3 style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>{b.name}</h3>
                 <p className="muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.55 }}>{b.line}</p>
               </header>
 
@@ -172,7 +172,7 @@ export function Bundles() {
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, paddingTop: 6, borderTop: '1px solid var(--line)' }}>
                 <div style={{ display: 'grid' }}>
-                  <strong style={{ fontSize: 19, fontWeight: 700 }}>{rupees(total)}</strong>
+                  <strong style={{ fontSize: 20, fontWeight: 700 }}>{rupees(total)}</strong>
                   <span className="muted" style={{ fontSize: 11 }}>
                     {priced.length} of {items.length} items priced
                     {edit.removed.length || edit.added.length ? ' · edited' : ''}

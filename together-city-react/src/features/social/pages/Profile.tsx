@@ -181,7 +181,7 @@ function PostReader({
   const chip = (postId: string, cur: string, key: '' | 'personal' | 'work', label: string) => (
     <button key={key || 'none'} type="button" disabled={setCategory.isPending}
       onClick={() => setCategory.mutate({ postId, category: key === '' ? null : key })}
-      style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '6px 12px', borderRadius: 999,
+      style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '6px 12px', borderRadius: 'var(--r-full)',
         border: `1.5px solid ${cur === key ? 'var(--accent)' : 'var(--line)'}`,
         background: cur === key ? 'var(--accent)' : 'var(--card)', color: cur === key ? 'var(--on-accent)' : 'var(--ink)' }}>
       {label}
@@ -541,7 +541,7 @@ export function PublicProfileModal({ handle, onClose }: { handle: string; onClos
               <Avatar src={p.profileImage} name={p.name} size={64} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <h3 style={{ margin: 0, fontSize: 19 }}>{p.name}</h3>{p.verified && <VerifiedBadge />}
+                  <h3 style={{ margin: 0, fontSize: 20 }}>{p.name}</h3>{p.verified && <VerifiedBadge />}
                 </div>
                 <div className="muted" style={{ fontSize: 12.5, fontFamily: 'monospace' }}>@{p.handle}</div>
                 {p.city && <div className="muted" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="place" size={13} />{p.city}</div>}
@@ -809,7 +809,7 @@ function EditProfileModal({ me, onClose }: { me: MyProfile; onClose: () => void 
     } finally { setBusy(false); }
   };
 
-  const field: React.CSSProperties = { width: '100%', padding: '11px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', boxSizing: 'border-box' };
+  const field: React.CSSProperties = { width: '100%', padding: '11px 12px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit', boxSizing: 'border-box' };
   const label: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: 'var(--muted)', display: 'block', margin: '12px 0 5px' };
 
   return (
@@ -832,7 +832,7 @@ function EditProfileModal({ me, onClose }: { me: MyProfile; onClose: () => void 
         </label>
 
         <label style={label}>Handle</label>
-        <div style={{ display: 'flex', alignItems: 'center', border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', padding: '0 10px' }}>
           <span className="muted">@</span>
           <input aria-label="Handle" value={handle} onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, ''))}
             style={{ flex: 1, border: 'none', outline: 'none', padding: '11px 6px', fontSize: 14, fontFamily: 'inherit', background: 'transparent' }} maxLength={30} />

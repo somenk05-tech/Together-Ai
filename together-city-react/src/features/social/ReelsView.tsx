@@ -214,7 +214,7 @@ const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute }: { p
           the side rail and nav arrows. */}
       <div style={phone
         ? { position: 'relative', width: '100%', height: '100%', background: '#000', overflow: 'hidden', lineHeight: 0, display: 'grid', placeItems: 'center' }
-        : { position: 'relative', width: 'fit-content', height: 'fit-content', maxHeight: '82dvh', maxWidth: 'min(760px, 58vw)', background: '#000', borderRadius: 14, overflow: 'hidden', lineHeight: 0 }}>
+        : { position: 'relative', width: 'fit-content', height: 'fit-content', maxHeight: '82dvh', maxWidth: 'min(760px, 58vw)', background: '#000', borderRadius: 'var(--r-2)', overflow: 'hidden', lineHeight: 0 }}>
         {video && (
           /*
             THE SRC IS NOT SET UNTIL THE REEL IS NEAR.
@@ -331,7 +331,7 @@ function ReelComments({ postId, onClose }: { postId: string; onClose: () => void
         {!comments.isLoading && !comments.isError && (comments.data ?? []).length === 0 && <p className="muted" style={{ fontSize: 13 }}>Be the first to comment.</p>}
         <form onSubmit={submit} style={{ display: 'flex', gap: 8, marginTop: 8, position: 'sticky', bottom: 0, background: 'var(--card,#fff)', paddingTop: 6 }}>
           <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Add a comment…"
-            style={{ flex: 1, border: '1.5px solid var(--line)', borderRadius: 999, padding: '9px 14px', fontSize: 13, fontFamily: 'inherit', outline: 'none', background: 'var(--card)', color: 'var(--ink)' }} />
+            style={{ flex: 1, border: '1.5px solid var(--line)', borderRadius: 'var(--r-full)', padding: '9px 14px', fontSize: 13, fontFamily: 'inherit', outline: 'none', background: 'var(--card)', color: 'var(--ink)' }} />
           <Button type="submit" variant="line" size="sm" disabled={add.isPending || !text.trim()}>Reply</Button>
         </form>
       </div>

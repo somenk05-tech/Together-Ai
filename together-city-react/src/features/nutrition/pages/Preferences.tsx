@@ -125,7 +125,7 @@ const label: React.CSSProperties = {
 function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button type="button" onClick={onClick} style={{
-      cursor: 'pointer', borderRadius: 999, padding: '7px 14px', fontSize: 12.5, fontFamily: 'inherit', fontWeight: 600,
+      cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '7px 14px', fontSize: 12.5, fontFamily: 'inherit', fontWeight: 600,
       border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`,
       background: on ? 'var(--accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-soft)',
     }}>{children}</button>
@@ -171,7 +171,7 @@ function TargetsCard() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))', gap: 10, marginTop: 8 }}>
         {rows.map(([k, v]) => (
           <div key={k} style={{ background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 12, padding: '12px 8px', textAlign: 'center' }}>
-            <div style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 600 }}>{v}</div>
+            <div style={{ fontFamily: 'var(--serif)', fontSize: 17, fontWeight: 600 }}>{v}</div>
             <div className="muted" style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.06em' }}>{k}</div>
           </div>
         ))}
@@ -509,7 +509,7 @@ export function Preferences() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12 }}>
             <button type="button" onClick={balanceMix}
-              style={{ cursor: 'pointer', borderRadius: 999, padding: '7px 14px', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', border: '1.5px solid var(--line)', background: 'transparent', color: 'var(--ink-soft)' }}>
+              style={{ cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '7px 14px', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', border: '1.5px solid var(--line)', background: 'transparent', color: 'var(--ink-soft)' }}>
               ⚖ Balance to 100%
             </button>
             <span className="muted" style={{ fontSize: 11.5 }}>
@@ -545,7 +545,7 @@ export function Preferences() {
               return (
                 <button key={d.key} type="button" onClick={() => chooseDiet(d.key)}
                   style={{
-                    cursor: 'pointer', borderRadius: 999, padding: '7px 16px', fontSize: 12.5, fontFamily: 'inherit', fontWeight: active ? 700 : 600,
+                    cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '7px 16px', fontSize: 12.5, fontFamily: 'inherit', fontWeight: active ? 700 : 600,
                     border: `1.5px solid ${active ? color : 'var(--line)'}`,
                     background: active ? color : 'transparent',
                     color: active ? 'var(--on-accent)' : 'var(--ink)',
@@ -600,7 +600,7 @@ export function Preferences() {
                   <div key={d} style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: 11.5, fontWeight: 700, marginBottom: 4 }}>{d}</div>
                     <button type="button" disabled={isVegDiet} onClick={() => setWeekly(d, v === 'veg' ? 'nonveg' : 'veg')}
-                      style={{ width: '100%', cursor: isVegDiet ? 'default' : 'pointer', opacity: isVegDiet ? 0.75 : 1, borderRadius: 10, padding: '7px 0', fontSize: 11.5, fontWeight: 600, fontFamily: 'inherit',
+                      style={{ width: '100%', cursor: isVegDiet ? 'default' : 'pointer', opacity: isVegDiet ? 0.75 : 1, borderRadius: 'var(--r-1)', padding: '7px 0', fontSize: 11.5, fontWeight: 600, fontFamily: 'inherit',
                         border: `1.5px solid ${v === 'veg' ? 'var(--ok-ink)' : 'var(--danger-ink)'}`, background: v === 'veg' ? 'var(--ok-soft)' : 'var(--danger-soft)', color: v === 'veg' ? 'var(--ok-ink)' : 'var(--danger-ink)' }}>
                       {v === 'veg' ? 'Veg' : 'Non-veg'}
                     </button>

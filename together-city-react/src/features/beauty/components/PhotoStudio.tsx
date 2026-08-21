@@ -184,7 +184,7 @@ export function CameraSheet(
      already exist for exactly this, a lit thing on a dark ground, and
      relief.spec refuses a page that invents its own. */
   const act: React.CSSProperties = {
-    cursor: 'pointer', borderRadius: 999, padding: '11px 18px', fontSize: 13, fontWeight: 700,
+    cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '11px 18px', fontSize: 13, fontWeight: 700,
     fontFamily: 'inherit', border: 'none', background: 'var(--stage-tile)', color: 'var(--on-stage)',
   };
 
@@ -300,11 +300,11 @@ export function PhotoGrid(
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
                     <button type="button" onClick={() => setCamera(s)}
-                      style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '9px 13px', borderRadius: 999, border: 'none', background: 'var(--accent)', color: 'var(--on-accent)' }}>
+                      style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '9px 13px', borderRadius: 'var(--r-full)', border: 'none', background: 'var(--accent)', color: 'var(--on-accent)' }}>
                       📷 Camera
                     </button>
                     <button type="button" onClick={() => inputs.current[s.key]?.click()}
-                      style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '9px 13px', borderRadius: 999, border: '1.5px solid var(--line)', background: 'transparent', color: 'var(--ink-soft)' }}>
+                      style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '9px 13px', borderRadius: 'var(--r-full)', border: '1.5px solid var(--line)', background: 'transparent', color: 'var(--ink-soft)' }}>
                       Choose
                     </button>
                   </div>

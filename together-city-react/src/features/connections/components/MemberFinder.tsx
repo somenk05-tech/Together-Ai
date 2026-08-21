@@ -151,7 +151,7 @@ export function MemberFinder() {
               <button key={r.key} type="button"
                 onClick={() => { setRelationship(r.key); setModules((m) => m.filter((k) => allowedModules(hubs, r.key).includes(k))); }}
                 style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '8px 16px',
-                  borderRadius: 10, border: `1.5px solid ${relationship === r.key ? 'var(--accent)' : 'var(--line)'}`,
+                  borderRadius: 'var(--r-1)', border: `1.5px solid ${relationship === r.key ? 'var(--accent)' : 'var(--line)'}`,
                   background: relationship === r.key ? 'var(--accent-soft)' : 'var(--card)', color: 'var(--ink)' }}>
                 {r.emoji} {r.label}
               </button>

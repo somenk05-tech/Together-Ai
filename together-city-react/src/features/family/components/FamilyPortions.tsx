@@ -51,7 +51,7 @@ export function FamilyPortions({ dayIndex, bare }: { dayIndex: number; bare?: bo
               🍲 One base gravy — proteins added per person
             </p>
           )}
-          <div style={{ border: '1px solid var(--line)', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-1)', overflow: 'hidden' }}>
             {meal.perMember.map((p, i) => (
               <div key={p.memberId} style={{ padding: '7px 11px', fontSize: 12.5, borderTop: i ? '1px solid var(--line)' : 'none', background: i % 2 ? 'var(--paper)' : 'transparent' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
@@ -62,8 +62,8 @@ export function FamilyPortions({ dayIndex, bare }: { dayIndex: number; bare?: bo
                 </div>
                 {(p.swap || p.note) && (
                   <div style={{ marginTop: 2, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {p.swap && <span style={{ fontSize: 10.5, background: 'var(--info-soft)', color: 'var(--info-ink)', borderRadius: 999, padding: '1px 8px', fontWeight: 600 }}>{p.swap.to} instead of {p.swap.from}</span>}
-                    {p.note && <span style={{ fontSize: 10.5, background: 'var(--warn-soft)', color: 'var(--warn-ink)', borderRadius: 999, padding: '1px 8px', fontWeight: 600 }}>{p.note}</span>}
+                    {p.swap && <span style={{ fontSize: 10.5, background: 'var(--info-soft)', color: 'var(--info-ink)', borderRadius: 'var(--r-full)', padding: '1px 8px', fontWeight: 600 }}>{p.swap.to} instead of {p.swap.from}</span>}
+                    {p.note && <span style={{ fontSize: 10.5, background: 'var(--warn-soft)', color: 'var(--warn-ink)', borderRadius: 'var(--r-full)', padding: '1px 8px', fontWeight: 600 }}>{p.note}</span>}
                   </div>
                 )}
               </div>

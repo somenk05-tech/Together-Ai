@@ -384,7 +384,7 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
               {photos.map((url, i) => (
                 <div key={url} style={{ position: 'relative' }}>
                   <img src={url} alt={i === 0 ? 'Cover photo' : `Photo ${i + 1}`} width={92} height={70}
-                    style={{ objectFit: 'cover', borderRadius: 10, display: 'block', border: '1px solid var(--line)' }} />
+                    style={{ objectFit: 'cover', borderRadius: 'var(--r-1)', display: 'block', border: '1px solid var(--line)' }} />
                   {i === 0 && (
                     <span style={{ position: 'absolute', left: 4, bottom: 4, fontSize: 9.5, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', background: 'var(--ink)', color: 'var(--on-accent)', borderRadius: 5, padding: '1px 5px' }}>Cover</span>
                   )}
@@ -397,7 +397,7 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
                     style={{ position: 'absolute', top: -17, right: -17, width: 44, height: 44,
                       display: 'grid', placeItems: 'center', border: 0, background: 'none',
                       cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
-                    <span aria-hidden style={{ width: 22, height: 22, borderRadius: 999, border: '1px solid var(--line)', background: 'var(--card)', display: 'grid', placeItems: 'center', fontSize: 12, lineHeight: 1 }}>×</span>
+                    <span aria-hidden style={{ width: 22, height: 22, borderRadius: 'var(--r-full)', border: '1px solid var(--line)', background: 'var(--card)', display: 'grid', placeItems: 'center', fontSize: 12, lineHeight: 1 }}>×</span>
                   </button>
                 </div>
               ))}

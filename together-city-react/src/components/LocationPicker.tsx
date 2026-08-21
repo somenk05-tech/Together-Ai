@@ -103,7 +103,7 @@ export function LocationPicker({ value, onChange, hint }: {
           maxLength={160}
           style={{
             flex: '1 1 260px', boxSizing: 'border-box', minHeight: 44, padding: '10px 12px',
-            border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14,
+            border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 14,
             fontFamily: 'inherit', background: 'var(--card)',
           }} />
         <Button variant="line" size="sm" disabled={searching} onClick={runSearch}>
@@ -115,7 +115,7 @@ export function LocationPicker({ value, onChange, hint }: {
       </div>
 
       {results && results.length > 0 && (
-        <div style={{ display: 'grid', gap: 2, border: '1px solid var(--line)', borderRadius: 10, overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gap: 2, border: '1px solid var(--line)', borderRadius: 'var(--r-1)', overflow: 'hidden' }}>
           {results.map((p) => (
             <button key={`${p.lat},${p.lng}`} type="button"
               onClick={() => { set(p.lat, p.lng); setResults(null); setQ(''); }}
@@ -167,13 +167,13 @@ export function LocationPicker({ value, onChange, hint }: {
             <label htmlFor="loc-lat" style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>Latitude</label>
             <input id="loc-lat" value={value.lat} inputMode="decimal" maxLength={12} placeholder="19.076090"
               onChange={(e) => onChange({ ...value, lat: e.target.value, accuracy: null })}
-              style={{ width: '100%', boxSizing: 'border-box', minHeight: 44, padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', background: 'var(--card)' }} />
+              style={{ width: '100%', boxSizing: 'border-box', minHeight: 44, padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit', background: 'var(--card)' }} />
           </div>
           <div>
             <label htmlFor="loc-lng" style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>Longitude</label>
             <input id="loc-lng" value={value.lng} inputMode="decimal" maxLength={12} placeholder="72.877426"
               onChange={(e) => onChange({ ...value, lng: e.target.value, accuracy: null })}
-              style={{ width: '100%', boxSizing: 'border-box', minHeight: 44, padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', background: 'var(--card)' }} />
+              style={{ width: '100%', boxSizing: 'border-box', minHeight: 44, padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit', background: 'var(--card)' }} />
           </div>
         </div>
       </details>

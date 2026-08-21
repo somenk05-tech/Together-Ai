@@ -27,7 +27,7 @@ export function ShareCardView({ card, compact, clickable }: { card: ShareCard; c
   const ctaText = KIND_META[card.kind] ? `View ${meta.label} →` : 'View in hub →';
   const asLink = Boolean(clickable && card.deepLink);
   const shell: React.CSSProperties = {
-    display: 'block', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden',
+    display: 'block', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', overflow: 'hidden',
     background: 'var(--card)', width: compact ? '100%' : 280, maxWidth: '100%',
     /* --ink, NOT inherit. The card paints its own white ground, so inheriting
        meant it rendered in whatever ink surrounded it — which on the chat
@@ -46,7 +46,7 @@ export function ShareCardView({ card, compact, clickable }: { card: ShareCard; c
         {card.subtitle && <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>{card.subtitle}</div>}
         {card.meta && card.meta.length > 0 && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 7 }}>
-            {card.meta.map((m, i) => <span key={i} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--ink-soft)', background: 'var(--line)', borderRadius: 999, padding: '2px 8px' }}>{m}</span>)}
+            {card.meta.map((m, i) => <span key={i} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--ink-soft)', background: 'var(--line)', borderRadius: 'var(--r-full)', padding: '2px 8px' }}>{m}</span>)}
           </div>
         )}
         {/* Composite items (e.g. every dish in a shared meal) — the recipient sees the whole card. */}
@@ -122,7 +122,7 @@ export function ShareModal({ item, onClose }: { item: ShareCard; onClose: () => 
     }
   };
 
-  const row = (active: boolean): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', borderRadius: 10, cursor: 'pointer', border: `1.5px solid ${active ? 'var(--accent)' : 'transparent'}`, background: active ? 'var(--accent-soft)' : 'transparent' });
+  const row = (active: boolean): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', borderRadius: 'var(--r-1)', cursor: 'pointer', border: `1.5px solid ${active ? 'var(--accent)' : 'transparent'}`, background: active ? 'var(--accent-soft)' : 'transparent' });
 
   /* Portalled to the body for the same reason as Modal: a feed card carries
      `content-visibility: auto`, and a fixed overlay rendered INSIDE the card
@@ -138,12 +138,12 @@ export function ShareModal({ item, onClose }: { item: ShareCard; onClose: () => 
         ) : (
           <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <h2 style={{ fontSize: 18, margin: 0 }}>Share to a chat</h2>
+              <h2 style={{ fontSize: 17, margin: 0 }}>Share to a chat</h2>
               <button type="button" onClick={onClose} aria-label="Close" style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--ink-soft)' }}>×</button>
             </div>
             <div style={{ margin: '12px 0' }}><ShareCardView card={item} compact /></div>
             <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Add a note (optional)…"
-              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13.5, fontFamily: 'inherit', resize: 'vertical' }} />
+              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 13.5, fontFamily: 'inherit', resize: 'vertical' }} />
 
             <div className="eyebrow" style={{ marginTop: 12 }}>Recent chats</div>
             {convos.isLoading ? <Spinner /> : convos.isError ? (
@@ -157,14 +157,14 @@ export function ShareModal({ item, onClose }: { item: ShareCard; onClose: () => 
                   <div key={c.id} onClick={() => setTarget({ type: 'conversation', id: c.id, label: c.title ?? 'Chat' })} style={row(target?.type === 'conversation' && target.id === c.id)}>
                     <div className="tc-avatar" style={{ background: 'var(--accent-soft)', color: 'var(--accent-ink)', width: 30, height: 30, fontSize: 12 }}>{c.isGroup ? '👥' : (c.title ?? 'C').slice(0, 2).toUpperCase()}</div>
                     <span style={{ fontWeight: 600, fontSize: 13.5 }}>{c.title ?? 'Conversation'}</span>
-                    {c.isGroup && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '1px 7px' }}>GROUP</span>}
+                    {c.isGroup && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 'var(--r-full)', padding: '1px 7px' }}>GROUP</span>}
                   </div>
                 ))}
               </div>
             )}
 
             <div className="eyebrow" style={{ marginTop: 12 }}>Or send to someone</div>
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search people…" style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', marginBottom: 4 }} />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search people…" style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 13, fontFamily: 'inherit', marginBottom: 4 }} />
             {contacts.isError && (
               <p className="muted" style={{ fontSize: 12.5 }}>
                 We couldn’t load your people just now — your connections are all

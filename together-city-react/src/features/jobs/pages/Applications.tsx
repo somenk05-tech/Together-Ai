@@ -35,7 +35,7 @@ export function Applications() {
                   <div style={{ fontWeight: 700, fontSize: 14 }}>{a.title}</div>
                   <div className="muted" style={{ fontSize: 12.5 }}>{a.company} · applied {a.appliedOn}</div>
                 </div>
-                <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: s.color, border: `1px solid ${s.color}`, borderRadius: 999, padding: '2px 10px' }}>{s.label}</span>
+                <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: s.color, border: `1px solid ${s.color}`, borderRadius: 'var(--r-full)', padding: '2px 10px' }}>{s.label}</span>
                 {a.status !== 'rejected' && (
                   <button type="button" disabled={withdraw.isPending}
                     onClick={() => { if (window.confirm(`Withdraw your application to ${a.title}?`)) withdraw.mutate(a.id); }}

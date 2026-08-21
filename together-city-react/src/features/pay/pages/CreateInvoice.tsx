@@ -41,7 +41,7 @@ export function CreateInvoice() {
   const [err, setErr] = useState<string | null>(null);
 
   const field = {
-    padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 10,
+    padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)',
     fontSize: 13.5, fontFamily: 'inherit', background: 'var(--card)',
     width: '100%', boxSizing: 'border-box' as const,
   };
@@ -218,7 +218,7 @@ export function CreateInvoice() {
               {discountInr > 0 && <Row label="Discount" value={discountInr} negative />}
               {taxInr > 0 && <Row label="Tax" value={taxInr} />}
               {extraInr > 0 && <Row label="Additional charges" value={extraInr} />}
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--line)', marginTop: 6, paddingTop: 10, fontSize: 18, fontWeight: 800 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--line)', marginTop: 6, paddingTop: 10, fontSize: 17, fontWeight: 800 }}>
                 <span>Total</span>
                 <span style={{ fontVariantNumeric: 'tabular-nums' }}>{inr(total)}</span>
               </div>

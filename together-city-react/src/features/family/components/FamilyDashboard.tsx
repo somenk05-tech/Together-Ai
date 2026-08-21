@@ -23,7 +23,7 @@ function MemberStatusCard({ m }: { m: FamilyMemberStatus }) {
           <h4 style={{ margin: 0, fontSize: 15 }}>{m.name}{m.isSelf && <span className="muted" style={{ fontSize: 11, fontWeight: 400 }}> · You</span>}</h4>
           <p className="muted" style={{ fontSize: 11.5, margin: '1px 0 0', textTransform: 'capitalize' }}>{m.role}</p>
         </div>
-        <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: m.medicalOk ? 'var(--accent)' : 'var(--warn-ink)', background: m.medicalOk ? 'var(--ok-soft)' : 'var(--warn-soft)', borderRadius: 999, padding: '3px 9px' }}>
+        <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: m.medicalOk ? 'var(--accent)' : 'var(--warn-ink)', background: m.medicalOk ? 'var(--ok-soft)' : 'var(--warn-soft)', borderRadius: 'var(--r-full)', padding: '3px 9px' }}>
           {m.medicalOk ? '✓ On track' : '⚠ Check'}
         </span>
       </div>
@@ -76,7 +76,7 @@ export function FamilyDashboard() {
     <div>
       {d.hasPlan && (
         <div className="card" style={{ padding: '10px 16px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10, background: d.familyStatus === 'all-on-track' ? 'var(--ok-soft)' : 'var(--warn-soft)' }}>
-          <span style={{ fontSize: 18 }}>{d.familyStatus === 'all-on-track' ? '✅' : '⚠️'}</span>
+          <span style={{ fontSize: 17 }}>{d.familyStatus === 'all-on-track' ? '✅' : '⚠️'}</span>
           <span style={{ fontSize: 13, fontWeight: 600 }}>
             {d.familyStatus === 'all-on-track'
               ? `Everyone's on track — all ${d.memberCount} members hit their targets on today's shared plan.`

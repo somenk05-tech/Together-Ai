@@ -46,7 +46,7 @@ export function SearchModule({
           <input value={q} onChange={(e) => onQ(e.target.value)}
             aria-label="What do you need?"
             placeholder="Salon, doctor, plumber, photographer, gym…"
-            style={{ ...small, padding: '15px 16px', fontSize: 17, borderRadius: 14 }} />
+            style={{ ...small, padding: '15px 16px', fontSize: 17, borderRadius: 'var(--r-2)' }} />
         </label>
         <label style={{ flex: '1 1 140px', minWidth: 0, display: 'grid', gap: 5 }}>
           <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--muted)' }}>City</span>

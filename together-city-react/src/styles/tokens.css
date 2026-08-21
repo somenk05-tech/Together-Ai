@@ -99,8 +99,15 @@
   --scrim-top: rgba(0, 0, 0, .22);
   --scrim-clear: rgba(0, 0, 0, 0);
   --scrim-deep: rgba(0, 0, 0, .72);
-  --glass: rgba(255, 255, 255, .16);
+  /* TWO NAMES, BECAUSE THIS ONE WAS TWO THINGS. `--glass` was declared here as
+     a translucent white and again 144 lines below as a four-layer box-shadow;
+     the second won, so the colour was unreachable and `.hero .btn-ghost` wrote
+     `rgba(255,255,255,.14)` by hand instead of reading it. The fill keeps its
+     own name now and the shadow keeps `--glass`. */
+  --glass-fill: rgba(255, 255, 255, .16);
+  --glass-fill-lit: rgba(255, 255, 255, .26);
   --glass-line: rgba(255, 255, 255, .28);
+  --glass-line-lit: rgba(255, 255, 255, .5);
 
   /* ── THE FACES ──────────────────────────────────────────────────────────
      Classic neumorphism sits on a mid-grey ground so that a WHITE highlight
@@ -510,10 +517,68 @@
   --film: none;
 
   /* ── SHAPE, RHYTHM, MOTION ──────────────────────────────────────────── */
+  /* ── THE TYPE SCALE, WHICH THE APP DID NOT HAVE ────────────────────────
+     Counted across 330 .tsx files and six stylesheets: 47 distinct font sizes
+     over 4,015 call sites, and NINE OF THEM INSIDE A 4.5px BAND — 10.5 through
+     15 at half-pixel steps, holding 83% of all typography in the app. Nine
+     steps inside four and a half pixels is not a scale; it is the residue of
+     nine separate afternoons. relief.spec.ts has 32 assertions and not one of
+     them constrains a size, which is exactly why.
+
+     THESE NINE ARE MEASURED, NOT INVENTED. They are the values the app already
+     leans on, kept at the half-steps rather than rounded to integers: 12.5px
+     alone is 18.5% of all type here, and an integer-purist scale would cost
+     TWO HUNDRED MORE call-site moves than this one while visibly changing
+     every page. A scale that describes what the app does is a scale people
+     will use — see --sp-* below for what happens when it doesn't.
+
+     WHAT HAS MOVED ONTO IT SO FAR is the tail: eleven values that were within
+     a pixel of a step and were nobody's deliberate choice, 194 sites, 47
+     distinct sizes down to 36. WHAT HAS NOT is the dense band — 11, 12, 13 and
+     14 are 1,499 sites between them, and collapsing four steps into two is a
+     decision about hierarchy rather than a codemod. `size-system-ceiling.mjs`
+     holds the number until somebody makes it. */
+  --fs-1: 10.5px;  /* the floor for a label; below this, see type-floor.mjs */
+  --fs-2: 11.5px;
+  --fs-3: 12.5px;  /* the most-used size in the application */
+  --fs-4: 13.5px;
+  --fs-5: 15px;
+  --fs-6: 17px;
+  --fs-7: 20px;
+  --fs-8: 26px;
+  --fs-9: 34px;
+
   --r-1: 10px; --r-2: 14px; --r-3: 20px; --r-4: 28px; --r-5: 36px; --r-full: 999px;
   --radius: var(--r-2); --radius-lg: var(--r-3);
 
-  --sp-1: 6px; --sp-2: 10px; --sp-3: 16px; --sp-4: 24px; --sp-5: 36px; --sp-6: 52px; --sp-7: 76px;
+  /* ── ONE SPACING SCALE, AND IT IS THE ONE THE APP ALREADY USES ─────────
+     THERE WERE TWO, BOTH NUMBERED 1 THROUGH 7, agreeing on exactly two of
+     their seven values. --sp-* was 6/10/16/24/36/52/76 and --s-* is
+     8/16/24/32/48/64/80, so "step 1" was 6px or 8px depending on which name
+     you happened to have seen. Between them they had FIFTY-FIVE uses in the
+     whole application and ZERO in any .tsx file. They were, in practice, dead
+     code with a comment attached — and 3,267 inline spacing values were
+     written as bare numbers beside them.
+
+     NEITHER DESCRIBED THE APP. Measured against the 3,267: --sp-* covers 34%,
+     --s-* 26%, a 4px grid 47% — and a plain 2px ladder covers 94%, with
+     8, 10, 12, 14, 6 and 16 accounting for three quarters of everything on
+     their own. So the scale below is not a proposal, it is a measurement.
+
+     NAMED BY VALUE, NOT BY INDEX, which is the other half of the fix: the
+     collision above was possible only because two different ladders could both
+     call something "step 3". --space-12 cannot be mistaken for anything, and
+     the ladder can gain a step without renumbering the ones after it.
+
+     --s-1..7 STAY, pointing at their own values here. They have 46 callers and
+     they are a coherent 8px LAYOUT rhythm — page margins, section gaps — which
+     is a different job from component padding. One source of truth, two
+     vocabularies, and the aliases can be retired by ratchet rather than by a
+     sweep through 46 rules. */
+  --space-2: 2px;    --space-4: 4px;    --space-6: 6px;    --space-8: 8px;
+  --space-10: 10px;  --space-12: 12px;  --space-14: 14px;  --space-16: 16px;
+  --space-18: 18px;  --space-20: 20px;  --space-24: 24px;  --space-32: 32px;
+  --space-36: 36px;  --space-48: 48px;  --space-64: 64px;  --space-80: 80px;
 
   /* ── THE CHAT STAGE ──────────────────────────────────────────────────────
      Chat is drawn on a slate stage — cool gunmetal glass, by the owner's
@@ -789,13 +854,15 @@
    16 on a phone, 36 at desk width, and everything in between without a
    breakpoint where the page jumps sideways by 20px.
    ═══════════════════════════════════════════════════════════════════════════ */
-  --s-1:  8px;
-  --s-2: 16px;
-  --s-3: 24px;
-  --s-4: 32px;
-  --s-5: 48px;
-  --s-6: 64px;
-  --s-7: 80px;
+  /* THE 8px LAYOUT RHYTHM, POINTED AT THE LADDER ABOVE so the two cannot
+     drift apart the way --s-* and --sp-* did. Same values, one definition. */
+  --s-1: var(--space-8);
+  --s-2: var(--space-16);
+  --s-3: var(--space-24);
+  --s-4: var(--space-32);
+  --s-5: var(--space-48);
+  --s-6: var(--space-64);
+  --s-7: var(--space-80);
 
   --page-max: 1180px;
   --page-gutter: clamp(16px, 4vw, 36px);
@@ -805,7 +872,20 @@
   --page-top: var(--s-4);
   --page-bottom: var(--s-7);
 
-  --press-band:   #cfe9d5;
+  /* THE BAND, UNDER A NAME NOTHING RE-POINTS.
+     `--press-band` is re-pointed by the nutrition hub like the other eight
+     press tokens, and unlike the other eight `.press-recto` / `.press-verso`
+     never handed it back — so a spec strip inside a printed sheet kept the
+     hub's dark green while every ink around it had returned to the mint scale.
+     Measured on the declarations: 1.22:1 for --press-ink-2 on that band, 1.44
+     for the spec label, 1.86 for its bold. The correct pair is 4.71.
+     Its neighbour --press-green got away with it only because var() resolves
+     lazily and --accent-ink IS handed back — the same construction one line
+     apart, one of them working by luck.
+     The value now has a second name that no hub touches, so the hand-back can
+     read it without pointing a token at itself. */
+  --press-sheet-band: #cfe9d5;
+  --press-band:   var(--press-sheet-band);
   --press-rule:   #a9cfb5;
   --press-rule-2: #c2e0ca;
   --press-green:  #1f5d43;   /*  7.8:1 — deep emerald */
@@ -1109,7 +1189,9 @@
    It used to have a line here TOO, a purple the block below silently overrode:
    two rival palettes for one hub, the exact failure main.tsx warns about. */
 [data-hub="travel"] {
-  --lamp-face: linear-gradient(180deg, #257494 0%, #1d5b74 44%, #164558 100%);
+  /* A LAMP OF ITS OWN — departure-board olive — it left Medical’s blue, which it sat 1.38 away from.
+     It was #1d5b74, which four other rooms were also using.  */
+  --lamp-face: linear-gradient(180deg, #888535 0%, #676528 44%, #48471e 100%);
   --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
           inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
           0 1px 1px rgba(29,91,116,.30), 0 8px 20px rgba(29,91,116,.34), 0 20px 46px rgba(29,91,116,.22);
@@ -1242,7 +1324,9 @@
     #93a38f 0%, #a8b69b 20%, #c9d2b6 42%, #e4e8d6 58%, #c2ccae 78%, #adb996 100%);
 }
 [data-hub="legal"] {
-  --lamp-face: linear-gradient(180deg, #5f5f69 0%, #4a4a52 44%, #38383e 100%);
+  /* A LAMP OF ITS OWN — the seal on a document, and the one room whose whole business is written.
+     It was #4a4a52, which four other rooms were also using.  */
+  --lamp-face: linear-gradient(180deg, #6c3993 0%, #542c72 44%, #3e2253 100%);
   --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
           inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
           0 1px 1px rgba(74,74,82,.30), 0 8px 20px rgba(74,74,82,.34), 0 20px 46px rgba(74,74,82,.22);
@@ -1256,7 +1340,9 @@
   --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
 }
 [data-hub="drive"] {
-  --lamp-face: linear-gradient(180deg, #5f5f69 0%, #4a4a52 44%, #38383e 100%);
+  /* A LAMP OF ITS OWN — files at rest — the blue end, away from the eight hubs already crowding it.
+     It was #4a4a52, which four other rooms were also using.  */
+  --lamp-face: linear-gradient(180deg, #494f83 0%, #393d65 44%, #2b2e4a 100%);
   --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
           inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
           0 1px 1px rgba(74,74,82,.30), 0 8px 20px rgba(74,74,82,.34), 0 20px 46px rgba(74,74,82,.22);
@@ -1270,7 +1356,9 @@
   --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
 }
 [data-hub="thoughts"] {
-  --lamp-face: linear-gradient(180deg, #5f5f69 0%, #4a4a52 44%, #38383e 100%);
+  /* A LAMP OF ITS OWN — the loudest of the five, because a private notebook should not look like a settings panel.
+     It was #4a4a52, which four other rooms were also using.  */
+  --lamp-face: linear-gradient(180deg, #a946b4 0%, #8a3993 44%, #6d2f74 100%);
   --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
           inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
           0 1px 1px rgba(74,74,82,.30), 0 8px 20px rgba(74,74,82,.34), 0 20px 46px rgba(74,74,82,.22);
@@ -1335,7 +1423,9 @@
     #eeece6 62%, #e9e5db 74%, #f1efe9 88%, #faf9f6 100%);
 }
 [data-hub="profile"] {
-  --lamp-face: linear-gradient(180deg, #5f5f69 0%, #4a4a52 44%, #38383e 100%);
+  /* A LAMP OF ITS OWN — a muted plum: yours, and quiet about it.
+     It was #4a4a52, which four other rooms were also using.  */
+  --lamp-face: linear-gradient(180deg, #79445d 0%, #5b3346 44%, #402632 100%);
   --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
           inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
           0 1px 1px rgba(74,74,82,.30), 0 8px 20px rgba(74,74,82,.34), 0 20px 46px rgba(74,74,82,.22);
@@ -1415,7 +1505,11 @@
      from the LIFTED value rather than the token: white reads 5.8:1 on the
      mid stop as it actually renders, not as it is written. Same lesson the
      citywide orange just taught, applied on the first try this time.       */
-  --lamp-face: linear-gradient(180deg, #2f7a56 0%, #1f5d43 44%, #17462f 100%);
+  /* THE DARK LAMP THAT USED TO BE DECLARED HERE IS GONE. It was overwritten
+     144 lines below by the pale one this hub actually uses, so it had never
+     applied to anything — and it duplicated, to the digit, the value the white
+     rail sets for itself in `[data-hub="nutrition"] .tc-side`. One name, one
+     live declaration, and the rail's own copy is the only other. */
   --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50),
           inset 0 0 0 4px rgba(190,230,210,.20),
           inset 0 8px 12px -8px rgba(10,45,30,.50),

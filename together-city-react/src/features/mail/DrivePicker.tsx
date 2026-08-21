@@ -108,7 +108,7 @@ export function DrivePicker({ onClose, onPick, alreadyPicked }: {
           {(data?.folders ?? []).map((d) => (
             <button key={d.id} type="button" onClick={() => setFolderId(d.id)}
               style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 16px', background: 'none', border: 'none', borderBottom: '1px solid var(--line)', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', color: 'var(--ink)' }}>
-              <span style={{ fontSize: 18 }}>📁</span>
+              <span style={{ fontSize: 17 }}>📁</span>
               <span style={{ fontSize: 13.5, fontWeight: 600 }}>{d.name}</span>
             </button>
           ))}
@@ -118,7 +118,7 @@ export function DrivePicker({ onClose, onPick, alreadyPicked }: {
             return (
               <button key={f.id} type="button" onClick={() => !dup && toggle(f)} disabled={dup}
                 style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 16px', border: 'none', borderBottom: '1px solid var(--line)', cursor: dup ? 'default' : 'pointer', textAlign: 'left', fontFamily: 'inherit', color: 'var(--ink)', opacity: dup ? 0.5 : 1, background: on ? 'var(--accent-soft)' : 'none' }}>
-                <span style={{ fontSize: 18 }}>{fileIcon(f)}</span>
+                <span style={{ fontSize: 17 }}>{fileIcon(f)}</span>
                 <span style={{ minWidth: 0, flex: 1 }}>
                   <span style={{ display: 'block', fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
                   <span className="muted" style={{ fontSize: 11.5 }}>{fmtBytes(f.sizeBytes)}{dup ? ' · already attached' : ''}</span>

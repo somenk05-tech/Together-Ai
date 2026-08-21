@@ -26,7 +26,7 @@ export function FamilyGrocery() {
       </div>
 
       <div className="card" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10, background: 'var(--paper)' }}>
-        <span style={{ fontSize: 18 }}>🏪</span>
+        <span style={{ fontSize: 17 }}>🏪</span>
         <div>
           <strong style={{ fontSize: 13.5 }}>Grocery store &amp; 11-min delivery — coming soon</strong>
           <p className="muted" style={{ fontSize: 12, margin: '2px 0 0' }}>For now you get the shopping list from your family plan; in-app ordering &amp; delivery arrive soon.</p>

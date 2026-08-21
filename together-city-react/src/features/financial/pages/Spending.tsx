@@ -59,7 +59,7 @@ export function Spending() {
           {s.byCategory.map((c) => (
             <div key={c.category} style={{ padding: '12px 0', borderTop: '1px solid var(--line)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 18 }}>{catIcon[c.category]}</span>
+                <span style={{ fontSize: 17 }}>{catIcon[c.category]}</span>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, fontSize: 13.5 }}>{c.label} <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>· {c.hint}</span></div>
                 </div>
@@ -68,7 +68,7 @@ export function Spending() {
                   <div className="muted" style={{ fontSize: 11 }}>{c.pct}%</div>
                 </div>
               </div>
-              <div style={{ height: 8, borderRadius: 999, background: 'var(--line)', marginTop: 8, overflow: 'hidden' }}>
+              <div style={{ height: 8, borderRadius: 'var(--r-full)', background: 'var(--line)', marginTop: 8, overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: `${(c.amountInr / max) * 100}%`, background: catColor[c.category], transition: 'width .3s' }} />
               </div>
             </div>

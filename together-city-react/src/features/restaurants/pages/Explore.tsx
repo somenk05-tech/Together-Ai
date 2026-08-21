@@ -52,7 +52,7 @@ function CuratedCardView({ r }: { r: CuratedCard }) {
       <div style={{ padding: 16 }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h3 style={{ margin: 0, fontSize: 18 }}>{r.name}</h3>
+            <h3 style={{ margin: 0, fontSize: 17 }}>{r.name}</h3>
             <p className="meta" style={{ margin: '2px 0 0', fontSize: 12.5 }}>{r.icon} {r.cuisineLabel} · {r.area || r.city || 'Nearby'}</p>
             <AllergyMarkTag mark={r.allergen} />
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6, fontSize: 12.5, flexWrap: 'wrap' }}>
@@ -98,7 +98,7 @@ function CollectionRail({ title, subtitle, items }: { title: string; subtitle: s
     <section style={{ marginTop: 26 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 19 }}>{title}</h2>
+          <h2 style={{ margin: 0, fontSize: 20 }}>{title}</h2>
           {subtitle && <p className="muted" style={{ margin: '2px 0 0', fontSize: 12.5 }}>{subtitle}</p>}
         </div>
       </div>

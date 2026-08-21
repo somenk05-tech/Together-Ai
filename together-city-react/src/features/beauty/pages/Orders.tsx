@@ -136,7 +136,7 @@ export function Orders() {
             <article key={o.id} className="card" style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                 <strong style={{ fontSize: 15 }}>{rupees(o.totalInr)}</strong>
-                <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '2px 10px' }}>{o.status}</span>
+                <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 'var(--r-full)', padding: '2px 10px' }}>{o.status}</span>
                 <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>{o.createdAt.slice(0, 10)}</span>
               </div>
               <div className="muted" style={{ fontSize: 13, marginTop: 6 }}>

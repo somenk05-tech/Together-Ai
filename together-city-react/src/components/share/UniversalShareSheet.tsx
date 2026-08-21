@@ -552,17 +552,17 @@ export function UniversalShareSheet({
               </div>
 
               {/* Content preview */}
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 12, padding: 10, border: '1px solid var(--line)', borderRadius: 14, background: 'var(--paper)' }}>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 12, padding: 10, border: '1px solid var(--line)', borderRadius: 'var(--r-2)', background: 'var(--paper)' }}>
                 {preview.imageUrl
                   ? <img src={preview.imageUrl} alt="" style={{ width: 46, height: 66, borderRadius: 8, objectFit: 'cover', flex: '0 0 auto', background: 'var(--line)' }} />
                   : <div aria-hidden style={{ width: 46, height: 66, borderRadius: 8, background: 'var(--accent-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flex: '0 0 auto' }}>{'🎬'}</div>}
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{preview.title}</div>
+                  <div style={{ fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{preview.title}</div>
                   {preview.subtitle && <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 1 }}>{preview.subtitle}</div>}
                   {previewMeta.length > 0 && (
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
                       {previewMeta.map((m, i) => (
-                        <span key={i} style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '2px 8px' }}>{m}</span>
+                        <span key={i} style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 'var(--r-full)', padding: '2px 8px' }}>{m}</span>
                       ))}
                     </div>
                   )}
@@ -579,7 +579,7 @@ export function UniversalShareSheet({
                 rows={2}
                 maxLength={8192}
                 placeholder="Say something…"
-                style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13.5, fontFamily: 'inherit', resize: 'vertical', background: 'var(--card)', color: 'var(--ink)' }}
+                style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 13.5, fontFamily: 'inherit', resize: 'vertical', background: 'var(--card)', color: 'var(--ink)' }}
               />
 
               {/* Prominent search */}

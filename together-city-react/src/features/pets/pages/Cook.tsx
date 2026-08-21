@@ -60,7 +60,7 @@ export function Cook() {
                   {favourites.includes(r.id) ? '★' : '☆'}
                 </button>
               </div>
-              <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--warn-ink)', background: 'var(--warn-soft)', border: '1px solid var(--warn-line)', borderRadius: 999, padding: '3px 9px', justifySelf: 'start' }}>
+              <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--warn-ink)', background: 'var(--warn-soft)', border: '1px solid var(--warn-line)', borderRadius: 'var(--r-full)', padding: '3px 9px', justifySelf: 'start' }}>
                 Complementary
               </span>
               <p className="muted" style={{ margin: 0, fontSize: 12.5, lineHeight: 1.6 }}>{r.summary}</p>

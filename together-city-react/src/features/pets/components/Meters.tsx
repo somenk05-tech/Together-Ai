@@ -50,8 +50,8 @@ export function Bar(
         <span style={{ fontSize: 13.5, fontWeight: 600 }}>{label}</span>
         <span style={{ fontSize: 12.5, fontWeight: 700, color: ink }}>{right ?? `${value}`}</span>
       </div>
-      <div style={{ height: 8, borderRadius: 999, background: 'var(--wash)', overflow: 'hidden' }}>
-        <div style={{ width: `${Math.max(3, Math.min(100, value))}%`, height: '100%', background: ink, borderRadius: 999, transition: 'width var(--dur-slow) var(--ease)' }} />
+      <div style={{ height: 8, borderRadius: 'var(--r-full)', background: 'var(--wash)', overflow: 'hidden' }}>
+        <div style={{ width: `${Math.max(3, Math.min(100, value))}%`, height: '100%', background: ink, borderRadius: 'var(--r-full)', transition: 'width var(--dur-slow) var(--ease)' }} />
       </div>
     </div>
   );

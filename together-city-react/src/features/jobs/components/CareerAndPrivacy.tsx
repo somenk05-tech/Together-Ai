@@ -32,7 +32,7 @@ const lab: CSSProperties = { display: 'block', fontSize: 12.5, fontWeight: 700, 
 const grid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 12 };
 const box: CSSProperties = {
   display: 'flex', alignItems: 'center', gap: 8, minHeight: 44, padding: '0 12px',
-  borderRadius: 999, fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+  borderRadius: 'var(--r-full)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
   background: 'var(--wash)', color: 'var(--ink)',
 };
 

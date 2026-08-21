@@ -13,7 +13,7 @@ const CAT_ICON: Record<string, string> = { restaurant: '🍽', theatre: '🎬', 
 const GROUPS: [string, string][] = [['1', '1 person (a date)'], ['2-4', '2–4 people'], ['group', 'Group activity']];
 const EXAMPLES = ['Watch the new Superman movie this Saturday.', 'Coffee this weekend?', 'Stand-up comedy tonight?', 'Morning walk at Cubbon Park.', 'Badminton partner every Sunday.'];
 
-const fi: React.CSSProperties = { width: '100%', border: '1px solid var(--line)', borderRadius: 10, padding: '10px 12px', fontSize: 13.5, fontFamily: 'inherit', background: 'var(--card)', color: 'var(--ink)', outline: 'none', boxSizing: 'border-box' };
+const fi: React.CSSProperties = { width: '100%', border: '1px solid var(--line)', borderRadius: 'var(--r-1)', padding: '10px 12px', fontSize: 13.5, fontFamily: 'inherit', background: 'var(--card)', color: 'var(--ink)', outline: 'none', boxSizing: 'border-box' };
 const fl: React.CSSProperties = { fontSize: 12, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', margin: '14px 0 6px' };
 
 function Avatar({ p }: { p: AnonParty }) {
@@ -38,7 +38,7 @@ function ConnectedParty({ party, compatibility, trustLevel, conversationId, myRe
         <span className="tag">Level {trustLevel}</span>
       </div>
       {trustLevel >= 2 && party.interests.length > 0 && (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>{party.interests.slice(0, 8).map((i) => <span key={i} className="pill" style={{ border: '1px solid var(--line)', borderRadius: 999, padding: '3px 10px', fontSize: 11.5 }}>{i}</span>)}</div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>{party.interests.slice(0, 8).map((i) => <span key={i} className="pill" style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '3px 10px', fontSize: 11.5 }}>{i}</span>)}</div>
       )}
       <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
         {conversationId && <Link to={`/chats?c=${conversationId}`} style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--accent-ink)' }}>💬 {trustLevel < 2 ? 'Anonymous chat' : 'Open chat'} →</Link>}
@@ -110,15 +110,15 @@ function CreateForm() {
       <p className="muted" style={{ fontSize: 12.5 }}>Say what you want to do — the AI invites the most compatible people, and only they see it.</p>
       <span style={fl}>Activity</span>
       <input value={text} onChange={(e) => setText(e.target.value)} placeholder={EXAMPLES[0]} style={fi} />
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>{EXAMPLES.slice(1).map((e) => <button key={e} type="button" onClick={() => setText(e)} className="pill" style={{ border: '1px solid var(--line)', borderRadius: 999, padding: '4px 10px', fontSize: 11.5, cursor: 'pointer', background: 'transparent' }}>{e}</button>)}</div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>{EXAMPLES.slice(1).map((e) => <button key={e} type="button" onClick={() => setText(e)} className="pill" style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '4px 10px', fontSize: 11.5, cursor: 'pointer', background: 'transparent' }}>{e}</button>)}</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
         <label style={{ display: 'block' }}><span style={fl}>Date</span><input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={fi} /></label>
         <label style={{ display: 'block' }}><span style={fl}>Time</span><input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={fi} /></label>
       </div>
       <span style={fl}>Location</span>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{CATEGORIES.map(([k, l]) => <button key={k} type="button" onClick={() => setCategory(k)} style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 12px', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', border: `1.5px solid ${category === k ? 'var(--accent)' : 'var(--line)'}`, background: category === k ? 'var(--accent)' : 'transparent', color: category === k ? 'var(--on-accent)' : 'var(--ink-soft)' }}>{l}</button>)}</div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{CATEGORIES.map(([k, l]) => <button key={k} type="button" onClick={() => setCategory(k)} style={{ cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '6px 12px', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', border: `1.5px solid ${category === k ? 'var(--accent)' : 'var(--line)'}`, background: category === k ? 'var(--accent)' : 'transparent', color: category === k ? 'var(--on-accent)' : 'var(--ink-soft)' }}>{l}</button>)}</div>
       <span style={fl}>Number of people</span>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{GROUPS.map(([k, l]) => <button key={k} type="button" onClick={() => setGroupSize(k)} style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 12px', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', border: `1.5px solid ${groupSize === k ? 'var(--accent)' : 'var(--line)'}`, background: groupSize === k ? 'var(--accent)' : 'transparent', color: groupSize === k ? 'var(--on-accent)' : 'var(--ink-soft)' }}>{l}</button>)}</div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{GROUPS.map(([k, l]) => <button key={k} type="button" onClick={() => setGroupSize(k)} style={{ cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '6px 12px', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', border: `1.5px solid ${groupSize === k ? 'var(--accent)' : 'var(--line)'}`, background: groupSize === k ? 'var(--accent)' : 'transparent', color: groupSize === k ? 'var(--on-accent)' : 'var(--ink-soft)' }}>{l}</button>)}</div>
       <span style={fl}>Description</span>
       <textarea value={description} rows={3} maxLength={500} onChange={(e) => setDescription(e.target.value)} placeholder="Looking for someone who enjoys good movies and better conversation…" style={{ ...fi, resize: 'vertical' }} />
       <div style={{ marginTop: 14 }}>
@@ -186,7 +186,7 @@ export function DatingActivity() {
             <div key={a.id} className="card" style={{ marginBottom: 14 }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                 <span style={{ fontSize: 20 }}>{CAT_ICON[a.category] ?? '📍'}</span>
-                <h3 style={{ fontSize: 15.5, margin: 0 }}>{a.text}</h3>
+                <h3 style={{ fontSize: 15, margin: 0 }}>{a.text}</h3>
                 <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>{new Date(a.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}{a.time ? ` · ${a.time}` : ''}</span>
               </div>
               <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>{a.invited} invited · {a.connectedCount} connected</div>

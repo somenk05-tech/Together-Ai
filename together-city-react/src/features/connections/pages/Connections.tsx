@@ -102,7 +102,7 @@ function RemoveConfirm({ c, onCancel }: { c: Connection; onCancel: () => void })
   const remove = useRemoveConnection();
   return (
     <div className="person-fold">
-      <div style={{ padding: '12px 16px', borderRadius: 10, background: 'rgba(192,57,43,.06)', border: '1px solid rgba(192,57,43,.25)' }}>
+      <div style={{ padding: '12px 16px', borderRadius: 'var(--r-1)', background: 'rgba(192,57,43,.06)', border: '1px solid rgba(192,57,43,.25)' }}>
         <p style={{ fontSize: 13, fontWeight: 700, margin: '0 0 4px' }}>Remove {c.user.name.split(' ')[0]} from your connections?</p>
         <p className="muted" style={{ fontSize: 12, margin: '0 0 10px' }}>This will disconnect them from all shared hubs.</p>
         <div style={{ display: 'flex', gap: 8 }}>

@@ -49,7 +49,7 @@ function ThreadRow({ t, title, sub }: { t: ServiceThread; title: string; sub: st
         </div>
       </div>
       {t.unread > 0 && (
-        <span style={{ minWidth: 20, height: 20, borderRadius: 999, background: 'var(--danger-ink)', color: 'var(--on-accent)', fontSize: 11, fontWeight: 700, display: 'grid', placeItems: 'center', padding: '0 6px', flexShrink: 0, alignSelf: 'center' }}>
+        <span style={{ minWidth: 20, height: 20, borderRadius: 'var(--r-full)', background: 'var(--danger-ink)', color: 'var(--on-accent)', fontSize: 11, fontWeight: 700, display: 'grid', placeItems: 'center', padding: '0 6px', flexShrink: 0, alignSelf: 'center' }}>
           {t.unread > 9 ? '9+' : t.unread}
         </span>
       )}
@@ -190,7 +190,7 @@ export function ServiceThreadView() {
        order was already right. */
     <div className="csroom">
       <button type="button" onClick={() => nav('/services/messages')}
-        style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 999, padding: '4px 12px', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', marginBottom: 12 }}>← Messages</button>
+        style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '4px 12px', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', marginBottom: 12 }}>← Messages</button>
 
       <h1 style={{ fontSize: 22 }}>
         {isOwner ? (thread.name ? `${thread.name}` : thread.alias) : business.businessName}
@@ -243,7 +243,7 @@ export function ServiceThreadView() {
               </div>
             ) : (
               <div style={{
-                maxWidth: '78%', padding: '9px 13px', borderRadius: 14, fontSize: 14, lineHeight: 1.45,
+                maxWidth: '78%', padding: '9px 13px', borderRadius: 'var(--r-2)', fontSize: 14, lineHeight: 1.45,
                 background: m.mine ? 'var(--accent)' : 'var(--wash)',
                 color: m.mine ? 'var(--on-accent)' : 'var(--ink)',
               }}>

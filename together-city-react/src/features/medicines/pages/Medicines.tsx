@@ -20,7 +20,7 @@ function AddMedicine({ prescriptionId }: { prescriptionId: string }) {
       value={(f[key] as string) ?? ''}
       onChange={(e) => setF({ ...f, [key]: e.target.value })}
       placeholder={placeholder}
-      style={{ flex, border: '1px solid var(--line)', borderRadius: 10, padding: '8px 10px', fontSize: 13, fontFamily: 'inherit', background: 'var(--card)', outline: 'none' }}
+      style={{ flex, border: '1px solid var(--line)', borderRadius: 'var(--r-1)', padding: '8px 10px', fontSize: 13, fontFamily: 'inherit', background: 'var(--card)', outline: 'none' }}
     />
   );
 
@@ -100,7 +100,7 @@ function DoseRow({ d }: { d: TodayDose }) {
 
       {answered ? (
         <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
-          <span style={{ fontSize: 11.5, fontWeight: 700, color: state.color, background: state.bg, borderRadius: 999, padding: '3px 10px' }}>
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: state.color, background: state.bg, borderRadius: 'var(--r-full)', padding: '3px 10px' }}>
             {state.label}
           </span>
           {/* Answering is never final. People tap the wrong row. */}
@@ -115,7 +115,7 @@ function DoseRow({ d }: { d: TodayDose }) {
       ) : (
         <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto', flexWrap: 'wrap' }}>
           {d.status === 'missed' && (
-            <span style={{ fontSize: 11.5, fontWeight: 700, color: state.color, background: state.bg, borderRadius: 999, padding: '3px 10px' }}>
+            <span style={{ fontSize: 11.5, fontWeight: 700, color: state.color, background: state.bg, borderRadius: 'var(--r-full)', padding: '3px 10px' }}>
               {state.label}
             </span>
           )}
@@ -214,7 +214,7 @@ function PrescriptionCard({ p }: { p: Prescription }) {
           has been reading prescriptions and setting reminders. Nothing read it.
           A category that looks like it does something is a promise. */}
       {p.recordedAllergies.length > 0 && (
-        <section style={{ marginTop: 14, padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 10 }}>
+        <section style={{ marginTop: 14, padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 'var(--r-1)' }}>
           <div style={{ fontSize: 12.5, fontWeight: 700 }}>Allergies you’ve recorded</div>
           <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 12.5, lineHeight: 1.7 }}>
             {p.recordedAllergies.map((a) => (
@@ -307,7 +307,7 @@ export function Medicines() {
 
           {pending.map((p) => <PrescriptionCard key={p.id} p={p} />)}
 
-          <h2 style={{ fontSize: 18, margin: '26px 0 10px' }}>Your medicines</h2>
+          <h2 style={{ fontSize: 17, margin: '26px 0 10px' }}>Your medicines</h2>
           {(medicines.data ?? []).length === 0 ? (
             <EmptyState icon="💊" title="No medicines yet" hint="Add a prescription above and confirm it to start reminders." />
           ) : (
@@ -352,7 +352,7 @@ export function Medicines() {
             );
           })()}
 
-          <h2 style={{ fontSize: 18, margin: '26px 0 10px' }}>Dose log</h2>
+          <h2 style={{ fontSize: 17, margin: '26px 0 10px' }}>Dose log</h2>
           {(logs.data?.items ?? []).length === 0 ? (
             <p className="muted" style={{ fontSize: 13 }}>Every dose you take, skip or miss will be recorded here.</p>
           ) : (

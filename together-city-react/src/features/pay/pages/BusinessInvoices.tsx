@@ -71,7 +71,7 @@ export function BusinessInvoices() {
             onClick={() => setTab(t.key)}
             style={{
               minHeight: 44, whiteSpace: 'nowrap', cursor: 'pointer', fontFamily: 'inherit',
-              padding: '0 12px', borderRadius: 999, fontSize: 12.5, fontWeight: 600,
+              padding: '0 12px', borderRadius: 'var(--r-full)', fontSize: 12.5, fontWeight: 600,
               border: `1px solid ${tab === t.key ? 'var(--accent)' : 'var(--line)'}`,
               background: tab === t.key ? 'var(--accent-soft)' : 'transparent',
               color: tab === t.key ? 'var(--accent-ink)' : 'var(--ink)',
@@ -98,7 +98,7 @@ export function BusinessInvoices() {
             <Card key={i.id} lift style={{ padding: '12px 14px' }}>
               <Link to={`/financial/invoices/${i.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-                  <strong style={{ fontSize: 14.5 }}>{i.customerName ?? 'A neighbour'}</strong>
+                  <strong style={{ fontSize: 15 }}>{i.customerName ?? 'A neighbour'}</strong>
                   <StatusChip status={i.status} label={i.statusLabel} />
                   <span style={{ marginLeft: 'auto', fontWeight: 800, fontSize: 16, fontVariantNumeric: 'tabular-nums' }}>
                     {inr(i.totalInr)}

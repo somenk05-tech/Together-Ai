@@ -156,7 +156,7 @@ function useCookEngine() {
 
 /* ---------- UI ---------- */
 
-const ctrl: React.CSSProperties = { borderRadius: 999, padding: '12px 18px', fontSize: 14, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(255,255,255,.35)', background: 'transparent', color: 'var(--on-ground)' };
+const ctrl: React.CSSProperties = { borderRadius: 'var(--r-full)', padding: '12px 18px', fontSize: 14, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(255,255,255,.35)', background: 'transparent', color: 'var(--on-ground)' };
 const ACCENT = 'var(--ok-line)';
 
 function Overlay() {
@@ -218,7 +218,7 @@ function Overlay() {
         {step.kind === 'prep' && step.ingredients && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', maxWidth: 620 }}>
             {step.ingredients.map((ing) => (
-              <span key={ing.name} style={{ fontSize: 13, padding: '7px 13px', borderRadius: 999, background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.18)' }}>{ing.name} · {ing.grams} g</span>
+              <span key={ing.name} style={{ fontSize: 13, padding: '7px 13px', borderRadius: 'var(--r-full)', background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.18)' }}>{ing.name} · {ing.grams} g</span>
             ))}
           </div>
         )}
@@ -227,7 +227,7 @@ function Overlay() {
         {timed && (
           <>
             <div style={{ fontSize: 'clamp(48px,15vw,110px)', fontWeight: 700, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.02em', color: s.rung ? ACCENT : 'var(--on-ground)' }}>{mmss(s.remain)}</div>
-            <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,.15)', overflow: 'hidden', width: 260 }}>
+            <div style={{ height: 6, borderRadius: 'var(--r-full)', background: 'rgba(255,255,255,.15)', overflow: 'hidden', width: 260 }}>
               {/* Was `width: N%` with `transition: width .4s linear`, re-triggered every
                   second: layout+paint+composite on every frame for the whole cooking step.
                   scaleX is composited and costs nothing per frame, and `1s linear` matches
@@ -253,7 +253,7 @@ function Overlay() {
         </div>
       </div>
 
-      <div style={{ height: 4, borderRadius: 999, background: 'rgba(255,255,255,.12)', overflow: 'hidden', margin: '6px 0 14px' }}>
+      <div style={{ height: 4, borderRadius: 'var(--r-full)', background: 'rgba(255,255,255,.12)', overflow: 'hidden', margin: '6px 0 14px' }}>
         {/* Composited step-progress bar: scaleX instead of width, same .3s feel. */}
         <div style={{
           height: '100%', background: 'var(--accent-ink)', width: '100%', transformOrigin: 'left',
@@ -286,8 +286,8 @@ function Pill() {
     <button type="button" onClick={() => minimize(false)}
       style={{ position: 'fixed', left: 16, bottom: 16, zIndex: 9998, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer',
         background: rung ? 'var(--ok-ink)' : 'var(--ground)', color: 'var(--on-ground)', border: '1px solid rgba(255,255,255,.25)',
-        borderRadius: 999, padding: '11px 18px', boxShadow: '0 8px 24px rgba(0,0,0,.35)', fontFamily: 'inherit', fontWeight: 700, fontSize: 13.5 }}>
-      <span style={{ fontSize: 18 }}>🍳</span>
+        borderRadius: 'var(--r-full)', padding: '11px 18px', boxShadow: '0 8px 24px rgba(0,0,0,.35)', fontFamily: 'inherit', fontWeight: 700, fontSize: 13.5 }}>
+      <span style={{ fontSize: 17 }}>🍳</span>
       <span style={{ textAlign: 'left' }}><span style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.7)' }}>{name}</span>{label}</span>
       <span style={{ fontSize: 12, color: 'var(--ok-line)' }}>Open ▸</span>
     </button>

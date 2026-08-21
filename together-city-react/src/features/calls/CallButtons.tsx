@@ -24,11 +24,11 @@ export function CallButtons({ conversationId, compact = false }: { conversationI
      phone. Same target, same shape, one row. */
   const style = compact ? {
     border: '1px solid var(--line)', background: 'transparent', cursor: inCall ? 'default' : 'pointer',
-    borderRadius: 999, width: 34, height: 34, padding: 0, display: 'grid', placeItems: 'center',
+    borderRadius: 'var(--r-full)', width: 34, height: 34, padding: 0, display: 'grid', placeItems: 'center',
     fontSize: 13, fontFamily: 'inherit', color: 'inherit', opacity: inCall || busy ? 0.5 : 1,
   } as const : {
     border: '1px solid var(--line)', background: 'transparent', cursor: inCall ? 'default' : 'pointer',
-    borderRadius: 999, padding: '6px 12px', fontSize: 13,
+    borderRadius: 'var(--r-full)', padding: '6px 12px', fontSize: 13,
     fontFamily: 'inherit', color: 'inherit', opacity: inCall || busy ? 0.5 : 1,
   } as const;
 

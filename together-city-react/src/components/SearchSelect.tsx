@@ -75,7 +75,7 @@ export function SearchSelect({
 
   const box: React.CSSProperties = {
     width: '100%', padding: '11px 13px', border: `1.5px solid ${open ? 'var(--accent)' : 'var(--line)'}`,
-    borderRadius: 10, fontSize: 14, fontFamily: 'inherit', background: 'var(--card)', boxSizing: 'border-box',
+    borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit', background: 'var(--card)', boxSizing: 'border-box',
     display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, cursor: disabled ? 'not-allowed' : 'pointer',
     textAlign: 'left', color: value ? 'var(--ink)' : 'var(--muted)', opacity: disabled ? 0.6 : 1,
   };

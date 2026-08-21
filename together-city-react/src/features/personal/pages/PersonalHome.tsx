@@ -180,7 +180,7 @@ export function PersonalHome() {
             </span>
 
             <div style={{ paddingLeft: 76, paddingRight: 4 }}>
-              <b style={{ display: 'block', fontSize: 19, letterSpacing: '-.02em' }}>{r.label}</b>
+              <b style={{ display: 'block', fontSize: 20, letterSpacing: '-.02em' }}>{r.label}</b>
               <p className="muted" style={{ fontSize: 13, lineHeight: 1.55, margin: '5px 0 0' }}>{r.line}</p>
             </div>
 

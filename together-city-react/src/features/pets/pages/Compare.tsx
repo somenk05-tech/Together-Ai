@@ -141,7 +141,7 @@ const TD: React.CSSProperties = { padding: '10px 12px 10px 0' };
 
 function Award({ label }: { label: string }) {
   return (
-    <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', padding: '3px 8px', borderRadius: 999, background: 'var(--ok-soft)', color: 'var(--ok-ink)', border: '1px solid var(--ok-line)' }}>
+    <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', padding: '3px 8px', borderRadius: 'var(--r-full)', background: 'var(--ok-soft)', color: 'var(--ok-ink)', border: '1px solid var(--ok-line)' }}>
       {label}
     </span>
   );

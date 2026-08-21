@@ -111,7 +111,7 @@ function ImageEditor({ src, onClose, onApply }: { src: string; onClose: () => vo
               const active = pf === filter;
               return (
                 <button key={p.name} type="button" onClick={() => applyPreset(p)}
-                  style={{ cursor: 'pointer', border: `2px solid ${active ? 'var(--accent)' : 'var(--line)'}`, borderRadius: 10, padding: 0, background: 'none', overflow: 'hidden', width: 72 }}>
+                  style={{ cursor: 'pointer', border: `2px solid ${active ? 'var(--accent)' : 'var(--line)'}`, borderRadius: 'var(--r-1)', padding: 0, background: 'none', overflow: 'hidden', width: 72 }}>
                   <img src={src} alt="" style={{ width: 72, height: 54, objectFit: 'cover', display: 'block', filter: pf }} />
                   <span style={{ display: 'block', fontSize: 11, fontWeight: 600, padding: '3px 0' }}>{p.name}</span>
                 </button>
@@ -154,7 +154,7 @@ function CoverPicker({ item, onClose, onPick }: { item: MediaItem; onClose: () =
       <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: 'min(560px,96vw)', maxHeight: '92vh', overflow: 'auto' }}>
         <h3 style={{ margin: '0 0 8px', fontSize: 17 }}>Choose cover frame</h3>
         <video ref={vref} src={item.src} controls playsInline muted
-          style={{ width: '100%', borderRadius: 10, background: 'var(--media-bg)', maxHeight: '60vh', display: 'block' }} />
+          style={{ width: '100%', borderRadius: 'var(--r-1)', background: 'var(--media-bg)', maxHeight: '60vh', display: 'block' }} />
         <p className="muted" style={{ fontSize: 12.5, margin: '10px 0' }}>Scrub to the frame you want, pause, then set it as the cover.</p>
         <div style={{ display: 'flex', gap: 10 }}>
           <button type="button" className="btn btn-accent btn-sm" onClick={capture}>Use this frame</button>
@@ -264,7 +264,7 @@ function fmtBadge(dur: number | undefined): { text: string; eligible: boolean } 
 }
 
 const inputStyle: React.CSSProperties = {
-  width: '100%', border: '1px solid var(--line)', borderRadius: 10, padding: '11px 13px',
+  width: '100%', border: '1px solid var(--line)', borderRadius: 'var(--r-1)', padding: '11px 13px',
   fontSize: 14, fontFamily: 'inherit', background: 'var(--card)', color: 'var(--ink)', outline: 'none',
 };
 
@@ -302,11 +302,11 @@ function MusicPicker({ selected, onSelect, stopSignal }: { selected: Track | nul
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
         <span className="muted" style={{ fontSize: 12.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="music" size={14} />Music</span>
         <span title="Every track is royalty-free and cleared for use. Uploading your own (possibly copyrighted) audio is not allowed."
-          style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 8px', borderRadius: 999, background: 'rgba(34,197,94,.14)', color: 'var(--ok-ink)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 8px', borderRadius: 'var(--r-full)', background: 'rgba(34,197,94,.14)', color: 'var(--ok-ink)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
           <Icon name="shield" size={13} /> Copyright-safe · Royalty-free
         </span>
         <button type="button" onClick={() => { stop(); onSelect(null); }}
-          style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '6px 12px', borderRadius: 999,
+          style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '6px 12px', borderRadius: 'var(--r-full)',
             border: `1.5px solid ${!selected ? 'var(--accent)' : 'var(--line)'}`,
             background: !selected ? 'var(--accent)' : 'var(--card)', color: !selected ? 'var(--on-accent)' : 'var(--ink)' }}>
           None
@@ -628,12 +628,12 @@ export function CreatePost() {
                     ? <video src={m.src} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     : <img src={m.src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
                   {m.type === 'video' && m.file && (
-                    <span style={{ position: 'absolute', top: 6, left: 6, color: 'var(--on-accent)', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: 'rgba(0,0,0,.6)' }}>
+                    <span style={{ position: 'absolute', top: 6, left: 6, color: 'var(--on-accent)', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 'var(--r-full)', background: 'rgba(0,0,0,.6)' }}>
                       {fileFmt(m.file)} · {sizeMB(m.file.size)} MB
                     </span>
                   )}
                   {badge && (
-                    <span style={{ position: 'absolute', bottom: 6, left: 6, color: 'var(--on-accent)', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: 'rgba(0,0,0,.62)' }}>
+                    <span style={{ position: 'absolute', bottom: 6, left: 6, color: 'var(--on-accent)', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 'var(--r-full)', background: 'rgba(0,0,0,.62)' }}>
                       {badge.text}
                     </span>
                   )}
@@ -644,13 +644,13 @@ export function CreatePost() {
                   </button>
                   {m.type === 'video' && (
                     <button type="button" onClick={() => setCoverPick(i)}
-                      style={{ position: 'absolute', bottom: 6, right: 6, color: 'var(--on-accent)', fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: 'rgba(0,0,0,.65)', border: 'none', cursor: 'pointer' }}>
+                      style={{ position: 'absolute', bottom: 6, right: 6, color: 'var(--on-accent)', fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 'var(--r-full)', background: 'rgba(0,0,0,.65)', border: 'none', cursor: 'pointer' }}>
                       {m.poster ? <><Icon name="accepted" size={13} /> Cover set</> : <><Icon name="image" size={13} /> Choose cover</>}
                     </button>
                   )}
                   {m.type === 'image' && (
                     <button type="button" onClick={() => setEditPick(i)}
-                      style={{ position: 'absolute', bottom: 6, right: 6, color: 'var(--on-accent)', fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: 'rgba(0,0,0,.65)', border: 'none', cursor: 'pointer' }}>
+                      style={{ position: 'absolute', bottom: 6, right: 6, color: 'var(--on-accent)', fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 'var(--r-full)', background: 'rgba(0,0,0,.65)', border: 'none', cursor: 'pointer' }}>
                       <Icon name="edit" size={13} /> Edit
                     </button>
                   )}
@@ -673,7 +673,7 @@ export function CreatePost() {
         {hashtags.length > 0 && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
             {hashtags.map((h) => (
-              <span key={h} style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-ink)', background: 'var(--accent-soft)', padding: '3px 10px', borderRadius: 999 }}>
+              <span key={h} style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-ink)', background: 'var(--accent-soft)', padding: '3px 10px', borderRadius: 'var(--r-full)' }}>
                 {h} <button type="button" onClick={() => setHashtags((x) => x.filter((y) => y !== h))} aria-label={`Remove ${h}`} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'inherit', padding: 0, marginLeft: 2, display: 'inline-flex', verticalAlign: '-.15em' }}><Icon name="close" size={12} /></button>
               </span>
             ))}
@@ -685,19 +685,19 @@ export function CreatePost() {
             <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)', marginRight: 8 }}>Suggested</span>
             {suggestions.tags.map((t) => (
               <button key={t} type="button" onClick={() => setHashtags((x) => [...x, t])}
-                style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 999, border: '1px solid var(--line)', background: 'var(--paper)', marginRight: 6, color: 'var(--ink)' }}>
+                style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 'var(--r-full)', border: '1px solid var(--line)', background: 'var(--paper)', marginRight: 6, color: 'var(--ink)' }}>
                 {t}
               </button>
             ))}
             {suggestions.place && (
               <button type="button" onClick={() => { setPlaceName(suggestions.place!); setOpen('location'); }}
-                style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 999, border: '1px solid var(--line)', background: 'var(--paper)', marginRight: 6, color: 'var(--ink)' }}>
+                style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 'var(--r-full)', border: '1px solid var(--line)', background: 'var(--paper)', marginRight: 6, color: 'var(--ink)' }}>
                 <Icon name="place" size={13} /> {suggestions.place}
               </button>
             )}
             {suggestions.mood && (
               <button type="button" onClick={() => setFeeling(suggestions.mood)}
-                style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 999, border: '1px solid var(--line)', background: 'var(--paper)', color: 'var(--ink)' }}>
+                style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 'var(--r-full)', border: '1px solid var(--line)', background: 'var(--paper)', color: 'var(--ink)' }}>
                 {suggestions.mood}
               </button>
             )}
@@ -746,7 +746,7 @@ export function CreatePost() {
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
             {FEELINGS.map((f) => (
               <button key={f} type="button" onClick={() => setFeeling(feeling === f ? null : f)}
-                style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, padding: '6px 12px', borderRadius: 999,
+                style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, padding: '6px 12px', borderRadius: 'var(--r-full)',
                   border: `1.5px solid ${feeling === f ? 'var(--accent)' : 'var(--line)'}`,
                   background: feeling === f ? 'var(--accent)' : 'var(--card)', color: feeling === f ? 'var(--on-accent)' : 'var(--ink)' }}>
                 {f}
@@ -761,7 +761,7 @@ export function CreatePost() {
               {connectionOptions.slice(0, 8).map((c) => (
                 <button key={c.id} type="button"
                   onClick={() => setTagged((t) => [...t, { id: c.user.id, name: c.user.name, handle: c.user.handle }])}
-                  style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, padding: '6px 12px', borderRadius: 999, border: '1.5px solid var(--line)', background: 'var(--card)', color: 'var(--ink)' }}>
+                  style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, padding: '6px 12px', borderRadius: 'var(--r-full)', border: '1.5px solid var(--line)', background: 'var(--card)', color: 'var(--ink)' }}>
                   + {c.user.name}
                 </button>
               ))}
@@ -770,7 +770,7 @@ export function CreatePost() {
             {tagged.length > 0 && (
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
                 {tagged.map((t) => (
-                  <span key={t.id} style={{ fontSize: 12, fontWeight: 600, background: 'var(--accent-soft)', color: 'var(--accent-ink)', padding: '3px 10px', borderRadius: 999 }}>
+                  <span key={t.id} style={{ fontSize: 12, fontWeight: 600, background: 'var(--accent-soft)', color: 'var(--accent-ink)', padding: '3px 10px', borderRadius: 'var(--r-full)' }}>
                     {t.name} <button type="button" onClick={() => setTagged((x) => x.filter((y) => y.id !== t.id))} aria-label={`Remove ${t.name}`} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'inherit', padding: 0, display: 'inline-flex', verticalAlign: '-.15em' }}><Icon name="close" size={12} /></button>
                   </span>
                 ))}
@@ -832,7 +832,7 @@ export function CreatePost() {
             <div style={{ display: 'grid', gap: 6, padding: '0 0 14px' }}>
               {AUDIENCES.map((a) => (
                 <label key={a.key} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '9px 12px',
-                  borderRadius: 10, border: '1px solid var(--line)',
+                  borderRadius: 'var(--r-1)', border: '1px solid var(--line)',
                   background: audience === a.key ? 'var(--wash)' : 'var(--card)' }}>
                   <input type="radio" name="aud" checked={audience === a.key} onChange={() => setAudience(a.key)} style={{ accentColor: 'var(--accent)' }} />
                   <span style={{ fontSize: 13.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 7 }}><Icon name={a.icon} size={15} />{a.label}</span>

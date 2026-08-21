@@ -1236,6 +1236,39 @@ describe('Relief stays a system', () => {
   });
 
   /**
+   * ── AND A TILE FOR EVERY HERO, SMALL ENOUGH TO BE ONE ───────────────────
+   *
+   * /hubs draws all thirteen doors at about 145px and was serving the landing
+   * plates to do it: 2,075 KB of 1,915px artwork for a screen of thumbnails,
+   * every one of them `loading="lazy"` and every one above the fold. Measured
+   * on the live page, the document was ready in 97ms and the city took over
+   * three seconds to arrive.
+   *
+   * The plates stay exactly as they are — they are the right size for the page
+   * they were commissioned for. This asserts the OTHER file: a `-tile` beside
+   * every hero, and a ceiling on it, because the failure this prevents is not
+   * a missing file (that one is loud) but a 380 KB one quietly added later by
+   * somebody copying the plate. 40 KB is roughly twice the largest tile today.
+   */
+  it('gives every hero a tile, and keeps the tile the size of a tile', () => {
+    const page = read('src/pages/HubLanding.tsx');
+    const at = page.indexOf('export const HUB_HERO');
+    const body = page.slice(at, page.indexOf('};', at));
+    const heroes = [...body.matchAll(/^\s*[a-z]+:\s*'([^']+\.webp)'/gm)].map((m) => m[1]);
+    expect(heroes.length).toBeGreaterThan(10);
+
+    const problems: string[] = [];
+    for (const hero of heroes) {
+      const tile = hero.replace(/\.webp$/, '-tile.webp');
+      const path = join(APP, 'public/assets/img', tile);
+      if (!existsSync(path)) { problems.push(`missing ${tile}`); continue; }
+      const kb = Math.round(statSync(path).size / 1024);
+      if (kb > 40) problems.push(`${tile} is ${kb} KB — a tile, not a plate`);
+    }
+    expect(problems).toEqual([]);
+  });
+
+  /**
    * THE CARD SHAPE IS MEASURED FROM THE CARDS.
    *
    * --tarot-card was 1 / 1.72 — the proportions of a real tarot card, and a
@@ -1370,6 +1403,114 @@ describe('Relief stays a system', () => {
     expect(keys.length).toBeGreaterThanOrEqual(14);
     expect(keys.filter((k) => !tokens.includes(`[data-hub="${k}"]`))).toEqual([]);
   });
+  /**
+   * ── AND AN ACCENT NO OTHER ROOM ALREADY HAS ─────────────────────────────
+   *
+   * The assertion directly above is named "gives every hub in the config an
+   * accent of its own" and it has never compared two colours — it checks that
+   * a `[data-hub]` block EXISTS. Measured across the twenty-six lamps it was
+   * guarding: five unrelated rooms — legal, drive, thoughts, profile, settings
+   * — all rendered #4a4a52, and travel sat 1.38 from medical, which is below a
+   * just-noticeable difference, meaning no viewer could tell them apart. The
+   * lamp is the one object that says which room you are standing in before a
+   * word is read, and for six rooms it said nothing.
+   *
+   * ΔE2000, NOT A HEX COMPARISON, because the failure this exists to catch is
+   * two colours a person cannot distinguish, and two different hex values do
+   * that perfectly well. The maths is the CIE's; the floor is ours.
+   *
+   * THE FLOOR IS 3.5 AND THAT IS DELIBERATELY LOW. It is today's number, not
+   * an ideal — restaurants and pets sit at 3.57 and one of them ought to move,
+   * but which one is a question about what a room is FOR, and that is the
+   * owner's call rather than a solver's. Raise this as pairs are separated;
+   * never lower it. Above the floor, the tightest surviving pair is mail
+   * against chat at 5.35.
+   *
+   * TWO PAIRS ARE ALLOWED TO BE IDENTICAL and both are one domain wearing two
+   * doors: medical/medicines, and chat/connections. They are listed by name so
+   * that a third such pair has to be argued for rather than merely added.
+   */
+  it('gives every hub a lamp no other room already has', () => {
+    const tokens = read('src/styles/tokens.css');
+    const lamps = new Map<string, string>();
+    for (const m of tokens.matchAll(/\[data-hub="([a-z]+)"\]\s*\{/g)) {
+      const start = m.index + m[0].length;
+      let depth = 1, i = start;
+      while (depth > 0 && i < tokens.length) {
+        if (tokens[i] === '{') depth++;
+        else if (tokens[i] === '}') depth--;
+        i++;
+      }
+      const face = [...tokens.slice(start, i).matchAll(/--lamp-face:\s*linear-gradient\([^;]*;/g)].pop();
+      if (!face) continue;
+      const stops = face[0].match(/#[0-9a-f]{6}/gi);
+      // The MIDDLE stop is the colour the lamp reads as; the other two are its
+      // lit top edge and its foot.
+      if (stops && stops.length >= 2) lamps.set(m[1], stops[1].toLowerCase());
+    }
+    expect(lamps.size).toBeGreaterThan(20);
+
+    const lab = (hex: string) => {
+      const n = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+        .map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+      const [r, g, b] = n;
+      const xyz = [
+        (r * 0.4124564 + g * 0.3575761 + b * 0.1804375) / 0.95047,
+        r * 0.2126729 + g * 0.7151522 + b * 0.0721750,
+        (r * 0.0193339 + g * 0.1191920 + b * 0.9503041) / 1.08883,
+      ].map((t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116));
+      return [116 * xyz[1] - 16, 500 * (xyz[0] - xyz[1]), 200 * (xyz[1] - xyz[2])];
+    };
+    const de2000 = (A: number[], B: number[]) => {
+      const [L1, a1, b1] = A, [L2, a2, b2] = B;
+      const rad = Math.PI / 180, deg = 180 / Math.PI;
+      const C1 = Math.hypot(a1, b1), C2 = Math.hypot(a2, b2), Cb = (C1 + C2) / 2;
+      const G = 0.5 * (1 - Math.sqrt(Cb ** 7 / (Cb ** 7 + 25 ** 7)) || 0);
+      const a1p = (1 + G) * a1, a2p = (1 + G) * a2;
+      const C1p = Math.hypot(a1p, b1), C2p = Math.hypot(a2p, b2);
+      const h1p = ((Math.atan2(b1, a1p) * deg) % 360 + 360) % 360;
+      const h2p = ((Math.atan2(b2, a2p) * deg) % 360 + 360) % 360;
+      const dLp = L2 - L1, dCp = C2p - C1p;
+      let dhp = 0;
+      if (C1p * C2p !== 0) {
+        dhp = h2p - h1p;
+        if (dhp > 180) dhp -= 360; else if (dhp < -180) dhp += 360;
+      }
+      const dHp = 2 * Math.sqrt(C1p * C2p) * Math.sin((dhp * rad) / 2);
+      const Lb = (L1 + L2) / 2, Cbp = (C1p + C2p) / 2;
+      let hbp = h1p + h2p;
+      if (C1p * C2p !== 0) {
+        hbp = Math.abs(h1p - h2p) <= 180 ? (h1p + h2p) / 2
+          : (h1p + h2p < 360 ? (h1p + h2p + 360) / 2 : (h1p + h2p - 360) / 2);
+      }
+      const T = 1 - 0.17 * Math.cos((hbp - 30) * rad) + 0.24 * Math.cos(2 * hbp * rad)
+        + 0.32 * Math.cos((3 * hbp + 6) * rad) - 0.20 * Math.cos((4 * hbp - 63) * rad);
+      const Sl = 1 + (0.015 * (Lb - 50) ** 2) / Math.sqrt(20 + (Lb - 50) ** 2);
+      const Sc = 1 + 0.045 * Cbp, Sh = 1 + 0.015 * Cbp * T;
+      const Rt = -Math.sin(2 * (30 * Math.exp(-(((hbp - 275) / 25) ** 2))) * rad)
+        * (2 * Math.sqrt(Cbp ** 7 / (Cbp ** 7 + 25 ** 7)) || 0);
+      return Math.sqrt((dLp / Sl) ** 2 + (dCp / Sc) ** 2 + (dHp / Sh) ** 2
+        + Rt * (dCp / Sc) * (dHp / Sh));
+    };
+
+    const FLOOR = 3.5;
+    /** One domain, two doors. A third pair argues for itself here or not at all. */
+    const ALLOWED_TWINS = [['medical', 'medicines'], ['chat', 'connections']]
+      .map((p) => p.sort().join('|'));
+
+    const keys = [...lamps.keys()];
+    const tooClose: string[] = [];
+    for (let i = 0; i < keys.length; i++) {
+      for (let j = i + 1; j < keys.length; j++) {
+        const pair = [keys[i], keys[j]].sort().join('|');
+        if (ALLOWED_TWINS.includes(pair)) continue;
+        const d = de2000(lab(lamps.get(keys[i])!), lab(lamps.get(keys[j])!));
+        if (d < FLOOR) tooClose.push(`${pair} ΔE ${d.toFixed(2)}`);
+      }
+    }
+    expect(tooClose).toEqual([]);
+  });
+
 
   /**
    * A LUMINOUS ACCENT IS NOT A TEXT COLOUR.

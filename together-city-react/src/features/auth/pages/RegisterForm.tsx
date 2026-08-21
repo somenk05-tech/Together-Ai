@@ -151,7 +151,7 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
                 {suggestions.map((s) => (
                   <button key={s} type="button" onClick={() => setHandle(s)} className="tc-pop"
-                    style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600, border: '1.5px solid var(--line)', borderRadius: 999, padding: '4px 11px', background: 'var(--paper)', fontFamily: 'inherit', color: 'var(--accent-ink)' }}>@{s}</button>
+                    style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600, border: '1.5px solid var(--line)', borderRadius: 'var(--r-full)', padding: '4px 11px', background: 'var(--paper)', fontFamily: 'inherit', color: 'var(--accent-ink)' }}>@{s}</button>
                 ))}
               </div>
             </div>
@@ -179,7 +179,7 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
           <div style={{ marginTop: 8 }}>
             <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
               {[0, 1, 2, 3, 4].map((i) => (
-                <span key={i} style={{ flex: 1, height: 4, borderRadius: 999, background: i < pwScore ? STRENGTH_COLOR[pwScore] : 'var(--line)', transition: 'background .2s' }} />
+                <span key={i} style={{ flex: 1, height: 4, borderRadius: 'var(--r-full)', background: i < pwScore ? STRENGTH_COLOR[pwScore] : 'var(--line)', transition: 'background .2s' }} />
               ))}
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>

@@ -31,7 +31,7 @@ function TabBadge({ count }: { count: number }) {
   return (
     <span aria-hidden style={{
       position: 'absolute', top: 3, right: 'calc(50% - 21px)', minWidth: 15, height: 15, padding: '0 4px',
-      borderRadius: 999, background: 'var(--danger-ink)', color: 'var(--on-accent)', fontSize: 9.5, fontWeight: 700,
+      borderRadius: 'var(--r-full)', background: 'var(--danger-ink)', color: 'var(--on-accent)', fontSize: 9.5, fontWeight: 700,
       display: 'grid', placeItems: 'center', lineHeight: 1,
     }}>{count > 9 ? '9+' : count}</span>
   );

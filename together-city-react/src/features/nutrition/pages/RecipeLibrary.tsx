@@ -38,11 +38,11 @@ function RecipeTile({ r, picked, onPick }: { r: RecipeCard; picked: boolean; onP
           <span style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(255,255,255,.92)', borderRadius: 5, padding: 2, lineHeight: 0, boxShadow: '0 1px 3px rgba(0,0,0,.22)' }}><VegMark diet={r.diet} size={15} /></span>
           {r.healthScore != null && (
             <span style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(255,255,255,.92)', color: healthColor(r.healthScore),
-              fontSize: 11, fontWeight: 800, borderRadius: 999, padding: '3px 8px' }}>{r.healthScore}</span>
+              fontSize: 11, fontWeight: 800, borderRadius: 'var(--r-full)', padding: '3px 8px' }}>{r.healthScore}</span>
           )}
         </div>
         <div style={{ padding: '12px 14px' }}>
-          <div style={{ fontSize: 14.5, fontWeight: 700, lineHeight: 1.25, marginBottom: 4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{r.name}</div>
+          <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.25, marginBottom: 4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{r.name}</div>
           <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>{r.cuisine} · {r.minutes} min · {r.difficulty}</div>
           <div style={{ display: 'flex', gap: 10, fontSize: 12, marginBottom: 8 }}>
             <span><strong>{r.kcal}</strong> kcal</span><span className="muted">P {r.protein}g</span><span className="muted">C {r.carbs}g</span><span className="muted">F {r.fat}g</span>
@@ -63,7 +63,7 @@ function RecipeTile({ r, picked, onPick }: { r: RecipeCard; picked: boolean; onP
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); onPick(); }}
         style={{
           position: 'absolute', left: 8, bottom: 8, minHeight: 44, minWidth: 44, cursor: 'pointer',
-          border: `1.5px solid ${picked ? 'var(--accent)' : 'var(--line)'}`, borderRadius: 999,
+          border: `1.5px solid ${picked ? 'var(--accent)' : 'var(--line)'}`, borderRadius: 'var(--r-full)',
           background: picked ? 'var(--accent)' : 'var(--card)', color: picked ? 'var(--on-accent)' : 'var(--ink-soft)',
           fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '0 14px',
         }}
@@ -159,7 +159,7 @@ export function RecipeLibrary() {
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
           {ingredients.map((ing) => (
             <button key={ing} type="button" onClick={() => removeIngredient(ing)} aria-label={`Remove ${ing}`}
-              style={{ cursor: 'pointer', border: 'none', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: 'var(--on-accent)', background: 'var(--accent)', borderRadius: 999, padding: '5px 12px' }}>{ing} ×</button>
+              style={{ cursor: 'pointer', border: 'none', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: 'var(--on-accent)', background: 'var(--accent)', borderRadius: 'var(--r-full)', padding: '5px 12px' }}>{ing} ×</button>
           ))}
           <button type="button" onClick={() => { setIngredients([]); setPage(1); }}
             style={{ cursor: 'pointer', border: 'none', background: 'none', color: 'var(--accent-ink)', fontWeight: 600, fontSize: 12, fontFamily: 'inherit' }}>Clear all</button>
@@ -170,7 +170,7 @@ export function RecipeLibrary() {
           const on = ingredients.includes(ing.toLowerCase());
           return (
             <button key={ing} type="button" onClick={() => (on ? removeIngredient(ing.toLowerCase()) : addIngredient(ing))}
-              style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 13px', fontSize: 12, fontFamily: 'inherit', fontWeight: 600,
+              style={{ cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '6px 13px', fontSize: 12, fontFamily: 'inherit', fontWeight: 600,
                 border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
               {ing}
             </button>
@@ -304,7 +304,7 @@ export function RecipeLibrary() {
   return (
     <div>
       <button type="button" onClick={() => { setCuisine(null); setSearch(''); setMealType(''); setDiet(''); setIngredients([]); setPage(1); }}
-        style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 999, padding: '4px 12px', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', marginBottom: 12 }}>← All cuisines</button>
+        style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '4px 12px', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', marginBottom: 12 }}>← All cuisines</button>
       <h1 style={{ fontSize: 24 }}>{cuisine || (ingredients.length ? 'Matching' : 'Search')} Recipes {lib.data && <span className="muted" style={{ fontSize: 14, fontWeight: 400 }}>· {lib.data.total.toLocaleString()}</span>}
         {lib.isFetching && !lib.isLoading && <span className="muted" style={{ fontSize: 12.5, fontWeight: 400, marginLeft: 8 }}>Updating…</span>}</h1>
 

@@ -29,7 +29,7 @@
 .tc-header-top .tc-burger { position: absolute; left: 0; top: 50%; transform: translateY(-50%); }
 .tc-actionrow { display: flex; align-items: center; justify-content: center; width: 100%; min-width: 0; }
 .tc-actionrow .tc-actionbar { margin: 0; }
-.tc-burger { display: none; width: 44px; height: 44px; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; }
+.tc-burger { display: none; width: 44px; height: 44px; align-items: center; justify-content: center; font-size: var(--fs-6); cursor: pointer; }
 .tc-logo { display: flex; align-items: center; flex-shrink: 0; }
 /* The mark-and-word pair is gone: the brand is one piece of artwork now, so
    there is no gap to tune between two things and no glyph height to keep in
@@ -238,16 +238,16 @@
 .tc-shell .tc-main > * { padding: 0; }
 
 .tc-side { width: 280px; flex-shrink: 0; padding: 28px 0 40px; position: sticky; top: calc(var(--header-h) + var(--safe-top)); height: calc(100vh - var(--header-h)); overflow-y: auto; }
-.tc-side .back { display: block; font-size: 10.5px; letter-spacing: .16em; font-weight: 700; text-transform: uppercase; padding: 0 26px 18px; background: none; border: none; cursor: pointer; }
-.tc-side .hubname { padding: 0 26px 4px; font-size: 21px; font-weight: 700; letter-spacing: -.03em; }
+.tc-side .back { display: block; font-size: var(--fs-1); letter-spacing: .16em; font-weight: 700; text-transform: uppercase; padding: 0 26px 18px; background: none; border: none; cursor: pointer; }
+.tc-side .hubname { padding: 0 26px 4px; font-size: var(--fs-7); font-weight: 700; letter-spacing: -.03em; }
 .tc-side .hubtag { padding: 0 26px 22px; font-size: 12px; margin-bottom: 16px; }
-.side-menu a { display: flex; align-items: center; gap: 13px; padding: 11px 14px; margin: 3px 14px; font-size: 13.5px; }
+.side-menu a { display: flex; align-items: center; gap: 13px; padding: 11px 14px; margin: 3px 14px; font-size: var(--fs-4); }
 /* `.n` IS THE NUMBER AND `.l` IS THE LABEL. Worth stating, because they were
    styled as one rule once — the label inherited a 30x30 box meant for the
    badge, so every menu word wrapped inside a square and printed over its own
    sub-line. relief.spec.ts now checks these class names against Sidebar.tsx. */
-.side-menu a .n { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 10.5px; font-weight: 700; flex-shrink: 0; }
-.side-menu a .l { display: block; font-size: 13.5px; font-weight: 600; line-height: 1.25; }
+.side-menu a .n { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: var(--fs-1); font-weight: 700; flex-shrink: 0; }
+.side-menu a .l { display: block; font-size: var(--fs-4); font-weight: 600; line-height: 1.25; }
 .side-menu a .s { display: block; font-size: 11px; color: var(--muted); font-weight: 400; margin-top: 1px; }
 /* ── THE SIDEBAR DOES NOT MOVE ───────────────────────────────────────────────
    Owner, 17 Aug, having used it for half an hour: "keep the side bar fixed for
@@ -274,7 +274,7 @@
 
 
 .tc-footer { padding: 40px 44px calc(40px + var(--safe-bottom)); display: flex; flex-direction: column; gap: 12px; }
-.tc-footer .word { letter-spacing: -.02em; font-size: 15px; font-weight: 700; color: var(--ink); }
+.tc-footer .word { letter-spacing: -.02em; font-size: var(--fs-5); font-weight: 700; color: var(--ink); }
 .tc-footer nav { display: flex; gap: 20px; flex-wrap: wrap; font-size: 13px; color: var(--ink-soft); }
 .tc-footer nav a:hover { color: var(--ink); }
 /* Phones: the same links, every one an honest 44px thumb target (audit 9 Aug).
@@ -405,7 +405,7 @@
 }
 .letter-inner { max-width: 640px; margin: 0 auto; }
 .letter-label {
-  font-size: 11.5px; letter-spacing: .3em; text-transform: uppercase;
+  font-size: var(--fs-2); letter-spacing: .3em; text-transform: uppercase;
   color: var(--letter-faint); font-weight: 500; margin: 0 0 28px;
 }
 /* THE ONE PLACE OUTSIDE THE NUTRITION PRESS THAT READS THE DISPLAY SERIF, and
@@ -418,13 +418,13 @@
   font-size: clamp(36px, 4.4vw, 56px); line-height: 1.06; letter-spacing: -.01em;
   color: var(--letter-ink); margin: 0 0 46px; text-wrap: balance;
 }
-.letter-page .letter-open { font-size: 16.5px; line-height: 1.78; color: var(--letter-ink); margin: 0 0 24px; }
-.letter-page .letter-p { font-size: 16.5px; line-height: 1.82; color: var(--letter-ink-soft); margin: 0 0 24px; }
-.letter-page .letter-sign { font-size: 16.5px; line-height: 1.78; color: var(--letter-ink-soft); margin: 44px 0 0; }
+.letter-page .letter-open { font-size: var(--fs-6); line-height: 1.78; color: var(--letter-ink); margin: 0 0 24px; }
+.letter-page .letter-p { font-size: var(--fs-6); line-height: 1.82; color: var(--letter-ink-soft); margin: 0 0 24px; }
+.letter-page .letter-sign { font-size: var(--fs-6); line-height: 1.78; color: var(--letter-ink-soft); margin: 44px 0 0; }
 .letter-page .letter-link { color: var(--letter-ink); }
 @media (max-width: 640px) {
   .letter-page { padding: 40px 22px 72px; }
-  .letter-title { font-size: 34px; margin-bottom: 34px; }
+  .letter-title { font-size: var(--fs-9); margin-bottom: 34px; }
   .letter-label { margin-bottom: 20px; }
   .letter-page .letter-open, .letter-page .letter-p, .letter-page .letter-sign { font-size: 16px; }
 }
@@ -442,7 +442,7 @@
 }
 .letter-link:hover, .letter-link:focus-visible { text-decoration-color: var(--letter-ink); outline: none; }
 .letter-link:focus-visible { text-decoration-thickness: 2px; }
-.letter-return { margin: 40px 0 0; font-size: 15.5px; }
+.letter-return { margin: 40px 0 0; font-size: var(--fs-5); }
 
 /* THE ARCHIVE IS A LIST OF DAYS, not a stack of letters. Reading back is
    looking for one you remember, and seven letters unrolled is a scroll with
@@ -451,7 +451,7 @@
    place a divider earns itself. */
 .letter-archive { margin: 76px 0 0; border-top: 1px solid var(--letter-rule); padding-top: 30px; }
 .letter-archive-head {
-  font-size: 11.5px; letter-spacing: .3em; text-transform: uppercase; font-weight: 500;
+  font-size: var(--fs-2); letter-spacing: .3em; text-transform: uppercase; font-weight: 500;
   color: var(--letter-faint); margin: 0 0 6px;
 }
 .letter-archive ul { list-style: none; margin: 0; padding: 0; }
@@ -461,8 +461,8 @@
   background: none; border: 0; padding: 15px 0; cursor: pointer;
   font-family: inherit; text-align: left; color: var(--letter-ink);
 }
-.letter-archive-day .d { font-size: 15.5px; flex: 0 0 auto; }
-.letter-archive-day .t { font-size: 19px; line-height: 1.2; color: var(--letter-ink-soft); min-width: 0; }
+.letter-archive-day .d { font-size: var(--fs-5); flex: 0 0 auto; }
+.letter-archive-day .t { font-size: var(--fs-7); line-height: 1.2; color: var(--letter-ink-soft); min-width: 0; }
 .letter-archive-day:hover .t, .letter-archive-day:focus-visible .t { color: var(--letter-ink); }
 .letter-archive-day:hover .d, .letter-archive-day:focus-visible .d {
   text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--letter-faint);
@@ -472,7 +472,7 @@
 @media (max-width: 640px) {
   .letter-archive { margin-top: 54px; }
   .letter-archive-day { flex-direction: column; gap: 3px; padding: 13px 0; }
-  .letter-archive-day .t { font-size: 18px; }
+  .letter-archive-day .t { font-size: var(--fs-6); }
 }
 
 @media (prefers-reduced-motion: no-preference) { .letter-page { animation: letterIn .5s var(--ease) both; } }
@@ -491,20 +491,20 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 .ask-stage { position: relative; background: var(--ground); }
 .ask-panel-inner { position: relative; z-index: 1; max-width: var(--measure-card); }
-.ask-eyebrow { font-size: 10.5px; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; color: var(--faint); }
+.ask-eyebrow { font-size: var(--fs-1); font-weight: 700; letter-spacing: .15em; text-transform: uppercase; color: var(--faint); }
 .ask-title { font-size: clamp(34px, 4.4vw, 58px); font-weight: 700; letter-spacing: -.042em; line-height: 1; margin: 12px 0 0; color: var(--ink);
   text-shadow: 0 1px 0 #fff, 0 2px 1px rgba(0,0,0,.055), 0 4px 10px rgba(0,0,0,.05); }
-.ask-lede { font-size: 18px; line-height: 1.55; color: var(--muted); max-width: 56ch; margin-top: 14px; }
+.ask-lede { font-size: var(--fs-6); line-height: 1.55; color: var(--muted); max-width: 56ch; margin-top: 14px; }
 
 .ask-card {
   margin-top: clamp(20px, 2.4vw, 32px); padding: clamp(20px, 2.2vw, 30px);
   border-radius: var(--r-5); background: var(--face-tall); box-shadow: var(--e3);
 }
-.ask-card-title { font-size: 19px; font-weight: 700; letter-spacing: -.03em; margin-bottom: 16px; color: var(--ink); }
+.ask-card-title { font-size: var(--fs-7); font-weight: 700; letter-spacing: -.03em; margin-bottom: 16px; color: var(--ink); }
 
 .ask-chip {
   display: inline-flex; align-items: center; height: 33px; padding: 0 14px; border-radius: var(--r-full);
-  font-size: 12.5px; font-weight: 600; color: var(--ink-soft); cursor: pointer; border: 0;
+  font-size: var(--fs-3); font-weight: 600; color: var(--ink-soft); cursor: pointer; border: 0;
   background: var(--face); box-shadow: var(--e1);
   transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease), color var(--dur-fast) var(--ease);
 }
@@ -517,7 +517,7 @@
 .ask-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 .ask-textarea {
-  width: 100%; min-height: 132px; resize: vertical; font-family: var(--sans); font-size: 15.5px; line-height: 1.6;
+  width: 100%; min-height: 132px; resize: vertical; font-family: var(--sans); font-size: var(--fs-5); line-height: 1.6;
   color: var(--ink); background: var(--well); border: 0; border-radius: var(--r-3); padding: 16px 18px;
   box-shadow: var(--carve); transition: box-shadow var(--dur-base) var(--ease);
 }
@@ -530,8 +530,13 @@
 .ask-cta {
   display: inline-flex; align-items: center; justify-content: center; gap: 9px;
   height: 52px; padding: 0 30px; border-radius: var(--r-full); border: 0; cursor: pointer;
-  font-family: var(--sans); font-size: 15px; font-weight: 700; letter-spacing: -.005em;
-  color: var(--on-accent); background: linear-gradient(180deg, #2a2a2a 0%, #101010 55%, #000 100%);
+  font-family: var(--sans); font-size: var(--fs-5); font-weight: 700; letter-spacing: -.005em;
+  /* THE TOKEN, NOT A COPY OF IT. This gradient was byte-for-byte identical to
+     --loud-face in tokens.css. Entertainment re-points that token to green, so
+     the loudest button in the city was the one control that stayed black in a
+     room that isn't. It escaped the surface-literal guard on a technicality:
+     that assertion reads relief.css, and this lives here. */
+  color: var(--on-accent); background: var(--loud-face);
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.24), inset 0 -1px 0 rgba(0,0,0,.6), inset 0 0 0 1px rgba(0,0,0,.9),
     0 1px 2px rgba(0,0,0,.22), 0 4px 10px rgba(0,0,0,.24), 0 10px 24px rgba(0,0,0,.18);
@@ -541,12 +546,12 @@
 @media (hover: hover) and (pointer: fine) {
   .ask-cta:hover:not(:disabled) { transform: translateY(-2px); }
 }
-.ask-cta:active:not(:disabled) { transform: translateY(1px); background: linear-gradient(180deg, #000 0%, #0d0d0d 60%, #1d1d1d 100%); box-shadow: inset 0 2px 5px rgba(0,0,0,.85), 0 1px 0 rgba(255,255,255,.7); }
+.ask-cta:active:not(:disabled) { transform: translateY(1px); background: var(--loud-face-active); box-shadow: inset 0 2px 5px rgba(0,0,0,.85), 0 1px 0 rgba(255,255,255,.7); }
 .ask-cta:disabled { opacity: .42; cursor: not-allowed; transform: none; }
 
 .ask-quota { font-size: 13px; color: var(--muted); margin-top: 14px; }
 .ask-quota.is-due { color: var(--ink); font-weight: 600; }
-.ask-note { font-size: 12.5px; color: var(--faint); margin-top: 10px; }
+.ask-note { font-size: var(--fs-3); color: var(--faint); margin-top: 10px; }
 .ask-link { color: var(--ink); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; background: none; border: 0; cursor: pointer; padding: 0; }
 .ask-link:hover { color: var(--ink); }
 .ask-link.is-danger { color: var(--danger-ink); }
@@ -559,7 +564,7 @@
   .ask-past:hover { transform: translateY(-2px); }
 }
 .ask-past-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-.ask-past-topic { font-size: 15.5px; font-weight: 600; letter-spacing: -.02em; color: var(--ink); }
+.ask-past-topic { font-size: var(--fs-5); font-weight: 600; letter-spacing: -.02em; color: var(--ink); }
 .ask-past-actions { display: flex; gap: 12px; align-items: center; margin-top: 14px; }
 
 /* The sky art beside the consultation room. It is a picture in a case now —
@@ -635,11 +640,11 @@
 }
 .astro-frame > * { position: relative; z-index: 1; }
 .astro-frame > .astro-frame-title { font-size: clamp(24px, 2.8vw, 34px); font-weight: 700; letter-spacing: -.035em; color: var(--ink); }
-.astro-frame > .astro-frame-sub { font-size: 13.5px; color: var(--muted); margin-top: 6px; }
+.astro-frame > .astro-frame-sub { font-size: var(--fs-4); color: var(--muted); margin-top: 6px; }
 @media (max-width: 900px) { .astro-frame { padding: 26px 20px; border-radius: var(--r-4); } }
 
 .astro-frame-heading { font-size: clamp(22px, 2.4vw, 30px); font-weight: 700; letter-spacing: -.035em; margin-bottom: 14px; color: var(--ink); }
-.astro-frame-note { font-size: 12.5px; color: var(--faint); margin-top: 12px; }
+.astro-frame-note { font-size: var(--fs-3); color: var(--faint); margin-top: 12px; }
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -655,12 +660,12 @@
    there is no grid to keep, and `height: auto` means the frame IS the picture —
    filled top to bottom by construction, with nothing cropped off a painting. */
 .tarot-solo-art img { display: block; width: 100%; height: auto; border-radius: calc(var(--r-3) - 8px); position: relative; }
-.tarot-solo-glyph { width: 54px; height: 54px; border-radius: 50%; background: var(--well); box-shadow: var(--carve); display: grid; place-items: center; font-size: 21px; color: var(--ink-soft); }
-.tarot-solo-eyebrow { font-size: 10.5px; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; color: var(--faint); }
-.tarot-solo-rev { font-size: 11.5px; font-weight: 700; color: var(--warn-ink); }
+.tarot-solo-glyph { width: 54px; height: 54px; border-radius: 50%; background: var(--well); box-shadow: var(--carve); display: grid; place-items: center; font-size: var(--fs-7); color: var(--ink-soft); }
+.tarot-solo-eyebrow { font-size: var(--fs-1); font-weight: 700; letter-spacing: .15em; text-transform: uppercase; color: var(--faint); }
+.tarot-solo-rev { font-size: var(--fs-2); font-weight: 700; color: var(--warn-ink); }
 .tarot-solo-name { font-size: clamp(22px, 2.6vw, 32px); font-weight: 700; letter-spacing: -.035em; margin-top: 6px; color: var(--ink); }
-.tarot-solo-keys { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
-.tarot-solo-read { font-size: 15.5px; line-height: 1.68; color: var(--ink-soft); margin-top: 14px; max-width: 54ch; }
+.tarot-solo-keys { font-size: var(--fs-3); color: var(--muted); margin-top: 8px; }
+.tarot-solo-read { font-size: var(--fs-5); line-height: 1.68; color: var(--ink-soft); margin-top: 14px; max-width: 54ch; }
 @media (max-width: 640px) { .tarot-solo { flex-direction: column; align-items: flex-start; } }
 
 
@@ -739,7 +744,7 @@
 .page-tabs > button, .page-tabs > a {
   position: relative; flex: 0 0 auto; min-height: 44px; padding: 0 var(--s-2);
   border: 0; background: none; cursor: pointer; font-family: var(--sans);
-  font-size: 13.5px; font-weight: 500; color: var(--muted);
+  font-size: var(--fs-4); font-weight: 500; color: var(--muted);
   text-decoration: none; display: inline-flex; align-items: center;
   transition: color var(--dur-base) var(--ease);
 }
@@ -755,7 +760,7 @@
 /* ── SECTIONS ──────────────────────────────────────────────────────────────
    The gap between one block of a page and the next, decided once. */
 .page-section + .page-section { margin-top: var(--s-5); }
-.page-section > h2 { margin: 0 0 var(--s-2); font-size: 18px; letter-spacing: -.01em; }
+.page-section > h2 { margin: 0 0 var(--s-2); font-size: var(--fs-6); letter-spacing: -.01em; }
 
 /* ── THE GRID ──────────────────────────────────────────────────────────────
    12 columns on a desktop, 8 on a tablet, 4 on a phone — and the SPANS fold
@@ -1018,7 +1023,7 @@
 .beauty-assess { margin-bottom: 22px; }
 .beauty-assess .chip {
   display: inline-flex; flex-direction: column; align-items: center;
-  padding: 7px 17px; border: 1px solid var(--line); border-radius: 999px;
+  padding: 7px 17px; border: 1px solid var(--line); border-radius: var(--r-full);
   font-size: 8px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase;
   line-height: 1.55; color: var(--muted);
 }
@@ -1093,12 +1098,12 @@
 }
 .fold + .fold-open { margin-top: -16px; }
 .fold .t {
-  font-size: 10.5px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase;
+  font-size: var(--fs-1); font-weight: 600; letter-spacing: .16em; text-transform: uppercase;
   color: var(--muted); flex: none;
 }
-.fold .m { font-size: 12.5px; color: var(--ink-soft); min-width: 0; }
+.fold .m { font-size: var(--fs-3); color: var(--ink-soft); min-width: 0; }
 .fold .s {
-  margin-left: auto; flex: none; font-size: 10.5px; font-weight: 600;
+  margin-left: auto; flex: none; font-size: var(--fs-1); font-weight: 600;
   letter-spacing: .12em; text-transform: uppercase; color: var(--accent-ink);
 }
 .fold-open {
@@ -1118,16 +1123,16 @@
 .beauty-leaf { border-top-color: var(--on-ground-muted); }
 .beauty-index > .beauty-rule:first-child { padding-bottom: 14px; }
 .beauty-lede {
-  margin: 0 0 22px; font-size: 13.5px; line-height: 1.75; max-width: 62ch; color: var(--ink-soft);
+  margin: 0 0 22px; font-size: var(--fs-4); line-height: 1.75; max-width: 62ch; color: var(--ink-soft);
 }
 .beauty-leaf {
   display: flex; align-items: baseline; gap: 16px; width: 100%; text-align: left;
   background: none; border: 0; border-top: 1px solid var(--line); cursor: pointer;
   font-family: inherit; color: inherit; padding: 16px 2px;
 }
-.beauty-leaf .t { font-size: 11.5px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; flex: none; }
+.beauty-leaf .t { font-size: var(--fs-2); font-weight: 700; letter-spacing: .2em; text-transform: uppercase; flex: none; }
 .beauty-leaf a.t { color: inherit; }
-.beauty-leaf .m { font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); min-width: 0; }
+.beauty-leaf .m { font-size: var(--fs-1); letter-spacing: .09em; text-transform: uppercase; color: var(--muted); min-width: 0; }
 .beauty-leaf .s { margin-left: auto; flex: none; font-size: 9.5px; letter-spacing: .24em; text-transform: uppercase; color: var(--muted); }
 /* ── THE SHEET ──────────────────────────────────────────────────────────────
    A plate with no poster on it: the same cream paper, the same cut edge, the
@@ -1226,10 +1231,10 @@
   margin: 0 0 20px;
 }
 .beauty-tabs button {
-  cursor: pointer; font-family: inherit; border-radius: 999px;
+  cursor: pointer; font-family: inherit; border-radius: var(--r-full);
   border: 1.5px solid var(--line); background: transparent;
   padding: 11px 22px;
-  font-size: 12.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  font-size: var(--fs-3); font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
   color: var(--ink-soft);
 }
 .beauty-tabs button.is-on {
@@ -1309,7 +1314,7 @@
   max-width: 440px; margin: 0 auto 26px; padding: 46px 40px 44px; text-align: center;
 }
 .gem-cap {
-  display: inline-block; padding: 7px 18px; border: 1px solid; border-radius: 999px;
+  display: inline-block; padding: 7px 18px; border: 1px solid; border-radius: var(--r-full);
   font-size: 10px; letter-spacing: .24em; text-transform: uppercase; font-weight: 700;
 }
 /* CAPPED AT ITS OWN VIEWBOX. Left at 100% the arc scales with the sheet, the
@@ -1364,7 +1369,7 @@
 .gem-sub {
   margin: 26px 0 8px; font-size: 10px; letter-spacing: .26em; text-transform: uppercase; font-weight: 700;
 }
-.gem-body { font-size: 13.5px; line-height: 1.85; max-width: 400px; margin: 0 auto; }
+.gem-body { font-size: var(--fs-4); line-height: 1.85; max-width: 400px; margin: 0 auto; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    THE SWITCH
@@ -1402,7 +1407,7 @@
 .sw-lb {
   display: inline-flex; align-items: flex-start; gap: 9px;
   cursor: pointer; user-select: none; min-height: 44px; padding: 6px 0;
-  font-size: 12.5px; line-height: 1.5; color: var(--ink-soft);
+  font-size: var(--fs-3); line-height: 1.5; color: var(--ink-soft);
 }
 .sw-track {
   position: relative; flex: none; width: 25px; height: 15px; margin-top: 2px;
@@ -1468,7 +1473,7 @@
   .gem-fold .m { order: 3; }
 }
 .gem-price {
-  display: inline-block; margin-top: 28px; padding: 9px 22px; border: 1px solid; border-radius: 999px;
+  display: inline-block; margin-top: 28px; padding: 9px 22px; border: 1px solid; border-radius: var(--r-full);
   font-size: 11px; letter-spacing: .16em; font-weight: 700;
 }
 /* The wearing facts, still centred and still tracked — the reference has no
@@ -1518,8 +1523,8 @@
    right register for a decision about FORM — a photograph of somebody else's
    ring is a picture of a thing we are not selling. */
 .gem-studio-head { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
-.gem-step { font-size: 15px; margin: 26px 0 4px; text-transform: uppercase; letter-spacing: .1em; }
-.gem-step-note { font-size: 12.5px; line-height: 1.6; margin: 0 0 12px; max-width: 620px; }
+.gem-step { font-size: var(--fs-5); margin: 26px 0 4px; text-transform: uppercase; letter-spacing: .1em; }
+.gem-step-note { font-size: var(--fs-3); line-height: 1.6; margin: 0 0 12px; max-width: 620px; }
 .gem-choices {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 12px;
 }
@@ -1528,12 +1533,12 @@
 .gem-choice {
   display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;
   padding: 14px 12px 13px; cursor: pointer; font-family: inherit; color: var(--ink);
-  background: var(--card); border: 1.5px solid var(--line); border-radius: 14px;
+  background: var(--card); border: 1.5px solid var(--line); border-radius: var(--r-2);
 }
 .gem-choice.is-on { border-color: var(--accent); background: var(--accent-soft); }
 .gem-choice-wide { align-items: flex-start; text-align: left; }
-.gem-choice-name { font-size: 13.5px; font-weight: 700; }
-.gem-choice-desc { font-size: 11.5px; line-height: 1.5; color: var(--muted); }
+.gem-choice-name { font-size: var(--fs-4); font-weight: 700; }
+.gem-choice-desc { font-size: var(--fs-2); line-height: 1.5; color: var(--muted); }
 /* The drawings arrive as bare SVG with `stroke` and `fine` classes on their
    paths — the owner's own two weights. Inking them here rather than in the
    markup is what lets a selected tile darken its drawing with it. */
@@ -1661,8 +1666,8 @@
    keeps every foot on the sheet at the same height. Three-line names still
    grow — a clamp here would be hiding half a product's name to win an
    alignment argument. */
-.routine-name { font-size: 14.5px; line-height: 1.35; font-weight: 700; margin: 0; min-height: 2.7em; }
-.routine-price { font-size: 17px; font-weight: 800; letter-spacing: -.01em; }
+.routine-name { font-size: var(--fs-5); line-height: 1.35; font-weight: 700; margin: 0; min-height: 2.7em; }
+.routine-price { font-size: var(--fs-6); font-weight: 800; letter-spacing: -.01em; }
 .routine-foot { margin-top: auto; padding-top: 10px; }
 
 /* ── WHY THIS STEP ──────────────────────────────────────────────────────────
@@ -1678,7 +1683,7 @@
   background: none; border: 0; border-top: 1px solid var(--line); text-align: left;
 }
 .routine-why .t { font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; flex: none; }
-.routine-why .m { font-size: 10.5px; color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.routine-why .m { font-size: var(--fs-1); color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .routine-why .s { margin-left: auto; flex: none; font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
 .routine-why:hover .t, .routine-why:hover .s { color: var(--accent-ink); }
 .routine-why-open { padding: 8px 0 2px; }
@@ -1687,8 +1692,8 @@
   color: var(--muted); margin-top: 9px;
 }
 .routine-why-head:first-child { margin-top: 0; }
-.routine-why-body { font-size: 12.5px; line-height: 1.55; color: var(--ink-soft); margin: 3px 0 0; }
-.routine-why-note { font-size: 11.5px; line-height: 1.5; margin-top: 4px; }
+.routine-why-body { font-size: var(--fs-3); line-height: 1.55; color: var(--ink-soft); margin: 3px 0 0; }
+.routine-why-note { font-size: var(--fs-2); line-height: 1.5; margin-top: 4px; }
 /* The assessment's own reasons, first and unlabelled: they answer the question
    the fold is named after, and a heading over them would be the question asked
    twice. */
@@ -1733,13 +1738,13 @@
 /* The licensed size, in the stylesheet as well as on the element: a rule that
    says 180 and an attribute that says 180 are one number in two places, and the
    day somebody "makes it bigger" both have to be changed on purpose. */
-.wk-how-shot img { width: 180px; height: 180px; border-radius: 10px; display: block; background: var(--shot-ground); }
+.wk-how-shot img { width: 180px; height: 180px; border-radius: var(--r-1); display: block; background: var(--shot-ground); }
 .wk-how-shot figcaption { font-size: 9.5px; letter-spacing: .04em; opacity: .55; margin-top: 5px; text-align: center; }
 .wk-how-words { flex: 1; min-width: 220px; }
 .wk-how-steps { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
-.wk-how-steps li { font-size: 13.5px; line-height: 1.5; opacity: .82; }
+.wk-how-steps li { font-size: var(--fs-4); line-height: 1.5; opacity: .82; }
 .wk-how-muscles {
-  font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  font-size: var(--fs-1); font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
   opacity: .5; margin-top: 10px;
 }
 @media (max-width: 560px) {

@@ -57,7 +57,7 @@ export function Blood() {
       <div className="card" style={{ marginTop: 14 }}>
         {consentUnknown ? (
           <>
-            <strong style={{ fontSize: 15.5 }}>Connect to Medical Hub</strong>
+            <strong style={{ fontSize: 15 }}>Connect to Medical Hub</strong>
             <p className="muted" style={{ fontSize: 13, margin: '6px 0 0', lineHeight: 1.6 }}>
               We couldn’t check whether this connection is on, so we’re not showing you a switch —
               one that guessed would be worse than none. Nothing has changed either way.
@@ -74,7 +74,7 @@ export function Blood() {
           <>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <strong style={{ fontSize: 15.5 }}>Connect to Medical Hub</strong>
+            <strong style={{ fontSize: 15 }}>Connect to Medical Hub</strong>
             <p className="muted" style={{ fontSize: 13, margin: '4px 0 0', lineHeight: 1.55 }}>
               When on, your recipes and meal plans are designed around your latest blood panel.
             </p>
@@ -86,7 +86,7 @@ export function Blood() {
             disabled={setConsent.isPending}
             onClick={toggle}
             style={{
-              flex: '0 0 auto', width: 52, height: 30, borderRadius: 999, border: 'none', cursor: 'pointer', position: 'relative',
+              flex: '0 0 auto', width: 52, height: 30, borderRadius: 'var(--r-full)', border: 'none', cursor: 'pointer', position: 'relative',
               background: on ? 'var(--accent)' : 'var(--line)', transition: 'background .15s', opacity: setConsent.isPending ? 0.6 : 1,
             }}
           >
@@ -95,7 +95,7 @@ export function Blood() {
         </div>
 
         {on ? (
-          <p style={{ fontSize: 12.5, marginTop: 12, padding: '10px 12px', background: 'var(--ok-soft)', borderRadius: 10, lineHeight: 1.55 }}>
+          <p style={{ fontSize: 12.5, marginTop: 12, padding: '10px 12px', background: 'var(--ok-soft)', borderRadius: 'var(--r-1)', lineHeight: 1.55 }}>
             ✓ Connected — your plans are personalised from your blood test.{' '}
             {hasPanel
               ? <Link to="/medical/blood" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>View your analysis →</Link>

@@ -262,7 +262,7 @@ function MiniBtn({ children, onClick }: { children: React.ReactNode; onClick: ()
     <button
       type="button"
       onClick={onClick}
-      style={{ font: 'inherit', fontSize: 10.5, fontWeight: 600, padding: '4px 9px', borderRadius: 999, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink-soft)', cursor: 'pointer' }}
+      style={{ font: 'inherit', fontSize: 10.5, fontWeight: 600, padding: '4px 9px', borderRadius: 'var(--r-full)', border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink-soft)', cursor: 'pointer' }}
     >
       {children}
     </button>

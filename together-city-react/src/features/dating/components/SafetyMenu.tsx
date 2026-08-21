@@ -97,7 +97,7 @@ export function SafetyMenu({ userId, kind, compact = false }: {
                 <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={4} maxLength={500}
                   aria-label="What happened"
                   placeholder="Optional — what happened?"
-                  style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13.5, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }} />
+                  style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 13.5, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }} />
                 {report.isError && (
                   <p style={{ color: 'var(--danger-ink)', fontSize: 12.5 }}>That didn’t send. Try again.</p>
                 )}
@@ -106,7 +106,7 @@ export function SafetyMenu({ userId, kind, compact = false }: {
                     onClick={() => report.mutate({ userId, kind, reason: reason.trim() || undefined }, {
                       onSuccess: () => { setDone('reported'); close(); },
                     })}
-                    style={{ minHeight: 44, padding: '0 18px', borderRadius: 10, border: 'none', background: 'var(--accent)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 13.5, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    style={{ minHeight: 44, padding: '0 18px', borderRadius: 'var(--r-1)', border: 'none', background: 'var(--accent)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 13.5, cursor: 'pointer', fontFamily: 'inherit' }}>
                     {report.isPending ? 'Sending…' : 'Send report'}
                   </button>
                   <button type="button" onClick={close} style={linkStyle}>Cancel</button>
@@ -131,7 +131,7 @@ export function SafetyMenu({ userId, kind, compact = false }: {
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   <button type="button" disabled={block.isPending}
                     onClick={() => block.mutate({ userId, kind }, { onSuccess: () => { setDone('blocked'); close(); } })}
-                    style={{ minHeight: 44, padding: '0 18px', borderRadius: 10, border: 'none', background: 'var(--danger-ink)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 13.5, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    style={{ minHeight: 44, padding: '0 18px', borderRadius: 'var(--r-1)', border: 'none', background: 'var(--danger-ink)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 13.5, cursor: 'pointer', fontFamily: 'inherit' }}>
                     {block.isPending ? 'Blocking…' : 'Yes, block them'}
                   </button>
                   <button type="button" onClick={close} style={linkStyle}>Cancel</button>

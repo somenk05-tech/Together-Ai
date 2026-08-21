@@ -35,7 +35,17 @@ const walk = (dir) => readdirSync(dir).flatMap((n) => {
 const offenders = [];
 for (const file of walk('src')) {
   const src = readFileSync(file, 'utf8');
-  for (const m of src.matchAll(/fontSize:\s*([0-9]+(?:\.[0-9]+)?)/g)) {
+  // QUOTED SIZES WERE INVISIBLE. `fontSize: '6px'` ships today and this file
+  // could not see it, because the pattern stopped at the opening quote. Two
+  // of them are live right now.
+  for (const m of src.matchAll(/fontSize:\s*'?([0-9]+(?:\.[0-9]+)?)/g)) {
+    // AN SVG USER UNIT IS NOT A CSS PIXEL. `PressRing` draws into a 42×42
+    // viewBox rendered at 126px, so its `fontSize: '6px'` is eighteen real
+    // pixels on the page — the widened pattern above found both of its labels
+    // and both are correct. The rule is the floor for TYPE, not for numbers
+    // that happen to be small, so a size inside an <text>/<tspan> is skipped.
+    const before = src.slice(Math.max(0, m.index - 400), m.index);
+    if (/<(?:text|tspan)\b[^>]*$/.test(before)) continue;
     if (Number(m[1]) < FLOOR) {
       const line = src.slice(0, m.index).split('\n').length;
       offenders.push(`${file}:${line}  fontSize: ${m[1]}`);

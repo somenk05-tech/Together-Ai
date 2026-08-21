@@ -48,7 +48,7 @@ function Tile({ r, onRemove, removing }: { r: Recipe; onRemove: () => void; remo
           </span>
         </div>
         <div style={{ padding: '12px 14px 6px' }}>
-          <div style={{ fontSize: 14.5, fontWeight: 700, lineHeight: 1.25, marginBottom: 4,
+          <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.25, marginBottom: 4,
             display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{r.name}</div>
           <div className="muted" style={{ fontSize: 12 }}>{r.country} · {r.minutes} min</div>
           <div style={{ display: 'flex', gap: 10, fontSize: 12, marginTop: 6 }}>
@@ -126,7 +126,7 @@ export function SavedRecipes() {
         <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={80}
           aria-label="Search your saved recipes" placeholder="Search what you saved"
           style={{ width: '100%', maxWidth: 380, boxSizing: 'border-box', minHeight: 44,
-            padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 10,
+            padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)',
             fontSize: 13.5, fontFamily: 'inherit', background: 'var(--card)', marginBottom: 16 }} />
       )}
 

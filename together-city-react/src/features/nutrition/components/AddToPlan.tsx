@@ -7,7 +7,7 @@ import { planDates, planDayOffset, dayLabel, longDate } from '../planDates';
 const SLOTS: Array<[string, string]> = [['b', 'Breakfast'], ['l', 'Lunch'], ['s', 'Snack'], ['d', 'Dinner']];
 
 const selectS: React.CSSProperties = {
-  padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 10,
+  padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)',
   fontSize: 13.5, fontFamily: 'inherit', background: 'var(--card)', color: 'var(--ink)',
 };
 

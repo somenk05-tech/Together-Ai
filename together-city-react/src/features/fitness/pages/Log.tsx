@@ -21,7 +21,7 @@ function Chip({ on, label, onClick, tone }: { on: boolean; label: string; onClic
   return (
     <button type="button" onClick={onClick} aria-pressed={on}
       style={{
-        cursor: 'pointer', borderRadius: 999, padding: '6px 14px', fontSize: 12.5, fontWeight: 600,
+        cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '6px 14px', fontSize: 12.5, fontWeight: 600,
         // 44, NOT THE 32 THIS SHIPPED WITH FIRST. a11y-audit caught it and was
         // right to: it flags a stated height under 44 unless the control also
         // states a width above it, "because a control in a dense row may
@@ -83,9 +83,9 @@ function Row({ e }: { e: WorkoutEntry }) {
       <div style={{ padding: '12px 0', borderTop: '1px solid var(--line)' }}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <input value={focus} onChange={(ev) => setFocus(ev.target.value)} aria-label="What you did"
-            style={{ flex: 1, minWidth: 180, padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit' }} />
+            style={{ flex: 1, minWidth: 180, padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit' }} />
           <input type="number" aria-label="Minutes" min={1} max={600} value={minutes} onChange={(ev) => setMinutes(Number(ev.target.value))}
-            style={{ width: 76, padding: '10px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit' }} />
+            style={{ width: 76, padding: '10px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit' }} />
           <span className="muted" style={{ fontSize: 12.5 }}>min</span>
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -116,12 +116,12 @@ function Row({ e }: { e: WorkoutEntry }) {
       {/* An unasked question prints as nothing at all. A row that says "Home"
           because nobody chose is a row that invented a fact. */}
       {e.style && (
-        <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--ink-soft)', border: '1px solid var(--line)', borderRadius: 999, padding: '1px 8px' }}>
+        <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--ink-soft)', border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '1px 8px' }}>
           {STYLE_LABEL[e.style]}
         </span>
       )}
       <span className="muted" style={{ fontSize: 12.5 }}>{e.minutes}m</span>
-      <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', color: color[e.intensity], border: `1px solid ${color[e.intensity]}`, borderRadius: 999, padding: '1px 8px' }}>{e.intensity}</span>
+      <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', color: color[e.intensity], border: `1px solid ${color[e.intensity]}`, borderRadius: 'var(--r-full)', padding: '1px 8px' }}>{e.intensity}</span>
       <span className="muted" style={{ fontSize: 11.5 }}>{e.doneAt.slice(0, 10)}</span>
       <Button type="button" variant="ghost" size="sm" aria-label={`Edit ${e.focus}`} onClick={() => setOpen(true)}>Edit</Button>
       {confirming ? (
@@ -169,7 +169,7 @@ export function Log() {
         <div><div className="eyebrow">Minutes</div><div style={{ fontWeight: 700, fontSize: 22 }}>{log.data.weekMinutes}</div><div className="muted" style={{ fontSize: 11.5 }}>of ~150 target</div></div>
         <div><div className="eyebrow">Sessions</div><div style={{ fontWeight: 700, fontSize: 22 }}>{log.data.weekSessions}</div></div>
         <div style={{ flex: 1, alignSelf: 'center' }}>
-          <div style={{ height: 8, borderRadius: 999, background: 'var(--line)', overflow: 'hidden' }}>
+          <div style={{ height: 8, borderRadius: 'var(--r-full)', background: 'var(--line)', overflow: 'hidden' }}>
             <div style={{ height: '100%', width: `${Math.min(100, (log.data.weekMinutes / 150) * 100)}%`, background: 'var(--accent)' }} />
           </div>
         </div>
@@ -179,9 +179,9 @@ export function Log() {
         <div className="eyebrow">Log a workout</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10, alignItems: 'center' }}>
           <input value={focus} onChange={(e) => setFocus(e.target.value)} placeholder="What did you do? (e.g. Tempo run)"
-            style={{ flex: 1, minWidth: 180, padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit' }} />
+            style={{ flex: 1, minWidth: 180, padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit' }} />
           <input type="number" aria-label="Minutes" min={1} max={600} value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}
-            style={{ width: 76, padding: '10px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit' }} />
+            style={{ width: 76, padding: '10px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit' }} />
           <span className="muted" style={{ fontSize: 12.5 }}>min</span>
         </div>
         {/* WHERE, AND IT IS ALLOWED TO BE UNANSWERED. Pressing the chip you are

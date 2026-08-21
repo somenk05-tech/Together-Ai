@@ -191,7 +191,7 @@ function Dial(
             track — they go, and the ceiling itself becomes the top chip. */}
         {(cap ? [...QUICK.filter((n) => n < cap), cap] : QUICK).map((n) => (
           <button key={n} type="button" onClick={() => { setTyped(null); onChange(n); }}
-            style={{ cursor: 'pointer', borderRadius: 999, padding: '5px 11px', fontSize: 11.5, fontFamily: 'inherit', fontWeight: 600,
+            style={{ cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '5px 11px', fontSize: 11.5, fontFamily: 'inherit', fontWeight: 600,
               border: `1.5px solid ${value === n ? 'var(--accent)' : 'var(--line)'}`,
               background: value === n ? 'var(--accent)' : 'transparent',
               color: value === n ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
@@ -268,7 +268,7 @@ export function BudgetPanel(
       )}
 
       {priorityLine && (
-        <p style={{ fontSize: 12.5, lineHeight: 1.55, margin: '0 0 6px', background: 'var(--accent-soft)', border: '1px solid var(--accent-line)', borderRadius: 10, padding: '10px 12px' }}>
+        <p style={{ fontSize: 12.5, lineHeight: 1.55, margin: '0 0 6px', background: 'var(--accent-soft)', border: '1px solid var(--accent-line)', borderRadius: 'var(--r-1)', padding: '10px 12px' }}>
           {priorityLine}
         </p>
       )}

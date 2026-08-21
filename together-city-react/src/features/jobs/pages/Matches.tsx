@@ -45,11 +45,11 @@ function JobCard({ job }: { job: JobMatch }) {
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-            <strong style={{ fontSize: 15.5 }}>{job.title}</strong>
-            {job.fitLabel && <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: FIT[job.fitLabel]?.color, border: `1px solid ${FIT[job.fitLabel]?.color}`, borderRadius: 999, padding: '1px 7px' }}>{FIT[job.fitLabel]?.label}</span>}
-            {job.postedByYou && <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent-ink)', border: '1px solid var(--accent)', borderRadius: 999, padding: '1px 7px' }}>Your posting</span>}
+            <strong style={{ fontSize: 15 }}>{job.title}</strong>
+            {job.fitLabel && <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: FIT[job.fitLabel]?.color, border: `1px solid ${FIT[job.fitLabel]?.color}`, borderRadius: 'var(--r-full)', padding: '1px 7px' }}>{FIT[job.fitLabel]?.label}</span>}
+            {job.postedByYou && <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent-ink)', border: '1px solid var(--accent)', borderRadius: 'var(--r-full)', padding: '1px 7px' }}>Your posting</span>}
             {job.externalUrl && (
-              <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 999, padding: '1px 7px' }}>
+              <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '1px 7px' }}>
                 via {SOURCE_LABEL[job.source ?? ''] ?? 'company site'}
               </span>
             )}
@@ -60,10 +60,10 @@ function JobCard({ job }: { job: JobMatch }) {
           <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '8px 0 0' }}>{job.blurb}</p>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
             {job.matchedSkills.map((s) => (
-              <span key={s.key} style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '2px 9px' }}>✓ {s.label}</span>
+              <span key={s.key} style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 'var(--r-full)', padding: '2px 9px' }}>✓ {s.label}</span>
             ))}
             {job.missingSkills.map((s) => (
-              <span key={s.key} style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 999, padding: '2px 9px' }}>{s.label}</span>
+              <span key={s.key} style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '2px 9px' }}>{s.label}</span>
             ))}
           </div>
           {job.reasons.length > 0 && <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>Why: {job.reasons.join(' · ')}</p>}
@@ -85,7 +85,7 @@ function JobCard({ job }: { job: JobMatch }) {
             ) : open ? (
               <div>
                 <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Add a short note to the recruiter (optional)"
-                  style={{ width: '100%', padding: '9px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', outline: 'none', marginBottom: 8 }} />
+                  style={{ width: '100%', padding: '9px 12px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 13, fontFamily: 'inherit', outline: 'none', marginBottom: 8 }} />
                 <div style={{ display: 'flex', gap: 8 }}>
                   <Button variant="accent" size="sm" disabled={apply.isPending}
                     onClick={() => apply.mutate({ jobId: job.id, coverNote: note || undefined }, { onSuccess: () => setDone(true) })}>

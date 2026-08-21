@@ -84,7 +84,7 @@ export function Cart() {
         <div style={{ padding: '16px 18px 10px' }}>
           <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             🛍️ My Cart
-            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--on-accent)', background: 'var(--accent)', borderRadius: 999, padding: '1px 9px' }}>{count}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--on-accent)', background: 'var(--accent)', borderRadius: 'var(--r-full)', padding: '1px 9px' }}>{count}</span>
           </h4>
           <p className="muted" style={{ fontSize: 11.5, margin: '6px 0 0', lineHeight: 1.4 }}>
             Adjust quantities or rebuild from your meal plan, then place your order.

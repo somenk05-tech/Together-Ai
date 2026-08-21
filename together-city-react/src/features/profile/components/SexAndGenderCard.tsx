@@ -118,7 +118,7 @@ export function SexAndGenderCard() {
             aria-label="Describe your gender"
             style={{
               marginTop: 10, width: '100%', padding: '10px 12px', fontSize: 14, fontFamily: 'inherit',
-              borderRadius: 10, border: '1.5px solid var(--line)', background: 'var(--card)', color: 'var(--ink)',
+              borderRadius: 'var(--r-1)', border: '1.5px solid var(--line)', background: 'var(--card)', color: 'var(--ink)',
             }}
           />
         )}
@@ -192,7 +192,7 @@ function Choices({ options, value, onChange }: {
             aria-pressed={on}
             style={{
               cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600,
-              padding: '9px 14px', borderRadius: 999,
+              padding: '9px 14px', borderRadius: 'var(--r-full)',
               border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`,
               background: on ? 'var(--accent)' : 'var(--card)',
               color: on ? 'var(--on-accent)' : 'var(--ink-soft)',

@@ -117,7 +117,7 @@ export function DatingBrowse() {
       {/* THE ROOM NEXT DOOR, NAMED ON THE WAY IN. The journey the owner asked
           for is browse here → both choose → they are in Curated Matches, and a
           citizen should not have to discover that by it happening to them. */}
-      <div style={{ marginBottom: 18, display: 'flex', gap: 12, alignItems: 'flex-start', background: 'var(--paper)', borderRadius: 14, padding: '13px 16px' }}>
+      <div style={{ marginBottom: 18, display: 'flex', gap: 12, alignItems: 'flex-start', background: 'var(--paper)', borderRadius: 'var(--r-2)', padding: '13px 16px' }}>
         <span aria-hidden style={{ display: 'grid', placeItems: 'center', width: 34, height: 34, borderRadius: '50%', border: '1.5px solid var(--accent-ink)', color: 'var(--muted)', flex: 'none' }}>💫</span>
         <div style={{ fontSize: 12.5, lineHeight: 1.5 }}>
           <strong>When you both like each other, they move to Curated Matches</strong> — that is
@@ -157,7 +157,7 @@ export function DatingBrowse() {
                 margin: '0 0 12px', paddingBottom: 6, borderBottom: '1px solid var(--line)',
               }}>
                 <h2 style={{ fontSize: 16, margin: 0 }}>{group.name}</h2>
-                <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--accent-soft)', color: 'var(--accent-ink)', borderRadius: 999, padding: '3px 10px' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--accent-soft)', color: 'var(--accent-ink)', borderRadius: 'var(--r-full)', padding: '3px 10px' }}>
                   {group.label}
                 </span>
                 <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>

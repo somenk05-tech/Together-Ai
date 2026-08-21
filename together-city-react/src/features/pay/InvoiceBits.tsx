@@ -17,7 +17,7 @@ export function StatusChip({ status, label }: { status: string; label: string })
   return (
     <span style={{
       fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase',
-      borderRadius: 999, padding: '2px 8px', whiteSpace: 'nowrap',
+      borderRadius: 'var(--r-full)', padding: '2px 8px', whiteSpace: 'nowrap',
       color: ink.ink, background: ink.soft, border: `1px solid ${ink.soft === 'transparent' ? 'var(--line)' : ink.ink}`,
     }}>{label}</span>
   );
@@ -110,7 +110,7 @@ export function InvoiceCard({ inv, who, onPay }: {
 }) {
   return (
     <div style={{
-      border: '1px solid var(--line)', borderRadius: 14, padding: '12px 14px',
+      border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: '12px 14px',
       display: 'grid', gap: 8, background: 'var(--card)',
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>

@@ -42,7 +42,7 @@ function ThreadAttachments({ threadId }: { threadId?: string | null }) {
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         {items.map((f) => (
           <button key={f.id} type="button" onClick={() => void open(f.id)}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, border: '1px solid var(--line)', borderRadius: 10, padding: '8px 12px', background: 'var(--paper)', cursor: 'pointer', fontFamily: 'inherit', color: 'var(--ink)' }}>
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, border: '1px solid var(--line)', borderRadius: 'var(--r-1)', padding: '8px 12px', background: 'var(--paper)', cursor: 'pointer', fontFamily: 'inherit', color: 'var(--ink)' }}>
             <span style={{ fontSize: 17 }}>{fileIcon(f)}</span>
             <span style={{ textAlign: 'left' }}>
               <span style={{ display: 'block', fontSize: 13, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
@@ -70,7 +70,7 @@ function MailBody({ body }: { body: string }) {
   const { latest, quoted } = useMemo(() => splitQuoted(stripCityFooter(body)), [body]);
   return (
     <div style={{ marginTop: 10 }}>
-      <div style={{ whiteSpace: 'pre-wrap', fontSize: 14.5, lineHeight: 1.6 }}>{latest}</div>
+      <div style={{ whiteSpace: 'pre-wrap', fontSize: 15, lineHeight: 1.6 }}>{latest}</div>
       {quoted && (
         <>
           {/* The control is Gmail's small pill; the TARGET is 44px. Drawing the
@@ -256,7 +256,7 @@ function InlineReply({ to, name, subject, threadId, latest, trailPending, open, 
   const quote = useMemo(() => quoteBlock(latest), [latest]);
   const hasSomething = Boolean(body.trim()) || attachments.length > 0;
   const canSend = Boolean(toAddr.trim()) && hasSomething && !trailPending && !send.isPending;
-  const inp = { padding: '11px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' as const, background: 'var(--card)' };
+  const inp = { padding: '11px 12px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' as const, background: 'var(--card)' };
 
   if (!open) {
     /* Gmail's reply row: the full width of the thread, not a chip in a
@@ -267,7 +267,7 @@ function InlineReply({ to, name, subject, threadId, latest, trailPending, open, 
         <button type="button" onClick={() => onOpenChange(true)}
           style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', minHeight: 54,
             padding: '0 18px', background: 'none', border: 0, cursor: 'pointer', fontFamily: 'inherit',
-            fontSize: 14.5, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}>
+            fontSize: 15, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}>
           <span>↩ Reply to {name}</span>
           <span className="muted" style={{ fontWeight: 400, fontSize: 12.5, marginLeft: 'auto' }}>
             Cc, Bcc and files, right here
@@ -358,7 +358,7 @@ function InlineReply({ to, name, subject, threadId, latest, trailPending, open, 
         {attachments.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
             {attachments.map((f) => (
-              <span key={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: '1px solid var(--line)', borderRadius: 999, padding: '6px 10px 6px 12px', fontSize: 12.5, background: 'var(--paper)' }}>
+              <span key={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '6px 10px 6px 12px', fontSize: 12.5, background: 'var(--paper)' }}>
                 <span>{fileIcon(f)}</span>
                 <span style={{ maxWidth: 190, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
                 <span className="muted" style={{ fontSize: 11 }}>{fmtBytes(f.sizeBytes)}</span>

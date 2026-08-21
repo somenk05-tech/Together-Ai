@@ -54,7 +54,7 @@ export function Regulars() {
                 <strong style={{ fontSize: 16 }}>{r.businessName}</strong>
                 <span className="muted" style={{ fontSize: 12.5 }}>{r.categoryLabel}</span>
                 {r.closed && (
-                  <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 999, padding: '2px 8px' }}>Closed</span>
+                  <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '2px 8px' }}>Closed</span>
                 )}
               </div>
               <div className="muted" style={{ fontSize: 12.5 }}>

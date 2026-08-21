@@ -118,7 +118,7 @@ export function FamilyWeekly() {
               times and never a date — a calendar with no calendar in it. */}
           <div style={{ display: 'flex', alignItems: 'stretch', gap: 8, marginBottom: 14 }}>
             <button type="button" aria-label="Previous day" disabled={clamped <= todayIdx} onClick={() => setPicked(Math.max(todayIdx, clamped - 1))}
-              style={{ display: 'grid', placeItems: 'center', width: 34, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--muted)', cursor: clamped <= todayIdx ? 'default' : 'pointer', opacity: clamped <= todayIdx ? 0.4 : 1, fontSize: 18 }}>‹</button>
+              style={{ display: 'grid', placeItems: 'center', width: 34, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--muted)', cursor: clamped <= todayIdx ? 'default' : 'pointer', opacity: clamped <= todayIdx ? 0.4 : 1, fontSize: 17 }}>‹</button>
             <div ref={railRef} style={{ flex: 1, display: 'flex', gap: 2, overflowX: 'auto', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 16, padding: 5, scrollbarWidth: 'none' }}>
               {days.map((_, i) => i).filter((i) => i >= todayIdx).map((i) => {
                 const on = i === clamped;
@@ -134,7 +134,7 @@ export function FamilyWeekly() {
               })}
             </div>
             <button type="button" aria-label="Next day" disabled={last} onClick={() => setPicked(Math.min(days.length - 1, clamped + 1))}
-              style={{ display: 'grid', placeItems: 'center', width: 34, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--muted)', cursor: last ? 'default' : 'pointer', opacity: last ? 0.4 : 1, fontSize: 18 }}>›</button>
+              style={{ display: 'grid', placeItems: 'center', width: 34, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--muted)', cursor: last ? 'default' : 'pointer', opacity: last ? 0.4 : 1, fontSize: 17 }}>›</button>
           </div>
 
           {/* THE PRINTED DAY — the same sheet the individual planner prints.

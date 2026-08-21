@@ -61,7 +61,7 @@
 .sl-head { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 16px; }
 .sl-head-t { flex: 1 1 auto; min-width: 0; }
 .sl-head-t h1 { font-size: clamp(23px, 5.2vw, 30px); margin: 3px 0 5px; }
-.sl-head-t p { margin: 0; font-size: 13.5px; color: var(--muted); }
+.sl-head-t p { margin: 0; font-size: var(--fs-4); color: var(--muted); }
 .sl-head > .btn { flex: 0 0 auto; }
 
 /* ── the composer: a door to Create Post, not a second one ────────────── */
@@ -69,7 +69,7 @@
 .sl-open {
   display: flex; align-items: center; gap: 12px; width: 100%;
   padding: 5px 3px 13px; background: none; border: 0; cursor: pointer;
-  font-family: var(--sans); font-size: 15px; color: var(--muted); text-align: left;
+  font-family: var(--sans); font-size: var(--fs-5); color: var(--muted); text-align: left;
 }
 .sl-open span { flex: 1 1 auto; min-width: 0; }
 /* Four doors and a way through. Each is a real target at 44px tall and none of
@@ -79,7 +79,7 @@
 .sl-quick {
   flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center; justify-content: center;
   gap: 7px; height: 52px; padding: 0 4px; background: none; border: 0; cursor: pointer;
-  font-family: var(--sans); font-size: 12.5px; font-weight: 600; color: var(--ink-soft);
+  font-family: var(--sans); font-size: var(--fs-3); font-weight: 600; color: var(--ink-soft);
 }
 .sl-quick + .sl-quick { border-left: 1px solid var(--line); }
 .sl-quick-l { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -95,7 +95,7 @@
   flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px;
   height: 46px; padding: 0 1px; margin-bottom: -1px;
   background: none; border: 0; border-bottom: 2px solid transparent; cursor: pointer;
-  font-family: var(--sans); font-size: 14.5px; font-weight: 600; color: var(--muted);
+  font-family: var(--sans); font-size: var(--fs-5); font-weight: 600; color: var(--muted);
   transition: color var(--dur-base) var(--ease);
 }
 .sl-tab.on { color: var(--ink); border-bottom-color: var(--ink); font-weight: 700; }
@@ -104,7 +104,7 @@
 .sl-band { display: flex; align-items: center; gap: 13px; padding: 2px 2px 14px; }
 .sl-band-t { flex: 1 1 auto; min-width: 0; }
 .sl-band-t b { display: block; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; font-weight: 700; }
-.sl-band-t span { display: block; font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+.sl-band-t span { display: block; font-size: var(--fs-3); color: var(--muted); margin-top: 3px; }
 .sl-band-more {
   flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px; min-height: 44px;
   background: none; border: 0; padding: 0 2px; cursor: pointer;
@@ -138,19 +138,19 @@
   content-visibility: auto; contain-intrinsic-size: auto 640px; }
 .sl-post-head { display: flex; align-items: flex-start; gap: 11px; }
 .sl-post-id { flex: 1 1 auto; min-width: 0; }
-.sl-post-name { font-size: 14.5px; font-weight: 700; letter-spacing: -.01em; }
+.sl-post-name { font-size: var(--fs-5); font-weight: 700; letter-spacing: -.01em; }
 .sl-post-name .sl-at { font-weight: 400; color: var(--muted); }
 .sl-post-meta {
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
   font-size: 12px; color: var(--muted); margin-top: 2px;
 }
-.sl-post-text { margin: 11px 0 0; font-size: 14.5px; line-height: 1.55; white-space: pre-wrap; }
+.sl-post-text { margin: 11px 0 0; font-size: var(--fs-5); line-height: 1.55; white-space: pre-wrap; }
 .sl-media { position: relative; margin-top: 11px; border-radius: var(--r-2); overflow: hidden; background: var(--media-bg); }
 .sl-acts { display: flex; align-items: center; gap: 20px; padding: 2px 0; margin-top: 4px; }
 .sl-act {
   display: inline-flex; align-items: center; gap: 7px; min-height: 44px;
   background: none; border: 0; padding: 0; cursor: pointer;
-  font-family: var(--sans); font-size: 13.5px; font-weight: 600; color: var(--muted);
+  font-family: var(--sans); font-size: var(--fs-4); font-weight: 600; color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 .sl-act.on { color: var(--ink); }
@@ -164,7 +164,7 @@
   display: grid; justify-items: center; align-content: center; gap: 8px;
   min-height: 86px; padding: 12px 5px; border: 0; border-radius: var(--r-2); cursor: pointer;
   background: var(--face); box-shadow: var(--e1);
-  font-family: var(--sans); font-size: 11.5px; font-weight: 600; color: var(--ink);
+  font-family: var(--sans); font-size: var(--fs-2); font-weight: 600; color: var(--ink);
   transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease);
 }
 @media (hover: hover) and (pointer: fine) {
@@ -193,13 +193,13 @@
 /* A general sibling, not an adjacent one: a row's open panel sits between it
    and the next row, and `+` would drop the rule the moment anything expands. */
 .sl-rows > .sl-row ~ .sl-row { border-top: 1px solid var(--line); }
-.sl-row-v { margin-left: auto; font-size: 13.5px; font-weight: 500; color: var(--muted); }
+.sl-row-v { margin-left: auto; font-size: var(--fs-4); font-weight: 500; color: var(--muted); }
 
 /* ── a notice with a mark beside it ───────────────────────────────────── */
 .sl-note { display: flex; gap: 13px; align-items: flex-start; }
 .sl-note-t { min-width: 0; }
-.sl-note-t b { display: block; font-size: 13.5px; font-weight: 700; color: var(--ink); margin-bottom: 3px; }
-.sl-note-t p { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--muted); }
+.sl-note-t b { display: block; font-size: var(--fs-4); font-weight: 700; color: var(--ink); margin-bottom: 3px; }
+.sl-note-t p { margin: 0; font-size: var(--fs-3); line-height: 1.6; color: var(--muted); }
 
 /* ── fields that look like somewhere to type ──────────────────────────────
    THE SELECTOR IS THAT LONG FOR THE REASON `.mail-search` IS. The global field
@@ -212,16 +212,16 @@ textarea.sl-field,
 .sl-field {
   width: 100%; box-sizing: border-box; border: 1px solid var(--line); border-radius: var(--r-2);
   padding: 13px 15px; background: var(--card); box-shadow: none; outline: none;
-  font-family: var(--sans); font-size: 14.5px; color: var(--ink);
+  font-family: var(--sans); font-size: var(--fs-5); color: var(--ink);
 }
 .sl-field::placeholder { color: var(--muted); }
 .sl-field:focus, .sl-field:focus-visible, .sl-field:focus-within { box-shadow: var(--focus-ring); }
 textarea.sl-field { resize: vertical; line-height: 1.6; min-height: 132px; }
-.sl-lab { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink); margin: 0 0 7px; }
+.sl-lab { display: block; font-size: var(--fs-3); font-weight: 600; color: var(--ink); margin: 0 0 7px; }
 .sl-lab em { font-style: normal; font-weight: 400; color: var(--muted); }
-.sl-hint { margin: 6px 0 0; font-size: 11.5px; color: var(--faint); }
+.sl-hint { margin: 6px 0 0; font-size: var(--fs-2); color: var(--faint); }
 .sl-wrap { position: relative; }
-.sl-count { position: absolute; right: 14px; bottom: 12px; font-size: 11.5px; color: var(--faint); pointer-events: none; font-variant-numeric: tabular-nums; }
+.sl-count { position: absolute; right: 14px; bottom: 12px; font-size: var(--fs-2); color: var(--faint); pointer-events: none; font-variant-numeric: tabular-nums; }
 /* The hash sits inside the field's own box, so the box is the control. */
 .sl-tagfield { display: flex; align-items: center; gap: 9px; padding: 9px 13px; flex-wrap: wrap; }
 .sl-tagfield input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
@@ -244,7 +244,7 @@ textarea.sl-field { resize: vertical; line-height: 1.6; min-height: 132px; }
 .sl-mood {
   display: grid; justify-items: center; gap: 6px; min-height: 64px; padding: 11px 4px;
   border: 1px solid var(--line); border-radius: var(--r-2); background: var(--card); cursor: pointer;
-  font-family: var(--sans); font-size: 11.5px; font-weight: 600; color: var(--ink-soft);
+  font-family: var(--sans); font-size: var(--fs-2); font-weight: 600; color: var(--ink-soft);
 }
 .sl-mood-l { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sl-mood.on { border-color: var(--fold-amber-tab); background: var(--fold-amber-face); color: var(--ink); font-weight: 700; }

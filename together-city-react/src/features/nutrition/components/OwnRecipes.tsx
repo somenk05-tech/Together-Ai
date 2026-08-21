@@ -33,7 +33,7 @@ const SLOTS: Array<{ key: OwnRecipeInput['slot']; label: string }> = [
 
 const inputS: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '1.5px solid var(--line)',
-  borderRadius: 10, fontSize: 14, fontFamily: 'inherit', background: 'var(--card)', color: 'var(--ink)',
+  borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit', background: 'var(--card)', color: 'var(--ink)',
 };
 const labelS: React.CSSProperties = { display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--muted)', marginBottom: 5 };
 const rowS: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 110px 44px', gap: 8, alignItems: 'end', marginBottom: 8 };
@@ -118,7 +118,7 @@ export function OwnRecipes() {
 
   return (
     <section id="your-own-recipes" style={{ marginTop: 34, borderTop: '1px solid var(--line)', paddingTop: 26 }}>
-      <h2 style={{ fontSize: 21, margin: '0 0 4px' }}>Your own recipes</h2>
+      <h2 style={{ fontSize: 20, margin: '0 0 4px' }}>Your own recipes</h2>
       <p className="muted" style={{ fontSize: 13.5, margin: '0 0 4px', lineHeight: 1.6 }}>
         Add a dish you cook. List what goes in it and how much, and we’ll work out the calories and
         macros the same way we do for every recipe in the library — from the ingredients, not from a
@@ -178,7 +178,7 @@ export function OwnRecipes() {
             <button type="button" aria-label={`Remove ingredient ${i + 1}`}
               disabled={form.ingredients.length === 1}
               onClick={() => set('ingredients', form.ingredients.filter((_, k) => k !== i))}
-              style={{ minHeight: 44, minWidth: 44, border: '1px solid var(--line)', borderRadius: 10, background: 'var(--card)', cursor: 'pointer', fontFamily: 'inherit', opacity: form.ingredients.length === 1 ? 0.4 : 1 }}>×</button>
+              style={{ minHeight: 44, minWidth: 44, border: '1px solid var(--line)', borderRadius: 'var(--r-1)', background: 'var(--card)', cursor: 'pointer', fontFamily: 'inherit', opacity: form.ingredients.length === 1 ? 0.4 : 1 }}>×</button>
           </div>
         ))}
         <Button variant="line" size="sm" onClick={() => set('ingredients', [...form.ingredients, { name: '', grams: 100 }])}>+ Another ingredient</Button>
@@ -226,7 +226,7 @@ export function OwnRecipes() {
         </div>
       </Card>
 
-      <h2 style={{ fontSize: 19, marginBottom: 10 }}>What you’ve added</h2>
+      <h2 style={{ fontSize: 20, marginBottom: 10 }}>What you’ve added</h2>
       {mine.isLoading && <Spinner label="Loading your recipes…" />}
       {mine.isError && <EmptyState title="Couldn’t load your recipes" hint="Check your connection and reload." />}
       {!mine.isLoading && !mine.isError && (mine.data ?? []).length === 0 && (
@@ -249,7 +249,7 @@ export function OwnRecipes() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
               {inSlot.map((r) => (
                 <Card key={r.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14.5 }}>{r.name}</div>
+                  <div style={{ fontWeight: 700, fontSize: 15 }}>{r.name}</div>
                   <div className="muted" style={{ fontSize: 12 }}>
                     {r.country} · {r.minutes} min · {r.gramsPerServing} g/plate · <DietTag diet={r.diet} />
                   </div>

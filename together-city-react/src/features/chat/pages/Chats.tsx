@@ -774,7 +774,7 @@ export function Chats() {
                         : hits.data.map((h) => (
                             <button key={h.id} type="button" onClick={() => { void jumpTo(h.id); }}
                               style={{ textAlign: 'left', border: 'none', background: 'var(--stage-tile)', cursor: 'pointer',
-                                borderRadius: 10, padding: '7px 10px', font: 'inherit', color: 'var(--on-stage)' }}>
+                                borderRadius: 'var(--r-1)', padding: '7px 10px', font: 'inherit', color: 'var(--on-stage)' }}>
                               <span style={{ display: 'block', fontSize: 10.5, color: 'var(--on-stage-faint)' }}>
                                 {new Date(h.createdAt).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                 {h.senderId === user?.id ? ' · You' : ''}

@@ -37,7 +37,7 @@ export function RestaurantsHome() {
         {ENTRIES.map((e) => (
           <Link key={e.title} to={e.to} className="card lift" style={{ display: 'block', textDecoration: 'none', color: 'inherit', borderTop: e.accent ? '3px solid var(--gold-bright)' : undefined }}>
             <div style={{ fontSize: 30, marginBottom: 8 }}>{e.icon}</div>
-            <h3 style={{ margin: '0 0 4px', fontSize: 18 }}>{e.title}</h3>
+            <h3 style={{ margin: '0 0 4px', fontSize: 17 }}>{e.title}</h3>
             <p className="muted" style={{ fontSize: 13, lineHeight: 1.5, margin: 0 }}>{e.blurb}</p>
           </Link>
         ))}

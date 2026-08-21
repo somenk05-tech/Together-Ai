@@ -221,7 +221,7 @@ function Entry({ t, onDelete, busy }: { t: Thought; onDelete: (id: string) => vo
             // An inline confirm, like the one on People. window.confirm was a
             // blocking browser dialog in an app that confirms everything else
             // in place, and it could not say the one thing worth saying here.
-            <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 10, background: 'var(--danger-soft)', border: '1px solid var(--danger-line)' }}>
+            <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 'var(--r-1)', background: 'var(--danger-soft)', border: '1px solid var(--danger-line)' }}>
               <p style={{ fontSize: 13, fontWeight: 700, margin: '0 0 4px' }}>Delete this thought?</p>
               <p className="muted" style={{ fontSize: 12, margin: '0 0 10px', lineHeight: 1.5 }}>
                 It leaves your journal straight away, and there’s no screen here to bring it back.
@@ -368,7 +368,7 @@ export function Thoughts() {
       ) : items.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '44px 24px' }}>
           <span className="sl-ic lg" style={{ margin: '0 auto 16px' }}><Icon name="journal" size={30} /></span>
-          <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-.025em' }}>
+          <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-.025em' }}>
             {q ? 'Nothing matches that' : 'Your journal is empty'}
           </div>
           <p className="muted" style={{ fontSize: 14, margin: '7px 0 0' }}>

@@ -432,7 +432,7 @@ function Tags(
               type="button"
               onClick={() => onChange(values.filter((x) => x !== v))}
               style={{
-                font: 'inherit', fontSize: 12, padding: '4px 10px', borderRadius: 999, cursor: 'pointer',
+                font: 'inherit', fontSize: 12, padding: '4px 10px', borderRadius: 'var(--r-full)', cursor: 'pointer',
                 border: '1px solid var(--danger-line)', background: 'var(--danger-soft)', color: 'var(--danger-ink)',
               }}
             >

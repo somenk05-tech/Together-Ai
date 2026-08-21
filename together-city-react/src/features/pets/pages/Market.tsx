@@ -134,7 +134,7 @@ export function Market() {
               aria-pressed={category === c.key}
               style={{
                 font: 'inherit', fontSize: 12.5, fontWeight: category === c.key ? 700 : 500, whiteSpace: 'nowrap',
-                padding: '7px 14px', borderRadius: 999, cursor: 'pointer',
+                padding: '7px 14px', borderRadius: 'var(--r-full)', cursor: 'pointer',
                 border: `1px solid ${category === c.key ? 'var(--accent-line)' : 'var(--line)'}`,
                 background: category === c.key ? 'var(--accent-soft)' : 'var(--card)',
                 color: category === c.key ? 'var(--accent-ink)' : 'var(--ink-soft)',

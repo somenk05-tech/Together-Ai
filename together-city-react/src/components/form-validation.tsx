@@ -73,7 +73,7 @@ export function ValidationSummary({ missing, title = 'Please complete the follow
   if (!missing.length) return null;
   return (
     <div role="alert" style={{
-      border: '1.5px solid var(--danger-line)', background: 'var(--danger-soft)', borderRadius: 14,
+      border: '1.5px solid var(--danger-line)', background: 'var(--danger-soft)', borderRadius: 'var(--r-2)',
       padding: '14px 18px', margin: '0 0 16px', animation: 'tcValIn .25s ease',
     }}>
       <style>{'@keyframes tcValIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}'}</style>

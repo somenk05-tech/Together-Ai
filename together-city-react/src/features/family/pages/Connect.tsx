@@ -22,7 +22,7 @@ const ROLE_META: Record<HouseholdRole, { label: string; color: string; soft: str
   child: { label: 'Child', color: 'var(--warn-ink)', soft: 'var(--warn-soft)' },
   guest: { label: 'Guest', color: 'var(--muted)', soft: 'var(--line)' },
 };
-const fld: React.CSSProperties = { border: '1px solid var(--line)', borderRadius: 10, padding: '10px 12px', fontSize: 13.5, background: 'var(--paper)', color: 'var(--ink)', outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' };
+const fld: React.CSSProperties = { border: '1px solid var(--line)', borderRadius: 'var(--r-1)', padding: '10px 12px', fontSize: 13.5, background: 'var(--paper)', color: 'var(--ink)', outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' };
 const lbl: React.CSSProperties = { fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--muted)', display: 'block', marginBottom: 4 };
 
 const initialsOf = (name: string) => name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
@@ -84,7 +84,7 @@ function FamilyProfileCard() {
   }
   if (!p || p.counts.total <= 1) return null;
   const Stat = ({ n, l }: { n: number | string; l: string }) => (
-    <div><div style={{ fontSize: 18, fontWeight: 800 }}>{n}</div><div className="muted" style={{ fontSize: 11 }}>{l}</div></div>
+    <div><div style={{ fontSize: 17, fontWeight: 800 }}>{n}</div><div className="muted" style={{ fontSize: 11 }}>{l}</div></div>
   );
   const c = p.compatibility;
   const cColor = c.level === 'high' ? 'var(--ok-ink)' : c.level === 'moderate' ? 'var(--warn-ink)' : 'var(--warn-ink)';
@@ -96,7 +96,7 @@ function FamilyProfileCard() {
       </div>
 
       {/* Family Compatibility Score — how easily the household shares one meal */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 14, padding: 14, background: 'var(--paper)', borderRadius: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 14, padding: 14, background: 'var(--paper)', borderRadius: 'var(--r-2)' }}>
         <div style={{ flex: 'none', width: 62, height: 62, borderRadius: '50%', display: 'grid', placeItems: 'center', background: `conic-gradient(${cColor} ${c.score * 3.6}deg, var(--line) 0)` }}>
           <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--card)', display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 15, color: cColor }}>{c.score}%</div>
         </div>
@@ -122,8 +122,8 @@ function FamilyProfileCard() {
       </div>
       {(p.dietTypes.length > 0 || p.conditions.length > 0) && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--line)' }}>
-          {p.dietTypes.map((d) => <span key={d} style={{ fontSize: 11, background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 999, padding: '3px 10px', fontWeight: 600 }}>{d}</span>)}
-          {p.conditions.map((c) => <span key={c} style={{ fontSize: 11, background: 'var(--warn-soft)', color: 'var(--warn-ink)', borderRadius: 999, padding: '3px 10px', fontWeight: 600 }}>{c}</span>)}
+          {p.dietTypes.map((d) => <span key={d} style={{ fontSize: 11, background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '3px 10px', fontWeight: 600 }}>{d}</span>)}
+          {p.conditions.map((c) => <span key={c} style={{ fontSize: 11, background: 'var(--warn-soft)', color: 'var(--warn-ink)', borderRadius: 'var(--r-full)', padding: '3px 10px', fontWeight: 600 }}>{c}</span>)}
         </div>
       )}
       {p.summary.medicalAlerts.length > 0 && (
@@ -170,7 +170,7 @@ function FamilyMealPlanningCard() {
         {isOwner ? (
           <button role="switch" aria-checked={on} disabled={update.isPending}
             onClick={() => update.mutate(!on)}
-            style={{ flex: 'none', width: 48, height: 28, borderRadius: 999, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background .15s', background: on ? 'var(--accent)' : 'var(--line)' }}>
+            style={{ flex: 'none', width: 48, height: 28, borderRadius: 'var(--r-full)', border: 'none', cursor: 'pointer', position: 'relative', transition: 'background .15s', background: on ? 'var(--accent)' : 'var(--line)' }}>
             <span style={{ position: 'absolute', top: 3, left: on ? 23 : 3, width: 22, height: 22, borderRadius: '50%', background: 'var(--card)', transition: 'left .15s', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
           </button>
         ) : (
@@ -227,7 +227,7 @@ function PrivacyCard() {
               </div>
               <button role="switch" aria-checked={on} disabled={update.isPending}
                 onClick={() => update.mutate({ [r.key]: !on })}
-                style={{ flex: 'none', width: 44, height: 26, borderRadius: 999, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background .15s', background: on ? 'var(--accent)' : 'var(--line)' }}>
+                style={{ flex: 'none', width: 44, height: 26, borderRadius: 'var(--r-full)', border: 'none', cursor: 'pointer', position: 'relative', transition: 'background .15s', background: on ? 'var(--accent)' : 'var(--line)' }}>
                 <span style={{ position: 'absolute', top: 3, left: on ? 21 : 3, width: 20, height: 20, borderRadius: '50%', background: 'var(--card)', transition: 'left .15s', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
               </button>
             </div>
@@ -291,7 +291,7 @@ function EditMemberForm({ initial, isSelf, onSave, onCancel, saving }: { initial
             const on = f.healthConditions.includes(c);
             return (
               <button key={c} type="button" onClick={() => toggleCond(c)}
-                style={{ fontSize: 12.5, cursor: 'pointer', borderRadius: 999, padding: '6px 12px', fontFamily: 'inherit', fontWeight: 600, border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent-soft)' : 'transparent', color: on ? 'var(--accent)' : 'var(--ink)' }}>
+                style={{ fontSize: 12.5, cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '6px 12px', fontFamily: 'inherit', fontWeight: 600, border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent-soft)' : 'transparent', color: on ? 'var(--accent)' : 'var(--ink)' }}>
                 {on ? '✓ ' : ''}{c}
               </button>
             );
@@ -333,7 +333,7 @@ function MemberCard({ m, onEdit, onRemove }: { m: FamilyMemberProfile; onEdit: (
               .filter(Boolean).join(' · ')}
           </p>
         </div>
-        <span style={{ flex: 'none', fontSize: 10.5, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: role.color, background: role.soft, borderRadius: 999, padding: '3px 10px' }}>{role.label}</span>
+        <span style={{ flex: 'none', fontSize: 10.5, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: role.color, background: role.soft, borderRadius: 'var(--r-full)', padding: '3px 10px' }}>{role.label}</span>
       </div>
 
       {m.privacy.targets ? (
@@ -367,7 +367,7 @@ function MemberCard({ m, onEdit, onRemove }: { m: FamilyMemberProfile; onEdit: (
 
       {m.healthConditions.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
-          {m.healthConditions.map((c) => <span key={c} style={{ fontSize: 11, background: 'var(--warn-soft)', color: 'var(--warn-ink)', borderRadius: 999, padding: '3px 9px', fontWeight: 600 }}>{c}</span>)}
+          {m.healthConditions.map((c) => <span key={c} style={{ fontSize: 11, background: 'var(--warn-soft)', color: 'var(--warn-ink)', borderRadius: 'var(--r-full)', padding: '3px 9px', fontWeight: 600 }}>{c}</span>)}
         </div>
       )}
       {m.privacy.conditions && !m.isSelf && (
@@ -421,7 +421,7 @@ export function FamilyConnect() {
         <PrivacyCard />
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '4px 0 16px' }}>
-          <h3 style={{ fontSize: 18, margin: 0 }}>Household</h3>
+          <h3 style={{ fontSize: 17, margin: 0 }}>Household</h3>
           {editing === null && <Button variant="accent" onClick={() => setInviting(true)}>+ Add Member</Button>}
         </div>
 

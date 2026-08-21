@@ -136,7 +136,12 @@ describe('the beauty profile folds what it has already answered', () => {
     const layout = read('styles/layout.css');
     const strip = layout.slice(layout.indexOf('.beauty-tabs {'));
     const on = strip.slice(strip.indexOf('.beauty-tabs button.is-on'));
-    expect(strip).toMatch(/border-radius: 999px/);
+    // THE PILL, BY EITHER NAME. This pinned the literal `999px`, and the radius
+    // sweep pointed 485 raw values at the tokens that already held them —
+    // `--r-full` IS 999px, so the assertion's subject is unchanged and only its
+    // spelling moved. An assertion that reads source as text is exactly the kind
+    // a value-preserving codemod breaks; it should name the intent, not the digits.
+    expect(strip).toMatch(/border-radius:\s*(?:999px|var\(--r-full\))/);
     expect(on).toMatch(/background: var\(--accent\)/);
     expect(on).toMatch(/color: var\(--on-accent\)/);
     // And the rule under the strip went with the idiom it belonged to. A

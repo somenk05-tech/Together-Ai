@@ -44,7 +44,7 @@ function Row({ item, canApprove, canSuspend }: { item: QueueItem; canApprove: bo
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         {item.photos[0] && (
           <img src={item.photos[0]} alt="" width={84} height={64}
-            style={{ objectFit: 'cover', borderRadius: 10, border: '1px solid var(--line)' }} />
+            style={{ objectFit: 'cover', borderRadius: 'var(--r-1)', border: '1px solid var(--line)' }} />
         )}
         <div style={{ flex: '1 1 220px', minWidth: 0 }}>
           <strong style={{ fontSize: 16 }}>{item.businessName}</strong>
@@ -73,7 +73,7 @@ function Row({ item, canApprove, canSuspend }: { item: QueueItem; canApprove: bo
         aria-label={`Reason for your decision on ${item.businessName}`}
         placeholder="Why? One sentence — the owner may ask, and a week later nobody remembers."
         style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '1.5px solid var(--line)',
-          borderRadius: 10, fontSize: 13.5, fontFamily: 'inherit', background: 'var(--card)' }} />
+          borderRadius: 'var(--r-1)', fontSize: 13.5, fontFamily: 'inherit', background: 'var(--card)' }} />
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {canApprove && (
@@ -172,7 +172,7 @@ function CitizenRecordPanel({ id, canSuspend, onOpenBusiness, onClose }: {
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 240px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-            <strong style={{ fontSize: 18 }}>{c.name}</strong>
+            <strong style={{ fontSize: 17 }}>{c.name}</strong>
             <span className="muted" style={{ fontSize: 13 }}>@{c.handle}</span>
             <Status status={c.status} />
             {c.moderator && <span className="tag">moderator</span>}
@@ -198,7 +198,7 @@ function CitizenRecordPanel({ id, canSuspend, onOpenBusiness, onClose }: {
       </div>
 
       {suspended && c.suspendedReason && (
-        <div style={{ border: '1px solid var(--danger-line)', background: 'var(--danger-soft)', borderRadius: 10, padding: '10px 13px' }}>
+        <div style={{ border: '1px solid var(--danger-line)', background: 'var(--danger-soft)', borderRadius: 'var(--r-1)', padding: '10px 13px' }}>
           <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--danger-ink)' }}>Suspended</div>
           <p style={{ fontSize: 13, margin: '4px 0 0' }}>{c.suspendedReason}</p>
         </div>
@@ -242,7 +242,7 @@ function CitizenRecordPanel({ id, canSuspend, onOpenBusiness, onClose }: {
               ? 'Why are you giving this account back? One sentence.'
               : 'Why is this account being suspended? One sentence — the next admin reads this.'}
             style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '1.5px solid var(--line)',
-              borderRadius: 10, fontSize: 13.5, fontFamily: 'inherit', background: 'var(--card)' }} />
+              borderRadius: 'var(--r-1)', fontSize: 13.5, fontFamily: 'inherit', background: 'var(--card)' }} />
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <Button variant={suspended ? 'accent' : 'line'} size="sm" disabled={!ready || setSusp.isPending} onClick={act}>
               {setSusp.isPending ? 'Recording…' : suspended ? 'Restore this account' : 'Suspend this account'}
@@ -285,7 +285,7 @@ function BusinessRecordPanel({ id, onOpenCitizen, onClose }: {
     <Card style={{ display: 'grid', gap: 16 }}>
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 240px', minWidth: 0 }}>
-          <strong style={{ fontSize: 18 }}>{l.businessName}</strong>
+          <strong style={{ fontSize: 17 }}>{l.businessName}</strong>
           <div className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>
             {l.categoryKey} · {l.areas.length ? l.areas.join(' · ') : l.city} · {l.moderation}
             {l.slug && <> · /services/{l.slug}</>}
@@ -301,7 +301,7 @@ function BusinessRecordPanel({ id, onOpenCitizen, onClose }: {
         <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }}>
           {l.photos.map((src) => (
             <img key={src} src={src} alt="" width={110} height={82}
-              style={{ objectFit: 'cover', borderRadius: 10, border: '1px solid var(--line)', flex: '0 0 auto' }} />
+              style={{ objectFit: 'cover', borderRadius: 'var(--r-1)', border: '1px solid var(--line)', flex: '0 0 auto' }} />
           ))}
         </div>
       )}
@@ -388,12 +388,12 @@ function Citizens({ canSuspend, onOpenBusiness }: { canSuspend: boolean; onOpenB
           aria-label="Find a citizen by handle, name or id"
           placeholder="Handle, name, or an id from the audit log"
           style={{ flex: '1 1 260px', boxSizing: 'border-box', padding: '10px 12px',
-            border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13.5,
+            border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 13.5,
             fontFamily: 'inherit', background: 'var(--card)' }} />
         {([['', 'Any'], ['suspended', 'Suspended'], ['deleted', 'Closed']] as const).map(([k, label]) => (
           <button key={k} type="button" onClick={() => setStatus(k)}
             style={{ minHeight: 44, padding: '0 14px', cursor: 'pointer', fontFamily: 'inherit',
-              fontSize: 13, fontWeight: 600, borderRadius: 10,
+              fontSize: 13, fontWeight: 600, borderRadius: 'var(--r-1)',
               border: `1.5px solid ${status === k ? 'var(--accent-ink)' : 'var(--line)'}`,
               background: status === k ? 'var(--accent-soft)' : 'var(--card)', color: 'var(--ink)' }}>
             {label}
@@ -551,7 +551,7 @@ export function AdminConsole() {
 
       {tab === 'audit' && has('audit.read') && (
         <div>
-          <h2 style={{ fontSize: 18, margin: '0 0 8px' }}>What has been done</h2>
+          <h2 style={{ fontSize: 17, margin: '0 0 8px' }}>What has been done</h2>
           {audit.isLoading && <Spinner label="Loading the log…" />}
           {audit.data && audit.data.items.length === 0 && (
             <p className="muted" style={{ fontSize: 13 }}>Nothing has been done through the console yet.</p>

@@ -24,7 +24,7 @@ export function TrustBadge({ trust }: { trust: TrustSummary | null | undefined }
         color: strong ? 'var(--gold-ink)' : 'var(--ok-ink)',
         border: `1px solid ${strong ? 'var(--gold-ink)' : 'var(--ok-line)'}`,
         background: strong ? 'transparent' : 'var(--ok-soft)',
-        borderRadius: 999, padding: '2px 8px', whiteSpace: 'nowrap',
+        borderRadius: 'var(--r-full)', padding: '2px 8px', whiteSpace: 'nowrap',
       }}
     >
       {trust.label}
@@ -40,7 +40,7 @@ export function TrustNote({ trust }: { trust: TrustSummary | null | undefined })
 }
 
 const field = {
-  padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 10,
+  padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)',
   fontSize: 13.5, fontFamily: 'inherit', background: 'var(--card)',
   width: '100%', boxSizing: 'border-box' as const,
 };

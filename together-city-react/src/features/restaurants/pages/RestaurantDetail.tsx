@@ -28,7 +28,7 @@ function DishRow({ d, qty, onAdd, onSub }: { d: Dish; qty: number; onAdd: () => 
       <div style={{ flex: 1 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <DietTag d={d} />
-          <strong style={{ fontSize: 14.5 }}>{d.name}</strong>
+          <strong style={{ fontSize: 15 }}>{d.name}</strong>
           {d.bestseller && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--warn-ink)', background: 'var(--warn-soft)', borderRadius: 6, padding: '1px 6px' }}>★ Bestseller</span>}
           {d.spicy && <span title="Spicy" style={{ fontSize: 11 }}>🌶️</span>}
           {d.fitsYourDiet === true && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--ok-ink)', background: 'var(--ok-soft)', borderRadius: 6, padding: '1px 6px' }}>fits your plan</span>}
@@ -42,7 +42,7 @@ function DishRow({ d, qty, onAdd, onSub }: { d: Dish; qty: number; onAdd: () => 
         {qty === 0
           ? <Button variant="line" size="sm" onClick={onAdd}>Add</Button>
           : (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, border: '1.5px solid var(--accent)', borderRadius: 10, padding: '4px 10px' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, border: '1.5px solid var(--accent)', borderRadius: 'var(--r-1)', padding: '4px 10px' }}>
               <button type="button" onClick={onSub} aria-label="Decrease quantity" style={{ cursor: 'pointer', border: 'none', background: 'none', fontSize: 16, fontWeight: 700, color: 'var(--accent-ink)' }}>−</button>
               <span style={{ fontWeight: 700, minWidth: 14, textAlign: 'center' }}>{qty}</span>
               <button type="button" onClick={onAdd} aria-label="Increase quantity" style={{ cursor: 'pointer', border: 'none', background: 'none', fontSize: 16, fontWeight: 700, color: 'var(--accent-ink)' }}>+</button>
@@ -114,7 +114,7 @@ export function RestaurantDetail() {
       </div>
 
       {r.dietProfile && (
-        <div style={{ marginTop: 12, fontSize: 12.5, color: 'var(--ok-ink)', background: 'var(--ok-soft)', borderRadius: 10, padding: '9px 13px' }}>
+        <div style={{ marginTop: 12, fontSize: 12.5, color: 'var(--ok-ink)', background: 'var(--ok-soft)', borderRadius: 'var(--r-1)', padding: '9px 13px' }}>
           🥗 Personalised for your <strong>{r.dietProfile}</strong> plan from the Nutrition hub — dishes that don’t fit are dimmed and tagged.
         </div>
       )}
@@ -167,7 +167,7 @@ export function RestaurantDetail() {
       {/* Popular dishes */}
       {r.popularDishes && r.popularDishes.length > 0 && (
         <div style={{ marginTop: 18 }}>
-          <h2 style={{ fontSize: 18, margin: '0 0 10px' }}>Popular dishes</h2>
+          <h2 style={{ fontSize: 17, margin: '0 0 10px' }}>Popular dishes</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px,1fr))', gap: 12 }}>
             {r.popularDishes.map((d, i) => (
               <div key={i} className="card" style={{ padding: 12 }}>
@@ -207,8 +207,8 @@ export function RestaurantDetail() {
 
       {/* Menu */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '20px 0 4px' }}>
-        <h2 style={{ fontSize: 19, margin: 0 }}>Menu</h2>
-        <div style={{ marginLeft: 'auto', display: 'inline-flex', border: '1.5px solid var(--line)', borderRadius: 10, overflow: 'hidden' }}>
+        <h2 style={{ fontSize: 20, margin: 0 }}>Menu</h2>
+        <div style={{ marginLeft: 'auto', display: 'inline-flex', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', overflow: 'hidden' }}>
           {(['delivery', 'dinein'] as const).map((m) => (
             <button key={m} type="button" onClick={() => setMode(m)} style={{ cursor: 'pointer', border: 'none', padding: '7px 14px', fontSize: 12.5, fontWeight: 700, fontFamily: 'inherit', textTransform: 'capitalize', background: mode === m ? 'var(--accent)' : 'transparent', color: mode === m ? 'var(--on-accent)' : 'var(--ink-soft)' }}>{m === 'dinein' ? 'Dine-in' : 'Delivery'}</button>
           ))}
@@ -249,4 +249,4 @@ export function RestaurantDetail() {
   );
 }
 
-const inp = { padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', background: 'var(--card)' } as const;
+const inp = { padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit', background: 'var(--card)' } as const;

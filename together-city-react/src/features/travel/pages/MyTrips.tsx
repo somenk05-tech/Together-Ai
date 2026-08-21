@@ -11,7 +11,7 @@ function TripPass({ t }: { t: Trip }) {
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 20 }}>{t.icon}</span>
           <strong style={{ fontSize: 16 }}>{t.title}</strong>
-          <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--ok-ink)', background: 'var(--ok-soft)', borderRadius: 999, padding: '2px 10px' }}>{t.status}</span>
+          <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--ok-ink)', background: 'var(--ok-soft)', borderRadius: 'var(--r-full)', padding: '2px 10px' }}>{t.status}</span>
         </div>
         <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>{t.subtitle}</div>
         {t.kind === 'flight' && d.departTime && (
@@ -23,7 +23,7 @@ function TripPass({ t }: { t: Trip }) {
           <div><div className="eyebrow" style={{ margin: 0 }}>Paid</div><div style={{ fontWeight: 700, fontSize: 14 }}>{inr(t.totalInr)}</div></div>
           <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
             <div className="eyebrow" style={{ margin: 0 }}>Booking code</div>
-            <div style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: 18, letterSpacing: '.06em' }}>{t.code}</div>
+            <div style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: 17, letterSpacing: '.06em' }}>{t.code}</div>
           </div>
         </div>
       </div>

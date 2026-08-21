@@ -64,11 +64,11 @@ export function MultiSelect({ values, onChange, category, options: staticOptions
     <div ref={rootRef} style={{ position: 'relative' }}>
       <div onClick={() => setOpen(true)} style={{
         width: '100%', minHeight: 44, padding: '7px 10px', border: `1.5px solid ${open ? 'var(--accent)' : 'var(--line)'}`,
-        borderRadius: 10, background: 'var(--card)', boxSizing: 'border-box', display: 'flex', flexWrap: 'wrap', gap: 6,
+        borderRadius: 'var(--r-1)', background: 'var(--card)', boxSizing: 'border-box', display: 'flex', flexWrap: 'wrap', gap: 6,
         alignItems: 'center', cursor: 'text',
       }}>
         {values.map((v) => (
-          <span key={v} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: 'var(--on-accent)', borderRadius: 999, padding: '4px 6px 4px 11px', fontSize: 12.5, fontWeight: 600 }}>
+          <span key={v} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: 'var(--on-accent)', borderRadius: 'var(--r-full)', padding: '4px 6px 4px 11px', fontSize: 12.5, fontWeight: 600 }}>
             {v}
             <button type="button" aria-label={`Remove ${v}`} onClick={(e) => { e.stopPropagation(); remove(v); }}
               style={{ minWidth: 44, minHeight: 44, border: 'none', background: 'rgba(255,255,255,.25)', color: 'var(--on-accent)', width: 16, height: 16, borderRadius: '50%', cursor: 'pointer', fontSize: 11, lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>×</button>

@@ -321,10 +321,10 @@ export function MessageThread({ messages, currentUserId, typing, peerName, peerP
                    two outlines on one row is a row saying two things. */
                 ...(pickable
                   ? (picked
-                      ? { outline: '2px solid var(--on-stage)', outlineOffset: 4, borderRadius: 14 }
-                      : { outline: '1px dashed var(--on-stage-faint)', outlineOffset: 4, borderRadius: 14 })
+                      ? { outline: '2px solid var(--on-stage)', outlineOffset: 4, borderRadius: 'var(--r-2)' }
+                      : { outline: '1px dashed var(--on-stage-faint)', outlineOffset: 4, borderRadius: 'var(--r-2)' })
                   : flashId === m.id
-                    ? { outline: '2px solid var(--on-stage-faint)', outlineOffset: 4, borderRadius: 14 }
+                    ? { outline: '2px solid var(--on-stage-faint)', outlineOffset: 4, borderRadius: 'var(--r-2)' }
                     : null) }}
               /* CAPTURE, so the tap never reaches what it landed on. A bubbling
                  handler runs AFTER the quotation's own onClick has jumped the

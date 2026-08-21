@@ -68,7 +68,7 @@ function MasterPhoto() {
 }
 
 const field: React.CSSProperties = {
-  width: '100%', padding: '11px 13px', borderRadius: 10, border: '1.5px solid var(--line)',
+  width: '100%', padding: '11px 13px', borderRadius: 'var(--r-1)', border: '1.5px solid var(--line)',
   background: 'var(--card)', color: 'var(--ink)', fontFamily: 'inherit', fontSize: 14,
 };
 const label: React.CSSProperties = { fontSize: 12.5, fontWeight: 700, display: 'block', margin: '0 0 6px' };
@@ -537,14 +537,14 @@ export function AstroProfilePage() {
           </div>
 
           {missing.length > 0 && (
-            <div style={{ marginTop: 16, padding: '12px 16px', borderRadius: 10, background: 'rgba(192,57,43,.07)', border: '1px solid rgba(192,57,43,.25)' }}>
+            <div style={{ marginTop: 16, padding: '12px 16px', borderRadius: 'var(--r-1)', background: 'rgba(192,57,43,.07)', border: '1px solid rgba(192,57,43,.25)' }}>
               <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--danger-ink)', margin: 0 }}>Please complete:</p>
               {missing.map((m) => <p key={m} style={{ fontSize: 12.5, color: 'var(--danger-ink)', margin: '4px 0 0' }}>• {m}</p>)}
             </div>
           )}
           {error && <p style={{ color: 'var(--danger-ink)', fontSize: 13, marginTop: 12 }}>{error}</p>}
           {saved && (
-            <div style={{ marginTop: 16, padding: '14px 16px', borderRadius: 10, background: 'rgba(46,125,79,.08)', border: '1px solid rgba(46,125,79,.3)' }}>
+            <div style={{ marginTop: 16, padding: '14px 16px', borderRadius: 'var(--r-1)', background: 'rgba(46,125,79,.08)', border: '1px solid rgba(46,125,79,.3)' }}>
               <p style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ok-ink)', margin: 0 }}>✓ Birth details saved successfully.</p>
               <p className="muted" style={{ fontSize: 12, margin: '6px 0 2px' }}>These details will be used for:</p>
               {['Daily Horoscope', 'Monthly Horoscope', 'Dating Compatibility', 'Kundli Matching', 'Future Astrology Features'].map((u) => (

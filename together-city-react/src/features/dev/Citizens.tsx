@@ -92,7 +92,7 @@ function Record({ id, canSuspend, canReveal, onClose }: {
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 240px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-            <strong style={{ fontSize: 18 }}>{c.name}</strong>
+            <strong style={{ fontSize: 17 }}>{c.name}</strong>
             <span className="muted" style={{ fontSize: 13 }}>@{c.handle}</span>
             <Status status={c.status} />
             {c.moderator && <span className="tag">moderator</span>}
@@ -120,7 +120,7 @@ function Record({ id, canSuspend, canReveal, onClose }: {
       {/* ── the reveal ── */}
       {c.contactRevealed ? (
         <div style={{ border: '1px solid var(--warn-line)', background: 'var(--warn-soft)',
-          borderRadius: 10, padding: '10px 13px' }}>
+          borderRadius: 'var(--r-1)', padding: '10px 13px' }}>
           <strong style={{ fontSize: 12.5 }}>Showing this person’s real email and phone number.</strong>
           <p style={{ fontSize: 12, margin: '3px 0 8px', lineHeight: 1.5 }}>
             That was recorded in the audit log against your account, with the reason you gave.
@@ -137,7 +137,7 @@ function Record({ id, canSuspend, canReveal, onClose }: {
               aria-label={`Reason for revealing ${c.name}'s contact details`}
               placeholder="Why do you need their real email or number? This is written to the audit log."
               style={{ width: '100%', boxSizing: 'border-box', minHeight: 44, padding: '10px 12px',
-                border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13.5,
+                border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 13.5,
                 fontFamily: 'inherit', background: 'var(--card)' }} />
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <Button variant="accent" size="sm" disabled={revealReason.trim().length < 8}
@@ -166,7 +166,7 @@ function Record({ id, canSuspend, canReveal, onClose }: {
           <>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
               {Object.entries(act.data.profiles).map(([hub, has]) => (
-                <span key={hub} style={{ fontSize: 11.5, padding: '4px 10px', borderRadius: 999,
+                <span key={hub} style={{ fontSize: 11.5, padding: '4px 10px', borderRadius: 'var(--r-full)',
                   border: '1px solid var(--line)',
                   background: has ? 'var(--ok-soft)' : 'transparent',
                   color: has ? 'var(--ok-ink)' : 'var(--muted)' }}>
@@ -231,7 +231,7 @@ function Record({ id, canSuspend, canReveal, onClose }: {
             aria-label={`Reason for ${suspended ? 'restoring' : 'suspending'} ${c.name}`}
             placeholder={suspended ? 'Why is this account coming back?' : 'Why is this account being suspended?'}
             style={{ width: '100%', boxSizing: 'border-box', minHeight: 44, padding: '10px 12px',
-              border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13.5,
+              border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 13.5,
               fontFamily: 'inherit', background: 'var(--card)' }} />
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <Button variant={suspended ? 'accent' : 'line'} size="sm" disabled={!ready || setSusp.isPending} onClick={flip}>
@@ -326,12 +326,12 @@ export function DevCitizens() {
           aria-label="Find a citizen by handle, name or id"
           placeholder="Handle, name, or an id from the audit log"
           style={{ flex: '1 1 240px', boxSizing: 'border-box', minHeight: 44, padding: '10px 12px',
-            border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13.5,
+            border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 13.5,
             fontFamily: 'inherit', background: 'var(--card)' }} />
         {([['', 'Any'], ['suspended', 'Suspended'], ['deleted', 'Closed']] as const).map(([k, label]) => (
           <button key={k} type="button" onClick={() => setStatus(k)}
             style={{ minHeight: 44, padding: '0 14px', cursor: 'pointer', fontFamily: 'inherit',
-              fontSize: 13, fontWeight: 600, borderRadius: 10,
+              fontSize: 13, fontWeight: 600, borderRadius: 'var(--r-1)',
               border: `1.5px solid ${status === k ? 'var(--accent-ink)' : 'var(--line)'}`,
               background: status === k ? 'var(--accent-soft)' : 'var(--card)', color: 'var(--ink)' }}>
             {label}
@@ -378,7 +378,7 @@ export function DevCitizens() {
               aria-label="Reason for exporting the citizen list"
               placeholder="Why is the whole list being exported? This is written to the audit log."
               style={{ width: '100%', boxSizing: 'border-box', minHeight: 44, padding: '10px 12px',
-                border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13.5,
+                border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 13.5,
                 fontFamily: 'inherit', background: 'var(--card)' }} />
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <Button variant="accent" size="sm" disabled={exportReason.trim().length < 8 || exporting} onClick={runExport}>

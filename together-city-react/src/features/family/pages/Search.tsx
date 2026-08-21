@@ -129,7 +129,7 @@ export function FamilySearch() {
           ))}
           <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={onKey}
             placeholder="Type an ingredient and press Enter…"
-            style={{ flex: 1, minWidth: 180, border: '1px solid var(--line)', borderRadius: 999, padding: '12px 18px', fontSize: 13.5, background: 'var(--paper)', color: 'var(--ink)', outline: 'none', fontFamily: 'inherit' }} />
+            style={{ flex: 1, minWidth: 180, border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '12px 18px', fontSize: 13.5, background: 'var(--paper)', color: 'var(--ink)', outline: 'none', fontFamily: 'inherit' }} />
           <Button variant="accent" size="sm" onClick={() => { if (draft.trim()) { addIng(draft); setDraft(''); } }}>Search →</Button>
         </div>
         <div style={{ marginTop: 16 }}>

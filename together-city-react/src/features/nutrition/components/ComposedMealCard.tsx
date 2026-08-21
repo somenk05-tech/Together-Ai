@@ -69,7 +69,7 @@ export function SkippedMealCard({ dayIndex, slot }: { dayIndex: number; slot: st
   const skip = useSkipMeal();
   return (
     <div style={{
-      background: 'var(--card)', border: '1px dashed var(--line)', borderRadius: 20,
+      background: 'var(--card)', border: '1px dashed var(--line)', borderRadius: 'var(--r-3)',
       padding: '18px 16px', display: 'flex', flexDirection: 'column', gap: 10,
       alignItems: 'flex-start', justifyContent: 'center', minHeight: 140,
     }}>
@@ -79,7 +79,7 @@ export function SkippedMealCard({ dayIndex, slot }: { dayIndex: number; slot: st
       <span className="muted" style={{ fontSize: 13 }}>Skipped — not counted in today&rsquo;s totals or your grocery list.</span>
       <button type="button" disabled={skip.isPending}
         onClick={() => skip.mutate({ day: dayIndex, slot, skipped: false })}
-        style={{ minWidth: 44, minHeight: 44, padding: '0 14px', borderRadius: 10, border: '1px solid var(--accent)', background: 'none', color: 'var(--accent-ink)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>
+        style={{ minWidth: 44, minHeight: 44, padding: '0 14px', borderRadius: 'var(--r-1)', border: '1px solid var(--accent)', background: 'none', color: 'var(--accent-ink)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>
         {skip.isPending ? 'Adding back…' : 'Add back'}
       </button>
     </div>
@@ -109,13 +109,13 @@ export function ComposedMealCard({ meal, dayIndex, readOnly, people = 1, skips =
   const img = photo?.imageUrl && !err ? photo.imageUrl : null;
   const open = () => { const id = photo?.recipeId; if (id) navigate(`/nutrition/recipes/${id}`, { state: { from: location.pathname + location.search } }); };
   return (
-    <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 20, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: 'var(--shadow)', opacity: busy ? 0.55 : 1 }}>
+    <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: 'var(--shadow)', opacity: busy ? 0.55 : 1 }}>
       <div style={{ padding: '14px 14px 0' }}>
         <span style={{ display: 'inline-block', background: 'var(--ink)', color: 'var(--on-accent)', fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', padding: '5px 12px', borderRadius: 8 }}>{meal.label}</span>
       </div>
       <div style={{ position: 'relative', margin: '12px 14px 0', width: 'calc(100% - 28px)' }}>
         <button type="button" onClick={open} aria-label={`Open ${meal.title}`} style={{ border: 'none', padding: 0, background: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'block', width: '100%' }}>
-          <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', borderRadius: 14, overflow: 'hidden', background: photoBg(photo) }}>
+          <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', borderRadius: 'var(--r-2)', overflow: 'hidden', background: photoBg(photo) }}>
             {img && <img src={img} alt={meal.title} loading="lazy" onError={() => setErr(true)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
             {!img && (
               <span style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '22px 12px 10px', background: 'linear-gradient(transparent, rgba(0,0,0,.6))', color: 'var(--on-accent)', fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, textAlign: 'left', textShadow: '0 1px 4px rgba(0,0,0,.35)' }}>
@@ -138,7 +138,7 @@ export function ComposedMealCard({ meal, dayIndex, readOnly, people = 1, skips =
         </span>
       </div>
       <div style={{ padding: '12px 16px 16px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-        <h3 style={{ fontSize: 15.5, margin: '0 0 8px', lineHeight: 1.3, letterSpacing: '-.01em' }}>{meal.title}</h3>
+        <h3 style={{ fontSize: 15, margin: '0 0 8px', lineHeight: 1.3, letterSpacing: '-.01em' }}>{meal.title}</h3>
         {/* Every dish links to its own recipe page; on lunch/dinner each dish also
             carries a Refresh (swap like-for-like) and Skip (remove) control. */}
         <div style={{ display: 'flex', flexDirection: 'column', margin: '0 0 12px' }}>

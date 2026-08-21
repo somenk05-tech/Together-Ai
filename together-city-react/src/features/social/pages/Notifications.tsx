@@ -88,7 +88,7 @@ export function SocialNotifications() {
         {shown.map((n) => (
           <button key={n.id} type="button" onClick={() => open(n.id, n.href, n.read)}
             style={{ display: 'flex', gap: 12, alignItems: 'flex-start', textAlign: 'left', width: '100%', cursor: 'pointer',
-              border: '1px solid var(--line)', borderRadius: 14, padding: '13px 15px', fontFamily: 'inherit',
+              border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: '13px 15px', fontFamily: 'inherit',
               background: n.read ? 'var(--card)' : 'var(--wash)' }}>
             <span className="sl-ic sm" aria-hidden><Icon name={ICON_FOR[n.kind] ?? 'bell'} size={16} /></span>
             <span style={{ flex: 1, minWidth: 0 }}>

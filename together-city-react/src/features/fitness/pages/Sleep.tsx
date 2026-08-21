@@ -151,7 +151,7 @@ export function Sleep() {
               { l: 'vs goal', v: latest ? `${latest.total >= goal ? '+' : '-'}${hm(Math.abs(latest.total - goal))}` : '—', c: latest && latest.total >= goal - 20 ? '#2e7d4f' : '#b0503e' },
             ].map((m) => (
               <div key={m.l} className="stat" style={{ background: 'var(--accent-soft)', borderRadius: 12, padding: 14 }}>
-                <div className="lab">{m.l}</div><div className="val" style={{ fontSize: 18, color: m.c }}>{m.v}</div>
+                <div className="lab">{m.l}</div><div className="val" style={{ fontSize: 17, color: m.c }}>{m.v}</div>
               </div>
             ))}
           </div>
@@ -166,7 +166,7 @@ export function Sleep() {
             {weekKeys.map((k) => {
               const r = log[k]; const d = new Date(k + 'T00:00:00');
               return (
-                <div key={k} style={{ flex: 1, minWidth: 56, textAlign: 'center', border: '1px solid var(--line)', borderRadius: 10, padding: '9px 4px' }}>
+                <div key={k} style={{ flex: 1, minWidth: 56, textAlign: 'center', border: '1px solid var(--line)', borderRadius: 'var(--r-1)', padding: '9px 4px' }}>
                   <div style={{ fontSize: 10.5, color: 'var(--muted)' }}>{DAYNAMES[d.getDay()]}</div>
                   <div style={{ width: 14, height: 14, borderRadius: '50%', margin: '6px auto 3px', background: BAND_COLOR[band(r.score)] }} />
                   <div style={{ fontSize: 11, fontWeight: 600 }}>{(r.total / 60).toFixed(1)}h</div>

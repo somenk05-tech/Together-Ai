@@ -54,7 +54,7 @@ export function ShareIconButton({
       }
     : {
         display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none',
-        border: '1px solid var(--line)', color: 'var(--muted)', borderRadius: 999,
+        border: '1px solid var(--line)', color: 'var(--muted)', borderRadius: 'var(--r-full)',
         padding: '4px 11px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
       };
 

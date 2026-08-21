@@ -94,12 +94,12 @@ export function Info({ slug }: { slug: Slug }) {
       <Breadcrumbs />
       <div className="eyebrow" style={{ marginTop: 10 }}>Together City</div>
       <h1 style={{ fontSize: 30, marginBottom: 8 }}>{doc.title}</h1>
-      <p className="muted" style={{ fontSize: 14.5, lineHeight: 1.7, marginBottom: 26 }}>{doc.lede}</p>
+      <p className="muted" style={{ fontSize: 15, lineHeight: 1.7, marginBottom: 26 }}>{doc.lede}</p>
       {doc.sections.map((s) => (
         <section key={s.h} style={{ marginBottom: 22 }}>
-          <h2 style={{ fontSize: 18, marginBottom: 8 }}>{s.h}</h2>
+          <h2 style={{ fontSize: 17, marginBottom: 8 }}>{s.h}</h2>
           {s.p.map((p, i) => (
-            <p key={i} style={{ fontSize: 14.5, lineHeight: 1.75, marginBottom: 8 }}>{p}</p>
+            <p key={i} style={{ fontSize: 15, lineHeight: 1.75, marginBottom: 8 }}>{p}</p>
           ))}
         </section>
       ))}

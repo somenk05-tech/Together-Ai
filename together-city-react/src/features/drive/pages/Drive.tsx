@@ -23,7 +23,7 @@ function UsageBar() {
           {fmtBytes(u.usedBytes)} of {fmtBytes(u.quotaBytes)} used · {fmtBytes(u.remainingBytes)} free
         </span>
       </div>
-      <div style={{ height: 8, borderRadius: 999, background: 'var(--paper)', border: '1px solid var(--line)', overflow: 'hidden', display: 'flex' }}>
+      <div style={{ height: 8, borderRadius: 'var(--r-full)', background: 'var(--paper)', border: '1px solid var(--line)', overflow: 'hidden', display: 'flex' }}>
         <div style={{ width: `${Math.min(100, (u.driveBytes / u.quotaBytes) * 100)}%`, background: 'var(--accent)' }} />
         <div style={{ width: `${Math.min(100, (u.healthBytes / u.quotaBytes) * 100)}%`, background: 'var(--info-ink)' }} />
         <div style={{ width: `${Math.min(100, (u.mailBytes / u.quotaBytes) * 100)}%`, background: 'var(--accent-ink)' }} />

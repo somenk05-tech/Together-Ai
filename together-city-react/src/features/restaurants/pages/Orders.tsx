@@ -10,8 +10,8 @@ function OrderCard({ o }: { o: DiningOrder }) {
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
           <strong style={{ fontSize: 16 }}>{o.restaurantName}</strong>
           <span className="muted" style={{ fontSize: 12.5 }}>{o.area}</span>
-          <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--ok-ink)', background: 'var(--ok-soft)', borderRadius: 999, padding: '2px 10px' }}>{o.status}</span>
-          <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: 'var(--ink-soft)', background: 'var(--line)', borderRadius: 999, padding: '2px 10px', textTransform: 'capitalize' }}>{o.mode === 'dinein' ? 'Dine-in' : 'Delivery'}</span>
+          <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--ok-ink)', background: 'var(--ok-soft)', borderRadius: 'var(--r-full)', padding: '2px 10px' }}>{o.status}</span>
+          <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: 'var(--ink-soft)', background: 'var(--line)', borderRadius: 'var(--r-full)', padding: '2px 10px', textTransform: 'capitalize' }}>{o.mode === 'dinein' ? 'Dine-in' : 'Delivery'}</span>
         </div>
         <div style={{ marginTop: 8 }}>
           {o.items.map((l) => (

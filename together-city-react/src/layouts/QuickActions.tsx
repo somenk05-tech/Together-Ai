@@ -8,7 +8,7 @@ function Badge({ count }: { count: number }) {
   return (
     <span aria-label={`${count} pending`} style={{
       position: 'absolute', top: -6, right: -8, minWidth: 16, height: 16, padding: '0 4px',
-      borderRadius: 999, background: 'var(--danger-ink)', color: 'var(--on-accent)', fontSize: 10, fontWeight: 700,
+      borderRadius: 'var(--r-full)', background: 'var(--danger-ink)', color: 'var(--on-accent)', fontSize: 10, fontWeight: 700,
       display: 'grid', placeItems: 'center', lineHeight: 1,
     }}>{count > 9 ? '9+' : count}</span>
   );

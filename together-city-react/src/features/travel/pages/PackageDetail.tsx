@@ -44,7 +44,7 @@ export function PackageDetail() {
 
       {p.highlights.length > 0 && (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-          {p.highlights.map((h) => <span key={h} style={{ fontSize: 12, border: '1px solid var(--line)', borderRadius: 999, padding: '4px 12px' }}>✦ {h}</span>)}
+          {p.highlights.map((h) => <span key={h} style={{ fontSize: 12, border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '4px 12px' }}>✦ {h}</span>)}
         </div>
       )}
 
@@ -99,7 +99,7 @@ export function PackageDetail() {
               <Button variant="line" size="sm" onClick={() => setPax((n) => Math.min(20, n + 1))}>+</Button>
             </div>
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ fontWeight: 800, fontSize: 18 }}>{inr(total)}</div>
+              <div style={{ fontWeight: 800, fontSize: 17 }}>{inr(total)}</div>
               <Button variant="accent" onClick={() => setPayOpen(true)}>Book trip</Button>
             </div>
           </div>

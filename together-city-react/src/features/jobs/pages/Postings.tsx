@@ -24,12 +24,12 @@ function Applicants({ posting }: { posting: Posting }) {
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
             <strong style={{ fontSize: 13.5 }}>{a.name}</strong>
             <span className="muted" style={{ fontSize: 12 }}>{a.headline || `${a.experienceYears} yrs`}</span>
-            <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: st.color, border: `1px solid ${st.color}`, borderRadius: 999, padding: '1px 8px' }}>{st.label}</span>
+            <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: st.color, border: `1px solid ${st.color}`, borderRadius: 'var(--r-full)', padding: '1px 8px' }}>{st.label}</span>
             <span className="muted" style={{ fontSize: 11.5 }}>{a.appliedOn}</span>
           </div>
           {a.matchedSkills.length > 0 && (
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 5 }}>
-              {a.matchedSkills.map((s) => <span key={s} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '1px 8px' }}>✓ {s}</span>)}
+              {a.matchedSkills.map((s) => <span key={s} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 'var(--r-full)', padding: '1px 8px' }}>✓ {s}</span>)}
             </div>
           )}
           {a.coverNote && <p style={{ fontSize: 12.5, color: 'var(--ink-soft)', margin: '6px 0 0' }}>“{a.coverNote}”</p>}
@@ -71,12 +71,12 @@ export function Postings() {
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
                 <strong style={{ fontSize: 15 }}>{p.title}</strong>
                 <span className="muted" style={{ fontSize: 12.5 }}>{p.company} · {p.location}{p.remote ? ' · Remote' : ''} · ₹{p.salaryLpa} LPA</span>
-                <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '3px 11px' }}>
+                <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 'var(--r-full)', padding: '3px 11px' }}>
                   {p.applicantCount} applicant{p.applicantCount === 1 ? '' : 's'}
                 </span>
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
-                {p.skills.map((s) => <span key={s.key} className="muted" style={{ fontSize: 11, border: '1px solid var(--line)', borderRadius: 999, padding: '2px 9px' }}>{s.label}</span>)}
+                {p.skills.map((s) => <span key={s.key} className="muted" style={{ fontSize: 11, border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '2px 9px' }}>{s.label}</span>)}
               </div>
               <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                 <Button variant="line" size="sm" onClick={() => setOpenId(openId === p.id ? null : p.id)}>

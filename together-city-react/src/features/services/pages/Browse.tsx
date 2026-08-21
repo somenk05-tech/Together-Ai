@@ -104,7 +104,7 @@ export function ServicesBrowse() {
           <h1 style={{ fontSize: 34, lineHeight: 1.12, margin: '4px 0 0', letterSpacing: '-0.02em' }}>
             Find someone you can trust.
           </h1>
-          <p className="muted" style={{ fontSize: 14.5, margin: '10px 0 0', maxWidth: '54ch' }}>
+          <p className="muted" style={{ fontSize: 15, margin: '10px 0 0', maxWidth: '54ch' }}>
             {firstName ? `${greeting(new Date().getHours())}, ${firstName}. ` : ''}
             Genuine businesses and people around you. Compare them, message them without giving your
             name, and decide with something behind the badge.
@@ -143,9 +143,9 @@ export function ServicesBrowse() {
                 <Card lift style={{ display: 'flex', gap: 10, alignItems: 'center', padding: 10, width: 250 }}>
                   {r.photos.length > 0 ? (
                     <img src={r.photos[0].url} alt="" loading="lazy"
-                      style={{ width: 46, height: 46, borderRadius: 10, objectFit: 'cover', flex: '0 0 auto' }} />
+                      style={{ width: 46, height: 46, borderRadius: 'var(--r-1)', objectFit: 'cover', flex: '0 0 auto' }} />
                   ) : (
-                    <div aria-hidden style={{ width: 46, height: 46, borderRadius: 10, background: 'var(--accent-soft)', flex: '0 0 auto' }} />
+                    <div aria-hidden style={{ width: 46, height: 46, borderRadius: 'var(--r-1)', background: 'var(--accent-soft)', flex: '0 0 auto' }} />
                   )}
                   <div style={{ minWidth: 0 }}>
                     <strong style={{ fontSize: 13.5, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -165,7 +165,7 @@ export function ServicesBrowse() {
       {/* ── the results ──────────────────────────────────────────────────── */}
       <section style={{ display: 'grid', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-          <h2 style={{ fontSize: 18, margin: 0 }}>
+          <h2 style={{ fontSize: 17, margin: 0 }}>
             {near ? 'Businesses near you' : category || group ? 'What is listed' : 'Businesses in the city'}
           </h2>
           {!list.isLoading && (
@@ -218,7 +218,7 @@ export function ServicesBrowse() {
       {/* ── the other side of the market, and it stays the quieter one ───── */}
       <Card style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap', padding: '16px 18px' }}>
         <div style={{ flex: '1 1 320px', minWidth: 0 }}>
-          <strong style={{ fontSize: 14.5 }}>Own a business?</strong>
+          <strong style={{ fontSize: 15 }}>Own a business?</strong>
           <p className="muted" style={{ fontSize: 12.5, margin: '3px 0 0' }}>
             Get discovered by people nearby. Listing is free, and verification is what makes people write to you.
           </p>

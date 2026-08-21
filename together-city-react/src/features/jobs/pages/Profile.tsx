@@ -420,7 +420,7 @@ function PrivacyNote({ p }: { p: VisibilityAnswers }) {
   const everythingPrivate = allPrivate(p);
   return (
     <div className="card" style={{ borderLeft: '4px solid var(--accent)', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-      <span style={{ fontSize: 18, lineHeight: 1 }}>🔒</span>
+      <span style={{ fontSize: 17, lineHeight: 1 }}>🔒</span>
       <div>
         <div style={{ fontWeight: 700, fontSize: 13.5 }}>
           {everythingPrivate ? 'Your profile is private' : 'What you have opened up'}

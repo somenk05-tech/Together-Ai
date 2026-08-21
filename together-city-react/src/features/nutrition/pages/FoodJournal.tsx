@@ -16,7 +16,7 @@ import {
  * recorded", never as zero calories eaten.
  */
 
-const inputS = { width: '100%', border: '1px solid var(--line)', borderRadius: 10, padding: '12px 14px', fontSize: 14, background: 'var(--card)', color: 'var(--ink)', fontFamily: 'inherit', outline: 'none' } as const;
+const inputS = { width: '100%', border: '1px solid var(--line)', borderRadius: 'var(--r-1)', padding: '12px 14px', fontSize: 14, background: 'var(--card)', color: 'var(--ink)', fontFamily: 'inherit', outline: 'none' } as const;
 const MEAL_TYPES = Object.keys(MEAL_LABEL) as MealType[];
 
 /** Downscale a photo to ≤1280px JPEG data-URL — plenty for recognition. */
@@ -50,7 +50,7 @@ function Meter({ label, value, max, unit }: { label: string; value: number; max:
           {Math.round(value).toLocaleString('en-IN')} / {Math.round(max).toLocaleString('en-IN')} {unit}{over ? ' · over' : ''}
         </strong>
       </div>
-      <div style={{ height: 7, borderRadius: 999, background: 'var(--line)', overflow: 'hidden' }}>
+      <div style={{ height: 7, borderRadius: 'var(--r-full)', background: 'var(--line)', overflow: 'hidden' }}>
         <div style={{ height: '100%', width: `${pct}%`, background: over ? 'var(--warn-ink)' : 'var(--accent)' }} />
       </div>
     </div>
@@ -222,7 +222,7 @@ export function FoodJournal() {
       */}
       <div className="eyebrow">Nutrition Hub · 06</div>
       <h1 style={{ fontSize: 28, letterSpacing: '-.02em' }}>AI Food Journal</h1>
-      <p className="muted" style={{ fontSize: 14.5, margin: '8px 0 26px', maxWidth: '62ch' }}>
+      <p className="muted" style={{ fontSize: 15, margin: '8px 0 26px', maxWidth: '62ch' }}>
         Photograph your meal — or say it, or type it. We identify it, estimate its
         nutrition, and log it into your day. Estimates you can always adjust.
       </p>

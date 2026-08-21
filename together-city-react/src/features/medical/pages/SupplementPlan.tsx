@@ -8,7 +8,7 @@ function Cites({ citations }: { citations: Citation[] }) {
   return (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
       {citations.map((c) => (
-        <span key={c.id} title={c.ref} style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '2px 8px' }}>{c.label}</span>
+        <span key={c.id} title={c.ref} style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 'var(--r-full)', padding: '2px 8px' }}>{c.label}</span>
       ))}
     </div>
   );
@@ -48,7 +48,7 @@ export function SupplementPlan() {
           {basis.flags.length > 0 && (
             <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
               {basis.flags.map((f) => (
-                <span key={f.key} style={{ fontSize: 11, fontWeight: 600, color: f.status === 'low' ? 'var(--danger-ink)' : 'var(--warn-ink)', background: 'var(--card)', borderRadius: 999, padding: '2px 10px' }}>
+                <span key={f.key} style={{ fontSize: 11, fontWeight: 600, color: f.status === 'low' ? 'var(--danger-ink)' : 'var(--warn-ink)', background: 'var(--card)', borderRadius: 'var(--r-full)', padding: '2px 10px' }}>
                   {f.label} {f.status} ({f.value})
                 </span>
               ))}
@@ -60,13 +60,13 @@ export function SupplementPlan() {
       {items.map((s) => (
         <article key={s.name} className="card" style={{ marginTop: 14 }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}>
-            <div style={{ fontWeight: 700, fontSize: 15.5 }}>{s.name}</div>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '2px 10px' }}>{s.trigger}</span>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>{s.name}</div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 'var(--r-full)', padding: '2px 10px' }}>{s.trigger}</span>
             <div style={{ marginLeft: 'auto', fontWeight: 700, fontSize: 15 }}>₹{s.priceInr}</div>
           </div>
           <div className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>{s.purpose}</div>
           <div style={{ fontSize: 12.5, marginTop: 6 }}>
-            <span className="pill" style={{ border: '1px solid var(--line)', borderRadius: 999, padding: '2px 10px', marginRight: 6 }}>{s.dose}</span>
+            <span className="pill" style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '2px 10px', marginRight: 6 }}>{s.dose}</span>
             <span className="muted">{s.timing}</span>
           </div>
           {s.foodFirst && <p style={{ fontSize: 12.5, margin: '8px 0 0', color: 'var(--ink-soft)' }}>🥗 {s.foodFirst}</p>}
@@ -76,7 +76,7 @@ export function SupplementPlan() {
       ))}
 
       <div className="card" style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
-        <span style={{ fontFamily: 'var(--serif)', fontSize: 19, fontWeight: 600 }}>Monthly kit · ₹{totalInr}</span>
+        <span style={{ fontFamily: 'var(--serif)', fontSize: 20, fontWeight: 600 }}>Monthly kit · ₹{totalInr}</span>
         <span style={{ marginLeft: 'auto' }}><Button variant="gold">Add kit to next order</Button></span>
       </div>
 

@@ -61,26 +61,26 @@ function StarterModal({ mode, onClose, onOpened }: { mode: 'direct' | 'group'; o
     } finally { setBusy(false); }
   };
 
-  const rowStyle = (active: boolean): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', borderRadius: 10, cursor: 'pointer', border: `1.5px solid ${active ? 'var(--accent)' : 'transparent'}`, background: active ? 'var(--accent-soft)' : 'transparent' });
+  const rowStyle = (active: boolean): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', borderRadius: 'var(--r-1)', cursor: 'pointer', border: `1.5px solid ${active ? 'var(--accent)' : 'transparent'}`, background: active ? 'var(--accent-soft)' : 'transparent' });
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 100, display: 'grid', placeItems: 'center', padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: 'min(440px, 96vw)', maxHeight: '88vh', overflow: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <h2 style={{ fontSize: 18, margin: 0 }}>{mode === 'group' ? 'New group' : 'New chat'}</h2>
+          <h2 style={{ fontSize: 17, margin: 0 }}>{mode === 'group' ? 'New group' : 'New chat'}</h2>
           <button type="button" onClick={onClose} aria-label="Close" style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--ink-soft)' }}>×</button>
         </div>
 
         {mode === 'group' && (
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Group name" style={{ width: '100%', boxSizing: 'border-box', padding: '11px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', margin: '12px 0 6px' }} />
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Group name" style={{ width: '100%', boxSizing: 'border-box', padding: '11px 12px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit', margin: '12px 0 6px' }} />
         )}
         {mode === 'group' && picked.length > 0 && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '6px 0' }}>
-            {picked.map((c) => <span key={c.id} onClick={() => toggle(c)} style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '3px 10px' }}>{c.name} ×</span>)}
+            {picked.map((c) => <span key={c.id} onClick={() => toggle(c)} style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 'var(--r-full)', padding: '3px 10px' }}>{c.name} ×</span>)}
           </div>
         )}
 
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search people…" style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', margin: '8px 0 4px' }} />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search people…" style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 13, fontFamily: 'inherit', margin: '8px 0 4px' }} />
         {contacts.isLoading ? <Spinner /> : contacts.isError ? (
           // An empty people-picker on a failed read looks like having nobody
           // to talk to. The connections are still there.

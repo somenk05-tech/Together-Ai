@@ -222,7 +222,7 @@ export function MessageSpotlight({
           style={{
             position: 'absolute', top: railTop, ...side, height: RAIL_H,
             display: 'flex', alignItems: 'center', gap: 2,
-            padding: '0 6px', borderRadius: 999,
+            padding: '0 6px', borderRadius: 'var(--r-full)',
             background: 'var(--stage-solid)', border: '1px solid var(--stage-line)',
             boxShadow: 'var(--e3)', maxWidth: `calc(100vw - ${EDGE * 2}px)`,
             transformOrigin: mine ? 'right bottom' : 'left bottom',
@@ -238,7 +238,7 @@ export function MessageSpotlight({
               onClick={() => { onReact(myReaction === e ? null : e); onDismiss(); }}
               style={{
                 border: 'none', cursor: 'pointer', fontSize: 22, lineHeight: 1,
-                width: 40, height: 40, borderRadius: 999, padding: 0,
+                width: 40, height: 40, borderRadius: 'var(--r-full)', padding: 0,
                 background: myReaction === e ? 'var(--stage-tile)' : 'none',
               }}
             >
@@ -252,9 +252,9 @@ export function MessageSpotlight({
               aria-expanded={Boolean(moreOpen)}
               onClick={onMore}
               style={{
-                border: 'none', cursor: 'pointer', width: 40, height: 40, borderRadius: 999,
+                border: 'none', cursor: 'pointer', width: 40, height: 40, borderRadius: 'var(--r-full)',
                 background: 'var(--stage-tile)', color: 'var(--on-stage-soft)',
-                fontSize: 19, lineHeight: 1, padding: 0, fontFamily: 'inherit',
+                fontSize: 20, lineHeight: 1, padding: 0, fontFamily: 'inherit',
               }}
             >
               <span aria-hidden>{moreOpen ? '×' : '+'}</span>
@@ -299,7 +299,7 @@ export function MessageSpotlight({
             style={{
               display: 'flex', alignItems: 'center', gap: 12, width: '100%',
               padding: '12px 16px', border: 'none', background: 'none', cursor: 'pointer',
-              font: 'inherit', fontSize: 14.5, textAlign: 'left',
+              font: 'inherit', fontSize: 15, textAlign: 'left',
               color: a.destructive ? 'var(--danger-ink)' : 'var(--on-stage)',
               borderTop: i ? '1px solid var(--stage-line)' : 'none',
               minHeight: 44,

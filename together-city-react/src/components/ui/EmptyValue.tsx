@@ -60,7 +60,7 @@ export function NothingYet({ title, hint, action }: {
       border: '1px dashed var(--line)', borderRadius: 16, padding: '28px 20px',
       textAlign: 'center', background: 'transparent',
     }}>
-      <p style={{ fontSize: 14.5, fontWeight: 600, margin: 0 }}>{title}</p>
+      <p style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>{title}</p>
       {hint && <p className="muted" style={{ fontSize: 13, margin: '6px 0 0', lineHeight: 1.5 }}>{hint}</p>}
       {action && <div style={{ marginTop: 14 }}>{action}</div>}
     </div>

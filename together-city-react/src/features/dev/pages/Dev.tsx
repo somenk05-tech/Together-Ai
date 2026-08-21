@@ -52,7 +52,7 @@ function Prompt({ onUnlock, error, busy }: { onUnlock: (p: string) => void; erro
             aria-label="Developer password" autoComplete="off" autoFocus
             placeholder="Password"
             style={{ width: '100%', boxSizing: 'border-box', minHeight: 44, padding: '10px 12px',
-              border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14,
+              border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 14,
               fontFamily: 'inherit', background: 'var(--card)' }} />
           <Button variant="accent" type="submit" disabled={!value || busy}>
             {busy ? 'Checking…' : 'Open'}
@@ -161,7 +161,7 @@ function FlagRowView({ flag, password }: { flag: FlagRow; password: string }) {
               ? 'Why is this being turned off? It shows here until somebody turns it back on.'
               : 'Why is this coming back?'}
             style={{ width: '100%', boxSizing: 'border-box', minHeight: 44, padding: '10px 12px',
-              border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13.5,
+              border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 13.5,
               fontFamily: 'inherit', background: 'var(--card)' }} />
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <Button variant="accent" size="sm" disabled={!ready || setFlag.isPending} onClick={flip}>
@@ -216,7 +216,7 @@ export function DevPage() {
 
       {d?.usingDefaultPassword && (
         <div style={{ border: '1px solid var(--warn-line)', background: 'var(--warn-soft)',
-          borderRadius: 10, padding: '11px 14px', margin: '10px 0 0' }}>
+          borderRadius: 'var(--r-1)', padding: '11px 14px', margin: '10px 0 0' }}>
           <strong style={{ fontSize: 13 }}>This page is using the password that ships in the source.</strong>
           <p style={{ fontSize: 12.5, margin: '4px 0 0', lineHeight: 1.55 }}>
             Anybody who can read the repository can read it. Set <code>DEV_PAGE_PASSWORD</code> on
@@ -260,7 +260,7 @@ export function DevPage() {
               </p>
               {missingRequired.length > 0 && (
                 <div style={{ border: '1px solid var(--danger-line)', background: 'var(--danger-soft)',
-                  borderRadius: 10, padding: '11px 14px', marginBottom: 18 }}>
+                  borderRadius: 'var(--r-1)', padding: '11px 14px', marginBottom: 18 }}>
                   <strong style={{ fontSize: 13, color: 'var(--danger-ink)' }}>
                     {missingRequired.length} required variable{missingRequired.length === 1 ? ' is' : 's are'} not set.
                   </strong>

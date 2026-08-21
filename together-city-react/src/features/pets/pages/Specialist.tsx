@@ -82,7 +82,7 @@ export function Specialist() {
             aria-pressed={need.key === n.key}
             style={{
               font: 'inherit', fontSize: 12.5, fontWeight: need.key === n.key ? 700 : 500,
-              padding: '8px 14px', borderRadius: 999, cursor: 'pointer',
+              padding: '8px 14px', borderRadius: 'var(--r-full)', cursor: 'pointer',
               border: `1px solid ${need.key === n.key ? 'var(--accent-line)' : 'var(--line)'}`,
               background: need.key === n.key ? 'var(--accent-soft)' : 'var(--card)',
               color: need.key === n.key ? 'var(--accent-ink)' : 'var(--ink-soft)',

@@ -102,7 +102,7 @@ export function FloatingSearch() {
       style={{
         position: 'fixed', left: pos.x, top: pos.y, zIndex: 1100,
         display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 16px',
-        borderRadius: 999, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink)',
+        borderRadius: 'var(--r-full)', border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink)',
         fontSize: 11, letterSpacing: '.06em', fontWeight: 700, textTransform: 'uppercase', fontFamily: 'inherit',
         boxShadow: 'var(--e2)', cursor: 'grab', touchAction: 'none', userSelect: 'none',
       }}

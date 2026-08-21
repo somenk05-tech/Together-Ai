@@ -34,8 +34,8 @@ export function MedicalRecs() {
       {cards.map((c) => (
         <div key={c.condition} className="card" style={{ borderLeft: '4px solid var(--danger-ink)' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            <span style={{ fontSize: 18 }}>{c.icon}</span>
-            <h3 style={{ margin: 0, fontSize: 16.5 }}>{c.title}</h3>
+            <span style={{ fontSize: 17 }}>{c.icon}</span>
+            <h3 style={{ margin: 0, fontSize: 17 }}>{c.title}</h3>
           </div>
           <p className="muted" style={{ fontSize: 12.5, margin: '6px 0 10px', lineHeight: 1.5 }}>{c.intro}</p>
 
@@ -50,7 +50,7 @@ export function MedicalRecs() {
           </div>
 
           {c.scoreAfter > c.scoreBefore && (
-            <div style={{ marginTop: 12, padding: '9px 12px', background: 'var(--paper)', borderRadius: 10, fontSize: 12.5 }}>
+            <div style={{ marginTop: 12, padding: '9px 12px', background: 'var(--paper)', borderRadius: 'var(--r-1)', fontSize: 12.5 }}>
               <span className="muted">Estimated improvement — {SCORE_LABEL[c.condition] ?? 'plan quality'}:</span>{' '}
               <b>{c.scoreBefore}%</b> → <b style={{ color: 'var(--accent-ink)' }}>{c.scoreAfter}%</b>
             </div>

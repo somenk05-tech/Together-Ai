@@ -120,7 +120,7 @@ function Tile({ p, personalised, qty, busy, onOpen, onSet }: {
       </button>
 
       <span className="eyebrow" style={{ marginTop: 10 }}>{p.brand}</span>
-      <b style={{ fontSize: 14.5, lineHeight: 1.35, letterSpacing: '-.01em', color: refused ? 'var(--muted)' : 'var(--ink)' }}>{p.name}</b>
+      <b style={{ fontSize: 15, lineHeight: 1.35, letterSpacing: '-.01em', color: refused ? 'var(--muted)' : 'var(--ink)' }}>{p.name}</b>
       {p.strength ? <span className="muted" style={{ fontSize: 12, lineHeight: 1.45 }}>{p.strength}</span> : null}
 
       {/* The review's own markers — VEGAN, REPLETION ONLY, LABELLED 100% RDA —
@@ -164,7 +164,7 @@ function Detail({ p, personalised, qty, busy, onSet, onClose }: {
             </span>
             <button type="button" className="btn btn-sm" style={{ marginLeft: 'auto' }} onClick={onClose}>Close</button>
           </div>
-          <h2 style={{ fontSize: 21, letterSpacing: '-.02em', margin: '4px 0 2px' }}>{p.name}</h2>
+          <h2 style={{ fontSize: 20, letterSpacing: '-.02em', margin: '4px 0 2px' }}>{p.name}</h2>
           {p.strength ? <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>{p.strength}</p> : null}
 
           <Badge yours={p.yours} personalised={personalised} />

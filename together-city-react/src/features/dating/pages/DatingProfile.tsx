@@ -11,7 +11,7 @@ import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLo
 import { SelfieOnFile } from '../components/SelfieOnFile';
 
 const field: React.CSSProperties = {
-  width: '100%', padding: '11px 13px', border: '1.5px solid var(--line)', borderRadius: 10,
+  width: '100%', padding: '11px 13px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)',
   fontSize: 14, fontFamily: 'inherit', outline: 'none', background: 'var(--card)', boxSizing: 'border-box',
 };
 const label: React.CSSProperties = { fontSize: 12, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', margin: '14px 0 6px' };
@@ -66,7 +66,7 @@ interface DX {
 function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button type="button" onClick={onClick} style={{
-      cursor: 'pointer', borderRadius: 999, padding: '7px 14px', fontSize: 12.5, fontFamily: 'inherit', fontWeight: 600,
+      cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '7px 14px', fontSize: 12.5, fontFamily: 'inherit', fontWeight: 600,
       border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-soft)',
     }}>{children}</button>
   );
@@ -91,7 +91,7 @@ function CompletionCard({ completion }: { completion?: ProfileCompletion }) {
           <div style={{ width: 50, height: 50, borderRadius: '50%', background: 'var(--card)', display: 'grid', placeItems: 'center', fontSize: 15, fontWeight: 800 }}>{pct}%</div>
         </div>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 14.5 }}>Dating Profile · {pct}% Complete</div>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>Dating Profile · {pct}% Complete</div>
           <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>
             {completion.complete ? 'Your profile is fully complete — great match quality.' : 'Complete your profile to improve your match quality.'}
           </p>
@@ -128,7 +128,7 @@ function VisibilityCard({ visibility, minScore, onChange, onDelete, deleting }: 
         {VIS_OPTIONS.map((o) => {
           const active = visibility === o.key;
           return (
-            <label key={o.key} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
+            <label key={o.key} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 12px', borderRadius: 'var(--r-1)', cursor: 'pointer',
               border: `1.5px solid ${active ? 'var(--accent)' : 'var(--line)'}`, background: active ? 'var(--accent-soft)' : 'transparent' }}>
               <input type="radio" name="visibility" checked={active} onChange={() => onChange(o.key, minScore)} style={{ marginTop: 2 }} />
               <span>
@@ -235,7 +235,7 @@ function SelfieVerify({ verified, onCapture, onClear }: {
       ) : (
         <button type="button" onClick={() => void start()}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 13.5,
-            color: 'var(--accent-ink)', background: 'var(--accent-soft)', border: '1px solid var(--line)', borderRadius: 999, padding: '9px 16px' }}>
+            color: 'var(--accent-ink)', background: 'var(--accent-soft)', border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '9px 16px' }}>
           📷 Take a selfie with your camera
         </button>
       )}
@@ -252,7 +252,7 @@ function SelfieVerify({ verified, onCapture, onClear }: {
             {err ? (
               <div style={{ background: 'var(--danger-soft)', color: 'var(--danger-ink)', borderRadius: 12, padding: '12px 14px', fontSize: 13 }}>{err}</div>
             ) : (
-              <div style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', background: 'var(--media-bg)', aspectRatio: '3 / 4' }}>
+              <div style={{ position: 'relative', borderRadius: 'var(--r-2)', overflow: 'hidden', background: 'var(--media-bg)', aspectRatio: '3 / 4' }}>
                 <video ref={videoRef} playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
                 {!ready && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: 'var(--on-accent)', fontSize: 13 }}>Starting camera…</div>}
               </div>
@@ -527,7 +527,7 @@ export function DatingProfilePage() {
     const photoBox: React.CSSProperties = { position: 'relative', borderRadius: 16, overflow: 'hidden', background: 'var(--paper)' };
     const cover: React.CSSProperties = { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' };
     const sectionH: React.CSSProperties = { margin: '18px 0 8px', fontSize: 15 };
-    const pill: React.CSSProperties = { border: '1px solid var(--line)', borderRadius: 999, padding: '5px 13px', fontSize: 12.5, background: 'var(--accent-soft)' };
+    const pill: React.CSSProperties = { border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '5px 13px', fontSize: 12.5, background: 'var(--accent-soft)' };
 
     return (
       <div>
@@ -536,19 +536,19 @@ export function DatingProfilePage() {
         {completion && !completion.complete && <CompletionCard completion={completion} />}
 
         {/* Preview banner — this card is exactly what a match sees */}
-        <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10, background: 'var(--accent-soft)', border: '1px solid var(--line)', borderRadius: 14, padding: '11px 14px' }}>
+        <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10, background: 'var(--accent-soft)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: '11px 14px' }}>
           <span aria-hidden style={{ fontSize: 16 }}>👁</span>
-          <span style={{ fontSize: 12.8, color: 'var(--ink)', lineHeight: 1.45 }}>
+          <span style={{ fontSize: 12.5, color: 'var(--ink)', lineHeight: 1.45 }}>
             <strong>This is exactly how your matches see you.</strong> Private settings like your visibility and preferences are never shown here.
           </span>
         </div>
 
         <div className="card" style={{ marginTop: 12, padding: 16, borderRadius: 22 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <h3 style={{ margin: 0, fontFamily: 'var(--serif)', fontSize: 19 }}>Profile preview</h3>
+            <h3 style={{ margin: 0, fontFamily: 'var(--serif)', fontSize: 20 }}>Profile preview</h3>
             <button type="button" onClick={() => setCollapsed(false)}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 13.5,
-                color: 'var(--accent-ink)', background: 'var(--accent-soft)', border: '1px solid var(--line)', borderRadius: 999, padding: '9px 18px' }}>
+                color: 'var(--accent-ink)', background: 'var(--accent-soft)', border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '9px 18px' }}>
               Edit Profile <span aria-hidden>✎</span>
             </button>
           </div>
@@ -565,7 +565,7 @@ export function DatingProfilePage() {
                   <span>{displayName}{age ? `, ${age}` : ''}</span>
                   <SelfieOnFile on={verified} />
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 14.5, marginTop: 4, textShadow: '0 1px 8px rgba(0,0,0,.6)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 15, marginTop: 4, textShadow: '0 1px 8px rgba(0,0,0,.6)' }}>
                   Looking for <strong style={{ color: 'var(--danger-line)', fontWeight: 700 }}>{goal}</strong>
                   <span aria-hidden style={{ color: 'var(--danger-line)' }}>♥</span>
                 </div>
@@ -629,7 +629,7 @@ export function DatingProfilePage() {
           )}
 
           {/* Footer */}
-          <div style={{ marginTop: 18, background: 'var(--paper)', borderRadius: 14, padding: '13px 16px', display: 'flex', alignItems: 'center', gap: 9, fontSize: 12.5 }}>
+          <div style={{ marginTop: 18, background: 'var(--paper)', borderRadius: 'var(--r-2)', padding: '13px 16px', display: 'flex', alignItems: 'center', gap: 9, fontSize: 12.5 }}>
             <span aria-hidden style={{ color: 'var(--accent-ink)' }}>✨</span>
             <span className="muted">Matches also see your live compatibility score with you.</span>
           </div>
@@ -705,17 +705,17 @@ export function DatingProfilePage() {
             {photos.map((_p, i) => (
               <div key={i} style={{ position: 'relative' }}>
                 {srcAt(i)
-                  ? <img src={srcAt(i)} alt="" style={{ width: 72, height: 72, borderRadius: 10, objectFit: 'cover' }} />
+                  ? <img src={srcAt(i)} alt="" style={{ width: 72, height: 72, borderRadius: 'var(--r-1)', objectFit: 'cover' }} />
                   /* Uploaded, saved, not yet signed for display. Says so rather
                      than rendering a broken image frame. */
-                  : <div style={{ width: 72, height: 72, borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)', display: 'grid', placeItems: 'center', fontSize: 10, color: 'var(--muted)', textAlign: 'center', padding: 4 }}>Saved · reload to view</div>}
+                  : <div style={{ width: 72, height: 72, borderRadius: 'var(--r-1)', background: 'var(--paper)', border: '1px solid var(--line)', display: 'grid', placeItems: 'center', fontSize: 10, color: 'var(--muted)', textAlign: 'center', padding: 4 }}>Saved · reload to view</div>}
                 <button type="button" onClick={() => removePhoto(i)} aria-label="Remove"
                   style={{ minWidth: 44, minHeight: 44, position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', border: 'none', background: 'var(--danger-ink)', color: 'var(--on-accent)', cursor: 'pointer', fontSize: 12 }}>×</button>
               </div>
             ))}
             {photos.length < 10 && (
               <button type="button" onClick={() => fileRef.current?.click()} aria-label="Add a photo"
-                style={{ width: 72, height: 72, borderRadius: 10, border: '1.5px dashed var(--line)', background: 'transparent', cursor: 'pointer', fontSize: 22, color: 'var(--muted)' }}>＋</button>
+                style={{ width: 72, height: 72, borderRadius: 'var(--r-1)', border: '1.5px dashed var(--line)', background: 'transparent', cursor: 'pointer', fontSize: 22, color: 'var(--muted)' }}>＋</button>
             )}
             <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={(e) => void onPhotos(e.target.files)} />
           </div>
@@ -841,7 +841,7 @@ export function DatingProfilePage() {
 
         <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <Button type="submit" variant="accent" disabled={upsert.isPending}>{upsert.isPending ? 'Saving…' : saved ? 'Save profile' : 'Create profile'}</Button>
-          {data?.sign && <span className="pill" style={{ border: '1px solid var(--line)', borderRadius: 999, padding: '6px 14px', fontSize: 12.5 }}>✨ Your sign: <strong>{data.sign}</strong></span>}
+          {data?.sign && <span className="pill" style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '6px 14px', fontSize: 12.5 }}>✨ Your sign: <strong>{data.sign}</strong></span>}
         </div>
       </form>
     </div>

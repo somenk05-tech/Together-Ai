@@ -35,7 +35,7 @@ export function ThreadInvoice({ invoiceId, body, at }: { invoiceId: string; body
 
   const shell = (children: React.ReactNode) => (
     <div style={{
-      border: '1px solid var(--line)', borderRadius: 14, padding: '11px 13px',
+      border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: '11px 13px',
       background: 'var(--card)', display: 'grid', gap: 7,
     }}>
       {children}

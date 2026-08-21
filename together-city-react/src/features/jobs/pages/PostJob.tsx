@@ -49,7 +49,7 @@ export function PostJob() {
     else post.mutate(input, { onSuccess: () => { setPosted(true); setTitle(''); setSkills([]); setBlurb(''); setSeniority(''); } });
   };
 
-  const input = { width: '100%', padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', outline: 'none' } as const;
+  const input = { width: '100%', padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit', outline: 'none' } as const;
 
   return (
     <div>
@@ -81,7 +81,7 @@ export function PostJob() {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {LEVELS.map((lv) => (
               <button key={lv} type="button" onClick={() => setSeniority((s) => (s === lv ? '' : lv))}
-                style={{ cursor: 'pointer', borderRadius: 999, padding: '5px 12px', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit',
+                style={{ cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '5px 12px', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit',
                   border: `1.5px solid ${seniority === lv ? 'var(--accent)' : 'var(--line)'}`, background: seniority === lv ? 'var(--accent)' : 'transparent', color: seniority === lv ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
                 {LEVEL_LABEL[lv]}
               </button>
@@ -96,7 +96,7 @@ export function PostJob() {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
           {SKILLS.map((k) => (
             <button key={k} type="button" onClick={() => toggle(k)}
-              style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 13px', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit',
+              style={{ cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '6px 13px', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit',
                 border: `1.5px solid ${skills.includes(k) ? 'var(--accent)' : 'var(--line)'}`, background: skills.includes(k) ? 'var(--accent)' : 'transparent', color: skills.includes(k) ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
               {LABEL[k]}
             </button>

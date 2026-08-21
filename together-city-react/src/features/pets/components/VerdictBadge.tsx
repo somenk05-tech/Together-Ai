@@ -16,7 +16,7 @@ export function VerdictBadge({ verdict, size = 'md' }: { verdict: Verdict; size?
   return (
     <span
       style={{
-        display: 'inline-flex', alignItems: 'center', gap: 8, padding: pad, borderRadius: 999,
+        display: 'inline-flex', alignItems: 'center', gap: 8, padding: pad, borderRadius: 'var(--r-full)',
         background: t.soft, color: t.ink, border: `1px solid ${t.line}`,
         fontSize: font, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase',
       }}

@@ -194,7 +194,7 @@ export function Composer({ onSend, onTyping, replyTo, onCancelReply }: {
         {recording ? (
           <>
             <span className="csrec-dot" aria-hidden />
-            <span style={{ flex: 1, fontSize: 14.5, color: 'var(--on-stage)' }} aria-live="polite">
+            <span style={{ flex: 1, fontSize: 15, color: 'var(--on-stage)' }} aria-live="polite">
               Recording {fmtClock(recSec ?? 0)}
             </span>
             <button type="button" className="cstool" aria-label="Discard this recording"

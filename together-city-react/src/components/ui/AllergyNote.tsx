@@ -34,7 +34,7 @@ export function AllergyNote({ notice, manageTo = '/nutrition/preferences' }: {
         display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap',
         fontSize: 13, lineHeight: 1.5, color: 'var(--ink-soft)',
         background: 'var(--card)', border: '1px solid var(--line)',
-        borderRadius: 10, padding: '9px 13px', margin: '12px 0',
+        borderRadius: 'var(--r-1)', padding: '9px 13px', margin: '12px 0',
       }}
     >
       <span aria-hidden="true">🛡</span>

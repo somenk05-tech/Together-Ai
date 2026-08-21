@@ -74,7 +74,7 @@ export function VerificationCard() {
             <div key={channel} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 0', borderBottom: channel === 'email' ? '1px solid var(--line)' : 'none' }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="muted" style={{ fontSize: 12 }}>{LABEL[channel]}</div>
-                <div style={{ fontSize: 14.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {row.target ?? <span className="muted">Not set</span>}
                 </div>
               </div>
@@ -101,7 +101,7 @@ function StateTag({ verified, hasTarget }: { verified: boolean; hasTarget: boole
     <span
       className="tag"
       style={{
-        fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 999, flex: '0 0 auto',
+        fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 'var(--r-full)', flex: '0 0 auto',
         background: verified ? 'var(--green-soft)' : 'var(--warn-soft)',
         color: verified ? 'var(--green)' : 'var(--ink-soft)',
       }}

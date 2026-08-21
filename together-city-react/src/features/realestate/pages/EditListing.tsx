@@ -36,7 +36,7 @@ const AMENITIES: Array<{ key: string; label: string }> = [
   { key: 'kids-play', label: "Kids' play area" }, { key: 'cctv', label: 'CCTV' },
 ];
 
-const inputS = { width: '100%', border: '1px solid var(--line)', borderRadius: 10, padding: '12px 14px', fontSize: 14, background: 'var(--card)', color: 'var(--ink)', fontFamily: 'inherit', outline: 'none' } as const;
+const inputS = { width: '100%', border: '1px solid var(--line)', borderRadius: 'var(--r-1)', padding: '12px 14px', fontSize: 14, background: 'var(--card)', color: 'var(--ink)', fontFamily: 'inherit', outline: 'none' } as const;
 const labelS = { display: 'block', fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 600, marginBottom: 6 } as const;
 
 interface Draft {
@@ -212,7 +212,7 @@ export function EditListing() {
             <button key={a.key} type="button" aria-pressed={on}
               onClick={() => setAmenities((cur) => (on ? cur.filter((k) => k !== a.key) : [...cur, a.key]))}
               style={{
-                fontSize: 12.5, borderRadius: 999, padding: '6px 14px', cursor: 'pointer', fontFamily: 'inherit',
+                fontSize: 12.5, borderRadius: 'var(--r-full)', padding: '6px 14px', cursor: 'pointer', fontFamily: 'inherit',
                 border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`,
                 background: on ? 'var(--accent-soft)' : 'var(--card)',
                 color: on ? 'var(--accent-ink)' : 'var(--ink)', fontWeight: on ? 700 : 400,

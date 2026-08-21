@@ -104,7 +104,7 @@ export function CvReview({ entries, onDone }: CvReviewProps) {
               {e.evidence && (
                 <blockquote style={{
                   margin: 0, padding: '10px 14px', borderLeft: '3px solid var(--line-2)',
-                  background: 'var(--wash)', borderRadius: 10,
+                  background: 'var(--wash)', borderRadius: 'var(--r-1)',
                   fontSize: 12.5, lineHeight: 1.55, color: 'var(--muted)',
                 }}>
                   <span className="muted" style={{ display: 'block', fontSize: 10.5, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', marginBottom: 4 }}>

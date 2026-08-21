@@ -15,7 +15,7 @@ export function ProfileIncomplete({ missing, to = '/nutrition/preferences' }: { 
       {items.length > 0 && (
         <div style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', margin: '16px 0 4px' }}>
           {items.map((m) => (
-            <span key={m.key} style={{ fontSize: 12.5, fontWeight: 600, border: '1.5px solid var(--line)', borderRadius: 999, padding: '6px 12px' }}>
+            <span key={m.key} style={{ fontSize: 12.5, fontWeight: 600, border: '1.5px solid var(--line)', borderRadius: 'var(--r-full)', padding: '6px 12px' }}>
               {m.label}
             </span>
           ))}

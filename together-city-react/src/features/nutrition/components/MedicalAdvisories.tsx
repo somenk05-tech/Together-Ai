@@ -45,15 +45,15 @@ export function MedicalAdvisories({ advisories, healthScore }: { advisories?: Me
         return (
           <div key={a.key} className="card" style={{ padding: '14px 16px', borderLeft: `4px solid ${lv.color}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: lv.color, background: lv.soft, borderRadius: 999, padding: '3px 9px' }}>{lv.label}</span>
+              <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: lv.color, background: lv.soft, borderRadius: 'var(--r-full)', padding: '3px 9px' }}>{lv.label}</span>
               <span className="muted" style={{ fontSize: 11.5 }}>{a.condition}</span>
             </div>
-            <h4 style={{ fontSize: 14.5, margin: '2px 0 5px' }}>{a.title}</h4>
+            <h4 style={{ fontSize: 15, margin: '2px 0 5px' }}>{a.title}</h4>
             <p className="muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.55 }}>{a.message}</p>
             {a.actionable && (
               kept.has(a.key) ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 11, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 12.5, fontWeight: 600, color: lv.color, background: lv.soft, borderRadius: 999, padding: '7px 14px' }}>
+                  <span style={{ fontSize: 12.5, fontWeight: 600, color: lv.color, background: lv.soft, borderRadius: 'var(--r-full)', padding: '7px 14px' }}>
                     ✓ Keeping your current preferences
                   </span>
                   <button type="button" onClick={() => setKept((s) => { const n = new Set(s); n.delete(a.key); return n; })}
@@ -64,11 +64,11 @@ export function MedicalAdvisories({ advisories, healthScore }: { advisories?: Me
               ) : (
                 <div style={{ display: 'flex', gap: 8, marginTop: 11, flexWrap: 'wrap' }}>
                   <Link to="/nutrition/preferences"
-                    style={{ fontSize: 12.5, fontWeight: 700, textDecoration: 'none', color: 'var(--on-accent)', background: 'var(--accent)', borderRadius: 999, padding: '7px 14px' }}>
+                    style={{ fontSize: 12.5, fontWeight: 700, textDecoration: 'none', color: 'var(--on-accent)', background: 'var(--accent)', borderRadius: 'var(--r-full)', padding: '7px 14px' }}>
                     Update food preferences
                   </Link>
                   <button type="button" onClick={() => setKept((s) => new Set(s).add(a.key))}
-                    style={{ fontSize: 12.5, fontWeight: 600, cursor: 'pointer', color: 'var(--ink)', background: 'transparent', border: '1.5px solid var(--line)', borderRadius: 999, padding: '7px 14px', fontFamily: 'inherit' }}>
+                    style={{ fontSize: 12.5, fontWeight: 600, cursor: 'pointer', color: 'var(--ink)', background: 'transparent', border: '1.5px solid var(--line)', borderRadius: 'var(--r-full)', padding: '7px 14px', fontFamily: 'inherit' }}>
                     Keep current preferences
                   </button>
                 </div>

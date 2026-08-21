@@ -92,7 +92,7 @@ export function MenuView({ listingId, group, onSent }: { listingId: string; grou
           </div>
           <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500}
             aria-label="Anything to add" placeholder="Anything to add? Timing, quantity, questions…"
-            style={{ width: '100%', boxSizing: 'border-box', marginTop: 8, padding: '9px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13.5, fontFamily: 'inherit', background: 'var(--card)' }} />
+            style={{ width: '100%', boxSizing: 'border-box', marginTop: 8, padding: '9px 12px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 13.5, fontFamily: 'inherit', background: 'var(--card)' }} />
           <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
             <Button variant="accent" size="sm" disabled={ask.isPending}
               onClick={() => ask.mutate({ itemIds: picked, note: note.trim() || undefined }, {

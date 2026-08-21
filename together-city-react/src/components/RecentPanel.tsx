@@ -44,7 +44,7 @@ export function RecentPanel() {
           {others.map((r) => (
             <Link key={r.path} to={r.path}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none', color: 'inherit',
-                border: '1px solid var(--line)', borderRadius: 999, padding: '7px 13px', fontSize: 13, fontWeight: 600, background: 'var(--card)' }}>
+                border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '7px 13px', fontSize: 13, fontWeight: 600, background: 'var(--card)' }}>
               <Icon name={iconFor(r.path)} size={14} style={{ color: 'var(--accent-ink)' }} />
               {r.label}
             </Link>

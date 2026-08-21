@@ -9,10 +9,10 @@ function Card({ p }: { p: PackageCard }) {
       <article className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ position: 'relative', aspectRatio: '16 / 10', background: 'var(--line)' }}>
           <img src={p.heroUrl} alt={p.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          <span style={{ position: 'absolute', top: 10, left: 10, fontSize: 11, fontWeight: 700, color: 'var(--on-accent)', background: 'rgba(0,0,0,.5)', borderRadius: 999, padding: '3px 10px' }}>{p.icon} {p.categoryLabel}</span>
+          <span style={{ position: 'absolute', top: 10, left: 10, fontSize: 11, fontWeight: 700, color: 'var(--on-accent)', background: 'rgba(0,0,0,.5)', borderRadius: 'var(--r-full)', padding: '3px 10px' }}>{p.icon} {p.categoryLabel}</span>
         </div>
         <div style={{ padding: '12px 14px' }}>
-          <div style={{ fontWeight: 700, fontSize: 15.5 }}>{p.title}</div>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>{p.title}</div>
           <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>{p.destination}, {p.country} · {p.nights}N / {p.days}D</div>
           <p className="muted" style={{ fontSize: 12.5, margin: '6px 0 0' }}>{p.summary}</p>
           <div style={{ fontWeight: 700, fontSize: 14, marginTop: 8 }}>from {inr(p.priceFromInr)} <span className="muted" style={{ fontWeight: 400, fontSize: 11.5 }}>/ person</span></div>
@@ -59,5 +59,5 @@ export function Explore() {
 }
 
 function chip(on: boolean): React.CSSProperties {
-  return { cursor: 'pointer', borderRadius: 999, padding: '7px 15px', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-soft)' };
+  return { cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '7px 15px', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-soft)' };
 }

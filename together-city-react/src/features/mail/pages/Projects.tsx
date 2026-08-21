@@ -141,7 +141,7 @@ function NewProject({ used, onDone }: { used: number; onDone: () => void }) {
   // key if they left the field alone. The box shows the first; this is the second.
   const finalKey = keyFrom(key) || keyFrom(name);
   const full = used >= PROJECT_CAP;
-  const inp = { padding: '9px 11px', border: '1.5px solid var(--line-2)', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', width: '100%' } as const;
+  const inp = { padding: '9px 11px', border: '1.5px solid var(--line-2)', borderRadius: 'var(--r-1)', fontSize: 13, fontFamily: 'inherit', width: '100%' } as const;
   const sub = acct.data?.address
     ? acct.data.address.replace('@', `+${finalKey || 'key'}@`)
     : `you+${finalKey || 'key'}@togethercity.app`;

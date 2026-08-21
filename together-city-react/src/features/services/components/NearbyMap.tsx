@@ -82,7 +82,7 @@ export function NearbyMap({
         {centre && (
           <div aria-hidden style={{
             position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)',
-            width: 12, height: 12, borderRadius: 999, background: 'var(--accent)',
+            width: 12, height: 12, borderRadius: 'var(--r-full)', background: 'var(--accent)',
             border: '2px solid var(--card)',
           }} />
         )}
@@ -96,7 +96,7 @@ export function NearbyMap({
               aria-pressed={isOpen}
               style={{
                 position: 'absolute', left: p.left, top: p.top, transform: 'translate(-50%,-100%)',
-                padding: '4px 9px', borderRadius: 999, cursor: 'pointer', fontFamily: 'inherit',
+                padding: '4px 9px', borderRadius: 'var(--r-full)', cursor: 'pointer', fontFamily: 'inherit',
                 fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', maxWidth: 150,
                 overflow: 'hidden', textOverflow: 'ellipsis',
                 background: isOpen ? 'var(--accent)' : 'var(--card)',
@@ -110,7 +110,7 @@ export function NearbyMap({
 
         <div style={{
           position: 'absolute', left: 12, bottom: 12, fontSize: 11.5,
-          background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 999, padding: '4px 10px',
+          background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '4px 10px',
         }}>
           <strong>{placed.length}</strong> {placed.length === 1 ? 'business' : 'businesses'}
           {centre && <span className="muted"> · within {withinKm < 1 ? `${withinKm * 1000} m` : `${withinKm} km`}</span>}
@@ -121,10 +121,10 @@ export function NearbyMap({
         <Card style={{ display: 'flex', gap: 12, alignItems: 'center', padding: 12 }}>
           {open.photos.length > 0 && (
             <img src={open.photos[0].url} alt="" loading="lazy"
-              style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 10, flex: '0 0 auto' }} />
+              style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 'var(--r-1)', flex: '0 0 auto' }} />
           )}
           <div style={{ minWidth: 0, flex: 1 }}>
-            <strong style={{ fontSize: 14.5, display: 'block' }}>{open.businessName}</strong>
+            <strong style={{ fontSize: 15, display: 'block' }}>{open.businessName}</strong>
             <span className="muted" style={{ fontSize: 12.5 }}>
               {open.categoryLabel}
               {open.distanceKm != null && <> · {humanDistance(open.distanceKm)} away</>}

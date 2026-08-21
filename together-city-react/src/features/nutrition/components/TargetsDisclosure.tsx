@@ -128,7 +128,7 @@ export function TargetsRefusal({ r }: { r: Extract<NonNullable<Prescription['rea
         <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
           {r.missing.map((m) => (
             <Link key={m.field} to={m.href}
-              style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 44, padding: '6px 12px', border: '1px solid var(--line)', borderRadius: 10, background: 'var(--card)', textDecoration: 'none', color: 'inherit' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 44, padding: '6px 12px', border: '1px solid var(--line)', borderRadius: 'var(--r-1)', background: 'var(--card)', textDecoration: 'none', color: 'inherit' }}>
               <span style={{ fontSize: 13, fontWeight: 700, minWidth: 92 }}>{m.label}</span>
               <span className="muted" style={{ fontSize: 11.5, flex: 1, lineHeight: 1.45 }}>{m.why}</span>
               <span style={{ color: 'var(--accent-ink)', fontSize: 13, fontWeight: 700 }}>Add →</span>

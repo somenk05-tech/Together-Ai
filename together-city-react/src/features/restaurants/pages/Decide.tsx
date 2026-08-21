@@ -109,13 +109,13 @@ export function Decide() {
         <button type="button" onClick={() => setMode('plan')} className="card lift"
           style={{ cursor: 'pointer', textAlign: 'left', border: mode === 'plan' ? '2px solid var(--accent)' : undefined, fontFamily: 'inherit' }}>
           <div style={{ fontSize: 30 }}>🥗</div>
-          <h3 style={{ margin: '6px 0 4px', fontSize: 18 }}>Follow My Meal Plan</h3>
+          <h3 style={{ margin: '6px 0 4px', fontSize: 17 }}>Follow My Meal Plan</h3>
           <p className="muted" style={{ fontSize: 13, margin: 0 }}>Eat to today's nutrition target — we rank nearby dishes by how well they match.</p>
         </button>
         <button type="button" onClick={() => setMode('cheat')} className="card lift"
           style={{ cursor: 'pointer', textAlign: 'left', border: mode === 'cheat' ? '2px solid var(--accent)' : undefined, fontFamily: 'inherit' }}>
           <div style={{ fontSize: 30 }}>🍔</div>
-          <h3 style={{ margin: '6px 0 4px', fontSize: 18 }}>Cheat Meal</h3>
+          <h3 style={{ margin: '6px 0 4px', fontSize: 17 }}>Cheat Meal</h3>
           <p className="muted" style={{ fontSize: 13, margin: 0 }}>Eating for enjoyment today — trending dishes, best desserts, cafés & more.</p>
         </button>
       </div>

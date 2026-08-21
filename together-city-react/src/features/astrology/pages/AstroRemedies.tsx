@@ -101,7 +101,7 @@ export function AstroRemedies() {
                     This week · {weekLabel(remedies.data.weekFrom, remedies.data.weekTo)}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
-                    <strong style={{ fontSize: 21, letterSpacing: '-.01em' }}>{remedies.data.thisWeek.title}</strong>
+                    <strong style={{ fontSize: 20, letterSpacing: '-.01em' }}>{remedies.data.thisWeek.title}</strong>
                     <Tag>{KIND_LABEL[remedies.data.thisWeek.kind]}</Tag>
                   </div>
                   <p style={{ fontSize: 15, lineHeight: 1.7, margin: '10px 0 0', maxWidth: 620 }}>

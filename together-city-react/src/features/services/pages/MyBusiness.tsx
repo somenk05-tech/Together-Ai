@@ -50,7 +50,7 @@ function ReviewsReceived({ listingId }: { listingId: string }) {
               <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
                 <input value={text} onChange={(e) => setText(e.target.value)} maxLength={1200}
                   aria-label={`Reply to ${r.alias}`} placeholder="Answer them…"
-                  style={{ flex: 1, minWidth: 0, padding: '8px 11px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', background: 'var(--card)' }} />
+                  style={{ flex: 1, minWidth: 0, padding: '8px 11px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 13, fontFamily: 'inherit', background: 'var(--card)' }} />
                 <Button variant="accent" size="sm" disabled={!text.trim() || reply.isPending}
                   onClick={() => reply.mutate({ reviewId: r.id, reply: text.trim() }, { onSuccess: () => { setText(''); setOpenId(null); } })}>Reply</Button>
               </div>
@@ -86,7 +86,7 @@ function Offers({ listingId }: { listingId: string }) {
   const [endsOn, setEnds] = useState(today());
   const [err, setErr] = useState<string | null>(null);
 
-  const field = { padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13.5, fontFamily: 'inherit', background: 'var(--card)', width: '100%', boxSizing: 'border-box' as const };
+  const field = { padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 13.5, fontFamily: 'inherit', background: 'var(--card)', width: '100%', boxSizing: 'border-box' as const };
 
   const submit = () => {
     setErr(null);
@@ -251,7 +251,7 @@ export function MyBusiness() {
                 <strong style={{ fontSize: 17 }}>{l.businessName}</strong>
                 <span className="muted" style={{ fontSize: 12.5 }}>{l.categoryLabel}</span>
                 {removed ? (
-                  <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 999, padding: '2px 8px' }}>Closed</span>
+                  <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '2px 8px' }}>Closed</span>
                 ) : (
                   /* OPEN OR CLOSED RIGHT NOW, worked out from the hours below
                      rather than from a switch somebody has to remember. A

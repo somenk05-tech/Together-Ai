@@ -90,7 +90,7 @@ export function AddHubMemberDialog({
       <div onClick={(e) => e.stopPropagation()} className="card" style={{ maxWidth: 460, width: '100%', padding: 22 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
           <div>
-            <h3 style={{ margin: 0, fontSize: 18 }}>{def.emoji} {title}</h3>
+            <h3 style={{ margin: 0, fontSize: 17 }}>{def.emoji} {title}</h3>
             <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>
               {blurb ?? `Connect someone to your ${def.label} hub.`} They get ONE request in People — accepting connects {def.label} automatically. {familyOnly ? `${def.label} is a Family-only hub.` : ''}
             </p>
@@ -115,7 +115,7 @@ export function AddHubMemberDialog({
         )}
 
         {!busy && result && (
-          <div style={{ marginTop: 14, border: '1px solid var(--line)', borderRadius: 14, padding: 14 }}>
+          <div style={{ marginTop: 14, border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <Avatar src={result.profileImage} name={result.name} size={44} />
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -138,7 +138,7 @@ export function AddHubMemberDialog({
                     <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
                       {RELATIONSHIPS.map((r) => (
                         <button key={r.key} type="button" onClick={() => setRelationship(r.key)}
-                          style={{ cursor: 'pointer', flex: 1, fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '8px 0', borderRadius: 10,
+                          style={{ cursor: 'pointer', flex: 1, fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '8px 0', borderRadius: 'var(--r-1)',
                             border: `1.5px solid ${relationship === r.key ? 'var(--accent)' : 'var(--line)'}`,
                             background: relationship === r.key ? 'var(--accent-soft)' : 'var(--card)', color: 'var(--ink)' }}>
                           {r.emoji} {r.label}
@@ -147,7 +147,7 @@ export function AddHubMemberDialog({
                     </div>
                   </>
                 )}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, background: 'var(--accent-soft)', marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 'var(--r-1)', background: 'var(--accent-soft)', marginBottom: 12 }}>
                   <span style={{ fontSize: 13, fontWeight: 600 }}>{def.emoji} {def.label}</span>
                   <span className="muted" style={{ fontSize: 11.5 }}>will be connected · Chat & Mail are always on</span>
                 </div>

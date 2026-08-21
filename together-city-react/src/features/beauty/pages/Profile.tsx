@@ -57,7 +57,7 @@ function SkinHairTimeline() {
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
             {[...d.comparison.skin, ...d.comparison.hair].filter((a) => a.direction === 'improved' || a.direction === 'worse').map((a) => {
               const m = dirMeta(a.direction);
-              return <span key={a.key} style={{ fontSize: 11, fontWeight: 600, color: m.c, background: `${m.c}14`, borderRadius: 999, padding: '2px 9px' }}>{a.label} {m.icon}</span>;
+              return <span key={a.key} style={{ fontSize: 11, fontWeight: 600, color: m.c, background: `${m.c}14`, borderRadius: 'var(--r-full)', padding: '2px 9px' }}>{a.label} {m.icon}</span>;
             })}
           </div>
         </div>
@@ -71,7 +71,7 @@ function SkinHairTimeline() {
               <button type="button" onClick={() => setOpenId(isOpen ? null : e.id)}
                 style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
                 <span style={{ fontSize: 12.5, fontWeight: 700, minWidth: 92 }}>{fmt(e.date)}</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: e.baseline ? 'var(--warn-ink)' : 'var(--accent)', background: e.baseline ? 'var(--warn-soft)' : 'var(--accent-soft)', borderRadius: 999, padding: '1px 9px' }}>{e.baseline ? 'Baseline · Month 0' : e.label}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: e.baseline ? 'var(--warn-ink)' : 'var(--accent)', background: e.baseline ? 'var(--warn-soft)' : 'var(--accent-soft)', borderRadius: 'var(--r-full)', padding: '1px 9px' }}>{e.baseline ? 'Baseline · Month 0' : e.label}</span>
                 <span className="muted" style={{ fontSize: 11.5, marginLeft: 'auto' }}>Skin {e.skinScore} · Hair {e.hairScore} {isOpen ? '▾' : '▸'}</span>
               </button>
               {isOpen && (
@@ -161,7 +161,7 @@ function BiomarkerCorrelation() {
             <div key={i.marker} style={{ padding: '11px 0', borderTop: '1px solid var(--line)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <strong style={{ fontSize: 13.5 }}>{MARKER_LABEL[i.marker] ?? i.marker} {i.status === 'high' ? '↑' : '↓'}</strong>
-                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--warn-ink)', background: 'var(--warn-soft)', borderRadius: 999, padding: '1px 8px' }}>{i.concern}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--warn-ink)', background: 'var(--warn-soft)', borderRadius: 'var(--r-full)', padding: '1px 8px' }}>{i.concern}</span>
                 {typeof i.value === 'number' && <span className="muted" style={{ fontSize: 11.5 }}>{i.value}</span>}
               </div>
               <p style={{ fontSize: 12.5, color: 'var(--ink-soft)', margin: '6px 0 0', lineHeight: 1.5 }}>{i.mechanism}</p>
@@ -232,12 +232,12 @@ const REQUIRED_LABEL: Partial<Record<keyof Form, string>> = {
   hairGoals: 'Hair goals', hairConcerns: 'Hair concerns', routine: 'Current routine', allergies: 'Allergies', medicalConditions: 'Medical conditions',
 };
 
-const fld: React.CSSProperties = { border: '1px solid var(--line)', borderRadius: 10, padding: '9px 12px', fontSize: 13.5, background: 'var(--paper)', color: 'var(--ink)', outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' };
+const fld: React.CSSProperties = { border: '1px solid var(--line)', borderRadius: 'var(--r-1)', padding: '9px 12px', fontSize: 13.5, background: 'var(--paper)', color: 'var(--ink)', outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' };
 
 function Chip({ on, label, onClick }: { on: boolean; label: string; onClick: () => void }) {
   return (
     <button type="button" onClick={onClick}
-      style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 13px', fontSize: 12.5, fontFamily: 'inherit', fontWeight: 600,
+      style={{ cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '6px 13px', fontSize: 12.5, fontFamily: 'inherit', fontWeight: 600,
         border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
       {on ? '✓ ' : ''}{label}
     </button>
@@ -265,7 +265,7 @@ function ReadingRow({ r }: { r: BeautyReading }) {
         <div style={{ fontSize: 13, fontWeight: 600 }}>{r.label}</div>
         <div className="muted" style={{ fontSize: 11.5 }}>{r.note}</div>
       </div>
-      <span style={{ flex: 'none', fontSize: 10, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: lv.color, background: lv.soft, borderRadius: 999, padding: '3px 9px' }}>{lv.label}</span>
+      <span style={{ flex: 'none', fontSize: 10, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: lv.color, background: lv.soft, borderRadius: 'var(--r-full)', padding: '3px 9px' }}>{lv.label}</span>
     </div>
   );
 }
@@ -404,7 +404,7 @@ function ProgressView({ entries }: { entries: BeautyProgressEntry[] }) {
       </select>
       <div style={{ aspectRatio: '1 / 1', borderRadius: 12, border: '1px solid var(--line)', background: e.thumb ? `center/cover no-repeat url(${e.thumb})` : 'var(--paper)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
         {!e.thumb && <span className="muted" style={{ fontSize: 11, paddingBottom: 8 }}>no photo</span>}
-        <span style={{ background: 'rgba(20,18,14,.7)', color: 'var(--on-accent)', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, margin: 6 }}>Score {e.score}</span>
+        <span style={{ background: 'rgba(20,18,14,.7)', color: 'var(--on-accent)', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 'var(--r-full)', margin: 6 }}>Score {e.score}</span>
       </div>
     </div>
   );
@@ -647,7 +647,7 @@ export function Profile() {
           <strong style={{ fontSize: 13.5 }}>Unlock your AI Skin & Hair Assessment</strong>
           <span style={{ marginLeft: 'auto', fontSize: 12.5, fontWeight: 800, color: 'var(--accent-ink)' }}>{overallPct}%</span>
         </div>
-        <div style={{ height: 7, borderRadius: 999, background: 'var(--line)', overflow: 'hidden', margin: '8px 0 10px' }}>
+        <div style={{ height: 7, borderRadius: 'var(--r-full)', background: 'var(--line)', overflow: 'hidden', margin: '8px 0 10px' }}>
           <div style={{ height: '100%', width: `${overallPct}%`, background: 'var(--accent)', transition: 'width .3s ease' }} />
         </div>
         <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 12.5 }}>
@@ -753,7 +753,7 @@ export function Profile() {
           <div>
             <div className="eyebrow" style={{ marginBottom: 8 }}>Your photos <span className="muted" style={{ fontWeight: 400 }}>· two needed, one optional · {picsRequired} / {PHOTOS_NEEDED}</span></div>
             <PhotoGrid pics={pics} onSet={setPic} onClear={clearPic} />
-            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 12, padding: '10px 12px', background: 'var(--paper)', borderRadius: 10 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 12, padding: '10px 12px', background: 'var(--paper)', borderRadius: 'var(--r-1)' }}>
               <span style={{ fontSize: 15 }}>📷</span>
               <p className="muted" style={{ fontSize: 11.5, margin: 0, lineHeight: 1.5 }}>
                 Bare face and scalp, good even light, and take them however suits you — the camera here, a file, or dragged onto a tile. <strong>No beauty filters and no AI-generated images</strong> — they distort the analysis and will be rejected. {aiEnabled ? 'AI reviews clear photos once to spot visible issues (acne, pigmentation, texture, pores, redness, hydration, hair density & scalp).' : 'Photos build your before/after alongside your profile assessment.'} Full images aren't stored — only a small unedited thumbnail for your timeline. <strong>🔒 Your photos are completely private: no one but you ever sees them</strong> — they're never shown to other users, never shared, and never used for anything except your own analysis.
@@ -883,7 +883,7 @@ export function Profile() {
             if (!keys.length) return null;
             const label: Record<string, string> = { skinType: 'Skin type', scalpType: 'Scalp type', hairDensity: 'Hair density', hairTexture: 'Hair texture' };
             return (
-              <p className="muted" style={{ fontSize: 12, margin: '0 0 14px', padding: '9px 12px', background: 'var(--accent-soft)', borderRadius: 10 }}>
+              <p className="muted" style={{ fontSize: 12, margin: '0 0 14px', padding: '9px 12px', background: 'var(--accent-soft)', borderRadius: 'var(--r-1)' }}>
                 ✨ <strong>AI-estimated from your photos:</strong> {keys.map((k) => label[k] ?? k).join(', ')} — review and edit anytime.
               </p>
             );
@@ -953,7 +953,7 @@ export function Profile() {
                     const reason = chipReason.get(x);
                     return (
                       <button key={x} type="button" onClick={() => multi('medicalConditions', x)} title={reason || undefined}
-                        style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 13px', fontSize: 12.5, fontFamily: 'inherit', fontWeight: 600,
+                        style={{ cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '6px 13px', fontSize: 12.5, fontFamily: 'inherit', fontWeight: 600,
                           border: `1.5px solid ${on ? 'var(--accent)' : reason ? 'var(--accent-ink)' : 'var(--line)'}`,
                           background: on ? 'var(--accent)' : 'transparent', color: on ? 'var(--on-accent)' : reason ? 'var(--accent-ink)' : 'var(--ink-soft)' }}>
                         {on ? '✓ ' : ''}{x}{reason ? ' 🩸' : ''}
@@ -963,7 +963,7 @@ export function Profile() {
                   <Chip on={isOn('medicalConditions', NONE)} label={NONE} onClick={() => multi('medicalConditions', NONE)} />
                 </div>
                 {(labNotes.length > 0 || preSelected.length > 0 || sug?.alopeciaHint) && (
-                  <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 10, background: 'rgba(192,38,211,0.06)', border: '1px solid rgba(192,38,211,0.2)' }}>
+                  <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 'var(--r-1)', background: 'rgba(192,38,211,0.06)', border: '1px solid rgba(192,38,211,0.2)' }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-ink)', marginBottom: 6 }}>🩸 From your labs</div>
                     {preSelected.length > 0 && (
                       <div className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, marginBottom: (labNotes.length || sug?.alopeciaHint) ? 6 : 0 }}>

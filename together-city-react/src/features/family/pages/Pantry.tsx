@@ -3,7 +3,7 @@ import { PageHeader, Button, Spinner, EmptyState } from '@/components/ui';
 import { usePantry, usePantryMutations } from '@/features/nutrition/hooks';
 import type { PantryItemView } from '@/features/nutrition/api';
 
-const fld: React.CSSProperties = { border: '1px solid var(--line)', borderRadius: 10, padding: '10px 12px', fontSize: 13.5, background: 'var(--paper)', color: 'var(--ink)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
+const fld: React.CSSProperties = { border: '1px solid var(--line)', borderRadius: 'var(--r-1)', padding: '10px 12px', fontSize: 13.5, background: 'var(--paper)', color: 'var(--ink)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
 
 function Row({ it, onSet, onRemove, busy }: { it: PantryItemView; onSet: (g: number) => void; onRemove: () => void; busy: boolean }) {
   const step = it.unit === 'ml' || it.unit === 'l' ? 100 : it.unit === 'g' || it.unit === 'kg' ? 100 : 1;
@@ -85,7 +85,7 @@ export function FamilyPantry() {
             {data.aisles.map((a) => (
               <div key={a.key} className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 14, borderRadius: 16 }}>
                 <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10, background: 'var(--paper)' }}>
-                  <span style={{ fontSize: 19 }}>{a.icon}</span>
+                  <span style={{ fontSize: 20 }}>{a.icon}</span>
                   <h3 style={{ margin: 0, fontSize: 15 }}>{a.title}</h3>
                   <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>{a.items.length}</span>
                 </div>

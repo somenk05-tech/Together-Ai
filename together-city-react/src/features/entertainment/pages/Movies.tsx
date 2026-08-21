@@ -43,7 +43,7 @@ export function Movies() {
 
   const pill = (on: boolean, label: string, onClick: () => void) => (
     <button key={label} type="button" onClick={onClick}
-      style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 14px', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit',
+      style={{ cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '6px 14px', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit',
         border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
       {label}
     </button>

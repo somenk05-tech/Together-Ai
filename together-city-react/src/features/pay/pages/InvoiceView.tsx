@@ -174,7 +174,7 @@ function BusinessActions({ inv }: { inv: ReturnType<typeof useInvoice>['data'] &
   const [err, setErr] = useState<string | null>(null);
 
   const field = {
-    padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 10,
+    padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)',
     fontSize: 13.5, fontFamily: 'inherit', background: 'var(--card)',
     width: '100%', boxSizing: 'border-box' as const,
   };

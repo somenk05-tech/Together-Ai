@@ -56,7 +56,7 @@ function Field({ f, value, onChange }: { f: FieldDef; value: unknown; onChange: 
                   // 44 and not 40: a chip is the one control on this form a
                   // thumb has to hit repeatedly, and the audit is right that
                   // four pixels is the difference on a phone.
-                  minHeight: 44, padding: '0 14px', borderRadius: 999, cursor: 'pointer',
+                  minHeight: 44, padding: '0 14px', borderRadius: 'var(--r-full)', cursor: 'pointer',
                   fontFamily: 'inherit', fontSize: 13, fontWeight: 600,
                   border: on ? '1.5px solid var(--accent)' : '1.5px solid var(--line)',
                   background: on ? 'var(--accent-soft)' : 'var(--card)',

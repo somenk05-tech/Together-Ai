@@ -84,7 +84,7 @@ export function SignIn({ initialMode = 'login' }: { initialMode?: Mode } = {}) {
   const cta = busy ? 'One moment…' : mode === 'login' ? 'Sign in' : mode === 'forgot' ? (channel === 'sms' ? 'Text me a code' : 'Email me a code') : 'Reset password';
 
   // Shared field shells (dark glass, gold-tinted icons).
-  const wrap: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, border: '1.5px solid rgba(255,255,255,.16)', borderRadius: 14, padding: '2px 14px', marginBottom: 12, background: 'rgba(255,255,255,.05)' };
+  const wrap: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, border: '1.5px solid rgba(255,255,255,.16)', borderRadius: 'var(--r-2)', padding: '2px 14px', marginBottom: 12, background: 'rgba(255,255,255,.05)' };
   const inp: React.CSSProperties = { flex: 1, border: 'none', outline: 'none', padding: '14px 0', fontSize: 16, fontFamily: 'inherit', background: 'transparent', color: 'var(--on-accent)' };
   const iconWrap: React.CSSProperties = { color: 'var(--gold-bright)', display: 'grid', placeItems: 'center', flexShrink: 0 };
 
@@ -222,7 +222,7 @@ export function SignIn({ initialMode = 'login' }: { initialMode?: Mode } = {}) {
 
               <button type="submit" disabled={busy} className="signin-gold"
                 style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10, border: 'none',
-                  borderRadius: 999, padding: '15px 24px', marginTop: 4, cursor: busy ? 'not-allowed' : 'pointer',
+                  borderRadius: 'var(--r-full)', padding: '15px 24px', marginTop: 4, cursor: busy ? 'not-allowed' : 'pointer',
                   fontSize: 13, letterSpacing: '.16em', fontWeight: 700, textTransform: 'uppercase', color: 'var(--on-accent)',
                   boxShadow: '0 8px 26px rgba(201,162,78,.45)', opacity: busy ? 0.7 : 1, transition: 'transform .14s, box-shadow .2s, filter .2s' }}>
                 {cta}<ArrowRight />
@@ -244,7 +244,7 @@ export function SignIn({ initialMode = 'login' }: { initialMode?: Mode } = {}) {
             {mode === 'login' && (
               <button type="button" onClick={() => { setMode('register'); setError(null); setNotice(null); }}
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, width: '100%',
-                  background: 'transparent', border: '1px solid rgba(255,255,255,.38)', borderRadius: 999,
+                  background: 'transparent', border: '1px solid rgba(255,255,255,.38)', borderRadius: 'var(--r-full)',
                   padding: '14px 24px', marginBottom: 14, cursor: 'pointer', color: 'var(--on-accent)',
                   fontSize: 13, letterSpacing: '.16em', fontWeight: 700, textTransform: 'uppercase', fontFamily: 'inherit' }}>
                 Create your account<ArrowRight />

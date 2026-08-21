@@ -47,7 +47,7 @@ export function OpenBadge({ hours }: { hours?: DayHours[] | null }) {
     <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap' }}>
       <span style={{
         fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase',
-        borderRadius: 999, padding: '2px 9px',
+        borderRadius: 'var(--r-full)', padding: '2px 9px',
         background: state.open ? 'var(--ok-soft, var(--accent-soft))' : 'transparent',
         color: state.open ? 'var(--ok-ink, var(--accent-ink))' : 'var(--muted)',
         border: `1px solid ${state.open ? 'var(--ok-line, var(--accent-line))' : 'var(--line)'}`,

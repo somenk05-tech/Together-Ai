@@ -68,7 +68,7 @@ export function MealCard({ meal, onToggle, onRegenerate, onOpen, favourite, onFa
         <span
           style={{
             fontSize: 10, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase',
-            padding: '3px 9px', borderRadius: 999,
+            padding: '3px 9px', borderRadius: 'var(--r-full)',
             color: meal.kind === 'complete' ? 'var(--ok-ink)' : 'var(--warn-ink)',
             background: meal.kind === 'complete' ? 'var(--ok-soft)' : 'var(--warn-soft)',
             border: `1px solid ${meal.kind === 'complete' ? 'var(--ok-line)' : 'var(--warn-line)'}`,
@@ -122,7 +122,7 @@ function Figure({ label, value, muted }: { label: string; value: string; muted?:
   return (
     <span style={{ display: 'grid' }}>
       <span className="muted" style={{ fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase' }}>{label}</span>
-      <strong style={{ fontSize: 14.5, fontWeight: 700, color: muted ? 'var(--muted)' : 'inherit' }}>{value}</strong>
+      <strong style={{ fontSize: 15, fontWeight: 700, color: muted ? 'var(--muted)' : 'inherit' }}>{value}</strong>
     </span>
   );
 }

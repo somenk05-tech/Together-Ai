@@ -122,7 +122,7 @@ export function Dashboard() {
             <h2 style={{ fontSize: 17, margin: 0 }}>Your profile is {c.percent}% complete</h2>
             <Link to="/profile" style={{ marginLeft: 'auto', fontSize: 12.5, fontWeight: 700, color: 'var(--accent-ink)' }}>Open your profile →</Link>
           </div>
-          <div style={{ height: 8, borderRadius: 999, background: 'var(--line)', marginTop: 10, overflow: 'hidden' }}>
+          <div style={{ height: 8, borderRadius: 'var(--r-full)', background: 'var(--line)', marginTop: 10, overflow: 'hidden' }}>
             <div style={{ width: `${c.percent}%`, height: '100%', background: 'var(--accent)' }} />
           </div>
           <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.6, margin: '10px 0 0' }}>
@@ -139,7 +139,7 @@ export function Dashboard() {
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {c.nextUp.map((n) => (
                   <Link key={n.key} to={n.href}
-                    style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', padding: '0 14px', borderRadius: 10, border: '1px solid var(--line)', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
+                    style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', padding: '0 14px', borderRadius: 'var(--r-1)', border: '1px solid var(--line)', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
                     {n.label} →
                   </Link>
                 ))}
@@ -280,6 +280,6 @@ function Waiting({ to, n, one, many }: { to: string; n: number; one: string; man
 
 const startStyle: React.CSSProperties = {
   minHeight: 44, display: 'inline-flex', alignItems: 'center', padding: '0 16px',
-  borderRadius: 10, border: '1px solid var(--accent)', color: 'var(--accent-ink)',
+  borderRadius: 'var(--r-1)', border: '1px solid var(--accent)', color: 'var(--accent-ink)',
   fontSize: 13, fontWeight: 700, textDecoration: 'none',
 };

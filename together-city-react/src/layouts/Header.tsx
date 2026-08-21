@@ -19,7 +19,7 @@ function Badge({ count }: { count: number }) {
   return (
     <span aria-label={`${count} pending requests`} style={{
       position: 'absolute', top: -6, right: -8, minWidth: 16, height: 16, padding: '0 4px',
-      borderRadius: 999, background: 'var(--danger-ink)', color: 'var(--on-accent)', fontSize: 10, fontWeight: 700,
+      borderRadius: 'var(--r-full)', background: 'var(--danger-ink)', color: 'var(--on-accent)', fontSize: 10, fontWeight: 700,
       display: 'grid', placeItems: 'center', lineHeight: 1,
     }}>{count > 9 ? '9+' : count}</span>
   );
@@ -90,7 +90,7 @@ function NotificationBell() {
            rendered inside the action bar, so every row in it was claiming that
            rule. See the `.notif-panel` reset in layout.css. */
         <div className="notif-panel" style={{ position: 'absolute', top: 'calc(100% + 10px)', right: 0, width: 340, maxHeight: 460, overflowY: 'auto',
-          background: 'var(--card)', border: 0, borderRadius: 20, boxShadow: 'var(--e3)', zIndex: 90 }}>
+          background: 'var(--card)', border: 0, borderRadius: 'var(--r-3)', boxShadow: 'var(--e3)', zIndex: 90 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderBottom: '1px solid var(--line)' }}>
             <strong style={{ fontSize: 14 }}>Notifications</strong>
             {items.some((n) => !n.read) && (

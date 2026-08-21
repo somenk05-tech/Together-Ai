@@ -184,7 +184,7 @@ export function CommandPalette() {
           {results.map((d, i) => (
             <button key={d.id} type="button" onMouseEnter={() => setActive(i)} onClick={() => go(d)}
               style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left', border: 'none',
-                borderRadius: 10, padding: '10px 12px', cursor: 'pointer', fontFamily: 'inherit',
+                borderRadius: 'var(--r-1)', padding: '10px 12px', cursor: 'pointer', fontFamily: 'inherit',
                 background: i === active ? 'var(--accent-soft)' : 'transparent' }}>
               <span style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--paper)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                 <Icon name={d.icon ?? 'place'} size={16} style={{ color: 'var(--accent-ink)' }} />
@@ -205,7 +205,7 @@ export function CommandPalette() {
               {bizHits.map((b) => (
                 <button key={b.id} type="button" onClick={() => { setOpen(false); nav('/services/browse'); }}
                   style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left', border: 'none',
-                    borderRadius: 10, padding: '10px 12px', cursor: 'pointer', fontFamily: 'inherit', background: 'transparent' }}>
+                    borderRadius: 'var(--r-1)', padding: '10px 12px', cursor: 'pointer', fontFamily: 'inherit', background: 'transparent' }}>
                   <span style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--paper)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                     <Icon name="connection" size={16} style={{ color: 'var(--accent-ink)' }} />
                   </span>
@@ -226,7 +226,7 @@ export function CommandPalette() {
               {msgHits.map((m) => (
                 <button key={m.id} type="button" onClick={() => { setOpen(false); nav(`/chats?c=${m.conversationId}`); }}
                   style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left', border: 'none',
-                    borderRadius: 10, padding: '10px 12px', cursor: 'pointer', fontFamily: 'inherit', background: 'transparent' }}>
+                    borderRadius: 'var(--r-1)', padding: '10px 12px', cursor: 'pointer', fontFamily: 'inherit', background: 'transparent' }}>
                   <span style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--paper)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                     <Icon name="comment" size={16} style={{ color: 'var(--accent-ink)' }} />
                   </span>

@@ -106,7 +106,7 @@ export function BusinessCard({ s, saved }: { s: ServiceCard; saved: boolean }) {
             /* 44 because a thumb is 44. It is the largest control on the card
                and it sits over a photograph, so the fill is the card's own
                surface rather than a scrim invented for it. */
-            position: 'absolute', top: 8, right: 8, width: 44, height: 44, borderRadius: 999,
+            position: 'absolute', top: 8, right: 8, width: 44, height: 44, borderRadius: 'var(--r-full)',
             display: 'grid', placeItems: 'center', cursor: 'pointer', fontSize: 17, lineHeight: 1,
             border: '1px solid var(--line)', background: 'var(--card)', fontFamily: 'inherit',
             color: saved ? 'var(--danger-ink)' : 'var(--muted)',
@@ -118,7 +118,7 @@ export function BusinessCard({ s, saved }: { s: ServiceCard; saved: boolean }) {
       <div style={{ padding: '13px 15px 15px', display: 'grid', gap: 7 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
           <Link to={serviceHref(s)} style={{ textDecoration: 'none', color: 'inherit' }}>
-            <strong style={{ fontSize: 15.5 }}>{s.businessName}</strong>
+            <strong style={{ fontSize: 15 }}>{s.businessName}</strong>
           </Link>
           <TrustBadge trust={s.trust} />
         </div>

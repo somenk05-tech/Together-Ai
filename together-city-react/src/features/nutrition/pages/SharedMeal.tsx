@@ -43,7 +43,7 @@ export function SharedMeal() {
     <div>
       <button type="button" onClick={() => navigate(-1)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: 'var(--muted)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: 0, marginBottom: 12 }}>← Back</button>
 
-      <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 20, overflow: 'hidden', boxShadow: 'var(--shadow)' }}>
+      <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', overflow: 'hidden', boxShadow: 'var(--shadow)' }}>
         <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', background: meal.i ? 'var(--line)' : tint(meal.t) }}>
           {meal.i && <img src={meal.i} alt={meal.t} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
           {meal.l && (
@@ -57,9 +57,9 @@ export function SharedMeal() {
 
           {(meal.k || (meal.m && meal.m.length > 0)) && (
             <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 12 }}>
-              {meal.k ? <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)', background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 999, padding: '3px 11px' }}>{Math.round(meal.k)} kcal</span> : null}
+              {meal.k ? <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)', background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '3px 11px' }}>{Math.round(meal.k)} kcal</span> : null}
               {(meal.m ?? []).map((m, i) => (
-                <span key={i} style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)', background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 999, padding: '3px 11px' }}>{m}</span>
+                <span key={i} style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)', background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '3px 11px' }}>{m}</span>
               ))}
             </div>
           )}
@@ -72,7 +72,7 @@ export function SharedMeal() {
               const clickable = !!recipeId;
               const inner = (
                 <>
-                  <span aria-hidden style={{ width: 40, height: 40, borderRadius: 10, background: tint(recipeId || name), flex: '0 0 auto' }} />
+                  <span aria-hidden style={{ width: 40, height: 40, borderRadius: 'var(--r-1)', background: tint(recipeId || name), flex: '0 0 auto' }} />
                   <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{name}</span>
                   <span style={{ fontSize: 12.5, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{Math.round(kcal)} kcal</span>
                   {clickable && <span aria-hidden style={{ color: 'var(--accent-ink)', fontSize: 16 }}>›</span>}

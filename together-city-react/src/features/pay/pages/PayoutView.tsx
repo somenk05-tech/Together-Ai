@@ -50,7 +50,7 @@ export function PayoutView() {
         </div>
 
         {s.failureReason && (
-          <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line)' }}>
+          <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 'var(--r-1)', border: '1px solid var(--line)' }}>
             <p style={{ fontSize: 13, margin: 0, color: 'var(--danger-ink)', fontWeight: 600 }}>{s.failureReason}</p>
             <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
               The money has not gone anywhere. Correct the account and it goes out with the next payout.

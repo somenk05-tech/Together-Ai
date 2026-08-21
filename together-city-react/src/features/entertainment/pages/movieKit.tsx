@@ -164,7 +164,7 @@ export function TitleShareButton({ m }: { m: TitleRef | (LiveMovie & { type?: 'm
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 5,
           background: 'none', border: '1px solid var(--line)', color: 'var(--muted)',
-          borderRadius: 999, padding: '4px 11px', fontSize: 12, fontWeight: 600,
+          borderRadius: 'var(--r-full)', padding: '4px 11px', fontSize: 12, fontWeight: 600,
           cursor: 'pointer', fontFamily: 'inherit',
         }}
       >
@@ -227,11 +227,11 @@ function PersonSheet({ id, onClose, onOpenTitle }: { id: number; onClose: () => 
           {p && (
             <>
               <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                {p.photoUrl && <img src={p.photoUrl} alt={p.name} style={{ width: 110, borderRadius: 14 }} />}
+                {p.photoUrl && <img src={p.photoUrl} alt={p.name} style={{ width: 110, borderRadius: 'var(--r-2)' }} />}
                 <div style={{ flex: 1, minWidth: 220 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
                     <h2 style={{ margin: 0, fontSize: 22 }}>{p.name}</h2>
-                    <button type="button" onClick={onClose} aria-label="Close" style={{ minWidth: 44, minHeight: 44, border: 'none', background: 'var(--paper)', borderRadius: 999, width: 30, height: 30, cursor: 'pointer' }}>✕</button>
+                    <button type="button" onClick={onClose} aria-label="Close" style={{ minWidth: 44, minHeight: 44, border: 'none', background: 'var(--paper)', borderRadius: 'var(--r-full)', width: 30, height: 30, cursor: 'pointer' }}>✕</button>
                   </div>
                   <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>
                     {[p.department, p.birthday ? `b. ${prettyDate(p.birthday)}` : null, p.placeOfBirth].filter(Boolean).join(' · ')}
@@ -346,7 +346,7 @@ export function TitleSheet({ sel, onClose, onOpen, autoplay = false }: { sel: Ti
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       {srcs.data.sources.map((so) => (
                         <a key={`${so.name}${so.kind}`} href={so.url} target="_blank" rel="noopener noreferrer"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 7, textDecoration: 'none', border: '1.5px solid var(--line)', background: 'var(--card,#fff)', borderRadius: 999, padding: '8px 14px', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)' }}>
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 7, textDecoration: 'none', border: '1.5px solid var(--line)', background: 'var(--card,#fff)', borderRadius: 'var(--r-full)', padding: '8px 14px', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)' }}>
                           ▶ {so.name}
                           <span className="muted" style={{ fontWeight: 500 }}>
                             {so.kind === 'rent' || so.kind === 'buy' ? `${so.kindLabel}${so.price != null ? ` ₹${so.price}` : ''}` : so.kindLabel}{so.format ? ` · ${so.format}` : ''}

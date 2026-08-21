@@ -89,7 +89,7 @@ function Choice({
                 border: `1px solid ${active ? 'var(--accent)' : 'var(--line)'}`,
                 background: active ? 'var(--accent)' : 'transparent',
                 color: active ? 'var(--on-accent)' : 'inherit',
-                borderRadius: 999, padding: '4px 12px', fontSize: 12.5, cursor: 'pointer',
+                borderRadius: 'var(--r-full)', padding: '4px 12px', fontSize: 12.5, cursor: 'pointer',
               }}
             >
               {optionLabel(v)}

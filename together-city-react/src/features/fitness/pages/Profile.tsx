@@ -19,7 +19,7 @@ const SEX = [{ key: 'female', label: 'Female' }, { key: 'male', label: 'Male' },
 function Choice({ on, label, onClick }: { on: boolean; label: string; onClick: () => void }) {
   return (
     <button type="button" onClick={onClick}
-      style={{ cursor: 'pointer', borderRadius: 999, padding: '8px 15px', fontSize: 13, fontFamily: 'inherit', fontWeight: 600,
+      style={{ cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '8px 15px', fontSize: 13, fontFamily: 'inherit', fontWeight: 600,
         border: '1.5px solid var(--line)', background: on ? 'var(--accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
       {label}
     </button>
@@ -158,7 +158,7 @@ export function Profile() {
             Age
             <input type="number" min={13} max={100} value={age} onChange={(e) => setAge(Number(e.target.value))}
               disabled={ageLocked} title={ageLocked ? 'Set in your Master Profile' : undefined}
-              style={{ width: 72, padding: '8px 10px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', ...(ageLocked ? masterLockedStyle : {}) }} />
+              style={{ width: 72, padding: '8px 10px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit', ...(ageLocked ? masterLockedStyle : {}) }} />
           </label>
           <div style={{ display: 'flex', gap: 8 }}>
             {SEX.map((s) => <Choice key={s.key} on={sex === s.key} label={s.label} onClick={() => setSex(s.key)} />)}
@@ -213,12 +213,12 @@ export function Profile() {
           <label style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
             Height
             <input ref={(el) => v.reg('height')(el)} type="number" min={120} max={230} value={heightCm} onChange={(e) => { setHeightCm(e.target.value === '' ? '' : Number(e.target.value)); v.clear('height'); }} placeholder="cm"
-              style={{ width: 84, padding: '8px 10px', border: `1.5px solid ${v.errors.height ? 'var(--danger-ink)' : 'var(--line)'}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit' }} />
+              style={{ width: 84, padding: '8px 10px', border: `1.5px solid ${v.errors.height ? 'var(--danger-ink)' : 'var(--line)'}`, borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit' }} />
           </label>
           <label style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
             Weight
             <input ref={(el) => v.reg('weight')(el)} type="number" min={30} max={300} value={weightKg} onChange={(e) => { setWeightKg(e.target.value === '' ? '' : Number(e.target.value)); v.clear('weight'); }} placeholder="kg"
-              style={{ width: 84, padding: '8px 10px', border: `1.5px solid ${v.errors.weight ? 'var(--danger-ink)' : 'var(--line)'}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit' }} />
+              style={{ width: 84, padding: '8px 10px', border: `1.5px solid ${v.errors.weight ? 'var(--danger-ink)' : 'var(--line)'}`, borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit' }} />
           </label>
           <span className="muted" style={{ fontSize: 11.5, alignSelf: 'center', maxWidth: 260 }}>Needed for your calorie & macro targets — used to build the diet plan.</span>
         </div>
@@ -247,13 +247,13 @@ export function Profile() {
             Days a week
             <input type="number" min={1} max={7} value={daysPerWeek} placeholder="—"
               onChange={(e) => setDaysPerWeek(e.target.value === '' ? '' : Number(e.target.value))}
-              style={{ width: 70, padding: '8px 10px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit' }} />
+              style={{ width: 70, padding: '8px 10px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit' }} />
           </label>
           <label style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
             Usual session
             <input type="number" min={15} max={120} step={5} value={sessionMinutes} placeholder="min"
               onChange={(e) => setSessionMinutes(e.target.value === '' ? '' : Number(e.target.value))}
-              style={{ width: 78, padding: '8px 10px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit' }} />
+              style={{ width: 78, padding: '8px 10px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit' }} />
           </label>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <span style={{ fontSize: 13, fontWeight: 600 }}>Usually at</span>
@@ -270,7 +270,7 @@ export function Profile() {
           <textarea value={limitations} maxLength={280} rows={2}
             placeholder="e.g. bad left shoulder — nothing overhead"
             onChange={(e) => setLimitations(e.target.value)}
-            style={{ width: '100%', padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13.5, fontFamily: 'inherit', resize: 'vertical' }} />
+            style={{ width: '100%', padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 13.5, fontFamily: 'inherit', resize: 'vertical' }} />
           <p className="muted" style={{ fontSize: 11.5, margin: '6px 0 0' }}>
             We print this at the top of every session in your own words. We do not try to interpret it,
             and it is not a substitute for a physiotherapist&rsquo;s instruction.

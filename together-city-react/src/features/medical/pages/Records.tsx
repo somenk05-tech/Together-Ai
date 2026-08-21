@@ -291,7 +291,7 @@ export function Records() {
                 {flagged.map((m) => {
                   const st = MSTATUS[m.status] ?? MSTATUS.normal;
                   return (
-                    <span key={m.key} title={m.advice} style={{ fontSize: 11.5, fontWeight: 600, borderRadius: 999, padding: '4px 11px', background: st.bg, color: st.color }}>
+                    <span key={m.key} title={m.advice} style={{ fontSize: 11.5, fontWeight: 600, borderRadius: 'var(--r-full)', padding: '4px 11px', background: st.bg, color: st.color }}>
                       {m.label} {m.value}{m.unit} · {st.label}{m.trend && m.trend !== 'flat' ? (m.trend === 'up' ? ' ▲' : ' ▼') : ''}
                     </span>
                   );
@@ -360,7 +360,7 @@ export function Records() {
             <div className="eyebrow" style={{ margin: 0 }}>Storage vault</div>
             <span className="muted" style={{ fontSize: 12 }}>{fmtBytes(s.usedBytes)} of {fmtBytes(s.quotaBytes)} used</span>
           </div>
-          <div style={{ height: 8, borderRadius: 999, background: 'var(--line)', marginTop: 10, overflow: 'hidden' }}>
+          <div style={{ height: 8, borderRadius: 'var(--r-full)', background: 'var(--line)', marginTop: 10, overflow: 'hidden' }}>
             <div style={{ width: `${Math.max(1, s.usedPct)}%`, height: '100%', background: s.usedPct > 90 ? 'var(--danger-ink)' : 'var(--accent)' }} />
           </div>
           <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>
@@ -374,7 +374,7 @@ export function Records() {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '4px 0 12px' }}>
           {KINDS.map((k) => (
             <button key={k.key} type="button" onClick={() => setKind(k.key)}
-              style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 14px', fontSize: 12.5, fontFamily: 'inherit', fontWeight: 600,
+              style={{ cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '6px 14px', fontSize: 12.5, fontFamily: 'inherit', fontWeight: 600,
                 border: '1.5px solid var(--line)', background: kind === k.key ? 'var(--accent)' : 'transparent', color: kind === k.key ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
               {k.icon} {k.label}
             </button>
@@ -412,7 +412,7 @@ export function Records() {
             <div key={g.key} style={{ marginBottom: 18 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 2px 8px' }}>
                 <span style={{ fontSize: 16 }}>{g.icon}</span>
-                <h3 style={{ fontSize: 14.5, margin: 0 }}>{g.label}</h3>
+                <h3 style={{ fontSize: 15, margin: 0 }}>{g.label}</h3>
                 <span className="muted" style={{ fontSize: 12 }}>({g.items.length})</span>
               </div>
               {g.items.map((r) => (

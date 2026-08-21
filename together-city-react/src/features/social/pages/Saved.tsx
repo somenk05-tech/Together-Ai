@@ -38,7 +38,7 @@ function SavedCard({ post, onRemove }: { post: Post; onRemove: () => void }) {
     <article className="card" style={{ display: 'flex', gap: 14, padding: '14px 16px', alignItems: 'flex-start' }}>
       {firstImage && (
         <img src={firstImage.url} alt={`Photo shared by ${post.author.name}`} width={72} height={72}
-          style={{ borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />
+          style={{ borderRadius: 'var(--r-1)', objectFit: 'cover', flexShrink: 0 }} />
       )}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 600, fontSize: 13.5 }}>
@@ -85,7 +85,7 @@ export function SocialSaved() {
       {posts.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '44px 24px' }}>
           <span className="sl-ic lg" style={{ margin: '0 auto 16px' }}><Icon name="save" size={30} /></span>
-          <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-.025em' }}>Nothing saved yet</div>
+          <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-.025em' }}>Nothing saved yet</div>
           <p className="muted" style={{ fontSize: 14, margin: '7px 0 0' }}>
             Tap Save on any post in the feed and it will collect here.
           </p>

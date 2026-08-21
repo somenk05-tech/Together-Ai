@@ -276,7 +276,7 @@ export function MasterProfile() {
             <strong style={{ fontSize: 13.5 }}>Profile {pct}% complete</strong>
             {dirty && <span className="muted" style={{ marginLeft: 'auto', fontSize: 11.5 }}>unsaved changes</span>}
           </div>
-          <div style={{ height: 6, borderRadius: 999, background: 'var(--line)', marginTop: 8, overflow: 'hidden' }}>
+          <div style={{ height: 6, borderRadius: 'var(--r-full)', background: 'var(--line)', marginTop: 8, overflow: 'hidden' }}>
             <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent)' }} />
           </div>
           {(completion.data?.nextUp ?? []).length > 0 && (
@@ -617,7 +617,7 @@ function Elsewhere({ what, where, label }: { what: string; where: string; label:
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
       <span style={{ fontSize: 13, flex: 1, minWidth: 180 }}>{what}</span>
       <Link to={where}
-        style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', padding: '0 14px', borderRadius: 10, border: '1px solid var(--accent)', color: 'var(--accent-ink)', fontSize: 12.5, fontWeight: 700, textDecoration: 'none' }}>
+        style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', padding: '0 14px', borderRadius: 'var(--r-1)', border: '1px solid var(--accent)', color: 'var(--accent-ink)', fontSize: 12.5, fontWeight: 700, textDecoration: 'none' }}>
         {label} →
       </Link>
     </div>
@@ -626,6 +626,6 @@ function Elsewhere({ what, where, label }: { what: string; where: string; label:
 
 const inputStyle: React.CSSProperties = {
   width: '100%', minHeight: 44, padding: '9px 11px', border: '1px solid var(--line)',
-  borderRadius: 10, fontSize: 14, fontFamily: 'inherit', background: 'var(--card)',
+  borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit', background: 'var(--card)',
   outline: 'none', boxSizing: 'border-box',
 };

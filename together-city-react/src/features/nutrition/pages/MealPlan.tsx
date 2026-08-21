@@ -44,7 +44,7 @@ function ScoreDial({ label, value, hint }: { label: string; value: number; hint:
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 11, flex: '1 1 240px', minWidth: 220 }}>
       <div role="img" aria-label={`${label}: ${value} out of 100`} style={{ display: 'grid', placeItems: 'center', width: 48, height: 48, borderRadius: '50%', border: `4px solid ${color}`, flex: '0 0 auto' }}>
-        <strong style={{ fontSize: 14.5, color }}>{value}</strong>
+        <strong style={{ fontSize: 15, color }}>{value}</strong>
       </div>
       <div style={{ minWidth: 0 }}>
         <div style={{ fontSize: 12.5, fontWeight: 800 }}>{label}</div>
@@ -227,7 +227,7 @@ function DayLock({ dayIndex, date, locked, lastDay, onMoveTo, planMode }: {
   if (locked) {
     return (
       <div className="card" style={{ marginTop: 12, padding: '13px 16px', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', borderColor: 'var(--accent)' }}>
-        <span aria-hidden="true" style={{ fontSize: 18 }}>🔒</span>
+        <span aria-hidden="true" style={{ fontSize: 17 }}>🔒</span>
         <div style={{ flex: 1, minWidth: 200 }}>
           <div style={{ fontWeight: 700, fontSize: 14 }}>This menu is locked</div>
           <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>
@@ -248,7 +248,7 @@ function DayLock({ dayIndex, date, locked, lastDay, onMoveTo, planMode }: {
 
   return (
     <div className="card" style={{ marginTop: 12, padding: '13px 16px', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-      <span aria-hidden="true" style={{ fontSize: 18 }}>🔓</span>
+      <span aria-hidden="true" style={{ fontSize: 17 }}>🔓</span>
       <div style={{ flex: 1, minWidth: 200 }}>
         <div style={{ fontWeight: 700, fontSize: 14 }}>Happy with {weekdayFull(date)}?</div>
         <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>
@@ -420,7 +420,7 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
         <>
           <h3 style={{ fontSize: 15, margin: '0 0 8px' }}>Intermittent fasting</h3>
           {s.fastingSafety.level !== 'ok' && (
-            <div style={{ background: s.fastingSafety.level === 'block' ? 'var(--danger-soft)' : 'var(--warn-soft)', border: `1px solid ${s.fastingSafety.level === 'block' ? 'var(--danger-line)' : 'var(--warn-line)'}`, borderRadius: 10, padding: '10px 12px', marginBottom: 10, fontSize: 12.5 }}>
+            <div style={{ background: s.fastingSafety.level === 'block' ? 'var(--danger-soft)' : 'var(--warn-soft)', border: `1px solid ${s.fastingSafety.level === 'block' ? 'var(--danger-line)' : 'var(--warn-line)'}`, borderRadius: 'var(--r-1)', padding: '10px 12px', marginBottom: 10, fontSize: 12.5 }}>
               <strong>{s.fastingSafety.level === 'block' ? 'Not recommended for you.' : 'Please check with your clinician.'}</strong>
               <ul style={{ margin: '6px 0 0 16px' }}>{s.fastingSafety.notes.map((n) => <li key={n}>{n}</li>)}</ul>
             </div>
@@ -646,16 +646,16 @@ export function MealPlan() {
         evidence is not evidence of health.
       */}
       {gate && !gate.show ? (
-        <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.6, margin: '0 0 14px', padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 10 }}>
+        <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.6, margin: '0 0 14px', padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 'var(--r-1)' }}>
           {gate.confirmation}
         </p>
       ) : (
       <>
       {/* Two modes: My Preferences (default) vs Optimal Health — switch any time. */}
-      <div role="tablist" aria-label="Meal plan mode" style={{ display: 'inline-flex', gap: 4, background: 'var(--line)', borderRadius: 999, padding: 4, margin: '12px 0 4px' }}>
+      <div role="tablist" aria-label="Meal plan mode" style={{ display: 'inline-flex', gap: 4, background: 'var(--line)', borderRadius: 'var(--r-full)', padding: 4, margin: '12px 0 4px' }}>
         {([['preferred', 'My Preferences'], ['optimal', 'Optimal Health']] as const).map(([m, label]) => (
           <button key={m} role="tab" aria-selected={mode === m} type="button" onClick={() => setMode(m)}
-            style={{ border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '7px 16px', borderRadius: 999,
+            style={{ border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '7px 16px', borderRadius: 'var(--r-full)',
               background: mode === m ? 'var(--card)' : 'transparent', color: mode === m ? 'var(--ink)' : 'var(--muted)', boxShadow: mode === m ? '0 1px 4px rgba(0,0,0,.12)' : 'none' }}>
             {label}
           </button>
@@ -695,7 +695,7 @@ export function MealPlan() {
       <TargetsDisclosure p={wk.prescription} />
 
       {/* The month's plan window — a new plan is generated on the 1st, same principles. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: planEnded ? 'var(--warn-soft)' : 'var(--accent-soft)', border: `1px solid ${planEnded ? 'var(--warn-line)' : 'var(--line)'}`, borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 12.5 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: planEnded ? 'var(--warn-soft)' : 'var(--accent-soft)', border: `1px solid ${planEnded ? 'var(--warn-line)' : 'var(--line)'}`, borderRadius: 'var(--r-1)', padding: '10px 14px', marginBottom: 14, fontSize: 12.5 }}>
         <span style={{ flex: 1, minWidth: 220 }}>
           {planEnded
             ? <><strong>This month’s plan has ended.</strong> Start a fresh one and we’ll plan the rest of the month from today.</>
@@ -709,25 +709,25 @@ export function MealPlan() {
         )}
       </div>
       {wk.blocked && (
-        <div role="alert" style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger-line)', borderRadius: 10, padding: '12px 14px', marginBottom: 12, fontSize: 12.5 }}>
+        <div role="alert" style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger-line)', borderRadius: 'var(--r-1)', padding: '12px 14px', marginBottom: 12, fontSize: 12.5 }}>
           <strong>⚠ This plan could not be fully certified against your medical limits.</strong>
           <div style={{ marginTop: 4 }}>We couldn’t keep every day within your clinical targets with the recipes available. Please review with your clinician or dietitian before following it.</div>
           {wk.blockReason?.length ? <ul style={{ margin: '6px 0 0 16px' }}>{wk.blockReason.slice(0, 4).map((r) => <li key={r}>{r}</li>)}</ul> : null}
         </div>
       )}
       {wk.degraded && (
-        <div style={{ background: 'var(--warn-soft)', border: '1px solid var(--warn-line)', borderRadius: 10, padding: '10px 12px', marginBottom: 12, fontSize: 12.5 }}>
+        <div style={{ background: 'var(--warn-soft)', border: '1px solid var(--warn-line)', borderRadius: 'var(--r-1)', padding: '10px 12px', marginBottom: 12, fontSize: 12.5 }}>
           {wk.degradedReason ?? 'This is a general starter plan — reload to personalise it.'}
         </div>
       )}
       {wk.basedOnFamily && (
-        <div style={{ background: 'var(--accent-soft)', border: '1px solid var(--line)', borderRadius: 10, padding: '10px 12px', marginBottom: 12, fontSize: 12.5 }}>
+        <div style={{ background: 'var(--accent-soft)', border: '1px solid var(--line)', borderRadius: 'var(--r-1)', padding: '10px 12px', marginBottom: 12, fontSize: 12.5 }}>
           Based on <strong>{wk.basedOnFamily.ownerName}'s</strong> family meal plan — same dishes and times, portions scaled to your needs ({Math.round(wk.basedOnFamily.factor * 100)}%). This view is read-only.
         </div>
       )}
 
       {!wk.validation.ok && (
-        <div style={{ background: 'var(--warn-soft)', border: '1px solid var(--warn-line)', borderRadius: 10, padding: '10px 12px', marginBottom: 12, fontSize: 12.5 }}>
+        <div style={{ background: 'var(--warn-soft)', border: '1px solid var(--warn-line)', borderRadius: 'var(--r-1)', padding: '10px 12px', marginBottom: 12, fontSize: 12.5 }}>
           Plan notes: {wk.validation.issues.slice(0, 3).join('; ')}
         </div>
       )}
@@ -820,7 +820,7 @@ export function MealPlan() {
               )}
           </div>
 
-          <div style={{ marginTop: 22, textAlign: 'center', background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 14, padding: '12px 16px', fontSize: 12.5, color: 'var(--muted)' }}>
+          <div style={{ marginTop: 22, textAlign: 'center', background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: '12px 16px', fontSize: 12.5, color: 'var(--muted)' }}>
             Tap any meal to view the full recipe — ingredients &amp; step-by-step instructions.
           </div>
         </>

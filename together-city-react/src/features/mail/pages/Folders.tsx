@@ -25,8 +25,8 @@ function DeliveryLog() {
           <span style={{ fontWeight: 600 }}>{d.subject}</span>
           <span className="muted">→ {d.to}</span>
           <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-            <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--ink-soft)', background: 'var(--line)', borderRadius: 999, padding: '1px 8px' }}>via {d.provider}</span>
-            <span style={{ fontSize: 10.5, fontWeight: 700, color: d.status === 'sent' ? 'var(--ok-ink)' : d.status === 'failed' ? 'var(--danger-ink)' : 'var(--warn-ink)', background: d.status === 'sent' ? 'var(--ok-soft)' : d.status === 'failed' ? 'var(--danger-soft)' : 'var(--warn-soft)', borderRadius: 999, padding: '1px 8px', textTransform: 'uppercase' }}>{d.status}</span>
+            <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--ink-soft)', background: 'var(--line)', borderRadius: 'var(--r-full)', padding: '1px 8px' }}>via {d.provider}</span>
+            <span style={{ fontSize: 10.5, fontWeight: 700, color: d.status === 'sent' ? 'var(--ok-ink)' : d.status === 'failed' ? 'var(--danger-ink)' : 'var(--warn-ink)', background: d.status === 'sent' ? 'var(--ok-soft)' : d.status === 'failed' ? 'var(--danger-soft)' : 'var(--warn-soft)', borderRadius: 'var(--r-full)', padding: '1px 8px', textTransform: 'uppercase' }}>{d.status}</span>
           </span>
         </div>
       ))}
@@ -84,7 +84,7 @@ export function AccountBar() {
             <span>Storage</span>
             <span>{a ? `${humanBytes(a.usedBytes)} of ${humanBytes(a.quotaBytes)}` : '…'}</span>
           </div>
-          <div style={{ height: 7, borderRadius: 999, background: 'var(--line)', overflow: 'hidden', marginTop: 4 }}>
+          <div style={{ height: 7, borderRadius: 'var(--r-full)', background: 'var(--line)', overflow: 'hidden', marginTop: 4 }}>
             <div style={{ width: `${Math.min(100, Math.max(pct, a && a.usedBytes ? 2 : 0))}%`, height: '100%', background: pct > 90 ? 'var(--danger-ink)' : 'var(--accent)' }} />
           </div>
         </div>
@@ -485,7 +485,7 @@ function ProjectSettings({ project }: { project: MailProject }) {
   const [name, setName] = useState(project.name);
   const [description, setDescription] = useState(project.description ?? '');
   const [confirming, setConfirming] = useState(false);
-  const inp = { padding: '9px 11px', border: '1.5px solid var(--line-2)', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', width: '100%', maxWidth: 280 } as const;
+  const inp = { padding: '9px 11px', border: '1.5px solid var(--line-2)', borderRadius: 'var(--r-1)', fontSize: 13, fontFamily: 'inherit', width: '100%', maxWidth: 280 } as const;
 
   /**
    * Six controls on this card, and every one of them was fire-and-forget: a

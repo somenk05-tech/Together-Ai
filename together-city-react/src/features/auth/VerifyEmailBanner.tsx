@@ -65,14 +65,14 @@ export function VerifyEmailBanner() {
         to="/profile"
         style={{
           fontSize: 12, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase',
-          padding: '7px 14px', borderRadius: 999, textDecoration: 'none',
+          padding: '7px 14px', borderRadius: 'var(--r-full)', textDecoration: 'none',
           background: 'var(--gold)', color: 'var(--on-accent)',
         }}
       >
         Verify now
       </Link>
       <button type="button" onClick={dismiss} aria-label="Dismiss"
-        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1, color: 'var(--muted)', padding: '0 2px' }}>
+        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 17, lineHeight: 1, color: 'var(--muted)', padding: '0 2px' }}>
         ×
       </button>
     </div>

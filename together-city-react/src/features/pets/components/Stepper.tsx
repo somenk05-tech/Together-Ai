@@ -23,7 +23,7 @@ export function Stepper(
             onClick={() => onJump(i)}
             aria-current={state === 'now' ? 'step' : undefined}
             style={{
-              display: 'inline-flex', alignItems: 'center', gap: 7, padding: '6px 12px', borderRadius: 999,
+              display: 'inline-flex', alignItems: 'center', gap: 7, padding: '6px 12px', borderRadius: 'var(--r-full)',
               border: `1px solid ${state === 'now' ? 'var(--accent-line)' : 'var(--line)'}`,
               background: state === 'now' ? 'var(--accent-soft)' : state === 'done' ? 'var(--card)' : 'transparent',
               color: state === 'todo' ? 'var(--faint)' : state === 'now' ? 'var(--accent-ink)' : 'var(--ink-soft)',

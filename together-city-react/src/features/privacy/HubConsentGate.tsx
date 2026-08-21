@@ -52,11 +52,11 @@ export function HubConsentGate({ hub, children }: { hub?: string; children: Reac
           </span>
           <div>
             <div className="eyebrow">{cfg.label} · Your privacy</div>
-            <h1 style={{ fontSize: 21, lineHeight: 1.25 }}>Before you continue</h1>
+            <h1 style={{ fontSize: 20, lineHeight: 1.25 }}>Before you continue</h1>
           </div>
         </div>
 
-        <p style={{ fontSize: 14.5, lineHeight: 1.65, marginBottom: 18 }}>{cfg.promise}</p>
+        <p style={{ fontSize: 15, lineHeight: 1.65, marginBottom: 18 }}>{cfg.promise}</p>
 
         <div style={{ borderTop: '1px solid var(--line)' }}>
           {rows.map((r) => (

@@ -69,8 +69,8 @@ function HealthScoreCard() {
               <span style={{ fontWeight: 600 }}>{c.label}</span>
               <span className="muted">{c.state === 'computed' ? c.value : 'not counted'}</span>
             </div>
-            <div style={{ height: 5, borderRadius: 999, background: 'var(--line)' }}>
-              <div style={{ height: 5, borderRadius: 999, width: `${c.state === 'computed' ? (c.value ?? 0) : 0}%`, background: c.state === 'computed' ? 'var(--accent)' : 'transparent' }} />
+            <div style={{ height: 5, borderRadius: 'var(--r-full)', background: 'var(--line)' }}>
+              <div style={{ height: 5, borderRadius: 'var(--r-full)', width: `${c.state === 'computed' ? (c.value ?? 0) : 0}%`, background: c.state === 'computed' ? 'var(--accent)' : 'transparent' }} />
             </div>
             <div className="muted" style={{ fontSize: 11, marginTop: 4, lineHeight: 1.5 }}>{c.detail}</div>
           </div>

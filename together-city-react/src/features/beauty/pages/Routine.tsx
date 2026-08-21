@@ -139,7 +139,7 @@ function Step({ s, pick, qty, alreadyIn, onAdd, onRemove }: {
               {s.order}. {s.step}
             </span>
             <span className="muted" style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.09em',
-              borderRadius: 999, padding: '2px 7px', border: '1px solid var(--line)' }}>Yours</span>
+              borderRadius: 'var(--r-full)', padding: '2px 7px', border: '1px solid var(--line)' }}>Yours</span>
           </div>
           <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.55, margin: '6px 0 0' }}>{s.ownedWhy}</p>
         </div>
@@ -169,7 +169,7 @@ function Step({ s, pick, qty, alreadyIn, onAdd, onRemove }: {
               somebody how their own routine was reasoned, not decorating it. */}
           {pick && (
             <span className="muted" style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.09em',
-              borderRadius: 999, padding: '2px 7px',
+              borderRadius: 'var(--r-full)', padding: '2px 7px',
               background: pick.tier === 'high-value' ? 'var(--accent-soft)' : 'transparent',
               color: pick.tier === 'high-value' ? 'var(--accent-ink)' : undefined,
               border: pick.tier === 'high-value' ? '1px solid var(--accent-line)' : '1px solid var(--line)' }}>
@@ -339,7 +339,7 @@ function Band(
 
       <div className="routine-band-note">
         {r.notes.map((n) => (
-          <p key={n} style={{ fontSize: 12.5, lineHeight: 1.55, margin: '8px 0 0', background: 'var(--paper)', borderRadius: 10, padding: '9px 12px' }}>{n}</p>
+          <p key={n} style={{ fontSize: 12.5, lineHeight: 1.55, margin: '8px 0 0', background: 'var(--paper)', borderRadius: 'var(--r-1)', padding: '9px 12px' }}>{n}</p>
         ))}
       </div>
 
@@ -454,7 +454,7 @@ function BudgetCard(
         <dt className="muted" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>Budget</dt>
         <dd style={{ margin: 0, fontSize: 13.5, fontWeight: 700, textAlign: 'right' }}>{rupees(c.budgetInr)}</dd>
         <dt className="muted" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>Routine cost</dt>
-        <dd style={{ margin: 0, fontSize: 19, fontWeight: 800, letterSpacing: '-.01em', textAlign: 'right', lineHeight: 1.1 }}>
+        <dd style={{ margin: 0, fontSize: 20, fontWeight: 800, letterSpacing: '-.01em', textAlign: 'right', lineHeight: 1.1 }}>
           {rupees(c.spendInr)}<span className="muted" style={{ fontSize: 11.5, fontWeight: 600 }}> to buy</span>
         </dd>
       </dl>
@@ -466,7 +466,7 @@ function BudgetCard(
           overrun lived only in the sentence beside it. The track now carries the
           last stretch in the warning ink, sized to the overrun and never less
           than a visible sliver, so the figure and the picture agree. */}
-      <div aria-hidden style={{ height: 6, borderRadius: 999, background: 'var(--line)', overflow: 'hidden', margin: '12px 0 7px', display: 'flex' }}>
+      <div aria-hidden style={{ height: 6, borderRadius: 'var(--r-full)', background: 'var(--line)', overflow: 'hidden', margin: '12px 0 7px', display: 'flex' }}>
         <div style={{ width: `${Math.min(100, pct) - (c.overInr > 0 ? Math.max(3, Math.min(12, pct - 100)) : 0)}%`, height: '100%', background: 'var(--accent)' }} />
         {c.overInr > 0 && (
           <div style={{ width: `${Math.max(3, Math.min(12, pct - 100))}%`, height: '100%', background: 'var(--warn-ink)' }} />
@@ -575,7 +575,7 @@ function BudgetCard(
           Both doors are spelled out with the amount on them. "Keep ₹1,000" is a
           real answer and it is the one that costs nothing. */}
       {ask !== null && (
-        <div style={{ marginTop: 14, background: 'var(--accent-soft)', border: '1px solid var(--accent-line)', borderRadius: 10, padding: '11px 13px' }}>
+        <div style={{ marginTop: 14, background: 'var(--accent-soft)', border: '1px solid var(--accent-line)', borderRadius: 'var(--r-1)', padding: '11px 13px' }}>
           <p style={{ fontSize: 12.5, lineHeight: 1.6, margin: 0 }}>
             {short ? (
               <>
@@ -911,7 +911,7 @@ export function Routine() {
           <div style={{ display: 'flex', gap: 26, flexWrap: 'wrap', flex: 1, minWidth: 200 }}>
             {(['morning', 'evening'] as const).map((k) => (
               <div key={k} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                <span aria-hidden style={{ fontSize: 21, color: 'var(--accent-ink)' }}>{BAND[k].icon}</span>
+                <span aria-hidden style={{ fontSize: 20, color: 'var(--accent-ink)' }}>{BAND[k].icon}</span>
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 700 }}>{k === 'morning' ? 'Morning' : 'Night'} routine</div>
                   <div className="muted" style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' }}>{BAND[k].sub}</div>
@@ -923,7 +923,7 @@ export function Routine() {
           {!empty && (
             <div style={{ minWidth: 190, background: 'var(--card)', border: '1px solid var(--accent-line)', borderRadius: 12, padding: '13px 15px' }}>
               <div className="muted" style={{ fontSize: 11 }}>The whole routine</div>
-              <div style={{ fontSize: 21, fontWeight: 800, letterSpacing: '-.01em' }}>{rupees(routineTotal)}</div>
+              <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-.01em' }}>{rupees(routineTotal)}</div>
               {/* Both numbers, because they answer two different questions: what
                   it costs to buy today, and what it costs to keep. */}
               {/* ── THE NUMBER THE BUDGET DOES NOT GOVERN ────────────────────
@@ -993,7 +993,7 @@ export function Routine() {
           the year. Give the engine a date and a place and this can become a
           forecast; until then it must not look like one. */}
       {!empty && seasonal && (
-        <div style={{ margin: '0 0 14px', background: 'var(--paper)', borderRadius: 10, padding: '10px 12px' }}>
+        <div style={{ margin: '0 0 14px', background: 'var(--paper)', borderRadius: 'var(--r-1)', padding: '10px 12px' }}>
           <div className="muted" style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase' }}>
             How this routine changes with the seasons
           </div>

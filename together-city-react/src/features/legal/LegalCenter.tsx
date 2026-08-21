@@ -45,7 +45,7 @@ export function LegalCenter() {
       <header style={{ position: 'sticky', top: 0, zIndex: 20, background: 'rgba(242,239,231,.9)', backdropFilter: 'saturate(1.4) blur(10px)', borderBottom: '1px solid var(--lg-line)' }}>
         <div style={{ ...shell, padding: '15px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
           <Link to="/legal" style={{ display: 'flex', alignItems: 'center', gap: 12, color: 'var(--lg-ink)' }}>
-            <span className="serif" style={{ width: 34, height: 34, borderRadius: 9, background: 'var(--lg-accent)', color: 'var(--on-accent)', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 18 }}>TC</span>
+            <span className="serif" style={{ width: 34, height: 34, borderRadius: 9, background: 'var(--lg-accent)', color: 'var(--on-accent)', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 17 }}>TC</span>
             <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15 }}>
               <span className="serif" style={{ fontWeight: 600, fontSize: 16 }}>Together City</span>
               <span className="mono" style={{ fontSize: 10.5, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--lg-muted)' }}>Legal &amp; Policy Center</span>
@@ -89,7 +89,7 @@ function HubView({ q, setQ, totalCount }: { q: string; setQ: (v: string) => void
       <section style={{ padding: '56px 0 30px', borderBottom: '1px solid var(--lg-line)' }}>
         <div className="mono" style={{ fontSize: 11.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--lg-accent)', marginBottom: 16 }}>{CO.company}</div>
         <h1 className="serif" style={{ fontWeight: 600, fontSize: 'clamp(32px,5vw,52px)', lineHeight: 1.08, margin: '0 0 18px', maxWidth: '16ch' }}>The Together City legal &amp; policy library</h1>
-        <p style={{ fontSize: 18, color: 'var(--ink-soft)', maxWidth: '62ch', margin: '0 0 26px' }}>Every term, disclaimer, and agreement that governs Together City — a single platform spanning social, dating, AI, medical, nutrition, restaurants, travel, commerce, payments, and the creator economy. Organised into five volumes. Each document is linked below.</p>
+        <p style={{ fontSize: 17, color: 'var(--ink-soft)', maxWidth: '62ch', margin: '0 0 26px' }}>Every term, disclaimer, and agreement that governs Together City — a single platform spanning social, dating, AI, medical, nutrition, restaurants, travel, commerce, payments, and the creator economy. Organised into five volumes. Each document is linked below.</p>
         <span className="mono" style={{ fontSize: 12, color: 'var(--lg-muted)' }}>{totalCount} documents · 5 volumes · Governed by Indian law (Mumbai)</span>
       </section>
 
@@ -107,17 +107,17 @@ function HubView({ q, setQ, totalCount }: { q: string; setQ: (v: string) => void
             <span className="serif" style={{ fontWeight: 600, fontSize: 14, color: 'var(--lg-accent)', letterSpacing: '.04em' }}>VOL. {vol.roman}</span>
             <h2 className="serif" style={{ fontWeight: 600, fontSize: 24, margin: 0 }}>{vol.title}</h2>
           </div>
-          <p style={{ margin: '0 0 20px', color: 'var(--muted)', fontSize: 14.5 }}>{vol.desc}</p>
+          <p style={{ margin: '0 0 20px', color: 'var(--muted)', fontSize: 15 }}>{vol.desc}</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 14 }}>
             {vol.items.map((item) => {
               const pl = pill(item.drafted);
               return (
-                <Link key={item.id} to={`/legal/policy/${item.id}`} style={{ display: 'flex', flexDirection: 'column', gap: 9, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 14, padding: '20px 20px 18px' }}>
+                <Link key={item.id} to={`/legal/policy/${item.id}`} style={{ display: 'flex', flexDirection: 'column', gap: 9, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: '20px 20px 18px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                    <span className="mono" style={{ fontSize: 9.5, letterSpacing: '.09em', textTransform: 'uppercase', padding: '3px 8px', borderRadius: 20, background: pl.bg, color: pl.fg }}>{pl.label}</span>
+                    <span className="mono" style={{ fontSize: 9.5, letterSpacing: '.09em', textTransform: 'uppercase', padding: '3px 8px', borderRadius: 'var(--r-3)', background: pl.bg, color: pl.fg }}>{pl.label}</span>
                     <span style={{ color: 'var(--lg-accent)', fontSize: 15 }}>→</span>
                   </div>
-                  <span className="serif" style={{ fontWeight: 600, fontSize: 17.5, color: 'var(--lg-ink)', lineHeight: 1.25 }}>{item.title}</span>
+                  <span className="serif" style={{ fontWeight: 600, fontSize: 17, color: 'var(--lg-ink)', lineHeight: 1.25 }}>{item.title}</span>
                   <span style={{ fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.5 }}>{item.short}</span>
                 </Link>
               );
@@ -153,7 +153,7 @@ function PolicyView({ id }: { id: string }) {
       <h1 className="serif" style={{ fontWeight: 600, fontSize: 'clamp(30px,4.6vw,46px)', lineHeight: 1.1, margin: '0 0 14px', maxWidth: '20ch' }}>{p.title}</h1>
       <div className="mono" style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', fontSize: 12, color: 'var(--lg-muted)', marginBottom: 26 }}>
         <span>Effective {p.eff}</span>
-        <span style={{ padding: '3px 9px', borderRadius: 20, background: pl.bg, color: pl.fg }}>{pl.label}</span>
+        <span style={{ padding: '3px 9px', borderRadius: 'var(--r-3)', background: pl.bg, color: pl.fg }}>{pl.label}</span>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 11, background: 'var(--warn-soft)', border: '1px solid var(--warn-line)', borderRadius: 11, padding: '13px 16px', marginBottom: 34 }}>
@@ -172,17 +172,17 @@ function PolicyView({ id }: { id: string }) {
 
         <article style={{ minWidth: 0, maxWidth: '70ch' }}>
           {p.tldr && p.tldr.length > 0 && (
-            <div style={{ background: 'var(--accent-soft)', border: '1px solid var(--line)', borderRadius: 14, padding: '22px 24px', marginBottom: 40 }}>
+            <div style={{ background: 'var(--accent-soft)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: '22px 24px', marginBottom: 40 }}>
               <div className="mono" style={{ fontSize: 10.5, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--lg-accent)', marginBottom: 12 }}>In plain English</div>
               <ul style={{ margin: 0, paddingLeft: 20 }}>
-                {p.tldr.map((point, i) => <li key={i} style={{ margin: '0 0 8px', color: 'var(--ink-soft)', fontSize: 14.5, lineHeight: 1.55 }}>{point}</li>)}
+                {p.tldr.map((point, i) => <li key={i} style={{ margin: '0 0 8px', color: 'var(--ink-soft)', fontSize: 15, lineHeight: 1.55 }}>{point}</li>)}
               </ul>
             </div>
           )}
 
           {p.sections.map((s, i) => (
             <section key={i} id={`sec${i}`} style={{ marginBottom: 34, scrollMarginTop: 90 }}>
-              <h2 className="serif" style={{ fontWeight: 600, fontSize: 21, lineHeight: 1.3, margin: '0 0 12px' }}>{s.h}</h2>
+              <h2 className="serif" style={{ fontWeight: 600, fontSize: 20, lineHeight: 1.3, margin: '0 0 12px' }}>{s.h}</h2>
               <div className="doc-body" dangerouslySetInnerHTML={{ __html: s.html }} />
             </section>
           ))}
@@ -192,7 +192,7 @@ function PolicyView({ id }: { id: string }) {
               <div className="mono" style={{ fontSize: 10.5, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 14 }}>Related documents</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9 }}>
                 {related.map((r) => (
-                  <Link key={r.id} to={`/legal/policy/${r.id}`} style={{ fontSize: 13, padding: '7px 13px', border: '1px solid var(--line)', borderRadius: 20, color: 'var(--ink-soft)', background: 'var(--card)' }}>{r.title}</Link>
+                  <Link key={r.id} to={`/legal/policy/${r.id}`} style={{ fontSize: 13, padding: '7px 13px', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', color: 'var(--ink-soft)', background: 'var(--card)' }}>{r.title}</Link>
                 ))}
               </div>
             </div>

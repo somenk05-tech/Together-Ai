@@ -11,7 +11,7 @@ function Chips({ citations }: { citations: Citation[] }) {
   return (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
       {citations.map((c) => (
-        <span key={c.id} title={c.ref} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '2px 9px' }}>{c.label}</span>
+        <span key={c.id} title={c.ref} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 'var(--r-full)', padding: '2px 9px' }}>{c.label}</span>
       ))}
     </div>
   );
@@ -22,8 +22,8 @@ function AdjCard({ a }: { a: ConditionAdjustment }) {
   return (
     <article className="card" style={{ marginBottom: 10, borderLeft: '4px solid var(--accent)' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-        <strong style={{ fontSize: 14.5 }}>{a.title}</strong>
-        <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 999, padding: '1px 8px' }}>{srcLabel}</span>
+        <strong style={{ fontSize: 15 }}>{a.title}</strong>
+        <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '1px 8px' }}>{srcLabel}</span>
         <span className="muted" style={{ fontSize: 12 }}>{a.detail}</span>
       </div>
       <p style={{ fontSize: 13, margin: '6px 0 0' }}>{a.effect}</p>
@@ -52,7 +52,7 @@ function DayRow({ s }: { s: Session }) {
         <div className="muted" style={{ fontSize: 12.5 }}>{s.detail}</div>
       </div>
       {s.minutes > 0 && <span className="muted" style={{ fontSize: 12 }}>{s.minutes}m</span>}
-      <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', color: intensityColor[s.intensity], border: `1px solid ${intensityColor[s.intensity]}`, borderRadius: 999, padding: '1px 8px' }}>{s.intensity}</span>
+      <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', color: intensityColor[s.intensity], border: `1px solid ${intensityColor[s.intensity]}`, borderRadius: 'var(--r-full)', padding: '1px 8px' }}>{s.intensity}</span>
     </div>
   );
 }

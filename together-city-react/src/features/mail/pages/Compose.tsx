@@ -267,7 +267,7 @@ export function Compose() {
   const trailPending = Boolean(threadId) && trail.isLoading;
   const canSend = to.trim() && hasSomething && !trailPending && !send.isPending;
 
-  const inp = { padding: '11px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' as const, background: 'var(--card)' };
+  const inp = { padding: '11px 12px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' as const, background: 'var(--card)' };
 
   return (
     <div>
@@ -401,7 +401,7 @@ export function Compose() {
           {attachments.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
               {attachments.map((f) => (
-                <span key={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: '1px solid var(--line)', borderRadius: 999, padding: '6px 10px 6px 12px', fontSize: 12.5, background: 'var(--paper)' }}>
+                <span key={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '6px 10px 6px 12px', fontSize: 12.5, background: 'var(--paper)' }}>
                   <span>{fileIcon(f)}</span>
                   <span style={{ maxWidth: 190, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
                   <span className="muted" style={{ fontSize: 11 }}>{fmtBytes(f.sizeBytes)}</span>

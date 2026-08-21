@@ -37,11 +37,11 @@
   color: var(--mira-mark);
 }
 .mirarow .csrowtext { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-.mirarow .csrowtitle { font-weight: 640; font-size: 14.5px; }
+.mirarow .csrowtitle { font-weight: 640; font-size: var(--fs-5); }
 /* --muted is #6b6b6b, which is 3.4:1 on the stage and correct on the white
    tile the selected row wears. Two grounds, two tones — the shape `.cswho
    span` already uses four rules up in relief.css. */
-.mirarow .csrowsub { font-size: 12.5px; color: var(--on-stage-faint); }
+.mirarow .csrowsub { font-size: var(--fs-3); color: var(--on-stage-faint); }
 .mirarow.on .csrowsub { color: var(--muted); }
 
 /* The gap is the state. Motion, never colour — and never more than one
@@ -81,7 +81,7 @@
 .miraturn.mira { align-self: flex-start; }
 /* pre-wrap: her welcome and the model's longer answers arrive with real
    line breaks, and a bubble that collapses them turns a letter into a blob. */
-.mirabub { padding: 11px 15px; border-radius: var(--r-2); font-size: 15px; line-height: 1.5; white-space: pre-wrap; }
+.mirabub { padding: 11px 15px; border-radius: var(--r-2); font-size: var(--fs-5); line-height: 1.5; white-space: pre-wrap; }
 
 /* THE ROOM SPEAKS IN THE ROOM'S MATERIAL, AND YOU SPEAK IN WHITE.
    Inverted from the chat stage, where incoming is the white tile — and
@@ -117,7 +117,7 @@
   margin: 0 18px 12px; padding: 10px 14px;
   border: 1px dashed var(--mira-line); border-radius: var(--r-2);
   background: var(--mira-well); color: var(--on-mira-soft);
-  font-size: 13.5px; line-height: 1.5; white-space: pre-wrap;
+  font-size: var(--fs-4); line-height: 1.5; white-space: pre-wrap;
 }
 /* Inside the scroll the gap already spaces it. */
 .miraturns .mirasys { margin: 0; }
@@ -153,7 +153,7 @@
 .miraopen { display: grid; place-items: center; gap: 16px; padding: 26px 18px 8px; text-align: center; }
 .miraopen .miramark { color: var(--on-mira); }
 .miraopentext {
-  margin: 0; max-width: 46ch; font-size: 15px; line-height: 1.6; color: var(--on-mira-soft);
+  margin: 0; max-width: 46ch; font-size: var(--fs-5); line-height: 1.6; color: var(--on-mira-soft);
 }
 
 /* Navigation is the one part of "Mira runs the app" that changes nothing, so
@@ -229,7 +229,7 @@
 @keyframes mira-live { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
 @media (prefers-reduced-motion: reduce) { .mirarecdot { animation: none; opacity: 1; } }
 .mirarectime {
-  flex: 0 0 auto; font-variant-numeric: tabular-nums; font-size: 12.5px;
+  flex: 0 0 auto; font-variant-numeric: tabular-nums; font-size: var(--fs-3);
   color: var(--on-mira-soft);
 }
 /* The transcript is one line and it truncates. It is a progress signal, not the
@@ -256,7 +256,7 @@
   border: 0; background: var(--on-mira); color: var(--on-mira-ink); cursor: pointer;
 }
 .mirasub:disabled { opacity: .6; cursor: default; }
-.mirasub + .miragoto { display: inline-block; margin-top: 10px; font-size: 12.5px; }
+.mirasub + .miragoto { display: inline-block; margin-top: 10px; font-size: var(--fs-3); }
 
 /* ── The two of her, one press apart ──────────────────────────────────
    Friend and City assistant. Chips in the room's own pair — the lit one is
@@ -270,12 +270,12 @@
    where the thread header's back arrow would have been. */
 .mira-back {
   flex: 0 0 auto; min-width: 44px; min-height: 44px; padding: 0;
-  border: 1px solid var(--mira-line); border-radius: 999px; background: none;
+  border: 1px solid var(--mira-line); border-radius: var(--r-full); background: none;
   color: var(--on-mira); display: grid; place-items: center; cursor: pointer;
 }
 .miratab {
   font: inherit; font-size: 13px; font-weight: 600; min-height: 44px; padding: 0 16px;
-  border-radius: 999px; cursor: pointer;
+  border-radius: var(--r-full); cursor: pointer;
   border: 1px solid var(--mira-line); background: none; color: var(--on-mira-soft);
 }
 .miratab.on { background: var(--on-mira); color: var(--on-mira-ink); border-color: var(--on-mira); }
@@ -306,7 +306,7 @@
   display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 14px;
   border-bottom: 1px solid var(--mira-line); color: var(--on-mira); flex-shrink: 0;
 }
-.mira-dock-name { font-weight: 700; font-size: 13.5px; letter-spacing: .04em; }
+.mira-dock-name { font-weight: 700; font-size: var(--fs-4); letter-spacing: .04em; }
 .mira-dock-close {
   margin-left: auto; min-width: 44px; min-height: 44px; border: 0; background: none;
   color: var(--on-mira-soft); font-size: 22px; line-height: 1; cursor: pointer;
@@ -369,7 +369,7 @@
   content: 'Mira can analyse this chat for you';
   position: absolute; top: calc(100% + 6px); right: 0; z-index: 20;
   display: none; white-space: nowrap;
-  font-size: 11.5px; font-weight: 600; padding: 7px 12px;
+  font-size: var(--fs-2); font-weight: 600; padding: 7px 12px;
   border-radius: var(--r-2);
   background: var(--mira-solid); color: var(--on-mira);
   border: 1px solid var(--mira-line);
@@ -407,6 +407,6 @@
   text-transform: uppercase; color: var(--on-mira-faint);
 }
 .miraask {
-  margin: 0; max-width: 24ch; font-size: 21px; line-height: 1.25;
+  margin: 0; max-width: 24ch; font-size: var(--fs-7); line-height: 1.25;
   letter-spacing: -.01em; color: var(--on-mira);
 }

@@ -13,7 +13,7 @@ function ScoreRing({ score, band }: { score: number; band: string }) {
     <div style={{ width: 82, height: 82, borderRadius: '50%', flex: '0 0 auto', background: `conic-gradient(hsl(${hue} 60% 45%) ${score * 3.6}deg, var(--line) 0)`, display: 'grid', placeItems: 'center' }}>
       <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--card)', display: 'grid', placeItems: 'center', textAlign: 'center' }}>
         <div>
-          <b style={{ fontSize: 21, lineHeight: 1 }}>{score}</b>
+          <b style={{ fontSize: 20, lineHeight: 1 }}>{score}</b>
           <div className="muted" style={{ fontSize: 9, letterSpacing: '.02em' }}>{band}</div>
         </div>
       </div>
@@ -45,7 +45,7 @@ function Cites({ citations }: { citations: Citation[] }) {
   return (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
       {citations.map((c) => (
-        <span key={c.id} title={c.ref} style={{ fontSize: 10, fontWeight: 600, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '2px 9px' }}>{c.label}</span>
+        <span key={c.id} title={c.ref} style={{ fontSize: 10, fontWeight: 600, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 'var(--r-full)', padding: '2px 9px' }}>{c.label}</span>
       ))}
     </div>
   );
@@ -67,7 +67,7 @@ function TrendsSection() {
       <div className="muted" style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.05em' }}>{title}</div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 5 }}>
         {items.map((m) => (
-          <span key={m.key} style={{ fontSize: 11.5, fontWeight: 600, borderRadius: 999, padding: '3px 10px', color, background: `${color}14` }}>
+          <span key={m.key} style={{ fontSize: 11.5, fontWeight: 600, borderRadius: 'var(--r-full)', padding: '3px 10px', color, background: `${color}14` }}>
             {m.label} · {m.deltaLabel}
           </span>
         ))}
@@ -82,7 +82,7 @@ function TrendsSection() {
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', margin: '10px 0 2px' }}>
         {d.timeline.map((t, i) => (
           <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 12, fontWeight: t.isLatest ? 700 : 500, padding: '4px 10px', borderRadius: 999, background: t.isLatest ? 'var(--accent-soft)' : 'var(--paper)', border: '1px solid var(--line)' }}>
+            <span style={{ fontSize: 12, fontWeight: t.isLatest ? 700 : 500, padding: '4px 10px', borderRadius: 'var(--r-full)', background: t.isLatest ? 'var(--accent-soft)' : 'var(--paper)', border: '1px solid var(--line)' }}>
               {t.takenOn}{t.isLatest ? ' · Latest' : ''}
             </span>
             {i < d.timeline.length - 1 && <span className="muted">→</span>}
@@ -183,7 +183,7 @@ function BiomarkerFields({ sections, form, setForm, units, setUnits }: {
             <button type="button" onClick={() => setOpen((o) => ({ ...o, [sec.key]: !isOpen }))}
               style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', background: 'var(--paper)', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
               <span style={{ fontSize: 13, fontWeight: 700 }}>{isOpen ? '▾' : '▸'} {sec.label}</span>
-              {filled > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '1px 8px' }}>{filled}</span>}
+              {filled > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 'var(--r-full)', padding: '1px 8px' }}>{filled}</span>}
               {sec.hint && <span className="muted" style={{ marginLeft: 'auto', fontSize: 10.5 }}>{sec.hint}</span>}
             </button>
             {isOpen && (
@@ -199,16 +199,16 @@ function BiomarkerFields({ sections, form, setForm, units, setUnits }: {
                     <div key={m.key} style={{ margin: '10px 0 0' }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                         <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.03em', color: 'var(--muted)' }}>{m.label}</span>
-                        {sc && <span style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 700, color: sc.c, background: sc.bg, borderRadius: 999, padding: '1px 7px' }}>{sc.label}</span>}
+                        {sc && <span style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 700, color: sc.c, background: sc.bg, borderRadius: 'var(--r-full)', padding: '1px 7px' }}>{sc.label}</span>}
                       </div>
                       <div style={{ display: 'flex', gap: 5, marginTop: 3 }}>
                         <input type="number" step="any" min="0" inputMode="decimal" placeholder={m.optional ? 'optional' : ''}
                           value={form[m.key] ?? ''} onChange={(e) => setForm({ ...form, [m.key]: e.target.value })}
-                          style={{ flex: 1, minWidth: 0, padding: '9px 11px', border: `1.5px solid ${sc ? sc.c + '88' : 'var(--line)'}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+                          style={{ flex: 1, minWidth: 0, padding: '9px 11px', border: `1.5px solid ${sc ? sc.c + '88' : 'var(--line)'}`, borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
                         {choices.length > 1 && (
                           <select value={picked} onChange={(e) => setUnits({ ...units, [m.key]: e.target.value })}
                             aria-label={`Unit for ${m.label}`}
-                            style={{ padding: '9px 6px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 12, fontFamily: 'inherit', background: 'var(--paper)', outline: 'none', maxWidth: 118 }}>
+                            style={{ padding: '9px 6px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 12, fontFamily: 'inherit', background: 'var(--paper)', outline: 'none', maxWidth: 118 }}>
                             {choices.map((c) => <option key={c.unit} value={c.unit}>{c.unit || '—'}</option>)}
                           </select>
                         )}
@@ -330,7 +330,7 @@ export function BloodAnalysis() {
       {data && data.alerts.length > 0 && (
         <div style={{ marginTop: 16 }}>
           {data.alerts.map((a) => (
-            <div key={a.key + a.value} style={{ display: 'flex', gap: 12, padding: '14px 16px', borderRadius: 14, marginBottom: 10, background: a.urgent ? 'var(--danger-soft)' : 'var(--warn-soft)', border: `1.5px solid ${a.urgent ? 'var(--danger-ink)' : 'var(--warn-ink)'}` }}>
+            <div key={a.key + a.value} style={{ display: 'flex', gap: 12, padding: '14px 16px', borderRadius: 'var(--r-2)', marginBottom: 10, background: a.urgent ? 'var(--danger-soft)' : 'var(--warn-soft)', border: `1.5px solid ${a.urgent ? 'var(--danger-ink)' : 'var(--warn-ink)'}` }}>
               <span style={{ fontSize: 20 }}>{a.urgent ? '🚑' : '⚠️'}</span>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 13.5, color: a.urgent ? 'var(--danger-ink)' : 'var(--warn-ink)' }}>{a.urgent ? 'Seek medical care' : 'Please see a doctor'} · {a.label} {a.value}</div>
@@ -346,7 +346,7 @@ export function BloodAnalysis() {
         return (
           <div className="card" style={{ marginTop: 18 }}>
             <div className="eyebrow">Your health summary</div>
-            {sum.greeting && <p style={{ fontSize: 15.5, fontWeight: 600, margin: '6px 0 0' }}>{sum.greeting}</p>}
+            {sum.greeting && <p style={{ fontSize: 15, fontWeight: 600, margin: '6px 0 0' }}>{sum.greeting}</p>}
             <div style={{ display: 'flex', gap: 18, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
               {sum.score != null && sum.band && <ScoreRing score={sum.score} band={sum.band} />}
               <div style={{ flex: 1, minWidth: 220 }}>
@@ -414,7 +414,7 @@ export function BloodAnalysis() {
         <p className="muted" style={{ fontSize: 13, margin: '4px 0 0' }}>
           Upload a photo or PDF of your blood report. We read the values and analyse it automatically — no extra steps. The same report also appears in your <Link to="/medical/records" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Health Records</Link>. It extracts numbers only, never diagnoses; you can edit any reading below and re-analyse.
         </p>
-        <label style={{ display: 'block', border: '1.5px dashed var(--line)', borderRadius: 14, padding: '22px', textAlign: 'center', cursor: extracting ? 'default' : 'pointer', marginTop: 12 }}>
+        <label style={{ display: 'block', border: '1.5px dashed var(--line)', borderRadius: 'var(--r-2)', padding: '22px', textAlign: 'center', cursor: extracting ? 'default' : 'pointer', marginTop: 12 }}>
           <input type="file" accept="image/*,.heic,.heif,.tiff,application/pdf" style={{ display: 'none' }} disabled={extracting}
             onChange={(e) => { void onFile(e.target.files?.[0] ?? null); e.target.value = ''; }} />
           <div style={{ fontSize: 26 }}>{extracting ? '⏳' : '📄'}</div>
@@ -424,7 +424,7 @@ export function BloodAnalysis() {
         {extractNote && <p style={{ fontSize: 12.5, marginTop: 10, padding: '8px 10px', background: 'var(--ok-soft)', borderRadius: 8 }}>✓ {extractNote}</p>}
         {uploadErr && <p style={{ fontSize: 12.5, marginTop: 10, color: 'var(--danger-ink)' }}>{uploadErr}</p>}
         {savedFile && (
-          <p style={{ fontSize: 12.5, marginTop: 10, padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 10 }}>
+          <p style={{ fontSize: 12.5, marginTop: 10, padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 'var(--r-1)' }}>
             📎 <b>{savedFile.name}</b> is saved in your <Link to="/medical/records" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Health Records</Link> — you can delete it there anytime.
           </p>
         )}
@@ -496,7 +496,7 @@ export function BloodAnalysis() {
                       {TREND[m.trend]} from {m.previous}{m.previousDate ? ` (${m.previousDate})` : ''}
                     </span>
                   )}
-                  <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', borderRadius: 999, padding: '3px 12px', background: s.bg, color: s.color }}>{s.label}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', borderRadius: 'var(--r-full)', padding: '3px 12px', background: s.bg, color: s.color }}>{s.label}</span>
                 </div>
                 {m.lastTested && <div className="muted" style={{ fontSize: 11, marginTop: 3 }}>Last tested {m.lastTested}</div>}
                 {m.advice && <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '6px 0 0' }}>{m.advice}</p>}
@@ -518,7 +518,7 @@ export function BloodAnalysis() {
           <div className="eyebrow" style={{ marginBottom: 8 }}>Nutrition guidance from this panel</div>
           {data.conditions.map((c) => (
             <div key={c.key} className="card" style={{ marginBottom: 12 }}>
-              <h3 style={{ fontSize: 15.5 }}>{c.name}</h3>
+              <h3 style={{ fontSize: 15 }}>{c.name}</h3>
               <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 13.5, lineHeight: 1.55 }}>
                 {c.principles.map((p, i) => <li key={i} style={{ marginBottom: 4 }}>{p}</li>)}
               </ul>
@@ -595,7 +595,7 @@ function PanelRow({ panel }: { panel: BloodTestSummary }) {
           <span style={{ marginLeft: 'auto', display: 'flex', gap: 5, flexWrap: 'wrap' }}>
             {panel.flagged.length === 0
               ? <span style={{ fontSize: 11, color: 'var(--ok-ink)' }}>all in range</span>
-              : panel.flagged.map((f) => <span key={f.key} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--danger-ink)', background: 'var(--danger-soft)', borderRadius: 999, padding: '1px 8px' }}>{f.label} {f.status}</span>)}
+              : panel.flagged.map((f) => <span key={f.key} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--danger-ink)', background: 'var(--danger-soft)', borderRadius: 'var(--r-full)', padding: '1px 8px' }}>{f.label} {f.status}</span>)}
           </span>
           <button
             type="button"

@@ -55,9 +55,32 @@ describe('a page does not choose its own width', () => {
   });
 
   it('has one spacing scale, and it is the one that was asked for', () => {
+    // THE SEVEN NUMBERS ARE UNCHANGED; THEY MOVED ONE INDIRECTION AWAY.
+    // There used to be two spacing scales — --s-* and --sp-* — both numbered 1
+    // through 7 and agreeing on two of their seven values, so "step 1" was 6px
+    // or 8px depending on which name you had seen. --sp-* is deleted and the
+    // survivor now reads a value-named ladder, --space-8 and friends, so a
+    // third scale cannot be introduced by picking a free index.
+    //
+    // WHICH MEANS THIS ASSERTION HAS TO RESOLVE THE ALIAS RATHER THAN READ IT.
+    // Both halves are checked, and that is stronger than what it replaced: the
+    // old form would have passed on `--s-1: 8px` sitting beside a --space-8 of
+    // 10px, because it never looked at the ladder at all.
+    const t = strip(tokens);
     for (const [n, px] of [[1, 8], [2, 16], [3, 24], [4, 32], [5, 48], [6, 64], [7, 80]] as const) {
-      expect(strip(tokens)).toMatch(new RegExp(`--s-${n}:\\s*${px}px`));
+      const alias = t.match(new RegExp(`--s-${n}:\\s*([^;]+);`));
+      expect(alias, `--s-${n} is not declared`).toBeTruthy();
+      const value = alias![1].trim();
+      const via = value.match(/^var\(\s*(--space-[0-9]+)\s*\)$/);
+      if (via) {
+        expect(t, `${via[1]} is not ${px}px`).toMatch(new RegExp(`${via[1]}:\\s*${px}px`));
+        expect(via[1]).toBe(`--space-${px}`);
+      } else {
+        expect(value).toBe(`${px}px`);
+      }
     }
+    // AND THE ONE THAT WAS DELETED STAYS DELETED.
+    expect(t).not.toMatch(/--sp-[0-9]\s*:/);
   });
 
   it('lets a hero reach the window without negative margins', () => {

@@ -137,7 +137,7 @@ export function PayInvoiceSheet({ invoice, open, onClose, onPaid }: {
                   borderRadius: 12, padding: '12px 14px', marginBottom: 8,
                   border: '1.5px solid var(--line)', display: 'flex', alignItems: 'center', gap: 10,
                 }}>
-                  <span aria-hidden style={{ fontSize: 18 }}>💳</span>
+                  <span aria-hidden style={{ fontSize: 17 }}>💳</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 13.5 }}>{q.card.brand} •• {q.card.last4}</div>
                     <div className="muted" style={{ fontSize: 11.5 }}>{q.card.name}</div>
@@ -242,7 +242,7 @@ export function PaidSheet({ result, businessName, onClose }: {
             background: 'var(--ok-soft)', color: 'var(--ok-ink)',
             display: 'grid', placeItems: 'center', fontSize: 26, fontWeight: 800,
           }}>✓</div>
-          <h2 style={{ fontSize: 19, margin: 0 }}>Payment successful</h2>
+          <h2 style={{ fontSize: 20, margin: 0 }}>Payment successful</h2>
           <p style={{ fontSize: 15, margin: '4px 0 0' }}>
             <strong>{inr(p.amountInr)}</strong> paid to {businessName}
           </p>

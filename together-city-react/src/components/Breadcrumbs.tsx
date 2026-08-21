@@ -17,7 +17,7 @@ export function Breadcrumbs({ style }: { style?: React.CSSProperties }) {
       padding: '10px 4px 2px', fontSize: 12.5, ...style }}>
       <button type="button" onClick={() => nav(-1)}
         style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: '1px solid var(--line)',
-          borderRadius: 999, padding: '3px 10px', cursor: 'pointer', color: 'var(--ink)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600 }}>
+          borderRadius: 'var(--r-full)', padding: '3px 10px', cursor: 'pointer', color: 'var(--ink)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600 }}>
         ← Back
       </button>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', color: 'var(--muted)' }}>

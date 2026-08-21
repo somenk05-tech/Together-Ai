@@ -102,7 +102,7 @@ export function Calendar() {
 
       {/* View toggle + category filters */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', margin: '18px 0 14px' }}>
-        <div style={{ display: 'inline-flex', border: '1px solid var(--line)', borderRadius: 999, overflow: 'hidden' }}>
+        <div style={{ display: 'inline-flex', border: '1px solid var(--line)', borderRadius: 'var(--r-full)', overflow: 'hidden' }}>
           {(['month', 'week', 'day'] as View[]).map((v) => (
             <button key={v} type="button" onClick={() => setView(v)}
               style={{ border: 'none', cursor: 'pointer', padding: '7px 16px', fontFamily: 'inherit', fontSize: 13, fontWeight: 600,
@@ -116,7 +116,7 @@ export function Calendar() {
           const on = active.has(c.key);
           return (
             <button key={c.key} type="button" onClick={() => toggleCat(c.key)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', padding: '6px 12px', borderRadius: 999,
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', padding: '6px 12px', borderRadius: 'var(--r-full)',
                 fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, border: `1px solid ${on ? c.color : 'var(--line)'}`,
                 background: on ? `${c.color}18` : 'transparent', color: on ? c.color : 'var(--muted)' }}>
               <span aria-hidden>{c.icon}</span>{c.label}
@@ -211,7 +211,7 @@ export function Calendar() {
         <Card>
           {weekEvents.sort((a, b) => (a.date + (a.time ?? '')).localeCompare(b.date + (b.time ?? ''))).map((e) => (
             <div key={e.id} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '11px 0', borderTop: '1px solid var(--line)' }}>
-              <span style={{ fontSize: 18 }}>{CATEGORIES.find((c) => c.key === e.category)?.icon}</span>
+              <span style={{ fontSize: 17 }}>{CATEGORIES.find((c) => c.key === e.category)?.icon}</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 600, fontSize: 14 }}>{e.title}</div>
                 <div className="muted" style={{ fontSize: 12.5 }}>{new Date(e.date).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric' })}{e.time ? ` · ${e.time}` : ''}{e.where ? ` · ${e.where}` : ''}</div>

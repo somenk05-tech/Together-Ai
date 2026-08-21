@@ -12,7 +12,7 @@ const airlineTint = (code: string) => ({ '6E': '#1a2a80', AI: '#b30000', UK: '#5
 function FlightRow({ f, onBook }: { f: FlightResult; onBook: (f: FlightResult) => void }) {
   return (
     <article className="card" style={{ marginBottom: 10, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap', borderLeft: f.best ? '4px solid var(--accent)' : undefined }}>
-      <div style={{ width: 44, height: 44, borderRadius: 10, display: 'grid', placeItems: 'center', flexShrink: 0, background: airlineTint(f.airlineCode), color: '#fff', fontWeight: 800, fontSize: 13 }}>{f.airlineCode}</div>
+      <div style={{ width: 44, height: 44, borderRadius: 'var(--r-1)', display: 'grid', placeItems: 'center', flexShrink: 0, background: airlineTint(f.airlineCode), color: '#fff', fontWeight: 800, fontSize: 13 }}>{f.airlineCode}</div>
       <div style={{ minWidth: 150 }}>
         <div style={{ fontWeight: 700, fontSize: 14 }}>{f.airline}</div>
         <div className="muted" style={{ fontSize: 11.5 }}>{f.flightNo} · {f.cabin}</div>
@@ -29,9 +29,9 @@ function FlightRow({ f, onBook }: { f: FlightResult; onBook: (f: FlightResult) =
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{ textAlign: 'right' }}>
           <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
-            {f.cheapest && <span style={{ fontSize: 9, fontWeight: 700, color: '#2e7d32', background: '#e8f5e9', borderRadius: 999, padding: '1px 7px' }}>CHEAPEST</span>}
-            {f.fastest && <span style={{ fontSize: 9, fontWeight: 700, color: '#1565c0', background: '#e3f2fd', borderRadius: 999, padding: '1px 7px' }}>FASTEST</span>}
-            {f.best && <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', background: 'var(--accent)', borderRadius: 999, padding: '1px 7px' }}>BEST</span>}
+            {f.cheapest && <span style={{ fontSize: 9, fontWeight: 700, color: '#2e7d32', background: '#e8f5e9', borderRadius: 'var(--r-full)', padding: '1px 7px' }}>CHEAPEST</span>}
+            {f.fastest && <span style={{ fontSize: 9, fontWeight: 700, color: '#1565c0', background: '#e3f2fd', borderRadius: 'var(--r-full)', padding: '1px 7px' }}>FASTEST</span>}
+            {f.best && <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', background: 'var(--accent)', borderRadius: 'var(--r-full)', padding: '1px 7px' }}>BEST</span>}
           </div>
           <div style={{ fontWeight: 800, fontSize: 17, marginTop: 3 }}>{inr(f.priceInr)}</div>
         </div>
@@ -77,7 +77,7 @@ export function Flights() {
   }, [results.data, sort, nonstopOnly]);
 
   const opts = airports.data ?? [];
-  const sel = { padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', background: 'var(--card, #fff)' } as const;
+  const sel = { padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit', background: 'var(--card, #fff)' } as const;
   const swap = () => { setFrom(to); setTo(from); };
 
   return (
@@ -110,9 +110,9 @@ export function Flights() {
               <span className="muted" style={{ fontSize: 12.5 }}>· {flights.length} flights · {date}</span>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
                 {(['best', 'cheapest', 'fastest'] as Sort[]).map((s) => (
-                  <button key={s} type="button" onClick={() => setSort(s)} style={{ cursor: 'pointer', textTransform: 'capitalize', borderRadius: 999, padding: '5px 13px', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', border: `1.5px solid ${sort === s ? 'var(--accent)' : 'var(--line)'}`, background: sort === s ? 'var(--accent)' : 'transparent', color: sort === s ? '#fff' : 'var(--ink-soft)' }}>{s}</button>
+                  <button key={s} type="button" onClick={() => setSort(s)} style={{ cursor: 'pointer', textTransform: 'capitalize', borderRadius: 'var(--r-full)', padding: '5px 13px', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', border: `1.5px solid ${sort === s ? 'var(--accent)' : 'var(--line)'}`, background: sort === s ? 'var(--accent)' : 'transparent', color: sort === s ? '#fff' : 'var(--ink-soft)' }}>{s}</button>
                 ))}
-                <button type="button" onClick={() => setNonstopOnly((v) => !v)} style={{ cursor: 'pointer', borderRadius: 999, padding: '5px 13px', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', border: `1.5px solid ${nonstopOnly ? 'var(--accent)' : 'var(--line)'}`, background: nonstopOnly ? 'var(--accent)' : 'transparent', color: nonstopOnly ? '#fff' : 'var(--ink-soft)' }}>Non-stop</button>
+                <button type="button" onClick={() => setNonstopOnly((v) => !v)} style={{ cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '5px 13px', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', border: `1.5px solid ${nonstopOnly ? 'var(--accent)' : 'var(--line)'}`, background: nonstopOnly ? 'var(--accent)' : 'transparent', color: nonstopOnly ? '#fff' : 'var(--ink-soft)' }}>Non-stop</button>
               </div>
             </div>
             {flights.map((f) => <FlightRow key={f.id} f={f} onBook={setPayFor} />)}

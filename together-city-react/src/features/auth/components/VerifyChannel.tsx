@@ -200,7 +200,7 @@ const field: React.CSSProperties = {
 };
 
 const errorStyle: React.CSSProperties = {
-  fontSize: 13, margin: 0, padding: '10px 12px', borderRadius: 10,
+  fontSize: 13, margin: 0, padding: '10px 12px', borderRadius: 'var(--r-1)',
   background: 'var(--danger-soft)', color: 'var(--danger-ink)', lineHeight: 1.5,
 };
 

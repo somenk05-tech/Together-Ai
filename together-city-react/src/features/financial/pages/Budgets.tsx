@@ -12,7 +12,7 @@ function BudgetRow({ b }: { b: Budget }) {
   return (
     <div style={{ padding: '14px 0', borderTop: '1px solid var(--line)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ fontSize: 18 }}>{catIcon[b.category]}</span>
+        <span style={{ fontSize: 17 }}>{catIcon[b.category]}</span>
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 700, fontSize: 13.5 }}>{b.label}</div>
           <div className="muted" style={{ fontSize: 11.5 }}>{inr(b.spentInr)} of {inr(b.monthlyInr)}{b.isDefault ? ' (default)' : ''}</div>
@@ -28,7 +28,7 @@ function BudgetRow({ b }: { b: Budget }) {
           <Button variant="line" size="sm" onClick={() => setEditing(true)}>Edit</Button>
         )}
       </div>
-      <div style={{ height: 9, borderRadius: 999, background: 'var(--line)', marginTop: 8, overflow: 'hidden' }}>
+      <div style={{ height: 9, borderRadius: 'var(--r-full)', background: 'var(--line)', marginTop: 8, overflow: 'hidden' }}>
         <div style={{ height: '100%', width: `${Math.min(100, b.pct)}%`, background: barColor, transition: 'width .3s' }} />
       </div>
       {b.over && <div style={{ fontSize: 11.5, color: 'var(--danger-ink)', fontWeight: 600, marginTop: 4 }}>Over budget by {inr(b.spentInr - b.monthlyInr)}</div>}

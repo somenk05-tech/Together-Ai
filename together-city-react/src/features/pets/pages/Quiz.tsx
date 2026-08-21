@@ -130,7 +130,7 @@ function Toggle({ label, value, onChange }: { label: string; value: boolean; onC
             onClick={() => onChange(v)}
             aria-pressed={value === v}
             style={{
-              font: 'inherit', fontSize: 13, fontWeight: value === v ? 700 : 500, padding: '8px 20px', borderRadius: 999, cursor: 'pointer',
+              font: 'inherit', fontSize: 13, fontWeight: value === v ? 700 : 500, padding: '8px 20px', borderRadius: 'var(--r-full)', cursor: 'pointer',
               border: `1px solid ${value === v ? 'var(--accent-line)' : 'var(--line)'}`,
               background: value === v ? 'var(--accent-soft)' : 'var(--card)',
               color: value === v ? 'var(--accent-ink)' : 'var(--ink-soft)',

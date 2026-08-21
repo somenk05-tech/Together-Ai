@@ -48,7 +48,7 @@ export function DailyOffers() {
           {rows.map((o) => (
             <Card key={o.id} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '16px 18px' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--on-accent)', background: 'var(--accent)', borderRadius: 999, padding: '2px 9px' }}>
+                <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--on-accent)', background: 'var(--accent)', borderRadius: 'var(--r-full)', padding: '2px 9px' }}>
                   {offerWhen(o)}
                 </span>
                 {o.startsToday && (

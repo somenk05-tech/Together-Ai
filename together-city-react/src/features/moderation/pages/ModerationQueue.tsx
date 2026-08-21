@@ -95,7 +95,7 @@ function Group({ group }: { group: ReportGroup }) {
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
         <strong style={{ fontSize: 13.5, textTransform: 'capitalize' }}>{group.targetType}</strong>
         <span style={{
-          fontSize: 11.5, fontWeight: 700, borderRadius: 999, padding: '2px 9px',
+          fontSize: 11.5, fontWeight: 700, borderRadius: 'var(--r-full)', padding: '2px 9px',
           background: group.distinctReporters >= 3 ? 'var(--danger-soft)' : 'var(--accent-soft)',
           color: group.distinctReporters >= 3 ? 'var(--danger-ink)' : 'var(--accent)',
         }}>

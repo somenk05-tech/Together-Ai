@@ -58,9 +58,9 @@ export function Completion({ onReview }: { onReview?: () => void }) {
             <div
               role="progressbar" aria-label={s.label}
               aria-valuenow={s.percent} aria-valuemin={0} aria-valuemax={100}
-              style={{ height: 6, borderRadius: 999, background: 'var(--wash)', boxShadow: 'var(--edge-in)', marginTop: 6, overflow: 'hidden' }}
+              style={{ height: 6, borderRadius: 'var(--r-full)', background: 'var(--wash)', boxShadow: 'var(--edge-in)', marginTop: 6, overflow: 'hidden' }}
             >
-              <div style={{ width: `${s.percent}%`, height: '100%', borderRadius: 999, background: 'var(--ink)' }} />
+              <div style={{ width: `${s.percent}%`, height: '100%', borderRadius: 'var(--r-full)', background: 'var(--ink)' }} />
             </div>
             {s.missing.length > 0 && (
               <p className="muted" style={{ fontSize: 12, margin: '6px 0 0' }}>

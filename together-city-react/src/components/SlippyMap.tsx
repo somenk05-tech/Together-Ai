@@ -176,9 +176,9 @@ export function SlippyMap({ lat, lng, zoom = 15, height = 260, onMove, pin = tru
           {([['+', 1, 'Zoom in'], ['−', -1, 'Zoom out']] as const).map(([sign, d, aria]) => (
             <button key={aria} type="button" aria-label={aria} onClick={() => zoomBy(d)}
               style={{
-                width: 44, height: 44, borderRadius: 10, cursor: 'pointer',
+                width: 44, height: 44, borderRadius: 'var(--r-1)', cursor: 'pointer',
                 border: '1px solid var(--line)', background: 'var(--card)',
-                fontSize: 18, lineHeight: 1, fontFamily: 'inherit', color: 'var(--ink)',
+                fontSize: 17, lineHeight: 1, fontFamily: 'inherit', color: 'var(--ink)',
               }}>{sign}</button>
           ))}
         </div>

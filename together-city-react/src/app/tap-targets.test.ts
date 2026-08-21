@@ -61,6 +61,11 @@ describe('every small control has a 44px target', () => {
     // If somebody "fixes" this by growing the paint instead, the design changes
     // everywhere and this test should be the thing that says so.
     expect(css).toMatch(/\.btn-sm \{ height: 35px/);
-    expect(css).toMatch(/\.pill, \.chip \{ font-size: 12\.5px; height: 33px/);
+    // EITHER SPELLING OF THE SAME SIZE. --fs-3 IS 12.5px; the type scale landed
+    // and 287 CSS declarations were pointed at it, so an assertion that pinned
+    // the digits was reading the spelling rather than the size. Second one of
+    // these in this sweep — a value-preserving codemod is exactly what catches
+    // a guard that names a literal instead of an intent.
+    expect(css).toMatch(/\.pill, \.chip \{ font-size: (?:12\.5px|var\(--fs-3\)); height: 33px/);
   });
 });

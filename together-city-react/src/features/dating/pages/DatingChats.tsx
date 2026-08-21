@@ -91,12 +91,12 @@ function ChatRow({ c, active, onClick }: { c: DatingChatSummary; active: boolean
   }, [confirming]);
 
   return (
-    <div style={{ position: 'relative', marginBottom: 8, borderRadius: 14, overflow: 'hidden' }}>
+    <div style={{ position: 'relative', marginBottom: 8, borderRadius: 'var(--r-2)', overflow: 'hidden' }}>
       {/* The drawer, behind the row. `aria-hidden` while shut so the control is
           not a tab stop nobody can see. */}
       <div aria-hidden={!open} style={{
         position: 'absolute', inset: 0, display: 'flex', justifyContent: 'flex-end', alignItems: 'stretch',
-        background: 'var(--danger-soft)', borderRadius: 14,
+        background: 'var(--danger-soft)', borderRadius: 'var(--r-2)',
       }}>
         <button type="button"
           onClick={() => { if (confirming) { unmatch.mutate(c.otherUserId); close(); } else setConfirming(true); }}
@@ -128,20 +128,20 @@ function ChatRow({ c, active, onClick }: { c: DatingChatSummary; active: boolean
       >
     <button type="button" onClick={() => { if (open) { close(); return; } onClick(); }} style={{
       display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
-      padding: '12px 12px', borderRadius: 14, border: '1px solid var(--line)',
+      padding: '12px 12px', borderRadius: 'var(--r-2)', border: '1px solid var(--line)',
       background: active ? 'var(--accent-soft)' : 'var(--card)',
     }}>
       <Avatar name={c.name} photo={c.photo} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <span style={{ fontWeight: 700, fontSize: 14.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
+          <span style={{ fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
           <span className="muted" style={{ marginLeft: 'auto', fontSize: 11.5, flex: 'none' }}>{timeAgo(c.lastMessageAt)}</span>
         </div>
         <div className="muted" style={{ fontSize: 12.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 2 }}>
           {c.lastText ? `${c.lastFromMe ? 'You: ' : ''}${c.lastText}` : 'Say hello 👋'}
         </div>
       </div>
-      {c.unread > 0 && <span style={{ flex: 'none', minWidth: 20, height: 20, borderRadius: 999, background: 'var(--accent)', color: 'var(--on-accent)', fontSize: 11, fontWeight: 700, display: 'grid', placeItems: 'center', padding: '0 6px' }}>{c.unread}</span>}
+      {c.unread > 0 && <span style={{ flex: 'none', minWidth: 20, height: 20, borderRadius: 'var(--r-full)', background: 'var(--accent)', color: 'var(--on-accent)', fontSize: 11, fontWeight: 700, display: 'grid', placeItems: 'center', padding: '0 6px' }}>{c.unread}</span>}
     </button>
       </motion.div>
     </div>

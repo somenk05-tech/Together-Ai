@@ -22,7 +22,7 @@ function Row({ t }: { t: Txn }) {
           <span style={{ color: catColor[t.category], fontWeight: 600 }}>{t.hub}</span> · {t.date.slice(0, 10)}
         </div>
       </div>
-      <span style={{ fontWeight: 700, fontSize: 14.5, color: credit ? 'var(--ok-ink)' : 'var(--ink)' }}>{credit ? '+' : '−'}{inr(t.amountInr)}</span>
+      <span style={{ fontWeight: 700, fontSize: 15, color: credit ? 'var(--ok-ink)' : 'var(--ink)' }}>{credit ? '+' : '−'}{inr(t.amountInr)}</span>
     </div>
   );
 }
@@ -48,7 +48,7 @@ export function Transactions() {
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
         {FILTERS.map((f) => (
           <button key={f.key} type="button" onClick={() => setFilter(f.key)}
-            style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 14px', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit',
+            style={{ cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '6px 14px', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit',
               border: '1.5px solid var(--line)', background: filter === f.key ? 'var(--accent)' : 'transparent', color: filter === f.key ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
             {f.label}
           </button>

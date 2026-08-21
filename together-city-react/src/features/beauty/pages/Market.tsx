@@ -105,12 +105,12 @@ function Tile(
               the market and the routine are two lists of products that do not
               acknowledge each other, and you buy your own cleanser twice. */}
           {inRoutine.length > 0 && (
-            <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--accent-ink)', background: 'var(--accent-soft)', border: '1px solid var(--accent-line)', borderRadius: 999, padding: '3px 9px' }}>
+            <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--accent-ink)', background: 'var(--accent-soft)', border: '1px solid var(--accent-line)', borderRadius: 'var(--r-full)', padding: '3px 9px' }}>
               ✓ Routine · {inRoutine.map((b) => BAND_WORD[b] ?? b).join(' & ')}
             </span>
           )}
           {p.matched && inRoutine.length === 0 && (
-            <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 999, padding: '3px 9px' }}>
+            <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '3px 9px' }}>
               {p.matchScore}% match
             </span>
           )}
@@ -126,7 +126,7 @@ function Tile(
       </div>
 
       {open && (
-        <div style={{ textAlign: 'left', marginTop: 6, padding: '10px 12px', background: 'var(--paper)', borderRadius: 10, display: 'flex', flexDirection: 'column', gap: 7 }}>
+        <div style={{ textAlign: 'left', marginTop: 6, padding: '10px 12px', background: 'var(--paper)', borderRadius: 'var(--r-1)', display: 'flex', flexDirection: 'column', gap: 7 }}>
           <p style={{ fontSize: 12, lineHeight: 1.55, margin: 0, color: 'var(--ink-soft)' }}>{p.blurb}</p>
           <div className="muted" style={{ fontSize: 11 }}>
             <strong style={{ color: 'var(--ink-soft)' }}>{p.actives.slice(0, 3).join(' · ')}</strong>
@@ -135,14 +135,14 @@ function Tile(
           {p.primaryReasons.length > 0 && (
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
               {p.primaryReasons.map((r) => (
-                <span key={r} style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '3px 9px' }}>{r}</span>
+                <span key={r} style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 'var(--r-full)', padding: '3px 9px' }}>{r}</span>
               ))}
             </div>
           )}
           {p.biomarkerReasons.length > 0 && (
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
               {p.biomarkerReasons.map((r) => (
-                <span key={r} style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 999, padding: '2px 8px' }}>🩸 {r}</span>
+                <span key={r} style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '2px 8px' }}>🩸 {r}</span>
               ))}
             </div>
           )}
@@ -269,15 +269,15 @@ export function Market() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
           <input value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search the shelf"
             placeholder="Search name, brand or ingredient"
-            style={{ width: '100%', maxWidth: 260, border: '1px solid var(--line)', borderRadius: 999, padding: '8px 14px', fontSize: 12.5, fontFamily: 'inherit', background: 'var(--paper)', color: 'var(--ink)', outline: 'none' }} />
+            style={{ width: '100%', maxWidth: 260, border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '8px 14px', fontSize: 12.5, fontFamily: 'inherit', background: 'var(--paper)', color: 'var(--ink)', outline: 'none' }} />
         </div>
 
-        <h1 style={{ fontSize: 19, margin: 0, textAlign: 'center', fontWeight: 600 }}>{heading}</h1>
+        <h1 style={{ fontSize: 20, margin: 0, textAlign: 'center', fontWeight: 600 }}>{heading}</h1>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, alignItems: 'center' }}>
           <label className="muted" style={{ fontSize: 11.5 }} htmlFor="market-sort">Sort by</label>
           <select id="market-sort" value={sort} onChange={(e) => setSort(e.target.value as Sort)}
-            style={{ border: '1px solid var(--line)', borderRadius: 999, padding: '7px 12px', fontSize: 12.5, fontFamily: 'inherit', background: 'var(--paper)', color: 'var(--ink)', outline: 'none' }}>
+            style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '7px 12px', fontSize: 12.5, fontFamily: 'inherit', background: 'var(--paper)', color: 'var(--ink)', outline: 'none' }}>
             {SORTS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
           </select>
         </div>
@@ -287,7 +287,7 @@ export function Market() {
         {[['', `Everything ${inSegment.length}`] as [string, string],
           ...categories.map(([c, n]) => [c, `${c} ${n}`] as [string, string])].map(([value, label]) => (
           <button key={value || 'all'} type="button" onClick={() => setCat(value)}
-            style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 13px', fontSize: 12, fontFamily: 'inherit', fontWeight: 600,
+            style={{ cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '6px 13px', fontSize: 12, fontFamily: 'inherit', fontWeight: 600,
               border: `1.5px solid ${cat === value ? 'var(--accent)' : 'var(--line)'}`,
               background: cat === value ? 'var(--accent)' : 'transparent',
               color: cat === value ? 'var(--on-accent)' : 'var(--ink-soft)' }}>

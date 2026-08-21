@@ -87,7 +87,7 @@ export function Wallet() {
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <input type="number" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Custom amount"
-            style={{ flex: 1, padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit' }} />
+            style={{ flex: 1, padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit' }} />
           <Button variant="accent" size="sm" disabled={topUp.isPending || !amount}
             onClick={() => { const n = Number(amount); if (n > 0) topUp.mutate(n, { onSuccess: () => setAmount('') }); }}>
             {topUp.isPending ? 'Adding…' : 'Add money'}
@@ -163,7 +163,7 @@ function WalletActions() {
   const [note, setNote] = useState<string | null>(null);
   const action = {
     display: 'grid', placeItems: 'center', gap: 4, minHeight: 66, flex: 1, minWidth: 74,
-    borderRadius: 14, border: '1px solid var(--line)', background: 'var(--card)',
+    borderRadius: 'var(--r-2)', border: '1px solid var(--line)', background: 'var(--card)',
     fontFamily: 'inherit', fontSize: 12, fontWeight: 600, cursor: 'pointer', color: 'var(--ink)',
   };
   const soon = (what: string) => () => setNote(
@@ -174,19 +174,19 @@ function WalletActions() {
     <div style={{ marginBottom: 14 }}>
       <div style={{ display: 'flex', gap: 8 }}>
         <a href="#top-up" style={{ ...action, textDecoration: 'none' }}>
-          <span aria-hidden style={{ fontSize: 18 }}>＋</span>
+          <span aria-hidden style={{ fontSize: 17 }}>＋</span>
           Add money
         </a>
         <Link to="/financial/invoices" style={{ ...action, textDecoration: 'none' }}>
-          <span aria-hidden style={{ fontSize: 18 }}>▸</span>
+          <span aria-hidden style={{ fontSize: 17 }}>▸</span>
           Pay
         </Link>
         <button type="button" style={action} onClick={soon('Sending')}>
-          <span aria-hidden style={{ fontSize: 18 }}>↗</span>
+          <span aria-hidden style={{ fontSize: 17 }}>↗</span>
           Send
         </button>
         <button type="button" style={action} onClick={soon('Requesting')}>
-          <span aria-hidden style={{ fontSize: 18 }}>↙</span>
+          <span aria-hidden style={{ fontSize: 17 }}>↙</span>
           Request
         </button>
       </div>
