@@ -26,6 +26,21 @@ export interface Call {
   participants: CallParticipant[];
 }
 
+export type ReachDenial = 'dating' | 'group' | 'nobody' | 'unverified';
+
+/**
+ * How to reach the other person when the app is not the answer.
+ *
+ * `phoneE164` is null far more often than not, and `reason` says which rule
+ * said no — a dating chat, a group, or a number nobody has verified. The page
+ * offers the in-app call in every one of those cases; the reason is there so it
+ * can say why rather than infer it from a null.
+ */
+export interface Reach {
+  phoneE164: string | null;
+  reason: ReachDenial | null;
+}
+
 export interface IceConfig {
   iceServers: RTCIceServer[];
   /** False when no TURN relay is configured — some networks will never connect. */
@@ -63,6 +78,9 @@ export function isCall(value: unknown): value is Call {
 
 export const callsApi = {
   ice: () => api.get<IceConfig>('/calls/ice').then((r) => r.data),
+  /** The number this conversation may be carried on, or null with a reason. */
+  reach: (conversationId: string) =>
+    api.get<Reach>(`/calls/reach/${conversationId}`).then((r) => r.data),
   /** The call ringing for you right now, or null — ring recovery for tabs
    *  that were not alive when the CALL_RINGING frame was emitted. */
   ringing: () => api.get<Call | null>('/calls/ringing').then((r) => r.data),
