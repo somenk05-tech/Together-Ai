@@ -172,9 +172,24 @@ export function packLabel(name: string): string {
  * months" answers it before it is asked.
  */
 export function lastsLabel(months: number): string {
+  // AT THE CEILING THE NUMBER IS A FLOOR, AND SAYING "12 MONTHS" HIDES THAT.
+  // `monthsOfUse` clamps at a year because nothing survives longer once opened,
+  // so a 1000 ml conditioner and a 360 ml hand cream both come out at exactly
+  // 12 and both print a rupee figure that is the cheapest the model is allowed
+  // to say. Two of the fourteen steps on the live sheet are sitting on this
+  // clamp. An estimate that is really a bound should read as one.
+  if (months >= MAX_MONTHS) return 'a year or more';
   if (months < 2) {
-    const weeks = Math.max(1, Math.round(months * 4.345));
-    return `about ${weeks} week${weeks === 1 ? '' : 's'}`;
+    // HALF WEEKS, BECAUSE WHOLE ONES WERE ROUNDING THE ARITHMETIC OUT OF REACH.
+    // The body wash lasts 0.833 of a month. That is 3.6 weeks, it was printed
+    // as "about 4 weeks", and the monthly figure beside it is ₹598 ÷ 0.833 =
+    // ₹718 — which does not divide out of anything on the card. ₹598 over four
+    // weeks is ₹641. The whole reason this label exists is to let somebody
+    // check the number next to it, so a rounding that breaks the check breaks
+    // the feature. Halves put the error inside the word "about".
+    const weeks = Math.max(1, Math.round(months * 4.345 * 2) / 2);
+    const shown = Number.isInteger(weeks) ? String(weeks) : `${Math.floor(weeks)}½`;
+    return `about ${shown} week${weeks === 1 ? '' : 's'}`;
   }
   const halves = Math.round(months * 2) / 2;
   const shown = Number.isInteger(halves) ? String(halves) : `${Math.floor(halves)}½`;

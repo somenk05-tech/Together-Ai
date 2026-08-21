@@ -116,6 +116,37 @@ function Step({ s, pick, qty, alreadyIn, onAdd, onRemove }: {
   s: ProductRoutineStep; pick?: RoutinePick; qty: number; alreadyIn?: string;
   onAdd: () => void; onRemove: () => void;
 }) {
+  /**
+   * ── A STEP YOU ALREADY OWN ────────────────────────────────────────────────
+   *
+   * It has a number and a name and nothing else, because there is nothing else
+   * true about it: we did not choose a product, so there is no photograph, no
+   * price, no reasoning and nothing to add to a bag. Rendering a card-shaped
+   * placeholder with grey boxes where those would be is the page pretending to
+   * know something.
+   *
+   * WHAT IT IS FOR is the sequence. The routine had no cleansing step in it at
+   * all — the citizen owns a cleanser, so the planner rightly declined to sell
+   * them another, and the order then read Prep → Treat → Moisturise → Protect
+   * in the morning and never washed anything off at night.
+   */
+  if (s.owned) {
+    return (
+      <li className="routine-card is-owned">
+        <div className="routine-body">
+          <div className="routine-top">
+            <span className="muted" style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.07em' }}>
+              {s.order}. {s.step}
+            </span>
+            <span className="muted" style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.09em',
+              borderRadius: 999, padding: '2px 7px', border: '1px solid var(--line)' }}>Yours</span>
+          </div>
+          <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.55, margin: '6px 0 0' }}>{s.ownedWhy}</p>
+        </div>
+      </li>
+    );
+  }
+
   return (
     <li className="routine-card">
       {/* THE PICTURE FIRST, AND BIG. The owner's catalogue sheet is a well of
@@ -126,18 +157,18 @@ function Step({ s, pick, qty, alreadyIn, onAdd, onRemove }: {
           else. Every fact the old row carried is still here, below. */}
       <div className="routine-well">
         <span aria-hidden className="routine-num">{s.order}</span>
-        <ProductShot image={s.image} imageAlt={s.imageAlt} category={s.category} fill />
+        <ProductShot image={s.image} imageAlt={s.imageAlt} name={s.name} category={s.category} fill />
       </div>
 
       <div className="routine-body">
         <div className="routine-top">
-          <span className="muted" style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.07em' }}>{s.step}</span>
+          <span className="muted" style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.07em' }}>{s.step}</span>
           {/* WHY THIS STEP IS HERE, in one word. The plan sorts everything into
               three tiers and acts on them — essentials go in first and are never
               dropped for a nicer optional — so saying which is which is telling
               somebody how their own routine was reasoned, not decorating it. */}
           {pick && (
-            <span className="muted" style={{ fontSize: 9.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.09em',
+            <span className="muted" style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.09em',
               borderRadius: 999, padding: '2px 7px',
               background: pick.tier === 'high-value' ? 'var(--accent-soft)' : 'transparent',
               color: pick.tier === 'high-value' ? 'var(--accent-ink)' : undefined,
@@ -147,10 +178,25 @@ function Step({ s, pick, qty, alreadyIn, onAdd, onRemove }: {
           )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-          <span className="routine-price">₹{s.priceInr}</span>
-          {pick && <span className="muted" style={{ fontSize: 11 }}>≈ {rupees(pick.monthlyInr)}/month to keep</span>}
-        </div>
+        {/* A REPEATED BOTTLE IS NOT A SECOND PRICE. The evening cleanser is the
+            morning cleanser, and printing ₹8,616 against it a second time is the
+            page inviting somebody to add up a routine that costs half what the
+            column implies. The foot already says where the first one is; the
+            money is said once, where it is spent. */}
+        {alreadyIn ? (
+          <div className="muted" style={{ fontSize: 11.5 }}>Counted in your {alreadyIn.toLowerCase()} routine</div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+            {/* GROUPED, like every other rupee figure on this card. The bare form
+                was a deliberate choice while a step price was three or four
+                digits and the only place it appeared. It is neither now: the
+                shelf carries ₹8,616 products, and the fold underneath prints
+                that same number as "₹8,616 to buy" a centimetre below. One
+                number in one card in two formats is not a style, it is a bug. */}
+            <span className="routine-price">{rupees(s.priceInr)}</span>
+            {pick && <span className="muted" style={{ fontSize: 11 }}>≈ {rupees(pick.monthlyInr)}/month to keep</span>}
+          </div>
+        )}
         {/* THE NAME IS NOT A LINK ANY MORE, at the owner's word, and the
             reasoning it replaces is worth keeping: it used to open the
             retailer's page, on the argument that a routine which names a
@@ -340,10 +386,41 @@ function Band(
  * finished, not 85% finished. The line under the bar says so in as many words,
  * because every shop the citizen has ever used says the opposite.
  */
-const CATEGORY: Record<CategoryPlan['category'], { label: string; sub: string }> = {
-  face: { label: 'Face', sub: 'Cleanse · treat · moisturise · protect' },
-  hair: { label: 'Hair', sub: 'Wash · condition · scalp' },
-  body: { label: 'Body', sub: 'Wash · moisturise · hands & lips' },
+const CATEGORY: Record<CategoryPlan['category'], { label: string }> = {
+  face: { label: 'Face' }, hair: { label: 'Hair' }, body: { label: 'Body' },
+};
+
+/**
+ * THE STRIP UNDER THE CATEGORY NAME IS THE PLAN, NOT A DESCRIPTION OF ONE.
+ *
+ * It was three constants, and all three were read as derived because they sit
+ * directly above the product count, which is. Live, on the owner's own profile,
+ * FACE said "Cleanse · treat · moisturise · protect" over a routine with no
+ * cleanser in it — the citizen had told us they already own one — and HAIR said
+ * "scalp" over a plan with no scalp step at any budget. A line that names a step
+ * the plan does not contain is the page telling somebody they bought something
+ * they did not.
+ *
+ * KEPT ROLES COUNT. A step somebody already owns is still in their routine; it
+ * is only not in their basket. So it is listed, and marked, rather than dropped
+ * — which is the same reasoning as the `kept` list further down this card.
+ */
+const roleStrip = (c: CategoryPlan) => {
+  const seen = new Set<string>();
+  const parts: string[] = [];
+  for (const r of [...c.picks.map((p) => p.role), ...c.kept.map((k) => `${k.role} (yours)`)]) {
+    const key = r.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    parts.push(r.toLowerCase());
+  }
+  return parts.join(' · ');
+};
+
+/** A finding key as a person would read it: 'dark-spots' → 'Dark spots'. */
+const needLabel = (k: string) => {
+  const words = k.replace(/[-_]+/g, ' ').trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
 };
 
 function BudgetCard(
@@ -356,6 +433,11 @@ function BudgetCard(
   // the truth; a figure clamped to 100 would be the page hiding the headroom it
   // just used.
   const pct = c.budgetInr > 0 ? Math.round((c.spendInr / c.budgetInr) * 100) : 0;
+  /** The dearest bottle to keep, when it is more than half the upkeep. */
+  const dominant = c.picks.length > 0 && c.monthlyInr > 0
+    ? [...c.picks].sort((a, b) => b.monthlyInr - a.monthlyInr)
+      .filter((p) => p.monthlyInr * 2 > c.monthlyInr)[0]
+    : undefined;
   const short = c.minimumInr !== null && !kept;
   const ideal = c.idealInr !== null && !kept && !short;
   const ask = short ? (c.minimumInr as number) : ideal ? (c.idealInr as number) : null;
@@ -366,7 +448,7 @@ function BudgetCard(
         <h3 style={{ fontSize: 13, margin: 0, textTransform: 'uppercase', letterSpacing: '.12em' }}>{meta.label}</h3>
         <span className="muted" style={{ fontSize: 11 }}>{c.picks.length} product{c.picks.length === 1 ? '' : 's'}</span>
       </div>
-      <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>{meta.sub}</div>
+      <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>{roleStrip(c)}</div>
 
       <dl style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '7px 12px', margin: '14px 0 0' }}>
         <dt className="muted" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>Budget</dt>
@@ -377,8 +459,18 @@ function BudgetCard(
         </dd>
       </dl>
 
-      <div aria-hidden style={{ height: 6, borderRadius: 999, background: 'var(--line)', overflow: 'hidden', margin: '12px 0 7px' }}>
-        <div style={{ width: `${Math.min(100, pct)}%`, height: '100%', background: 'var(--accent)', borderRadius: 999 }} />
+      {/* THE ONE STATE THIS BAR EXISTS TO SHOW WAS THE ONE IT COULD NOT.
+          Capping the fill at 100 is right — a bar that runs past its own track
+          is a bar that has stopped meaning anything — but the cap was the whole
+          drawing, so 101% and 100% rendered as the same solid accent and the
+          overrun lived only in the sentence beside it. The track now carries the
+          last stretch in the warning ink, sized to the overrun and never less
+          than a visible sliver, so the figure and the picture agree. */}
+      <div aria-hidden style={{ height: 6, borderRadius: 999, background: 'var(--line)', overflow: 'hidden', margin: '12px 0 7px', display: 'flex' }}>
+        <div style={{ width: `${Math.min(100, pct) - (c.overInr > 0 ? Math.max(3, Math.min(12, pct - 100)) : 0)}%`, height: '100%', background: 'var(--accent)' }} />
+        {c.overInr > 0 && (
+          <div style={{ width: `${Math.max(3, Math.min(12, pct - 100))}%`, height: '100%', background: 'var(--warn-ink)' }} />
+        )}
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <span className="muted" style={{ fontSize: 11.5 }}>{pct}% of your {meta.label.toLowerCase()} budget</span>
@@ -393,7 +485,7 @@ function BudgetCard(
           never a rupee further. The sentence used to justify the overrun with
           "a better match", which the band pass can no longer promise. */}
       {c.overInr > 0 && (
-        <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.55, margin: '7px 0 0' }}>
+        <p className="muted" style={{ fontSize: 12, lineHeight: 1.55, margin: '7px 0 0' }}>
           {rupees(c.overInr)} over the {rupees(c.budgetInr)} you set — shelf prices can&rsquo;t always
           land exactly on your number, so we allow up to five per cent, and never more than that.
         </p>
@@ -411,7 +503,7 @@ function BudgetCard(
       {c.kept.length > 0 && (
         <ul style={{ listStyle: 'none', padding: 0, margin: '12px 0 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
           {c.kept.map((k) => (
-            <li key={k.role} style={{ fontSize: 11.5, lineHeight: 1.5 }}>
+            <li key={k.role} style={{ fontSize: 12, lineHeight: 1.5 }}>
               <span style={{ fontWeight: 700 }}>{k.role}</span>
               <span className="muted"> — {k.why}</span>
             </li>
@@ -422,9 +514,56 @@ function BudgetCard(
       {c.leftOut.length > 0 && (
         <ul style={{ listStyle: 'none', padding: 0, margin: '12px 0 0', display: 'flex', flexDirection: 'column', gap: 5 }}>
           {c.leftOut.slice(0, 3).map((l) => (
-            <li key={l.role} className="muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>· {l.why}</li>
+            <li key={l.role} className="muted" style={{ fontSize: 12, lineHeight: 1.55 }}>· {l.why}</li>
           ))}
         </ul>
+      )}
+
+      {/* ── A CONCERN WE PRINTED AS A CHIP AND THEN DID NOT ANSWER ────────────
+          The page prints the citizen's declared findings at the top and a
+          routine underneath, and nothing checked that the second addressed the
+          first. Live, nothing in a ₹51,549 routine treated the blackheads: not
+          a selection bug — no product answering that key survived this
+          category's roles — but a promise broken without a word. Said plainly
+          here, where the rest of what this category did and did not do is. */}
+      {/* `?? []` BECAUSE THE TWO RAILS DEPLOY SEPARATELY. The field arrives
+          with the Railway release; between that and the Vercel one this page is
+          reading a plan that does not have it, and `.length` on undefined is a
+          white screen rather than a missing sentence. */}
+      {(c.uncoveredNeeds ?? []).length > 0 && (
+        <p style={{ fontSize: 12, lineHeight: 1.55, margin: '12px 0 0' }}>
+          <strong>Not treated here</strong>
+          <span className="muted"> — {(c.uncoveredNeeds ?? []).map(needLabel).join(', ')}. Nothing on this
+            shelf that answers {(c.uncoveredNeeds ?? []).length === 1 ? 'it' : 'them'} fits a step in your
+            {' '}{meta.label.toLowerCase()} routine. We would rather say so than let the chip stand for an answer.</span>
+        </p>
+      )}
+
+      {/* ── WHAT IT COSTS TO KEEP, AND WHERE THAT MONEY GOES ─────────────────
+          One line, and it only appears when one bottle is more than half of
+          the category's upkeep — which on the live sheet was true twice, at
+          73% and 79%. The budget is a purchase budget by design; this is the
+          number it does not govern, put where somebody can act on it. */}
+      {dominant && (
+        <p className="muted" style={{ fontSize: 12, lineHeight: 1.55, margin: '10px 0 0' }}>
+          ≈ {rupees(c.monthlyInr)}/month to keep going — {rupees(dominant.monthlyInr)} of that
+          is one product, the {dominant.name}.
+        </p>
+      )}
+
+      {/* ── MONEY THIS SHELF CANNOT HONESTLY SPEND ───────────────────────────
+          `usefulMaxInr` is the dearest routine in which every step is at least
+          as well matched as the best cheap one. It has been computed per person
+          since the cap landed and it caps the dial on the profile — but the
+          routine page never showed it, so a citizen whose budget runs past it
+          sees 99% of a number used and no hint that the last stretch bought a
+          dearer version of the same answer. */}
+      {c.usefulMaxInr > 0 && c.spendInr > c.usefulMaxInr && (
+        <p className="muted" style={{ fontSize: 12, lineHeight: 1.55, margin: '10px 0 0' }}>
+          Past about {rupees(c.usefulMaxInr)} this shelf stops being able to match you better
+          for your {meta.label.toLowerCase()} — above that the money buys a dearer version of
+          the same answer, not a closer one.
+        </p>
       )}
 
       {/* TWO ASKS, NEVER BOTH, AND NEITHER EVER ACTS ON ITS OWN.
@@ -569,7 +708,10 @@ export function Routine() {
    */
   const everyStep = useMemo(() => {
     const byId = new Map<string, ProductRoutineStep>();
-    for (const r of data?.routines ?? []) for (const s of r.steps) if (!byId.has(s.productId)) byId.set(s.productId, s);
+    // AN OWNED STEP HAS NO PRODUCT ID, so it must never reach here: it would
+    // key the map on '', join to no pick, price at ₹0, and be handed to "add
+    // the whole routine" as something to buy.
+    for (const r of data?.routines ?? []) for (const s of r.steps) if (!s.owned && !byId.has(s.productId)) byId.set(s.productId, s);
 
     return [...byId.values()];
   }, [data]);
@@ -582,7 +724,7 @@ export function Routine() {
    */
   const firstSeen = useMemo(() => {
     const at = new Map<string, string>();
-    for (const r of data?.routines ?? []) for (const s of r.steps) if (!at.has(s.productId)) at.set(s.productId, r.title);
+    for (const r of data?.routines ?? []) for (const s of r.steps) if (!s.owned && !at.has(s.productId)) at.set(s.productId, r.title);
     return at;
   }, [data]);
 
@@ -784,8 +926,19 @@ export function Routine() {
               <div style={{ fontSize: 21, fontWeight: 800, letterSpacing: '-.01em' }}>{rupees(routineTotal)}</div>
               {/* Both numbers, because they answer two different questions: what
                   it costs to buy today, and what it costs to keep. */}
+              {/* ── THE NUMBER THE BUDGET DOES NOT GOVERN ────────────────────
+                  A budget is what you hand over at the counter — the owner
+                  settled that on 15 Aug and nothing here reopens it. But the
+                  upkeep figure sat in 11px grey under the price and was left to
+                  the reader to annualise, and on this profile it annualises to
+                  nearly six times the budget. The routine is not too expensive;
+                  the page was simply quieter about the larger of its two
+                  numbers than about the smaller. */}
               {monthlyTotal > 0 && (
-                <div className="muted" style={{ fontSize: 11 }}>≈ {rupees(monthlyTotal)}/month to keep going</div>
+                <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--line)' }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700 }}>≈ {rupees(monthlyTotal)}/month to keep going</div>
+                  <div className="muted" style={{ fontSize: 11.5 }}>about {rupees(monthlyTotal * 12)} over a year, at the doses this routine assumes</div>
+                </div>
               )}
               {/* "ADD ALL TO BAG" IS BACK, at the owner's word, and what it
                   cost to remove is worth keeping written down: this card is a
@@ -815,15 +968,37 @@ export function Routine() {
       {data && !empty && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
           {data.personalisedBy.assessment && <span className="tag" style={{ fontSize: 11 }}>from your assessment</span>}
-          {data.personalisedBy.labs && <span className="tag" style={{ fontSize: 11 }}>🩸 using your biomarkers</span>}
+          {/* WHAT THE FLAG ACTUALLY MEANS. `labs` is a boolean: the assessment
+              read the citizen's blood work. It does not carry WHICH marker, or
+              what it changed, and "using your biomarkers" over a routine is a
+              claim of influence nobody can check — the one kind of
+              personalisation badge that is worse than none. It says what it can
+              support and goes to the page where the reasoning is written. */}
+          {data.personalisedBy.labs && (
+            <Link to="/beauty/profile" className="tag" style={{ fontSize: 11 }}>
+              🩸 your biomarkers were read — see your assessment
+            </Link>
+          )}
           {data.personalisedBy.concerns.map((c) => <span key={c} className="tag" style={{ fontSize: 11 }}>{c}</span>)}
         </div>
       )}
 
+      {/* ── IT IS NOT A FORECAST, SO IT NO LONGER DRESSES AS ONE ─────────────
+          The sentence is one static string per skin type, written by the
+          assessment, and it names BOTH seasons in the same breath: "Summer: …
+          Winter: …". Printed under a weather emoji, above a routine built this
+          morning, it read as advice for today — and there is no clock and no
+          city anywhere in the engine that produced it. The heading says what it
+          actually is: the standing note about how this routine moves through
+          the year. Give the engine a date and a place and this can become a
+          forecast; until then it must not look like one. */}
       {!empty && seasonal && (
-        <p style={{ fontSize: 12.5, lineHeight: 1.55, margin: '0 0 14px', background: 'var(--paper)', borderRadius: 10, padding: '10px 12px' }}>
-          🌦️ {seasonal}
-        </p>
+        <div style={{ margin: '0 0 14px', background: 'var(--paper)', borderRadius: 10, padding: '10px 12px' }}>
+          <div className="muted" style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase' }}>
+            How this routine changes with the seasons
+          </div>
+          <p style={{ fontSize: 12.5, lineHeight: 1.55, margin: '4px 0 0' }}>{seasonal}</p>
+        </div>
       )}
 
       {empty ? (

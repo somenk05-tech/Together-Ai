@@ -29,8 +29,8 @@ const GLYPH: Array<[RegExp, string]> = [
 export const glyphFor = (category: string) => GLYPH.find(([m]) => m.test(category))?.[1] ?? '🧴';
 
 export function ProductShot(
-  { image, imageAlt, category, size = 62, bare = false, fill = false }:
-  { image?: string; imageAlt?: string; category: string; size?: number; bare?: boolean; fill?: boolean },
+  { image, imageAlt, name, category, size = 62, bare = false, fill = false }:
+  { image?: string; imageAlt?: string; name?: string; category: string; size?: number; bare?: boolean; fill?: boolean },
 ) {
   const sources = [image, imageAlt].filter(Boolean) as string[];
   const [tried, setTried] = useState(0);
@@ -72,7 +72,14 @@ export function ProductShot(
       ...(bare || fill ? {} : { borderRadius: 12, background: 'var(--paper)', border: '1px solid var(--line)' }),
     }}>
       {src
-        ? <img key={src} src={src} alt="" loading="lazy" onError={() => setTried((n) => n + 1)}
+        /* THE PHOTOGRAPH IS THE IDENTIFIER, so it is not decorative. The
+           routine sheet's own reasoning for printing it large is that it is
+           "what somebody matches against a shelf" — which is a description of
+           content, and content behind `alt=""` is content a screen reader is
+           told to skip. `name` is optional and absent callers are unchanged:
+           a 62px thumbnail beside the product's own name IS decorative, and
+           reading the name twice is worse than not reading it. */
+        ? <img key={src} src={src} alt={name ?? ''} loading="lazy" onError={() => setTried((n) => n + 1)}
             className={fill ? 'no-case' : undefined}
             style={fill
               /* ONE KEYWORD, AND IT REPLACES A RULE THAT SILENTLY DID NOTHING.

@@ -81,7 +81,7 @@ describe('when the next order is due', () => {
     // weeks" is a number to be checked against the bottle on the shelf.
     const spf = shelf('Sunscreen');
     const due = reorderDueFor(order([{ id: spf.id, name: spf.name, qty: 1 }]))!;
-    expect(due.lastsLabel).toMatch(/^about \d+(½)? (weeks?|months)$/);
+    expect(due.lastsLabel).toMatch(/^(about \d+(½)? (weeks?|months)|a year or more)$/);
     expect(due.productName).toBe(spf.name);
     // And the short form, for the sentence: "your sunscreen runs out first".
     expect(due.productCategory).toBe(spf.category);

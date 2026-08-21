@@ -578,7 +578,12 @@ describe('the plan the browser receives', () => {
     const sized = every.filter((p) => p.packLabel !== '');
     expect(sized.length).toBeGreaterThan(0);
     expect(sized.every((p) => /^[\d.]+\s?(ml|g|gm|kg|l)$/.test(p.packLabel))).toBe(true);
-    expect(every.every((p) => /^about \d/.test(p.lastsLabel))).toBe(true);
+    // TWO SANCTIONED FORMS, NOT ONE. A pack that outlives the twelve-month
+    // period-after-opening clamp says "a year or more", because printing
+    // "about 12 months" there states a bound as if it were a measurement —
+    // and the rupee figure beside it is then the cheapest the model is
+    // allowed to say rather than an estimate.
+    expect(every.every((p) => /^(about \d|a year or more$)/.test(p.lastsLabel))).toBe(true);
   });
 
   it('keeps the same money as the plan it was built from', () => {
