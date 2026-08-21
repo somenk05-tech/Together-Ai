@@ -238,7 +238,9 @@ export function Wellness() {
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="What is it?" style={{ font: 'inherit', fontSize: 13.5, padding: '9px 12px', borderRadius: 'var(--r-2)', border: '1px solid var(--line)', background: 'var(--card)', flex: '1 1 200px' }} />
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ font: 'inherit', fontSize: 13.5, padding: '9px 12px', borderRadius: 'var(--r-2)', border: '1px solid var(--line)', background: 'var(--card)' }} />
+          {/* The text field beside this one has a placeholder to name it; a
+              date input has no room for one, so it needs the label said out loud. */}
+          <input type="date" aria-label="Date" value={date} onChange={(e) => setDate(e.target.value)} style={{ font: 'inherit', fontSize: 13.5, padding: '9px 12px', borderRadius: 'var(--r-2)', border: '1px solid var(--line)', background: 'var(--card)' }} />
           <button type="submit" className="btn btn-sm btn-line">Add</button>
         </div>
       </form>

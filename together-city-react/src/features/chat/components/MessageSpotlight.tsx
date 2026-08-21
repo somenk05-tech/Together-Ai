@@ -238,7 +238,9 @@ export function MessageSpotlight({
               onClick={() => { onReact(myReaction === e ? null : e); onDismiss(); }}
               style={{
                 border: 'none', cursor: 'pointer', fontSize: 22, lineHeight: 1,
-                width: 40, height: 40, borderRadius: 'var(--r-full)', padding: 0,
+                // 44, not 40. The emoji is unchanged; the box around it is the
+                // one somebody has to hit with a thumb on a moving bus.
+                width: 44, height: 44, borderRadius: 'var(--r-full)', padding: 0,
                 background: myReaction === e ? 'var(--stage-tile)' : 'none',
               }}
             >
@@ -252,7 +254,7 @@ export function MessageSpotlight({
               aria-expanded={Boolean(moreOpen)}
               onClick={onMore}
               style={{
-                border: 'none', cursor: 'pointer', width: 40, height: 40, borderRadius: 'var(--r-full)',
+                border: 'none', cursor: 'pointer', width: 44, height: 44, borderRadius: 'var(--r-full)',
                 background: 'var(--stage-tile)', color: 'var(--on-stage-soft)',
                 fontSize: 20, lineHeight: 1, padding: 0, fontFamily: 'inherit',
               }}

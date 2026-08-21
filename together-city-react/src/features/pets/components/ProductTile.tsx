@@ -50,7 +50,10 @@ export function ProductTile(
         aria-label={wishlisted ? `Remove ${product.name} from wishlist` : `Save ${product.name} to wishlist`}
         aria-pressed={wishlisted}
         style={{
-          position: 'absolute', top: 8, right: 8, width: 34, height: 34, borderRadius: '50%',
+          // 34 → 44 with the offsets pulled in by the same five pixels, so the
+          // heart stays exactly where it was drawn and only the target grows.
+          // The background is transparent; nothing else on the card moves.
+          position: 'absolute', top: 3, right: 3, width: 44, height: 44, borderRadius: '50%',
           border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 15, lineHeight: 1,
           color: wishlisted ? 'var(--danger-ink)' : 'var(--muted)',
         }}

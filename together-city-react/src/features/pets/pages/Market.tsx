@@ -153,14 +153,15 @@ export function Market() {
             aria-label="Search products"
             style={{ font: 'inherit', fontSize: 13.5, padding: '9px 13px', borderRadius: 'var(--r-2)', border: '1px solid var(--line)', background: 'var(--card)', minWidth: 200, flex: '1 1 200px' }}
           />
-          <Select value={species} onChange={(v) => setSpecies(v as SpeciesScope)} options={[{ value: 'both', label: 'Dogs & cats' }, { value: 'dog', label: 'Dogs' }, { value: 'cat', label: 'Cats' }]} />
-          <Select value={brand} onChange={setBrand} options={[{ value: '', label: 'All brands' }, ...brands.map((b) => ({ value: b, label: b }))]} />
+          <Select label="Species" value={species} onChange={(v) => setSpecies(v as SpeciesScope)} options={[{ value: 'both', label: 'Dogs & cats' }, { value: 'dog', label: 'Dogs' }, { value: 'cat', label: 'Cats' }]} />
+          <Select label="Brand" value={brand} onChange={setBrand} options={[{ value: '', label: 'All brands' }, ...brands.map((b) => ({ value: b, label: b }))]} />
           <Select
+            label="Budget"
             value={maxPrice === null ? '' : String(maxPrice)}
             onChange={(v) => setMaxPrice(v === '' ? null : parseInt(v, 10))}
             options={[{ value: '', label: 'Any budget' }, { value: '300', label: 'Under ₹300' }, { value: '800', label: 'Under ₹800' }, { value: '2000', label: 'Under ₹2,000' }, { value: '5000', label: 'Under ₹5,000' }]}
           />
-          <Select value={sort} onChange={(v) => setSort(v as typeof sort)} options={[{ value: 'relevance', label: 'Best verified' }, { value: 'low', label: 'Price: low to high' }, { value: 'high', label: 'Price: high to low' }, { value: 'name', label: 'Name' }]} />
+          <Select label="Sort by" value={sort} onChange={(v) => setSort(v as typeof sort)} options={[{ value: 'relevance', label: 'Best verified' }, { value: 'low', label: 'Price: low to high' }, { value: 'high', label: 'Price: high to low' }, { value: 'name', label: 'Name' }]} />
         </div>
       </div>
 
@@ -199,12 +200,19 @@ export function Market() {
   );
 }
 
+/**
+ * A filter dropdown. `label` is REQUIRED rather than optional, because an
+ * optional accessible name is one nobody passes: to a screen reader this
+ * control was "combo box" four times over on one screen, with no way to tell
+ * the species filter from the sort order short of opening each.
+ */
 export function Select(
-  { value, onChange, options }:
-  { value: string; onChange: (v: string) => void; options: { value: string; label: string }[] },
+  { label, value, onChange, options }:
+  { label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[] },
 ) {
   return (
     <select
+      aria-label={label}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       style={{ font: 'inherit', fontSize: 13, padding: '9px 11px', borderRadius: 'var(--r-2)', border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink)' }}

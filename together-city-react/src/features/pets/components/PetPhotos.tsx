@@ -158,7 +158,9 @@ export function PetPhotos({ petName, species, photos, onChange }: Props) {
                 aria-label={`Remove photo ${i + 1} of ${petName || 'your pet'}`}
                 title="Remove"
                 style={{
-                  position: 'absolute', top: 0, right: 0, width: 40, height: 40, border: 'none',
+                  // The background is transparent, so the extra four pixels
+                  // are hit area and nothing else moves.
+                  position: 'absolute', top: 0, right: 0, width: 44, height: 44, border: 'none',
                   background: 'transparent', cursor: 'pointer', display: 'grid', placeItems: 'center', padding: 0,
                 }}
               >
