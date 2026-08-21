@@ -9,6 +9,7 @@ import {
   type CallView, type Transition,
 } from './call-state';
 import { buildIceConfig, type IceConfig } from './ice-config';
+import { reachOf, type Reach } from './reach';
 import type { ListCallsDto, StartCallDto } from './dto/calls.dto';
 
 interface ParticipantRow {
@@ -186,6 +187,34 @@ export class CallsService {
       take: dto.limit ?? 20,
     });
     return rows.map((r) => this.shape(r));
+  }
+
+  /**
+   * How to reach the other person in this conversation when the app is not the
+   * answer — the dialler, or their WhatsApp thread.
+   *
+   * The membership check is the same one `start` makes, and for the same
+   * reason: a conversation id travels, and it must not be the permission.
+   * Everything after it is `reachOf`, which is where the rules live. Note that
+   * the query excludes the asker, so this can never hand somebody their own
+   * number back and call it a peer's.
+   */
+  async reach(userId: string, conversationId: string): Promise<Reach> {
+    await this.permission.assertCanPostToConversation(userId, conversationId);
+
+    const conversation = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { type: true, anonymousTrust: true },
+    });
+    if (!conversation) throw new NotFoundException('Conversation not found');
+
+    // unbounded: one conversation's members, less the asker — group-sized
+    const others = await this.prisma.conversationMember.findMany({
+      where: { conversationId, userId: { not: userId } },
+      select: { user: { select: { phoneE164: true, phoneVerifiedAt: true, deletedAt: true } } },
+    });
+
+    return reachOf(conversation, others.map((m) => m.user));
   }
 
   // ── starting ───────────────────────────────────────────

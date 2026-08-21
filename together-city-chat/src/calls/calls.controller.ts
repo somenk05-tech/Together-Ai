@@ -35,6 +35,16 @@ export class CallsController {
     return this.calls.ringingFor(user.sub);
   }
 
+  /**
+   * GET /api/calls/reach/:conversationId — the telephone number this
+   * conversation may be carried on, or null with the reason it may not.
+   * Two segments, so it can never be read as ':id'.
+   */
+  @Get('reach/:conversationId')
+  reach(@CurrentUser() user: JwtUser, @Param('conversationId') conversationId: string) {
+    return this.calls.reach(user.sub, conversationId);
+  }
+
   /** GET /api/calls — your call history, newest first. */
   @Get()
   @UsePipes(new ZodValidationPipe(ListCallsSchema))
