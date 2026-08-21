@@ -81,7 +81,12 @@ const TIER_LABEL: Record<RoutineTier, string> = {
  * lasts.
  *
  * The picture is `ProductShot`, shared with the market — it is hotlinked to a
- * retailer's CDN and walks primary → alternate → category mark. Two copies of
+ * retailer's CDN and walks primary → alternate → category mark — though the
+ * middle step has no data: the 2026-08 catalogue is built from each brand's
+ * own storefront, one source per product by construction, so `imageAlt` is
+ * empty on all 1,841 rows. In practice this is primary → mark. The path stays
+ * live for the day a sheet supplies second sources, and
+ * `catalog-is-shoppable.spec.ts` holds the ratchet that says so. Two copies of
  * that fallback would have been two behaviours the day one of them was fixed.
  */
 /**

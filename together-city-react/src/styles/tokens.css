@@ -38,11 +38,18 @@
 
   /* ── THE LETTER'S PAPER, WHICH IS NOT --paper ────────────────────────────
      A false friend, and worth the four lines it costs to say so. `--paper`
-     above is the CITY's ground, and five hubs re-point it — astrology points
-     it at #000000. The astrology letter is printed on paper in a room whose
-     walls are black, so it cannot read the token whose whole job is to change
-     with the room. These four are declared here and re-pointed by nothing:
-     paper is paper wherever it is read.
+     above is the CITY's ground, and five hubs re-point it — entertainment
+     points it at #0a1010. A letter is printed on paper whatever the walls of
+     the room are doing, so it cannot read the token whose whole job is to
+     change with the room. These four are declared here and re-pointed by
+     nothing: paper is paper wherever it is read.
+
+     THE EXAMPLE USED TO BE ASTROLOGY AT #000000, and it stopped being true
+     when the velvet left: that hub's ground is #ebe8e3 now, a pale warm grey,
+     and the sentence had gone on describing a room whose walls were black.
+     A comment is the documentation in this file, so a stale one is a defect
+     and not a cosmetic issue — this one was the whole reason four tokens
+     exist.
 
      The tint is sampled from the owner's own scan (letter-paper.webp, tiled
      under it) rather than chosen, so the flat colour behind the texture is
@@ -66,7 +73,7 @@
      labels, placeholders, timestamps and every hub's tagline — small text,
      which needs 4.5 — and it has been under it in every room that has no
      ground of its own since the scale was written. Three hubs paid it
-     locally this week because their own grant hid it; the moment they handed
+     locally that week because their own grant hid it; the moment they handed
      those grants back it surfaced in all three at once, which is the clearest
      possible sign it was never theirs to pay.
 
@@ -717,7 +724,8 @@
      inside of this one is dark — so it needs its own ink, because --ink on a
      near-black ground is unreadable and --card is the cover, not the page.
      Four names rather than a re-pointed ground: re-pointing --ground is a hub
-     privilege, granted to three hubs by name, and this is a component. */
+     privilege, granted to five hubs by name — astrology, beauty, dating,
+     entertainment, nutrition — and this is a component. */
   --pg-ground: #101010;
   --pg-ink:    #f4f4f2;
   --pg-soft:   #a5a5a1;
@@ -1185,7 +1193,8 @@
    of this file. Same reason as the other four: a hub that owns its ground
    cannot also have a one-line accent somewhere above silently overriding it. */
 /* Entertainment's line is not here. It is the dark block at the foot of this
-   file, with astrology's and nutrition's — the three hubs that own a ground.
+   file, with the other four that own a ground — astrology, beauty, dating and
+   nutrition. It said "the three hubs" for as long as there were three.
    It used to have a line here TOO, a purple the block below silently overrode:
    two rival palettes for one hub, the exact failure main.tsx warns about. */
 [data-hub="travel"] {
@@ -1924,11 +1933,15 @@
    owner asked for more blue and less pink, and because inverting is the only
    move that keeps the argument intact.
 
-   IT IS STILL ONE HUE WITH ONE INTERRUPTION, which was always the point. What
-   changed is which one is which. The room is the sky at 201°; the rose that
-   the hub carried for years and that the candy pass deleted comes BACK as the
-   accent, where it is now the only warm thing on the screen instead of a third
-   hue competing with two others.
+   IT IS STILL ONE HUE WITH ONE INTERRUPTION, which was always the point.
+
+   AND THE HUE IS NO LONGER THE ONE THIS PARAGRAPH WAS WRITTEN ABOUT. The
+   sentence here read "the room is the sky at 201°" long after the sky pass was
+   superseded: --ground is #2c0f12, which is 354° — crimson, not blue — and the
+   accent at #6b1e23 is the same hue rather than a warm interruption in a cool
+   room. What survived the pass is the STRUCTURE, one hue carrying the room and
+   one object interrupting it; what did not survive is the pairing this text
+   still described. The numbers below are measured on the ground that shipped.
 
    Every number is measured on this hub's own ground. */
 [data-hub="dating"] {

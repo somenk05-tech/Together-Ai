@@ -10,7 +10,10 @@ import { useState } from 'react';
  * shop rather than as a missing picture.
  *
  * So the catalogue carries TWO, from different retailers, and this walks them:
- * primary, then alternate, then a mark for the category. The mark is a real
+ * primary, then alternate, then a mark for the category — and the alternate is
+ * empty on every row of the current catalogue, which is a deliberate
+ * consequence of building it from one storefront per brand rather than an
+ * oversight; see catalog-is-shoppable.spec.ts. The mark is a real
  * answer — it says what kind of thing this is — where a broken frame says only
  * that something went wrong here.
  *

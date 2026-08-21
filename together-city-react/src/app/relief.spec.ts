@@ -220,15 +220,18 @@ describe('Relief stays a system', () => {
   });
 
   /**
-   * THREE HUBS HAVE THEIR OWN GROUND, AND EACH IS SCOPED OR IT IS NOT AN
-   * EXCEPTION.
+   * A HUB'S OWN GROUND IS SCOPED OR IT IS NOT AN EXCEPTION.
+   *
+   * (This heading and the count below said THREE for as long as three held
+   * one. Five do — the list at GRANTED is the authority, and it has been
+   * right the whole time; only the prose around it went stale.)
    *
    * THE CITY IS BLACK AND WHITE, AND EACH HUB OWNS ONE COLOUR: the lit key
    * in its rail. Hue is spent where hue is the only thing that works —
    * twenty-five rooms, and one object that says which you are standing in
    * before a word is read. Everything else is inherited.
    *
-   * Which makes a GROUND grant the rarest thing in the system. THREE hubs hold
+   * Which makes a GROUND grant the rarest thing in the system. FIVE hubs hold
    * one; four have handed one back in a day. The returns are the same rule
    * running the other way — a hub holds a ground when words are read off
    * something that is not the city's white, and gives it back the moment that
