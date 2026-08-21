@@ -15,6 +15,8 @@
  * So the composer is handed a number and must obey it.
  */
 
+import { CRISIS_RE } from './crisis';
+
 export type Lane = 'ACT' | 'RETRIEVE' | 'ADVISE' | 'LISTEN' | 'AMBIGUOUS';
 export type Risk = 'R0' | 'R1' | 'R2' | 'R3' | 'R4';
 
@@ -64,11 +66,31 @@ export interface LevityVerdict {
  * flat turn, a false negative costs the citizen. There is no symmetry here to
  * balance, so the thresholds are not tuned.
  */
-const DISTRESS =
-  /\b(hospital|hospice|icu|died|passed away|funeral|cancer|tumou?r|terminal|divorc\w*|separat(?:ed|ing)|fired|laid off|redundan\w*|miscarr\w*|assault\w*|abuse\w*|suicid\w*|self.?harm|overdose)\b/i;
+const DISTRESS = new RegExp(
+  [
+    String.raw`\b(?:hospital|hospice|icu|died|passed away|funeral|cancer|tumou?r|terminal|divorc\w*|separat(?:ed|ing)|fired|laid off|redundan\w*|miscarr\w*|assault\w*|abuse\w*)\b`,
+    /**
+     * Loss and the end of a relationship, which were absent from this list
+     * entirely — so "she left me" and "i lost my job" arrived in a lane where
+     * jokes are allowed. They are the two most ordinary bad days there are.
+     */
+    String.raw`\b(?:broke up|break up|breakup|dumped me|left me|(?:he|she) left|lost my (?:job|mother|father|mum|mom|dad|papa|wife|husband)|(?:he|she) is (?:sick|ill)|is in hospital)\b`,
+    /**
+     * And the crisis lexicon, IMPORTED rather than copied.
+     *
+     * This list used to hold `suicid\w*` and `self.?harm` — the clinical words,
+     * which are the ones people reach for last. "kill myself" and "want to die"
+     * matched nothing here and landed in AMBIGUOUS at base L2, where she is
+     * allowed to be funny. The words now live in `crisis.ts` and there is one
+     * copy of them; a second copy here is how the two would drift apart.
+     */
+    CRISIS_RE.source,
+  ].join('|'),
+  'i',
+);
 
 const LOW_MOOD =
-  /\b(?:i (?:feel|am feeling|'m feeling) (?:terrible|awful|awful|lost|hopeless|empty|numb|worthless)|everything feels|i can'?t cope|falling apart|panic attack|breaking down|i'?m struggling|can we talk)\b/i;
+  /\b(?:i (?:feel|am feeling|'m feeling) (?:terrible|awful|lost|hopeless|empty|numb|worthless)|everything feels|i can'?t cope|falling apart|panic attack|breaking down|i'?m struggling|can we talk)\b/i;
 
 /** Their register, not hers. Only ever lifts, never lowers. */
 const PLAYFUL = /(?:\bl+o+l+\b|\bhaha+\b|\blmao\b|😂|🤣|\broast me\b|\bmake it fun\b|\bjk\b|\bkidding\b)/i;

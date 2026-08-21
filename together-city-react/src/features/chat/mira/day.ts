@@ -54,12 +54,32 @@ const SALT_KEY = 'mira.salt';
 const MAX_TURNS = 200;
 
 const StoredTurnSchema = z.object({
+  /**
+   * A NAME FOR THE TURN, SO REACT CAN STOP COUNTING.
+   *
+   * The thread was keyed by array index against an array that is replaced
+   * wholesale on hydration and again on every tab switch — so React matched
+   * yesterday's third bubble to today's third bubble and moved the text
+   * between them rather than the bubbles. Optional, because a record written
+   * before this field existed is still a record.
+   */
+  id: z.string().optional(),
   who: z.union([z.literal('you'), z.literal('mira')]),
   text: z.string(),
   levity: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional(),
   goto: z.object({ label: z.string(), path: z.string() }).optional(),
 });
 export type StoredTurn = z.infer<typeof StoredTurnSchema>;
+
+/**
+ * One id per turn, unique across reloads.
+ *
+ * The clock is in it because a counter alone restarts at zero on the next
+ * open, and yesterday's persisted `t1` would then collide with this morning's
+ * — two turns with one key, which is the bug this field exists to stop.
+ */
+let made = 0;
+export const turnId = (): string => `${Date.now().toString(36)}.${(made++).toString(36)}`;
 
 const DaySchema = z.object({ day: z.string(), turns: z.array(StoredTurnSchema).max(MAX_TURNS) });
 
@@ -91,11 +111,32 @@ export function loadDay(at: Date = new Date(), room?: MiraRoom): StoredTurn[] {
   } catch { return []; }
 }
 
+/**
+ * The rooms whose day ended while this tab stayed open.
+ *
+ * `loadDay` expires the record on the way out and that was only half of it: the
+ * turns are ALSO in memory, and the save that follows the next sentence stamps
+ * them with the new date — which is yesterday quietly becoming today, the one
+ * thing the day stamp exists to prevent. So the write expires too, and the room
+ * stops writing for the rest of this tab's life rather than expiring on every
+ * save and re-writing the same stale array a sentence later.
+ *
+ * What the citizen loses is the local copy of a conversation that has already
+ * ended; the record on the server still has it, and the next open hydrates from
+ * there. What they keep is a screen that does not rewrite itself at midnight.
+ */
+const ended = new Set<string>();
+
 export function saveDay(turns: StoredTurn[], at: Date = new Date(), room?: MiraRoom): void {
   const s = store();
   if (!s) return;
+  const key = keyFor(room);
+  if (ended.has(key)) return;
   try {
-    s.setItem(keyFor(room), JSON.stringify({ day: today(at), turns: turns.slice(-MAX_TURNS) }));
+    const raw = s.getItem(key);
+    const had = raw ? DaySchema.safeParse(JSON.parse(raw)) : null;
+    if (had?.success && had.data.day !== today(at)) { ended.add(key); s.removeItem(key); return; }
+    s.setItem(key, JSON.stringify({ day: today(at), turns: turns.slice(-MAX_TURNS) }));
   } catch { /* a full quota is not worth an error boundary */ }
 }
 
@@ -115,6 +156,15 @@ export function saveDay(turns: StoredTurn[], at: Date = new Date(), room?: MiraR
  *
  * So: one integer, derived from the calendar day, stable for that day on that
  * device, and gone with everything else at midnight.
+ *
+ * ── AND WHY IT IS NOW ONLY THE FIRST PAINT ────────────────────────────────
+ *
+ * A number derived HERE is a number that differs between her phone and her
+ * laptop, and changes mid-conversation when site data is cleared — which is a
+ * different Mira in each hand on the same afternoon. The server derives the
+ * seed from the citizen rather than from the browser and returns the one it
+ * used on every reply and on the greeting. This is what the screen holds until
+ * the first of those answers, and nothing more.
  */
 /**
  * The ceiling is the API's, and they have to agree.
@@ -180,8 +230,14 @@ export function clearDay(room?: MiraRoom): void {
   const s = store();
   if (!s) return;
   try {
-    if (room) s.removeItem(keyFor(room));
-    else { s.removeItem(keyFor('city')); s.removeItem(keyFor('friend')); }
+    // Clearing hands the room back: a day that ended is forgotten anyway, and a
+    // room that may not write again is a room where the next sentence would not
+    // survive a refresh.
+    if (room) { s.removeItem(keyFor(room)); ended.delete(keyFor(room)); }
+    else {
+      s.removeItem(keyFor('city')); s.removeItem(keyFor('friend'));
+      ended.delete(keyFor('city')); ended.delete(keyFor('friend'));
+    }
     s.removeItem(GREETED_KEY);
   } catch { /* nothing to do about it */ }
 }

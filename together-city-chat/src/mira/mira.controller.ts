@@ -1,12 +1,12 @@
 import { Body, Controller, Get, Post, Query, UseGuards, UsePipes } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
-import { MiraService } from './mira.service';
+import { MiraService, SEED_MAX } from './mira.service';
 import { MiraRegistry } from './mira.registry';
-import { greet } from './greeting';
 
 /**
  * The largest seed either route will accept, and there is exactly one of it.
@@ -21,8 +21,24 @@ import { greet } from './greeting';
  * A bound that is written down twice is a bound that will diverge. One constant,
  * both schemas, and the gate now asserts that no `seed:` line in this file
  * carries a numeric literal at all.
+ *
+ * It DERIVES the seed now rather than believing one, so the constant lives with
+ * the derivation in `mira.service.ts` and is re-exported here — where the
+ * schemas, the web package and `seed.spec.ts` have always read it from.
  */
-export const SEED_MAX = 10_000_000;
+export { SEED_MAX };
+
+/**
+ * How many model-backed turns one caller may spend in a minute.
+ *
+ * The three routes below are the only ones in this module that call a model,
+ * and none of them carried a throttle: the 200-conversation meter is per
+ * citizen for life, which is a budget, not a rate. The global limit is 120 a
+ * minute and is sized for a person using the app; a person talking to Mira
+ * needs a handful. Same mechanism as `geo.controller.ts` — `ThrottlerGuard` is
+ * already the app-wide guard, so the decorator is the whole of the change.
+ */
+const MODEL_LIMIT = { default: { ttl: 60_000, limit: 20 } };
 
 export const AskSchema = z.object({
   text: z.string().min(1).max(2000),
@@ -123,6 +139,15 @@ export const ThreadSchema = z.object({
 });
 export type ThreadDto = z.infer<typeof ThreadSchema>;
 
+/** One page of what she has kept about the asking citizen. Bounded like every
+ *  read in this codebase; the defaults are a screenful. */
+export const MemorySchema = z.object({
+  room: z.enum(['friend', 'city']).optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+  offset: z.coerce.number().int().min(0).max(100_000).optional(),
+});
+export type MemoryDto = z.infer<typeof MemorySchema>;
+
 /** One day of the citizen's own daybook, and what they want to know about it. */
 export const DaySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'a YYYY-MM-DD date'),
@@ -144,8 +169,15 @@ export type DayDto = z.infer<typeof DaySchema>;
  * wrong hour, and it still may not be a number this route trusts.
  */
 export const GreetSchema = z.object({
-  hour: z.coerce.number().int().min(0).max(23),
-  seed: z.coerce.number().int().min(0).max(SEED_MAX),
+  hour: z.coerce.number().int().min(0).max(23).optional(),
+  /**
+   * OPTIONAL NOW, because the server is the one that decides it.
+   *
+   * The client still sends its guess and an older client sends nothing else,
+   * so the bound stays and is still the one bound. What changed is that the
+   * number is answered rather than obeyed: see `seedOf` in the service.
+   */
+  seed: z.coerce.number().int().min(0).max(SEED_MAX).optional(),
   weeksKnown: z.coerce.number().int().min(0).max(520).optional(),
   firstOfDay: z.coerce.boolean().optional(),
   dial: z.coerce.number().int().min(0).max(2).optional(),
@@ -174,9 +206,15 @@ export class MiraController {
    * Hello, and which Mira turned up.
    *
    * A GET rather than part of the ask, because it is what she says BEFORE
-   * anybody has asked anything — and because it must be cheap: it runs on every
-   * open of the thread and touches no hub, no database and no model. It is a
-   * pure function of the numbers above.
+   * anybody has asked anything.
+   *
+   * IT USED TO TOUCH NO DATABASE, and that was worth saying until the two
+   * things it got wrong turned out to be facts about the citizen: which
+   * character she is today (the browser derived it per device, so she was two
+   * people) and which openings she has already used (nothing remembered, so
+   * she repeated a cycle of twenty-four). Both live on the account now. Still
+   * no hub and still no model — and still best-effort inside the service, so a
+   * slow table is a quieter hello rather than an error.
    *
    * NOT a @Mira() capability. This is chrome, not something she does; putting
    * it in the manifest would mean the router could match "say hello" and route
@@ -184,26 +222,33 @@ export class MiraController {
    */
   @Get('greeting')
   @UsePipes(new ZodValidationPipe(GreetSchema))
-  greeting(@Query() q: GreetDto) {
-    const g = greet({
+  async greeting(@CurrentUser() user: JwtUser, @Query() q: GreetDto) {
+    const g = await this.mira.greeting(user.sub, {
       hour: q.hour,
-      seed: q.seed,
-      weeksKnown: q.weeksKnown ?? 0,
+      weeksKnown: q.weeksKnown,
       firstOfDay: q.firstOfDay,
       dial: q.dial as 0 | 1 | 2 | undefined,
-      lastSessionDistressed: q.distressLocked,
       sessionsSinceFourthWall: q.sessionsSinceFourthWall,
     });
-    return { hello: g.hello, ask: g.ask, mood: g.mood, levity: g.level };
+    return { hello: g.hello, ask: g.ask, mood: g.mood, levity: g.level, seed: g.seed };
   }
 
+  /**
+   * The one route that can reach a model on a citizen's own words.
+   *
+   * `hour`, `weeksKnown` and `distressLocked` are still ACCEPTED — removing a
+   * field from a DTO 400s every client that has not shipped yet — and are no
+   * longer trusted: the service derives all three from the account. `hour` is
+   * passed on as the fallback for a citizen whose profile carries no zone.
+   */
   @Post('ask')
+  @Throttle(MODEL_LIMIT)
   @UsePipes(new ZodValidationPipe(AskSchema))
   ask(@CurrentUser() user: JwtUser, @Body() dto: AskDto) {
     return this.mira.ask(dto.text, {
       userId: user.sub,
-      hour: dto.hour ?? 12,
-      weeksKnown: dto.weeksKnown ?? 0,
+      hour: dto.hour,
+      weeksKnown: dto.weeksKnown,
       dial: dto.dial,
       distressLocked: dto.distressLocked,
       recent: dto.recent,
@@ -244,6 +289,27 @@ export class MiraController {
   }
 
   /**
+   * WHAT SHE HAS KEPT ABOUT THE PERSON ASKING — and nobody else, ever.
+   *
+   * "It is truly gone" is a claim, and a claim about stored data that cannot be
+   * inspected is one the citizen has to take on faith. This is the inspection:
+   * their own turns, newest first, per room, paginated. The screen that renders
+   * it is a build and is not in this landing; the endpoint is what makes the
+   * promise checkable at all, and what that screen will read.
+   *
+   * Unmetered and unthrottled beyond the app-wide limit: reading your own
+   * record costs no model call and is not a thing to ration.
+   */
+  @Get('memory')
+  @UsePipes(new ZodValidationPipe(MemorySchema))
+  memory(@CurrentUser() user: JwtUser, @Query() q: MemoryDto) {
+    return this.mira.memory(user.sub, q.room === 'friend' ? 'friend' : 'city', {
+      limit: q.limit ?? 50,
+      offset: q.offset ?? 0,
+    });
+  }
+
+  /**
    * Mira reads ONE DAY — the citizen's own page from the daybook.
    *
    * A separate route from `confide` because the source is different in the
@@ -253,6 +319,7 @@ export class MiraController {
    * day, nothing around it.
    */
   @Post('day')
+  @Throttle(MODEL_LIMIT)
   @UsePipes(new ZodValidationPipe(DaySchema))
   day(@CurrentUser() user: JwtUser, @Body() dto: DayDto) {
     return this.mira.readDay(user.sub, dto.date, dto.ask, dto.tz);
@@ -267,6 +334,7 @@ export class MiraController {
    * reading one method instead of auditing every branch of the big one.
    */
   @Post('confide')
+  @Throttle(MODEL_LIMIT)
   @UsePipes(new ZodValidationPipe(ConfideSchema))
   confide(@CurrentUser() user: JwtUser, @Body() dto: ConfideDto) {
     return this.mira.confide(user.sub, {

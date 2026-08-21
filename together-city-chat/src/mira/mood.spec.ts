@@ -122,3 +122,52 @@ describe('the mood reaches the opening line too', () => {
     }
   });
 });
+
+describe('a tilt can only ever be downwards', () => {
+  /**
+   * `sharp` and `mischievous` carried `tilt: +1`, and `tilted()` clamps to the
+   * cap the governor gave — so `Math.min(cap, cap + 1)` was `cap` for every cap
+   * there is and the field was a knob wired to nothing. The +1 left the type
+   * rather than the clamp: unclamping is the one change this file exists to
+   * prevent, and it is the first thing anybody would try.
+   */
+  it('no mood is written with a positive tilt', () => {
+    for (const m of ALL_MOODS) expect(MOODS[m].tilt).toBeLessThanOrEqual(0);
+  });
+
+  it('and the clamp still holds whatever the table says', () => {
+    for (const m of ALL_MOODS) expect(tilted(m, 2)).toBeLessThanOrEqual(2);
+  });
+});
+
+describe('she is quiet on ordinary days too', () => {
+  /** It was reachable only after a hard session, in the small hours, or by
+   *  name — quiet in bad conditions only, which is a symptom, not a mood. */
+  it('quiet turns up in daylight', () => {
+    const seen = new Set(Array.from({ length: 40 }, (_, i) => moodFor({ seed: i, hour: 14 })));
+    expect(seen).toContain('quiet');
+  });
+
+  it('every mood turns up somewhere', () => {
+    const seen = new Set(Array.from({ length: 40 }, (_, i) => moodFor({ seed: i, hour: 14 })));
+    for (const m of ALL_MOODS) if (m !== 'quiet') expect(seen).toContain(m);
+  });
+});
+
+describe('a negative seed is not a different Mira', () => {
+  /** Every other site in the file says `Math.abs`; the small-hours branch did
+   *  not, so a negative session counter silently took the other one. */
+  it('reads the same in the small hours', () => {
+    for (let seed = 1; seed < 20; seed++) {
+      expect(moodFor({ seed: -seed, hour: 3 })).toBe(moodFor({ seed, hour: 3 }));
+    }
+  });
+});
+
+describe('no mood claims anything she was not given', () => {
+  it('no opener reads a calendar, a workload, a Tuesday or a clock', () => {
+    for (const l of allMoodLines()) {
+      expect(l).not.toMatch(/calendar|on fire|from tuesday|up early|unread/i);
+    }
+  });
+});

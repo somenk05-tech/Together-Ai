@@ -35,7 +35,13 @@ export function resetClientState(): void {
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
       if (!k || KEEP_KEYS.has(k)) continue;
-      if (k.startsWith('tc-') || k.startsWith('tc:')) drop.push(k);
+      // `mira.*` is the third namespace and it was missed because it does not
+      // wear the app's prefix. Everything under it is one citizen's: her
+      // friend transcript (`mira.day.friend`), the day she was greeted, the
+      // mood seed, the marker that says she has already introduced herself.
+      // All of it survived a sign-out, so the next account on this browser
+      // opened her room and read the previous person's conversation.
+      if (k.startsWith('tc-') || k.startsWith('tc:') || k.startsWith('mira.')) drop.push(k);
     }
     for (const k of drop) localStorage.removeItem(k);
   } catch { /* storage may be unavailable */ }

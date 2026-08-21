@@ -22,12 +22,15 @@ function bare(over: Partial<Record<string, any>> = {}) {
   const svc: any = Object.create(MiraService.prototype);
   svc.logger = { warn: () => undefined, log: () => undefined };
   svc.registry = { upTo: () => [], byId: () => undefined, all: () => [] };
-  svc.ledger = { record: () => undefined };
+  svc.ledger = { record: () => undefined, forget: async (u: string, t?: string) => { svc.__ledgerForget = [...(svc.__ledgerForget ?? []), [u, t]]; } };
   svc.ai = { enabled: true, converse: async () => 'Yeah, I remember.' };
   svc.prisma = {
     miraPass: { findUnique: async () => null, upsert: async () => undefined },
     miraTurn: {
-      findMany: async () => [],
+      /** `skip` is the retention trim asking for the 2000th-newest row. An
+       *  empty answer means "nothing to trim", which is true of every stub
+       *  here — without honouring it, every write would look like an overflow. */
+      findMany: async (args: any) => (args?.skip ? [] : []),
       createMany: async (args: any) => { svc.__written = [...(svc.__written ?? []), args]; },
       deleteMany: async (args: any) => { svc.__deleted = [...(svc.__deleted ?? []), args]; return { count: svc.__count ?? 0 }; },
     },
@@ -130,18 +133,81 @@ describe('and she can be told to forget', () => {
     const t = await svc.ask('forget everything', ctx());
     expect(svc.__deleted).toHaveLength(1);
     expect(svc.__deleted[0].where).toEqual({ userId: 'u1' });
+    // One turn, still: it is unambiguous and they said the word. And it
+    // reaches the ledger's day files as well as her notebook.
+    expect(svc.__ledgerForget).toEqual([['u1', undefined]]);
     expect(t.text).toMatch(/gone from my memory/i);
     // The wipe keeps no receipt: the forget exchange itself is not recorded.
     expect(svc.__written).toBeUndefined();
   });
 
-  it('"forget about the loan" deletes what mentions it, and says how much', async () => {
+  /**
+   * ── A SUBSTRING MASS-DELETE, UNCONFIRMED, WAS THE OLD SHAPE OF THIS ───────
+   *
+   * `deleteMany({ text: { contains: topic } })` in one turn. On "her" that is
+   * there, where, other, together, mother and father — and the citizen never
+   * saw a number before it happened. Two turns now, whole words, and both
+   * halves of an exchange go together.
+   */
+  const LOAN = [
+    { id: 't1', room: 'city', who: 'you', text: 'the loan is keeping me up', createdAt: new Date(1000) },
+    { id: 't2', room: 'city', who: 'mira', text: 'How much is left on it?', createdAt: new Date(1001) },
+    { id: 't3', room: 'city', who: 'you', text: 'the loansharks in that film were funnier', createdAt: new Date(2000) },
+  ];
+  /** The database narrows with `contains`; the word boundary is decided in JS. */
+  const withLoans = (svc: any) => {
+    svc.prisma.miraTurn.findMany = async (args: any) => {
+      if (args?.skip) return [];
+      if (args?.where?.text) return LOAN.filter((r) => r.text.toLowerCase().includes('the loan'));
+      if (args?.where?.OR) return LOAN.filter((r) => r.createdAt.getTime() >= 1000 && r.createdAt.getTime() <= 1001).map((r) => ({ id: r.id }));
+      return LOAN;
+    };
+  };
+
+  it('"forget about the loan" counts and asks, and deletes nothing yet', async () => {
     const svc = bare();
-    svc.__count = 3;
+    withLoans(svc);
     const t = await svc.ask('forget about the loan', ctx());
+    expect(svc.__deleted).toBeUndefined();
+    // "the loansharks" contains the topic and does not MENTION it.
+    expect(t.text).toContain('1 thing');
+    expect(t.text).toMatch(/say yes/i);
+    expect(t.text).toContain('keeping me up');
+  });
+
+  it('and a yes on the next turn performs it — both halves of the exchange', async () => {
+    const svc = bare();
+    withLoans(svc);
+    svc.prisma.miraPass.findUnique = async () => ({ forgetTopic: 'the loan', forgetAskedAt: new Date(), greetings: [] });
+    const t = await svc.ask('yes', ctx());
     expect(svc.__deleted[0].where.userId).toBe('u1');
-    expect(svc.__deleted[0].where.text).toEqual({ contains: 'the loan', mode: 'insensitive' });
-    expect(t.text).toContain('3 things');
+    // Her own reply goes with the question it answered, and the film does not.
+    expect(svc.__deleted[0].where.id.in.sort()).toEqual(['t1', 't2']);
+    expect(t.text).toMatch(/gone from my memory/i);
+    // And the day files the ledger keeps are rewritten too — "truly gone" is
+    // not true if the verbatim question sits in a log for thirty days.
+    expect(svc.__ledgerForget).toEqual([['u1', 'the loan']]);
+  });
+
+  it('a no leaves it exactly where it was', async () => {
+    const svc = bare();
+    withLoans(svc);
+    svc.prisma.miraPass.findUnique = async () => ({ forgetTopic: 'the loan', forgetAskedAt: new Date(), greetings: [] });
+    const t = await svc.ask('no', ctx());
+    expect(svc.__deleted).toBeUndefined();
+    expect(t.text).toBe('Left it where it was.');
+  });
+
+  /** Ten minutes. A yes arriving an hour later is a yes to something else. */
+  it('an ask nobody answered expires rather than waiting for a stray yes', async () => {
+    const svc = bare();
+    withLoans(svc);
+    svc.prisma.miraPass.findUnique = async () => ({
+      forgetTopic: 'the loan', forgetAskedAt: new Date(Date.now() - 60 * 60 * 1000), greetings: [],
+    });
+    const t = await svc.ask('yes', ctx());
+    expect(svc.__deleted).toBeUndefined();
+    expect(t.text).not.toMatch(/gone from my memory/i);
   });
 
   it('nothing matching is said plainly, not performed', async () => {
@@ -162,5 +228,62 @@ describe('and she can be told to forget', () => {
     const t = await svc.ask('i forgot my keys again', ctx({ mode: 'friend' }));
     expect(svc.__deleted).toBeUndefined();
     expect(t.text).toBe('Yeah, I remember.');
+  });
+});
+
+
+/**
+ * ── HER MEMORY HAS AN END, AND A DOOR ─────────────────────────────────────
+ *
+ * MiraTurn grew for the life of the account — the same liability the ledger's
+ * day files were given a retention window to avoid, with the citizen's name
+ * attached and both voices in it. And it could be inspected in exactly one
+ * way: by asking her. A record you can only interrogate conversationally is
+ * one nobody can audit, including the person whose sentences are in it.
+ */
+describe('what she keeps is bounded, and can be read back', () => {
+  it('drops the oldest once the room is past its ceiling', async () => {
+    const svc = bare();
+    // The trim asks for the 2000th-newest row; an answer means there is
+    // something older than it, and everything older than it goes.
+    svc.prisma.miraTurn.findMany = async (args: any) => (args?.skip ? [{ createdAt: new Date(500) }] : []);
+    await svc.ask('just feeling lonely', ctx({ mode: 'friend' }));
+    // The write is floated and the trim follows it — let both land.
+    await new Promise((r) => setTimeout(r, 5));
+    expect(svc.__deleted).toHaveLength(1);
+    expect(svc.__deleted[0].where).toEqual({ userId: 'u1', room: 'friend', createdAt: { lt: new Date(500) } });
+  });
+
+  it('leaves a short record alone', async () => {
+    const svc = bare();
+    await svc.ask('just feeling lonely', ctx({ mode: 'friend' }));
+    await new Promise((r) => setTimeout(r, 5));
+    expect(svc.__deleted).toBeUndefined();
+  });
+
+  it('serves the citizen their own record, newest first, a page at a time', async () => {
+    const svc = bare();
+    svc.prisma.miraTurn.count = async () => 2;
+    svc.prisma.miraTurn.findMany = async (args: any) => {
+      svc.__page = args;
+      return [
+        { who: 'mira', text: 'Named after the song?', createdAt: new Date(2) },
+        { who: 'you', text: 'my dog is called Bruno', createdAt: new Date(1) },
+      ];
+    };
+    const m = await svc.memory('u1', 'friend', { limit: 20, offset: 40 });
+    expect(m.total).toBe(2);
+    expect(m.turns[0].text).toBe('Named after the song?');
+    expect(svc.__page.where).toEqual({ userId: 'u1', room: 'friend' });
+    expect(svc.__page.skip).toBe(40);
+    expect(svc.__page.take).toBe(20);
+  });
+
+  it('a read that fails is an empty page, never an error', async () => {
+    const svc = bare();
+    svc.prisma.miraTurn.count = async () => { throw new Error('table is down'); };
+    await expect(svc.memory('u1', 'city', { limit: 10, offset: 0 })).resolves.toEqual({
+      room: 'city', total: 0, limit: 10, offset: 0, turns: [],
+    });
   });
 });

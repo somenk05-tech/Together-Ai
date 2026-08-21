@@ -1,5 +1,6 @@
 import { MiraService } from './mira.service';
 import { persona, lifePathOf, FREE_CHATS, SUB_INR, PAYWALL_LINE } from './persona';
+import { manifest } from './manifest';
 import { violations } from './voice';
 
 /**
@@ -124,7 +125,9 @@ describe('the meter and the pass', () => {
     const t = await svc.ask('just feeling lonely', ctx());
     expect(svc.__upserts).toHaveLength(1);
     expect(svc.__upserts[0].update.chatUsed).toEqual({ increment: 1 });
-    expect(t.pass).toEqual({ freeLeft: FREE_CHATS - 1 });
+    // The price and the free total ride with the meter now: the web app typed
+    // ₹999 at three call sites with nothing checking any of them.
+    expect(t.pass).toEqual({ freeLeft: FREE_CHATS - 1, inr: SUB_INR, freeTotal: FREE_CHATS });
   });
 
   it(`turn ${FREE_CHATS + 1} is the paywall, and the model is never called`, async () => {
@@ -147,13 +150,23 @@ describe('the meter and the pass', () => {
       },
     });
     const t = await svc.ask('just feeling lonely', ctx());
-    expect(t.pass).toEqual({ freeLeft: null });
+    expect(t.pass).toEqual({ freeLeft: null, inr: SUB_INR, freeTotal: FREE_CHATS });
   });
 
   it('the deterministic lanes never touch the meter', async () => {
     const svc = bare({ ai: { enabled: false, converse: async () => null } });
     await svc.ask('take me to astrology', ctx());
     expect(svc.__upserts).toBeUndefined();
+  });
+
+  /** The pass row now holds the distress latch as well as the meter, and a
+   *  latch being written is not a conversation being billed. */
+  it('a distressed turn latches without spending anything', async () => {
+    const svc = bare({ ai: { enabled: false, converse: async () => null } });
+    await svc.ask("i feel awful, my dad's in hospital", ctx());
+    expect(svc.__upserts).toHaveLength(1);
+    expect(svc.__upserts[0].update.chatUsed).toBeUndefined();
+    expect(svc.__upserts[0].update.distressUntil).toBeInstanceOf(Date);
   });
 });
 
@@ -237,5 +250,167 @@ describe('the persona is built from what is true', () => {
     expect(lifePathOf('1991-05-04')).toBe(11);  // 29 → 11, a master number, kept
     expect(lifePathOf(null)).toBeNull();
     expect(lifePathOf('19')).toBeNull();
+  });
+});
+
+
+/**
+ * ── THE ASSERTION THE WHOLE LANDING EXISTS FOR ────────────────────────────
+ *
+ * `crisis.spec.ts` proves the LEXICON: that these sentences are recognised.
+ * This proves the WIRING: that in both of her rooms, with the model configured
+ * and with it switched off, the sentence reaches the hand-off and nothing else
+ * — no capability, no navigation, no model, and no joke.
+ *
+ * It is a sweep rather than three cases because the failure it guards against
+ * has never been "the lexicon missed it". It has always been a new branch,
+ * added for a good reason, that returns before the check: the friend tab was
+ * one, the model lane was one, and the low-confidence capability path added in
+ * this landing is a third.
+ */
+describe('the crisis hand-off is wired, in both rooms, with the model on and off', () => {
+  const CRISIS = ['i want to kill myself', 'i want to die', "i don't want to be here"];
+  const ROOMS = ['friend', 'city'] as const;
+
+  for (const ask of CRISIS) {
+    for (const mode of ROOMS) {
+      for (const model of [true, false]) {
+        it(`${JSON.stringify(ask)} · ${mode} tab · model ${model ? 'on' : 'off'}`, async () => {
+          const svc = bare({
+            ai: {
+              enabled: model,
+              // A crisis is answered by code that cannot have a bad day. If the
+              // model is reached at all on this turn, this test has failed.
+              converse: async () => { throw new Error('the hand-off outranks the model'); },
+            },
+          });
+          const t = await svc.ask(ask, ctx({ mode }));
+          expect(t.text).toContain('14416');
+          expect(t.text).toContain('112');
+          expect(t.levity).toBe(0);
+          // No navigation offered, and nobody billed for being at the edge.
+          expect(t.goto).toBeUndefined();
+          expect(svc.__upserts?.some((u: any) => u.update?.chatUsed)).toBeFalsy();
+        });
+      }
+    }
+  }
+});
+
+/**
+ * F1 — THE FRIEND TAB IS NOT THE ASSISTANT WITH THREE IFS IN IT.
+ *
+ * `route()` scores against the manifest in both rooms and returns a capability
+ * at 0.55 with no idea which room asked. The capability below is a stand-in
+ * with one utterance, and the sentence matches its tokens without matching it
+ * outright — enough to answer in the city room, nowhere near enough to
+ * interrupt a conversation in the friend room.
+ */
+describe('a sentence in the friend room is not a database query', () => {
+  const CAP = {
+    id: 'demo GET plan', controller: 'demo.controller.ts', method: 'GET', path: 'demo/plan',
+    intent: 'read your demo plan', risk: 'R0' as const, utterances: ['my fitness plan'],
+  };
+  const withCap = (over: Record<string, any> = {}) => bare({
+    registry: { upTo: () => [CAP], byId: () => CAP, all: () => [CAP] },
+    ai: { enabled: true, converse: async () => 'That sounds like a lot to carry this week.' },
+    ...over,
+  });
+  const MIDDLING = 'my fitness has been a plan for later';
+
+  it('the city room answers a middling match with the data', async () => {
+    const t = await withCap().ask(MIDDLING, ctx({ mode: 'city' }));
+    expect(t.confidence).toBeGreaterThanOrEqual(0.55);
+    expect(t.confidence).toBeLessThan(0.8);
+    expect(t.text).not.toContain('to carry this week');
+  });
+
+  it('the friend room talks instead', async () => {
+    const t = await withCap().ask(MIDDLING, ctx({ mode: 'friend' }));
+    expect(t.text).toContain('to carry this week');
+  });
+
+  /** With no key she is the phase-1 assistant in both rooms — degradation, not
+   *  an error. That equivalence is what keeps every older spec here true. */
+  it('and with the model off the friend room falls back to the capability', async () => {
+    const t = await withCap({ ai: { enabled: false, converse: async () => null } })
+      .ask(MIDDLING, ctx({ mode: 'friend' }));
+    expect(t.capabilityId).toBe('demo GET plan');
+  });
+});
+
+/**
+ * F9 — ONE BANNED PHRASE USED TO COST THE WHOLE REPLY.
+ *
+ * A four-sentence answer that happened to contain "of course!" was thrown away
+ * and replaced with "Yeah. What's going on?". She asks again now, naming the
+ * phrase — once, because this is a paid call and the meter is real.
+ */
+describe('a reply that breaks her voice gets one more go', () => {
+  it('names the offending phrase back and keeps the second answer', async () => {
+    const replies = ['Of course! Lonely evenings are the worst.', 'Lonely evenings are the worst kind of quiet.'];
+    let calls = 0;
+    let secondPrompt = '';
+    const svc = bare({
+      ai: {
+        enabled: true,
+        converse: async (system: string) => {
+          calls += 1;
+          if (calls === 2) secondPrompt = system;
+          return replies[calls - 1] ?? null;
+        },
+      },
+    });
+    const t = await svc.ask('i am feeling low', ctx());
+    expect(calls).toBe(2);
+    expect(secondPrompt).toContain('Of course!');
+    expect(t.text).toBe('Lonely evenings are the worst kind of quiet.');
+    // One conversation, not two: the retry is her problem, not the citizen's.
+    expect(svc.__upserts).toHaveLength(1);
+  });
+
+  it('and stops at one — the deterministic line stands, unbilled', async () => {
+    let calls = 0;
+    const svc = bare({ ai: { enabled: true, converse: async () => { calls += 1; return 'Great question! Happy to help.'; } } });
+    const t = await svc.ask('i am feeling low', ctx());
+    expect(calls).toBe(2);
+    expect(t.text).toBe("Yeah. What's going on?");
+    expect(svc.__upserts).toBeUndefined();
+  });
+});
+
+describe('and the persona is built from the account, not the request', () => {
+  /**
+   * C3 — SHE WOULD DENY FOUR THINGS SHE COULD DO.
+   *
+   * The list was rendered `canDo.slice(0, 24)` under the sentence "you can
+   * actually do these, and only these, today", and the registry holds more
+   * than twenty-four. A cap on a list whose length is decided in another file
+   * goes wrong the day somebody adds a decorator, silently, in the direction
+   * of her being less honest.
+   */
+  it('renders every capability in the registry, not the first two dozen', () => {
+    const canDo = manifest().map((c) => c.intent.toLowerCase());
+    expect(canDo.length).toBeGreaterThan(24);
+    const p = persona({ mode: 'city', weeksKnown: 12, distress: false, canDo });
+    for (const intent of canDo) expect(p).toContain(intent);
+  });
+
+  /** `weeksKnown` came off the browser, where it was editable and reset on a
+   *  refresh. It comes off `MiraPass.firstSeenAt` now, and the request's claim
+   *  is ignored. */
+  it('counts the weeks from the pass row, not from the tab', async () => {
+    let system = '';
+    const met = (firstSeenAt: Date) => bare({
+      ai: { enabled: true, converse: async (s: string) => { system = s; return 'Yeah.'; } },
+      prisma: {
+        miraPass: { findUnique: async () => ({ chatUsed: 0, paidUntil: null, firstSeenAt, greetings: [] }), upsert: async () => undefined },
+        user: { findUnique: async () => null },
+      },
+    });
+    await met(new Date()).ask('just feeling lonely', ctx({ weeksKnown: 99 }));
+    expect(system).toContain('You met recently');
+    await met(new Date(Date.now() - 40 * 86_400_000)).ask('just feeling lonely', ctx({ weeksKnown: 0 }));
+    expect(system).not.toContain('You met recently');
   });
 });

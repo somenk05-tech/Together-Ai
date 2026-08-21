@@ -5,6 +5,10 @@ import { fileURLToPath } from 'node:url';
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
+/** Anything that bans a STRING is run against the code with the comments taken
+ *  out — `the-day-is-kept` earned this rule: a file that explains why a thing
+ *  was removed must not fail the guard that removed it. */
+const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/.*$/gm, '$1 ');
 
 /**
  * ONE MIRA, TWO TABS, AND A DOOR ON EVERY PAGE.
@@ -31,7 +35,13 @@ describe('Mira is two tabs', () => {
     expect(thread).toMatch(/useMiraThread\(mode\)/);
     // Hydrate once per room, and never over a conversation in progress.
     expect(thread).toMatch(/hydrated\.current\[mode\]/);
-    expect(thread).toMatch(/spoke\.current = true/);
+    // PER ROOM, both of them. `spoke` was one flag for two rooms, so one
+    // sentence to the friend stopped the city assistant ever hydrating again
+    // in that session — the exact opposite of what this block is guarding.
+    expect(thread).toMatch(/spoke\.current\[mode\] = true/);
+    // And the record ARRIVES rather than replacing: hydration used to drop
+    // every `goto` and wipe the welcome bubble it could never restore.
+    expect(thread).toMatch(/merge\(mine, kept\)/);
     // Clearing marks the moment on THIS device; hydration shows only what
     // came after, so a cleared screen does not resurrect on the next open.
     expect(thread).toMatch(/mira\.cleared\.\$\{mode\}/);
@@ -54,7 +64,14 @@ describe('Mira is two tabs', () => {
   it('offers Friend and City assistant, and remembers the choice', () => {
     expect(thread).toMatch(/>\s*Friend\s*</);
     expect(thread).toMatch(/>\s*City assistant\s*</);
-    expect(thread).toMatch(/aria-pressed=\{mode === 'friend'\}/);
+    // TWO TABS, AND THEY SAY SO. They were `aria-pressed` buttons in a
+    // `role="group"` carrying `display: contents`, which drops the role'd box
+    // — and its name — out of the accessibility tree. Two controls that swap
+    // the whole transcript behind them are a tablist: one tab stop, arrows
+    // between them, and the selection announced.
+    expect(thread).toMatch(/role="tablist"/);
+    expect(thread).toMatch(/aria-selected=\{mode === 'friend'\}/);
+    expect(strip(thread)).not.toMatch(/display: 'contents'/);
     expect(thread).toMatch(/localStorage\.setItem\(MODE_KEY/);
   });
 
@@ -69,10 +86,19 @@ describe('Mira is two tabs', () => {
   });
 
   it('the friend introduces herself once, and the assistant keeps the rundown', () => {
-    // The owner's welcome, verbatim, as her first message in the friend tab
-    // — once per device. The capability opening ("tell me what you want
-    // done") is the CITY tab's empty state now, not the friend's.
-    expect(thread).toMatch(/Your buddy\. ❤️/);
+    // HER HELLO IS A HELLO. It was the owner's twenty-three-line welcome, and
+    // what was in it is why this assertion changed: the message quota in the
+    // second sentence, a privacy-framework paragraph in her mouth, and a
+    // promise ("you don't have to figure out which version of me you need")
+    // rendered directly under two chips that force exactly that choice. The
+    // quota is a fact about the meter and is stated with the meter; the
+    // privacy sentence belongs to the product, not to her.
+    expect(thread).toMatch(/Hey\. I’m Mira\./);
+    expect(strip(thread)).not.toMatch(/200 free messages/);
+    expect(strip(thread)).not.toMatch(/privacy framework/i);
+    expect(strip(thread)).not.toMatch(/which version of me you need/);
+    // The capability opening ("tell me what you want done") is the CITY tab's
+    // empty state, not the friend's.
     expect(thread).toMatch(/mira\.welcomed/);
     expect(thread).toMatch(/room !== 'friend' \|\| turns\.length > 0/);
     expect(thread).toMatch(/mode === 'city' && <p className="miraopentext">/);
@@ -90,7 +116,7 @@ describe('Mira is two tabs', () => {
     expect(day).toMatch(/room === 'friend' \? 'mira\.day\.friend' : KEY/);
     // Switching tabs swaps the thread, drops the other room's held question,
     // and saves into the room being looked at.
-    expect(thread).toMatch(/setTurns\(seedWelcome\(loadDay\(undefined, m\), m\)\)/);
+    expect(thread).toMatch(/setTurns\(seedWelcome\(named\(loadDay\(undefined, m\)\), m\)\)/);
     expect(thread).toMatch(/saveDay\(turns, undefined, mode\)/);
     // Forget today forgets the tab you are standing in, not both.
     expect(thread).toMatch(/clearDay\(mode\)/);

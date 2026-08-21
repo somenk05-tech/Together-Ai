@@ -11,25 +11,25 @@ const HUBS: Choice[] = [
 
 describe('she reads the answer to her own question', () => {
   it('takes the label, exactly', () => {
-    expect(resolveChoice('Astrology', TWO)?.path).toBe('/astrology');
-    expect(resolveChoice('astrology', TWO)?.path).toBe('/astrology');
-    expect(resolveChoice('Astrology Log', TWO)?.path).toBe('/astrology/log');
+    expect(resolveChoice('Astrology', TWO)).toEqual(TWO[0]);
+    expect(resolveChoice('astrology', TWO)).toEqual(TWO[0]);
+    expect(resolveChoice('Astrology Log', TWO)).toEqual(TWO[1]);
   });
 
   it('takes the label out of a short sentence', () => {
-    expect(resolveChoice('the astrology one', TWO)?.path).toBe('/astrology');
-    expect(resolveChoice('budgets please', HUBS)?.path).toBe('/financial/budgets');
-    expect(resolveChoice('take me to spending', HUBS)?.path).toBe('/financial/spending');
+    expect(resolveChoice('the astrology one', TWO)).toEqual(TWO[0]);
+    expect(resolveChoice('budgets please', HUBS)).toEqual(HUBS[0]);
+    expect(resolveChoice('take me to spending', HUBS)).toEqual(HUBS[1]);
   });
 
   it('takes a word only one option owns', () => {
-    expect(resolveChoice('log', TWO)?.path).toBe('/astrology/log');
+    expect(resolveChoice('log', TWO)).toEqual(TWO[1]);
   });
 
   it('takes a position', () => {
-    expect(resolveChoice('the second one', HUBS)?.path).toBe('/financial/spending');
-    expect(resolveChoice('first', HUBS)?.path).toBe('/financial/budgets');
-    expect(resolveChoice('2', HUBS)?.path).toBe('/financial/spending');
+    expect(resolveChoice('the second one', HUBS)).toEqual(HUBS[1]);
+    expect(resolveChoice('first', HUBS)).toEqual(HUBS[0]);
+    expect(resolveChoice('2', HUBS)).toEqual(HUBS[1]);
   });
 });
 
@@ -60,7 +60,7 @@ describe('and refuses to guess, which is the harder half', () => {
     ];
     // "routine" belongs to both, so it is not an answer.
     expect(resolveChoice('routine', both)).toBeUndefined();
-    expect(resolveChoice('morning', both)?.path).toBe('/beauty/morning');
+    expect(resolveChoice('morning', both)).toEqual(both[0]);
   });
 
   it('answers nothing when there was nothing to answer', () => {
@@ -70,7 +70,69 @@ describe('and refuses to guess, which is the harder half', () => {
   });
 
   it('does not read an unrelated word as a position', () => {
-    expect(resolveChoice('neither', HUBS)).toBeUndefined();
+    // "neither" moved out of this test on 21 Aug: it is not an unreadable
+    // answer, it is a refusal, and it now comes back as one. See below.
     expect(resolveChoice('what', HUBS)).toBeUndefined();
+    expect(resolveChoice('maybe', HUBS)).toBeUndefined();
+  });
+});
+
+describe('"one" is an answer, and it is the commonest one', () => {
+  /** FILLER strips the word `one`, so a bare "one" arrived at the position
+   *  test as an empty string and matched nothing. It is the most natural
+   *  spoken answer there is to a two-way question. */
+  it('takes a bare one, two, three', () => {
+    expect(resolveChoice('one', HUBS)).toEqual(HUBS[0]);
+    expect(resolveChoice('two', HUBS)).toEqual(HUBS[1]);
+  });
+
+  it('still takes the phrasings it always did', () => {
+    expect(resolveChoice('the first one', HUBS)).toEqual(HUBS[0]);
+    expect(resolveChoice('number 2', HUBS)).toEqual(HUBS[1]);
+  });
+
+  it('but a number inside a sentence is a quantity, not a position', () => {
+    // "2 tickets" picked the second option and navigated. A number on its own
+    // is a choice; a number in a sentence is an amount of something.
+    expect(resolveChoice('2 tickets', HUBS)).toBeUndefined();
+    expect(resolveChoice('3 people', HUBS)).toBeUndefined();
+  });
+});
+
+describe('"no" is an answer too — and it used to navigate', () => {
+  /**
+   * All of these fell through as `undefined`, which the service reads as "not
+   * an answer" and re-routes as a fresh request — so declining her question
+   * took you somewhere. Refusing is a third outcome, not a missing one.
+   */
+  it('reads a refusal of both options', () => {
+    for (const said of ['no', 'nope', 'neither', 'none', 'no thanks', 'cancel', 'stop', 'forget it']) {
+      expect(resolveChoice(said, HUBS)).toBe('none');
+    }
+  });
+
+  it('reads a request for both of them', () => {
+    for (const said of ['both', 'either', 'both of them']) {
+      expect(resolveChoice(said, HUBS)).toBe('both');
+    }
+  });
+
+  it('a refusal is never mistaken for a choice', () => {
+    const out = resolveChoice('neither', HUBS);
+    expect(typeof out).toBe('string');
+    expect(out).not.toEqual(HUBS[0]);
+  });
+
+  it('and "no one" is heard as no, not as one', () => {
+    expect(resolveChoice('no one', HUBS)).toBe('none');
+  });
+
+  it('a label still wins over a word that looks like a refusal', () => {
+    const odd: Choice[] = [{ label: 'None of the above', path: '/a' }, { label: 'Spending', path: '/b' }];
+    expect(resolveChoice('none of the above', odd)).toEqual(odd[0]);
+  });
+
+  it('does not fire on a refusal word buried in a real answer', () => {
+    expect(resolveChoice('no idea, the second one', HUBS)).toEqual(HUBS[1]);
   });
 });

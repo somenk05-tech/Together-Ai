@@ -131,10 +131,23 @@ describe('the day chooses which Mira turns up', () => {
 describe('one seed reaches both', () => {
   const thread = strip(read('features/chat/mira/MiraThread.tsx'));
 
-  it('sends the day seed to the greeting and to every ask', () => {
+  /**
+   * AND THE SEED IS THE SERVER'S NOW.
+   *
+   * `daySeed()` is the day XOR a per-device random, which fixed the refresh
+   * and left the real problem: a salt held in one browser is a different Mira
+   * on the phone than on the laptop on the same afternoon, and clearing site
+   * data changes her mid-conversation. The server derives it from the citizen
+   * and returns the one it used; this holds that answer and falls back to the
+   * local guess only for the paint before anything has answered.
+   */
+  it('holds one seed, the server’s, and guesses only until it arrives', () => {
     expect(thread).toMatch(/const seed = useRef\(daySeed\(\)\)/);
     expect(thread).toMatch(/useMiraGreeting\(\{[\s\S]*?seed: seed\.current/);
-    expect(thread).toMatch(/useMiraAsk\(\{[\s\S]*?seed: seed\.current/);
+    expect(thread).toMatch(/useMiraAsk\(\{[\s\S]*?seed: heldSeed/);
+    // Adopted from both answers — the greeting's and every reply's.
+    expect(thread).toMatch(/setHeldSeed\(said\)/);
+    expect(thread).toMatch(/setHeldSeed\(reply\.seed\)/);
   });
 
   it('never re-rolls it', () => {

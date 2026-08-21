@@ -35,4 +35,18 @@ describe('one seed ceiling, and both routes honour it', () => {
   it('and the seed stays optional on the ask, so an older client still gets an answer', () => {
     expect(AskSchema.safeParse({ text: 'hi' }).success).toBe(true);
   });
+
+  /**
+   * AND OPTIONAL ON THE GREETING TOO, NOW THAT THE SERVER DECIDES IT.
+   *
+   * The seed picks which Mira turned up, and it was computed in the browser
+   * from the date and a per-device salt — so she was a different character on
+   * the phone and on the laptop on the same afternoon. It is derived from the
+   * citizen and their local day now and answered on the reply; the client's
+   * copy is a fallback for an older server, so the field must not be required.
+   */
+  it('the greeting no longer demands one', () => {
+    expect(GreetSchema.safeParse({ hour: 9 }).success).toBe(true);
+    expect(GreetSchema.safeParse({}).success).toBe(true);
+  });
 });

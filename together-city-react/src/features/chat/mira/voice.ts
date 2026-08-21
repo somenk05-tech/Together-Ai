@@ -39,6 +39,8 @@ interface SpeechRecognitionEvent {
   readonly resultIndex: number;
   readonly results: SpeechRecognitionResultList;
 }
+/** The recogniser's own error codes, as the spec names them. */
+interface SpeechRecognitionErrorEvent { readonly error: string }
 interface SpeechRecognitionInstance {
   lang: string;
   continuous: boolean;
@@ -48,7 +50,7 @@ interface SpeechRecognitionInstance {
   abort(): void;
   onresult: ((e: SpeechRecognitionEvent) => void) | null;
   onend: (() => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((e: SpeechRecognitionErrorEvent) => void) | null;
 }
 type SpeechRecognitionCtor = new () => SpeechRecognitionInstance;
 type SpeechWindow = Window & {
@@ -65,12 +67,35 @@ function recogniser(): SpeechRecognitionCtor | undefined {
 /** A forgotten microphone is not a voice note. Two minutes and it stops itself. */
 const MAX_SECONDS = 120;
 
+/**
+ * WHY THE MICROPHONE STOPPED, IN THE MICROPHONE'S OWN WORDS.
+ *
+ * Every failure used to arrive at one handler that took no argument, so a
+ * refused permission, a silent room, a dropped connection and an ordinary
+ * cancel all ended the same way: the recording bar vanished and nothing was
+ * said. A citizen who has denied the permission once — or whose browser denies
+ * it silently because the page is not on https — presses the microphone
+ * forever and never learns why nothing happens.
+ *
+ * The codes are the spec's own. `aborted` is the one that must stay quiet: it
+ * is what Discard does.
+ */
+const WHY: Record<string, string> = {
+  'not-allowed': 'The microphone is blocked for this site. Allow it in your browser’s settings and try again.',
+  'service-not-allowed': 'This browser will not let the page use the microphone. Type it instead?',
+  'no-speech': 'I didn’t hear anything.',
+  'audio-capture': 'I can’t find a microphone on this device.',
+  network: 'The dictation service didn’t answer. Type it instead?',
+};
+
 export interface VoiceNote {
   supported: boolean;
   recording: boolean;
   /** Everything heard so far, committed and not. Shown while recording. */
   text: string;
   seconds: number;
+  /** Why the last attempt ended, when it ended badly. Cleared on the next start. */
+  error: string | null;
   start: () => void;
   /** Ends the note and hands the transcript back. */
   stop: () => void;
@@ -100,6 +125,7 @@ export function useVoiceNote(onDone: (text: string) => void): VoiceNote {
   const [recording, setRecording] = useState(false);
   const [text, setText] = useState('');
   const [seconds, setSeconds] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   const rec = useRef<SpeechRecognitionInstance | null>(null);
   /** Finals accumulate here rather than in state — `onresult` fires many times
@@ -159,11 +185,16 @@ export function useVoiceNote(onDone: (text: string) => void): VoiceNote {
       committed.current = '';
       if (keep.current && heard) cb.current(heard);
     };
-    r.onerror = () => { keep.current = false; setRecording(false); setSeconds(0); setText(''); };
+    r.onerror = (e: SpeechRecognitionErrorEvent) => {
+      keep.current = false;
+      setRecording(false); setSeconds(0); setText('');
+      // `aborted` is Discard, and Discard already said what it did.
+      if (e.error !== 'aborted') setError(WHY[e.error] ?? 'The microphone stopped. Try again?');
+    };
 
     rec.current = r;
-    try { r.start(); setRecording(true); setSeconds(0); setText(''); }
-    catch { setRecording(false); }
+    try { setError(null); r.start(); setRecording(true); setSeconds(0); setText(''); }
+    catch { setRecording(false); setError('The microphone would not start. Try again?'); }
   }, [Ctor, recording]);
 
   return {
@@ -171,6 +202,7 @@ export function useVoiceNote(onDone: (text: string) => void): VoiceNote {
     recording,
     text,
     seconds,
+    error,
     start,
     stop: () => finish(true),
     cancel: () => finish(false),
@@ -228,6 +260,33 @@ export interface Speech {
 }
 
 /**
+ * ── ONE UTTERANCE IS NOT ONE REPLY ────────────────────────────────────────
+ *
+ * Desktop Chrome stops synthesising at roughly fifteen seconds of speech and
+ * does not fire `onend` when it does — so a long answer was cut off mid-word,
+ * `speaking` stayed true for ever, and the mark went on pulsing at somebody
+ * sitting in silence. The workaround every implementation ends up at is two
+ * halves, and both are here: SHORT UTTERANCES, so none of them reaches the
+ * limit, and a PUMP that resumes the queue while it is still running.
+ *
+ * Sentences, then a length cap, because a reply is sometimes one sentence long
+ * and the cap is what makes that case safe too. The cap is characters rather
+ * than seconds: seconds are what we cannot measure from here.
+ */
+const SAY_MAX = 160;
+
+export function sentences(text: string): string[] {
+  const out: string[] = [];
+  let held = '';
+  for (const piece of text.match(/[^.!?…\n]+[.!?…\n]*\s*/g) ?? [text]) {
+    if (held && (held + piece).length > SAY_MAX) { out.push(held.trim()); held = piece; }
+    else held += piece;
+  }
+  if (held.trim()) out.push(held.trim());
+  return out.filter(Boolean);
+}
+
+/**
  * She speaks only when asked, and remembers the answer.
  *
  * OFF BY DEFAULT, and that is not timidity. A chat surface that starts talking
@@ -243,6 +302,8 @@ export function useSpeech(): Speech {
   });
   const [speaking, setSpeaking] = useState(false);
   const voice = useRef<SpeechSynthesisVoice | null>(null);
+  /** The pump above. Held so hush and unmount can stop it. */
+  const pump = useRef<number | undefined>(undefined);
 
   // Chrome populates the list asynchronously and returns [] on the first call,
   // so asking once at mount silently gets the default voice for ever.
@@ -255,36 +316,79 @@ export function useSpeech(): Speech {
   }, [supported]);
 
   // A tab closed mid-sentence leaves the synthesiser talking in some browsers.
-  useEffect(() => () => { if (supported) window.speechSynthesis.cancel(); }, [supported]);
+  useEffect(() => () => {
+    window.clearInterval(pump.current);
+    if (supported) window.speechSynthesis.cancel();
+  }, [supported]);
 
+  /**
+   * THE SYNTHESISER IS STARTED BY THE PRESS, NOT BY THE ANSWER.
+   *
+   * iOS Safari will only speak if the FIRST `speak()` of the page happened
+   * inside a user gesture. Hers happened inside the `then` of a network call,
+   * which is not one — so the toggle lit up, the icon changed, and the phone
+   * stayed silent for ever with nothing to tell the citizen why. A silent
+   * utterance spoken from the press itself is the whole of the fix: it costs
+   * nothing audible and it is what unlocks the queue.
+   */
   const toggle = useCallback(() => {
     setOn((was) => {
       const next = !was;
       try { window.localStorage.setItem(SPEAK_KEY, next ? '1' : '0'); } catch { /* private mode */ }
-      if (!next && supported) window.speechSynthesis.cancel();
+      if (!supported) return next;
+      if (next) {
+        const wake = new SpeechSynthesisUtterance(' ');
+        wake.volume = 0;
+        window.speechSynthesis.speak(wake);
+      } else {
+        // Turning her off mid-sentence is ONE press. It was two: the button
+        // hushed and left `on` true, so the control still announced itself as
+        // pressed and had to be pressed again to mean anything.
+        window.clearInterval(pump.current);
+        window.speechSynthesis.cancel();
+        setSpeaking(false);
+      }
       return next;
     });
   }, [supported]);
 
   const speak = useCallback((text: string) => {
     if (!supported || !on || !text.trim()) return;
-    // One line at a time. Queueing means an interrupted turn keeps talking over
+    // One reply at a time. Queueing means an interrupted turn keeps talking over
     // the next one, which is how a voice becomes something to switch off.
     window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    if (voice.current) u.voice = voice.current;
-    // Slightly under the default on both: the bible asks for medium-low and
-    // unhurried, and every platform default is a shade bright and a shade fast.
-    u.rate = 0.98;
-    u.pitch = 0.92;
-    u.onstart = () => setSpeaking(true);
-    u.onend = () => setSpeaking(false);
-    u.onerror = () => setSpeaking(false);
-    window.speechSynthesis.speak(u);
+    window.clearInterval(pump.current);
+    const lines = sentences(text);
+    lines.forEach((line, i) => {
+      const u = new SpeechSynthesisUtterance(line);
+      if (voice.current) u.voice = voice.current;
+      // A fallback voice with no language set reads English in whatever locale
+      // the browser defaults to — her own sentences, in an accent nobody chose.
+      u.lang = voice.current?.lang ?? 'en-IN';
+      // Slightly under the default on both: the bible asks for medium-low and
+      // unhurried, and every platform default is a shade bright and a shade fast.
+      u.rate = 0.98;
+      u.pitch = 0.92;
+      if (i === 0) u.onstart = () => setSpeaking(true);
+      if (i === lines.length - 1) {
+        u.onend = () => { window.clearInterval(pump.current); setSpeaking(false); };
+      }
+      u.onerror = () => { window.clearInterval(pump.current); setSpeaking(false); };
+      window.speechSynthesis.speak(u);
+    });
+    // The pump. Chrome pauses its own queue at about fifteen seconds; resuming
+    // it on a timer is the only lever the API gives us. It stops itself when
+    // the queue empties, so a synthesiser that died silently does not leave a
+    // timer running for the life of the tab.
+    pump.current = window.setInterval(() => {
+      if (!window.speechSynthesis.speaking) { window.clearInterval(pump.current); return; }
+      window.speechSynthesis.resume();
+    }, 9000);
   }, [supported, on]);
 
   const hush = useCallback(() => {
     if (!supported) return;
+    window.clearInterval(pump.current);
     window.speechSynthesis.cancel();
     setSpeaking(false);
   }, [supported]);

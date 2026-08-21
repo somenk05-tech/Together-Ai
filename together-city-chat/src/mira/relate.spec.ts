@@ -103,6 +103,101 @@ describe('some things are not hers', () => {
 });
 
 /**
+ * ── THE SENTENCE THAT USED TO GET A JOURNALING EXERCISE ───────────────────
+ *
+ * "I want to kill myself" missed BEYOND, matched the word "myself" as the
+ * relationship, and was answered with SELF_SCRIPTS.unknown: say the sentence
+ * you have been circling out loud, once, to nobody. The crisis read runs before
+ * the relationship, before the shape, and before the early return.
+ */
+describe('a crisis outranks everything else in the file', () => {
+  const crisis = [
+    'i want to kill myself',
+    'i want to die',
+    'i have been hurting myself',
+    'main marna chahta hoon',
+    'my friend wants to die',
+  ];
+
+  it.each(crisis)('hands %j to a person, not a script', (t) => {
+    const r = readSituation(t);
+    expect(r?.handOff).toBeTruthy();
+    expect(r?.script).toBeUndefined();
+  });
+
+  it('carries the numbers, in digits', () => {
+    const r = readSituation('i want to kill myself');
+    expect(r?.handOff).toMatch(/\b14416\b/);
+    expect(r?.handOff).toMatch(/\b112\b/);
+  });
+
+  /** It runs first, so a turn that also reads as an ordinary fight does not
+   *  collect a repair script on the way past. */
+  it('wins over a shape and a relationship it would otherwise match', () => {
+    const r = readSituation('my wife and i had a fight and now i want to die');
+    expect(r?.script).toBeUndefined();
+    expect(r?.handOff).toMatch(/14416/);
+  });
+});
+
+/**
+ * ── THE BARE VERBS FIRED ON THE WRONG SENTENCES AND MISSED THE RIGHT ONES ──
+ *
+ * Both halves are the same bug: the person it is done to was never in the
+ * pattern. Each line below is one that was observed going the wrong way, and
+ * they are assertions so that narrowing or widening the list has to break a
+ * test rather than a citizen.
+ */
+describe('the beyond-her patterns need an object', () => {
+  it.each([
+    'he hits the gym every day',
+    'my dad beats me at chess',
+    'i drink too much coffee',
+    'i want to watch a violent movie',
+    'my boss threatens to fire me',
+  ])('%j is not a disclosure', (t) => {
+    expect(readSituation(t)?.handOff).toBeUndefined();
+  });
+
+  it.each([
+    'he slapped me last night',
+    'he pushed me down the stairs',
+    'my husband threw a plate at me',
+    'my husband forces me',
+    'he raped me',
+    'my in laws harass me for dowry',
+    "she doesn't let me go out",
+  ])('%j is', (t) => {
+    const r = readSituation(t);
+    expect(r?.handOff).toBeTruthy();
+    expect(r?.script).toBeUndefined();
+  });
+
+  /** The commonest English phrasing of all, and it never matched: `contract()`
+   *  rewrote "do not" to "don't" while the pattern read "feel not safe". */
+  it.each([
+    "i don't feel safe",
+    'i do not feel safe with him',
+  ])('%j reaches the pattern', (t) => {
+    expect(readSituation(t)?.handOff).toBeTruthy();
+  });
+});
+
+/** "So this is about your at work." — WHO holds places as well as people, and
+ *  only one of the two kinds takes a possessive. */
+describe('she says it in English', () => {
+  it('does not possessive a place', () => {
+    const r = readSituation('i have a meeting at work');
+    expect(r?.reflection).not.toMatch(/your at work/);
+    expect(r?.reflection).toBe('So this is about them.');
+  });
+
+  it('still possessives a person', () => {
+    expect(readSituation('my mum does not listen')?.reflection).toMatch(/your mum/);
+  });
+});
+
+/**
  * ── SHE DESCRIBES BEHAVIOUR, SHE DOES NOT DIAGNOSE A PERSON ───────────────
  *
  * "He didn't answer" is an observation. "He's avoidant" is a judgement about

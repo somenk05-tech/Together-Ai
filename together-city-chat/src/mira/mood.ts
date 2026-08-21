@@ -36,10 +36,18 @@ export interface MoodProfile {
   /** Openers in this colour. Levity still decides whether the sharper ones are reachable. */
   opens: string[];
   /**
-   * Shifts levity WITHIN the permitted level, never across it. A +1 on a cap of
-   * 0 is still 0 — which is the single most important line in this file.
+   * Shifts levity DOWN within the permitted level, never up.
+   *
+   * The type used to allow +1, and `sharp` and `mischievous` both carried one.
+   * It could never do anything: `tilted()` clamps to the cap the governor gave,
+   * and `Math.min(cap, cap + 1)` is `cap` for every cap there is. A field whose
+   * only positive value is a no-op reads, to the next person, as a knob that
+   * works — and the first fix anybody would reach for is to unclamp it, which
+   * is the one change this file exists to prevent. So the +1 left the type
+   * rather than the clamp: a mood may make her quieter than she is allowed to
+   * be, and there is now no way to write down the opposite.
    */
-  tilt: -1 | 0 | 1;
+  tilt: -1 | 0;
 }
 
 export const MOODS: Record<Mood, MoodProfile> = {
@@ -64,8 +72,8 @@ export const MOODS: Record<Mood, MoodProfile> = {
     blurb: 'Wide awake and slightly dangerous.',
     words: 11,
     ack: ['Done.', 'Yep.', 'Already on it.'],
-    opens: ['Go. What are we fixing?', 'You’re up early. Suspicious.', 'Three things are on fire. Two are yours.'],
-    tilt: 1,
+    opens: ['Go. What are we fixing?', 'Say the thing you have been putting off.', 'Right. Straight in.'],
+    tilt: 0,
   },
   brisk: {
     id: 'brisk',
@@ -82,10 +90,10 @@ export const MOODS: Record<Mood, MoodProfile> = {
     ack: ['Oh, we’re doing this?', 'Fine.', 'Interesting.'],
     opens: [
       'Oh good, you’re here. I was starting to make my own decisions.',
-      'Let me guess. It’s about the thing from Tuesday.',
+      'Let me guess. This is not a small one.',
       'Back so soon. Something’s gone wrong, hasn’t it.',
     ],
-    tilt: 1,
+    tilt: 0,
   },
   quiet: {
     id: 'quiet',
@@ -139,8 +147,19 @@ export function moodFor(i: MoodInput): Mood {
   if (i.requested) return i.requested;
   if (i.lastSessionDistressed) return 'quiet';
   // Small hours skew low-key. Not a rule about safety — a rule about plausibility.
-  if (i.hour < 6) return i.seed % 2 === 0 ? 'quiet' : 'wry';
-  const pool: Mood[] = ['wry', 'warm', 'sharp', 'brisk', 'mischievous', 'wry', 'warm'];
+  // `Math.abs` because a negative seed is not an error and must not silently
+  // take the other branch — every other site in this file already says so.
+  if (i.hour < 6) return Math.abs(i.seed) % 2 === 0 ? 'quiet' : 'wry';
+  /**
+   * `quiet` belongs in daylight too.
+   *
+   * It was missing from this list, so the only ways to meet her quiet self were
+   * the small hours, a distressed last session, or asking for her by name — she
+   * was quiet only in bad conditions, which is not a mood, it is a symptom.
+   * People have quiet Tuesdays. One slot in eight; `wry` and `warm` keep their
+   * double weighting, so the common colours stay common.
+   */
+  const pool: Mood[] = ['wry', 'warm', 'sharp', 'brisk', 'mischievous', 'quiet', 'wry', 'warm'];
   return pool[Math.abs(i.seed) % pool.length];
 }
 
@@ -158,6 +177,10 @@ export function profileFor(mood: Mood, level: LevityLevel): MoodProfile {
 export function tilted(mood: Mood, cap: LevityLevel): LevityLevel {
   if (cap === 0) return 0;
   const t = MOODS[mood].tilt;
+  // The `min` is redundant against a `-1 | 0` tilt and stays anyway: it is what
+  // makes "no mood can lift levity above what the governor allowed" a property
+  // of the code rather than a property of the table above, and the table is the
+  // half somebody edits at speed.
   const out = Math.max(0, Math.min(cap, cap + t));
   return out as LevityLevel;
 }

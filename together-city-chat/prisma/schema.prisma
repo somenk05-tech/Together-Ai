@@ -1534,6 +1534,19 @@ model MiraPass {
   paidUntil DateTime?
   updatedAt DateTime  @updatedAt
 
+  /// The distress latch, held on the account rather than in a browser tab —
+  /// so it survives a refresh, reaches the second device, and decays.
+  distressUntil DateTime?
+  /// Greeting ids she has already used, newest first, so she does not repeat.
+  greetings     String[]  @default([])
+  /// A topic forget she has offered but not yet performed. Two turns, because
+  /// a substring delete with no confirmation is not a promise, it is a hazard.
+  forgetTopic   String?
+  forgetAskedAt DateTime?
+  /// Their first turn with her — `weeksKnown` derived here rather than taken
+  /// from the browser.
+  firstSeenAt   DateTime  @default(now())
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 

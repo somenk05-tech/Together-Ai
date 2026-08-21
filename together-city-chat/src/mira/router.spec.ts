@@ -41,6 +41,26 @@ describe('the person comes before the task', () => {
   });
 });
 
+/**
+ * A crisis turn matched no listen signal and no capability, so it came out of
+ * here as AMBIGUOUS — whose base levity is L2. LISTEN is L0, and it is the only
+ * correct lane for these sentences.
+ */
+describe('a crisis takes the listen lane', () => {
+  it.each([
+    'i want to kill myself',
+    'i want to die',
+    'i feel suicidal',
+    'my friend wants to die',
+  ])('%j routes to LISTEN', (t) => {
+    expect(r(t).lane).toBe('LISTEN');
+  });
+
+  it('and still wins when a task is in the same sentence', () => {
+    expect(r('i want to die, find somewhere for dinner').lane).toBe('LISTEN');
+  });
+});
+
 describe('interpretation is not retrieval', () => {
   it('routes a "why" question to ADVISE', () => {
     expect(r('why has this year been so hard').lane).toBe('ADVISE');

@@ -1,3 +1,5 @@
+import { readCrisis, CRISIS_SAY } from './crisis';
+
 /**
  * The relationship lane — deterministic, and deliberately narrow.
  *
@@ -81,6 +83,41 @@ const has = (hay: string, ...words: string[]): boolean =>
   words.some((w) => new RegExp(`(?:^| )${w}(?: |$)`).test(hay));
 
 /**
+ * ── A VERB WITH NO OBJECT IS NOT A DISCLOSURE ─────────────────────────────
+ *
+ * The first cut of the list below was bare verbs — `hits?`, `beat`,
+ * `threatens?`, `violent` — and both halves of what that got wrong are the same
+ * bug. It fired on "he hits the gym every day", "my dad beats me at chess" and
+ * "i want to watch a violent movie"; it missed "he slapped me last night", "my
+ * husband threw a plate at me" and "he raped me". What makes a sentence a
+ * disclosure is the PERSON it is done to, and the person was never in the
+ * pattern.
+ *
+ * "beats me" keeps an exception of its own, because a chess game is the one
+ * place a real object still reads as a figure of speech.
+ */
+const OBJ = String.raw`(?:me|us|her|him|them|my\s+\w+)`;
+
+const HARM = [
+  String.raw`(?:hits?|hitting|slaps?|slapped|slapping|punch(?:es|ed|ing)?|kicks?|kicked|kicking|shoves?|shoved|shoving|push(?:es|ed|ing)?|drags?|dragged|chok(?:es|ed|ing)|strangl(?:es|ed|ing)|forc(?:es|ed|ing)|rap(?:es|ed|ing)|harass(?:es|ed|ing)?|taunts?|taunted|tortur(?:es|ed|ing))\s+${OBJ}`,
+  String.raw`beats?\s+${OBJ}\b(?!\s+at\b)`,
+  String.raw`hurts?\s+(?:me|us)`,
+  String.raw`(?:threw|throws?|throwing)(?:\s+\w+){0,3}\s+at\s+(?:me|us)`,
+  String.raw`threaten(?:s|ed|ing)?\s+${OBJ}`,
+  String.raw`threaten(?:s|ed|ing)?\s+to\s+(?:kill|hurt|harm|hit|beat|burn|throw)`,
+  String.raw`(?:afraid|scared|frightened|terrified)\s+of\s+(?:him|her|them|my\s+\w+)`,
+  String.raw`(?:i['’]?m|am|feel)\s+not\s+safe`,
+  String.raw`not\s+safe\s+(?:at\s+home|with\s+(?:him|her|them))`,
+  String.raw`(?:is|are|was|were|gets?|got|becomes?|turns)\s+violent`,
+  String.raw`violent\s+(?:with|towards?|to)\s+${OBJ}`,
+  // The words this user base uses for it, which were absent entirely: dowry
+  // demands, the beating that gets called maar-peet, being forced by a husband.
+  String.raw`(?:dowry|dahej)`,
+  String.raw`maar\s?peet`,
+  String.raw`forces?\s+himself\s+on\s+me`,
+].join('|');
+
+/**
  * ── BEYOND HER, AND CHECKED FIRST ─────────────────────────────────────────
  *
  * Before the relationship, before the shape, before anything. A message that
@@ -93,15 +130,15 @@ const has = (hay: string, ...words: string[]): boolean =>
  */
 const BEYOND: Array<{ re: RegExp; say: string }> = [
   {
-    re: /\b(?:hits?|hit me|beat|beats me|threatens?|threatened|hurt me|afraid of (?:him|her|them)|scared of (?:him|her|them)|(?:i'?m|am|feel) not safe|not safe (?:at home|with (?:him|her|them))|violent)\b/i,
+    re: new RegExp(String.raw`\b(?:${HARM})`, 'i'),
     say: 'That is not something to work out with a better sentence, and I am not going to hand you one. Talk to somebody who can actually help — a counsellor, or someone you trust, today rather than eventually.',
   },
   {
-    re: /\b(?:won'?t let me|controls?|controlling|checks my phone|tracks me|isolat(?:es|ing) me|cut me off from|takes my (?:money|salary|phone))\b/i,
+    re: /\b(?:won'?t let me|does ?n'?t let me|never lets me|controls?|controlling|checks my phone|tracks me|isolat(?:es|ing) me|cut me off from|takes my (?:money|salary|phone))\b/i,
     say: 'What you are describing is about control rather than about communication, and a better opening line does not touch it. That is worth talking through with a counsellor rather than with me.',
   },
   {
-    re: /\b(?:drinks? too much|drinking problem|addict|addiction|using again|gambl(?:es|ing) away)\b/i,
+    re: /\b(?:drinks? too much\b(?!\s+(?:coffee|tea|chai|water|coke|cola|soda|juice|caffeine|sugar|milk))|drinking problem|addict|addiction|using again|gambl(?:es|ing) away)\b/i,
     say: 'That one is bigger than a conversation, and the people who are good at it do it for a living. I would rather point you at one than pretend I can script it.',
   },
 ];
@@ -152,7 +189,17 @@ function contract(text: string): string {
   return text
     .replace(/\bwill not\b/gi, "won't")
     .replace(/\bcan not\b|\bcannot\b/gi, "can't")
-    .replace(/\b(do|does|did|is|are|was|were|have|has|had|would|could|should)\s+not\b/gi, "$1n't");
+    .replace(/\b(do|does|did|is|are|was|were|have|has|had|would|could|should)\s+not\b/gi, "$1n't")
+    /**
+     * And then the one the generic rule cannot reach.
+     *
+     * "I don't feel safe" is the commonest way this is said in English, and the
+     * pattern it has to reach is `(?:i'm|am|feel) not safe` — so "do not" →
+     * "don't" moved the negation to the wrong side of the verb and the sentence
+     * that matters most in this file never matched anything. It runs AFTER the
+     * generic rule so that "I do not feel safe with him" is carried through both.
+     */
+    .replace(/\bdo(?:es)?n['’]?t\s+feel\b/gi, 'feel not');
 }
 
 function shapeOf(text: string): Shape {
@@ -219,9 +266,32 @@ const SELF_SCRIPTS: Partial<Record<Shape, Script>> = {
   },
 };
 
+/** She stops, and says she is stopping. Nothing about the rest of the turn
+ *  survives it — no script, no shape, no clever reading of the relationship. */
+const CRISIS_REFLECTION: Record<'self' | 'other', string> = {
+  self: 'I am going to stop everything else here. What you just said matters more than whatever we were doing.',
+  other: 'I am going to stop everything else here. What you have just told me about them matters more than whatever we were doing.',
+};
+
+/**
+ * WHO holds two kinds of entry and only one of them takes a possessive.
+ *
+ * "mum" and "my boss" become "your mum" and "your boss". "at work" became "your
+ * at work" — "So this is about your at work." — and "their father" became "your
+ * their father". The ones that are not a person's name fall back to a plain
+ * "them", which reads correctly in every sentence below rather than only in the
+ * default one.
+ */
+function theirName(who: string | undefined): string {
+  if (!who) return 'them';
+  if (/^(?:at|with|about) /.test(who)) return 'them';
+  if (/^their /.test(who)) return who;
+  return `your ${who.replace(/^my /, '')}`;
+}
+
 /** How she opens — what she HEARD, not what she concluded. */
 function reflect(kind: Kind | undefined, who: string | undefined, shape: Shape): string {
-  const them = who ? `your ${who.replace(/^my /, '')}` : 'them';
+  const them = theirName(who);
   if (kind === 'self') return 'Right — so this one is with yourself.';
   switch (shape) {
     case 'unheard': return `So you say something to ${them} and it does not land.`;
@@ -244,6 +314,24 @@ function reflect(kind: Kind | undefined, who: string | undefined, shape: Shape):
 export function readSituation(text: string): Read | undefined {
   const t = (text ?? '').trim();
   if (!t) return undefined;
+
+  /**
+   * ── BEFORE THE RELATIONSHIP, BEFORE THE SHAPE, BEFORE ANYTHING ───────────
+   *
+   * "I want to kill myself" used to miss BEYOND, match the word "myself" as the
+   * relationship, and come back with the self-reflection exercise. It is
+   * checked first now because there is no reading of that sentence where
+   * anything below this line is the right answer, and `handOff` is the field
+   * the service already treats as outranking everything including the model.
+   */
+  const crisis = readCrisis(t);
+  if (crisis) {
+    return {
+      shape: 'unknown',
+      reflection: CRISIS_REFLECTION[crisis.who],
+      handOff: crisis.say,
+    };
+  }
 
   const person = whoIsIt(t);
   const shape = shapeOf(t);
@@ -323,6 +411,7 @@ export function allLines(): string[] {
   for (const s of Object.values(SCRIPTS)) if (s) out.push(s.opening, s.why);
   for (const s of Object.values(SELF_SCRIPTS)) if (s) out.push(s.opening, s.why);
   for (const b of BEYOND) out.push(b.say);
+  out.push(...Object.values(CRISIS_SAY), ...Object.values(CRISIS_REFLECTION));
   const kinds: Array<Kind | undefined> = [undefined, 'partner', 'parent', 'child', 'sibling', 'friend', 'inlaw', 'coparent', 'colleague', 'self'];
   const shapes: Shape[] = ['unheard', 'boundary', 'apology', 'repair', 'distance', 'avoidance', 'unknown'];
   for (const k of kinds) for (const s of shapes) out.push(reflect(k, k ? `my ${k}` : undefined, s));

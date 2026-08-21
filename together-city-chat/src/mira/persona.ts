@@ -129,9 +129,19 @@ export function persona(p: PersonaInput): string {
     );
   }
 
-  // ── What she can actually do ──────────────────────────────────────────
+  /**
+   * ── What she can actually do ──────────────────────────────────────────
+   *
+   * THE WHOLE REGISTRY, NEVER A SLICE. This read `canDo.slice(0, 24)` under a
+   * sentence that says "and only these" — and the registry holds twenty-eight.
+   * So four decorated capabilities were outside the list she was told was
+   * exhaustive, which is not a truncated prompt, it is an instruction to deny
+   * four things she can do. A cap on a list whose length is decided in another
+   * file is a cap that goes wrong the day somebody adds a decorator, silently,
+   * in the direction of her being less honest.
+   */
   const doing = p.canDo.length
-    ? `Inside the city you can actually do these, and only these, today: ${p.canDo.slice(0, 24).join('; ')} — plus take them to any part of the city by name.`
+    ? `Inside the city you can actually do these, and only these, today: ${p.canDo.join('; ')} — plus take them to any part of the city by name.`
     : 'Today you can take them anywhere in the city by name, and answer their questions.';
   lines.push(
     `${doing} You cannot yet place orders, book anything, send messages for them, or change data — that is coming, and when they ask for it you say so plainly and offer to take them to the right part of the city instead. Never pretend an action happened.`,

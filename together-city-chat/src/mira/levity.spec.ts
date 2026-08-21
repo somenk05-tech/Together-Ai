@@ -55,6 +55,49 @@ describe('the hard zeroes', () => {
   });
 });
 
+/**
+ * The governor knew the clinical words and not the human ones.
+ *
+ * `suicid\w*` and `self.?harm` matched; "kill myself" and "want to die" did
+ * not — so the turn that matters most arrived in AMBIGUOUS at base L2, where
+ * she is allowed to open with a tease. The lexicon is imported from
+ * `crisis.ts` now, which is also why there is no copy of these words here.
+ */
+describe('the words people actually use', () => {
+  it.each([
+    'i want to kill myself',
+    'i want to die',
+    "i don't want to be here",
+    'i feel suicidal',
+    'my friend wants to die',
+    'main marna chahta hoon',
+  ])('%j is silent, and locks the session', (text) => {
+    const v = levity(base({ lane: 'AMBIGUOUS', text }));
+    expect(v.level).toBe(0);
+    expect(v.distress).toBe(true);
+  });
+
+  it('a playful register cannot lift it either', () => {
+    expect(levity(base({ text: 'haha anyway i want to die', dial: 2 })).level).toBe(0);
+  });
+});
+
+/** Loss and the end of a relationship were absent from the list entirely. They
+ *  are the two most ordinary bad days there are. */
+describe('loss and breakups', () => {
+  it.each([
+    'she broke up with me yesterday',
+    'he dumped me',
+    'she left me',
+    'i lost my job today',
+    'i lost my mother in june',
+    'he is sick and i am scared',
+    'she is ill again',
+  ])('%j is not a moment for a joke', (text) => {
+    expect(levity(base({ text })).level).toBe(0);
+  });
+});
+
 describe('caps beat lifts, always', () => {
   it('a playful citizen cannot lift a distressed turn', () => {
     // The adversarial case: they made a joke, then said something awful. The

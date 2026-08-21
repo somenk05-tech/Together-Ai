@@ -44,6 +44,17 @@ export const MiraReplySchema = z.object({
    */
   mood: z.enum(['wry', 'warm', 'sharp', 'brisk', 'mischievous', 'quiet']).optional(),
   /**
+   * The number the mood was chosen from — HERS, not this browser's.
+   *
+   * It used to be derived here, from the date and a random per-device salt, so
+   * she was a different character on the phone and the laptop on the same
+   * afternoon and a cleared cache changed her mid-conversation. The server
+   * derives it from the citizen now and says which one it used; the client
+   * reads it back and holds it. Optional, always — the rule the mood field
+   * earned above.
+   */
+  seed: z.number().optional(),
+  /**
    * The options she just offered, when the turn was a question.
    *
    * Held by the caller and sent straight back on the next ask. That round trip
@@ -66,18 +77,24 @@ export const MiraReplySchema = z.object({
 export type MiraReply = z.infer<typeof MiraReplySchema>;
 
 /**
- * The hour and the week count are sent by the CLIENT, on purpose.
+ * The clock is sent by the CLIENT; the SAFETY STATE is not, any more.
  *
- * The governor caps humour at 3am and holds it at L1 for the first fortnight,
- * and both are facts about the citizen rather than about the server. A server
- * in another timezone deciding it is not 3am for someone is the exact class of
- * bug `MasterProfile.timeZone` exists to prevent.
+ * The hour and the zone stay here because a server deciding it is not 3am for
+ * somebody is the exact class of bug `MasterProfile.timeZone` exists to
+ * prevent — and they are now a fallback rather than the source: the server
+ * prefers the zone on the profile and reads these only when it has none.
+ *
+ * WHAT LEFT, AND WHY IT HAD TO. `weeksKnown` and `distressLocked` decide how
+ * playful she is allowed to be and whether the last session ended somewhere
+ * heavy. Both were state held in a browser tab — which means both were
+ * editable by anyone holding the browser, and neither survived a refresh
+ * honestly. A citizen's distress latch is not a fact a client gets a vote on.
+ * The server derives them from the profile and the MiraPass row; the request
+ * schema still accepts the fields, and this no longer sends them.
  */
 export function useMiraAsk(opts: {
-  weeksKnown: number;
   dial?: 0 | 1 | 2;
-  distressLocked?: boolean;
-  /** Held for the life of the thread, so her mood does not change mid-sentence. */
+  /** The last seed the server named, or the day's local guess before one has. */
   seed: number;
 }) {
   return useMutation({
@@ -88,6 +105,13 @@ export function useMiraAsk(opts: {
       mode?: 'friend' | 'city';
       /** The in-app path they were standing on when they opened her. */
       page?: string;
+      /**
+       * The way out of a request that is not coming back. Without one the
+       * composer is disabled for as long as the network takes to give up,
+       * which on a dead connection is minutes with no cancel and no timeout —
+       * a citizen stranded in front of a Send button that does nothing.
+       */
+      signal?: AbortSignal;
     }) =>
       apiPost('/mira/ask', {
         text: input.text,
@@ -104,12 +128,10 @@ export function useMiraAsk(opts: {
         // hour wrong across all of India — so the zone itself is sent. Optional
         // on the server, so this reaching an older API costs nothing.
         tz: Intl.DateTimeFormat().resolvedOptions().timeZone || undefined,
-        weeksKnown: opts.weeksKnown,
         dial: opts.dial,
-        distressLocked: opts.distressLocked,
         seed: opts.seed,
         answering: input.answering,
-      }, MiraReplySchema),
+      }, MiraReplySchema, { signal: input.signal }),
   });
 }
 
@@ -133,19 +155,33 @@ const GreetingSchema = z.object({
   ask: z.string(),
   mood: z.enum(['wry', 'warm', 'sharp', 'brisk', 'mischievous', 'quiet']).optional(),
   levity: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional(),
+  /** The seed the server chose for this citizen today. See MiraReplySchema. */
+  seed: z.number().optional(),
 });
 export type MiraGreeting = z.infer<typeof GreetingSchema>;
 
 export function useMiraGreeting(opts: {
-  hour: number; seed: number; weeksKnown: number;
-  firstOfDay: boolean; dial?: 0 | 1 | 2; distressLocked?: boolean;
+  hour: number; seed: number;
+  firstOfDay: boolean; dial?: 0 | 1 | 2;
 }) {
   return useQuery({
-    queryKey: ['mira', 'greeting', opts.seed, opts.firstOfDay],
+    /**
+     * NOT KEYED ON THE SEED, and that is the point of the seed moving.
+     *
+     * The greeting ANSWERS with the seed now, so keying the query on the one
+     * this device guessed would fetch a second greeting the moment the real one
+     * arrived — a new opening line re-rolled under somebody who is already
+     * reading the first, which is precisely what `staleTime: Infinity` below
+     * exists to prevent.
+     */
+    queryKey: ['mira', 'greeting', opts.firstOfDay],
     queryFn: () => apiGet('/mira/greeting', GreetingSchema, {
       params: {
-        hour: opts.hour, seed: opts.seed, weeksKnown: opts.weeksKnown,
-        firstOfDay: opts.firstOfDay, dial: opts.dial, distressLocked: opts.distressLocked,
+        // Still sent, still only a fallback: a server with no zone on the
+        // profile reads the hour, and a server older than this change still
+        // requires the seed. Neither is trusted where the profile answers.
+        hour: opts.hour, seed: opts.seed,
+        firstOfDay: opts.firstOfDay, dial: opts.dial,
       },
     }),
     staleTime: Infinity,
@@ -163,6 +199,23 @@ export function useMiraGreeting(opts: {
  * pressing a priced key. An empty wallet answers with the same sentence every
  * checkout in the city uses, and the thread shows it rather than swallowing it.
  */
+/**
+ * THE PRICE AND THE QUOTA, IN ONE PLACE ON THIS SIDE OF THE WIRE.
+ *
+ * Both were typed out at three call sites — the subscribe key in her room, the
+ * same key in the confidant, and the meter line — with nothing checking any of
+ * them against what the wallet is actually charged. A price on a button that
+ * disagrees with the price on the invoice is not a copy bug.
+ *
+ * THE SOURCE OF TRUTH IS `together-city-chat/src/mira/persona.ts` (`SUB_INR`,
+ * `FREE_CHATS`), and no response carries either number today, so this is one
+ * constant instead of three literals rather than the real fix. Serving them —
+ * on `/mira/ask`'s `pass`, where the meter already rides — is a follow-up, and
+ * until it lands this comment is the only thing holding the two files together.
+ */
+export const SUB_INR = 999;
+export const FREE_CHATS = 200;
+
 const SubscribeSchema = z.object({
   paidUntil: z.string(),
   freeLeft: z.null(),

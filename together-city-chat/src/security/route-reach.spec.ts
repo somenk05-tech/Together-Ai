@@ -116,6 +116,13 @@ const KNOWN_UNREACHED: string[] = [
   "entertainment/entertainment.controller.ts  GET /entertainment/movies/*",
   "entertainment/entertainment.controller.ts  GET /entertainment/tv/*",
   "medical/medical.controller.ts  GET /medical/shared-biomarkers/*",
+  // GET /mira/memory, added 21 Aug with no caller ON PURPOSE. Her memory could
+  // be inspected in exactly one way — by asking her — and a record you can only
+  // interrogate conversationally is one nobody can audit, including the citizen
+  // whose sentences are in it. The endpoint is the read; the "what Mira knows
+  // about me" screen is a build that was explicitly deferred, and this is the
+  // thing it will call. Until then the promise is checkable with curl.
+  "mira/mira.controller.ts  GET /mira/memory",
   // GET /messages/search came off 1 Aug: the command palette searches messages.
   // Came ON 2 Aug: the family cart endpoint. Its only web caller was
   // useBuildFamilyCart(), which built a cart from the older STORED family

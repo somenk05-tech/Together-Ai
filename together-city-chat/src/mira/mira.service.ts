@@ -20,15 +20,16 @@ import { ThoughtsService } from '../thoughts/thoughts.service';
 import { route, isUncertain, type Routed } from './router';
 import { levity, type LevityLevel, type LevityVerdict } from './levity';
 import { moodFor, tilted, type Mood } from './mood';
-import { say, nothing, type Colour } from './say';
-import { resolveChoice, type Choice } from './choose';
+import { sayWithTrace, nothing, type Colour } from './say';
+import { resolveChoice, isChoice, type Choice } from './choose';
 import { MiraRegistry } from './mira.registry';
-import { MiraLedger, type Outcome } from './ledger';
+import { MiraLedger, mentions, type Outcome } from './ledger';
 import { acceptOrFallback, violations } from './voice';
 import { persona, confidant, lifePathOf, FREE_CHATS, SUB_INR, PAYWALL_LINE } from './persona';
 import { findInCity, whyWeAsk } from './city';
 import { readSituation, type Read } from './relate';
-import { readForget } from './forget';
+import { readForget, readForgetConfirm } from './forget';
+import { greet, type Greeting } from './greeting';
 import { DaybookService } from '../daybook/daybook.service';
 
 /**
@@ -79,6 +80,19 @@ function asList(v: unknown, ...keys: string[]): unknown[] {
 }
 const rupees = (n: number): string => `₹${Math.round(n).toLocaleString('en-IN')}`;
 
+/**
+ * The meter, with the price written on it.
+ *
+ * The web app typed ₹999 out at three call sites and the free total at two,
+ * with nothing checking any of them against what the wallet is actually
+ * charged — and its own comment says so, and names serving them here as the
+ * fix. `persona.ts` holds both numbers; this is the one place they cross the
+ * wire. Optional as ever, so an older client that ignores them is fine.
+ */
+const priced = (p: { freeLeft: number | null } | undefined):
+{ freeLeft: number | null; inr: number; freeTotal: number } | undefined =>
+  (p ? { ...p, inr: SUB_INR, freeTotal: FREE_CHATS } : undefined);
+
 /** "a, b and c" — an assistant that says "a, b, c" is reading out a database. */
 /**
  * "When will I find love?"
@@ -109,6 +123,102 @@ function foretold(text: string): Attempt | undefined {
     goto: { label: 'Astrology', path: '/astrology' },
   };
 }
+
+/**
+ * THE LARGEST SEED THE WIRE WILL CARRY, and it lives here now.
+ *
+ * It was a constant in the controller because both schemas had to agree on it
+ * (`seed.spec.ts` tells that story). The server DERIVES the seed now, so the
+ * number is a fact about the derivation rather than about a request shape, and
+ * the controller imports it back for its two schemas. One constant still, and
+ * the schemas still cannot diverge from it.
+ */
+export const SEED_MAX = 10_000_000;
+
+/**
+ * ── THE SAFETY GOVERNOR'S INPUTS ARE NOT THE BROWSER'S TO SEND ────────────
+ *
+ * `hour`, `weeksKnown` and `distressLocked` decided how playful she was allowed
+ * to be and whether the distress latch was held — and all three arrived in the
+ * request body. A curl with `{hour: 14, weeksKnown: 999, distressLocked: false}`
+ * defeated the small-hours damper and the latch together, and no citizen had to
+ * be malicious for it to go wrong: a tab is per-device and empty after a
+ * refresh, so the latch was lost exactly when somebody came back.
+ *
+ * The comment defending the old arrangement named `MasterProfile.timeZone` as
+ * the thing that class of bug exists to prevent — while the server held that
+ * zone and read the browser's copy instead. So the zone comes off the profile,
+ * the hour is computed IN that zone, the weeks come off `MiraPass.firstSeenAt`,
+ * and the latch is a timestamp on the account that decays on its own.
+ *
+ * `dial` stays the client's. It is a preference — "less" or "more" — and a
+ * citizen turning their own humour down is not a safety input.
+ */
+interface Governed {
+  /** Their zone: the profile's, and only then the tab's. */
+  tz?: string;
+  /** Their local hour IN that zone. */
+  hour: number;
+  /** Whole weeks since `firstSeenAt`. */
+  weeksKnown: number;
+  /** The latch, from `distressUntil`, still inside its decay. */
+  distressLocked: boolean;
+  /** One number per citizen per local day — the same one on both devices. */
+  seed: number;
+  /** A topic forget she offered and has not performed, while it is still fresh. */
+  pendingForget?: string;
+  /** Openings she has already used, newest first. */
+  greetings: string[];
+}
+
+/**
+ * How long the distress latch holds before it decays.
+ *
+ * Four hours, and the shape of the number is the point. It used to be a boolean
+ * in a browser tab: it could not clear within a session at all, and it cleared
+ * completely on a refresh — the worst of both, a latch that was simultaneously
+ * too sticky and too easy to lose. An evening is the unit that matters here;
+ * somebody who was at the edge at nine is not fair game for a joke at eleven,
+ * and somebody who was at the edge on Tuesday is not being handled with tongs
+ * on Thursday.
+ */
+const DISTRESS_HOLD_MS = 4 * 60 * 60 * 1000;
+
+/** How long an unanswered "shall I forget that?" stays answerable. A "yes"
+ *  arriving an hour later is a yes to something else. */
+const FORGET_WINDOW_MS = 10 * 60 * 1000;
+
+/** How many turns a topic forget will look at. Far past any real answer, and
+ *  a ceiling, because an unbounded read is an unbounded read. */
+const FORGET_MAX = 500;
+
+/** Openings she keeps a record of, so she stops repeating on a 42-session
+ *  cycle. Ten is about a fortnight of opens and is one small array. */
+const GREETINGS_KEPT = 10;
+
+/**
+ * How much of her memory she keeps, per room, per citizen.
+ *
+ * MiraTurn had no expiry at all — it grew for the life of the account, which
+ * is the same privacy liability the ledger's day files were given a retention
+ * window to avoid. Two thousand turns is far more than `recall()` (30) or the
+ * thread (60) ever read, so the ceiling is invisible to a citizen and finite
+ * to everybody else.
+ */
+const KEEP_TURNS = 2000;
+
+/**
+ * How certain a capability has to be before it may answer in the FRIEND room.
+ *
+ * `route()` scores against the manifest in both rooms and 0.55 is enough to
+ * return a data readout — with no check on which room asked. So a sentence in
+ * the companion tab that happened to share two words with a decorator came
+ * back as a database row, which is the assistant with three ifs in it wearing
+ * the friend's clothes. In the city room 0.55 is right: somebody there asked
+ * for a thing. Here she has to be nearly certain, and below it the turn is a
+ * conversation.
+ */
+const FRIEND_CAPABILITY = 0.8;
 
 /**
  * An instant, in the citizen's own clock.
@@ -154,6 +264,56 @@ function clockLine(tz: string | undefined): string | undefined {
 }
 
 /**
+ * Their local hour, computed from their zone rather than taken from their tab.
+ *
+ * Undefined rather than wrong when the zone is unusable, for the same reason
+ * `clockTime` omits a clause rather than naming a wrong time — the caller then
+ * falls back to what the client claimed, which is where we started and is
+ * strictly better than a confident wrong hour.
+ */
+function hourIn(tz: string | undefined): number | undefined {
+  if (!tz) return undefined;
+  try {
+    const h = Number(new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hour12: false, timeZone: tz }).format(new Date()));
+    if (!Number.isFinite(h)) return undefined;
+    // en-GB renders midnight as 24 with hour12 off, and hour 24 is hour 0.
+    return h === 24 ? 0 : h;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Their local calendar day, for the seed. Falls back to the city's clock —
+ *  the same choice `ledger.ts` makes and for the same reason. */
+function localDay(tz: string | undefined): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz || 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(new Date());
+  } catch {
+    return new Date().toISOString().slice(0, 10);
+  }
+}
+
+/**
+ * WHICH MIRA TURNED UP, AND WHY IT IS THE SAME ONE ON BOTH DEVICES.
+ *
+ * The seed picks her mood and which aside she reaches for, and it was computed
+ * in the browser from the date and a per-device salt — so she was a different
+ * character on the phone and on the laptop on the same afternoon, and a cleared
+ * cache changed her mid-conversation. It is a hash of the citizen and their
+ * local day: stable for the day, different per citizen, and identical wherever
+ * they are standing. The client still sends its guess; the server answers with
+ * the one it used, and the client holds that.
+ */
+function seedOf(userId: string, tz: string | undefined): number {
+  const key = `${userId}:${localDay(tz)}`;
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0;
+  return Math.abs(h) % SEED_MAX;
+}
+
+/**
  * A field that came out of a hub is quoted, never conjugated.
  *
  * "Coconut-curry Lentil Stew Served Over Quinoa Thali wants starting by ..." is
@@ -169,6 +329,18 @@ function asNamed(title: string): string {
     kept.push(w);
   }
   return (kept.length ? kept : words.slice(0, 3)).join(' ');
+}
+
+/**
+ * One sample of what is about to be deleted, cut short.
+ *
+ * The redaction IS the cut: enough for a citizen to recognise the exchange,
+ * not enough for the confirmation line to become a transcript read back at
+ * somebody who asked for a deletion.
+ */
+function excerpt(text: string): string {
+  const clean = text.replace(/\s+/g, ' ').trim();
+  return clean.length > 60 ? `${clean.slice(0, 60)}…` : clean;
 }
 
 function list(items: string[]): string {
@@ -208,21 +380,39 @@ export interface MiraTurn {
   /** Everything the turn decided, for the inspector and for a misfire post-mortem. */
   trace: string[];
   /**
+   * The number her mood was chosen from — HERS, not the browser's. Sent so the
+   * client can hold it and stop deriving one of its own per device.
+   */
+  seed: number;
+  /**
    * The conversation meter, on turns that used or hit it. `freeLeft` is null
    * for a subscriber — not zero, which would read as "none left". Optional on
    * the wire, ALWAYS, so an older client never chokes on it.
+   *
+   * `inr` and `freeTotal` ride with it because the price was typed out at three
+   * places in the web app with nothing checking any of them against what the
+   * wallet is actually charged, and a price on a button that disagrees with the
+   * price on the invoice is not a copy bug. `persona.ts` is the source.
    */
-  pass?: { freeLeft: number | null };
+  pass?: { freeLeft: number | null; inr: number; freeTotal: number };
   /** True when this turn is the meter saying so, and the client may offer the subscription. */
   paywall?: boolean;
 }
 
 export interface AskContext {
   userId: string;
-  /** Whole weeks since their first turn with her. Humour is earned. */
-  weeksKnown: number;
-  /** Local hour in THEIR timezone. Never the server's. */
-  hour: number;
+  /**
+   * WHAT THE CLIENT CLAIMS, AND NO LONGER WHAT SHE USES.
+   *
+   * `weeksKnown` and `distressLocked` are derived from `MiraPass` now, and
+   * `hour` from the zone on the profile. All three are still accepted, because
+   * a field removed from a DTO is a 400 for every client that has not shipped
+   * yet — and all three are ignored where the server has its own answer. See
+   * `Governed` above for the whole argument.
+   */
+  weeksKnown?: number;
+  /** Their claimed local hour. Used only when the profile carries no zone. */
+  hour?: number;
   /**
    * Their IANA timezone, e.g. 'Asia/Kolkata'. Sent by the client for the same
    * reason `hour` is, and it cannot be derived from `hour`: an offset guessed
@@ -230,10 +420,12 @@ export interface AskContext {
    * for every citizen in India. Optional, so an older client still gets answers.
    */
   tz?: string;
+  /** Their own setting: 0 less · 1 default · 2 more. The one input here that
+   *  is still the client's, because it is a preference and not a safety input. */
   dial?: 0 | 1 | 2;
   distressLocked?: boolean;
   recent?: string[];
-  /** Session counter, for the mood and for which aside she reaches for. */
+  /** The client's guess at the seed. Answered with the server's. */
   seed?: number;
   /** What she offered last turn, handed back so an answer is read as an answer. */
   answering?: Choice[];
@@ -268,6 +460,10 @@ interface Attempt {
   outcome?: Outcome;
   /** Where the conversation meter stands, on turns that moved or hit it. */
   pass?: { freeLeft: number | null };
+  /** True when the words came from the model rather than from this file. */
+  fromModel?: boolean;
+  /** On a clarify: the two scores that made it one, for the ledger. */
+  scores?: { top: number; second: number };
 }
 
 /**
@@ -315,16 +511,28 @@ export class MiraService {
   ) {}
 
   async ask(text: string, ctx: AskContext): Promise<MiraTurn> {
-    const seed = ctx.seed ?? 0;
+    const began = Date.now();
+    // The governor's inputs, from the account rather than from the tab.
+    const g = await this.govern(ctx.userId, ctx);
+    const seed = g.seed;
+    const room = ctx.mode === 'friend' ? 'friend' : 'city';
 
     // ── SHE ANSWERS HER OWN QUESTION FIRST ────────────────────────────────
     // Before routing, before scoring, before anything: if she asked "which
     // one?" last turn and this turn is one of the answers, it is an answer.
     // Sending it back through the matcher that produced the question is what
     // made her loop in production.
-    const answered = ctx.answering?.length ? resolveChoice(text, ctx.answering) : undefined;
+    //
+    // AND A REFUSAL IS ALSO AN ANSWER. "no", "neither", "both" used to fall
+    // out of `resolveChoice` as nothing, which sent them back through the
+    // matcher as a fresh request — so "none" found nothing and "both" could
+    // navigate somewhere nobody asked for. Both are the citizen saying the
+    // question was wrong, and the right move is to drop the question.
+    const resolved = ctx.answering?.length ? resolveChoice(text, ctx.answering) : undefined;
+    const answered = isChoice(resolved) ? resolved : undefined;
+    const refused = isChoice(resolved) ? undefined : resolved;
 
-    const routed: Routed = answered
+    const routed: Routed = resolved
       ? { lane: 'RETRIEVE', confidence: 1, why: 'answered the question she asked' }
       : route(text, { capabilities: this.registry.upTo('R0') });
     const cap = routed.capabilityId ? this.registry.byId(routed.capabilityId) : undefined;
@@ -335,16 +543,20 @@ export class MiraService {
       domain: cap?.path.split('/')[0],
       text,
       recent: ctx.recent,
-      distressLocked: ctx.distressLocked,
-      weeksKnown: ctx.weeksKnown,
-      hour: ctx.hour,
+      distressLocked: g.distressLocked,
+      weeksKnown: g.weeksKnown,
+      hour: g.hour,
       dial: ctx.dial,
     });
+    // THE LATCH IS WRITTEN WHERE IT IS TRIPPED, and only where it is tripped:
+    // re-stamping it on every turn that merely INHERITS it would make a latch
+    // that never decays, which is the thing the tab's boolean already was.
+    if (lev.distress && !g.distressLocked) this.latch(ctx.userId);
     // Mood is chosen from the session, not from the turn — and levity is then
     // tilted WITHIN what the governor allowed, never across it. `tilted()`
     // returns 0 whenever the cap is 0, which is where distress, the listen
     // lane, a failed step, medical and R4 all land.
-    const mood = moodFor({ seed, hour: ctx.hour, lastSessionDistressed: ctx.distressLocked });
+    const mood = moodFor({ seed, hour: g.hour, lastSessionDistressed: g.distressLocked });
     const colour: Colour = { mood, level: tilted(mood, lev.level), seed };
 
     const trace = [`route: ${routed.why} (${routed.confidence.toFixed(2)})`, `mood: ${mood}`, ...lev.trace];
@@ -364,8 +576,33 @@ export class MiraService {
        * answer to "which one?". forget.ts is strict about what counts as the
        * command, so "I forgot my keys" still flows to the conversation.
        */
+      /**
+       * AND THE SECOND TURN OF A FORGET OUTRANKS THE FIRST ONE.
+       *
+       * She asked "shall I?" last turn and a bare "yes" is the answer to that
+       * question, not a sentence for the router. Read before `readForget`
+       * because "yes" is not a forget command and would otherwise flow to the
+       * conversation while a pending deletion sat unperformed.
+       */
+      if (g.pendingForget) {
+        const confirm = readForgetConfirm(text);
+        if (confirm === 'yes') return this.forgetTopic(ctx.userId, g.pendingForget);
+        if (confirm === 'no') {
+          await this.pend(ctx.userId, null);
+          return { outcome: 'forget', text: 'Left it where it was.' };
+        }
+      }
       const forget = readForget(text);
       if (forget) return this.forget(ctx.userId, forget);
+      if (refused) {
+        return {
+          outcome: 'clarify',
+          text: refused === 'both'
+            ? 'I can only open one at a time. Say which and I will take you.'
+            : 'Dropped. Tell me what you are after and I will find it.',
+          choices: [],
+        };
+      }
       if (answered) {
         return {
           outcome: 'navigate',
@@ -385,7 +622,7 @@ export class MiraService {
         // rather than one canned question. The governor has already set the
         // register: on a distressed turn the persona is stripped of every
         // joke before the model sees a word.
-        const talked = await this.converse(text, ctx, lev.distress);
+        const talked = await this.converse(text, ctx, lev.distress, g);
         if (talked) return talked;
         return {
           outcome: 'listen',
@@ -405,7 +642,7 @@ export class MiraService {
           // wrong register for it. Here the model answers with the chart and
           // the numbers she actually knows — and when the model is off, she
           // falls through to exactly what the assistant would have said.
-          const talked = await this.converse(text, ctx, lev.distress);
+          const talked = await this.converse(text, ctx, lev.distress, g);
           if (talked) return talked;
         }
         const told = foretold(text);
@@ -415,7 +652,28 @@ export class MiraService {
         // computes deterministically and already has its own enforced voice.
         // Rather than improvise here, she offers the reading that actually
         // exists — which is now something she can fetch.
-        return this.dayBrief(ctx.userId, ctx.tz);
+        return this.dayBrief(ctx.userId, g.tz);
+      }
+      /**
+       * ── A SENTENCE IN THE FRIEND ROOM IS NOT A QUERY ────────────────────
+       *
+       * `route()` scores against the manifest in both rooms and hands back a
+       * capability at 0.55 with no idea which room asked, so an ordinary
+       * sentence in the companion tab that shared two words with a decorator
+       * came back as a data readout. Here she has to be nearly certain before
+       * a capability may speak; below that the turn is a conversation.
+       *
+       * The crisis check comes first, as it does on every other path into the
+       * model — a tab changes her register, never her safety.
+       *
+       * With the model off she falls through to the capability she matched,
+       * which is exactly the phase-1 assistant: degradation, not an error.
+       */
+      if (ctx.mode === 'friend' && cap && !isUncertain(routed) && routed.confidence < FRIEND_CAPABILITY) {
+        const situation = readSituation(text);
+        if (situation?.handOff) return relate(situation);
+        const talked = await this.converse(text, ctx, lev.distress, g);
+        if (talked) return talked;
       }
       // Before giving up: is this a place rather than a task? "Where do I set my
       // allergies", "take me to my budgets" — the question the hub wall cannot
@@ -448,7 +706,30 @@ export class MiraService {
         // navigation below gets its chance in both tabs.
         const told = ctx.mode === 'friend' ? undefined : foretold(text);
         if (told) return told;
-        if (situation && ctx.mode !== 'friend') return relate(situation);
+        /**
+         * ── AND A RELATIONSHIP READ HAS TO NAME A RELATIONSHIP ──────────────
+         *
+         * `SHAPES` in `relate.ts` contains bare `too much`, `every day` and
+         * `fix (this|things|it)`, and this check ran before `findInCity` on
+         * every result it produced. So "can you fix this" was answered *"So it
+         * went badly with them and now it is stuck."* and "where do i see how
+         * much i spend every day" got a boundary script — two ordinary
+         * requests intercepted by a reader for a lane they were never in.
+         *
+         * THE HAND-OFF STAYS ABOVE THIS AND ABOVE EVERYTHING. That ordering is
+         * load-bearing: it is what makes the crisis lane work from this branch,
+         * and nothing about a place-finder outranks somebody at the edge.
+         *
+         * What is gated is only the ordinary read, and the gate is whether a
+         * PERSON was named. That is the whole difference between the two
+         * failures available here — "i had a fight with my sister" must not
+         * become "Flights. Want me to take you?" (0.6, and the place-finder
+         * offers it), and "can you fix this" must not become a script about
+         * somebody who was never mentioned. A read with nobody in it waits: the
+         * city gets its turn, then the conversation does, and the fallback at
+         * the bottom of this branch still catches it if neither answers.
+         */
+        if (situation && (situation.who || situation.kind) && ctx.mode !== 'friend') return relate(situation);
 
         const found = findInCity(text, 3);
         const [top, second] = found;
@@ -466,6 +747,7 @@ export class MiraService {
             outcome: 'clarify',
             text: `${list(options.map((o) => o.label))}. Which one?`,
             choices: options,
+            scores: { top: top.score, second: second.score },
           };
         }
         // Nothing matched: the lane the whole framework was written for. This
@@ -474,15 +756,18 @@ export class MiraService {
         // is configured; the old sentence stays as the honest fallback when
         // it is not, so a missing key degrades rather than breaks.
         if (ctx.mode === 'friend' || routed.why === 'nothing matched' || routed.why === 'empty') {
-          const talked = await this.converse(text, ctx, lev.distress);
+          const talked = await this.converse(text, ctx, lev.distress, g);
           if (talked) return talked;
         }
-        // The friend tab with the model off keeps the relationship lane's
-        // own script rather than losing it to a clarify.
-        if (situation) return relate(situation);
+        // The last resort, and the same gate as above: with the model off the
+        // relationship lane keeps its own script rather than losing it to a
+        // clarify — as long as there is a relationship in the sentence. One
+        // rule, applied in both places, because a script about "them" said to
+        // somebody who mentioned nobody is the fault this whole check has.
+        if (situation && (situation.who || situation.kind)) return relate(situation);
         return { outcome: 'clarify', text: this.clarify(routed), choices: [] };
       }
-      return { outcome: 'capability', ...(await this.read(cap.id, ctx.userId, colour, ctx.tz)) };
+      return { outcome: 'capability', ...(await this.read(cap.id, ctx.userId, colour, g.tz)) };
     };
 
     const attempt = await turn();
@@ -490,9 +775,10 @@ export class MiraService {
     // Model prose and the meter's own line are complete sentences said in her
     // register already; running them through say() would staple an aside onto
     // a paragraph. Everything deterministic keeps the full treatment.
-    const draft = outcome === 'chat' || outcome === 'paywall'
-      ? attempt.text
-      : say(attempt.text, colour, attempt.asides ?? []);
+    const composed = outcome === 'chat' || outcome === 'paywall'
+      ? { text: attempt.text, asideDropped: false }
+      : sayWithTrace(attempt.text, colour, attempt.asides ?? []);
+    const draft = composed.text;
 
     // Fire and forget, by construction — recording a question must never slow
     // an answer down and must never be the reason one fails.
@@ -504,6 +790,15 @@ export class MiraService {
       capability: cap?.id,
       outcome,
       levity: lev.level,
+      mode: room,
+      ms: Date.now() - began,
+      source: attempt.fromModel ? 'model' : 'deterministic',
+      asideDropped: composed.asideDropped,
+      distress: lev.distress,
+      mood,
+      top: attempt.scores?.top,
+      second: attempt.scores?.second,
+      session: String(seed),
     });
 
     // Deterministic text, checked against her own voice rules anyway. It should
@@ -523,7 +818,7 @@ export class MiraService {
      * "forget everything" back into the memory it wiped is a wipe that
      * keeps a receipt, and the receipt is the thing they asked to lose.
      */
-    if (outcome !== 'forget') this.remember(ctx.userId, ctx.mode === 'friend' ? 'friend' : 'city', text, said);
+    if (outcome !== 'forget') this.remember(ctx.userId, room, text, said);
 
     return {
       text: said,
@@ -532,13 +827,81 @@ export class MiraService {
       confidence: routed.confidence,
       levity: lev.level,
       mood,
+      seed,
       payload: attempt.payload,
       goto: attempt.goto,
       choices: attempt.choices?.length ? attempt.choices : undefined,
       trace,
-      pass: attempt.pass,
+      pass: priced(attempt.pass),
       ...(outcome === 'paywall' ? { paywall: true } : {}),
     };
+  }
+
+  /**
+   * ── WHAT THE SERVER KNOWS, RATHER THAN WHAT THE TAB CLAIMS ────────────────
+   *
+   * Two reads, both best-effort and both individually guarded: a citizen with
+   * no profile row and no pass row is a citizen on their first turn, and she
+   * answers them exactly as well as anybody else. Nothing here may throw — the
+   * governor deciding a question is a governor that can refuse to answer one.
+   *
+   * The pass row is not created here. Creating one per turn would put a write
+   * on every deterministic answer, and the row already appears the first time
+   * she says hello (which is genuinely their first turn with her) and the first
+   * time the meter moves. Until it exists, `firstSeenAt` is today, which is the
+   * true answer for somebody who has never spoken to her.
+   */
+  private async govern(userId: string, client: { hour?: number; tz?: string }): Promise<Governed> {
+    const [profile, pass] = await Promise.all([
+      this.safely(() => this.prisma.masterProfile.findUnique({ where: { userId }, select: { timeZone: true } })),
+      this.safely(() => this.prisma.miraPass.findUnique({ where: { userId } })),
+    ]);
+    const tz = (profile?.timeZone ?? '').trim() || client.tz;
+    const now = Date.now();
+    const asked = pass?.forgetAskedAt?.getTime();
+    return {
+      tz,
+      hour: hourIn(tz) ?? client.hour ?? 12,
+      weeksKnown: pass?.firstSeenAt
+        ? Math.max(0, Math.floor((now - pass.firstSeenAt.getTime()) / (7 * 86_400_000)))
+        : 0,
+      distressLocked: Boolean(pass?.distressUntil && pass.distressUntil.getTime() > now),
+      seed: seedOf(userId, tz),
+      pendingForget: pass?.forgetTopic && asked && now - asked < FORGET_WINDOW_MS ? pass.forgetTopic : undefined,
+      greetings: pass?.greetings ?? [],
+    };
+  }
+
+  /** One read, and a failure is an absence. Wrapped rather than `.catch()`d
+   *  because a model this deployment has never generated throws synchronously
+   *  rather than rejecting, and an absence is the honest reading of both. */
+  private async safely<T>(read: () => Promise<T>): Promise<T | null> {
+    try {
+      return await read();
+    } catch {
+      return null;
+    }
+  }
+
+  /** Hold the distress latch on the ACCOUNT for a few hours. Fire and forget:
+   *  a latch that cannot be written must never cost somebody an answer on the
+   *  turn where they said something heavy. */
+  private latch(userId: string): void {
+    const until = new Date(Date.now() + DISTRESS_HOLD_MS);
+    void this.safely(() => this.prisma.miraPass.upsert({
+      where: { userId },
+      update: { distressUntil: until },
+      create: { userId, distressUntil: until },
+    }));
+  }
+
+  /** Remember, or drop, the topic forget she has offered but not performed. */
+  private async pend(userId: string, topic: string | null): Promise<void> {
+    await this.safely(() => this.prisma.miraPass.upsert({
+      where: { userId },
+      update: { forgetTopic: topic, forgetAskedAt: topic ? new Date() : null },
+      create: { userId, forgetTopic: topic, forgetAskedAt: topic ? new Date() : null },
+    }));
   }
 
   // ── THE CONVERSATION LANE ─────────────────────────────────────────────
@@ -558,7 +921,7 @@ export class MiraService {
   //     dropped and the deterministic sentence stands. Warmth is never worth
   //     sounding like a call centre.
 
-  private async converse(text: string, ctx: AskContext, distress: boolean): Promise<Attempt | undefined> {
+  private async converse(text: string, ctx: AskContext, distress: boolean, g: Governed): Promise<Attempt | undefined> {
     if (!this.ai.enabled) return undefined;
     const pass = await this.passOf(ctx.userId);
     if (!pass.paid && pass.freeLeft <= 0) {
@@ -571,8 +934,8 @@ export class MiraService {
       signs: chart?.signs ?? null,
       lifePath: lifePathOf(chart?.birthDate),
       page: ctx.page ?? null,
-      clock: clockLine(ctx.tz),
-      weeksKnown: ctx.weeksKnown,
+      clock: clockLine(g.tz),
+      weeksKnown: g.weeksKnown,
       distress,
       canDo: this.registry.all().map((c) => c.intent.toLowerCase()),
     });
@@ -604,13 +967,48 @@ export class MiraService {
     while (squashed.length && squashed[0].role !== 'user') squashed.shift();
     const said = await this.ai.converse(system, squashed);
     if (!said) return undefined;
-    const bad = violations(said);
-    if (bad.length) {
-      this.logger.warn(`Mira's model reply broke voice (${bad.map((v) => v.why).join(', ')}) — deterministic line stands`);
-      return undefined;
-    }
+    const accepted = await this.inVoiceOrOnceMore(said, system, squashed);
+    if (!accepted) return undefined;
     const left = await this.spendChat(ctx.userId, pass);
-    return { outcome: 'chat', text: said, pass: { freeLeft: left } };
+    return { outcome: 'chat', text: accepted, pass: { freeLeft: left }, fromModel: true };
+  }
+
+  /**
+   * ── ONE BANNED PHRASE USED TO COST THE WHOLE REPLY ────────────────────────
+   *
+   * A violation returned undefined and the deterministic sentence stood — so a
+   * good four-sentence answer that happened to contain "of course!" was thrown
+   * away and replaced with "Yeah. What's going on?". The rule is right (her
+   * voice outranks the model) and the remedy was too blunt: the model was
+   * never told what it did, and could not have fixed it if it had wanted to.
+   *
+   * So she asks once more, naming the exact phrase back. ONCE, and the bound
+   * is not a style preference: this is a paid call and the meter is real, so a
+   * loop here is a loop that spends somebody's money. If the second attempt
+   * breaks the rules too, the deterministic line stands exactly as before.
+   *
+   * The families are logged either way, because the top offenders belong in
+   * the persona's own ban list — a phrase the prompt forbids costs nothing,
+   * and a phrase only the gate catches costs a model call every time.
+   */
+  private async inVoiceOrOnceMore(
+    said: string,
+    system: string,
+    turns: Array<{ role: 'user' | 'assistant'; content: string }>,
+  ): Promise<string | undefined> {
+    const bad = violations(said);
+    if (!bad.length) return said;
+    this.logger.warn(`Mira's model reply broke voice (${bad.map((v) => v.why).join(', ')}) — asking once more`);
+    const named = bad.map((v) => `"${v.phrase}"`).join(', ');
+    const again = await this.ai.converse(
+      `${system}\n\nYOUR LAST ATTEMPT USED ${named}, which you are not allowed to say. Write the same answer again without it — same warmth, same length, no apology for the rewrite and no reference to it.`,
+      turns,
+    );
+    if (!again) return undefined;
+    const still = violations(again);
+    if (!still.length) return again;
+    this.logger.warn(`Mira's model reply broke voice twice (${still.map((v) => v.why).join(', ')}) — deterministic line stands`);
+    return undefined;
   }
 
   /** Where the meter stands. A missing row is a citizen who has never chatted. */
@@ -688,16 +1086,41 @@ export class MiraService {
        *  reading of the thread. See `confidant` in persona.ts. */
       mode?: 'read' | 'draft';
     },
-  ): Promise<{ text: string; pass?: { freeLeft: number | null }; paywall?: boolean }> {
-    const record = (outcome: Outcome) =>
-      this.ledger.record({ userId, text: input.ask, lane: 'LISTEN', confidence: 1, outcome, levity: 0 });
+  ): Promise<{ text: string; pass?: { freeLeft: number | null; inr: number; freeTotal: number }; paywall?: boolean }> {
+    const began = Date.now();
+    /**
+     * ── THE LEAST GOVERNED SURFACE IN THE MODULE, UNTIL NOW ─────────────────
+     *
+     * This lane reads a THIRD PARTY's messages at the citizen's request, and it
+     * was the one route that received none of the context `ask()` receives: no
+     * clock, no weeks, and — the one that matters — no distress latch. So a
+     * citizen who had said something frightening in her room five minutes
+     * earlier could open a chat panel and be met by a Mira who had never heard
+     * it. The latch is on the account precisely so it reaches here.
+     */
+    const g = await this.govern(userId, {});
+    const record = (outcome: Outcome, distress = false) =>
+      this.ledger.record({
+        userId, text: input.ask, lane: 'LISTEN', confidence: 1, outcome, levity: 0,
+        ms: Date.now() - began, source: outcome === 'confide' ? 'model' : 'deterministic',
+        distress, session: String(g.seed),
+      });
 
     // The hand-off first, deterministically, before any model sees a word.
     const situation = readSituation(input.ask);
     if (situation?.handOff) {
-      record('relate');
+      this.latch(userId);
+      record('relate', true);
       return { text: `${situation.reflection} ${situation.handOff}` };
     }
+
+    // The same reading the ask lane takes, over the same lexicons: this turn's
+    // words, plus the latch the account is already holding.
+    const lev = levity({
+      lane: 'LISTEN', text: input.ask,
+      distressLocked: g.distressLocked, weeksKnown: g.weeksKnown, hour: g.hour,
+    });
+    if (lev.distress && !g.distressLocked) this.latch(userId);
 
     if (!this.ai.enabled) {
       record('confide');
@@ -707,7 +1130,7 @@ export class MiraService {
     const pass = await this.passOf(userId);
     if (!pass.paid && pass.freeLeft <= 0) {
       record('paywall');
-      return { text: PAYWALL_LINE, pass: { freeLeft: 0 }, paywall: true };
+      return { text: PAYWALL_LINE, pass: priced({ freeLeft: 0 }), paywall: true };
     }
 
     const them = (input.otherName ?? '').trim() || 'Them';
@@ -715,8 +1138,9 @@ export class MiraService {
        is heavy she goes back to being present rather than handing over a
        polished sentence — the one turn where "here are the words" is the wrong
        help is the turn where somebody is hurting. */
-    const draftOnly = input.mode === 'draft' && !situation;
-    const system = confidant({ otherName: input.otherName, distress: Boolean(situation), draftOnly });
+    const heavy = lev.distress || Boolean(situation);
+    const draftOnly = input.mode === 'draft' && !heavy;
+    const system = confidant({ otherName: input.otherName, distress: heavy, draftOnly });
     // One user turn: the window of text, then the question. A single message
     // is trivially a legal transcript, and it keeps the model from mistaking
     // the OTHER person's words for its interlocutor's.
@@ -728,16 +1152,17 @@ export class MiraService {
       : `The conversation is empty so far.\n\nMY QUESTION: ${input.ask}`;
 
     const said = await this.ai.converse(system, [{ role: 'user', content }]);
-    if (!said || violations(said).length) {
+    const accepted = said ? await this.inVoiceOrOnceMore(said, system, [{ role: 'user', content }]) : undefined;
+    if (!accepted) {
       if (said) this.logger.warn('Mira’s confidant reply broke voice — the plain line stands');
-      record('confide');
+      record('confide', heavy);
       // Not billed — a reply she was not allowed to say costs nobody anything.
       return { text: 'I’ve read it. Ask me plainly what you want to know about it — where they’re coming from, or how to answer.' };
     }
 
-    record('confide');
+    record('confide', heavy);
     const left = await this.spendChat(userId, pass);
-    return { text: said, pass: { freeLeft: left } };
+    return { text: accepted, pass: priced({ freeLeft: left }) };
   }
 
   /**
@@ -761,7 +1186,7 @@ export class MiraService {
    * day somebody actually lived.
    */
   async readDay(userId: string, date: string, ask: string, tz?: string): Promise<{
-    text: string; pass?: { freeLeft: number | null }; paywall?: boolean;
+    text: string; pass?: { freeLeft: number | null; inr: number; freeTotal: number }; paywall?: boolean;
   }> {
     const record = () => this.ledger.record({ userId, text: ask, lane: 'RETRIEVE', confidence: 1, outcome: 'confide', levity: 0 });
     const day = await this.daybook.day(userId, date).catch(() => null);
@@ -788,7 +1213,7 @@ export class MiraService {
     const pass = await this.passOf(userId);
     if (!pass.paid && pass.freeLeft <= 0) {
       record();
-      return { text: PAYWALL_LINE, pass: { freeLeft: 0 }, paywall: true };
+      return { text: PAYWALL_LINE, pass: priced({ freeLeft: 0 }), paywall: true };
     }
 
     const lines = [
@@ -836,7 +1261,7 @@ export class MiraService {
     }
     record();
     const left = await this.spendChat(userId, pass);
-    return { text: said, pass: { freeLeft: left } };
+    return { text: said, pass: priced({ freeLeft: left }) };
   }
 
   /**
@@ -868,6 +1293,96 @@ export class MiraService {
       };
     } catch {
       return { turns: [] };
+    }
+  }
+
+  /**
+   * ── HELLO, AND SHE REMEMBERS WHAT SHE SAID LAST TIME ──────────────────────
+   *
+   * `greet()` is pure and stays pure; what it needs is a memory, and the
+   * memory belongs to whoever calls it. Without one the mood cycled on a
+   * period of 7 and the line on a period of 3 — so every citizen got the same
+   * twenty-four openings and then heard them again, in order, from session
+   * forty-three onwards. Only somebody who likes her ever reaches that.
+   *
+   * It moved out of the controller because it now needs the account: the ids
+   * she has already used, the zone, the latch and the seed. That costs the
+   * greeting the "touches no database" property it was written with, and buys
+   * a Mira who is the same person on both devices and does not repeat herself.
+   * Both reads and the write are best-effort — a greeting that fails is a
+   * quieter opening, never an error in front of somebody.
+   *
+   * THIS IS ALSO WHERE A CITIZEN'S PASS ROW BEGINS, and that is the honest
+   * place for `firstSeenAt` to start: the first time she says hello to them.
+   */
+  async greeting(userId: string, q: {
+    hour?: number; weeksKnown?: number; firstOfDay?: boolean;
+    dial?: 0 | 1 | 2; sessionsSinceFourthWall?: number;
+  }): Promise<Greeting & { seed: number }> {
+    const g = await this.govern(userId, q);
+    const said = greet({
+      hour: g.hour,
+      seed: g.seed,
+      weeksKnown: g.weeksKnown,
+      firstOfDay: q.firstOfDay,
+      dial: q.dial,
+      lastSessionDistressed: g.distressLocked,
+      sessionsSinceFourthWall: q.sessionsSinceFourthWall,
+      exclude: g.greetings,
+    });
+    await this.safely(() => this.prisma.miraPass.upsert({
+      where: { userId },
+      update: { greetings: [said.id, ...g.greetings.filter((id) => id !== said.id)].slice(0, GREETINGS_KEPT) },
+      create: { userId, greetings: [said.id] },
+    }));
+    return { ...said, seed: g.seed };
+  }
+
+  /**
+   * ── WHAT SHE HAS KEPT, SHOWN TO THE PERSON IT IS ABOUT ────────────────────
+   *
+   * "Truly gone" is only checkable if what is there can be seen. Her memory
+   * was inspectable in exactly one way — asking her — and a memory you can
+   * only interrogate conversationally is one nobody can audit, including the
+   * citizen whose sentences are in it.
+   *
+   * This is the read, and only the read. The "what Mira knows about me" screen
+   * and the fact layer behind it are a build and are deliberately not here;
+   * the endpoint is what makes the build possible and what makes the promise
+   * checkable today, with curl if nothing else. Paginated because a record
+   * with a two-thousand-turn ceiling is not a thing to serve in one response.
+   */
+  async memory(userId: string, room: 'friend' | 'city', page: { limit: number; offset: number }): Promise<{
+    room: 'friend' | 'city';
+    total: number;
+    limit: number;
+    offset: number;
+    turns: Array<{ who: 'you' | 'mira'; text: string; at: string }>;
+  }> {
+    const empty = { room, total: 0, limit: page.limit, offset: page.offset, turns: [] };
+    try {
+      const [total, rows] = await Promise.all([
+        this.prisma.miraTurn.count({ where: { userId, room } }),
+        this.prisma.miraTurn.findMany({
+          where: { userId, room },
+          orderBy: { createdAt: 'desc' },
+          skip: page.offset,
+          take: page.limit,
+        }),
+      ]);
+      return {
+        room,
+        total,
+        limit: page.limit,
+        offset: page.offset,
+        turns: rows.map((t: { who: string; text: string; createdAt: Date }) => ({
+          who: t.who === 'you' ? ('you' as const) : ('mira' as const),
+          text: t.text,
+          at: t.createdAt.toISOString(),
+        })),
+      };
+    } catch {
+      return empty;
     }
   }
 
@@ -904,14 +1419,62 @@ export class MiraService {
           { userId, room, who: 'you', text: asked.slice(0, 4000), createdAt: new Date(at) },
           { userId, room, who: 'mira', text: said.slice(0, 4000), createdAt: new Date(at + 1) },
         ],
-      }).catch(() => undefined);
+      }).then(() => this.trim(userId, room)).catch(() => undefined);
     } catch { /* memory is best-effort, never load-bearing */ }
+  }
+
+  /**
+   * AND HER MEMORY HAS AN END.
+   *
+   * MiraTurn grew for the life of the account: the ledger's day files were
+   * given a retention window on the argument that a log with no expiry is a
+   * privacy liability that grows on its own, and this table is the same
+   * artefact with the citizen's name attached and both voices in it.
+   *
+   * The oldest are dropped, not the newest — she keeps what is recent, which
+   * is what `recall()` and the thread read. One indexed read and at most one
+   * delete per exchange, floated like the write it follows: a trim that fails
+   * is a table that stays a little longer, never an answer that does not come.
+   */
+  private trim(userId: string, room: 'friend' | 'city'): void {
+    void this.safely(async () => {
+      const edge = await this.prisma.miraTurn.findMany({
+        where: { userId, room },
+        orderBy: { createdAt: 'desc' },
+        skip: KEEP_TURNS,
+        take: 1,
+        select: { createdAt: true },
+      });
+      if (!edge.length) return;
+      await this.prisma.miraTurn.deleteMany({
+        where: { userId, room, createdAt: { lt: edge[0].createdAt } },
+      });
+    });
   }
 
   /**
    * Tear pages out of her notebook — the one write she can do, and it only
    * ever removes. Scoped to the asker's own record by construction: the
    * WHERE carries their userId before anything else.
+   *
+   * ── WHAT "forget her" USED TO DO ──────────────────────────────────────────
+   *
+   * `deleteMany({ text: { contains: 'her' } })`, unconfirmed, in one turn. That
+   * is every stored turn containing there, where, other, together, mother and
+   * father — a substring match run as a mass delete on a three-letter word.
+   * `forget.ts` raised its floor so that sentence no longer parses as a topic,
+   * but the floor was never the hazard: the DELETE was, and it is still a
+   * substring for every topic that does parse.
+   *
+   * Three things changed. The match is on a WORD BOUNDARY, done in JS over
+   * candidates the database narrowed. The delete takes TWO TURNS — she says
+   * how many and shows one, and nothing goes until the citizen says yes. And
+   * the scope is SYMMETRIC: both halves of an exchange go together, so a
+   * question is never deleted while the answer that quotes it stays, and a
+   * topic that appears only in HER reply takes the question with it.
+   *
+   * `forget everything` stays one turn. It is unambiguous, it is the whole
+   * record, and the citizen said the word.
    */
   private async forget(userId: string, ask: { scope: string; topic?: string }): Promise<Attempt> {
     if (ask.scope === 'dismiss') return { outcome: 'forget', text: 'Dropped.' };
@@ -925,23 +1488,102 @@ export class MiraService {
     try {
       if (ask.scope === 'everything') {
         await this.prisma.miraTurn.deleteMany({ where: { userId } });
+        // Her notebook is not the only place it was written down. See ledger.forget.
+        void this.ledger.forget(userId);
+        await this.pend(userId, null);
         return {
           outcome: 'forget',
           text: 'Done — all of it, gone from my memory, on every device. What\u2019s still on this screen goes when you press Clear this screen.',
         };
       }
-      const gone = await this.prisma.miraTurn.deleteMany({
-        where: { userId, text: { contains: ask.topic ?? '', mode: 'insensitive' } },
-      });
+      const topic = (ask.topic ?? '').trim();
+      const { hits, sample } = await this.matching(userId, topic);
+      if (!hits) {
+        return { outcome: 'forget', text: 'Nothing in my memory mentions that, so there was nothing to forget. We\u2019re clean.' };
+      }
+      await this.pend(userId, topic);
+      const shown = sample ? ` One of them: \u201c${sample}\u201d.` : '';
       return {
         outcome: 'forget',
-        text: gone.count > 0
-          ? `Done. ${gone.count} thing${gone.count === 1 ? '' : 's'} that mentioned it — gone from my memory.`
-          : 'Nothing in my memory mentions that, so there was nothing to forget. We\u2019re clean.',
+        text: `${hits} thing${hits === 1 ? '' : 's'} in my memory mention that.${shown} Say yes and they go, for good — say no and I leave them.`,
       };
     } catch {
       return { outcome: 'forget', text: 'That didn\u2019t take just now. Ask me again in a minute — it matters.' };
     }
+  }
+
+  /** The second turn: she was told yes. */
+  private async forgetTopic(userId: string, topic: string): Promise<Attempt> {
+    try {
+      const { ids } = await this.matching(userId, topic);
+      if (ids.length) await this.prisma.miraTurn.deleteMany({ where: { userId, id: { in: ids } } });
+      void this.ledger.forget(userId, topic);
+      await this.pend(userId, null);
+      return {
+        outcome: 'forget',
+        text: ids.length
+          ? 'Done. Gone from my memory, on every device — both halves of every one of them.'
+          : 'Nothing left matching that. Already gone.',
+      };
+    } catch {
+      return { outcome: 'forget', text: 'That didn\u2019t take just now. Ask me again in a minute — it matters.' };
+    }
+  }
+
+  /**
+   * What a topic forget would actually take, and one sample of it.
+   *
+   * The database narrows with `contains` — that is what an index can do — and
+   * the word-boundary decision is made here, in JS, over the rows that came
+   * back. `hits` is what MENTIONS the topic, which is the number a citizen
+   * recognises; `ids` is what would be DELETED, which is those turns plus the
+   * other half of each exchange. The two differ on purpose and the reply quotes
+   * the first.
+   */
+  private async matching(userId: string, topic: string): Promise<{ ids: string[]; hits: number; sample?: string }> {
+    if (!topic) return { ids: [], hits: 0 };
+    const rows = await this.prisma.miraTurn.findMany({
+      where: { userId, text: { contains: topic, mode: 'insensitive' } },
+      select: { id: true, room: true, text: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+      take: FORGET_MAX,
+    });
+    const hit = rows.filter((r: { text: string }) => mentions(r.text, topic));
+    if (!hit.length) return { ids: [], hits: 0 };
+    /**
+     * The other half of each exchange. `remember()` writes the pair a
+     * millisecond apart, which is what makes a one-millisecond window the
+     * partner and not a coincidence.
+     */
+    const partners = await this.prisma.miraTurn.findMany({
+      where: {
+        userId,
+        OR: hit.map((h: { room: string; createdAt: Date }) => ({
+          room: h.room,
+          createdAt: { gte: new Date(h.createdAt.getTime() - 1), lte: new Date(h.createdAt.getTime() + 1) },
+        })),
+      },
+      select: { id: true },
+      // Two per hit at the outside — the pair `remember()` wrote — and `hit`
+      // is itself capped at FORGET_MAX.
+      take: FORGET_MAX * 2,
+    });
+    const ids = [...new Set([
+      ...hit.map((h: { id: string }) => h.id),
+      ...partners.map((p: { id: string }) => p.id),
+    ])];
+    /**
+     * ONE SAMPLE, CUT SHORT — and only if it passes her own voice rules.
+     *
+     * It is the citizen's own sentence, so quoting it back leaks nothing they
+     * did not write. It is quoted so "three things" is something they can
+     * recognise before they say yes to a deletion nobody can undo. And it goes
+     * through `violations` first because it is about to be spoken in HER line:
+     * a citizen who typed "of course!" would otherwise make `acceptOrFallback`
+     * throw the whole confirmation away and answer "I can't do that from here."
+     */
+    const cut = excerpt(hit[0].text);
+    return { ids, hits: hit.length, sample: violations(cut).length ? undefined : cut };
   }
 
   /** Their name, for the persona. Best-effort — she talks fine without it. */
@@ -1177,7 +1819,10 @@ export class MiraService {
         return {
           text: `${due.length} still to take — ${list(names)}.${taken ? ` ${taken} done.` : ''}`,
           payload: t,
-          goto: { label: 'Medicines', path: '/medicines' },
+          // `/medicines` is not a page. The medicine list has always lived at
+          // `/medical/medicines`, which is what `city.ts` points at — so she was
+          // offering to take somebody to a route that does not exist.
+          goto: { label: 'Medicines', path: '/medical/medicines' },
         };
       }
       case 'medical GET summary': {

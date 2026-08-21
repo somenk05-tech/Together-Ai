@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { ZodError } from 'zod';
 import { Link } from 'react-router-dom';
-import { useMiraAsk, useMiraCapabilities, useMiraGreeting, useMiraSubscribe, useMiraThread, type Choice } from './api';
+import { FREE_CHATS, SUB_INR, useMiraAsk, useMiraCapabilities, useMiraGreeting, useMiraSubscribe, useMiraThread, type Choice } from './api';
 import { Icon } from '@/components/ui/Icon';
 import { MiraMark, type MarkState } from './MiraMark';
 import { useVoiceNote, useSpeech } from './voice';
-import { clearDay, daySeed, firstOpenToday, loadDay, saveDay, type StoredTurn } from './day';
+import { clearDay, daySeed, firstOpenToday, loadDay, saveDay, turnId, type StoredTurn } from './day';
 
 /**
  * The opening, built from the manifest rather than written by hand.
@@ -54,35 +54,30 @@ const clearedAt = (room: 'friend' | 'city'): number => {
 };
 
 /**
- * HER FIRST MESSAGE AS A FRIEND — the owner's copy, verbatim, emojis and
- * all. Sent once per device, as a real bubble rather than an empty-state
- * paragraph, because "the first message Mira sends" is what was asked for
- * and a message is a thing that arrived. The assistant tab keeps the
- * original opening: HERE, take your time, and what she can actually do.
+ * HER FIRST MESSAGE AS A FRIEND — A HELLO, NOT A TERMS SHEET.
+ *
+ * It was twenty-three lines delivered instantly as one wall, and the first
+ * thing in it was the message quota, followed by a paragraph about a privacy
+ * framework. Nobody says either of those things on being introduced. The quota
+ * is a fact about the meter and now lives with the meter, at the foot of the
+ * thread; the privacy sentence is the product's to make, in the product's own
+ * voice, on the page where it is true — not a promise she makes about herself
+ * in the first breath.
+ *
+ * AND ONE SENTENCE HAD TO GO BECAUSE THE SCREEN CONTRADICTED IT. "You don't
+ * have to figure out which version of me you need" was rendered four
+ * centimetres under two chips that force exactly that choice, with a separate
+ * transcript behind each. A promise the widget above it falsifies costs more
+ * than the promise was worth.
  */
-const WELCOME = `Hey. I’m Mira. 👋
-Think of me as your buddy inside Together City.
-You’ve got 200 free messages with me to start with. And the more you choose to share and build your profile, the better I’ll understand you — what you like, what matters to you, what you’re working on, and how I can actually be useful.
-You can talk to me however you want.
-Need a friend? I’m here.
-Want an astrologer? I’ve got you. ✨
-Need a guide or someone to help you think through a decision? Talk to me.
-Need an assistant to actually get things done? Say the word.
-Relationship trouble? Want me to analyse a chat and tell you what the hell is actually going on? Send it over. 😏
-And you don’t have to figure out which version of me you need.
-Just talk to me normally. I’ll figure it out.
-You’re always in control of what I know about you. I only use information you choose to share or give me permission to access, and your conversations are treated as private and confidential within Together City’s privacy framework.
-I’m not here to judge you.
-I’m here to help you think, decide, create, organise, laugh, vent, figure shit out — and sometimes stop you from making a spectacularly bad decision.
-So...
-I’m Mira.
-Your astrologer.
-Your guide.
-Your assistant.
-Your sounding board.
-Your occasional voice of reason.
-But mostly?
-Your buddy. ❤️`;
+const WELCOME = `Hey. I’m Mira. 👋 Your buddy in Together City.
+Talk to me however you like — the switch up there is only which of my two rooms we’re standing in.`;
+
+/** A record written before turns carried ids is still a record, and one bubble
+ *  with no key is a whole list keyed by position again. Named here rather than
+ *  inside `loadDay`, which owes its callers back exactly what it was handed. */
+const named = (turns: StoredTurn[]): StoredTurn[] =>
+  turns.map((t) => (t.id ? t : { ...t, id: turnId() }));
 
 const WELCOMED_KEY = 'mira.welcomed';
 /** The friend's room, seeded with her hello exactly once per device. */
@@ -92,11 +87,66 @@ const seedWelcome = (turns: StoredTurn[], room: 'friend' | 'city'): StoredTurn[]
     if (window.localStorage.getItem(WELCOMED_KEY)) return turns;
     window.localStorage.setItem(WELCOMED_KEY, '1');
   } catch { return turns; }
-  return [{ who: 'mira', text: WELCOME, levity: 2 }];
+  return [{ id: turnId(), who: 'mira', text: WELCOME, levity: 2 }];
 };
 
-export function MiraThread({ weeksKnown = 0, dial, about, onBack }: {
-  weeksKnown?: number; dial?: 0 | 1 | 2;
+/**
+ * THE RECORD ARRIVES AS AN ADDITION, NOT AS A REPLACEMENT.
+ *
+ * Hydration used to map the server's turns to `{ who, text }` and hand the
+ * result to `setTurns` — three destructions in one line. It dropped every
+ * `goto`, so "Take me to Budgets" became a dead sentence on reload; it dropped
+ * `levity`; and it replaced the array, which deleted the welcome bubble while
+ * leaving `mira.welcomed` set, so her introduction was gone and could never
+ * come back on that device.
+ *
+ * So: the record decides the ORDER and the CONTENT, this device keeps what the
+ * record does not store — anything it holds that the record has not got (her
+ * welcome, a sentence typed while the request was in the air) stays at the
+ * front, and every turn the record does know about is taken back with the
+ * navigation and the levity this device remembers against it.
+ */
+const sameTurn = (t: { who: string; text: string }): string => `${t.who} ${t.text}`;
+
+function merge(mine: StoredTurn[], theirs: StoredTurn[]): StoredTurn[] {
+  const onRecord = new Set(theirs.map(sameTurn));
+  const remembered = new Map(mine.map((t) => [sameTurn(t), t]));
+  return [
+    ...mine.filter((t) => !onRecord.has(sameTurn(t))),
+    ...theirs.map((t) => remembered.get(sameTurn(t)) ?? t),
+  ];
+}
+
+/**
+ * WHAT ACTUALLY WENT WRONG, IN A SENTENCE THAT IS NOT HERS.
+ *
+ * Two strings covered a 500, a 401, a timeout, a rate limit and a CORS
+ * failure, and both were pushed into the transcript AS MIRA — persisted with
+ * everything else, so a dropped connection came back on the next reload as
+ * something she had said. A network error is not a turn in a conversation.
+ *
+ * This is rendered as a system row and never stored, and it names the failure
+ * it actually is, because "try me in a minute" is useless advice for a session
+ * that has expired and wrong advice for a request nobody sent.
+ */
+function whyFailed(err: unknown): string {
+  if (err instanceof ZodError) {
+    return 'I heard the city, but we are not speaking the same language yet — the app and the server are on different versions. Give the update a minute to land.';
+  }
+  const e = err as { code?: string; message?: string; response?: { status?: number } };
+  if (e?.code === 'ERR_CANCELED') return 'Stopped.';
+  const status = e?.response?.status;
+  if (status === 401 || status === 403) return 'Your session has expired. Sign in again and I’ll pick this up.';
+  if (status === 429) return 'Too many messages too fast. Give it a moment.';
+  if (status && status >= 500) return 'The city answered with an error. It is not you, and it is not the connection.';
+  // No status at all: the request never reached anything that could answer —
+  // a dead connection, a timeout, or a browser refusing the origin.
+  if (e?.code === 'ECONNABORTED') return 'That took too long and I stopped waiting. Try again?';
+  return 'I’m not reaching the city right now. Check the connection and try again?';
+}
+
+export function MiraThread({ dial, about, onBack }: {
+  dial?: 0 | 1 | 2;
   /** The in-app path she was opened over — the dock's "ask about this page". */
   about?: string;
   /**
@@ -132,28 +182,46 @@ export function MiraThread({ weeksKnown = 0, dial, about, onBack }: {
    * the assistant, which is plainly what was asked for.
    */
   const [mode, setMode] = useState<'friend' | 'city'>(() => openingMode(about));
-  const [turns, setTurns] = useState<StoredTurn[]>(() => seedWelcome(loadDay(undefined, openingMode(about)), openingMode(about)));
+  const [turns, setTurns] = useState<StoredTurn[]>(() => seedWelcome(named(loadDay(undefined, openingMode(about))), openingMode(about)));
   const [draft, setDraft] = useState('');
-  const [distressLocked, setDistressLocked] = useState(false);
+  /**
+   * The last failure, held OUTSIDE the transcript and cleared by the next
+   * sentence. See `whyFailed` — an error is a thing the app is telling you,
+   * not a thing she said, and it may not be persisted as one.
+   */
+  const [failure, setFailure] = useState<{ why: string; held: string } | null>(null);
   const pickMode = (m: 'friend' | 'city') => {
     if (m === mode) return;
     setMode(m);
     // The other room's day, and none of this one's held question — an answer
     // to a question asked in the other tab would be read against the wrong
     // conversation.
-    setTurns(seedWelcome(loadDay(undefined, m), m));
+    setTurns(seedWelcome(named(loadDay(undefined, m)), m));
     pending.current = undefined;
+    setFailure(null);
     try { window.localStorage.setItem(MODE_KEY, m); } catch { /* a preference, not data */ }
   };
   /**
    * THE METER, WHEN THE SERVER MENTIONS IT. `freeLeft` is null for a
-   * subscriber — unmetered, never rendered as "0 left". `paywalled` puts the
-   * subscribe card under her last line; it is not persisted, because the
+   * subscriber — unmetered, never rendered as "0 left". `paywall` below puts
+   * the subscribe card under her last line; it is not persisted, because the
    * server re-answers with the same card on the next attempt anyway and a
    * stale local copy of a billing fact is worse than asking again.
    */
   const [freeLeft, setFreeLeft] = useState<number | null | undefined>(undefined);
-  const [paywalled, setPaywalled] = useState(false);
+  /**
+   * THE WALL KEEPS THE MESSAGE THAT HIT IT.
+   *
+   * It used to be a boolean, and the sentence that ran out of meter was gone:
+   * subscribe, then type it again from memory. It is held here and sent the
+   * moment the wallet answers.
+   *
+   * `said` is her explanation of the meter, and it is shown INSIDE the card
+   * rather than pushed into the thread — it was persisted as an ordinary Mira
+   * line and read aloud, so a billing notice came back on the next reload as
+   * part of the conversation, in her voice, out loud.
+   */
+  const [paywall, setPaywall] = useState<{ said: string; held: string } | null>(null);
   const subscribe = useMiraSubscribe();
 
   /**
@@ -174,15 +242,23 @@ export function MiraThread({ weeksKnown = 0, dial, about, onBack }: {
    */
   const serverThread = useMiraThread(mode);
   const hydrated = useRef<{ friend: boolean; city: boolean }>({ friend: false, city: false });
-  const spoke = useRef(false);
+  /**
+   * PER ROOM, BECAUSE ONE SENTENCE USED TO LOCK BOTH.
+   *
+   * `spoke` was a single flag, so saying one thing to the friend meant the
+   * city assistant never hydrated again for the rest of that session — switch
+   * tab and the record was simply not there, on the surface whose entire
+   * promise is the same conversation on every device.
+   */
+  const spoke = useRef<{ friend: boolean; city: boolean }>({ friend: false, city: false });
   useEffect(() => {
     const data = serverThread.data;
-    if (!data || hydrated.current[mode] || spoke.current) return;
+    if (!data || hydrated.current[mode] || spoke.current[mode]) return;
     hydrated.current[mode] = true;
     const kept = data.turns
       .filter((t) => new Date(t.at).getTime() > clearedAt(mode))
-      .map((t) => ({ who: t.who, text: t.text }));
-    if (kept.length) setTurns(kept);
+      .map((t) => ({ id: turnId(), who: t.who, text: t.text }));
+    if (kept.length) setTurns((mine) => merge(mine, kept));
   }, [serverThread.data, mode]);
   /**
    * WHAT SHE JUST ASKED, HELD FOR ONE TURN.
@@ -194,74 +270,99 @@ export function MiraThread({ weeksKnown = 0, dial, about, onBack }: {
    */
   const pending = useRef<Choice[] | undefined>(undefined);
   /**
-   * ONE SEED, AND IT LASTS THE DAY.
+   * ONE SEED, AND IT IS NOT THIS BROWSER'S TO CHOOSE.
    *
-   * It was `Math.random()` in a ref, so she was a different character on every
-   * page load — announce one mood, refresh, get another. It also has to be the
-   * number the GREETING uses, or the badge says "Wide awake and slightly
-   * dangerous" and the next answer arrives quiet.
+   * It was `Math.random()` in a ref, then the day XOR a per-device salt — which
+   * fixed the refresh and left the real problem: a salt kept in one browser is
+   * a different Mira on the phone than on the laptop, on the same afternoon,
+   * and a cleared cache changes her in the middle of a conversation.
+   *
+   * The server derives it from the citizen now and returns the one it used on
+   * every reply and on the greeting, so this holds the ANSWER rather than the
+   * guess. `daySeed()` survives as the first paint only — the number the screen
+   * carries in the second before anything has answered.
    */
   const seed = useRef(daySeed());
+  const [heldSeed, setHeldSeed] = useState(seed.current);
   /** Asked ONCE per mount, because asking is what marks the day as greeted. */
   const firstOfDay = useRef(firstOpenToday());
-  const ask = useMiraAsk({ weeksKnown, dial, distressLocked, seed: seed.current });
+  const ask = useMiraAsk({ dial, seed: heldSeed });
   const endRef = useRef<HTMLDivElement>(null);
-  const box = useRef<HTMLInputElement>(null);
+  const box = useRef<HTMLTextAreaElement>(null);
+  /** The way to stop a request that is not coming back. See `send`. */
+  const inFlight = useRef<AbortController | null>(null);
+  const tabs = useRef<Record<'friend' | 'city', HTMLButtonElement | null>>({ friend: null, city: null });
 
   const speech = useSpeech();
   const greeting = useMiraGreeting({
-    hour: new Date().getHours(), seed: seed.current, weeksKnown,
-    firstOfDay: firstOfDay.current, dial, distressLocked,
+    hour: new Date().getHours(), seed: seed.current,
+    firstOfDay: firstOfDay.current, dial,
   });
+  // The seed the server named, adopted for every turn after it. The greeting is
+  // not re-keyed on it (see api.ts), so this settles once and does not re-roll
+  // the opening line under somebody who is already reading it.
+  const said = greeting.data?.seed;
+  useEffect(() => { if (typeof said === 'number') setHeldSeed(said); }, [said]);
 
   useEffect(() => { saveDay(turns, undefined, mode); }, [turns, mode]);
 
-  const send = async (text: string) => {
+  /**
+   * `echo` is what makes the paywall's re-send possible: the citizen's line is
+   * already on screen from the attempt that hit the wall, and adding it twice
+   * would read as having said it twice.
+   */
+  const send = async (text: string, echo = true) => {
     const clean = text.trim();
     if (!clean || ask.isPending) return;
     // From here the conversation on screen is live — a hydration arriving
     // late must not rewrite it out from under them.
-    spoke.current = true;
+    spoke.current[mode] = true;
+    setFailure(null);
     const recent = turns.filter((t) => t.who === 'you').slice(-3).map((t) => t.text).reverse();
     // The day's transcript, both voices, oldest first — her context. Without
     // it "just feeling lonely" arrives as a sentence from nowhere, which is
     // the exact conversation the owner screenshotted.
     const history = turns.slice(-12).map((t) => ({ who: t.who === 'you' ? ('me' as const) : ('mira' as const), text: t.text }));
-    setTurns((t) => [...t, { who: 'you', text: clean }]);
+    if (echo) setTurns((t) => [...t, { id: turnId(), who: 'you', text: clean }]);
     setDraft('');
+    // A request nobody can stop is a disabled composer with no way out of it.
+    const stop = new AbortController();
+    inFlight.current = stop;
     try {
-      const reply = await ask.mutateAsync({ text: clean, recent, answering: pending.current, history, mode, page: about });
+      const reply = await ask.mutateAsync({ text: clean, recent, answering: pending.current, history, mode, page: about, signal: stop.signal });
       pending.current = reply.choices?.length ? reply.choices : undefined;
-      if (reply.levity === 0 && reply.lane === 'LISTEN') setDistressLocked(true);
+      if (typeof reply.seed === 'number') setHeldSeed(reply.seed);
       if (reply.pass) setFreeLeft(reply.pass.freeLeft);
-      setPaywalled(Boolean(reply.paywall));
-      setTurns((t) => [...t, { who: 'mira', text: reply.text, levity: reply.levity, goto: reply.goto }]);
+      if (reply.paywall) {
+        // The meter answering is not a turn: it is not stored, not spoken, and
+        // it keeps the sentence it interrupted so subscribing can finish it.
+        setPaywall({ said: reply.text, held: clean });
+        return;
+      }
+      setPaywall(null);
+      setTurns((t) => [...t, { id: turnId(), who: 'mira', text: reply.text, levity: reply.levity, goto: reply.goto }]);
       speech.speak(reply.text);
     } catch (err) {
       pending.current = undefined;
       /**
-       * TWO FAILURES, AND THEY ARE NOT THE SAME SENTENCE.
+       * THE FAILURE IS NAMED, AND IT IS NOT SAID IN HER VOICE.
        *
-       * This was one `catch` saying "I'm not reaching the city right now" — and
-       * that line is a LIE in the case that actually happened: the API answered,
-       * correctly and quickly, and the client threw because the reply carried a
-       * field the schema had just been taught to require. Mira told the owner
-       * the city was down while the city was fine.
+       * Two strings covered every way this can fail, and the offline one is a
+       * LIE in the case that actually happened: the API answered, correctly and
+       * quickly, and the client threw because the reply carried a field the
+       * schema had just been taught to require. Mira told the owner the city
+       * was down while the city was fine. `whyFailed` is the rest of that
+       * argument, and the row it lands in is visibly not a bubble.
        *
-       * This codebase makes every other surface say what is true when it fails.
-       * Hers has to as well, and it costs one `instanceof`. The console line is
-       * the other half: a caught error with no trace turns a five-minute
-       * diagnosis into an afternoon of guessing, which is what it cost here.
+       * The console line is the other half: a caught error with no trace turns
+       * a five-minute diagnosis into an afternoon of guessing.
        */
-      const stale = err instanceof ZodError;
-      if (stale) console.warn('[mira] reply did not match the schema — API and web app are on different versions', err.issues);
-      setTurns((t) => [...t, {
-        who: 'mira',
-        text: stale
-          ? 'I heard the city, but we are not speaking the same language yet. Give the update a minute to land.'
-          : 'I’m not reaching the city right now. Try me in a minute?',
-        levity: 0,
-      }]);
+      if (err instanceof ZodError) {
+        console.warn('[mira] reply did not match the schema — API and web app are on different versions', err.issues);
+      }
+      setFailure({ why: whyFailed(err), held: clean });
+    } finally {
+      inFlight.current = null;
     }
   };
 
@@ -278,13 +379,52 @@ export function MiraThread({ weeksKnown = 0, dial, about, onBack }: {
     box.current?.focus();
   });
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [turns.length, ask.isPending]);
+  /** The box grows with what is in it, up to five lines or so. Without this the
+   *  paragraph the microphone hands over is read through a one-line window. */
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 132)}px`;
+  }, [draft]);
+
+  /** Somebody who asked their system for less movement asked this scroll too.
+   *  Read at the moment of the scroll rather than once, because the preference
+   *  can change while a tab is open. */
+  useEffect(() => {
+    const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    endRef.current?.scrollIntoView({ behavior: still ? 'auto' : 'smooth' });
+  }, [turns.length, ask.isPending]);
 
   const state: MarkState =
     ask.isPending ? 'thinking'
       : speech.speaking ? 'speaking'
         : note.recording ? 'listening'
           : turns.length ? 'waiting' : 'listening';
+
+  /**
+   * THE OPENING IS THE EMPTY STATE, AND THE FRIEND'S ROOM IS NEVER EMPTY.
+   *
+   * It was gated on `turns.length === 0`, and `seedWelcome` puts a bubble in
+   * `turns` — so the friend tab was never empty from its very first paint, and
+   * the mood badge and the big greeting line were skipped for ever. The request
+   * still fired, on every open, and the answer was thrown away.
+   *
+   * What the opening actually means is "nobody has said anything yet", and her
+   * own hello is not somebody saying something.
+   */
+  const untouched = !turns.some((t) => t.who === 'you');
+
+  /** Arrow keys move between the two of her, as a tablist is expected to —
+   *  and the focus goes with the selection, or the next Tab press comes from
+   *  wherever the focus was left behind. */
+  const onTabKey = (e: KeyboardEvent) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    const next = mode === 'friend' ? 'city' : 'friend';
+    pickMode(next);
+    tabs.current[next]?.focus();
+  };
 
   return (
     <div className="mirathread">
@@ -298,22 +438,44 @@ export function MiraThread({ weeksKnown = 0, dial, about, onBack }: {
               strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
           </button>
         )}
-        <div role="group" aria-label="Which Mira" style={{ display: 'contents' }}>
-        <button type="button" className={`miratab${mode === 'friend' ? ' on' : ''}`}
-          aria-pressed={mode === 'friend'} onClick={() => pickMode('friend')}>
+        {/* A REAL TABLIST, AND NOT `display: contents`.
+            These were two `aria-pressed` buttons inside a `role="group"` that
+            carried `style={{ display: 'contents' }}` — which takes the role'd
+            box out of the accessibility tree in every engine that implements
+            the rule, so the group and its name were simply not there. Two
+            buttons that swap the whole transcript behind them are tabs: one
+            stop in the tab order, arrows between them, and the switch
+            announced by `aria-selected` rather than by the scroll changing. */}
+        <div className="miratabgroup" role="tablist" aria-label="Which Mira" onKeyDown={onTabKey}>
+        <button type="button" role="tab" id="miratab-friend" className={`miratab${mode === 'friend' ? ' on' : ''}`}
+          ref={(el) => { tabs.current.friend = el; }}
+          aria-selected={mode === 'friend'} aria-controls="miraturns" tabIndex={mode === 'friend' ? 0 : -1}
+          onClick={() => pickMode('friend')}>
           Friend
         </button>
-        <button type="button" className={`miratab${mode === 'city' ? ' on' : ''}`}
-          aria-pressed={mode === 'city'} onClick={() => pickMode('city')}>
+        <button type="button" role="tab" id="miratab-city" className={`miratab${mode === 'city' ? ' on' : ''}`}
+          ref={(el) => { tabs.current.city = el; }}
+          aria-selected={mode === 'city'} aria-controls="miraturns" tabIndex={mode === 'city' ? 0 : -1}
+          onClick={() => pickMode('city')}>
           City assistant
         </button>
         </div>
       </div>
-      <div className="miraturns">
+      {/* A LOG, SO A REPLY ARRIVING IS ANNOUNCED.
+          Nothing told a screen-reader user that she had answered: the bubble
+          appeared, silently, below a composer they were still standing in.
+          `polite` rather than `assertive` — she is not an alarm.
+
+          It is a log and not a `tabpanel`, and that is a choice rather than an
+          oversight: one element gets one role, and of the two, being told the
+          answer arrived matters more than being told the scroll is a panel.
+          The tabs name it through `aria-controls`. */}
+      <div className="miraturns" id="miraturns" role="log" aria-live="polite"
+        aria-label={mode === 'friend' ? 'Conversation with Mira' : 'Conversation with Mira, the city assistant'}>
         {/* The opening is the empty state, not a permanent banner. Once there is
             a conversation, the promise has been kept or broken and repeating it
             above the evidence is noise. */}
-        {turns.length === 0 && (
+        {untouched && (
           <div className="miraopen">
             <MiraMark size={104} state={state} />
             {/* ── WHICH MIRA TURNED UP ──────────────────────────────────────
@@ -339,9 +501,16 @@ export function MiraThread({ weeksKnown = 0, dial, about, onBack }: {
           </div>
         )}
 
-        {turns.map((t, i) => (
-          <div key={i} className={`miraturn ${t.who}`}>
+        {/* KEYED BY THE TURN, NOT BY WHERE IT HAPPENS TO SIT. The array is
+            replaced on hydration and again on every tab switch, and an index
+            key tells React the third bubble is still the third bubble — so it
+            moves the TEXT between two bubbles rather than moving the bubbles.
+            Who said it is in the class name and nowhere else, which to a
+            screen reader is nowhere at all, so each one says so in words. */}
+        {turns.map((t) => (
+          <div key={t.id} className={`miraturn ${t.who}`}>
             <div className="mirabub">
+              <span className="mirasr">{t.who === 'mira' ? 'Mira said: ' : 'You said: '}</span>
               {t.text}
               {t.goto && (
                 <Link className="miragoto" to={t.goto.path}>Take me to {t.goto.label} →</Link>
@@ -349,41 +518,75 @@ export function MiraThread({ weeksKnown = 0, dial, about, onBack }: {
             </div>
           </div>
         ))}
-        {ask.isPending && <div className="miraturn mira"><div className="mirabub mirawait">Give me a second.</div></div>}
-
-        {/* THE SUBSCRIBE CARD, under her own explanation of the meter. The
-            price is on the key itself — a charge may only ever follow a press
-            that named its amount. Mira cannot spend money; this is the
-            citizen doing it, through the same wallet rail as every checkout
-            in the city, and a refusal (an empty wallet) is shown in her
-            thread in the rail's own words rather than swallowed. */}
-        {paywalled && (
+        {/* THE WAIT IS NOT A SENTENCE. "Give me a second." was emitted verbatim
+            on every single turn — a fixed catchphrase, which is the thing this
+            room's own comments call the way a character dies. A mark holds the
+            place instead; the reader is told in words that are plainly the
+            app's rather than hers. */}
+        {ask.isPending && (
           <div className="miraturn mira">
-            <div className="mirabub">
-              <button
-                type="button"
-                className="mirasub"
-                disabled={subscribe.isPending}
-                onClick={() => {
-                  void subscribe.mutateAsync()
-                    .then(() => {
-                      setPaywalled(false);
-                      setFreeLeft(null);
-                      setTurns((t) => [...t, { who: 'mira', text: 'Done — we’re good for 30 days. Now, where were we?', levity: 2 }]);
-                    })
-                    .catch((err: unknown) => {
-                      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-                      setTurns((t) => [...t, {
-                        who: 'mira',
-                        text: typeof msg === 'string' && msg.trim() ? msg : 'The wallet didn’t answer. Try again in a minute?',
-                        levity: 0,
-                      }]);
-                    });
-                }}>
-                {subscribe.isPending ? 'A moment…' : 'Subscribe · ₹999 for 30 days'}
-              </button>
-              <Link className="miragoto" to="/financial">Top up the wallet first →</Link>
+            <div className="mirabub mirawait">
+              <span className="mirasr">Mira is thinking</span>
+              <span aria-hidden>· · ·</span>
             </div>
+          </div>
+        )}
+
+        {/* A FAILURE IS NOT ONE OF HER TURNS. Its own row, visibly not a
+            bubble, never written to the day store — a dropped connection that
+            comes back on the next reload as something she said is a lie the
+            record cannot take back. */}
+        {failure && (
+          <div className="mirasys" role="status">
+            {failure.why}{' '}
+            {/* The sentence is still on screen and still theirs — the retry
+                sends that one rather than asking them to type it again. */}
+            <button type="button" className="miraforget" onClick={() => { void send(failure.held, false); }}>
+              Try again
+            </button>
+          </div>
+        )}
+
+        {/* THE SUBSCRIBE CARD, WITH HER EXPLANATION OF THE METER INSIDE IT
+            rather than pushed into the transcript above it. The explanation
+            was a stored Mira bubble and was read out loud, so a billing notice
+            came back on every reload as part of the conversation. It is the
+            same words; it is no longer a turn.
+
+            The price is on the key itself — a charge may only ever follow a
+            press that named its amount. Mira cannot spend money; this is the
+            citizen doing it, through the same wallet rail as every checkout in
+            the city, and a refusal (an empty wallet) is shown in the rail's own
+            words rather than swallowed. */}
+        {paywall && (
+          <div className="mirasys">
+            {paywall.said}
+            <button
+              type="button"
+              className="mirasub"
+              disabled={subscribe.isPending}
+              onClick={() => {
+                const held = paywall.held;
+                void subscribe.mutateAsync()
+                  .then(() => {
+                    setPaywall(null);
+                    setFreeLeft(null);
+                    // AND THE MESSAGE THAT HIT THE WALL GOES THROUGH. It was
+                    // dropped, so subscribing was followed by typing it again
+                    // from memory. It is still on screen; it is not echoed.
+                    void send(held, false);
+                  })
+                  .catch((err: unknown) => {
+                    const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+                    setFailure({
+                      why: typeof msg === 'string' && msg.trim() ? msg : 'The wallet didn’t answer. Try again in a minute?',
+                      held,
+                    });
+                  });
+              }}>
+              {subscribe.isPending ? 'A moment…' : `Subscribe · ₹${SUB_INR} for 30 days`}
+            </button>
+            <Link className="miragoto" to="/financial">Top up the wallet first →</Link>
           </div>
         )}
         <div ref={endRef} />
@@ -391,21 +594,29 @@ export function MiraThread({ weeksKnown = 0, dial, about, onBack }: {
 
       {/* The meter, mentioned only once it is worth mentioning. null is a
           subscriber — unmetered — and silence is the honest render of that. */}
-      {typeof freeLeft === 'number' && freeLeft > 0 && freeLeft <= 25 && !paywalled && (
-        <p className="miranote">{freeLeft} free conversation{freeLeft === 1 ? '' : 's'} left · then ₹999 a month</p>
+      {typeof freeLeft === 'number' && freeLeft > 0 && freeLeft <= 25 && !paywall && (
+        <p className="miranote">
+          {/* THE QUOTA IS SAID HERE, WHERE IT IS A FACT ABOUT THE METER, and
+              not in her first sentence, where it was the first thing she told
+              a stranger about herself. The whole number is named, so the count
+              means something on the day it starts mattering. */}
+          {freeLeft} of {FREE_CHATS} free conversations left · then ₹{SUB_INR} a month
+        </p>
       )}
 
-      {/* WHAT SHE KEEPS, SAID OUT LOUD. The history lives in this browser and
-          ends at midnight. `one-bag.test.ts` bans localStorage for the shopping
-          bag on the grounds that a bag in the browser is a bag one device knows
-          about — the same objection applies here, so the answer is to state the
-          limit rather than let somebody find it by opening their phone. */}
+      {/* WHAT SHE KEEPS, SAID OUT LOUD — AND THE BUTTON UNDERNEATH IT DOES
+          SOMETHING SMALLER THAN THE SENTENCE ABOVE IT PROMISED.
+          "With your account, on every device." sat directly over a control
+          that writes a marker into THIS browser: the record on the server is
+          untouched and every other device still shows the conversation. Two
+          true halves that read as one false claim, which is worse than either.
+          Both are stated now, in the order somebody presses them. */}
       {turns.length > 0 && (
         <p className="miranote">
-          With your account, on every device.{' '}
+          Today’s conversation is kept with your account and shows on every device. Clearing takes it off this device only — she still has it.{' '}
           <button type="button" className="miraforget" onClick={() => {
             try { window.localStorage.setItem(`mira.cleared.${mode}`, String(Date.now())); } catch { /* view-only marker */ }
-            clearDay(mode); setTurns([]); pending.current = undefined;
+            clearDay(mode); setTurns([]); pending.current = undefined; setFailure(null);
           }}>
             Clear this screen
           </button>
@@ -426,19 +637,38 @@ export function MiraThread({ weeksKnown = 0, dial, about, onBack }: {
         </div>
       ) : (
         <form className="miracomposer" onSubmit={(e) => { e.preventDefault(); void send(draft); }}>
-          <input
+          {/* A BOX THAT GROWS, BECAUSE TWO MINUTES OF DICTATION LANDS IN IT.
+              The microphone can hand over a paragraph, and the whole point of
+              landing it here rather than sending it is that the word it
+              misheard can be fixed — which was the hardest possible edit on a
+              phone in a one-line input scrolled sideways. Enter still sends;
+              Shift+Enter is the newline, as it is in every composer.
+              `enterkeyhint` is what makes the phone's key say Send. */}
+          <textarea
             ref={box}
+            rows={1}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(draft); }
+            }}
             placeholder={mode === 'friend' ? 'Talk to me…' : 'Tell me what you need…'}
-            aria-label="Tell Mira what you need"
+            aria-label={mode === 'friend' ? 'Message Mira' : 'Tell Mira what you need'}
+            enterKeyHint="send"
+            autoCapitalize="sentences"
+            autoCorrect="on"
             autoComplete="off"
           />
           {speech.supported && (
             <button
               type="button"
               className={`miraspeak${speech.on ? ' on' : ''}`}
-              onClick={speech.speaking ? speech.hush : speech.toggle}
+              /* ONE PRESS, WHATEVER SHE IS DOING. This was
+                 `speech.speaking ? hush : toggle` — so stopping her mid-reply
+                 silenced the sentence and left the switch ON, which is what
+                 `aria-pressed` then went on announcing, and turning her off
+                 took a second press. `toggle` cancels what is playing. */
+              onClick={speech.toggle}
               aria-pressed={speech.on}
               aria-label={speech.on ? 'Stop Mira speaking her replies' : 'Let Mira speak her replies'}
               title={speech.on ? 'Mira speaks her replies' : 'Mira is silent'}
@@ -455,15 +685,29 @@ export function MiraThread({ weeksKnown = 0, dial, about, onBack }: {
             <button
               type="button"
               className="miramic"
-              onClick={note.start}
+              /* BARGE-IN. Opening the microphone while she is talking pointed
+                 the recogniser at the speaker and transcribed her own voice
+                 back into the box. She stops when you start. */
+              onClick={() => { speech.hush(); note.start(); }}
               aria-label="Record a voice note for Mira"
             >
               <span><i /><i /><i /><i /><i /></span>
             </button>
           )}
-          <button type="submit" disabled={!draft.trim() || ask.isPending}>Send</button>
+          {/* A REQUEST CAN BE STOPPED. The composer was disabled for the whole
+              round trip with no cancel and no timeout, so a request that never
+              comes back leaves a permanently dead Send and no way out of it. */}
+          {ask.isPending ? (
+            <button type="button" onClick={() => inFlight.current?.abort()}>Stop</button>
+          ) : (
+            <button type="submit" disabled={!draft.trim()}>Send</button>
+          )}
         </form>
       )}
+      {/* WHY THE MICROPHONE STOPPED. Every failure used to end with the
+          recording bar simply vanishing — a blocked permission looked exactly
+          like a silent room, and both looked like a broken button. */}
+      {note.error && <p className="mirasys" role="status">{note.error}</p>}
     </div>
   );
 }

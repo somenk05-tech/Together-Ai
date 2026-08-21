@@ -1,4 +1,4 @@
-import { say, nothing, type Colour } from './say';
+import { say, sayWithTrace, nothing, type Colour } from './say';
 import { ALL_MOODS } from './mood';
 import type { LevityLevel } from './levity';
 
@@ -72,6 +72,75 @@ describe('she does not write paragraphs', () => {
   it('drops the aside rather than doubling the length of a long answer', () => {
     const long = 'A steady day, mostly. Keep the afternoon light and do not agree to anything before eleven, because the morning is where the noise is and you will say yes to it.';
     expect(say(long, c(3), ['And I would know.'])).toBe(long);
+  });
+});
+
+/**
+ * THE DROP IS COUNTED NOW.
+ *
+ * It used to happen on the longest answers, with no log and no ledger field —
+ * so "the ratio being lost to arithmetic on the turn that mattered" was a thing
+ * levity.ts could name and nothing could measure.
+ */
+describe('and says so when the arithmetic took the aside', () => {
+  const long = 'A steady day, mostly. Keep the afternoon light and do not agree to anything before eleven, because the morning is where the noise is and you will say yes to it.';
+
+  it('reports the drop', () => {
+    const out = sayWithTrace(long, c(3), ['And I would know.']);
+    expect(out.text).toBe(long);
+    expect(out.asideDropped).toBe(true);
+  });
+
+  it('does not report one when the governor refused — that is the system working', () => {
+    expect(sayWithTrace('Okay.', c(0), ASIDES).asideDropped).toBe(false);
+    expect(sayWithTrace('Book it?', c(4), ASIDES, 'confirm').asideDropped).toBe(false);
+    expect(sayWithTrace('₹0.', c(1), ASIDES).asideDropped).toBe(false);
+  });
+
+  it('does not report one when there was no aside to lose', () => {
+    expect(sayWithTrace(long, c(3), []).asideDropped).toBe(false);
+  });
+
+  it('says the same sentence say() does', () => {
+    expect(sayWithTrace('₹0.', c(3), ASIDES).text).toBe(say('₹0.', c(3), ASIDES));
+  });
+});
+
+describe('the question is the last thing she says', () => {
+  /**
+   * "Astrology. Want me to take you? It has been there the whole time." ended
+   * on the wrong sentence — she talked over the offer the citizen has to answer.
+   */
+  it('puts the aside before a trailing question', () => {
+    const out = say('Astrology. Want me to take you?', c(3), ['It has been there the whole time.']);
+    expect(out).toBe('Astrology. It has been there the whole time. Want me to take you?');
+  });
+
+  it('still appends when the answer does not end in one', () => {
+    expect(say('₹0.', c(3), ['Not judging. Reporting.'])).toBe('₹0. Not judging. Reporting.');
+  });
+
+  it('an empty answer is not a leading space', () => {
+    expect(say('', c(3), ['Bold of you to have free time.'])).toBe('Bold of you to have free time.');
+  });
+});
+
+describe('two answers in one session are not coloured identically', () => {
+  /** The index was the SESSION seed, so every turn drew the same aside and the
+   *  same line arrived twice in four turns — a catchphrase, not a character. */
+  it('a different answer in the same session can draw a different aside', () => {
+    const answers = [
+      'Astrology. Want me to take you?',
+      'Budgets. Want me to take you?',
+      '₹0.',
+      'Nothing in your watchlist yet.',
+    ];
+    const picked = new Set(answers.map((a) => ASIDES.find((x) => say(a, c(3, { seed: 1 }), ASIDES).includes(x))));
+    expect(picked.size).toBeGreaterThan(1);
+  });
+
+  it('and the same answer in the same session still draws the same one', () => {
+    expect(say('₹0.', c(3, { seed: 1 }), ASIDES)).toBe(say('₹0.', c(3, { seed: 1 }), ASIDES));
   });
 });
 

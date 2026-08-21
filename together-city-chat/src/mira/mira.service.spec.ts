@@ -86,7 +86,26 @@ const recorded: Array<Record<string, unknown>> = [];
  *  telling us when a service signature changes. */
 const as = <N extends number>(o: unknown) => o as ConstructorParameters<typeof MiraService>[N];
 
-const svc = (over: Partial<Hubs> = {}) => {
+/**
+ * The account, as far as this file is concerned.
+ *
+ * It used to be `{}` under the note "Prisma, unreachable: with the model off,
+ * nothing in ask() touches it". That stopped being true when the safety
+ * governor's inputs moved off the request and onto the account — she reads the
+ * profile's zone and the pass row on every turn now, and a citizen with
+ * neither is a citizen on their first turn, which is what these defaults are.
+ */
+const NOBODY = {
+  masterProfile: { findUnique: () => Promise.resolve(null) },
+  miraPass: { findUnique: () => Promise.resolve(null), upsert: () => Promise.resolve(undefined) },
+  miraTurn: {
+    findMany: () => Promise.resolve([]),
+    createMany: () => Promise.resolve(undefined),
+    deleteMany: () => Promise.resolve({ count: 0 }),
+  },
+};
+
+const svc = (over: Partial<Hubs> = {}, account: unknown = NOBODY, ai: unknown = { enabled: false, converse: async () => null }) => {
   const h = { ...DEFAULTS, ...over };
   return new MiraService(
     as<0>({ wallet: h.wallet, transactions: h.transactions, budgets: h.budgets, spending: h.spending }),
@@ -112,9 +131,9 @@ const svc = (over: Partial<Hubs> = {}) => {
     // The model, OFF. Every test in this file describes the deterministic
     // Mira, and she must be exactly as she was when the model is not
     // configured — that equivalence is itself the thing under test.
-    as<18>({ enabled: false, converse: async () => null }),
-    // Prisma, unreachable: with the model off, nothing in ask() touches it.
-    as<19>({}),
+    as<18>(ai),
+    // Prisma. See NOBODY: the governor reads the account on every turn now.
+    as<19>(account),
     // The daybook, likewise: only readDay() reads it, and readDay is not ask().
     as<20>({}),
   );
@@ -123,6 +142,19 @@ const svc = (over: Partial<Hubs> = {}) => {
 const ctx = (o: Partial<Parameters<MiraService['ask']>[1]> = {}) => ({
   userId: 'u1', weeksKnown: 52, hour: 14, ...o,
 });
+
+/**
+ * A fixed-offset zone in which it is right now the hour we want it to be.
+ *
+ * Written this way because the alternative — naming a real city and asserting
+ * what time it is there — is a test that passes for eighteen hours a day. IANA
+ * inverts the sign on `Etc/GMT`: `Etc/GMT-3` is UTC+3.
+ */
+const zoneWhereItIs = (hour: number): string => {
+  const shift = (((hour - new Date().getUTCHours()) % 24) + 24) % 24;
+  if (shift === 0) return 'UTC';
+  return shift <= 12 ? `Etc/GMT-${shift}` : `Etc/GMT+${24 - shift}`;
+};
 
 beforeEach(() => { recorded.length = 0; });
 
@@ -409,11 +441,20 @@ describe('the day brief is short enough to still sound like her', () => {
    * whichever mood seed 0 happens to pick would be a test that holds for one
    * day in six.
    */
+  /**
+   * SWEPT ACROSS CITIZENS, NOT ACROSS CLAIMED SEEDS.
+   *
+   * This used to pass `ctx({ seed })` twelve times. The seed is derived from
+   * the citizen and their local day now — the request's copy is answered, not
+   * obeyed — so twelve claimed seeds would have been twelve runs of the same
+   * mood, and this test would have read as green while measuring one sixth of
+   * what it says it measures. Twelve citizens is twelve seeds.
+   */
   it('survives a fully loaded day, on most of her moods', async () => {
-    const heard: number[] = [];
-    for (let seed = 0; seed < 12; seed++) {
-      const t = await svc(LOADED).ask('how is my day going to be', ctx({ seed }));
-      if (HER_VOICE.test(t.text)) heard.push(seed);
+    const heard: string[] = [];
+    for (let n = 0; n < 12; n++) {
+      const t = await svc(LOADED).ask('how is my day going to be', ctx({ userId: `u${n}` }));
+      if (HER_VOICE.test(t.text)) heard.push(`u${n}`);
     }
     expect(heard.length).toBeGreaterThanOrEqual(6);
   });
@@ -477,5 +518,254 @@ describe('a question about a life is not a question about a task', () => {
   it('leaves an ordinary request alone', async () => {
     const t = await svc().ask('take me to astrology', ctx());
     expect(t.text).not.toMatch(/not going to put a date/i);
+  });
+});
+
+
+/**
+ * ── X1: THE SAFETY GOVERNOR'S INPUTS COME OFF THE ACCOUNT ─────────────────
+ *
+ * `hour`, `weeksKnown` and `distressLocked` were request-body fields, so a
+ * curl with `{hour: 14, distressLocked: false}` defeated the small-hours
+ * damper and the distress latch together — and no malice was needed for it to
+ * go wrong, because a browser tab is per-device and empty after a refresh.
+ *
+ * The comment that defended the old arrangement named `MasterProfile.timeZone`
+ * as the thing this class of bug exists to prevent, while the server held that
+ * zone and read the browser's copy instead.
+ */
+describe('what the request claims is not what she believes', () => {
+  const account = (over: Record<string, unknown> = {}) => ({
+    ...NOBODY,
+    masterProfile: { findUnique: () => Promise.resolve(over.profile ?? null) },
+    miraPass: { findUnique: () => Promise.resolve(over.pass ?? null), upsert: () => Promise.resolve(undefined) },
+  });
+
+  it('takes the hour from the zone on the profile, not from the body', async () => {
+    // The body says 3am — which would cap her at L2 and say so in the trace.
+    const t = await svc({}, account({ profile: { timeZone: zoneWhereItIs(14) } })).ask("what's my balance", ctx({ hour: 3 }));
+    expect(t.trace.join(' ')).not.toMatch(/03:00 local/);
+  });
+
+  it('and applies the small-hours damper when the ZONE says so, whatever the body says', async () => {
+    const t = await svc({}, account({ profile: { timeZone: zoneWhereItIs(3) } })).ask("what's my balance", ctx({ hour: 14 }));
+    expect(t.trace.join(' ')).toMatch(/03:00 local/);
+  });
+
+  /** No zone on the profile is the one case the client's copy is still read —
+   *  a fallback, which is where we started and is better than a wrong hour. */
+  it('falls back to the body only when the profile has no zone', async () => {
+    const t = await svc({}, account()).ask("what's my balance", ctx({ hour: 3 }));
+    expect(t.trace.join(' ')).toMatch(/03:00 local/);
+  });
+
+  it('holds the distress latch from the account, and a request cannot clear it', async () => {
+    const held = account({ pass: { chatUsed: 0, paidUntil: null, distressUntil: new Date(Date.now() + 60_000), greetings: [] } });
+    const t = await svc({}, held).ask('take me to astrology', ctx({ dial: 2, distressLocked: false }));
+    expect(t.levity).toBe(0);
+    expect(t.trace.join(' ')).toMatch(/distress lock/i);
+  });
+
+  /** …and it decays. A latch that can only be cleared by a browser is a latch
+   *  that is either永 held or lost on a refresh; four hours is an evening. */
+  it('and lets it go once it has decayed', async () => {
+    const stale = account({ pass: { chatUsed: 0, paidUntil: null, distressUntil: new Date(Date.now() - 60_000), greetings: [] } });
+    const t = await svc({}, stale).ask('take me to astrology', ctx({ dial: 2 }));
+    expect(t.levity).toBeGreaterThan(0);
+  });
+
+  it('answers with the seed it used, and the same one whatever the request guessed', async () => {
+    const a = await svc().ask("what's my balance", ctx({ seed: 7 }));
+    const b = await svc().ask("what's my balance", ctx({ seed: 99 }));
+    expect(typeof a.seed).toBe('number');
+    expect(a.seed).toBe(b.seed);
+  });
+});
+
+/**
+ * ── A REFUSAL IS AN ANSWER TO HER QUESTION ────────────────────────────────
+ *
+ * "no", "neither", "both" used to fall out of `resolveChoice` as nothing,
+ * which the service read as "not an answer" and re-routed as a fresh request.
+ * So declining her question navigated somewhere.
+ */
+describe('she can be told the question was wrong', () => {
+  const choices = [
+    { label: 'Astrology', path: '/astrology' },
+    { label: 'Astrology Log', path: '/astrology/log' },
+  ];
+
+  it('"neither" drops the question instead of routing it', async () => {
+    const t = await svc().ask('neither', ctx({ answering: choices }));
+    expect(t.goto).toBeUndefined();
+    expect(t.choices).toBeUndefined();
+    expect(t.text).toMatch(/dropped/i);
+  });
+
+  it('"both" does not pick one of them behind her back', async () => {
+    const t = await svc().ask('both', ctx({ answering: choices }));
+    expect(t.goto).toBeUndefined();
+    expect(t.text).toMatch(/one at a time/i);
+  });
+});
+
+/**
+ * ── C6: THE RELATIONSHIP READER STOPS INTERCEPTING ORDINARY REQUESTS ──────
+ *
+ * `SHAPES` in relate.ts holds bare `too much`, `every day` and
+ * `fix (this|things|it)`, and the read ran before `findInCity` on everything
+ * it produced. The gate is now whether a person was named — which is also what
+ * stops the correction going too far the other way.
+ */
+describe('a request is not a relationship', () => {
+  it('"can you fix this" is not answered with a script about somebody', async () => {
+    const t = await svc().ask('can you fix this', ctx({ mode: 'friend' }));
+    expect(t.text).not.toMatch(/went badly with them/i);
+  });
+
+  /** And the correction does not eat the lane it was protecting: a sentence
+   *  that NAMES somebody still outranks the place-finder, which scores
+   *  "Flights" at 0.6 against the word "fight". */
+  it('"i had a fight with my sister" is not a flight', async () => {
+    const t = await svc().ask('i had a fight with my sister', ctx());
+    expect(t.goto).toBeUndefined();
+    expect(t.text).toMatch(/your sister/i);
+  });
+});
+
+/** A route she offers has to be a route. `/medicines` never was one. */
+describe('every door she offers opens', () => {
+  it('sends Medicines to the page the city index actually has', async () => {
+    const t = await svc({ today: () => Promise.resolve({ doses: [{ medicine: 'Metformin', status: 'due' }] }) })
+      .ask('my medicines', ctx());
+    expect(t.goto?.path).toBe('/medical/medicines');
+  });
+});
+
+
+/**
+ * ── SHE STOPPED SAYING THE SAME FOUR THINGS ───────────────────────────────
+ *
+ * The mood cycled on the seed with a period of 7 and the line with a period of
+ * 3, so every citizen got twenty-four distinct openings and then heard them
+ * again, in order, from session forty-three onwards. Nobody who writes the
+ * lines ever sees that: it only shows up on somebody's fortieth session, which
+ * is somebody who likes her.
+ *
+ * `greet()` stays a pure function; the memory belongs to the caller, and the
+ * caller is now the account rather than a browser tab.
+ */
+describe('hello, and she remembers what she said last time', () => {
+  const withGreetings = (greetings: string[], sink: Record<string, unknown>[]) => ({
+    ...NOBODY,
+    miraPass: {
+      findUnique: () => Promise.resolve({ chatUsed: 0, paidUntil: null, greetings, firstSeenAt: new Date() }),
+      upsert: (args: Record<string, unknown>) => { sink.push(args); return Promise.resolve(undefined); },
+    },
+  });
+
+  it('does not open with a line she has just used', async () => {
+    const sink: Record<string, unknown>[] = [];
+    const first = await svc({}, withGreetings([], sink)).greeting('u1', { firstOfDay: true });
+    const next = await svc({}, withGreetings([first.id], sink)).greeting('u1', { firstOfDay: true });
+    expect(next.id).not.toBe(first.id);
+  });
+
+  it('writes the id back, newest first, and keeps only the last few', async () => {
+    const sink: Record<string, unknown>[] = [];
+    const old = Array.from({ length: 12 }, (_, n) => `line.0.${n}`);
+    const g = await svc({}, withGreetings(old, sink)).greeting('u1', {});
+    const kept = (sink[0].update as { greetings: string[] }).greetings;
+    expect(kept[0]).toBe(g.id);
+    expect(kept.length).toBeLessThanOrEqual(10);
+  });
+
+  /** And the greeting answers with the seed it used — the client held its own
+   *  guess per device, which is how she was two people on one afternoon. */
+  it('answers with the seed, and it is the same one the ask uses', async () => {
+    const g = await svc({}, NOBODY).greeting('u1', {});
+    const t = await svc().ask("what's my balance", ctx());
+    expect(g.seed).toBe(t.seed);
+  });
+
+  /** A greeting that cannot reach the table is a quieter hello, never an
+   *  error in front of somebody. */
+  it('still says hello when the account cannot be read', async () => {
+    const broken = { ...NOBODY, miraPass: { findUnique: () => Promise.reject(new Error('down')), upsert: () => Promise.reject(new Error('down')) } };
+    const g = await svc({}, broken).greeting('u1', {});
+    expect(g.ask.length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * ── THE ASSERTION THIS WHOLE LANDING EXISTS FOR ───────────────────────────
+ *
+ * `crisis.spec.ts` proves the lexicon: that "I want to kill myself" is
+ * recognised. `relate.spec.ts` proves the read: that recognising it produces a
+ * hand-off. NEITHER of them proves the WIRING, and the wiring is where the
+ * defect lived.
+ *
+ * What shipped before this landing: `BEYOND` had no self-harm pattern at all,
+ * so the sentence missed it, `whoIsIt()` matched the word "myself", and the
+ * city room returned `SELF_SCRIPTS.unknown` — "Say the sentence you have been
+ * circling out loud, once, to nobody" — a journaling exercise, handed to
+ * somebody saying they want to die. The friend room did something worse: it
+ * reached the model with `distress: false`, under a persona whose humour line
+ * reads "playful by default".
+ *
+ * So this sweep goes through `ask()` itself, the way a citizen does. Both
+ * rooms, model off AND model on, and the model is a stub that returns a
+ * cheerful sentence — because the point is not that the model behaves, it is
+ * that the model is never asked. A hand-off that only holds when the model
+ * happens to be off is not a hand-off.
+ */
+describe('a crisis reaches a person, from every door', () => {
+  const SENTENCES = ['i want to kill myself', 'i want to die', "i don't want to be here anymore"];
+  const ROOMS = ['friend', 'city'] as const;
+
+  /** A model that would answer if it were ever consulted. It must not be. */
+  const chatty = () => {
+    const calls: string[] = [];
+    return {
+      calls,
+      ai: {
+        enabled: true,
+        converse: async (system: string) => { calls.push(system); return 'Right, the usual chaos then.'; },
+      },
+    };
+  };
+
+  for (const mode of ROOMS) {
+    for (const text of SENTENCES) {
+      it(`${mode} room, model off — ${JSON.stringify(text)} gets the helpline`, async () => {
+        const t = await svc().ask(text, ctx({ mode }));
+        expect(t.text).toMatch(/\b14416\b/);
+        expect(t.levity).toBe(0);
+      });
+
+      it(`${mode} room, model ON — ${JSON.stringify(text)} never reaches the model`, async () => {
+        const m = chatty();
+        const t = await svc({}, NOBODY, m.ai).ask(text, ctx({ mode }));
+        expect(t.text).toMatch(/\b14416\b/);
+        expect(t.levity).toBe(0);
+        expect(m.calls).toHaveLength(0);
+      });
+    }
+  }
+
+  it('does not hand off an ordinary bad day', async () => {
+    const t = await svc().ask('i had a rough day at work', ctx({ mode: 'friend' }));
+    expect(t.text).not.toMatch(/14416/);
+  });
+
+  /**
+   * The dial cannot reach it, and neither can a playful register. Levity's caps
+   * and lifts are computed separately for exactly this case: somebody who has
+   * been joking all session and then says the thing.
+   */
+  it('a playful register cannot lift a crisis turn', async () => {
+    const t = await svc().ask('i want to die', ctx({ mode: 'friend', dial: 2, recent: ['lol', 'haha'] }));
+    expect(t.text).toMatch(/\b14416\b/);
+    expect(t.levity).toBe(0);
   });
 });

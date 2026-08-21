@@ -1,4 +1,5 @@
 import { greet, greetingLevel, allGreetings, FOURTH_WALL_EVERY, type GreetingInput } from './greeting';
+import { MOODS } from './mood';
 import { violations } from './voice';
 
 const g = (over: Partial<GreetingInput> = {}): GreetingInput => ({
@@ -138,5 +139,106 @@ describe('teases target choices, never the person', () => {
     expect('Morning, lazy').toMatch(ALWAYS);
     expect('What broke?').not.toMatch(ONLY_ABOUT_YOU);
     expect('What broke?').not.toMatch(ALWAYS);
+  });
+});
+
+describe('she does not claim what she was never given', () => {
+  /**
+   * Three lines were removed for this, and they were the funniest three. The
+   * input carries a mood, an hour, a dial, a seed and two counters — no
+   * calendar, no unread count, no last topic. Every one of those sentences was
+   * an invention about the citizen's own data in the first line of the session.
+   */
+  it('no opening line reads her calendar, her workload or last Tuesday', () => {
+    for (const l of allGreetings()) {
+      expect(l).not.toMatch(/calendar|on fire|from tuesday|unread|three things/i);
+    }
+  });
+
+  it('and no seed shakes one out of her', () => {
+    for (let seed = 0; seed < 60; seed++) {
+      for (const hour of [2, 9, 14, 20]) {
+        const out = greet(g({ seed, hour, dial: 2 }));
+        expect(`${out.hello} ${out.ask}`).not.toMatch(/calendar|on fire|from tuesday/i);
+      }
+    }
+  });
+});
+
+describe('a time-of-day line is said at that time of day', () => {
+  /** "Evening" fired at nine in the morning, because the line sat in the pool
+   *  and was drawn from the seed with no reference to the hour at all. */
+  it('never says morning or evening in the afternoon', () => {
+    for (let seed = 0; seed < 60; seed++) {
+      const out = greet(g({ seed, hour: 14 }));
+      expect(`${out.hello} ${out.ask}`).not.toMatch(/morning|evening|up early/i);
+    }
+  });
+
+  it('but does say them at the hour they belong to', () => {
+    const evening = new Set<string>();
+    for (let seed = 0; seed < 60; seed++) evening.add(greet(g({ seed, hour: 20 })).ask);
+    expect([...evening]).toContain('Anything left over from today?');
+
+    const early = new Set<string>();
+    for (let seed = 0; seed < 60; seed++) early.add(greet(g({ seed, hour: 7 })).ask);
+    expect([...early]).toContain('You’re up early. Suspicious.');
+  });
+});
+
+describe('every line she owns is reachable', () => {
+  /**
+   * `useMood` spent `seed % 3` and the pick spent `seed % opens.length`, and
+   * every mood but one has exactly three openers — so the two conditions were
+   * reading the same digit and `opens[0]` was unreachable for four of her six
+   * moods. A line nobody can be shown is a line that is not in the product.
+   */
+  it.each(Object.keys(MOODS))('%s can open with any of its own lines', (mood) => {
+    const said = new Set<string>();
+    for (let seed = 0; seed < 90; seed++) {
+      said.add(greet(g({ seed, mood: mood as keyof typeof MOODS })).ask);
+    }
+    for (const open of MOODS[mood as keyof typeof MOODS].opens) expect([...said]).toContain(open);
+  });
+});
+
+describe('she stops repeating herself', () => {
+  it('says which line it was, and says the same thing about the same session', () => {
+    const a = greet(g({ seed: 7 }));
+    expect(a.id).toBeTruthy();
+    expect(greet(g({ seed: 7 })).id).toBe(a.id);
+  });
+
+  it('skips a line the caller says she has just used', () => {
+    const first = greet(g({ seed: 4 }));
+    const again = greet(g({ seed: 4, exclude: [first.id] }));
+    expect(again.id).not.toBe(first.id);
+    expect(again.ask).not.toBe(first.ask);
+  });
+
+  /**
+   * THE LOOP THIS ENDS. Mood cycled on 7 and the line on 3 — a period of 42.
+   * Forty-five consecutive sessions produced twenty-four distinct openings and
+   * then repeated them exactly, in order.
+   */
+  it('does not repeat inside a window of ten sessions', () => {
+    const recent: string[] = [];
+    const seen: string[] = [];
+    for (let seed = 0; seed < 45; seed++) {
+      const out = greet(g({ seed, exclude: recent }));
+      expect(recent).not.toContain(out.id);
+      seen.push(out.id);
+      recent.unshift(out.id);
+      recent.length = Math.min(recent.length, 10);
+    }
+    expect(new Set(seen).size).toBeGreaterThan(24);  // the old ceiling, over the same 45 sessions
+  });
+
+  it('still opens her mouth when everything has been said recently', () => {
+    // A citizen who has seen all of it still gets a greeting. Repeating the
+    // oldest line is the least bad of the options left.
+    const all = Array.from({ length: 200 }, (_, seed) => greet(g({ seed })).id);
+    const out = greet(g({ seed: 3, exclude: [...new Set(all)] }));
+    expect(out.ask.length).toBeGreaterThan(0);
   });
 });

@@ -2,6 +2,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { CITY, EVERYWHERE, PERSONALISATION, findInCity, whyWeAsk } from './city';
 import { violations } from './voice';
+import { resolveChoice } from './choose';
 
 /**
  * Mira's map, held against the real one.
@@ -115,5 +116,209 @@ describe('personalisation is written as consequences, not as fields', () => {
 
   it('"why do you need that?" is always answerable', () => {
     for (const p of PERSONALISATION) expect(whyWeAsk(p.fact)).toBeDefined();
+  });
+});
+
+/**
+ * THE INDEX MATCHED LITERAL LABELS AND NOTHING ELSE.
+ *
+ * Fourteen hubs, forty-eight rooms, and not one room declared a `says` — so a
+ * room was reachable only by typing its label exactly. Every line below is a
+ * query that a citizen actually types and that used to go somewhere wrong or
+ * nowhere at all: "medicines" landed on Blood analysis, "thoughts" on the city
+ * feed, "meal plan" on the fitness plan, and "allergies", "settings", "help"
+ * and "delete my account" returned nothing whatsoever.
+ */
+describe('she knows the words people actually use', () => {
+  /** Mirrors CONTEST in mira.service.ts: below this gap she asks instead of
+   *  going. A right answer she is not confident enough to give is still a turn
+   *  spent asking, so these assert the gap and not only the winner. */
+  const CONTEST = 0.25;
+
+  const LANDS: Array<[string, string]> = [
+    ['medicines', '/medical/medicines'],
+    ['pills', '/medical/medicines'],
+    ['thoughts', '/thoughts'],
+    ['meal plan', '/nutrition/weekly'],
+    ['my meal plan', '/nutrition/weekly'],
+    ['profile', '/profile'],
+    ['my profile', '/profile'],
+    ['allergies', '/nutrition/preferences'],
+    ['where do i set my allergies', '/nutrition/preferences'],
+    ['blood report', '/medical/blood'],
+    ['where do i upload my blood report', '/medical/blood'],
+    ['chat', '/chats'],
+    ['my chats', '/chats'],
+    ['settings', '/settings'],
+    ['notifications', '/social/notifications'],
+    ['help', '/help'],
+    ['support', '/help'],
+    ['search', '/hubs'],
+    ['photos', '/personal/album'],
+    ['delete my account', '/settings'],
+    ['recipes', '/nutrition/recipes'],
+    ['tarot', '/astrology/tarot'],
+    ['gemstones', '/astrology/gemstones'],
+    ['remedies', '/astrology/remedies'],
+    ['my files', '/drive'],
+  ];
+
+  it.each(LANDS)('“%s” takes her to %s, decisively', (q, path) => {
+    const [top, second] = findInCity(q);
+    expect(top?.path).toBe(path);
+    expect(!second || top.score - second.score >= CONTEST).toBe(true);
+  });
+
+  /** A modest set, where a hub has an obvious Hindi word. Not a translation
+   *  layer — the five words a Delhi citizen types without thinking. */
+  const HINGLISH: Array<[string, string]> = [
+    ['paisa', '/financial/wallet'],
+    ['khana', '/nutrition'],
+    ['ghar', '/realestate'],
+    ['dawai', '/medical/medicines'],
+    ['kaam', '/jobs'],
+  ];
+
+  it.each(HINGLISH)('“%s” finds its hub', (q, prefix) => {
+    expect(findInCity(q)[0]?.path.startsWith(prefix)).toBe(true);
+  });
+});
+
+describe('one typo is still the same word', () => {
+  it('finds the room through a slipped finger', () => {
+    expect(findInCity('buget')[0]?.path).toBe('/financial/budgets');
+    expect(findInCity('calender')[0]?.path).toBe('/calendar');
+  });
+
+  it('but never outranks somebody who typed it correctly', () => {
+    // A typo allowance that can win a contest is a typo allowance that
+    // relabels correct queries. It sits below every real match by construction.
+    expect(findInCity('budgets')[0].score).toBeGreaterThan(findInCity('buget')[0].score);
+  });
+
+  it('and does not fire on a short word, where one edit is a different word', () => {
+    // "plan" and "plans", "log" and "dog", "list" and "last".
+    expect(findInCity('dog')).toEqual([]);
+  });
+});
+
+describe('a plural is the same word too', () => {
+  it('finds the room from the singular', () => {
+    expect(findInCity('transaction')[0]?.path).toBe('/financial/transactions');
+    expect(findInCity('reservation')[0]?.path).toBe('/restaurants/reservations');
+    expect(findInCity('recipe')[0]?.path).toBe('/nutrition/recipes');
+  });
+});
+
+describe('a weak lone hit is not an answer', () => {
+  /**
+   * "list" reverse-matched "List your business" at 0.5, had no runner-up, and
+   * so passed the contest the service runs — the weakest possible evidence
+   * producing the most decisive possible behaviour, straight into somebody's
+   * business listing form.
+   */
+  it('stops taking “list” to the business listing form', () => {
+    expect(findInCity('list')[0]?.path).not.toBe('/services/list');
+  });
+
+  it('says nothing at all when the only hit is a word inside a label', () => {
+    // "analysis" is inside "Blood analysis" and "stone" inside "my stone", and
+    // neither is a citizen asking to go there. Unopposed, they used to be.
+    expect(findInCity('analysis')).toEqual([]);
+    expect(findInCity('stone')).toEqual([]);
+  });
+
+  it('but two weak hits are a real question and still asked', () => {
+    // The floor is about the UNOPPOSED weak hit. "business" genuinely could be
+    // either room, and being asked is the right outcome.
+    expect(findInCity('business').length).toBe(2);
+  });
+});
+
+describe('two rooms never answer to the same name', () => {
+  /**
+   * Beauty has an Orders and Restaurants has an Orders, so "orders" rendered
+   * as "Orders or Orders. Which one?" — and `resolveChoice` returns the first
+   * label that matches, so whichever they answered they got Beauty and
+   * `/restaurants/orders` was unreachable through that path, permanently.
+   */
+  it('qualifies a duplicate label with its hub', () => {
+    const found = findInCity('orders');
+    expect(found.map((f) => f.label).sort()).toEqual(['Beauty orders', 'Restaurants orders']);
+    expect(new Set(found.map((f) => f.label)).size).toBe(found.length);
+  });
+
+  it('and the answer she gets back can now separate them', () => {
+    const options = findInCity('orders').map(({ label, path }) => ({ label, path }));
+    expect(resolveChoice('restaurants orders', options)).toEqual(
+      options.find((o) => o.path === '/restaurants/orders'),
+    );
+    expect(resolveChoice('beauty orders', options)).toEqual(
+      options.find((o) => o.path === '/beauty/orders'),
+    );
+  });
+
+  it('leaves a label alone when nothing else is called that', () => {
+    expect(findInCity('recipes')[0]?.label).toBe('Recipes');
+  });
+});
+
+describe('she never asks a question whose two answers are the same page', () => {
+  /**
+   * A hub's path is its first room's, so "wallet" matched the Financial hub AND
+   * the Wallet room — two options, one page, and a citizen left guessing what
+   * distinction she thought she was drawing.
+   */
+  it('collapses two hits on one path and goes', () => {
+    const found = findInCity('wallet');
+    expect(found.length).toBe(1);
+    expect(found[0].path).toBe('/financial/wallet');
+    expect(found[0].label).toBe('Wallet');
+  });
+
+  it('never returns the same path twice, whatever is asked', () => {
+    for (const q of ['orders', 'wallet', 'my orders', 'explore', 'messages', 'business', 'plan']) {
+      const paths = findInCity(q).map((f) => f.path);
+      expect(new Set(paths).size).toBe(paths.length);
+    }
+  });
+});
+
+describe('“why do you need that?” is asked in words, not in schema', () => {
+  /**
+   * `whyWeAsk` required the WHOLE utterance to equal the fact, so the only
+   * citizen who ever reached the personalisation graph was one who typed "food
+   * allergies" and nothing else — and "where do I set my allergies", the
+   * example in the file's own header, returned undefined.
+   */
+  it('reaches the graph from a question somebody would actually type', () => {
+    expect(whyWeAsk('where do i set my allergies')?.fact).toBe('Food allergies');
+    expect(whyWeAsk('allergies')?.fact).toBe('Food allergies');
+    expect(whyWeAsk('where do i upload my blood report')?.fact).toBe('A blood report');
+    expect(whyWeAsk('my birth details')?.fact).toBe('Date, time and place of birth');
+  });
+
+  it('and still answers the exact name of every fact', () => {
+    for (const p of PERSONALISATION) expect(whyWeAsk(p.fact)).toBe(p);
+  });
+
+  it('stays quiet on a question that is not about a fact', () => {
+    // It runs BEFORE the place-finder and takes the turn when it hits, so a
+    // loose match here answers a question about a room with a lecture about a
+    // field.
+    expect(whyWeAsk('take me to my budgets')).toBeUndefined();
+    expect(whyWeAsk('what is on tonight')).toBeUndefined();
+    expect(whyWeAsk('')).toBeUndefined();
+  });
+});
+
+describe('and asks when a word honestly means two places', () => {
+  it('“explore” is a room in Real Estate and a room in Travel', () => {
+    // Being taken to one of them at 1.0 with no runner-up is the bug: the word
+    // does not choose between them, so neither should she.
+    const found = findInCity('explore');
+    expect(found.length).toBe(2);
+    expect(found[0].score - found[1].score).toBeLessThan(0.25);
+    expect(new Set(found.map((f) => f.label)).size).toBe(2);
   });
 });

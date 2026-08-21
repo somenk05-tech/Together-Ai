@@ -93,19 +93,50 @@
 .miraturn.mira .mirabub { background: var(--mira-tile); border: 1px solid var(--mira-line); border-bottom-left-radius: 5px; }
 .miraturn.you .mirabub { background: var(--on-mira); color: var(--on-mira-ink); border-bottom-right-radius: 5px; }
 
-/* "Give me a second" rather than a spinner — the spec's one line of narration
-   budget, and a better latency mask than a dot animation. */
-.mirawait { color: var(--on-mira-soft); font-style: italic; }
+/* A MARK RATHER THAN A SENTENCE. It said "Give me a second." on every single
+   turn — a fixed catchphrase, and catchphrases are how a character dies (this
+   file's own argument, four rules down). Three dots hold the place and put no
+   words in her mouth; the reader is told in the app's voice, in .mirasr. */
+.mirawait { color: var(--on-mira-soft); font-style: italic; letter-spacing: .1em; }
 
-.miracomposer { display: flex; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--mira-line); }
-.miracomposer input {
-  flex: 1; font: inherit; padding: 11px 14px;
+/* SAID FOR A READER, DRAWN FOR NOBODY. Who spoke is carried by a class name
+   and by which side the bubble sits on — both of which are nothing at all to a
+   screen reader, which was handed a stream of unattributed sentences.
+   No `clip-path: inset(50%)`: `the-sidebar-does-not-move` bans that string
+   from these sheets, and a 1px box with `clip` is already invisible. */
+.mirasr {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  border: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* THE APP TALKING, NOT MIRA. A failed request, a blocked microphone, the
+   meter running out — none of them is a thing she said, and all three used to
+   arrive as her bubbles and be written into the day. A dashed rule and the
+   well's own ground: adjacent to the conversation, visibly not in it. */
+.mirasys {
+  margin: 0 18px 12px; padding: 10px 14px;
+  border: 1px dashed var(--mira-line); border-radius: var(--r-2);
+  background: var(--mira-well); color: var(--on-mira-soft);
+  font-size: 13.5px; line-height: 1.5; white-space: pre-wrap;
+}
+/* Inside the scroll the gap already spaces it. */
+.miraturns .mirasys { margin: 0; }
+.mirasys .mirasub { margin-top: 10px; }
+
+.miracomposer { display: flex; align-items: flex-end; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--mira-line); }
+/* The box is a textarea now — a paragraph of dictation lands in it, and fixing
+   the word it misheard through a one-line window scrolled sideways is the
+   hardest edit on a phone. It grows to five lines and then scrolls; the height
+   itself is set from the content in the component. */
+.miracomposer input, .miracomposer textarea {
+  flex: 1; font: inherit; padding: 11px 14px; line-height: 1.45;
   border: 1px solid var(--mira-line); border-radius: var(--r-2);
   background: var(--mira-well); color: var(--on-mira);
 }
+.miracomposer textarea { resize: none; overflow-y: auto; max-height: 132px; }
 /* A placeholder does not inherit the input's colour, so it is the one piece of
    type in here that would have stayed at the browser's default grey. */
-.miracomposer input::placeholder { color: var(--on-mira-faint); opacity: 1; }
+.miracomposer input::placeholder, .miracomposer textarea::placeholder { color: var(--on-mira-faint); opacity: 1; }
 .miracomposer button {
   font: inherit; padding: 11px 18px; border: 0; border-radius: var(--r-2);
   background: var(--on-mira); color: var(--on-mira-ink); cursor: pointer;
@@ -231,6 +262,9 @@
    Friend and City assistant. Chips in the room's own pair — the lit one is
    the light tile every pressed key in this room already uses. */
 .miratabs { display: flex; align-items: center; gap: 8px; padding: 12px 18px 0; flex-shrink: 0; }
+/* The tablist itself is a box now rather than `display: contents`, which took
+   the role'd element — and its name — out of the accessibility tree. */
+.miratabgroup { display: flex; align-items: center; gap: 8px; }
 /* The way back, when her room is the whole of a phone's screen. The same
    arrow every human thread has, in the room's own chip shape, sitting
    where the thread header's back arrow would have been. */

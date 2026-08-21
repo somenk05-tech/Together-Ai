@@ -1,5 +1,5 @@
 import { MiraService } from './mira.service';
-import { confidant, PAYWALL_LINE } from './persona';
+import { confidant, FREE_CHATS, PAYWALL_LINE, SUB_INR } from './persona';
 
 /**
  * SHE READS ONE CHAT — AND ONLY THAT ONE.
@@ -34,7 +34,11 @@ function bare(over: Partial<Record<string, any>> = {}) {
   svc.prisma = {
     miraPass: {
       findUnique: async () => svc.__pass ?? null,
-      upsert: async () => { svc.__spent = (svc.__spent ?? 0) + 1; },
+      /** Only a METER upsert counts as spending. The same row now carries the
+       *  distress latch, and a latch being held is not somebody being billed. */
+      upsert: async (args: any) => {
+        if (args?.update?.chatUsed) svc.__spent = (svc.__spent ?? 0) + 1;
+      },
     },
     miraTurn: {
       findMany: async () => { svc.__touched.push('miraTurn.findMany'); return []; },
@@ -118,7 +122,7 @@ describe('the hand-off and the meter still outrank the model', () => {
     const svc = bare();
     svc.__pass = { chatUsed: 500, paidUntil: new Date(Date.now() + 86_400_000) };
     const t = await svc.confide('u1', { ask: 'help me reply', transcript: CHAT });
-    expect(t.pass).toEqual({ freeLeft: null });
+    expect(t.pass).toEqual({ freeLeft: null, inr: SUB_INR, freeTotal: FREE_CHATS });
   });
 
   it('a reply that breaks her voice is dropped, and not billed', async () => {

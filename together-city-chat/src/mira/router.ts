@@ -1,5 +1,6 @@
 import type { Capability } from './mira.registry';
 import type { Lane } from './levity';
+import { CRISIS_RE } from './crisis';
 
 export interface Routed {
   lane: Lane;
@@ -29,8 +30,21 @@ export const AMBIGUOUS_BELOW = 0.55;
  * person telling you something, and answering it by cancelling Friday is the
  * single worst thing this router can do. The listen lane wins ties.
  */
-const LISTEN =
-  /\b(?:i (?:feel|'m feeling|am feeling)\b|everything feels|i can'?t cope|falling apart|i'?m struggling|can we talk|feeling (?:low|down|lost|awful|terrible)|had a (?:rough|bad|terrible) (?:day|week))/i;
+const LISTEN = new RegExp(
+  [
+    String.raw`\b(?:i (?:feel|'m feeling|am feeling)\b|everything feels|i can'?t cope|falling apart|i'?m struggling|can we talk|feeling (?:low|down|lost|awful|terrible)|had a (?:rough|bad|terrible) (?:day|week))`,
+    /**
+     * And a crisis turn, from the one lexicon in `crisis.ts`.
+     *
+     * "I want to kill myself" matched nothing above, matched no capability
+     * either, and came out of this function as AMBIGUOUS — a lane whose base
+     * levity is L2. The listen lane is L0 and is the only correct answer to
+     * that sentence.
+     */
+    CRISIS_RE.source,
+  ].join('|'),
+  'i',
+);
 
 /** Asking for an interpretation rather than a fact or an action. */
 const ADVISE =
