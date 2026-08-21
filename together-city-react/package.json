@@ -13,6 +13,7 @@
     "type-floor": "node scripts/type-floor.mjs",
     "size-ceiling": "node scripts/size-system-ceiling.mjs",
     "colour-ceiling": "node scripts/colour-literal-ceiling.mjs",
+    "dead-tokens": "node scripts/dead-token-audit.mjs",
     "nav:audit": "node scripts/nav-audit.mjs",
     "a11y:audit": "node scripts/a11y-audit.mjs",
     "typecheck": "tsc --noEmit",

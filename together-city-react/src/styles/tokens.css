@@ -25,8 +25,9 @@
   /* The phone dock's glass — a frosted capsule floating clear of the edge.
      A MATERIAL like --glass, not a sixth elevation: outer fall, contact
      shadow, lit top hairline, frosted inner glow. */
-  --glass-dock: 0 14px 34px rgba(0,0,0,.16), 0 2px 6px rgba(0,0,0,.08),
-    inset 0 1px 0 rgba(255,255,255,.92), inset 0 -10px 22px rgba(255,255,255,.35);
+  /* --glass-dock IS GONE: four lines of frosted capsule and three of comment,
+     and nothing in the app ever asked for it. The phone dock it was written
+     for draws its own material. */
   /* ── GROUND AND INK ─────────────────────────────────────────────────────
      --paper and --card are the same white. They used to differ (#faf9f6 vs
      #ffffff) because the page was warm and the card was not; with one ground
@@ -403,10 +404,14 @@
   /* Legacy accent names, kept pointing at ink so nothing renders gold. */
   --gold: var(--accent); --gold-soft: var(--accent-soft); --gold-bright: var(--accent); --gold-ink: var(--accent-ink);
   --green: var(--ok-ink);    --green-soft: var(--ok-soft);
-  --blue: var(--info-ink);   --blue-soft: var(--info-soft);
-  --rose: var(--accent-ink); --rose-soft: var(--accent-soft);
-  --purple: var(--accent-ink); --purple-soft: var(--accent-soft);
-  --navy: var(--ink); --emerald: var(--ok-ink);
+  /* SEVEN OF THESE SHIMS HAD NO CALLER AND ARE GONE: --blue, --blue-soft,
+     --rose-soft, --purple, --purple-soft, --navy, --emerald. They exist so
+     nothing has to be renamed at three hundred call sites to stop being gold —
+     which is a good reason to keep the ones that ARE called and none at all to
+     keep the ones that never were. Counted across every .css, .ts and .tsx in
+     src, including string forms and setProperty: zero reads each.
+     --rose survives on one caller (.pcard .ph .heart in index.css). */
+  --rose: var(--accent-ink);
 
   /* ── FOUR MATERIALS THAT USED TO BE SPELLED OUT IN relief.css ───────────
      On a white ground "loud" is black, "frosted" is white, and an outline
@@ -506,15 +511,17 @@
   --on-paper-soft:  var(--ink-soft);
   --on-paper-muted: var(--muted);
   --on-paper-faint: var(--faint);
-  --sky-pos: 50% 50%;
-  --sky-size: cover;
-  --pane: var(--face-tall);
+  /* --sky-pos and --sky-size were the knobs for positioning a hub's sky and
+     nothing ever turned them: every --sky-image is a gradient that fills its
+     own box. Removed. */
+
   --pane-blur: none;
-  --pane-rim: var(--e3);
+
   --chrome: var(--card);
   --chrome-blur: none;
-  --on-pane: var(--ink-soft);
-  --on-pane-soft: var(--faint);
+  /* --pane, --pane-rim, --on-pane and --on-pane-soft left with them: four
+     pre-Relief names aliasing four Relief ones, read by nothing. --pane-blur
+     stays — it has two callers in relief.css. */
 
   /* ── AND A HUB MAY GRADE ITS PHOTOGRAPHS ─────────────────────────────────
      Inert here for the same reason the sky is: no grade, no grain. A hub that
@@ -672,7 +679,9 @@
      keep in relief.spec's named list is --glass, --lens, --lamp and --prism,
      not --e1..--e3. Pressed in, raised out, and a shallow inset for chrome. */
   --soft-in:  inset 5px 5px 11px rgba(9,10,12,.30), inset -5px -5px 11px rgba(255,255,255,.85);
-  --soft-out: 8px 10px 22px rgba(0,0,0,.55), -2px -2px 8px rgba(255,255,255,.07), inset 0 1px 0 rgba(255,255,255,.14);
+  /* --soft-out went with them. --soft-in stays: MessageThread draws a bubble
+     at it. A depth the guard would accept but nothing draws at is a sixth
+     depth waiting to be discovered by accident. */
   --soft-tile: inset 3px 3px 8px rgba(9,10,12,.40), inset -3px -3px 8px rgba(255,255,255,.06);
 
   /* Medical's gradient environment lived here — a cool field, a frosted
@@ -2442,8 +2451,6 @@
      a fill (the "New" badge on a poster) and white still sits on it. */
   --gold-bright: var(--accent-ink);
   --rose: var(--accent-ink);
-  --purple: var(--accent-ink);
-  --navy: var(--ink);
 
   /* ── THE SKY, AND IT IS THE FIRST BLACK ONE ──────────────────────────────
      Owner, 18 Aug, second reference the same day: not slate — BLACK, with soft
