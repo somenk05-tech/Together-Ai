@@ -165,6 +165,45 @@ export const categoryOf = (group: string): BudgetCategory | null =>
   group === 'Hair Care' ? 'hair' : group === 'Body Care' ? 'body' : group === 'Skincare' ? 'face' : null;
 
 /**
+ * ── TWO CLAIMS THIS PLANNER WILL NOT REACH FOR FIRST ────────────────────────
+ *
+ * A TIEBREAK, NOT A FILTER, and the distinction is the whole design. Nothing is
+ * removed from the shelf, nothing stops being buyable in the Market, and a
+ * citizen who goes and chooses one of these gets it. What changes is what the
+ * engine puts in front of somebody who asked it to choose: among products that
+ * answer the SAME number of this person's findings, the one making the more
+ * defensible claim is picked. It sits after `answers()` and before
+ * `matchScore` for exactly that reason — it can never outrank effectiveness,
+ * only break a tie that effectiveness left open.
+ *
+ * SPF ABOVE 50 IS A NUMBER, NOT A DIFFERENCE. SPF 30 blocks ~96.7% of UVB and
+ * SPF 50 ~98%; everything above is arguing over the last percent, and the
+ * claim is restricted or disallowed outright in several markets. The engine
+ * had no opinion, so it took the highest number on the shelf and printed
+ * "SPF 100" as this citizen's protect step. 30–50+ is the band that is both
+ * defensible and universally sellable, and it is what a tie now goes to.
+ *
+ * SKIN-LIGHTENING CLAIMS ARE THE CITIZEN'S TO CHOOSE, NOT OURS TO RECOMMEND.
+ * The live sheet opened with a "Whitening Tonic" as step 1 — chosen because it
+ * matched a pigmentation finding, which it does, and the shelf offers plenty
+ * of pigmentation products that do not carry a fairness claim. This is not a
+ * safety judgement about any product; it is a judgement about what a hub is
+ * doing when it VOLUNTEERS one. `brighten` is deliberately not in the pattern:
+ * it is ordinary cosmetic language for radiance and catching it would empty
+ * the pigmentation shelf.
+ */
+const LIGHTENING_CLAIM = /whitening|fairness|skin[- ]lighten|de[- ]?pigment(ing|ation) cream|gora/i;
+const SPF_IN_NAME = /\bSPF\s*([0-9]{2,3})\b/i;
+
+export function claimRank(p: Pick<RecommendedProduct, 'name' | 'category'>): number {
+  let rank = 0;
+  if (LIGHTENING_CLAIM.test(p.name)) rank += 1;
+  const spf = SPF_IN_NAME.exec(p.name);
+  if (spf && Number(spf[1]) > 50) rank += 1;
+  return rank;
+}
+
+/**
  * The ROLE a product plays, and what that role is worth.
  *
  * Roles are one-per-routine by construction: a plan holds at most one cleanser,
@@ -319,6 +358,19 @@ export interface CategoryPlan {
   usefulMaxInr: number;
   /** Roles deliberately not included, each with the sentence to show. */
   leftOut: LeftOut[];
+  /**
+   * FINDINGS THIS ROUTINE DOES NOT ANSWER, and the reason this field exists at
+   * all: the page prints the citizen's declared concerns as chips at the top —
+   * Blackheads, Dark spots, Hyperpigmentation, Oily skin — and then prints a
+   * routine underneath, and nothing has ever checked that the second addresses
+   * the first. Live, on the owner's own profile, NOTHING in a ₹51,549 routine
+   * treated the blackheads. Not a bug in selection: no product answering that
+   * key survived the roles this category has. But a concern shown as a chip and
+   * then silently unanswered is a promise the page breaks without saying so.
+   *
+   * It is a REPORT, never a filter. Nothing here changes what is bought.
+   */
+  uncoveredNeeds: string[];
   /** Things worth considering with money left over — never auto-added. */
   upgrades: Pick_[];
 }
@@ -488,7 +540,7 @@ export function planCategory(
     return {
       category, budgetInr: 0, skipped: true, picks: [], spendInr: 0, monthlyInr: 0,
       remainingInr: 0, overInr: 0, targetLowInr: 0, ceilingInr: 0,
-      minimumInr: null, idealInr: null, leanReason: null, kept: [], usefulMaxInr: 0, leftOut: [], upgrades: [],
+      minimumInr: null, idealInr: null, leanReason: null, kept: [], usefulMaxInr: 0, leftOut: [], uncoveredNeeds: [], upgrades: [],
     };
   }
 
@@ -529,7 +581,7 @@ export function planCategory(
    */
   const answers = (p: RecommendedProduct) => p.profileKeys.filter((k) => needs.has(k)).length;
   const byEffect = (a: RecommendedProduct, b: RecommendedProduct) =>
-    answers(b) - answers(a) || b.matchScore - a.matchScore || cost(a) - cost(b);
+    answers(b) - answers(a) || claimRank(a) - claimRank(b) || b.matchScore - a.matchScore || cost(a) - cost(b);
   /**
    * ── COVERAGE IS A PROPERTY OF THE ROUTINE, NOT OF A PRODUCT ─────────────
    *
@@ -1045,6 +1097,9 @@ export function planCategory(
     leanReason,
     kept,
     usefulMaxInr: usefulMax,
+    // Against the PICKS, not against the shelf: the question is what this
+    // routine answers, and a product we did not buy answers nothing.
+    uncoveredNeeds: [...needs].filter((k) => !picks.some((x) => x.product.profileKeys.includes(k))),
     leftOut: trimmed, upgrades,
   };
 }
@@ -1132,6 +1187,8 @@ export interface WireCategoryPlan {
   targetLowInr: number; ceilingInr: number;
   minimumInr: number | null; idealInr: number | null; leanReason: string | null;
   usefulMaxInr: number;
+  /** Findings this routine does not answer. A report; nothing acts on it. */
+  uncoveredNeeds: string[];
   picks: WirePick[]; kept: Kept[]; leftOut: LeftOut[]; upgrades: WirePick[];
 }
 
@@ -1160,6 +1217,7 @@ const wireCategory = (c: CategoryPlan): WireCategoryPlan => ({
   targetLowInr: c.targetLowInr, ceilingInr: c.ceilingInr,
   minimumInr: c.minimumInr, idealInr: c.idealInr, leanReason: c.leanReason,
   usefulMaxInr: c.usefulMaxInr,
+  uncoveredNeeds: c.uncoveredNeeds,
   picks: c.picks.map(wirePick),
   kept: c.kept,
   leftOut: c.leftOut,

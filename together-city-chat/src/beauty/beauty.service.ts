@@ -646,7 +646,16 @@ export class BeautyService {
     // line that makes the budget real rather than decorative: a step that did
     // not fit is not laid out and then hidden, it was never chosen.
     const chosen = new Set([...plan.face.picks, ...plan.hair.picks, ...plan.body.picks].map((x) => x.product.id));
-    const routines = buildRoutines(products.filter((p) => chosen.has(p.id)));
+    /**
+     * THE KEPT ROLES TRAVEL WITH THE PRODUCTS, so the sequence can hold a place
+     * for a step nobody had to buy. Without this the planner declines to sell
+     * somebody a second cleanser — right — and the routine then contains no
+     * cleansing step at all, with the explanation sitting in a budget card
+     * three sections away.
+     */
+    const ownedSteps = (['face', 'hair', 'body'] as const).flatMap((c) =>
+      plan[c].kept.map((k) => ({ category: c, role: k.role, why: k.why })));
+    const routines = buildRoutines(products.filter((p) => chosen.has(p.id)), ownedSteps);
 
     /**
      * WHEN TO BUY THIS AGAIN, decided here and not in the browser.

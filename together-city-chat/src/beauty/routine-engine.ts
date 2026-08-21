@@ -1,5 +1,5 @@
 import type { RecommendedProduct } from './beauty-engine';
-import { isRoutineProduct } from './budget-routine';
+import { categoryOf, isRoutineProduct, type BudgetCategory } from './budget-routine';
 
 /**
  * Turning a shelf of recommended products into a routine somebody can follow.
@@ -33,6 +33,23 @@ export interface RoutineStep {
   frequency: string;
   /** Things that could go wrong with THIS product in THIS routine. */
   warnings: string[];
+  /**
+   * A STEP THE CITIZEN ALREADY OWNS, HOLDING ITS PLACE IN THE ORDER.
+   *
+   * The planner has declined to buy these since "what you already have" landed,
+   * correctly, and said so in a sentence on the budget card. The SEQUENCE never
+   * heard about it. Live, on the owner's own profile, that produced a morning
+   * of Prep → Treat → Moisturise → Protect and an evening of Prep → Moisturise
+   * → Finish: a routine with no cleansing step anywhere, printed under an
+   * assurance strip promising "an order you can actually follow", where the
+   * evening never removes an SPF the morning put on.
+   *
+   * An owned step carries no product, no price and nothing to add to a bag. It
+   * carries a position, which is the only thing that was missing.
+   */
+  owned?: true;
+  /** The sentence for an owned step: why there is nothing to buy here. */
+  ownedWhy?: string;
 }
 
 export interface Routine {
@@ -168,12 +185,29 @@ function classify(p: RecommendedProduct) {
   return ruleFor(p.category) ?? { step: 'Treat', rank: 45, instructions: 'Apply a thin, even layer.' };
 }
 
-/** Which routines a product belongs in, read from its own usage string. */
-function slotsFor(usage: string): TimeOfDay[] {
+/**
+ * Which routines a product belongs in.
+ *
+ * THE FAMILY DECIDES THE BAND; THE USAGE STRING ONLY DECIDES WHICH FACE BAND.
+ * It used to be the usage string alone, and the usage string is derived from
+ * marketing copy by keyword — so a hair product whose copy said "night" was
+ * placed in the evening SKINCARE column. Live, that put Moroccanoil Treatment
+ * Light — a hair oil, correctly charged to the hair budget — as evening step 3
+ * of a face routine, directly after the face moisturiser, labelled FINISH with
+ * no indication of what it was for.
+ *
+ * `Finish` is a role name in BOTH the face and the hair vocabulary, which is
+ * why nothing caught it: every string involved was individually correct. The
+ * product's GROUP is the fact that is not derived from copy, so it is the one
+ * that decides. Hair lives on wash day, which is where the band is named for
+ * it and where the rest of the hair routine already was.
+ */
+function slotsFor(usage: string, family: BudgetCategory | null): TimeOfDay[] {
+  if (family === 'body') return ['body'];
+  if (family === 'hair') return ['weekly'];
   const u = usage.toLowerCase();
-  // Body care is its own band. It is not a fourth step in a considered face
-  // routine — nothing in the skin & hair assessment has an opinion about your
-  // elbows — but it is on the shelf, so it is listed where it can be followed.
+  // The usage string still answers for body when the group is absent — a
+  // product built in a spec, or a sheet that arrives without one.
   if (u.includes('body')) return ['body'];
   if (u.includes('weekly')) return ['weekly'];
   if (u.includes('morning') && u.includes('night')) return ['morning', 'evening'];
@@ -181,6 +215,27 @@ function slotsFor(usage: string): TimeOfDay[] {
   if (u.includes('morning')) return ['morning'];
   return ['morning', 'evening'];
 }
+
+/**
+ * Where a role the citizen already owns sits, when there is no product to read
+ * it off. The ranks are the ORDER table's own, so an owned cleanser sorts above
+ * a bought toner for the same reason a bought cleanser would.
+ */
+const OWNED_PLACE: Record<string, { step: string; rank: number; bands: TimeOfDay[] }> = {
+  'face:Cleanse': { step: 'Cleanse', rank: 10, bands: ['morning', 'evening'] },
+  'face:Prep': { step: 'Prep', rank: 20, bands: ['morning', 'evening'] },
+  'face:Treat': { step: 'Treat', rank: 30, bands: ['evening'] },
+  'face:Weekly': { step: 'Mask', rank: 45, bands: ['weekly'] },
+  'face:Moisturise': { step: 'Moisturise', rank: 50, bands: ['morning', 'evening'] },
+  'face:Protect': { step: 'Protect', rank: 90, bands: ['morning'] },
+  'hair:Wash': { step: 'Wash', rank: 62, bands: ['weekly'] },
+  'hair:Condition': { step: 'Condition', rank: 64, bands: ['weekly'] },
+  'hair:Treat': { step: 'Treat hair', rank: 66, bands: ['weekly'] },
+  'hair:Finish': { step: 'Finish', rank: 68, bands: ['weekly'] },
+};
+
+/** What the planner kept, in the shape the sequence needs. */
+export interface OwnedRole { category: BudgetCategory; role: string; why: string }
 
 /** What each band's steps say about how often. */
 const FREQUENCY: Record<TimeOfDay, string> = {
@@ -225,7 +280,8 @@ function routineNotes(steps: RoutineStep[], when: TimeOfDay, everything: string)
   const notes: string[] = [];
   const here = steps.map((s) => `${s.name} ${s.keyIngredient}`).join(' ');
 
-  if (when === 'morning' && steps.length > 0 && !steps.some((s) => /sunscreen/i.test(s.category))) {
+  if (when === 'morning' && steps.length > 0
+    && !steps.some((s) => /sunscreen/i.test(s.category) || (s.owned && s.step === 'Protect'))) {
     // The single most common way a good routine is wasted.
     notes.push('No sunscreen in this routine yet. Every active below works better — and some only work safely — with daily SPF.');
   }
@@ -258,7 +314,7 @@ const TITLES: Record<TimeOfDay, string> = {
  * rather than omitted, so the UI can say "nothing for the evening yet" instead
  * of silently showing two sections where there should be three.
  */
-export function buildRoutines(products: RecommendedProduct[]): Routine[] {
+export function buildRoutines(products: RecommendedProduct[], owned: readonly OwnedRole[] = []): Routine[] {
   /**
    * MATCHED IS NOT ENOUGH ANY MORE. `classify()` reads the display category and
    * falls through to 'Treat' at rank 45 for anything it does not recognise —
@@ -276,8 +332,23 @@ export function buildRoutines(products: RecommendedProduct[]): Routine[] {
   const everything = matched.map((p) => `${p.name} ${p.keyIngredient} ${p.actives.join(' ')}`).join(' ');
 
   return (['morning', 'evening', 'weekly', 'body'] as TimeOfDay[]).map((when) => {
-    const steps: RoutineStep[] = matched
-      .filter((p) => slotsFor(p.usage).includes(when))
+    const ownedHere: RoutineStep[] = owned
+      .map((k) => ({ k, place: OWNED_PLACE[`${k.category}:${k.role}`] }))
+      .filter((x) => x.place !== undefined && x.place.bands.includes(when))
+      .map(({ k, place }) => ({
+        order: place!.rank,
+        step: place!.step,
+        // EMPTY, NOT A SENTINEL. There is no product here, so every field that
+        // describes one is the empty value for its type and the page keys off
+        // `owned` rather than off a magic id it would have to know about.
+        productId: '', name: '', brand: '', category: '', keyIngredient: '',
+        priceInr: 0, image: '', imageAlt: '', productUrl: '',
+        instructions: '', frequency: FREQUENCY[when], warnings: [],
+        owned: true as const, ownedWhy: k.why,
+      }));
+
+    const steps: RoutineStep[] = [...ownedHere, ...matched
+      .filter((p) => slotsFor(p.usage, categoryOf(p.group)).includes(when))
       .map((p) => {
         const c = classify(p);
         return {
@@ -296,7 +367,7 @@ export function buildRoutines(products: RecommendedProduct[]): Routine[] {
           frequency: FREQUENCY[when],
           warnings: productWarnings(p, when),
         };
-      })
+      })]
       .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name))
       .map((s, i) => ({ ...s, order: i + 1 }));
 
