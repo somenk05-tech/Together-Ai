@@ -40,9 +40,38 @@ async function subscribeNow(): Promise<boolean> {
 }
 
 /**
+ * ── ONCE PER LOAD, NOT ONCE PER MOUNT ───────────────────────────────────────
+ *
+ * `AppShell` is the `element` of THREE separate route blocks in router.tsx, so
+ * crossing from one block to another mounts a different instance of it and
+ * every effect inside runs again. The file already knows this about itself —
+ * it is why CallCenter moved up to App — and this hook was written as though
+ * the shell were a singleton.
+ *
+ * Measured on the live site, walking the thirteen hub doors in one session:
+ * `/push/vapid-public-key` fetched FOURTEEN times and `/push/subscribe`
+ * POSTed THIRTEEN. Twenty-seven of the walk's 135 requests were the same
+ * handshake re-run, for a subscription that had not changed since the first
+ * one. Nothing failed and nothing looked wrong — it is pure waste, which is
+ * why it survived.
+ *
+ * The neighbouring hooks are not affected: they go through the query cache,
+ * which dedupes a refetch-on-mount. This one is a bare effect around two
+ * network calls, so it had nothing to dedupe against.
+ *
+ * `inFlight` is the whole fix: the refresh is a promise held for the life of
+ * the document and re-armed only when the citizen signs out. `enable()` is
+ * deliberately NOT gated by it — that path runs because somebody pressed a
+ * button, and a button that silently does nothing the second time is worse
+ * than a duplicate request.
+ */
+let inFlight: Promise<boolean> | null = null;
+
+/**
  * Browser / PWA push notifications for offline message delivery.
  * `enable()` asks permission, subscribes, and registers the subscription with
- * the backend. Auto-refreshes the subscription on load when already granted.
+ * the backend. Auto-refreshes the subscription once per load when already
+ * granted.
  */
 export function useWebPush() {
   const authed = useAuthStore((s) => s.isAuthenticated());
@@ -51,11 +80,15 @@ export function useWebPush() {
   );
   const [busy, setBusy] = useState(false);
 
-  // Keep the subscription fresh whenever we're already permitted + logged in.
+  // Keep the subscription fresh whenever we're already permitted + logged in —
+  // once, however many times the shell that calls this remounts.
   useEffect(() => {
-    if (supported && authed && Notification.permission === 'granted') {
-      subscribeNow().catch(() => undefined);
+    if (!(supported && authed && Notification.permission === 'granted')) {
+      // Signed out, or not permitted: the next sign-in should refresh again.
+      inFlight = null;
+      return;
     }
+    inFlight ??= subscribeNow().catch(() => false);
   }, [authed]);
 
   const enable = useCallback(async (): Promise<void> => {
@@ -64,7 +97,11 @@ export function useWebPush() {
     try {
       const perm = await Notification.requestPermission();
       setPermission(perm);
-      if (perm === 'granted') await subscribeNow();
+      if (perm === 'granted') {
+        const run = subscribeNow();
+        inFlight = run.catch(() => false);
+        await run;
+      }
     } finally {
       setBusy(false);
     }
