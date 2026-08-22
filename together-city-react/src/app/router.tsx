@@ -160,6 +160,12 @@ const BlockedPeople = lazy(() => import('@/features/social/pages/Blocked').then(
 const PrivacySettings = lazy(() => import('@/features/privacy/pages/PrivacySettings').then((m) => ({ default: m.PrivacySettings })));
 const Info = lazy(() => import('@/pages/Info').then((m) => ({ default: m.Info })));
 const LegalCenter = lazy(() => import('@/features/legal/LegalCenter').then((m) => ({ default: m.LegalCenter })));
+/* THE STORE IS NOT A HUB ROOM, and its two screens are registered in the
+   AppShell block below rather than under a HubLayout for exactly one reason:
+   the owner asked for a shop with no rail and one way back. A sidebar is not
+   something a page can opt out of once it is inside that layout. */
+const BeautyShop = lazy(() => import('@/features/ecommerce/pages/BeautyShop').then((m) => ({ default: m.BeautyShop })));
+const BeautyShopBag = lazy(() => import('@/features/ecommerce/pages/BeautyShop').then((m) => ({ default: m.BeautyShopBag })));
 
 // Every lazy page is wrapped so a stale code-split chunk (after a new deploy)
 // auto-recovers instead of leaving a blank page.
@@ -195,6 +201,10 @@ const ROUTE_BLOCKS: RouteObject[] = [
       { path: '/fitness', element: <HubLanding hub="fitness" /> },
       { path: '/pets', element: <HubLanding hub="pets" /> },
       { path: '/ecommerce', element: <HubLanding hub="ecommerce" /> },
+      /* The white storefronts. Behind RequireAuth because a shortlist is built
+         from somebody's own profile and a bag is their money. */
+      { path: '/ecommerce/shop/beauty', element: <RequireAuth>{wrap(<BeautyShop />)}</RequireAuth> },
+      { path: '/ecommerce/shop/beauty/bag', element: <RequireAuth>{wrap(<BeautyShopBag />)}</RequireAuth> },
       // THIS ONE EARNS ITS LANDING, and the distinction is worth stating
       // because the 5 Aug design audit argued against exactly this pattern.
       //

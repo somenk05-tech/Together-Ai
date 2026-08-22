@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { PageHeader } from '@/components/ui';
-import { fittedShelves } from '../shelves';
+import { SHOPS, fittedShelves } from '../shelves';
 
 /**
  * ── THE PERSONALIZED STORE ──────────────────────────────────────────────────
@@ -13,11 +13,18 @@ import { fittedShelves } from '../shelves';
  * from a pet's own record. None of that is computed here and none of it is
  * repeated here: this page is the door, and the shelf behind it is the engine.
  *
- * WHICH IS WHY EACH CARD NAMES THE PROFILE IT READS, and links to it. A
- * personalised shelf with an empty profile behind it is a shelf that quietly
- * shows you the general case, and the citizen has no way of knowing which one
- * they are looking at. The second link is the answer to "why is this not about
- * me yet".
+ * THE WHOLE CARD IS THE DOOR (owner, 22 Aug), which cost the second link. Each
+ * card used to carry "Reads your Skin & Hair Profile — open it" underneath, and
+ * a link inside a clickable card is a target inside a target: on a phone the
+ * two are four millimetres apart and the small one wins by accident. The
+ * profile is named at the top of the shop instead, where somebody looking at a
+ * shortlist that is not about them yet is actually standing.
+ *
+ * AND WHERE A SHELF HAS A SHOP, THE CARD OPENS THE SHOP. Beauty is the first:
+ * `/ecommerce/shop/beauty` is the routine's shortlist as a white storefront
+ * with its own bag and till. The other four still open their hub's own room —
+ * a card that promised a shop and delivered a district would be the 10 Aug
+ * mistake in miniature.
  */
 export function PersonalizedStore() {
   const shelves = fittedShelves();
@@ -30,16 +37,12 @@ export function PersonalizedStore() {
       />
       <div className="ec-run">
         {shelves.map((s) => (
-          <article key={s.path} className="ec-card">
+          <Link key={s.path} to={(s.shop && SHOPS[s.shop]?.shelf.path) ?? s.path} className="ec-card ec-go">
             <span className="ec-cat">{s.hubName}</span>
-            <h2 className="ec-name"><Link to={s.path}>{s.name}</Link></h2>
-            <p className="ec-line">{s.line}</p>
-            {s.reads && (
-              <p className="ec-from">
-                Reads your {s.reads.name} — <Link to={s.reads.path}>open it</Link>
-              </p>
-            )}
-          </article>
+            <span className="ec-name">{s.name}</span>
+            <span className="ec-line">{s.line}</span>
+            {s.reads && <span className="ec-from">Reads your {s.reads.name}</span>}
+          </Link>
         ))}
       </div>
       <p className="ec-note">

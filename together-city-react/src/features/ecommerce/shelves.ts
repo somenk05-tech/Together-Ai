@@ -43,6 +43,13 @@ interface Shelf {
   /** the profile this shelf reads before it recommends anything, and the room
    *  where it is filled in. A shelf you simply browse has none. */
   reads?: { name: string; path: string };
+  /* THE SHELF HAS A SHOP OF ITS OWN (owner, 22 Aug). Where this is set the card
+     opens a white storefront under /ecommerce/shop rather than the hub's own
+     room — the shortlist as a shop window, with the bag and the till inside it.
+     Where it is not set the card still opens the room, which is the honest
+     answer for a shelf whose shop does not exist yet: four of the five are in
+     that state today and each needs an adapter of its own. */
+  shop?: string;
 }
 
 interface ShelfCard extends Shelf {
@@ -63,7 +70,7 @@ function resolve(shelf: Shelf): ShelfCard | null {
 
 /** Shelves that read something you filled in and answer with a shortlist. */
 export const FITTED: Shelf[] = [
-  { hub: 'beauty', path: '/beauty/routine', reads: { name: 'Skin & Hair Profile', path: '/beauty/profile' } },
+  { hub: 'beauty', path: '/beauty/routine', reads: { name: 'Skin & Hair Profile', path: '/beauty/profile' }, shop: 'beauty' },
   { hub: 'fitness', path: '/fitness/supplements', reads: { name: 'Training Profile', path: '/fitness/profile' } },
   { hub: 'nutrition', path: '/nutrition/grocery', reads: { name: 'Food Preference Profile', path: '/nutrition/preferences' } },
   { hub: 'astrology', path: '/astrology/gemstones', reads: { name: 'Astrology Profile', path: '/profile/astrology' } },
@@ -82,6 +89,31 @@ export const OPEN: Shelf[] = [
   { hub: 'astrology', path: '/astrology/gemstones', category: 'Gemstones' },
   { hub: 'services', path: '/services/offers', category: 'Deals & offers' },
 ];
+
+/**
+ * ── THE STOREFRONT'S SCREENS, WRITTEN OUT ───────────────────────────────────
+ *
+ * Every path in this map is a LITERAL, and that is the whole reason the map
+ * exists. The card and the storefront both reach these screens through data —
+ * `to={shop.screens.shelf}` — and a regex cannot see through that, so
+ * `nav-audit`'s sixth check reported both routes as declared and unreachable:
+ * "a citizen can only reach it by typing the URL". It was wrong, and it was
+ * wrong for a good reason — a route nothing can be seen to link to is usually a
+ * finished feature nobody can find.
+ *
+ * The fix is to make the reference visible rather than to add the routes to the
+ * audit's list of deliberate exceptions. That list is for doors that really are
+ * hidden (the console, the developer page); putting a shop on it would spend a
+ * guard to silence itself. Nested one level so both paths sit behind a `path:`,
+ * which is what the audit reads as a way in.
+ */
+export interface ShopScreens { shelf: { path: string }; bag: { path: string } }
+export const SHOPS: Record<string, ShopScreens> = {
+  beauty: {
+    shelf: { path: '/ecommerce/shop/beauty' },
+    bag: { path: '/ecommerce/shop/beauty/bag' },
+  },
+};
 
 export const fittedShelves = (): ShelfCard[] => FITTED.map(resolve).filter((c): c is ShelfCard => c !== null);
 export const openShelves = (): ShelfCard[] => OPEN.map(resolve).filter((c): c is ShelfCard => c !== null);
