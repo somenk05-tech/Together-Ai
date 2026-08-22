@@ -316,7 +316,30 @@
 .mira-dock-scrim { position: fixed; inset: 0; z-index: 240; background: none; border: 0; padding: 0; margin: 0; }
 .mira-dock-panel {
   position: fixed; z-index: 250; display: flex; flex-direction: column; overflow: hidden;
-  right: 16px; bottom: calc(var(--safe-bottom) + 16px); left: 16px; height: min(78vh, 640px);
+  right: 16px; left: 16px;
+  /* ── SIZED AND PLACED AGAINST WHAT IS STILL ON SCREEN ─────────────────────
+     This read `bottom: calc(var(--safe-bottom) + 16px); height: min(78vh,
+     640px)` and both halves broke the moment a keyboard opened. `vh` is the
+     WINDOW, which iOS does not shrink for a keyboard, so 78% of it is a panel
+     whose lower half is behind one; and `bottom` is measured from the LAYOUT
+     viewport, which iOS scrolls up to reveal a focused input, taking every
+     fixed thing with it.
+
+     `--tc-vvh` and `--tc-vvt` are the visible viewport's height and where it
+     begins — the pair the chat rooms have used since they were built, set here
+     by useVisualViewport while the panel is open. The `min()` gains one more
+     term so the panel can never be taller than what is showing, and `top` is
+     the same sum `bottom` used to express, counted from the visible viewport
+     instead of the layout one.
+
+     THE FALLBACKS ARE THE OLD BEHAVIOUR EXACTLY. With the variables unset —
+     every desk, and any phone before the panel opens — `--tc-vvh` resolves to
+     100dvh and `--tc-vvt` to 0, and `top` works out to the same edge the old
+     `bottom` produced. Nothing moves anywhere it did not already sit. */
+  --mira-dock-h: min(78vh, 640px, calc(var(--tc-vvh, 100dvh) - var(--safe-bottom) - 32px));
+  height: var(--mira-dock-h);
+  top: calc(var(--tc-vvt, 0px) + var(--tc-vvh, 100dvh) - var(--mira-dock-h) - var(--safe-bottom) - 16px);
+  bottom: auto;
   border-radius: var(--r-4); border: 1px solid var(--mira-line);
   background: var(--mira-ground);
   box-shadow: var(--e3);
@@ -337,7 +360,7 @@
    without it for as long as they did. */
 @media (min-width: 900px) {
   .mira-fab { bottom: 24px; right: 22px; }
-  .mira-dock-panel { left: auto; width: 400px; bottom: 24px; right: 22px; }
+  .mira-dock-panel { left: auto; width: 400px; right: 22px; top: auto; bottom: 24px; }
 }
 
 /* ── The confidant, beside one conversation ───────────────────────────

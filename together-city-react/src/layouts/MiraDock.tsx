@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth.store';
 import { MiraMark } from '@/features/chat/mira/MiraMark';
 import { MiraThread } from '@/features/chat/mira/MiraThread';
+import { useVisualViewport } from '@/hooks/useVisualViewport';
 
 /**
  * MIRA'S DOOR ON EVERY PAGE — her own mark, floating, and the chat pops up
@@ -45,6 +46,39 @@ export function MiraDock() {
   // — and a panel that follows them to the next page is a panel they now have
   // to fight. The page context would be stale anyway.
   useEffect(() => { setOpen(false); }, [pathname]);
+  /**
+   * THE PANEL IS BOUND TO WHAT IS STILL ON SCREEN.
+   *
+   * Owner, 22 Aug, in Safari: tap the box to type and the conversation slides
+   * up out of the panel, leaving the composer halfway down a card of empty
+   * ground. Two iOS behaviours, one cause. The window does not get shorter
+   * when the keyboard opens, so `78vh` still measures a viewport whose bottom
+   * half is now behind a keyboard; and to put the caret where you can see it
+   * iOS scrolls — the layout viewport, which a `position: fixed` panel is
+   * pinned to, and the panel's own box, which it will scroll even though this
+   * one is `overflow: hidden`.
+   *
+   * `--tc-vvh` and `--tc-vvt` are the answer the chat rooms already use. With
+   * the panel sized and placed against the VISIBLE viewport, the composer is
+   * above the keyboard before iOS looks, and there is nothing to scroll into
+   * view.
+   */
+  useVisualViewport(open);
+
+  /* AND THE BOX IS PUT BACK IF IT IS SCROLLED ANYWAY. Belt and braces, three
+     lines: Safari sets scrollTop on an overflow:hidden element to reveal a
+     caret, and once it has, nothing in the UI can scroll it back — there is no
+     scrollbar on a hidden box. This is the displacement in the owner's
+     screenshot, undone at the moment it happens. */
+  const panel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = panel.current;
+    if (!open || !el) return;
+    const home = () => { if (el.scrollTop !== 0) el.scrollTop = 0; };
+    el.addEventListener('scroll', home);
+    return () => el.removeEventListener('scroll', home);
+  }, [open]);
+
   // Escape closes it, like every popup in the city.
   useEffect(() => {
     if (!open) return;
@@ -61,7 +95,7 @@ export function MiraDock() {
           {/* Transparent, like the drawer's scrim: a dismissal surface, not a
               redesign. A tap anywhere outside the panel puts her away. */}
           <button type="button" className="mira-dock-scrim" aria-label="Close Mira" onClick={() => setOpen(false)} />
-          <div className="mira-dock-panel" role="dialog" aria-label="Mira">
+          <div ref={panel} className="mira-dock-panel" role="dialog" aria-label="Mira">
             <div className="mira-dock-head">
               <MiraMark size={26} showWord={false} state="listening" />
               <span className="mira-dock-name">Mira</span>

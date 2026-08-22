@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useScaleLock } from './useScaleLock';
+import { useVisualViewport } from './useVisualViewport';
 
 /**
  * AN OPEN CONVERSATION IS THE WHOLE SCREEN.
@@ -34,6 +35,9 @@ import { useScaleLock } from './useScaleLock';
  */
 export function useChatRoom(open: boolean) {
   useScaleLock(open);
+  // The measuring half lives in its own hook now — Mira's floating panel needs
+  // it without the immersion. Same variables, same listeners, one writer.
+  useVisualViewport(open);
 
   useEffect(() => {
     if (!open) return;
@@ -43,23 +47,9 @@ export function useChatRoom(open: boolean) {
     const root = document.documentElement;
     root.classList.add('tc-immersive');
 
-    const vv = window.visualViewport;
-    const sync = () => {
-      root.style.setProperty('--tc-vvh', `${vv ? vv.height : window.innerHeight}px`);
-      root.style.setProperty('--tc-vvt', `${vv ? vv.offsetTop : 0}px`);
-    };
-    sync();
-    vv?.addEventListener('resize', sync);
-    vv?.addEventListener('scroll', sync);
     // wherever the page was scrolled to on the way in, the room starts at the top
     window.scrollTo(0, 0);
 
-    return () => {
-      root.classList.remove('tc-immersive');
-      root.style.removeProperty('--tc-vvh');
-      root.style.removeProperty('--tc-vvt');
-      vv?.removeEventListener('resize', sync);
-      vv?.removeEventListener('scroll', sync);
-    };
+    return () => { root.classList.remove('tc-immersive'); };
   }, [open]);
 }

@@ -215,6 +215,48 @@ describe('and a door on every page', () => {
    * in one scope. A test that pins the exact text of a rule is a test that
    * passes for the two homes it never looked at, which is what happened here.
    */
+  /**
+   * AND THE PANEL IS BOUND TO WHAT IS STILL ON SCREEN.
+   *
+   * Owner, 22 Aug, in Safari: tap the composer and the conversation slides up
+   * out of the panel, leaving the box halfway down a card of empty ground. Two
+   * iOS behaviours with one cause — the window does not shrink for a keyboard,
+   * so `78vh` keeps a half that is now behind one; and to show the caret iOS
+   * scrolls the layout viewport, which every `position: fixed` thing is pinned
+   * to, and the panel's own box, which it will scroll even at `overflow:
+   * hidden`.
+   *
+   * `--tc-vvh` / `--tc-vvt` are the pair the chat rooms have used since they
+   * were built. What this asserts is that the panel READS them and that the
+   * rooms did not lose them in the split: `useChatRoom` was three jobs in one
+   * hook and the measuring half is its own file now, so the failure to guard
+   * against is a refactor that quietly stops setting the variables for the
+   * callers that already depended on them.
+   */
+  it('sizes and places itself against the visible viewport, not the window', () => {
+    const panel = css.slice(css.indexOf('.mira-dock-panel {'));
+    const rule = panel.slice(0, panel.indexOf('\n}'));
+    expect(rule).toMatch(/--tc-vvh/);
+    expect(rule).toMatch(/--tc-vvt/);
+    // The fallbacks ARE the old behaviour: no variables, same edge as before.
+    expect(rule).toMatch(/var\(--tc-vvh, 100dvh\)/);
+    expect(rule).toMatch(/var\(--tc-vvt, 0px\)/);
+    expect(read('layouts/MiraDock.tsx')).toMatch(/useVisualViewport\(open\)/);
+  });
+
+  it('and the rooms that already depended on those variables still get them', () => {
+    const hook = read('hooks/useVisualViewport.ts');
+    expect(hook).toMatch(/setProperty\('--tc-vvh'/);
+    expect(hook).toMatch(/setProperty\('--tc-vvt'/);
+    expect(hook).toMatch(/visualViewport/);
+    // useChatRoom keeps the immersion and delegates the measuring.
+    const room = read('hooks/useChatRoom.ts');
+    expect(room).toMatch(/useVisualViewport\(open\)/);
+    expect(room).toMatch(/tc-immersive/);
+    // and it does not measure a second time — one writer for one variable.
+    expect(room).not.toMatch(/setProperty\('--tc-vv/);
+  });
+
   it('fills its container wherever it is mounted', () => {
     const thread = css.slice(css.indexOf('.mirathread {'));
     const block = thread.slice(0, thread.indexOf('\n}'));
