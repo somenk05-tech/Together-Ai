@@ -141,6 +141,26 @@ export class NutritionController {
     );
   }
 
+  /**
+   * The question the kitchen is actually asked. `plan/composed` has always been
+   * able to answer it; it was never a capability, so Mira could not.
+   */
+  @Mira({
+    intent: "Name the meals on the citizen's plan for today",
+    utterances: [
+      'what am I eating', 'what am I eating today', 'what can I eat today',
+      'tell me a meal I can eat today', 'suggest a meal', 'what should I eat',
+      'whats for dinner', 'what should I cook', 'my meal plan', 'my meal plan today',
+      'todays meals', 'my nutrition today', 'whats my nutrition', 'what is on my plan today',
+      'khana kya hai', 'aaj kya khana hai',
+    ],
+    risk: 'R0',
+  })
+  @Get('plan/today')
+  planToday(@CurrentUser() user: JwtUser) {
+    return this.nutrition.planToday(user.sub);
+  }
+
   @Get('meal-settings')
   mealSettings(@CurrentUser() user: JwtUser) {
     return this.nutrition.mealSettings(user.sub);
@@ -453,9 +473,18 @@ export class NutritionController {
      existing did the rest). "Nutrition today" and "meal plan" are how
      citizens actually ask for today's food, so the kitchen now owns the
      words. */
+  /*
+     THE WORDS GO BACK TO THE HANDLER THAT CAN ANSWER THEM. This decorator
+     used to own 'what am I eating', 'my meal plan', 'whats for dinner' and
+     'todays meals' — none of which this route answers. It reports soak,
+     ferment and marinate deadlines, and its empty state is "Nothing needs
+     starting yet", which is the sentence two different meal questions came
+     back with in production. Prep keeps the prep words. `plan/today`
+     owns the meal words, and answers them.
+  */
   @Mira({
-    intent: 'Say what the citizen needs to start cooking',
-    utterances: ['what should I cook', 'whats for dinner', 'do I need to start cooking', 'what am I eating', 'anything to prep', 'my meal plan', 'my meal plan today', 'my nutrition today', 'whats my nutrition', 'todays meals'],
+    intent: 'Say what the citizen needs to start early — soaking, marinating, fermenting',
+    utterances: ['anything to prep', 'do I need to start cooking', 'anything to soak', 'anything to marinate', 'what needs soaking', 'do I need to start anything now', 'any prep for tomorrow'],
     risk: 'R0',
   })
   @Get('prep-alerts')

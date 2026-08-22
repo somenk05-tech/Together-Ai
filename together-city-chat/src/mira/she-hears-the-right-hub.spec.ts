@@ -27,9 +27,22 @@ const caps = upTo('R0') as unknown as Capability[];
 describe('she hears the right hub', () => {
   it('a nutrition question reaches the kitchen, never the stars', () => {
     // The exact production sentence, typo-grammar and all.
+    //
+    // IT USED TO REACH `prep-alerts`, WHICH WAS THE BUG UNDER THE BUG. That
+    // handler reports soaking and marinating deadlines; it owned these words
+    // and answered them with "Nothing needs starting yet. Kitchen is quiet."
+    // Reaching the kitchen was never enough — it has to reach the handler in
+    // the kitchen that can say what is for dinner.
     expect(route('What my nutrition today', { capabilities: caps }).capabilityId)
-      .toBe('nutrition GET prep-alerts');
+      .toBe('nutrition GET plan/today');
     expect(route('What my meal plan today', { capabilities: caps }).capabilityId)
+      .toBe('nutrition GET plan/today');
+    expect(route('tell me a meal i can eat today', { capabilities: caps }).capabilityId)
+      .toBe('nutrition GET plan/today');
+    expect(route('what am i eating today', { capabilities: caps }).capabilityId)
+      .toBe('nutrition GET plan/today');
+    // And prep keeps its own question.
+    expect(route('anything to prep', { capabilities: caps }).capabilityId)
       .toBe('nutrition GET prep-alerts');
     expect(route('my nutrition targets', { capabilities: caps }).capabilityId)
       .toBe('nutrition GET targets');
@@ -57,7 +70,7 @@ describe('she hears the right hub', () => {
     // that turns this question into "which one?" — the sentence must stay a
     // clean single match as the manifest grows.
     const v = route('What my nutrition today', { capabilities: caps });
-    expect(v.why).toBe('matched nutrition GET prep-alerts');
+    expect(v.why).toBe('matched nutrition GET plan/today');
     expect(manifest().length).toBeGreaterThan(0);
   });
 });

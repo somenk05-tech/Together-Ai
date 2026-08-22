@@ -4335,6 +4335,47 @@ export class NutritionService implements OnModuleInit {
    *
    * Works for both individual and family plans: family mode says who it feeds.
    */
+  /**
+   * ── TODAY'S MEALS, BY NAME ────────────────────────────────────────────────
+   *
+   * `prep-alerts` owned the words "what am I eating", "my meal plan" and
+   * "whats for dinner" and answered a different question with them: whether
+   * anything needs soaking. Its empty state — *"Nothing needs starting yet.
+   * Kitchen is quiet."* — is a true sentence about prep and a useless one about
+   * dinner, and it came back BYTE-IDENTICAL to a citizen who rephrased.
+   *
+   * The plan engine could always answer it. Nothing was missing but a method.
+   */
+  async planToday(userId: string): Promise<{
+    needsProfile: boolean;
+    dayISO?: string;
+    meals: Array<{ slot: string; title: string; label: string; scheduledTime?: string }>;
+  }> {
+    const plan = (await this.composedPlan(userId).catch(swallowed('nutrition.planToday', null))) as unknown as {
+      needsProfile?: boolean; planStartDate?: string;
+      days?: Array<{ dayIndex: number; meals: Array<{ slot: string; title: string; label: string; scheduledTime?: string }> }>;
+    } | null;
+    // A missing profile is not an empty plan, and the two need different
+    // sentences: one is "set this up", the other is "there is nothing there".
+    if (!plan || plan.needsProfile) return { needsProfile: true, meals: [] };
+    if (!plan.days?.length) return { needsProfile: false, meals: [] };
+
+    const todayISO = await this.today(userId);
+    const startISO = plan.planStartDate && /^\d{4}-\d{2}-\d{2}$/.test(plan.planStartDate)
+      ? plan.planStartDate
+      : todayISO;
+    // Today if the plan covers it; otherwise the first day it does cover, which
+    // is still an answer to "what can I eat" and is labelled as what it is.
+    const day = plan.days.find((d) => addDaysISO(startISO, d.dayIndex) === todayISO) ?? plan.days[0];
+    return {
+      needsProfile: false,
+      dayISO: addDaysISO(startISO, day.dayIndex),
+      meals: (day.meals ?? []).map((m) => ({
+        slot: m.slot, title: m.title, label: m.label, scheduledTime: m.scheduledTime,
+      })),
+    };
+  }
+
   async prepAlerts(userId: string, mode: PlanMode = 'individual'): Promise<{ alerts: Array<{ mealKey: string; title: string; what: string; startBy: string; notified: boolean }> }> {
     const plan = (await this.composedPlan(userId).catch(swallowed('nutrition.prepAlerts', null))) as unknown as {
       needsProfile?: boolean; planStartDate?: string;

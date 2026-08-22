@@ -63,8 +63,35 @@ const norm = (s: string): string =>
  */
 export type Refusal = 'none' | 'both';
 
+/**
+ * ── AND "YES" IS NOT AN ANSWER AT ALL ─────────────────────────────────────
+ *
+ * Found in the owner's own chat, in the friend room:
+ *
+ *     — Want me to check what you need to cook, or should I take you to the
+ *       kitchen to see what's there?
+ *     — yes
+ *     — [she picked one]
+ *
+ * "yes" to an either/or is the commonest non-answer there is, and it used to
+ * fall out of here as `undefined` — which the service reads as "not an answer"
+ * and sends back through the router as a brand new request. So a citizen who
+ * said yes got whatever "yes" happened to match.
+ *
+ * It is worse than a refusal, because a refusal at least means something.
+ * `affirm` says: they agreed with the question and answered neither half of
+ * it. The only correct move is to ask again, once, naming the two.
+ *
+ * Anchored on the WHOLE answer. "yes, the second one" is a pick and must keep
+ * reaching the position matcher below.
+ */
+export type Vague = 'affirm';
+
+/** Everything that is not an option she can act on. */
+export type NonPick = Refusal | Vague;
+
 /** The narrow every caller needs once: an option she can act on, or not one. */
-export const isChoice = (a: Choice | Refusal | undefined): a is Choice => typeof a === 'object';
+export const isChoice = (a: Choice | NonPick | undefined): a is Choice => typeof a === 'object';
 
 const REFUSALS: Array<{ re: RegExp; as: Refusal }> = [
   { re: /^(?:no|nope|nah|not really|neither|none|nothing|cancel|stop|forget it|never mind|nevermind)(?: of (?:them|those))?$/, as: 'none' },
@@ -97,11 +124,36 @@ const ORDINALS: Array<{ re: RegExp; index: number }> = [
  */
 const DIGIT = /^(?:number\s+|option\s+)?([123])$/;
 
+/**
+ * Agreement, and nothing else. English and the Hinglish people actually type.
+ * `FILLER` already strips `yes`, `yeah`, `ok` and `okay`, so a bare one of
+ * those arrives here as an EMPTY string — which is why this is tested against
+ * both the stripped text and the raw text, and why the empty string must not
+ * match it.
+ */
+const AFFIRM_WORDS = new Set(
+  ('yes yeah yep yup ya yaa sure ok okay k alright right fine please pls go ahead on '
+   + 'do that sounds good why not haan han ji theek thik hai bilkul chalo').split(' '),
+);
+
+/**
+ * Every word is agreement and nothing else. Bounded at three words so a
+ * sentence that merely opens with "yes" is not swallowed — those still have to
+ * reach the matchers above and below.
+ *
+ * `one`, `first`, `second`, `two` and `three` are deliberately absent: they are
+ * positions, and the position matcher owns them.
+ */
+const isAffirm = (t: string): boolean => {
+  const w = t.split(' ').filter(Boolean);
+  return w.length > 0 && w.length <= 3 && w.every((x) => AFFIRM_WORDS.has(x));
+};
+
 /** Words that carry no choice — stripped before matching so "astrology one"
  *  and "the astrology please" both land on Astrology. */
 const FILLER = /\b(?:the|one|that|this|please|thanks|ok|okay|yes|yeah|take me to|go to|show me|i mean|i meant)\b/g;
 
-export function resolveChoice(text: string, options: Choice[]): Choice | Refusal | undefined {
+export function resolveChoice(text: string, options: Choice[]): Choice | NonPick | undefined {
   if (!options.length) return undefined;
   const raw = norm(text);
   if (!raw) return undefined;
@@ -140,6 +192,11 @@ export function resolveChoice(text: string, options: Choice[]): Choice | Refusal
     );
     if (owners.length === 1) return owners[0];
   }
+
+  // 4b. AN AGREEMENT THAT PICKS NOTHING. Below the label guesses, so a word
+  //     that names an option still wins; above position, so "yes" can never be
+  //     read as "the first one". The caller asks again rather than choosing.
+  if (isAffirm(stripped) || isAffirm(raw)) return 'affirm';
 
   // 5. Position.
   const position = stripped || raw;

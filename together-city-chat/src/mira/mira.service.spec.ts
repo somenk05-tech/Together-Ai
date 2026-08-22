@@ -41,7 +41,7 @@ interface Hubs {
   wallet: Stub; transactions: Stub; budgets: Stub; spending: Stub;
   list: Stub; usage: Stub;
   daily: Stub; gems: Stub; remedies: Stub; dailyCard: Stub;
-  today: Stub; prepAlerts: Stub; targets: Stub; healthSummary: Stub;
+  today: Stub; prepAlerts: Stub; planToday: Stub; targets: Stub; healthSummary: Stub;
   account: Stub; unreadCount: Stub;
   get: Stub; healthScore: Stub; completion: Stub;
   plan: Stub; log: Stub; routine: Stub; watchlist: Stub; myTrips: Stub; thoughts: Stub;
@@ -60,6 +60,7 @@ const DEFAULTS: Hubs = {
   dailyCard: () => Promise.resolve({ name: 'The Tower' }),
   today: () => Promise.resolve({ doses: [] }),
   prepAlerts: () => Promise.resolve({ alerts: [] }),
+  planToday: () => Promise.resolve({ needsProfile: false, meals: [] }),
   targets: () => Promise.resolve({ calories: 2100, protein: 130 }),
   healthSummary: () => Promise.resolve({ hasPanel: false }),
   account: () => Promise.resolve({ counts: { inboxUnread: 0 } }),
@@ -109,7 +110,7 @@ const svc = (over: Partial<Hubs> = {}, account: unknown = NOBODY, ai: unknown = 
     as<2>({ daily: h.daily, gems: h.gems, remedies: h.remedies }),
     as<3>({ dailyCard: h.dailyCard }),
     as<4>({ today: h.today }),
-    as<5>({ prepAlerts: h.prepAlerts, targets: h.targets }),
+    as<5>({ prepAlerts: h.prepAlerts, planToday: h.planToday, targets: h.targets }),
     as<6>({ healthSummary: h.healthSummary }),
     as<7>({ account: h.account }),
     as<8>({ unreadCount: h.unreadCount }),
@@ -406,6 +407,15 @@ const LOADED = {
   today: () => Promise.resolve({ doses: [{ medicine: 'Metformin', status: 'due' }] }),
   prepAlerts: () => Promise.resolve({
     alerts: [{ title: 'Coconut-curry Lentil Stew Served Over Quinoa Thali', startBy: '2026-08-15T05:15:00.000Z' }],
+  }),
+  planToday: () => Promise.resolve({
+    needsProfile: false,
+    dayISO: '2026-08-15',
+    meals: [
+      { slot: 'b', title: 'Poha with peanuts', label: 'Breakfast' },
+      { slot: 'l', title: 'Rajma chawal', label: 'Lunch' },
+      { slot: 'd', title: 'Palak paneer and roti', label: 'Dinner' },
+    ],
   }),
   account: () => Promise.resolve({ counts: { inboxUnread: 3 } }),
   unreadCount: () => Promise.resolve(2),
@@ -716,7 +726,14 @@ describe('hello, and she remembers what she said last time', () => {
  */
 describe('a crisis reaches a person, from every door', () => {
   const SENTENCES = ['i want to kill myself', 'i want to die', "i don't want to be here anymore"];
-  const ROOMS = ['friend', 'city'] as const;
+  /**
+   * `undefined` IS THE MERGED CLIENT. There are no chips, so the ask carries no
+   * mode and the register is inferred. That is the case that ships, and it was
+   * not in this sweep until the rooms became one — which is precisely the shape
+   * of the defect this sweep exists for: the lexicon was right and the WIRING
+   * was where the crisis leaked.
+   */
+  const ROOMS = ['friend', 'city', undefined] as const;
 
   /** A model that would answer if it were ever consulted. It must not be. */
   const chatty = () => {
@@ -732,15 +749,15 @@ describe('a crisis reaches a person, from every door', () => {
 
   for (const mode of ROOMS) {
     for (const text of SENTENCES) {
-      it(`${mode} room, model off — ${JSON.stringify(text)} gets the helpline`, async () => {
-        const t = await svc().ask(text, ctx({ mode }));
+      it(`${mode ?? 'inferred'} register, model off — ${JSON.stringify(text)} gets the helpline`, async () => {
+        const t = await svc().ask(text, ctx(mode ? { mode } : {}));
         expect(t.text).toMatch(/\b14416\b/);
         expect(t.levity).toBe(0);
       });
 
-      it(`${mode} room, model ON — ${JSON.stringify(text)} never reaches the model`, async () => {
+      it(`${mode ?? 'inferred'} register, model ON — ${JSON.stringify(text)} never reaches the model`, async () => {
         const m = chatty();
-        const t = await svc({}, NOBODY, m.ai).ask(text, ctx({ mode }));
+        const t = await svc({}, NOBODY, m.ai).ask(text, ctx(mode ? { mode } : {}));
         expect(t.text).toMatch(/\b14416\b/);
         expect(t.levity).toBe(0);
         expect(m.calls).toHaveLength(0);
@@ -762,5 +779,149 @@ describe('a crisis reaches a person, from every door', () => {
     const t = await svc().ask('i want to die', ctx({ mode: 'friend', dial: 2, recent: ['lol', 'haha'] }));
     expect(t.text).toMatch(/\b14416\b/);
     expect(t.levity).toBe(0);
+  });
+});
+
+
+/**
+ * ── THE SCREENSHOT ────────────────────────────────────────────────────────
+ *
+ * Sent by the owner, 22 Aug, one question in each of her two rooms:
+ *
+ *     city   — what am i eating today
+ *            — Nothing needs starting yet. Kitchen is quiet.
+ *            — tell me a meal i can eat today
+ *            — Nothing needs starting yet. Kitchen is quiet.
+ *
+ *     friend — tell me a meal i can eat today
+ *            — Want me to check what you need to cook, or should I take you to
+ *              the kitchen to see what's there?
+ *            — yes
+ *            — [she picked one, and still named no meal]
+ *
+ * Three separate faults, one per describe below. None of them was a model
+ * problem and none of them was fixed by merging the rooms — the merge only
+ * meant there was one place left to fix them.
+ */
+describe('she names a meal', () => {
+  const MEAL_WORDS = [
+    'what am i eating today',
+    'tell me a meal i can eat today',
+    'my meal plan today',
+    'what should i cook',
+  ];
+
+  for (const ask of MEAL_WORDS) {
+    it(`${JSON.stringify(ask)} names food, and never the soaking deadline`, async () => {
+      const t = await svc(LOADED).ask(ask, ctx());
+      expect(t.capabilityId).toBe('nutrition GET plan/today');
+      expect(t.text).toMatch(/Poha|Rajma|Palak/);
+      expect(t.text).not.toMatch(/needs starting yet|Kitchen is quiet/i);
+    });
+  }
+
+  /** Prep keeps its own question, and its own honest empty state. */
+  it('prep answers about prep, and says which question it answered', async () => {
+    const t = await svc().ask('anything to prep', ctx());
+    expect(t.capabilityId).toBe('nutrition GET prep-alerts');
+    expect(t.text).toMatch(/soaking or marinating/i);
+  });
+
+  /**
+   * ANSWER, THEN OFFER THE PAGE — never the page instead of the answer. An
+   * empty plan still knows the day's calories, and saying only "go to
+   * Nutrition" throws away a true thing she is holding.
+   */
+  it('an empty plan still answers with what she does know', async () => {
+    const t = await svc({ planToday: () => Promise.resolve({ needsProfile: false, meals: [] }) })
+      .ask('what am i eating today', ctx());
+    expect(t.text).toMatch(/2,?100/);
+    expect(t.goto?.path).toBe('/nutrition');
+  });
+
+  it('a missing food profile is sent to the profile, not to the planner', async () => {
+    const t = await svc({ planToday: () => Promise.resolve({ needsProfile: true, meals: [] }) })
+      .ask('what am i eating today', ctx());
+    expect(t.goto?.path).toBe('/nutrition/profile');
+  });
+});
+
+describe('she does not say the same sentence twice', () => {
+  /**
+   * A citizen who rephrases is saying the last answer missed. Handing back the
+   * identical bytes is the loudest possible way to say nobody is home — and it
+   * is invisible to every test that looks at one turn at a time, which is why
+   * this one hands her a history with her own last line in it.
+   */
+  it('a repeat is answered with something she has not said', async () => {
+    const first = await svc().ask('anything to prep', ctx());
+    const again = await svc().ask('anything to prep', ctx({
+      history: [{ who: 'me', text: 'anything to prep' }, { who: 'mira', text: first.text }],
+    }));
+    expect(again.text).not.toBe(first.text);
+    expect(again.text).toContain(first.text);
+    expect(again.text).toMatch(/same as a moment ago/i);
+  });
+
+  it('leaves an answer alone when it is the first time she has said it', async () => {
+    const t = await svc().ask('anything to prep', ctx({
+      history: [{ who: 'mira', text: 'Something else entirely.' }],
+    }));
+    expect(t.text).not.toMatch(/same as a moment ago/i);
+  });
+});
+
+describe('"yes" is not an answer to "which one?"', () => {
+  const OPTIONS = [
+    { label: 'Nutrition', path: '/nutrition' },
+    { label: 'Recipes', path: '/nutrition/recipes' },
+  ];
+
+  for (const yes of ['yes', 'ok', 'sure', 'please', 'haan', 'go ahead']) {
+    it(`${JSON.stringify(yes)} asks again and navigates nowhere`, async () => {
+      const t = await svc().ask(yes, ctx({ answering: OPTIONS }));
+      expect(t.goto).toBeUndefined();
+      expect(t.text).toMatch(/which one/i);
+      // The options ride back out, or the second answer is as homeless as the first.
+      expect(t.choices).toHaveLength(2);
+    });
+  }
+
+  it('still hears an actual pick', async () => {
+    const t = await svc().ask('the second one', ctx({ answering: OPTIONS }));
+    expect(t.goto?.path).toBe('/nutrition/recipes');
+  });
+
+  it('still hears a refusal', async () => {
+    const t = await svc().ask('neither', ctx({ answering: OPTIONS }));
+    expect(t.goto).toBeUndefined();
+    expect(t.text).toMatch(/dropped/i);
+  });
+});
+
+describe('the register is inferred, never claimed', () => {
+  /**
+   * The chips are gone. `mode` still arrives from clients that have not
+   * shipped yet and nothing reads it — so the same sentence must get the same
+   * answer whatever the tab claims, or the merge is cosmetic.
+   */
+  it('the same sentence gets the same answer whatever mode is claimed', async () => {
+    const answers = await Promise.all(
+      (['friend', 'city', undefined] as const).map((mode) =>
+        svc(LOADED).ask('what am i eating today', ctx(mode ? { mode } : {})).then((t) => t.text)),
+    );
+    expect(new Set(answers).size).toBe(1);
+  });
+
+  it('a capability she is sure of puts her in the city register', async () => {
+    const t = await svc().ask("what's my balance", ctx());
+    expect(t.trace.some((l) => l === 'register: city')).toBe(true);
+  });
+
+  it('and anything she is not sure of falls toward listening', async () => {
+    for (const ask of ['i had a fight with my sister', 'i feel awful', 'help me']) {
+      const t = await svc().ask(ask, ctx());
+      expect(t.trace.some((l) => l === 'register: friend')).toBe(true);
+    }
   });
 });

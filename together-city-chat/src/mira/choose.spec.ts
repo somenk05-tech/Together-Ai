@@ -1,4 +1,4 @@
-import { resolveChoice, type Choice } from './choose';
+import { resolveChoice, isChoice, type Choice } from './choose';
 
 const TWO: Choice[] = [
   { label: 'Astrology', path: '/astrology' },
@@ -134,5 +134,62 @@ describe('"no" is an answer too — and it used to navigate', () => {
 
   it('does not fire on a refusal word buried in a real answer', () => {
     expect(resolveChoice('no idea, the second one', HUBS)).toEqual(HUBS[1]);
+  });
+});
+
+
+/**
+ * ── "YES" TO AN EITHER/OR ─────────────────────────────────────────────────
+ *
+ * The commonest non-answer there is, and it used to fall out of here as
+ * `undefined` — which the service reads as "not an answer" and sends back
+ * through the router as a fresh sentence. So agreeing with her question got
+ * whatever the word "yes" happened to match.
+ */
+describe('an agreement is not a pick', () => {
+  const OPTIONS = [
+    { label: 'Nutrition', path: '/nutrition' },
+    { label: 'Recipes', path: '/nutrition/recipes' },
+  ];
+
+  const AGREEMENTS = [
+    'yes', 'Yes.', 'yeah', 'yep', 'ya', 'sure', 'ok', 'okay', 'alright',
+    'please', 'go ahead', 'do that', 'sounds good', 'why not',
+    // The Hinglish people actually type.
+    'haan', 'haan ji', 'theek hai', 'bilkul',
+  ];
+
+  for (const a of AGREEMENTS) {
+    it(`${JSON.stringify(a)} is 'affirm'`, () => {
+      expect(resolveChoice(a, OPTIONS)).toBe('affirm');
+    });
+  }
+
+  /** It must never become a position. This is the failure that matters: a
+   *  wrong guess sends somebody to a page they did not ask for. */
+  it('never resolves to the first option', () => {
+    for (const a of AGREEMENTS) expect(isChoice(resolveChoice(a, OPTIONS))).toBe(false);
+  });
+
+  /** A sentence that merely OPENS with yes is still a pick. */
+  it('yes, the second one — is the second one', () => {
+    expect(resolveChoice('yes, the second one', OPTIONS)).toEqual(OPTIONS[1]);
+    expect(resolveChoice('yes nutrition', OPTIONS)).toEqual(OPTIONS[0]);
+  });
+
+  /** A word that names an option outranks agreement, both ways round. */
+  it('a label wins over an agreement', () => {
+    const yesish = [{ label: 'Recipes', path: '/nutrition/recipes' }, { label: 'Sure Shot', path: '/x' }];
+    expect(resolveChoice('sure shot', yesish)).toEqual(yesish[1]);
+  });
+
+  it('a refusal is still a refusal', () => {
+    expect(resolveChoice('no', OPTIONS)).toBe('none');
+    expect(resolveChoice('neither', OPTIONS)).toBe('none');
+    expect(resolveChoice('both', OPTIONS)).toBe('both');
+  });
+
+  it('and a bare "one" is still a position, not an agreement', () => {
+    expect(resolveChoice('one', OPTIONS)).toEqual(OPTIONS[0]);
   });
 });

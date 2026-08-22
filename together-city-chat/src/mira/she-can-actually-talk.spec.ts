@@ -298,15 +298,22 @@ describe('the crisis hand-off is wired, in both rooms, with the model on and off
 });
 
 /**
- * F1 — THE FRIEND TAB IS NOT THE ASSISTANT WITH THREE IFS IN IT.
+ * F1 — AND THEN THE TWO ROOMS BECAME ONE.
  *
- * `route()` scores against the manifest in both rooms and returns a capability
- * at 0.55 with no idea which room asked. The capability below is a stand-in
- * with one utterance, and the sentence matches its tokens without matching it
- * outright — enough to answer in the city room, nowhere near enough to
- * interrupt a conversation in the friend room.
+ * `route()` scores against the manifest and returns a capability at 0.55 with
+ * no idea what kind of sentence asked. The 0.8 floor below it used to apply
+ * only in the friend tab, so the SAME sentence got a data readout on one chip
+ * and a conversation on the other.
+ *
+ * There are no chips now, and the merge had to pick one of those behaviours.
+ * It picked the safer one: the floor is universal. A middling match is a guess,
+ * and a guess answered as data is how "tell me a meal i can eat today" came
+ * back as a soaking deadline. Below 0.8 she talks; at or above it she answers.
+ *
+ * `mode` is still passed by these cases and still ignored by the service —
+ * which is the property worth pinning, because an old client keeps sending it.
  */
-describe('a sentence in the friend room is not a database query', () => {
+describe('a middling match is a conversation, whatever the client claims', () => {
   const CAP = {
     id: 'demo GET plan', controller: 'demo.controller.ts', method: 'GET', path: 'demo/plan',
     intent: 'read your demo plan', risk: 'R0' as const, utterances: ['my fitness plan'],
@@ -318,24 +325,23 @@ describe('a sentence in the friend room is not a database query', () => {
   });
   const MIDDLING = 'my fitness has been a plan for later';
 
-  it('the city room answers a middling match with the data', async () => {
-    const t = await withCap().ask(MIDDLING, ctx({ mode: 'city' }));
-    expect(t.confidence).toBeGreaterThanOrEqual(0.55);
-    expect(t.confidence).toBeLessThan(0.8);
-    expect(t.text).not.toContain('to carry this week');
+  it('talks rather than reading out data, and the claimed mode changes nothing', async () => {
+    for (const mode of ['city', 'friend', undefined] as const) {
+      const t = await withCap().ask(MIDDLING, ctx(mode ? { mode } : {}));
+      expect(t.confidence).toBeGreaterThanOrEqual(0.55);
+      expect(t.confidence).toBeLessThan(0.8);
+      expect(t.text).toContain('to carry this week');
+    }
   });
 
-  it('the friend room talks instead', async () => {
-    const t = await withCap().ask(MIDDLING, ctx({ mode: 'friend' }));
-    expect(t.text).toContain('to carry this week');
-  });
-
-  /** With no key she is the phase-1 assistant in both rooms — degradation, not
-   *  an error. That equivalence is what keeps every older spec here true. */
-  it('and with the model off the friend room falls back to the capability', async () => {
-    const t = await withCap({ ai: { enabled: false, converse: async () => null } })
-      .ask(MIDDLING, ctx({ mode: 'friend' }));
-    expect(t.capabilityId).toBe('demo GET plan');
+  /** With no key she is the phase-1 assistant — degradation, not an error.
+   *  That equivalence is what keeps every older spec here true. */
+  it('and with the model off she falls back to the capability', async () => {
+    for (const mode of ['city', 'friend'] as const) {
+      const t = await withCap({ ai: { enabled: false, converse: async () => null } })
+        .ask(MIDDLING, ctx({ mode }));
+      expect(t.capabilityId).toBe('demo GET plan');
+    }
   });
 });
 

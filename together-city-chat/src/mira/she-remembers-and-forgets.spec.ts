@@ -274,7 +274,12 @@ describe('what she keeps is bounded, and can be read back', () => {
     const m = await svc.memory('u1', 'friend', { limit: 20, offset: 40 });
     expect(m.total).toBe(2);
     expect(m.turns[0].text).toBe('Named after the song?');
-    expect(svc.__page.where).toEqual({ userId: 'u1', room: 'friend' });
+    // ONE TRANSCRIPT. `room` is still written on every turn and still echoed
+    // back on the response, but it no longer narrows the query — two rooms
+    // meant two memories of one citizen, and the merge is worth nothing if she
+    // still only remembers half of what was said to her.
+    expect(svc.__page.where).toEqual({ userId: 'u1' });
+    expect(m.room).toBe('friend');
     expect(svc.__page.skip).toBe(40);
     expect(svc.__page.take).toBe(20);
   });

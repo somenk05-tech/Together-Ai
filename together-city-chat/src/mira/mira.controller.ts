@@ -94,6 +94,11 @@ export const AskSchema = z.object({
   })).max(12).optional(),
   /** Which tab is asking — friend (the companion) or city (the assistant).
    *  Optional: an older client is the assistant, which is what it shipped as. */
+  /**
+   * ACCEPTED AND IGNORED. There is one room now and the register is inferred
+   * per turn — see the service. Kept in the schema because removing a field a
+   * shipped client still sends turns every one of its asks into a 400.
+   */
   mode: z.enum(['friend', 'city']).optional(),
   /** The in-app path they were standing on when they opened her, for the
    *  "ask about this page" door. Validated like `answering`'s paths: it
