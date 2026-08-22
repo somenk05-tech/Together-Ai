@@ -12,7 +12,10 @@ import type { Shop } from './types';
  * `useHubTheme(null)` on the way in, so whichever room you arrived from stops
  * lending it a lamp.
  *
- * IT KNOWS NOTHING ABOUT BEAUTY. Everything it draws comes off the `Shop` it is
+ * IT KNOWS NOTHING ABOUT BEAUTY, AND NOTHING ABOUT GEMSTONES EITHER — the
+ * dials it draws are a range and a number and a way of writing the number down,
+ * which is why the word "carat" appears nowhere in this file.
+ * Everything it draws comes off the `Shop` it is
  * handed — title, line, items, bag, till — which is what makes the second and
  * third shelves an adapter file each rather than a second storefront. The one
  * borrowed part is `ProductShot`, and it is borrowed on purpose: it already
@@ -134,7 +137,38 @@ export function StoreFront({ shop }: { shop: Shop }) {
                   {item.keepLabel && <span className="st-keep"> {item.keepLabel}</span>}
                 </div>
                 {item.packLabel && <div className="st-pack">{item.packLabel}</div>}
+                {item.priceNote && <div className="st-pricenote">{item.priceNote}</div>}
                 {item.why && item.why.length > 0 && <p className="st-why">{item.why.join(' · ')}</p>}
+
+                {/* THE DIALS, WHERE A SHELF HAS ANY. Four of the five shelves
+                    sell a finished thing and pass none, so their tiles are
+                    exactly what they were. The gem counter passes two, because
+                    on that shelf the carats and the grade ARE the product —
+                    there is nothing to add to a bag until both are set.
+
+                    `aria-label` on the input rather than a <label for>: the
+                    visible label already sits beside the value it names, and a
+                    second copy of "Carats" would be read out twice. */}
+                {item.dials?.map((d) => (
+                  <div key={d.key} className="st-dial">
+                    <div className="st-dial-top">
+                      <span className="st-dial-name">{d.label}</span>
+                      <span className="st-dial-val">{d.format(d.value)}</span>
+                    </div>
+                    <input
+                      type="range" className="st-dial-range"
+                      min={d.min} max={d.max} step={d.step} value={d.value}
+                      aria-label={`${d.label} for ${item.name}`}
+                      onChange={(e) => d.onChange(Number(e.target.value))}
+                    />
+                    {(d.minLabel || d.maxLabel) && (
+                      <div className="st-dial-ends">
+                        <span>{d.minLabel}</span>
+                        <span>{d.maxLabel}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
 
                 {item.design ? (
                   <Link to={item.design.path} className="st-add st-add-link">{item.design.label}</Link>
@@ -146,7 +180,7 @@ export function StoreFront({ shop }: { shop: Shop }) {
                   </div>
                 ) : (
                   <button type="button" className="st-add" disabled={shop.isSaving} onClick={() => shop.add(item.id)}>
-                    Add to bag
+                    {item.addLabel ?? 'Add to bag'}
                   </button>
                 )}
               </article>

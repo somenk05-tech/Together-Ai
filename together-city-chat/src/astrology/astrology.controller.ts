@@ -144,6 +144,20 @@ export class AstrologyController {
     return this.astrology.gemstones(user.sub);
   }
 
+  /**
+   * GET /api/astrology/gem-catalog — every stone the city sells, with the range
+   * each is customarily worn at and what it costs across that range.
+   *
+   * NO CHART IS READ AND NO PROFILE IS REQUIRED, which is the difference
+   * between this and `gemstones` above. That one answers "which stone is mine";
+   * this one answers "what do you have". A citizen with no birth details can
+   * browse the counter, and nothing on it is ranked for them.
+   */
+  @Get('gem-catalog')
+  gemCatalog() {
+    return this.astrology.gemCatalog();
+  }
+
   /** GET /api/astrology/gemstones/:id/design — one stone, sized and priced for
    *  this citizen, with every shape, setting and size judged for its planet. */
   @Get('gemstones/:id/design')
@@ -182,6 +196,13 @@ export class AstrologyController {
       size: z.number().int().min(1).max(40).optional(),
       metal: z.enum(['gold22', 'silver', 'panchdhatu']).optional(),
       grade: z.number().min(0).max(100),
+      /* THE WEIGHT, WHEN THE CITIZEN CHOSE ONE. Absent from anything the studio
+         locks — a prescription reads its carats off the chart — and present on
+         everything bought at the open market's counter. The bound here is a
+         sanity bound, not the real one: `chosenWeight` holds the figure inside
+         the STONE's customary range at pricing time, and it is the only place
+         that knows which stone this is. */
+      carats: z.number().positive().max(60).optional(),
     });
     return this.astrology.lockGem(user.sub, { ...schema.parse(body), addedAt: new Date().toISOString() });
   }

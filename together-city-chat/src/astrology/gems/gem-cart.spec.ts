@@ -51,6 +51,22 @@ describe('the gem cart', () => {
     );
   });
 
+  /**
+   * AND A LINE WITH NO CHOSEN WEIGHT GROWS NO KEY FOR ONE. The counter's lines
+   * carry `carats` and the studio's never do — an `undefined` key on every
+   * studio line would make the assertion above a list nobody could read, and
+   * more to the point it would change the shape of every commission already
+   * sitting in somebody's cart.
+   */
+  it('carries a chosen weight only where one was chosen', () => {
+    expect('carats' in parseGemCart([line()])[0]).toBe(false);
+    expect(parseGemCart([line({ carats: 4.5 })])[0].carats).toBe(4.5);
+    // Cast, because the point of these two is that the column is TEXT and what
+    // comes out of it has never been type-checked by anything.
+    expect('carats' in parseGemCart([{ ...line(), carats: 'four' } as unknown])[0]).toBe(false);
+    expect('carats' in parseGemCart([{ ...line(), carats: -2 } as unknown])[0]).toBe(false);
+  });
+
   it('prices every line from the shelf at read time', () => {
     const c = priceGemCart([line()], 70);
     expect(c.count).toBe(1);

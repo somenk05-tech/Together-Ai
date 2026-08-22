@@ -93,6 +93,61 @@ export interface GemWeight {
 }
 
 /**
+ * ── THE STONE'S RANGE, WITH NOBODY IN IT ────────────────────────────────────
+ *
+ * `recommendedWeight` needs a body weight because it PLACES somebody inside the
+ * stone's range. The counter shelf does not place anybody: it hands the range
+ * over and lets the citizen choose inside it. So this is the same range, minus
+ * the placement — and it is the same range, computed the same way, rather than
+ * a second table that could disagree with the first.
+ */
+export function customaryWeight(planet: GemPlanet, kind: GemKind = 'primary') {
+  const base = RATTI_RANGE[planet];
+  if (!base) return null;
+  const factor = kind === 'primary' ? 1 : SUBSTITUTE_FACTOR;
+  const min = half(base.min * factor);
+  const max = half(base.max * factor);
+  return {
+    fromCt: quarter(min * CT_PER_RATTI),
+    toCt: quarter(max * CT_PER_RATTI),
+    fromRatti: min,
+    toRatti: max,
+  };
+}
+
+/**
+ * A weight the CITIZEN chose, held inside what the stone is worn at.
+ *
+ * THE CLAMP IS NOT A CONVENIENCE. The stone's customary range is the one input
+ * the weight model says is "the constraint, and it is never overridden" — heavy
+ * Neelam is the classic warning and nine carats of it is not a thing this shop
+ * will quote for because somebody dragged a slider. A request outside the range
+ * comes back at the nearest end with `bound` saying which, exactly as the
+ * body-weight rule already reports it, so the surface can say so rather than
+ * silently pricing something else.
+ *
+ * QUARTER CARATS, because that is what jewellers cut and quote. A slider that
+ * produced 6.37 ct would be offering a stone nobody can make.
+ */
+export function chosenWeight(
+  carats: number | null | undefined,
+  planet: GemPlanet,
+  kind: GemKind = 'primary',
+): GemWeight | null {
+  if (typeof carats !== 'number' || !Number.isFinite(carats) || carats <= 0) return null;
+  const span = customaryWeight(planet, kind);
+  if (!span) return null;
+  const held = Math.min(span.toCt, Math.max(span.fromCt, carats));
+  const ct = quarter(held);
+  return {
+    carats: ct,
+    ratti: half(ct / CT_PER_RATTI),
+    ...span,
+    bound: carats < span.fromCt ? 'floor' : carats > span.toCt ? 'ceiling' : 'placed',
+  };
+}
+
+/**
  * The recommended weight, or null when no body weight is on file.
  *
  * NO AVERAGE IS SUBSTITUTED. The same refusal the ascendant gets without a

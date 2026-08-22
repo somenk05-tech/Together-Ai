@@ -19,6 +19,7 @@ import { designBrief, recommendGems } from './gems/gem-recommend';
 import { PENDANT_STYLES, RING_SETTINGS, RING_SIZES, STONE_SHAPES, adviseSetting } from './gems/ring-studio';
 import { METAL_NAME, KNOWN_DESIGNS, metalQuotes, type MetalKey } from './gems/metal-pricing';
 import { parseGemCart, priceGemCart, type GemCartLine } from './gems/gem-cart';
+import { gemCounter } from './gems/gem-counter';
 import { healthFlagsFor } from './health-flags';
 import { firstNameOf } from './voice';
 
@@ -665,6 +666,18 @@ export class AstrologyService {
       }),
       disclaimer: GEM_DISCLAIMER,
     };
+  }
+
+  /**
+   * THE COUNTER — every stone, and nobody's chart.
+   *
+   * `gemstones` above needs a profile because it is a prescription. This needs
+   * nothing at all: it is the shelf, in the catalogue's own order, with each
+   * stone's customary weight range and what it costs across it. The open market
+   * ranks nothing, so neither does this.
+   */
+  gemCatalog() {
+    return { ...gemCounter(), disclaimer: GEM_DISCLAIMER };
   }
 
   /**

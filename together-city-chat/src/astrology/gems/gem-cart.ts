@@ -1,7 +1,7 @@
 import { GEM_BY_ID } from './gem-catalog';
 import { KNOWN_DESIGNS, metalQuotes, type MetalKey } from './metal-pricing';
 import { PENDANT_STYLES, RING_SETTINGS, STONE_SHAPES } from './ring-studio';
-import { priceAtWeight, recommendedWeight } from './gem-weight';
+import { chosenWeight, priceAtWeight, recommendedWeight } from './gem-weight';
 
 /**
  * The gem cart — locked configurations, priced when they are read.
@@ -32,6 +32,22 @@ export interface GemCartLine {
   metal?: MetalKey;
   /** 0 is the plainest stone of this weight, 100 the finest. */
   grade: number;
+  /**
+   * THE WEIGHT THE CITIZEN CHOSE, when they chose one.
+   *
+   * The studio does not set this and never will: a prescription reads the
+   * carats off the chart and the body weight, and a slider in that room would
+   * be inviting somebody to overrule their own reading. The OPEN MARKET's gem
+   * counter does set it — that floor ranks nothing and prescribes nothing, and
+   * a shop that will not sell you a four-carat stone because your chart asked
+   * for three is not a shop.
+   *
+   * Absent, and the line prices at the prescribed weight exactly as before, so
+   * every commission locked from the studio is untouched by this. Present, and
+   * it is still held inside the stone's own customary range by `chosenWeight` —
+   * the one constraint the weight model says is never overridden.
+   */
+  carats?: number;
   /** ISO date, so the cart can be ordered oldest-first and read as a list. */
   addedAt: string;
 }
@@ -68,6 +84,19 @@ export function parseGemCart(raw: unknown): GemCartLine[] {
       metal: worn === 'loose' ? undefined
         : (l.metal === 'silver' || l.metal === 'panchdhatu' ? l.metal : 'gold22'),
       grade: clamp(l.grade, 0, 100, 35),
+      /* Kept as given and bounded at PRICING time rather than here, because the
+         bound belongs to the STONE and this function is deliberately ignorant
+         of which stone it is looking at. A number that survives
+         `Number.isFinite` is enough to keep; `chosenWeight` decides what it
+         means.
+
+         SPREAD RATHER THAN ASSIGNED, so a line with no chosen weight does not
+         grow a `carats: undefined` key it never had. Every commission already
+         locked in somebody's cart is the object it was, which is what
+         'stores no price anywhere in a line' is really asserting. */
+      ...(typeof l.carats === 'number' && Number.isFinite(l.carats) && l.carats > 0
+        ? { carats: l.carats }
+        : {}),
       addedAt: typeof l.addedAt === 'string' ? l.addedAt : new Date(0).toISOString(),
     });
     if (out.length >= MAX_LINES) break;
@@ -88,16 +117,26 @@ export interface PricedGemLine extends GemCartLine {
 }
 
 /**
- * Price the cart. `bodyKg` decides the carats, so a citizen who has not given
- * one has a cart that cannot be priced — and the surface says that rather than
- * showing a total built on a guessed weight.
+ * Price the cart.
+ *
+ * TWO WAYS A LINE GETS ITS CARATS, and which one applies is a property of the
+ * line rather than of the citizen. A line locked in the studio carries none, so
+ * `bodyKg` decides — and a citizen who has not given one has a line that cannot
+ * be priced, which the surface says rather than showing a total built on a
+ * guessed weight. A line bought at the open market's counter carries the weight
+ * the citizen chose, and prices from that; it needs no body weight at all,
+ * which is the point of a counter.
  */
 export function priceGemCart(lines: GemCartLine[], bodyKg: number | null | undefined) {
   const priced: PricedGemLine[] = [];
   let dropped = 0;
   for (const l of lines) {
     const gem = GEM_BY_ID.get(l.gemId);
-    const weight = gem ? recommendedWeight(bodyKg, gem.planet, gem.kind) : null;
+    const weight = !gem
+      ? null
+      : l.carats !== undefined
+        ? chosenWeight(l.carats, gem.planet, gem.kind)
+        : recommendedWeight(bodyKg, gem.planet, gem.kind);
     if (!gem || !weight) { dropped += 1; continue; }
 
     const p = priceAtWeight(weight.carats, gem.perCaratMinInr, gem.perCaratMaxInr);

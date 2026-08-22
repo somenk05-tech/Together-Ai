@@ -20,6 +20,42 @@
  * lesson the beauty routine already wrote down.
  */
 
+/**
+ * ── A CONTROL THAT CHANGES WHAT THE THING IS ────────────────────────────────
+ *
+ * Owner, 22 Aug: a gemstone counter where "prices move based on carats chosen
+ * by the user". Every other shelf in this city sells a thing that already
+ * exists — an 88 ml bottle is an 88 ml bottle, and the only choice is how many.
+ * A stone is not: the carats and the grade ARE the product, and until both are
+ * set there is nothing a jeweller could be asked to make and no number anybody
+ * could be charged.
+ *
+ * SO THE SHELL KNOWS ABOUT DIALS AND NOTHING ABOUT GEMSTONES. A dial is a
+ * range, a value, a way of writing that value down, and somewhere to send a new
+ * one. The gem adapter supplies two; every other adapter supplies none and its
+ * tiles are unchanged. The alternative was a `carats` field on `ShopItem`,
+ * which would have put the word "carat" in a storefront that is deliberately
+ * ignorant of what it is selling — the same mistake as a `price` in the shell.
+ *
+ * `format` RATHER THAN A UNIT STRING, because "4.5 ct · 4½ ratti" is not a
+ * number with a suffix, and the shelf that owns the vocabulary is the one that
+ * should be writing it.
+ */
+export interface ShopDial {
+  key: string;
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  /** The value as the shelf would write it. */
+  format: (value: number) => string;
+  /** What the two ends mean, when they mean something worth printing. */
+  minLabel?: string;
+  maxLabel?: string;
+  onChange: (value: number) => void;
+}
+
 export interface ShopItem {
   id: string;
   name: string;
@@ -52,6 +88,23 @@ export interface ShopItem {
   design?: { label: string; path: string };
   /** Which aisle of the shelf this stands in — the chips filter on it. */
   group?: string;
+  /**
+   * The controls that decide what this item IS. Absent on every shelf that
+   * sells a finished thing, which is four of the five.
+   */
+  dials?: ShopDial[];
+  /**
+   * What the button says, where "Add to bag" is the wrong verb. The gem counter
+   * sells a configuration rather than a unit, so a stone already in the bag is
+   * updated rather than added a second time.
+   */
+  addLabel?: string;
+  /**
+   * What the shelf wants said under the price when a dial has moved — the
+   * gem counter uses it to say a weight was held at the end of the stone's
+   * customary range rather than silently pricing something else.
+   */
+  priceNote?: string;
 }
 
 export interface ShopBagLine { id: string; name: string; priceInr: number; qty: number; image?: string; imageAlt?: string; category: string }

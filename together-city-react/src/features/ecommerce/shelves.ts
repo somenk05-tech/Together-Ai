@@ -106,8 +106,10 @@ export const OPEN: Shelf[] = [
   /* The gemstone bench is on both floors, and it is the only shelf that is.
      It is a marketplace you can browse by stone, and it is also the one place
      in the city where a stone is PRESCRIBED from a chart — so leaving it off
-     either floor would be leaving out half of what it does. */
-  { hub: 'astrology', path: '/astrology/gemstones', art: 'ec-gemstones.webp', category: 'Gemstones' },
+     either floor would be leaving out half of what it does. Since 22 Aug the
+     two floors open two different rooms, which is what "both floors" was always
+     supposed to mean: the counter here, the chart's own five over there. */
+  { hub: 'astrology', path: '/astrology/gemstones', art: 'ec-gemstones.webp', category: 'Gemstones', shop: 'gemstones' },
   { hub: 'services', path: '/services/offers', art: 'ec-offers.webp', category: 'Deals & offers' },
 ];
 
@@ -157,11 +159,17 @@ export const SHOPS: Record<string, ShopScreens> = {
  * through data, and `nav-audit` reads `path:` literals to decide whether a
  * declared route has any way in.
  *
- * TWO OF THE FIVE CARDS ARE NOT HERE, and each for a reason the card itself
- * carries. Gemstones has no catalogue to open: a stone is read off a chart, so
- * "all the gemstones" is the same list as "your gemstones" and that shop
- * already exists. Daily offers is not products at all — it is what local
- * businesses have on today, and it lives in the Local Services hub.
+ * GEMSTONES WAS NOT HERE UNTIL 22 AUG, and the reason it was not is worth
+ * keeping because it turned out to be wrong. The note said "a stone is read off
+ * a chart, so 'all the gemstones' is the same list as 'your gemstones'". It is
+ * not: the chart names at most five, and the catalogue holds THIRTY — nine
+ * Navaratna, sixteen upratna and five sold with no prescription at all. The
+ * prescription was being mistaken for the shelf. The counter shows all thirty,
+ * ranks none of them, and lets the citizen choose the weight inside the range
+ * the stone is worn at, which is the one thing a chart was deciding for them.
+ *
+ * ONE OF THE FIVE CARDS IS STILL NOT HERE: Daily offers is not products at all
+ * — it is what local businesses have on today, and it lives in Local Services.
  */
 export const AISLES: Record<string, ShopScreens> = {
   'skin-hair': {
@@ -178,6 +186,10 @@ export const AISLES: Record<string, ShopScreens> = {
   pets: {
     shelf: { path: '/ecommerce/market/pets' },
     bag: { path: '/ecommerce/market/pets' },
+  },
+  gemstones: {
+    shelf: { path: '/ecommerce/market/gemstones' },
+    bag: { path: '/ecommerce/market/gemstones/bag' },
   },
 };
 

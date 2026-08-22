@@ -176,6 +176,8 @@ const SkinHairMarketBag = lazy(() => import('@/features/ecommerce/pages/MarketAi
 const SupplementsMarket = lazy(() => import('@/features/ecommerce/pages/MarketAisles').then((m) => ({ default: m.SupplementsMarket })));
 const SupplementsMarketBag = lazy(() => import('@/features/ecommerce/pages/MarketAisles').then((m) => ({ default: m.SupplementsMarketBag })));
 const PetMarket = lazy(() => import('@/features/ecommerce/pages/MarketAisles').then((m) => ({ default: m.PetMarket })));
+const GemMarket = lazy(() => import('@/features/ecommerce/pages/MarketAisles').then((m) => ({ default: m.GemMarket })));
+const GemMarketBag = lazy(() => import('@/features/ecommerce/pages/MarketAisles').then((m) => ({ default: m.GemMarketBag })));
 
 // Every lazy page is wrapped so a stale code-split chunk (after a new deploy)
 // auto-recovers instead of leaving a blank page.
@@ -224,6 +226,8 @@ const ROUTE_BLOCKS: RouteObject[] = [
       { path: '/ecommerce/market/supplements', element: <RequireAuth>{wrap(<SupplementsMarket />)}</RequireAuth> },
       { path: '/ecommerce/market/supplements/bag', element: <RequireAuth>{wrap(<SupplementsMarketBag />)}</RequireAuth> },
       { path: '/ecommerce/market/pets', element: <RequireAuth>{wrap(<PetMarket />)}</RequireAuth> },
+      { path: '/ecommerce/market/gemstones', element: <RequireAuth>{wrap(<GemMarket />)}</RequireAuth> },
+      { path: '/ecommerce/market/gemstones/bag', element: <RequireAuth>{wrap(<GemMarketBag />)}</RequireAuth> },
       // THIS ONE EARNS ITS LANDING, and the distinction is worth stating
       // because the 5 Aug design audit argued against exactly this pattern.
       //

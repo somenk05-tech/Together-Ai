@@ -288,13 +288,20 @@ describe('The Open Market aisles show the whole shelf', () => {
   const market = code('features/ecommerce/store/useMarketShops.ts');
   const front = code('features/ecommerce/store/StoreFront.tsx');
 
-  it('gives three categories a storefront, and routes each', () => {
+  /* THREE ON 22 AUG, FOUR BY THE EVENING: the gem counter joined them when the
+     note that kept gemstones off this floor turned out to be wrong. It said "a
+     stone is read off a chart, so 'all the gemstones' is the same list as
+     'your gemstones'" — the chart names at most five and the catalogue holds
+     thirty, so the prescription was being mistaken for the shelf. Daily offers
+     is still not here and still should not be: it is not products. */
+  it('gives four categories a storefront, and routes each', () => {
     const router = code('app/router.tsx');
-    for (const key of ['skin-hair', 'supplements', 'pets']) {
+    for (const key of ['skin-hair', 'supplements', 'pets', 'gemstones']) {
       expect({ key, shelf: AISLES[key]?.shelf.path }).toEqual({ key, shelf: `/ecommerce/market/${key}` });
       expect(router).toContain(`path: '/ecommerce/market/${key}'`);
     }
-    expect(OPEN.filter((s) => s.shop).map((s) => s.shop).sort()).toEqual(['pets', 'skin-hair', 'supplements']);
+    expect(OPEN.filter((s) => s.shop).map((s) => s.shop).sort())
+      .toEqual(['gemstones', 'pets', 'skin-hair', 'supplements']);
   });
 
   it('carries the engine verdict onto every supplement tile that has one', () => {

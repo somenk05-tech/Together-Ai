@@ -2330,6 +2330,71 @@
 }
 .st-section-foot a { color: var(--muted); }
 
+/* ── A DIAL ON A TILE ────────────────────────────────────────────────────────
+   Owner, 22 Aug: a gemstone counter where the price moves with the carats.
+
+   ON ONE SHELF OUT OF FIVE, and the block is written so the other four cannot
+   accidentally acquire one: nothing here is a `.st-card` rule, so a tile that
+   passes no dials is byte-for-byte the tile it was.
+
+   THE RANGE INPUT IS LEFT ALONE. Every other slider in this city is a bare
+   `<input type="range">` — the gem studio's grade slider included — and a
+   storefront that re-skinned the track with ::-webkit-slider-thumb would be the
+   only place in the app that did, which is how one control ends up looking
+   wrong on the platform nobody tested. `accent-color` is the whole treatment:
+   one property, one token, the store's own black on the part the browser
+   already draws. The 44px is the tap target, not decoration.
+
+   NO TRANSITION on any of it. motion-ceiling.mjs sits at 17 durations and 7
+   easings, and a slider that eased would be an eighteenth. */
+.st-dial {
+  margin: 2px 0 12px;
+}
+.st-dial-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.st-dial-name {
+  font-size: var(--fs-2);
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.st-dial-val {
+  font-size: var(--fs-4);
+  font-weight: 700;
+  color: var(--ink);
+}
+.st-dial-range {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  accent-color: var(--ink);
+  cursor: pointer;
+}
+.st-dial-ends {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: var(--fs-1);
+  line-height: 1.4;
+  color: var(--muted);
+}
+/* What the shelf insists on saying under a price — on the gem counter, the
+   weight a stone is already in the bag at, which is not the weight the sliders
+   are showing the moment somebody moves one. */
+.st-pricenote {
+  font-size: var(--fs-3);
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  margin-top: 6px;
+}
+
 /* ── THE AISLES OF ONE SHELF ─────────────────────────────────────────────────
    The Open Market's storefronts show everything, and everything is 184 rows on
    the pet catalogue. These chips are what turns that from a catalogue somebody

@@ -244,6 +244,40 @@ export interface GemRecommendation {
   substitutes: GemAtWeight[];
 }
 
+/**
+ * ── THE COUNTER: EVERY STONE, AND NOBODY'S CHART ────────────────────────────
+ *
+ * Owner, 22 Aug: "a gemstone store with all the gemstones in the database …
+ * prices move based on carats chosen by the user."
+ *
+ * `GemstonesResponse` above is a PRESCRIPTION — at most five stones, each at
+ * the weight the tradition works out from this body. This is the shelf: thirty
+ * stones in the catalogue's own order, nothing ranked, no profile needed, and
+ * the weight left to the citizen inside the range the stone is worn at.
+ *
+ * THE RANGE IS NOT A SUGGESTION. The server's weight model is explicit that a
+ * stone's customary range "is the constraint, and it is never overridden" —
+ * heavy Neelam is the classic warning, and a nine-carat blue sapphire is the
+ * exact mistake that model was written to stop. `fromCt`/`toCt` are that range,
+ * they are what the slider spans, and the server holds anything outside them at
+ * the nearest end whatever the client sends.
+ */
+export interface CounterStone {
+  gem: GemStone;
+  fromCt: number; toCt: number;
+  fromRatti: number; toRatti: number;
+  /** Where the slider starts — the middle of the stone's own range. */
+  defaultCt: number;
+  /** What it costs at `defaultCt`, so a tile has a price before it is touched. */
+  fromInr: number; toInr: number;
+}
+
+export interface GemCatalog {
+  stones: CounterStone[];
+  aisles: { key: string; label: string; count: number }[];
+  disclaimer: string;
+}
+
 export interface GemstonesResponse {
   needsProfile?: boolean;
   chart: {
@@ -339,11 +373,18 @@ export const astrologyApi = {
 
   gems: () => api.get<GemResponse>('/astrology/gems').then((r) => r.data),
   gemstones: () => api.get<GemstonesResponse>('/astrology/gemstones').then((r) => r.data),
+  gemCatalog: () => api.get<GemCatalog>('/astrology/gem-catalog').then((r) => r.data),
   gemDesign: (id: string) => api.get<GemDesign>(`/astrology/gemstones/${id}/design`).then((r) => r.data),
   gemCart: () => api.get<GemCart>('/astrology/gem-cart').then((r) => r.data),
   lockGem: (v: {
     gemId: string; worn: 'ring' | 'pendant' | 'loose'; shape: string;
     setting?: string; style?: string; size?: number; metal?: MetalKey; grade: number;
+    /** THE WEIGHT THE CITIZEN CHOSE, and only the counter ever sends it. The
+     *  studio locks a prescription and reads its carats off the chart; a
+     *  slider there would be inviting somebody to overrule their own reading.
+     *  Absent, and the server prices from the prescribed weight exactly as it
+     *  did before this existed. */
+    carats?: number;
   }) => api.put<GemCart>('/astrology/gem-cart', v).then((r) => r.data),
   unlockGem: (gemId: string) => api.delete<GemCart>(`/astrology/gem-cart/${gemId}`).then((r) => r.data),
   checkoutGemCart: (method: 'wallet' | 'card') =>

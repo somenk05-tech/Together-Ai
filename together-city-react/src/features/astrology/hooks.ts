@@ -143,6 +143,18 @@ export function useAstroGems() {
 export function useAstroGemstones() {
   return useQuery({ queryKey: ['astrology', 'gemstones'], queryFn: () => astrologyApi.gemstones(), retry: false });
 }
+/**
+ * THE COUNTER — the whole catalogue, and no chart behind it.
+ *
+ * No `retry: false` here, and the difference from its neighbour is the point:
+ * "no birth details yet" is an answer this endpoint cannot give. It reads
+ * nothing about the citizen, so a failure really is a failure and is worth
+ * retrying into. The shelf is the same for everybody, which is what makes it a
+ * shelf.
+ */
+export function useGemCatalog() {
+  return useQuery({ queryKey: ['astrology', 'gem-catalog'], queryFn: () => astrologyApi.gemCatalog() });
+}
 /** One stone's studio. Keyed by id so switching stones refetches rather than
  *  showing the last one's settings under the new one's name. */
 export function useGemDesign(id: string) {
