@@ -50,9 +50,14 @@ interface Shelf {
      answer for a shelf whose shop does not exist yet: four of the five are in
      that state today and each needs an adapter of its own. */
   shop?: string;
+  /* THE LIST IS HANDED OVER, NOT LINKED TO (owner, 22 Aug). The grocery shelf
+     has no prices and no order endpoint, so it never became a shop — and
+     sending somebody to the Nutrition hub to fetch their own list is a trip
+     for a thing that fits in a file. This card downloads it. */
+  download?: boolean;
 }
 
-interface ShelfCard extends Shelf {
+export interface ShelfCard extends Shelf {
   /** the room's own label, from its hub's sidebar */
   name: string;
   /** the room's own line, from its hub's sidebar */
@@ -76,8 +81,9 @@ export const FITTED: Shelf[] = [
      of ingredients with no prices on it and no order endpoint behind it —
      ordering has been coming-soon in that hub for a while. A white storefront
      with no till would be a second view of a page that already works, and a
-     till on it would be inventing one. The card opens the list. */
-  { hub: 'nutrition', path: '/nutrition/grocery', reads: { name: 'Food Preference Profile', path: '/nutrition/preferences' } },
+     till on it would be inventing one. So it is not a door at all: the card
+     hands the list over as a file. */
+  { hub: 'nutrition', path: '/nutrition/grocery', reads: { name: 'Food Preference Profile', path: '/nutrition/preferences' }, download: true },
   { hub: 'astrology', path: '/astrology/gemstones', reads: { name: 'Astrology Profile', path: '/profile/astrology' }, shop: 'gemstones' },
   { hub: 'pets', path: '/pets/plan', reads: { name: 'Pet profiles', path: '/pets/profiles' } },
 ];

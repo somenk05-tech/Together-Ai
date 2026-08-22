@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { PageHeader } from '@/components/ui';
 import { SHOPS, fittedShelves } from '../shelves';
+import { GroceryDownloadCard } from '../store/GroceryDownloadCard';
 
 /**
  * ── THE PERSONALIZED STORE ──────────────────────────────────────────────────
@@ -36,20 +37,27 @@ export function PersonalizedStore() {
         sub="Made for you, out of what you have already told the city. Each shelf here reads one profile and answers with a shortlist instead of a catalogue."
       />
       <div className="ec-run">
-        {shelves.map((s) => (
+        {shelves.map((s) => (s.download ? (
+          /* ONE CARD IN THE RUN IS NOT A DOOR. The grocery list is the only
+             shelf here that cannot become a shop, so rather than sending
+             somebody to another hub to fetch their own list, the card hands it
+             over. Same material, same place in the grid, different verb. */
+          <GroceryDownloadCard key={s.path} shelf={s} />
+        ) : (
           <Link key={s.path} to={(s.shop && SHOPS[s.shop]?.shelf.path) ?? s.path} className="ec-card ec-go">
             <span className="ec-cat">{s.hubName}</span>
             <span className="ec-name">{s.name}</span>
             <span className="ec-line">{s.line}</span>
             {s.reads && <span className="ec-from">Reads your {s.reads.name}</span>}
           </Link>
-        ))}
+        )))}
       </div>
       <p className="ec-note">
         This district keeps no shelf of its own. Every product on it belongs to the hub
-        that verified it, and that hub is where the price is set and where the money
-        moves — which is why a card takes you into the room rather than opening a till
-        here.
+        that verified it, and that hub is where the price is set — which is why a card
+        opens that shop rather than a till of this district’s own. The grocery list is the
+        exception and the reason is the same one: it has no price on it and nothing to
+        charge for, so the card simply hands it to you.
       </p>
     </>
   );

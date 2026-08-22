@@ -2280,3 +2280,34 @@
   font-size: 12.5px;
 }
 .st-section-foot a { color: var(--muted); }
+
+/* The one card in the Personalized Store that hands something over rather than
+   opening somewhere. It wears the district's card and takes the store's black
+   button at the foot, so the run still reads as one grid — only the verb is
+   different. */
+.ec-dl {
+  margin-top: auto;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--ink);
+  border-radius: var(--r-full);
+  background: var(--ink);
+  color: var(--card);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+/* Nothing to hand over yet — so the control says what to do instead, in the
+   quiet register. A greyed-out button would say the same thing and hide the
+   answer. */
+.ec-dl-quiet {
+  border-color: var(--line);
+  background: var(--card);
+  color: var(--ink-soft);
+  font-weight: 600;
+}

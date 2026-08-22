@@ -188,10 +188,29 @@ describe('Three shelves have shops, and one deliberately does not', () => {
       .toEqual(['beauty', 'gemstones', 'supplements']);
   });
 
-  it('leaves the grocery list pointing at the room that works', () => {
-    // It is a list of ingredients with no prices and no order endpoint. A
-    // storefront with no till would be a second view of a working page.
-    expect(FITTED.find((s) => s.path === '/nutrition/grocery')?.shop).toBeUndefined();
+  /**
+   * AND THE GROCERY LIST IS HANDED OVER RATHER THAN LINKED TO (owner, 22 Aug):
+   * "add just the list separately as a download card instead of sending to the
+   * grocery hub". It is the one shelf that cannot become a shop — no prices, no
+   * order endpoint — so the card does the thing somebody on their way out
+   * actually wants: it gives them the list.
+   */
+  it('hands the grocery list over instead of opening a room', () => {
+    const shelf = FITTED.find((s) => s.path === '/nutrition/grocery');
+    expect({ shop: shelf?.shop, download: shelf?.download }).toEqual({ shop: undefined, download: true });
+    const store = code('features/ecommerce/pages/PersonalizedStore.tsx');
+    expect(store).toMatch(/s\.download \? \(/);
+    expect(store).toMatch(/<GroceryDownloadCard/);
+  });
+
+  it('writes the file from the plan the hub prints, and recomputes nothing', () => {
+    const card = code('features/ecommerce/store/GroceryDownloadCard.tsx');
+    expect(card).toMatch(/useGroceryPlan/);
+    // The quantities are the server's own labels, printed, never arithmetic
+    // done again here.
+    const list = code('features/ecommerce/store/groceryList.ts');
+    expect(list).toMatch(/item\.qtyLabel/);
+    expect(list).not.toMatch(/[*/]\s*\d|Math\./);
   });
 
   it('sells no gemstone from the shelf, because a stone has no price until it is designed', () => {
