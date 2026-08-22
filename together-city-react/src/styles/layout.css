@@ -1656,8 +1656,25 @@
   background: transparent;
   justify-content: center;
   min-height: 96px;
+  /* AND min-height WAS LOSING TO THE GRID, which is the whole reason this card
+     looked broken. `.routine-grid` is a grid with no `align-items`, so the
+     default is `stretch` and every cell in a row takes the height of the
+     tallest — a 500px product card beside it. The 96px above is a MINIMUM and
+     was being honoured perfectly; what shipped was a 500px dashed rectangle
+     with two lines of type floating in the middle of it, which reads as a
+     photograph that failed to load. Exactly the thing the comment above says
+     this rule exists to avoid, undone by a property in a different file.
+     `align-self` is per-item, so the bought cards keep their equal heights. */
+  align-self: start;
 }
 .routine-body { padding: 13px 15px 15px; display: flex; flex-direction: column; gap: 7px; flex: 1; }
+/* ── WE HEARD YOU, AND WE PICKED ONE ANYWAY ─────────────────────────────────
+   The line over a step whose role the citizen ticked on their profile. It is a
+   class rather than an inline style for the reason the wallet leaf is: the size
+   ceiling counts `style={{`, and one more of them for one paragraph put the
+   count over its line. Same three declarations, none of them raw — --fs-2 IS
+   11.5px, which is what this was. */
+.routine-owned { font-size: var(--fs-2); line-height: 1.5; margin: 0 0 2px; }
 .routine-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 /* TWO LINES' WORTH WHETHER IT USES THEM OR NOT. "Suganda 10% Niacinamide Face
    Serum" wraps and "Cetaphil Cleanser" does not, and a row of cards where one

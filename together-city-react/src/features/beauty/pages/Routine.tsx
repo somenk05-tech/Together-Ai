@@ -122,20 +122,26 @@ function Step({ s, pick, qty, alreadyIn, onAdd, onRemove }: {
   onAdd: () => void; onRemove: () => void;
 }) {
   /**
-   * ── A STEP YOU ALREADY OWN ────────────────────────────────────────────────
+   * ── A STEP YOU OWN, WITH NOTHING WE COULD PUT IN IT ───────────────────────
+   *
+   * `s.owned` used to mean "no product": the planner declined to buy a role the
+   * citizen had ticked, and this card held the position so the sequence did not
+   * silently lose a step. Owner, 22 Aug: the routine shows the best product for
+   * a person's skin at every step whatever they own, so `s.owned` now means
+   * "we heard you, and here is one anyway" and the card below renders it.
+   *
+   * THE TEST IS THE PRODUCT ID, NOT THE FLAG. What is left for this branch is
+   * the case that has no product to show — a role they own that nothing on the
+   * shelf matched, or that the budget could not reach. That is still a real
+   * position in the order, and dropping it is how the routine ended up with no
+   * cleansing step at all: a morning of Prep → Treat → Moisturise → Protect
+   * and an evening that never washed off the morning's SPF.
    *
    * It has a number and a name and nothing else, because there is nothing else
-   * true about it: we did not choose a product, so there is no photograph, no
-   * price, no reasoning and nothing to add to a bag. Rendering a card-shaped
-   * placeholder with grey boxes where those would be is the page pretending to
-   * know something.
-   *
-   * WHAT IT IS FOR is the sequence. The routine had no cleansing step in it at
-   * all — the citizen owns a cleanser, so the planner rightly declined to sell
-   * them another, and the order then read Prep → Treat → Moisturise → Protect
-   * in the morning and never washed anything off at night.
+   * true about it. A card-shaped placeholder with grey boxes where a
+   * photograph and a price would go is the page pretending to know something.
    */
-  if (s.owned) {
+  if (s.owned && !s.productId) {
     return (
       <li className="routine-card is-owned">
         <div className="routine-body">
@@ -182,6 +188,20 @@ function Step({ s, pick, qty, alreadyIn, onAdd, onRemove }: {
             </span>
           )}
         </div>
+
+        {/* WE HEARD YOU, AND WE PICKED ONE ANYWAY.
+            The citizen ticked this role on their profile. Until 22 Aug that
+            meant the step was not bought; it is bought now, at the best match
+            on the shelf, on the owner's call that the routine shows the best
+            products for a person's skin whatever they say they own.
+            This line is what stops that being a silent reversal — the form
+            asked a question, and the answer has to come back somewhere or the
+            form was a bin with a label on it. It sits above the price
+            deliberately: the sentence a person needs before they read a number
+            is the one explaining why there is a number at all. */}
+        {s.owned && s.ownedWhy && (
+          <p className="muted routine-owned">{s.ownedWhy}</p>
+        )}
 
         {/* A REPEATED BOTTLE IS NOT A SECOND PRICE. The evening cleanser is the
             morning cleanser, and printing ₹8,616 against it a second time is the
@@ -713,10 +733,13 @@ export function Routine() {
    */
   const everyStep = useMemo(() => {
     const byId = new Map<string, ProductRoutineStep>();
-    // AN OWNED STEP HAS NO PRODUCT ID, so it must never reach here: it would
-    // key the map on '', join to no pick, price at ₹0, and be handed to "add
-    // the whole routine" as something to buy.
-    for (const r of data?.routines ?? []) for (const s of r.steps) if (!s.owned && !byId.has(s.productId)) byId.set(s.productId, s);
+    // A STEP WITH NO PRODUCT ID MUST NEVER REACH HERE: it would key the map on
+    // '', join to no pick, price at ₹0, and be handed to "add the whole
+    // routine" as something to buy. That used to be the same test as `!s.owned`
+    // and stopped being so on 22 Aug — an owned step now carries a real product
+    // and belongs in the bag like any other. The id is what the rule was always
+    // about; the flag was standing in for it.
+    for (const r of data?.routines ?? []) for (const s of r.steps) if (s.productId && !byId.has(s.productId)) byId.set(s.productId, s);
 
     return [...byId.values()];
   }, [data]);
@@ -729,7 +752,7 @@ export function Routine() {
    */
   const firstSeen = useMemo(() => {
     const at = new Map<string, string>();
-    for (const r of data?.routines ?? []) for (const s of r.steps) if (!s.owned && !at.has(s.productId)) at.set(s.productId, r.title);
+    for (const r of data?.routines ?? []) for (const s of r.steps) if (s.productId && !at.has(s.productId)) at.set(s.productId, r.title);
     return at;
   }, [data]);
 
