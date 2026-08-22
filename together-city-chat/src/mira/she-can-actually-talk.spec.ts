@@ -197,7 +197,7 @@ describe('the subscription', () => {
 });
 
 describe('the persona is built from what is true', () => {
-  const base = { mode: 'city' as const, weeksKnown: 12, distress: false, canDo: ['read your balance', 'find restaurants'] };
+  const base = { mode: 'city' as const, weeksKnown: 12, distress: false, canDo: ['read your balance', 'find a recipe'] };
 
   it('carries their name, their clock, their chart — and the honesty about actions', () => {
     const p = persona({ ...base, name: 'Somen Kumar', clock: 'Friday 15 August, 1:05 am', signs: { sun: 'Leo', moon: 'Cancer', rising: 'Virgo' } });

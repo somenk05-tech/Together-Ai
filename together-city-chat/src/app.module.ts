@@ -41,7 +41,6 @@ import { LocalServicesModule } from './local-services/local-services.module';
 import { CommerceModule } from './commerce/commerce.module';
 import { EntertainmentModule } from './entertainment/entertainment.module';
 import { TravelModule } from './travel/travel.module';
-import { RestaurantsModule } from './restaurants/restaurants.module';
 import { MailModule } from './mail/mail.module';
 import { CityModule } from './city/city.module';
 import { MiraModule } from './mira/mira.module';
@@ -107,7 +106,6 @@ import { AvatarsModule } from './avatars/avatars.module';
     CommerceModule,
     EntertainmentModule,
     TravelModule,
-    RestaurantsModule,
     MailModule,
     CityModule,
     MiraModule,

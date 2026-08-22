@@ -16,8 +16,8 @@ const CAPS: Capability[] = [
         utterances: ["what's my balance", 'how much do I have', 'wallet balance'] }),
   cap({ id: 'financial GET transactions', path: 'financial/transactions', intent: 'List recent transactions',
         utterances: ['what did I spend', 'recent transactions', 'what have I paid for'] }),
-  cap({ id: 'restaurants GET discover', path: 'restaurants/discover', intent: 'Find restaurants that fit an occasion',
-        utterances: ['find somewhere for dinner', 'somewhere special', 'a quiet place to eat'] }),
+  cap({ id: 'nutrition GET targets', path: 'nutrition/targets', intent: 'Tell the citizen what to eat toward today',
+        utterances: ['what should I eat today', 'my targets', 'how much protein do I need'] }),
   cap({ id: 'drive GET', path: 'drive', intent: 'Find one of the citizen own documents',
         utterances: ["where's my insurance document", 'find my policy', 'my documents'] }),
 ];
@@ -80,8 +80,8 @@ describe('retrieval', () => {
     expect(r("where's my insurance document").capabilityId).toBe('drive GET');
   });
 
-  it('finds restaurants', () => {
-    expect(r('find somewhere for dinner').capabilityId).toBe('restaurants GET discover');
+  it('finds the food room', () => {
+    expect(r('what should I eat today').capabilityId).toBe('nutrition GET targets');
   });
 
   it('an R0 capability is never routed to ACT', () => {

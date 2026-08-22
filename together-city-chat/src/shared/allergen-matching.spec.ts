@@ -84,7 +84,6 @@ describe('how a declared allergy is matched', () => {
       ['beauty/beauty-engine.ts', 'topical-sensitivities'],
       ['beauty/beauty-analysis.ts', 'topical-sensitivities'],
       ['beauty/look-decode.ts', 'topical-sensitivities'],
-      ['restaurants/restaurants.service.ts', 'shared/allergens'],
       ['nutrition/nutrition.service.ts', 'shared/allergens'],
       ['nutrition/meal-composer.ts', 'shared/allergens'],
     ];

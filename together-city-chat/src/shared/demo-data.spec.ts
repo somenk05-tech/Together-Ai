@@ -39,7 +39,6 @@ const GATED_HUBS = [
   'jobs/jobs.service.ts',
   'medical/medical.service.ts',
   'nutrition/nutrition.service.ts',
-  'restaurants/restaurants.service.ts',
   'travel/travel.service.ts',
 ].sort();
 

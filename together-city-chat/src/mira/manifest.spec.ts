@@ -162,7 +162,6 @@ describe('the parse itself', () => {
     'notifications GET unread-count',
     'nutrition GET prep-alerts', 'nutrition GET targets',
     'profile GET completion', 'profile GET health-score', 'profile GET master',
-    'restaurants GET discover', 'restaurants GET orders', 'restaurants GET reservations',
     'thoughts GET',
     'travel GET trips',
   ];

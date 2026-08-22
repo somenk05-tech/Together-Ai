@@ -92,7 +92,7 @@ describe('service-desk enthusiasm', () => {
     'Here are three recommendations for dinner.',
     'Based on your query, Saturday is free.',
     "I'll go ahead and book that.",
-    'Searching the database for restaurants.',
+    'Searching the database for recipes.',
     'I sincerely apologise for the confusion.',
     'Sorry about the mix-up.',
   ];

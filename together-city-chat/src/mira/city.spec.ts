@@ -92,8 +92,8 @@ describe('she answers "where is…" without a search results page', () => {
 
 describe('personalisation is written as consequences, not as fields', () => {
   it('every change is something that happens, not something collected', () => {
-    // "we collect your allergens" is a privacy policy. "no restaurant that
-    // serves you peanuts will be shown to you again" is a reason. The second
+    // "we collect your allergens" is a privacy policy. "no meal plan we build
+    // will ever contain peanuts" is a reason. The second
     // is the only one that ever persuaded anybody.
     for (const p of PERSONALISATION) {
       expect(p.changes.length).toBeGreaterThan(0);
@@ -205,7 +205,6 @@ describe('one typo is still the same word', () => {
 describe('a plural is the same word too', () => {
   it('finds the room from the singular', () => {
     expect(findInCity('transaction')[0]?.path).toBe('/financial/transactions');
-    expect(findInCity('reservation')[0]?.path).toBe('/restaurants/reservations');
     expect(findInCity('recipe')[0]?.path).toBe('/nutrition/recipes');
   });
 });
@@ -237,25 +236,30 @@ describe('a weak lone hit is not an answer', () => {
 
 describe('two rooms never answer to the same name', () => {
   /**
-   * Beauty has an Orders and Restaurants has an Orders, so "orders" rendered
-   * as "Orders or Orders. Which one?" — and `resolveChoice` returns the first
+   * Beauty had an Orders and Restaurants had an Orders, so "orders" rendered as
+   * "Orders or Orders. Which one?" — and `resolveChoice` returns the first
    * label that matches, so whichever they answered they got Beauty and
    * `/restaurants/orders` was unreachable through that path, permanently.
+   *
+   * THAT PAIR IS GONE WITH THE RESTAURANTS HUB, and no two rooms in the city
+   * are called the same thing today. The guard in `qualify` stays, because the
+   * next hub to ship an Orders would reproduce the bug in one line — so what
+   * is asserted now is the PROPERTY rather than the one case that taught it:
+   * whatever she offers, no two options wear the same label. A test written
+   * around a specific clash is a test that deletes itself the day the clash is
+   * fixed, which is exactly what happened here.
    */
-  it('qualifies a duplicate label with its hub', () => {
-    const found = findInCity('orders');
-    expect(found.map((f) => f.label).sort()).toEqual(['Beauty orders', 'Restaurants orders']);
-    expect(new Set(found.map((f) => f.label)).size).toBe(found.length);
+  it('never offers two options that read the same', () => {
+    for (const probe of ['orders', 'explore', 'home', 'my', 'plan', 'profile', 'settings', 'list']) {
+      const labels = findInCity(probe).map((f) => f.label);
+      expect({ probe, unique: new Set(labels).size }).toEqual({ probe, unique: labels.length });
+    }
   });
 
-  it('and the answer she gets back can now separate them', () => {
-    const options = findInCity('orders').map(({ label, path }) => ({ label, path }));
-    expect(resolveChoice('restaurants orders', options)).toEqual(
-      options.find((o) => o.path === '/restaurants/orders'),
-    );
-    expect(resolveChoice('beauty orders', options)).toEqual(
-      options.find((o) => o.path === '/beauty/orders'),
-    );
+  it('and the answer she gets back picks the option it names', () => {
+    const options = findInCity('recipes').map(({ label, path }) => ({ label, path }));
+    expect(options.length).toBeGreaterThan(0);
+    expect(resolveChoice(options[0].label, options)).toEqual(options[0]);
   });
 
   it('leaves a label alone when nothing else is called that', () => {

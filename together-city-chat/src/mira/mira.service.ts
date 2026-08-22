@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { AiService } from '../ai/ai.service';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { FinancialService } from '../financial/financial.service';
-import { RestaurantsService } from '../restaurants/restaurants.service';
 import { DriveService } from '../drive/drive.service';
 import { AstrologyService } from '../astrology/astrology.service';
 import { TarotService } from '../astrology/tarot.service';
@@ -487,7 +486,6 @@ export class MiraService {
 
   constructor(
     private readonly financial: FinancialService,
-    private readonly restaurants: RestaurantsService,
     private readonly drive: DriveService,
     private readonly astrology: AstrologyService,
     private readonly tarot: TarotService,
@@ -1915,24 +1913,6 @@ export class MiraService {
       }
 
       // ── THINGS IN FLIGHT ───────────────────────────────────────────────
-      case 'restaurants GET discover': {
-        const l = asList(await this.restaurants.discover(userId, {} as never), 'places', 'items');
-        if (!l.length) return { text: 'Nothing that fits right now.', payload: [] };
-        const names = l.slice(0, 3).map((p) => str(pick(p, 'name'))).filter(Boolean) as string[];
-        return { text: `${l.length} that fit. ${list(names)}.`, payload: l.slice(0, 6) };
-      }
-      case 'restaurants GET orders': {
-        const o = asList(await this.restaurants.myOrders(userId));
-        if (!o.length) return { text: nothing('your orders', c), payload: [] };
-        const latest = str(pick(o[0], 'status')) ?? 'placed';
-        return { text: `${o.length}. The last one is ${latest}.`, payload: o.slice(0, 5), goto: { label: 'Orders', path: '/restaurants/orders' } };
-      }
-      case 'restaurants GET reservations': {
-        const r = asList(await this.restaurants.myReservations(userId));
-        if (!r.length) return { text: 'No table booked.', asides: ['Say the word and I will find one — once I am allowed to book.'], payload: [] };
-        const where = str(pick(r[0], 'restaurantName')) ?? str(pick(r[0], 'name'));
-        return { text: where ? `${r.length}. Next: ${where}.` : `${r.length} booked.`, payload: r.slice(0, 5) };
-      }
       case 'travel GET trips': {
         const t = asList(await this.travel.myTrips(userId));
         if (!t.length) return { text: 'No trips.', asides: ['Sedentary, but cheap.'], payload: [] };

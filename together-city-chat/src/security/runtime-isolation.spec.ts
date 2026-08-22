@@ -123,7 +123,7 @@ const PROBES: Probe[] = [
  */
 const UNPROBED = [
   // Public catalogues by design — everyone is meant to read every row.
-  'entertainment', 'lookups', 'restaurants', 'travel', 'city', 'realestate', 'jobs',
+  'entertainment', 'lookups', 'travel', 'city', 'realestate', 'jobs',
   // Need a second party, a match, or a connection before anything exists.
   'connections', 'conversations', 'messages', 'chat', 'dating', 'social', 'calls',
   // Need an uploaded file, an external key, or a paid provider to create.

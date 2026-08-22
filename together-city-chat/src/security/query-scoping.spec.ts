@@ -188,8 +188,6 @@ const REVIEWED_UNSCOPED = [
   // call or read a line earlier via findFirst({ id, userId }). Request-path, so
   // it counts against the size budget below — unlike the cron queries.
   'prescriptions/prescriptions.service.ts  Prescription.update x4',
-  'restaurants/restaurants.service.ts  DiningOrder.groupBy x1',
-  'restaurants/restaurants.service.ts  Reservation.groupBy x1',
   'social/social.service.ts  Like.count x1',
   'social/social.service.ts  Like.delete x1',
 ].sort();

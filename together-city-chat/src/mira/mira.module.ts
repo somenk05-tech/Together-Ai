@@ -3,7 +3,6 @@ import { DaybookModule } from '../daybook/daybook.module';
 import { DiscoveryModule } from '@nestjs/core';
 import { AiModule } from '../ai/ai.module';
 import { FinancialModule } from '../financial/financial.module';
-import { RestaurantsModule } from '../restaurants/restaurants.module';
 import { DriveModule } from '../drive/drive.module';
 import { AstrologyModule } from '../astrology/astrology.module';
 import { PrescriptionsModule } from '../prescriptions/prescriptions.module';
@@ -53,7 +52,6 @@ import { MiraLedger } from './ledger';
     // degrades with it — to the phase-1 sentences, never to an error.
     AiModule,
     FinancialModule,
-    RestaurantsModule,
     DriveModule,
     AstrologyModule,
     PrescriptionsModule,

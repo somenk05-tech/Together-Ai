@@ -129,13 +129,6 @@ export const CITY: Hub[] = [
       { path: '/realestate/explore', label: 'Explore', says: ['explore', 'places to live', 'flats for rent', 'find a flat'] },
       { path: '/realestate/mine', label: 'My listings', says: ['my property', 'what i listed'] },
     ] },
-  { key: 'restaurants', name: 'Restaurants', what: 'Somewhere to eat, chosen around what you can and cannot have.',
-    says: ['dinner', 'eat out', 'restaurant', 'restaurants'],
-    rooms: [
-      { path: '/restaurants/discover', label: 'Discover', says: ['find a restaurant', 'places to eat', 'somewhere to eat'] },
-      { path: '/restaurants/reservations', label: 'Reservations', says: ['book a table', 'my table', 'my reservations'] },
-      { path: '/restaurants/orders', label: 'Orders', says: ['restaurant orders', 'food orders', 'takeaway', 'delivery'] },
-    ] },
   { key: 'services', name: 'Local Services', what: 'The people who fix, teach and take care of things near you.',
     says: ['plumber', 'electrician', 'tutor', 'a service', 'repair', 'handyman'],
     rooms: [
@@ -224,8 +217,8 @@ export interface Personalisation {
  * The spine of the product, written as consequences.
  *
  * Every line is phrased as what CHANGES, never as what is collected — because
- * "we collect your allergens" is a privacy policy and "no restaurant that
- * serves you peanuts will be shown to you again" is a reason.
+ * "we collect your allergens" is a privacy policy and "no meal plan we build
+ * will ever contain peanuts" is a reason.
  */
 export const PERSONALISATION: Personalisation[] = [
   {
@@ -233,7 +226,6 @@ export const PERSONALISATION: Personalisation[] = [
     says: ['allergies', 'my allergies', 'allergy', 'food allergy', 'what i cant eat'],
     toldAt: '/nutrition/preferences',
     changes: [
-      'Restaurants stops showing you venues that serve it, and says how many it hid.',
       'Your weekly meal plan will never contain it.',
       'Beauty screens the same words against ingredients.',
     ],
@@ -276,7 +268,6 @@ export const PERSONALISATION: Personalisation[] = [
     toldAt: '/nutrition/preferences',
     changes: [
       'The weekly plan and the recipe library both narrow to it.',
-      'Restaurants leads with places that can actually feed you.',
     ],
     offer: 'Say how you eat and the whole food side of the city rearranges.',
   },
@@ -286,7 +277,6 @@ export const PERSONALISATION: Personalisation[] = [
     toldAt: '/profile/master',
     changes: [
       'Meal planning applies the clinical rules for them.',
-      'Restaurants stops recommending dishes that work against them.',
     ],
     consented: true,
     offer: 'If you tell me about a condition, the food side stops working against it. It stays where you put it.',

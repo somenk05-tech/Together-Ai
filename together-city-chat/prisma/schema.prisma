@@ -196,8 +196,6 @@ model User {
   serviceReviews       ServiceReview[]
   ticketBookings       TicketBooking[]
   tripBookings         TripBooking[]
-  diningOrders         DiningOrder[]
-  reservations         Reservation[]
   mailAccount          MailAccount?
   mailMessages         MailMessage[]
   mailProjects         MailProject[]
@@ -2019,63 +2017,8 @@ model TripBooking {
   @@index([userId, createdAt])
 }
 
-model Restaurant {
-  id             String  @id @default(uuid())
-  name           String
-  cuisine        String // north-indian | south-indian | italian | chinese | japanese | cafe | biryani | street
-  area           String
-  city           String
-  rating         Float
-  priceForTwoInr Int
-  tagline        String
-  openHours      String
-  vegFriendly    Boolean @default(true)
-  heroUrl        String
-  menuJson       String  @default("[]")
 
-  @@index([cuisine])
-}
 
-model DiningOrder {
-  id             String   @id @default(uuid())
-  userId         String
-  restaurantId   String
-  restaurantName String
-  area           String
-  mode           String // delivery | dinein
-  itemsJson      String   @default("[]")
-  subtotalInr    Int
-  packingInr     Int      @default(0)
-  taxInr         Int      @default(0)
-  totalInr       Int
-  code           String
-  status         String   @default("confirmed")
-  createdAt      DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, createdAt])
-}
-
-model Reservation {
-  id             String   @id @default(uuid())
-  userId         String
-  restaurantId   String
-  restaurantName String
-  area           String
-  date           String
-  time           String
-  partySize      Int
-  guestName      String
-  notes          String   @default("")
-  code           String
-  status         String   @default("confirmed")
-  createdAt      DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, createdAt])
-}
 
 model MailAccount {
   id        String   @id @default(uuid())

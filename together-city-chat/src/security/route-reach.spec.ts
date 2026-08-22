@@ -296,7 +296,7 @@ describeOrSkip('every route this API declares is called by the web app', () => {
       if (KNOWN_STRAY_FILES.has(f.slice(WEB_SRC.length + 1))) continue;
       const src = readFileSync(f, 'utf8');
       for (const q of ['`', "'", '"']) {
-        const re = new RegExp(q + '(\\/api\\/[^' + q + '\\n]*|\\/(auth|nutrition|medical|dating|jobs|social|financial|beauty|fitness|astrology|travel|restaurants|realestate|mail|drive|chat|messages|privacy|prescriptions|connections|notifications|users|calls|entertainment|city|lookups|ai)\\/[^' + q + '\\n]*)' + q, 'g');
+        const re = new RegExp(q + '(\\/api\\/[^' + q + '\\n]*|\\/(auth|nutrition|medical|dating|jobs|social|financial|beauty|fitness|astrology|travel|realestate|mail|drive|chat|messages|privacy|prescriptions|connections|notifications|users|calls|entertainment|city|lookups|ai)\\/[^' + q + '\\n]*)' + q, 'g');
         for (const m of src.matchAll(re)) strays.push(`${f.slice(WEB_SRC.length + 1)} :: ${m[1]}`);
       }
     }

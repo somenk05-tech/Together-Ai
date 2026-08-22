@@ -39,7 +39,6 @@ type Stub = (...a: never[]) => Promise<unknown>;
  */
 interface Hubs {
   wallet: Stub; transactions: Stub; budgets: Stub; spending: Stub;
-  discover: Stub; myOrders: Stub; myReservations: Stub;
   list: Stub; usage: Stub;
   daily: Stub; gems: Stub; remedies: Stub; dailyCard: Stub;
   today: Stub; prepAlerts: Stub; targets: Stub; healthSummary: Stub;
@@ -53,9 +52,6 @@ const DEFAULTS: Hubs = {
   transactions: () => Promise.resolve([]),
   budgets: () => Promise.resolve([]),
   spending: () => Promise.resolve({ thisMonthInr: 0 }),
-  discover: () => Promise.resolve({ places: [] }),
-  myOrders: () => Promise.resolve([]),
-  myReservations: () => Promise.resolve([]),
   list: () => Promise.resolve({ files: [] }),
   usage: () => Promise.resolve({ usedPct: 12 }),
   daily: () => Promise.resolve({ needsProfile: false, pending: false, date: '2026-08-14', title: 'A steady one', body: 'A steady day, mostly. Keep the afternoon light.' }),
@@ -109,33 +105,32 @@ const svc = (over: Partial<Hubs> = {}, account: unknown = NOBODY, ai: unknown = 
   const h = { ...DEFAULTS, ...over };
   return new MiraService(
     as<0>({ wallet: h.wallet, transactions: h.transactions, budgets: h.budgets, spending: h.spending }),
-    as<1>({ discover: h.discover, myOrders: h.myOrders, myReservations: h.myReservations }),
-    as<2>({ list: h.list, usage: h.usage }),
-    as<3>({ daily: h.daily, gems: h.gems, remedies: h.remedies }),
-    as<4>({ dailyCard: h.dailyCard }),
-    as<5>({ today: h.today }),
-    as<6>({ prepAlerts: h.prepAlerts, targets: h.targets }),
-    as<7>({ healthSummary: h.healthSummary }),
-    as<8>({ account: h.account }),
-    as<9>({ unreadCount: h.unreadCount }),
-    as<10>({ get: h.get, healthScore: h.healthScore, completion: h.completion }),
-    as<11>({ plan: h.plan, log: h.log }),
-    as<12>({ routine: h.routine }),
-    as<13>({ watchlist: h.watchlist }),
-    as<14>({ myTrips: h.myTrips }),
-    as<15>({ list: h.thoughts }),
+    as<1>({ list: h.list, usage: h.usage }),
+    as<2>({ daily: h.daily, gems: h.gems, remedies: h.remedies }),
+    as<3>({ dailyCard: h.dailyCard }),
+    as<4>({ today: h.today }),
+    as<5>({ prepAlerts: h.prepAlerts, targets: h.targets }),
+    as<6>({ healthSummary: h.healthSummary }),
+    as<7>({ account: h.account }),
+    as<8>({ unreadCount: h.unreadCount }),
+    as<9>({ get: h.get, healthScore: h.healthScore, completion: h.completion }),
+    as<10>({ plan: h.plan, log: h.log }),
+    as<11>({ routine: h.routine }),
+    as<12>({ watchlist: h.watchlist }),
+    as<13>({ myTrips: h.myTrips }),
+    as<14>({ list: h.thoughts }),
     // A stand-in registry. In production this is filled by Nest's DiscoveryService
     // reading @Mira() metadata off the live handlers.
-    as<16>({ upTo: () => CAPS, byId: (id: string) => CAPS.find((c) => c.id === id), all: () => CAPS }),
-    as<17>({ record: (e: Record<string, unknown>) => { recorded.push(e); } }),
+    as<15>({ upTo: () => CAPS, byId: (id: string) => CAPS.find((c) => c.id === id), all: () => CAPS }),
+    as<16>({ record: (e: Record<string, unknown>) => { recorded.push(e); } }),
     // The model, OFF. Every test in this file describes the deterministic
     // Mira, and she must be exactly as she was when the model is not
     // configured — that equivalence is itself the thing under test.
-    as<18>(ai),
+    as<17>(ai),
     // Prisma. See NOBODY: the governor reads the account on every turn now.
-    as<19>(account),
+    as<18>(account),
     // The daybook, likewise: only readDay() reads it, and readDay is not ask().
-    as<20>({}),
+    as<19>({}),
   );
 };
 
