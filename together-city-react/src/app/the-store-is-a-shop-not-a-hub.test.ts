@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { HUBS } from '@/config/hubs';
-import { FITTED, SHOPS } from '@/features/ecommerce/shelves';
+import { AISLES, FITTED, OPEN, SHOPS } from '@/features/ecommerce/shelves';
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
@@ -227,5 +227,64 @@ describe('Three shelves have shops, and one deliberately does not', () => {
     // And shows nothing at all when the shelf is not personalised — a general
     // list presented as yours is worse than no list.
     expect(fit).toMatch(/if \(!data\?\.personalised\) return \[\]/);
+  });
+});
+
+/**
+ * ── THE OPEN MARKET IS A SHOP, AND IT SHOWS EVERYTHING ──────────────────────
+ *
+ * Owner, 22 Aug: "create a separate store for open market where each category
+ * has all the products for the user to see." Same shell as the shortlist shops,
+ * opposite selection — and one thing that has to be got right, which is the
+ * only reason these assertions exist.
+ *
+ * A VERDICT MUST NOT BECOME AN ABSENCE. `store.api.ts` is emphatic that a
+ * missing `yours` badge means either "no opinion" or "we could not reach your
+ * health data" and the two must never look alike. On a shortlist that cannot
+ * bite — everything shown was chosen. On an open shelf it can: a product the
+ * engine refused for this citizen, on a plain tile with an Add button, reads as
+ * approval.
+ */
+describe('The Open Market aisles show the whole shelf', () => {
+  const market = code('features/ecommerce/store/useMarketShops.ts');
+  const front = code('features/ecommerce/store/StoreFront.tsx');
+
+  it('gives three categories a storefront, and routes each', () => {
+    const router = code('app/router.tsx');
+    for (const key of ['skin-hair', 'supplements', 'pets']) {
+      expect({ key, shelf: AISLES[key]?.shelf.path }).toEqual({ key, shelf: `/ecommerce/market/${key}` });
+      expect(router).toContain(`path: '/ecommerce/market/${key}'`);
+    }
+    expect(OPEN.filter((s) => s.shop).map((s) => s.shop).sort()).toEqual(['pets', 'skin-hair', 'supplements']);
+  });
+
+  it('carries the engine verdict onto every supplement tile that has one', () => {
+    expect(market).toMatch(/'not-recommended': 'Not for you'/);
+    expect(market).toMatch(/tier: p\.yours \? VERDICT\[p\.yours\.bucket\] : undefined/);
+    // And prescription rows are not on a self-service shelf at all.
+    expect(market).toMatch(/!p\.rx/);
+  });
+
+  it('gives the pet aisle no till, because there is none behind it', () => {
+    // The pet cart lives in the browser with no order endpoint. A shop that
+    // takes an order it cannot place is worse than a shelf that says so.
+    expect(market).toMatch(/design: \{ label: 'Open in Pet Care'/);
+    expect(market).toMatch(/blocked: 'This aisle is for looking/);
+  });
+
+  it('groups a long shelf, and never invents the grouping', () => {
+    // The chips filter on a field of the row — the beauty sheet's own group,
+    // the fitness store's own aisles, the pet catalogue's own category.
+    expect(front).toMatch(/shop\.groups && shop\.groups\.length > 1/);
+    expect(market).toMatch(/group: p\.group/);
+    expect(market).toMatch(/aisleOf\.get\(p\.supplement\)/);
+  });
+
+  it('sends the back button where the shop was opened from', () => {
+    // It was hard-coded to the Personalized Store while that was the only
+    // door. These are opened from the other one.
+    expect(market).toMatch(/back: \{ path: '\/ecommerce\/market', label: 'Open Market' \}/);
+    expect(code('features/ecommerce/store/useBeautyShop.ts'))
+      .toMatch(/back: \{ path: '\/ecommerce\/store', label: 'Personalized Store' \}/);
   });
 });

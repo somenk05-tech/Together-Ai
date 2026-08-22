@@ -170,6 +170,12 @@ const SupplementsShop = lazy(() => import('@/features/ecommerce/pages/Supplement
 const SupplementsShopBag = lazy(() => import('@/features/ecommerce/pages/SupplementsShop').then((m) => ({ default: m.SupplementsShopBag })));
 const GemstonesShop = lazy(() => import('@/features/ecommerce/pages/GemstonesShop').then((m) => ({ default: m.GemstonesShop })));
 const GemstonesShopBag = lazy(() => import('@/features/ecommerce/pages/GemstonesShop').then((m) => ({ default: m.GemstonesShopBag })));
+/* The Open Market's aisles — the same storefront, the whole shelf. */
+const SkinHairMarket = lazy(() => import('@/features/ecommerce/pages/MarketAisles').then((m) => ({ default: m.SkinHairMarket })));
+const SkinHairMarketBag = lazy(() => import('@/features/ecommerce/pages/MarketAisles').then((m) => ({ default: m.SkinHairMarketBag })));
+const SupplementsMarket = lazy(() => import('@/features/ecommerce/pages/MarketAisles').then((m) => ({ default: m.SupplementsMarket })));
+const SupplementsMarketBag = lazy(() => import('@/features/ecommerce/pages/MarketAisles').then((m) => ({ default: m.SupplementsMarketBag })));
+const PetMarket = lazy(() => import('@/features/ecommerce/pages/MarketAisles').then((m) => ({ default: m.PetMarket })));
 
 // Every lazy page is wrapped so a stale code-split chunk (after a new deploy)
 // auto-recovers instead of leaving a blank page.
@@ -213,6 +219,11 @@ const ROUTE_BLOCKS: RouteObject[] = [
       { path: '/ecommerce/shop/supplements/bag', element: <RequireAuth>{wrap(<SupplementsShopBag />)}</RequireAuth> },
       { path: '/ecommerce/shop/gemstones', element: <RequireAuth>{wrap(<GemstonesShop />)}</RequireAuth> },
       { path: '/ecommerce/shop/gemstones/bag', element: <RequireAuth>{wrap(<GemstonesShopBag />)}</RequireAuth> },
+      { path: '/ecommerce/market/skin-hair', element: <RequireAuth>{wrap(<SkinHairMarket />)}</RequireAuth> },
+      { path: '/ecommerce/market/skin-hair/bag', element: <RequireAuth>{wrap(<SkinHairMarketBag />)}</RequireAuth> },
+      { path: '/ecommerce/market/supplements', element: <RequireAuth>{wrap(<SupplementsMarket />)}</RequireAuth> },
+      { path: '/ecommerce/market/supplements/bag', element: <RequireAuth>{wrap(<SupplementsMarketBag />)}</RequireAuth> },
+      { path: '/ecommerce/market/pets', element: <RequireAuth>{wrap(<PetMarket />)}</RequireAuth> },
       // THIS ONE EARNS ITS LANDING, and the distinction is worth stating
       // because the 5 Aug design audit argued against exactly this pattern.
       //

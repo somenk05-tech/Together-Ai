@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { PageHeader } from '@/components/ui';
-import { openShelves } from '../shelves';
+import { AISLES, openShelves } from '../shelves';
 
 /**
  * ── THE OPEN MARKET ─────────────────────────────────────────────────────────
@@ -24,7 +24,12 @@ export function OpenMarket() {
       />
       <div className="ec-run">
         {shelves.map((s) => (
-          <Link key={s.path} to={s.path} className="ec-card ec-go">
+          /* THE CARD OPENS THE AISLE WHERE THERE IS ONE (owner, 22 Aug) —
+             the whole shelf as a storefront rather than the hub's own room.
+             Gemstones and Daily offers have none and still open their room:
+             a stone is read off a chart rather than picked off a shelf, and
+             an offer is not a product. */
+          <Link key={s.path} to={(s.shop && AISLES[s.shop]?.shelf.path) ?? s.path} className="ec-card ec-go">
             <span className="ec-cat">{s.category}</span>
             <span className="ec-name">{s.name}</span>
             <span className="ec-line">{s.line}</span>

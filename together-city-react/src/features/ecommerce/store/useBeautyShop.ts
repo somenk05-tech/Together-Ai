@@ -83,6 +83,7 @@ export function useBeautyShop(): Shop {
   return {
     key: 'beauty',
     screens: { shelf: SHOPS.beauty.shelf.path, bag: SHOPS.beauty.bag.path },
+    back: { path: '/ecommerce/store', label: 'Personalized Store' },
     title: 'Your Routine',
     line: 'The products your routine chose, and only those. Prices are the shelf’s own — nothing is charged until you pay.',
     from: { label: 'Skin & Hair Profile', path: '/beauty/profile' },

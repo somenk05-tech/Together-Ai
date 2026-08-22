@@ -90,9 +90,9 @@ export const FITTED: Shelf[] = [
 
 /** Shelves you walk yourself, filed under the aisle they belong to. */
 export const OPEN: Shelf[] = [
-  { hub: 'beauty', path: '/beauty/market', category: 'Skin & hair' },
-  { hub: 'fitness', path: '/fitness/store', category: 'Supplements' },
-  { hub: 'pets', path: '/pets/shop', category: 'Pets' },
+  { hub: 'beauty', path: '/beauty/market', category: 'Skin & hair', shop: 'skin-hair' },
+  { hub: 'fitness', path: '/fitness/store', category: 'Supplements', shop: 'supplements' },
+  { hub: 'pets', path: '/pets/shop', category: 'Pets', shop: 'pets' },
   /* The gemstone bench is on both floors, and it is the only shelf that is.
      It is a marketplace you can browse by stone, and it is also the one place
      in the city where a stone is PRESCRIBED from a chart — so leaving it off
@@ -131,6 +131,43 @@ export const SHOPS: Record<string, ShopScreens> = {
   gemstones: {
     shelf: { path: '/ecommerce/shop/gemstones' },
     bag: { path: '/ecommerce/shop/gemstones/bag' },
+  },
+};
+
+/**
+ * ── THE OPEN MARKET'S AISLES ────────────────────────────────────────────────
+ *
+ * Owner, 22 Aug: "create a separate store for open market where each category
+ * has all the products for the user to see." So the market's cards stop being
+ * links into other hubs and become storefronts of their own — the same shell as
+ * the Personalized Store's shops, showing the WHOLE shelf instead of a
+ * shortlist.
+ *
+ * Literal paths for the same reason `SHOPS` has them: both screens are reached
+ * through data, and `nav-audit` reads `path:` literals to decide whether a
+ * declared route has any way in.
+ *
+ * TWO OF THE FIVE CARDS ARE NOT HERE, and each for a reason the card itself
+ * carries. Gemstones has no catalogue to open: a stone is read off a chart, so
+ * "all the gemstones" is the same list as "your gemstones" and that shop
+ * already exists. Daily offers is not products at all — it is what local
+ * businesses have on today, and it lives in the Local Services hub.
+ */
+export const AISLES: Record<string, ShopScreens> = {
+  'skin-hair': {
+    shelf: { path: '/ecommerce/market/skin-hair' },
+    bag: { path: '/ecommerce/market/skin-hair/bag' },
+  },
+  supplements: {
+    shelf: { path: '/ecommerce/market/supplements' },
+    bag: { path: '/ecommerce/market/supplements/bag' },
+  },
+  /* The pet aisle has no bag screen: its cart lives in the browser with no till
+     behind it, so both entries point at the shelf and the storefront draws no
+     Bag link at all. */
+  pets: {
+    shelf: { path: '/ecommerce/market/pets' },
+    bag: { path: '/ecommerce/market/pets' },
   },
 };
 

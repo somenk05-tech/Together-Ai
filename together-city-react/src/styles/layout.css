@@ -2311,3 +2311,46 @@
   color: var(--ink-soft);
   font-weight: 600;
 }
+
+/* ── THE AISLES OF ONE SHELF ─────────────────────────────────────────────────
+   The Open Market's storefronts show everything, and everything is 184 rows on
+   the pet catalogue. These chips are what turns that from a catalogue somebody
+   scrolls past into a shop they browse. The shortlist shops never draw them —
+   five products do not need a filter, and the storefront hides the row when a
+   shelf has one group or none. */
+.st-aisles {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 4px 24px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.st-aisle {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  background: var(--card);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.st-aisle.on {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--card);
+}
+.st-aisle-n {
+  font-size: 11.5px;
+  font-weight: 700;
+  opacity: .6;
+}
+@media (max-width: 899px) {
+  .st-aisles { padding: 4px 18px 0; gap: 6px; }
+}

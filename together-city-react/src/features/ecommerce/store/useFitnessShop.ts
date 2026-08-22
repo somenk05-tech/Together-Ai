@@ -78,6 +78,7 @@ export function useFitnessShop(): Shop {
   return {
     key: 'supplements',
     screens: { shelf: SHOPS.supplements.shelf.path, bag: SHOPS.supplements.bag.path },
+    back: { path: '/ecommerce/store', label: 'Personalized Store' },
     title: 'Supplements',
     line: 'The kit the engine matched to your goal — priority and consider, and nothing below them. Every price is the shelf’s own.',
     from: { label: 'Training Profile', path: '/fitness/profile' },

@@ -71,6 +71,7 @@ export function useGemShop(): Shop {
   return {
     key: 'gemstones',
     screens: { shelf: SHOPS.gemstones.shelf.path, bag: SHOPS.gemstones.bag.path },
+    back: { path: '/ecommerce/store', label: 'Personalized Store' },
     title: 'Gemstones',
     line: 'The stones your chart asks for, in the order it asks for them. Each one is cut and set to order, so the price is settled in the studio rather than on the shelf.',
     from: { label: 'Astrology Profile', path: '/profile/astrology' },

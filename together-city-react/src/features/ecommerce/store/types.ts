@@ -50,6 +50,8 @@ export interface ShopItem {
    * something costs.
    */
   design?: { label: string; path: string };
+  /** Which aisle of the shelf this stands in — the chips filter on it. */
+  group?: string;
 }
 
 export interface ShopBagLine { id: string; name: string; priceInr: number; qty: number; image?: string; imageAlt?: string; category: string }
@@ -68,6 +70,13 @@ export interface Shop {
   key: string;
   /** This shop's own two screens, from the one map that holds them. */
   screens: { shelf: string; bag: string };
+  /**
+   * THE ROOM THIS SHOP WAS OPENED FROM. It was hard-coded to the Personalized
+   * Store while that was the only door; the Open Market's aisles are opened
+   * from the other one, and a back button that lies about where it goes is
+   * worse than none.
+   */
+  back: { path: string; label: string };
   title: string;
   line: string;
   /** The profile this shelf reads, and where it is filled in. */
@@ -77,6 +86,18 @@ export interface Shop {
   hubPath: string;
 
   items: ShopItem[];
+  /**
+   * THE AISLES OF ONE SHELF, when a shelf is big enough to need them. The
+   * shortlist shops have none — five products do not need a filter. The open
+   * market's do: the pet catalogue alone is 184 rows, and a wall of 184 tiles
+   * is a catalogue somebody scrolls past rather than a shop they browse.
+   * Absent, or one group, and the chips are not drawn at all.
+   */
+  groups?: { key: string; label: string; count: number }[];
+  /** What the count under the masthead calls them. A shortlist is
+   *  "shortlisted"; an open shelf is not, and calling it that would be the
+   *  shop quietly claiming it had chosen. */
+  countLabel?: string;
   isLoading: boolean;
   isError: boolean;
   /** Why the shelf is empty, when it is — not "no results" but the reason. */

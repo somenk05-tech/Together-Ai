@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EmptyState, Spinner } from '@/components/ui';
 import { ProductShot } from '@/features/beauty/components/ProductShot';
@@ -47,10 +48,15 @@ export function StoreBar({ shop, back, backLabel, name }: { shop: Shop; back: st
 }
 
 export function StoreFront({ shop }: { shop: Shop }) {
+  /* ALL, THEN THE AISLES. The default is everything because that is what the
+     Open Market promises on its own card — "every category, nothing ranked for
+     you" — and a shop that opens pre-filtered has quietly ranked something. */
+  const [group, setGroup] = useState<string>('all');
+
   if (shop.isLoading) {
     return (
       <div className="st-page">
-        <StoreBar shop={shop} back="/ecommerce/store" backLabel="Personalized Store" />
+        <StoreBar shop={shop} back={shop.back.path} backLabel={shop.back.label} />
         <div className="st-wait"><Spinner label="Opening the store…" /></div>
       </div>
     );
@@ -59,7 +65,7 @@ export function StoreFront({ shop }: { shop: Shop }) {
   if (shop.isError) {
     return (
       <div className="st-page">
-        <StoreBar shop={shop} back="/ecommerce/store" backLabel="Personalized Store" />
+        <StoreBar shop={shop} back={shop.back.path} backLabel={shop.back.label} />
         <div className="st-wait">
           <EmptyState
             title="Couldn’t open this shelf"
@@ -73,7 +79,7 @@ export function StoreFront({ shop }: { shop: Shop }) {
   const bag = shop.bag;
   return (
     <div className="st-page">
-      <StoreBar shop={shop} back="/ecommerce/store" backLabel="Personalized Store" />
+      <StoreBar shop={shop} back={shop.back.path} backLabel={shop.back.label} />
 
       <header className="st-head">
         <div className="st-eyebrow">{shop.hubName}</div>
@@ -85,9 +91,26 @@ export function StoreFront({ shop }: { shop: Shop }) {
           </p>
         )}
         {shop.items.length > 0 && (
-          <p className="st-count">{shop.items.length} item{shop.items.length === 1 ? '' : 's'} shortlisted</p>
+          <p className="st-count">
+            {shop.items.length} item{shop.items.length === 1 ? '' : 's'} {shop.countLabel ?? 'shortlisted'}
+          </p>
         )}
       </header>
+
+      {shop.groups && shop.groups.length > 1 && (
+        <div className="st-aisles">
+          <button type="button" className={`st-aisle${group === 'all' ? ' on' : ''}`}
+            aria-pressed={group === 'all'} onClick={() => setGroup('all')}>
+            All <span className="st-aisle-n">{shop.items.length}</span>
+          </button>
+          {shop.groups.map((g) => (
+            <button key={g.key} type="button" className={`st-aisle${group === g.key ? ' on' : ''}`}
+              aria-pressed={group === g.key} onClick={() => setGroup(g.key)}>
+              {g.label} <span className="st-aisle-n">{g.count}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {shop.items.length === 0 ? (
         <div className="st-wait">
@@ -95,7 +118,7 @@ export function StoreFront({ shop }: { shop: Shop }) {
         </div>
       ) : (
         <div className="st-grid">
-          {shop.items.map((item) => {
+          {shop.items.filter((i) => group === 'all' || i.group === group).map((item) => {
             const qty = shop.qtyOf(item.id);
             return (
               <article key={item.id} className="st-card">
