@@ -95,18 +95,18 @@ describe('she can actually talk', () => {
 });
 
 describe('the friend tab and the city tab', () => {
-  it('"when will i find love" gets the friend, in friend mode', async () => {
+  it('"when will i find love" gets the friend', async () => {
     // The second question ever asked of her, and the assistant deflected it.
     // ADVISE routes to the model in friend mode — before foretold, after the
     // crisis hand-off.
     const svc = bare({ ai: { enabled: true, converse: async () => 'The chart says patience; I say your standards are finally working.' } });
-    const t = await svc.ask('when will i find love', ctx({ mode: 'friend' }));
+    const t = await svc.ask('when will i find love', ctx());
     expect(t.text).toContain('your standards');
   });
 
   it('with the model off, friend mode falls back to the assistant she was', async () => {
     const svc = bare({ ai: { enabled: false, converse: async () => { throw new Error('must not be called'); } } });
-    const t = await svc.ask('when will i find love', ctx({ mode: 'friend' }));
+    const t = await svc.ask('when will i find love', ctx());
     // foretold() answers deterministically — the phase-1 line, not a crash.
     expect(typeof t.text).toBe('string');
     expect(t.text.length).toBeGreaterThan(0);
@@ -114,7 +114,7 @@ describe('the friend tab and the city tab', () => {
 
   it('a tab changes her register, never the crisis hand-off', async () => {
     const svc = bare({ ai: { enabled: true, converse: async () => { throw new Error('the hand-off outranks the model'); } } });
-    const t = await svc.ask('my horoscope for today — he hits me and i am scared', ctx({ mode: 'friend' }));
+    const t = await svc.ask('my horoscope for today — he hits me and i am scared', ctx());
     expect(typeof t.text).toBe('string');
   });
 });
@@ -197,7 +197,7 @@ describe('the subscription', () => {
 });
 
 describe('the persona is built from what is true', () => {
-  const base = { mode: 'city' as const, weeksKnown: 12, distress: false, canDo: ['read your balance', 'find a recipe'] };
+  const base = { weeksKnown: 12, distress: false, canDo: ['read your balance', 'find a recipe'] };
 
   it('carries their name, their clock, their chart — and the honesty about actions', () => {
     const p = persona({ ...base, name: 'Somen Kumar', clock: 'Friday 15 August, 1:05 am', signs: { sun: 'Leo', moon: 'Cancer', rising: 'Virgo' } });
@@ -229,20 +229,31 @@ describe('the persona is built from what is true', () => {
     expect(p).toContain('the universe is telling you');
   });
 
-  it('the friend tab knows the numbers and refuses to invent a palm', () => {
-    const p = persona({ ...base, mode: 'friend', lifePath: 7, signs: { sun: 'Leo' } });
-    expect(p).toContain('FRIEND TAB');
+  /**
+   * ── ONE PERSONA, GATED ON DATA AND NOT ON A REGISTER ──────────────────
+   *
+   * These two blocks used to be `if (mode === 'friend')` and
+   * `if (mode === 'city')`, so the same citizen got a measurably different
+   * person depending on which chip they had pressed — and then, once the chips
+   * were gone, on a register the router inferred for them. Whichever half they
+   * landed in, the other half was withheld: the friend never knew what page
+   * they were standing on, and the assistant never knew their chart.
+   *
+   * Both are present now whenever their DATA is, which is the only condition
+   * that was ever a real one.
+   */
+  it('knows the numbers and refuses to invent a palm', () => {
+    const p = persona({ ...base, lifePath: 7, signs: { sun: 'Leo' } });
     expect(p).toContain('life path is 7');
     expect(p).toContain('Never invent what you have not been shown');
-    // The city-tab page paragraph does not leak into the friend tab.
+    // No page was passed, so no page paragraph — absence of DATA, not of a tab.
     expect(p).not.toContain('standing on');
   });
 
-  it('the city tab carries the page they came from, and its honesty', () => {
+  it('carries the page they came from, and its honesty', () => {
     const p = persona({ ...base, page: '/nutrition/plan' });
     expect(p).toContain('/nutrition/plan');
     expect(p).toContain('cannot fill forms for them yet');
-    expect(p).not.toContain('FRIEND TAB');
   });
 
   it('the life path reduces like every school of numerology', () => {
@@ -268,31 +279,28 @@ describe('the persona is built from what is true', () => {
  * one, the model lane was one, and the low-confidence capability path added in
  * this landing is a third.
  */
-describe('the crisis hand-off is wired, in both rooms, with the model on and off', () => {
+describe('the crisis hand-off is wired, with the model on and off', () => {
   const CRISIS = ['i want to kill myself', 'i want to die', "i don't want to be here"];
-  const ROOMS = ['friend', 'city'] as const;
 
   for (const ask of CRISIS) {
-    for (const mode of ROOMS) {
-      for (const model of [true, false]) {
-        it(`${JSON.stringify(ask)} · ${mode} tab · model ${model ? 'on' : 'off'}`, async () => {
-          const svc = bare({
-            ai: {
-              enabled: model,
-              // A crisis is answered by code that cannot have a bad day. If the
-              // model is reached at all on this turn, this test has failed.
-              converse: async () => { throw new Error('the hand-off outranks the model'); },
-            },
-          });
-          const t = await svc.ask(ask, ctx({ mode }));
-          expect(t.text).toContain('14416');
-          expect(t.text).toContain('112');
-          expect(t.levity).toBe(0);
-          // No navigation offered, and nobody billed for being at the edge.
-          expect(t.goto).toBeUndefined();
-          expect(svc.__upserts?.some((u: any) => u.update?.chatUsed)).toBeFalsy();
+    for (const model of [true, false]) {
+      it(`${JSON.stringify(ask)} · model ${model ? 'on' : 'off'}`, async () => {
+        const svc = bare({
+          ai: {
+            enabled: model,
+            // A crisis is answered by code that cannot have a bad day. If the
+            // model is reached at all on this turn, this test has failed.
+            converse: async () => { throw new Error('the hand-off outranks the model'); },
+          },
         });
-      }
+        const t = await svc.ask(ask, ctx());
+        expect(t.text).toContain('14416');
+        expect(t.text).toContain('112');
+        expect(t.levity).toBe(0);
+        // No navigation offered, and nobody billed for being at the edge.
+        expect(t.goto).toBeUndefined();
+        expect(svc.__upserts?.some((u: any) => u.update?.chatUsed)).toBeFalsy();
+      });
     }
   }
 });
@@ -310,10 +318,10 @@ describe('the crisis hand-off is wired, in both rooms, with the model on and off
  * and a guess answered as data is how "tell me a meal i can eat today" came
  * back as a soaking deadline. Below 0.8 she talks; at or above it she answers.
  *
- * `mode` is still passed by these cases and still ignored by the service —
- * which is the property worth pinning, because an old client keeps sending it.
+ * There is no register left to pass either: `mode` is off `AskContext`
+ * entirely, so this file cannot claim one even by mistake.
  */
-describe('a middling match is a conversation, whatever the client claims', () => {
+describe('a middling match is a conversation', () => {
   const CAP = {
     id: 'demo GET plan', controller: 'demo.controller.ts', method: 'GET', path: 'demo/plan',
     intent: 'read your demo plan', risk: 'R0' as const, utterances: ['my fitness plan'],
@@ -325,23 +333,18 @@ describe('a middling match is a conversation, whatever the client claims', () =>
   });
   const MIDDLING = 'my fitness has been a plan for later';
 
-  it('talks rather than reading out data, and the claimed mode changes nothing', async () => {
-    for (const mode of ['city', 'friend', undefined] as const) {
-      const t = await withCap().ask(MIDDLING, ctx(mode ? { mode } : {}));
-      expect(t.confidence).toBeGreaterThanOrEqual(0.55);
-      expect(t.confidence).toBeLessThan(0.8);
-      expect(t.text).toContain('to carry this week');
-    }
+  it('talks rather than reading out data', async () => {
+    const t = await withCap().ask(MIDDLING, ctx());
+    expect(t.confidence).toBeGreaterThanOrEqual(0.55);
+    expect(t.confidence).toBeLessThan(0.8);
+    expect(t.text).toContain('to carry this week');
   });
 
   /** With no key she is the phase-1 assistant — degradation, not an error.
    *  That equivalence is what keeps every older spec here true. */
   it('and with the model off she falls back to the capability', async () => {
-    for (const mode of ['city', 'friend'] as const) {
-      const t = await withCap({ ai: { enabled: false, converse: async () => null } })
-        .ask(MIDDLING, ctx({ mode }));
-      expect(t.capabilityId).toBe('demo GET plan');
-    }
+    const t = await withCap({ ai: { enabled: false, converse: async () => null } }).ask(MIDDLING, ctx());
+    expect(t.capabilityId).toBe('demo GET plan');
   });
 });
 
@@ -398,7 +401,7 @@ describe('and the persona is built from the account, not the request', () => {
   it('renders every capability in the registry, not the first two dozen', () => {
     const canDo = manifest().map((c) => c.intent.toLowerCase());
     expect(canDo.length).toBeGreaterThan(24);
-    const p = persona({ mode: 'city', weeksKnown: 12, distress: false, canDo });
+    const p = persona({ weeksKnown: 12, distress: false, canDo });
     for (const intent of canDo) expect(p).toContain(intent);
   });
 

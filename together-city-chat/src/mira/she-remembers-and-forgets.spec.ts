@@ -4,7 +4,7 @@ import { readForget } from './forget';
 /**
  * SHE REMEMBERS, AND SHE CAN BE TOLD TO FORGET.
  *
- * Every exchange now lands in MiraTurn — her memory, per citizen, per room —
+ * Every exchange now lands in MiraTurn — her memory, per citizen —
  * and the model's context is drawn from that record first, the device's day
  * store second. The promise that makes a memory tolerable is the way out:
  * "forget about <topic>" and "forget everything" genuinely delete, and they
@@ -33,6 +33,13 @@ function bare(over: Partial<Record<string, any>> = {}) {
       findMany: async (args: any) => (args?.skip ? [] : []),
       createMany: async (args: any) => { svc.__written = [...(svc.__written ?? []), args]; },
       deleteMany: async (args: any) => { svc.__deleted = [...(svc.__deleted ?? []), args]; return { count: svc.__count ?? 0 }; },
+    },
+    /** The durable half of her memory. See `fact.ts`. */
+    miraFact: {
+      findMany: async () => [],
+      upsert: async (args: any) => { svc.__facts = [...(svc.__facts ?? []), args]; },
+      deleteMany: async (args: any) => { svc.__factsDeleted = [...(svc.__factsDeleted ?? []), args]; return { count: 0 }; },
+      count: async () => 0,
     },
     user: { findUnique: async () => ({ name: 'Somen' }) },
   };
@@ -63,13 +70,16 @@ describe('the forget reader tells a command from a figure of speech', () => {
 });
 
 describe('she remembers', () => {
-  it('writes both sides of an exchange, into the room it was said in', async () => {
+  it('writes both sides of an exchange', async () => {
     const svc = bare();
-    await svc.ask('just feeling lonely', ctx({ mode: 'friend' }));
+    await svc.ask('just feeling lonely', ctx());
     expect(svc.__written).toHaveLength(1);
     const rows = svc.__written[0].data;
     expect(rows.map((r: any) => r.who)).toEqual(['you', 'mira']);
-    expect(rows[0].room).toBe('friend');
+    // `room` is a dead column: required by the schema, read by nothing. Every
+    // new row goes under the key the whole history is already under. Dropping
+    // it is a migration that also rewrites an index, and is its own change.
+    expect(rows[0].room).toBe('city');
     expect(rows[0].text).toBe('just feeling lonely');
     // The reply is stamped after the question, so the pair reads back in order.
     expect(rows[1].createdAt.getTime()).toBeGreaterThan(rows[0].createdAt.getTime());
@@ -84,7 +94,7 @@ describe('she remembers', () => {
       { who: 'mira', text: 'Named after the song?', createdAt: new Date(2) },
       { who: 'you', text: 'my dog is called Bruno', createdAt: new Date(1) },
     ];
-    await svc.ask('remember my dog?', ctx({ mode: 'friend' }));
+    await svc.ask('remember my dog?', ctx());
     expect(seen[0]).toEqual({ role: 'user', content: 'my dog is called Bruno' });
     expect(seen[seen.length - 1].role).toBe('user');
     expect(seen[seen.length - 1].content).toContain('remember my dog?');
@@ -101,7 +111,7 @@ describe('she remembers', () => {
       { who: 'you', text: 'first thought', createdAt: new Date(2) },
       { who: 'mira', text: 'orphaned reply', createdAt: new Date(1) },
     ];
-    await svc.ask('and a third', ctx({ mode: 'friend' }));
+    await svc.ask('and a third', ctx());
     expect(seen[0].role).toBe('user');
     for (let i = 1; i < seen.length; i++) expect(seen[i].role).not.toBe(seen[i - 1].role);
   });
@@ -123,7 +133,20 @@ describe('and the thread follows the account', () => {
   it('a read that fails is an empty thread, never an error', async () => {
     const svc = bare();
     svc.prisma.miraTurn.findMany = async () => { throw new Error('table is down'); };
-    await expect(svc.thread('u1', 'city')).resolves.toEqual({ turns: [] });
+    await expect(svc.thread('u1')).resolves.toEqual({ turns: [] });
+  });
+
+  /**
+   * A generated client that has never heard of `MiraFact` throws SYNCHRONOUSLY
+   * on the property access, before there is a promise to `.catch()` on. That
+   * is the one failure mode a deploy can actually produce — migration applied
+   * after the code, or not at all — and the forget must survive it.
+   */
+  it('a forget still works when the facts table is unreachable', async () => {
+    const svc = bare({ prisma: { ...bare().prisma, miraFact: undefined } });
+    const t = await svc.ask('forget everything', ctx());
+    expect(t.text).toMatch(/gone from my memory/i);
+    expect(svc.__ledgerForget).toEqual([['u1', undefined]]);
   });
 });
 
@@ -136,6 +159,9 @@ describe('and she can be told to forget', () => {
     // One turn, still: it is unambiguous and they said the word. And it
     // reaches the ledger's day files as well as her notebook.
     expect(svc.__ledgerForget).toEqual([['u1', undefined]]);
+    // AND WHAT SHE LEARNED FROM IT. A wipe that clears the transcript and
+    // leaves the derived profile standing keeps the worse half of the two.
+    expect(svc.__factsDeleted).toEqual([{ where: { userId: 'u1' } }]);
     expect(t.text).toMatch(/gone from my memory/i);
     // The wipe keeps no receipt: the forget exchange itself is not recorded.
     expect(svc.__written).toBeUndefined();
@@ -225,7 +251,7 @@ describe('and she can be told to forget', () => {
 
   it('a figure of speech reaches the friend, not the shredder', async () => {
     const svc = bare();
-    const t = await svc.ask('i forgot my keys again', ctx({ mode: 'friend' }));
+    const t = await svc.ask('i forgot my keys again', ctx());
     expect(svc.__deleted).toBeUndefined();
     expect(t.text).toBe('Yeah, I remember.');
   });
@@ -242,21 +268,21 @@ describe('and she can be told to forget', () => {
  * one nobody can audit, including the person whose sentences are in it.
  */
 describe('what she keeps is bounded, and can be read back', () => {
-  it('drops the oldest once the room is past its ceiling', async () => {
+  it('drops the oldest once the record is past its ceiling', async () => {
     const svc = bare();
     // The trim asks for the 2000th-newest row; an answer means there is
     // something older than it, and everything older than it goes.
     svc.prisma.miraTurn.findMany = async (args: any) => (args?.skip ? [{ createdAt: new Date(500) }] : []);
-    await svc.ask('just feeling lonely', ctx({ mode: 'friend' }));
+    await svc.ask('just feeling lonely', ctx());
     // The write is floated and the trim follows it — let both land.
     await new Promise((r) => setTimeout(r, 5));
     expect(svc.__deleted).toHaveLength(1);
-    expect(svc.__deleted[0].where).toEqual({ userId: 'u1', room: 'friend', createdAt: { lt: new Date(500) } });
+    expect(svc.__deleted[0].where).toEqual({ userId: 'u1', createdAt: { lt: new Date(500) } });
   });
 
   it('leaves a short record alone', async () => {
     const svc = bare();
-    await svc.ask('just feeling lonely', ctx({ mode: 'friend' }));
+    await svc.ask('just feeling lonely', ctx());
     await new Promise((r) => setTimeout(r, 5));
     expect(svc.__deleted).toBeUndefined();
   });
@@ -271,15 +297,13 @@ describe('what she keeps is bounded, and can be read back', () => {
         { who: 'you', text: 'my dog is called Bruno', createdAt: new Date(1) },
       ];
     };
-    const m = await svc.memory('u1', 'friend', { limit: 20, offset: 40 });
+    const m = await svc.memory('u1', { limit: 20, offset: 40 });
     expect(m.total).toBe(2);
     expect(m.turns[0].text).toBe('Named after the song?');
-    // ONE TRANSCRIPT. `room` is still written on every turn and still echoed
-    // back on the response, but it no longer narrows the query — two rooms
-    // meant two memories of one citizen, and the merge is worth nothing if she
+    // ONE TRANSCRIPT, and the response does not name a room either. Two rooms
+    // meant two memories of one citizen; the merge is worth nothing if she
     // still only remembers half of what was said to her.
     expect(svc.__page.where).toEqual({ userId: 'u1' });
-    expect(m.room).toBe('friend');
     expect(svc.__page.skip).toBe(40);
     expect(svc.__page.take).toBe(20);
   });
@@ -287,8 +311,8 @@ describe('what she keeps is bounded, and can be read back', () => {
   it('a read that fails is an empty page, never an error', async () => {
     const svc = bare();
     svc.prisma.miraTurn.count = async () => { throw new Error('table is down'); };
-    await expect(svc.memory('u1', 'city', { limit: 10, offset: 0 })).resolves.toEqual({
-      room: 'city', total: 0, limit: 10, offset: 0, turns: [],
+    await expect(svc.memory('u1', { limit: 10, offset: 0 })).resolves.toEqual({
+      total: 0, limit: 10, offset: 0, turns: [],
     });
   });
 });

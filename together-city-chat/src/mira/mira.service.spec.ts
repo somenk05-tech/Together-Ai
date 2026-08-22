@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { MiraService } from './mira.service';
 import type { Capability } from './mira.registry';
 import { manifest } from './manifest';
@@ -624,7 +626,7 @@ describe('she can be told the question was wrong', () => {
  */
 describe('a request is not a relationship', () => {
   it('"can you fix this" is not answered with a script about somebody', async () => {
-    const t = await svc().ask('can you fix this', ctx({ mode: 'friend' }));
+    const t = await svc().ask('can you fix this', ctx());
     expect(t.text).not.toMatch(/went badly with them/i);
   });
 
@@ -727,13 +729,12 @@ describe('hello, and she remembers what she said last time', () => {
 describe('a crisis reaches a person, from every door', () => {
   const SENTENCES = ['i want to kill myself', 'i want to die', "i don't want to be here anymore"];
   /**
-   * `undefined` IS THE MERGED CLIENT. There are no chips, so the ask carries no
-   * mode and the register is inferred. That is the case that ships, and it was
-   * not in this sweep until the rooms became one — which is precisely the shape
-   * of the defect this sweep exists for: the lexicon was right and the WIRING
-   * was where the crisis leaked.
+   * THERE IS NOTHING LEFT TO SWEEP TWICE. This ran every sentence through both
+   * rooms, then through both rooms and the inferred register. There is one
+   * Mira and one path — so the sweep is the sentences × model off and on, and
+   * the thing it guards is unchanged: the lexicon was always right, and the
+   * WIRING is where the crisis leaked.
    */
-  const ROOMS = ['friend', 'city', undefined] as const;
 
   /** A model that would answer if it were ever consulted. It must not be. */
   const chatty = () => {
@@ -747,26 +748,24 @@ describe('a crisis reaches a person, from every door', () => {
     };
   };
 
-  for (const mode of ROOMS) {
-    for (const text of SENTENCES) {
-      it(`${mode ?? 'inferred'} register, model off — ${JSON.stringify(text)} gets the helpline`, async () => {
-        const t = await svc().ask(text, ctx(mode ? { mode } : {}));
-        expect(t.text).toMatch(/\b14416\b/);
-        expect(t.levity).toBe(0);
-      });
+  for (const text of SENTENCES) {
+    it(`model off — ${JSON.stringify(text)} gets the helpline`, async () => {
+      const t = await svc().ask(text, ctx());
+      expect(t.text).toMatch(/\b14416\b/);
+      expect(t.levity).toBe(0);
+    });
 
-      it(`${mode ?? 'inferred'} register, model ON — ${JSON.stringify(text)} never reaches the model`, async () => {
-        const m = chatty();
-        const t = await svc({}, NOBODY, m.ai).ask(text, ctx(mode ? { mode } : {}));
-        expect(t.text).toMatch(/\b14416\b/);
-        expect(t.levity).toBe(0);
-        expect(m.calls).toHaveLength(0);
-      });
-    }
+    it(`model ON — ${JSON.stringify(text)} never reaches the model`, async () => {
+      const m = chatty();
+      const t = await svc({}, NOBODY, m.ai).ask(text, ctx());
+      expect(t.text).toMatch(/\b14416\b/);
+      expect(t.levity).toBe(0);
+      expect(m.calls).toHaveLength(0);
+    });
   }
 
   it('does not hand off an ordinary bad day', async () => {
-    const t = await svc().ask('i had a rough day at work', ctx({ mode: 'friend' }));
+    const t = await svc().ask('i had a rough day at work', ctx());
     expect(t.text).not.toMatch(/14416/);
   });
 
@@ -776,7 +775,7 @@ describe('a crisis reaches a person, from every door', () => {
    * been joking all session and then says the thing.
    */
   it('a playful register cannot lift a crisis turn', async () => {
-    const t = await svc().ask('i want to die', ctx({ mode: 'friend', dial: 2, recent: ['lol', 'haha'] }));
+    const t = await svc().ask('i want to die', ctx({ dial: 2, recent: ['lol', 'haha'] }));
     expect(t.text).toMatch(/\b14416\b/);
     expect(t.levity).toBe(0);
   });
@@ -819,6 +818,32 @@ describe('she names a meal', () => {
       expect(t.text).not.toMatch(/needs starting yet|Kitchen is quiet/i);
     });
   }
+
+  /**
+   * ── AND SHE LEADS WITH WHAT CAN STILL BE EATEN ────────────────────────
+   *
+   * 18:06, "What should I cook", and the answer opened `Breakfast: Veg
+   * Breakfast`. `ctx({ hour })` is the claim; the service derives the real one
+   * from the zone on the profile, and the stub account here carries none, so
+   * the claim is what it falls back to — which is exactly the path an older
+   * client without a zone takes.
+   */
+  it('at six in the evening she does not offer breakfast', async () => {
+    const t = await svc(LOADED).ask('what should i cook', ctx({ hour: 18 }));
+    expect(t.text).toMatch(/Palak paneer/);
+    expect(t.text).not.toMatch(/Poha|Rajma|Breakfast|Lunch/);
+  });
+
+  it('in the morning the whole day is still ahead', async () => {
+    const t = await svc(LOADED).ask('what should i cook', ctx({ hour: 8 }));
+    expect(t.text).toMatch(/Poha/);
+    expect(t.text).toMatch(/Palak paneer/);
+  });
+
+  it('but a meal they named outranks the clock', async () => {
+    const t = await svc(LOADED).ask('what should i have for breakfast tomorrow', ctx({ hour: 18 }));
+    expect(t.text).toMatch(/Poha/);
+  });
 
   /** Prep keeps its own question, and its own honest empty state. */
   it('prep answers about prep, and says which question it answered', async () => {
@@ -899,29 +924,37 @@ describe('"yes" is not an answer to "which one?"', () => {
   });
 });
 
-describe('the register is inferred, never claimed', () => {
+describe('there is one Mira, and no register at all', () => {
   /**
-   * The chips are gone. `mode` still arrives from clients that have not
-   * shipped yet and nothing reads it — so the same sentence must get the same
-   * answer whatever the tab claims, or the merge is cosmetic.
+   * The chips went first and an INFERRED register replaced them, which was
+   * half a merge: the same citizen still got a measurably different person,
+   * and the seam had only moved somewhere nobody could see it. There is no
+   * register now. Nothing in the turn selects a persona, a lane order or a
+   * memory.
    */
-  it('the same sentence gets the same answer whatever mode is claimed', async () => {
+  it('the turn does not carry a register', async () => {
+    const t = await svc().ask("what's my balance", ctx());
+    expect(t.trace.some((l) => l.startsWith('register:'))).toBe(false);
+  });
+
+  it('the wire still accepts a mode, and nothing downstream can read it', () => {
+    // `mode` is gone from AskContext, so this file cannot pass one — that half
+    // is enforced by the compiler. What a compiler cannot check is that the
+    // ROUTE still accepts the field: removing it turns every ask from a client
+    // that has not shipped yet into a 400.
+    //
+    // Scoped to the ask() call, because confide() has its own unrelated
+    // read/draft `mode` and a whole-file grep matched that instead.
+    const src = readFileSync(join(__dirname, 'mira.controller.ts'), 'utf8');
+    expect(src).toMatch(/mode: z\.enum\(\['friend', 'city'\]\)\.optional\(\)/);
+    const askCall = src.slice(src.indexOf('return this.mira.ask('));
+    expect(askCall.slice(0, askCall.indexOf('});'))).not.toMatch(/mode:/);
+  });
+
+  it('the same sentence gets the same answer every time', async () => {
     const answers = await Promise.all(
-      (['friend', 'city', undefined] as const).map((mode) =>
-        svc(LOADED).ask('what am i eating today', ctx(mode ? { mode } : {})).then((t) => t.text)),
+      [0, 1, 2].map(() => svc(LOADED).ask('what am i eating today', ctx()).then((t) => t.text)),
     );
     expect(new Set(answers).size).toBe(1);
-  });
-
-  it('a capability she is sure of puts her in the city register', async () => {
-    const t = await svc().ask("what's my balance", ctx());
-    expect(t.trace.some((l) => l === 'register: city')).toBe(true);
-  });
-
-  it('and anything she is not sure of falls toward listening', async () => {
-    for (const ask of ['i had a fight with my sister', 'i feel awful', 'help me']) {
-      const t = await svc().ask(ask, ctx());
-      expect(t.trace.some((l) => l === 'register: friend')).toBe(true);
-    }
   });
 });

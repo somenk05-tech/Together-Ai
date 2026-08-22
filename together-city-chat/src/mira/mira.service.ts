@@ -21,6 +21,8 @@ import { levity, type LevityLevel, type LevityVerdict } from './levity';
 import { moodFor, tilted, type Mood } from './mood';
 import { sayWithTrace, nothing, type Colour } from './say';
 import { resolveChoice, isChoice, type Choice, type Refusal } from './choose';
+import { timeContext, daypartOf, SLOT_SAID } from './daypart';
+import { keepable, knownBlock, EXTRACT_SYSTEM, type Fact } from './fact';
 import { MiraRegistry } from './mira.registry';
 import { MiraLedger, mentions, type Outcome } from './ledger';
 import { acceptOrFallback, violations } from './voice';
@@ -82,6 +84,18 @@ function asList(v: unknown, ...keys: string[]): unknown[] {
  * the fallback and it is Title Case, which reads as a database row when it
  * lands mid-sentence.
  */
+/**
+ * ── A DEAD COLUMN, WRITTEN HONESTLY ───────────────────────────────────────
+ *
+ * `MiraTurn.room` is `String` and required, and every row ever written carries
+ * `'city'` or `'friend'`. There is one Mira now, so the column distinguishes
+ * nothing — but dropping it is a migration that also rewrites
+ * `@@index([userId, room, createdAt])`, and Railway applies migrations on boot.
+ * That is a schema change, not this one. Until then every new row goes in under
+ * the key the whole history is already under, and nothing reads it back.
+ */
+const ROW_KEY = 'city';
+
 const SLOT: Record<string, string> = { b: 'Breakfast', l: 'Lunch', s: 'Snack', d: 'Dinner' };
 
 const rupees = (n: number): string => `₹${Math.round(n).toLocaleString('en-IN')}`;
@@ -443,15 +457,6 @@ export interface AskContext {
    * turn, which is the deterministic Mira's oldest defect wearing a new coat.
    */
   history?: Array<{ who: 'me' | 'mira'; text: string }>;
-  /**
-   * Which tab is asking. `friend` is the companion — conversation leads, and
-   * the interpretive lanes (astrology questions, "how is my day") go to the
-   * model with her full mystic register. `city` (and absent, for an older
-   * client) is the assistant she has always been. Capabilities, navigation
-   * and the crisis hand-off behave identically in both: a tab changes her
-   * register, never her safety and never what she can actually do.
-   */
-  mode?: 'friend' | 'city';
   /** The in-app path they were standing on when they opened her. */
   page?: string;
 }
@@ -567,38 +572,7 @@ export class MiraService {
     const mood = moodFor({ seed, hour: g.hour, lastSessionDistressed: g.distressLocked });
     const colour: Colour = { mood, level: tilted(mood, lev.level), seed };
 
-    /**
-     * ── ONE ROOM, AND THE REGISTER IS INFERRED ────────────────────────────
-     *
-     * There are no longer two tabs to be in. The chips are gone, so `ctx.mode`
-     * is a claim an old client may still send and nothing here reads it.
-     *
-     * IT FAILS TOWARD LISTENING, and that direction is the whole safety
-     * argument. The city register is the one where `relate()` answers before
-     * the model is consulted and where a capability may speak on a thin match;
-     * the friend register converses. So the city register has to be EARNED —
-     * she is only in it when a capability matched and she is nearly certain of
-     * it. Distress and the listen lane can never reach it at all, and anything
-     * uncertain lands in the register that asks what is going on.
-     *
-     * The 0.8 threshold that used to apply only in the friend tab is now the
-     * only threshold there is. Merging two rooms means the safer room's rule
-     * wins, or the merge is a downgrade wearing a simpler interface.
-     */
-    const register: 'friend' | 'city' =
-      lev.distress || routed.lane === 'LISTEN'
-        ? 'friend'
-        : cap && !isUncertain(routed) && routed.confidence >= FRIEND_CAPABILITY
-          ? 'city'
-          : 'friend';
-    const room = register;
-
-    const trace = [
-      `route: ${routed.why} (${routed.confidence.toFixed(2)})`,
-      `mood: ${mood}`,
-      `register: ${register}`,
-      ...lev.trace,
-    ];
+    const trace = [`route: ${routed.why} (${routed.confidence.toFixed(2)})`, `mood: ${mood}`, ...lev.trace];
 
     /**
      * Every branch says what KIND of turn it was, and the ledger writes it down.
@@ -675,7 +649,7 @@ export class MiraService {
         // rather than one canned question. The governor has already set the
         // register: on a distressed turn the persona is stripped of every
         // joke before the model sees a word.
-        const talked = await this.converse(text, ctx, lev.distress, g, register);
+        const talked = await this.converse(text, ctx, lev.distress, g);
         if (talked) return talked;
         return {
           outcome: 'listen',
@@ -689,13 +663,14 @@ export class MiraService {
         // somebody at the edge outranks the friend tab and the model alike.
         const situation = readSituation(text);
         if (situation?.handOff) return relate(situation);
-        if (register === 'friend') {
-          // The listening register. "When will I find love" was the second question
-          // ever asked of her, and the assistant's honest deflection was the
-          // wrong register for it. Here the model answers with the chart and
-          // the numbers she actually knows — and when the model is off, she
-          // falls through to exactly what the assistant would have said.
-          const talked = await this.converse(text, ctx, lev.distress, g, register);
+        // "When will I find love" was the second question ever asked of her,
+        // and a terse deflection was the wrong answer to it. The model answers
+        // with the chart and the numbers she actually knows; with the model
+        // off she falls through to the deterministic line below, which is what
+        // she always said. No register decides which of those happens — the
+        // model being configured does.
+        {
+          const talked = await this.converse(text, ctx, lev.distress, g);
           if (talked) return talked;
         }
         const told = foretold(text);
@@ -725,7 +700,7 @@ export class MiraService {
       if (cap && !isUncertain(routed) && routed.confidence < FRIEND_CAPABILITY) {
         const situation = readSituation(text);
         if (situation?.handOff) return relate(situation);
-        const talked = await this.converse(text, ctx, lev.distress, g, register);
+        const talked = await this.converse(text, ctx, lev.distress, g);
         if (talked) return talked;
       }
       // Before giving up: is this a place rather than a task? "Where do I set my
@@ -769,7 +744,6 @@ export class MiraService {
          * after the model has had its turn and declined.
          */
         const told = foretold(text);
-        if (told && register !== 'friend') return told;
         /**
          * ── AND A RELATIONSHIP READ HAS TO NAME A RELATIONSHIP ──────────────
          *
@@ -793,8 +767,6 @@ export class MiraService {
          * city gets its turn, then the conversation does, and the fallback at
          * the bottom of this branch still catches it if neither answers.
          */
-        if (situation && (situation.who || situation.kind) && register !== 'friend') return relate(situation);
-
         /**
          * ── AND SOMEBODY NAMED IS NEVER A DESTINATION ─────────────────────
          *
@@ -829,8 +801,8 @@ export class MiraService {
         // owner screenshotted twice. Now it is a conversation, when the model
         // is configured; the old sentence stays as the honest fallback when
         // it is not, so a missing key degrades rather than breaks.
-        if (register === 'friend' || routed.why === 'nothing matched' || routed.why === 'empty') {
-          const talked = await this.converse(text, ctx, lev.distress, g, register);
+        {
+          const talked = await this.converse(text, ctx, lev.distress, g);
           if (talked) return talked;
         }
         // The last resort, and the same gate as above: with the model off the
@@ -843,7 +815,7 @@ export class MiraService {
         if (told) return told;
         return { outcome: 'clarify', text: this.clarify(routed), choices: [] };
       }
-      return { outcome: 'capability', ...(await this.read(cap.id, ctx.userId, colour, g.tz)) };
+      return { outcome: 'capability', ...(await this.read(cap.id, ctx.userId, colour, g.tz, g.hour, text)) };
     };
 
     const attempt = await turn();
@@ -866,7 +838,6 @@ export class MiraService {
       capability: cap?.id,
       outcome,
       levity: lev.level,
-      mode: room,
       ms: Date.now() - began,
       source: attempt.fromModel ? 'model' : 'deterministic',
       asideDropped: composed.asideDropped,
@@ -894,7 +865,19 @@ export class MiraService {
      * "forget everything" back into the memory it wiped is a wipe that
      * keeps a receipt, and the receipt is the thing they asked to lose.
      */
-    if (outcome !== 'forget') this.remember(ctx.userId, room, text, said);
+    if (outcome !== 'forget') this.remember(ctx.userId, text, said);
+
+    /**
+     * ── AND WHAT SHE LEARNED FROM IT ──────────────────────────────────────
+     *
+     * Only on a turn the model already answered: the meter has been spent, the
+     * citizen was talking rather than running an errand, and a second call on
+     * a capability lookup would be paying to extract facts from "what's my
+     * balance". Never on a distressed turn — somebody at their lowest is not
+     * material — and never from the confidant, which does not come through
+     * here at all.
+     */
+    if (outcome === 'chat' && !lev.distress) this.learn(ctx.userId, text, said);
 
     return {
       text: said,
@@ -1026,29 +1009,26 @@ export class MiraService {
   //     dropped and the deterministic sentence stands. Warmth is never worth
   //     sounding like a call centre.
 
-  private async converse(
-    text: string,
-    ctx: AskContext,
-    distress: boolean,
-    g: Governed,
-    register: 'friend' | 'city',
-  ): Promise<Attempt | undefined> {
+  private async converse(text: string, ctx: AskContext, distress: boolean, g: Governed): Promise<Attempt | undefined> {
     if (!this.ai.enabled) return undefined;
     const pass = await this.passOf(ctx.userId);
     if (!pass.paid && pass.freeLeft <= 0) {
       return { outcome: 'paywall', text: PAYWALL_LINE, pass: { freeLeft: 0 } };
     }
-    const [name, chart] = await Promise.all([this.nameOf(ctx.userId), this.chartOf(ctx.userId)]);
+    const [name, chart, knows] = await Promise.all([
+      this.nameOf(ctx.userId), this.chartOf(ctx.userId), this.factsOf(ctx.userId),
+    ]);
     const system = persona({
-      mode: register,
       name,
       signs: chart?.signs ?? null,
       lifePath: lifePathOf(chart?.birthDate),
       page: ctx.page ?? null,
       clock: clockLine(g.tz),
+      daypart: daypartOf(g.hour),
       weeksKnown: g.weeksKnown,
       distress,
       canDo: this.registry.all().map((c) => c.intent.toLowerCase()),
+      knows: knownBlock(knows),
     });
     // HER MEMORY FIRST, THE DEVICE SECOND. The server record spans days and
     // devices; the client's day store is one browser and clears at midnight.
@@ -1056,7 +1036,7 @@ export class MiraService {
     // every exchange lands in it as it happens. The client trail remains the
     // fallback for the first conversation and for a read that fails, so a
     // slow table costs continuity, never an answer.
-    const remembered = await this.recall(ctx.userId, register);
+    const remembered = await this.recall(ctx.userId);
     const trail = remembered.length
       ? remembered
       : (ctx.history ?? []).slice(-12)
@@ -1386,7 +1366,7 @@ export class MiraService {
    * offline fallback, never the truth. Bounded, try/caught whole: a failed
    * read is an empty thread the client ignores, never an error.
    */
-  async thread(userId: string, _room?: 'friend' | 'city'): Promise<{
+  async thread(userId: string): Promise<{
     turns: Array<{ who: 'you' | 'mira'; text: string; at: string }>;
   }> {
     try {
@@ -1468,14 +1448,13 @@ export class MiraService {
    * so an older client that asked for one still gets a shape it understands —
    * but the rows are no longer filtered by it. See `recall()`.
    */
-  async memory(userId: string, room: 'friend' | 'city', page: { limit: number; offset: number }): Promise<{
-    room: 'friend' | 'city';
+  async memory(userId: string, page: { limit: number; offset: number }): Promise<{
     total: number;
     limit: number;
     offset: number;
     turns: Array<{ who: 'you' | 'mira'; text: string; at: string }>;
   }> {
-    const empty = { room, total: 0, limit: page.limit, offset: page.offset, turns: [] };
+    const empty = { total: 0, limit: page.limit, offset: page.offset, turns: [] };
     try {
       const [total, rows] = await Promise.all([
         this.prisma.miraTurn.count({ where: { userId } }),
@@ -1487,7 +1466,6 @@ export class MiraService {
         }),
       ]);
       return {
-        room,
         total,
         limit: page.limit,
         offset: page.offset,
@@ -1516,7 +1494,7 @@ export class MiraService {
    * she remembers. Two rooms meant two Miras with two memories of the same
    * citizen, and the merge is worth nothing if she still forgets half of it.
    */
-  private async recall(userId: string, _room: 'friend' | 'city'): Promise<Array<{ role: 'user' | 'assistant'; content: string }>> {
+  private async recall(userId: string): Promise<Array<{ role: 'user' | 'assistant'; content: string }>> {
     try {
       const rows = await this.prisma.miraTurn.findMany({
         where: { userId },
@@ -1532,18 +1510,116 @@ export class MiraService {
     }
   }
 
+  /**
+   * ── THE PRISMA CLIENT ON DISK DOES NOT KNOW THIS TABLE YET ────────────────
+   *
+   * `npx prisma generate` cannot run in the sandbox this was written in — no
+   * network, and the cached engine is for the wrong platform — so `MiraFact`
+   * is reached through a narrow declared shape rather than the generated type.
+   * The same escape hatch `nutrition.service.ts` uses for `notification`, for
+   * the same reason, and it means compiling this does not depend on the order
+   * somebody runs two commands in. The lander regenerates the client anyway.
+   */
+  private get facts(): {
+    findMany(a: unknown): Promise<Array<{ id: string; subject: string; value: string; confidence: string; sourceText: string; updatedAt: Date }>>;
+    upsert(a: unknown): Promise<unknown>;
+    deleteMany(a: unknown): Promise<{ count: number }>;
+    count(a: unknown): Promise<number>;
+  } {
+    return (this.prisma as unknown as { miraFact: {
+      findMany(a: unknown): Promise<Array<{ id: string; subject: string; value: string; confidence: string; sourceText: string; updatedAt: Date }>>;
+      upsert(a: unknown): Promise<unknown>;
+      deleteMany(a: unknown): Promise<{ count: number }>;
+      count(a: unknown): Promise<number>;
+    } }).miraFact;
+  }
+
+  /** The durable half of her memory, newest first. A failure is an absence. */
+  private async factsOf(userId: string): Promise<Fact[]> {
+    try {
+      const rows = await this.facts.findMany({ where: { userId }, orderBy: { updatedAt: 'desc' }, take: 40 });
+      return rows.map((r) => ({
+        subject: r.subject,
+        value: r.value,
+        confidence: (['known', 'likely', 'possible'].includes(r.confidence) ? r.confidence : 'possible') as Fact['confidence'],
+      }));
+    } catch { return []; }
+  }
+
+  /**
+   * Every fact, gone. Never the reason a forget fails: the transcript wipe and
+   * the ledger both have to happen even if this table is unreachable.
+   */
+  private async wipeFacts(userId: string): Promise<void> {
+    try { await this.facts.deleteMany({ where: { userId } }); } catch { /* best effort */ }
+  }
+
+  /** Their own record, with the sentence each one came from. */
+  async knows(userId: string): Promise<{ facts: Array<{ id: string; subject: string; value: string; confidence: string; why: string; at: string }> }> {
+    try {
+      const rows = await this.facts.findMany({ where: { userId }, orderBy: { updatedAt: 'desc' }, take: 200 });
+      return {
+        facts: rows.map((r) => ({
+          id: r.id, subject: r.subject, value: r.value, confidence: r.confidence,
+          why: r.sourceText, at: r.updatedAt.toISOString(),
+        })),
+      };
+    } catch { return { facts: [] }; }
+  }
+
+  /** One fact, gone. Scoped to the citizen asking — never by id alone. */
+  async forgetFact(userId: string, id: string): Promise<{ removed: number }> {
+    try {
+      const { count } = await this.facts.deleteMany({ where: { id, userId } });
+      return { removed: count };
+    } catch { return { removed: 0 }; }
+  }
+
+  /**
+   * ── WHAT SHE LEARNED, EXTRACTED ONCE AND KEPT ─────────────────────────────
+   *
+   * Fire-and-forget by construction. This is a second model call and it must
+   * never slow an answer down, never be the reason one fails, and never appear
+   * in the citizen's meter — the turn they paid for was the conversation.
+   *
+   * `keepable()` is where the safety lives: the model is INSTRUCTED to withhold
+   * whole categories and then its output is FILTERED for them anyway, because
+   * an instruction is a hope and a filter is a rule. Both, deliberately.
+   */
+  private learn(userId: string, asked: string, said: string): void {
+    if (!this.ai.enabled) return;
+    void (async () => {
+      try {
+        const out = await this.ai.json<{ facts?: unknown }>(
+          EXTRACT_SYSTEM,
+          `Citizen: ${asked.slice(0, 2000)}\nMira: ${said.slice(0, 2000)}`,
+          { facts: [] },
+          400,
+        );
+        const kept = keepable(out?.facts);
+        for (const f of kept) {
+          await this.facts.upsert({
+            where: { userId_subject: { userId, subject: f.subject } },
+            create: { userId, subject: f.subject, value: f.value, confidence: f.confidence, sourceText: asked.slice(0, 500) },
+            update: { value: f.value, confidence: f.confidence, sourceText: asked.slice(0, 500) },
+          });
+        }
+      } catch { /* memory is best-effort, never load-bearing */ }
+    })();
+  }
+
   /** Write both sides of an exchange into the record. Fire-and-forget, and
    *  the reply is stamped a millisecond later so the pair reads back in the
    *  order it was said. */
-  private remember(userId: string, room: 'friend' | 'city', asked: string, said: string): void {
+  private remember(userId: string, asked: string, said: string): void {
     try {
       const at = Date.now();
       void this.prisma.miraTurn.createMany({
         data: [
-          { userId, room, who: 'you', text: asked.slice(0, 4000), createdAt: new Date(at) },
-          { userId, room, who: 'mira', text: said.slice(0, 4000), createdAt: new Date(at + 1) },
+          { userId, room: ROW_KEY, who: 'you', text: asked.slice(0, 4000), createdAt: new Date(at) },
+          { userId, room: ROW_KEY, who: 'mira', text: said.slice(0, 4000), createdAt: new Date(at + 1) },
         ],
-      }).then(() => this.trim(userId, room)).catch(() => undefined);
+      }).then(() => this.trim(userId)).catch(() => undefined);
     } catch { /* memory is best-effort, never load-bearing */ }
   }
 
@@ -1560,10 +1636,10 @@ export class MiraService {
    * delete per exchange, floated like the write it follows: a trim that fails
    * is a table that stays a little longer, never an answer that does not come.
    */
-  private trim(userId: string, room: 'friend' | 'city'): void {
+  private trim(userId: string): void {
     void this.safely(async () => {
       const edge = await this.prisma.miraTurn.findMany({
-        where: { userId, room },
+        where: { userId },
         orderBy: { createdAt: 'desc' },
         skip: KEEP_TURNS,
         take: 1,
@@ -1571,7 +1647,7 @@ export class MiraService {
       });
       if (!edge.length) return;
       await this.prisma.miraTurn.deleteMany({
-        where: { userId, room, createdAt: { lt: edge[0].createdAt } },
+        where: { userId, createdAt: { lt: edge[0].createdAt } },
       });
     });
   }
@@ -1612,6 +1688,15 @@ export class MiraService {
     try {
       if (ask.scope === 'everything') {
         await this.prisma.miraTurn.deleteMany({ where: { userId } });
+        // AND WHAT SHE LEARNED FROM IT. A wipe that leaves the derived profile
+        // standing is not a wipe — the transcript is gone and she still knows
+        // everything it taught her, which is the worse half to keep.
+        //
+        // `try` and not `.catch()`: reaching a table the generated client has
+        // not got throws SYNCHRONOUSLY, before there is a promise to catch on,
+        // and that exception would take the whole forget down with it — the
+        // one command where failing quietly is least acceptable.
+        await this.wipeFacts(userId);
         // Her notebook is not the only place it was written down. See ledger.forget.
         void this.ledger.forget(userId);
         await this.pend(userId, null);
@@ -1871,7 +1956,14 @@ export class MiraService {
    * governor. A branch cannot make itself funny, which is the whole safety
    * argument for having jokes at all.
    */
-  private async read(id: string, userId: string, c: Colour, tz?: string): Promise<Attempt> {
+  private async read(
+    id: string,
+    userId: string,
+    c: Colour,
+    tz: string | undefined,
+    hour: number,
+    text: string,
+  ): Promise<Attempt> {
     switch (id) {
       // ── MONEY ──────────────────────────────────────────────────────────
       case 'financial GET wallet': {
@@ -2015,14 +2107,30 @@ export class MiraService {
             goto: to,
           };
         }
-        const named = plan.meals
-          .filter((m) => m.title)
-          .map((m) => `${SLOT[m.slot] ?? m.label ?? 'a meal'}: ${m.title}`);
-        if (!named.length) return { text: 'Your plan has no meals on it for today.', payload: plan, goto: to };
+        /**
+         * ── AT SIX IN THE EVENING, NOBODY IS ASKING ABOUT BREAKFAST ───────
+         *
+         * This listed all four meals in plan order, so "What should I cook"
+         * at 18:06 opened with `Breakfast: Veg Breakfast`. True, and useless.
+         * `daypart.ts` narrows it to what can still be eaten — unless the
+         * citizen named a meal or another day, in which case their words win
+         * and nothing is narrowed. `hour` is the server's, from the zone on
+         * their profile, never the browser's claim.
+         */
+        const when = timeContext(hour, text, plan.meals);
+        const shown = plan.meals.filter((m) => m.title && when.slots.includes(m.slot));
+        const use = shown.length ? shown : plan.meals.filter((m) => m.title);
+        if (!use.length) return { text: 'Your plan has no meals on it for today.', payload: plan, goto: to };
+        const named = use.map((m) => `${SLOT_SAID[m.slot] ?? m.label ?? 'A meal'}: ${m.title}`);
+        // The day is over and she says so, rather than offering breakfast as
+        // though the clock were not a fact she holds.
+        const spent = !when.theyChose && !shown.length;
         return {
           text: `${named.slice(0, 4).join(' · ')}.`,
-          asides: ['Cook the one you feel like.'],
-          payload: plan,
+          asides: spent
+            ? ['That was today — tomorrow starts the same plan over.']
+            : ['Cook the one you feel like.'],
+          payload: { ...plan, daypart: when.daypart },
           goto: to,
         };
       }

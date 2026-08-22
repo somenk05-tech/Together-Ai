@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards, UsePipes } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -95,9 +95,11 @@ export const AskSchema = z.object({
   /** Which tab is asking — friend (the companion) or city (the assistant).
    *  Optional: an older client is the assistant, which is what it shipped as. */
   /**
-   * ACCEPTED AND IGNORED. There is one room now and the register is inferred
-   * per turn — see the service. Kept in the schema because removing a field a
-   * shipped client still sends turns every one of its asks into a 400.
+   * ACCEPTED AND IGNORED, and no longer even reaching the service. There is one
+   * Mira; there is nothing for a mode to select. Kept in the schema only
+   * because removing a field a shipped client still sends turns every one of
+   * its asks into a 400 — the same reason `room` survives on the two queries
+   * below. Delete all three once no client sends them.
    */
   mode: z.enum(['friend', 'city']).optional(),
   /** The in-app path they were standing on when they opened her, for the
@@ -140,6 +142,7 @@ export type ConfideDto = z.infer<typeof ConfideSchema>;
 
 /** Which of her rooms to read. Absent means the assistant, as everywhere. */
 export const ThreadSchema = z.object({
+  /** Accepted and ignored — see `mode` above. */
   room: z.enum(['friend', 'city']).optional(),
 });
 export type ThreadDto = z.infer<typeof ThreadSchema>;
@@ -147,6 +150,7 @@ export type ThreadDto = z.infer<typeof ThreadSchema>;
 /** One page of what she has kept about the asking citizen. Bounded like every
  *  read in this codebase; the defaults are a screenful. */
 export const MemorySchema = z.object({
+  /** Accepted and ignored — see `mode` above. */
   room: z.enum(['friend', 'city']).optional(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
   offset: z.coerce.number().int().min(0).max(100_000).optional(),
@@ -261,9 +265,33 @@ export class MiraController {
       seed: dto.seed,
       answering: dto.answering,
       history: dto.history,
-      mode: dto.mode,
       page: dto.page,
     });
+  }
+
+  /**
+   * ── WHAT MIRA KNOWS ABOUT YOU, AND THE DELETE BESIDE EACH LINE ──────────
+   *
+   * `/mira/memory` is the transcript — what was SAID. This is the derived
+   * half: what she concluded from it, one row per subject, each with the
+   * sentence it came from. A record somebody cannot read is not memory, it is
+   * a file on them, and a record they cannot delete is worse.
+   *
+   * Unmetered and unthrottled beyond the app-wide limit, for the same reason
+   * `/mira/memory` is: reading your own record costs no model call.
+   */
+  @Get('knows')
+  knows(@CurrentUser() user: JwtUser) {
+    return this.mira.knows(user.sub);
+  }
+
+  /**
+   * One fact, gone. Scoped to the citizen asking inside the service — an id
+   * alone must never be enough to delete somebody else's row.
+   */
+  @Delete('knows/:id')
+  forgetFact(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.mira.forgetFact(user.sub, id);
   }
 
   /**
@@ -290,7 +318,7 @@ export class MiraController {
   @Get('thread')
   @UsePipes(new ZodValidationPipe(ThreadSchema))
   thread(@CurrentUser() user: JwtUser, @Query() q: ThreadDto) {
-    return this.mira.thread(user.sub, q.room === 'friend' ? 'friend' : 'city');
+    return this.mira.thread(user.sub);
   }
 
   /**
@@ -298,7 +326,7 @@ export class MiraController {
    *
    * "It is truly gone" is a claim, and a claim about stored data that cannot be
    * inspected is one the citizen has to take on faith. This is the inspection:
-   * their own turns, newest first, per room, paginated. The screen that renders
+   * their own turns, newest first, paginated. The screen that renders
    * it is a build and is not in this landing; the endpoint is what makes the
    * promise checkable at all, and what that screen will read.
    *
@@ -308,10 +336,7 @@ export class MiraController {
   @Get('memory')
   @UsePipes(new ZodValidationPipe(MemorySchema))
   memory(@CurrentUser() user: JwtUser, @Query() q: MemoryDto) {
-    return this.mira.memory(user.sub, q.room === 'friend' ? 'friend' : 'city', {
-      limit: q.limit ?? 50,
-      offset: q.offset ?? 0,
-    });
+    return this.mira.memory(user.sub, { limit: q.limit ?? 50, offset: q.offset ?? 0 });
   }
 
   /**
