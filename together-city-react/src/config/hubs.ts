@@ -56,6 +56,12 @@ export const NAV: NavItem[] = [
   { key: 'astrology', label: 'Astrology', path: '/astrology' },
   { key: 'beauty', label: 'Beauty', path: '/beauty' },
   { key: 'dating', label: 'Dating', path: '/dating' },
+  /* E-COMMERCE IS BACK ON THE STREET (owner, 22 Aug), and this time it has
+     rooms. It sorts between Dating and Entertainment because `localeCompare`
+     weighs the hyphen below the letters — the list reads "ECommerce", and 'c'
+     lands before 'n'. a-drawer-of-ones-own.test.ts holds the whole run to
+     that order. */
+  { key: 'ecommerce', label: 'E-Commerce', path: '/ecommerce' },
   { key: 'entertainment', label: 'Entertainment', path: '/entertainment' },
   /* FINANCIAL LEFT THE STREET (owner, 22 Aug), NOT THE CITY — the same move
      Travel made on 15 Aug, and for a reason that is easier to say: money is
@@ -246,6 +252,22 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/entertainment/ott', index: '02', label: 'OTT Watch', sub: 'Stream tonight' },
       { path: '/entertainment/curated', index: '03', label: 'Curated Movies', sub: "Critics' picks & hidden gems" },
       { path: '/entertainment/watchlist', index: '04', label: 'Watchlist', sub: 'Your saved movies & shows' },
+    ],
+  },
+  /* E-COMMERCE — TWO DOORS, AND NOTHING SOLD THAT THE CITY WAS NOT ALREADY
+     SELLING. The district was deleted on 10 Aug for being the only one without
+     a hub: a photograph of a shop that does not exist, with "Coming soon"
+     across the third plate of the walk. It returns wearing the facade the
+     owner commissioned — a personalised store on the left, an open market on
+     the right — and both rooms are ways in to shops that already exist, in the
+     hubs that verified them. There is no catalogue in this hub and no product
+     table behind it; see features/ecommerce/README.md for why that is the
+     design rather than a first version of one. */
+  ecommerce: {
+    key: 'ecommerce', name: 'E-Commerce', tag: 'Every shop in the city, through one door', backPath: '/ecommerce',
+    items: [
+      { path: '/ecommerce/store', index: '01', label: 'Personalized Store', sub: 'The shelves that read your profiles' },
+      { path: '/ecommerce/market', index: '02', label: 'Open Market', sub: 'Every category, nothing ranked for you' },
     ],
   },
   beauty: {

@@ -3,7 +3,13 @@
 export type HubKey =
   | 'travel' | 'astrology' | 'nutrition' | 'entertainment' | 'social'
   | 'dating' | 'realestate' | 'jobs' | 'medical' | 'financial'
-  | 'beauty' | 'fitness' | 'services' | 'family' | 'mail' | 'pets';
+  | 'beauty' | 'fitness' | 'services' | 'family' | 'mail' | 'pets'
+  /* E-COMMERCE IS A KEY AGAIN (owner, 22 Aug), and it was never really one
+     before: the district existed as a building in the homepage photograph with
+     no hub behind it, so `Panel['key']` was `HubKey | 'ecommerce'` and four
+     branches existed to describe that one exception. It comes back the other
+     way round — two rooms first, and the key because of them. */
+  | 'ecommerce';
 
 export type AuthProvider = 'email' | 'google' | 'phone';
 

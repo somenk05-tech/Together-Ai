@@ -1805,3 +1805,72 @@
     height: max(44px, 100%);
   }
 }
+
+/* ── E-COMMERCE: THE CITY'S OWN SHELVES, IN ONE ROOM ─────────────────────────
+   Two pages, one card, and the block owns its own names. It reads root tokens
+   only — no colour literal, no radius in pixels, no sixth depth: the card
+   stands on --e1 and lifts to --e2, which is what every other card in this
+   city does.
+
+   AND THERE IS NOT ONE INLINE STYLE OBJECT IN EITHER PAGE, which is a
+   constraint rather than tidiness. scripts/size-system-ceiling.mjs is AT its
+   ceiling on all four counts, so a district shipping with `style={{ }}` on a
+   card would have grown the debt on the day it opened. No transition either:
+   the motion ceiling is at 17 durations and 7 easings, and a new hover curve
+   is a new number. */
+.ec-run {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(272px, 1fr));
+}
+.ec-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 20px 20px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  background: var(--card);
+  box-shadow: var(--e1);
+  color: var(--ink);
+}
+.ec-go { text-decoration: none; }
+.ec-go:hover { box-shadow: var(--e2); }
+.ec-cat {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.ec-name {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -.012em;
+  line-height: 1.3;
+  margin: 0;
+}
+.ec-name a { color: inherit; text-decoration: none; }
+.ec-name a:hover { text-decoration: underline; }
+.ec-line {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+  margin: 0;
+}
+.ec-from {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: auto 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.ec-from a { color: var(--ink); }
+.ec-note {
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--muted);
+  max-width: 68ch;
+  margin: 22px 0 0;
+}

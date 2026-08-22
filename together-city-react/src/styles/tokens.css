@@ -1278,6 +1278,21 @@
   --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
 }
 
+/* E-Commerce — the shopfront green off the facade the owner commissioned, the
+   colour the personalised half of the building is painted. It sits 9.53 ΔE2000
+   from Fitness, its nearest neighbour, which is the number that matters: a lamp
+   is the one object that says which room you are standing in before a word is
+   read. No ground and no sky — the city's white is under this district, and the
+   only five hubs allowed to re-point the ground are already named in
+   relief.spec's rationale. */
+[data-hub="ecommerce"] {
+  --lamp-face: linear-gradient(180deg, #175f45 0%, #0f4a35 44%, #0a3527 100%);
+  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
+          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
+          0 1px 1px rgba(15,74,53,.30), 0 8px 20px rgba(15,74,53,.34), 0 20px 46px rgba(15,74,53,.22);
+  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
+}
+
 /* PET CARE — the amber off its own neon, and nothing else.
    The hub has no rooms yet, so nothing in the app ever sets `data-hub="pets"`;
    this block exists because the accent guard reads the HUBS map from source and

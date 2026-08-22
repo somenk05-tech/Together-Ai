@@ -20,6 +20,7 @@ import { Regulars } from '@/features/services/pages/Regulars';
 import { DailyOffers } from '@/features/services/pages/DailyOffers';
 import { HubLanding } from '@/pages/HubLanding';
 import { petsRoutes } from '@/features/pets/routes';
+import { ecommerceRoutes } from '@/features/ecommerce/routes';
 import { AstroToday } from '@/features/astrology/pages/AstroToday';
 import { AstroMonthly } from '@/features/astrology/pages/AstroMonthly';
 import { AstroAsk } from '@/features/astrology/pages/AstroAsk';
@@ -193,6 +194,7 @@ const ROUTE_BLOCKS: RouteObject[] = [
       { path: '/beauty', element: <HubLanding hub="beauty" /> },
       { path: '/fitness', element: <HubLanding hub="fitness" /> },
       { path: '/pets', element: <HubLanding hub="pets" /> },
+      { path: '/ecommerce', element: <HubLanding hub="ecommerce" /> },
       // THIS ONE EARNS ITS LANDING, and the distinction is worth stating
       // because the 5 Aug design audit argued against exactly this pattern.
       //
@@ -343,6 +345,18 @@ const ROUTE_BLOCKS: RouteObject[] = [
        profile, and this is the shape that makes forgetting impossible. */
     element: <HubLayout hub={HUBS.pets} />,
     children: petsRoutes.map((route) => ({
+      ...route,
+      element: <RequireAuth>{wrap(route.element as JSX.Element)}</RequireAuth>,
+    })),
+  },
+  {
+    /* E-COMMERCE. Two rooms, and the Pet district's shape rather than a pair
+       of hand-written entries: the feature exports plain route objects and the
+       auth gate and the chunk boundary are applied here, once. A room that
+       forgot its RequireAuth would look identical until the day somebody's
+       shortlist was readable signed out. */
+    element: <HubLayout hub={HUBS.ecommerce} />,
+    children: ecommerceRoutes.map((route) => ({
       ...route,
       element: <RequireAuth>{wrap(route.element as JSX.Element)}</RequireAuth>,
     })),

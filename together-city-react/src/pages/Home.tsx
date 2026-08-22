@@ -95,6 +95,7 @@ const DISTRICT_COPY: Partial<Record<HubKey, { name: string; line: string }>> = {
      usefully than one reading "Explore Pet Care". Nothing else moves: this map
      is read by the home run alone. */
   pets: { name: 'Pet Products', line: 'Everything your pet needs. All in one place.' },
+  ecommerce: { name: 'E-Commerce', line: 'Your shopping, personalized or wide open.' },
 };
 
 /**
@@ -126,6 +127,11 @@ const PANELS: Panel[] = [
   { key: 'fitness', img: 'fitness-hero.webp' },
   { key: 'financial', img: 'financial-district.webp' },
   { key: 'services', img: 'local-services.webp' },
+  /* E-COMMERCE IS BACK ON THE WALK (owner, 22 Aug). The only thing worth
+     saying about it is the difference from the plate removed on 10 Aug: that
+     one read "Coming soon" because there was no hub for the key, and this one
+     has two rooms behind it, so the `soon` branch below never sees it. */
+  { key: 'ecommerce', img: 'e-commerce.webp' },
   // Pet Care spent four days on this walk as a photograph with "Coming soon"
   // under it — the first hub ever to stand in the `is-soon` branch below. It
   // has sixteen rooms now, so the branch is unused again and this plate is a

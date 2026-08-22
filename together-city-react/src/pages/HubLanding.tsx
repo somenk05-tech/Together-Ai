@@ -25,6 +25,11 @@ export const HUB_HERO: Partial<Record<HubKey, string>> = {
   financial: 'financial-district.webp',
   beauty: 'beautymarket.webp',
   fitness: 'fitness-hero.webp',
+  /* The sign-painter's facade: two shopfronts under one E-COMMERCE HUB sign,
+     each with its own doorway and its own promise painted on the glass. Like
+     the Local Services board, it tells somebody arriving what is inside before
+     they read a word — which is the whole test a hub landing has to pass. */
+  ecommerce: 'e-commerce.webp',
   /* The desktop plate. Without this line `heroSrc` falls back to `pets.webp`,
      which is not a file that exists — the poster is `hub-poster/pets.webp` and
      the landscape plate is `pets-hub.webp`, and the two are not the same
@@ -65,6 +70,7 @@ export const HUB_LINE: Partial<Record<HubKey, string>> = {
   social: 'Your people. Your communities. Your world.',
   astrology: 'Your stars. Your journey. Your timing.',
   pets: 'Everything your pet needs. All in one place.',
+  ecommerce: 'Your shopping, personalized or wide open.',
 };
 
 /**
