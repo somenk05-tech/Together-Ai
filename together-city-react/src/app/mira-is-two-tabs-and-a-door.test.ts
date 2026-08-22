@@ -192,8 +192,35 @@ describe('and a door on every page', () => {
 
   it('the panel is the same thread, bounded, in her own room’s material', () => {
     expect(css).toMatch(/\.mira-dock-panel \{/);
-    expect(css).toMatch(/\.mira-dock-panel \.mirathread \{ flex: 1; min-height: 0; \}/);
     // Depth from the city's tokens, never a bespoke shadow.
     expect(css).toMatch(/\.mira-dock-panel \{[^}]*box-shadow: var\(--e3\)/);
+  });
+
+  /**
+   * AND THE THREAD FILLS WHATEVER IS HOLDING IT — ALL THREE OF THEM.
+   *
+   * This line used to read `.mira-dock-panel .mirathread { flex: 1; min-height:
+   * 0; }` — the literal rule, in the panel's scope, and that scope was the bug.
+   * She lives in three column-flex containers (.csthread on the chats page,
+   * .mira-dock-panel, .mira-confide) and only one of them had the rule, so on
+   * the other two the thread was content-sized: the composer sat halfway up the
+   * panel with a screenful of empty ground beneath it.
+   *
+   * `height: 100%` reads as though it should cover this and does not. In a
+   * column container the height is the MAIN axis, decided by flex layout, and a
+   * percentage resolves there only if the parent's height is definite —
+   * .csthread's is not, being itself a flex item.
+   *
+   * SO WHAT IS ASSERTED IS THE PROPERTY, ON THE COMPONENT, rather than a string
+   * in one scope. A test that pins the exact text of a rule is a test that
+   * passes for the two homes it never looked at, which is what happened here.
+   */
+  it('fills its container wherever it is mounted', () => {
+    const thread = css.slice(css.indexOf('.mirathread {'));
+    const block = thread.slice(0, thread.indexOf('\n}'));
+    expect(block).toMatch(/flex:\s*1/);
+    expect(block).toMatch(/min-height:\s*0/);
+    // And no scoped copy has grown back to disagree with it.
+    expect(css).not.toMatch(/\.mira-(dock-panel|confide)[^{]*\.mirathread\s*\{/);
   });
 });

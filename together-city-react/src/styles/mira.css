@@ -74,6 +74,25 @@
   display: flex; flex-direction: column; height: 100%; min-height: 0;
   background: var(--mira-ground);
   color: var(--on-mira);
+  /* ── AND IT FILLS WHATEVER IS HOLDING IT ──────────────────────────────────
+     `height: 100%` is not enough and the reason is worth writing down, because
+     it looks like it should be. All three of her homes are COLUMN flex
+     containers — .csthread on the chats page, .mira-dock-panel, .mira-confide
+     — and in a column container the height is the MAIN axis, decided by flex
+     layout rather than by `height`. A percentage only resolves there when the
+     parent's own height is definite, and .csthread's is not: it is itself a
+     flex item sized by its own parent. So the thread was content-sized.
+     `flex: 1` stretches it whatever the parent knows about its own height.
+
+     WHAT THAT LOOKED LIKE, on the owner's phone: the turns, the note and the
+     composer stacked at the TOP of the panel, and half the screen of empty
+     ground underneath — a composer floating in the middle of a room.
+
+     THIS RULE EXISTED, scoped to `.mira-dock-panel .mirathread`, and worked
+     perfectly in the one place it was written. The other two homes never got
+     it. A fix scoped to where the bug was first seen is a fix that waits for
+     the same bug somewhere else. */
+  flex: 1;
 }
 .miraturns { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
 .miraturn { display: flex; max-width: 82%; }
@@ -312,7 +331,10 @@
   color: var(--on-mira-soft); font-size: 22px; line-height: 1; cursor: pointer;
 }
 .mira-dock-close:hover { color: var(--on-mira); }
-.mira-dock-panel .mirathread { flex: 1; min-height: 0; }
+/* `.mira-dock-panel .mirathread` used to declare `flex: 1; min-height: 0` here.
+   Both are on `.mirathread` itself now — see the note there — and a scoped copy
+   of a rule that belongs to the component is how two of three homes went
+   without it for as long as they did. */
 @media (min-width: 900px) {
   .mira-fab { bottom: 24px; right: 22px; }
   .mira-dock-panel { left: auto; width: 400px; bottom: 24px; right: 22px; }

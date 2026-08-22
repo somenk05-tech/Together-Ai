@@ -379,13 +379,29 @@ export function MiraThread({ dial, about, onBack }: {
     box.current?.focus();
   });
 
-  /** The box grows with what is in it, up to five lines or so. Without this the
-   *  paragraph the microphone hands over is read through a one-line window. */
+  /**
+   * The box grows with what is in it, up to five lines or so. Without this the
+   * paragraph the microphone hands over is read through a one-line window.
+   *
+   * AND THE BORDER IS ADDED BACK, WHICH IS NOT A DETAIL. `scrollHeight` is
+   * content plus padding and does NOT include the border. The app sets
+   * `box-sizing: border-box` on everything, so assigning that number to
+   * `height` sizes the BORDER box to content + padding — leaving the content
+   * area two pixels short of what it just measured. The textarea therefore
+   * overflowed by exactly its own border, always, at every length, and drew a
+   * scrollbar down the side of an empty one-line composer on any platform that
+   * does not use overlay scrollbars.
+   *
+   * Read off the element rather than written as `+ 2`: the border is a token
+   * and a token can change.
+   */
   useEffect(() => {
     const el = box.current;
     if (!el) return;
+    const cs = getComputedStyle(el);
+    const border = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
     el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, 132)}px`;
+    el.style.height = `${Math.min(el.scrollHeight + border, 132)}px`;
   }, [draft]);
 
   /** Somebody who asked their system for less movement asked this scroll too.
