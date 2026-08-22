@@ -112,6 +112,23 @@ describe('The card is the picture', () => {
     const card = css.slice(css.indexOf('.ec-card {'), css.indexOf('.ec-go {'));
     expect(card).toMatch(/aspect-ratio:\s*3\s*\/\s*4/);
     expect(card).toMatch(/overflow:\s*hidden/);
+    const art = css.slice(css.indexOf('.ec-art {'), css.indexOf('.ec-face {'));
+    expect(art).toMatch(/object-fit:\s*cover/);
+    /* NOT DARKENED, at the owner's word, and asserted because "put a scrim back
+       on it" is the first thing anybody would reach for the next time a heading
+       is hard to read on a photograph. That is a real problem on three of these
+       six pictures and the answer to it is a darker picture, not a wash. */
+    const block = css.slice(css.indexOf('.ec-card {'), css.indexOf('.ec-note {'));
+    expect(block).not.toMatch(/\.ec-veil/);
+    expect(block).not.toMatch(/background:\s*(linear|radial)-gradient/);
+    /* THE SHADOW IS NOT A SCRIM COMING BACK. It is on the letterform rather
+       than over the picture, it is what the owner asked for in place of the
+       wash, and it is written from --scrim-top / --scrim-deep because
+       colour-literal-ceiling.mjs is at its ceiling and an rgba() typed here
+       would fail the build. */
+    const name = css.slice(css.indexOf('.ec-name {'), css.indexOf('.ec-state {'));
+    expect(name).toMatch(/text-shadow:.*var\(--scrim-/);
+    expect(name).not.toMatch(/rgba\(|#[0-9a-f]{3}/i);
   });
 
   /**
@@ -156,6 +173,29 @@ describe('The card is the picture', () => {
     for (const [file, allowed] of notes) {
       expect({ file, note: /\bnote=\{/.test(read(file)) }).toEqual({ file, note: allowed });
     }
+  });
+
+  /**
+   * ── ONE FLOOR NAMES THE AISLE, THE OTHER NAMES THE ROOM ───────────────────
+   *
+   * Owner, 22 Aug: the market's fitness card should read "Supplements", not
+   * "The Store". Renaming the room was not available — the Fitness rail already
+   * carries a Supplements row (05, the goal-matched kit) beside The Store (07,
+   * the whole shelf), and two identical rows in one sidebar is worse than the
+   * problem. So the market draws the CATEGORY, which is what that floor is
+   * organised by and what its masthead promises.
+   *
+   * Asserted both ways round, because either half alone would be half a rule:
+   * every open shelf has to declare an aisle, and the Personalized Store has to
+   * go on naming the room.
+   */
+  it('labels the market by aisle and the store by room', () => {
+    const noAisle = OPEN.filter((s) => !s.category).map((s) => s.path);
+    expect(noAisle).toEqual([]);
+    expect(openShelves().map((s) => s.category))
+      .toEqual(['Skin & hair', 'Supplements', 'Pets', 'Gemstones', 'Deals & offers']);
+    expect(read('features/ecommerce/pages/OpenMarket.tsx')).toMatch(/name=\{s\.category \?\? s\.name\}/);
+    expect(read('features/ecommerce/pages/PersonalizedStore.tsx')).toMatch(/name=\{s\.name\}/);
   });
 
   /** And the resolved cards still carry the art through to the page. */

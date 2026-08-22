@@ -35,7 +35,7 @@ export function StoreBar({ shop, back, backLabel, name }: { shop: Shop; back: st
     <div className="st-bar">
       <Link to={back} className="st-back"><span aria-hidden>←</span> {backLabel}</Link>
       {/* The bar names the screen you are ON. Defaulting it to the shop's title
-          printed "Your Routine" twice on the bag — once as the way back and
+          printed the routine's name twice on the bag — once as the way back and
           once as where you are — which says nothing about either. */}
       <span className="st-bar-name">{name ?? shop.title}</span>
       {shop.bag && (

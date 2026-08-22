@@ -1825,25 +1825,31 @@
 }
 /* ── THE CARD IS THE PICTURE ─────────────────────────────────────────────────
    Owner, 22 Aug, holding up an Aēsop poster: the photograph fills the frame and
-   one short line of white type stands in it. Nothing else on the sheet.
+   one line of type stands in the middle of it. Then, in order: "remove the
+   darken wash, just keep it neat", "I want the text to be in the centre", and
+   "forget about readability."
+
+   SO THERE IS NO SCRIM, and that is a decision rather than an oversight. The
+   heading is white and it stands in the centre of an undarkened photograph. On
+   the three dark pictures it reads the way the poster does. On the gemstones,
+   the vegetable field and the offers sheet it does not, and the fix when that
+   matters is a darker picture in the same slot — the file name is the only
+   thing that would change. Nothing here needs to move for it.
 
    THE HEIGHT IS NOT MEASURED FROM THE TEXT, which is the whole of "uniform the
    card sizes for both the pages". The old card was a column of four spans and
-   grew with the longest one — the Beauty Market's line ran to two rows and its
+   grew with the longest one: the Beauty Market's line ran to two rows and its
    tile stood taller than the four beside it, on both floors, differently. This
-   is `aspect-ratio: 3 / 4`, the proportion `.mstack .mshot` already uses, so
-   ten tiles across two rooms are the same tile.
+   is `aspect-ratio: 3 / 4`, the proportion `.mstack .mshot` already uses, so ten
+   tiles across two rooms are the same tile.
 
-   AND EVERY VALUE IS A TOKEN. --scrim-top and --scrim-deep already exist and
-   already darken further in a dark room; --on-accent is the city's white on a
-   lit ground; --fs-6 is the 17px the heading was already set in. A literal here
-   would be a colour outside tokens.css and a font size outside the scale, and
-   both are counted. */
+   AND EVERY VALUE IS A TOKEN. --on-accent is the city's white on a lit ground;
+   --fs-6 is the 17px the heading was already set in. A literal here would be a
+   colour outside tokens.css and a font size outside the scale, and both are
+   counted. */
 .ec-card {
   position: relative;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
+  display: block;
   aspect-ratio: 3 / 4;
   overflow: hidden;
   padding: 0;
@@ -1865,25 +1871,23 @@
   object-fit: cover;
   filter: var(--film);
 }
-/* THE TYPE STANDS IN THE DEEPEST PART OF THE WASH, and that is measured
-   rather than chosen. Six photographs run from a near-black shoulder to a
-   white sheet with a wordmark on it; white type placed in the middle of the
-   frame reads beautifully on the first three and is barely there on the
-   gemstones, which are lit paper. --scrim-deep is 72% at the foot, so the
-   heading sits at the foot and every one of the six clears the same bar. A
-   card that is legible five times out of six is a card that is broken. */
-.ec-veil {
+.ec-face {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, var(--scrim-clear), var(--scrim-top) 42%, var(--scrim-deep));
-}
-.ec-face {
-  position: relative;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 0 20px 20px;
+  padding: 0 20px;
 }
+/* A SLIGHT SHADOW, AT THE OWNER'S WORD, AND IT IS BUILT OUT OF TOKENS. Two
+   stops rather than one: the tight 2px stop is what separates the letterform
+   from whatever is directly under it, and the wide 14px stop is the soft ground
+   that lifts the whole line off a busy photograph. --scrim-top and --scrim-deep
+   already carry those two weights and already deepen in a dark room, which is
+   why the shadow is written from them — colour-literal-ceiling.mjs is at its
+   ceiling, so `rgba(0,0,0,.5)` typed here would have failed the build. */
 .ec-name {
   font-size: var(--fs-6);
   font-weight: 600;
@@ -1891,6 +1895,7 @@
   line-height: 1.3;
   margin: 0;
   color: var(--on-accent);
+  text-shadow: 0 1px 2px var(--scrim-top), 0 2px 14px var(--scrim-deep);
 }
 /* TWO ACROSS ON A PHONE, and the reason is the shape rather than the room.
    `auto-fill, minmax(232px, 1fr)` collapses to one column below about 500px,
@@ -1900,16 +1905,16 @@
    uses seven times. */
 @media (max-width: 560px) {
   .ec-run { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .ec-face { padding: 0 14px 14px; }
+  .ec-face { padding: 0 12px; }
 }
 /* Only the grocery card draws this, and only because it is the one tile that
    is not a door. See GroceryDownloadCard.tsx. */
 .ec-state {
   font-size: var(--fs-3);
   font-weight: 600;
-  line-height: 1.55;
+  line-height: 1.5;
   color: var(--on-accent);
-  opacity: .82;
+  text-shadow: 0 1px 2px var(--scrim-top), 0 2px 12px var(--scrim-deep);
 }
 .ec-note {
   font-size: 12.5px;

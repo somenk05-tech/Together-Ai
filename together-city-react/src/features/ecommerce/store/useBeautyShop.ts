@@ -4,7 +4,7 @@ import {
   type CategoryPlan, type ProductRoutineStep, type RoutinePick,
 } from '@/features/beauty/api';
 import { payError } from '@/features/financial/api';
-import { SHOPS } from '../shelves';
+import { SHOPS, shelfName } from '../shelves';
 import type { PayMethodChoice, Shop, ShopItem } from './types';
 
 /**
@@ -84,7 +84,7 @@ export function useBeautyShop(): Shop {
     key: 'beauty',
     screens: { shelf: SHOPS.beauty.shelf.path, bag: SHOPS.beauty.bag.path },
     back: { path: '/ecommerce/store', label: 'Personalized Store' },
-    title: 'Your Routine',
+    title: shelfName('beauty', '/beauty/routine'),
     line: 'The products your routine chose, and only those. Prices are the shelf’s own — nothing is charged until you pay.',
     from: { label: 'Skin & Hair Profile', path: '/beauty/profile' },
     hubName: 'Beauty Market',

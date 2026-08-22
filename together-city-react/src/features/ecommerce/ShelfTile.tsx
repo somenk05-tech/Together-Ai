@@ -7,9 +7,17 @@ import { Link } from 'react-router-dom';
  * also uniform the card sizes for both the pages … adding one text image for
  * reference style — only the heading and nothing else."
  *
- * The reference was an Aēsop poster: a photograph filling the frame, and one
- * short line of white type standing in the middle of it. Nothing else on the
- * sheet — no eyebrow, no subtitle, no rule, no footnote.
+ * The reference was an Aēsop poster: a photograph filling the frame and one
+ * short line of type. Nothing else on the sheet — no eyebrow, no subtitle, no
+ * rule, no footnote.
+ *
+ * THE TYPE STANDS IN THE FRAME AND THE PICTURE IS NOT DARKENED. The owner's
+ * three follow-ups settled that in order: "remove the darken wash, just keep it
+ * neat", "I want the text to be in the centre", "forget about readability."
+ * White heading, centre of an untouched photograph, no scrim — which reads the
+ * way the poster does on the three dark pictures and does not on the other
+ * three. When that matters the fix is a darker picture in the same slot; the
+ * file name is the only thing that would change.
  *
  * WHICH COST THREE LINES PER CARD, AND THEY ARE NOT LOST. Each tile used to
  * carry the hub name over the top, the shelf's own sentence under the heading,
@@ -58,7 +66,6 @@ export function ShelfTile({ to, onClick, art, name, note }: {
           the link, and an alt text repeating it would have a screen reader read
           the card twice. */}
       <img className="ec-art" src={`/assets/img/${art}`} alt="" loading="lazy" />
-      <span className="ec-veil" aria-hidden />
       <span className="ec-face">
         <span className="ec-name">{name}</span>
         {note && <span className="ec-state">{note}</span>}

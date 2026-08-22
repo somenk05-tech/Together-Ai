@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { HUBS } from '@/config/hubs';
-import { AISLES, FITTED, OPEN, SHOPS } from '@/features/ecommerce/shelves';
+import { AISLES, FITTED, OPEN, SHOPS, shelfName } from '@/features/ecommerce/shelves';
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
@@ -103,6 +103,28 @@ describe('The Personalized Store card is one target', () => {
     // the heading. Everything clickable is the outer element itself.
     const face = tile.slice(tile.indexOf('const face'), tile.indexOf('if (to)'));
     expect(face).not.toMatch(/<Link|<a\b|<button/);
+  });
+
+  /**
+   * ── THE ROOM HAS ONE NAME ─────────────────────────────────────────────────
+   *
+   * Owner, 22 Aug: "Your Routine" → "Your Beauty Routine". The name was
+   * unambiguous in the Beauty rail and ambiguous on the E-Commerce floor, where
+   * it stood beside Supplements, Gemstones and Diet plan.
+   *
+   * It was renamed at the config rather than overridden on the card, and this
+   * is the assertion that keeps it that way: the shop's masthead LOOKS THE NAME
+   * UP instead of carrying its own copy. It carried one until this change, and
+   * the rename is exactly the event that would have made the rail and the shop
+   * it opens disagree.
+   */
+  it('takes the shop’s own title from the room it opens', () => {
+    const shop = code('features/ecommerce/store/useBeautyShop.ts');
+    expect(shop).toMatch(/title: shelfName\('beauty', '\/beauty\/routine'\)/);
+    expect(shop).not.toMatch(/title: '/);
+    const named = shelfName('beauty', '/beauty/routine');
+    expect(named).toBe(HUBS.beauty.items.find((i) => i.path === '/beauty/routine')?.label);
+    expect(named.length).toBeGreaterThan(0);
   });
 
   it('sends the beauty shelf to its shop rather than to the hub', () => {

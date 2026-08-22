@@ -181,5 +181,17 @@ export const AISLES: Record<string, ShopScreens> = {
   },
 };
 
+/**
+ * THE ROOM'S OWN NAME, FOR CODE THAT IS NOT DRAWING A CARD. The shop adapters
+ * build a masthead rather than a shelf, so they never touch `resolve()` — and
+ * `useBeautyShop` kept its own `title: 'Your Routine'` because of it. That is
+ * the second copy this whole file exists to prevent, and it proved the point
+ * the day the owner renamed the room: the rail said one thing and the shop it
+ * opened said another. One lookup, one name.
+ */
+export function shelfName(hub: HubKey, path: string): string {
+  return HUBS[hub]?.items.find((i) => i.path === path)?.label ?? '';
+}
+
 export const fittedShelves = (): ShelfCard[] => FITTED.map(resolve).filter((c): c is ShelfCard => c !== null);
 export const openShelves = (): ShelfCard[] => OPEN.map(resolve).filter((c): c is ShelfCard => c !== null);

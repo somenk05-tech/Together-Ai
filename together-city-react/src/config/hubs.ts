@@ -284,7 +284,13 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // directly under the assessment it is spending against, which is where
       // the decision is actually made. A sidebar entry pointing at another
       // page's section highlights the wrong row and teaches nobody anything.
-      { path: '/beauty/routine', index: '02', label: 'Your Routine', sub: 'Built from your profile + budget' },
+      /* "Your Routine" until the owner renamed it on 22 Aug. The name was
+         unambiguous in this rail and ambiguous everywhere else: on the
+         E-Commerce floor it stood beside Supplements, Gemstones and Diet plan,
+         and a routine of WHAT was the first question the card raised. Renamed
+         HERE rather than overridden on the card, because a room with two names
+         is a room somebody has to learn twice. */
+      { path: '/beauty/routine', index: '02', label: 'Your Beauty Routine', sub: 'Built from your profile + budget' },
       { path: '/beauty/market', index: '03', label: 'Beauty Market', sub: 'Curated, matched to you' },
       // THE MAKEUP STUDIO IS OFF THE MENU (11 Aug), at the owner's word, and
       // that is all that has happened to it: the page, the look engine and
