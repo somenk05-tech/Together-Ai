@@ -33,41 +33,22 @@ function opening(canDo: string[]): string {
 
 const mmss = (s: number): string => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
-/** Which tab spoke last, remembered across opens — a preference, not data. */
-const MODE_KEY = 'mira.mode';
-const storedMode = (): 'friend' | 'city' | null => {
-  try {
-    const v = window.localStorage.getItem(MODE_KEY);
-    return v === 'friend' || v === 'city' ? v : null;
-  } catch { return null; }
-};
 /**
- * ── THERE IS ONE ROOM NOW ─────────────────────────────────────────────────
+ * When "Forget today" was last pressed, ON THIS DEVICE. The server thread
+ * hydrates only what was said after it, so a cleared screen stays cleared here
+ * while the record — and every other device — keeps the history. Deleting the
+ * record itself is the forget command's job.
  *
- * The chips are gone and the register is inferred per turn on the server, so
- * nothing on this screen chooses which Mira is listening. `ROOM` is the key
- * her day and her record have always been under — the value is kept, and only
- * the value, so no citizen's history moves on the morning of the merge.
- *
- * `storedMode()` and `MODE_KEY` stay readable for one reason: `mira.mode` is
- * still in people's browsers and this is where somebody will come looking for
- * it. Nothing calls them.
+ * THE OLD PER-ROOM MARKERS STILL COUNT. `mira.cleared.friend` and
+ * `mira.cleared.city` are in people's browsers and a clear pressed in either
+ * one has to keep holding, or the merge resurrects a conversation somebody
+ * deliberately cleared. The latest of the three wins.
  */
-const ROOM = 'city';
-void storedMode;
-
-/** When "Forget today" was last pressed in a room, ON THIS DEVICE. The
- *  server thread hydrates only what was said after it, so a cleared screen
- *  stays cleared here while the record — and every other device — keeps the
- *  history. Deleting the record itself is the forget command's job. */
+const CLEARED_KEY = 'mira.cleared';
 const clearedAt = (): number => {
-  // EITHER MARKER HOLDS. These were per room; with one thread on screen, a
-  // "Forget today" pressed in the old friend tab must still hide those turns,
-  // or the merge resurrects a conversation somebody deliberately cleared.
   try {
-    const f = Number(window.localStorage.getItem('mira.cleared.friend') ?? 0) || 0;
-    const c = Number(window.localStorage.getItem('mira.cleared.city') ?? 0) || 0;
-    return Math.max(f, c);
+    return Math.max(...['mira.cleared', 'mira.cleared.friend', 'mira.cleared.city']
+      .map((k) => Number(window.localStorage.getItem(k) ?? 0) || 0));
   } catch { return 0; }
 };
 
@@ -202,11 +183,11 @@ export function MiraThread({ dial, about, onBack }: {
    * and then split their history down the middle on the strength of the guess.
    * Both rooms failed the same question on the day this was reversed.
    *
-   * `mode` is a constant rather than a deleted variable on purpose: it still
-   * rides out on the ask (an older server reads it) and it still names the
-   * storage key. It is no longer something anybody chooses.
+   * They went in two steps and this is the second: the chips came off the
+   * screen first and a register the server inferred took their place, which
+   * still made her two people — just invisibly. There is no mode here now, and
+   * none on the wire.
    */
-  const mode = ROOM;
   const [turns, setTurns] = useState<StoredTurn[]>(() => seedWelcome(named(loadDay())));
   const [draft, setDraft] = useState('');
   /**
@@ -254,26 +235,24 @@ export function MiraThread({ dial, about, onBack }: {
    * resurrect on the next open (the record itself is untouched; deleting it
    * is the forget command's job, and hers).
    */
-  const serverThread = useMiraThread(mode);
-  const hydrated = useRef<{ friend: boolean; city: boolean }>({ friend: false, city: false });
+  const serverThread = useMiraThread();
+  const hydrated = useRef(false);
   /**
-   * PER ROOM, BECAUSE ONE SENTENCE USED TO LOCK BOTH.
-   *
-   * `spoke` was a single flag, so saying one thing to the friend meant the
-   * city assistant never hydrated again for the rest of that session — switch
-   * tab and the record was simply not there, on the surface whose entire
-   * promise is the same conversation on every device.
+   * `spoke` and `hydrated` were keyed by room, because `spoke` had once been a
+   * single flag for two rooms — so one sentence to the friend stopped the city
+   * assistant ever hydrating again in that session. With one thread the flag
+   * is a flag again, and it means what it says.
    */
-  const spoke = useRef<{ friend: boolean; city: boolean }>({ friend: false, city: false });
+  const spoke = useRef(false);
   useEffect(() => {
     const data = serverThread.data;
-    if (!data || hydrated.current[mode] || spoke.current[mode]) return;
-    hydrated.current[mode] = true;
+    if (!data || hydrated.current || spoke.current) return;
+    hydrated.current = true;
     const kept = data.turns
       .filter((t) => new Date(t.at).getTime() > clearedAt())
       .map((t) => ({ id: turnId(), who: t.who, text: t.text }));
     if (kept.length) setTurns((mine) => merge(mine, kept));
-  }, [serverThread.data, mode]);
+  }, [serverThread.data]);
   /**
    * WHAT SHE JUST ASKED, HELD FOR ONE TURN.
    *
@@ -329,7 +308,7 @@ export function MiraThread({ dial, about, onBack }: {
     if (!clean || ask.isPending) return;
     // From here the conversation on screen is live — a hydration arriving
     // late must not rewrite it out from under them.
-    spoke.current[mode] = true;
+    spoke.current = true;
     setFailure(null);
     const recent = turns.filter((t) => t.who === 'you').slice(-3).map((t) => t.text).reverse();
     // The day's transcript, both voices, oldest first — her context. Without
@@ -342,7 +321,7 @@ export function MiraThread({ dial, about, onBack }: {
     const stop = new AbortController();
     inFlight.current = stop;
     try {
-      const reply = await ask.mutateAsync({ text: clean, recent, answering: pending.current, history, mode, page: about, signal: stop.signal });
+      const reply = await ask.mutateAsync({ text: clean, recent, answering: pending.current, history, page: about, signal: stop.signal });
       pending.current = reply.choices?.length ? reply.choices : undefined;
       if (typeof reply.seed === 'number') setHeldSeed(reply.seed);
       if (reply.pass) setFreeLeft(reply.pass.freeLeft);
@@ -620,7 +599,7 @@ export function MiraThread({ dial, about, onBack }: {
         <p className="miranote">
           Today’s conversation is kept with your account and shows on every device. Clearing takes it off this device only — she still has it.{' '}
           <button type="button" className="miraforget" onClick={() => {
-            try { window.localStorage.setItem(`mira.cleared.${mode}`, String(Date.now())); } catch { /* view-only marker */ }
+            try { window.localStorage.setItem(CLEARED_KEY, String(Date.now())); } catch { /* view-only marker */ }
             clearDay(); setTurns([]); pending.current = undefined; setFailure(null);
           }}>
             Clear this screen

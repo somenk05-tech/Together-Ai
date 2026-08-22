@@ -49,6 +49,7 @@ const GREETED_KEY = 'mira.greeted';
  * The `room` parameter is gone rather than ignored. An unread argument kept
  * "for the call sites" is a signature that lies about what the function does,
  * and there were four of them — a smaller sweep than the comment defending it.
+ * `MiraRoom` went the same way once the register did.
  */
 const FRIEND_KEY = 'mira.day.friend';
 

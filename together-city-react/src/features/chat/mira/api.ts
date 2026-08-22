@@ -101,8 +101,6 @@ export function useMiraAsk(opts: {
     mutationFn: async (input: {
       text: string; recent?: string[]; answering?: Choice[];
       history?: Array<{ who: 'me' | 'mira'; text: string }>;
-      /** Which tab is asking — friend (the companion) or city (the assistant). */
-      mode?: 'friend' | 'city';
       /** The in-app path they were standing on when they opened her. */
       page?: string;
       /**
@@ -116,7 +114,6 @@ export function useMiraAsk(opts: {
       apiPost('/mira/ask', {
         text: input.text,
         recent: input.recent?.slice(0, 3),
-        mode: input.mode,
         page: input.page,
         // The day's transcript, both voices — what makes "just feeling
         // lonely" a continuation rather than a sentence from nowhere. The
@@ -284,10 +281,12 @@ const MiraThreadSchema = z.object({
 });
 export type MiraServerThread = z.infer<typeof MiraThreadSchema>;
 
-export function useMiraThread(room: 'friend' | 'city') {
+export function useMiraThread() {
   return useQuery({
-    queryKey: ['mira', 'thread', room],
-    queryFn: () => apiGet('/mira/thread', MiraThreadSchema, { params: { room } }),
+    queryKey: ['mira', 'thread'],
+    // No `room` param: there is one transcript. The route still ACCEPTS one so
+    // an older client does not 400, and the API ignores it.
+    queryFn: () => apiGet('/mira/thread', MiraThreadSchema),
     retry: false,
     staleTime: 0,
   });

@@ -34,21 +34,19 @@ describe('Mira is one room', () => {
     // The server record (her memory) is now also the screen's source. The
     // device day-store remains the offline fallback, never the truth.
     expect(api).toMatch(/apiGet\('\/mira\/thread'/);
-    expect(thread).toMatch(/useMiraThread\(mode\)/);
-    // Hydrate once per room, and never over a conversation in progress.
-    expect(thread).toMatch(/hydrated\.current\[mode\]/);
-    // PER ROOM, both of them. `spoke` was one flag for two rooms, so one
-    // sentence to the friend stopped the city assistant ever hydrating again
-    // in that session — the exact opposite of what this block is guarding.
-    expect(thread).toMatch(/spoke\.current\[mode\] = true/);
+    expect(thread).toMatch(/useMiraThread\(\)/);
+    // Hydrate once, and never over a conversation in progress. These were
+    // keyed by room — because `spoke` had once been a single flag for two
+    // rooms, so one sentence to the friend stopped the city assistant ever
+    // hydrating again in that session. With one thread a flag is a flag.
+    expect(thread).toMatch(/hydrated\.current \|\| spoke\.current/);
+    expect(thread).toMatch(/spoke\.current = true/);
     // And the record ARRIVES rather than replacing: hydration used to drop
     // every `goto` and wipe the welcome bubble it could never restore.
     expect(thread).toMatch(/merge\(mine, kept\)/);
     // Clearing marks the moment on THIS device; hydration shows only what
     // came after, so a cleared screen does not resurrect on the next open.
-    // The marker is still WRITTEN under the register's name, and it is now
-    // READ as the later of the two — see the merge case further down.
-    expect(thread).toMatch(/mira\.cleared\.\$\{mode\}/);
+    expect(thread).toMatch(/setItem\(CLEARED_KEY/);
     expect(thread).toMatch(/clearedAt\(\)/);
   });
 
@@ -85,14 +83,23 @@ describe('Mira is one room', () => {
     expect(thread).toMatch(/aria-label="Back to chats"/);
   });
 
-  it('mode still rides the wire, and the server ignores it', () => {
-    // KEPT ON PURPOSE. A field removed from the DTO is a 400 for every client
-    // that has not shipped yet, so it is still sent and still accepted — see
-    // the schema comment in mira.controller.ts. It is a constant here.
-    expect(thread).toMatch(/mode, page: about/);
-    expect(thread).toMatch(/const mode = ROOM;/);
-    expect(api).toMatch(/mode: input\.mode/);
+  it('there is no mode anywhere on the client', () => {
+    // It went in two steps. The chips came off the screen first and a register
+    // the server inferred took their place — which still made her two people,
+    // just invisibly. Now there is no mode on the wire, in the query, or in
+    // this component. The ROUTE still accepts one, so a client that has not
+    // shipped yet does not get a 400; nothing here sends it.
+    const code = strip(thread);
+    expect(code).not.toMatch(/\bmode\b/);
+    expect(code).not.toMatch(/\bROOM\b/);
+    expect(code).not.toMatch(/MODE_KEY|storedMode/);
+    // Scoped to the ask, because the CONFIDANT has its own unrelated
+    // read/draft `mode` and a whole-file check matches that instead — the
+    // same trap the API-side version of this assertion fell into.
+    const askPost = api.slice(api.indexOf("apiPost('/mira/ask'"));
+    expect(askPost.slice(0, askPost.indexOf('MiraReplySchema'))).not.toMatch(/\bmode\b/);
     expect(api).toMatch(/page: input\.page/);
+    expect(thread).toMatch(/page: about/);
   });
 
   it('the friend introduces herself once, and the assistant keeps the rundown', () => {
@@ -147,12 +154,12 @@ describe('Mira is one room', () => {
   });
 
   it('a clear pressed in either old room still holds after the merge', () => {
-    // `mira.cleared.friend` and `mira.cleared.city` were per room. Hydration
-    // now takes the later of the two, or the merge resurrects a conversation
-    // somebody deliberately cleared.
-    expect(thread).toMatch(/mira\.cleared\.friend/);
-    expect(thread).toMatch(/mira\.cleared\.city/);
-    expect(thread).toMatch(/Math\.max\(f, c\)/);
+    // `mira.cleared.friend` and `mira.cleared.city` are in people's browsers
+    // and a clear pressed in either has to keep holding, or the merge
+    // resurrects a conversation somebody deliberately cleared. The latest of
+    // the three wins; only the unsuffixed key is written from now on.
+    expect(thread).toMatch(/'mira\.cleared', 'mira\.cleared\.friend', 'mira\.cleared\.city'/);
+    expect(thread).toMatch(/Math\.max\(\.\.\./);
   });
 });
 
