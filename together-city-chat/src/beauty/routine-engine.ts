@@ -34,21 +34,33 @@ export interface RoutineStep {
   /** Things that could go wrong with THIS product in THIS routine. */
   warnings: string[];
   /**
-   * A STEP THE CITIZEN ALREADY OWNS, HOLDING ITS PLACE IN THE ORDER.
+   * A STEP THE CITIZEN SAID THEY ALREADY HAVE SOMETHING FOR.
    *
-   * The planner has declined to buy these since "what you already have" landed,
-   * correctly, and said so in a sentence on the budget card. The SEQUENCE never
-   * heard about it. Live, on the owner's own profile, that produced a morning
-   * of Prep → Treat → Moisturise → Protect and an evening of Prep → Moisturise
-   * → Finish: a routine with no cleansing step anywhere, printed under an
-   * assurance strip promising "an order you can actually follow", where the
-   * evening never removes an SPF the morning put on.
+   * WHAT THIS MEANS CHANGED ON 22 AUG and the old meaning is worth keeping
+   * written down, because the field name did not change with it. It used to
+   * mark a step with NO product: the planner declined to buy a role the
+   * citizen owned, and this flag held that role's position in the sequence so
+   * the order did not silently lose a step. (It was added because the sequence
+   * never heard about the deduction at all — live, on the owner's own profile,
+   * that produced a morning of Prep → Treat → Moisturise → Protect and an
+   * evening with no cleansing step anywhere, under a strip promising "an order
+   * you can actually follow", where the evening never removed the morning's
+   * SPF.)
    *
-   * An owned step carries no product, no price and nothing to add to a bag. It
-   * carries a position, which is the only thing that was missing.
+   * It now marks a step WITH a product, chosen the same way every other step
+   * is, on a role the citizen ticked on their profile. The owner's call: the
+   * routine shows the best product for a person's skin at every step, whatever
+   * they say they own. The flag survives so the page can say we heard them —
+   * an app that asks a question and then behaves as though it never did is
+   * worse than one that never asked.
+   *
+   * THE EMPTY FORM STILL EXISTS, for exactly one case: a role they own that
+   * the planner could not fill — nothing on the shelf matched, or the budget
+   * ran out. Then there is a position and no product, which is the original
+   * bug's shape, and the placeholder is what stops it coming back.
    */
   owned?: true;
-  /** The sentence for an owned step: why there is nothing to buy here. */
+  /** The sentence for an owned step, product or not. */
   ownedWhy?: string;
 }
 
@@ -347,7 +359,7 @@ export function buildRoutines(products: RecommendedProduct[], owned: readonly Ow
         owned: true as const, ownedWhy: k.why,
       }));
 
-    const steps: RoutineStep[] = [...ownedHere, ...matched
+    const bought: RoutineStep[] = matched
       .filter((p) => slotsFor(p.usage, categoryOf(p.group)).includes(when))
       .map((p) => {
         const c = classify(p);
@@ -367,7 +379,33 @@ export function buildRoutines(products: RecommendedProduct[], owned: readonly Ow
           frequency: FREQUENCY[when],
           warnings: productWarnings(p, when),
         };
-      })]
+      });
+
+    /**
+     * THE NOTE GOES ON THE PRODUCT, AND THE PLACEHOLDER ONLY IF THERE IS NONE.
+     *
+     * Matching is by STEP NAME rather than by product id, because this function
+     * re-derives a step from `classify(p)` and never learns which pick filled
+     * which role. The names in OWNED_PLACE are distinct across categories on
+     * purpose — 'Treat' and 'Treat hair', 'Wash' and 'Cleanse' — so one name
+     * cannot pull a hair note onto a face step.
+     *
+     * The fallback is the whole reason `ownedHere` still exists. A role the
+     * citizen owns that the planner could not fill — nothing matched, or the
+     * budget ran out — would otherwise leave the sequence a step short, which
+     * is the bug this flag was invented for.
+     */
+    const noteFor = new Map(owned
+      .map((k) => ({ k, place: OWNED_PLACE[`${k.category}:${k.role}`] }))
+      .filter((x) => x.place !== undefined && x.place.bands.includes(when))
+      .map(({ k, place }) => [place!.step, k.why] as const));
+
+    const filled = new Set(bought.map((b) => b.step));
+    const unfilled: RoutineStep[] = ownedHere.filter((o) => !filled.has(o.step));
+
+    const steps: RoutineStep[] = [...unfilled, ...bought.map((b) => (
+      noteFor.has(b.step) ? { ...b, owned: true as const, ownedWhy: noteFor.get(b.step)! } : b
+    ))]
       .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name))
       .map((s, i) => ({ ...s, order: i + 1 }));
 

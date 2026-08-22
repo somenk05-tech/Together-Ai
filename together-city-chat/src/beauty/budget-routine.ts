@@ -321,6 +321,17 @@ export interface Pick_ {
   /** Set on an OFFER, never on a chosen step: the sentence saying what spending
    *  this would and would not buy. An offer without one does not get made. */
   reason?: string;
+  /**
+   * The citizen ticked this role on their profile — and it is bought anyway.
+   *
+   * Owner, 22 Aug: the routine shows the best product for a person's skin at
+   * every step, whether or not they said they own something for it. That
+   * REVERSES the deduction this file used to make, and the flag exists so the
+   * reversal is not silent: the page still says "you told us you already have
+   * a cleanser" over a product it has chosen. An app that asks a question and
+   * then acts as though it never did is worse than one that never asked.
+   */
+  alreadyOwn?: true;
 }
 
 export interface CategoryPlan {
@@ -491,8 +502,9 @@ export const isDerivedPackPrice = (p: { name: string }) => DERIVED_PACK.test(p.n
 const byValue = (a: RecommendedProduct, b: RecommendedProduct) =>
   cost(a) - cost(b) || b.matchScore - a.matchScore;
 
-const toPick = (product: RecommendedProduct, role: string, tier: Tier): Pick_ =>
-  ({ product, role, tier, priceInr: product.priceInr, monthlyInr: monthlyCostInr(product), monthsOfUse: monthsOfUse(product) });
+const toPick = (product: RecommendedProduct, role: string, tier: Tier, alreadyOwn = false): Pick_ =>
+  ({ product, role, tier, priceInr: product.priceInr, monthlyInr: monthlyCostInr(product),
+     monthsOfUse: monthsOfUse(product), ...(alreadyOwn ? { alreadyOwn: true as const } : {}) });
 
 /**
  * Plan one category against one monthly budget.
@@ -555,20 +567,38 @@ export function planCategory(
     // See DERIVED_PACK above; these stay on the Market shelf either way.
     && !isDerivedPackPrice(p));
   /**
-   * A ROLE THEY ALREADY HAVE IS NOT A ROLE THIS PLAN FILLS. Removing it from
-   * `defs` rather than filtering at each pass is deliberate: six passes and the
-   * `openRoles`/`idealInr`/`upgrades` derivations all read `defs`, and a rule
-   * applied in five of eight places is a rule that comes back.
+   * EVERY ROLE IS FILLED, INCLUDING THE ONES THEY SAID THEY HAVE.
+   *
+   * Owner, 22 Aug: "no matter what, the routine still shows the best products
+   * for his skin." This line used to read `.filter((d) => !owned.has(d.role))`
+   * and that was the whole of the deduction — six passes, `openRoles`,
+   * `idealInr` and `upgrades` all read `defs`, so removing a role here removed
+   * it everywhere. Putting it back the same way is what makes the reversal
+   * complete rather than five-eighths of one.
+   *
+   * WHAT THE CHIP STILL DOES, because it must do something or the profile is
+   * asking a question into a bin: it annotates. `kept` below still names every
+   * role the citizen owns, the picks carry `alreadyOwn`, and the routine says
+   * so over the product. The money moved; the acknowledgement did not.
+   *
+   * THE COST OF THIS IS REAL AND IS RECORDED HERE RATHER THAN LOST. Measured on
+   * the shipped planner before the deduction existed: a citizen who ticked Face
+   * Cleanser, Moisturizer and Sunscreen was handed all three again — ₹1,785 a
+   * month against roles they had just said were covered. That number comes back
+   * with this change. It is the owner's call and it is not a bug; what would be
+   * a bug is it happening quietly.
    */
-  const defs = ROLES[category].filter((d) => !owned.has(d.role));
+  const defs = ROLES[category];
   const kept: Kept[] = ROLES[category].filter((d) => owned.has(d.role)).map((d) => ({
     role: d.role, tier: d.tier,
-    // "…and we haven't moved the money onto something else either" until
-    // 16 Aug — the band-first rule reversed exactly that half of the sentence,
-    // so it came off rather than stay and lie: the budget is spent toward its
-    // band across the roles that remain. The half that holds, holds: a chip
-    // is a category, not a product, and we never buy a second one.
-    why: `You told us you already have ${KEPT_NOUN[`${category}:${d.role}`] ?? 'this'}, so we haven't bought you another — the budget goes toward the rest of your ${category} routine instead.`,
+    // THE SENTENCE FOLLOWS THE BEHAVIOUR. It used to end "…so we haven't
+    // bought you another"; that stopped being true on 22 Aug and a sentence
+    // that outlives the thing it describes is worse than no sentence. What it
+    // says now is what happens: the step is filled with the best match on the
+    // shelf, the citizen is told we know they have one, and swapping it back
+    // out is one tap in the bag. A chip is a CATEGORY, not a product — it
+    // never said theirs was good, and it still does not.
+    why: `You told us you already have ${KEPT_NOUN[`${category}:${d.role}`] ?? 'this'} — this is the best match on the shelf for your skin, in case you want to change. Take it out of the bag if you are happy with yours.`,
   }));
   const forRole = (d: RoleDef) => pool.filter((p) => d.match.test(p.category));
 
@@ -651,7 +681,7 @@ export function planCategory(
   /** What is still spendable, which is against the CEILING, not the budget. */
   const room = () => ceiling - spent;
   const take = (p: RecommendedProduct, role: string, tier: Tier) => {
-    const pick = toPick(p, role, tier);
+    const pick = toPick(p, role, tier, owned.has(role));
     picks.push(pick); spent += pick.priceInr;
   };
 
@@ -820,7 +850,11 @@ export function planCategory(
     const { at, to } = best as { at: number; to: RecommendedProduct };
     const was = picks[at];
     spent += cost(to) - was.priceInr;
-    picks[at] = toPick(to, was.role, was.tier);
+    // THE FLAG SURVIVES AN UPGRADE. Three passes replace a pick in place, and
+    // each one rebuilt it from the product alone — so a role the citizen owns
+    // lost its mark the moment a better product was found for it, which is
+    // exactly when the routine most needs to say we heard them.
+    picks[at] = toPick(to, was.role, was.tier, Boolean(was.alreadyOwn));
   }
 
   // ── 5. and only now, fuller ─────────────────────────────────────────────
@@ -894,7 +928,11 @@ export function planCategory(
     const { at, to } = best as { at: number; to: RecommendedProduct };
     const was = picks[at];
     spent += cost(to) - was.priceInr;
-    picks[at] = toPick(to, was.role, was.tier);
+    // THE FLAG SURVIVES AN UPGRADE. Three passes replace a pick in place, and
+    // each one rebuilt it from the product alone — so a role the citizen owns
+    // lost its mark the moment a better product was found for it, which is
+    // exactly when the routine most needs to say we heard them.
+    picks[at] = toPick(to, was.role, was.tier, Boolean(was.alreadyOwn));
   }
 
   // ── 5d. the band is the rule — owner's call, 16 Aug ─────────────────────
@@ -944,7 +982,11 @@ export function planCategory(
     const { at, to } = best as { at: number; to: RecommendedProduct };
     const was = picks[at];
     spent += cost(to) - was.priceInr;
-    picks[at] = toPick(to, was.role, was.tier);
+    // THE FLAG SURVIVES AN UPGRADE. Three passes replace a pick in place, and
+    // each one rebuilt it from the product alone — so a role the citizen owns
+    // lost its mark the moment a better product was found for it, which is
+    // exactly when the routine most needs to say we heard them.
+    picks[at] = toPick(to, was.role, was.tier, Boolean(was.alreadyOwn));
   }
 
   // ── 5b. the premium alternative, WHICH IS AN OFFER AND NOT A PURCHASE ────
