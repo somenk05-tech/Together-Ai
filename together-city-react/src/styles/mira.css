@@ -277,13 +277,14 @@
 .mirasub:disabled { opacity: .6; cursor: default; }
 .mirasub + .miragoto { display: inline-block; margin-top: 10px; font-size: var(--fs-3); }
 
-/* ── The two of her, one press apart ──────────────────────────────────
-   Friend and City assistant. Chips in the room's own pair — the lit one is
-   the light tile every pressed key in this room already uses. */
-.miratabs { display: flex; align-items: center; gap: 8px; padding: 12px 18px 0; flex-shrink: 0; }
-/* The tablist itself is a box now rather than `display: contents`, which took
-   the role'd element — and its name — out of the accessibility tree. */
-.miratabgroup { display: flex; align-items: center; gap: 8px; }
+/* ── Her header ───────────────────────────────────────────────────────
+   Two chips stood here — Friend and City assistant — and the transcript
+   changed behind them. They are gone: she is one person and the register is
+   inferred per turn. The row remains because the way back still lives in it,
+   and because a room whose first element is a scrolling log has no top edge.
+   `.miratab` and `.miratabgroup` went with the chips; no spec referenced
+   either, checked before deleting rather than after. */
+.miratabs { display: flex; align-items: center; gap: 8px; padding: 12px 18px 0; flex-shrink: 0; min-height: 44px; }
 /* The way back, when her room is the whole of a phone's screen. The same
    arrow every human thread has, in the room's own chip shape, sitting
    where the thread header's back arrow would have been. */
@@ -292,13 +293,6 @@
   border: 1px solid var(--mira-line); border-radius: var(--r-full); background: none;
   color: var(--on-mira); display: grid; place-items: center; cursor: pointer;
 }
-.miratab {
-  font: inherit; font-size: 13px; font-weight: 600; min-height: 44px; padding: 0 16px;
-  border-radius: var(--r-full); cursor: pointer;
-  border: 1px solid var(--mira-line); background: none; color: var(--on-mira-soft);
-}
-.miratab.on { background: var(--on-mira); color: var(--on-mira-ink); border-color: var(--on-mira); }
-
 /* ── Her door on every page ───────────────────────────────────────────
    The mark floats over the page; a press pops the chat up over it. The fab
    clears the phone's bottom bar; the panel is a sheet on a phone and a card

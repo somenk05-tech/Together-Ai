@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ZodError } from 'zod';
 import { Link } from 'react-router-dom';
 import { FREE_CHATS, SUB_INR, useMiraAsk, useMiraCapabilities, useMiraGreeting, useMiraSubscribe, useMiraThread, type Choice } from './api';
@@ -41,16 +41,34 @@ const storedMode = (): 'friend' | 'city' | null => {
     return v === 'friend' || v === 'city' ? v : null;
   } catch { return null; }
 };
-/** Opened over a page she arrives as the assistant; otherwise as whichever
- *  of her spoke last, and as the friend the very first time. */
-const openingMode = (about?: string): 'friend' | 'city' => (about ? 'city' : storedMode() ?? 'friend');
+/**
+ * ── THERE IS ONE ROOM NOW ─────────────────────────────────────────────────
+ *
+ * The chips are gone and the register is inferred per turn on the server, so
+ * nothing on this screen chooses which Mira is listening. `ROOM` is the key
+ * her day and her record have always been under — the value is kept, and only
+ * the value, so no citizen's history moves on the morning of the merge.
+ *
+ * `storedMode()` and `MODE_KEY` stay readable for one reason: `mira.mode` is
+ * still in people's browsers and this is where somebody will come looking for
+ * it. Nothing calls them.
+ */
+const ROOM = 'city';
+void storedMode;
 
 /** When "Forget today" was last pressed in a room, ON THIS DEVICE. The
  *  server thread hydrates only what was said after it, so a cleared screen
  *  stays cleared here while the record — and every other device — keeps the
  *  history. Deleting the record itself is the forget command's job. */
-const clearedAt = (room: 'friend' | 'city'): number => {
-  try { return Number(window.localStorage.getItem(`mira.cleared.${room}`) ?? 0) || 0; } catch { return 0; }
+const clearedAt = (): number => {
+  // EITHER MARKER HOLDS. These were per room; with one thread on screen, a
+  // "Forget today" pressed in the old friend tab must still hide those turns,
+  // or the merge resurrects a conversation somebody deliberately cleared.
+  try {
+    const f = Number(window.localStorage.getItem('mira.cleared.friend') ?? 0) || 0;
+    const c = Number(window.localStorage.getItem('mira.cleared.city') ?? 0) || 0;
+    return Math.max(f, c);
+  } catch { return 0; }
 };
 
 /**
@@ -70,8 +88,14 @@ const clearedAt = (room: 'friend' | 'city'): number => {
  * transcript behind each. A promise the widget above it falsifies costs more
  * than the promise was worth.
  */
+/*
+   AND THE SENTENCE CAME BACK. "You don't have to figure out which version of
+   me you need" was cut because two chips four centimetres above it made it
+   false. The chips are gone, so it is true, and it is the most useful thing
+   she can say in her first breath.
+*/
 const WELCOME = `Hey. I’m Mira. 👋 Your buddy in Together City.
-Talk to me however you like — the switch up there is only which of my two rooms we’re standing in.`;
+Talk to me however you like — you don’t have to figure out which version of me you need.`;
 
 /** A record written before turns carried ids is still a record, and one bubble
  *  with no key is a whole list keyed by position again. Named here rather than
@@ -80,9 +104,10 @@ const named = (turns: StoredTurn[]): StoredTurn[] =>
   turns.map((t) => (t.id ? t : { ...t, id: turnId() }));
 
 const WELCOMED_KEY = 'mira.welcomed';
-/** The friend's room, seeded with her hello exactly once per device. */
-const seedWelcome = (turns: StoredTurn[], room: 'friend' | 'city'): StoredTurn[] => {
-  if (room !== 'friend' || turns.length > 0) return turns;
+/** Seeded with her hello exactly once per device. Was friend-room only; with
+ *  one room, a citizen who never opened that tab was never introduced to her. */
+const seedWelcome = (turns: StoredTurn[]): StoredTurn[] => {
+  if (turns.length > 0) return turns;
   try {
     if (window.localStorage.getItem(WELCOMED_KEY)) return turns;
     window.localStorage.setItem(WELCOMED_KEY, '1');
@@ -172,17 +197,17 @@ export function MiraThread({ dial, about, onBack }: {
    * though it settles correctly.
    */
   /**
-   * ONE MIRA, TWO TABS — AND TWO THREADS. Friend is the companion — the
-   * chart, the numbers, the listening ear. City assistant is the operator
-   * she has always been. The owner's call, made looking at one merged
-   * transcript: a heart-to-heart and "take me to budgets" do not belong in
-   * the same scroll, so each tab keeps its own day (day.ts rooms). The seed,
-   * the mood and the meter stay shared — she is one person with two rooms,
-   * not two people. The tab is remembered; opened OVER a page she arrives as
-   * the assistant, which is plainly what was asked for.
+   * ONE MIRA, ONE THREAD. The two chips forced the citizen to answer a question
+   * they had no way to answer — which of her two rooms a sentence belongs in —
+   * and then split their history down the middle on the strength of the guess.
+   * Both rooms failed the same question on the day this was reversed.
+   *
+   * `mode` is a constant rather than a deleted variable on purpose: it still
+   * rides out on the ask (an older server reads it) and it still names the
+   * storage key. It is no longer something anybody chooses.
    */
-  const [mode, setMode] = useState<'friend' | 'city'>(() => openingMode(about));
-  const [turns, setTurns] = useState<StoredTurn[]>(() => seedWelcome(named(loadDay(undefined, openingMode(about))), openingMode(about)));
+  const mode = ROOM;
+  const [turns, setTurns] = useState<StoredTurn[]>(() => seedWelcome(named(loadDay())));
   const [draft, setDraft] = useState('');
   /**
    * The last failure, held OUTSIDE the transcript and cleared by the next
@@ -190,17 +215,6 @@ export function MiraThread({ dial, about, onBack }: {
    * not a thing she said, and it may not be persisted as one.
    */
   const [failure, setFailure] = useState<{ why: string; held: string } | null>(null);
-  const pickMode = (m: 'friend' | 'city') => {
-    if (m === mode) return;
-    setMode(m);
-    // The other room's day, and none of this one's held question — an answer
-    // to a question asked in the other tab would be read against the wrong
-    // conversation.
-    setTurns(seedWelcome(named(loadDay(undefined, m)), m));
-    pending.current = undefined;
-    setFailure(null);
-    try { window.localStorage.setItem(MODE_KEY, m); } catch { /* a preference, not data */ }
-  };
   /**
    * THE METER, WHEN THE SERVER MENTIONS IT. `freeLeft` is null for a
    * subscriber — unmetered, never rendered as "0 left". `paywall` below puts
@@ -256,7 +270,7 @@ export function MiraThread({ dial, about, onBack }: {
     if (!data || hydrated.current[mode] || spoke.current[mode]) return;
     hydrated.current[mode] = true;
     const kept = data.turns
-      .filter((t) => new Date(t.at).getTime() > clearedAt(mode))
+      .filter((t) => new Date(t.at).getTime() > clearedAt())
       .map((t) => ({ id: turnId(), who: t.who, text: t.text }));
     if (kept.length) setTurns((mine) => merge(mine, kept));
   }, [serverThread.data, mode]);
@@ -291,7 +305,6 @@ export function MiraThread({ dial, about, onBack }: {
   const box = useRef<HTMLTextAreaElement>(null);
   /** The way to stop a request that is not coming back. See `send`. */
   const inFlight = useRef<AbortController | null>(null);
-  const tabs = useRef<Record<'friend' | 'city', HTMLButtonElement | null>>({ friend: null, city: null });
 
   const speech = useSpeech();
   const greeting = useMiraGreeting({
@@ -304,7 +317,7 @@ export function MiraThread({ dial, about, onBack }: {
   const said = greeting.data?.seed;
   useEffect(() => { if (typeof said === 'number') setHeldSeed(said); }, [said]);
 
-  useEffect(() => { saveDay(turns, undefined, mode); }, [turns, mode]);
+  useEffect(() => { saveDay(turns); }, [turns]);
 
   /**
    * `echo` is what makes the paywall's re-send possible: the citizen's line is
@@ -431,21 +444,15 @@ export function MiraThread({ dial, about, onBack }: {
    */
   const untouched = !turns.some((t) => t.who === 'you');
 
-  /** Arrow keys move between the two of her, as a tablist is expected to —
-   *  and the focus goes with the selection, or the next Tab press comes from
-   *  wherever the focus was left behind. */
-  const onTabKey = (e: KeyboardEvent) => {
-    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-    e.preventDefault();
-    const next = mode === 'friend' ? 'city' : 'friend';
-    pickMode(next);
-    tabs.current[next]?.focus();
-  };
-
   return (
     <div className="mirathread">
-      {/* The two of her, one press apart. Chips, not a router — the thread
-          and the day's memory are shared; only her register changes. */}
+      {/* ── THE HEADER IS A WAY BACK, NOT A CHOICE ──────────────────────
+          Two `role="tab"` chips stood here and the transcript changed behind
+          them. They are gone: she is one person, the register is inferred per
+          turn on the server, and the citizen no longer has to classify their
+          own sentence before saying it. The back arrow stays — on a phone her
+          room replaces the thread header entirely, so without it there is no
+          way out. */}
       <div className="miratabs">
         {onBack && (
           <button type="button" className="mira-back" aria-label="Back to chats"
@@ -454,28 +461,6 @@ export function MiraThread({ dial, about, onBack }: {
               strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
           </button>
         )}
-        {/* A REAL TABLIST, AND NOT `display: contents`.
-            These were two `aria-pressed` buttons inside a `role="group"` that
-            carried `style={{ display: 'contents' }}` — which takes the role'd
-            box out of the accessibility tree in every engine that implements
-            the rule, so the group and its name were simply not there. Two
-            buttons that swap the whole transcript behind them are tabs: one
-            stop in the tab order, arrows between them, and the switch
-            announced by `aria-selected` rather than by the scroll changing. */}
-        <div className="miratabgroup" role="tablist" aria-label="Which Mira" onKeyDown={onTabKey}>
-        <button type="button" role="tab" id="miratab-friend" className={`miratab${mode === 'friend' ? ' on' : ''}`}
-          ref={(el) => { tabs.current.friend = el; }}
-          aria-selected={mode === 'friend'} aria-controls="miraturns" tabIndex={mode === 'friend' ? 0 : -1}
-          onClick={() => pickMode('friend')}>
-          Friend
-        </button>
-        <button type="button" role="tab" id="miratab-city" className={`miratab${mode === 'city' ? ' on' : ''}`}
-          ref={(el) => { tabs.current.city = el; }}
-          aria-selected={mode === 'city'} aria-controls="miraturns" tabIndex={mode === 'city' ? 0 : -1}
-          onClick={() => pickMode('city')}>
-          City assistant
-        </button>
-        </div>
       </div>
       {/* A LOG, SO A REPLY ARRIVING IS ANNOUNCED.
           Nothing told a screen-reader user that she had answered: the bubble
@@ -485,9 +470,10 @@ export function MiraThread({ dial, about, onBack }: {
           It is a log and not a `tabpanel`, and that is a choice rather than an
           oversight: one element gets one role, and of the two, being told the
           answer arrived matters more than being told the scroll is a panel.
-          The tabs name it through `aria-controls`. */}
+          It named itself through the tabs' `aria-controls` and there are no
+          tabs now, so it carries its own name. */}
       <div className="miraturns" id="miraturns" role="log" aria-live="polite"
-        aria-label={mode === 'friend' ? 'Conversation with Mira' : 'Conversation with Mira, the city assistant'}>
+        aria-label="Conversation with Mira">
         {/* The opening is the empty state, not a permanent banner. Once there is
             a conversation, the promise has been kept or broken and repeating it
             above the evidence is noise. */}
@@ -509,11 +495,14 @@ export function MiraThread({ dial, about, onBack }: {
                 when it does not: a greeting that fails is a quieter opening,
                 never an error in front of somebody. */}
             {greeting.data?.ask && <p className="miraask">{greeting.data.ask}</p>}
-            {/* The capability rundown is the ASSISTANT's introduction — the
-                owner's call: "I'm here, what do you need" belongs to the city
-                tab. The friend's introduction is the welcome bubble, and an
-                empty friend tab after that keeps just the mark and her mood. */}
-            {mode === 'city' && <p className="miraopentext">{opening((caps.data ?? []).map((c) => c.intent.toLowerCase()))}</p>}
+            {/* WHAT SHE CAN ACTUALLY DO, ON THE WAY IN.
+                This was the city tab's introduction and the friend tab did not
+                get it. With one room it is shown to everybody — and it is the
+                thing the chips were doing honestly: setting an expectation
+                about what happens to what you are about to say. It is built
+                from the live capability list, so it cannot promise something
+                she has not got. */}
+            <p className="miraopentext">{opening((caps.data ?? []).map((c) => c.intent.toLowerCase()))}</p>
           </div>
         )}
 
@@ -632,7 +621,7 @@ export function MiraThread({ dial, about, onBack }: {
           Today’s conversation is kept with your account and shows on every device. Clearing takes it off this device only — she still has it.{' '}
           <button type="button" className="miraforget" onClick={() => {
             try { window.localStorage.setItem(`mira.cleared.${mode}`, String(Date.now())); } catch { /* view-only marker */ }
-            clearDay(mode); setTurns([]); pending.current = undefined; setFailure(null);
+            clearDay(); setTurns([]); pending.current = undefined; setFailure(null);
           }}>
             Clear this screen
           </button>
@@ -660,6 +649,9 @@ export function MiraThread({ dial, about, onBack }: {
               phone in a one-line input scrolled sideways. Enter still sends;
               Shift+Enter is the newline, as it is in every composer.
               `enterkeyhint` is what makes the phone's key say Send. */}
+          {/* ONE PROMPT. Two placeholders asked the citizen to sort their own
+              sentence before typing it, which is the thing the chips did and
+              the thing being removed. */}
           <textarea
             ref={box}
             rows={1}
@@ -668,8 +660,8 @@ export function MiraThread({ dial, about, onBack }: {
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(draft); }
             }}
-            placeholder={mode === 'friend' ? 'Talk to me…' : 'Tell me what you need…'}
-            aria-label={mode === 'friend' ? 'Message Mira' : 'Tell Mira what you need'}
+            placeholder="Talk to me…"
+            aria-label="Message Mira"
             enterKeyHint="send"
             autoCapitalize="sentences"
             autoCorrect="on"

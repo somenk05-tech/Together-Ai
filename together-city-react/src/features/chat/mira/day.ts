@@ -39,14 +39,48 @@ const KEY = 'mira.day';
 const GREETED_KEY = 'mira.greeted';
 
 /**
- * TWO TABS, TWO THREADS. The owner's call, made looking at one merged
- * transcript: a heart-to-heart and "take me to budgets" do not belong in the
- * same scroll. The friend's day lives under its own key; the assistant keeps
- * the ORIGINAL key, so every conversation that existed before the split is
- * still exactly where its citizens left it — in the assistant's room.
+ * ── ONE THREAD AGAIN ──────────────────────────────────────────────────────
+ *
+ * The split was the owner's call and it has been reversed: there are no tabs
+ * to be in, so there is nothing for two keys to belong to. Every day now lives
+ * under the ORIGINAL key, which is where the conversations that predate the
+ * split have been the whole time.
+ *
+ * The `room` parameter is gone rather than ignored. An unread argument kept
+ * "for the call sites" is a signature that lies about what the function does,
+ * and there were four of them — a smaller sweep than the comment defending it.
  */
-export type MiraRoom = 'friend' | 'city';
-const keyFor = (room?: MiraRoom): string => (room === 'friend' ? 'mira.day.friend' : KEY);
+const FRIEND_KEY = 'mira.day.friend';
+
+/**
+ * The friend's day, folded back in, once.
+ *
+ * HONEST ABOUT THE ORDER: a stored turn carries no timestamp, so two days
+ * cannot be interleaved by time — the friend's turns are appended after the
+ * assistant's rather than woven between them. That is wrong about sequence and
+ * right about content, for one day, on one device, for a cache whose authority
+ * is the server record anyway. The alternative was throwing half a
+ * conversation away on the morning of the merge.
+ */
+function foldFriendIn(s: Storage, at: Date): void {
+  let raw: string | null = null;
+  try { raw = s.getItem(FRIEND_KEY); } catch { return; }
+  if (raw === null) return;
+  try {
+    const friend = DaySchema.safeParse(JSON.parse(raw));
+    if (friend.success && friend.data.day === today(at) && friend.data.turns.length) {
+      const mineRaw = s.getItem(KEY);
+      const mine = mineRaw ? DaySchema.safeParse(JSON.parse(mineRaw)) : null;
+      const kept = mine?.success && mine.data.day === today(at) ? mine.data.turns : [];
+      s.setItem(KEY, JSON.stringify({
+        day: today(at),
+        turns: [...kept, ...friend.data.turns].slice(-MAX_TURNS),
+      }));
+    }
+  } catch { /* a malformed cache is a cache, and it is being dropped anyway */ }
+  // Removed either way: leaving it means folding it in again tomorrow.
+  try { s.removeItem(FRIEND_KEY); } catch { /* nothing to do about it */ }
+}
 const SALT_KEY = 'mira.salt';
 
 /** A long day of talking, and a hard stop. Anything past this is a runaway loop
@@ -96,17 +130,18 @@ function store(): Storage | null {
   try { return window.localStorage; } catch { return null; }
 }
 
-export function loadDay(at: Date = new Date(), room?: MiraRoom): StoredTurn[] {
+export function loadDay(at: Date = new Date()): StoredTurn[] {
   const s = store();
   if (!s) return [];
+  foldFriendIn(s, at);
   try {
-    const raw = s.getItem(keyFor(room));
+    const raw = s.getItem(KEY);
     if (!raw) return [];
     const parsed = DaySchema.safeParse(JSON.parse(raw));
     // A shape we do not recognise is yesterday's format, and it is dropped for
     // the same reason yesterday's day is: this is a cache of a conversation,
     // not a record anybody is owed.
-    if (!parsed.success || parsed.data.day !== today(at)) { s.removeItem(keyFor(room)); return []; }
+    if (!parsed.success || parsed.data.day !== today(at)) { s.removeItem(KEY); return []; }
     return parsed.data.turns;
   } catch { return []; }
 }
@@ -127,10 +162,10 @@ export function loadDay(at: Date = new Date(), room?: MiraRoom): StoredTurn[] {
  */
 const ended = new Set<string>();
 
-export function saveDay(turns: StoredTurn[], at: Date = new Date(), room?: MiraRoom): void {
+export function saveDay(turns: StoredTurn[], at: Date = new Date()): void {
   const s = store();
   if (!s) return;
-  const key = keyFor(room);
+  const key = KEY;
   if (ended.has(key)) return;
   try {
     const raw = s.getItem(key);
@@ -223,21 +258,25 @@ export function firstOpenToday(at: Date = new Date()): boolean {
 
 /** Forget today. Clears ONE room's thread when named — "Forget today" is
  *  pressed inside a tab, and forgetting the friend must not take the
- *  assistant's errands with it — and everything when not, which is what the
- *  older call sites and the spec mean by it. The greeting marker goes either
- *  way: half-remembering having said hello is worse than saying it twice. */
-export function clearDay(room?: MiraRoom): void {
+ *  assistant's errands with it. There is one thread now, so the parameter is
+ *  ignored and everything goes — a button that says it forgets today must not
+ *  leave half of today on the screen. The greeting marker goes with it:
+ *  half-remembering having said hello is worse than saying it twice. */
+export function clearDay(): void {
   const s = store();
   if (!s) return;
   try {
     // Clearing hands the room back: a day that ended is forgotten anyway, and a
     // room that may not write again is a room where the next sentence would not
     // survive a refresh.
-    if (room) { s.removeItem(keyFor(room)); ended.delete(keyFor(room)); }
-    else {
-      s.removeItem(keyFor('city')); s.removeItem(keyFor('friend'));
-      ended.delete(keyFor('city')); ended.delete(keyFor('friend'));
-    }
+    // ONE ROOM, SO CLEARING CLEARS IT. The old signature let "Forget today" in
+    // one tab leave the other tab's thread standing; with a single thread on
+    // screen that behaviour would leave visible turns behind after the citizen
+    // pressed the button that says it forgets them.
+    s.removeItem(KEY);
+    s.removeItem(FRIEND_KEY);
+    ended.delete(KEY);
+    ended.delete(FRIEND_KEY);
     s.removeItem(GREETED_KEY);
   } catch { /* nothing to do about it */ }
 }

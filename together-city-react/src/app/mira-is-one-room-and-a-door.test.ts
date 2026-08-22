@@ -11,20 +11,22 @@ const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
 const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/.*$/gm, '$1 ');
 
 /**
- * ONE MIRA, TWO TABS, AND A DOOR ON EVERY PAGE.
+ * ONE MIRA, ONE ROOM, AND A DOOR ON EVERY PAGE.
  *
- * Friend is the companion — chart, numbers, the listening ear. City
- * assistant is the operator she has always been. The tab changes her
- * REGISTER on the wire (`mode`) — and, by the owner's call, her THREAD: a
- * heart-to-heart and "take me to budgets" do not belong in the same scroll,
- * so each tab keeps its own day. The seed, the mood and the meter stay
- * shared — one person, two rooms.
+ * The two chips are gone. They asked the citizen to classify their own
+ * sentence before typing it — companion or operator — and then split their
+ * history down the middle on the strength of that guess. On 22 Aug both rooms
+ * were asked "tell me a meal i can eat today" and both failed, differently in
+ * tone and identically in substance, which is what settled it.
  *
- * And her mark now floats on every page: a press pops the chat up over
- * whatever the citizen is doing, with the page sent along so "what is
- * this?" means THIS page.
+ * The register is now inferred per turn on the server and it fails toward
+ * listening. Nothing on this screen chooses it.
+ *
+ * And her mark floats on every page: a press pops the chat up over whatever
+ * the citizen is doing, with the page sent along so "what is this?" means
+ * THIS page.
  */
-describe('Mira is two tabs', () => {
+describe('Mira is one room', () => {
   const thread = read('features/chat/mira/MiraThread.tsx');
   const api = read('features/chat/mira/api.ts');
 
@@ -44,8 +46,10 @@ describe('Mira is two tabs', () => {
     expect(thread).toMatch(/merge\(mine, kept\)/);
     // Clearing marks the moment on THIS device; hydration shows only what
     // came after, so a cleared screen does not resurrect on the next open.
+    // The marker is still WRITTEN under the register's name, and it is now
+    // READ as the later of the two — see the merge case further down.
     expect(thread).toMatch(/mira\.cleared\.\$\{mode\}/);
-    expect(thread).toMatch(/clearedAt\(mode\)/);
+    expect(thread).toMatch(/clearedAt\(\)/);
   });
 
   it('her room carries its own way back when it is the whole screen', () => {
@@ -61,28 +65,34 @@ describe('Mira is two tabs', () => {
     expect(dockSrc).not.toMatch(/onBack/);
   });
 
-  it('offers Friend and City assistant, and remembers the choice', () => {
-    expect(thread).toMatch(/>\s*Friend\s*</);
-    expect(thread).toMatch(/>\s*City assistant\s*</);
-    // TWO TABS, AND THEY SAY SO. They were `aria-pressed` buttons in a
-    // `role="group"` carrying `display: contents`, which drops the role'd box
-    // — and its name — out of the accessibility tree. Two controls that swap
-    // the whole transcript behind them are a tablist: one tab stop, arrows
-    // between them, and the selection announced.
-    expect(thread).toMatch(/role="tablist"/);
-    expect(thread).toMatch(/aria-selected=\{mode === 'friend'\}/);
-    expect(strip(thread)).not.toMatch(/display: 'contents'/);
-    expect(thread).toMatch(/localStorage\.setItem\(MODE_KEY/);
+  it('offers no choice at all, because there is nothing to choose between', () => {
+    const code = strip(thread);
+    expect(code).not.toMatch(/>\s*City assistant\s*</);
+    expect(code).not.toMatch(/role="tab(list)?"/);
+    expect(code).not.toMatch(/aria-selected/);
+    // The preference is not written any more. `MODE_KEY` and `storedMode` stay
+    // readable — `mira.mode` is still in people's browsers and this is where
+    // somebody will come looking for it — but nothing sets it.
+    expect(code).not.toMatch(/localStorage\.setItem\(MODE_KEY/);
+    expect(code).not.toMatch(/setMode\(/);
+    // And one composer prompt, not one per room: two placeholders asked the
+    // citizen the same sorting question the chips did.
+    expect(thread).toMatch(/placeholder="Talk to me…"/);
+    expect(code).not.toMatch(/placeholder=\{mode ===/);
   });
 
-  it('the tab rides the wire as mode, and the page rides as page', () => {
+  it('the back arrow survives — it is the only way out of a full-screen room', () => {
+    expect(thread).toMatch(/aria-label="Back to chats"/);
+  });
+
+  it('mode still rides the wire, and the server ignores it', () => {
+    // KEPT ON PURPOSE. A field removed from the DTO is a 400 for every client
+    // that has not shipped yet, so it is still sent and still accepted — see
+    // the schema comment in mira.controller.ts. It is a constant here.
     expect(thread).toMatch(/mode, page: about/);
+    expect(thread).toMatch(/const mode = ROOM;/);
     expect(api).toMatch(/mode: input\.mode/);
     expect(api).toMatch(/page: input\.page/);
-  });
-
-  it('opened over a page, she arrives as the assistant', () => {
-    expect(thread).toMatch(/about \? 'city' : storedMode\(\) \?\? 'friend'/);
   });
 
   it('the friend introduces herself once, and the assistant keeps the rundown', () => {
@@ -96,30 +106,53 @@ describe('Mira is two tabs', () => {
     expect(thread).toMatch(/Hey\. I’m Mira\./);
     expect(strip(thread)).not.toMatch(/200 free messages/);
     expect(strip(thread)).not.toMatch(/privacy framework/i);
-    expect(strip(thread)).not.toMatch(/which version of me you need/);
-    // The capability opening ("tell me what you want done") is the CITY tab's
-    // empty state, not the friend's.
+    // AND THIS SENTENCE CAME BACK. It was cut because two chips four
+    // centimetres above it made it false. There are no chips, so it is true.
+    expect(thread).toMatch(/which version of me you need/);
+    // The capability rundown was the CITY tab's empty state and the friend
+    // never got it. Everybody gets it now: it is the honest version of what
+    // the chips were doing — telling you what happens to what you say.
     expect(thread).toMatch(/mira\.welcomed/);
-    expect(thread).toMatch(/room !== 'friend' \|\| turns\.length > 0/);
-    expect(thread).toMatch(/mode === 'city' && <p className="miraopentext">/);
+    expect(thread).toMatch(/if \(turns\.length > 0\) return turns;/);
+    expect(strip(thread)).not.toMatch(/mode === 'city' &&/);
+    expect(thread).toMatch(/<p className="miraopentext">/);
     // The welcome arrives with real line breaks, and the bubble keeps them.
     const css = read('styles/mira.css');
     expect(css).toMatch(/\.mirabub \{[^}]*white-space: pre-wrap/);
   });
 
-  it('each tab keeps its own thread — the friend and the errands never merge', () => {
+  it('one thread, and the split day is folded back into it once', () => {
     const day = read('features/chat/mira/day.ts');
-    // The friend's room has its own key; the assistant keeps the ORIGINAL
-    // key, so every conversation from before the split is still where its
-    // citizens left it.
-    expect(day).toMatch(/mira\.day\.friend/);
-    expect(day).toMatch(/room === 'friend' \? 'mira\.day\.friend' : KEY/);
-    // Switching tabs swaps the thread, drops the other room's held question,
-    // and saves into the room being looked at.
-    expect(thread).toMatch(/setTurns\(seedWelcome\(named\(loadDay\(undefined, m\)\), m\)\)/);
-    expect(thread).toMatch(/saveDay\(turns, undefined, mode\)/);
-    // Forget today forgets the tab you are standing in, not both.
-    expect(thread).toMatch(/clearDay\(mode\)/);
+    // Every day is under the ORIGINAL key again — where the conversations
+    // that predate the split have been the whole time.
+    expect(day).toMatch(/s\.getItem\(KEY\)/);
+    // THE PARAMETER IS GONE, NOT IGNORED. `_room` kept "for the call sites" is
+    // a signature that lies about what the function does — and eslint said so
+    // before a reader had to.
+    expect(day).not.toMatch(/_room/);
+    expect(strip(thread)).not.toMatch(/_room/);
+    // The friend's key is not written any more; it is READ once, folded in,
+    // and removed. Throwing half a conversation away on the morning of the
+    // merge was the alternative.
+    expect(day).toMatch(/function foldFriendIn/);
+    expect(day).toMatch(/removeItem\(FRIEND_KEY\)/);
+    expect(day).toMatch(/foldFriendIn\(s, at\)/);
+    // There is nothing to switch to, so nothing swaps the thread.
+    expect(strip(thread)).not.toMatch(/pickMode/);
+    expect(thread).toMatch(/saveDay\(turns\)/);
+    expect(thread).toMatch(/clearDay\(\); setTurns\(\[\]\)/);
+    // Forget today forgets today. With one thread on screen, leaving the other
+    // room's turns standing would leave visible turns after the press.
+    expect(day).toMatch(/s\.removeItem\(KEY\);/);
+  });
+
+  it('a clear pressed in either old room still holds after the merge', () => {
+    // `mira.cleared.friend` and `mira.cleared.city` were per room. Hydration
+    // now takes the later of the two, or the merge resurrects a conversation
+    // somebody deliberately cleared.
+    expect(thread).toMatch(/mira\.cleared\.friend/);
+    expect(thread).toMatch(/mira\.cleared\.city/);
+    expect(thread).toMatch(/Math\.max\(f, c\)/);
   });
 });
 
