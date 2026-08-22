@@ -24,10 +24,14 @@ const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
  * of the room it points at — one source, so the two cannot drift apart.
  */
 describe('E-Commerce is a district with rooms behind it', () => {
-  it('has a tab on the street and two rooms in the rail', () => {
+  it('has a tab on the street and its rooms in the rail', () => {
     expect(NAV.find((n) => n.key === 'ecommerce')?.label).toBe('E-Commerce');
+    /* TWO ROOMS ON 22 AUG, THREE BY THE EVENING: the cart joined them at the
+       owner's word — "keep individual carts and also a cross-hub cart in
+       e-commerce". The facade's two doors are still the first two, and the
+       order is asserted because the rail is read top to bottom. */
     expect(HUBS.ecommerce.items.map((i) => i.path))
-      .toEqual(['/ecommerce/store', '/ecommerce/market']);
+      .toEqual(['/ecommerce/store', '/ecommerce/market', '/ecommerce/cart']);
   });
 
   it('is a plate you can walk into, not one that is only labelled', () => {

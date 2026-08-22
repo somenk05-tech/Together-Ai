@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { HUBS } from '@/config/hubs';
 import { FITTED, SHOPS } from '@/features/ecommerce/shelves';
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -120,5 +121,92 @@ describe('The Personalized Store card is one target', () => {
     // card, not dropped from the product.
     expect(store).toMatch(/Reads your \{s\.reads\.name\}/);
     expect(code('features/ecommerce/store/StoreFront.tsx')).toMatch(/Built from your \{shop\.from\.label\}/);
+  });
+});
+
+/**
+ * ── ONE CART, THREE TILLS ───────────────────────────────────────────────────
+ *
+ * Owner, 22 Aug: stores for the other shelves, "a global cart system where
+ * people can add products from multiple places and order once", and — asked
+ * directly — "keep individual carts and also a cross-hub cart in e-commerce".
+ *
+ * The dangerous reading of that is a fourth bag that mirrors the other three.
+ * It is not one: the cart is a VIEW over the bags the hubs already hold, which
+ * is why something added in the Beauty Market shows up in it. These assertions
+ * are what stop a copy appearing later, and what stop the two carts that have
+ * no till behind them being listed above a Pay button.
+ */
+describe('The city cart is a view, not a fourth bag', () => {
+  const cart = code('features/ecommerce/store/useCityCart.ts');
+  const page = code('features/ecommerce/pages/CityCart.tsx');
+
+  it('is the third tab of the district', () => {
+    expect(HUBS.ecommerce.items.map((i) => i.path))
+      .toEqual(['/ecommerce/store', '/ecommerce/market', '/ecommerce/cart']);
+  });
+
+  it('reads the hubs’ own bags rather than keeping one', () => {
+    for (const hook of ['useBagActions', 'useBag', 'useGemCart']) expect(cart).toMatch(hook);
+    // No store of its own, and no persistence of its own: a cart written down
+    // here would be a second answer to "what is in my cart".
+    expect(cart).not.toMatch(/localStorage|sessionStorage|create\(/);
+  });
+
+  it('lists no shop it cannot charge', () => {
+    // The grocery list has no prices and no order endpoint; the pet cart lives
+    // in the browser with no till at all. A line in a cart under a Pay button
+    // is a promise to charge for it.
+    expect(cart).not.toMatch(/nutrition\/grocery|features\/pets/);
+  });
+
+  it('places one order per shop, in a row, and reports each by name', () => {
+    // Sequential because three charges fired at once against one wallet
+    // balance is three reads of the same number.
+    expect(cart).toMatch(/for \(const section of sections\)/);
+    expect(cart).toMatch(/beautyPlace\.mutateAsync/);
+    expect(cart).toMatch(/fitPlace\.mutateAsync/);
+    expect(cart).toMatch(/gemCheckout\.mutateAsync/);
+    expect(cart).toMatch(/ok: false/);
+    expect(page).toMatch(/cart\.outcomes\.map/);
+  });
+
+  it('offers the wallet only, because that is what every till takes', () => {
+    // POST /fitness/store/orders charges the city wallet whatever method it is
+    // handed, so a card option here would be kept for two thirds of a total.
+    expect(page).toMatch(/walletOnly/);
+  });
+});
+
+describe('Three shelves have shops, and one deliberately does not', () => {
+  it('gives supplements and gemstones a storefront each', () => {
+    for (const key of ['beauty', 'supplements', 'gemstones']) {
+      expect({ key, shelf: SHOPS[key]?.shelf.path }).toEqual({ key, shelf: `/ecommerce/shop/${key}` });
+      expect({ key, bag: SHOPS[key]?.bag.path }).toEqual({ key, bag: `/ecommerce/shop/${key}/bag` });
+    }
+    expect(FITTED.filter((s) => s.shop).map((s) => s.shop).sort())
+      .toEqual(['beauty', 'gemstones', 'supplements']);
+  });
+
+  it('leaves the grocery list pointing at the room that works', () => {
+    // It is a list of ingredients with no prices and no order endpoint. A
+    // storefront with no till would be a second view of a working page.
+    expect(FITTED.find((s) => s.path === '/nutrition/grocery')?.shop).toBeUndefined();
+  });
+
+  it('sells no gemstone from the shelf, because a stone has no price until it is designed', () => {
+    const gems = code('features/ecommerce/store/useGemShop.ts');
+    expect(gems).toMatch(/design: \{ label: 'Design & lock'/);
+    // The bench takes commissions, not quantities: one of a kind, so Remove
+    // rather than a ± that cannot be honoured.
+    expect(gems).toMatch(/fixedQty: true/);
+  });
+
+  it('keeps prescription items off the supplement shop', () => {
+    const fit = code('features/ecommerce/store/useFitnessShop.ts');
+    expect(fit).toMatch(/!p\.rx/);
+    // And shows nothing at all when the shelf is not personalised — a general
+    // list presented as yours is worse than no list.
+    expect(fit).toMatch(/if \(!data\?\.personalised\) return \[\]/);
   });
 });

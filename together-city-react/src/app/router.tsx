@@ -166,6 +166,10 @@ const LegalCenter = lazy(() => import('@/features/legal/LegalCenter').then((m) =
    something a page can opt out of once it is inside that layout. */
 const BeautyShop = lazy(() => import('@/features/ecommerce/pages/BeautyShop').then((m) => ({ default: m.BeautyShop })));
 const BeautyShopBag = lazy(() => import('@/features/ecommerce/pages/BeautyShop').then((m) => ({ default: m.BeautyShopBag })));
+const SupplementsShop = lazy(() => import('@/features/ecommerce/pages/SupplementsShop').then((m) => ({ default: m.SupplementsShop })));
+const SupplementsShopBag = lazy(() => import('@/features/ecommerce/pages/SupplementsShop').then((m) => ({ default: m.SupplementsShopBag })));
+const GemstonesShop = lazy(() => import('@/features/ecommerce/pages/GemstonesShop').then((m) => ({ default: m.GemstonesShop })));
+const GemstonesShopBag = lazy(() => import('@/features/ecommerce/pages/GemstonesShop').then((m) => ({ default: m.GemstonesShopBag })));
 
 // Every lazy page is wrapped so a stale code-split chunk (after a new deploy)
 // auto-recovers instead of leaving a blank page.
@@ -205,6 +209,10 @@ const ROUTE_BLOCKS: RouteObject[] = [
          from somebody's own profile and a bag is their money. */
       { path: '/ecommerce/shop/beauty', element: <RequireAuth>{wrap(<BeautyShop />)}</RequireAuth> },
       { path: '/ecommerce/shop/beauty/bag', element: <RequireAuth>{wrap(<BeautyShopBag />)}</RequireAuth> },
+      { path: '/ecommerce/shop/supplements', element: <RequireAuth>{wrap(<SupplementsShop />)}</RequireAuth> },
+      { path: '/ecommerce/shop/supplements/bag', element: <RequireAuth>{wrap(<SupplementsShopBag />)}</RequireAuth> },
+      { path: '/ecommerce/shop/gemstones', element: <RequireAuth>{wrap(<GemstonesShop />)}</RequireAuth> },
+      { path: '/ecommerce/shop/gemstones/bag', element: <RequireAuth>{wrap(<GemstonesShopBag />)}</RequireAuth> },
       // THIS ONE EARNS ITS LANDING, and the distinction is worth stating
       // because the 5 Aug design audit argued against exactly this pattern.
       //

@@ -2225,3 +2225,58 @@
   .st-bag { padding: 8px 18px 120px; }
   .st-baglet-in { padding: 12px 18px; gap: 12px; }
 }
+
+/* ── THE STORE, CONTINUED: THREE SHELVES AND A CART ──────────────────────────
+   Added with the supplement and gemstone shops and the cross-hub cart. Same
+   three constraints as the block above: root tokens only, no radius in pixels,
+   no transition. */
+
+/* A tile whose buy action is a decision rather than a tap — the gem bench. It
+   wears the Add button's shape because it occupies the Add button's place; what
+   changes is where it goes. */
+.st-add-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+/* ── THE CART ROOM ───────────────────────────────────────────────────────────
+   This one is a ROOM of the hub rather than a screen of the store, so it sits
+   inside `.page` with the rail beside it and no store bar of its own. The
+   material is the store's, which is the whole point of the owner's "keep the
+   same white look overall" — but three rules have to be unpicked, because the
+   store centres its column in a full-bleed page and a hub room is already a
+   column. Scoped to `.page` so the storefront is untouched. */
+.page .st-blocked,
+.page .st-error,
+.page .st-paid {
+  max-width: 760px;
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+.st-outcomes {
+  max-width: 760px;
+  margin-bottom: 20px;
+}
+.st-section {
+  max-width: 760px;
+  margin-bottom: 28px;
+}
+/* The shop's name, its hub, and its own subtotal. Named on purpose: this is
+   one authorisation and one order per shop, and a flat list would hide the
+   only thing somebody needs to understand before pressing Pay. */
+.st-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding-bottom: 10px;
+}
+.st-section-head .st-row-sum { margin-left: auto; }
+.st-section-foot {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+}
+.st-section-foot a { color: var(--muted); }

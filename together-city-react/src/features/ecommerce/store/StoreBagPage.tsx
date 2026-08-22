@@ -86,11 +86,20 @@ export function StoreBagPage({ shop }: { shop: Shop }) {
                   <span className="st-name">{l.name}</span>
                   <span className="st-brand">{rupees(l.priceInr)} each</span>
                 </span>
-                <span className="st-qty st-row-qty">
-                  <button type="button" disabled={shop.isSaving} onClick={() => shop.remove(l.id)} aria-label={`One fewer ${l.name}`}>–</button>
-                  <span>{l.qty}</span>
-                  <button type="button" disabled={shop.isSaving} onClick={() => shop.add(l.id)} aria-label={`One more ${l.name}`}>+</button>
-                </span>
+                {/* A COMMISSION IS ONE OF A KIND. A ± control on a stone cut
+                    to one body weight and set in one metal offers an action
+                    that cannot be honoured — two of it is a second
+                    commission, at a second price, made from a second
+                    decision. So that shelf gets Remove instead. */}
+                {shop.fixedQty ? (
+                  <button type="button" className="st-quiet st-row-qty" disabled={shop.isSaving} onClick={() => shop.remove(l.id)}>Remove</button>
+                ) : (
+                  <span className="st-qty st-row-qty">
+                    <button type="button" disabled={shop.isSaving} onClick={() => shop.remove(l.id)} aria-label={`One fewer ${l.name}`}>–</button>
+                    <span>{l.qty}</span>
+                    <button type="button" disabled={shop.isSaving} onClick={() => shop.add(l.id)} aria-label={`One more ${l.name}`}>+</button>
+                  </span>
+                )}
                 <span className="st-row-sum">{rupees(l.priceInr * l.qty)}</span>
               </div>
             ))}

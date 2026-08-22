@@ -268,6 +268,11 @@ export const HUBS: Record<HubKey, HubConfig> = {
     items: [
       { path: '/ecommerce/store', index: '01', label: 'Personalized Store', sub: 'The shelves that read your profiles' },
       { path: '/ecommerce/market', index: '02', label: 'Open Market', sub: 'Every category, nothing ranked for you' },
+      /* THE CART IS A VIEW, NOT A FOURTH BAG (owner, 22 Aug): "keep individual
+         carts and also a cross-hub cart in e-commerce". Every shop still owns
+         and shows its own; this room is all of them in one list with one total,
+         and one press that places an order in each. */
+      { path: '/ecommerce/cart', index: '03', label: 'Your Cart', sub: 'Every shop in the city, one list' },
     ],
   },
   beauty: {

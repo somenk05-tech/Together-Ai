@@ -40,6 +40,16 @@ export interface ShopItem {
   why?: string[];
   image?: string;
   imageAlt?: string;
+  /**
+   * WHERE BUYING IS A DECISION RATHER THAN A TAP. A gemstone has no price until
+   * somebody has chosen a metal, a setting and a size — the carat weight comes
+   * off body weight and the metal is priced by the gram. So the gem tiles draw
+   * a link to the studio where that is decided instead of "Add to bag", and the
+   * commission joins the cart once it is locked. A shelf whose add button
+   * produced a line with no price would be a shop that cannot say what
+   * something costs.
+   */
+  design?: { label: string; path: string };
 }
 
 export interface ShopBagLine { id: string; name: string; priceInr: number; qty: number; image?: string; imageAlt?: string; category: string }
@@ -77,6 +87,10 @@ export interface Shop {
   bag: ShopBag | null;
   blocked?: string;
   isSaving: boolean;
+  /** A commission is one of a kind: the bag shows Remove rather than ± on it. */
+  fixedQty?: boolean;
+  /** One sentence the shelf insists on — a disclaimer, or what is missing. */
+  note?: string;
   qtyOf: (id: string) => number;
   add: (id: string) => void;
   remove: (id: string) => void;

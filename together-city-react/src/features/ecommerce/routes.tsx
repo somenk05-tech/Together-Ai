@@ -17,8 +17,13 @@ import type { RouteObject } from 'react-router-dom';
 
 const PersonalizedStore = lazy(() => import('./pages/PersonalizedStore').then((m) => ({ default: m.PersonalizedStore })));
 const OpenMarket = lazy(() => import('./pages/OpenMarket').then((m) => ({ default: m.OpenMarket })));
+const CityCart = lazy(() => import('./pages/CityCart').then((m) => ({ default: m.CityCart })));
 
 export const ecommerceRoutes: RouteObject[] = [
   { path: '/ecommerce/store', element: <PersonalizedStore /> },
   { path: '/ecommerce/market', element: <OpenMarket /> },
+  /* The cart is a ROOM of this hub rather than a screen of the store: it is
+     nobody's shelf, it belongs to all three, and the rail is where a citizen
+     looks for "where is my cart". */
+  { path: '/ecommerce/cart', element: <CityCart /> },
 ];

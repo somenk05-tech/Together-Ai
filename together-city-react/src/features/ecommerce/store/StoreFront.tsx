@@ -113,7 +113,9 @@ export function StoreFront({ shop }: { shop: Shop }) {
                 {item.packLabel && <div className="st-pack">{item.packLabel}</div>}
                 {item.why && item.why.length > 0 && <p className="st-why">{item.why.join(' · ')}</p>}
 
-                {!bag ? null : qty > 0 ? (
+                {item.design ? (
+                  <Link to={item.design.path} className="st-add st-add-link">{item.design.label}</Link>
+                ) : !bag ? null : qty > 0 ? (
                   <div className="st-qty">
                     <button type="button" disabled={shop.isSaving} onClick={() => shop.remove(item.id)} aria-label={`One fewer ${item.name}`}>–</button>
                     <span>{qty} in bag</span>
@@ -130,6 +132,7 @@ export function StoreFront({ shop }: { shop: Shop }) {
         </div>
       )}
 
+      {shop.note && <p className="st-blocked">{shop.note}</p>}
       {shop.blocked && <p className="st-blocked">{shop.blocked}</p>}
 
       {bag && bag.count > 0 && (

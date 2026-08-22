@@ -100,7 +100,7 @@ export function useBeautyShop(): Shop {
       ? 'Your routine is built against what you are willing to spend, so nothing is chosen until you have said a number.'
       : 'Fill in your skin and hair profile and the routine builds itself from it.',
 
-    bag: bag && { lines: bag.lines, count: bag.count, totalInr: bag.totalInr, removed: bag.removed },
+    bag: bag ? { lines: bag.lines, count: bag.count, totalInr: bag.totalInr, removed: bag.removed } : null,
     isSaving: bagged.isSaving,
     qtyOf: bagged.qtyOf,
     add: bagged.add,

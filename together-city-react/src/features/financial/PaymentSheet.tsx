@@ -8,10 +8,20 @@ import { useWallet, useLinkCard, inr, type PayMethod } from './api';
  * Every hub's checkout renders this instead of charging directly.
  */
 export function PaymentSheet({
-  open, amountInr, label, pending, error, onPay, onCancel,
+  open, amountInr, label, pending, error, onPay, onCancel, walletOnly,
 }: {
   open: boolean; amountInr: number; label: string; pending?: boolean; error?: string | null;
   onPay: (method: PayMethod) => void; onCancel: () => void;
+  /**
+   * WALLET ONLY, AND ONLY WHERE THAT IS THE TRUTH. The city cart authorises one
+   * amount and then places one order per shop behind it, and the Fitness
+   * store's order endpoint charges the city wallet whatever it is told. Offering
+   * a card on that sheet would be offering something that does not happen to
+   * part of the total — so the caller says so and this hides the option rather
+   * than taking a choice it cannot honour. Every hub's own checkout still
+   * offers both.
+   */
+  walletOnly?: boolean;
 }) {
   const wallet = useWallet();
   const linkCard = useLinkCard();
@@ -50,7 +60,7 @@ export function PaymentSheet({
           sub={walletShort ? `Balance ${inr(balance)} — not enough` : `Balance ${inr(balance)}`}
           disabled={walletShort} />
 
-        {card ? (
+        {walletOnly ? null : card ? (
           <Option m="card" title={`${card.brand} •• ${card.last4}`} sub={card.name} />
         ) : (
           <button type="button" onClick={() => linkCard.mutate({ brand: 'Visa', last4: '4242', name: 'City Card' }, { onSuccess: () => setMethod('card') })}

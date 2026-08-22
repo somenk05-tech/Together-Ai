@@ -71,9 +71,14 @@ function resolve(shelf: Shelf): ShelfCard | null {
 /** Shelves that read something you filled in and answer with a shortlist. */
 export const FITTED: Shelf[] = [
   { hub: 'beauty', path: '/beauty/routine', reads: { name: 'Skin & Hair Profile', path: '/beauty/profile' }, shop: 'beauty' },
-  { hub: 'fitness', path: '/fitness/supplements', reads: { name: 'Training Profile', path: '/fitness/profile' } },
+  { hub: 'fitness', path: '/fitness/supplements', reads: { name: 'Training Profile', path: '/fitness/profile' }, shop: 'supplements' },
+  /* NO SHOP FOR THE GROCERY LIST, at the owner's call (22 Aug). It is a list
+     of ingredients with no prices on it and no order endpoint behind it —
+     ordering has been coming-soon in that hub for a while. A white storefront
+     with no till would be a second view of a page that already works, and a
+     till on it would be inventing one. The card opens the list. */
   { hub: 'nutrition', path: '/nutrition/grocery', reads: { name: 'Food Preference Profile', path: '/nutrition/preferences' } },
-  { hub: 'astrology', path: '/astrology/gemstones', reads: { name: 'Astrology Profile', path: '/profile/astrology' } },
+  { hub: 'astrology', path: '/astrology/gemstones', reads: { name: 'Astrology Profile', path: '/profile/astrology' }, shop: 'gemstones' },
   { hub: 'pets', path: '/pets/plan', reads: { name: 'Pet profiles', path: '/pets/profiles' } },
 ];
 
@@ -112,6 +117,14 @@ export const SHOPS: Record<string, ShopScreens> = {
   beauty: {
     shelf: { path: '/ecommerce/shop/beauty' },
     bag: { path: '/ecommerce/shop/beauty/bag' },
+  },
+  supplements: {
+    shelf: { path: '/ecommerce/shop/supplements' },
+    bag: { path: '/ecommerce/shop/supplements/bag' },
+  },
+  gemstones: {
+    shelf: { path: '/ecommerce/shop/gemstones' },
+    bag: { path: '/ecommerce/shop/gemstones/bag' },
   },
 };
 
