@@ -1,11 +1,15 @@
-import { Link } from 'react-router-dom';
 import { PageHeader } from '@/components/ui';
 import { AISLES, openShelves } from '../shelves';
+import { ShelfTile } from '../ShelfTile';
 
 /**
  * ── THE OPEN MARKET ─────────────────────────────────────────────────────────
  *
  * The right-hand door of the facade: "Explore everything. Choose freely."
+ *
+ * ONE TILE, DRAWN BY THE SAME COMPONENT AS THE OTHER FLOOR (owner, 22 Aug):
+ * a photograph with the shelf's name on it and nothing else. `ShelfTile` holds
+ * the shape so the two rooms cannot drift apart.
  *
  * The whole shelf rather than a shortlist — no profile is read and nothing is
  * ranked for you. The aisles are the categories the city actually stocks, and
@@ -29,15 +33,7 @@ export function OpenMarket() {
              Gemstones and Daily offers have none and still open their room:
              a stone is read off a chart rather than picked off a shelf, and
              an offer is not a product. */
-          <Link key={s.path} to={(s.shop && AISLES[s.shop]?.shelf.path) ?? s.path} className="ec-card ec-go">
-            <span className="ec-cat">{s.category}</span>
-            <span className="ec-name">{s.name}</span>
-            <span className="ec-line">{s.line}</span>
-            {/* The hub that stands behind the shelf — unless it is the shelf's
-                own name, as it is for the Beauty Market, where printing it
-                again says one thing twice. */}
-            {s.hubName !== s.name && <span className="ec-from">In {s.hubName}</span>}
-          </Link>
+          <ShelfTile key={s.path} to={(s.shop && AISLES[s.shop]?.shelf.path) ?? s.path} art={s.art} name={s.name} />
         ))}
       </div>
       <p className="ec-note">

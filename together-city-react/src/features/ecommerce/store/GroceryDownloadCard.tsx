@@ -1,6 +1,7 @@
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useGroceryPlan } from '@/features/nutrition/hooks';
 import type { ShelfCard } from '../shelves';
+import { ShelfTile } from '../ShelfTile';
 import { listText } from './groceryList';
 
 /**
@@ -27,10 +28,26 @@ import { listText } from './groceryList';
  * note is quoted from the same `useGroceryPlan` the hub's sheet draws — the
  * server merged the duplicates and did the arithmetic, and a second copy of it
  * in a download would disagree with the page the day either changed.
+ *
+ * ── IT WEARS THE SAME TILE AS THE DOORS, AND SAYS ONE MORE THING ────────────
+ *
+ * The photographic card (owner, 22 Aug) carries the heading and nothing else.
+ * This one carries the heading and a single line, because it is the only card
+ * in either room that is not a door: a tile that downloads a file the moment it
+ * is pressed and never said so is a surprise, and a surprise is not a design.
+ *
+ * THE THREE HONEST STATES SURVIVED THE REDESIGN and they are the reason the
+ * line is not simply hard-coded. `failure-states.test.ts` caught this file once
+ * telling somebody they had nothing to shop for when the truth was that the
+ * request had been refused — a claim about their own plan that was never
+ * checked. Loading says it is reading, a refusal says it could not read and
+ * presses again, an empty plan says what to do instead, and only a plan that
+ * exists offers the file.
  */
 
 export function GroceryDownloadCard({ shelf }: { shelf: ShelfCard }) {
   const plan = useGroceryPlan('individual');
+  const navigate = useNavigate();
   const aisles = plan.data?.aisles ?? [];
   const itemCount = plan.data?.itemCount ?? 0;
   const people = plan.data?.summary?.householdSize ?? 1;
@@ -50,42 +67,24 @@ export function GroceryDownloadCard({ shelf }: { shelf: ShelfCard }) {
     setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
-  return (
-    <article className="ec-card">
-      <span className="ec-cat">{shelf.hubName}</span>
-      <span className="ec-name">{shelf.name}</span>
-      <span className="ec-line">{shelf.line}</span>
-      {/* A REFUSED REQUEST IS NOT AN EMPTY LIST, and `failure-states.test.ts`
-          caught this file saying it was: on an error `data` is undefined,
-          itemCount is 0, and the card would have told somebody they have
-          nothing to shop for — a claim about their own plan that was never
-          checked. Three states, three sentences. */}
-      <span className="ec-from">
-        {plan.isLoading
-          ? 'Reading your plan…'
-          : plan.isError
-            ? 'Couldn’t read your plan just now'
-            : ready
-              ? `${itemCount} item${itemCount === 1 ? '' : 's'} · ${aisles.filter((a) => a.items.length > 0).length} aisles · for ${people} ${people === 1 ? 'person' : 'people'}`
-              : 'Nothing to shop for yet'}
-      </span>
-      {plan.isError ? (
-        <button type="button" className="ec-dl ec-dl-quiet" onClick={() => void plan.refetch()}>
-          Try again
-        </button>
-      ) : ready ? (
-        <button type="button" className="ec-dl" onClick={download}>
-          <span aria-hidden>⭳</span> Download the list
-        </button>
-      ) : (
-        /* NOT A DISABLED BUTTON. "Nothing to shop for yet" is a sentence with
-           a next step in it — the list is built from the menus you have locked,
-           so the way to get one is to lock some. A greyed-out control says the
-           same thing and hides the answer. */
-        <Link to="/nutrition/weekly" className="ec-dl ec-dl-quiet">
-          {plan.isLoading ? 'One moment…' : 'Lock a week of menus first'}
-        </Link>
-      )}
-    </article>
-  );
+  /* ONE PRESS, FOUR MEANINGS — and each of them is the truthful one for the
+     state the plan is actually in. Nothing here is disabled: a greyed-out card
+     says "no" and hides the answer, and in three of these four cases there is
+     an answer. */
+  const state = plan.isLoading
+    ? { note: 'Reading your plan…' }
+    : plan.isError
+      ? { note: 'Couldn’t read your plan — press to try again', act: () => void plan.refetch() }
+      : ready
+        ? {
+          /* The household size came off the card and stayed in the file, where
+             the sheet's own masthead already prints it. Two tiles wide on a
+             phone is 180px of column, and a third line of note pushed the
+             heading off the picture. */
+          note: `⭳ Download the list · ${itemCount} item${itemCount === 1 ? '' : 's'}`,
+          act: download,
+        }
+        : { note: 'Nothing to shop for yet — lock a week of menus first', act: () => navigate('/nutrition/weekly') };
+
+  return <ShelfTile art={shelf.art} name={shelf.name} note={state.note} onClick={state.act} />;
 }

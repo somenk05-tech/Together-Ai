@@ -38,6 +38,16 @@ interface Shelf {
   hub: HubKey;
   /** the room that actually holds the products */
   path: string;
+  /**
+   * THE PICTURE THE CARD IS MADE OF (owner, 22 Aug). A file in
+   * /assets/img, not a URL and not a background in a stylesheet: the tile
+   * renders it as an `<img>` so it lazy-loads and so the shelf that owns the
+   * card owns the picture on it. Six pictures cover ten cards because the two
+   * floors show the same six shelves — the Beauty Market is the same shop
+   * whether you were sent to it or walked in, and giving it two faces would be
+   * telling somebody they are two places.
+   */
+  art: string;
   /** the aisle it stands in, on the Open Market floor */
   category?: string;
   /** the profile this shelf reads before it recommends anything, and the room
@@ -75,30 +85,30 @@ function resolve(shelf: Shelf): ShelfCard | null {
 
 /** Shelves that read something you filled in and answer with a shortlist. */
 export const FITTED: Shelf[] = [
-  { hub: 'beauty', path: '/beauty/routine', reads: { name: 'Skin & Hair Profile', path: '/beauty/profile' }, shop: 'beauty' },
-  { hub: 'fitness', path: '/fitness/supplements', reads: { name: 'Training Profile', path: '/fitness/profile' }, shop: 'supplements' },
+  { hub: 'beauty', path: '/beauty/routine', art: 'ec-skin-hair.webp', reads: { name: 'Skin & Hair Profile', path: '/beauty/profile' }, shop: 'beauty' },
+  { hub: 'fitness', path: '/fitness/supplements', art: 'ec-supplements.webp', reads: { name: 'Training Profile', path: '/fitness/profile' }, shop: 'supplements' },
   /* NO SHOP FOR THE GROCERY LIST, at the owner's call (22 Aug). It is a list
      of ingredients with no prices on it and no order endpoint behind it —
      ordering has been coming-soon in that hub for a while. A white storefront
      with no till would be a second view of a page that already works, and a
      till on it would be inventing one. So it is not a door at all: the card
      hands the list over as a file. */
-  { hub: 'nutrition', path: '/nutrition/grocery', reads: { name: 'Food Preference Profile', path: '/nutrition/preferences' }, download: true },
-  { hub: 'astrology', path: '/astrology/gemstones', reads: { name: 'Astrology Profile', path: '/profile/astrology' }, shop: 'gemstones' },
-  { hub: 'pets', path: '/pets/plan', reads: { name: 'Pet profiles', path: '/pets/profiles' } },
+  { hub: 'nutrition', path: '/nutrition/grocery', art: 'ec-grocery.webp', reads: { name: 'Food Preference Profile', path: '/nutrition/preferences' }, download: true },
+  { hub: 'astrology', path: '/astrology/gemstones', art: 'ec-gemstones.webp', reads: { name: 'Astrology Profile', path: '/profile/astrology' }, shop: 'gemstones' },
+  { hub: 'pets', path: '/pets/plan', art: 'ec-pets.webp', reads: { name: 'Pet profiles', path: '/pets/profiles' } },
 ];
 
 /** Shelves you walk yourself, filed under the aisle they belong to. */
 export const OPEN: Shelf[] = [
-  { hub: 'beauty', path: '/beauty/market', category: 'Skin & hair', shop: 'skin-hair' },
-  { hub: 'fitness', path: '/fitness/store', category: 'Supplements', shop: 'supplements' },
-  { hub: 'pets', path: '/pets/shop', category: 'Pets', shop: 'pets' },
+  { hub: 'beauty', path: '/beauty/market', art: 'ec-skin-hair.webp', category: 'Skin & hair', shop: 'skin-hair' },
+  { hub: 'fitness', path: '/fitness/store', art: 'ec-supplements.webp', category: 'Supplements', shop: 'supplements' },
+  { hub: 'pets', path: '/pets/shop', art: 'ec-pets.webp', category: 'Pets', shop: 'pets' },
   /* The gemstone bench is on both floors, and it is the only shelf that is.
      It is a marketplace you can browse by stone, and it is also the one place
      in the city where a stone is PRESCRIBED from a chart — so leaving it off
      either floor would be leaving out half of what it does. */
-  { hub: 'astrology', path: '/astrology/gemstones', category: 'Gemstones' },
-  { hub: 'services', path: '/services/offers', category: 'Deals & offers' },
+  { hub: 'astrology', path: '/astrology/gemstones', art: 'ec-gemstones.webp', category: 'Gemstones' },
+  { hub: 'services', path: '/services/offers', art: 'ec-offers.webp', category: 'Deals & offers' },
 ];
 
 /**

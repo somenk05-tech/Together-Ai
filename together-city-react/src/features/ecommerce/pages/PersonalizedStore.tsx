@@ -1,6 +1,6 @@
-import { Link } from 'react-router-dom';
 import { PageHeader } from '@/components/ui';
 import { SHOPS, fittedShelves } from '../shelves';
+import { ShelfTile } from '../ShelfTile';
 import { GroceryDownloadCard } from '../store/GroceryDownloadCard';
 
 /**
@@ -26,6 +26,11 @@ import { GroceryDownloadCard } from '../store/GroceryDownloadCard';
  * with its own bag and till. The other four still open their hub's own room —
  * a card that promised a shop and delivered a district would be the 10 Aug
  * mistake in miniature.
+ *
+ * THE CARD IS A PHOTOGRAPH NOW (owner, 22 Aug), and it is `ShelfTile` rather
+ * than markup written here — the same component the Open Market draws, so the
+ * two floors cannot end up different sizes. What each tile carries, and what it
+ * stopped carrying, is argued in that file.
  */
 export function PersonalizedStore() {
   const shelves = fittedShelves();
@@ -44,12 +49,7 @@ export function PersonalizedStore() {
              over. Same material, same place in the grid, different verb. */
           <GroceryDownloadCard key={s.path} shelf={s} />
         ) : (
-          <Link key={s.path} to={(s.shop && SHOPS[s.shop]?.shelf.path) ?? s.path} className="ec-card ec-go">
-            <span className="ec-cat">{s.hubName}</span>
-            <span className="ec-name">{s.name}</span>
-            <span className="ec-line">{s.line}</span>
-            {s.reads && <span className="ec-from">Reads your {s.reads.name}</span>}
-          </Link>
+          <ShelfTile key={s.path} to={(s.shop && SHOPS[s.shop]?.shelf.path) ?? s.path} art={s.art} name={s.name} />
         )))}
       </div>
       <p className="ec-note">

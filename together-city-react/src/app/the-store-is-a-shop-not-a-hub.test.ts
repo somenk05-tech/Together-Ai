@@ -88,11 +88,21 @@ describe('The storefront is white, railless, and has one way back', () => {
 describe('The Personalized Store card is one target', () => {
   const store = code('features/ecommerce/pages/PersonalizedStore.tsx');
 
-  it('is a single link, with nothing clickable inside it', () => {
-    // Owner, 22 Aug: make the whole card clickable. A second link inside the
-    // card is a target inside a target — on a phone they are millimetres apart
-    // and the small one wins by accident.
-    expect(store.match(/<Link/g)?.length).toBe(1);
+  it('is a single target, with nothing clickable inside it', () => {
+    /* Owner, 22 Aug: make the whole card clickable. A second link inside the
+       card is a target inside a target — on a phone they are millimetres apart
+       and the small one wins by accident.
+       THE CARD MOVED INTO ShelfTile that evening, when both floors became one
+       photographic tile, so this assertion moved with it: the page draws no
+       target of its own, and the tile draws exactly one — a Link when it is a
+       door, a button when it is not, and never both at once. */
+    expect(store).not.toMatch(/<Link|<a\b|<button/);
+    const tile = code('features/ecommerce/ShelfTile.tsx');
+    expect(tile.match(/<Link/g)?.length).toBe(1);
+    // Whatever is drawn INSIDE the target is inert: the picture, the wash and
+    // the heading. Everything clickable is the outer element itself.
+    const face = tile.slice(tile.indexOf('const face'), tile.indexOf('if (to)'));
+    expect(face).not.toMatch(/<Link|<a\b|<button/);
   });
 
   it('sends the beauty shelf to its shop rather than to the hub', () => {
@@ -116,11 +126,18 @@ describe('The Personalized Store card is one target', () => {
     }
   });
 
-  it('still names the profile each shelf reads', () => {
-    // It moved off the card and into the shop's masthead — dropped from the
-    // card, not dropped from the product.
-    expect(store).toMatch(/Reads your \{s\.reads\.name\}/);
-    expect(code('features/ecommerce/store/StoreFront.tsx')).toMatch(/Built from your \{shop\.from\.label\}/);
+  it('still names the profile each shelf reads, in the shop', () => {
+    /* "Reads your Skin & Hair Profile" was the card's foot until the tile
+       became a photograph with the heading and nothing else on it (owner,
+       22 Aug). It is not gone: the storefront prints "Built from your Skin &
+       Hair Profile" under its masthead AND links to it, which is both more
+       than the card said and said where somebody looking at a shortlist is
+       actually standing. This asserts the move rather than the deletion —
+       off the card, on the shop. */
+    expect(store).not.toMatch(/Reads your/);
+    const front = code('features/ecommerce/store/StoreFront.tsx');
+    expect(front).toMatch(/Built from your \{shop\.from\.label\}/);
+    expect(front).toMatch(/to=\{shop\.from\.path\}/);
   });
 });
 
