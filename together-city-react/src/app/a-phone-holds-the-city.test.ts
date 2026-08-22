@@ -52,14 +52,4 @@ describe('a phone holds the city', () => {
     expect(src).toMatch(/userActivation\?\.hasBeenActive/);
     expect(src).toMatch(/if \(this\.vibrating\)/);
   });
-
-  /**
-   * TWO RESTAURANT CARDS SHARE /restaurants/explore BY DESIGN (browse and
-   * book are one room), so `key={e.to}` was a duplicate React key warning on
-   * the hub's front page. Titles are the unique thing.
-   */
-  it('the restaurant cards are keyed by the one thing unique to each', () => {
-    const src = read('features/restaurants/pages/RestaurantsHome.tsx');
-    expect(src).toMatch(/key=\{e\.title\}/);
-  });
 });

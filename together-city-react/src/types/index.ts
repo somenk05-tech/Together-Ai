@@ -1,7 +1,7 @@
 /** Core domain types (strict — no `any` anywhere in the app). */
 
 export type HubKey =
-  | 'travel' | 'restaurants' | 'astrology' | 'nutrition' | 'entertainment' | 'social'
+  | 'travel' | 'astrology' | 'nutrition' | 'entertainment' | 'social'
   | 'dating' | 'realestate' | 'jobs' | 'medical' | 'financial'
   | 'beauty' | 'fitness' | 'services' | 'family' | 'mail' | 'pets';
 

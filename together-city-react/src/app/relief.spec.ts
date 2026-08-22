@@ -1422,12 +1422,14 @@ describe('Relief stays a system', () => {
    * two colours a person cannot distinguish, and two different hex values do
    * that perfectly well. The maths is the CIE's; the floor is ours.
    *
-   * THE FLOOR IS 3.5 AND THAT IS DELIBERATELY LOW. It is today's number, not
-   * an ideal — restaurants and pets sit at 3.57 and one of them ought to move,
-   * but which one is a question about what a room is FOR, and that is the
-   * owner's call rather than a solver's. Raise this as pairs are separated;
-   * never lower it. Above the floor, the tightest surviving pair is mail
-   * against chat at 5.35.
+   * THE FLOOR IS 5.0, RAISED FROM 3.5 ON 22 AUG. It had been held low by one
+   * pair: restaurants and pets at 3.57, where which room moved was a question
+   * about what a room is FOR and so the owner's call rather than a solver's.
+   * The owner answered it by removing the restaurants hub, and the pair went
+   * with it. The tightest surviving pair is mail against chat and connections
+   * at 5.35, so the floor moves up behind it — which is the whole point of a
+   * ratchet, and the first time this one has actually been turned. Raise it as
+   * pairs are separated; never lower it.
    *
    * TWO PAIRS ARE ALLOWED TO BE IDENTICAL and both are one domain wearing two
    * doors: medical/medicines, and chat/connections. They are listed by name so
@@ -1496,7 +1498,7 @@ describe('Relief stays a system', () => {
         + Rt * (dCp / Sc) * (dHp / Sh));
     };
 
-    const FLOOR = 3.5;
+    const FLOOR = 5.0;
     /** One domain, two doors. A third pair argues for itself here or not at all. */
     const ALLOWED_TWINS = [['medical', 'medicines'], ['chat', 'connections']]
       .map((p) => p.sort().join('|'));

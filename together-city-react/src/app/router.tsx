@@ -85,17 +85,9 @@ const TravelExplore = lazy(() => import('@/features/travel/pages/Explore').then(
 const TravelPackage = lazy(() => import('@/features/travel/pages/PackageDetail').then((m) => ({ default: m.PackageDetail })));
 const TravelFlights = lazy(() => import('@/features/travel/pages/Flights').then((m) => ({ default: m.Flights })));
 const TravelTrips = lazy(() => import('@/features/travel/pages/MyTrips').then((m) => ({ default: m.MyTrips })));
-const RestaurantsDiscover = lazy(() => import('@/features/restaurants/pages/Discover').then((m) => ({ default: m.Discover })));
-const RestaurantDetail = lazy(() => import('@/features/restaurants/pages/RestaurantDetail').then((m) => ({ default: m.RestaurantDetail })));
-const RestaurantsReservations = lazy(() => import('@/features/restaurants/pages/Reservations').then((m) => ({ default: m.Reservations })));
-const RestaurantsOrders = lazy(() => import('@/features/restaurants/pages/Orders').then((m) => ({ default: m.Orders })));
 // Travel sub-pages (ported from the static site)
 const TravelPackages = lazy(() => import('@/features/travel/pages/Packages').then((m) => ({ default: m.TravelPackages })));
 const TravelBookings = lazy(() => import('@/features/travel/pages/Bookings').then((m) => ({ default: m.TravelBookings })));
-// Restaurants sub-pages
-const RestExplore = lazy(() => import('@/features/restaurants/pages/Explore').then((m) => ({ default: m.Explore })));
-const RestHome = lazy(() => import('@/features/restaurants/pages/RestaurantsHome').then((m) => ({ default: m.RestaurantsHome })));
-const RestDecide = lazy(() => import('@/features/restaurants/pages/Decide').then((m) => ({ default: m.Decide })));
 // Entertainment sub-pages
 const EntMovies = lazy(() => import('@/features/entertainment/pages/Movies').then((m) => ({ default: m.Movies })));
 const EntOtt = lazy(() => import('@/features/entertainment/pages/Ott').then((m) => ({ default: m.Ott })));
@@ -189,7 +181,6 @@ const ROUTE_BLOCKS: RouteObject[] = [
       { path: '/', element: <Home /> },
       // 12 hub landings, generated from config
       { path: '/travel', element: <HubLanding hub="travel" /> },
-      { path: '/restaurants', element: <RequireAuth>{wrap(<RestHome />)}</RequireAuth> },
       { path: '/astrology', element: <HubLanding hub="astrology" /> },
       { path: '/nutrition', element: <HubLanding hub="nutrition" /> },
       { path: '/entertainment', element: <HubLanding hub="entertainment" /> },
@@ -496,20 +487,6 @@ const ROUTE_BLOCKS: RouteObject[] = [
       { path: '/travel/trips', element: <RequireAuth>{wrap(<TravelTrips />)}</RequireAuth> },
       { path: '/travel/packages', element: <RequireAuth>{wrap(<TravelPackages />)}</RequireAuth> },
       { path: '/travel/bookings', element: <RequireAuth>{wrap(<TravelBookings />)}</RequireAuth> },
-    ],
-  },
-  {
-    // Restaurants hub — single full-width Explore experience, NO left sidebar.
-    // All inner pages render under AppShell (full width); flows are reached from
-    // Explore cards and in-page links, not a persistent hub nav.
-    element: <AppShell />,
-    children: [
-      { path: '/restaurants/explore', element: <RequireAuth>{wrap(<RestExplore />)}</RequireAuth> },
-      { path: '/restaurants/decide', element: <RequireAuth>{wrap(<RestDecide />)}</RequireAuth> },
-      { path: '/restaurants/discover', element: <RequireAuth>{wrap(<RestaurantsDiscover />)}</RequireAuth> },
-      { path: '/restaurants/reservations', element: <RequireAuth>{wrap(<RestaurantsReservations />)}</RequireAuth> },
-      { path: '/restaurants/orders', element: <RequireAuth>{wrap(<RestaurantsOrders />)}</RequireAuth> },
-      { path: '/restaurants/:id', element: <RequireAuth>{wrap(<RestaurantDetail />)}</RequireAuth> },
     ],
   },
   {

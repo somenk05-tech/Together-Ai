@@ -8,7 +8,7 @@
  * badge somebody has to lean in for, and one of them — ESSENTIAL / OPTIONAL /
  * HIGH VALUE — is the page saying how it reasoned about their money.
  *
- * A SWEEP IS THE WRONG SHAPE FOR THIS. 214 of these across the app is a debt,
+ * A SWEEP IS THE WRONG SHAPE FOR THIS. 200 of these across the app is a debt,
  * and the repo already knows how it pays those: record today's number, fail if
  * it grows, lower it as work lands. `lint-ceiling.mjs` and
  * `dead-export-audit.mjs` are the same instrument. This one counts inline
@@ -24,7 +24,7 @@ import { join } from 'node:path';
 
 const FLOOR = 11;
 /** Today's number. Lower it when work lands; never raise it. */
-const CEILING = 214;
+const CEILING = 200;
 
 const walk = (dir) => readdirSync(dir).flatMap((n) => {
   const p = join(dir, n);

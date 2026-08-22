@@ -57,7 +57,14 @@ export const NAV: NavItem[] = [
   { key: 'beauty', label: 'Beauty', path: '/beauty' },
   { key: 'dating', label: 'Dating', path: '/dating' },
   { key: 'entertainment', label: 'Entertainment', path: '/entertainment' },
-  { key: 'financial', label: 'Financial', path: '/financial' },
+  /* FINANCIAL LEFT THE STREET (owner, 22 Aug), NOT THE CITY — the same move
+     Travel made on 15 Aug, and for a reason that is easier to say: money is
+     not a district you walk through, it is a thing that belongs to you. So it
+     goes where the rest of what belongs to you already is, as the fifth card
+     in the Personal drawer, pointing at the wallet rather than at the hub.
+     The hub keeps its config, its five rooms, its routes, its art and its
+     place on the home map; the command palette still finds the wallet and the
+     spending. What it no longer has is a tab in the header. */
   { key: 'fitness', label: 'Fitness', path: '/fitness' },
   { key: 'jobs', label: 'Jobs', path: '/jobs' },
   { key: 'services', label: 'Local services', path: '/services' },
@@ -107,16 +114,6 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/travel/packages', index: '03', label: 'Packages', sub: 'Curated experiences' },
       { path: '/travel/bookings', index: '04', label: 'My Bookings', sub: 'Flights & packages you have paid for' },
       { path: '/travel/trips', index: '05', label: 'My Trips', sub: 'Bookings & tickets' },
-    ],
-  },
-  restaurants: {
-    key: 'restaurants', name: 'Restaurants', tag: 'Exceptional dining, curated for you', backPath: '/restaurants',
-    items: [
-      { path: '/restaurants/discover', index: '01', label: 'Discover', sub: 'Browse by cuisine & diet' },
-      { path: '/restaurants/explore', index: '02', label: 'Explore', sub: 'Curated places near you' },
-      { path: '/restaurants/decide', index: '03', label: 'Decide What to Eat', sub: 'Tuned to your food profile' },
-      { path: '/restaurants/reservations', index: '04', label: 'Reservations', sub: 'Your table bookings' },
-      { path: '/restaurants/orders', index: '05', label: 'My Orders', sub: 'Food orders & wallet' },
     ],
   },
   astrology: {

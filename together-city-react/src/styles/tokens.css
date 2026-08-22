@@ -1088,13 +1088,6 @@
    entertainment's did: a hub that owns a ground cannot also have a one-line
    accent up here silently overriding half of it. Two rival palettes for one
    hub is the exact failure main.tsx warns about. */
-[data-hub="restaurants"] {
-  --lamp-face: linear-gradient(180deg, #b15f24 0%, #8a4a1c 44%, #693815 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
-          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
-          0 1px 1px rgba(138,74,28,.30), 0 8px 20px rgba(138,74,28,.34), 0 20px 46px rgba(138,74,28,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
-}
 [data-hub="medical"] {
   --lamp-face: linear-gradient(180deg, #287a9a 0%, #1f5f78 44%, #18485b 100%);
   --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),

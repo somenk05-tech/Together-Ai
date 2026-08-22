@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Card, Button, EmptyState } from '@/components/ui';
+import { Card, EmptyState } from '@/components/ui';
 import { useDaybookMonth } from '@/api/daybook.api';
 
 type View = 'month' | 'week' | 'day';
@@ -97,7 +97,6 @@ export function Calendar() {
               one it can keep today — open a day and it is yours to keep. */}
           <p className="muted" style={{ fontSize: 13, marginTop: 2 }}>Open any day to keep it: how it felt, what was on it, what you want to remember.</p>
         </div>
-        <Link to="/restaurants/explore"><Button variant="accent" size="sm">Book a table</Button></Link>
       </div>
 
       {/* View toggle + category filters */}
