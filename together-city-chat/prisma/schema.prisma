@@ -175,6 +175,7 @@ model User {
   cityWallet           CityWallet?
   miraPass             MiraPass?
   miraTurns            MiraTurn[]
+  miraFacts            MiraFact[]
   dayPages             DayPage[]
   dayItems             DayItem[]
   dayPhotos            DayPhoto[]
@@ -1564,6 +1565,42 @@ model MiraTurn {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, room, createdAt])
+}
+
+/// What Mira knows about the citizen, as opposed to what they said.
+///
+/// A rolling 30-turn transcript makes ONE conversation continuous; it does not
+/// make her someone who knows you. This is the durable half: one row per
+/// subject, updated rather than duplicated, with the turn it came from kept so
+/// that "why do you know that?" has an answer the citizen can read.
+///
+/// WHOLE CATEGORIES NEVER LAND HERE — health, mental health, sexuality,
+/// religion or caste, politics, immigration, criminal matters, identifiers and
+/// real-time location — enforced in `mira/fact.ts` before the write, not by
+/// convention. A distressed turn is never mined at all, and the confidant is
+/// out of scope the same way it is for MiraTurn.
+///
+/// Purge-classified; cascades with the account; reachable by `forget`.
+model MiraFact {
+  id String @id @default(uuid())
+  userId String
+  /// A short noun phrase — "coffee", "her sister Priya", "the Dubai trip".
+  subject String
+  /// What she knows about it, in the citizen's own terms.
+  value String
+  /// known | likely | possible. Rendered to the citizen, not only stored.
+  confidence String @default("possible")
+  /// The citizen's own sentence this came from, trimmed. The "why".
+  sourceText String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// One fact per subject per citizen: a second mention UPDATES rather than
+  /// appending, or the profile fills with the same thing said six ways.
+  @@unique([userId, subject])
+  @@index([userId, updatedAt])
 }
 
 model WalletTxn {
