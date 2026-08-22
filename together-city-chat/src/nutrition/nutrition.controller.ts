@@ -153,6 +153,12 @@ export class NutritionController {
       'whats for dinner', 'what should I cook', 'my meal plan', 'my meal plan today',
       'todays meals', 'my nutrition today', 'whats my nutrition', 'what is on my plan today',
       'khana kya hai', 'aaj kya khana hai',
+      // NAMED MEALS REACHED NOTHING. "what should I have for breakfast
+      // tomorrow" clarified rather than answering — the plan is exactly what
+      // that question wants, and `daypart.ts` is what stops the clock
+      // overriding the word they used.
+      'what should I have for breakfast', 'what is for lunch',
+      'what should I eat for dinner', 'whats for breakfast', 'whats for lunch',
     ],
     risk: 'R0',
   })
