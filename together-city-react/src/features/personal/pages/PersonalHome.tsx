@@ -5,12 +5,26 @@ import { Icon, type IconName } from '@/components/ui/Icon';
 /**
  * PERSONAL — THE CITIZEN'S OWN DRAWER.
  *
- * Four rooms that are nobody else's business: the journal, the calendar, the
- * documents, the album. The owner asked for the tab (15 Aug) and named its
- * contents; three of the four already existed and were listed NOWHERE — you
- * could reach Calendar and Drive only by knowing their URLs or by luck in the
- * command palette, and Thoughts was boarding in the Social Life rail for want
- * of anywhere else to sleep.
+ * Five rooms that are nobody else's business: the journal, the calendar, the
+ * documents, the album, and — since 22 Aug — the wallet. The owner asked for
+ * the tab (15 Aug) and named the first four; three of those already existed
+ * and were listed NOWHERE — you could reach Calendar and Drive only by knowing
+ * their URLs or by luck in the command palette, and Thoughts was boarding in
+ * the Social Life rail for want of anywhere else to sleep.
+ *
+ * ── AND THE FIFTH IS A DOOR INTO A DISTRICT (owner, 22 Aug) ────────────────
+ *
+ * Financial came off the header on the same call, the way Travel did on the
+ * 15th, and the argument is easier here: money is not a district you walk
+ * through, it is a thing that belongs to you, so it belongs in the drawer with
+ * everything else that does.
+ *
+ * THE CARD POINTS AT THE WALLET, NOT AT THE HUB, and that distinction is the
+ * whole reason this is not a contradiction of the paragraph below. The other
+ * four leaves open city-level pages; this one opens /financial/wallet, which
+ * is a ROOM. The Financial District still exists, still has its five rooms,
+ * its routes, its art and its place on the home map, and the command palette
+ * still finds the wallet and the spending. What it lost is a tab.
  *
  * IT IS NOT A HUB, AND THAT IS THE DESIGN. A hub is a district: a photograph,
  * a billboard line, a consent gate, a rail of rooms with a shared subject.
@@ -51,7 +65,7 @@ interface Room {
   line: string;
   /** The aside in the margin, in the family's italic. Not every leaf has one. */
   aside?: string;
-  motif: 'rules' | 'dates' | 'stack' | 'prints';
+  motif: 'rules' | 'dates' | 'stack' | 'prints' | 'till';
 }
 
 const ROOMS: Room[] = [
@@ -59,6 +73,7 @@ const ROOMS: Room[] = [
   { to: '/calendar', icon: 'calendar', label: 'Calendar', line: 'Everything the city has you down for, in one week.', motif: 'dates' },
   { to: '/drive', icon: 'doc', label: 'Drive', line: 'Your documents, kept where you can find them again.', aside: 'Everything in its place', motif: 'stack' },
   { to: '/personal/album', icon: 'image', label: 'Album', line: 'Every photo and video you have posted to the city.', motif: 'prints' },
+  { to: '/financial/wallet', icon: 'wallet', label: 'Financial Wallet', line: 'One balance for the whole city, and where it went.', aside: 'What you have, and what you spent', motif: 'till' },
 ];
 
 /** A print, the way a photograph printed at home is: a white face, a wider
@@ -123,6 +138,21 @@ function Motif({ kind }: { kind: Room['motif'] }) {
       </span>
     );
   }
+  if (kind === 'till') {
+    /* A RECEIPT, NOT A PAYMENT CARD, and the swap is the reference talking.
+       Every other leaf on this page is PAPER — ruled lines, a date grid, a
+       stack of documents, two prints — so a slab of plastic among them read as
+       an icon that had wandered in from a different application. A till roll
+       is the paper money makes, and it says the same thing the aside does:
+       what you have, and what you spent.
+
+       IT IS A CLASS RATHER THAN AN INLINE STYLE, which the four motifs above
+       are not, and that is deliberate rather than inconsistent: the size
+       ceiling counts `style={{` and raw radii, and a new drawing built the old
+       way put three counters over their line at once. Drawn in CSS it costs
+       none of them — see `.pl-till` in relief.css. */
+    return <span className="pl-till"><i /><i /><i /><b /></span>;
+  }
   if (kind === 'stack') {
     // Three leaves of paper, fanned the way a pile of documents sits.
     return (
@@ -153,7 +183,7 @@ export function PersonalHome() {
         <div className="sl-head-t">
           <div className="eyebrow">Together City · Personal</div>
           <h1>Yours, and only yours</h1>
-          <p>Your journal, your week, your documents and your pictures — the part of the city that belongs to you.</p>
+          <p>Your journal, your week, your documents, your pictures and your money — the part of the city that belongs to you.</p>
         </div>
       </div>
 

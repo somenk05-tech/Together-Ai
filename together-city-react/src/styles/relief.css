@@ -5912,3 +5912,40 @@ button.own-month-day:hover { border-color: var(--accent); }
    some other layout that wandered in. */
 .mproj-skin { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
 .mproj-skin .eyebrow { margin: 0; }
+
+/* ══ THE WALLET LEAF ══════════════════════════════════════════════════════
+   The fifth card in the Personal drawer (owner, 22 Aug) needed a drawing, and
+   the four already on that page are inline styles in PersonalHome.tsx. This
+   one is not, for a reason worth stating rather than leaving as an
+   inconsistency: `size-system-ceiling.mjs` counts `style={{` blocks, raw
+   `borderRadius:` numbers and raw inline spacing, and one new inline drawing
+   put three of those four counters over their line at once. Built here it
+   costs none of them — and a ceiling that can be walked past by adding one
+   more component is not a ceiling.
+
+   A RECEIPT RATHER THAN A PAYMENT CARD. Every other leaf on that page is
+   paper: ruled lines, a date grid, a stack of documents, two prints. A slab of
+   plastic among them read as an icon from a different application. A till roll
+   is the paper money makes, it carries the same sentence the aside does, and —
+   the practical half — a receipt has square corners, so it needs no radius at
+   a step the scale does not have. --r-1 is 10px, which on a 54px card face is
+   a squircle rather than a card.
+
+   The torn foot is a repeating gradient rather than an image, for the reason
+   the calendar leaf draws real dates: nothing to export, nothing to go
+   missing, and it re-colours with the room it stands in. */
+.pl-till {
+  display: block; width: 68px; padding: 11px 11px 0;
+  background: var(--card); box-shadow: var(--e1);
+}
+.pl-till i { display: block; height: 1px; background: var(--line); margin-bottom: 8px; }
+.pl-till i:nth-of-type(2) { width: 72%; }
+.pl-till i:nth-of-type(3) { width: 88%; }
+/* The total: the one line on a receipt anybody actually reads. */
+.pl-till b { display: block; width: 46%; height: 3px; background: var(--ink); margin: 13px 0 10px; }
+.pl-till::after {
+  content: ''; display: block; height: 5px;
+  background:
+    linear-gradient(135deg, var(--card) 50%, transparent 50%) 0 0 / 8px 5px repeat-x,
+    linear-gradient(-135deg, var(--card) 50%, transparent 50%) 4px 0 / 8px 5px repeat-x;
+}

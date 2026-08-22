@@ -49,6 +49,41 @@ describe('Travel leaves the street, not the city', () => {
   });
 });
 
+describe('Financial leaves the street, not the city', () => {
+  const registry = read('nav/registry.ts');
+
+  /**
+   * Owner, 22 Aug. The same move Travel made on the 15th, and the same trap:
+   * hidden is not deleted, and the difference is a citizen's bookmark working
+   * rather than answering 404.
+   *
+   * IT KEEPS ITS PLACE ON THE HOME MAP, and that is the one asymmetry with
+   * Travel worth writing down rather than quietly matching. Travel was hidden
+   * from the header AND from all three home surfaces, because the call was to
+   * stop advertising it. This call was about the header alone: the district
+   * still stands on the map, on a tile and on a billboard, and only the tab
+   * moved. Copying Travel's second half here would have been tidiness doing a
+   * product decision's job.
+   */
+  it('is gone from the header tabs', () => {
+    expect(NAV.some((n) => n.key === 'financial')).toBe(false);
+  });
+
+  it('but the hub itself is untouched — config, rooms, routes, art', () => {
+    expect(HUBS.financial).toBeTruthy();
+    expect(HUBS.financial.items.length).toBe(5);
+    expect(read('app/router.tsx')).toMatch(/path: '\/financial'/);
+    expect(read('pages/Home.tsx')).toMatch(/to: '\/financial'/);
+  });
+
+  it('and the wallet stays findable by name, not only from the drawer', () => {
+    // Leaving the header must not cost it the command palette; that is where
+    // somebody who types "money" at midnight ends up.
+    expect(registry).toMatch(/id: 'a-wallet'/);
+    expect(registry).toMatch(/path: '\/financial\/wallet'/);
+  });
+});
+
 describe('Personal is a drawer, not a district', () => {
   const registry = read('nav/registry.ts');
   const router = read('app/router.tsx');
@@ -67,13 +102,30 @@ describe('Personal is a drawer, not a district', () => {
     expect(router).not.toMatch(/HubLayout hub=\{HUBS\.personal\}/);
   });
 
-  it('holds the four rooms the owner named', () => {
+  it('holds the five rooms the owner named', () => {
     const homePage = read('features/personal/pages/PersonalHome.tsx');
-    for (const to of ['/thoughts', '/calendar', '/drive', '/personal/album']) {
+    for (const to of ['/thoughts', '/calendar', '/drive', '/personal/album', '/financial/wallet']) {
       expect({ room: to, listed: homePage.includes(`to: '${to}'`) }).toEqual({ room: to, listed: true });
     }
     expect(router).toMatch(/path: '\/personal'/);
     expect(router).toMatch(/path: '\/personal\/album'/);
+  });
+
+  /**
+   * AND THE FIFTH LEAF POINTS AT A ROOM, NOT AT A DISTRICT.
+   *
+   * The drawer's whole argument is that the pages in it belong to the person
+   * rather than to a part of the city. A card reading "Financial District"
+   * would break that on its face and would also be a lie about where it goes.
+   * It says Financial Wallet and it opens /financial/wallet, which is one
+   * room inside a hub that still exists — so this asserts the label and the
+   * destination together, because either one alone can drift into the other's
+   * meaning.
+   */
+  it('the wallet leaf is named for the room it opens', () => {
+    const homePage = read('features/personal/pages/PersonalHome.tsx');
+    expect(homePage).toMatch(/to: '\/financial\/wallet',[^\n]*label: 'Financial Wallet'/);
+    expect(homePage).not.toMatch(/to: '\/financial',/);
   });
 
   it('and each room is findable by name, not only by URL', () => {
