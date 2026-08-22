@@ -214,6 +214,27 @@ export class MiraLedger implements OnModuleInit, OnModuleDestroy {
   /** One warning, not one per question. A disk that cannot be written to will
    *  not start working because we said so nine hundred times. */
   private complained = false;
+  /**
+   * THE APPEND QUEUE, AND WHY A FIRE-AND-FORGET WRITE STILL NEEDS ONE.
+   *
+   * `record` starts an append and does not wait — that is the point, and it
+   * stays true below. What it used to also mean is that three questions asked
+   * in the same tick started THREE concurrent `appendFile` calls against the
+   * same file, each of which opens, writes and closes on its own. They land in
+   * whatever order the filesystem finishes them, which is usually call order
+   * and is not always call order.
+   *
+   * Found by ledger.spec failing once on a machine where it had passed a
+   * minute earlier, with the two surviving lines swapped. That is a flake in
+   * the test and a defect in the file: an audit log whose lines can arrive out
+   * of sequence is one a human cannot read chronologically, and the `at` stamp
+   * does not rescue it here — questions asked in the same tick share one.
+   *
+   * The chain costs the caller nothing: `record` still returns immediately.
+   * The `.catch` lives ON the chain rather than beside it, so one failed write
+   * cannot poison the queue for every question after it.
+   */
+  private tail: Promise<void> = Promise.resolve();
   private timer?: ReturnType<typeof setInterval>;
 
   async onModuleInit(): Promise<void> {
@@ -246,7 +267,7 @@ export class MiraLedger implements OnModuleInit, OnModuleDestroy {
   /** Fire and forget. Recording a question must never slow an answer down and
    *  must never be the reason one fails. */
   record(entry: LedgerEntry, at: Date = new Date()): void {
-    void this.write(entry, at).catch((e) => {
+    this.tail = this.tail.then(() => this.write(entry, at)).catch((e) => {
       if (this.complained) return;
       this.complained = true;
       this.logger.warn(`could not record a question: ${String(e)}`);
