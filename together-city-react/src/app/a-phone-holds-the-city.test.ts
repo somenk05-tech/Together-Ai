@@ -15,17 +15,22 @@ const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
 
 describe('a phone holds the city', () => {
   /**
-   * THE SEARCH PILL WAS 88px OFF-SCREEN ON EVERY PHONE. FloatingSearch renders
-   * a hidden EMPTY button first to measure, and the empty button is ~6px wide;
-   * positioned from that measurement, the real 112px pill hung past the right
-   * edge with a sliver showing. The fix is a second clamp against the pill
-   * that actually painted. Remove it and the audit's first P0 walks back in.
+   * THE SEARCH PILL IS RETIRED, AND MUST STAY RETIRED (23 Aug, evening).
+   *
+   * This test used to hold the draggable pill's second clamp — the fix for it
+   * hanging 88px off-screen on every phone. The pill itself is gone now: a
+   * remembered position meant it sat on top of posters, photos and form rows
+   * on nine of the fifteen surfaces the whole-site walk covered, on desks as
+   * well as phones. Search lives in the header's action row with the other
+   * doors of the citizen's own, so it can never sit on content again — and a
+   * phone reaches it through the same header it already holds. The clamp
+   * lesson stays written above; if a floating control ever returns, so must
+   * both layout passes.
    */
-  it('the search pill clamps itself against its REAL width, not the placeholder', () => {
-    const src = read('components/FloatingSearch.tsx');
-    const clamps = src.match(/useLayoutEffect\(/g) ?? [];
-    expect(clamps.length, 'both layout passes: measure, then re-clamp the painted pill').toBeGreaterThanOrEqual(2);
-    expect(src).toMatch(/clamp\(pos\.x, pos\.y\)/);
+  it('search lives in the header, not floating over the page', () => {
+    const header = read('layouts/Header.tsx');
+    expect(header).not.toMatch(/FloatingSearch/);
+    expect(header, 'the action row renders the search pill with the other doors').toMatch(/<QuickActions show="all" \/>/);
   });
 
   /**

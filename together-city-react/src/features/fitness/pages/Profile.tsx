@@ -130,10 +130,16 @@ export function Profile() {
             <h3 style={{ margin: 0 }}>Training profile</h3>
             <Button variant="line" size="sm" onClick={() => setCollapsed(false)}>Edit</Button>
           </div>
+          {/* A DEFINITION LIST, NOT A TUG-OF-WAR (whole-site walk, 23 Aug).
+              Label far-left and value far-right across a 900px card meant the
+              eye re-scanned every row to pair "Age" with "41" — nine rows of
+              it was the whole page. The value now sits beside the thing it
+              answers, in a fixed label column, with lining figures so the
+              numbers rule up. */}
           {rows.map(([k, val]) => (
-            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '9px 0', borderTop: '1px solid var(--line)' }}>
-              <span className="muted" style={{ fontSize: 12.5, flexShrink: 0 }}>{k}</span>
-              <span style={{ fontSize: 13, textAlign: 'right' }}>{val}</span>
+            <div key={k} style={{ display: 'grid', gridTemplateColumns: '160px minmax(0, 1fr)', gap: 16, padding: '9px 0', borderTop: '1px solid var(--line)' }}>
+              <span className="muted" style={{ fontSize: 12.5 }}>{k}</span>
+              <span className="mono" style={{ fontSize: 13 }}>{val}</span>
             </div>
           ))}
           <p className="muted" style={{ fontSize: 11.5, marginTop: 12 }}>Shared details (age, height, weight) also live in your <Link to="/profile" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Master Profile</Link>.</p>

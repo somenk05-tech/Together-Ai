@@ -44,10 +44,19 @@ describe('the dating hub holds no ground', () => {
    * is a hub whose body copy is a different grey from every other room's, for
    * no reason anybody could state.
    */
+  /**
+   * THE QUIET ACCENT IS NOT A GROUND COMING BACK (23 Aug, evening). Every
+   * room, dating included, declares the four --accent* names again — small
+   * chrome only, held by relief.spec's own assertion — so this list stops
+   * naming them. What it still refuses is the half that made the old block a
+   * ROOM: inks, faces, the lamp, the sky. A hub with the city's paper and
+   * its own --muted is a hub whose body copy is a different grey from every
+   * other room's, for no reason anybody could state; that claim is unchanged.
+   */
   it('re-points no ink, no face, no lamp and no sky', () => {
     const body = block.join(' ');
-    for (const t of ['--ink', '--ink-soft', '--muted', '--faint', '--accent', '--on-accent',
-                     '--accent-ink', '--loud-face', '--lamp-face', '--sky-image', '--frost',
+    for (const t of ['--ink', '--ink-soft', '--muted', '--faint', '--on-accent',
+                     '--loud-face', '--lamp-face', '--sky-image', '--frost',
                      '--line', '--face', '--well', '--word-filter']) {
       expect({ token: t, declared: new RegExp(`${t}\\s*:`).test(body) })
         .toEqual({ token: t, declared: false });

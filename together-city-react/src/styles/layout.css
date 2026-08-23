@@ -475,6 +475,11 @@
 }
 .letter-archive-day:focus-visible { outline: none; }
 .letter-archive-day[aria-current="true"] .d { font-weight: 600; }
+/* A folded run of untitled letters speaks in the archive's quietest voice —
+   the whole point of the fold is that eight blank rows stop pretending to be
+   eight announcements. See LetterArchive's comment for the behaviour. */
+.letter-archive-quiet .d { color: var(--letter-ink-soft); }
+.letter-archive-quiet .t { color: var(--letter-faint); font-style: italic; }
 @media (max-width: 640px) {
   .letter-archive { margin-top: 54px; }
   .letter-archive-day { flex-direction: column; gap: 3px; padding: 13px 0; }
@@ -483,6 +488,17 @@
 
 @media (prefers-reduced-motion: no-preference) { .letter-page { animation: letterIn .5s var(--ease) both; } }
 @keyframes letterIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ── ONE GESTURE FOR THE WHOLE CITY (23 Aug, evening) ──────────────────────
+   The brand's metaphors — walking, doors, rooms, letters — are all motion
+   metaphors, and until now only the letter and the hub plate moved. Every
+   page settles the same way the letter does: a six-pixel rise and a fade, one
+   duration, one curve, both read from tokens so the motion ceiling counts
+   nothing new. `.page` remounts on navigation, so the gesture happens when a
+   citizen walks through a door and never while they stand in the room.
+   `both` ends at `transform: none`, so nothing keeps a containing block. */
+@media (prefers-reduced-motion: no-preference) { .page { animation: pageIn var(--dur-base) var(--ease) both; } }
+@keyframes pageIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -2189,6 +2205,12 @@
    --fs-6 is the 17px the heading was already set in. A literal here would be a
    colour outside tokens.css and a font size outside the scale, and both are
    counted. */
+/* THE CARD WAITS IN PAPER, NOT IN BLACK (23 Aug). Resting on --media-bg
+   meant a shop whose photographs had not arrived was a grid of black
+   rectangles with invisible white headings. Until `.is-lit` (set by the
+   tile's own onLoad), the card is the city's paper with its name in ink;
+   the photograph fades up and the type reverses with it. Both durations
+   read the tokens, so the motion ceiling sees nothing new. */
 .ec-card {
   position: relative;
   display: block;
@@ -2197,12 +2219,13 @@
   padding: 0;
   border: 1px solid var(--line);
   border-radius: var(--r-2);
-  background: var(--media-bg);
+  background: var(--card);
   box-shadow: var(--e1);
-  color: var(--on-accent);
+  color: var(--ink);
   text-align: center;
   font: inherit;
 }
+.ec-card.is-lit { background: var(--media-bg); color: var(--on-accent); }
 .ec-go { text-decoration: none; cursor: pointer; }
 .ec-go:hover { box-shadow: var(--e2); }
 .ec-art {
@@ -2212,7 +2235,10 @@
   height: 100%;
   object-fit: cover;
   filter: var(--film);
+  opacity: 0;
+  transition: opacity var(--dur-base) var(--ease);
 }
+.ec-card.is-lit .ec-art { opacity: 1; }
 .ec-face {
   position: absolute;
   inset: 0;
@@ -2236,7 +2262,11 @@
   letter-spacing: -.012em;
   line-height: 1.3;
   margin: 0;
-  color: var(--on-accent);
+  color: inherit;
+  text-shadow: none;
+}
+/* The letter-shadow belongs to the photograph, not to the waiting paper. */
+.ec-card.is-lit .ec-name {
   text-shadow: 0 1px 2px var(--scrim-top), 0 2px 14px var(--scrim-deep);
 }
 /* TWO ACROSS ON A PHONE, and the reason is the shape rather than the room.

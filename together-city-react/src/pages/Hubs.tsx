@@ -43,7 +43,7 @@ export function Hubs() {
       <h1 style={{ fontSize: 26, margin: '0 0 4px' }}>The city</h1>
       <p className="muted" style={{ fontSize: 13.5, marginBottom: 18 }}>Every hub, one screen. Tap a door.</p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14 }}>
         {NAV.filter((n) => !NOT_A_DOOR.has(n.key)).map((n, i) => {
           const cfg = HUBS[n.key as HubKey];
           const hero = HUB_HERO[n.key as HubKey];
@@ -59,7 +59,13 @@ export function Hubs() {
              < 2 ? 'eager' : 'lazy'`); this page simply never copied it. */
           const above = i < 6;
           return (
-            <Link key={n.key} to={n.path} className="card lift" style={{ padding: 0, overflow: 'hidden', display: 'block' }}>
+            /* THE DOOR WEARS ITS ROOM'S ACCENT. `data-hub` on the card scopes
+               the same four tokens the room itself re-points (foot of
+               tokens.css), so the icon beside each name takes that room's
+               colour — on the one screen that shows every room at once, the
+               wayfinding finally does some work. No colour is written here;
+               the attribute selects the block that already owns it. */
+            <Link key={n.key} to={n.path} data-hub={n.key} className="card lift" style={{ padding: 0, overflow: 'hidden', display: 'block' }}>
               <div style={{ aspectRatio: '16 / 10', background: 'var(--media-bg)', position: 'relative' }}>
                 {hero
                   /* AND IT IS THE TILE, NOT THE HERO. These files are 1,915px

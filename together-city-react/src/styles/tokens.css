@@ -60,9 +60,9 @@
      REVERSED object writes its letters in (`color: var(--card)` on solid ink),
      and collapsing it into --paper would leave 200 call sites saying "paper"
      when they mean "the opposite of the ink". */
-  --ground: #ffffff;
-  --paper: #ffffff;
-  --card: #ffffff;
+  --ground: #e9ecf3;
+  --paper: #e9ecf3;
+  --card: #e9ecf3;
 
   /* ── THE LETTER'S PAPER, WHICH IS NOT --paper ────────────────────────────
      A false friend, and worth the four lines it costs to say so. `--paper`
@@ -99,7 +99,7 @@
      THE INK IS UNCHANGED AND STILL MEASURED. Every ratio below was taken
      against #ebe8e3; on white each one gets EASIER, so the floor moves the
      safe way and no value has to be re-derived to keep it. */
-  --letter-paper:    #ffffff;
+  --letter-paper:    #f4f6fa;
   --letter-ink:      #14130f;   /* 17.5:1 on white (was 15.2 on the cream) */
   --letter-ink-soft: #35322c;   /* 12.1:1 (was 10.5) */
   --letter-faint:    #5f5a52;   /*  6.4:1 (was 5.6) */
@@ -144,7 +144,7 @@
   --ink: #2a2a2a;     /* 13.75 on the ground · 14.35 on a card */
   --ink-soft: #3b3b3b;/* 10.73 · 11.20 */
   --muted: #595959;   /*  6.71 on the ground ·  6.26 on the wash */
-  --faint: #6b6b6b;   /*  5.11 on the ground ·  4.76 on the wash — the floor */
+  --faint: #5f5f5f;   /*  5.40 on the porcelain · 5.11 on the wash — the floor, re-derived 23 Aug night */
   /* ── THE TWO LINES, DRAWN IN NOTHING ──────────────────────────────────
      Owner, 23 Aug: "no boarders and lines".
 
@@ -178,8 +178,8 @@
      EITHER DIRECTION. This is the whole argument for the token, made twice in
      a day: the lines went in one edit and came back in one edit, and every
      selector, every depth and every material has sat still throughout. */
-  --line: #e4e4e4;
-  --line-2: #dcdcdc;
+  --line: rgba(13,39,80,.10);
+  --line-2: rgba(13,39,80,.16);
 
   /* A BLOCK THAT IS NOT THE SAME AS THE ONE BELOW IT.
      Unread mail is carried by weight — the sender and the subject go bold —
@@ -194,7 +194,7 @@
      uses. It is a shade lighter than the reference's full-bleed band (#ededed)
      on purpose: this token is fields, tracks and pressed states, and at
      #ededed the ink floor goes under AA on the surface it is read on most. */
-  --wash: #ffffff;
+  --wash: #e2e6ef;
   /* ── AND THE HOVER KEEPS THE SHADE THE PAGE GAVE UP ────────────────────
      --wash WAS the pointer's acknowledgement: `.card.lift:hover, .row:hover,
      .pcard:hover` darkened the ground by a step, and it was the ONLY feedback
@@ -205,7 +205,7 @@
      It is not the background coming back. This is never on the page at rest;
      it exists under the cursor and nowhere else, it is ink rather than a grey,
      and there is exactly one of it. */
-  --hover: rgba(42, 42, 42, .045);
+  --hover: rgba(13, 39, 80, .055);
   /* ── A MARK IS NOT A LINE ──────────────────────────────────────────────
      The four objects whose entire visible self is a small shape: a sheet's
      drag handle, a progress track, the connector between two numbered steps,
@@ -218,7 +218,7 @@
 
      Ink at 18%, not a grey, so it belongs to the type rather than to a
      palette that no longer exists. */
-  --mark: rgba(42, 42, 42, .18);
+  --mark: rgba(13, 39, 80, .22);
   /* The gradient that lets white type sit on somebody's photograph. Two stops
      rather than a flat wash: a flat one greys the whole picture out to protect
      four words at the bottom of it, and the picture is the point. */
@@ -247,26 +247,26 @@
      underside of an edge; on a 700px article it greys out a third of the page.
      Tall surfaces measure their shade in PIXELS FROM THE BOTTOM, so an edge
      stays an edge at any height. Anything that can grow past ~300px uses it. */
-  --face:      linear-gradient(180deg, #ffffff 0%, #ffffff 100%);
-  --face-2:    linear-gradient(180deg, #ffffff 0%, #ffffff 100%);
+  --face:      linear-gradient(145deg, #f2f4fa 0%, #e6eaf2 100%);
+  --face-2:    linear-gradient(145deg, #f0f2f8 0%, #e5e9f1 100%);
   /* min() IS LOad-BEARING. Without it the first white stop is calc(100% - 96px),
      which on the 78px header is MINUS 18px — the gradient starts already grey
      and washes the whole bar out. A token whose correctness depends on the
      element being taller than a number buried inside it is a trap, so the shade
      is now "the last 96px, or the last 40%, whichever is less". */
-  --face-tall: linear-gradient(180deg, #ffffff 0%, #ffffff 100%);
+  --face-tall: linear-gradient(145deg, #f2f4fa 0%, #e6eaf2 100%);
 
   /* A KEY IS NOT A CARD. At 30px tall there is almost no face to light, and
      --e1's soft 13px shadow spreads to nothing. Small controls get a face with
      more travel and a shadow that is tighter and darker — the same amount of
      relief, compressed into the space they actually have. */
-  --face-key: linear-gradient(180deg, #ffffff 0%, #ffffff 100%);
+  --face-key: linear-gradient(145deg, #f4f6fb 0%, #e8ecf4 100%);
   /* AND THE WELL IS WHITE. It is the fill of a field, a tab trough and a table
      head — the three places a shade was still being used to say "this bit is
      recessed". Nothing is recessed. The fields keep their mark; the trough and
      the head keep their padding, which is what was actually holding them
      apart. */
-  --well:      linear-gradient(180deg, #ffffff 0%, #ffffff 100%);
+  --well:      linear-gradient(145deg, #dee3ec 0%, #e5e9f1 100%);
 
   /* ── FLAT, 23 AUG — AND THE FIVE DEPTHS SURVIVE IT ──────────────────────
      Owner: "make everything flat instead of the raised feeling."
@@ -339,9 +339,9 @@
      flat commit started down, and the rule it was allowed under has not
      changed: a scope may change what a depth is MADE OF, never how many there
      are. */
-  --e1: none;
-  --e2: var(--rim);
-  --e3: var(--rim-strong);
+  --e1: var(--rim), -6px -6px 12px rgba(255, 255, 255, .80), 6px 6px 14px rgba(13, 39, 80, .14);
+  --e2: var(--rim), -9px -9px 18px rgba(255, 255, 255, .85), 10px 10px 22px rgba(13, 39, 80, .18);
+  --e3: var(--rim-strong), -12px -12px 28px rgba(255, 255, 255, .90), 14px 14px 34px rgba(13, 39, 80, .26);
 
   /* KEY SCALE — --e1 and --e2 compressed, not a sixth and seventh depth.
      A 30px pill and a 300px card are the same distance off the page, but a
@@ -358,8 +358,8 @@
      these are not among them.
 
      They compress a depth into 30px. There is no depth to compress. */
-  --e1-key: var(--rim);
-  --e2-key: var(--rim-strong);
+  --e1-key: var(--rim), -3px -3px 7px rgba(255, 255, 255, .80), 3px 3px 8px rgba(13, 39, 80, .14);
+  --e2-key: var(--rim-strong), -5px -5px 10px rgba(255, 255, 255, .85), 5px 5px 12px rgba(13, 39, 80, .18);
 
   /* Carved — the trough a field, a slider or a segmented control sits in.
      A TROUGH WITH NO WALLS IS A FLOOR, so this one is the exception argued at
@@ -388,7 +388,7 @@
 
   /* Pressed — a RAISED thing pushed in. Not the same as carved: carved was
      always a hole, pressed is a key that has travelled down. */
-  --press: inset 0 0 0 1px rgba(0,0,0,.10), inset 0 3px 6px rgba(0,0,0,.16), 0 1px 0 rgba(255,255,255,.9);
+  --press: inset 4px 4px 9px rgba(13, 39, 80, .16), inset -4px -4px 9px rgba(255, 255, 255, .88);
 
   /* EDGES ARE NOT DEPTHS. A one-pixel white line under a rule, the darker
      line under a table head, and the halo around a hub dot are not surfaces —
@@ -456,12 +456,12 @@
      any more. --carve is a FIELD, and it keeps a mark for the reason set out
      at --mark: a place to type that cannot be seen is not seamless. */
   --lens:     inset 0 0 0 1px var(--line);
-  --lens-key: inset 0 0 0 1px var(--line);
+  --lens-key: inset 0 0 0 1px var(--line), -2px -2px 5px rgba(255, 255, 255, .85), 2px 2px 6px rgba(13, 39, 80, .12);
   --glass:    inset 0 0 0 1px var(--line);
   --prism:    inset 0 0 0 1px var(--line);
   --carve:    inset 0 -1px 0 var(--mark);
 
-  --lens-face: linear-gradient(180deg, #ffffff 0%, #ffffff 100%);
+  --lens-face: linear-gradient(145deg, #f1f3f9 0%, #e7ebf3 100%);
 
   /* ══ GROUND GLASS ════════════════════════════════════════════════════════
      The lens above, thickened — and OPAQUE, because this application's ground
@@ -652,24 +652,20 @@
      makes it read as glass over a surface rather than as a white box. On a
      pure white page a pure white button is not a button. */
   --calm-case:
-    0 0 0 7px rgba(0, 0, 0, .035),
-    0 0 0 8px rgba(255, 255, 255, .95),
+    -8px -8px 18px rgba(255, 255, 255, .82),
+    8px 8px 20px rgba(13, 39, 80, .16),
     inset 0 1.5px 1px rgba(255, 255, 255, .95),
-    inset 0 -6px 12px -6px rgba(0, 0, 0, .07),
-    0 5px 10px rgba(0, 0, 0, .06),
-    0 16px 32px rgba(0, 0, 0, .05);
+    inset 0 -5px 10px -5px rgba(13, 39, 80, .06);
   --calm-case-sm:
-    0 0 0 5px rgba(0, 0, 0, .035),
-    0 0 0 5.8px rgba(255, 255, 255, .95),
-    inset 0 1.5px 1px rgba(255, 255, 255, .95),
-    inset 0 -5px 10px -5px rgba(0, 0, 0, .07),
-    0 4px 8px rgba(0, 0, 0, .06),
-    0 10px 22px rgba(0, 0, 0, .05);
-  --calm-face: linear-gradient(180deg, #fbfbfc 0%, #f1f1f3 100%);
+    -5px -5px 12px rgba(255, 255, 255, .82),
+    5px 5px 14px rgba(13, 39, 80, .15),
+    inset 0 1px 1px rgba(255, 255, 255, .95),
+    inset 0 -4px 8px -4px rgba(13, 39, 80, .06);
+  --calm-face: linear-gradient(145deg, #f2f4fa 0%, #e7ebf3 100%);
   /* AND THE POINTER HAS TO CHANGE SOMETHING VISIBLE. A control that does
      nothing under the cursor reads as one you cannot press. The glass clears —
      it does not light; lighting is what the press is for. */
-  --calm-face-hover: linear-gradient(180deg, #ffffff 0%, #f7f7f9 100%);
+  --calm-face-hover: linear-gradient(145deg, #f7f9fd 0%, #edf0f7 100%);
   /* THE SECONDARY'S REST, AND IT IS THE SAME GLASS. It kept its own pair of
      names for one afternoon, while the primary rested in a warm shell and this
      one did not. They are the same object now — see --calm-case — and the
@@ -966,7 +962,7 @@
      back there is one place to put it. --r-full stays round: it is not a
      corner radius, it is what makes a pill a pill, and every avatar, pip and
      switch in the city is built on it. */
-  --r-1: 0px; --r-2: 0px; --r-3: 0px; --r-4: 0px; --r-5: 0px; --r-full: 999px;
+  --r-1: 10px; --r-2: 14px; --r-3: 18px; --r-4: 24px; --r-5: 30px; --r-full: 999px;
   --radius: var(--r-2); --radius-lg: var(--r-3);
 
   /* ── ONE SPACING SCALE, AND IT IS THE ONE THE APP ALREADY USES ─────────
@@ -2704,4 +2700,138 @@ html[data-skin="sanmarino"] {
   --on-stage-soft: #352e2c;
   --on-stage-faint: #544b48;
   --on-stage-ink: #f6f1ef;
+}
+
+/* ══ THE QUIET ACCENT — ONE COLOUR PER ROOM, IN THE SMALL CHROME ONLY ══════
+   (owner, 23 Aug, evening — after the whole-site walk found twelve of
+   thirteen rooms indistinguishable at first glance.)
+
+   The city stays one white material and the sun stays its only button. What
+   returns is one colour per room, and it may only ever appear in the small
+   chrome — the eyebrow, the tab underline, a chip's set state, the rail's
+   numerals, and whatever already reads these four names. The room does not
+   change colour; it signs its name.
+
+   THIS FILE HAS HELD THREE STATES IN A WEEK, so the ledger, so the next
+   reversal argues with the strongest version of this one: coloured rooms
+   (to 22 Aug) → one white and no hub colour (23 Aug, morning: twenty-two
+   accents in the one piece of furniture on every route was too many) → one
+   white and a quiet accent (23 Aug, evening: a room you cannot name before
+   reading a word is not a room). The morning removed the colour from the
+   FURNITURE; the evening returns it to the MARGINS. Both were the owner's
+   call and both are written down.
+
+   FOUR NAMES PER ROOM AND NO FIFTH. --accent is the fill (white sits on it);
+   --accent-ink is the readable form on white. They are one value below
+   because each colour was chosen dark enough to do both jobs — every one
+   clears 4.5:1 against #ffffff, held by relief.spec at build time.
+   --accent-soft is the wash at 10%; --accent-line the hairline at 30%.
+   No block below touches a ground, a paper, a card or the lamp: grounds
+   stay granted to nobody and the rail's lit key stays the sun's.
+
+   EVERY PAIR OF ROOMS SITS ≥ 5.0 ΔE2000 APART — the floor the lamp wheel
+   earned on 22 Aug — except nutrition/family, one domain wearing two doors,
+   named in the guard. Validated by arithmetic in relief.spec, not by eye.  */
+[data-hub="services"] {
+  --accent: #a03d12;
+  --accent-ink: #a03d12;
+  --accent-soft: rgba(160, 61, 18, .10);
+  --accent-line: rgba(160, 61, 18, .30);
+}
+[data-hub="travel"] {
+  --accent: #0c6f7a;
+  --accent-ink: #0c6f7a;
+  --accent-soft: rgba(12, 111, 122, .10);
+  --accent-line: rgba(12, 111, 122, .30);
+}
+[data-hub="astrology"] {
+  --accent: #5b3a8e;
+  --accent-ink: #5b3a8e;
+  --accent-soft: rgba(91, 58, 142, .10);
+  --accent-line: rgba(91, 58, 142, .30);
+}
+[data-hub="nutrition"] {
+  --accent: #33691e;
+  --accent-ink: #33691e;
+  --accent-soft: rgba(51, 105, 30, .10);
+  --accent-line: rgba(51, 105, 30, .30);
+}
+/* Family is nutrition's second door — the one pair allowed to match. */
+[data-hub="family"] {
+  --accent: #33691e;
+  --accent-ink: #33691e;
+  --accent-soft: rgba(51, 105, 30, .10);
+  --accent-line: rgba(51, 105, 30, .30);
+}
+[data-hub="social"] {
+  --accent: #2f5391;
+  --accent-ink: #2f5391;
+  --accent-soft: rgba(47, 83, 145, .10);
+  --accent-line: rgba(47, 83, 145, .30);
+}
+[data-hub="dating"] {
+  --accent: #a02742;
+  --accent-ink: #a02742;
+  --accent-soft: rgba(160, 39, 66, .10);
+  --accent-line: rgba(160, 39, 66, .30);
+}
+[data-hub="entertainment"] {
+  --accent: #22404c;
+  --accent-ink: #22404c;
+  --accent-soft: rgba(34, 64, 76, .10);
+  --accent-line: rgba(34, 64, 76, .30);
+}
+[data-hub="ecommerce"] {
+  --accent: #0d724a;
+  --accent-ink: #0d724a;
+  --accent-soft: rgba(13, 114, 74, .10);
+  --accent-line: rgba(13, 114, 74, .30);
+}
+[data-hub="beauty"] {
+  --accent: #96406b;
+  --accent-ink: #96406b;
+  --accent-soft: rgba(150, 64, 107, .10);
+  --accent-line: rgba(150, 64, 107, .30);
+}
+[data-hub="medical"] {
+  --accent: #1f5f78;
+  --accent-ink: #1f5f78;
+  --accent-soft: rgba(31, 95, 120, .10);
+  --accent-line: rgba(31, 95, 120, .30);
+}
+[data-hub="realestate"] {
+  --accent: #4a5a72;
+  --accent-ink: #4a5a72;
+  --accent-soft: rgba(74, 90, 114, .10);
+  --accent-line: rgba(74, 90, 114, .30);
+}
+[data-hub="jobs"] {
+  --accent: #6b531d;
+  --accent-ink: #6b531d;
+  --accent-soft: rgba(107, 83, 29, .10);
+  --accent-line: rgba(107, 83, 29, .30);
+}
+[data-hub="fitness"] {
+  --accent: #0f766e;
+  --accent-ink: #0f766e;
+  --accent-soft: rgba(15, 118, 110, .10);
+  --accent-line: rgba(15, 118, 110, .30);
+}
+[data-hub="mail"] {
+  --accent: #703a86;
+  --accent-ink: #703a86;
+  --accent-soft: rgba(112, 58, 134, .10);
+  --accent-line: rgba(112, 58, 134, .30);
+}
+[data-hub="financial"] {
+  --accent: #3f5136;
+  --accent-ink: #3f5136;
+  --accent-soft: rgba(63, 81, 54, .10);
+  --accent-line: rgba(63, 81, 54, .30);
+}
+[data-hub="pets"] {
+  --accent: #8f5528;
+  --accent-ink: #8f5528;
+  --accent-soft: rgba(143, 85, 40, .10);
+  --accent-line: rgba(143, 85, 40, .30);
 }

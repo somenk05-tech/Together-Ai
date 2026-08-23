@@ -9,7 +9,6 @@ import {
 } from '@/api';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { CommandPalette } from '@/components/CommandPalette';
-import { FloatingSearch } from '@/components/FloatingSearch';
 import { QuickActions } from './QuickActions';
 import { useTrackRecent } from '@/hooks/useTrackRecent';
 
@@ -165,7 +164,14 @@ export function Header() {
   return (
     <header className="tc-header">
       <CommandPalette />
-      <FloatingSearch />
+      {/* THE FLOATING PILL IS RETIRED (23 Aug, evening). A draggable search
+          tab remembered wherever it was dropped — which on the walked site
+          meant on top of movie posters, profile photos and form rows on nine
+          of fifteen surfaces. A control that sits on other controls reads as
+          broken, whatever else the page does well. Search is a door of the
+          citizen's own, so it lives with the other four in the action row —
+          same pill, same material, always in the same place. ⌘K still works,
+          and the sidebar's "Search the city" entry is untouched. */}
       {/* Row 1 — the signature, centred (burger pinned left for mobile). */}
       <div className="tc-header-top">
         <button className="tc-burger" aria-label="Open menu" onClick={() => toggleSidebar()}><Icon name="menu" size={20} /></button>
@@ -191,7 +197,7 @@ export function Header() {
         <div className="tc-actionbar">
           {authed ? (
             <>
-              <QuickActions show="links" />
+              <QuickActions show="all" />
               <NotificationBell />
               <Link to="/profile" aria-label="Profile" title="Profile" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 {user?.profileImage ? (

@@ -253,8 +253,21 @@ export function ProfessionalProfile({ p, toolbar }: ProfessionalProfileProps) {
                   said — which is how a profile came to announce itself as
                   "APPLICATION LETTER Applicant:". */}
               <h2 className="cvname">{p.fullName || 'Your name'}</h2>
-              {(p.currentTitle || p.headline) && (
-                <p className="cvrole">{p.currentTitle || p.headline}</p>
+              {/* AND NO HEADLINE UNDER A PLACEHOLDER NAME. The headline is
+                  whatever the CV's first line said, and under "Your name" a
+                  parsed letterhead — "APPLICANT: … ADDRESS: …" — reads as
+                  somebody else's leaked record, which is the most alarming
+                  thing an empty profile can possibly say (whole-site walk,
+                  23 Aug). A record with no name yet is a SPECIMEN, and a
+                  specimen says what it is instead of printing fragments. */}
+              {p.fullName ? (
+                (p.currentTitle || p.headline) && (
+                  <p className="cvrole">{p.currentTitle || p.headline}</p>
+                )
+              ) : (
+                <p className="cvrole" style={{ fontStyle: 'italic' }}>
+                  A preview of your printed record — it fills in as you add to it.
+                </p>
               )}
             </div>
           </div>

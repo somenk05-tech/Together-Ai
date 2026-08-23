@@ -249,15 +249,32 @@ describe('Relief stays a system', () => {
    * a filled badge, ::selection — say "the opposite of the ink". Renaming
    * those to --paper would leave every one of them claiming to be the page.
    */
-  it('keeps one white page, and one value for it, at the root', () => {
+  it('keeps one page colour, and one value for it, at the root', () => {
+    /* THE PAGE IS PORCELAIN NOW, NOT WHITE (owner, 23 Aug, night, with four
+       neumorphic references). Soft relief cannot exist on #ffffff — a white
+       highlight on a white ground is nothing, so the whole grammar of the
+       reskin (twin shadows, lit from the top-left) begins with the ground
+       coming down to a cool porcelain the light can stand off. What this
+       assertion holds is unchanged and is the part that was always the
+       invariant: the page and the card are ONE value, declared once — the
+       moment they drift apart some room has invented a second ground and the
+       seam is back. The recessed fill is allowed one step below the page,
+       because a trough on a moulded surface is darker than the surface; that
+       relationship (wash darker than ground, both declared here) is asserted
+       rather than re-pinned to a literal that will move with the next
+       reference. */
     const root = strip(tokens).split(/\[data-hub=/)[0];
     const val = (t: string) => root.match(new RegExp(`${t}:\\s*(#[0-9a-f]{6})`, 'i'))?.[1]?.toLowerCase();
     const ground = val('--ground')!, paper = val('--paper')!, card = val('--card')!;
-    expect({ ground, paper, card }).toEqual({ ground: '#ffffff', paper: '#ffffff', card: '#ffffff' });
-    // …and the two surfaces a shade was still being spent on join it: --wash
-    // was the recessed fill and --well the trough under a field and a tab row.
-    expect(val('--wash')).toBe('#ffffff');
-    expect(root).toMatch(/--well:\s*linear-gradient\(180deg,\s*#ffffff 0%,\s*#ffffff 100%\)/);
+    expect(ground).toMatch(/^#[0-9a-f]{6}$/);
+    expect({ paper, card }).toEqual({ paper: ground, card: ground });
+    const lum = (hex: string) => {
+      const lin = (c: number) => (c / 255 <= 0.03928 ? c / 255 / 12.92 : (((c / 255) + 0.055) / 1.055) ** 2.4);
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+      return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    };
+    const wash = val('--wash')!;
+    expect(lum(wash), 'the recessed fill sits a step below the page, never above it').toBeLessThanOrEqual(lum(ground));
     expect(strip(tokens)).not.toContain('[data-theme="dark"]');
   });
 
@@ -1388,33 +1405,127 @@ describe('Relief stays a system', () => {
    * Dating, and nobody can reproduce it.
    */
   /**
-   * ── AND NOW: NO HUB HAS A COLOUR OF ITS OWN ───────────────────────────────
+   * ── AND NOW, THIRD AND CURRENT: THE QUIET ACCENT ──────────────────────────
    *
-   * This asserted that every hub in the config had a `[data-hub]` block — that
-   * no room inherited somebody else's light. Owner, 23 Aug: the same colour
-   * rule in all the hubs. So the claim inverts, and the inversion is the
-   * instruction stated as a test.
-   *
-   * TWO BLOCKS SURVIVE AND NEITHER IS A COLOUR. Dating keeps `--film`, the
-   * greyscale grade on its portraits, which was never about the room; and
-   * Entertainment keeps `--media-bg`, the black a video letterbox and a camera
-   * viewfinder are shown in on any ground. Both are named here rather than
-   * excluded by a pattern, so a third one has to be argued for.
+   * The morning's claim ("no hub has a colour of its own") inverted the one
+   * before it; this one does not invert it back — it narrows it. The rooms
+   * stay white and the furniture keeps the one sun; what returns is a colour
+   * per room in the margins only, because the evening's whole-site walk found
+   * the morning's cost: twelve of thirteen rooms indistinguishable at first
+   * glance. The full argument, the four allowed names and the two named
+   * survivals live on the assertion itself.
    */
-  it('gives no hub a colour of its own', () => {
+  it('gives every room a quiet accent of its own', () => {
+    /* THIRD STATE IN A WEEK, each the owner's call, each written as a test
+       when it was made. The morning's "no hub has a colour of its own"
+       removed twenty-two accents from the one piece of furniture on every
+       route, and it was right about the furniture. The whole-site walk the
+       same evening found the cost: twelve of thirteen rooms were
+       indistinguishable at first glance — a room you cannot name before
+       reading a word is not a room. So the colour returns to the MARGINS
+       (owner, 23 Aug, evening): one accent per hub, four names, small chrome
+       only. Ground, paper, card and lamp stay exactly where the morning left
+       them. The two survivals stay named, not patterned: dating's --film (a
+       portrait grade, never about the room) and entertainment's --media-bg
+       (the black a letterbox is shown in, on any ground). */
     const hubs = read('src/config/hubs.ts');
     const map = hubs.slice(hubs.indexOf('export const HUBS'));
     const keys = [...new Set([...map.matchAll(/key:\s*'([a-z]+)'/g)].map((m) => m[1]))];
     expect(keys.length).toBeGreaterThanOrEqual(14);
 
-    const ALLOWED: Record<string, string[]> = { dating: ['film'], entertainment: ['media-bg'] };
-    const offenders: string[] = [];
+    const SURVIVALS: Record<string, string[]> = { dating: ['film'], entertainment: ['media-bg'] };
+    const ACCENT = ['accent', 'accent-ink', 'accent-soft', 'accent-line'];
+    const declared: Record<string, Set<string>> = {};
+    const ink: Record<string, string> = {};
     for (const m of strip(tokens).matchAll(/\[data-hub="([a-z]+)"\]\s*\{([\s\S]*?)\n\}/g)) {
-      const declared = [...new Set([...m[2].matchAll(/--([a-z0-9-]+):/g)].map((d) => d[1]))];
-      const extra = declared.filter((d) => !(ALLOWED[m[1]] ?? []).includes(d));
-      if (extra.length) offenders.push(`${m[1]}: ${extra.join(' ')}`);
+      declared[m[1]] ??= new Set();
+      for (const d of m[2].matchAll(/--([a-z0-9-]+):\s*([^;]+);/g)) {
+        declared[m[1]].add(d[1]);
+        if (d[1] === 'accent-ink') ink[m[1]] = d[2].trim();
+      }
+    }
+
+    const offenders: string[] = [];
+    for (const k of keys) {
+      const got = declared[k];
+      if (!got) { offenders.push(`${k}: no [data-hub] block — it inherits the previous room's light`); continue; }
+      for (const name of ACCENT) if (!got.has(name)) offenders.push(`${k}: missing --${name}`);
+      const extra = [...got].filter((d) => !ACCENT.includes(d) && !(SURVIVALS[k] ?? []).includes(d));
+      if (extra.length) offenders.push(`${k}: declares more than the quiet accent — ${extra.join(' ')}`);
     }
     expect(offenders).toEqual([]);
+
+    /* The ink form must READ on the city's white — that is its whole job. */
+    const lin = (c: number) => (c / 255 <= 0.03928 ? c / 255 / 12.92 : (((c / 255) + 0.055) / 1.055) ** 2.4);
+    const lum = (hex: string) => {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+      return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    };
+    const aa: string[] = [];
+    /* Measured on the page's OWN ground, read from the token file — so the
+       day the ground moves again, every accent is re-examined against the
+       colour it actually sits on rather than a white that no longer exists. */
+    const groundHex = strip(tokens).split(/\[data-hub=/)[0]
+      .match(/--ground:\s*(#[0-9a-f]{6})/i)?.[1] ?? '#ffffff';
+    const gLum = lum(groundHex);
+    for (const k of keys) {
+      const v = ink[k];
+      if (!/^#[0-9a-f]{6}$/i.test(v ?? '')) { aa.push(`${k}: --accent-ink is not a plain hex (${v})`); continue; }
+      const r = (gLum + 0.05) / (lum(v) + 0.05);
+      if (r < 4.5) aa.push(`${k}: ${v} reads at ${r.toFixed(2)}:1 on ${groundHex}`);
+    }
+    expect(aa).toEqual([]);
+
+    /* ΔE2000, NOT A HEX COMPARISON — the failure this catches is two colours
+       a person cannot distinguish, which two different hex values manage
+       perfectly well. The maths is the CIE's; the floor is the one the old
+       lamp wheel earned on 22 Aug. Raise it as pairs separate; never lower. */
+    const lab = (hex: string): [number, number, number] => {
+      const ch = [1, 3, 5].map((i) => lin(parseInt(hex.slice(i, i + 2), 16)));
+      let X = ch[0] * 0.4124 + ch[1] * 0.3576 + ch[2] * 0.1805;
+      const Y = ch[0] * 0.2126 + ch[1] * 0.7152 + ch[2] * 0.0722;
+      let Z = ch[0] * 0.0193 + ch[1] * 0.1192 + ch[2] * 0.9505;
+      X /= 0.95047; Z /= 1.08883;
+      const f = (t: number) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+      const [fx, fy, fz] = [f(X), f(Y), f(Z)];
+      return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+    };
+    const dE2000 = (h1: string, h2: string): number => {
+      const [L1, a1, b1] = lab(h1); const [L2, a2, b2] = lab(h2);
+      const avgL = (L1 + L2) / 2; const C1 = Math.hypot(a1, b1); const C2 = Math.hypot(a2, b2); const avgC = (C1 + C2) / 2;
+      const G = 0.5 * (1 - Math.sqrt(avgC ** 7 / (avgC ** 7 + 25 ** 7)));
+      const a1p = a1 * (1 + G); const a2p = a2 * (1 + G);
+      const C1p = Math.hypot(a1p, b1); const C2p = Math.hypot(a2p, b2); const avgCp = (C1p + C2p) / 2;
+      const h1p = (Math.atan2(b1, a1p) * 180 / Math.PI + 360) % 360;
+      const h2p = (Math.atan2(b2, a2p) * 180 / Math.PI + 360) % 360;
+      const dLp = L2 - L1; const dCp = C2p - C1p;
+      let dhp = h2p - h1p; if (Math.abs(dhp) > 180) dhp -= Math.sign(dhp) * 360;
+      const dHp = 2 * Math.sqrt(C1p * C2p) * Math.sin(dhp * Math.PI / 360);
+      let avgHp = (h1p + h2p) / 2; if (Math.abs(h1p - h2p) > 180) avgHp += 180;
+      const T = 1 - 0.17 * Math.cos((avgHp - 30) * Math.PI / 180) + 0.24 * Math.cos(2 * avgHp * Math.PI / 180)
+        + 0.32 * Math.cos((3 * avgHp + 6) * Math.PI / 180) - 0.2 * Math.cos((4 * avgHp - 63) * Math.PI / 180);
+      const SL = 1 + 0.015 * (avgL - 50) ** 2 / Math.sqrt(20 + (avgL - 50) ** 2);
+      const SC = 1 + 0.045 * avgCp; const SH = 1 + 0.015 * avgCp * T;
+      const dTheta = 30 * Math.exp(-(((avgHp - 275) / 25) ** 2));
+      const RC = 2 * Math.sqrt(avgCp ** 7 / (avgCp ** 7 + 25 ** 7));
+      const RT = -RC * Math.sin(2 * dTheta * Math.PI / 180);
+      return Math.sqrt((dLp / SL) ** 2 + (dCp / SC) ** 2 + (dHp / SH) ** 2 + RT * (dCp / SC) * (dHp / SH));
+    };
+    /* One domain wearing two doors — the only pair allowed to match. */
+    const TWINS = new Set(['family|nutrition']);
+    const FLOOR = 5.0;
+    const close: string[] = [];
+    for (let i = 0; i < keys.length; i++) {
+      for (let j = i + 1; j < keys.length; j++) {
+        const pair = [keys[i], keys[j]].sort().join('|');
+        if (TWINS.has(pair)) continue;
+        const a = ink[keys[i]]; const b = ink[keys[j]];
+        if (!a || !b) continue; // already reported above
+        const d = dE2000(a, b);
+        if (d < FLOOR) close.push(`${pair} at ΔE ${d.toFixed(2)}`);
+      }
+    }
+    expect(close).toEqual([]);
   });
 
   /**

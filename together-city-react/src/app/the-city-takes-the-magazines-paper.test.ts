@@ -46,9 +46,17 @@ describe('the city takes the magazine’s paper', () => {
    * that was easiest to see and the least of what the look is made of; the
    * type, the tracking and the air are untouched by any of it.
    */
-  it('keeps the reference’s ink, on a page that is now one white', () => {
-    expect(val('--paper')).toBe('#ffffff');
-    expect(val('--card')).toBe('#ffffff');
+  /**
+   * AND THEN THE PAGE BECAME PORCELAIN (owner, 23 Aug, night, with four
+   * neumorphic references). Soft relief cannot exist on #ffffff — a white
+   * highlight on a white ground is nothing — so the ground comes down to a
+   * cool porcelain the light can stand off. The ink survives its second
+   * repaint unmoved, which is the part of the magazine that was always the
+   * point.
+   */
+  it('keeps the reference’s ink, on a page that is porcelain now', () => {
+    expect(val('--paper')).toBe('#e9ecf3');
+    expect(val('--card')).toBe('#e9ecf3');
     expect(val('--ink')).toBe('#2a2a2a');
   });
 
@@ -189,7 +197,7 @@ describe('the city takes the magazine’s paper', () => {
  * tokens — which is most of what went wrong on the way here. Three primitives
  * and one text-shadow were hand-written where a token was expected.
  */
-describe('nothing is raised any more', () => {
+describe('the relief returns, moulded', () => {
   const rootOf = (name: string) => root.match(new RegExp(`${name}:\\s*([^;]+);`))?.[1]?.trim() ?? '';
 
   /**
@@ -202,15 +210,24 @@ describe('nothing is raised any more', () => {
    * distinguishable from the page or it is not an overlay. A dialog with no
    * edge on the same colour as what it covers is broken rather than flat.
    */
-  it('draws panels at no depth and overlays at a hairline', () => {
-    expect(rootOf('--e1')).toBe('none');
-    for (const d of ['--e2', '--e3']) {
-      expect({ depth: d, value: rootOf(d) }).toEqual({ depth: d, value: expect.stringMatching(/^var\(--rim(-strong)?\)$/) });
+  /**
+   * AND THEN THE DEPTHS CAME BACK, MOULDED (owner, 23 Aug, night). The flat
+   * city lasted one day; the reversal is written the way the flattening was.
+   * Every depth is now a TWIN relief — light falling from the top-left, a
+   * cool shade to the bottom-right, the reference study's own grammar — and
+   * every one still BEGINS with its rim, which still reads the line tokens,
+   * so the wiring relief.spec holds is unchanged in both directions. e1 is a
+   * panel, e2 an overlay, e3 the furthest float; the pairs stay distinct
+   * because a dialog on a moulded page still has to out-stand a card.
+   */
+  it('draws every depth as a twin relief, lit from the top-left', () => {
+    for (const d of ['--e1', '--e2', '--e3', '--e1-key', '--e2-key']) {
+      const v = rootOf(d);
+      expect({ depth: d, rimFirst: /^var\(--rim(-strong)?\),/.test(v) }).toEqual({ depth: d, rimFirst: true });
+      expect({ depth: d, lit: /-\d+px -\d+px \d+px rgba\(255, 255, 255/.test(v) }).toEqual({ depth: d, lit: true });
+      expect({ depth: d, shade: / \d+px \d+px \d+px rgba\(13, 39, 80/.test(v) }).toEqual({ depth: d, shade: true });
     }
     expect(rootOf('--rim')).toMatch(/^inset 0 0 0 1px var\(--line\)$/);
-    for (const d of ['--rim', '--rim-strong']) {
-      expect({ depth: d, blank: rootOf(d) === 'none' || rootOf(d) === '' }).toEqual({ depth: d, blank: false });
-    }
   });
 
   /**
@@ -221,16 +238,34 @@ describe('nothing is raised any more', () => {
    * whole job is to be the loudest thing on the page; a single warm accent
    * works precisely because nothing else competes with it.
    */
-  it('leaves no gradient in a face or a well', () => {
+  /**
+   * A FACE IS MOULDED AGAIN: two stops, on the 145° axis the light falls
+   * along, lit end first. The wells run the same axis so a trough and a
+   * key are carved by the same sun. One flat stop was the flat city's rule;
+   * a face with three or more is somebody sculpting freehand.
+   */
+  it('moulds every face and well from exactly two stops, lit end first', () => {
     for (const t of ['--face', '--face-2', '--face-tall', '--face-key', '--well']) {
-      const stops = [...rootOf(t).matchAll(/#[0-9a-f]{3,8}/gi)].map((m) => m[0].toLowerCase());
-      expect({ token: t, distinct: [...new Set(stops)].length }).toEqual({ token: t, distinct: 1 });
+      const v = rootOf(t);
+      const stops = [...v.matchAll(/#[0-9a-f]{6}/gi)].map((m) => m[0].toLowerCase());
+      expect({ token: t, distinct: [...new Set(stops)].length }).toEqual({ token: t, distinct: 2 });
+      expect({ token: t, axis: /linear-gradient\(145deg/.test(v) }).toEqual({ token: t, axis: true });
+      expect({ token: t, litFirst: lum(stops[0]) > lum(stops[1]) })
+        .toEqual({ token: t, litFirst: t !== '--well' });
     }
   });
 
-  it('squares every corner but the pill', () => {
-    for (const r of ['--r-1', '--r-2', '--r-3', '--r-4', '--r-5']) {
-      expect({ radius: r, value: rootOf(r) }).toEqual({ radius: r, value: '0px' });
+  /**
+   * THE CORNERS SOFTEN WITH THE MATERIAL. A moulded object has no sharp
+   * edges — every reference rounds everything — so the radius ladder rises
+   * again, and it is asserted as a LADDER: five steps, each larger than the
+   * one before, so no two names can silently mean the same corner.
+   */
+  it('rounds every corner on one ascending ladder', () => {
+    const ladder = ['--r-1', '--r-2', '--r-3', '--r-4', '--r-5'].map((r) => parseInt(rootOf(r), 10));
+    for (const [i, v] of ladder.entries()) {
+      expect({ step: i + 1, positive: v > 0 }).toEqual({ step: i + 1, positive: true });
+      if (i > 0) expect({ step: i + 1, ascends: v > ladder[i - 1] }).toEqual({ step: i + 1, ascends: true });
     }
     // --r-full is not a corner radius. It is what makes a pill a pill, and
     // every avatar, pip and switch in the city is built on it.

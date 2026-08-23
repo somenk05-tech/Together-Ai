@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
 /**
  * The page the letter is printed on.
@@ -81,27 +81,83 @@ export interface ArchiveRow {
   title?: string;
 }
 
+/** "Monday, 10 August" → "10 August" — the piece a range is written from. */
+const dayPart = (label: string) => (label.includes(', ') ? label.slice(label.indexOf(', ') + 2) : label);
+
+/** "3 August – 10 August" folds to "3 – 10 August" when the month is shared. */
+function spanLabel(older: string, newer: string): string {
+  const [a, b] = [dayPart(older), dayPart(newer)];
+  const [aDay, ...aRest] = a.split(' ');
+  const [bDay, ...bRest] = b.split(' ');
+  if (aRest.join(' ') === bRest.join(' ')) return `${aDay} – ${bDay} ${aRest.join(' ')}`;
+  return `${a} – ${b}`;
+}
+
+/** A titled row, or a RUN of consecutive untitled ones folded into one line. */
+type ArchiveEntry = { kind: 'day'; row: ArchiveRow } | { kind: 'quiet'; rows: ArchiveRow[] };
+
 export function LetterArchive(
   { rows, current, onPick }: { rows: ArchiveRow[]; current: string | null; onPick: (date: string) => void },
 ) {
+  /* QUIET DAYS FOLD (23 Aug, evening). Letters written before titles existed
+     rendered as bare full-width date rows — on the walked site, eight of them
+     in a run, each drawing a rule and saying nothing. A list where half the
+     rows are blank reads as a list that is broken, not a list that is quiet.
+     So consecutive untitled rows fold into one muted line naming the span,
+     and open on request: every letter stays exactly one click further than it
+     was, and none is hidden. A run of one is not a run; it renders as itself.
+     Hooks stay above the early return — rows.length can change between
+     renders, and a conditional hook is the one thing React never forgives. */
+  const [opened, setOpened] = useState<Record<string, boolean>>({});
   if (rows.length === 0) return null;
+  const entries: ArchiveEntry[] = [];
+  for (const r of rows) {
+    const last = entries[entries.length - 1];
+    if (!r.title && last?.kind === 'quiet') { last.rows.push(r); continue; }
+    if (!r.title) { entries.push({ kind: 'quiet', rows: [r] }); continue; }
+    entries.push({ kind: 'day', row: r });
+  }
+  const dayButton = (r: ArchiveRow) => (
+    <button
+      type="button"
+      className="letter-archive-day"
+      aria-current={r.date === current ? 'true' : undefined}
+      onClick={() => onPick(r.date)}
+    >
+      <span className="d">{r.label}</span>
+      {r.title && <span className="t">{r.title}</span>}
+    </button>
+  );
   return (
     <nav className="letter-archive" aria-label="Earlier letters">
       <h2 className="letter-archive-head">Earlier letters</h2>
       <ul>
-        {rows.map((r) => (
-          <li key={r.date}>
-            <button
-              type="button"
-              className="letter-archive-day"
-              aria-current={r.date === current ? 'true' : undefined}
-              onClick={() => onPick(r.date)}
-            >
-              <span className="d">{r.label}</span>
-              {r.title && <span className="t">{r.title}</span>}
-            </button>
-          </li>
-        ))}
+        {entries.map((e) => {
+          if (e.kind === 'day' || e.rows.length === 1) {
+            const r = e.kind === 'day' ? e.row : e.rows[0];
+            return <li key={r.date}>{dayButton(r)}</li>;
+          }
+          const newest = e.rows[0]; const oldest = e.rows[e.rows.length - 1];
+          const key = `${oldest.date}..${newest.date}`;
+          const open = Boolean(opened[key]) || e.rows.some((r) => r.date === current);
+          return (
+            <li key={key}>
+              {open ? (
+                e.rows.map((r) => <span key={r.date} style={{ display: 'block' }}>{dayButton(r)}</span>)
+              ) : (
+                <button
+                  type="button"
+                  className="letter-archive-day letter-archive-quiet"
+                  aria-expanded={false}
+                  onClick={() => setOpened((o) => ({ ...o, [key]: true }))}
+                >
+                  <span className="d">{spanLabel(oldest.label, newest.label)}</span>
+                  <span className="t">{e.rows.length} quiet letters — open the days</span>
+                </button>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </nav>
   );

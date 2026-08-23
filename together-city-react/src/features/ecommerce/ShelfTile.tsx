@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useState } from 'react';
 
 /**
  * ── THE CARD IS THE PICTURE ─────────────────────────────────────────────────
@@ -73,20 +74,32 @@ export function ShelfTile({ to, onClick, art, name, note, soon }: {
    */
   soon?: boolean;
 }) {
+  /* THE CARD WAITS IN PAPER, NOT IN BLACK (whole-site walk, 23 Aug). The
+     tile's resting ground was --media-bg, so until its lazy photograph
+     arrived the shop was a field of black rectangles with invisible white
+     headings — on the walked connection, for whole seconds. Until the art
+     has painted, the card is the city's own paper with the name in ink; the
+     photograph fades up when it lands and the type reverses with it. The
+     ref-check covers the cached case, where a re-render can beat onLoad. */
+  const [lit, setLit] = useState(false);
   const face = (
     <>
       {/* DECORATIVE ON PURPOSE. The heading beside it is the accessible name of
           the link, and an alt text repeating it would have a screen reader read
           the card twice. */}
-      <img className="ec-art" src={`/assets/img/${art}`} alt="" loading="lazy" />
+      <img
+        className="ec-art" src={`/assets/img/${art}`} alt="" loading="lazy"
+        onLoad={() => setLit(true)}
+        ref={(el) => { if (el?.complete && el.naturalWidth > 0) setLit(true); }}
+      />
       <span className="ec-face">
         <span className="ec-name">{name}</span>
         {soon ? <span className="ec-state">Coming soon</span> : note && <span className="ec-state">{note}</span>}
       </span>
     </>
   );
-  if (soon) return <article className="ec-card is-soon" aria-disabled="true">{face}</article>;
-  if (to) return <Link to={to} className="ec-card ec-go">{face}</Link>;
-  if (onClick) return <button type="button" className="ec-card ec-go" onClick={onClick}>{face}</button>;
-  return <article className="ec-card">{face}</article>;
+  if (soon) return <article className={`ec-card is-soon${lit ? ' is-lit' : ''}`} aria-disabled="true">{face}</article>;
+  if (to) return <Link to={to} className={`ec-card ec-go${lit ? ' is-lit' : ''}`}>{face}</Link>;
+  if (onClick) return <button type="button" className={`ec-card ec-go${lit ? ' is-lit' : ''}`} onClick={onClick}>{face}</button>;
+  return <article className={`ec-card${lit ? ' is-lit' : ''}`}>{face}</article>;
 }

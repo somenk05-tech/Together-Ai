@@ -332,15 +332,32 @@ h1 { letter-spacing: .015em; }
    list that ends on a line is a list with something missing under it. A card
    takes its rule at the HEAD, so a run of cards reads as sections of one sheet
    rather than as a stack of trays. */
-.card, .stat, .row, .console, .mincal, table.tc, .blk > .card, .pcard {
+/* ── THE PANELS COME BACK, SOFT (owner, 23 Aug, night — with four
+   references). The flattening above is reversed for the third time this
+   week and, as before, the reversal is written as one: the owner asked for
+   neumorphism across the whole city — extruded panels on a porcelain
+   ground, lit from the top-left, pressed states carved in. The page is no
+   longer a single sheet with type on it; it is a moulded surface, and the
+   moulded amber button that was "the one object allowed to be made of
+   something" is now simply the loudest of many. Every value is a token cut
+   at :root, which is why this block names depths and not colours. Rows stay
+   flat — a pillow per list row is noise — and keep their foot rule. */
+.card, .stat, .console, .mincal, table.tc, .blk > .card, .pcard {
+  background: var(--card);
+  border: 0;
+  border-radius: var(--r-3);
+  box-shadow: var(--e1);
+}
+.row {
   background: none;
   border: 0;
   border-radius: 0;
   box-shadow: none;
+  border-bottom: 1px solid var(--line);
 }
-.row { border-bottom: 1px solid var(--line); }
 .row:last-child { border-bottom: 0; }
-.card + .card, .stat + .stat { border-top: 1px solid var(--line); }
+/* Extruded cards separate by air, not by a rule across their join. */
+.card + .card, .stat + .stat { margin-top: var(--s-3); }
 /* AND THE MODAL IS STILL NOT ON THIS LIST. The sentence above holds — an
    overlay that cannot be told from the page is not an overlay — and on 23 Aug
    the thing that carries it changed. It used to be the hairline; --line is
@@ -371,9 +388,10 @@ h1 { letter-spacing: .015em; }
    white with the rest of the page, and this is the one shade that survives it
    because it is never on the page at rest. See tokens.css. */
 @media (hover: hover) and (pointer: fine) {
-  .card.lift:hover, .row:hover, .pcard:hover, .stat.lift:hover {
-    background: var(--hover);
-  }
+  /* A raised panel answers the pointer by rising a step; a flat row still
+     darkens, because it has no depth to spend. */
+  .card.lift:hover, .pcard:hover, .stat.lift:hover { box-shadow: var(--e2); }
+  .row:hover { background: var(--hover); }
 }
 .console { overflow: hidden; }
 .modal-ov { background: var(--frost); backdrop-filter: blur(6px) saturate(120%); }
@@ -5383,3 +5401,16 @@ button.own-month-day:hover { border-color: var(--accent); }
     linear-gradient(135deg, var(--card) 50%, transparent 50%) 0 0 / 8px 5px repeat-x,
     linear-gradient(-135deg, var(--card) 50%, transparent 50%) 4px 0 / 8px 5px repeat-x;
 }
+
+/* ══ THE ROOM SIGNS ITS NAME (23 Aug, evening) ═════════════════════════════
+   The quiet accent — see the foot of tokens.css — is allowed exactly three
+   surfaces of its own: the eyebrow, the rail's resting numerals, and a chip's
+   set state. Everything else that already reads --accent-ink (the tab
+   underline, a lit icon, a link) follows on its own, which is the point of
+   re-pointing a token instead of painting rooms. Nothing here is a
+   background, a shadow or a size; if a rule in this block ever paints a
+   surface, it has broken its own sentence. */
+[data-hub] .eyebrow { color: var(--accent-ink); }
+[data-hub] .side-menu a:not(.active) .n { color: var(--accent-ink); }
+[data-hub] .pill.on, [data-hub] .chip.on,
+[data-hub] .pill[aria-pressed="true"], [data-hub] .chip[aria-pressed="true"] { color: var(--accent-ink); }
