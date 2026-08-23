@@ -597,6 +597,13 @@
   opacity: .78;
   margin: 12px 0 0;
 }
+/* THE BAND ABOVE A TAB ROW. Two of the four rooms in this zone put `AstroTabs`
+   directly under the masthead, and `AstroHeader` — which the band replaced —
+   carried 18px of air below it. The band has none of its own, so the pages that
+   need the air ask for it here rather than every band growing a margin the
+   other rooms would have to undo. */
+.astra.has-tabs { margin-bottom: 18px; }
+
 @media (max-width: 640px) {
   /* One column, so the wash runs down instead of across and the figure reads
      behind the type rather than beside it. */

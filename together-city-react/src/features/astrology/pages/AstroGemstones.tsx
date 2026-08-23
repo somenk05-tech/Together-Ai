@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button, Card, Spinner } from '@/components/ui';
 import { Fold } from '@/components/ui/Fold';
 import { useAstroGemstones, useGemCart } from '../hooks';
-import { AstroHeader, AstroTabs, NeedsProfileCard } from '../shared';
+import { AstroTabs, NeedsProfileCard } from '../shared';
 import type { GemAtWeight, GemPriority, GemRecommendation, GemRole, GemstonesResponse } from '../api';
 
 /**
@@ -561,10 +561,32 @@ export function AstroGemstones() {
 
   return (
     <div>
-      <AstroHeader
-        title="Gemstones"
-        lede="Only the stones your own chart calls for — what each one is for, which finger it is worn on, and what it costs."
-      />
+      {/* ── THE SAME BAND AS THE CONSULTATION ROOM AND THE TAROT TABLE ───
+          `.astra-*` a third time rather than a third block of its own. The
+          owner's brief for this room was the words already on it and a
+          photograph of a jewelled field, which is the same instruction the
+          other two got: kicker, title, one large line, a quieter line under it,
+          on the dark half of a picture.
+
+          THE SENTENCE IS THE LEDE, BROKEN AT ITS OWN DASH. `AstroHeader` set
+          the whole of it as one grey paragraph. At masthead size it has to be a
+          large line and a small one, so the em-dash becomes a full stop and
+          `what` takes a capital. Not a word is added or dropped.
+
+          `.has-tabs` because `AstroTabs` sits directly under this one, and the
+          header it replaces carried 18px of air below it. */}
+      <header className="astra has-tabs">
+        <img className="astra-sky" src="/assets/img/gem-field.webp" alt="" />
+        <span className="astra-veil" aria-hidden />
+        <div className="astra-in">
+          <p className="astra-kicker">Astrology Zone</p>
+          <h1 className="astra-title">Gemstones</h1>
+          <p className="astra-lead">Only the stones your own chart calls for.</p>
+          <p className="astra-body">
+            What each one is for, which finger it is worn on, and what it costs.
+          </p>
+        </div>
+      </header>
       <AstroTabs />
 
       {q.isLoading ? (
