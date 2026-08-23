@@ -215,17 +215,17 @@ export function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKin
           </div>
           {match.reasons && match.reasons.length > 0 && (
             <>
-              <div style={{ fontWeight: 600, fontSize: 12.5, margin: '10px 0 4px' }}>Why this match?</div>
-              <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12.5, color: 'var(--ink-soft)' }}>
-                {match.reasons.map((r, i) => <li key={i} style={{ marginBottom: 2 }}>{r}</li>)}
+              <div className="dt-why">Why this match?</div>
+              <ul className="dt-reasons">
+                {match.reasons.map((r, i) => <li key={i}>{r}</li>)}
               </ul>
             </>
           )}
           {match.frictions && match.frictions.length > 0 && (
             <>
-              <div style={{ fontWeight: 600, fontSize: 12.5, margin: '10px 0 4px' }}>One thing to explore</div>
-              <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12.5, color: 'var(--muted)' }}>
-                {match.frictions.map((r, i) => <li key={i} style={{ marginBottom: 2 }}>{r}</li>)}
+              <div className="dt-why">One thing to explore</div>
+              <ul className="dt-reasons is-friction">
+                {match.frictions.map((r, i) => <li key={i}>{r}</li>)}
               </ul>
             </>
           )}

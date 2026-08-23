@@ -604,6 +604,41 @@
    other rooms would have to undo. */
 .astra.has-tabs { margin-bottom: 18px; }
 
+/* ── WHY THIS MATCH, AND THE ONE THING TO EXPLORE ────────────────────────
+   Two blocks with the same shape: a small bold label and a tight bulleted
+   list under it. There was one, and on 23 Aug the deal-breaker work added the
+   second by copying the first — which is the moment a pattern stops being an
+   arrangement and becomes a thing with a name.
+
+   THE COPY IS THE EVIDENCE, NOT THE PROBLEM. Six inline style objects and six
+   raw spacing values across two files is what the size-system ceiling exists
+   to catch, and it caught them: the commit that added the friction list took
+   `inline style objects` from 6793 to 6798 and `raw inline spacing` from 3688
+   to 3691, and the next thing anybody tried to land failed on it. That is the
+   ratchet working, and the fix is a class rather than a higher number — the
+   file's own instruction is "never raise one to make a build pass".
+
+   ONE RULE, TWO WEARERS, AND THE DIFFERENCE BETWEEN THEM IS ONE TOKEN. The
+   reasons are --ink-soft because they are the case for the match; the
+   frictions are --muted because they are a caveat on it. That is the whole of
+   what distinguished the two copies, and it is now the only thing that does. */
+.dt-why { font-weight: 600; font-size: 12.5px; margin: 10px 0 4px; }
+.dt-reasons {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+.dt-reasons.is-friction { color: var(--muted); }
+.dt-reasons li { margin-bottom: 2px; }
+/* The same caveat where there is no room for a list — the compatibility panel
+   on a match's own page shows the first friction and nothing else. */
+.dt-note { font-size: 12.5px; line-height: 1.55; margin: 6px 0 0; color: var(--muted); }
+/* A <strong> is 700 by default and this one wants 600, which is the entire
+   reason the inline object existed. */
+.dt-note strong { font-weight: 600; }
+
 /* ── THE MATCHES NOTE ──────────────────────────────────────────────────────
    Owner, 23 Aug, with a piece of stationery for reference: a bold wordmark
    over a heavy rule, a labelled row, a boxed field with one large line in it,

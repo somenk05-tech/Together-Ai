@@ -192,8 +192,8 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
             </div>
             <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>{d.reasons[0] ?? ml.blurb}</p>
             {d.frictions && d.frictions.length > 0 && (
-              <p style={{ fontSize: 12.5, margin: '6px 0 0', color: 'var(--muted)' }}>
-                <strong style={{ fontWeight: 600 }}>One thing to explore — </strong>{d.frictions[0]}
+              <p className="dt-note">
+                <strong>One thing to explore — </strong>{d.frictions[0]}
               </p>
             )}
           </div>
