@@ -63,7 +63,7 @@ describe('the friction list takes a class', () => {
     const s = read('../scripts/size-system-ceiling.mjs');
     // Lowered 23 Aug night with the neumorphic re-cut — the tree had drifted
     // one below on both counts, and a ratchet below its ceiling is slack.
-    expect(s).toMatch(/inlineStyleBlocks: 6789,/);
-    expect(s).toMatch(/rawSpacing: 3684,/);
+    expect(s).toMatch(/inlineStyleBlocks: 6785,/);
+    expect(s).toMatch(/rawSpacing: 3681,/);
   });
 });

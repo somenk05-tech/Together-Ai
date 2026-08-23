@@ -424,13 +424,22 @@
      after the re-cut — paper pasted onto the page rather than a sheet
      resting on it. It takes the overlay depth, not the panel one: a letter
      is the page's single object and has to stand off it the way a dialog
-     does, and --e2's twin relief is cut at the root like every other
-     shadow here, so the day the material moves again this sheet moves with
-     it. The soft corner is the ladder's own fourth step. Nothing else
+     does, and the twin relief is cut at the root like every other shadow
+     here, so the day the material moves again this sheet moves with it.
+     The soft corner is the ladder's own fourth step. Nothing else
      changes — not the measure, the paper texture, the type, or the padding
-     the guard below watches. */
+     the guard below watches.
+
+     --e2 WAS TRIED FIRST AND READ FLAT (owner, 24 Aug: "the neumorphism
+     for the astrology section", sent with a screenshot of the sheet lying
+     flush). Rendered against the white ground, the panel depth's bright
+     side vanishes into the page and its .18 shade is thinner than the
+     paper's own tint — the sheet read as a cream rectangle with soft
+     corners, which is exactly the flatness the note was about. --e3 is the
+     dialog's cut, and a full-page letter is nearer a dialog than a card:
+     one object, alone on the ground, meant to sit above it. */
   border-radius: var(--r-4);
-  box-shadow: var(--e2);
+  box-shadow: var(--e3);
 }
 .tc-shell .tc-main > .letter-page {
   padding: clamp(52px, 6.5vw, 96px) 32px clamp(64px, 8vw, 120px);
