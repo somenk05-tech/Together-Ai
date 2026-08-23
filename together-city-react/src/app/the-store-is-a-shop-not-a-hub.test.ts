@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { HUBS } from '@/config/hubs';
@@ -332,5 +332,71 @@ describe('The Open Market aisles show the whole shelf', () => {
     expect(market).toMatch(/back: \{ path: '\/ecommerce\/market', label: 'Open Market' \}/);
     expect(code('features/ecommerce/store/useBeautyShop.ts'))
       .toMatch(/back: \{ path: '\/ecommerce\/store', label: 'Personalized Store' \}/);
+  });
+});
+
+/**
+ * ── AN EMPTY SHELF IS NOT A DEAD END ────────────────────────────────────────
+ *
+ * Owner, 23 Aug: "for the first time user add a link to take them to the
+ * profile to complete and take them to the respective profiles for
+ * personalization."
+ *
+ * Every personalised shelf already said the right thing when it was empty —
+ * "Set a budget first", "Your birth details first", "Not matched to you yet" —
+ * and every one of them was a wall. The citizen was told the single thing they
+ * had to do and given nothing to press, on a screen whose whole reason for
+ * existing is that it read something they filled in somewhere else.
+ *
+ * The two halves this holds:
+ *
+ *  1. THE DESTINATION IS PER-REASON. A beauty shelf with no budget goes to the
+ *     routine, where a budget is set; the same shelf with no profile goes to
+ *     the profile. One destination for both would be a button that is right
+ *     half the time, which teaches somebody the button does not work.
+ *  2. IT IS NOT OFFERED WHERE IT WOULD BE A LIE. An open-market aisle with
+ *     nothing listed, and a gem counter that came back empty, are the city's
+ *     problem rather than the citizen's — they say so and offer nothing.
+ */
+describe('an empty personalised shelf points at the thing that fills it', () => {
+  const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
+
+  it('renders the shelf’s own destination, and only when it has one', () => {
+    const front = read('features/ecommerce/store/StoreFront.tsx');
+    expect(front).toMatch(/action=\{shop\.emptyTo &&/);
+    expect(front).toMatch(/to=\{shop\.emptyTo\.path\}/);
+  });
+
+  it('sends each reason where that reason is actually fixed', () => {
+    const beauty = read('features/ecommerce/store/useBeautyShop.ts');
+    // The budget is a routine screen; the profile is a profile screen.
+    expect(beauty).toMatch(/needsBudget[\s\S]{0,160}path: '\/beauty\/routine'/);
+    expect(beauty).toMatch(/path: '\/beauty\/profile'/);
+    const gems = read('features/ecommerce/store/useGemShop.ts');
+    expect(gems).toMatch(/needsProfile[\s\S]{0,140}path: '\/profile\/astrology'/);
+    const fitness = read('features/ecommerce/store/useFitnessShop.ts');
+    expect(fitness).toMatch(/personalised[\s\S]{0,180}path: '\/fitness\/profile'/);
+  });
+
+  it('offers nothing where the emptiness is the city’s fault, not the citizen’s', () => {
+    // A market aisle with nothing on it, and a counter that came back empty:
+    // there is no screen a citizen can open that changes either.
+    expect(read('features/ecommerce/store/useMarketShops.ts')).not.toMatch(/emptyTo/);
+    expect(read('features/ecommerce/store/useGemCounterShop.ts')).not.toMatch(/emptyTo/);
+  });
+
+  it('every destination it offers is a route that exists', () => {
+    const files = ['app/router.tsx', ...readdirSync(join(SRC, 'features'))
+      .map((f) => `features/${f}/routes.tsx`)
+      .filter((f) => existsSync(join(SRC, f)))];
+    const declared = new Set(files.flatMap((f) =>
+      [...read(f).matchAll(/path: '([^']+)'/g)].map((m) => m[1])));
+    const offered = ['useBeautyShop', 'useGemShop', 'useFitnessShop']
+      .flatMap((h) => [...read(`features/ecommerce/store/${h}.ts`)
+        .matchAll(/emptyTo:[\s\S]{0,400}?/g)].length
+        ? [...read(`features/ecommerce/store/${h}.ts`).matchAll(/label: '[^']+', path: '([^']+)'/g)].map((m) => m[1])
+        : []);
+    expect(offered.length).toBeGreaterThan(0);
+    expect(offered.filter((p) => !declared.has(p))).toEqual([]);
   });
 });

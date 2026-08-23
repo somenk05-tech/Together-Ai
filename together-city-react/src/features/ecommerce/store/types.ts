@@ -156,6 +156,37 @@ export interface Shop {
   /** Why the shelf is empty, when it is — not "no results" but the reason. */
   emptyTitle?: string;
   emptyHint?: string;
+  /**
+   * ── AND THE WAY OUT OF IT (owner, 23 Aug) ─────────────────────────────────
+   *
+   * "For the first-time user add a link to take them to the profile to
+   * complete, and take them to the respective profiles for personalization."
+   *
+   * The empty states already said the right thing — "Set a budget first",
+   * "Your birth details first", "Not matched to you yet" — and every one of
+   * them was a dead end. Somebody arriving at a personalised shop for the
+   * first time was told the one thing they had to do and given nothing to
+   * press; the way to do it was in another hub, behind a back button, on a
+   * rail they had just left.
+   *
+   * EmptyState has carried an `action` since it was written, and the note
+   * beside it says why: "every empty state told somebody a list was empty and
+   * left them to find the way out of it". This is that note coming true one
+   * more time, on the four shelves where the emptiness is the CITIZEN'S to
+   * fix rather than the city's.
+   *
+   * IT IS PER-REASON, NOT PER-SHOP, which is the part that matters. A beauty
+   * shelf with no budget goes to the routine, where the budget is set; the
+   * same shelf with no profile goes to the profile. Sending both to one place
+   * would be a link that is right half the time, and a link that is wrong half
+   * the time is worse than no link — it teaches somebody that the button does
+   * not work.
+   *
+   * Absent where the shelf is empty for a reason nobody using the app can do
+   * anything about: an open market aisle with nothing listed, a gem counter
+   * that came back empty. Those say so and offer nothing, on purpose.
+   */
+  emptyTo?: { label: string; path: string };
 
   /** Null when this shelf has no till. `blocked` then says why. */
   bag: ShopBag | null;

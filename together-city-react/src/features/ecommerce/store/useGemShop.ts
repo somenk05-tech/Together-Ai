@@ -85,6 +85,13 @@ export function useGemShop(): Shop {
     emptyHint: gems.data?.needsProfile
       ? 'A stone is read off a chart, and there is no chart until the birth date, time and place are on file.'
       : 'Nothing is recommended for your chart at the moment.',
+    /* Only when the chart is the thing missing. "Nothing recommended for your
+       chart" is the city's answer to a chart it HAS read, and a button to the
+       profile there would be telling somebody to fix something that is not
+       broken. */
+    emptyTo: gems.data?.needsProfile
+      ? { label: 'Add your birth details', path: '/profile/astrology' }
+      : undefined,
     /* THE SHELF'S OWN DISCLAIMER, quoted from the server rather than written
        here — an astrological claim is the one sentence this district may not
        paraphrase. The weight caveat is added only when it is true. */

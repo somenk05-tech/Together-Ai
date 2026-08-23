@@ -100,6 +100,12 @@ export function useBeautyShop(): Shop {
     emptyHint: routine.data?.needsBudget
       ? 'Your routine is built against what you are willing to spend, so nothing is chosen until you have said a number.'
       : 'Fill in your skin and hair profile and the routine builds itself from it.',
+    /* TWO REASONS, TWO DESTINATIONS. The budget is set on the routine page and
+       the profile is filled in the profile — sending both to one of them would
+       be a button that is right half the time. */
+    emptyTo: routine.data?.needsBudget
+      ? { label: 'Set your budget', path: '/beauty/routine' }
+      : { label: 'Fill in your Skin & Hair Profile', path: '/beauty/profile' },
 
     bag: bag ? { lines: bag.lines, count: bag.count, totalInr: bag.totalInr, removed: bag.removed } : null,
     isSaving: bagged.isSaving,

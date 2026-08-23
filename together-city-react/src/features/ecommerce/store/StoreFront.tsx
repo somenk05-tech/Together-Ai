@@ -117,7 +117,18 @@ export function StoreFront({ shop }: { shop: Shop }) {
 
       {shop.items.length === 0 ? (
         <div className="st-wait">
-          <EmptyState title={shop.emptyTitle ?? 'Nothing on this shelf yet'} hint={shop.emptyHint} />
+          {/* THE EMPTY SHELF CARRIES THE WAY OUT OF ITSELF (owner, 23 Aug).
+              A first-time citizen was told the one thing they had to do and
+              given nothing to press — the place to do it is in another hub,
+              behind a back button, on a rail they had just left. `emptyTo` is
+              set per REASON rather than per shop; see types.ts. */}
+          <EmptyState
+            title={shop.emptyTitle ?? 'Nothing on this shelf yet'}
+            hint={shop.emptyHint}
+            action={shop.emptyTo && (
+              <Link className="btn btn-accent btn-sm" to={shop.emptyTo.path}>{shop.emptyTo.label}</Link>
+            )}
+          />
         </div>
       ) : (
         <div className="st-grid">
