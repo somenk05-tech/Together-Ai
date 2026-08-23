@@ -56,7 +56,26 @@ interface Shelf {
    * telling somebody they are two places.
    */
   art: string;
-  /** the aisle it stands in, on the Open Market floor */
+  /**
+   * THE NAME ON THE CARD, WHEN IT IS NOT THE NAME OF THE ROOM.
+   *
+   * Written for the Open Market, where it is the AISLE — that floor is an
+   * aisle board and its masthead says so, and the fitness card had to read
+   * "Supplements" rather than "The Store". Every open shelf declares one.
+   *
+   * IT IS NOT ONLY THE MARKET'S ANY MORE (owner, 23 Aug: the pets card should
+   * say "Pets", not "Diet plan"). The rule used to be "the market names the
+   * aisle, the store names the room", and four of the five store cards made
+   * that look like a principle by coincidence: Your Beauty Routine,
+   * Supplements, Grocery Lists and Gemstones are all rooms whose names happen
+   * to be what is on the shelf. Diet plan is the one where the room is named
+   * after what it DOES, and on a run of five cards it read as the odd one
+   * rather than as the pet shelf.
+   *
+   * So both floors name the SHELF: this when it is set, the room's own label
+   * otherwise. The room keeps its name — inside the Pets rail "Diet plan" is
+   * one of six rooms and the name is what says which.
+   */
   category?: string;
   /** the profile this shelf reads before it recommends anything, and the room
    *  where it is filled in. A shelf you simply browse has none. */
@@ -132,7 +151,12 @@ export const FITTED: Shelf[] = [
      hands the list over as a file. */
   { hub: 'nutrition', path: '/nutrition/grocery', art: 'ec-grocery.webp', reads: { name: 'Food Preference Profile', path: '/nutrition/preferences' }, download: true },
   { hub: 'astrology', path: '/astrology/gemstones', art: 'ec-gemstones.webp', reads: { name: 'Astrology Profile', path: '/profile/astrology' }, shop: 'gemstones' },
-  { hub: 'pets', path: '/pets/plan', art: 'ec-pets.webp', reads: { name: 'Pet profiles', path: '/pets/profiles' } },
+  /* AND THIS ONE IS CALLED "PETS" RATHER THAN "DIET PLAN" (owner, 23 Aug).
+     The room is called Diet plan and stays called that — inside the Pets rail
+     it is one of six rooms and the name says which. On a shelf of five cards
+     it was the only one naming a FUNCTION where the other four name what is
+     being sold, so it read as the odd card rather than as the pet shelf. */
+  { hub: 'pets', path: '/pets/plan', art: 'ec-pets.webp', category: 'Pets', reads: { name: 'Pet profiles', path: '/pets/profiles' } },
   /* COSTUME JEWELLERY, AND IT READS NOTHING YET. It is on this floor rather
      than the market's because the owner put it here, and the floor's promise
      survives it: the shelves here answer a profile, and the profile this one

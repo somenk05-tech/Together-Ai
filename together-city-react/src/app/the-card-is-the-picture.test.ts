@@ -3,6 +3,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FITTED, OPEN, fittedShelves, openShelves } from '@/features/ecommerce/shelves';
+import { HUBS } from '@/config/hubs';
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..');
 const APP = join(SRC, '..');
@@ -185,26 +186,44 @@ describe('The card is the picture', () => {
   });
 
   /**
-   * ── ONE FLOOR NAMES THE AISLE, THE OTHER NAMES THE ROOM ───────────────────
+   * ── BOTH FLOORS NAME THE SHELF ────────────────────────────────────────────
    *
    * Owner, 22 Aug: the market's fitness card should read "Supplements", not
    * "The Store". Renaming the room was not available — the Fitness rail already
    * carries a Supplements row (05, the goal-matched kit) beside The Store (07,
    * the whole shelf), and two identical rows in one sidebar is worse than the
-   * problem. So the market draws the CATEGORY, which is what that floor is
-   * organised by and what its masthead promises.
+   * problem. So a shelf may carry a name of its own, and the market's cards do.
    *
-   * Asserted both ways round, because either half alone would be half a rule:
-   * every open shelf has to declare an aisle, and the Personalized Store has to
-   * go on naming the room.
+   * THIS TEST SAID "AND THE STORE NAMES THE ROOM" FOR A DAY, and that half was
+   * a coincidence written up as a principle. Four of the five store cards —
+   * Your Beauty Routine, Supplements, Grocery Lists, Gemstones — are rooms
+   * whose names happen to be what is on the shelf. Diet plan is the fifth, and
+   * it is the one room in the set named after what it DOES; on a run of five
+   * cards it read as the odd card rather than as the pet shelf. Owner, 23 Aug:
+   * make it say Pets. The room keeps its name, because inside the Pets rail
+   * "Diet plan" is one of six rooms and the name is what says which.
+   *
+   * WHAT IS STILL A RULE, and it is the half that was doing the work: the room
+   * is the DEFAULT and an override is opt-in, so no card can end up nameless;
+   * every OPEN shelf must declare one, because an aisle board organised by
+   * anything other than aisles is not an aisle board; and the two pages read
+   * the same expression, so the floors cannot drift.
    */
-  it('labels the market by aisle and the store by room', () => {
+  it('names every card from its shelf, falling back to the room', () => {
     const noAisle = OPEN.filter((s) => !s.category).map((s) => s.path);
     expect(noAisle).toEqual([]);
     expect(openShelves().map((s) => s.category))
       .toEqual(['Skin & hair', 'Supplements', 'Pets', 'Gemstones', 'Deals & offers', 'Jewellery']);
-    expect(read('features/ecommerce/pages/OpenMarket.tsx')).toMatch(/name=\{s\.category \?\? s\.name\}/);
-    expect(read('features/ecommerce/pages/PersonalizedStore.tsx')).toMatch(/name=\{s\.name\}/);
+    // One expression, both floors — and the room is the fallback rather than
+    // the other way round, so a shelf that says nothing still has a name.
+    for (const page of ['features/ecommerce/pages/OpenMarket.tsx', 'features/ecommerce/pages/PersonalizedStore.tsx']) {
+      expect({ page, named: /name=\{s\.category \?\? s\.name\}/.test(read(page)) }).toEqual({ page, named: true });
+    }
+    // The store overrides exactly once, and the room it overrides keeps its own
+    // label — a rename in hubs.ts would have hit the Pets rail as well.
+    expect(FITTED.filter((s) => s.category).map((s) => [s.path, s.category]))
+      .toEqual([['/pets/plan', 'Pets']]);
+    expect(HUBS.pets.items.find((i) => i.path === '/pets/plan')?.label).toBe('Diet plan');
   });
 
   /** And the resolved cards still carry the art through to the page. */
