@@ -4020,7 +4020,22 @@ export class NutritionService implements OnModuleInit {
    * OFF, every member gets an independent AI plan while staying connected.
    */
   async familyContext(userId: string): Promise<FamilyContext> {
-    const asOwner = await this.household.findFirst({ where: { ownerId: userId, memberUserId: { not: null }, status: 'accepted' } }).catch(swallowed('nutrition.familyContext', null));
+    /* NO `memberUserId: { not: null }` HERE, AND THE FILTER IT REPLACES WAS
+       THROWING ON EVERY CALL. HouseholdMember.memberUserId is `String` — NOT
+       NULL — so Prisma refused the whole query with "Argument `not` must not be
+       null", `swallowed()` turned that into null, and every household OWNER
+       fell through to the member/solo branches below. Family meal planning was
+       silently off for all of them; production logged it 13 times in 14 hours
+       and nobody could see it from the outside.
+
+       THE TRAP IS THE FIELD NAME. `memberUserId` IS nullable — on FamilyMember,
+       a different model. This call goes through `this.household`, which is
+       HouseholdMember, where the column is required. Both models are in this
+       one service.
+
+       And a required column needs no filter: every row has one by definition,
+       so "an accepted member exists" is the whole question. */
+    const asOwner = await this.household.findFirst({ where: { ownerId: userId, status: 'accepted' } }).catch(swallowed('nutrition.familyContext', null));
     if (asOwner) {
       return {
         role: 'owner', ownerId: userId, hasFamily: true,
