@@ -92,6 +92,46 @@
   font-display: swap;
 }
 
+/* ══ THE FIVE SKIES COME DOWN ══════════════════════════════════════════════
+   Owner, 23 Aug, with a reference: near-white paper, hairline rules, one soft
+   near-black, no colour anywhere. 564 lines of atmosphere left with it, and
+   the reason is not taste — it is a measurement.
+
+   THE INK MADE THE DECISION. The reference's ink is #2a2a2a rather than black,
+   and on a page of small type the difference is the whole of what a magazine
+   like that looks like. Black cleared these gradients; #2a2a2a does not.
+   relief.spec's own sky sweep failed in ten places the moment the ink moved —
+   --ink-soft at 3.18:1 on the surgery's blue, 3.27 on the gym's, 4.20 on
+   financial's sage — and every one of those is text drawn bare on a picture.
+
+   So this is not "the skies were removed and the ink was softened". It is one
+   change: a soft ink and a coloured sky cannot both be true, the owner asked
+   for the soft ink, and the reference has no skies in it at all.
+
+   WHAT WENT, FIVE TIMES OVER — medical, fitness, realestate, financial and
+   services. Each had the same block, because it was the same idea copied:
+
+     the sky            --sky-image on the hub element, fixed, so the landing
+                        had one too
+     four transparents  body, shell, main and page standing aside for it
+     up to ten frosts   header, rail, card, stat, row, console, pcard, table,
+                        modal, sheet — translucent panels floating on a picture
+     the shadow pair    --muted and --faint re-pointed inside .tc-main because
+                        bare on the sky they went under AA, and the panel list
+                        putting them back
+     a media query      the whole reduced-transparency block, undoing an
+                        atmosphere that is no longer there
+
+   NONE OF THESE FIVE HELD A GROUND. They hung a picture BEHIND white panels;
+   their text was always read off the city's white, which is why they were
+   never on relief.spec's granted list and why nothing but the picture goes.
+   The four hubs that DO hold a ground are a separate commit and a separate
+   argument.
+
+   AND THE TOKENS WENT WITH THE RULES. Five --sky-image declarations in
+   tokens.css, deleted rather than set to `none` — a token nothing reads is a
+   value somebody re-points one day to see what happens. */
+
 /* ══ BASE ════════════════════════════════════════════════════════════════ */
 html, body { background: var(--ground); }
 body {
@@ -104,29 +144,45 @@ body {
 }
 
 /* Headings are headings because of size and weight, not because the font
-   changed halfway down the page. --serif resolves to the same family now, so
-   this is only re-stating the weight and tracking that a display size wants. */
+   changed halfway down the page.
+
+   THE WEIGHT AND THE TRACKING BOTH REVERSE (23 Aug). 600 with -.028em is a
+   heading set TIGHT AND HEAVY, which is how a heading asks for attention on a
+   dense screen. The reference asks for the opposite and it is the single
+   biggest thing separating the two looks: nothing on that page is bold, and
+   its titles are set light and OPEN. So: 400, and the negative tracking goes
+   positive. A display size carries itself at that weight; it did not need the
+   600 and it never needed -.04em. */
 h1, h2, h3, h4 {
   font-family: var(--sans);
-  font-weight: 600;
-  letter-spacing: -.028em;
-  line-height: 1.1;
+  font-weight: 400;
+  letter-spacing: .01em;
+  line-height: 1.25;
 }
-h1 { letter-spacing: -.04em; }
+h1 { letter-spacing: .015em; }
 
-/* THE TYPE IS RAISED TOO — but only where it is big enough to carry it. A
-   hairline of white above the stroke and a whisper of shadow below reads as
-   embossed at display size; at body size the same treatment just reads as a
-   rendering fault, so nothing under 24px gets it. */
-h1, .hero-num, .stat .val, .blk-head h2 {
-  text-shadow: 0 1px 0 #fff, 0 2px 1px rgba(0,0,0,.055), 0 4px 10px rgba(0,0,0,.05);
-}
+/* THE TYPE WAS RAISED TOO, AND THAT IS THE WHOLE OF WHAT WAS ASKED TO GO.
+   A hairline of white above the stroke and a shadow below is embossing — the
+   raised feeling applied to letterforms rather than to panels, and the last
+   place it was still happening after every depth token had been flattened. A
+   flat page has no light source to emboss against.
 
-::selection { background: #000; color: #fff; }
+   The selector stays here, commented rather than deleted, because h1, the hero
+   number, the stat value and the block heading are exactly the four things
+   somebody will want to treat together the next time display type is
+   reconsidered, and that list took a while to be right.
 
+   h1, .hero-num, .stat .val, .blk-head h2 */
+
+::selection { background: var(--ink); color: var(--card); }
+
+/* AND THIS IS WHY THE index.css CHANGE DID NOTHING — the third time today.
+   index.css and relief.css both declare .eyebrow, .btn and .tag, relief.css is
+   imported second, and it wins on every page. Every one of those three is set
+   HERE now. Wider, lighter, and the same grey. */
 .eyebrow {
-  font-size: var(--fs-1); letter-spacing: .15em; text-transform: uppercase;
-  color: var(--faint); font-weight: 700;
+  font-size: var(--fs-1); letter-spacing: .3em; text-transform: uppercase;
+  color: var(--faint); font-weight: 500;
 }
 .muted { color: var(--muted); }
 .mono { font-family: var(--sans); font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1; }
@@ -283,11 +339,22 @@ table.tc th { background: var(--well); box-shadow: var(--edge-in); color: var(--
    darkening: the face gradient flips, the drop shadow becomes an inner shadow,
    and the button travels down by exactly what it rose by. A monochrome system
    has no colour to spend on state, so state is depth.                       */
+/* AND THE ARGUMENT ABOVE INVERTS WITH THE MATERIAL (23 Aug). "Shouting is not
+   emphasis, depth is" was right for as long as there was depth to spend. There
+   is not: every elevation resolves to a hairline now, and a flat button with
+   sentence-case 14px type is a div. The reference's answer is the one this
+   takes — small, wide-tracked capitals, which is emphasis made of space rather
+   than of height or of size.
+
+   THIS RULE IS WHY THE index.css .btn CHANGE DID NOTHING. Both files declare
+   .btn and relief.css is imported second, so the type set there won on every
+   page. It is set HERE now, in the file that wins, and index.css is left
+   saying what it always said about layout. */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 9px;
-  height: 44px; padding: 0 22px; border-radius: var(--r-full);
-  font-family: var(--sans); font-size: 14px; font-weight: 600; letter-spacing: -.005em;
-  text-transform: none; /* SHOUTING IS NOT EMPHASIS. Depth is. */
+  height: 44px; padding: 0 26px; border-radius: var(--r-1);
+  font-family: var(--sans); font-size: 11px; font-weight: 500; letter-spacing: .22em;
+  text-transform: uppercase;
   color: var(--ink);
   background: var(--face);
   box-shadow: var(--e1);
@@ -308,12 +375,15 @@ table.tc th { background: var(--well); box-shadow: var(--edge-in); color: var(--
    is the only element allowed to be loud. `accent`, `gold` and `primary` are
    all the same button — renaming three hundred call sites does not belong in
    a commit about materials. */
+/* FLAT, 23 AUG. These six shadow layers were hand-written rather than read
+   from a depth token — which is why re-pointing --e1..--e5 to a hairline left
+   the loudest object on every page still floating. A flat button is a filled
+   rectangle and nothing else; the fill is --loud-face, which is now one
+   colour, and the ink on it does the rest. */
 .btn-accent, .btn-gold, .btn-primary {
   background: var(--loud-face);
   color: var(--on-loud);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.24), inset 0 -1px 0 rgba(0,0,0,.6), inset 0 0 0 1px rgba(0,0,0,.9),
-    0 1px 2px rgba(0,0,0,.22), 0 4px 10px rgba(0,0,0,.24), 0 10px 24px rgba(0,0,0,.18);
+  box-shadow: none;
 }
 .btn-accent:not(:disabled):hover, .btn-gold:not(:disabled):hover, .btn-primary:not(:disabled):hover {
   filter: none; background: var(--loud-face-hover);
@@ -388,12 +458,17 @@ table.tc th { background: var(--well); box-shadow: var(--edge-in); color: var(--
    Raised when they are a control, pressed when they are on. A tag that is
    only a label stays raised and never presses — the depth means "you can
    press this", so a decorative tag that looked pressable would be a lie. */
+/* SAME REVERSAL AS THE BUTTON, SAME REASON (23 Aug). These three also declare
+   their own type here and beat index.css, and `text-transform: none;
+   letter-spacing: 0` was the deliberate opposite of what the reference does
+   with a label. Flat and square, with the tracking carrying what the depth
+   used to. */
 .tag, .pill, .chip {
   display: inline-flex; align-items: center; gap: 7px;
-  border: 0; border-radius: var(--r-full);
+  border: 0; border-radius: var(--r-1);
   background: var(--face); box-shadow: var(--e1);
-  color: var(--ink-soft); font-weight: 600;
-  text-transform: none; letter-spacing: 0;
+  color: var(--ink-soft); font-weight: 500;
+  text-transform: uppercase; letter-spacing: .16em;
 }
 .tag { font-size: var(--fs-2); padding: 5px 13px; }
 .pill, .chip { font-size: var(--fs-3); height: 33px; padding: 0 14px; cursor: pointer;
@@ -2783,135 +2858,6 @@ textarea.g-field { resize: none; line-height: 1.55; }
   .dt-cta, .dt-ghost, .dt-tile { transition: none; transform: none; }
 }
 
-/* ══ FINANCIAL, ON A SAGE SKY ════════════════════════════════════════════
-   Same mechanism as dating's, four hundred lines up, and deliberately the
-   same four lines of it: the hub's own element paints var(--sky-image) fixed,
-   and body, shell, main and page stand aside so that what the eye lands on is
-   the layer underneath. See the block in tokens.css for the gradient and for
-   why its dark end is held well off the reference's own.
-
-   BODY IS THE ONE THAT IS EASY TO MISS AND THE LOAD-BEARING ONE — a
-   negative-z-index fixed layer paints BELOW the background of an in-flow
-   block, so an opaque body is a lid on the sky no matter what the shell above
-   it does. Dating shipped a sky nobody could see for exactly that reason, and
-   the lesson is cheaper to inherit than to learn twice.
-
-   AND THE HUB'S OWN ELEMENT CARRIES THE PICTURE TOO, because `/financial` is
-   a HubLanding under AppShell — header, main, footer, and no `.tc-shell` for
-   `::before` to exist on. On the inner routes it is simply the colour that
-   layer would have put there anyway.
-
-   ── AND HERE IS WHERE IT PARTS COMPANY WITH DATING ──────────────────────
-   Dating put every surface that holds text on frost, and dating could: it
-   shows one considered thing at a time, so a translucent panel carries a
-   photograph and a paragraph and stops. Financial is the densest hub in the
-   city — budget tables, wallet rows, statements, transaction lists, invoice
-   cards — and nearly all of its secondary type is muted grey at 11.5 and
-   12.5px, hundreds of glyphs to a screen.
-
-   THE MEASUREMENT SETTLES IT. Muted grey on a frost panel over THIS sky
-   bottoms out at 3.48:1, and it only clears 4.5 once the panel composites at
-   .80 white or higher — which is not translucency any more, it is white with
-   a rumour of green in it. A material that has to be thickened until it stops
-   being the material is not the material.
-
-   SO THE HUB IS SPLIT, AND THE SPLIT IS THE HONEST ANSWER RATHER THAN A
-   COMPROMISE. CHROME FLOATS: the header and the rail take var(--frost). They
-   carry almost no body copy, they are the two things that frame every route,
-   and they are where an atmosphere is actually felt. CONTENT STAYS PAPER:
-   `.card`, the tables, the rows, the statements and every other dense surface
-   keep var(--card) and are not touched below — which is why there is no list
-   of frosted surfaces in this block, and the absence is the design.
-
-   What a citizen gets is the sky in the page's margins, over its head and
-   behind the rail, with the reading surfaces sitting on it the way paper sits
-   on a desk. That is what an atmosphere looks like when it arrives at a
-   working room and is not allowed to cost anything.
-
-   NOTHING HERE DECLARES A GROUND, and the whole approach depends on it: the
-   ground stays white and the sky floats above it, so relief.spec's granted
-   list is still the three it was argued down to.                           */
-[data-hub="financial"] { background-image: var(--sky-image); background-attachment: fixed; }
-[data-hub="financial"] body,
-[data-hub="financial"] .tc-shell,
-[data-hub="financial"] .tc-main,
-[data-hub="financial"] .page { background: transparent; }
-
-/* var(--frost) IS THE ROOT'S OWN TRANSLUCENT WHITE and it is the only
-   material this hub gains. A hub block may not introduce a token name that is
-   not at :root, and this one introduces none. */
-[data-hub="financial"] .tc-header {
-  background: var(--frost);
-  -webkit-backdrop-filter: blur(8px) saturate(120%);
-  backdrop-filter: blur(8px) saturate(120%);
-}
-/* THE RAIL IS A PANEL FLOATING ON THE SKY, NOT A WELL CUT INTO IT. Dating's
-   sentence, true here for dating's reason: --rail-well over an inset hairline
-   only reads as a well when there is a wall to cut it into, and against an
-   atmosphere the same two lines read as a white slab pasted over the picture.
-   Same rail, same radius; the light comes off it now instead of into it. */
-[data-hub="financial"] .tc-side { background: var(--frost); box-shadow: var(--e2); }
-
-/* ── MUTED INK NEVER SITS ON THE SKY ─────────────────────────────────────
-   THE NUMBERS, measured on this gradient rather than assumed. Bare on the
-   sky, --ink runs 6.39:1 at its worst stop and --ink-soft 4.27:1; both are
-   safe anywhere the sky shows. --muted is 2.0:1 at its worst and --faint sits
-   below that. The same grey, on the same page, is a caption at the top and a
-   rumour at the bottom — and it is the worst kind of failure, because it
-   looks right to whoever writes it, who has a card on screen while they work.
-
-   THE SHADOW-AND-RESTORE IS DATING'S AND IS TAKEN WHOLE. Custom properties
-   inherit, so re-pointing the two greys inside `.tc-main` reaches every
-   descendant — `.muted`, which is how nearly all of this hub's secondary type
-   is written, and any inline `color: 'var(--muted)'` a page sets from a style
-   object no stylesheet could otherwise reach. Every solid surface then puts
-   the paper's greys back under a name that was never shadowed. Not one .tsx
-   is edited to do it, which is the point: the rule holds for the page nobody
-   has written yet.
-
-   THE HEADER AND THE RAIL ARE OUTSIDE .tc-main, and that is correct rather
-   than an omission — both are panels, and both keep the city's greys. */
-[data-hub="financial"] .tc-main { --muted: var(--ink-soft); --faint: var(--ink-soft); }
-/* ANY CLASS IN THIS HUB THAT PAINTS PAPER BELONGS ON THIS LIST, the commit it
-   is born — the rule beauty's list learned the hard way. A surface missing
-   from it is not a rendering fault, it is body copy one shade too dark, which
-   is the kind of wrong nobody files a bug about. `.fold` and `.fold-open` are
-   on it because this is the hub the fold was generalised for; the rest are
-   the city's own furniture. */
-[data-hub="financial"] .card,
-[data-hub="financial"] .stat,
-[data-hub="financial"] .row,
-[data-hub="financial"] .console,
-[data-hub="financial"] .fold,
-[data-hub="financial"] .fold-open,
-[data-hub="financial"] table.tc,
-[data-hub="financial"] .modal,
-[data-hub="financial"] .sheet {
-  --muted: var(--on-paper-muted);
-  --faint: var(--on-paper-faint);
-}
-
-/* ── AND THE PREFERENCE THE SKY OWES BACK ────────────────────────────────
-   A citizen who asked for less transparency is asking for surfaces to be
-   surfaces. The atmosphere goes, the two frosted pieces of chrome become the
-   paper they were standing in for, and the room is the white one the rest of
-   the city is. There is nothing to put back below the rail, because nothing
-   below the rail ever left the paper.
-
-   THE SHELL LAYER IS TURNED OFF BY NAME. `.tc-shell::before` is unscoped —
-   it paints --sky-image for whichever hub hangs something on it — so clearing
-   the picture on the hub element alone would leave the fixed layer still
-   showing it on every route that has a shell, which is all of them but the
-   landing. Its --ground background-colour stays, so what is left is white. */
-@media (prefers-reduced-transparency: reduce) {
-  [data-hub="financial"] { background-image: none; }
-  [data-hub="financial"] .tc-shell::before { background-image: none; }
-  [data-hub="financial"] .tc-header,
-  [data-hub="financial"] .tc-side {
-    background: var(--card);
-    -webkit-backdrop-filter: none; backdrop-filter: none;
-  }
-}
 
 /* ══ THE OBSERVATORY OWNS NOTHING IN THIS FILE ═══════════════════════════
    It had one rule: a letterpress correction on the consultation title,
@@ -5069,444 +5015,9 @@ textarea.g-field { resize: none; line-height: 1.55; }
   }
 }
 
-/* ══ THE SURGERY GETS ITS SKY BACK ══════════════════════════════════════════
-   SEVENTH HUB, SAME FOUR LINES, AND THE ONLY ONE THAT IS A RETURN. Medical had
-   an atmosphere once and it was deleted — the tombstone is up the file, and it
-   has been corrected rather than left standing, because the reason it gave
-   ("every room is black and white") stopped being true six hubs ago. What has
-   NOT stopped being true is the other half of that argument: a hub with its
-   own frosted sheet, its own stage and its own isolation context is a hub with
-   a second design system in it. This is the citywide one. No stage, no
-   fallbacks of its own, no isolation context — --sky-image, fixed, and the
-   same eight class names every other room floats.
 
-   BODY, SHELL, MAIN, PAGE. A negative-z-index fixed layer paints below the
-   background of an in-flow block, so an opaque body is a lid on the sky. */
-[data-hub="medical"] { background-image: var(--sky-image); background-attachment: fixed; }
-[data-hub="medical"] body,
-[data-hub="medical"] .tc-shell,
-[data-hub="medical"] .tc-main,
-[data-hub="medical"] .page { background: transparent; }
 
-/* ── AND EVERY SURFACE THAT HOLDS TEXT GOES TRANSLUCENT, NOT AWAY ───────────
-   var(--frost), the root's own translucent white, and nothing else: a hub block
-   may not introduce a name that is not at :root, and this one introduces none.
 
-   AND THIS IS THE DENSE HUB, WHICH IS WHY table.tc IS ON THE LIST AND NOT AN
-   EXCEPTION. Financial kept its tables on paper because muted ink on frost
-   over the sage bottomed out at 3.48; that measurement was about the sage, not
-   about tables. On this sky the same panel clears everywhere — the restore
-   below puts the city's greys back on every one of these surfaces, so a blood
-   panel reads exactly the greys it read yesterday, on a thinner white. */
-[data-hub="medical"] .tc-header {
-  background: var(--frost);
-  -webkit-backdrop-filter: blur(8px) saturate(120%);
-  backdrop-filter: blur(8px) saturate(120%);
-}
-/* THE RAIL IS A PANEL FLOATING ON THE SKY, NOT A WELL CUT INTO IT. Its keys
-   need nothing: --lens-face is already translucent white and carries its own
-   blur. AND THE LAMP IS THE REASON TO SAY SO TWICE HERE — this hub's key is
-   teal and this hub's sky is blue, which are neighbours. The lamp stands on
-   frost, 72% white over any stop of it, so what it is actually contrasted
-   against is a near-white panel and not the sky at all. */
-[data-hub="medical"] .tc-side { background: var(--frost); box-shadow: var(--e2); }
-[data-hub="medical"] .card,
-[data-hub="medical"] .stat,
-[data-hub="medical"] .row,
-[data-hub="medical"] .console,
-[data-hub="medical"] .pcard,
-[data-hub="medical"] table.tc,
-[data-hub="medical"] .modal,
-[data-hub="medical"] .sheet { background: var(--frost); }
-
-/* ── MUTED INK NEVER SITS ON THE SKY ────────────────────────────────────────
-   IT IS DATING'S SHADOW-AND-RESTORE, AND ON THIS SKY IT IS NOT CLOSE. --muted
-   reads 3.45 at the LIGHTEST stop and 1.52 at the deepest — it fails across
-   the whole picture rather than at one end, which is the one case where the
-   apparatus is easy to justify and easy to forget, because the page still
-   looks blue and calm while a label is unreadable. --faint runs 3.02 to 1.33.
-   --ink at 5.96 and --ink-soft at 4.84 are safe at every stop, so the two that
-   are not are pointed at --ink-soft for as long as they are out in the open.
-
-   Custom properties inherit, so re-pointing the pair inside .tc-main reaches
-   every descendant — className="muted", which this hub uses seventy-eight
-   times, and the inline color: 'var(--muted)' no stylesheet could otherwise
-   reach. Not one .tsx is edited to do it.
-
-   THE RAIL AND THE HEADER ARE OUTSIDE .tc-main, and that is correct rather
-   than an omission — both are panels, and both keep the city's greys. */
-[data-hub="medical"] .tc-main { --muted: var(--ink-soft); --faint: var(--ink-soft); }
-[data-hub="medical"] .card,
-[data-hub="medical"] .stat,
-[data-hub="medical"] .row,
-[data-hub="medical"] .console,
-[data-hub="medical"] .pcard,
-[data-hub="medical"] table.tc,
-[data-hub="medical"] .modal,
-[data-hub="medical"] .sheet {
-  --muted: var(--on-paper-muted);
-  --faint: var(--on-paper-faint);
-}
-
-/* ── AND THE PREFERENCE THE SKY OWES BACK ───────────────────────────────────
-   A citizen who asked for less transparency is asking for surfaces to be
-   surfaces. The atmosphere goes and the frost becomes the white it was
-   standing in for. THE SHELL LAYER IS TURNED OFF BY NAME: `.tc-shell::before`
-   is unscoped, so clearing the picture on the hub element alone would leave
-   the fixed layer still showing it on every route but the landing.
-
-   THE FIRST ATMOSPHERE SHIPPED THREE FALLBACKS OF ITS OWN FOR THIS. This is
-   the same one every hub uses, which is the entire difference between the two
-   attempts written as CSS. */
-@media (prefers-reduced-transparency: reduce) {
-  [data-hub="medical"] { background-image: none; }
-  [data-hub="medical"] .tc-shell::before { background-image: none; }
-  [data-hub="medical"] .tc-header,
-  [data-hub="medical"] .tc-side,
-  [data-hub="medical"] .card,
-  [data-hub="medical"] .stat,
-  [data-hub="medical"] .row,
-  [data-hub="medical"] .console,
-  [data-hub="medical"] .pcard,
-  [data-hub="medical"] table.tc,
-  [data-hub="medical"] .modal,
-  [data-hub="medical"] .sheet {
-    background: var(--card);
-    -webkit-backdrop-filter: none; backdrop-filter: none;
-  }
-}
-
-/* ══ THE GYM GETS BEAUTY'S KIND OF SKY ══════════════════════════════════════
-   EIGHTH HUB, SAME FOUR LINES, AND THE INSTRUCTION WAS THE STYLE RATHER THAN
-   THE COLOUR: match beauty. Beauty floats EVERYTHING — chrome, rail, cards,
-   overlays — where financial could float only its chrome, and the difference
-   between those two was never taste, it was one measurement. So the test was
-   whether this sky could carry the same: muted ink on frost over it, at every
-   stop. It can, and the list below is beauty's list rather than financial's.
-
-   BODY, SHELL, MAIN, PAGE. A negative-z-index fixed layer paints below the
-   background of an in-flow block, so an opaque body is a lid on the sky. */
-[data-hub="fitness"] { background-image: var(--sky-image); background-attachment: fixed; }
-[data-hub="fitness"] body,
-[data-hub="fitness"] .tc-shell,
-[data-hub="fitness"] .tc-main,
-[data-hub="fitness"] .page { background: transparent; }
-
-/* ── AND EVERY SURFACE THAT HOLDS TEXT GOES TRANSLUCENT, NOT AWAY ───────────
-   var(--frost), the root's own translucent white, and nothing else: a hub block
-   may not introduce a name that is not at :root, and this one introduces none.
-   The list is dating's, class for class, which is also beauty's for every class
-   the two hubs share. */
-[data-hub="fitness"] .tc-header {
-  background: var(--frost);
-  -webkit-backdrop-filter: blur(8px) saturate(120%);
-  backdrop-filter: blur(8px) saturate(120%);
-}
-/* THE RAIL IS A PANEL FLOATING ON THE SKY, NOT A WELL CUT INTO IT. Its keys
-   need nothing: --lens-face is already translucent white and carries its own
-   blur, and frost over them would paint out the lamp — which stays the green it
-   has always been. Dating's peach key moved to its sky's own hue today, and it
-   moved because a warm pill on a slate gradient was the one saturated thing on
-   the screen in the one hue the picture did not contain. This key has no such
-   quarrel with this sky: a deep green on mauve and slate is a colour the room
-   does not otherwise hold, which is the whole job of a lamp, and it is not
-   fighting the picture to do it. A sky is not by itself a reason to repaint a
-   lamp — the argument has to be about that lamp and that sky. */
-[data-hub="fitness"] .tc-side { background: var(--frost); box-shadow: var(--e2); }
-[data-hub="fitness"] .card,
-[data-hub="fitness"] .stat,
-[data-hub="fitness"] .row,
-[data-hub="fitness"] .console,
-[data-hub="fitness"] .pcard,
-[data-hub="fitness"] table.tc,
-[data-hub="fitness"] .modal,
-[data-hub="fitness"] .sheet { background: var(--frost); }
-
-/* ── AND THE EXERCISE PHOTOGRAPH DOES NOT FLOAT ─────────────────────────────
-   `.wk-how-shot img` paints --shot-ground, the studio white beauty declared
-   for its bottles, and it is spent here for the same reason one file over:
-   every demonstration frame in the catalogue was shot on a white seamless, and
-   a translucent well behind a cut-out figure is a sky showing through a room
-   the photograph was never taken in. It is declared in tokens.css and spent in
-   layout.css, which is why what is written here is the absence and not a rule.
-   Fourth time this paragraph has been needed — beauty's bottles, astrology's
-   letter, nutrition's fourteen sheets, and now this. */
-
-/* ── MUTED INK NEVER SITS ON THE SKY ────────────────────────────────────────
-   IT IS DATING'S SHADOW-AND-RESTORE. Bare on this sweep --muted reads 3.51 at
-   the palest pink and 1.68 in the slate trough — it fails at BOTH ends and in
-   the middle, which is the tell that this pink is a mid-value colour wearing a
-   light one's clothes. Whoever writes a page here will have the pale head on
-   screen and read 3.51 as fine. --ink at 6.14 and --ink-soft at 4.98 are safe
-   at every stop, so the two that are not are pointed at --ink-soft while they
-   are out in the open.
-
-   Custom properties inherit, so re-pointing the pair inside .tc-main reaches
-   every descendant — className="muted", which this hub uses a hundred and
-   three times across ten pages, and the inline color: 'var(--muted)' no
-   stylesheet could otherwise reach. Not one .tsx is edited to do it.
-
-   THE RAIL AND THE HEADER ARE OUTSIDE .tc-main, and that is correct rather
-   than an omission — both are panels, and both keep the city's greys. */
-[data-hub="fitness"] .tc-main { --muted: var(--ink-soft); --faint: var(--ink-soft); }
-[data-hub="fitness"] .card,
-[data-hub="fitness"] .stat,
-[data-hub="fitness"] .row,
-[data-hub="fitness"] .console,
-[data-hub="fitness"] .pcard,
-[data-hub="fitness"] table.tc,
-[data-hub="fitness"] .modal,
-[data-hub="fitness"] .sheet {
-  --muted: var(--on-paper-muted);
-  --faint: var(--on-paper-faint);
-}
-
-/* ── AND THE PREFERENCE THE SKY OWES BACK ───────────────────────────────────
-   A citizen who asked for less transparency is asking for surfaces to be
-   surfaces. The atmosphere goes and the frost becomes the white it was
-   standing in for. THE SHELL LAYER IS TURNED OFF BY NAME: `.tc-shell::before`
-   is unscoped, so clearing the picture on the hub element alone would leave
-   the fixed layer still showing it on every route but the landing. */
-@media (prefers-reduced-transparency: reduce) {
-  [data-hub="fitness"] { background-image: none; }
-  [data-hub="fitness"] .tc-shell::before { background-image: none; }
-  [data-hub="fitness"] .tc-header,
-  [data-hub="fitness"] .tc-side,
-  [data-hub="fitness"] .card,
-  [data-hub="fitness"] .stat,
-  [data-hub="fitness"] .row,
-  [data-hub="fitness"] .console,
-  [data-hub="fitness"] .pcard,
-  [data-hub="fitness"] table.tc,
-  [data-hub="fitness"] .modal,
-  [data-hub="fitness"] .sheet {
-    background: var(--card);
-    -webkit-backdrop-filter: none; backdrop-filter: none;
-  }
-}
-
-/* ══ THE HIGH STREET GETS A SHEET OF CHROME ═════════════════════════════════
-   NINTH HUB, SAME FOUR LINES, AND THE PALEST SKY IN THE CITY. --sky-image on
-   the hub's own element, fixed; body, shell, main and page out of the way so
-   the fixed layer can be seen.
-
-   IT IS THE FIRST REFERENCE THAT IS AN OBJECT. Eight skies in, every one has
-   been a field — a dusk, a dawn, a sage, a sheet, a black. This one is a
-   chrome ribbon turning through a near-white frame, and a linear gradient
-   cannot be a ribbon. What it can carry is the field the ribbon lies in, the
-   cool shade where the curve turns away, and the warm catch on its inside
-   edge; the argument for stopping there rather than reaching for a photograph
-   is in tokens.css and it is the same argument dating made about its JPEG.
-
-   AND THE LAMP STAYS TERRACOTTA, WHICH IS A DECISION AND NOT AN OVERSIGHT.
-   Dating's peach key moved today because it was warm against a picture with no
-   warmth in it. This picture HAS warmth — the gold on the inside of the curve
-   is the second thing anyone sees in it — so a bronze key here is a note the
-   room already plays rather than one imported into it. The rule that came out
-   of dating is not "lamps follow skies", it is "a lamp must not be the only
-   hue on the screen".
-
-   BODY IS THE LOAD-BEARING LINE: a negative-z-index fixed layer paints below
-   the background of an in-flow block, so an opaque body is a lid on the sky. */
-[data-hub="services"] { background-image: var(--sky-image); background-attachment: fixed; }
-[data-hub="services"] body,
-[data-hub="services"] .tc-shell,
-[data-hub="services"] .tc-main,
-[data-hub="services"] .page { background: transparent; }
-
-/* ── AND EVERY SURFACE THAT HOLDS TEXT GOES TRANSLUCENT, NOT AWAY ───────────
-   var(--frost), the root's own translucent white, and nothing else: a hub block
-   may not introduce a name that is not at :root, and this one introduces none.
-   The list is dating's, class for class.
-
-   THE FROST IS DOING LESS WORK HERE THAN ANYWHERE, and that is the honest
-   description of a near-white sky: a 72% white panel over a stop that is
-   already 0.64 luminance is a small step, not a slab. What makes a panel read
-   in this hub is the DEPTH — the rim and the shadow the five elevations carry —
-   with the frost holding the small difference in tint. That is the same
-   division of labour the monochrome argument at the top of this file makes,
-   arriving in the one hub pale enough to need it. */
-[data-hub="services"] .tc-header {
-  background: var(--frost);
-  -webkit-backdrop-filter: blur(8px) saturate(120%);
-  backdrop-filter: blur(8px) saturate(120%);
-}
-/* THE RAIL IS A PANEL FLOATING ON THE SKY, NOT A WELL CUT INTO IT. Its keys
-   need nothing: --lens-face is already translucent white and carries its own
-   blur, and frost over them would paint out the lamp. */
-[data-hub="services"] .tc-side { background: var(--frost); box-shadow: var(--e2); }
-[data-hub="services"] .card,
-[data-hub="services"] .stat,
-[data-hub="services"] .row,
-[data-hub="services"] .console,
-[data-hub="services"] .pcard,
-[data-hub="services"] table.tc,
-[data-hub="services"] .modal,
-[data-hub="services"] .sheet { background: var(--frost); }
-
-/* ── MUTED INK NEVER SITS ON THE SKY ────────────────────────────────────────
-   IT IS DATING'S SHADOW-AND-RESTORE, AND HERE IT CATCHES THE NARROWEST MISS IN
-   THE CITY — narrower still since the sky became Cloud. On the chrome ribbon
-   this replaced, --muted read 3.98 at the two shaded stops and --faint 3.49:
-   two failures. On Cloud, --muted clears at 4.56 and only --faint is left, at
-   3.99. That is under AA by four hundredths, which is precisely the version
-   that ships unnoticed — every other failure this apparatus has caught was
-   obvious once measured (1.39 on entertainment's old slate, 1.09 in fitness's
-   trough); this one looks fine on any screen anybody will check it on.
-
-   BOTH ARE STILL SHADOWED, and the pair is kept together deliberately. --muted
-   passing today is a property of one gradient, not of the hub; splitting them
-   so that only --faint is held would mean the next re-tint of this sky has to
-   remember to rejoin them. --ink at 16.70 and --ink-soft at 13.55 are safe
-   everywhere, so both greys point at --ink-soft while they are out in the open
-   and are put back on every panel, where they clear at 5.41 and 4.73.
-
-   Custom properties inherit, so re-pointing the pair inside .tc-main reaches
-   every descendant — className="muted", which this hub uses a hundred and five
-   times, most of them inside an inline style object no stylesheet could reach.
-
-   THE RAIL AND THE HEADER ARE OUTSIDE .tc-main, and that is correct rather
-   than an omission — both are panels, and both keep the city's greys. */
-[data-hub="services"] .tc-main { --muted: var(--ink-soft); --faint: var(--ink-soft); }
-[data-hub="services"] .card,
-[data-hub="services"] .stat,
-[data-hub="services"] .row,
-[data-hub="services"] .console,
-[data-hub="services"] .pcard,
-[data-hub="services"] table.tc,
-[data-hub="services"] .modal,
-[data-hub="services"] .sheet {
-  --muted: var(--on-paper-muted);
-  --faint: var(--on-paper-faint);
-}
-
-/* ── AND THE PREFERENCE THE SKY OWES BACK ───────────────────────────────────
-   A citizen who asked for less transparency is asking for surfaces to be
-   surfaces. The atmosphere goes and the frost becomes the white it was
-   standing in for. THE SHELL LAYER IS TURNED OFF BY NAME: `.tc-shell::before`
-   is unscoped, so clearing the picture on the hub element alone would leave
-   the fixed layer still showing it on every route but the landing. */
-@media (prefers-reduced-transparency: reduce) {
-  [data-hub="services"] { background-image: none; }
-  [data-hub="services"] .tc-shell::before { background-image: none; }
-  [data-hub="services"] .tc-header,
-  [data-hub="services"] .tc-side,
-  [data-hub="services"] .card,
-  [data-hub="services"] .stat,
-  [data-hub="services"] .row,
-  [data-hub="services"] .console,
-  [data-hub="services"] .pcard,
-  [data-hub="services"] table.tc,
-  [data-hub="services"] .modal,
-  [data-hub="services"] .sheet {
-    background: var(--card);
-    -webkit-backdrop-filter: none; backdrop-filter: none;
-  }
-}
-
-/* ══ THE PROPERTY ROOM GETS A PERIWINKLE ════════════════════════════════════
-   TENTH HUB, AND THE INSTRUCTION NAMED DATING BY NAME. That is the same four
-   lines every hub since has used, which is the whole return on having built
-   this as a token: "like dating" is now a complete specification.
-
-   TWO THINGS ARE IN TOKENS.CSS RATHER THAN HERE AND BOTH ARE WORTH THE TRIP.
-   The sky is read on one axis where the reference has a blob of warmth on the
-   right at mid-height — the second lit-object reference in a row, and the same
-   reduction. And --frost is .80 in this hub rather than the city's .72, for a
-   0.12 miss on --faint over the blue end; the number is the one financial's
-   block already names, doing the opposite job.
-
-   BODY IS THE LOAD-BEARING LINE: a negative-z-index fixed layer paints below
-   the background of an in-flow block, so an opaque body is a lid on the sky. */
-[data-hub="realestate"] { background-image: var(--sky-image); background-attachment: fixed; }
-[data-hub="realestate"] body,
-[data-hub="realestate"] .tc-shell,
-[data-hub="realestate"] .tc-main,
-[data-hub="realestate"] .page { background: transparent; }
-
-/* ── AND EVERY SURFACE THAT HOLDS TEXT GOES TRANSLUCENT, NOT AWAY ───────────
-   var(--frost) — this hub's own, which is at :root under the same name, so this
-   block introduces no name that is not there. The list is dating's, class for
-   class. */
-[data-hub="realestate"] .tc-header {
-  background: var(--frost);
-  -webkit-backdrop-filter: blur(8px) saturate(120%);
-  backdrop-filter: blur(8px) saturate(120%);
-}
-/* THE RAIL IS A PANEL FLOATING ON THE SKY, NOT A WELL CUT INTO IT. Its keys
-   need nothing: --lens-face is already translucent white and carries its own
-   blur, and frost over them would paint out the lamp — which is the slate this
-   hub has always had, and which turns out to be the deep end of the very blue
-   the owner sent. Nothing to argue about for once. */
-[data-hub="realestate"] .tc-side { background: var(--frost); box-shadow: var(--e2); }
-[data-hub="realestate"] .card,
-[data-hub="realestate"] .stat,
-[data-hub="realestate"] .row,
-[data-hub="realestate"] .console,
-[data-hub="realestate"] .pcard,
-[data-hub="realestate"] table.tc,
-[data-hub="realestate"] .modal,
-[data-hub="realestate"] .sheet { background: var(--frost); }
-
-/* ── AND A LISTING PHOTOGRAPH DOES NOT FLOAT ───────────────────────────────
-   This hub is a wall of somebody's rooms, and a photograph is not a surface a
-   citizen reads off — it is the thing itself. Every image here paints its own
-   well from --media-bg or --shot-ground, both opaque and both declared in
-   tokens.css, so what is written here is the absence and not a rule. Fifth
-   time: beauty's bottles, astrology's letter, nutrition's fourteen sheets,
-   fitness's demonstrations, and now these. */
-
-/* ── MUTED INK NEVER SITS ON THE SKY ────────────────────────────────────────
-   IT IS DATING'S SHADOW-AND-RESTORE. Bare on this sky --muted runs 3.45 to
-   4.07 and --faint 3.02 to 3.56: it fails at every stop, which is unusual —
-   most skies in this city fail at one end and pass at the other, and this one
-   is uniformly just too dark for a mid grey. --ink at 12.61 and --ink-soft at
-   10.23 are safe everywhere, so the two that are not are pointed at --ink-soft
-   while they are out in the open and put back on every panel, where the .80
-   frost carries them at 5.23 and 4.58.
-
-   Custom properties inherit, so re-pointing the pair inside .tc-main reaches
-   every descendant, including the inline color: 'var(--muted)' a page sets
-   from a style object that no stylesheet could otherwise reach.
-
-   THE RAIL AND THE HEADER ARE OUTSIDE .tc-main, and that is correct rather
-   than an omission — both are panels, and both keep the city's greys. */
-[data-hub="realestate"] .tc-main { --muted: var(--ink-soft); --faint: var(--ink-soft); }
-[data-hub="realestate"] .card,
-[data-hub="realestate"] .stat,
-[data-hub="realestate"] .row,
-[data-hub="realestate"] .console,
-[data-hub="realestate"] .pcard,
-[data-hub="realestate"] table.tc,
-[data-hub="realestate"] .modal,
-[data-hub="realestate"] .sheet {
-  --muted: var(--on-paper-muted);
-  --faint: var(--on-paper-faint);
-}
-
-/* ── AND THE PREFERENCE THE SKY OWES BACK ───────────────────────────────────
-   A citizen who asked for less transparency is asking for surfaces to be
-   surfaces. The atmosphere goes and the frost becomes the white it was
-   standing in for. THE SHELL LAYER IS TURNED OFF BY NAME: `.tc-shell::before`
-   is unscoped, so clearing the picture on the hub element alone would leave
-   the fixed layer still showing it on every route but the landing. */
-@media (prefers-reduced-transparency: reduce) {
-  [data-hub="realestate"] { background-image: none; }
-  [data-hub="realestate"] .tc-shell::before { background-image: none; }
-  [data-hub="realestate"] .tc-header,
-  [data-hub="realestate"] .tc-side,
-  [data-hub="realestate"] .card,
-  [data-hub="realestate"] .stat,
-  [data-hub="realestate"] .row,
-  [data-hub="realestate"] .console,
-  [data-hub="realestate"] .pcard,
-  [data-hub="realestate"] table.tc,
-  [data-hub="realestate"] .modal,
-  [data-hub="realestate"] .sheet {
-    background: var(--card);
-    -webkit-backdrop-filter: none; backdrop-filter: none;
-  }
-}
 
 /* ── THE PHONE DRAWER IS AN OBJECT, NOT A WINDOW ────────────────────────────
    On a desktop `.tc-side` is a COLUMN: it sits beside the page, nothing is

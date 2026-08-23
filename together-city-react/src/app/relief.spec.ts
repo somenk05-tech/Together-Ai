@@ -211,11 +211,33 @@ describe('Relief stays a system', () => {
    * block — `toMatch` only needs the string to survive SOMEWHERE — and a guard
    * that cannot fail is worse than no guard, because it is read as proof.
    */
-  it('keeps the ground white at the root', () => {
+  /**
+   * IT SAID "WHITE" AND IT MEANS SOMETHING NARROWER NOW (23 Aug). The owner's
+   * reference is near-white paper with a white card on it — two greys, which
+   * is the whole of what that kind of magazine does with a page. So --paper is
+   * #fafafa and --card is still #ffffff, and asserting "#ffffff three times"
+   * would now be asserting the thing that changed rather than the thing that
+   * matters.
+   *
+   * WHAT MATTERS IS THE RELATIONSHIP, and it is stricter than the old check:
+   * the page is not pure white, the card is, and the card is LIGHTER than the
+   * page — which is what makes a card read as a sheet resting on something
+   * rather than a hole cut in it. Get any of those backwards and the relief
+   * system is lighting an object from the wrong side.
+   */
+  it('keeps one near-white page and a lighter card at the root', () => {
     const root = strip(tokens).split(/\[data-hub=/)[0];
-    for (const t of ['--ground', '--paper', '--card']) {
-      expect(root).toMatch(new RegExp(`${t}:\\s*#ffffff`));
-    }
+    const val = (t: string) => root.match(new RegExp(`${t}:\\s*(#[0-9a-f]{6})`, 'i'))?.[1]?.toLowerCase();
+    const lin = (c: number) => (c / 255 <= 0.03928 ? c / 255 / 12.92 : (((c / 255) + 0.055) / 1.055) ** 2.4);
+    const lum = (h: string) => {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+      return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    };
+    const ground = val('--ground')!, paper = val('--paper')!, card = val('--card')!;
+    expect({ ground, paper }).toEqual({ ground: paper, paper });   // one page, one value
+    expect(paper).not.toBe('#ffffff');                             // near-white, not white
+    expect(card).toBe('#ffffff');
+    expect(lum(card)).toBeGreaterThan(lum(paper));                 // a sheet ON the page
     expect(strip(tokens)).not.toContain('[data-theme="dark"]');
   });
 
@@ -564,10 +586,22 @@ describe('Relief stays a system', () => {
       }
     }
     expect(failures).toEqual([]);
-    // AND THE TEST IS ACTUALLY READING SOMETHING. A regex that stops matching
-    // is a suite that goes green by finding nothing, which is how a guard dies
-    // without a commit ever mentioning it.
-    expect({ skies: skies >= 5 }).toEqual({ skies: true });
+    /* AND THE TEST IS ACTUALLY READING SOMETHING. A regex that stops matching
+       is a suite that goes green by finding nothing, which is how a guard dies
+       without a commit ever mentioning it.
+
+       IT WAS `>= 5` AND IT IS `>= 1` (23 Aug), and this sweep is the reason
+       five of them are gone rather than a casualty of it: the ink went from
+       #000000 to the reference's #2a2a2a, and this failed in TEN places —
+       --ink-soft at 3.18:1 on the surgery's blue, 3.27 on the gym's, 4.20 on
+       financial's sage. Every one of those was text drawn bare on a picture.
+       The finding was that a soft ink and a coloured sky cannot both be true,
+       and the owner asked for the soft ink.
+
+       The floor stays a floor: four hubs still hang one, and if the number
+       ever reaches zero this guard is watching an empty road and should be
+       deleted rather than left passing. */
+    expect({ skies: skies >= 1 }).toEqual({ skies: true });
   });
 
   /**
@@ -746,8 +780,15 @@ describe('Relief stays a system', () => {
       }
     }
 
-    // A guard that finds no skies passes. The city has several.
-    expect(skies).toBeGreaterThan(4);
+    /* A GUARD THAT FINDS NO SKIES PASSES, so the count is asserted rather than
+       assumed. IT WAS "MORE THAN FOUR" AND IT IS "AT LEAST ONE" (23 Aug): five
+       hubs that hung a picture behind white panels lost it when the ink went
+       from black to #2a2a2a, because a soft ink cannot be read bare on a
+       gradient — this file's own sweep failed in ten places the moment it
+       moved. The number is a floor on the guard being alive, not a target for
+       the design, and pinning it to whatever happened to be true last week is
+       how a guard starts voting on decisions it was not built to make. */
+    expect(skies).toBeGreaterThan(0);
     expect(failures).toEqual([]);
   });
 

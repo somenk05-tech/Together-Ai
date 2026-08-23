@@ -33,8 +33,17 @@
      #ffffff) because the page was warm and the card was not; with one ground
      the difference is carried by relief instead of by tint, and keeping them
      apart would put a seam down the middle of every full-bleed section. */
-  --ground: #ffffff;
-  --paper: #ffffff;
+  /* ── CEREAL, 23 AUG ──────────────────────────────────────────────────
+     Owner's reference: near-white paper, hairline rules, one soft near-black,
+     no colour anywhere. THE PAPER IS NO LONGER PURE WHITE and the card still
+     is — which is the whole of what the reference does with two greys. A card
+     is now a white sheet ON something rather than a white sheet IN nothing,
+     and relief is what it is lit by. The paragraph below argued paper and card
+     should be the same white; that was right when the ground was #ffffff and
+     the only difference available was tint. It is not the same argument once
+     the ground moves. */
+  --ground: #fafafa;
+  --paper: #fafafa;
   --card: #ffffff;
 
   /* ── THE LETTER'S PAPER, WHICH IS NOT --paper ────────────────────────────
@@ -86,12 +95,24 @@
      Both are the same greys taken down until they clear, hue unchanged —
      there was no hue. Every grounded hub declares its own pair and is
      unaffected. */
-  --ink: #000000;
-  --ink-soft: #1c1c1c;
-  --muted: #666666;   /* 6.9 on the ground · 4.7 on a lens tile */
-  --faint: #6f6f6f;   /* 5.0 on the ground — was 2.78 */
-  --line: #ededed;
-  --line-2: #e2e2e2;
+  /* ── AND THE INK IS NOT BLACK ────────────────────────────────────────
+     #2a2a2a off the reference, and the difference is visible at a glance on a
+     page of small type: pure black on near-white is a printed page rendered
+     at the wrong contrast, and every magazine that looks like this one sets
+     its body a shade up from black for exactly that reason.
+
+     THE TWO GREYS ARE RE-DERIVED, NOT RE-TINTED, and this is the part that
+     would have gone wrong quietly. They were measured against #ffffff. The
+     ground is #fafafa now and --wash is #f2f2f2, and --faint on the wash at
+     its old value is 4.29:1 — under AA, on the surface it is most often read
+     on. Both are set from their ratio against the WASH, the darkest thing
+     either legitimately sits on, so the floor holds everywhere above it. */
+  --ink: #2a2a2a;     /* 13.75 on the ground · 14.35 on a card */
+  --ink-soft: #3b3b3b;/* 10.73 · 11.20 */
+  --muted: #595959;   /*  6.71 on the ground ·  6.26 on the wash */
+  --faint: #6b6b6b;   /*  5.11 on the ground ·  4.76 on the wash — the floor */
+  --line: #e4e4e4;
+  --line-2: #dcdcdc;
 
   /* A BLOCK THAT IS NOT THE SAME AS THE ONE BELOW IT.
      Unread mail is carried by weight — the sender and the subject go bold —
@@ -100,7 +121,13 @@
      theme was removed and the only warm pixel left in the application. Cool by
      a hair rather than neutral grey, because a pure grey tint on a pure white
      ground reads as a rendering artefact rather than a decision. */
-  --wash: #f7f8f9;
+  /* The reference's second grey. It was #f7f8f9 — cool by a hair, so a tint on
+     white did not read as a rendering artefact. On a near-white ground it does
+     not need the trick, and #f2f2f2 is the neutral the reference actually
+     uses. It is a shade lighter than the reference's full-bleed band (#ededed)
+     on purpose: this token is fields, tracks and pressed states, and at
+     #ededed the ink floor goes under AA on the surface it is read on most. */
+  --wash: #f2f2f2;
   /* The gradient that lets white type sit on somebody's photograph. Two stops
      rather than a flat wash: a flat one greys the whole picture out to protect
      four words at the bottom of it, and the picture is the point. */
@@ -129,24 +156,42 @@
      underside of an edge; on a 700px article it greys out a third of the page.
      Tall surfaces measure their shade in PIXELS FROM THE BOTTOM, so an edge
      stays an edge at any height. Anything that can grow past ~300px uses it. */
-  --face:      linear-gradient(180deg, #ffffff 0%, #fcfcfc 44%, #eeeeee 100%);
-  --face-2:    linear-gradient(180deg, #ffffff 0%, #fafafa 48%, #e9e9e9 100%);
+  --face:      linear-gradient(180deg, #ffffff 0%, #ffffff 100%);
+  --face-2:    linear-gradient(180deg, #ffffff 0%, #ffffff 100%);
   /* min() IS LOad-BEARING. Without it the first white stop is calc(100% - 96px),
      which on the 78px header is MINUS 18px — the gradient starts already grey
      and washes the whole bar out. A token whose correctness depends on the
      element being taller than a number buried inside it is a trap, so the shade
      is now "the last 96px, or the last 40%, whichever is less". */
-  --face-tall: linear-gradient(180deg, #ffffff 0%, #ffffff calc(100% - min(96px, 40%)), #f1f1f1 100%);
+  --face-tall: linear-gradient(180deg, #ffffff 0%, #ffffff 100%);
 
   /* A KEY IS NOT A CARD. At 30px tall there is almost no face to light, and
      --e1's soft 13px shadow spreads to nothing. Small controls get a face with
      more travel and a shadow that is tighter and darker — the same amount of
      relief, compressed into the space they actually have. */
-  --face-key: linear-gradient(180deg, #ffffff 0%, #f8f8f8 52%, #e6e6e6 100%);
-  --well:      linear-gradient(180deg, #ededed 0%, #f6f6f6 58%, #fdfdfd 100%);
+  --face-key: linear-gradient(180deg, #ffffff 0%, #ffffff 100%);
+  --well:      linear-gradient(180deg, #f2f2f2 0%, #f2f2f2 100%);
 
-  --rim:        inset 0 0 0 1px rgba(0,0,0,.055), inset 0 1px 0 rgba(255,255,255,1), inset 0 -1px 0 rgba(0,0,0,.045);
-  --rim-strong: inset 0 0 0 1px rgba(0,0,0,.075), inset 0 1.5px 0 rgba(255,255,255,1), inset 0 -1.5px 0 rgba(0,0,0,.06);
+  /* ── FLAT, 23 AUG — AND THE FIVE DEPTHS SURVIVE IT ──────────────────────
+     Owner: "make everything flat instead of the raised feeling."
+
+     THE SYSTEM IS NOT RETIRED. relief.spec's rule is that every surface is
+     drawn at one of five NAMED depths, and the sentence beside it is already
+     the licence for this: "a scope may change what a depth is MADE OF, never
+     how many there are." So the names stay, every rule that reads them stays,
+     6,000 lines of relief.css are untouched — and what a depth is made of
+     stops being a shadow and becomes a hairline.
+
+     That is the reference's own answer to the same problem. A magazine page
+     separates a panel from the paper with a rule and some air, not by lifting
+     it. --rim was already the hairline that sits ON a depth; now it IS the
+     depth.
+
+     WHY NOT `none`. A white card on #fafafa with no shadow and no border is
+     not flat, it is invisible — the card stops existing rather than stops
+     being raised. Every depth resolves to a line, so nothing loses its edge. */
+  --rim:        inset 0 0 0 1px var(--line);
+  --rim-strong: inset 0 0 0 1px var(--line-2);
 
   /* ── FIVE DEPTHS, AND THERE IS NO SIXTH ─────────────────────────────────
      Raised one, two, three; carved; pressed. Every surface in the application
@@ -154,9 +199,14 @@
      being one object with things standing on it and becomes a collage, which
      is the failure mode this whole layer exists to prevent. relief.spec.ts
      fails the build on a box-shadow that is not one of these tokens. */
-  --e1: var(--rim),        0 1px 1px rgba(0,0,0,.055), 0 2px 4px rgba(0,0,0,.06), 0 6px 13px rgba(0,0,0,.07);
-  --e2: var(--rim-strong), 0 1px 1px rgba(0,0,0,.06),  0 3px 6px rgba(0,0,0,.075), 0 11px 24px rgba(0,0,0,.10), 0 22px 48px rgba(0,0,0,.075);
-  --e3: var(--rim-strong), 0 2px 2px rgba(0,0,0,.065), 0 7px 14px rgba(0,0,0,.085), 0 20px 42px rgba(0,0,0,.11), 0 40px 88px rgba(0,0,0,.095);
+  /* FIVE NAMES, TWO LINES. e1 is a panel on the page; e2 and above are things
+     that float over it — a menu, a modal, a sheet — and they take the heavier
+     rule so an overlay still reads as being in front rather than beside.
+     Nothing else distinguishes them any more, and nothing else should: height
+     was the distinction, and height is what was asked to go. */
+  --e1: var(--rim);
+  --e2: var(--rim-strong);
+  --e3: var(--rim-strong);
 
   /* KEY SCALE — --e1 and --e2 compressed, not a sixth and seventh depth.
      A 30px pill and a 300px card are the same distance off the page, but a
@@ -228,9 +278,7 @@
      coloured object on a black-and-white screen. Same five layers, same
      geometry, achromatic refraction: the city keeps one colour per hub and
      it is the lamp, not the glass around it. */
-  --lens-face: linear-gradient(180deg,
-    rgba(255,255,255,.94) 0%, rgba(240,240,240,.52) 34%,
-    rgba(232,232,232,.40) 56%, rgba(250,250,250,.80) 82%, rgba(255,255,255,.94) 100%);
+  --lens-face: linear-gradient(180deg, #ffffff 0%, #ffffff 100%);
   --lens: inset 0 0 0 1.5px rgba(255,255,255,.98),
           inset 0 0 0 4px rgba(190,190,190,.28),
           inset 0 8px 12px -8px rgba(140,140,140,.50),
@@ -385,8 +433,11 @@
      background, never body text. --accent is the fill (white text sits on it),
      --accent-ink is the same hue darkened until it can be read on white.
      Two names because one colour cannot do both jobs and pass AA. */
-  --accent: #1c1c1c;
-  --accent-ink: #1c1c1c;
+  /* The accent follows the ink. It was #1c1c1c against a black --ink; with the
+     ink at #2a2a2a the two are one colour again, which is the reference's
+     whole position on accents: there is not one. */
+  --accent: #2a2a2a;
+  --accent-ink: #2a2a2a;
   --accent-soft: #f2f2f2;
   --accent-line: #e0e0e0;
 
@@ -428,9 +479,13 @@
      THE VALUES HERE ARE EXACTLY WHAT WAS THERE. Nothing about a white screen
      changes by naming them; the point is that there is now one place to say
      what they become somewhere else. */
-  --loud-face:        linear-gradient(180deg, #2a2a2a 0%, #101010 55%, #000 100%);
-  --loud-face-hover:  linear-gradient(180deg, #333 0%, #141414 55%, #000 100%);
-  --loud-face-active: linear-gradient(180deg, #000 0%, #0d0d0d 60%, #1d1d1d 100%);
+  /* THE LOUD BUTTON STOPS BOTTOMING OUT AT BLACK. The relief stays — the
+     owner chose the version that keeps it — but a face that runs to #000 on a
+     page whose darkest ink is #2a2a2a is the one object still lit by the old
+     palette. Same three stops, same gradient shape, in the ink's own range. */
+  --loud-face:        linear-gradient(180deg, #2a2a2a 0%, #2a2a2a 100%);
+  --loud-face-hover:  linear-gradient(180deg, #3b3b3b 0%, #3b3b3b 100%);
+  --loud-face-active: linear-gradient(180deg, #1f1f1f 0%, #1f1f1f 100%);
   --on-loud: var(--on-accent);
   --frost: rgba(255,255,255,.72);
   --btn-line-edge:       #ffffff;
@@ -562,7 +617,13 @@
   --fs-8: 26px;
   --fs-9: 34px;
 
-  --r-1: 10px; --r-2: 14px; --r-3: 20px; --r-4: 28px; --r-5: 36px; --r-full: 999px;
+  /* FLAT MEANS SQUARE. The reference has not one rounded corner in it, and a
+     rounded card with no shadow reads as a shadow that failed to render. Five
+     names, five zeros — the scale survives so that the day a corner is wanted
+     back there is one place to put it. --r-full stays round: it is not a
+     corner radius, it is what makes a pill a pill, and every avatar, pip and
+     switch in the city is built on it. */
+  --r-1: 0px; --r-2: 0px; --r-3: 0px; --r-4: 0px; --r-5: 0px; --r-full: 999px;
   --radius: var(--r-2); --radius-lg: var(--r-3);
 
   /* ── ONE SPACING SCALE, AND IT IS THE ONE THE APP ALREADY USES ─────────
@@ -1131,9 +1192,6 @@
      --muted AND --faint ARE NOT SAFE BARE anywhere on this one — 3.45 at the
      lightest stop, 1.52 at the deepest — so they take dating's
      shadow-and-restore in relief.css. */
-  --sky-image: linear-gradient(225deg,
-    #b8cbdb 0%, #a7bed3 16%, #8db2cd 32%, #7aa8c8 50%,
-    #6f9ec2 66%, #7095bd 84%, #7389b3 100%);
 }
 [data-hub="medicines"] {
   --lamp-face: linear-gradient(180deg, #287a9a 0%, #1f5f78 44%, #18485b 100%);
@@ -1180,9 +1238,6 @@
      1.68 in the trough — so they take dating's shadow-and-restore in
      relief.css. The reference is pale and they still fail on it, which is the
      tell that this pink is a mid-value colour wearing a light one's clothes. */
-  --sky-image: linear-gradient(180deg,
-    #dcc4cf 0%, #c8b4c4 14%, #a6a3b8 30%, #8792ae 48%,
-    #778cad 60%, #9096b0 76%, #b3a8bd 88%, #d5bfcd 100%);
 }
 [data-hub="family"] {
   --lamp-face: linear-gradient(180deg, #4e893c 0%, #3d6b2f 44%, #2e5124 100%);
@@ -1243,9 +1298,6 @@
      of that same blue. Dating's lamp had to move today because a terracotta
      key sat in a hue its picture did not contain. This one was already the
      picture's own colour, three months before the picture arrived. */
-  --sky-image: linear-gradient(100deg,
-    #aecceb 0%, #b2cbe9 20%, #bfcbe6 40%, #d2cee4 58%,
-    #e2d5e5 74%, #d8d2e6 88%, #bfcbe8 100%);
 
   /* ── AND THE PANEL IS EIGHT HUNDREDTHS THICKER HERE ──────────────────────
      .72 IS THE CITY'S FROST AND IT MISSES ON THIS ONE SKY BY 0.12. The blue
@@ -1346,8 +1398,6 @@
      to look more like the photograph is a change that has to be measured
      again rather than eyeballed. The rule that follows from it is written
      where it is enforced, in relief.css: MUTED INK NEVER SITS ON THE SKY. */
-  --sky-image: linear-gradient(160deg,
-    #93a38f 0%, #a8b69b 20%, #c9d2b6 42%, #e4e8d6 58%, #c2ccae 78%, #adb996 100%);
 }
 [data-hub="legal"] {
   /* A LAMP OF ITS OWN — the seal on a document, and the one room whose whole business is written.
@@ -1444,9 +1494,6 @@
      inside `.tc-main` and hands them back on frost, so neither is ever set on
      the sky; the number that matters is that the hub now has one hairline
      failure held by that machinery instead of two. */
-  --sky-image: linear-gradient(135deg,
-    #fdfcfa 0%, #f8f7f4 14%, #f4f3f0 34%, #f4f3f0 46%,
-    #eeece6 62%, #e9e5db 74%, #f1efe9 88%, #faf9f6 100%);
 }
 [data-hub="profile"] {
   /* A LAMP OF ITS OWN — a muted plum: yours, and quiet about it.
