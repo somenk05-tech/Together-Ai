@@ -1,7 +1,6 @@
 import { useState, type CSSProperties } from 'react';
 import { Button, Card, EmptyState, Spinner, Tag } from '@/components/ui';
 import { useChooseDailyCard, useDeleteTarotReading, useDrawTarot, useTarotDaily, useTarotHistory, useTarotSpreads } from '../hooks';
-import { AstroHeader } from '../shared';
 import type { TarotDrawnCard, TarotReading } from '../api';
 import { artFor } from '../cardArt';
 
@@ -343,9 +342,35 @@ export function AstroTarot() {
      */
     <div className="tarot-night">
       <div className="tarot-frame" aria-hidden />
-      <AstroHeader
-        title="Tarot"
-        lede="A card a day, free — or ask a question and turn a full spread yourself. Nothing is dealt until you have turned every card. Every reading is reproducible: the same draw can be regenerated from its seed." />
+      {/* ── THE SAME BAND AS THE CONSULTATION ROOM (owner, 23 Aug) ───────
+          `.astra-*` rather than a second block of its own: two pages in one hub
+          wearing the same masthead should be one set of rules, and a copy of
+          them here is two things to keep in step. The name is the room it was
+          written for and it is now doing double duty — worth renaming to
+          something neutral one day, worth nothing to rename twice.
+
+          THE PICTURE IS THE APP'S OWN DECK. Three majors from
+          /assets/img/tarot — the Chariot, the Moon and the Wheel — dealt as a
+          spread rather than a stock photograph of cards we do not sell. The
+          Moon leads because it is the one card here that is a night landscape,
+          which is what a masthead behind type wants to be.
+
+          NOT `AstroHeader`. That component is on six screens — both gem
+          checkouts, the gemstone shelf, the studio — and restyling it would
+          have redesigned all of them to change this one. */}
+      <header className="astra">
+        <img className="astra-sky" src="/assets/img/tarot-spread.webp" alt="" />
+        <span className="astra-veil" aria-hidden />
+        <div className="astra-in">
+          <p className="astra-kicker">Astrology Zone</p>
+          <h1 className="astra-title">Tarot</h1>
+          <p className="astra-lead">A card a day, free &mdash; or ask a question and turn a full spread yourself.</p>
+          <p className="astra-body">
+            Nothing is dealt until you have turned every card. Every reading is reproducible: the
+            same draw can be regenerated from its seed.
+          </p>
+        </div>
+      </header>
 
       {/* ── Card of the Day (free) ── */}
       <DailyCard />
