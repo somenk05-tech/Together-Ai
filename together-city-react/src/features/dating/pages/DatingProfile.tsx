@@ -537,17 +537,46 @@ export function DatingProfilePage() {
 
     return (
       <div>
-        <div className="eyebrow" style={{ marginBottom: 10 }}>Dating Hub · Your profile</div>
-        <StatusBanner />
-        {completion && !completion.complete && <CompletionCard completion={completion} />}
+        {/* ── THE SAME STATIONERY AS THE ROOMS NEXT DOOR (owner, 24 Aug:
+            "match this design to the reference image", holding up Potential
+            Matches' own note). The letterhead went onto Potential Matches and
+            Curated Matches on 23 Aug; this page still opened on a bare eyebrow
+            and an eye-emoji banner, so one hub greeted a citizen in two hands.
+            One card, third wearing — headed with the name the rail uses, like
+            both rooms before it.
 
-        {/* Preview banner — this card is exactly what a match sees */}
-        <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10, background: 'var(--accent-soft)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: '11px 14px' }}>
-          <span aria-hidden style={{ fontSize: 16 }}>👁</span>
-          <span style={{ fontSize: 12.5, color: 'var(--ink)', lineHeight: 1.45 }}>
-            <strong>This is exactly how your matches see you.</strong> Private settings like your visibility and preferences are never shown here.
-          </span>
-        </div>
+            THE CLAIM IN THE BOX IS THE BANNER'S OLD SENTENCE, because "this is
+            exactly what a match sees" IS this page's one big statement — the
+            eye emoji went with the banner, since the letterhead's tick already
+            carries the mark. The moderation label rides the labelled row as
+            plain words where "open to being found" rides it next door; the
+            coloured banner below survives for any state that carries a notice
+            or reasons, because a rejection's WHY cannot live in a label. */}
+        <header className="dnote">
+          <div className="dnote-top">
+            <h1 className="dnote-mark">My Dating Profile.</h1>
+            <span className="dnote-from">Together City &middot; Dating Hub</span>
+          </div>
+          <div className="dnote-rule" />
+          <div className="dnote-row">
+            <span className="dnote-to"><span className="dnote-lab">From:</span> <span className="dnote-val">You</span></span>
+            <span><span className="dnote-lab">Status:</span> <span className="dnote-val">{mod?.label ?? '\u2014'}</span></span>
+          </div>
+          <div className="dnote-box">
+            <p className="dnote-claim">This is exactly how your matches see you.</p>
+            <p className="dnote-sub">
+              Private settings &mdash; your visibility and your preferences &mdash; are never shown here.
+            </p>
+            <span className="dnote-tick" aria-hidden>
+              <svg viewBox="0 0 30 30" fill="none" stroke="currentColor" strokeWidth="1.6">
+                <path d="M4 17 L11 25 L27 2" />
+              </svg>
+            </span>
+          </div>
+          <span className="dnote-cap">Because who you meet should meet the real you</span>
+        </header>
+        {(data?.moderation !== 'approved' || data?.notice) && <StatusBanner />}
+        {completion && !completion.complete && <CompletionCard completion={completion} />}
 
         <div className="card" style={{ marginTop: 12, padding: 16, borderRadius: 22 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>

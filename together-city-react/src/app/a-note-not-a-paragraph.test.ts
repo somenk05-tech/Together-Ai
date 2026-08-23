@@ -190,3 +190,38 @@ describe('the curated matches note', () => {
     }
   });
 });
+
+/**
+ * ── AND THE THIRD WEARING ───────────────────────────────────────────────────
+ *
+ * Owner, 24 Aug: "match this design to the reference image" — the reference
+ * being the note above. My Dating Profile still opened on a bare eyebrow and
+ * an eye-emoji banner, so one hub greeted a citizen in two different hands.
+ * Same card, same rules as its two rooms: headed with the rail's own name,
+ * and the page's one big statement in the box — which for this page is the
+ * promise the old banner made. The moderation banner survives underneath for
+ * any state carrying a notice or reasons; a rejection's WHY cannot live in a
+ * label on the letterhead's row.
+ */
+describe('the profile note', () => {
+  const profile = () => strip(read('features/dating/pages/DatingProfile.tsx'));
+
+  it('is headed with the name the rail uses', () => {
+    const label = /label: '([^']+)', sub: 'Birth details & interests'/.exec(read('config/hubs.ts'))?.[1];
+    expect(label).toBe('My Dating Profile');
+    expect(profile()).toMatch(new RegExp(`className="dnote-mark">${label}\\.</h1>`));
+  });
+
+  it('carries the promise the banner used to make', () => {
+    const c = profile();
+    expect(c).toMatch(/This is exactly how your matches see you\./);
+    expect(c).toMatch(/are never shown here/);
+  });
+
+  it('is the same card as the rooms next door, not a copy of it', () => {
+    expect(profile()).toMatch(/<header className="dnote">/);
+    const c = readFileSync(join(SRC, 'styles/layout.css'), 'utf8');
+    expect((c.match(/^\.dnote \{/gm) ?? []).length).toBe(1);
+  });
+});
+
