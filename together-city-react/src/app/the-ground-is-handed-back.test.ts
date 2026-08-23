@@ -53,10 +53,16 @@ describe('the dating hub holds no ground', () => {
    * its own --muted is a hub whose body copy is a different grey from every
    * other room's, for no reason anybody could state; that claim is unchanged.
    */
-  it('re-points no ink, no face, no lamp and no sky', () => {
+  it('re-points no ink, no face, no sun and no sky', () => {
+    /* --lamp-face LEFT THIS LIST ON 24 AUG with the owner's "match the side
+       pill color to the color of the sector": every room re-points the rail
+       key's face to its own accent now, dating included, and the rail
+       assertion in relief.spec holds the lamp TO that accent. What this list
+       still refuses is unchanged in kind — inks, faces, the sun, the sky:
+       the things that would make the block a room again. */
     const body = block.join(' ');
     for (const t of ['--ink', '--ink-soft', '--muted', '--faint', '--on-accent',
-                     '--loud-face', '--lamp-face', '--sky-image', '--frost',
+                     '--loud-face', '--sky-image', '--frost',
                      '--line', '--face', '--well', '--word-filter']) {
       expect({ token: t, declared: new RegExp(`${t}\\s*:`).test(body) })
         .toEqual({ token: t, declared: false });

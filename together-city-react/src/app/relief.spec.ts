@@ -1434,7 +1434,11 @@ describe('Relief stays a system', () => {
     expect(keys.length).toBeGreaterThanOrEqual(14);
 
     const SURVIVALS: Record<string, string[]> = { dating: ['film'], entertainment: ['media-bg'] };
-    const ACCENT = ['accent', 'accent-ink', 'accent-soft', 'accent-line'];
+    /* The lamp names joined on 24 Aug when the rail's key took the room's
+       colour — held to the accent by the rail assertion below, so they are
+       required here and measured there. */
+    const ACCENT = ['accent', 'accent-ink', 'accent-soft', 'accent-line',
+      'lamp-face', 'lamp-gloss', 'on-lamp', 'on-lamp-soft'];
     const declared: Record<string, Set<string>> = {};
     const ink: Record<string, string> = {};
     for (const m of strip(tokens).matchAll(/\[data-hub="([a-z]+)"\]\s*\{([\s\S]*?)\n\}/g)) {
@@ -1574,21 +1578,57 @@ describe('Relief stays a system', () => {
    * nothing to compare. What is left is the claim that matters — the lamp is
    * declared once, at the root, and no hub re-points it.
    */
-  it('lights every rail with the same lamp', () => {
+  it('lights every rail with its room\u2019s own lamp', () => {
+    /* THIRD CALL ON THIS ONE OBJECT, each the owner's: twenty-two lamps (to
+       22 Aug) → one sun for every rail (23 Aug: the key and the button are
+       one idea) → the room's own colour (24 Aug: "match the side pill color
+       to the color of the sector"). What changed between the second and
+       third is that the quiet accent exists now — every room already owns a
+       colour, and an amber key in a mulberry room reads as a button, not as
+       "you are here". The sun stays the FALLBACK at the root, so a rail
+       outside any room is lit exactly as it was yesterday; and the sun stays
+       the button everywhere, so the 23 Aug idea survives where it was true.
+
+       WHAT IS HELD: the root fallback still reads the sun's own tokens; every
+       hub re-points --lamp-face, and its first stop IS the room's --accent —
+       not a second colour drifting beside the first; the label on a coloured
+       key is white, which clears 4.5:1 on every accent by the same
+       arithmetic the quiet-accent guard runs against the white page,
+       inverted; and the deep stop is darker than the accent, so the label's
+       worst stop is the first one — the one already measured. */
     const css = read('src/styles/tokens.css');
     const root = strip(css).split(/\[data-hub=/)[0];
-    /* IT WAS FLAT INK AND IT IS THE BUTTON'S OWN LIGHT (23 Aug). The lit key
-       and the primary button are the same idea — the thing you are on and the
-       thing you press — so they are one object and the city has one accent
-       rather than two. The clause that asserted a single colour is gone with
-       the flat lamp; what is asserted instead is stricter, because it pins the
-       two together: the rail reads --loud-face rather than repeating it, so
-       the day the sun is re-cut the rail is re-cut with it. */
     expect(root).toMatch(/--lamp-face:\s*var\(--loud-face\);/);
     expect(root).toMatch(/--on-lamp:\s*var\(--on-loud\);/);
-    const rooms = [...strip(css).matchAll(/\[data-hub="([a-z]+)"\]\s*\{([\s\S]*?)\n\}/g)]
-      .filter((m) => /--lamp-face:/.test(m[2])).map((m) => m[1]);
-    expect(rooms).toEqual([]);
+    expect(root).toMatch(/--lamp-gloss:\s*var\(--loud-gloss\);/);
+
+    const hubs = read('src/config/hubs.ts');
+    const keys = [...new Set([...hubs.slice(hubs.indexOf('export const HUBS')).matchAll(/key:\s*'([a-z]+)'/g)].map((m) => m[1]))];
+    const lamp: Record<string, string> = {};
+    const accent: Record<string, string> = {};
+    const onLamp: Record<string, string> = {};
+    for (const m of strip(css).matchAll(/\[data-hub="([a-z]+)"\]\s*\{([\s\S]*?)\n\}/g)) {
+      const face = m[2].match(/--lamp-face:\s*linear-gradient\(180deg,\s*(#[0-9a-f]{6}) 0%,\s*(#[0-9a-f]{6}) 100%\)/i);
+      if (face) { lamp[m[1]] = face[1].toLowerCase(); }
+      const acc = m[2].match(/--accent:\s*(#[0-9a-f]{6})/i);
+      if (acc) accent[m[1]] = acc[1].toLowerCase();
+      const on = m[2].match(/--on-lamp:\s*(#[0-9a-f]{6})/i);
+      if (on) onLamp[m[1]] = on[1].toLowerCase();
+    }
+    const lin = (c: number) => (c / 255 <= 0.03928 ? c / 255 / 12.92 : (((c / 255) + 0.055) / 1.055) ** 2.4);
+    const lum = (hex: string) => {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+      return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    };
+    const offenders: string[] = [];
+    for (const k of keys) {
+      if (!lamp[k]) { offenders.push(`${k}: no --lamp-face of its own — its key is another room's light`); continue; }
+      if (lamp[k] !== accent[k]) offenders.push(`${k}: key lit ${lamp[k]} beside accent ${accent[k]} — two colours for one room`);
+      if (onLamp[k] !== '#ffffff') offenders.push(`${k}: label on the key is ${onLamp[k]}, not white`);
+      const r = 1.05 / (lum(lamp[k]) + 0.05);
+      if (r < 4.5) offenders.push(`${k}: white reads at ${r.toFixed(2)}:1 on its key`);
+    }
+    expect(offenders).toEqual([]);
   });
 
 

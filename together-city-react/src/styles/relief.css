@@ -1008,19 +1008,32 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
    Here they look alike because they ARE alike — the thing you are on and the
    thing you press are one idea, which is the sentence --lamp-face was
    re-pointed on. */
+/* ── AND NOW THE KEY IS LIT IN THE ROOM'S OWN COLOUR (owner, 24 Aug:
+   "match the side pill color to the color of the sector"). The paragraph
+   above made the key the sun so the thing you are on and the thing you press
+   would be one object; the quiet accent gave every room a colour the same
+   evening, and an amber key in a mulberry room stopped saying "you are here"
+   and started saying "press me" again. The face reads --lamp-face, which
+   every room re-points to its own accent at the foot of tokens.css; the
+   label goes white there (each accent already clears 4.5:1 under white — the
+   same arithmetic the quiet-accent guard runs, inverted); the gloss softens
+   from the sun's to the rooms' shared specular; and the CASING GOES CALM —
+   the warm amber shell around a cobalt key was the sun's skin on another
+   room's light. Outside a room nothing re-points, and the key is the sun it
+   was yesterday. */
 .side-menu a.active {
-  background: var(--lamp-face); box-shadow: var(--loud-case-sm); transform: none;
+  background: var(--lamp-face); box-shadow: var(--calm-case-sm); transform: none;
   border-radius: var(--r-full);
 }
 .side-menu a.active::before {
   content: ''; position: absolute; z-index: -1; pointer-events: none;
   left: 3%; right: 3%; top: 2px; height: 44%;
   border-radius: var(--r-full);
-  background: var(--loud-gloss);
+  background: var(--lamp-gloss);
 }
 .side-menu a.active .l { color: var(--on-lamp); font-weight: 700; }
 .side-menu a.active .s { color: var(--on-lamp-soft); }
-.side-menu a.active:hover { transform: none; box-shadow: var(--loud-case-sm); }
+.side-menu a.active:hover { transform: none; box-shadow: var(--calm-case-sm); }
 
 /* The index goes round with the key it sits in — a square in a stadium is the
    one corner left in the object, lit or not. */

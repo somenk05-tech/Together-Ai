@@ -675,6 +675,14 @@
   --quiet-face: var(--calm-face);
 
   --lamp-face: var(--loud-face);
+  /* The specular a ROOM's key wears — softer than the sun's, because the
+     sun's .70 white top would wash a white label off a coloured key. Rooms
+     re-point --lamp-gloss to this; the root keeps the sun's own gloss as the
+     fallback so any rail outside a room still reads as the sun. */
+  --accent-gloss: linear-gradient(180deg,
+    rgba(255, 255, 255, .22) 0%, rgba(255, 255, 255, .08) 46%,
+    rgba(255, 255, 255, 0) 100%);
+  --lamp-gloss: var(--loud-gloss);
   /* AND THE LAMP'S OWN GLOW GOES WITH THE REST. --lamp was a rim, two inner
      shadows and three coloured drops — the single most raised object in the
      application, and the last one still glowing after every depth and every
@@ -2775,24 +2783,40 @@ html[data-skin="sanmarino"] {
   --accent-ink: #a03d12;
   --accent-soft: rgba(160, 61, 18, .10);
   --accent-line: rgba(160, 61, 18, .30);
+  --lamp-face: linear-gradient(180deg, #a03d12 0%, #83320f 100%);
+  --lamp-gloss: var(--accent-gloss);
+  --on-lamp: #ffffff;
+  --on-lamp-soft: rgba(255, 255, 255, .82);
 }
 [data-hub="travel"] {
   --accent: #0c6f7a;
   --accent-ink: #0c6f7a;
   --accent-soft: rgba(12, 111, 122, .10);
   --accent-line: rgba(12, 111, 122, .30);
+  --lamp-face: linear-gradient(180deg, #0c6f7a 0%, #0a5b64 100%);
+  --lamp-gloss: var(--accent-gloss);
+  --on-lamp: #ffffff;
+  --on-lamp-soft: rgba(255, 255, 255, .82);
 }
 [data-hub="astrology"] {
   --accent: #5b3a8e;
   --accent-ink: #5b3a8e;
   --accent-soft: rgba(91, 58, 142, .10);
   --accent-line: rgba(91, 58, 142, .30);
+  --lamp-face: linear-gradient(180deg, #5b3a8e 0%, #4b3074 100%);
+  --lamp-gloss: var(--accent-gloss);
+  --on-lamp: #ffffff;
+  --on-lamp-soft: rgba(255, 255, 255, .82);
 }
 [data-hub="nutrition"] {
   --accent: #33691e;
   --accent-ink: #33691e;
   --accent-soft: rgba(51, 105, 30, .10);
   --accent-line: rgba(51, 105, 30, .30);
+  --lamp-face: linear-gradient(180deg, #33691e 0%, #2a5619 100%);
+  --lamp-gloss: var(--accent-gloss);
+  --on-lamp: #ffffff;
+  --on-lamp-soft: rgba(255, 255, 255, .82);
 }
 /* Family is nutrition's second door — the one pair allowed to match. */
 [data-hub="family"] {
@@ -2800,76 +2824,128 @@ html[data-skin="sanmarino"] {
   --accent-ink: #33691e;
   --accent-soft: rgba(51, 105, 30, .10);
   --accent-line: rgba(51, 105, 30, .30);
+  --lamp-face: linear-gradient(180deg, #33691e 0%, #2a5619 100%);
+  --lamp-gloss: var(--accent-gloss);
+  --on-lamp: #ffffff;
+  --on-lamp-soft: rgba(255, 255, 255, .82);
 }
 [data-hub="social"] {
   --accent: #2f5391;
   --accent-ink: #2f5391;
   --accent-soft: rgba(47, 83, 145, .10);
   --accent-line: rgba(47, 83, 145, .30);
+  --lamp-face: linear-gradient(180deg, #2f5391 0%, #274477 100%);
+  --lamp-gloss: var(--accent-gloss);
+  --on-lamp: #ffffff;
+  --on-lamp-soft: rgba(255, 255, 255, .82);
 }
 [data-hub="dating"] {
   --accent: #a02742;
   --accent-ink: #a02742;
   --accent-soft: rgba(160, 39, 66, .10);
   --accent-line: rgba(160, 39, 66, .30);
+  --lamp-face: linear-gradient(180deg, #a02742 0%, #832036 100%);
+  --lamp-gloss: var(--accent-gloss);
+  --on-lamp: #ffffff;
+  --on-lamp-soft: rgba(255, 255, 255, .82);
 }
 [data-hub="entertainment"] {
   --accent: #22404c;
   --accent-ink: #22404c;
   --accent-soft: rgba(34, 64, 76, .10);
   --accent-line: rgba(34, 64, 76, .30);
+  --lamp-face: linear-gradient(180deg, #22404c 0%, #1c343e 100%);
+  --lamp-gloss: var(--accent-gloss);
+  --on-lamp: #ffffff;
+  --on-lamp-soft: rgba(255, 255, 255, .82);
 }
 [data-hub="ecommerce"] {
   --accent: #0d724a;
   --accent-ink: #0d724a;
   --accent-soft: rgba(13, 114, 74, .10);
   --accent-line: rgba(13, 114, 74, .30);
+  --lamp-face: linear-gradient(180deg, #0d724a 0%, #0b5d3d 100%);
+  --lamp-gloss: var(--accent-gloss);
+  --on-lamp: #ffffff;
+  --on-lamp-soft: rgba(255, 255, 255, .82);
 }
 [data-hub="beauty"] {
   --accent: #96406b;
   --accent-ink: #96406b;
   --accent-soft: rgba(150, 64, 107, .10);
   --accent-line: rgba(150, 64, 107, .30);
+  --lamp-face: linear-gradient(180deg, #96406b 0%, #7b3458 100%);
+  --lamp-gloss: var(--accent-gloss);
+  --on-lamp: #ffffff;
+  --on-lamp-soft: rgba(255, 255, 255, .82);
 }
 [data-hub="medical"] {
   --accent: #1f5f78;
   --accent-ink: #1f5f78;
   --accent-soft: rgba(31, 95, 120, .10);
   --accent-line: rgba(31, 95, 120, .30);
+  --lamp-face: linear-gradient(180deg, #1f5f78 0%, #194e62 100%);
+  --lamp-gloss: var(--accent-gloss);
+  --on-lamp: #ffffff;
+  --on-lamp-soft: rgba(255, 255, 255, .82);
 }
 [data-hub="realestate"] {
   --accent: #4a5a72;
   --accent-ink: #4a5a72;
   --accent-soft: rgba(74, 90, 114, .10);
   --accent-line: rgba(74, 90, 114, .30);
+  --lamp-face: linear-gradient(180deg, #4a5a72 0%, #3d4a5d 100%);
+  --lamp-gloss: var(--accent-gloss);
+  --on-lamp: #ffffff;
+  --on-lamp-soft: rgba(255, 255, 255, .82);
 }
 [data-hub="jobs"] {
   --accent: #6b531d;
   --accent-ink: #6b531d;
   --accent-soft: rgba(107, 83, 29, .10);
   --accent-line: rgba(107, 83, 29, .30);
+  --lamp-face: linear-gradient(180deg, #6b531d 0%, #584418 100%);
+  --lamp-gloss: var(--accent-gloss);
+  --on-lamp: #ffffff;
+  --on-lamp-soft: rgba(255, 255, 255, .82);
 }
 [data-hub="fitness"] {
   --accent: #0f766e;
   --accent-ink: #0f766e;
   --accent-soft: rgba(15, 118, 110, .10);
   --accent-line: rgba(15, 118, 110, .30);
+  --lamp-face: linear-gradient(180deg, #0f766e 0%, #0c615a 100%);
+  --lamp-gloss: var(--accent-gloss);
+  --on-lamp: #ffffff;
+  --on-lamp-soft: rgba(255, 255, 255, .82);
 }
 [data-hub="mail"] {
   --accent: #703a86;
   --accent-ink: #703a86;
   --accent-soft: rgba(112, 58, 134, .10);
   --accent-line: rgba(112, 58, 134, .30);
+  --lamp-face: linear-gradient(180deg, #703a86 0%, #5c306e 100%);
+  --lamp-gloss: var(--accent-gloss);
+  --on-lamp: #ffffff;
+  --on-lamp-soft: rgba(255, 255, 255, .82);
 }
 [data-hub="financial"] {
   --accent: #3f5136;
   --accent-ink: #3f5136;
   --accent-soft: rgba(63, 81, 54, .10);
   --accent-line: rgba(63, 81, 54, .30);
+  --lamp-face: linear-gradient(180deg, #3f5136 0%, #34422c 100%);
+  --lamp-gloss: var(--accent-gloss);
+  --on-lamp: #ffffff;
+  --on-lamp-soft: rgba(255, 255, 255, .82);
 }
 [data-hub="pets"] {
   --accent: #8f5528;
   --accent-ink: #8f5528;
   --accent-soft: rgba(143, 85, 40, .10);
   --accent-line: rgba(143, 85, 40, .30);
+  --lamp-face: linear-gradient(180deg, #8f5528 0%, #754621 100%);
+  --lamp-gloss: var(--accent-gloss);
+  --on-lamp: #ffffff;
+  --on-lamp-soft: rgba(255, 255, 255, .82);
 }
