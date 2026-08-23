@@ -1998,21 +1998,26 @@ textarea.g-field { resize: none; line-height: 1.55; }
   border-radius: var(--r-2);
   background-size: cover; background-position: center;
   padding: clamp(26px, 4vw, 48px) clamp(18px, 4vw, 56px) clamp(24px, 3vw, 38px);
-  /* THE GLASS IS THE PALETTE, NOT ALPHA. The sheet is dawn light — pale blue
-     at the head, cream at the foot — and what makes it read as glass rather
-     than as paper is the light caught along its top edge. A border, not an
-     inset shadow: an inset would be a sixth depth, and this is an EDGE, which
-     the spec names as a different thing on purpose. */
-  border-top: 1px solid var(--press-recto-lift);
-  /* AND THE SHEET SITS ON THE ROOM RATHER THAN DISSOLVING INTO IT. A white
-     top edge was the whole separation while the room was green; on the pale
-     one it says nothing, and a pale sheet on a pale ground with no edge is
-     the "cutting from the frame" this page was reported for. --shadow is the
-     city's own first depth, not a new one — the sheet is a piece of paper
-     lying on a surface, which is what it was always meant to look like. */
+  /* THE GLASS IS ALPHA NOW (owner, 24 Aug, with a glassmorphism reference —
+     a frosted pane floating over porcelain shapes). The paragraph that stood
+     here said the opposite — "the glass is the palette, not alpha" — and its
+     argument was real: a translucent sheet over a photograph was a different
+     colour at every viewport with none of the numbers still true. What
+     changed is the thing behind the pane. The room's backdrop is ours — the
+     dawn wash and three pearls declared in --press-grain, two of which can
+     only add white — so the composite is arithmetic, not hope, and the AA
+     guard measures the computed stops the eye actually gets. The sheet
+     paints one translucent white (--press-glass, via its veil) and frosts
+     what floats behind it; the edge is the pane's own light, all the way
+     round now, because a pane has four edges and paper had a top. */
+  border: 1px solid var(--press-recto-lift);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  backdrop-filter: blur(18px) saturate(1.2);
+  /* The pane still sits ON the room — --shadow is the city's first depth,
+     not a new one. A glass card with no fall reads as a region, not a card. */
   box-shadow: var(--shadow);
 }
-.press-verso { border-top-color: var(--press-verso-lift); }
+.press-verso { border-color: var(--press-verso-lift); }
 /* A SHEET RE-POINTS THE PRESS'S OWN TOKENS AND EVERY COMPONENT FOLLOWS.
    The masthead block below already dresses Relief's pills, chips, buttons and
    tags for the press — reading --press-ink, --press-rule, --press-paper and

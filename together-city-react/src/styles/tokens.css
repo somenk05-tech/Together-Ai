@@ -1236,12 +1236,20 @@
   /* THE PRESS IS A NUTRITION SURFACE AND NOWHERE ELSE, which is why its own
      scale moves with that hub rather than being re-pointed inside it: the
      guard in relief.spec reads these names at :root, so a hub-scoped override
-     would render one thing and measure another. Green-black on mint, against
-     the sheet's darkest stop #cfe9d5: 12.6:1, 8.3:1 and 4.7:1. */
-  --press-paper:  #daf1de;
-  --press-ink:    #0a2422;   /* 12.6:1 on the sheet's darkest stop */
-  --press-ink-2:  #1c453c;   /*  8.3:1 — descriptions */
-  --press-ink-3:  #3d6b5c;   /*  4.7:1 — labels and metadata ONLY, never body copy */
+     would render one thing and measure another. Green-black against the glass
+     sheet's darkest effective stop #deefe3: 13.6:1, 8.9:1 and 5.1:1 — and on
+     the deepened room, worst case under its darkest pearl (#b1dabd): 10.6,
+     6.9 and 3.9, the last of which is labels-only and floored at 3.
+
+     THE ROOM DEEPENS SO THE GLASS HAS SOMETHING TO FROST (owner, 24 Aug,
+     with a glassmorphism reference). A frosted card over a ground its own
+     colour is invisible; the paper steps down one shade and the sheet steps
+     UP into translucent white, so the card now reads lighter than the room
+     the way the reference's pane reads lighter than its pearls. */
+  --press-paper:  #c6e6cf;
+  --press-ink:    #0a2422;   /* 13.6:1 on the glass sheet's darkest stop */
+  --press-ink-2:  #1c453c;   /*  8.9:1 — descriptions */
+  --press-ink-3:  #3d6b5c;   /*  5.1:1 — labels and metadata ONLY, never body copy */
   /* THE RULES CAME OFF THE BEIGE TOO. A warm hairline on warm paper is just a
      hairline; the same line on white is the only warm thing left on the page,
      and it reads as a stain rather than a rule. These are the old values with
@@ -1312,11 +1320,20 @@
   --press-macro-0:#e6e6e6;   /* the unfilled part of a macro bar */
   --press-serif: 'Instrument Serif', Georgia, 'Times New Roman', serif;
   --press-mono:  'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
-  /* The grain was two radial washes of warm grey — the mottle of real paper.
-     It goes with the ivory: a wash that light on white is either invisible or
-     a smudge, and there is no third outcome. The token stays so nothing that
-     asks for it breaks, and it now asks for nothing. */
-  --press-grain: none;
+  /* THE GRAIN IS THE PEARLS NOW (owner, 24 Aug, with a glassmorphism
+     reference: a frosted pane floating among soft porcelain toruses). The
+     token that once carried paper mottle carries the room's depth instead —
+     three soft radial pearls and the dawn wash the sheets used to print on,
+     which moved BEHIND the glass when the sheets went translucent. Two pearls
+     only add white; the one green deep is the page's declared worst case and
+     the root ink scale above is measured against it. Nothing but this token
+     moved: [data-press] has painted var(--press-grain) since the grain was
+     mottle, which is exactly why the name stayed when it asked for nothing. */
+  --press-grain:
+    radial-gradient(560px 420px at 84% 6%,  rgba(255, 255, 255, .55), transparent 70%),
+    radial-gradient(640px 520px at 6% 88%,  rgba(255, 255, 255, .42), transparent 72%),
+    radial-gradient(520px 460px at 92% 74%, rgba(138, 196, 156, .35), transparent 72%),
+    linear-gradient(157deg, #cbe8d2 0%, #bfe2c9 46%, #b0d8bd 100%);
 
   /* ══ THE DAY IS TWO SHEETS, AND THE WEEK PRINTS ON ONE SKY ══════════════
      This was fourteen photographs — a recto and a verso for each weekday, each
@@ -1352,14 +1369,24 @@
      in relief.spec.ts says it takes the press's paper unchanged and that
      giving one page its own warm ground was the obvious move and the wrong
      one. It keeps white. Nothing about it changes here. */
+  /* THE SKY IS NOW WHAT THE EYE GETS THROUGH THE GLASS (owner, 24 Aug).
+     The sheets stopped printing this gradient and became translucent white
+     over the room — see --press-glass — so these stops are the COMPOSITE,
+     computed, not sampled: .58 white over the dawn wash the grain carries
+     (#cbe8d2 / #bfe2c9 / #b0d8bd → the three below, channel by channel).
+     The pearls above that wash only add white, so the worst stop stays the
+     worst whatever floats behind the pane — the same only-lightens argument
+     the sun's texture already made. The AA guard keeps measuring every ink
+     against every stop, and the numbers describe what is rendered. */
   --press-sky: linear-gradient(157deg,
-    #e4f4e7  0%,    /* the reference's front pill, caught by the light */
-    #daf1de 46%,
-    #cfe9d5 100%);  /* and falling into its own shadow */
-  /* The darkest stop of that gradient. Every ink below is measured against it,
-     which is the pessimistic reading and the only safe one — the head and the
-     foot are within a hair of each other, so there is no "mostly fine" here. */
-  --press-sky-worst: #cfe9d5;
+    #e9f5ec  0%,
+    #e4f3e8 46%,
+    #deefe3 100%);
+  --press-sky-worst: #deefe3;
+  /* The pane itself: what a sheet paints, and the whole of why the stops
+     above are light. One alpha, declared once, so the composite arithmetic
+     has exactly one input that can move. */
+  --press-glass: rgba(255, 255, 255, .58);
 
   /* ── THE SHEET'S SCALE IS WRITTEN OUT, NOT DERIVED ────────────────────────
      THIS COST 192 UNREADABLE NODES AND IT IS WORTH THE PARAGRAPH.
@@ -1377,17 +1404,21 @@
      and it has no business tracking whatever the page around it is doing. It
      is written out, so a hub can re-point the page's press ink freely and the
      paper stays readable. */
-  --press-recto-sheet: var(--press-sky);
-  --press-recto-veil:  transparent;
+  /* A sheet no longer prints the sky — the sky is behind it and comes
+     through the pane. `none` is a real background-image layer, so the
+     two-layer declaration in relief.css keeps its shape and the veil is the
+     only paint. */
+  --press-recto-sheet: none;
+  --press-recto-veil:  var(--press-glass);
   --press-recto-ground:var(--press-sky-worst);
-  --press-recto-ink:   #0a2422;   /* 12.6:1 on the sheet's darkest stop */
-  --press-recto-ink-2: #1c453c;   /*  8.3:1 */
-  --press-recto-ink-3: #3d6b5c;   /*  4.7:1 — labels and metadata ONLY */
+  --press-recto-ink:   #0a2422;   /* 13.6:1 on the glass's darkest stop */
+  --press-recto-ink-2: #1c453c;   /*  8.9:1 */
+  --press-recto-ink-3: #3d6b5c;   /*  5.1:1 — labels and metadata ONLY */
   --press-recto-rule:  #a9cfb5;
   --press-recto-lift:  rgba(255, 255, 255, .72);
 
-  --press-verso-sheet: var(--press-sky);
-  --press-verso-veil:  transparent;
+  --press-verso-sheet: none;
+  --press-verso-veil:  var(--press-glass);
   --press-verso-ground:var(--press-sky-worst);
   --press-verso-ink:   #0a2422;
   --press-verso-ink-2: #1c453c;
