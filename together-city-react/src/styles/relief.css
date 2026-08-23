@@ -2440,169 +2440,43 @@ textarea.g-field { resize: none; line-height: 1.55; }
    Dating is graded, and it is one selector rather than a prop threaded through
    six components, because the pages hold eleven separate <img> call sites and
    every one of them is written as an inline style object.                    */
-/* ── THE SKY IS BACK, AND THE ROOM ABOVE IT STANDS ASIDE ─────────────────
-   What used to be written here said the sky was gone and that the header, the
-   rail and the page had gone back to painting themselves. Half of that stopped
-   being true the morning tokens.css hung a vertical gradient on --sky-image
-   again — ivory at the head, blue-grey at the foot — and nobody moved the six
-   opaque surfaces standing on top of it. So the sky shipped and only Curated
-   Matches, which builds its own panels, could see it. A wash that exists and
-   cannot be seen is worse than no wash: it is a value in the token file that
-   every screenshot contradicts, and it stays wrong until somebody reads CSS
-   rather than looks at the page.
+/* ── THE SKY IS GONE, AND SO IS EVERYTHING THAT STOOD ASIDE FOR IT ───────
+   Owner, 23 Aug, with a photograph of white porcelain petals: this is the
+   room now.
 
-   SO THE ROOM STANDS ASIDE ONCE, FOR THE WHOLE HUB, rather than page by page.
-   Beauty solved exactly this a thousand lines down and its three lines are the
-   precedent taken here: shell, main and page go transparent so that what the
-   eye lands on is the layer underneath. BODY IS THE ONE THAT IS EASY TO MISS
-   and it is the load-bearing one — a negative-z-index layer paints BELOW the
-   background of an in-flow block, so an opaque body is a lid on the sky no
-   matter what the shell above it does.
+   THAT BRIEF DOES NOT ASK FOR A PALETTE — IT HANDS THE GROUND BACK. The rule
+   this file and relief.spec both state is that a hub holds a ground when
+   words are read off something that is not the city's white, and hands it
+   back the moment that stops being true. A porcelain-white dating hub IS the
+   city's white. So there is no [data-hub="dating"] palette any more, and
+   dating is off relief.spec's granted list — the first hub to leave it.
 
-   AND THE HUB'S OWN ELEMENT CARRIES THE SAME PICTURE, because the landing has
-   no shell to hang one off. `/dating` is a HubLanding under AppShell — header,
-   main, footer, and no `.tc-shell` for `::before` to exist on — so the one box
-   every route in this hub shares is the element the hub attribute is set on.
-   It paints the same token, fixed, and on the six inner routes it is simply
-   the colour the shell layer would have put there anyway.
+   WHAT WAS HERE, AND WHY NONE OF IT SURVIVES THAT:
 
-   NOTHING HERE DECLARES A GROUND. --ground, --paper, --card and --rail-well
-   are untouched and still the city's white; what moved is what is drawn in
-   FRONT of them. A hub holds a ground when words are read off something that
-   is not the city's white, and words here are read off PANELS — which is the
-   same sentence the tokens block makes, kept true by this file.            */
-[data-hub="dating"] { background-image: var(--sky-image); background-attachment: fixed; }
-[data-hub="dating"] body,
-[data-hub="dating"] .tc-shell,
-[data-hub="dating"] .tc-main,
-[data-hub="dating"] .page { background: transparent; }
+     the sky            a --sky-image the hub painted on its own element,
+                        fixed, so the landing had one too. There is no
+                        --sky-image to paint.
+     four transparents  body, shell, main and page stood aside so the sky
+                        could be seen through them. Nothing to see.
+     two frosts         the header and the rail became translucent panels
+                        floating on the picture. They are white surfaces on a
+                        white page again, which is what every other hub does.
+     eight more frosts  card, stat, row, console, pcard, table, modal, sheet.
+                        Same sentence.
+     the shadow pair    --muted and --faint were re-pointed inside .tc-main
+                        because bare on the sky they went under AA, and
+                        thirteen panel classes put them back. Both halves go:
+                        there is no sky for them to fail on, and the pair the
+                        rest of the city reads is the pair this hub reads.
+     the reduced-       a whole media query undoing the atmosphere for anybody
+     transparency query who asked for less of it. There is no atmosphere.
 
-/* ── AND EVERY SURFACE THAT HOLDS TEXT GOES TRANSLUCENT, NOT AWAY ────────
-   var(--frost), the root's own translucent white, and nothing else. It is
-   already what Curated Matches is built from and what the two overlays dim
-   with, so the hub gains no second material and this block introduces no name
-   that is not at :root. A surface a citizen reads off cannot become
-   transparent — it can only become thin enough for the atmosphere to carry
-   through it, which is the whole difference between a panel and a hole.   */
-[data-hub="dating"] .tc-header {
-  background: var(--frost);
-  -webkit-backdrop-filter: blur(8px) saturate(120%);
-  backdrop-filter: blur(8px) saturate(120%);
-}
-/* THE RAIL IS A PANEL FLOATING ON THE SKY, NOT A WELL CUT INTO IT. Its face
-   was --rail-well (solid white) over an inset hairline, which is a shape that
-   only reads as a well when there is a wall for it to be cut into. On an
-   atmosphere the same two lines read as a white slab pasted over the picture.
-   Same rail, same radius: the light comes off it now instead of into it. */
-[data-hub="dating"] .tc-side { background: var(--frost); box-shadow: var(--e2); }
-/* THE WORDMARK IS PAINTED, NOT INHERITED. `.tc-logo` sets `color` and the mark
-   inside it carries `fill="#000"` on the path — so on every white hub it is
-   near-black by accident of agreement, and on this one it was black on
-   crimson: the city's name, invisible, in the middle of its own header. The
-   fill follows the ink here rather than the file. Scoped to this hub because
-   it is the only room whose header is not white; the day the second one
-   arrives, this becomes a rule about `.tc-logo` instead of about dating. */
-/* WHAT USED TO BE HERE MATCHED NOTHING. Three selectors painted `fill` and
-   `color` on `.tc-logo svg` — and the wordmark is an `<img>`, so no inline SVG
-   node has ever existed for them to reach. It was written the first time the
-   owner asked for a white name in dating, it looked like the fix, it passed
-   review because a rule that matches nothing also breaks nothing, and the name
-   stayed black. The wordmark now inverts with `--word-filter`, above. */
-/* The rail's keys need nothing — --lens-face is already translucent white and
-   already carries its own blur, so the sky arrives through them the moment the
-   solid well behind them stops blocking it. */
-[data-hub="dating"] .card,
-[data-hub="dating"] .stat,
-[data-hub="dating"] .row,
-[data-hub="dating"] .console,
-[data-hub="dating"] .pcard,
-[data-hub="dating"] table.tc,
-[data-hub="dating"] .modal,
-[data-hub="dating"] .sheet { background: var(--frost); }
+   THE GREYSCALE PORTRAITS STAY, and they are the one thing in the old block
+   that was never about the ground — see the --film note above. They are in
+   tokens.css, which is now a one-token block for this hub.
 
-/* ── MUTED INK NEVER SITS ON THE SKY ─────────────────────────────────────
-   The rule the Curated Matches block obeys by hand, made structural for the
-   hub — because obeying it by hand is a job that is never finished. The next
-   component somebody writes for a dating page looks correct in review, since
-   whoever writes it has a panel on screen while they work.
-
-   THE NUMBERS, measured on this gradient rather than assumed — AND RE-MEASURED
-   ON 23 AUG, when the room went from crimson to paper. The shape of the
-   failure changed and the rule did not, which is why the rule is still here.
-
-   On the crimson sky it was --muted that broke: 4.58 at the top and 2.3 at the
-   foot, the same grey passing AA where the page begins and failing badly where
-   it ends. On paper --muted clears everywhere (7.17 down to 6.19) and --faint
-   is the one that goes under: 5.11 at the top, 4.66 through the middle, 4.41
-   at the foot. Half the scale, the same worst kind of failure — it looks fine
-   to whoever writes it, because they have a panel on screen, and only breaks
-   for whoever scrolls. Over a panel — the frost at .72 across that same sweep
-   — --faint's worst case is 5.01, and it clears.
-
-   BOTH ARE STILL SHADOWED even though only one of them fails today. Shadowing
-   the pair is one rule; shadowing whichever half currently fails is a rule
-   that has to be re-derived every time the palette moves, and it would have
-   needed re-deriving this morning.
-
-   SO: --muted and --faint are used ONLY inside a panel. Anything drawn bare on
-   the sky takes --ink or --ink-soft, both of which clear AA at every stop. The
-   shadow-and-restore below is how that is enforced on text no class can reach:
-   custom properties inherit, so re-pointing the two greys inside .tc-main
-   reaches every descendant — including the several hundred inline
-   `color: 'var(--muted)'` styles across these seven pages — and every panel
-   puts the paper's greys back under a name that was not shadowed.
-
-   The breadcrumb is not in this list and does not need to be: the sky's top
-   stop is held light in tokens.css for precisely that one line of type.
-
-   THE RAIL AND THE HEADER ARE OUTSIDE .tc-main, and that is correct rather
-   than an omission — both are panels, and both keep the city's greys. */
-[data-hub="dating"] .tc-main { --muted: var(--ink-soft); --faint: var(--ink-soft); }
-/* ANY CLASS IN THIS HUB THAT PAINTS A PANEL BELONGS ON THIS LIST, the commit
-   it is born — the rule beauty's list learned the hard way. A panel missing
-   from it is not a rendering fault, it is body copy one shade too dark, which
-   is the kind of wrong nobody files a bug about. */
-[data-hub="dating"] .card,
-[data-hub="dating"] .stat,
-[data-hub="dating"] .row,
-[data-hub="dating"] .console,
-[data-hub="dating"] .pcard,
-[data-hub="dating"] table.tc,
-[data-hub="dating"] .modal,
-[data-hub="dating"] .sheet,
-[data-hub="dating"] .dt-lead,
-[data-hub="dating"] .dt-band,
-[data-hub="dating"] .dt-panel,
-[data-hub="dating"] .dt-tile,
-[data-hub="dating"] .mstack .mfoot {
-  --muted: var(--on-paper-muted);
-  --faint: var(--on-paper-faint);
-}
-
-/* ── AND THE PREFERENCE THE SKY OWES BACK ────────────────────────────────
-   A citizen who asked for less transparency is asking for surfaces to be
-   surfaces. The atmosphere goes, the frost becomes the paper it was standing
-   in for, and the room is the white one the rest of the city is. */
-@media (prefers-reduced-transparency: reduce) {
-  [data-hub="dating"] { background-image: none; }
-  [data-hub="dating"] .tc-header,
-  [data-hub="dating"] .tc-side,
-  [data-hub="dating"] .card,
-  [data-hub="dating"] .stat,
-  [data-hub="dating"] .row,
-  [data-hub="dating"] .console,
-  [data-hub="dating"] .pcard,
-  [data-hub="dating"] table.tc,
-  [data-hub="dating"] .modal,
-  [data-hub="dating"] .sheet,
-  [data-hub="dating"] .dt-lead,
-  [data-hub="dating"] .dt-band,
-  [data-hub="dating"] .dt-panel,
-  [data-hub="dating"] .dt-tile {
-    background: var(--card);
-    -webkit-backdrop-filter: none; backdrop-filter: none;
-  }
-}
+   THE SPACE BELOW STAYS TOO. It is geometry, not colour: the reference this
+   hub was built from is two thirds empty and the emptiness is the design.  */
 
 /* ── SPACE, WHICH IS HALF OF WHAT WAS BORROWED ───────────────────────────
    The reference is two thirds empty and the emptiness is the design. Type

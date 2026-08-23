@@ -367,7 +367,15 @@ describe('Relief stays a system', () => {
      * its words are read off green panels in a green room now. This hub has
      * been on both sides of that rule more than once — it is the churn, not
      * the rule, that is unusual here. */
-    const GRANTED = ['astrology', 'beauty', 'dating', 'entertainment', 'nutrition'];
+    /* AND DATING LEFT IT, 23 AUG — the first hub ever to. Owner's reference
+     * was a photograph of white porcelain, which is not a palette but the
+     * city's own white; the rule above says a hub hands its ground back the
+     * moment its words stop being read off something else, and that is what
+     * this is. Its block in tokens.css is one token now (--film, the greyscale
+     * portraits, which were never about the ground) and one token is not a
+     * ground, so assertion 1 below no longer counts it. The list going DOWN is
+     * the rule working. */
+    const GRANTED = ['astrology', 'beauty', 'entertainment', 'nutrition'];
 
     // 1. only the granted hubs re-point a ground token. Sorted: the file's
     //    order is editorial and a re-order must not read as a breach.
@@ -390,7 +398,7 @@ describe('Relief stays a system', () => {
     // 3. and a ground is only ever reached through the hub attribute — never
     //    pinned to a page, which is how a scope quietly becomes a default.
     const wearers = PAGES.filter((f) =>
-      /data-hub=["'](nutrition|astrology|beauty|dating|entertainment)["']/.test(stripTs(read(f))));
+      /data-hub=["'](nutrition|astrology|beauty|entertainment)["']/.test(stripTs(read(f))));
     expect(wearers).toEqual([]);
   });
 
@@ -419,7 +427,7 @@ describe('Relief stays a system', () => {
       return (hi + 0.05) / (lo + 0.05);
     };
     const failures: string[] = [];
-    for (const hub of ['astrology', 'beauty', 'dating', 'entertainment', 'nutrition']) {
+    for (const hub of ['astrology', 'beauty', 'entertainment', 'nutrition']) {
       // The block that owns the ground, found by the thing that makes it that
       // block rather than by position: nutrition and entertainment each once
       // had a plain accent one-liner elsewhere in the file, and matching the
