@@ -31,7 +31,7 @@ import { join } from 'node:path';
 /** Today's numbers. Lower them as work lands; never raise one to make a build pass. */
 const CEILING = {
   rawRadii: 331,
-  inlineStyleBlocks: 6795,
+  inlineStyleBlocks: 6793,
   distinctFontSizes: 36,
   rawSpacing: 3688,
 };

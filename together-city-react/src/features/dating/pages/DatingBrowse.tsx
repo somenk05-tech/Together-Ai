@@ -103,14 +103,49 @@ export function DatingBrowse() {
 
   return (
     <div>
-      <div className="eyebrow">Dating Hub</div>
-      <h1 style={{ fontSize: 26 }}>Potential Matches</h1>
-      <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 14px', lineHeight: 1.6 }}>
-        Everyone in the city who is open to being found, each with your compatibility worked out
-        from birth charts, what you both want, how you live and where you are. Nobody is hidden
-        for scoring low — the percentage is our reading of the two of you, and the choice is
-        yours. Like someone and they hear nothing; like each other and you both do.
-      </p>
+      {/* ── THE NOTE (owner, 23 Aug, with a piece of stationery for reference)
+          A bold wordmark over a heavy rule, a labelled row, a boxed field with
+          one large line in it, a ticked box, a letterspaced caption. The owner
+          chose the variant that borrows no typeface, so every word here is set
+          in the face the rest of the application uses.
+
+          THE WORDMARK IS THE ROOM'S OWN NAME. The rail and config/hubs.ts say
+          "Potential Matches"; a card that said "MATCHES." would be a room with
+          two names, which is a thing a citizen has to learn twice.
+
+          THE COUNT IS REAL AND IT WAITS. `everyone` is empty until discover
+          resolves, and "0 people" for a second is a small, plausible,
+          disheartening lie about somebody's whole city — the same argument the
+          error branch below makes. So the row shows it only when there is one. */}
+      <header className="dnote">
+        <div className="dnote-top">
+          <h1 className="dnote-mark">Potential Matches.</h1>
+          <span className="dnote-from">Together City &middot; Dating Hub</span>
+        </div>
+        <div className="dnote-rule" />
+        <div className="dnote-row">
+          <span className="dnote-to"><span className="dnote-lab">To:</span> <span className="dnote-val">You</span></span>
+          <span><span className="dnote-lab">Open to being found:</span> <span className="dnote-val">
+            {everyone.length > 0 ? `${everyone.length} people` : '\u2014'}</span></span>
+        </div>
+        <div className="dnote-box">
+          <p className="dnote-claim">Stop investing your time in the wrong connections.</p>
+          <p className="dnote-sub">
+            Discover your compatibility first. Then start getting to know each other.
+          </p>
+          <span className="dnote-tick" aria-hidden>
+            <svg viewBox="0 0 30 30" fill="none" stroke="currentColor" strokeWidth="1.6">
+              <path d="M4 17 L11 25 L27 2" />
+            </svg>
+          </span>
+        </div>
+        <span className="dnote-cap">Because meaningful relationships should begin with intention</span>
+        <p className="dnote-fine">
+          Nobody is hidden for scoring low &mdash; the percentage is our reading of the two of
+          you, and the choice is yours. Like someone and they hear nothing; like each other and
+          you both do.
+        </p>
+      </header>
 
       <UndoAndAllowance kind={kind} />
 
