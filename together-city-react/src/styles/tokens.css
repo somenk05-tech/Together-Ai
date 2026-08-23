@@ -1899,325 +1899,215 @@
 
    Every number is measured on this hub's own ground. */
 [data-hub="dating"] {
-  /* The sky is dark, so the signature is white ink — crimson velvet, 1.84:1 black. */
-  --word-filter: invert(1);
-  /* ── WHITE, BLACK AND AIR ────────────────────────────────────────────────
-     The owner's Swiss-portfolio reference, taken for exactly two things: its
-     COLOUR and its SPACE. Not its typography — that reference is flat, ruled
-     and depthless, which is a second design system, and adopting it would
-     cost relief a named exception the size of the press one. Its colour and
-     its spacing cost nothing.
+  /* ══ THE ROOM TURNS THE LIGHTS ON ═════════════════════════════════════════
+     Owner, 23 Aug, with a reference: a piece of warm greige paper with one
+     deep aubergine on it and nothing else. #E7E2DB and #3A2027, two colours,
+     no third.
 
-     AND SO THIS HUB GIVES ITS GROUND BACK. White paper with near-black ink
-     and five soft depths is not a look this hub has to be granted — it is
-     the city, exactly as written at :root. The candy sky, the studio greige,
-     the plate's gloss, the cool-slate shadows, the four warm faces, the
-     rims, the depths, the lens, the glass, the scrims: all of it deleted,
-     because every one of those lines now says what the root already says.
-     relief.spec's granted list is four again, and the argument is the one
-     astrology's daylight made this morning — a hub holds a ground when words
-     are read off something that is not the city's white, and returns it the
-     moment that stops being true.
+     THIS IS THE SECOND REVERSAL THIS HUB HAS HAD and the previous one is
+     directly below in the history of this file, so it is worth being exact
+     about what changed and what did not.
 
-     WHAT IS LEFT IS THE ONLY TWO THINGS THAT ARE NOT THE CITY:
+     WHAT DID NOT: the grant. relief.spec lists five hubs allowed to re-point
+     the ground, and the sentence that earns each of them a place is "words in
+     this hub are read off something that is not the city's white". That is
+     still true — they are read off warm greige now instead of crimson — so the
+     hub keeps its ground and the granted list is unchanged. A reversal of the
+     COLOUR is not a reversal of the ARGUMENT.
 
-     NO HUE, ANYWHERE. The reference's signature is a page whose only tonal
-     variation is a person. So the accent stops being a colour and becomes a
-     POSITION: near-black, which is the one solid object on a screen and is
-     therefore the thing you press. Nothing else is coloured — and the rail
-     lamp goes with it, because an orange key in a room with no other hue is
-     the most saturated thing on the screen and the eye lands on the
-     navigation instead of on a face.
+     WHAT DID: the direction of the light, and therefore every number. The
+     crimson room lifted its inks because the ground was dark; this one deepens
+     them because the ground is light, and the whole correction runs the other
+     way. Nothing below is the old value adjusted. Every ink here was derived
+     from its ratio against the surface it is actually read on and then
+     written down, which is the same method the crimson block used and the
+     reason this one could be built at all.
 
-     AND THE PHOTOGRAPHS GO GREY. This is the reference applied where it
-     matters most rather than as a wash over the chrome: a wall of colour
-     portraits under a monochrome interface is a monochrome THEME, not a
-     monochrome room. The hub's film grade — the only one in the city — gains
-     a third stop for it, and colour returns in exactly one place: inside a
-     conversation, where it belongs to two people rather than to the design.
+     AND THE STATUS WASHES STAY THE ROOM'S. The instruction that produced them
+     — no panel in this room is another colour — was about a green card on a
+     crimson page, and a green card on a greige page is the same mistake. They
+     stay the room's own wash with the meaning carried by the ink. */
 
-     THE NEUMORPHISM IS UNTOUCHED, AND IT IS DOING MORE HERE THAN ANYWHERE.
-     Take the hue out of a room and depth is the only thing left that can say
-     "this is above that". A flat card on white paper needs a hairline to
-     exist at all; a raised one needs nothing but its own light. Which is why
-     the depths are inherited rather than re-pointed — they were already
-     right, and this look leans on them harder than the candy ever did.    */
+  /* THE SIGNATURE GOES BACK TO INK. `--word-filter: invert(1)` was there
+     because the wordmark is a black lockup and the wall was near-black. The
+     wall is paper again. */
+  --word-filter: none;
 
-  /* ── THE SKY, AND IT IS NOT A GROUND ────────────────────────────────────
-     Owner, 18 Aug, with a reference: the dating rooms sit inside a soft
-     atmosphere — warm ivory at the top, neutral grey through the middle, cool
-     blue-grey toward the foot — and the panels float in it.
+  /* ── THE WALL IS ALMOST FLAT, AND THAT IS THE REFERENCE ──────────────────
+     The crimson room hung a six-stop sky because a dark room without one is a
+     void. The reference is a sheet of paper — no gradient, no vignette, no
+     picture — so this is the barest thing that still counts as an image: two
+     stops a few points apart, so the room has air at the top and settles at
+     the foot, and at no point does it look lit from anywhere.
 
-     IT RIDES --sky-image, WHICH IS WHY THIS IS NOT A FOURTH GROUND GRANT. The
-     mechanism is Social Life's, one hub over: `.tc-shell::before` is a fixed
-     layer painting var(--sky-image), `none` at :root and in every hub that
-     does not hang something on it. --ground, --paper and --card are untouched
-     and still white, so relief.spec's granted list stays the three it was
-     argued down to and this hub keeps the ground it handed back. A hub holds a
-     ground when words are read off something that is not white. Words are
-     still read off white here — they are read off PANELS, which float on the
-     sky rather than being painted by it.
+     `relief.css` reads `--sky-image` into `background-image` and makes body,
+     shell, main and page transparent underneath. That machinery is untouched;
+     it is simply carrying paper now. --ink clears 12.84:1 at the light stop
+     and 11.09:1 at the deep one, so the guard that measures ink against every
+     sky stop has nothing to complain about at either end. */
+  --sky-image: linear-gradient(180deg, #f2eee9 0%, #e9e4dd 58%, #e4ded5 100%);
 
-     A GRADIENT RATHER THAN THE JPEG, and it is the better answer twice over:
-     colour lives in this file, which is the rule the whole stylesheet is
-     organised around and which an image would route around; and a gradient has
-     no aspect ratio, so it cannot be cropped, letterboxed or re-scaled at any
-     viewport the city is opened at. The stops are read off the owner's own
-     reference.
+  /* ── FOUR STEPS OF PAPER ─────────────────────────────────────────────────
+     Same shape the crimson room had and for the same reason: the shell, the
+     page, a card and a field have to be told apart without a border. Up
+     towards white rather than down towards black, because that is where the
+     light is now.
 
-     BOTH ENDS ARE HELD OFF THE REFERENCE'S, and both are measurements rather
-     than preferences.
+     THE WALL IS THE REFERENCE'S OWN VALUE. #E7E2DB is the greige off the
+     supplied image, unadjusted — it is the one colour in this block that was
+     not derived, because it was given. */
+  --ground:      #e7e2db;   /* the room — the reference's paper */
+  --paper:       #efebe5;   /* the page a citizen reads on */
+  --card:        #f5f2ed;   /* a panel, one step further into the light */
+  --wash:        #e1dbd2;   /* a field, a track, a pressed state */
+  --rail-well:   #ded8cf;   /* the rail sits deeper than the room */
+  --line:        #d2cabe;
+  --frost:       rgba(245, 242, 237, .72);
 
-     THE FOOT, because body ink at the muted step is 2.26:1 against the
-     reference's deepest slate — a grey that is legible at the top of the page
-     and illegible at the bottom of it. Held here, ink and ink-soft clear AA
-     bare on the sky at every stop.
+  /* ── AND THE INK IS THE OTHER COLOUR IN THE REFERENCE ────────────────────
+     #3A2027 off the supplied image, again unadjusted. Everything under it is
+     that colour lifted in HSL — hue held, lightness raised until the ratio
+     lands — rather than mixed toward the paper, which would have turned the
+     scale into warm greys and thrown away the one thing the reference is
+     about. --faint is the number that matters: it is the floor of the scale
+     and it is where a hand-picked palette fails. */
+  --ink:         #3a2027;   /* 12.49:1 on --paper */
+  --ink-soft:    #532e38;   /* 10.36:1 on --card  */
+  --muted:       #6d424d;   /*  6.97:1 */
+  --faint:       #845864;   /*  4.97:1 — the floor, and set from the ratio */
+  --on-ground:       #3a2027;   /* 11.51:1 on the wall */
+  --on-ground-soft:  #492831;   /*  9.99:1 */
+  --on-ground-muted: #6c424d;   /*  6.46:1 */
 
-     THE HEAD, because the one thing that IS drawn bare on the sky and not on a
-     panel is the breadcrumb, which the shell paints in --muted from an inline
-     style no stylesheet can reach without shouting at it. Against the
-     reference's ivory that ran 4.09:1. Four steps lighter and it clears, which
-     is a cheaper fix than a scoped !important on a component eleven other hubs
-     share — and it costs the sky nothing anybody can see.
+  /* THE TWO GREYS A PANEL HANDS BACK. relief.css shadows --muted and --faint
+     inside .tc-main and every panel restores them through --on-paper-muted /
+     --on-paper-faint, which are declared at :root as `var(--muted)` — and
+     that resolves THERE, to the city's #666666, which on warm greige is a
+     cool grey in a warm room rather than the invisible it was on crimson. Not
+     a contrast bug this time, a temperature one, and the fix is the same:
+     declare the pair. Measured on --wash, the darkest surface either lands
+     on. */
+  --on-paper-muted: #6e424e;   /*  5.98:1 on the wash */
+  --on-paper-faint: #7d535e;   /*  4.67:1 — the floor, and it clears */
 
-     Everything else lives on a panel, where the worst case is 4.53:1. The rule
-     that follows is written where it is enforced, in relief.css: MUTED INK
-     NEVER SITS ON THE SKY. */
-  --sky-image: linear-gradient(180deg,
-    #2c0f12 0%, #3d1418 22%, #57191e 46%, #6b1e23 62%, #4a171c 82%, #2c0f12 100%);
+  /* Status keeps meaning what it means, and the correction runs the other way
+     from the crimson room's: deepened until each clears the wash, because on
+     a light ground contrast is bought by going darker. */
+  --warn-ink:    #584005;   /*  7.10:1 on the wash */
+  --danger-ink:  #7e251c;   /*  7.04:1 on the wash */
 
-  /* ── THE ONE WARM THING IN A COOL ROOM ───────────────────────────────────
-     These four were the monochrome pass's near-blacks — "the metal, which is
-     no longer a metal". The sky brought a temperature with it and the brief
-     asks for one restrained warm peach, used only where a person is being
-     chosen: the Connect button, the selected rail row, the heart. Everything
-     else in the hub stays achromatic, which is what keeps this an accent
-     rather than a palette.
+  /* ── THE ACCENT IS THE INK ITSELF ────────────────────────────────────────
+     The crimson room needed two reds because its accent had to be lighter
+     than a dark wall. Here the reference does the obvious thing: there is one
+     dark colour and everything that wants weight is made of it. A filled
+     button is the aubergine with paper on it at 13.28:1; type that wants to
+     be the accent is the aubergine opened a little, so it is distinguishable
+     from body copy without becoming a third colour. */
+  --accent:      #3a2027;   /* fill — --on-accent sits on it at 13.28:1 */
+  --on-accent:   #f5f2ed;
+  --accent-ink:  #713848;   /*  7.49:1 on a panel */
+  --accent-soft: #ece5e5;
+  --accent-line: #c9b6ba;
 
-     THE FILL AND THE INK ARE NOT THE SAME PEACH, and they cannot be. A peach
-     light enough to be a warm FILL is 2.37:1 under white type, so the fill
-     carries near-black type instead (7.21:1) — and a peach dark enough to be
-     TYPE is not the fill's colour at all. Two values, one hue, each measured
-     where it is actually used: the ink clears 6.17:1 on a white panel and
-     4.74:1 at the sky's lightest, which is the worst place it appears. */
-  /* ══ CRIMSON VELVET — AND THIS HUB TAKES A GROUND BACK ═══════════════════
-     Owner, 20 Aug, with a reference: #2C0F12 to #6B1E23, a dark room in two
-     reds. This is a REVERSAL and it is written as one, because the paragraphs
-     above are the argument for the opposite and they were right when they
-     were made.
+  /* ── THE LAMP IS THE ROOM'S OWN DEEP END ─────────────────────────────────
+     The rule this hub arrived at last time, on the dusk, was that the lit key
+     takes its colour from the BACKGROUND rather than from the hub's type —
+     because a saturated pill in a hue the room does not contain is a sticker,
+     not a signature. That rule survives the reversal intact and is easier to
+     obey here: the room contains exactly one dark colour, so the key is that
+     colour, opened at the lip and closed at the foot the way every lamp in
+     this file is. White label — 10.51:1 at the highlight, 14.83 through the
+     middle, 17.44 at the foot.
 
-     WHAT THEY SAID: a hub holds a ground when words are read off something
-     that is not the city's white, and hands it back the moment that stops
-     being true. Dating handed one back on that rule. The rule has not
-     changed — the room has. Words in this hub are now read off crimson
-     panels on a crimson wall, and a white `--paper` under them would be the
-     one surface in the room lit from a different building. So the grant is
-     the same sentence applied to the new facts, not an exception to it.
-     relief.spec's granted list goes from three to four and names this hub.
-
-     WHAT SURVIVES OF THE MONOCHROME PASS, because most of it was never about
-     white: the portraits keep `--film: url(#tc-film-mono)` and stay grey, and
-     the reason is stronger here than it was on white — a wall of colour faces
-     against a saturated red room is two hues fighting for the same screen.
-     The neumorphic depths are inherited, untouched, and doing more than ever:
-     take hue out of the objects and light is the only thing left that can say
-     "this is above that".
-
-     EVERY INK IS ARITHMETIC, NOT TASTE, and relief.spec recomputes all of it.
-     Against `--paper` #3a1418: --ink 14.5:1, --ink-soft 11.3:1 on the card,
-     --muted 7.1:1, --faint 5.5:1, --accent-ink 8.2:1, and the four status
-     inks 8.2–9.9:1. Against the wall #2c0f12: --on-ground 15.1:1, its soft
-     12.0:1, its muted 6.9:1. The sky's lightest stop is the crimson itself
-     and --ink clears 10.2:1 on it. --faint is the number that matters — it is
-     the floor of the scale and where a hand-picked dark palette usually fails
-     — so it was set from the ratio rather than picked and then measured.
-
-     THE PANELS ARE A STEP UP FROM THE WALL, NOT A DIFFERENT MATERIAL. #3a1418
-     for the page, #431a1e for a card, #4e2024 for a field: the reference's
-     pills read as the same velvet catching more light, and three tones a few
-     points apart is what that is. A panel that jumped to a different red
-     would be a sticker on the wall rather than a part of it. */
-  --ground:      #2c0f12;   /* the room */
-  --paper:       #3a1418;   /* the page a citizen reads on */
-  --card:        #431a1e;   /* a panel, one step further into the light */
-  --wash:        #4e2024;   /* a field, a track, a pressed state */
-  --rail-well:   #250b0e;   /* the rail sits deeper than the room */
-  --line:        #5c2a2e;
-  --frost:       rgba(67, 26, 30, .62);
-
-  --ink:         #fbefef;   /* 14.5:1 on --paper */
-  --ink-soft:    #eedcdd;   /* 11.3:1 on --card  */
-  --muted:       #c6a2a5;   /*  7.1:1 */
-  --faint:       #b08d91;   /*  5.5:1 — the floor, and set from the ratio */
-  --on-ground:       #f7eaea;   /* 15.1:1 on the wall */
-  --on-ground-soft:  #e4d0d1;   /* 12.0:1 */
-  --on-ground-muted: #be989b;   /*  6.9:1 */
-
-  /* THE TWO GREYS A PANEL HANDS BACK, AND THIS IS THE LINE THAT WOULD HAVE
-     SHIPPED THE BUG. relief.css shadows --muted and --faint inside .tc-main —
-     bare on this sky --faint is 3.85:1 at the crimson stop — and every panel
-     restores them through --on-paper-muted / --on-paper-faint. Those two are
-     declared at :root as `var(--muted)`, which resolves THERE, to the city's
-     #666666. On a crimson panel that is about 1.5:1: body copy that vanishes
-     on the one surface the shadow exists to protect. Beauty hit exactly this
-     and declares its own pair; so does this hub now. Measured against the
-     panel at its lightest — frost over the crimson stop, #521c20. */
-  --on-paper-muted: #c6a2a5;   /* 5.9:1 at the panel's lightest */
-  --on-paper-faint: #b08d91;   /* 4.6:1 — the floor, and it clears */
-
-  /* Status keeps meaning what it means. Lifted until each clears the panel,
-     which on a dark ground means lightening rather than deepening — the same
-     correction every dark room in this file has had to make. */
-  --warn-ink:    #ebc57c;   /* 9.3:1 on the wash */
-  --danger-ink:  #f4a3a3;   /* 7.7:1 on the wash */
-
-  /* ── AND THE ACCENT IS THE SECOND RED ────────────────────────────────────
-     The monochrome pass made the accent a POSITION rather than a colour —
-     near-black, the one solid object on a hueless screen. That worked because
-     there was no hue to compete with. There is now, and it is the room, so
-     the accent goes back to being a colour and takes the reference's lighter
-     red: #6B1E23 as the fill, a lifted version of it as type, because the
-     fill itself is 1.9:1 on the panel and unreadable as text. */
-  --accent:      #6b1e23;   /* fill — --on-accent sits on it at 10.6:1 */
-  --on-accent:   #fdf4f4;
-  --accent-ink:  #e9a7ac;   /* the same hue as type — 8.2:1 on a panel */
-
-  /* ── AND THE LAMP COMES INTO THE ROOM ────────────────────────────────────
-     Owner, 18 Aug, looking at the rail on the dusk: the lit key was the city's
-     orange, and on a peach-to-slate sky it was the one object that had not
-     been told where it was standing. Twenty-three of the twenty-five rooms
-     already carry a lamp of their own; dating and astrology were the last two
-     on the citywide one, and this is dating's.
-
-     ITS MIDDLE STOP IS --accent-ink EXACTLY, which is the part worth keeping.
-     The lit key and the hub's coloured type are now the same colour rather
-     than two warm browns that nearly agree — the failure this file keeps
-     catching in other forms. The top and bottom stops are that value opened
-     and closed, the shape every other hub's lamp is built on.
-
-     AND ITS INK MOVES WITH IT, WHICH THE SPEC REQUIRES AND THIS HUB ACTUALLY
-     NEEDS. --on-lamp reads --on-accent at :root, and dating re-points
-     --on-accent to near-black for its PALE peach fills — pointing the lamp at
-     that would have put #231a15 on a mid terracotta. The label is white here,
-     declared rather than inherited.
-
-     AND THEN THE SKY ARRIVED AND THE LAMP CHANGED SIDES. Owner, 18 Aug, with a
-     screenshot of this rail: the lit key is to take its colour from the
-     BACKGROUND, not from the hub's type. That reverses the sentence this
-     paragraph used to end on — "the middle stop is --accent-ink, so the lit
-     key and the hub's coloured type stay one colour" — and the reversal is
-     right for a reason that did not exist when it was written. The peach was
-     chosen while the page behind the rail was white, where a warm key is the
-     only warm object and reads as the room's signature. On the dusk it is a
-     terracotta pill on a slate gradient: the one saturated thing on the
-     screen, in the one hue the picture does not contain. That is not a
-     signature, it is a sticker.
-
-     SO THE KEY IS THE SKY'S OWN DEEP END, DARKENED UNTIL ITS LABEL CLEARS.
-     #9aa7b3 is the last stop of --sky-image directly above; this is that hue
-     (208.8°) held and its value taken down, with the saturation opened from
-     .14 to .26 so the key is still a COLOUR and not a grey pill — a lamp that
-     cannot be told from the chrome around it has stopped doing its one job.
-     The white label reads 4.82 at the highlight, 6.27 at the middle and 8.52
-     at the foot, against the 4.72 the peach managed at the same measurement.
-     It is a better lamp by the lamp's own numbers as well as by the eye.
-
-     --accent-ink IS NOT FOLLOWING IT. The peach stays where it always was, on
-     the hub's coloured type inside a panel, which is the surface it was
-     measured against. What has ended is the coincidence that the key and the
-     type were the same object. */
-  --lamp-face: linear-gradient(180deg, #8b2831 0%, #6b1e23 44%, #4d151a 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
-          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
-          0 1px 1px rgba(83,98,112,.30), 0 8px 20px rgba(83,98,112,.34), 0 20px 46px rgba(83,98,112,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
+     AND THE SHADOW IS WARM NOW. The crimson lamp threw a slate shadow
+     (rgba(83,98,112,…)), which was invisible on a dark wall and would be a
+     cool grey smudge on paper. It is the room's own dark at low alpha. */
+  --lamp-face: linear-gradient(180deg, #5c333e 0%, #3a2027 44%, #281419 100%);
+  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.34), inset 0 0 0 4px rgba(255,255,255,.10),
+          inset 0 8px 12px -8px rgba(0,0,0,.34), inset 0 -10px 14px -7px rgba(255,255,255,.20),
+          0 1px 1px rgba(58,32,39,.20), 0 8px 20px rgba(58,32,39,.22), 0 20px 46px rgba(58,32,39,.14);
+  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.26), inset 0 -3px 6px rgba(0,0,0,.26);
   --on-lamp: #ffffff;
-  --accent-soft: #4a181c;
-  --accent-line: #7a2a2f;
 
-  /* ── THE RAIL KEYS ARE VELVET, NOT MILK ──────────────────────────────────
-     `--lens-face` is the city's key: a white gradient, .94 down to .40 and
-     back. On white paper it is a pressed lozenge. On this room it was a pale
-     pink pill with near-white type in it — the sub-label under each key
-     ("Birth details & interests") washed out entirely, which read as the text
-     being CLIPPED rather than as contrast being spent. Nothing was clipped:
-     the key is 57px tall with overflow visible. It was the face.
-
-     Same gradient shape, the room's own red: light at the lip, deeper through
-     the middle, light again at the foot, so the key still reads as a lozenge
-     catching light rather than as a flat tile. Over the rail well it runs
-     #2c0e11 to #4c151a, where --ink-soft is 11.1:1 and --faint — the sub-label
-     — is 4.9:1 at the worst point. The active key is untouched: it has always
-     been --lamp-face and the lamp is already this hub's red. */
+  /* ── THE RAIL KEYS ARE PAPER AGAIN ───────────────────────────────────────
+     The crimson override existed for one reason, written above it: the city's
+     key is a white gradient and on a crimson room it was a pale pink pill
+     with near-white type in it. There is no near-white type here. The key is
+     the same lozenge shape in the room's own paper — light at the lip, a step
+     down through the middle, light again at the foot — over the greige well.
+     --ink-soft reads 8.17:1 on the well and the sub-label, --faint, sits on
+     the FACE rather than the well, where it clears 5.10. */
   --lens-face: linear-gradient(180deg,
-    rgba(107,30,35,.55) 0%, rgba(74,24,28,.34) 34%, rgba(60,20,24,.30) 56%,
-    rgba(90,28,33,.46) 82%, rgba(107,30,35,.55) 100%);
+    rgba(255,255,255,.86) 0%, rgba(255,255,255,.52) 34%, rgba(255,255,255,.44) 56%,
+    rgba(255,255,255,.66) 82%, rgba(255,255,255,.86) 100%);
 
   /* ── AND NO PANEL IN THIS ROOM IS ANOTHER COLOUR ─────────────────────────
-     The four status washes are near-white at the root — #f1f8f2, #fbf6ea,
-     #fdf1f0, #eff5fb — so "Live — matching active" came out as a white-green
-     card in the middle of a crimson page, which is the one thing the owner
-     asked this hub not to do. All four take the room's own wash. They are
-     still four names and still four meanings; what carries the meaning is the
-     INK on them, not the panel behind them.
+     Unchanged in intent from the crimson block: the four status washes are
+     near-white at the root — #f1f8f2, #fbf6ea, #fdf1f0, #eff5fb — and a
+     green-white card on a greige page is the same wrong thing a green-white
+     card on a crimson page was, just quieter about it. All four take the
+     room's own wash; the ink carries the meaning.
 
-     --ok-ink AND --info-ink GO WITH THEM, for the same instruction: a green
-     "Live" and a blue "nearby" are exactly the other colours. They become the
-     room's own inks, and a status that is simply PRESENT is stated in the
-     room's voice.
-
-     --warn-ink AND --danger-ink KEEP A HUE, and this is the one place I did
-     not follow the instruction to the letter. A warning that looks like body
-     copy is not a style choice, it is a safety regression — "Reported" and
-     "Photo pending" have to be findable by somebody scanning. They are the
-     only two hues left in the room and both sit at 7.7:1+ on the wash. If
-     they should go too, they go in one line each. */
-  --ok-soft:     #3a1a1c;
-  --warn-soft:   #3a1a1c;
-  --danger-soft: #40191d;
-  --info-soft:   #3a1a1c;
-  --ok-ink:      #eedcdd;   /* 11.8:1 on the wash — the room's own voice */
-  --info-ink:    #c6a2a5;   /*  6.8:1 */
+     --ok-ink and --info-ink are the room's voice for the same reason as
+     before. --warn-ink and --danger-ink keep a hue, and that is still the one
+     place this does not follow the instruction to the letter: a warning that
+     looks like body copy is a safety regression, not a style choice. */
+  --ok-soft:     #e1dbd2;
+  --warn-soft:   #e1dbd2;
+  --danger-soft: #e3d9d5;
+  --info-soft:   #e1dbd2;
+  --ok-ink:      #532e38;   /*  9.03:1 on the wash — the room's own voice */
+  --info-ink:    #6e424e;   /*  5.98:1 */
 
   /* ── AND EVERY SMALL CONTROL IS MADE OF THE ROOM ─────────────────────────
-     THIS IS THE ONE THAT WAS ACTUALLY BROKEN, and it is worth naming the shape
-     of the mistake: I re-pointed the GROUNDS and the INKS and stopped, and the
-     city's relief is made of a third thing — FACES. `--face` and its four
-     siblings are literal white gradients (#ffffff → #eeeeee), and a tag, a
-     chip, a door, a hub pill and the mobile tab strip are all built from them.
-     Re-pointing --ink to near-white without re-pointing these produced exactly
-     what the owner photographed: near-white type on a white lozenge, on a
-     crimson page. Invisible, everywhere, on the smallest and most numerous
-     controls in the hub.
+     The crimson block learned this the hard way and the note is worth keeping:
+     the city's relief is made of three things — grounds, inks and FACES — and
+     re-pointing two of them ships near-invisible type on the smallest and most
+     numerous controls in the hub. A tag, a chip, a door, a hub pill and the
+     mobile tab strip are all built from this family.
 
-     Same shape as the root's — lighter at the top edge, darker at the foot, so
-     a control still reads as lit from above — in the room's velvet. --well
+     Same shape as the root's — lighter at the top edge, darker at the foot —
+     in the room's paper rather than the city's white, so a control is warm
+     greige catching light instead of a white sticker on a warm page. --well
      inverts it, because a pressed control is a dent and a dent is darker where
      the light would have been.
 
-     THE LIGHTEST STOP IS #4e2024 AND THAT IS A MEASUREMENT. At #552327 --faint
-     lands at 4.27:1 and goes under AA; #4e2024 puts it at 4.54. The whole
-     family is capped there rather than each gradient being tuned separately —
-     five tokens with five different ceilings is five numbers to re-derive the
-     next time anything moves. */
-  --face:      linear-gradient(180deg, #4e2024 0%, #481c21 44%, #3a1418 100%);
-  --face-2:    linear-gradient(180deg, #4e2024 0%, #451a1f 48%, #371316 100%);
-  --face-tall: linear-gradient(180deg, #4e2024 0%, #4e2024 calc(100% - min(96px, 40%)), #3a1418 100%);
-  --face-key:  linear-gradient(180deg, #4e2024 0%, #461b20 52%, #38131a 100%);
-  --well:      linear-gradient(180deg, #2f1013 0%, #37151a 58%, #40191d 100%);
+     THE DARKEST STOP IS #ece7e0 AND THAT IS A MEASUREMENT. At #e5dfd6 --faint
+     lands at 4.45:1 and goes under AA; #ece7e0 puts it at 4.79. The whole
+     family is floored there rather than each gradient tuned separately — five
+     gradients with five different floors is five numbers to re-derive the next
+     time anything moves. */
+  --face:      linear-gradient(180deg, #f7f4f0 0%, #f2eee8 44%, #ece7e0 100%);
+  --face-2:    linear-gradient(180deg, #f7f4f0 0%, #f0ebe4 48%, #ece7e0 100%);
+  --face-tall: linear-gradient(180deg, #f7f4f0 0%, #f7f4f0 calc(100% - min(96px, 40%)), #ece7e0 100%);
+  --face-key:  linear-gradient(180deg, #f7f4f0 0%, #f1ece5 52%, #ece7e0 100%);
+  --well:      linear-gradient(180deg, #e4ded5 0%, #eae5dd 58%, #f0ece6 100%);
 
-  /* AND THE LAMP KEEPS ITS ORANGE. See the note in the astrology block: the
-     lit key is the city's wayfinding and it is the same key in all
-     twenty-five rooms. It is therefore the ONE hue in this otherwise
-     hueless room, and it is there on purpose rather than by omission —
-     which is a different sentence from the one I wrote first, and the
-     right one. */
+  /* ── AND THE LOUD BUTTON IS THE ROOM'S DARK, NOT THE CITY'S BLACK ───────
+     `--loud-face` is a black gradient at :root and the comment above it calls
+     it "the one black thing on a white page". On the city's white that is
+     right — black is simply the farthest thing from the ground. On this page
+     it is a THIRD COLOUR: the reference has two, the room is built from two,
+     and a black pill next to aubergine type is visibly neither of them.
 
-  /* ── THE THIRD STOP ──────────────────────────────────────────────────────
-     Same measured curve as the other two, taken all the way down. Greyscale
-     is not a filter bolted on top: it is saturation 0, at the end of the
-     grade the hub already applies, so the pictures keep the curve's rolled
-     white and lifted-but-not-milky blacks and simply lose their colour. */
+     Loud is a distance from the ground rather than a colour — the sentence
+     the Financial hub's green already makes two hundred lines below — so on
+     this ground it is the aubergine, at the same three stops and the same
+     relief. Paper on it at 13.28:1, which is what --on-accent already is. */
+  --loud-face:        linear-gradient(180deg, #55303a 0%, #3a2027 55%, #281419 100%);
+  --loud-face-hover:  linear-gradient(180deg, #613744 0%, #45262f 55%, #2e181e 100%);
+  --loud-face-active: linear-gradient(180deg, #281419 0%, #331b21 60%, #45262f 100%);
+  --on-loud: #f5f2ed;
+
+  /* ── THE PICTURES STAY GREY ──────────────────────────────────────────────
+     Kept from the crimson pass, and the argument survives the reversal
+     because it was never about crimson: a wall of colour faces against a room
+     built from two colours is a third palette arriving through the
+     photographs. The reference has two colours in it. So do the portraits.
+
+     Greyscale here is not a filter bolted on top — it is saturation 0 at the
+     end of the grade the hub already applies, so the pictures keep the curve's
+     rolled white and lifted blacks and simply lose their hue. */
   --film: url(#tc-film-mono);
 }
 

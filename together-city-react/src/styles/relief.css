@@ -2526,13 +2526,23 @@ textarea.g-field { resize: none; line-height: 1.55; }
    component somebody writes for a dating page looks correct in review, since
    whoever writes it has a panel on screen while they work.
 
-   THE NUMBERS, measured on this gradient rather than assumed. At the muted
-   ink step contrast runs 4.58 at the top of the sky, then falls through 3.8
-   and 2.9 to 2.3 at the foot: the SAME grey passing AA where the page begins
-   and failing it badly where the page ends, which is the worst kind of failure
-   because it looks fine to whoever writes it and only breaks for whoever
-   scrolls. Over a panel — white at .72 across that same sweep — the worst case
-   is 4.53, and it clears.
+   THE NUMBERS, measured on this gradient rather than assumed — AND RE-MEASURED
+   ON 23 AUG, when the room went from crimson to paper. The shape of the
+   failure changed and the rule did not, which is why the rule is still here.
+
+   On the crimson sky it was --muted that broke: 4.58 at the top and 2.3 at the
+   foot, the same grey passing AA where the page begins and failing badly where
+   it ends. On paper --muted clears everywhere (7.17 down to 6.19) and --faint
+   is the one that goes under: 5.11 at the top, 4.66 through the middle, 4.41
+   at the foot. Half the scale, the same worst kind of failure — it looks fine
+   to whoever writes it, because they have a panel on screen, and only breaks
+   for whoever scrolls. Over a panel — the frost at .72 across that same sweep
+   — --faint's worst case is 5.01, and it clears.
+
+   BOTH ARE STILL SHADOWED even though only one of them fails today. Shadowing
+   the pair is one rule; shadowing whichever half currently fails is a rule
+   that has to be re-derived every time the palette moves, and it would have
+   needed re-deriving this morning.
 
    SO: --muted and --faint are used ONLY inside a panel. Anything drawn bare on
    the sky takes --ink or --ink-soft, both of which clear AA at every stop. The
