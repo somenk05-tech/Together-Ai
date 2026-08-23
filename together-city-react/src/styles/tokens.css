@@ -42,8 +42,26 @@
      should be the same white; that was right when the ground was #ffffff and
      the only difference available was tint. It is not the same argument once
      the ground moves. */
-  --ground: #fafafa;
-  --paper: #fafafa;
+  /* ── ONE WHITE, 23 AUG ────────────────────────────────────────────────
+     Owner: "Make the entire background white for the entire website no grey
+     ... and no boarders and lines and the products pages should blend with
+     the background white for a seamless feel."
+
+     THE TWO-TONE PAGE ABOVE LASTED ONE DAY, and the paragraph arguing for it
+     is left standing because it was right about its own reference and wrong
+     about this one. It said a card is a white sheet ON something. There is no
+     card now: `.card` has had no fill, no border and no shadow since the
+     morning, so --card was a colour nothing painted with except the modal and
+     the reversed pill — and --paper was #fafafa purely so that the thing it
+     was measured against still read. Take the sheet away and the two tones
+     are separating nothing; they are just a page that is not quite white.
+
+     Three names, one value, and they stay three names: --card is what a
+     REVERSED object writes its letters in (`color: var(--card)` on solid ink),
+     and collapsing it into --paper would leave 200 call sites saying "paper"
+     when they mean "the opposite of the ink". */
+  --ground: #ffffff;
+  --paper: #ffffff;
   --card: #ffffff;
 
   /* ── THE LETTER'S PAPER, WHICH IS NOT --paper ────────────────────────────
@@ -69,14 +87,30 @@
      body 10.5:1, and the label 5.6:1. The label started at #8a857c, which is
      3.0 — under the bar for 11px uppercase, which is the smallest and most
      easily missed text on the page. */
-  --letter-paper:    #ebe8e3;
-  --letter-ink:      #14130f;
-  --letter-ink-soft: #35322c;
-  --letter-faint:    #5f5a52;
+  /* AND THE LETTER IS PRINTED ON THE SAME WHITE (23 Aug). #ebe8e3 was the
+     average of the owner's own paper scan, which is the right way to pick a
+     tint and the wrong thing to have on the page the day the page stops
+     having tints: the two largest reading surfaces in the city — every
+     astrology letter and the beauty profile — were the only cream rectangles
+     left, and they read as the grey the owner asked to be rid of rather than
+     as paper. The four names survive for the reason they were written: paper
+     is paper wherever it is read, and re-pointed by nothing.
+
+     THE INK IS UNCHANGED AND STILL MEASURED. Every ratio below was taken
+     against #ebe8e3; on white each one gets EASIER, so the floor moves the
+     safe way and no value has to be re-derived to keep it. */
+  --letter-paper:    #ffffff;
+  --letter-ink:      #14130f;   /* 17.5:1 on white (was 15.2 on the cream) */
+  --letter-ink-soft: #35322c;   /* 12.1:1 (was 10.5) */
+  --letter-faint:    #5f5a52;   /*  6.4:1 (was 5.6) */
   /* The only line on the letter: the rule above the archive. The letter's own
      ink at 14% rather than a picked grey, so it sits on whatever the paper
      becomes instead of drifting off it. */
-  --letter-rule:     rgba(20, 19, 15, .14);
+  /* AND THE ONE LINE ON THE LETTER IS NOT DRAWN. "no boarders and lines":
+     the rule above the archive is a separator, and a separator is exactly what
+     was asked to go. The name stays so the two rules that read it keep a
+     token rather than growing a literal. */
+  --letter-rule:     transparent;
 
   /* ── THE INK SCALE, AND THE TWO STEPS THAT NEVER READ ────────────────────
      --faint was #9b9b9b: 2.78:1 on the ground directly above it. It is
@@ -111,8 +145,23 @@
   --ink-soft: #3b3b3b;/* 10.73 · 11.20 */
   --muted: #595959;   /*  6.71 on the ground ·  6.26 on the wash */
   --faint: #6b6b6b;   /*  5.11 on the ground ·  4.76 on the wash — the floor */
-  --line: #e4e4e4;
-  --line-2: #dcdcdc;
+  /* ── THE TWO LINES, DRAWN IN NOTHING ──────────────────────────────────
+     Owner, 23 Aug: "no boarders and lines".
+
+     SIXTY-ONE DECLARATIONS AND NOT ONE OF THEM IS EDITED. Every visible edge
+     in this application resolves through these two names — 53 `border`, 32
+     `border-top`, 20 `border-bottom`, and the six depths and materials below
+     that are built out of them. Re-pointing the token removes all of it in one
+     value, leaves every selector where it is, and makes the NEXT
+     `1px solid var(--line)` somebody writes born invisible. Chasing 61 sites
+     with a delete key would have done the same thing once and nothing after.
+
+     TRANSPARENT RATHER THAN WHITE, and the difference is one place: a border
+     drawn over a photograph. White would paint a white line there; transparent
+     draws nothing, which is what the word means. Both keep the 1px of layout,
+     so nothing reflows and no ceiling moves. */
+  --line: transparent;
+  --line-2: transparent;
 
   /* A BLOCK THAT IS NOT THE SAME AS THE ONE BELOW IT.
      Unread mail is carried by weight — the sender and the subject go bold —
@@ -127,7 +176,31 @@
      uses. It is a shade lighter than the reference's full-bleed band (#ededed)
      on purpose: this token is fields, tracks and pressed states, and at
      #ededed the ink floor goes under AA on the surface it is read on most. */
-  --wash: #f2f2f2;
+  --wash: #ffffff;
+  /* ── AND THE HOVER KEEPS THE SHADE THE PAGE GAVE UP ────────────────────
+     --wash WAS the pointer's acknowledgement: `.card.lift:hover, .row:hover,
+     .pcard:hover` darkened the ground by a step, and it was the ONLY feedback
+     left once the lift was removed. White-on-white would have deleted it
+     silently — a row that does nothing under the cursor reads as a row you
+     cannot click.
+
+     It is not the background coming back. This is never on the page at rest;
+     it exists under the cursor and nowhere else, it is ink rather than a grey,
+     and there is exactly one of it. */
+  --hover: rgba(42, 42, 42, .045);
+  /* ── A MARK IS NOT A LINE ──────────────────────────────────────────────
+     The four objects whose entire visible self is a small shape: a sheet's
+     drag handle, a progress track, the connector between two numbered steps,
+     and the underline a field is typed on. They were borrowing --line, so
+     "no lines" would have taken them with it — and none of them SEPARATES
+     anything. A handle nobody can see is a sheet nobody drags; a track with no
+     track is a bar that grows out of nowhere; a field with no mark is not
+     seamless, it is a place to type that cannot be found, and WCAG 1.4.11
+     asks for the boundary of a control for exactly that reason.
+
+     Ink at 18%, not a grey, so it belongs to the type rather than to a
+     palette that no longer exists. */
+  --mark: rgba(42, 42, 42, .18);
   /* The gradient that lets white type sit on somebody's photograph. Two stops
      rather than a flat wash: a flat one greys the whole picture out to protect
      four words at the bottom of it, and the picture is the point. */
@@ -170,7 +243,12 @@
      more travel and a shadow that is tighter and darker — the same amount of
      relief, compressed into the space they actually have. */
   --face-key: linear-gradient(180deg, #ffffff 0%, #ffffff 100%);
-  --well:      linear-gradient(180deg, #f2f2f2 0%, #f2f2f2 100%);
+  /* AND THE WELL IS WHITE. It is the fill of a field, a tab trough and a table
+     head — the three places a shade was still being used to say "this bit is
+     recessed". Nothing is recessed. The fields keep their mark; the trough and
+     the head keep their padding, which is what was actually holding them
+     apart. */
+  --well:      linear-gradient(180deg, #ffffff 0%, #ffffff 100%);
 
   /* ── FLAT, 23 AUG — AND THE FIVE DEPTHS SURVIVE IT ──────────────────────
      Owner: "make everything flat instead of the raised feeling."
@@ -190,6 +268,17 @@
      WHY NOT `none`. A white card on #fafafa with no shadow and no border is
      not flat, it is invisible — the card stops existing rather than stops
      being raised. Every depth resolves to a line, so nothing loses its edge. */
+  /* AND --line IS TRANSPARENT NOW, SO THE PARAGRAPH ABOVE ANSWERS ITSELF.
+     "WHY NOT `none`" was argued against a #fafafa page: a white card on a
+     near-white ground with no shadow and no border stops existing. The ground
+     is #ffffff and there is no card — `.card` has carried no fill since the
+     morning — so the two things that rim was separating are one surface, and
+     a hairline between a white page and the same white page is a line drawn
+     for its own sake. Which is the thing that was asked to go.
+
+     THE NAMES ARE NOT DELETED and the arithmetic below is not rewritten. Both
+     still resolve through --line, so the whole depth system is one token away
+     from being edges again if the owner wants them back. */
   --rim:        inset 0 0 0 1px var(--line);
   --rim-strong: inset 0 0 0 1px var(--line-2);
 
@@ -219,6 +308,19 @@
      or removed: relief.spec's rule is that a scope may change what a depth is
      MADE OF, never how many there are. This is the end of that road — a depth
      made of nothing — and it is still the same five names. */
+  /* AND e2 AND e3 STOP BEING VISIBLE TOO — not by being renamed, but because
+     --line went transparent above them. The paragraph's argument for keeping
+     the hairline was the overlay: a dialog with no edge on the same colour as
+     what it covers is broken rather than flat. It still is, and it is not this
+     token that answers it any more — `.modal-ov` frosts and BLURS the page
+     behind the dialog, which says "this is in front of something" harder than
+     a 1px grey ever did and does it without drawing a line. That is what
+     carries the modal now; see relief.css.
+
+     FIVE NAMES, ONE VALUE, NOTHING REMOVED. This is the end of the road the
+     flat commit started down, and the rule it was allowed under has not
+     changed: a scope may change what a depth is MADE OF, never how many there
+     are. */
   --e1: none;
   --e2: var(--rim);
   --e3: var(--rim-strong);
@@ -229,11 +331,27 @@
      pill. Same step, less room: the blur tightens and the alpha rises so the
      amount of relief a citizen SEES stays constant. Anything under about 36px
      tall uses these. */
-  --e1-key: var(--rim),        0 1px 1px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.09), 0 5px 10px rgba(0,0,0,.06);
-  --e2-key: var(--rim-strong), 0 2px 3px rgba(0,0,0,.10), 0 5px 10px rgba(0,0,0,.12), 0 10px 20px rgba(0,0,0,.08);
+  /* AND THESE TWO WERE STILL RAISED — the same miss as the rail, found the
+     same way. --e1..--e3 flattened; --e1-key and --e2-key are a SEPARATE pair
+     of names, they kept three drop shadows each, and seven selectors read
+     them: the avatar stack, the calendar controls, the small keys. In a city
+     where nothing is raised they were the only objects standing off the page,
+     and no guard could see it — relief.spec counts the five depth names and
+     these are not among them.
 
-  /* Carved — the trough a field, a slider or a segmented control sits in. */
-  --carve-deep: inset 0 0 0 1px rgba(0,0,0,.09),  inset 0 4px 10px rgba(0,0,0,.18), inset 0 -1px 0 rgba(255,255,255,.95);
+     They compress a depth into 30px. There is no depth to compress. */
+  --e1-key: var(--rim);
+  --e2-key: var(--rim-strong);
+
+  /* Carved — the trough a field, a slider or a segmented control sits in.
+     A TROUGH WITH NO WALLS IS A FLOOR, so this one is the exception argued at
+     --mark above: not a box round the field and not a fill in it, a single
+     mark UNDER the line you type on. Focus takes the same mark to full ink and
+     doubles it, so the difference between "a field" and "the field I am in" is
+     carried by the same object getting firmer rather than by a second one
+     appearing. The 3px ring stays; it is the focus indicator and it is not
+     mine to remove. */
+  --carve-deep: inset 0 -2px 0 var(--ink);
 
   /* THE CASE RIM — the edge drawn OVER a photograph.
      Not a depth: it is the inside edge of a well that happens to have an opaque
@@ -253,8 +371,10 @@
      nothing stands on them, and they have no lit face. They are named here so
      that "there are five depths" stays literally true and the guard does not
      need a list of exceptions. */
-  --edge-up: 0 1px 0 #fff;
-  --edge-in: inset 0 -1px 0 rgba(0,0,0,.06);
+  /* The lit underside of a rule and the shade under a table head — both of
+     them an edge on an object that no longer has one. */
+  --edge-up: none;
+  --edge-in: none;
   --pip: 0 0 0 3px var(--accent-soft), inset 0 1px 1px rgba(0,0,0,.3);
   --pip-ok: 0 0 0 2px #fff, 0 1px 2px rgba(0,0,0,.3);
 
@@ -307,11 +427,15 @@
      Each becomes the hairline its elevation counterpart became. --carve is the
      exception and keeps a direction: a field is pressed INTO the page, and a
      pressed thing with the same edge as a raised thing is not pressed. */
+  /* AND ALL FIVE FOLLOW --line TO NOTHING, except the one that is a control.
+     Four of them were a hairline round a surface, and a surface has no edge
+     any more. --carve is a FIELD, and it keeps a mark for the reason set out
+     at --mark: a place to type that cannot be seen is not seamless. */
   --lens:     inset 0 0 0 1px var(--line);
   --lens-key: inset 0 0 0 1px var(--line);
   --glass:    inset 0 0 0 1px var(--line);
   --prism:    inset 0 0 0 1px var(--line);
-  --carve:    inset 0 0 0 1px var(--line-2);
+  --carve:    inset 0 -1px 0 var(--mark);
 
   --lens-face: linear-gradient(180deg, #ffffff 0%, #ffffff 100%);
 
@@ -466,8 +590,8 @@
      whole position on accents: there is not one. */
   --accent: #2a2a2a;
   --accent-ink: #2a2a2a;
-  --accent-soft: #f2f2f2;
-  --accent-line: #e0e0e0;
+  --accent-soft: #ffffff;
+  --accent-line: transparent;
 
   /* --on-accent is the foreground for anything sitting ON a filled accent or
      a status ink. 177 call sites hard-coded #fff for this and had no name for

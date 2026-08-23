@@ -296,7 +296,7 @@ const SHEET_CSS = `
     animation:uss-sheet-up .3s var(--ease-out) both}
   .uss-overlay.uss-closing .uss-sheet{animation:uss-sheet-down .24s var(--ease-out) both}
   .uss-head{padding-top:22px}
-  .uss-head::before{content:"";position:absolute;top:8px;left:50%;transform:translateX(-50%);width:38px;height:4px;border-radius:999px;background:var(--line)}
+  .uss-head::before{content:"";position:absolute;top:8px;left:50%;transform:translateX(-50%);width:38px;height:4px;border-radius:999px;background:var(--mark)}
 }
 @keyframes uss-sheet-up{from{transform:translateY(100%)}to{transform:translateY(0)}}
 @keyframes uss-sheet-down{from{transform:translateY(0)}to{transform:translateY(100%)}}

@@ -949,7 +949,8 @@ html.tc-immersive .csdock { margin-bottom: calc(var(--safe-bottom) + 12px); }
   border-radius: var(--r-4) var(--r-4) 0 0; background: var(--card); box-shadow: var(--e3);
   text-align: left;
 }
-.instl-grab { display: block; width: 40px; height: 4px; margin: 0 auto 16px; border-radius: var(--r-full); background: var(--line); }
+/* A drag handle IS the affordance — see --mark in tokens.css. */
+.instl-grab { display: block; width: 40px; height: 4px; margin: 0 auto 16px; border-radius: var(--r-full); background: var(--mark); }
 .instl-card h3 { margin: 0 0 16px; font-size: var(--fs-7); letter-spacing: -.01em; }
 .instl-card ol { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 14px; }
 .instl-card li { display: flex; align-items: center; gap: 14px; font-size: var(--fs-5); line-height: 1.4; color: var(--ink); }

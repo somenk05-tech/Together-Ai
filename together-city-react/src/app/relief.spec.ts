@@ -212,33 +212,80 @@ describe('Relief stays a system', () => {
    * that cannot fail is worse than no guard, because it is read as proof.
    */
   /**
-   * IT SAID "WHITE" AND IT MEANS SOMETHING NARROWER NOW (23 Aug). The owner's
-   * reference is near-white paper with a white card on it — two greys, which
-   * is the whole of what that kind of magazine does with a page. So --paper is
-   * #fafafa and --card is still #ffffff, and asserting "#ffffff three times"
-   * would now be asserting the thing that changed rather than the thing that
-   * matters.
+   * IT SAID "WHITE", THEN IT SAID "NEAR-WHITE WITH A LIGHTER CARD", AND IT
+   * SAYS "WHITE" AGAIN (23 Aug). Three versions of one assertion in two days
+   * is worth leaving on the record rather than tidying, because the shape of
+   * the argument is the same each time and only one fact under it moved.
    *
-   * WHAT MATTERS IS THE RELATIONSHIP, and it is stricter than the old check:
-   * the page is not pure white, the card is, and the card is LIGHTER than the
-   * page — which is what makes a card read as a sheet resting on something
-   * rather than a hole cut in it. Get any of those backwards and the relief
-   * system is lighting an object from the wrong side.
+   * The two-tone version was right about its own reference: a magazine page
+   * separates a sheet from the paper with two greys, so --paper went #fafafa,
+   * --card stayed #ffffff, and this test asserted that the card is LIGHTER
+   * than the page — a sheet resting on something rather than a hole cut in it.
+   *
+   * THE SHEET IS GONE. `.card` has had no fill, no border and no shadow since
+   * "remove all plates and cards", so there is no object being separated, and
+   * two tones that separate nothing are just a page that is not quite white.
+   * The owner, 23 Aug: "Make the entire background white for the entire
+   * website no grey."
+   *
+   * WHAT IS ASSERTED IS STILL A RELATIONSHIP, not three literals, and it is
+   * the strictest of the three: the page and the card are ONE value, and that
+   * value is pure white. The moment either drifts, some room has invented a
+   * second ground and the seam is back.
+   *
+   * --card KEEPS ITS NAME rather than collapsing into --paper, and the guard
+   * would pass either way, so the reason is worth writing down: `color:
+   * var(--card)` is how ~200 reversed objects — the ink pills in the header,
+   * a filled badge, ::selection — say "the opposite of the ink". Renaming
+   * those to --paper would leave every one of them claiming to be the page.
    */
-  it('keeps one near-white page and a lighter card at the root', () => {
+  it('keeps one white page, and one value for it, at the root', () => {
     const root = strip(tokens).split(/\[data-hub=/)[0];
     const val = (t: string) => root.match(new RegExp(`${t}:\\s*(#[0-9a-f]{6})`, 'i'))?.[1]?.toLowerCase();
-    const lin = (c: number) => (c / 255 <= 0.03928 ? c / 255 / 12.92 : (((c / 255) + 0.055) / 1.055) ** 2.4);
-    const lum = (h: string) => {
-      const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
-      return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-    };
     const ground = val('--ground')!, paper = val('--paper')!, card = val('--card')!;
-    expect({ ground, paper }).toEqual({ ground: paper, paper });   // one page, one value
-    expect(paper).not.toBe('#ffffff');                             // near-white, not white
-    expect(card).toBe('#ffffff');
-    expect(lum(card)).toBeGreaterThan(lum(paper));                 // a sheet ON the page
+    expect({ ground, paper, card }).toEqual({ ground: '#ffffff', paper: '#ffffff', card: '#ffffff' });
+    // …and the two surfaces a shade was still being spent on join it: --wash
+    // was the recessed fill and --well the trough under a field and a tab row.
+    expect(val('--wash')).toBe('#ffffff');
+    expect(root).toMatch(/--well:\s*linear-gradient\(180deg,\s*#ffffff 0%,\s*#ffffff 100%\)/);
     expect(strip(tokens)).not.toContain('[data-theme="dark"]');
+  });
+
+  /**
+   * AND NOTHING DRAWS AN EDGE ON IT.
+   *
+   * Owner, same sentence: "no boarders and lines". Sixty-one border
+   * declarations resolve through --line and --line-2, and so do every depth
+   * (--rim, --rim-strong, --e1..--e3, --e1-key, --e2-key) and four of the five
+   * materials. One value each removes all of it — which is the point of the
+   * token and the reason not one of those 61 selectors was edited.
+   *
+   * THIS IS THE GUARD THAT MATTERS AFTERWARDS. Re-pointing a token is
+   * reversible in one line; what is NOT reversible is somebody writing
+   * `border: 1px solid #e4e4e4` next month because the token "doesn't work
+   * any more". The colour-literal ceiling catches the literal; this catches
+   * the other half — the two names still being the only way an edge is spelt.
+   */
+  it('draws every edge in nothing at all', () => {
+    const root = strip(tokens).split(/\[data-hub=/)[0];
+    expect(root).toMatch(/--line:\s*transparent;/);
+    expect(root).toMatch(/--line-2:\s*transparent;/);
+    // The depths and materials are not re-pointed away from them — a hairline
+    // spelt any other way is a hairline that survives the next change of mind.
+    for (const t of ['--rim', '--lens', '--lens-key', '--glass', '--prism', '--lamp', '--lamp-badge']) {
+      expect(root, `${t} stopped reading --line`).toMatch(new RegExp(`${t}:[^;]*var\\(--line`));
+    }
+    // …and the five depths read the two rims, which read the two lines. The
+    // KEY pair is on this list for a reason: --e1-key and --e2-key are not
+    // among the five names, so nothing above counts them, and they went on
+    // carrying three drop shadows each through every flattening commit.
+    for (const t of ['--e1', '--e2', '--e3', '--e1-key', '--e2-key']) {
+      expect(root, `${t} is not made of a rim`).toMatch(new RegExp(`${t}:\\s*(none|var\\(--rim)`));
+    }
+    // --carve is the exception, and it is a CONTROL rather than a surface: a
+    // field with no mark is not seamless, it is a place to type that cannot be
+    // found. It reads --mark, which is ink, and it is the only one that may.
+    expect(root).toMatch(/--carve:\s*inset 0 -1px 0 var\(--mark\)/);
   });
 
   /**

@@ -324,10 +324,19 @@ h1 { letter-spacing: .015em; }
   border-radius: 0;
   box-shadow: none;
 }
-/* AND THE MODAL IS NOT ON THIS LIST ANY MORE. An overlay over the page must be
-   distinguishable from the page or it is not an overlay — a dialog with no
-   edge, no fill and no elevation on the same colour as what it covers is
-   broken rather than flat. It keeps --card and a hairline. */
+/* AND THE MODAL IS STILL NOT ON THIS LIST. The sentence above holds — an
+   overlay that cannot be told from the page is not an overlay — and on 23 Aug
+   the thing that carries it changed. It used to be the hairline; --line is
+   transparent now, so the hairline is gone whether the modal asks for it or
+   not.
+
+   WHAT SEPARATES IT IS THE BLUR, and that was already shipped: `.modal-ov`
+   below frosts the page to --frost and puts a 6px blur behind the dialog. A
+   sharp panel of type standing on six pixels of out-of-focus page is read as
+   being in front of it instantly, and by a mechanism a 1px grey rectangle
+   never had. The declarations stay so the dialog keeps an opaque fill of its
+   own — a transparent modal over a blurred page is a legibility failure, not
+   a flat one — and --e2 stays in the list so the depth is still NAMED. */
 .modal {
   background: var(--card);
   border: 0;
@@ -341,9 +350,12 @@ h1 { letter-spacing: .015em; }
    an acknowledgement, and with no depth to spend it is the one the reference
    would use: the ground darkens by a step under the thing you are pointing
    at. */
+/* AND IT READS --hover NOW, NOT --wash. Same step, same idea; --wash became
+   white with the rest of the page, and this is the one shade that survives it
+   because it is never on the page at rest. See tokens.css. */
 @media (hover: hover) and (pointer: fine) {
   .card.lift:hover, .row:hover, .pcard:hover, .stat.lift:hover {
-    background: var(--wash);
+    background: var(--hover);
   }
 }
 .console { overflow: hidden; }
@@ -352,6 +364,9 @@ h1 { letter-spacing: .015em; }
 .rule, .trust, .tabrow, .console .tabs, .console .below, table.tc td, table.tc th {
   border-color: var(--line);
 }
+/* A RULE IS A SEPARATOR AND SEPARATORS WENT. It keeps its height so the
+   spacing either side of it is unchanged — the air it was holding open is the
+   half of it that still works. */
 .rule { height: 1px; background: var(--line); box-shadow: var(--edge-up); }
 
 table.tc { font-size: var(--fs-4); }
@@ -636,7 +651,9 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
 }
 /* The console's fields sit in one long trough rather than several. */
 .console .fields { background: var(--well); box-shadow: var(--carve); }
-.console .f { border-right: 1px solid rgba(0,0,0,.06); }
+/* The one line in the fields row that was NOT reading --line, so "no lines"
+   would have left exactly one standing. */
+.console .f { border-right: 1px solid transparent; }
 .console .f input, .console .f select { background: transparent; box-shadow: none; }
 
 /* ══ TABS AND SEGMENTS — ONE TROUGH, ONE RAISED KEY IN IT ════════════════ */
@@ -653,13 +670,29 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
   transition: box-shadow var(--dur-base) var(--ease), color var(--dur-fast) var(--ease), background var(--dur-base) var(--ease);
 }
 .tabrow a:hover, .console .tabs a:hover { color: var(--ink); background: transparent; }
+/* THE SELECTED TAB IS LIT, NOT RAISED (23 Aug). It was a white key standing
+   on --e1-key in a white trough; with the page one colour and the depths at
+   nothing, all three of those became white-on-white and "which tab am I on"
+   was left to a font weight. The rail has answered this question on every
+   route since the sun landed — the one you are in is the one that is lit — and
+   there is no reason for a tab strip to answer it differently. Same face, same
+   ink, one rule for the whole idea. */
 .tabrow a.on, .console .tabs a.on {
-  background: var(--face); color: var(--ink); font-weight: 700;
-  box-shadow: var(--e1-key);
+  background: var(--loud-face); color: var(--on-loud); font-weight: 700;
+  box-shadow: none;
 }
 
 /* ══ STEPPER, RING, CALENDAR ═════════════════════════════════════════════ */
-.step::before { background: var(--line); box-shadow: var(--edge-up); }
+/* THE CONNECTOR IS THE DIAGRAM, NOT CHROME — see --mark. Three numbers in a
+   row with nothing between them are three numbers; with the line they are a
+   sequence, which is the entire content of a stepper. */
+.step::before { background: var(--mark); box-shadow: var(--edge-up); }
+/* AND A PENDING DOT IS ITS OWN NUMBER. It was a white circle on --e1; both
+   are white now, so the circle went and the numeral stayed — which is the
+   whole content of the thing. What says "step 2 of 4" is the connector either
+   side of it, and that is drawn. A done or current step is filled with the
+   sun, so the difference between "been there" and "not yet" is the loudest it
+   has ever been. */
 .step .dot {
   border: 0; background: var(--face); color: var(--muted); box-shadow: var(--e1);
 }
@@ -673,7 +706,7 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
 .ring .fgc { stroke: #000; filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); }
 .ring::before {
   content: ''; position: absolute; inset: 0; border-radius: 50%;
-  background: var(--well); box-shadow: var(--carve-deep);
+  background: var(--well); box-shadow: none;
 }
 /* The centre label is absolutely positioned by index.css. Re-declaring
    `position: relative` here to lift it above the carved plate dropped it out
@@ -933,7 +966,8 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
   transition: box-shadow var(--dur-base) var(--ease), color var(--dur-fast) var(--ease);
 }
 .tc-bottomnav a:active, .tc-bottomnav button:active { background: var(--well); box-shadow: var(--press); }
-.tc-bottomnav .on { background: var(--well); box-shadow: var(--carve); color: var(--ink); font-weight: 700; }
+/* Same sentence on the phone: the tab you are on is the lit one. */
+.tc-bottomnav .on { background: var(--loud-face); box-shadow: none; color: var(--on-loud); font-weight: 700; }
 
 /* The scope toggle in the Nutrition rail. Raised is "you can switch to this";
    carved is "this is the one you are in" — the same sentence the nav keys
@@ -1002,11 +1036,35 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
    grey backing and no amount of reordering could have fixed it. :where()
    contributes nothing, so this is plain `img` and anything more specific
    overrides it, which is what an exemption list is for. */
+/* ── AND THE CASE COMES OFF (23 Aug) ────────────────────────────────────────
+   Owner: "the products pages should blend with the background white for a
+   seamless feel."
+
+   This rule is what stood between the shop and that sentence, and it is worth
+   saying plainly rather than deleting quietly: the rim and the lift were
+   ARGUED FOR, twice, and the argument was good. Social and dating both asked
+   for a background tint to hold their photographs and both were refused with
+   "a wall of pictures on white is a contact sheet, and a contact sheet is
+   fixed by casing and space rather than by colour." The casing was the half of
+   that promise this file kept.
+
+   What the owner is asking for is the OTHER half. A product photograph is not
+   a picture pinned to a wall — it is the merchandise, most of them shot on
+   white, and a 1px rim plus a 12px fall around each one turns a shelf into a
+   grid of tiles. That is precisely the look the screenshots were sent to
+   complain about.
+
+   THE MECHANISM STAYS, and it is not decoration: the `:where()` exemption list
+   is a specificity bug fix, the -1px offset is what makes an outline trace a
+   rounded corner, and `background: none` here is what stopped a grey tile
+   printing behind every transparent logo. All of it survives, pointed at
+   nothing, so a rim is one value away if a room ever needs one back. What is
+   left holding the shelf apart is space, which is what it should have been. */
 img:not(:where(.no-case, .bg)), video:not(:where(.no-case, .bg)), .case-auto > img, .case-auto > video {
-  outline: 1px solid rgba(0,0,0,.10);
+  outline: 1px solid transparent;
   outline-offset: -1px;
-  box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 5px 12px rgba(0,0,0,.08);
-  background: var(--well);
+  box-shadow: none;
+  background: none;
 }
 /* A full-bleed image inside a container that is already a case gets the rim
    from the container, not from itself — two rims is two frames.
@@ -3049,7 +3107,9 @@ textarea.g-field { resize: none; line-height: 1.55; }
 /* Progress as a hairline, not a coloured bar. On an index of twelve projects
    twelve fat amber bars are the loudest thing on the page, and the thing you
    came to compare is the NUMBER beside them. */
-.ehair { position: relative; height: 2px; margin-top: 8px; border-radius: var(--r-full); background: var(--line); overflow: hidden; }
+/* A track with no track is a bar growing out of nowhere: you can see how far
+   it has come and not how far there is to go. --mark, see tokens.css. */
+.ehair { position: relative; height: 2px; margin-top: 8px; border-radius: var(--r-full); background: var(--mark); overflow: hidden; }
 .ehair > i { display: block; height: 100%; background: var(--ink-soft); }
 
 /* ── THE RULED SECTION ────────────────────────────────────────────────────

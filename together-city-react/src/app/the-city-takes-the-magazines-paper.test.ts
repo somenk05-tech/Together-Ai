@@ -33,8 +33,21 @@ const ratio = (a: string, b: string) => {
  * from a reference with every ratio still clearing. That is what this file is.
  */
 describe('the city takes the magazine’s paper', () => {
-  it('is the reference’s two greys, and the ink is not black', () => {
-    expect(val('--paper')).toBe('#fafafa');
+  /**
+   * THE TWO GREYS BECAME ONE WHITE, AND THE INK IS THE HALF THAT SURVIVED.
+   *
+   * The owner, one day later: "Make the entire background white for the entire
+   * website no grey ... and no boarders and lines." So the near-white paper
+   * and the hairline rules — two of the reference's four moves — are out, and
+   * this test is left asserting the two that are not: a soft near-black rather
+   * than #000, and no colour in the ground.
+   *
+   * WHICH IS MOST OF WHY THE REFERENCE STILL READS. The greys were the part
+   * that was easiest to see and the least of what the look is made of; the
+   * type, the tracking and the air are untouched by any of it.
+   */
+  it('keeps the reference’s ink, on a page that is now one white', () => {
+    expect(val('--paper')).toBe('#ffffff');
     expect(val('--card')).toBe('#ffffff');
     expect(val('--ink')).toBe('#2a2a2a');
   });
