@@ -101,7 +101,7 @@ export class SupplementsService {
   }
 
   /**
-   * THE STORE — the same 43 products for everybody, with the citizen's own
+   * THE STORE — the same 103 products for everybody, with the citizen's own
    * plan attached to each one.
    *
    * THE CATALOGUE IS NOT PERSONALISED AND THAT IS DELIBERATE. Every citizen

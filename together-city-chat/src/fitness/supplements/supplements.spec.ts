@@ -352,8 +352,13 @@ describe('the store sells nothing this city cannot cite', () => {
   it('prescription items sort last and unpriced items sort after priced ones', () => {
     const d3 = productsFor('vitamin-d3');
     expect(d3[d3.length - 1].rx).toBe(true);
+    // Stated as a shape rather than a fixed array: the shelf grows, and what
+    // must stay true is the ORDER — no priced tub may ever sort after an
+    // unpriced one, however many tubs arrive.
     const creatine = productsFor('creatine');
-    expect(creatine.map((p) => p.priceFrom === undefined)).toEqual([false, false, true]);
+    const unpriced = creatine.map((p) => p.priceFrom === undefined);
+    expect(unpriced).toEqual([...unpriced].sort((a, b) => Number(a) - Number(b)));
+    expect(unpriced.filter(Boolean)).toHaveLength(1);
   });
 
   it('and three supplements have no verified Indian product, which the store must be able to say', () => {
@@ -460,8 +465,11 @@ describe('the till price and the price on the label are the same number', () => 
     for (const p of unpriced) expect(p.price ?? 'Stock intermittent').toMatch(/–|Stock intermittent/);
   });
 
-  it('thirty-eight of the forty-three can actually be bought here', () => {
-    expect(PRODUCTS.filter(sellable)).toHaveLength(38);
+  it('ninety-eight of the hundred and three can actually be bought here', () => {
+    // 43 from the evidence review + 60 from the 22-Aug open-market survey.
+    // Five cannot: three have no single recorded price, two are prescription.
+    expect(PRODUCTS).toHaveLength(103);
+    expect(PRODUCTS.filter(sellable)).toHaveLength(98);
   });
 
   it('a bag for display shows an unsellable line rather than deleting it', () => {

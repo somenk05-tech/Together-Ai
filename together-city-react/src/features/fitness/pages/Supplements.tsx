@@ -39,7 +39,7 @@ import { Buy, Shot } from '../components/PackShot';
  * quieter. That risk has not gone away. What changed is where the till
  * stands — a citizen reading "your LDL is 132, and psyllium is the one answer
  * here with high-certainty evidence behind it" should not then have to go and
- * find the isabgol themselves on a shelf of forty-three bottles.
+ * find the isabgol themselves on a shelf of a hundred-odd bottles.
  *
  * SO THE ASYMMETRY IS THE GUARD. Under a priority, consider or optional card
  * sits "Available in India" — the products the review found for that
