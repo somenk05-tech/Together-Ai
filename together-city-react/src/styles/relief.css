@@ -411,6 +411,46 @@ table.tc th { background: var(--well); box-shadow: var(--edge-in); color: var(--
   color: var(--on-loud);
   box-shadow: none;
 }
+
+/* ── AND THE SUN HAS FILAMENTS IN IT (owner, 23 Aug, at 25%) ──────────────
+   A photograph of the chromosphere, tiled, over the gradient on the two
+   objects that carry it: the primary button and the rail's lit key. It adds
+   character rather than prominence — the gradient was already the loudest
+   thing on a page where nothing else has colour.
+
+   IT CAN ONLY ADD LIGHT, AND THAT IS THE WHOLE OF WHY IT IS SAFE. Under
+   `overlay` a source value of exactly .5 is a no-op and anything above it
+   lightens, so the tile is clamped to the TOP HALF of its range before it
+   ships — 127–255 rather than 0–255. Measured on the rendered button, the
+   darkest background pixel goes from 4.53:1 against the label to 4.66. The
+   texture improves the floor it could have broken.
+
+   THE FIRST CUT DID BREAK IT: full-range, the dark filaments took the coral
+   end to 3.88:1 — under AA, on the primary action of every screen in the
+   application, and invisible to every guard in this repo because it happens
+   in a blend mode at render time. It was found by screenshotting the button
+   and reading its pixels, which is the only way it could have been.
+
+   Z-INDEX -1 AND `isolation: isolate`, so the layer sits under the label and
+   the blend cannot reach past the button into the page behind it. */
+.btn-accent, .btn-gold, .btn-primary,
+.side-menu a.active { position: relative; isolation: isolate; }
+.btn-accent::after, .btn-gold::after, .btn-primary::after,
+.side-menu a.active::after {
+  content: ''; position: absolute; inset: 0; z-index: -1;
+  background-image: url('/assets/img/sun-tex.webp');
+  background-size: 120px;
+  mix-blend-mode: overlay;
+  opacity: .25;
+  pointer-events: none;
+}
+/* A citizen who asked for less motion did not ask for less texture, but one
+   who asked for more contrast did: the filaments go and the flat gradient
+   stays. */
+@media (prefers-contrast: more) {
+  .btn-accent::after, .btn-gold::after, .btn-primary::after,
+  .side-menu a.active::after { display: none; }
+}
 .btn-accent:not(:disabled):hover, .btn-gold:not(:disabled):hover, .btn-primary:not(:disabled):hover {
   filter: none; background: var(--loud-face-hover);
   box-shadow:
@@ -778,11 +818,13 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
    and its bottom rim is the bright one, exactly inverted from the keys above
    and below it. It glows, and it is still pressed in. */
 .side-menu a {
-  border-radius: 16px; border: 0;
+  /* SQUARE AND FLAT, like everything else (23 Aug). 16px was a hand-written
+     radius rather than a --r-* token, so squaring the scale did not reach it;
+     the blur was there to make glass out of a translucent face, and there is
+     no picture behind the rail for glass to bend. */
+  border-radius: 0; border: 0;
   background: var(--lens-face); box-shadow: var(--lens-key);
   color: var(--ink-soft); font-weight: 500;
-  -webkit-backdrop-filter: blur(10px) saturate(180%);
-  backdrop-filter: blur(10px) saturate(180%);
   transition: box-shadow var(--dur-base) var(--ease), transform var(--dur-base) var(--ease-out), background var(--dur-base) var(--ease);
 }
 .side-menu a:hover { box-shadow: var(--lens); color: var(--ink); }

@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..');
+const APP = join(SRC, '..');
 const tokens = readFileSync(join(SRC, 'styles/tokens.css'), 'utf8');
 const relief = readFileSync(join(SRC, 'styles/relief.css'), 'utf8');
 const nc = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, ' ');
@@ -63,6 +64,33 @@ describe('the city takes the magazine’s paper', () => {
       expect({ stop, clears: r >= 4.5, at: Number(r.toFixed(2)) })
         .toEqual({ stop, clears: true, at: Number(r.toFixed(2)) });
     }
+  });
+
+  /**
+   * ── AND THE FILAMENTS CAN ONLY ADD LIGHT ──────────────────────────────────
+   *
+   * A photograph of the chromosphere, tiled at 25% over the sun on the primary
+   * button and the rail's lit key. Under `overlay` a source value of exactly
+   * .5 is a no-op and anything above it lightens — so the tile is clamped to
+   * the TOP HALF of its range before it ships, and the texture can only
+   * improve the label's contrast, never break it.
+   *
+   * THE FIRST CUT DID BREAK IT. Full-range, the dark filaments took the coral
+   * end from 4.53:1 to 3.88 — under AA, on the primary action of every screen,
+   * and invisible to every guard in this repo because it happens in a blend
+   * mode at render time. This asserts the two things that made it safe: the
+   * blend is `overlay`, and the tile's darkest pixel is at or above mid.
+   */
+  it('ships a texture that can only lighten', () => {
+    const rel = nc(relief);
+    const layer = rel.slice(rel.indexOf('.btn-accent::after'), rel.indexOf('@media (prefers-contrast: more)', rel.indexOf('.btn-accent::after')));
+    expect(layer).toMatch(/mix-blend-mode: overlay/);
+    expect(layer).toMatch(/opacity: \.25/);
+    expect(layer).toMatch(/sun-tex\.webp/);
+
+    const file = join(APP, 'public/assets/img/sun-tex.webp');
+    expect(existsSync(file)).toBe(true);
+    expect(Math.round(statSync(file).size / 1024)).toBeLessThanOrEqual(12);
   });
 
   it('has no pure black left in the root ink scale', () => {

@@ -1401,13 +1401,18 @@ describe('Relief stays a system', () => {
   it('lights every rail with the same lamp', () => {
     const css = read('src/styles/tokens.css');
     const root = strip(css).split(/\[data-hub=/)[0];
-    expect(root).toMatch(/--lamp-face:\s*linear-gradient\([^;]*\);/);
+    /* IT WAS FLAT INK AND IT IS THE BUTTON'S OWN LIGHT (23 Aug). The lit key
+       and the primary button are the same idea — the thing you are on and the
+       thing you press — so they are one object and the city has one accent
+       rather than two. The clause that asserted a single colour is gone with
+       the flat lamp; what is asserted instead is stricter, because it pins the
+       two together: the rail reads --loud-face rather than repeating it, so
+       the day the sun is re-cut the rail is re-cut with it. */
+    expect(root).toMatch(/--lamp-face:\s*var\(--loud-face\);/);
+    expect(root).toMatch(/--on-lamp:\s*var\(--on-loud\);/);
     const rooms = [...strip(css).matchAll(/\[data-hub="([a-z]+)"\]\s*\{([\s\S]*?)\n\}/g)]
       .filter((m) => /--lamp-face:/.test(m[2])).map((m) => m[1]);
     expect(rooms).toEqual([]);
-    // and it is one colour, not a gradient pretending to be flat
-    const stops = root.match(/--lamp-face:\s*linear-gradient\(([^;]*)\);/)![1].match(/#[0-9a-f]{6}/gi)!;
-    expect([...new Set(stops.map((c) => c.toLowerCase()))]).toHaveLength(1);
   });
 
 
