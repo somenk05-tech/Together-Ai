@@ -440,13 +440,85 @@ export function heightFilterReason(myD: DXProfile, theirD: DXProfile): 'height' 
  *
  * Both directions are `unreachableReason`'s job, not this one's.
  */
+/**
+ * The deal-breakers this profile is actually filtering on.
+ *
+ * MEASURED, 23 Aug (`sim/stress-100k.ts`, 100,000 profiles, two seeds): a
+ * fundamentally mismatched pair — different intent, different answer on
+ * children, a diet the other side asked not to have — scores a mean of 64.4.
+ * Everybody else scores 66.9. **2.5 points of separation**, on a number whose
+ * interquartile range is 15 and which the card prints as a percentage.
+ *
+ * The score does not know. It cannot: relationship goals carry 0.10 of the
+ * weight, and children and diet carry none at all. So no threshold drawn
+ * anywhere on that distribution separates the two populations, and the curated
+ * bar — at 75, at a percentile, anywhere — is a volume control that has been
+ * asked to do a quality job for as long as this product has had one. 40.8% of
+ * today's curated deck slots carry one of those three mismatches.
+ *
+ * The only thing that removes them is a filter. Today filters are an optional
+ * chip section, and in the simulated population 62% of citizens never open it.
+ *
+ * DATING_CORE_FILTERS=on asks the counterfactual: the three fundamental
+ * questions filter for everybody who has ANSWERED them. Measured with the
+ * percentile bar, that is 0.00% mismatched deck slots — none, of 122,360 — and
+ * complete profiles end up with MORE matches than today, not fewer, because the
+ * bar opens the door wider than the filters close it.
+ *
+ * Off by default. It changes what every citizen sees, and the 62% it turns on
+ * is this simulation's assumption rather than a number read off the real
+ * `dealBreakers` column — check that before turning this on.
+ *
+ * An unanswered field still filters nobody, flag or no flag. That rule does not
+ * bend: this makes a stated answer count, it does not invent one.
+ */
+export function effectiveDealBreakers(d: DXProfile): string[] {
+  const on = new Set(d.dealBreakers ?? []);
+  if (process.env.DATING_CORE_FILTERS === 'on') {
+    if (d.relationshipGoal) on.add('Marriage Intentions');
+    if (d.wantsChildren) on.add('Wants Children');
+    if (d.prefDiet) on.add('Diet');
+  }
+  return [...on];
+}
+
+/**
+ * Where the curated shelf starts, for THIS viewer.
+ *
+ * `fixed` is 75 and is what shipped. Measured at 100K it is unreachable for
+ * anyone who has not finished their profile: not one of 45,115 partial or
+ * near-empty profiles clears it with anybody, ever. 75 is also calibrated to
+ * astrology's inflation — astrology scores 54–99 while the other six factors
+ * sit far lower — which is why `DATING_WEIGHTS=retuned` takes the share of
+ * pairs at ≥75% from 3.74% to 0.22% and cannot be shipped as a flag alone.
+ *
+ * `p90` draws the bar at the top tenth of the viewer's own candidate list.
+ * Everybody has a top tenth, so empty decks fall from 25%/100%/100% by
+ * completeness cohort to 1.3%/0.8%/0.1%, and the bar stops depending on what
+ * the weight table happens to inflate to — which is what makes the astrology
+ * decision genuinely reversible.
+ *
+ * The floor is the argument against a pure percentile: a top tenth of nothing
+ * is still nothing worth showing. DATING_BAR_FLOOR sets it; 0 disables it.
+ *
+ * Taken off the sorted list rather than interpolated, so a viewer with four
+ * candidates still has a top tenth of four.
+ */
+export function curatedBar(scores: number[], fixedBar = 75): number {
+  if (process.env.DATING_BAR !== 'p90') return fixedBar;
+  if (!scores.length) return fixedBar;
+  const sorted = [...scores].sort((a, b) => b - a);
+  const p90 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.1))];
+  return Math.max(Number(process.env.DATING_BAR_FLOOR ?? 0), p90);
+}
+
 export function hardFilterReason(myD: DXProfile, theirD: DXProfile, theirAge: number): string | null {
   if (myD.prefAgeMin && theirAge < myD.prefAgeMin) return 'age';
   if (myD.prefAgeMax && theirAge > myD.prefAgeMax) return 'age';
   const height = heightFilterReason(myD, theirD);
   if (height) return height;
 
-  const db = myD.dealBreakers ?? [];
+  const db = effectiveDealBreakers(myD);
   if (db.includes('Smoking') && theirD.smoking === 'Regularly') return 'smoking';
   if (db.includes('Drinking') && theirD.drinking === 'Regularly') return 'drinking';
   if (db.includes('Wants Children') && myD.wantsChildren && theirD.wantsChildren && myD.wantsChildren !== theirD.wantsChildren) return 'children';

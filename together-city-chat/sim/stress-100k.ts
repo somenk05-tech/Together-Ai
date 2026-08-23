@@ -18,7 +18,7 @@
  */
 import { compatibilityScore, zodiacSign } from '../src/dating/astrology';
 import {
-  confidence, coverage, factorScores, overallScore,
+  confidence, coverage, curatedBar, effectiveDealBreakers, factorScores, overallScore,
   unreachableReason, WEIGHTS, type DXProfile,
 } from '../src/dating/matching';
 
@@ -27,23 +27,14 @@ const SEED = Number(process.argv[3] ?? 42);
 const CURATED = 75;
 const DECK = 5;
 /**
- * How the curated bar is drawn.
- *
- *   fixed        score >= 75, whatever that means for this viewer
- *   p90          the top tenth of the VIEWER'S OWN candidate distribution
- *   p90+floor    the same, but never below an absolute floor
- *
- * The question the fixed bar cannot answer is what 75 means to somebody whose
- * profile is half filled in. Measured at 100K it means nothing reachable: not
- * one of 45,115 partial or near-empty profiles clears it with anybody. A bar
- * drawn against the viewer's own distribution always has a top tenth.
- *
- * The floor is the argument against pure percentile: a top tenth of nothing is
- * still nothing worth showing, and "your best five" is only a promise if the
- * five are worth meeting.
+ * The bar and the core-filter switch are the ENGINE'S, read straight out of
+ * matching.ts, and driven by the same env vars the server reads: DATING_BAR,
+ * DATING_BAR_FLOOR, DATING_CORE_FILTERS. The harness had its own copies while
+ * the idea was being tried; a copy that agrees with itself proves nothing, and
+ * these numbers are only worth anything if they are measured off the code that
+ * ships.
  */
-const BAR = (process.env.STRESS_BAR ?? 'fixed') as 'fixed' | 'p90' | 'p90floor';
-const BAR_FLOOR = Number(process.env.STRESS_BAR_FLOOR ?? 55);
+const BAR = process.env.DATING_BAR === 'p90' ? 'p90' : 'fixed';
 /**
  * Candidates sampled per viewer. Overridable because the 100,000 run does not
  * fit in one shell call at 150 — and a run that gets killed halfway produces no
@@ -248,7 +239,31 @@ const scores: number[] = [];
 const astroS: number[] = [], goalS: number[] = [], valS: number[] = [], ovS: number[] = [];
 const perCityDeck = new Map<string, number[]>();
 let symmetricSaves = 0, shown = 0;
-let deckSlots = 0, deckViolSlots = 0, deckScoreSum = 0, deckScoreN = 0;
+let deckSlots = 0, deckViolAny = 0, deckViolCore = 0, deckScoreSum = 0, deckScoreN = 0;
+/**
+ * "Violates any axis" turned out to be 75% of deck slots and to mean almost
+ * nothing: with six religions in the population, two strangers differ on
+ * religion ~83% of the time, so the metric measured the population rather than
+ * the engine. CORE is the three the strategy memo calls fundamental — what each
+ * of them is looking for, children, and diet — where a mismatch is a wasted
+ * evening rather than a difference to talk about.
+ */
+const CORE = new Set(['intent', 'children', 'diet']);
+/**
+ * Restricted to viewers whose own profile is complete, because otherwise the
+ * comparison between bars is a composition trick: a thin profile has stated no
+ * intent, so `violates` is false for it by definition, and any bar that admits
+ * more thin viewers reports a lower mismatch rate while showing worse matches.
+ * Fixing the cohort is the only way the three bars can be compared at all.
+ */
+let fullSlots = 0, fullCore = 0;
+/**
+ * The question the three bars keep failing to answer: does the SCORE know
+ * anything about a fundamental mismatch? If mismatched pairs score the same as
+ * matched ones, then no threshold drawn anywhere can separate them, and the bar
+ * is a volume control that has been asked to do a quality job.
+ */
+let coreSum = 0, coreN = 0, okSum = 0, okN = 0;
 /**
  * Deck emptiness is not scale-invariant under sampling — look at 40 candidates
  * and more people come up empty than at 250, which says something about the
@@ -271,7 +286,7 @@ for (let vi = 0; vi < people.length; vi++) {
   const take = Math.min(CANDIDATES, local.length + 40);
   for (let k = 0; k < take; k++) pool.push(rnd() < 0.8 && local.length ? pick(local) : pick(people));
 
-  const scored: { p: P; s: number; viol: boolean }[] = [];
+  const scored: { p: P; s: number; viol: boolean; core: boolean }[] = [];
   let seenHere = 0, hitsHere = 0;
   for (const you of pool) {
     if (you.id === me.id || !wants(me, you)) continue;
@@ -284,7 +299,7 @@ for (let vi = 0; vi < people.length; vi++) {
     for (const ax of AXES) {
       if (!ax.violates(me, you)) continue;
       const t = tally.get(ax.key)!;
-      if ((me.dx.dealBreakers ?? []).includes(ax.chip)) { t.protTot++; if (removed) t.protRemoved++; }
+      if (effectiveDealBreakers(me.dx).includes(ax.chip)) { t.protTot++; if (removed) t.protRemoved++; }
       else t.unprotTot++;
     }
     if (removed) continue;
@@ -293,27 +308,28 @@ for (let vi = 0; vi < people.length; vi++) {
     if (scores.length < 400000) scores.push(s);
     if (ovS.length < 40000) { ovS.push(s); astroS.push(f.astrology); goalS.push(f.relationshipGoals); valS.push(f.values); }
 
-    let viol = false;
+    let viol = false, core = false;
     for (const ax of AXES) {
-      if (!ax.violates(me, you) || (me.dx.dealBreakers ?? []).includes(ax.chip)) continue;
-      viol = true;
+      if (!ax.violates(me, you) || effectiveDealBreakers(me.dx).includes(ax.chip)) continue;
+      viol = true; if (CORE.has(ax.key)) core = true;
       if (s >= CURATED) { const t = tally.get(ax.key)!; t.unprotShown++; if (s > t.max) t.max = s; }
     }
     if (s >= CURATED) hitsHere++;
-    scored.push({ p: you, s, viol });
+    scored.push({ p: you, s, viol, core });
+    if (me.complete === 'full' && you.complete === 'full') {
+      if (core) { coreSum += s; coreN++; } else { okSum += s; okN++; }
+    }
     seenHere++;
   }
   scored.sort((x, y) => y.s - x.s);
   // The bar, drawn three ways. p90 is taken off the sorted list rather than
   // computed, so a viewer with four candidates still has a top tenth of four.
-  const bar = BAR === 'fixed' ? CURATED
-    : Math.max(
-      BAR === 'p90floor' ? BAR_FLOOR : 0,
-      scored.length ? scored[Math.min(scored.length - 1, Math.floor(scored.length * 0.1))].s : 0,
-    );
+  const bar = curatedBar(scored.map((c) => c.s), CURATED);
   const top = scored.filter((c) => c.s >= bar).slice(0, DECK);
   deckSlots += top.length;
-  deckViolSlots += top.filter((c) => c.viol).length;
+  deckViolAny += top.filter((c) => c.viol).length;
+  deckViolCore += top.filter((c) => c.core).length;
+  if (me.complete === 'full') { fullSlots += top.length; fullCore += top.filter((c) => c.core).length; }
   if (top.length) { deckScoreSum += top.reduce((a, c) => a + c.s, 0); deckScoreN += top.length; }
   deckCount.push(top.length);
   deckSizeOf.set(me.id, top.length);
@@ -346,7 +362,7 @@ const L = (s = '') => console.log(s);
 L(`\n${'='.repeat(78)}`);
 L(`  100K STRESS TEST — PASS 1 BASELINE   scale ${SCALE.toLocaleString('en-IN')} · seed ${SEED} · ${secs}s`);
 L(`  ${shown.toLocaleString('en-IN')} directed pairs scored (sampled: ${CANDIDATES === Number.MAX_SAFE_INTEGER ? 'all' : CANDIDATES + ' candidates per viewer'})`);
-L(`  weights: ${process.env.DATING_WEIGHTS === 'retuned' ? 'RETUNED' : 'astrology-led (0.50)'} · bar: ${BAR}${BAR === 'p90floor' ? ' (floor ' + BAR_FLOOR + ')' : ''}${process.env.STRESS_NO_CONFIDENCE ? ' · confidence OFF' : ''}`);
+L(`  weights: ${process.env.DATING_WEIGHTS === 'retuned' ? 'RETUNED' : 'astrology-led (0.50)'} · bar: ${BAR}${process.env.DATING_BAR_FLOOR ? ' (floor ' + process.env.DATING_BAR_FLOOR + ')' : ''} · core filters: ${process.env.DATING_CORE_FILTERS === 'on' ? 'ON' : 'off'}${process.env.STRESS_NO_CONFIDENCE ? ' · confidence OFF' : ''}`);
 L('='.repeat(78));
 
 L('\nS10 · REGRESSION COHORTS');
@@ -378,7 +394,14 @@ L('');
 L('WHAT IS ACTUALLY IN THE DECKS');
 L(`  deck slots filled ............................................ ${deckSlots.toLocaleString('en-IN')} of ${(deckCount.length * DECK).toLocaleString('en-IN')} possible (${pct(deckSlots, deckCount.length * DECK)})`);
 L(`  mean score of a deck slot .................................... ${deckScoreN ? (deckScoreSum / deckScoreN).toFixed(1) : '—'}`);
-L(`  slots violating a dealbreaker the viewer did NOT tick ........ ${pct(deckViolSlots, deckSlots)}`);
+L(`  slots mismatched on intent, children or diet (unticked) ..... ${pct(deckViolCore, deckSlots)}`);
+L(`  …same, counting only viewers with a COMPLETE profile ......... ${pct(fullCore, fullSlots)}  (n=${fullSlots.toLocaleString('en-IN')} slots)`);
+L(`  slots mismatched on ANY axis, religion and habits included ... ${pct(deckViolAny, deckSlots)}`);
+L('');
+L('DOES THE SCORE KNOW? (complete x complete pairs only)');
+L(`  mean score, fundamentally mismatched ......................... ${coreN ? (coreSum / coreN).toFixed(1) : '—'}  (n=${coreN.toLocaleString('en-IN')})`);
+L(`  mean score, not mismatched ................................... ${okN ? (okSum / okN).toFixed(1) : '—'}  (n=${okN.toLocaleString('en-IN')})`);
+L(`  separation ................................................... ${coreN && okN ? (okSum / okN - coreSum / coreN).toFixed(1) : '—'} points`);
 L("  pairs shown that the CANDIDATE's own filters reject ........... 0  (INV-4 PASS — symmetry is structural)");
 L(`  …pairs the candidate's own side removed, which one-way filtering would have shown: ${symmetricSaves.toLocaleString('en-IN')}`);
 

@@ -15,7 +15,7 @@ import { StorageProvider } from '../media/storage.provider';
 import { MediaService } from '../media/media.service';
 import { compatibilityScore, zodiacSign } from './astrology';
 import {
-  confidenceFor, distanceNote, explain, factorScores, frictions, matchAlertBody, matchAlertReason, overallScore, preferenceNotes, sharedItems, type DXProfile, type FactorBreakdown, unreachableReason,
+  confidenceFor, curatedBar, distanceNote, explain, factorScores, frictions, matchAlertBody, matchAlertReason, overallScore, preferenceNotes, sharedItems, type DXProfile, type FactorBreakdown, unreachableReason,
 } from './matching';
 import { LEARNING_WINDOW, learnWeights, overallScoreWith, type Decision } from './learned-weights';
 import { profileCompletion } from './completion';
@@ -537,6 +537,26 @@ export class DatingService {
     // dating pool — enforced before any scoring (spec: Connection Exclusion).
     const excluded = await this.connectionExclusions(userId);
     const results = [];
+    /**
+     * Two passes, because the curated bar can be drawn against this viewer's own
+     * candidate distribution now (`curatedBar`, DATING_BAR=p90) and a
+     * distribution cannot be known halfway through building it.
+     *
+     * The first pass is arithmetic only — no photos, no signed URLs, no further
+     * queries — so scoring twice is not paying twice for anything that costs.
+     * Under the default fixed bar the two passes produce exactly what the single
+     * pass produced, which is what `stack-matched.spec.ts` and the pool fixture
+     * are checking when they pass unchanged.
+     */
+    const rows: {
+      cand: (typeof candidates)[number];
+      state: ReturnType<typeof stateFor>;
+      score: number;
+      breakdown: FactorBreakdown;
+      signA: string; signB: string;
+      candDX: DXProfile & DXVisibility & DXCard;
+      myInterests: string[]; theirInterests: string[];
+    }[] = [];
     for (const cand of candidates) {
       if (excluded.has(cand.userId)) continue;
       const state = stateFor(cand.userId);
@@ -573,9 +593,19 @@ export class DatingService {
       if (candCompletion.percent < CURATED_MIN_COMPLETION) continue;
       const breakdown = factorScores(astro, myInterests, theirInterests, myD, candDX);
       const score = overallScore(breakdown, confidenceFor(myD, candDX, myInterests, theirInterests));
-      if (score < MATCH_THRESHOLD) continue;
+      rows.push({ cand, state, score, breakdown, signA, signB, candDX, myInterests, theirInterests });
+    }
+
+    // Where the shelf starts for this viewer. Fixed 75 unless DATING_BAR=p90.
+    const bar = curatedBar(rows.map((r) => r.score), MATCH_THRESHOLD);
+    for (const row of rows) {
+      const { cand, state, score, breakdown, signA, signB, candDX, myInterests, theirInterests } = row;
+      if (score < bar) continue;
       // Threshold-visibility: this candidate only wants to be seen by people
       // they score highly with — hide them from viewers below their minimum.
+      // Read against MATCH_THRESHOLD and not `bar` on purpose: it is a promise
+      // made to the CANDIDATE about a number they chose, and a bar that moves
+      // with somebody else's pool is not the number they were shown.
       if (candDX.visibility === 'threshold' && score < (candDX.minMatchScore ?? MATCH_THRESHOLD)) continue;
 
       void this.cacheScore(userId, cand.userId, breakdown, score);

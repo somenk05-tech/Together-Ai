@@ -17,7 +17,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import {
-  confidenceFor, coverage, confidence, frictions, factorScores, hardFilterReason, overallScore,
+  confidenceFor, coverage, confidence, curatedBar, effectiveDealBreakers, frictions, factorScores, hardFilterReason, overallScore,
   unreachableReason, type DXProfile,
 } from './matching';
 
@@ -189,5 +189,68 @@ describe('the switch under the multiplier', () => {
     expect(confidenceFor(blank, blank, [], [])).toBe(1);
     const f = factorScores(99, [], [], blank, blank);
     expect(overallScore(f, confidenceFor(blank, blank, [], []))).toBe(overallScore(f));
+  });
+});
+
+describe('the curated bar', () => {
+  afterEach(() => { delete process.env.DATING_BAR; delete process.env.DATING_BAR_FLOOR; });
+  const spread = [90, 80, 70, 60, 50, 40, 30, 20, 10, 5];
+
+  it('is the fixed bar unless asked otherwise', () => {
+    expect(curatedBar(spread)).toBe(75);
+    expect(curatedBar([], 75)).toBe(75);
+  });
+
+  it('draws at the top tenth of the viewer’s own list', () => {
+    process.env.DATING_BAR = 'p90';
+    expect(curatedBar(spread)).toBe(80);
+  });
+
+  it('gives a short list a top tenth of itself rather than nothing', () => {
+    process.env.DATING_BAR = 'p90';
+    expect(curatedBar([61, 44, 38, 12])).toBe(61);
+    expect(curatedBar([44])).toBe(44);
+  });
+
+  it('falls back to the fixed bar when there is no list at all', () => {
+    process.env.DATING_BAR = 'p90';
+    expect(curatedBar([], 75)).toBe(75);
+  });
+
+  it('honours a floor, because a top tenth of nothing is still nothing', () => {
+    process.env.DATING_BAR = 'p90';
+    process.env.DATING_BAR_FLOOR = '62';
+    expect(curatedBar([50, 44, 30])).toBe(62);
+    expect(curatedBar(spread)).toBe(80);
+  });
+});
+
+describe('core questions as filters', () => {
+  afterEach(() => { delete process.env.DATING_CORE_FILTERS; });
+  const answered = dx({ relationshipGoal: 'Marriage', wantsChildren: 'Yes', prefDiet: 'Vegetarian' });
+
+  it('changes nothing while the flag is off', () => {
+    expect(effectiveDealBreakers(answered)).toEqual([]);
+    expect(hardFilterReason(answered, dx({ relationshipGoal: 'Casual Dating' }), 30)).toBeNull();
+  });
+
+  it('filters on the three answers once it is on', () => {
+    process.env.DATING_CORE_FILTERS = 'on';
+    expect(effectiveDealBreakers(answered).sort()).toEqual(['Diet', 'Marriage Intentions', 'Wants Children']);
+    expect(hardFilterReason(answered, dx({ relationshipGoal: 'Casual Dating' }), 30)).toBe('intent');
+    expect(hardFilterReason(answered, dx({ wantsChildren: 'No' }), 30)).toBe('children');
+    expect(hardFilterReason(answered, dx({ diet: 'Non-vegetarian' }), 30)).toBe('diet');
+  });
+
+  it('never invents an answer nobody gave', () => {
+    process.env.DATING_CORE_FILTERS = 'on';
+    expect(effectiveDealBreakers(dx({}))).toEqual([]);
+    expect(hardFilterReason(dx({}), dx({ relationshipGoal: 'Casual Dating', wantsChildren: 'No', diet: 'Non-vegetarian' }), 30)).toBeNull();
+  });
+
+  it('keeps the chips the citizen ticked themselves', () => {
+    process.env.DATING_CORE_FILTERS = 'on';
+    expect(effectiveDealBreakers(dx({ dealBreakers: ['Smoking'], relationshipGoal: 'Marriage' })).sort())
+      .toEqual(['Marriage Intentions', 'Smoking']);
   });
 });
