@@ -226,7 +226,13 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
         <div>
           <label htmlFor="svc-name" style={label}>Business name</label>
           <input id="svc-name" style={field} value={businessName} onChange={(e) => setName(e.target.value)}
-            placeholder="Sharma Plumbing" maxLength={90} />
+            /* NO INVENTED COMPANY IN THE FIELD (owner, 24 Aug). "Sharma
+               Plumbing" was a placeholder, but a plausible proper name in a
+               form reads as somebody's data already in it — the same failure
+               class as the jobs CV printing its specimen letterhead. A
+               placeholder may say what KIND of thing goes here; it may not
+               look like the thing itself. */
+            placeholder="Your business name" maxLength={90} />
         </div>
 
         {/*
@@ -249,7 +255,7 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
             <span className="muted" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>togethercity.app/services/</span>
             <input id="svc-slug" style={{ ...field, width: 'auto', flex: '1 1 180px', minWidth: 0 }}
               value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase())}
-              placeholder={normalisedName || 'sharma-plumbing'} maxLength={40}
+              placeholder={normalisedName || 'your-business-name'} maxLength={40}
               autoCapitalize="off" autoCorrect="off" spellCheck={false} />
           </div>
           {slugCheck && (

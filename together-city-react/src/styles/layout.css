@@ -419,6 +419,18 @@
      renders; it is here so the surface is never flush against its own edge if
      it is ever mounted outside one. */
   padding: clamp(52px, 6.5vw, 96px) 32px clamp(64px, 8vw, 120px);
+  /* THE LETTER JOINS THE MOULDED CITY (owner, 24 Aug: "add neumorphism to
+     these pages too"). The sheet was the one large surface still lying flat
+     after the re-cut — paper pasted onto the page rather than a sheet
+     resting on it. It takes the overlay depth, not the panel one: a letter
+     is the page's single object and has to stand off it the way a dialog
+     does, and --e2's twin relief is cut at the root like every other
+     shadow here, so the day the material moves again this sheet moves with
+     it. The soft corner is the ladder's own fourth step. Nothing else
+     changes — not the measure, the paper texture, the type, or the padding
+     the guard below watches. */
+  border-radius: var(--r-4);
+  box-shadow: var(--e2);
 }
 .tc-shell .tc-main > .letter-page {
   padding: clamp(52px, 6.5vw, 96px) 32px clamp(64px, 8vw, 120px);
