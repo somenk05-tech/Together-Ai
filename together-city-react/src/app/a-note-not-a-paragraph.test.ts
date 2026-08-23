@@ -7,6 +7,15 @@ const SRC = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
 
 const PAGE = 'features/dating/pages/DatingBrowse.tsx';
+const PAIR = 'features/dating/pages/DatingMatches.tsx';
+const strip = (t: string) => t
+  .replace(/\{?\/\*[\s\S]*?\*\/\}?/g, ' ')
+  .replace(/^\s*\/\/.*$/gm, ' ')
+  .replace(/&mdash;/g, '—')
+  .replace(/&middot;/g, '·')
+  .replace(/&rsquo;/g, '’')
+  .replace(/\s+/g, ' ');
+const pair = () => strip(read(PAIR));
 const copy = () => read(PAGE)
   .replace(/\{?\/\*[\s\S]*?\*\/\}?/g, ' ')
   .replace(/^\s*\/\/.*$/gm, ' ')
@@ -111,5 +120,73 @@ describe('the matches note', () => {
         .toEqual({ size: m[1], usedElsewhere: true });
     }
     expect(have.size).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * ── AND ITS PAIR ────────────────────────────────────────────────────────────
+ *
+ * Owner, 23 Aug: "match the style of this to potential match text style".
+ * Curated Matches gets the same card, so the two rooms a citizen moves between
+ * are one object seen twice.
+ *
+ * THE WORDS ARE THE LEDE IT ALREADY HAD, broken at its own punctuation the way
+ * the gemstone lede was broken at its dash: the comma before "which" becomes a
+ * full stop, `which` takes a capital, and a comma joins the two clauses now
+ * alone in a caption. Not a word is added or dropped, and the three slots hold
+ * every one of them.
+ */
+describe('the curated matches note', () => {
+  it('says the lede it already had, across the card’s three slots', () => {
+    const c = pair();
+    expect(c).toMatch(/The people you and they both chose\./);
+    expect(c).toMatch(/Nobody arrives here by being scored highly — only by liking you back\./);
+    expect(c).toMatch(/Which is why this list is short, and why chat opens on it/);
+  });
+
+  it('is headed with the name the rail uses', () => {
+    const label = /label: '([^']+)', sub: 'You both liked each other'/.exec(read('config/hubs.ts'))?.[1];
+    expect(label).toBe('Curated Matches');
+    expect(pair()).toMatch(new RegExp(`className="dnote-mark">${label}\\.</h1>`));
+  });
+
+  it('is the same card as the room next door, not a copy of it', () => {
+    expect(pair()).toMatch(/<header className="dnote">/);
+    const css = readFileSync(join(SRC, 'styles/layout.css'), 'utf8');
+    expect((css.match(/^\.dnote \{/gm) ?? []).length).toBe(1);
+  });
+
+  /**
+   * TWO REGISTERS, ON PURPOSE. The masthead borrows no display face, because
+   * the room next door does not. `.dt-who` and the band keep `.dating-display`
+   * and should: the serif is this hub's voice for PEOPLE and for the house
+   * speaking. It is also the hub's one grant in relief.spec — a grant with no
+   * wearer is a grant to delete, so this asserts it still has two.
+   */
+  it('leaves the display face where the hub actually speaks in it', () => {
+    const raw = read(PAIR);
+    expect(pair()).not.toMatch(/dnote-mark[^>]*dating-display|dating-display[^>]*dnote-mark/);
+    expect(raw).toMatch(/className="dating-display dt-who"/);
+    expect(raw).toMatch(/<p className="dating-display">/);
+  });
+
+  it('shows a count only once there is one', () => {
+    expect(pair()).toMatch(/matched\.length > 0 \?/);
+  });
+
+  /**
+   * AND THE THREE RULES THAT DRESSED THE OLD MASTHEAD ARE GONE. They existed
+   * for one heading on one page. A stylesheet gets to be twice the size of the
+   * pages it dresses one orphaned rule at a time, so they went out with the
+   * markup that wore them rather than a release later.
+   */
+  it('took its old masthead’s stylesheet rules with it', () => {
+    const relief = readFileSync(join(SRC, 'styles/relief.css'), 'utf8');
+    for (const cls of ['dt-crumb', 'dt-title', 'dt-lede']) {
+      expect({ cls, inCss: new RegExp(`\\.${cls}[\\s,{]`).test(relief.replace(/\/\*[\s\S]*?\*\//g, ' ')) })
+        .toEqual({ cls, inCss: false });
+      expect({ cls, inTsx: new RegExp(`className="[^"]*\\b${cls}\\b`).test(read(PAIR)) })
+        .toEqual({ cls, inTsx: false });
+    }
   });
 });

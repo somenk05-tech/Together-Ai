@@ -229,12 +229,52 @@ export function DatingMatches() {
 
   return (
     <div>
-      <div className="dt-crumb">Dating Hub</div>
-      <h1 className="dating-display dt-title">Curated matches</h1>
-      <p className="dt-lede">
-        The people you and they both chose. Nobody arrives here by being scored highly — only by
-        liking you back, which is why this list is short and why chat opens on it.
-      </p>
+      {/* ── THE SAME NOTE AS THE ROOM NEXT DOOR (owner, 23 Aug) ─────────────
+          Potential Matches got the stationery card and this is its pair, so the
+          two rooms a citizen moves between are one object seen twice. Same
+          `.dnote-*` block, not a copy of it.
+
+          THE WORDS ARE THE LEDE, BROKEN AT ITS OWN PUNCTUATION. The card wants
+          a large line, a small one and a caption, and the paragraph had two
+          sentences — so the second breaks at its comma: "…only by liking you
+          back." / "Which is why this list is short, and why chat opens on it."
+          The comma becomes a full stop, `which` takes a capital, and a comma
+          joins the two clauses that are now alone in a line. Not a word is
+          added or dropped.
+
+          AND NO DISPLAY FACE, because the room next door has none. `.dt-who`
+          and the band keep `.dating-display` and should: the serif is this
+          hub's voice for PEOPLE and for the house speaking, and the masthead
+          is a printed note. Two registers on purpose, rather than a serif
+          masthead here and a sans one thirty pixels away in the rail.
+
+          THE COUNT WAITS. `matched` is empty until the stack resolves, and
+          "0 people" for a second is the page's own bad news arriving early —
+          the same argument the error branch below makes. */}
+      <header className="dnote">
+        <div className="dnote-top">
+          <h1 className="dnote-mark">Curated Matches.</h1>
+          <span className="dnote-from">Together City &middot; Dating Hub</span>
+        </div>
+        <div className="dnote-rule" />
+        <div className="dnote-row">
+          <span className="dnote-to"><span className="dnote-lab">To:</span> <span className="dnote-val">You</span></span>
+          <span><span className="dnote-lab">Chose you back:</span> <span className="dnote-val">
+            {matched.length > 0 ? `${matched.length} ${matched.length === 1 ? 'person' : 'people'}` : '\u2014'}</span></span>
+        </div>
+        <div className="dnote-box">
+          <p className="dnote-claim">The people you and they both chose.</p>
+          <p className="dnote-sub">
+            Nobody arrives here by being scored highly &mdash; only by liking you back.
+          </p>
+          <span className="dnote-tick" aria-hidden>
+            <svg viewBox="0 0 30 30" fill="none" stroke="currentColor" strokeWidth="1.6">
+              <path d="M4 17 L11 25 L27 2" />
+            </svg>
+          </span>
+        </div>
+        <span className="dnote-cap">Which is why this list is short, and why chat opens on it</span>
+      </header>
 
       <div className="dt-wrap">
         <div className="dt-col">

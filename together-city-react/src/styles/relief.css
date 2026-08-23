@@ -2742,17 +2742,18 @@ textarea.g-field { resize: none; line-height: 1.55; }
    the hub block above; they are not repeated here, because two copies of a
    contrast table is how the second one goes quietly out of date.          */
 
-/* Bare on the sky, all three. The eyebrow's own --faint would be the exact
-   failure described above, so the crumb takes its own colour here. */
-[data-hub="dating"] .dt-crumb {
-  font-size: var(--fs-1); letter-spacing: .15em; text-transform: uppercase;
-  font-weight: 700; color: var(--ink-soft); margin-bottom: var(--s-1);
-}
-[data-hub="dating"] .dt-title { font-size: clamp(34px, 5vw, 52px); letter-spacing: -.02em; margin: 0; }
-[data-hub="dating"] .dt-lede {
-  max-width: 62ch; margin: var(--s-2) 0 var(--s-4);
-  font-size: var(--fs-5); line-height: 1.65; color: var(--ink-soft);
-}
+/* THE CRUMB, THE TITLE AND THE LEDE WERE HERE AND ARE GONE (23 Aug). All
+   three existed for one masthead on one page — Curated Matches — and that
+   masthead is now the `.dnote-*` stationery card its sister room got, which
+   brings its own type. Three rules matching nothing is how a stylesheet gets
+   to be twice the size of the pages it dresses, so they went out with the
+   markup that wore them rather than a release later.
+
+   THE ARGUMENT THEY CARRIED IS NOT LOST, because it was never about these
+   three: "bare on the sky, all three — the eyebrow's own --faint would be the
+   exact failure described above". That failure is prevented structurally, by
+   the shadow-and-restore on .tc-main above, and the note card is a panel
+   anyway. */
 
 /* THE TWO COLUMNS. The rail is 262px and does not move; below 1080px there
    is not room for a person and a rail side by side, so the rail becomes the
