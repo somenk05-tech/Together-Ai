@@ -595,6 +595,45 @@
   --loud-gloss: linear-gradient(180deg,
     rgba(255, 255, 255, .70) 0%, rgba(255, 255, 255, .30) 42%,
     rgba(255, 255, 255, .06) 78%, rgba(255, 255, 255, 0) 100%);
+  /* ── AND THE PRIMARY RESTS IN THE CLEAR CASING (owner, 23 Aug) ──────────
+     "Keep the button in secondary feeling and when clicked it should be the
+     orange feel."
+
+     So the sun is a PRESS rather than a state: the lozenge is clear glass on
+     the page, warms as a pointer arrives, and lights only under the finger.
+     What that costs is the thing the page most needed a moment ago — the one
+     loud object on a quiet sheet — and what it buys is a page with no loud
+     object at all until somebody reaches for one, which is the other half of
+     the same idea and the owner's call between them.
+
+     A PRIMARY AND A SECONDARY STILL HAVE TO DIFFER AT REST, and this is the
+     part that would have gone wrong quietly: .btn-line already wears
+     --quiet-case, so pointing the primary at it too would leave the two
+     buttons in a row identical until one of them is pressed. --calm-case is
+     the primary's rest: the same clear lozenge with a WARM shell and a warm
+     fall instead of a neutral one. Side by side the difference reads before
+     the labels do; alone on a screen it is quiet. */
+  --calm-case:
+    0 0 0 7px var(--loud-shell),
+    0 0 0 8px var(--loud-shell-lit),
+    inset 0 1.5px 1px rgba(255, 255, 255, .9),
+    0 5px 10px rgba(203, 84, 44, .12),
+    0 16px 32px rgba(203, 84, 44, .10);
+  --calm-case-sm:
+    0 0 0 5px var(--loud-shell),
+    0 0 0 5.8px var(--loud-shell-lit),
+    inset 0 1.5px 1px rgba(255, 255, 255, .9),
+    0 4px 8px rgba(203, 84, 44, .12),
+    0 10px 22px rgba(203, 84, 44, .10);
+  /* The face a resting primary is cut from: white, with the warmth kept in the
+     casing round it rather than in the lozenge. */
+  --calm-face: linear-gradient(180deg, #ffffff 0%, #fdfaf8 100%);
+  /* AND THE POINTER HAS TO CHANGE SOMETHING VISIBLE. Rest and hover shared the
+     same two shell rings, so the only difference between them was the depth of
+     the fall — which on a white page at a glance is no difference at all, and a
+     control that does nothing under the cursor reads as one you cannot press.
+     The glass takes a breath of the sun; it does not light. */
+  --calm-face-hover: linear-gradient(180deg, #fffaf6 0%, #fdeee3 100%);
   --quiet-case:
     0 0 0 7px rgba(0, 0, 0, .035),
     0 0 0 8px rgba(255, 255, 255, .95),
@@ -745,10 +784,26 @@
   /* The lit key in the hub rail — its type and the wash behind its number. */
   /* THE LABEL FOLLOWS THE BUTTON'S, for the same arithmetic: white is 1.98:1
      on the amber stop. --on-lamp-soft was white at .88 and is the same ink
-     opened toward the sun — 4.14:1 at the coral stop, which is the sub-label
-     under each key and the floor of the pair. */
+     opened toward the sun.
+
+     AND ITS NUMBER WAS 4.14, WHICH IS NOT A PASS (23 Aug). The comment above
+     recorded that figure and shipped it — "the floor of the pair" was written
+     as though describing a floor rather than admitting to being under one.
+     4.5 is the bar, this is the 11px sub-label under every rail key on 203
+     routes, and small type is exactly where the bar is least negotiable.
+
+     RE-MEASURED ON THE RENDER RATHER THAN ON THE TOKEN, because the key is a
+     gradient with a gloss and a texture over it now and the token's own stop
+     is not what anybody reads off. Rail screenshotted at 2x with the labels
+     made transparent, then sampled: the darkest pixel under the sub-label is
+     #ec6e39. At #3a2f1a that is 4.28. At the value below it is 5.35, and the
+     title above it — the same ink as the button's — is 5.08.
+
+     The warm tint goes with it, and it is not missed: the two labels differ by
+     weight and size, which is how every other pair of lines in this
+     application is separated. */
   --on-lamp: var(--on-loud);
-  --on-lamp-soft: #3a2f1a;
+  --on-lamp-soft: #241f16;   /* 5.35:1 measured on the rendered key */
   /* a RECESS, not a highlight: a white wash lightens the very key whose
      white number has to be read off it. Inverted, the number reads 9.3:1. */
   --lamp-badge-bg: rgba(0,0,0,.16);

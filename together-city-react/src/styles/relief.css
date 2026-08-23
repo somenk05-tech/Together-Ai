@@ -429,10 +429,16 @@ table.tc th { background: var(--well); box-shadow: var(--edge-in); color: var(--
    page it stands on is now entirely flat and entirely white. One raised object
    on a quiet sheet is a different proposition from one more raised object in a
    room where everything is raised. */
+/* AND THE SUN IS A PRESS NOW, NOT A STATE (owner, 23 Aug: "keep the button in
+   secondary feeling and when clicked it should be the orange feel"). At rest
+   the lozenge is clear glass in a warm casing; the pointer warms the shell;
+   the finger lights the face. Three steps, one object, and the label is the
+   city's own ink at every one of them — see :active below for the only place
+   the gradient still appears. */
 .btn-accent, .btn-gold, .btn-primary {
-  background: var(--loud-face);
-  color: var(--on-loud);
-  box-shadow: var(--loud-case);
+  background: var(--calm-face);
+  color: var(--ink);
+  box-shadow: var(--calm-case);
 }
 /* THE GLOSS OVER THE TOP HALF. A gradient rather than a shadow, so it needs
    its own layer — and z-index -1 inside the `isolation: isolate` below, which
@@ -469,9 +475,23 @@ table.tc th { background: var(--well); box-shadow: var(--edge-in); color: var(--
    the blend cannot reach past the button into the page behind it. */
 .btn-accent, .btn-gold, .btn-primary,
 .side-menu a.active { position: relative; isolation: isolate; }
+/* THE FILAMENTS ARE ON THE LIT FACE ONLY. A chromosphere tiled over a white
+   lozenge is a smudge — the tile is a texture for the sun, and there is no sun
+   here until the button is pressed. */
+.btn-accent::after, .btn-gold::after, .btn-primary::after { opacity: 0; }
+.btn-accent:active::after, .btn-gold:active::after, .btn-primary:active::after { opacity: .25; }
 .btn-accent::after, .btn-gold::after, .btn-primary::after,
 .side-menu a.active::after {
   content: ''; position: absolute; inset: 0; z-index: -1;
+  /* AND IT IS CUT TO THE SHAPE OF WHAT IT IS ON (23 Aug). The tile was a
+     square laid over a square button and the corners never showed. Both
+     wearers became stadiums the same day the casing landed, and the four
+     corners of this layer went on printing outside the curve — a faint square
+     halo around every primary button and every lit rail key, which is exactly
+     the kind of thing that reads as a rendering bug rather than a decision.
+     `inherit` rather than --r-full, because the two wearers are not obliged to
+     keep the same radius as each other. */
+  border-radius: inherit;
   background-image: url('/assets/img/sun-tex.webp');
   background-size: 120px;
   mix-blend-mode: overlay;
@@ -495,16 +515,24 @@ table.tc th { background: var(--well); box-shadow: var(--edge-in); color: var(--
    have vanished the moment a pointer arrived. Hover brightens the face,
    pressed inverts it, and focus adds its ring OUTSIDE the shell so the
    indicator is not swallowed by it. */
+/* THE POINTER WARMS THE CASING AND NOT THE FACE. A hover that lit the lozenge
+   would make "the orange feel" arrive before the click, which is the thing
+   that was asked to be moved. The shell deepens, the fall warms; the glass
+   stays clear. */
 .btn-accent:not(:disabled):hover, .btn-gold:not(:disabled):hover, .btn-primary:not(:disabled):hover {
-  filter: none; background: var(--loud-face-hover);
+  filter: none; background: var(--calm-face-hover);
   box-shadow: var(--loud-case);
 }
+/* AND THE FINGER LIGHTS IT. This is the only state in the application where a
+   button carries the sun, which makes the gradient a piece of feedback rather
+   than a colour on a page. */
 .btn-accent:not(:disabled):active, .btn-gold:not(:disabled):active, .btn-primary:not(:disabled):active {
-  background: var(--loud-face-active);
+  background: var(--loud-face);
+  color: var(--on-loud);
   box-shadow: var(--loud-case);
 }
 .btn-accent:focus-visible, .btn-gold:focus-visible, .btn-primary:focus-visible {
-  box-shadow: var(--loud-case), 0 0 0 11px rgba(0,0,0,.28);
+  box-shadow: var(--calm-case), 0 0 0 11px rgba(0,0,0,.28);
 }
 
 /* Outline — raised, but only just. The rim does the work.
@@ -692,9 +720,14 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
 .console .f input, .console .f select { background: transparent; box-shadow: none; }
 
 /* ══ TABS AND SEGMENTS — ONE TROUGH, ONE RAISED KEY IN IT ════════════════ */
+/* THE TROUGH OPENS UP AND STOPS BEING A TROUGH. --well is white and --carve
+   is a mark under a field, and a mark under a tab strip is a line — which is
+   the thing that went. What is left is spacing, and it is 8px rather than 4
+   for the same reason the rail's rows went to 8: the lit key wears a 5.8px
+   shell now and at 4px the shell printed on the strip's own edge. */
 .tabrow, .console .tabs {
-  border-bottom: 0; gap: 4px; padding: 4px; border-radius: var(--r-full);
-  background: var(--well); box-shadow: var(--carve);
+  border-bottom: 0; gap: 10px; padding: 8px; border-radius: var(--r-full);
+  background: var(--well); box-shadow: none;
   display: inline-flex; width: auto; max-width: 100%;
 }
 .tabrow a, .console .tabs a {
@@ -712,9 +745,18 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
    route since the sun landed — the one you are in is the one that is lit — and
    there is no reason for a tab strip to answer it differently. Same face, same
    ink, one rule for the whole idea. */
+/* AND IT IS MOULDED LIKE THE OTHER TWO. One object — the thing you are on —
+   drawn one way, in the rail, in a tab strip and on a button. */
 .tabrow a.on, .console .tabs a.on {
   background: var(--loud-face); color: var(--on-loud); font-weight: 700;
-  box-shadow: none;
+  box-shadow: var(--loud-case-sm);
+  position: relative; isolation: isolate;
+}
+.tabrow a.on::before, .console .tabs a.on::before {
+  content: ''; position: absolute; z-index: -1; pointer-events: none;
+  left: 5%; right: 5%; top: 2px; height: 46%;
+  border-radius: var(--r-full);
+  background: var(--loud-gloss);
 }
 
 /* ══ STEPPER, RING, CALENDAR ═════════════════════════════════════════════ */
@@ -899,18 +941,51 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
 @media (hover: hover) and (pointer: fine) {
   .side-menu a:hover { transform: translateY(-1.5px); }
 }
+/* ── THE LIT KEY IS THE BUTTON (owner, 23 Aug) ──────────────────────────────
+   "These buttons also need to change for the entire website to the reference
+   look." The reference is the moulded lozenge, and this row has been reading
+   --loud-face since the sun landed — it was the same COLOUR as the primary
+   button and a flat square while the button had become a jewel. Two objects
+   claiming one idea and drawn two ways is the thing --lamp-face reading
+   --loud-face was supposed to end.
+
+   THE SMALL CASING, not the large one, and it is measured against the rail
+   rather than chosen: --loud-case spreads 8px and the rows sit 8px apart, so
+   the shell would touch the row above. --loud-case-sm spreads 5.8px into a
+   gap the rule below opens to 8. The gloss comes with it.
+
+   THE PARAGRAPH ABOVE ARGUED THE OPPOSITE and is worth reading against this.
+   It says a row that lights up like a primary button says "press me" rather
+   than "you are here", which is why the lamp kept an inverted, pressed-in
+   rim. That was true when a primary button was a raised black lozenge among
+   flat ones. It is not true now: the city's only other lit object is the
+   button, there is exactly one of each on a screen, and the confusion the
+   paragraph feared needs two things that look alike doing different jobs.
+   Here they look alike because they ARE alike — the thing you are on and the
+   thing you press are one idea, which is the sentence --lamp-face was
+   re-pointed on. */
 .side-menu a.active {
-  background: var(--lamp-face); box-shadow: var(--lamp); transform: none;
+  background: var(--lamp-face); box-shadow: var(--loud-case-sm); transform: none;
+  border-radius: var(--r-full);
+}
+.side-menu a.active::before {
+  content: ''; position: absolute; z-index: -1; pointer-events: none;
+  left: 3%; right: 3%; top: 2px; height: 44%;
+  border-radius: var(--r-full);
+  background: var(--loud-gloss);
 }
 .side-menu a.active .l { color: var(--on-lamp); font-weight: 700; }
 .side-menu a.active .s { color: var(--on-lamp-soft); }
-.side-menu a.active:hover { transform: none; box-shadow: var(--lamp); }
+.side-menu a.active:hover { transform: none; box-shadow: var(--loud-case-sm); }
 
 .side-menu a .n {
   background: var(--lens-face); box-shadow: var(--lens-key); border-radius: var(--r-1); color: var(--ink-soft);
 }
+/* The index inside the lozenge goes round with it. A 9px-cornered square in a
+   stadium is the one corner left in the object. */
 .side-menu a.active .n {
   background: var(--lamp-badge-bg); color: var(--on-lamp); box-shadow: var(--lamp-badge);
+  border-radius: var(--r-full);
 }
 
 .tc-nav a.on { color: var(--ink); }
@@ -1001,8 +1076,16 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
   transition: box-shadow var(--dur-base) var(--ease), color var(--dur-fast) var(--ease);
 }
 .tc-bottomnav a:active, .tc-bottomnav button:active { background: var(--well); box-shadow: var(--press); }
-/* Same sentence on the phone: the tab you are on is the lit one. */
-.tc-bottomnav .on { background: var(--loud-face); box-shadow: none; color: var(--on-loud); font-weight: 700; }
+/* Same sentence on the phone: the tab you are on is the lit one — and it is
+   the one wearer of it that takes NO casing. The bar is 58px tall with 6px of
+   padding in it, and a 5.8px shell round a key in there prints on the bar's
+   own edge and on the key beside it. The same argument --loud-case-sm was cut
+   for, one size further down: it keeps the fill, the ink and the pill, and
+   spends nothing on a moulding there is no room to see. */
+.tc-bottomnav .on {
+  background: var(--loud-face); box-shadow: none; color: var(--on-loud); font-weight: 700;
+  border-radius: var(--r-full);
+}
 
 /* The scope toggle in the Nutrition rail. Raised is "you can switch to this";
    carved is "this is the one you are in" — the same sentence the nav keys
@@ -1260,7 +1343,7 @@ img[src$=".svg"], .no-case {
      picture it had stopped having an edge at all. Lit and moulded, it is
      legible on any photograph the city ships and it is the same object as the
      primary button everywhere else. */
-  background: var(--loud-face); color: var(--on-loud); box-shadow: var(--loud-case);
+  background: var(--calm-face); color: var(--ink); box-shadow: var(--calm-case);
   font-size: clamp(10.5px, .95vw, 12px); font-weight: 800;
   letter-spacing: .18em; text-transform: uppercase; text-decoration: none;
   transition: background var(--dur-base) var(--ease), color var(--dur-base) var(--ease);
@@ -1269,8 +1352,9 @@ img[src$=".svg"], .no-case {
    word inside a button rather than a face granted to a page — see relief.spec,
    which seals the SERIF, not the slope. */
 .hub-plate-go i { font-style: italic; letter-spacing: .14em; }
-.hub-plate-go:hover { background: var(--loud-face-hover); color: var(--on-loud); }
-.hub-plate-go:focus-visible { outline: none; box-shadow: var(--loud-case), 0 0 0 11px rgba(0,0,0,.28); }
+.hub-plate-go:hover { background: var(--calm-face-hover); color: var(--ink); box-shadow: var(--loud-case); }
+.hub-plate-go:active { background: var(--loud-face); color: var(--on-loud); box-shadow: var(--loud-case); }
+.hub-plate-go:focus-visible { outline: none; box-shadow: var(--calm-case), 0 0 0 11px rgba(0,0,0,.28); }
 /* Not yet open: the casing empty, like a secondary. */
 .hub-plate.is-soon .hub-plate-go { background: var(--quiet-face); color: var(--muted); box-shadow: var(--quiet-case); }
 
@@ -1403,7 +1487,7 @@ img[src$=".svg"], .no-case {
 .district-plate:hover { box-shadow: var(--e3), 0 30px 70px rgba(0,0,0,.06); }
 .district-plate:hover .hub-plate-go { box-shadow: var(--loud-case); }
 @media (hover: hover) and (pointer: fine) {
-  .district-plate:hover .hub-plate-go { background: var(--loud-face-hover); color: var(--on-loud); }
+  .district-plate:hover .hub-plate-go { background: var(--calm-face-hover); color: var(--ink); }
 }
 .district-plate:focus-visible { outline: none; box-shadow: var(--e3), 0 0 0 3px rgba(0,0,0,.16); }
 

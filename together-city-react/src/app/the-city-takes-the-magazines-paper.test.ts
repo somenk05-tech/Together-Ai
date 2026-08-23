@@ -259,7 +259,12 @@ describe('nothing is raised any more', () => {
     // the guard holds the half that mattered: whatever the loudest object on
     // the page is made of, it is made of a TOKEN, so the next person to
     // re-point the material re-points this too.
-    expect(r).toMatch(/\.btn-accent, \.btn-gold, \.btn-primary \{[^}]*box-shadow: var\(--loud-case\);/);
+    // …and the token it names moved the same afternoon, which is the point:
+    // the primary rests in --calm-case and takes --loud-case only under a
+    // finger. What is asserted is unchanged — a NAME, so that whoever
+    // re-cuts the material re-cuts the button with it.
+    expect(r).toMatch(/\.btn-accent, \.btn-gold, \.btn-primary \{[^}]*box-shadow: var\(--calm-case\);/);
+    expect(r).toMatch(/\.btn-accent:not\(:disabled\):active[\s\S]{0,200}background: var\(--loud-face\);/);
     const face = r.slice(r.indexOf('\n.btn-accent, .btn-gold, .btn-primary {'));
     expect(face.slice(0, face.indexOf('}'))).not.toMatch(/rgba\(/);
     expect(r).not.toMatch(/h1, \.hero-num, \.stat \.val, \.blk-head h2 \{\s*text-shadow/);

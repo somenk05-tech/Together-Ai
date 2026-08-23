@@ -241,7 +241,13 @@
 .tc-side .back { display: block; font-size: var(--fs-1); letter-spacing: .16em; font-weight: 700; text-transform: uppercase; padding: 0 26px 18px; background: none; border: none; cursor: pointer; }
 .tc-side .hubname { padding: 0 26px 4px; font-size: var(--fs-7); font-weight: 700; letter-spacing: -.03em; }
 .tc-side .hubtag { padding: 0 26px 22px; font-size: 12px; margin-bottom: 16px; }
-.side-menu a { display: flex; align-items: center; gap: 13px; padding: 11px 14px; margin: 3px 14px; font-size: var(--fs-4); }
+/* 8px APART RATHER THAN 3, AND THE NUMBER IS THE CASING'S (23 Aug). The lit
+   row is a moulded lozenge now and its shell spreads 5.8px past the row; at a
+   3px gap that shell printed over the rows above and below it. The rail reads
+   better for it either way — the inactive rows have carried no fill and no
+   edge since the flat commit, so what separates them is air and this is more
+   of it. */
+.side-menu a { display: flex; align-items: center; gap: 13px; padding: 11px 14px; margin: 8px 16px; font-size: var(--fs-4); }
 /* `.n` IS THE NUMBER AND `.l` IS THE LABEL. Worth stating, because they were
    styled as one rule once — the label inherited a 30x30 box meant for the
    badge, so every menu word wrapped inside a square and printed over its own
@@ -874,15 +880,15 @@
      THE SHADOWS GO WITH IT for the same reason as .btn-accent: six layers of
      black under an orange button, written by hand in a stylesheet, which is
      how they survived the commit that flattened every depth. */
-  color: var(--on-loud); background: var(--loud-face);
-  box-shadow: var(--loud-case);
+  color: var(--ink); background: var(--calm-face);
+  box-shadow: var(--calm-case);
   transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-base) var(--ease), background var(--dur-base) var(--ease);
 }
-.ask-cta:hover:not(:disabled) { background: var(--loud-face-hover); box-shadow: var(--loud-case); }
+.ask-cta:hover:not(:disabled) { background: var(--calm-face-hover); box-shadow: var(--loud-case); }
 @media (hover: hover) and (pointer: fine) {
   .ask-cta:hover:not(:disabled) { transform: translateY(-2px); }
 }
-.ask-cta:active:not(:disabled) { transform: translateY(1px); background: var(--loud-face-active); box-shadow: var(--loud-case); }
+.ask-cta:active:not(:disabled) { transform: translateY(1px); background: var(--loud-face); color: var(--on-loud); box-shadow: var(--loud-case); }
 .ask-cta:disabled { opacity: .42; cursor: not-allowed; transform: none; }
 
 .ask-quota { font-size: 13px; color: var(--muted); margin-top: 14px; }

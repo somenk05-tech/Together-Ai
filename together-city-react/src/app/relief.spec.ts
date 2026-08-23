@@ -151,7 +151,10 @@ describe('Relief stays a system', () => {
     // its lower lip, and nothing stands on it. They are per-sheet because the
     // light on Thursday's blue is white and the light on Sunday's linen is not,
     // which is the whole reason a scored line reads as a crease on both.
-    const NAMED = /var\(--(e1|e2|e3|e1-key|e2-key|carve|carve-deep|press|shadow|shadow-deep|edge-up|edge-in|pip|pip-ok|case-rim|case-rim-soft|lens|lens-key|lamp|lamp-badge|key-lit|key-lit-pip|rail-well-shadow|glass|glass-key|glass-in|glass-tray-shadow|glass-bubble-shadow|prism|focus-ring|soft-in|soft-tile|atmos-lip|press-stamp|press-stamp-warm|press-recto-lift|press-verso-lift|loud-case|loud-case-sm|quiet-case)\)/;
+    const NAMED = /var\(--(e1|e2|e3|e1-key|e2-key|carve|carve-deep|press|shadow|shadow-deep|edge-up|edge-in|pip|pip-ok|case-rim|case-rim-soft|lens|lens-key|lamp|lamp-badge|key-lit|key-lit-pip|rail-well-shadow|glass|glass-key|glass-in|glass-tray-shadow|glass-bubble-shadow|prism|focus-ring|soft-in|soft-tile|atmos-lip|press-stamp|press-stamp-warm|press-recto-lift|press-verso-lift|loud-case|loud-case-sm|calm-case|calm-case-sm|quiet-case)\)/;
+    // --calm-case joins them the same afternoon: the primary rests in a clear
+    // casing and lights only under a finger, so the moulding it wears at rest
+    // is a fourth name rather than a fourth height.
     // --loud-case and --quiet-case join for the moulded button (23 Aug): the
     // casing a primary action is set into, and the same casing empty for a
     // secondary. A MATERIAL, in the company of --glass and --lens — it is what
