@@ -393,7 +393,7 @@ table.tc th { background: var(--well); box-shadow: var(--edge-in); color: var(--
    saying what it always said about layout. */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 9px;
-  height: 44px; padding: 0 26px; border-radius: var(--r-1);
+  height: 44px; padding: 0 26px; border-radius: var(--r-full);
   font-family: var(--sans); font-size: 11px; font-weight: 500; letter-spacing: .22em;
   text-transform: uppercase;
   color: var(--ink);
@@ -421,10 +421,29 @@ table.tc th { background: var(--well); box-shadow: var(--edge-in); color: var(--
    the loudest object on every page still floating. A flat button is a filled
    rectangle and nothing else; the fill is --loud-face, which is now one
    colour, and the ink on it does the rest. */
+/* AND ON 23 AUG IT IS MOULDED AGAIN, WHICH IS NOT A REVERSAL OF THE PARAGRAPH
+   ABOVE. That one removed six hand-written shadow layers because they were
+   hand-written — the loudest object on every page was floating on numbers no
+   token owned, so re-pointing --e1..--e5 left it exactly where it was. The
+   casing below is a token, in tokens.css, with its measurements in it, and the
+   page it stands on is now entirely flat and entirely white. One raised object
+   on a quiet sheet is a different proposition from one more raised object in a
+   room where everything is raised. */
 .btn-accent, .btn-gold, .btn-primary {
   background: var(--loud-face);
   color: var(--on-loud);
-  box-shadow: none;
+  box-shadow: var(--loud-case);
+}
+/* THE GLOSS OVER THE TOP HALF. A gradient rather than a shadow, so it needs
+   its own layer — and z-index -1 inside the `isolation: isolate` below, which
+   puts it under the label and above the sun's filaments. It insets from both
+   ends by 4% so the light does not run all the way into the curve, which is
+   what makes the face read as convex rather than as a lit rectangle. */
+.btn-accent::before, .btn-gold::before, .btn-primary::before {
+  content: ''; position: absolute; z-index: -1; pointer-events: none;
+  left: 4%; right: 4%; top: 2px; height: 48%;
+  border-radius: var(--r-full);
+  background: var(--loud-gloss);
 }
 
 /* ── AND THE SUN HAS FILAMENTS IN IT (owner, 23 Aug, at 25%) ──────────────
@@ -465,19 +484,27 @@ table.tc th { background: var(--well); box-shadow: var(--edge-in); color: var(--
 @media (prefers-contrast: more) {
   .btn-accent::after, .btn-gold::after, .btn-primary::after,
   .side-menu a.active::after { display: none; }
+  /* The gloss goes with them, for the same reason and with more of a case: it
+     is the only thing on the button that moves a rendered pixel's contrast by
+     a measurable amount. */
+  .btn-accent::before, .btn-gold::before, .btn-primary::before { display: none; }
 }
+/* THE THREE STATES KEEP THE CASING AND CHANGE WHAT IS IN IT. All three used
+   to hand-write a black-shadowed lozenge — a set of numbers from the era when
+   the button was ink rather than sun, and three more places the moulding would
+   have vanished the moment a pointer arrived. Hover brightens the face,
+   pressed inverts it, and focus adds its ring OUTSIDE the shell so the
+   indicator is not swallowed by it. */
 .btn-accent:not(:disabled):hover, .btn-gold:not(:disabled):hover, .btn-primary:not(:disabled):hover {
   filter: none; background: var(--loud-face-hover);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.3), inset 0 -1px 0 rgba(0,0,0,.6), inset 0 0 0 1px rgba(0,0,0,.9),
-    0 2px 4px rgba(0,0,0,.24), 0 8px 18px rgba(0,0,0,.28), 0 18px 40px rgba(0,0,0,.2);
+  box-shadow: var(--loud-case);
 }
 .btn-accent:not(:disabled):active, .btn-gold:not(:disabled):active, .btn-primary:not(:disabled):active {
   background: var(--loud-face-active);
-  box-shadow: inset 0 2px 5px rgba(0,0,0,.85), inset 0 0 0 1px rgba(0,0,0,.9), 0 1px 0 rgba(255,255,255,.7);
+  box-shadow: var(--loud-case);
 }
 .btn-accent:focus-visible, .btn-gold:focus-visible, .btn-primary:focus-visible {
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.24), 0 4px 10px rgba(0,0,0,.24), 0 0 0 3px rgba(0,0,0,.28);
+  box-shadow: var(--loud-case), 0 0 0 11px rgba(0,0,0,.28);
 }
 
 /* Outline — raised, but only just. The rim does the work.
@@ -486,13 +513,19 @@ table.tc th { background: var(--well); box-shadow: var(--edge-in); color: var(--
    room — which on any ground but white is ivory on white, an invisible control.
    --card IS #ffffff at the root, so this changes nothing for twenty-four hubs
    and is the whole of what the twenty-fifth needed. */
+/* Outline — AND IT IS NOT AN OUTLINE ANY MORE. A 1.5px ring was the last
+   bordered object in the city on the day borders went, and the class names
+   were the only argument left for it. It takes the primary's casing with
+   nothing lit inside: same moulding, same geometry, no colour. Which says
+   "the other thing you could do here" more clearly than a hairline box did,
+   and says it in the same language. */
 .btn-line, .btn-outline, .btn-secondary {
-  background: var(--card); color: var(--ink);
-  box-shadow: inset 0 0 0 1.5px var(--btn-line-ring), inset 0 1px 0 var(--btn-line-edge), 0 1px 2px rgba(0,0,0,.05), 0 3px 6px rgba(0,0,0,.04);
+  background: var(--quiet-face); color: var(--ink);
+  box-shadow: var(--quiet-case);
 }
 .btn-line:not(:disabled):hover, .btn-outline:not(:disabled):hover, .btn-secondary:not(:disabled):hover {
-  border-color: transparent; color: var(--ink);
-  box-shadow: inset 0 0 0 1.5px var(--btn-line-ring-hover), inset 0 1px 0 var(--btn-line-edge), 0 3px 8px rgba(0,0,0,.09), 0 8px 18px rgba(0,0,0,.06);
+  border-color: transparent; color: var(--ink); background: var(--card);
+  box-shadow: var(--quiet-case);
 }
 
 /* Ghost — flat until touched, for the third and fourth action in a row.
@@ -508,7 +541,9 @@ table.tc th { background: var(--well); box-shadow: var(--edge-in); color: var(--
   .btn-ghost:not(:disabled):hover { transform: translateY(-1px); }
 }
 
+/* A 7px shell on a 35px control is a shell wearing a button. */
 .btn-sm { height: 35px; padding: 0 16px; font-size: 13px; }
+.btn-sm.btn-accent, .btn-sm.btn-gold, .btn-sm.btn-primary { box-shadow: var(--loud-case-sm); }
 .btn-lg { height: 54px; padding: 0 30px; font-size: var(--fs-5); }
 .btn-icon { width: 44px; padding: 0; border-radius: 50%; }
 .btn-icon.btn-sm { width: 35px; height: 35px; }
@@ -1218,7 +1253,14 @@ img[src$=".svg"], .no-case {
      The phone rule below replaces this with its own 108px. */
   width: 27em; justify-content: center; white-space: nowrap;
   border-radius: var(--r-full);
-  background: var(--card); color: var(--ink); box-shadow: var(--e2);
+  /* THE MOST-SEEN BUTTON IN THE CITY TAKES THE NEW CASING (owner, 23 Aug:
+     "use this as button style for the entire website"). It is the one control
+     on every hub landing, it sits on a photograph, and it was a white pill on
+     --e2 — a depth that resolves to nothing now, so on a pale corner of a
+     picture it had stopped having an edge at all. Lit and moulded, it is
+     legible on any photograph the city ships and it is the same object as the
+     primary button everywhere else. */
+  background: var(--loud-face); color: var(--on-loud); box-shadow: var(--loud-case);
   font-size: clamp(10.5px, .95vw, 12px); font-weight: 800;
   letter-spacing: .18em; text-transform: uppercase; text-decoration: none;
   transition: background var(--dur-base) var(--ease), color var(--dur-base) var(--ease);
@@ -1227,9 +1269,10 @@ img[src$=".svg"], .no-case {
    word inside a button rather than a face granted to a page — see relief.spec,
    which seals the SERIF, not the slope. */
 .hub-plate-go i { font-style: italic; letter-spacing: .14em; }
-.hub-plate-go:hover { background: var(--ink); color: var(--card); }
-.hub-plate-go:focus-visible { outline: none; box-shadow: var(--e2), 0 0 0 3px rgba(0,0,0,.18); }
-.hub-plate.is-soon .hub-plate-go { background: var(--well); color: var(--muted); box-shadow: var(--e1); }
+.hub-plate-go:hover { background: var(--loud-face-hover); color: var(--on-loud); }
+.hub-plate-go:focus-visible { outline: none; box-shadow: var(--loud-case), 0 0 0 11px rgba(0,0,0,.28); }
+/* Not yet open: the casing empty, like a secondary. */
+.hub-plate.is-soon .hub-plate-go { background: var(--quiet-face); color: var(--muted); box-shadow: var(--quiet-case); }
 
 /* ── ON A PHONE THE CONTROL IS HALVED, AND IT IS ONE SIZE ─────────────────
    Owner, 19 Aug, looking at the run on a phone: the pill was reading as a
@@ -1358,9 +1401,9 @@ img[src$=".svg"], .no-case {
    eleven twelfths of twelve commissioned pictures in order to save a swipe. */
 .district-plate .hub-plate-art img { height: auto; }
 .district-plate:hover { box-shadow: var(--e3), 0 30px 70px rgba(0,0,0,.06); }
-.district-plate:hover .hub-plate-go { box-shadow: var(--e3); }
+.district-plate:hover .hub-plate-go { box-shadow: var(--loud-case); }
 @media (hover: hover) and (pointer: fine) {
-  .district-plate:hover .hub-plate-go { background: var(--ink); color: var(--card); }
+  .district-plate:hover .hub-plate-go { background: var(--loud-face-hover); color: var(--on-loud); }
 }
 .district-plate:focus-visible { outline: none; box-shadow: var(--e3), 0 0 0 3px rgba(0,0,0,.16); }
 
@@ -1368,7 +1411,7 @@ img[src$=".svg"], .no-case {
    pressable — the CTA reads as a label and the whole plate stops lifting. */
 .district-plate.is-soon { cursor: default; }
 .district-plate.is-soon:hover { box-shadow: var(--e3); }
-.district-plate.is-soon:hover .hub-plate-go { background: var(--well); color: var(--muted); box-shadow: var(--e1); }
+.district-plate.is-soon:hover .hub-plate-go { background: var(--quiet-face); color: var(--muted); box-shadow: var(--quiet-case); }
 
 
 /* ══ A WALL OF PICTURES, IN THE HUB'S LANGUAGE ═══════════════════════════

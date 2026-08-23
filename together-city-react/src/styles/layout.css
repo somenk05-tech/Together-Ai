@@ -863,17 +863,26 @@
      the loudest button in the city was the one control that stayed black in a
      room that isn't. It escaped the surface-literal guard on a technicality:
      that assertion reads relief.css, and this lives here. */
-  color: var(--on-accent); background: var(--loud-face);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.24), inset 0 -1px 0 rgba(0,0,0,.6), inset 0 0 0 1px rgba(0,0,0,.9),
-    0 1px 2px rgba(0,0,0,.22), 0 4px 10px rgba(0,0,0,.24), 0 10px 24px rgba(0,0,0,.18);
+  /* AND ITS LABEL WAS WHITE ON THE SUN, WHICH IS 2.6:1. --on-accent is
+     #ffffff and it was correct for as long as this button was black. It
+     became a gradient of amber and coral yesterday and the label did not
+     move — so the largest CTA in the city has been failing AA since, on a
+     token whose whole job is to be the readable foreground and which simply
+     pointed at the wrong one. --on-loud is the pair --loud-face ships with,
+     measured against every stop of it. Found while re-cutting the casing.
+
+     THE SHADOWS GO WITH IT for the same reason as .btn-accent: six layers of
+     black under an orange button, written by hand in a stylesheet, which is
+     how they survived the commit that flattened every depth. */
+  color: var(--on-loud); background: var(--loud-face);
+  box-shadow: var(--loud-case);
   transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-base) var(--ease), background var(--dur-base) var(--ease);
 }
-.ask-cta:hover:not(:disabled) { box-shadow: inset 0 1px 0 rgba(255,255,255,.3), inset 0 0 0 1px rgba(0,0,0,.9), 0 8px 18px rgba(0,0,0,.28), 0 18px 40px rgba(0,0,0,.2); }
+.ask-cta:hover:not(:disabled) { background: var(--loud-face-hover); box-shadow: var(--loud-case); }
 @media (hover: hover) and (pointer: fine) {
   .ask-cta:hover:not(:disabled) { transform: translateY(-2px); }
 }
-.ask-cta:active:not(:disabled) { transform: translateY(1px); background: var(--loud-face-active); box-shadow: inset 0 2px 5px rgba(0,0,0,.85), 0 1px 0 rgba(255,255,255,.7); }
+.ask-cta:active:not(:disabled) { transform: translateY(1px); background: var(--loud-face-active); box-shadow: var(--loud-case); }
 .ask-cta:disabled { opacity: .42; cursor: not-allowed; transform: none; }
 
 .ask-quota { font-size: 13px; color: var(--muted); margin-top: 14px; }

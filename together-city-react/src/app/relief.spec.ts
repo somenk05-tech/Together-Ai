@@ -151,7 +151,14 @@ describe('Relief stays a system', () => {
     // its lower lip, and nothing stands on it. They are per-sheet because the
     // light on Thursday's blue is white and the light on Sunday's linen is not,
     // which is the whole reason a scored line reads as a crease on both.
-    const NAMED = /var\(--(e1|e2|e3|e1-key|e2-key|carve|carve-deep|press|shadow|shadow-deep|edge-up|edge-in|pip|pip-ok|case-rim|case-rim-soft|lens|lens-key|lamp|lamp-badge|key-lit|key-lit-pip|rail-well-shadow|glass|glass-key|glass-in|glass-tray-shadow|glass-bubble-shadow|prism|focus-ring|soft-in|soft-tile|atmos-lip|press-stamp|press-stamp-warm|press-recto-lift|press-verso-lift)\)/;
+    const NAMED = /var\(--(e1|e2|e3|e1-key|e2-key|carve|carve-deep|press|shadow|shadow-deep|edge-up|edge-in|pip|pip-ok|case-rim|case-rim-soft|lens|lens-key|lamp|lamp-badge|key-lit|key-lit-pip|rail-well-shadow|glass|glass-key|glass-in|glass-tray-shadow|glass-bubble-shadow|prism|focus-ring|soft-in|soft-tile|atmos-lip|press-stamp|press-stamp-warm|press-recto-lift|press-verso-lift|loud-case|loud-case-sm|quiet-case)\)/;
+    // --loud-case and --quiet-case join for the moulded button (23 Aug): the
+    // casing a primary action is set into, and the same casing empty for a
+    // secondary. A MATERIAL, in the company of --glass and --lens — it is what
+    // the control is made of rather than a sixth height, and the whole reason
+    // it is a token is that the last version of this button was six shadow
+    // layers written by hand, which is exactly how it survived every commit
+    // that was supposed to flatten it.
     // A photograph, a filled black button and a text emboss are not surfaces —
     // they are ink and images, and they carry their own light.
     const ALLOWED = /(text-shadow|drop-shadow|\.hero|\.btn-accent|\.btn-gold|\.btn-primary|\.ask-cta|\.step\.|\.mincal|\.tag\.dark|\.knob|outline|inset 0 1px 0|no-case|img:not|video:not|\.case)/;

@@ -530,6 +530,81 @@
      same object, and the city has exactly one accent instead of two. It reads
      --loud-face rather than repeating it: the day the sun is re-cut, the rail
      is re-cut with it, which is the whole point of a token. */
+  /* ── THE BUTTON IS A MOULDED THING (owner, 23 Aug, with a reference) ─────
+     A glossy amber lozenge set inside a thick clear casing, lit along the top
+     and dropping a warm shadow on white paper.
+
+     AND IT IS THE ONE OBJECT ALLOWED TO BE MADE OF SOMETHING. Everything else
+     went flat and then went edgeless in the same day; the page is a single
+     white sheet with type on it and nothing standing off it at all. That is
+     what makes this work rather than what it contradicts — one raised, lit,
+     coloured object on an entirely quiet page is the loudest a primary action
+     has ever been in this application, and it is loud by being the only one.
+     A city of glass buttons on a city of glass panels would be neither.
+
+     FOUR LAYERS AND EACH IS DOING A JOB.
+       · two rings of spread, which are the CASING — a pale warm shell and the
+         lit edge caught on its outside. Spread rather than padding, so the
+         geometry of every button in the application is unchanged: nothing
+         reflows, no height moves, and the ceilings do not see it.
+       · a hairline of white along the top inside edge — the specular the
+         moulding catches. The broad gloss over the top half is drawn by
+         `.btn-accent::before` in relief.css, because a gradient is not a
+         shadow.
+       · a short shade curving under the bottom edge.
+       · two falls onto the paper, warm rather than grey. A neutral shadow
+         under a saturated object reads as dirt.
+
+     THE SHADE IS MEASURED, AND IT IS THE ONE THAT COULD HAVE GONE WRONG. The
+     label is --on-loud (#2a2a2a) and the gradient's deep stop was already
+     capped at #ea6a3e for it — 4.53:1, the edge of AA. Anything darkening the
+     bottom of the face eats that margin, and it happens at render time where
+     no guard in this repo can see it. Rendered at 2x and sampled: the floor
+     inside the band the label occupies is 4.66:1, unchanged from the textured
+     button that shipped this morning. The only pixels under 4.5 are the final
+     CSS pixel of the moulding at the very bottom of the curve — 4.26 — where
+     the button's own 26px of padding and its vertical centring mean no glyph
+     can land. The first cut of this shade was .28 alpha and took the label
+     band itself to 4.31; it is .16.
+
+     A QUIET CASING FOR THE SECONDARY. .btn-line was the last ringed object in
+     the city and a ring is a border. It becomes the same casing with nothing
+     lit inside it, which is a better reading of what a secondary action is
+     than a hairline box ever was. */
+  --loud-shell:     rgba(252, 205, 172, .55);
+  --loud-shell-lit: rgba(255, 255, 255, .95);
+  --loud-case:
+    0 0 0 7px var(--loud-shell),
+    0 0 0 8px var(--loud-shell-lit),
+    inset 0 1.5px 1px rgba(255, 255, 255, .55),
+    inset 0 -7px 12px -6px rgba(150, 52, 14, .16),
+    0 5px 10px rgba(203, 84, 44, .18),
+    0 16px 32px rgba(203, 84, 44, .16);
+  /* The same moulding at the size a 35px control has room for. */
+  --loud-case-sm:
+    0 0 0 5px var(--loud-shell),
+    0 0 0 5.8px var(--loud-shell-lit),
+    inset 0 1.5px 1px rgba(255, 255, 255, .55),
+    inset 0 -6px 10px -5px rgba(150, 52, 14, .16),
+    0 4px 8px rgba(203, 84, 44, .18),
+    0 10px 22px rgba(203, 84, 44, .14);
+  /* The broad gloss over the top half of the face. In tokens.css rather than
+     beside the rule that uses it because relief.css is achromatic BY GUARD —
+     "leaves no surface literal in the material file, achromatic or not" — and
+     four stops of white is four surface literals however grey they are. */
+  --loud-gloss: linear-gradient(180deg,
+    rgba(255, 255, 255, .70) 0%, rgba(255, 255, 255, .30) 42%,
+    rgba(255, 255, 255, .06) 78%, rgba(255, 255, 255, 0) 100%);
+  --quiet-case:
+    0 0 0 7px rgba(0, 0, 0, .035),
+    0 0 0 8px rgba(255, 255, 255, .95),
+    inset 0 1.5px 1px rgba(255, 255, 255, .9),
+    0 5px 10px rgba(0, 0, 0, .06),
+    0 16px 32px rgba(0, 0, 0, .05);
+  /* The lozenge's own face, one shade off white, so the casing has something
+     to be a casing around. */
+  --quiet-face: #fbfbfb;
+
   --lamp-face: var(--loud-face);
   /* AND THE LAMP'S OWN GLOW GOES WITH THE REST. --lamp was a rim, two inner
      shadows and three coloured drops — the single most raised object in the

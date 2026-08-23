@@ -253,12 +253,23 @@ describe('nothing is raised any more', () => {
    */
   it('flattens the four things the tokens could not reach', () => {
     const r = nc(relief);
-    expect(r).toMatch(/\.btn-accent, \.btn-gold, \.btn-primary \{[^}]*box-shadow: none;/);
+    // THE CLAIM WAS NEVER "no shadow", IT WAS "not six numbers written by
+    // hand" — which is why the button survived a commit called flat. It is
+    // moulded again (owner, 23 Aug, with a reference of a glass lozenge) and
+    // the guard holds the half that mattered: whatever the loudest object on
+    // the page is made of, it is made of a TOKEN, so the next person to
+    // re-point the material re-points this too.
+    expect(r).toMatch(/\.btn-accent, \.btn-gold, \.btn-primary \{[^}]*box-shadow: var\(--loud-case\);/);
+    const face = r.slice(r.indexOf('\n.btn-accent, .btn-gold, .btn-primary {'));
+    expect(face.slice(0, face.indexOf('}'))).not.toMatch(/rgba\(/);
     expect(r).not.toMatch(/h1, \.hero-num, \.stat \.val, \.blk-head h2 \{\s*text-shadow/);
     // and the three primitives are set in the file that wins
     const btn = r.slice(r.indexOf('\n.btn {'), r.indexOf('\n.btn:not'));
     expect(btn).toMatch(/text-transform: uppercase/);
-    expect(btn).toMatch(/border-radius: var\(--r-1\)/);
+    // AND THE CORNER IS THE PILL NOW. --r-1 is 0px and every corner in the
+    // city is square; a button is the exception the reference asks for, and
+    // --r-full is the name that already existed for it.
+    expect(btn).toMatch(/border-radius: var\(--r-full\)/);
     expect(r).toMatch(/\.tag, \.pill, \.chip \{[\s\S]*?text-transform: uppercase/);
     expect(r).toMatch(/\.eyebrow \{[^}]*font-weight: 500/);
   });
