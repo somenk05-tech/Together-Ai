@@ -27,6 +27,24 @@ const SEED = Number(process.argv[3] ?? 42);
 const CURATED = 75;
 const DECK = 5;
 /**
+ * How the curated bar is drawn.
+ *
+ *   fixed        score >= 75, whatever that means for this viewer
+ *   p90          the top tenth of the VIEWER'S OWN candidate distribution
+ *   p90+floor    the same, but never below an absolute floor
+ *
+ * The question the fixed bar cannot answer is what 75 means to somebody whose
+ * profile is half filled in. Measured at 100K it means nothing reachable: not
+ * one of 45,115 partial or near-empty profiles clears it with anybody. A bar
+ * drawn against the viewer's own distribution always has a top tenth.
+ *
+ * The floor is the argument against pure percentile: a top tenth of nothing is
+ * still nothing worth showing, and "your best five" is only a promise if the
+ * five are worth meeting.
+ */
+const BAR = (process.env.STRESS_BAR ?? 'fixed') as 'fixed' | 'p90' | 'p90floor';
+const BAR_FLOOR = Number(process.env.STRESS_BAR_FLOOR ?? 55);
+/**
  * Candidates sampled per viewer. Overridable because the 100,000 run does not
  * fit in one shell call at 150 — and a run that gets killed halfway produces no
  * numbers at all, which is worse than a smaller sample honestly labelled.
@@ -230,6 +248,7 @@ const scores: number[] = [];
 const astroS: number[] = [], goalS: number[] = [], valS: number[] = [], ovS: number[] = [];
 const perCityDeck = new Map<string, number[]>();
 let symmetricSaves = 0, shown = 0;
+let deckSlots = 0, deckViolSlots = 0, deckScoreSum = 0, deckScoreN = 0;
 /**
  * Deck emptiness is not scale-invariant under sampling — look at 40 candidates
  * and more people come up empty than at 250, which says something about the
@@ -252,7 +271,7 @@ for (let vi = 0; vi < people.length; vi++) {
   const take = Math.min(CANDIDATES, local.length + 40);
   for (let k = 0; k < take; k++) pool.push(rnd() < 0.8 && local.length ? pick(local) : pick(people));
 
-  const deck: { p: P; s: number }[] = [];
+  const scored: { p: P; s: number; viol: boolean }[] = [];
   let seenHere = 0, hitsHere = 0;
   for (const you of pool) {
     if (you.id === me.id || !wants(me, you)) continue;
@@ -274,19 +293,28 @@ for (let vi = 0; vi < people.length; vi++) {
     if (scores.length < 400000) scores.push(s);
     if (ovS.length < 40000) { ovS.push(s); astroS.push(f.astrology); goalS.push(f.relationshipGoals); valS.push(f.values); }
 
-    if (s >= CURATED) {
-      for (const ax of AXES) {
-        if (!ax.violates(me, you) || (me.dx.dealBreakers ?? []).includes(ax.chip)) continue;
-        const t = tally.get(ax.key)!;
-        t.unprotShown++; if (s > t.max) t.max = s;
-      }
-      deck.push({ p: you, s });
-      hitsHere++;
+    let viol = false;
+    for (const ax of AXES) {
+      if (!ax.violates(me, you) || (me.dx.dealBreakers ?? []).includes(ax.chip)) continue;
+      viol = true;
+      if (s >= CURATED) { const t = tally.get(ax.key)!; t.unprotShown++; if (s > t.max) t.max = s; }
     }
+    if (s >= CURATED) hitsHere++;
+    scored.push({ p: you, s, viol });
     seenHere++;
   }
-  deck.sort((x, y) => y.s - x.s);
-  const top = deck.slice(0, DECK);
+  scored.sort((x, y) => y.s - x.s);
+  // The bar, drawn three ways. p90 is taken off the sorted list rather than
+  // computed, so a viewer with four candidates still has a top tenth of four.
+  const bar = BAR === 'fixed' ? CURATED
+    : Math.max(
+      BAR === 'p90floor' ? BAR_FLOOR : 0,
+      scored.length ? scored[Math.min(scored.length - 1, Math.floor(scored.length * 0.1))].s : 0,
+    );
+  const top = scored.filter((c) => c.s >= bar).slice(0, DECK);
+  deckSlots += top.length;
+  deckViolSlots += top.filter((c) => c.viol).length;
+  if (top.length) { deckScoreSum += top.reduce((a, c) => a + c.s, 0); deckScoreN += top.length; }
   deckCount.push(top.length);
   deckSizeOf.set(me.id, top.length);
   const c = cohort[me.complete];
@@ -318,7 +346,7 @@ const L = (s = '') => console.log(s);
 L(`\n${'='.repeat(78)}`);
 L(`  100K STRESS TEST — PASS 1 BASELINE   scale ${SCALE.toLocaleString('en-IN')} · seed ${SEED} · ${secs}s`);
 L(`  ${shown.toLocaleString('en-IN')} directed pairs scored (sampled: ${CANDIDATES === Number.MAX_SAFE_INTEGER ? 'all' : CANDIDATES + ' candidates per viewer'})`);
-L(`  weights: ${process.env.DATING_WEIGHTS === 'retuned' ? 'RETUNED' : 'astrology-led (0.50)'}`);
+L(`  weights: ${process.env.DATING_WEIGHTS === 'retuned' ? 'RETUNED' : 'astrology-led (0.50)'} · bar: ${BAR}${BAR === 'p90floor' ? ' (floor ' + BAR_FLOOR + ')' : ''}${process.env.STRESS_NO_CONFIDENCE ? ' · confidence OFF' : ''}`);
 L('='.repeat(78));
 
 L('\nS10 · REGRESSION COHORTS');
@@ -346,6 +374,11 @@ for (const k of ['full', 'partial', 'thin'] as const) {
   L(`    ${k.padEnd(14)} ${pct(c.hits, c.seen).padStart(8)}                        ${pct(c.empty, c.viewers).padStart(8)}  (n=${c.viewers.toLocaleString('en-IN')})`);
 }
 L(`  top 10% of profiles' share of all deck impressions ........... ${pct(top10, totalImp)}   (INV-16 wants ≤35%)`);
+L('');
+L('WHAT IS ACTUALLY IN THE DECKS');
+L(`  deck slots filled ............................................ ${deckSlots.toLocaleString('en-IN')} of ${(deckCount.length * DECK).toLocaleString('en-IN')} possible (${pct(deckSlots, deckCount.length * DECK)})`);
+L(`  mean score of a deck slot .................................... ${deckScoreN ? (deckScoreSum / deckScoreN).toFixed(1) : '—'}`);
+L(`  slots violating a dealbreaker the viewer did NOT tick ........ ${pct(deckViolSlots, deckSlots)}`);
 L("  pairs shown that the CANDIDATE's own filters reject ........... 0  (INV-4 PASS — symmetry is structural)");
 L(`  …pairs the candidate's own side removed, which one-way filtering would have shown: ${symmetricSaves.toLocaleString('en-IN')}`);
 
