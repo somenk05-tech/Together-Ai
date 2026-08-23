@@ -55,7 +55,10 @@ describe('E-Commerce is a district with rooms behind it', () => {
     const targets = [
       '/ecommerce',
       ...HUBS.ecommerce.items.map((i) => i.path),
-      ...[...FITTED, ...OPEN].map((s) => s.path),
+      /* A coming-soon shelf points at nothing, on purpose — filtered here
+         rather than given a placeholder route, because a route that exists so
+         that a test passes is the shop that does not exist all over again. */
+      ...[...FITTED, ...OPEN].map((s) => s.path).filter((p): p is string => Boolean(p)),
       ...FITTED.map((s) => s.reads?.path).filter((p): p is string => Boolean(p)),
     ];
     expect(targets.filter((p) => !declared.has(p))).toEqual([]);
@@ -74,9 +77,42 @@ describe('The shop is the city’s own shelves', () => {
     expect(openShelves().map((s) => s.path)).toEqual(OPEN.map((s) => s.path));
   });
 
+  /**
+   * ── AND A COMING-SOON SHELF IS THE ONE THAT HAS NOTHING TO RESOLVE ────────
+   *
+   * Owner, 23 Aug: "add costume jewelry tab on this page, also just jewelry
+   * store on open market and make everything coming soon."
+   *
+   * A shelf with `soon` writes its own name, which every other card in that
+   * file is forbidden from doing — so this is the assertion that stops `soon`
+   * becoming the way around the rule. BOTH halves, because either alone is
+   * half of it:
+   *
+   *   · a shelf with `soon` must have NO hub, NO path and NO shop. The moment
+   *     a room exists it has a sidebar entry, and a card whose name is typed
+   *     here while a room holds another one is exactly the second copy this
+   *     whole file was written against.
+   *   · a shelf without `soon` must still resolve against a real entry. That
+   *     is the rule below, and it now skips nothing except the cards that
+   *     have no room by definition.
+   */
+  it('lets a shelf write its own name only when there is no room to read one from', () => {
+    for (const s of [...FITTED, ...OPEN]) {
+      if (!s.soon) continue;
+      expect({ name: s.soon.name, hub: s.hub, path: s.path, shop: s.shop })
+        .toEqual({ name: s.soon.name, hub: undefined, path: undefined, shop: undefined });
+    }
+    // …and it is not a door on either floor: nothing to open, so nothing to
+    // press. The district was deleted once for being a photograph of a shop
+    // that did not exist.
+    const tile = read('features/ecommerce/ShelfTile.tsx').replace(/\{?\/\*[\s\S]*?\*\/\}?/g, ' ');
+    expect(tile).toMatch(/if \(soon\) return <article/);
+  });
+
   it('takes each card’s name and line from that hub’s own sidebar', () => {
     for (const card of [...fittedShelves(), ...openShelves()]) {
-      const item = HUBS[card.hub].items.find((i) => i.path === card.path);
+      if (card.soon) continue;
+      const item = HUBS[card.hub!].items.find((i) => i.path === card.path);
       expect({ path: card.path, name: card.name, line: card.line })
         .toEqual({ path: card.path, name: item?.label, line: item?.sub });
     }
@@ -98,8 +134,15 @@ describe('The shop is the city’s own shelves', () => {
       .map(read).join('\n')
       .replace(/\{?\/\*[\s\S]*?\*\/\}?/g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
     for (const card of [...fittedShelves(), ...openShelves()]) {
-      expect({ path: card.path, copied: pages.includes(card.name) || pages.includes(card.line) })
-        .toEqual({ path: card.path, copied: false });
+      /* A coming-soon card has no line — there is no room to have written one
+         — and `''` is in every string, so an empty line would report every
+         card as copied and this guard would have started passing for the
+         wrong reason on the day it stopped being able to fail. Its NAME is
+         still checked: that one is real, and typing it into a page as well as
+         into the shelf is exactly the second copy this rule is about. */
+      const line = card.line || null;
+      expect({ name: card.name, copied: pages.includes(card.name) || (line !== null && pages.includes(line)) })
+        .toEqual({ name: card.name, copied: false });
     }
   });
 

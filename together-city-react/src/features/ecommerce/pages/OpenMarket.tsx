@@ -50,7 +50,7 @@ export function OpenMarket() {
              Gemstones and Daily offers have none and still open their room:
              a stone is read off a chart rather than picked off a shelf, and
              an offer is not a product. */
-          <ShelfTile key={s.path} to={(s.shop && AISLES[s.shop]?.shelf.path) ?? s.path} art={s.art} name={s.category ?? s.name} />
+          <ShelfTile key={s.path ?? s.name} soon={Boolean(s.soon)} to={(s.shop && AISLES[s.shop]?.shelf.path) ?? s.path} art={s.art} name={s.category ?? s.name} />
         ))}
       </div>
       <p className="ec-note">

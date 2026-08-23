@@ -49,7 +49,7 @@ export function PersonalizedStore() {
              over. Same material, same place in the grid, different verb. */
           <GroceryDownloadCard key={s.path} shelf={s} />
         ) : (
-          <ShelfTile key={s.path} to={(s.shop && SHOPS[s.shop]?.shelf.path) ?? s.path} art={s.art} name={s.name} />
+          <ShelfTile key={s.path ?? s.name} soon={Boolean(s.soon)} to={(s.shop && SHOPS[s.shop]?.shelf.path) ?? s.path} art={s.art} name={s.name} />
         )))}
       </div>
       <p className="ec-note">

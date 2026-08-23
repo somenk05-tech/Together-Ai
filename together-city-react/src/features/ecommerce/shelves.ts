@@ -35,9 +35,17 @@ import type { HubKey } from '@/types';
  */
 
 interface Shelf {
-  hub: HubKey;
-  /** the room that actually holds the products */
-  path: string;
+  /**
+   * THE HUB THAT VERIFIED WHAT IS ON IT — and it is optional for exactly one
+   * reason, which is the `soon` field at the bottom of this interface. Every
+   * shelf that a citizen can open has a hub behind it; a shelf that is not
+   * built yet has nobody behind it, and that is not a gap in the model, it is
+   * the whole of what "coming soon" means here.
+   */
+  hub?: HubKey;
+  /** the room that actually holds the products. A coming-soon shelf has none
+   *  — there is no room — which is what stops the tile being a door. */
+  path?: string;
   /**
    * THE PICTURE THE CARD IS MADE OF (owner, 22 Aug). A file in
    * /assets/img, not a URL and not a background in a stylesheet: the tile
@@ -65,6 +73,31 @@ interface Shelf {
      sending somebody to the Nutrition hub to fetch their own list is a trip
      for a thing that fits in a file. This card downloads it. */
   download?: boolean;
+  /**
+   * ── A SHELF THE CITY HAS NOT BUILT YET (owner, 23 Aug) ────────────────────
+   *
+   * "Add costume jewelry tab on this page, also just jewelry store on open
+   * market and make everything coming soon."
+   *
+   * This is the one kind of shelf with no hub, no path and no shop — and it
+   * carries its own name, which every other card in this file is forbidden
+   * from doing. The rule it appears to break is the rule that makes it safe:
+   * a card's copy comes from the sidebar entry of the room it opens, so that
+   * two files cannot disagree about a name. There is no room, so there is no
+   * second copy to disagree with. The day one exists, the shelf gets a `hub`
+   * and a `path`, `soon` comes off, and the name comes from the room like
+   * every other card's.
+   *
+   * `the-shop-is-the-citys-own-shelves.test.ts` holds both halves of that: a
+   * shelf with `soon` must have no path, and a shelf without it must resolve
+   * against a real sidebar entry. Neither can be quietly relaxed.
+   *
+   * AND IT IS NOT A DOOR. `ShelfTile` renders an `<article>` rather than a
+   * `<Link>` when nothing is passed to open — a coming-soon card that is
+   * clickable is the 10 Aug mistake in miniature, which is the reason this
+   * whole district was deleted once.
+   */
+  soon?: { name: string };
 }
 
 export interface ShelfCard extends Shelf {
@@ -77,7 +110,11 @@ export interface ShelfCard extends Shelf {
 }
 
 function resolve(shelf: Shelf): ShelfCard | null {
-  const cfg = HUBS[shelf.hub];
+  /* A shelf with nobody behind it has nothing to resolve against, and that is
+     the point of it. It never drops out of the list the way an unresolvable
+     one does — there is nothing here that can go stale. */
+  if (shelf.soon) return { ...shelf, name: shelf.soon.name, line: '', hubName: '' };
+  const cfg = HUBS[shelf.hub!];
   const item = cfg?.items.find((i) => i.path === shelf.path);
   if (!item) return null;
   return { ...shelf, name: item.label, line: item.sub, hubName: cfg.name };
@@ -96,6 +133,13 @@ export const FITTED: Shelf[] = [
   { hub: 'nutrition', path: '/nutrition/grocery', art: 'ec-grocery.webp', reads: { name: 'Food Preference Profile', path: '/nutrition/preferences' }, download: true },
   { hub: 'astrology', path: '/astrology/gemstones', art: 'ec-gemstones.webp', reads: { name: 'Astrology Profile', path: '/profile/astrology' }, shop: 'gemstones' },
   { hub: 'pets', path: '/pets/plan', art: 'ec-pets.webp', reads: { name: 'Pet profiles', path: '/pets/profiles' } },
+  /* COSTUME JEWELLERY, AND IT READS NOTHING YET. It is on this floor rather
+     than the market's because the owner put it here, and the floor's promise
+     survives it: the shelves here answer a profile, and the profile this one
+     will answer is the same style record the beauty rooms already keep. No
+     `reads` until that is wired, because naming a profile a shelf does not
+     consult would be inventing the shortlist rather than the shop. */
+  { art: 'ec-jewellery.webp', soon: { name: 'Costume Jewellery' } },
 ];
 
 /** Shelves you walk yourself, filed under the aisle they belong to. */
@@ -111,6 +155,12 @@ export const OPEN: Shelf[] = [
      supposed to mean: the counter here, the chart's own five over there. */
   { hub: 'astrology', path: '/astrology/gemstones', art: 'ec-gemstones.webp', category: 'Gemstones', shop: 'gemstones' },
   { hub: 'services', path: '/services/offers', art: 'ec-offers.webp', category: 'Deals & offers' },
+  /* THE JEWELLERY AISLE — the plain shelf, not the bench. It stands beside
+     Gemstones and it is not the same shop: a stone at the bench is prescribed
+     off a chart and priced by the carat, and this is a shelf somebody walks.
+     Filed under its own aisle for that reason rather than folded into
+     Gemstones, where it would be sorted by a chart nobody consulted. */
+  { art: 'ec-jewellery.webp', category: 'Jewellery', soon: { name: 'Jewellery' } },
 ];
 
 /**

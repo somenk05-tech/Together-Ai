@@ -2243,14 +2243,40 @@
   .ec-run { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .ec-face { padding: 0 12px; }
 }
-/* Only the grocery card draws this, and only because it is the one tile that
-   is not a door. See GroceryDownloadCard.tsx. */
+/* Two tiles draw this, and both for the same reason: they are the ones that
+   are not doors. The grocery card says it hands over a file; a coming-soon
+   shelf says it is not a shop yet. See GroceryDownloadCard.tsx and
+   ShelfTile.tsx. */
 .ec-state {
   font-size: var(--fs-3);
   font-weight: 600;
   line-height: 1.5;
   color: var(--on-accent);
   text-shadow: 0 1px 2px var(--scrim-top), 0 2px 12px var(--scrim-deep);
+}
+/* ── A CARD THAT IS NOT A SHOP YET (owner, 23 Aug) ──────────────────────────
+   The picture is drained rather than dimmed, and that is the difference worth
+   spending a rule on. A dimmed photograph reads as a loading state or a
+   disabled control somebody could enable; a DESATURATED one reads as a
+   proof — the shelf exists as an idea and not yet as a shop. It also keeps the
+   heading legible, which a wash over an already-dark picture would not.
+
+   No cursor and no hover, because there is nothing to press: `ShelfTile`
+   renders an <article> for these, so `.ec-go` never lands on them and neither
+   does the pointer feedback above.
+
+   AND IT SITS HERE RATHER THAN BESIDE `.ec-card`, which is not tidiness: two
+   guards in the-card-is-the-picture.test.ts slice this stylesheet between
+   `.ec-card {` and `.ec-go {`, and between `.ec-name {` and `.ec-state {`.
+   A rule whose selector CONTAINS `.ec-state {` placed above `.ec-name` makes
+   the second slice empty, and an empty string matches nothing — the guard
+   fails, and had it been written the other way round it would have passed
+   while checking nothing at all. */
+.ec-card.is-soon .ec-art { filter: grayscale(1) contrast(.92) brightness(.86); }
+.ec-card.is-soon .ec-state {
+  text-transform: uppercase;
+  letter-spacing: .18em;
+  font-size: var(--fs-1);
 }
 .ec-note {
   font-size: 12.5px;

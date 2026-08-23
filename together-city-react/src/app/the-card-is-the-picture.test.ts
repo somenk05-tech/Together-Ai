@@ -37,7 +37,11 @@ function size(file: string): { w: number; h: number } {
 describe('The card is the picture', () => {
   it('gives every shelf on both floors a photograph that is actually on disk', () => {
     const cards = [...FITTED, ...OPEN];
-    expect(cards.length).toBe(10);
+    // Twelve since 23 Aug: the two jewellery shelves. A coming-soon shelf has
+    // no hub and no room, but it is still a photograph on a grid — the picture
+    // is the ONE thing it is not allowed to be missing, or the card is a grey
+    // rectangle promising a shop.
+    expect(cards.length).toBe(12);
     const missing = cards
       .filter((s) => !s.art || !existsSync(img(s.art)))
       .map((s) => `${s.path} → ${s.art ?? '(none)'}`);
@@ -79,6 +83,11 @@ describe('The card is the picture', () => {
   it('gives one shelf one face, however you arrive at it', () => {
     const byHub = new Map<string, Set<string>>();
     for (const s of [...FITTED, ...OPEN]) {
+      // A coming-soon shelf has no hub to be grouped under — which is the
+      // whole of what "not built yet" means here. The two jewellery cards do
+      // wear one face on both floors, and they do it by sharing a file rather
+      // than by a rule this loop could check.
+      if (!s.hub) continue;
       if (!byHub.has(s.hub)) byHub.set(s.hub, new Set());
       byHub.get(s.hub)!.add(s.art);
     }
@@ -193,7 +202,7 @@ describe('The card is the picture', () => {
     const noAisle = OPEN.filter((s) => !s.category).map((s) => s.path);
     expect(noAisle).toEqual([]);
     expect(openShelves().map((s) => s.category))
-      .toEqual(['Skin & hair', 'Supplements', 'Pets', 'Gemstones', 'Deals & offers']);
+      .toEqual(['Skin & hair', 'Supplements', 'Pets', 'Gemstones', 'Deals & offers', 'Jewellery']);
     expect(read('features/ecommerce/pages/OpenMarket.tsx')).toMatch(/name=\{s\.category \?\? s\.name\}/);
     expect(read('features/ecommerce/pages/PersonalizedStore.tsx')).toMatch(/name=\{s\.name\}/);
   });

@@ -42,7 +42,7 @@ import { Link } from 'react-router-dom';
  * NO INLINE STYLE, and that is the ceiling talking rather than taste: the art
  * is an `<img>` with a class on it, never a `style={{ backgroundImage }}`.
  */
-export function ShelfTile({ to, onClick, art, name, note }: {
+export function ShelfTile({ to, onClick, art, name, note, soon }: {
   /** Where the card goes, when it is a door. */
   to?: string;
   /** What it does, when it is not one. The grocery list is the only card in
@@ -59,6 +59,19 @@ export function ShelfTile({ to, onClick, art, name, note }: {
    * other tile in both rooms passes none.
    */
   note?: string;
+  /**
+   * A SHELF THE CITY HAS NOT BUILT YET, and the state is drawn HERE rather
+   * than passed in as a note by whichever page happens to render it. Two
+   * pages writing "Coming soon" is two copies of one sentence, and the second
+   * one is wrong the day somebody rewords the first. It is also the reason
+   * neither page has to reach for `note`, which is the grocery card's alone.
+   *
+   * A soon tile is not a door — no `to`, no `onClick`, no cursor, nothing to
+   * press. This district was deleted once on 10 Aug for being "a photograph
+   * of a shop that did not exist"; a card that opens nothing has to be
+   * unmistakably not a card that opens something.
+   */
+  soon?: boolean;
 }) {
   const face = (
     <>
@@ -68,10 +81,11 @@ export function ShelfTile({ to, onClick, art, name, note }: {
       <img className="ec-art" src={`/assets/img/${art}`} alt="" loading="lazy" />
       <span className="ec-face">
         <span className="ec-name">{name}</span>
-        {note && <span className="ec-state">{note}</span>}
+        {soon ? <span className="ec-state">Coming soon</span> : note && <span className="ec-state">{note}</span>}
       </span>
     </>
   );
+  if (soon) return <article className="ec-card is-soon" aria-disabled="true">{face}</article>;
   if (to) return <Link to={to} className="ec-card ec-go">{face}</Link>;
   if (onClick) return <button type="button" className="ec-card ec-go" onClick={onClick}>{face}</button>;
   return <article className="ec-card">{face}</article>;
