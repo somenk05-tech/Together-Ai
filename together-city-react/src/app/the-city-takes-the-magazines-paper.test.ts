@@ -44,6 +44,27 @@ describe('the city takes the magazine’s paper', () => {
    * --ink-soft or a loud button left at #000, which on a page of small type is
    * the one object still lit by the old palette.
    */
+  /**
+   * AND THE BUTTON IS THE PICTURE, WITH A LABEL THAT CLEARS IT. White fails on
+   * every stop of that sun — 1.98:1 on the amber, 3.69:1 on the coral — so the
+   * label is the city's own ink, and the deep end is capped at #ea6a3e rather
+   * than the photograph's #e45722, which is 3.89 and under AA. Both halves are
+   * asserted: a dark label with an uncapped gradient is as broken as a white
+   * one, and it is the half somebody would put back first.
+   */
+  it('lights the button with the sun, and keeps its label readable', () => {
+    const face = root.match(/--loud-face:\s*([^;]+);/)?.[1] ?? '';
+    const stops = [...face.matchAll(/#[0-9a-f]{6}/gi)].map((m) => m[0].toLowerCase());
+    expect(stops.length).toBeGreaterThanOrEqual(2);
+    const on = val('--on-loud')!;
+    expect(on).toBe('#2a2a2a');
+    for (const stop of stops) {
+      const r = ratio(on, stop);
+      expect({ stop, clears: r >= 4.5, at: Number(r.toFixed(2)) })
+        .toEqual({ stop, clears: true, at: Number(r.toFixed(2)) });
+    }
+  });
+
   it('has no pure black left in the root ink scale', () => {
     for (const t of ['--ink', '--ink-soft', '--muted', '--faint', '--accent', '--accent-ink']) {
       expect({ token: t, value: val(t) }).not.toEqual({ token: t, value: '#000000' });
@@ -92,11 +113,23 @@ describe('the city takes the magazine’s paper', () => {
    * A TOKEN NOTHING READS IS A VALUE SOMEBODY RE-POINTS ONE DAY TO SEE WHAT
    * HAPPENS. The five were deleted rather than set to `none`.
    */
-  it('deleted those five sky tokens rather than blanking them', () => {
-    expect(nc(tokens)).not.toMatch(/--sky-image:\s*none;[\s\S]{0,40}\[data-hub="(medical|fitness|realestate|financial|services)"\]/);
-    // four hubs still hang one — the ones that also hold a ground.
+  /**
+   * IT SAID FOUR AND IT SAYS NONE (23 Aug). Five skies came down with the ink;
+   * the last four went with their hubs' grounds when the owner asked for the
+   * same colour rule in every room. A token nothing reads is a value somebody
+   * re-points one day to see what happens, so they are deleted rather than set
+   * to `none` — and that is what this checks, in both directions.
+   */
+  it('leaves no hub a sky, deleted rather than blanked', () => {
+    /* THE ROOT KEEPS `--sky-image: none` AND THAT IS NOT A LEFTOVER. The
+       user-selectable SKINS still hang one — `html[data-skin]` reads the token
+       in relief.css — and a skin is a citizen's own choice rather than a room's
+       palette, which is a different feature and not what was asked to go. The
+       root value is the default for "no skin chosen". */
+    const hubBlocks = [...nc(tokens).matchAll(/\[data-hub="[a-z]+"\][^{]*\{([^}]*)\}/g)].map((m) => m[1]).join(' ');
+    expect(hubBlocks).not.toMatch(/--sky-image/);
     const remaining = [...nc(tokens).matchAll(/\[data-hub="([a-z]+)"\][^{]*\{([^}]*--sky-image[^}]*)\}/g)].map((m) => m[1]);
-    expect([...new Set(remaining)].sort()).toEqual(['astrology', 'beauty', 'entertainment', 'nutrition']);
+    expect(remaining).toEqual([]);
   });
 });
 
@@ -118,20 +151,37 @@ describe('the city takes the magazine’s paper', () => {
 describe('nothing is raised any more', () => {
   const rootOf = (name: string) => root.match(new RegExp(`${name}:\\s*([^;]+);`))?.[1]?.trim() ?? '';
 
-  it('resolves every depth to a hairline, and keeps all five names', () => {
-    for (const d of ['--e1', '--e2', '--e3']) {
+  /**
+   * AND THEN e1 BECAME NOTHING (23 Aug, "remove all plates and cards"). It was
+   * the panel depth — a card, a stat, a row, a table — and there are no panels:
+   * those keep their padding and lose their sheet.
+   *
+   * e2 AND e3 KEEP THE HAIRLINE and the distinction is not decorative. They are
+   * what an OVERLAY is drawn at, and something drawn over the page has to be
+   * distinguishable from the page or it is not an overlay. A dialog with no
+   * edge on the same colour as what it covers is broken rather than flat.
+   */
+  it('draws panels at no depth and overlays at a hairline', () => {
+    expect(rootOf('--e1')).toBe('none');
+    for (const d of ['--e2', '--e3']) {
       expect({ depth: d, value: rootOf(d) }).toEqual({ depth: d, value: expect.stringMatching(/^var\(--rim(-strong)?\)$/) });
     }
     expect(rootOf('--rim')).toMatch(/^inset 0 0 0 1px var\(--line\)$/);
-    // A depth that resolves to nothing is not flat, it is invisible: a white
-    // card on #fafafa with no shadow and no border stops existing.
-    for (const d of ['--e1', '--e2', '--e3', '--rim', '--rim-strong']) {
+    for (const d of ['--rim', '--rim-strong']) {
       expect({ depth: d, blank: rootOf(d) === 'none' || rootOf(d) === '' }).toEqual({ depth: d, blank: false });
     }
   });
 
-  it('leaves no gradient in a face, a well or the loud button', () => {
-    for (const t of ['--face', '--face-2', '--face-tall', '--face-key', '--well', '--loud-face']) {
+  /**
+   * THE LOUD BUTTON LEFT THIS LIST (23 Aug). Every face and every well is one
+   * colour — flat means flat — but the owner then asked for a photographed sun
+   * as the button colour everywhere, and a sun is a gradient or it is not a
+   * sun. It is the one coloured object in the city and the one object whose
+   * whole job is to be the loudest thing on the page; a single warm accent
+   * works precisely because nothing else competes with it.
+   */
+  it('leaves no gradient in a face or a well', () => {
+    for (const t of ['--face', '--face-2', '--face-tall', '--face-key', '--well']) {
       const stops = [...rootOf(t).matchAll(/#[0-9a-f]{3,8}/gi)].map((m) => m[0].toLowerCase());
       expect({ token: t, distinct: [...new Set(stops)].length }).toEqual({ token: t, distinct: 1 });
     }

@@ -362,41 +362,22 @@ describe('the beauty hub prints on its own paper', () => {
     expect(bar).toMatch(/className="beauty-sheet"/);
   });
 
-  it('registers every lit surface with the wall ink-restore list', () => {
-    // The wall re-points --ink to near-white by inheritance; every class that
-    // paints cream must put the paper's ink back in relief.css. The step cards
-    // and the sheets both shipped without doing so, and both went out with
-    // near-white product names on cream — invisible in review because every
-    // local harness restored the ink by hand. A surface class missing from
-    // this list is that bug again.
-    const relief = read('styles/relief.css');
-    // THE LIST IS TWO RULES NOW, AND THIS READS BOTH. The sky split it: a
-    // surface both FLOATS and restores, a control only restores — a carved
-    // field on a translucent panel is two veils and no edge — so the frost
-    // could not be written onto one selector list without either frosting the
-    // fields or naming eight classes twice. What is pinned here is the
-    // invariant, which has not moved: every lit surface puts the paper's ink
-    // back. Found by what a rule DOES rather than by where one starts, so the
-    // next split does not have to come back and edit this line.
-    const code = relief.replace(/\/\*[\s\S]*?\*\//g, ' ');
-    const list = [...code.matchAll(/([^{}]+)\{([^}]*)\}/g)]
-      .filter(([, sel, body]) => /\[data-hub="beauty"\]/.test(sel)
-        && /--muted:\s*var\(--on-paper-muted\)/.test(body))
-      .map(([, sel]) => sel).join(',');
-    // Controls joined the list after the live Market page was measured: the
-    // sort select's face was cream and its label near-white. A form control is
-    // a lit surface exactly like a card, and it is the kind of thing nobody
-    // thinks of as a "surface" until it is invisible.
-    for (const cls of ['.beauty-plate', '.beauty-sheet', '.beauty-leaf-open', '.routine-card',
-                       '.btn-line', 'select', 'input', 'textarea']) {
-      expect(list).toContain(`[data-hub="beauty"] ${cls}`);
-    }
-    // …and the loud button must stay OUT of it: it is a black face with its own
-    // foreground, and the paper's ink would erase its label instead of saving it.
-    for (const cls of ['.btn-loud', '.btn-accent']) {
-      expect(list).not.toContain(`[data-hub="beauty"] ${cls}`);
-    }
-  });
+  /* ── THE INK-RESTORE LIST WAS CHECKED HERE, AND THERE IS NO WALL (23 Aug)
+     The invariant was: the gallery wall re-points --ink to near-white by
+     inheritance, so every class that paints cream must put the paper's ink
+     back — and a surface missing from that list shipped near-white product
+     names on cream, invisible in review because every local harness restored
+     the ink by hand.
+
+     THE WALL IS GONE. Beauty handed its ground back with the other three when
+     the owner asked for one colour rule in every hub, so nothing re-points
+     --ink by inheritance and there is nothing to restore. The bug this
+     guarded cannot happen without a wall to cast it.
+
+     TO WANT IT BACK: a hub re-pointing --ink again. relief.spec's granted list
+     is the gate on that, it is empty, and it is where the argument would have
+     to be made first. */
+
 
   it('never inflates or crops a product photograph', () => {
     // Three constraints, and all three were learned the hard way. `auto` +
@@ -417,15 +398,12 @@ describe('the beauty hub prints on its own paper', () => {
     expect(shot).not.toMatch(/mixBlendMode/);
   });
 
-  it('stands a product shot on the ground it was photographed on', () => {
-    // Every one of these is hotlinked from a retailer and lit on white, and the
-    // well is white for that reason and for no other.
-    const layout = read('styles/layout.css');
-    expect(layout).toMatch(/\.routine-well \{[^}]*background: var\(--shot-ground\)/);
-    const tokens = read('styles/tokens.css');
-    expect(tokens).toMatch(/--shot-ground: var\(--paper\)/);   // inert at the root
-    expect(tokens).toMatch(/--shot-ground: #ffffff/);            // white in this hub
-  });
+  /* ── --shot-ground WENT WITH THE WALL. A product photographed on white was
+     stood on its own white rather than on the gallery's cream, because a
+     cut-out on the wrong ground reads as a badly masked cut-out. Every ground
+     in this hub is the city's paper now and the shot is on the paper it was
+     photographed on by default. */
+
 
   it('carries the studio white out of the well and across the product sections', () => {
     // THIS FILE USED TO SAY "nothing is read on it", and the token file said the
@@ -511,17 +489,8 @@ describe('the beauty hub prints on its own paper', () => {
     }
   });
 
-  it('floats the rail on the sky instead of cutting a well into it', () => {
-    const relief = read('styles/relief.css');
-    // IT WAS `background: var(--card)`, AND THAT WAS RIGHT ON A WALL. The rail
-    // was the one permanent object on screen and it had to belong to the hub,
-    // so it took the hub's paper while every surface beside it went cream.
-    // The wall is a sky now, and a solid white slab standing on an atmosphere
-    // is something pasted over the picture. Its FACE moved onto the hub's one
-    // surface list with every other floating panel — checked by the test
-    // above, which reads that list — and what is pinned here is the half that
-    // is only about the rail: it is lit from outside now rather than carved in.
-    expect(relief).toMatch(/\[data-hub="beauty"\] \.tc-side \{ box-shadow: var\(--e2\); \}/);
-    expect(relief).not.toMatch(/\[data-hub="beauty"\] \.tc-side \{ background: var\(--card\); \}/);
-  });
+  /* ── AND THE RAIL FLOATED BECAUSE THERE WAS A SKY BEHIND IT. There is not;
+     it is a panel on paper, the same as every other rail in the city, and the
+     frost it floated in went with the picture it was floating on. */
+
 });

@@ -54,10 +54,15 @@ describe('the dating hub holds no ground', () => {
     }
   });
 
-  it('is off the granted list, and the list is shorter than it was', () => {
-    const granted = /const GRANTED = \[([^\]]*)\]/.exec(spec)?.[1] ?? '';
-    expect(granted).not.toMatch(/'dating'/);
-    expect(granted.split(',').length).toBe(4);
+  /**
+   * IT WAS "SHORTER THAN IT WAS" AND IT IS "EMPTY" (23 Aug). Dating was the
+   * first hub ever to leave the granted list; the other four followed the same
+   * afternoon on one instruction. The claim this file makes about dating is
+   * unchanged and is now simply true of everybody.
+   */
+  it('is off the granted list, and so is every other hub', () => {
+    const granted = /const GRANTED[^=]*=\s*\[([^\]]*)\]/.exec(spec)?.[1]?.trim() ?? 'MISSING';
+    expect(granted).toBe('');
   });
 
   /**

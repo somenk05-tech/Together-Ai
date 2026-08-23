@@ -117,19 +117,25 @@ describe('the bar sits with the logo', () => {
     expect(groups.some((r) => /--ink-soft/.test(r))).toBe(false);
   });
 
-  it('and does not turn solid white in the night hub', () => {
-    // `--ink` and `--card` swap meaning on a night surface, so the rule above
-    // would make five SOLID WHITE lozenges there. tokens.css allows exactly
-    // two of those in that room — the primary button and the rail lamp — and
-    // five across the top would beat both. The night keeps its raised face.
-    // Astrology left this set on 18 Aug when its page became a sheet of light
-    // (relief.css carries the argument next to the rule); entertainment is the
-    // one night room left, and it keeps the raised face.
+  /**
+   * ── AND NO HUB OVERRIDES IT ANY MORE ──────────────────────────────────────
+   *
+   * This required entertainment — the last night room — to keep a raised face
+   * on its action bar, because `--ink` and `--card` swap meaning on a dark
+   * surface and the rule above would have made five solid white lozenges
+   * there.
+   *
+   * THERE IS NO NIGHT ROOM. Entertainment handed its ground back on 23 Aug, so
+   * --ink and --card mean the same thing in every hub and the reversal above
+   * is safe everywhere. The claim inverts: the bar is the city's, and nobody
+   * re-points it. That is a real assertion rather than a dead one — a hub
+   * re-taking this rule is exactly the drift the original was written against.
+   */
+  it('is the city’s bar, overridden by no hub', () => {
     const relief = read('styles/relief.css');
-    const night = relief.match(/\[data-hub="entertainment"\] \.tc-actionbar a[^{]*\{([^}]*)\}/)?.[1] ?? '';
-    expect(night, 'the night-hub action-bar rule not found').toBeTruthy();
-    expect(night).toMatch(/background:\s*var\(--face\)/);
-    expect(night).toMatch(/color:\s*var\(--ink\)/);
+    const code = relief.replace(/\/\*[\s\S]*?\*\//g, ' ');
+    const overrides = [...code.matchAll(/\[data-hub="([a-z]+)"\][^{]*\.tc-action[^{]*\{/g)].map((m) => m[1]);
+    expect(overrides).toEqual([]);
   });
 
   /**

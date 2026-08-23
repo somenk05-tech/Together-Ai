@@ -296,31 +296,57 @@ h1 { letter-spacing: .015em; }
    tokens.css. They get the case, not the white. */
 .citymap, .poster-hero { background: var(--media-bg); }
 
-/* ══ SURFACES ════════════════════════════════════════════════════════════
-   Every card in the application, whatever its class name. Borders go: a rim
-   IS the border now, and a 1px line on top of a rim reads as two edges. */
-.card, .stat, .row, .console, .mincal, .modal, table.tc, .blk > .card, .pcard {
-  background: var(--face-tall);
+/* ══ SURFACES, AND THERE ARE NOT ANY ══════════════════════════════════════
+   Owner, 23 Aug: "remove all plates and cards, make everything flat on the
+   background."
+
+   THE REFERENCE HAS NO PANELS IN IT. Its journal entries are a photograph and
+   a caption; its products are a photograph and a caption; the only bordered
+   box on the whole page is one button. Nothing is on a plate, because the page
+   IS the plate.
+
+   SO A CARD KEEPS ITS PADDING AND LOSES EVERYTHING ELSE. The class stays on
+   several hundred elements and every one of them still reserves the room it
+   always did — what goes is the sheet under it. Separation is the space it
+   already had, plus the rules the sections carry.
+
+   `background: none` RATHER THAN `--card`, and this is deliberate: --card is
+   still #ffffff and still what an OVERLAY is made of. A card that painted it
+   here would be a white rectangle on #fafafa, which is the plate again with a
+   quieter edge.
+
+   THE HOVER LIFT GOES WITH IT. A surface with no elevation cannot rise, and
+   `transform: translateY(-3px)` on a thing with no edge is content that jumps
+   for no visible reason. */
+.card, .stat, .row, .console, .mincal, table.tc, .blk > .card, .pcard {
+  background: none;
   border: 0;
-  border-radius: var(--r-4);
-  box-shadow: var(--e1);
-  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease);
+  border-radius: 0;
+  box-shadow: none;
+}
+/* AND THE MODAL IS NOT ON THIS LIST ANY MORE. An overlay over the page must be
+   distinguishable from the page or it is not an overlay — a dialog with no
+   edge, no fill and no elevation on the same colour as what it covers is
+   broken rather than flat. It keeps --card and a hairline. */
+.modal {
+  background: var(--card);
+  border: 0;
+  box-shadow: var(--e2);
 }
 .card { padding: 20px 22px; }
 /* THE SHADOW IS FOR EVERYBODY, THE MOVEMENT IS FOR A POINTER. A tap on a touch
    screen leaves a :hover behind it that nothing clears until the next tap, so an
    ungated lift here is a card that rises under a finger and stays risen. */
-.card.lift:hover, .row:hover, .pcard:hover, .stat.lift:hover {
-  box-shadow: var(--e2);
-}
+/* THE LIFT IS GONE — see above. What a hoverable row still owes the pointer is
+   an acknowledgement, and with no depth to spend it is the one the reference
+   would use: the ground darkens by a step under the thing you are pointing
+   at. */
 @media (hover: hover) and (pointer: fine) {
   .card.lift:hover, .row:hover, .pcard:hover, .stat.lift:hover {
-    transform: translateY(-3px);
+    background: var(--wash);
   }
 }
-.card-lg { border-radius: var(--r-5); }
-.console { box-shadow: var(--e2); overflow: hidden; }
-.modal { box-shadow: var(--e3); border-radius: var(--r-5); }
+.console { overflow: hidden; }
 .modal-ov { background: var(--frost); backdrop-filter: blur(6px) saturate(120%); }
 
 .rule, .trust, .tabrow, .console .tabs, .console .below, table.tc td, table.tc th {
@@ -854,11 +880,6 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
    screen up: the sentence above is about a page that is already black, and this
    hub's page is a sheet of light now. Its action bar takes the city's, on the
    paper palette, like every other lit room. */
-[data-hub="entertainment"] .tc-actionbar a, [data-hub="entertainment"] .tc-actionbar button,
-[data-hub="entertainment"] .tc-actions a, [data-hub="entertainment"] .tc-actions button {
-  background: var(--face); color: var(--ink); box-shadow: var(--e2);
-}
-[data-hub="entertainment"] .tc-actionbar, [data-hub="entertainment"] .tc-actions { color: var(--ink); }
 
 .tc-bottomnav {
   background: var(--face-tall); border-top: 0; box-shadow: var(--e2);
@@ -1249,8 +1270,6 @@ img[src$=".svg"], .no-case {
 .district-plate.is-soon:hover { box-shadow: var(--e3); }
 .district-plate.is-soon:hover .hub-plate-go { background: var(--well); color: var(--muted); box-shadow: var(--e1); }
 
-@media (prefers-reduced-motion: reduce) {
-}
 
 /* ══ A WALL OF PICTURES, IN THE HUB'S LANGUAGE ═══════════════════════════
    The profile grid was 6px gutters and 8px corners — a contact sheet. Nothing
@@ -2446,7 +2465,6 @@ textarea.g-field { resize: none; line-height: 1.55; }
    and glass. Every value comes from a token — including the wash, which rides
    --sky-image: a gradient is an image, so the hub that hangs a picture and the
    hub that hangs a wash use one mechanism rather than two.                    */
-[data-hub="social"] body { background: transparent; }
 /* ONE FIXED LAYER, FOR EVERY HUB THAT HANGS SOMETHING BEHIND THE SHELL.
    It was scoped to `:has(.tc-side[data-side="social"])` because social was the
    only hub with a sky. Beauty's gallery wall is the same object — a texture
@@ -2462,46 +2480,15 @@ textarea.g-field { resize: none; line-height: 1.55; }
   background: var(--sky-image);
   background-color: var(--ground);
 }
-[data-hub="social"] .tc-shell,
-[data-hub="social"] .tc-main,
-[data-hub="social"] .page { background: transparent; }
-
 /* THREE WEIGHTS, NEVER TWO OF THE SAME STACKED. Chrome is the lightest
    material, the slab is next, a photograph tile is the heaviest — §12's rule
    that a light translucent surface must never sit on another one. */
-[data-hub="social"] .tc-header,
-[data-hub="social"] .tc-side {
-  background: var(--chrome);
-  -webkit-backdrop-filter: var(--chrome-blur); backdrop-filter: var(--chrome-blur);
-}
-[data-hub="social"] .g-slab {
-  -webkit-backdrop-filter: var(--pane-blur); backdrop-filter: var(--pane-blur);
-}
-[data-hub="social"] .g-key,
-[data-hub="social"] .side-menu a {
-  -webkit-backdrop-filter: var(--chrome-blur); backdrop-filter: var(--chrome-blur);
-}
-
 /* ── AND THE THREE PREFERENCES, SAME AS THE SKY ──────────────────────────
    Four blurred layers on a tinted ground is the case these exist for. */
 @media (prefers-reduced-transparency: reduce) {
-  [data-hub="social"] .tc-header,
-  [data-hub="social"] .tc-side,
-  [data-hub="social"] .g-slab,
-  [data-hub="social"] .g-key,
-  [data-hub="social"] .side-menu a {
-    background: var(--card);
-    -webkit-backdrop-filter: none; backdrop-filter: none;
-  }
   .tc-shell:has(.tc-side[data-side="social"])::before { background-image: none; }
 }
 @media (prefers-contrast: more) {
-  [data-hub="social"] .g-slab,
-  [data-hub="social"] .g-key {
-    background: var(--card);
-    box-shadow: inset 0 0 0 1.5px var(--line-2);
-    -webkit-backdrop-filter: none; backdrop-filter: none;
-  }
   .tc-shell:has(.tc-side[data-side="social"])::before { background-image: none; }
 }
 
@@ -3901,11 +3888,6 @@ textarea.g-field { resize: none; line-height: 1.55; }
    so an opaque body is a lid on the sky no matter what the shell above it does.
    Dating shipped a sky that could be seen on exactly one page for that reason,
    and the lesson is cheaper to inherit than to learn twice. */
-[data-hub="beauty"] { background-image: var(--sky-image); background-attachment: fixed; }
-[data-hub="beauty"] body,
-[data-hub="beauty"] .tc-shell,
-[data-hub="beauty"] .tc-main,
-[data-hub="beauty"] .page { background: transparent; }
 
 /* ── AND EVERY SURFACE GOES TRANSLUCENT, NOT AWAY ───────────────────────────
    var(--frost), the root's own translucent white, and nothing else: a hub block
@@ -3919,11 +3901,6 @@ textarea.g-field { resize: none; line-height: 1.55; }
    out at 3.48 and the dense tables had to stay on paper. Nothing is left behind
    on white here but the photographs' own wells, and a well is not a surface —
    see the note at the foot of this section. */
-[data-hub="beauty"] .tc-header {
-  background: var(--frost);
-  -webkit-backdrop-filter: blur(8px) saturate(120%);
-  backdrop-filter: blur(8px) saturate(120%);
-}
 /* THE RAIL IS A PANEL FLOATING ON THE SKY, NOT A WELL CUT INTO IT. It was made
    the city's white while every surface beside it went cream, so that the one
    permanent object on screen belonged to the hub; against an atmosphere that
@@ -3938,7 +3915,6 @@ textarea.g-field { resize: none; line-height: 1.55; }
    them stops blocking it. Frost over them would also paint over the lamp, which
    is the one lit object in the room and the city's wayfinding in all
    twenty-five. */
-[data-hub="beauty"] .tc-side { box-shadow: var(--e2); }
 
 /* ── MUTED INK NEVER SITS ON THE SKY ────────────────────────────────────────
    THE TWO GREYS GO INTO SHADOW HERE AND COME BACK ON EVERY SURFACE. Bare on
@@ -3958,13 +3934,6 @@ textarea.g-field { resize: none; line-height: 1.55; }
 
    THE HEADER IS OUTSIDE .tc-main, and that is correct rather than an omission —
    it is a panel, and it keeps the hub's greys. */
-[data-hub="beauty"] .tc-main {
-  --ink:      var(--on-ground);
-  --ink-soft: var(--on-ground-soft);
-  --muted:    var(--ink-soft);
-  --faint:    var(--ink-soft);
-  color: var(--on-ground);
-}
 /* Every lit surface, and the list is the point: a surface missing from it is a
    cream card printed in near-white. `.card` covers most of the application,
    the two beauty faces cover the plates, and the last three are the things
@@ -3988,21 +3957,6 @@ textarea.g-field { resize: none; line-height: 1.55; }
    Two lists of the same classes is two lists that disagree the first time one is
    nudged — the sentence tokens.css makes about the ink scale, arriving here. A
    surface floats and restores in the same breath, or it does neither. */
-[data-hub="beauty"] .card,
-[data-hub="beauty"] .beauty-plate,
-[data-hub="beauty"] .beauty-sheet,
-[data-hub="beauty"] .beauty-leaf-open,
-[data-hub="beauty"] .routine-card,
-[data-hub="beauty"] .modal,
-[data-hub="beauty"] .sheet,
-[data-hub="beauty"] .tc-side {
-  background: var(--frost);
-  --ink:      var(--on-paper);
-  --ink-soft: var(--on-paper-soft);
-  --muted:    var(--on-paper-muted);
-  --faint:    var(--on-paper-faint);
-  color: var(--ink);
-}
 /* ── AND THE SHOP PLATE IS PAPER, NOT FROST ─────────────────────────────────
    Owner, 20 Aug, pointing at the routine's morning and evening bands: "white
    plate just behind the products".
@@ -4031,26 +3985,6 @@ textarea.g-field { resize: none; line-height: 1.55; }
        .beauty-sheet.is-shop, .routine-card { background: var(--shot-ground); }
 
    which is this exact decision, taken by whoever built the shop and correct
-   since the day they wrote it. It never rendered. `[data-hub="beauty"]
-   .beauty-sheet` in this file scores 0,2,0 — one attribute, one class — and so
-   does `.beauty-sheet.is-shop`; at equal specificity the LAST stylesheet wins,
-   main.tsx imports relief.css after index.css, and the hub's frost quietly ate
-   a rule nobody had reason to suspect. Nothing looked broken: frost over paper
-   is nearly paper, so the seam only shows where a cut-out photograph's own
-   white meets it.
- 
-   So this rule is 0,3,0 and it is the shop's own intent, restored rather than
-   invented. `.routine-card` comes with it — the step cards were in that same
-   layout.css rule for the same reason and lost the same way, and a white plate
-   under frost cards is the seam moved rather than removed.
-
-   `--shot-ground` IS THE RIGHT NAME, not --paper. It is the studio white the
-   product wells already paint, declared #ffffff in this hub, and the whole
-   point is that the plate, the card and the well are ONE white with nothing
-   between them. Reading --paper would happen to match today and would stop
-   matching the first time either name moved. */
-[data-hub="beauty"] .beauty-sheet.is-shop,
-[data-hub="beauty"] .routine-card { background: var(--shot-ground); }
 
 /* A CONTROL IS A LIT SURFACE TOO, which is the third time this list has been
    the answer and the first time it has been about something other than a card.
@@ -4067,16 +4001,6 @@ textarea.g-field { resize: none; line-height: 1.55; }
    light translucent surface never stands on another one: a thin field on a thin
    panel is two veils and no edge, and the field stops reading as somewhere you
    can type. */
-[data-hub="beauty"] .btn-line,
-[data-hub="beauty"] select,
-[data-hub="beauty"] input,
-[data-hub="beauty"] textarea {
-  --ink:      var(--on-paper);
-  --ink-soft: var(--on-paper-soft);
-  --muted:    var(--on-paper-muted);
-  --faint:    var(--on-paper-faint);
-  color: var(--ink);
-}
 
 /* ── AND THE ONE SURFACE THAT DOES NOT FLOAT ────────────────────────────────
    --shot-ground stays the opaque studio white it has always been, and there is
@@ -4100,22 +4024,6 @@ textarea.g-field { resize: none; line-height: 1.55; }
    picture on the hub element alone would leave the fixed layer still showing it
    on every route that has a shell, which is all of them but the landing. Its
    --ground background-colour stays, so what is left is the wall. */
-@media (prefers-reduced-transparency: reduce) {
-  [data-hub="beauty"] { background-image: none; }
-  [data-hub="beauty"] .tc-shell::before { background-image: none; }
-  [data-hub="beauty"] .tc-header,
-  [data-hub="beauty"] .tc-side,
-  [data-hub="beauty"] .card,
-  [data-hub="beauty"] .beauty-plate,
-  [data-hub="beauty"] .beauty-sheet,
-  [data-hub="beauty"] .beauty-leaf-open,
-  [data-hub="beauty"] .routine-card,
-  [data-hub="beauty"] .modal,
-  [data-hub="beauty"] .sheet {
-    background: var(--card);
-    -webkit-backdrop-filter: none; backdrop-filter: none;
-  }
-}
 
 /* ═══ THE FOOD PREFERENCE PROFILE IS A PLAIN SHEET ══════════════════════════
    It printed on Tuesday's press paper: a photograph under a .52 veil, with its
@@ -4688,18 +4596,6 @@ textarea.g-field { resize: none; line-height: 1.55; }
    so an opaque body is a lid on the sky whatever the shell above it does.
    Dating shipped a sky visible on exactly one page for that reason. Third time
    this comment has been written; still cheaper than learning it again.       */
-[data-hub="astrology"] { background-image: var(--sky-image); background-attachment: fixed; }
-[data-hub="astrology"] body,
-[data-hub="astrology"] .tc-shell,
-[data-hub="astrology"] .tc-main,
-[data-hub="astrology"] .page,
-/* AND THE TWO PAGES THAT PAINT THEIR OWN GROUND. `.ask-stage` and
-   `.tarot-night` each fill the content column with var(--ground) — they are
-   not panels, they are the page, written before the page had anything behind
-   it. Left opaque they would be a #ebe8e3 slab over the exact spot the light
-   band crosses, on the two screens that most look like weather. */
-[data-hub="astrology"] .ask-stage,
-[data-hub="astrology"] .tarot-night { background: transparent; }
 
 /* ── AND EVERY SURFACE THAT HOLDS TEXT GOES TRANSLUCENT, NOT AWAY ───────────
    var(--frost), the root's own translucent white, and nothing else: a hub block
@@ -4713,34 +4609,11 @@ textarea.g-field { resize: none; line-height: 1.55; }
    here the commit it is born; a panel missing from it is not a rendering fault,
    it is a white slab pasted over the picture, which is the kind of wrong nobody
    files a bug about. */
-[data-hub="astrology"] .tc-header {
-  background: var(--frost);
-  -webkit-backdrop-filter: blur(8px) saturate(120%);
-  backdrop-filter: blur(8px) saturate(120%);
-}
 /* THE RAIL IS A PANEL FLOATING ON THE SHEET, NOT A WELL CUT INTO IT — dating's
    sentence, and it arrives here having been true twice already. Its keys need
    nothing: --lens-face is already translucent white and already carries its own
    blur, so the light arrives through them the moment the solid well behind them
    stops blocking it, and frost over them would paint out the lamp. */
-[data-hub="astrology"] .tc-side { background: var(--frost); box-shadow: var(--e2); }
-[data-hub="astrology"] .card,
-[data-hub="astrology"] .stat,
-[data-hub="astrology"] .row,
-[data-hub="astrology"] .console,
-[data-hub="astrology"] .pcard,
-[data-hub="astrology"] table.tc,
-[data-hub="astrology"] .modal,
-[data-hub="astrology"] .sheet,
-/* AND THE HUB'S OWN THREE, which is where dating's list stops being enough.
-   Every one of them paints --face-tall and holds body copy: the framed slab
-   Tarot and Gemstones are built out of, Ask's question panel, and an answered
-   question in the archive under it. `.gem-choice` is deliberately NOT here — a
-   control inside a frost card is §12's two veils and no edge, and it keeps the
-   opaque white face it needs to read as something you can press. */
-[data-hub="astrology"] .astro-frame,
-[data-hub="astrology"] .ask-card,
-[data-hub="astrology"] .ask-past { background: var(--frost); }
 
 /* ── AND NOTHING IS SHADOWED, WHICH IS NEW ──────────────────────────────────
    Dating and Beauty both carry a shadow-and-restore: --muted and --faint
@@ -4768,26 +4641,6 @@ textarea.g-field { resize: none; line-height: 1.55; }
    `.tc-shell::before` is unscoped, so clearing the picture on the hub element
    alone would leave the fixed layer still showing it on every route but the
    landing. */
-@media (prefers-reduced-transparency: reduce) {
-  [data-hub="astrology"] { background-image: none; }
-  [data-hub="astrology"] .tc-shell::before { background-image: none; }
-  [data-hub="astrology"] .tc-header,
-  [data-hub="astrology"] .tc-side,
-  [data-hub="astrology"] .card,
-  [data-hub="astrology"] .stat,
-  [data-hub="astrology"] .row,
-  [data-hub="astrology"] .console,
-  [data-hub="astrology"] .pcard,
-  [data-hub="astrology"] table.tc,
-  [data-hub="astrology"] .modal,
-  [data-hub="astrology"] .sheet,
-  [data-hub="astrology"] .astro-frame,
-  [data-hub="astrology"] .ask-card,
-  [data-hub="astrology"] .ask-past {
-    background: var(--card);
-    -webkit-backdrop-filter: none; backdrop-filter: none;
-  }
-}
 
 /* ══ THE CINEMA GETS A BLACK SKY ════════════════════════════════════════════
    SAME FOUR LINES AS SIX OTHER HUBS. --sky-image on the hub's own element,
@@ -4820,29 +4673,18 @@ textarea.g-field { resize: none; line-height: 1.55; }
    BODY IS THE LOAD-BEARING LINE: a negative-z-index fixed layer paints BELOW
    the background of an in-flow block, so an opaque body is a lid on the sky
    whatever the shell above it does.                                        */
-[data-hub="entertainment"] { background-image: var(--sky-image); background-attachment: fixed; }
-[data-hub="entertainment"] body,
-[data-hub="entertainment"] .tc-shell,
-[data-hub="entertainment"] .tc-main,
-[data-hub="entertainment"] .page { background: transparent; }
 
 /* ── AND EVERY SURFACE THAT HOLDS TEXT GOES TRANSLUCENT, NOT AWAY ───────────
    var(--frost) — the hub's own, which is at :root under the same name, so this
    block introduces no name that is not there. A surface a citizen reads off
    cannot become transparent; it can only become thin enough for the atmosphere
    to carry through it. The list is dating's, class for class. */
-[data-hub="entertainment"] .tc-header {
-  background: var(--frost);
-  -webkit-backdrop-filter: blur(8px) saturate(120%);
-  backdrop-filter: blur(8px) saturate(120%);
-}
 /* THE RAIL IS A PANEL FLOATING ON THE SKY, NOT A WELL CUT INTO IT — and here
    the sentence finally costs something. Its face was --rail-well, a near-black
    that was INDISTINGUISHABLE from the near-black page beside it, so the rail
    was read as a rail entirely by its inset hairline. On the sky it has an edge
    for the first time. Its keys need nothing: --lens-face is translucent and
    carries its own blur, and frost over them would paint out the lamp. */
-[data-hub="entertainment"] .tc-side { background: var(--frost); box-shadow: var(--e2); }
 /* ── AND THE TWO SCRIMS DO NOT COME WITH IT ─────────────────────────────────
    .modal-ov and .sheet-ov dim the page with var(--frost), which is right in
    every hub where frost is a translucent white over a light room. Here frost
@@ -4850,16 +4692,6 @@ textarea.g-field { resize: none; line-height: 1.55; }
    the page behind it brighter, which is the one thing an overlay must not do.
    --scrim-deep is the name that means what these two are, it is already
    declared for this hub, and it is what they take. */
-[data-hub="entertainment"] .modal-ov,
-[data-hub="entertainment"] .sheet-ov { background: var(--scrim-deep); }
-[data-hub="entertainment"] .card,
-[data-hub="entertainment"] .stat,
-[data-hub="entertainment"] .row,
-[data-hub="entertainment"] .console,
-[data-hub="entertainment"] .pcard,
-[data-hub="entertainment"] table.tc,
-[data-hub="entertainment"] .modal,
-[data-hub="entertainment"] .sheet { background: var(--frost); }
 
 /* ── AND NOTHING IS SHADOWED, WHICH THE SLATE COULD NOT SAY ─────────────────
    The version of this hub that lasted an afternoon carried dating's
@@ -4882,23 +4714,6 @@ textarea.g-field { resize: none; line-height: 1.55; }
    in for. THE SHELL LAYER IS TURNED OFF BY NAME: `.tc-shell::before` is
    unscoped, so clearing the picture on the hub element alone would leave the
    fixed layer still showing it on every route but the landing. */
-@media (prefers-reduced-transparency: reduce) {
-  [data-hub="entertainment"] { background-image: none; }
-  [data-hub="entertainment"] .tc-shell::before { background-image: none; }
-  [data-hub="entertainment"] .tc-header,
-  [data-hub="entertainment"] .tc-side,
-  [data-hub="entertainment"] .card,
-  [data-hub="entertainment"] .stat,
-  [data-hub="entertainment"] .row,
-  [data-hub="entertainment"] .console,
-  [data-hub="entertainment"] .pcard,
-  [data-hub="entertainment"] table.tc,
-  [data-hub="entertainment"] .modal,
-  [data-hub="entertainment"] .sheet {
-    background: var(--card);
-    -webkit-backdrop-filter: none; backdrop-filter: none;
-  }
-}
 
 /* ══ THE KITCHEN GETS A MORNING ═════════════════════════════════════════════
    SIXTH HUB, SAME FOUR LINES, AND THIS ONE HAS THE MOST TO LOSE. Nutrition is
@@ -4909,21 +4724,11 @@ textarea.g-field { resize: none; line-height: 1.55; }
 
    BODY, SHELL, MAIN, PAGE. A negative-z-index fixed layer paints below the
    background of an in-flow block, so an opaque body is a lid on the sky. */
-[data-hub="nutrition"] { background-image: var(--sky-image); background-attachment: fixed; }
-[data-hub="nutrition"] body,
-[data-hub="nutrition"] .tc-shell,
-[data-hub="nutrition"] .tc-main,
-[data-hub="nutrition"] .page { background: transparent; }
 
 /* ── AND EVERY SURFACE THAT HOLDS TEXT GOES TRANSLUCENT, NOT AWAY ───────────
    var(--frost), the root's own translucent white, and nothing else: a hub block
    may not introduce a name that is not at :root, and this one introduces none.
    The list is dating's, class for class. */
-[data-hub="nutrition"] .tc-header {
-  background: var(--frost);
-  -webkit-backdrop-filter: blur(8px) saturate(120%);
-  backdrop-filter: blur(8px) saturate(120%);
-}
 /* THE RAIL IS A PANEL FLOATING ON THE SKY, NOT A WELL CUT INTO IT. Its keys
    need nothing: --lens-face is already translucent white and carries its own
    blur, and frost over them would paint out the lamp — which in this hub is
@@ -4931,15 +4736,6 @@ textarea.g-field { resize: none; line-height: 1.55; }
 /* THE RAIL IS WHITE IN THIS HUB (owner, 21 Aug) — the ground, the faces and the
    ink are re-pointed inside `.tc-side` in tokens.css, and this is the surface
    that carries them. Frost over a dark room would be a dark rail. */
-[data-hub="nutrition"] .tc-side { background: var(--card); box-shadow: var(--e2); }
-[data-hub="nutrition"] .card,
-[data-hub="nutrition"] .stat,
-[data-hub="nutrition"] .row,
-[data-hub="nutrition"] .console,
-[data-hub="nutrition"] .pcard,
-[data-hub="nutrition"] table.tc,
-[data-hub="nutrition"] .modal,
-[data-hub="nutrition"] .sheet { background: var(--frost); }
 
 /* ── AND THE PAPER DOES NOT FLOAT, WHICH IS THE POINT OF THE PAPER ──────────
    `.press-recto` and `.press-verso` were PHOTOGRAPHS until 20 Aug, and every
@@ -4961,9 +4757,6 @@ textarea.g-field { resize: none; line-height: 1.55; }
    hub stand on the page — but a handful stand on a sheet instead, and frost
    over a sheet is the same wrong answer one level down. A card paints its own
    ground; on a sheet, its own ground is white. */
-[data-hub="nutrition"] .food-paper .card,
-[data-hub="nutrition"] .press-recto .card,
-[data-hub="nutrition"] .press-verso .card { background: var(--card); }
 
 /* ── MUTED INK USED TO NEED PROTECTING FROM THE SKY, AND NO LONGER DOES ─────
    Dating's shadow-and-restore stood here: `--muted` and `--faint` re-pointed
@@ -4997,23 +4790,6 @@ textarea.g-field { resize: none; line-height: 1.55; }
    standing in for. THE SHELL LAYER IS TURNED OFF BY NAME: `.tc-shell::before`
    is unscoped, so clearing the picture on the hub element alone would leave
    the fixed layer still showing it on every route but the landing. */
-@media (prefers-reduced-transparency: reduce) {
-  [data-hub="nutrition"] { background-image: none; }
-  [data-hub="nutrition"] .tc-shell::before { background-image: none; }
-  [data-hub="nutrition"] .tc-header,
-  [data-hub="nutrition"] .tc-side,
-  [data-hub="nutrition"] .card,
-  [data-hub="nutrition"] .stat,
-  [data-hub="nutrition"] .row,
-  [data-hub="nutrition"] .console,
-  [data-hub="nutrition"] .pcard,
-  [data-hub="nutrition"] table.tc,
-  [data-hub="nutrition"] .modal,
-  [data-hub="nutrition"] .sheet {
-    background: var(--card);
-    -webkit-backdrop-filter: none; backdrop-filter: none;
-  }
-}
 
 
 

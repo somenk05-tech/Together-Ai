@@ -204,8 +204,23 @@
      rule so an overlay still reads as being in front rather than beside.
      Nothing else distinguishes them any more, and nothing else should: height
      was the distinction, and height is what was asked to go. */
-  --e1: var(--rim);
-  --e2: var(--rim-strong);
+  /* AND e1 IS NOTHING NOW (23 Aug, "remove all plates and cards"). e1 was the
+     panel depth — a card, a stat, a row, a table. There are no panels: those
+     things keep their padding and lose their sheet, and what separates them is
+     the space they already had.
+
+     e2 AND e3 KEEP THE HAIRLINE, and the distinction is not decorative. They
+     are what an OVERLAY is drawn at — a modal, a menu, a sheet — and something
+     drawn over the page has to be distinguishable from the page or it is not
+     an overlay. A dialog with no edge on the same colour as what it covers is
+     broken rather than flat.
+
+     THREE NAMES, TWO OF THEM STILL DOING SOMETHING, and none of them invented
+     or removed: relief.spec's rule is that a scope may change what a depth is
+     MADE OF, never how many there are. This is the end of that road — a depth
+     made of nothing — and it is still the same five names. */
+  --e1: none;
+  --e2: var(--rim);
   --e3: var(--rim-strong);
 
   /* KEY SCALE — --e1 and --e2 compressed, not a sixth and seventh depth.
@@ -378,7 +393,17 @@
      wayfinding — twenty-five rooms, and the one thing that tells you which
      you are standing in without being read. Keeping it was the owner's call
      over mine; making it legible is the price of keeping it. */
-  --lamp-face: linear-gradient(180deg, #e2692c 0%, #a83a10 44%, #872e0c 100%);
+  /* ── ONE LAMP FOR THE WHOLE CITY (23 Aug) ────────────────────────────────
+     Twenty-two hubs declared their own --lamp-face and the rail's active row
+     was a different colour in every room. That was wayfinding when the rooms
+     were different colours; in a city of one paper it is twenty-two accents
+     in the one piece of furniture a citizen sees on every route.
+
+     Flat ink with a white label, everywhere. The key still says which row you
+     are on — by being the one dark object in the rail, which is what the
+     reference does with its own navigation and what the rest of this palette
+     now does with everything else. */
+  --lamp-face: linear-gradient(180deg, #2a2a2a 0%, #2a2a2a 100%);
   --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50),
           inset 0 0 0 4px rgba(255,190,140,.20),
           inset 0 8px 12px -8px rgba(85,28,6,.50),
@@ -479,14 +504,37 @@
      THE VALUES HERE ARE EXACTLY WHAT WAS THERE. Nothing about a white screen
      changes by naming them; the point is that there is now one place to say
      what they become somewhere else. */
-  /* THE LOUD BUTTON STOPS BOTTOMING OUT AT BLACK. The relief stays — the
-     owner chose the version that keeps it — but a face that runs to #000 on a
-     page whose darkest ink is #2a2a2a is the one object still lit by the old
-     palette. Same three stops, same gradient shape, in the ink's own range. */
-  --loud-face:        linear-gradient(180deg, #2a2a2a 0%, #2a2a2a 100%);
-  --loud-face-hover:  linear-gradient(180deg, #3b3b3b 0%, #3b3b3b 100%);
-  --loud-face-active: linear-gradient(180deg, #1f1f1f 0%, #1f1f1f 100%);
-  --on-loud: var(--on-accent);
+  /* ── AND THE ONE COLOUR IN THE CITY IS ON THE BUTTON ─────────────────────
+     Owner, 23 Aug, with a photograph of a sun: this gradient, as the button
+     colour everywhere.
+
+     IT IS NOT A CONTRADICTION OF THE MONOCHROME PASS, it is what makes one
+     work. Everything else in the city is now paper and one near-black; a
+     single warm accent, on the one object whose whole job is to be the loudest
+     thing on the page, is the oldest move in the book and the reason it works
+     is that there is nothing else competing.
+
+     THE LABEL IS DARK, AND THAT IS ARITHMETIC RATHER THAN TASTE. Sampled off
+     the photograph the sun runs #F2AA3E at its lit edge through #F7882E to
+     #E45722 at its deepest. WHITE FAILS ON ALL OF IT — 1.98:1 on the amber,
+     3.69:1 on the coral — and putting white type on this gradient would be a
+     primary action nobody can read on any screen in the application. The
+     city's own ink clears it: 7.24:1 on the amber, and 4.53 at the coral once
+     the deep end is held at #EA6A3E rather than the photograph's #E45722,
+     which is 3.89 and under AA.
+
+     SO THE DEEP END IS CAPPED, and that is the only edit made to the picture.
+     The alternative was white type, which needs the whole gradient taken down
+     to about #C4491E — a burnt brick rather than a sun, and a bigger lie about
+     the reference than moving one stop by four percent.
+
+     135deg RATHER THAN 180: the photograph is lit from the top right and runs
+     to red at the lower left, and a button is a wide shape rather than a tall
+     one, so the axis that shows the sweep is the diagonal. */
+  --loud-face:        linear-gradient(135deg, #f2aa3e 0%, #f7882e 52%, #ea6a3e 100%);
+  --loud-face-hover:  linear-gradient(135deg, #f5b64a 0%, #f7882e 52%, #ea6a3e 100%);
+  --loud-face-active: linear-gradient(135deg, #ea6a3e 0%, #f7882e 52%, #f2aa3e 100%);
+  --on-loud: #2a2a2a;   /* 7.24:1 on the amber stop · 4.53:1 on the coral */
   --frost: rgba(255,255,255,.72);
   --btn-line-edge:       #ffffff;
   --btn-line-ring:       rgba(0,0,0,.16);
@@ -1149,103 +1197,10 @@
    entertainment's did: a hub that owns a ground cannot also have a one-line
    accent up here silently overriding half of it. Two rival palettes for one
    hub is the exact failure main.tsx warns about. */
-[data-hub="medical"] {
-  --lamp-face: linear-gradient(180deg, #287a9a 0%, #1f5f78 44%, #18485b 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
-          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
-          0 1px 1px rgba(31,95,120,.30), 0 8px 20px rgba(31,95,120,.34), 0 20px 46px rgba(31,95,120,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
 
-  /* ── AND A SKY, WHICH THIS HUB HAS HAD BEFORE ────────────────────────────
-     Owner, 18 Aug: a blue field, pale steel at the top-right falling on the
-     diagonal to a deep royal at the bottom-left. Seventh hub, same machinery:
-     it rides --sky-image, `none` at :root and in every hub that hangs nothing
-     on it.
 
-     THIS IS THE ONE HUB WHERE THAT SENTENCE HAS A HISTORY. Medical shipped a
-     gradient environment in the morning and had it deleted by the evening —
-     the tombstone is in relief.css and it is worth reading, because the reason
-     given was "every room is black and white, and each owns one colour, its
-     lamp". That was true when it was written and it is not true now: six rooms
-     hang a sky, on one token, with the contrast of every one of them computed
-     at build time. What was actually wrong with the first attempt was that it
-     was a SECOND DESIGN SYSTEM — its own frosted sheet, its own stage, its own
-     isolation context and three preference fallbacks, for one hub. This is
-     four declarations that already exist, and the harness that deletion left
-     behind is what checks it.
 
-     THE DEEP END IS LIFTED — third time, and the arithmetic is the same each
-     time. This hub reads the city's black ink, and the reference's royal
-     corner is #324173: --ink 2.14, --ink-soft 1.74, which is not marginal.
-     The three lightest stops are the reference VERBATIM (#b8cbdb, #a7bed3,
-     #8db2cd — the steel end is most of the picture and it needed nothing) and
-     the royal climbs until the ink clears. Worst stop: --ink 5.96,
-     --ink-soft 4.84.
 
-     THE LAMP IS TEAL AND THE SKY IS BLUE, WHICH IS NOTED RATHER THAN FIXED.
-     They are neighbours in hue and the lamp is the city's wayfinding, so it is
-     fair to ask. It stands on the rail, and the rail is frost — 72% white over
-     any of these stops — so the lamp is a saturated dark teal on a near-white
-     panel, which is the contrast it was designed for. If it ever stops reading
-     it is the RAIL that changed, not the sky.
-
-     --muted AND --faint ARE NOT SAFE BARE anywhere on this one — 3.45 at the
-     lightest stop, 1.52 at the deepest — so they take dating's
-     shadow-and-restore in relief.css. */
-}
-[data-hub="medicines"] {
-  --lamp-face: linear-gradient(180deg, #287a9a 0%, #1f5f78 44%, #18485b 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
-          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
-          0 1px 1px rgba(31,95,120,.30), 0 8px 20px rgba(31,95,120,.34), 0 20px 46px rgba(31,95,120,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
-}
-[data-hub="fitness"] {
-  --lamp-face: linear-gradient(180deg, #3a7f6f 0%, #2d6357 44%, #224b42 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
-          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
-          0 1px 1px rgba(45,99,87,.30), 0 8px 20px rgba(45,99,87,.34), 0 20px 46px rgba(45,99,87,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
-
-  /* ── AND A SKY, IN BEAUTY'S MANNER ───────────────────────────────────────
-     Owner, 18 Aug, with an astronomy poster: pale mauve-pink at the head,
-     falling through to a slate blue in the middle, and rising back to the same
-     pink at the foot. Eighth hub, same machinery: it rides --sky-image, `none`
-     at :root and in every hub that hangs nothing on it.
-
-     IT IS A SWEEP THAT RETURNS, WHICH IS BEAUTY'S SHAPE AND NOT DATING'S. The
-     instruction was to match beauty, and the reference happens to be built the
-     way beauty's dawn is: it leaves a colour, travels, and comes back to it.
-     That is why both read as a room with light in it rather than as a surface
-     tilted from one colour to another — the eye finds the same value at the
-     top and the bottom of a scroll and reads the middle as depth. Dating,
-     financial, nutrition and medical all run one way and stop.
-
-     AND NO GROUND, for the reason nutrition's block gives at length: --ground,
-     --paper, --card and --rail-well are untouched and still the city's white.
-     relief.spec's granted set still reads exactly astrology/beauty/
-     entertainment.
-
-     THE TROUGH IS LIFTED AND THE TWO PINK ENDS ARE VERBATIM. This hub reads
-     the city's black ink and the reference's slate bottoms at #5d6d87 — --ink
-     4.00, --ink-soft 3.25, both under AA across the middle third, which is
-     where a scrolled page spends most of its time. Financial's correction,
-     fourth time: the slate climbs to #778cad and the pinks are used exactly as
-     measured, because they were never the problem. Worst stop: --ink 6.14,
-     --ink-soft 4.98.
-
-     --muted AND --faint ARE NOT SAFE ANYWHERE ON IT — 3.51 at the palest pink,
-     1.68 in the trough — so they take dating's shadow-and-restore in
-     relief.css. The reference is pale and they still fail on it, which is the
-     tell that this pink is a mid-value colour wearing a light one's clothes. */
-}
-[data-hub="family"] {
-  --lamp-face: linear-gradient(180deg, #4e893c 0%, #3d6b2f 44%, #2e5124 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
-          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
-          0 1px 1px rgba(61,107,47,.30), 0 8px 20px rgba(61,107,47,.34), 0 20px 46px rgba(61,107,47,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
-}
 /* Social Life's line is not here either — it is the glass block at the foot
    of this file. Same reason as the other four: a hub that owns its ground
    cannot also have a one-line accent somewhere above silently overriding it. */
@@ -1254,81 +1209,9 @@
    nutrition. It said "the three hubs" for as long as there were three.
    It used to have a line here TOO, a purple the block below silently overrode:
    two rival palettes for one hub, the exact failure main.tsx warns about. */
-[data-hub="travel"] {
-  /* A LAMP OF ITS OWN — departure-board olive — it left Medical’s blue, which it sat 1.38 away from.
-     It was #1d5b74, which four other rooms were also using.  */
-  --lamp-face: linear-gradient(180deg, #888535 0%, #676528 44%, #48471e 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
-          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
-          0 1px 1px rgba(29,91,116,.30), 0 8px 20px rgba(29,91,116,.34), 0 20px 46px rgba(29,91,116,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
-}
-[data-hub="realestate"] {
-  --lamp-face: linear-gradient(180deg, #5f7392 0%, #4a5a72 44%, #384457 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
-          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
-          0 1px 1px rgba(74,90,114,.30), 0 8px 20px rgba(74,90,114,.34), 0 20px 46px rgba(74,90,114,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
 
-  /* ── AND A SKY, ON DATING'S EXACT TERMS ──────────────────────────────────
-     Owner, 18 Aug: pale periwinkle with a pink-lilac glow warming the right of
-     the frame. Tenth hub, same machinery, and the instruction named dating,
-     which is the same four lines every hub since has used — --sky-image on the
-     hub element, fixed, panels in frost.
 
-     THE PINK IS A BLOB AND A GRADIENT IS AN AXIS. In the reference the warmth
-     gathers on the right at mid-height while the left edge stays blue top to
-     bottom; a linear sweep cannot hold a shape like that, so it is read on the
-     axis it most nearly has — blue at the left, through lilac to the pink at
-     74%, and easing back toward blue at the far edge so the warmth is a GLOW
-     inside the frame rather than a wall at the end of it. Second reference in
-     a row that is a lit object rather than a field, and the same reduction
-     applies: keep what one axis can carry and say what was dropped.
 
-     NOTHING IS LIFTED, WHICH IS WHY --frost MOVED INSTEAD — see below. Every
-     stop of this sky is used exactly as measured, because the city's ink is
-     safe on all of them: --ink 12.61 at the worst, --ink-soft 10.23.
-
-     NO GROUND: --ground, --paper, --card and --rail-well are untouched and
-     still the city's white. relief.spec's granted set still reads exactly
-     astrology/beauty/entertainment.
-
-     AND THE LAMP NEEDED NO ARGUMENT, for once. It has been #4a5a72 since the
-     hub had a key — a deep slate — and the sky the owner sent is the pale end
-     of that same blue. Dating's lamp had to move today because a terracotta
-     key sat in a hue its picture did not contain. This one was already the
-     picture's own colour, three months before the picture arrived. */
-
-  /* ── AND THE PANEL IS EIGHT HUNDREDTHS THICKER HERE ──────────────────────
-     .72 IS THE CITY'S FROST AND IT MISSES ON THIS ONE SKY BY 0.12. The blue
-     end is the deepest stop, and --faint on a .72 panel over it computes 4.40
-     against the 4.5 it owes. Three ways out and only one of them is free:
-     lighten the blue (the periwinkle is the hub's colour — it would have to go
-     to #c6ddf3 before the ink cleared, which is a different reference);
-     collapse --faint into --muted on panels (a rung of the ink scale, spent);
-     or make the panel itself slightly more opaque.
-
-     .80 IS NOT A NUMBER PICKED TO PASS. It is the value financial's block
-     already names — "muted on frost over the sage bottoms out at 3.48 and only
-     clears at .80 white" — where it was quoted as the reason financial could
-     NOT float its dense surfaces. Here it is the reason this hub can: the same
-     figure, doing the opposite job, because this sky starts 0.24 luminance
-     higher than that one. On .80 --muted reads 5.23 at the worst stop and
-     --faint 4.58, and the reference survives untouched.
-
-     THE TWO SCRIMS COME WITH IT AND SHOULD. .modal-ov and .sheet-ov dim with
-     --frost, and in a light room a slightly more opaque white dim is a
-     slightly better dim. This is the opposite of entertainment's case, where
-     frost had to invert and the scrims had to be pulled off it by name. */
-  --frost: rgba(255,255,255,.80);
-}
-[data-hub="jobs"] {
-  --lamp-face: linear-gradient(180deg, #765f36 0%, #5c4a2a 44%, #463820 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
-          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
-          0 1px 1px rgba(92,74,42,.30), 0 8px 20px rgba(92,74,42,.34), 0 20px 46px rgba(92,74,42,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
-}
 
 /* E-Commerce — the shopfront green off the facade the owner commissioned, the
    colour the personalised half of the building is painted. It sits 9.53 ΔE2000
@@ -1337,13 +1220,7 @@
    read. No ground and no sky — the city's white is under this district, and the
    only five hubs allowed to re-point the ground are already named in
    relief.spec's rationale. */
-[data-hub="ecommerce"] {
-  --lamp-face: linear-gradient(180deg, #175f45 0%, #0f4a35 44%, #0a3527 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
-          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
-          0 1px 1px rgba(15,74,53,.30), 0 8px 20px rgba(15,74,53,.34), 0 20px 46px rgba(15,74,53,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
-}
+
 
 /* PET CARE — the amber off its own neon, and nothing else.
    The hub has no rooms yet, so nothing in the app ever sets `data-hub="pets"`;
@@ -1351,345 +1228,27 @@
    holds every key in it to an accent of its own. Lamp tokens only: the ground
    is granted to astrology, beauty and entertainment alone, and a hub that
    declares --sky-image owes an AA check on every stop in it. */
-[data-hub="pets"] {
-  --lamp-face: linear-gradient(180deg, #b06a34 0%, #8f5528 44%, #71421e 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
-          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
-          0 1px 1px rgba(143,85,40,.30), 0 8px 20px rgba(143,85,40,.34), 0 20px 46px rgba(143,85,40,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
-}
-[data-hub="financial"] {
-  --lamp-face: linear-gradient(180deg, #516845 0%, #3f5136 44%, #303e29 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
-          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
-          0 1px 1px rgba(63,81,54,.30), 0 8px 20px rgba(63,81,54,.34), 0 20px 46px rgba(63,81,54,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
 
-  /* ── THE SKY, AND IT IS NOT A GROUND ────────────────────────────────────
-     Owner, with a sage-green reference: the money rooms sit inside a soft
-     green atmosphere lit from the lower left, and the chrome floats in it.
 
-     IT RIDES --sky-image, WHICH IS WHY THIS IS NOT A FOURTH GROUND GRANT.
-     The mechanism is dating's, and social's before it: `.tc-shell::before` is
-     a fixed layer painting var(--sky-image), `none` at :root and in every hub
-     that hangs nothing on it. --ground, --paper, --card, --wash and
-     --rail-well are untouched and still white, so relief.spec's granted list
-     stays the three it was argued down to. A hub holds a ground when words
-     are read off something that is not the city's white. Words here are read
-     off PAPER, which floats on the sky rather than being painted by it — and
-     in this hub, unlike dating's, that is literal paper rather than frost.
-     The argument for the difference lives in relief.css, where it is spent.
 
-     160deg RATHER THAN THE VERTICAL, because the reference is a portrait lit
-     from the lower left, and a flat top-to-bottom wash throws that light away
-     — the one thing in the picture that is actually a decision. A diagonal
-     keeps the lit corner where the reference put it, and a gradient keeps
-     what the JPEG could not: colour that lives in this file, and no aspect
-     ratio to be cropped or letterboxed at any viewport the city opens at.
 
-     BOTH ENDS ARE LIFTED OFF THE REFERENCE'S OWN, AND THE REASON IS A
-     MEASUREMENT RATHER THAN A PREFERENCE. The reference's darkest corner is
-     #4e5f57, where near-black body ink measures 2.51:1 and the muted grey
-     1.27:1 — it fails before the ink scale is even considered, which is to
-     say the picture is lovely and illegible in the same breath. Held at
-     #93a38f the same hue survives contact with type: bare on the sky, ink is
-     6.39:1 at the darkest stop and ink-soft 4.27:1. That is the whole reason
-     these six stops are these six stops, and it is why lowering any of them
-     to look more like the photograph is a change that has to be measured
-     again rather than eyeballed. The rule that follows from it is written
-     where it is enforced, in relief.css: MUTED INK NEVER SITS ON THE SKY. */
-}
-[data-hub="legal"] {
-  /* A LAMP OF ITS OWN — the seal on a document, and the one room whose whole business is written.
-     It was #4a4a52, which four other rooms were also using.  */
-  --lamp-face: linear-gradient(180deg, #6c3993 0%, #542c72 44%, #3e2253 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
-          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
-          0 1px 1px rgba(74,74,82,.30), 0 8px 20px rgba(74,74,82,.34), 0 20px 46px rgba(74,74,82,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
-}
-[data-hub="mail"] {
-  --lamp-face: linear-gradient(180deg, #3c6c8f 0%, #2f5470 44%, #244055 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
-          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
-          0 1px 1px rgba(47,84,112,.30), 0 8px 20px rgba(47,84,112,.34), 0 20px 46px rgba(47,84,112,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
-}
-[data-hub="drive"] {
-  /* A LAMP OF ITS OWN — files at rest — the blue end, away from the eight hubs already crowding it.
-     It was #4a4a52, which four other rooms were also using.  */
-  --lamp-face: linear-gradient(180deg, #494f83 0%, #393d65 44%, #2b2e4a 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
-          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
-          0 1px 1px rgba(74,74,82,.30), 0 8px 20px rgba(74,74,82,.34), 0 20px 46px rgba(74,74,82,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
-}
-[data-hub="calendar"] {
-  --lamp-face: linear-gradient(180deg, #885f36 0%, #6a4a2a 44%, #513820 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
-          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
-          0 1px 1px rgba(106,74,42,.30), 0 8px 20px rgba(106,74,42,.34), 0 20px 46px rgba(106,74,42,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
-}
-[data-hub="thoughts"] {
-  /* A LAMP OF ITS OWN — the loudest of the five, because a private notebook should not look like a settings panel.
-     It was #4a4a52, which four other rooms were also using.  */
-  --lamp-face: linear-gradient(180deg, #a946b4 0%, #8a3993 44%, #6d2f74 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
-          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
-          0 1px 1px rgba(74,74,82,.30), 0 8px 20px rgba(74,74,82,.34), 0 20px 46px rgba(74,74,82,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
-}
-[data-hub="connections"] {
-  --lamp-face: linear-gradient(180deg, #517489 0%, #3f5b6b 44%, #304551 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
-          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
-          0 1px 1px rgba(63,91,107,.30), 0 8px 20px rgba(63,91,107,.34), 0 20px 46px rgba(63,91,107,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
-}
-[data-hub="chat"] {
-  --lamp-face: linear-gradient(180deg, #517489 0%, #3f5b6b 44%, #304551 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
-          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
-          0 1px 1px rgba(63,91,107,.30), 0 8px 20px rgba(63,91,107,.34), 0 20px 46px rgba(63,91,107,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
-}
+
+
+
+
+
 /* Local Services — a working terracotta. Warm because the hub is people
    rather than assets, and distinct from Jobs' brown and Calendar's ochre. */
-[data-hub="services"] {
-  --lamp-face: linear-gradient(180deg, #9c5f43 0%, #7a4a34 44%, #5d3828 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
-          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
-          0 1px 1px rgba(122,74,52,.30), 0 8px 20px rgba(122,74,52,.34), 0 20px 46px rgba(122,74,52,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
 
-  /* ── AND A SKY: CLOUD ────────────────────────────────────────────────────
-     Owner, 21 Aug, with the swatch: CLOUD, #f4f3f0. The reference under it is
-     whipped cream — a near-white field with soft folds, the crests lit almost
-     to paper and the troughs falling to a warm cream. No blue anywhere in it.
 
-     THIS REPLACES A CHROME RIBBON, and the replacement is the easier picture
-     to keep honest. The ribbon was an OBJECT, and a linear sweep cannot carry
-     an S-curve; what shipped was the field, its cool shade and the gold where
-     the light caught — a reduction that had to be argued for. Cream is a
-     FIELD. A gradient is the right instrument for it, and the reduction costs
-     nothing: highlight, the named tone, the trough, and the light returning.
 
-     #f4f3f0 IS THE FIELD, NOT A STOP AMONG STOPS. It holds 34%–46% flat
-     because a named colour that appears for one percent of a sweep is a colour
-     nobody can point at — the swatch has to be the thing the eye settles on,
-     or the hub is not the colour it was asked to be. The crest above it and
-     the trough below it are the same tone lit and shaded, and every stop is
-     warm-neutral: the ribbon's silver-blue would read as a stain here, which
-     is exactly what the old gold read as once the field went cool.
 
-     NO GROUND, as before, and even more easily: --ink reads 16.70 at the worst
-     stop, --ink-soft 13.55. The city's white is still under everything and
-     this picture is a shade of it.
-
-     IT IS ALSO A CONTRAST IMPROVEMENT, which was not the point but is worth
-     recording. The ribbon failed BOTH grey inks on its shaded stops — 3.98 and
-     3.49. Cloud carries --muted at 4.56, clear of AA, and leaves only --faint
-     at 3.99. The shadow-and-restore in relief.css already re-points both
-     inside `.tc-main` and hands them back on frost, so neither is ever set on
-     the sky; the number that matters is that the hub now has one hairline
-     failure held by that machinery instead of two. */
-}
-[data-hub="profile"] {
-  /* A LAMP OF ITS OWN — a muted plum: yours, and quiet about it.
-     It was #4a4a52, which four other rooms were also using.  */
-  --lamp-face: linear-gradient(180deg, #79445d 0%, #5b3346 44%, #402632 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
-          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
-          0 1px 1px rgba(74,74,82,.30), 0 8px 20px rgba(74,74,82,.34), 0 20px 46px rgba(74,74,82,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
-}
-[data-hub="settings"] {
-  --lamp-face: linear-gradient(180deg, #5f5f69 0%, #4a4a52 44%, #38383e 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
-          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
-          0 1px 1px rgba(74,74,82,.30), 0 8px 20px rgba(74,74,82,.34), 0 20px 46px rgba(74,74,82,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
-}
-
-/* ══ NUTRITION'S PAPER — THE ONE SURFACE EXCEPTION ═════════════════════════
-   THIS REVERSES A PREVIOUS DECISION, ON PURPOSE, AND THE DIFFERENCE MATTERS.
-
-   The old nutrition tint re-pointed --paper and --card to a pale GREEN and was
-   removed because a hub that washes the page in its own hue reads as a
-   different product rather than a different room. That reasoning still stands
-   and this is not that: the accent hue is NOT the ground. The ground is warm
-   paper — the colour of a printed page — and the botanical green stays where
-   every other hub's accent stays, in the fill, the hairline and the chip.
-   A room with paper walls is still the same building; a room painted green is
-   not. Aesop, Kinfolk, Muji: warm neutral ground, one deep accent.
-
-   WHY THE HUB AND NOT THE APP. Nutrition is the one hub a citizen READS rather
-   than operates — a day of food, a recipe, a shopping list — and it already
-   holds the only other surface exception in the application ([data-press],
-   granted for exactly that reason). This finishes that argument rather than
-   opening a new one: the press pages stop being an ivory island inside a white
-   hub, because the hub is now the paper they were always drawn for.
-
-   THE RELIEF IS UNCHANGED. Five depths, no sixth. Every component still says
-   box-shadow: var(--e1) and still gets a lit face, a layered drop shadow and a
-   hairline rim. What changes is the COLOUR of the light: a white ground wants a
-   pure-black shadow, and warm paper wants a warm one — a black shadow on cream
-   greys it and reads as dirt rather than depth. So the shadow ink becomes a
-   warm taupe (#6b5c3e at low alpha) and the rim highlight a warm white. The
-   alphas are ~1.7x their achromatic values because a mid-brown at .06 is not
-   as dark as black at .06; the amount of relief a citizen SEES is the constant.
-
-   NOTHING BELOW IS A NEW TOKEN. Every name already exists in :root — this
-   block only re-points them inside the hub, which is why no component, no
-   layout and no spacing changes, and why removing this block removes the
-   entire treatment. relief.spec.ts pins the scope.                          */
-[data-hub="nutrition"] {
-  /* The sky is dark, so the signature is white ink. */
-  --word-filter: invert(1);
-
-  /* ══ THE SAGE — SECOND REFERENCE, SAME RULE ══════════════════════════════
-     Owner, 21 Aug, with a poster: one green and one bone, #678062 and #E6DACE.
-     The forest that landed this morning is replaced rather than tinted, and
-     the rule it was granted under is unchanged — a hub holds a ground when
-     words are read off something that is not the city's white, and words here
-     are still read off panels in a coloured room. relief.spec's granted list
-     does not move.
-
-     TWO COLOURS ARE NOT A PALETTE, so the ladder is derived rather than
-     invented: the green keeps the poster's hue and saturation exactly (H110,
-     S13.3%) and steps down in lightness for the room, the page, a panel and a
-     field; the bone keeps H30 and steps down for the four inks. Nothing here
-     is a colour somebody liked the look of next to the reference.
-
-     AND THE POSTER'S OWN PAIR DOES NOT PASS. #E6DACE on #678062 is 3.16:1 —
-     fine for display type two hundred pixels tall, under AA for a 13px label.
-     That is the whole reason the room is a deepened sage rather than the
-     poster's: at #252e23 the same bone reads 10.2:1, and --faint, the floor of
-     the scale, clears 4.66 on the lightest face. The poster's exact green is
-     kept where it works — the rail lamp's top stop, which is display-sized and
-     stands on white.
-
-     THE LAMP LIFTS TO THE PALE END, for the reason the forest's did: this
-     hub's key has to be the one lit object in a rail, and a lamp in the room's
-     own mid-sage stops being an object and becomes another panel. */
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50),
-          inset 0 0 0 4px rgba(230,240,225,.20),
-          inset 0 8px 12px -8px rgba(20,30,18,.50),
-          inset 0 -10px 14px -7px rgba(225,240,220,.30),
-          0 1px 1px rgba(30,42,28,.20), 0 8px 20px rgba(103,128,98,.34), 0 20px 46px rgba(103,128,98,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30),
-                inset 0 -3px 6px rgba(20,30,18,.34);
-
-  --ground:      #252e23;   /* the room */
-  --paper:       #2d382b;   /* the page */
-  --card:        #354233;   /* a panel */
-  --wash:        #3e4d3b;   /* a field, a track, a pressed state */
-  --rail-well:   #1f2a1e;
-  --line:        #3e4d3b;
-  --frost:       rgba(53, 66, 51, .66);
-
-  --ink:         #e6dace;   /* the poster's bone · 10.2:1 on the room · 7.7 on a panel */
-  --ink-soft:    #dfd1c3;   /*  9.4 · 7.1 */
-  --muted:       #d7c7b7;   /*  8.5 · 6.4 */
-  --faint:       #c7b8a8;   /*  7.3 · 5.5 · 4.66 on the lightest face */
-  --on-ground:       #e6dace;
-  --on-ground-soft:  #dfd1c3;
-  --on-ground-muted: #d7c7b7;
-  /* The pair a panel hands back after relief.css shadows them — at :root they
-     resolve to the city's greys, which on #354233 cannot be read. */
-  --on-paper-muted: #d7c7b7;
-  --on-paper-faint: #c7b8a8;
-
-  --accent:      #3e4d3b;   /* fill — --on-accent sits on it at 6.6:1 */
-  --on-accent:   #e6dace;
-  --accent-ink:  #a8c0a2;   /* the sage lifted for type — 6.3:1 on the page */
-  --accent-soft: #2d382b;
-  --accent-line: #4a5b46;
-
-  /* No panel in this room is another colour: the washes take the room and the
-     INK carries the meaning. --warn and --danger keep a hue for the reason
-     they keep one everywhere — a warning that reads as body copy is not a
-     style choice. */
-  --ok-soft:     #2d382b;
-  --warn-soft:   #2d382b;
-  --danger-soft: #352e2b;
-  --info-soft:   #2d382b;
-  --ok-ink:      #b0c6aa;
-  --info-ink:    #d7c7b7;
-  --warn-ink:    #ebc57c;
-  --danger-ink:  #f4a3a3;
-
-  /* ── GROUNDS, INKS AND FACES, AND THE THIRD IS THE ONE THAT GETS FORGOTTEN.
-     --face and its four siblings are literal white gradients at :root, and a
-     tag, a chip, a door, a hub pill and the mobile tab strip are all built out
-     of them. Re-pointing grounds and inks without these is how a room ends up
-     with near-white type on white lozenges. Lit at the top edge, darker at the
-     foot, in the room's sage. --well inverts: a pressed control is a dent, and
-     a dent is dark where the light would have been. */
-  --face:      linear-gradient(180deg, #3e4d3b 0%, #3a4837 44%, #354233 100%);
-  --face-2:    linear-gradient(180deg, #3e4d3b 0%, #384534 48%, #323e30 100%);
-  --face-tall: linear-gradient(180deg, #3e4d3b 0%, #3e4d3b calc(100% - min(96px, 40%)), #354233 100%);
-  --face-key:  linear-gradient(180deg, #3e4d3b 0%, #394636 52%, #344032 100%);
-  --well:      linear-gradient(180deg, #252e23 0%, #2d382b 58%, #354233 100%);
-  --lens-face: linear-gradient(180deg,
-    rgba(62,77,59,.62) 0%, rgba(53,66,51,.40) 34%, rgba(45,56,43,.34) 56%,
-    rgba(58,72,55,.52) 82%, rgba(62,77,59,.62) 100%);
-
-  /* The hairline that separates two sages, inverted for a dark ground: the
-     light lands on the top edge and the base is the shadow. */
-  --rim:        inset 0 0 0 1px rgba(230,218,206,.10), inset 0 1px 0 rgba(230,218,206,.16), inset 0 -1px 0 rgba(0,0,0,.34);
-  --rim-strong: inset 0 0 0 1px rgba(230,218,206,.14), inset 0 1.5px 0 rgba(230,218,206,.20), inset 0 -1.5px 0 rgba(0,0,0,.42);
-
-  --lamp-face: linear-gradient(180deg, #b8cdb2 0%, #a8c0a2 44%, #8ea988 100%);
-  --on-lamp:   #1f2a1e;
-
-  /* ── THE PRESS SCALE, FOR PRESS COMPONENTS NOT ON A SHEET ────────────────
-     The meal planner puts press-dressed components on the PAGE as well as on
-     the sheet — the "How we calculated this" table, the plan band, the notes —
-     and on a dark page those take the sheet's near-black ink and vanish. The
-     fix is a SCOPE, not a colour: the page's press tokens follow the page, and
-     `.press-recto` / `.press-verso` re-point the same names back for their own
-     subtree. Every line here is a var(), so the sage arrives through them
-     without a single value being restated. */
-  --press-paper:  var(--card);
-  --press-ink:    var(--ink);
-  --press-ink-2:  var(--ink-soft);
-  --press-ink-3:  var(--muted);
-  --press-rule:   var(--line);
-  --press-rule-2: var(--line);
-  --press-band:   var(--wash);
-  --press-green:  var(--accent-ink);
-
-  --sky-image: radial-gradient(120% 90% at 12% 4%,
-    #3a4937 0%, #2f3b2d 38%, #252e23 100%);
-}
-[data-hub="nutrition"] .tc-side {
-  --paper:      #ffffff;
-  --card:       #ffffff;
-  --rail-well:  #ffffff;
-  --wash:       #f3f5f1;
-  --ink:        #252e23;   /* 14.1:1 on the face's darkest stop */
-  --ink-soft:   #2d382b;   /* 12.3:1 */
-  --muted:      #4f6049;   /*  6.8:1 */
-  --faint:      #576a51;   /*  5.9:1 — the sub-label, and the number that set it */
-  --line:       #e2e6df;
-  --accent-ink: #546850;   /*  6.1:1 — the sage, back on white */
-  --frost:      rgba(255, 255, 255, .92);
-  --lens-face: linear-gradient(180deg, #ffffff 0%, #fcfdfb 52%, #f1f4ef 100%);
-  --face:      linear-gradient(180deg, #ffffff 0%, #fdfdfc 44%, #f1f4ef 100%);
-  --face-2:    linear-gradient(180deg, #ffffff 0%, #fbfcfa 48%, #edf1eb 100%);
-  --face-key:  linear-gradient(180deg, #ffffff 0%, #fbfcfa 52%, #f1f4ef 100%);
-  --well:      linear-gradient(180deg, #f1f4ef 0%, #f8faf7 58%, #ffffff 100%);
-  /* THE POSTER'S OWN GREEN, WHERE IT WORKS. #678062 is the top stop — display
-     size, standing on white. White clears 5.1:1 on the mid, which is where the
-     label actually sits; on the top stop alone it is 4.34, and the lamp's
-     bottom highlight lifts what it stands on rather than the reverse. */
-  --lamp-face: linear-gradient(180deg, #678062 0%, #5d7458 44%, #4c5f48 100%);
-  --on-lamp:   #ffffff;
-  --rim:        inset 0 0 0 1px rgba(37,46,35,.10), inset 0 1px 0 rgba(255,255,255,1), inset 0 -1px 0 rgba(37,46,35,.07);
-  --rim-strong: inset 0 0 0 1px rgba(37,46,35,.14), inset 0 1.5px 0 rgba(255,255,255,1), inset 0 -1.5px 0 rgba(37,46,35,.09);
-}
+/* ══ NUTRITION'S RAIL WENT WITH NUTRITION'S ROOM (23 Aug) ══════════════════
+   A green rail, scoped to `.tc-side`, and its whole argument was that the hub
+   around it was green. The hub around it is paper now, and a single green
+   rail in a city of one material is not the exception this block described —
+   it is the last coloured object, in the one place a citizen sees on every
+   route. Removed with the ground it belonged to. */
 
 /* ══ ASTROLOGY'S NIGHT — THE SECOND SURFACE EXCEPTION ══════════════════════
    THIS ANSWERS A QUESTION THIS FILE LEFT OPEN RATHER THAN REOPENING A CLOSED
@@ -1748,85 +1307,7 @@
    CARDS GO WHITE, which they already are at :root. A white card on warm paper
    is the reference the owner sent: the page is the paper, the card is a leaf
    set on it, and the difference is a tint rather than a border. */
-[data-hub="astrology"] {
-  --ground: #ebe8e3;
-  --paper:  #ebe8e3;
-  --card:   #ffffff;
-  /* THE RAIL TAKES THE PAPER (owner, 19 Aug). --rail-well is #ffffff at the
-     root, and a white rail beside a cream letter is a seam down the middle of
-     the screen — two surfaces where the hub means one. The keys are
-     --lens-face, which is translucent, so they take the cream with it and stay
-     legible: every ink this hub declares clears AA on #ebe8e3 — black 17.2,
-     --ink-soft 14.0, --muted 4.70, --faint 5.60. */
-  --rail-well: #ebe8e3;
-  --wash:   #f4f2ee;
-  --ink:        #000000;   /* 17.2:1 on the paper */
-  --ink-soft:   #1c1c1c;   /* 17.0:1 on a card    */
-  --muted:      #666666;   /*  4.70:1 */
-  --faint:      #5f5a52;   /*  5.60:1 */
-  --accent-ink: #1c1c1c;   /* 13.9:1 */
 
-  /* ── AND THE LAMP FINALLY LEAVES THE ORANGE ──────────────────────────────
-     This hub argued about the lamp twice and kept it both times, and the
-     second argument was explicitly the owner's: the orange IS the wayfinding,
-     twenty-five rooms and the lit key says which one you are standing in
-     without being read. That held while the room was night, where an orange
-     key was the one warm thing in a black box.
-
-     THE SHEET IS WHAT CHANGES IT. This room is a pale warm surface with black
-     type and no hue in it at all, and an orange lozenge on that is not
-     furniture — it is the most saturated object on the screen by a distance,
-     and the eye lands on the navigation instead of on the letter. That is the
-     sentence entertainment made for its green and the spec accepted, and it is
-     true here for the first time.
-
-     A WARM STONE RATHER THAN A CHARCOAL, because the sheet is warm and a
-     neutral grey key on it reads blue. #55514a is the sheet's own greige taken
-     down until white sits on it at 7.89:1 — 5.80:1 once the lamp's bottom
-     highlight lifts it, which is the number that counts.
-
-     --on-lamp IS DECLARED RATHER THAN INHERITED. It resolves to :root's white
-     either way; writing it is what the spec's face-and-ink clause asks for,
-     and the clause is right — a lamp whose face moved and whose label did not
-     is white type on a white pill. */
-  --lamp-face: linear-gradient(180deg, #6b665e 0%, #55514a 44%, #413e38 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
-          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
-          0 1px 1px rgba(85,81,74,.30), 0 8px 20px rgba(85,81,74,.34), 0 20px 46px rgba(85,81,74,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
-  --on-lamp: #ffffff;
-
-  /* ── THE SKY, AND IT IS A SHEET OF LIGHT RATHER THAN A SKY ─────────────
-     Owner, 18 Aug, with a reference: not a colour so much as a lit surface —
-     near-white through a diagonal band running top-left to bottom-right, warm
-     greige gathering in the two corners it misses. It is dating's mechanism
-     taken whole, for the fourth time and on purpose: it rides --sky-image,
-     which is `none` at :root and in every hub that hangs nothing on it, so the
-     one fixed layer every sky in the city already uses paints this one too. No
-     second machinery, and no fourth ground grant — this hub has had its ground
-     since the letter, and the sky does not touch it.
-
-     THE DARKEST STOP IS THIS HUB'S OWN --paper, AND THAT IS THE WHOLE SAFETY
-     ARGUMENT. The reference's corners measure #e9e5de, which is two steps
-     darker than the paper above and would put --muted at 4.57:1 — passing, but
-     passing against a ground relief.spec has never seen, because the AA guard
-     measures every ink against --paper and knows nothing about a gradient. Set
-     the floor AT --paper instead and the two grounds are the same colour: every
-     ink already checked in this block is checked against the worst point of the
-     sky as a side effect, and no number here can drift out from under the test
-     that watches it. Visually it is a sixth of a step — the reference survives.
-
-     SO NOTHING IS SHADOWED, WHICH IS THE FIRST TIME. Beauty and Dating both had
-     to point --muted and --faint at --ink-soft while they were out in the open,
-     because their greys failed on the darker end of their own skies. Here
-     --muted reads 4.70 and --faint 5.60 at the sky's darkest point — the same
-     two figures written beside them above, for the same reason — so both are
-     safe bare and the shadow-and-restore apparatus is simply not needed. A
-     lighter sky buys a simpler hub. */
-  --sky-image: linear-gradient(225deg,
-    #ebe8e3 0%, #f3f0eb 16%, #fafaf9 32%, #fcfcfc 50%,
-    #f9f9f8 62%, #ede9e4 78%, #ebe8e3 100%);
-}
 
 /* ══ THE OBSERVATORY'S NIGHT, AND WHY IT IS NOT HERE ANY MORE ═════════════
    A hundred and thirty lines stood here: the whole dark palette, scoped to
@@ -1891,40 +1372,16 @@
    lavender-to-pale-blue sweep and the accent is a slate violet that sits ON
    it. A fifth hub asking for "a wash like Social Life's" is asking for the
    thing that was removed, and gets its own line here or nothing.             */
-[data-hub="social"] {
-  /* ── ONE LAMP, AND NOTHING ELSE ──────────────────────────────────────────
-     The lavender sweep, the pale-blue card, the cool inks, the four faces,
-     the rims, the depths in cool shadow, the ground glass and its whole
-     .g-* palette: gone. The city says all of it at :root, in black and
-     white, and this hub now says only which room you are in.
+/* ── AND SOCIAL LIFE'S LAMP GOES WITH THE OTHER TWENTY (23 Aug) ───────────
+   Its block already said "one lamp, and nothing else" — the sweep, the cool
+   inks, the faces and the whole ground-glass palette had gone, and what was
+   left was which room you are in. Now that goes too, on the same instruction
+   as the other twenty: the same colour rule in every hub.
 
-     ITS GRANT WAS THE HARDEST TO GIVE BACK AND IT STILL GOES. The argument
-     was MATERIAL, twice over: clear glass on white "has nothing behind it to
-     bend", and a wall of other people's photographs on white is a contact
-     sheet. Both were true and both were answered somewhere else. The glass
-     was already opaque — ground glass, not the transparent kind, because
-     white gave it nothing to bend — so it never needed the tint it was
-     waiting for. And the contact sheet is solved the way dating solved it:
-     by CASING the pictures and spending space around them, which is
-     composition rather than colour. A tint was the expensive answer to both.
-
-     THE BLUE DEEPENS AND STAYS. #5a80c1 was mixed as a fill on a lavender
-     ground and carries white at 3.97:1 — under AA before the lamp's own
-     bottom highlight lifts it another twenty points to 3.06:1. Set from the
-     lifted value instead: white reads 5.6:1 on the mid stop as it renders.
-     Same hue, same key, legible for the first time.                       */
-  --lamp-face: linear-gradient(180deg, #4470b4 0%, #2f5391 44%, #23406f 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50),
-          inset 0 0 0 4px rgba(190,210,240,.20),
-          inset 0 8px 12px -8px rgba(12,30,60,.50),
-          inset 0 -10px 14px -7px rgba(200,220,250,.30),
-          0 1px 1px rgba(25,50,95,.20), 0 8px 20px rgba(47,83,145,.34), 0 20px 46px rgba(47,83,145,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30),
-                inset 0 -3px 6px rgba(12,30,60,.34);
-  --key-lit-face: linear-gradient(180deg, #4470b4 0%, #2f5391 44%, #23406f 100%);
-  --key-lit:      inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 1.5px 0 rgba(255,255,255,.44), 0 4px 14px rgba(47,83,145,.30);
-  --key-lit-pip:  0 0 0 2px rgba(47,83,145,.18), 0 0 8px rgba(47,83,145,.5);
-}
+   THE KEY-LIT TRIO WENT WITH IT. `--key-lit`, `--key-lit-face` and
+   `--key-lit-pip` dressed the rail's active row in this hub's own violet, and
+   a violet key in a monochrome city is the last coloured object standing in
+   the one piece of furniture on every route. */
 
 /* ── DATING IS THE SKY, AND THE CANDY IS THE INTERRUPTION ──────────────────
    THE PLATE, INVERTED. The brief's photograph is cotton candy with one window
@@ -2001,184 +1458,32 @@
    nothing — so the RIM carries the relief instead: a face graduated from a
    lighter charcoal down, a low-alpha white edge on top, a black edge below.
    Same three layers, same direction of light, different ratio between them.  */
+/* ── ENTERTAINMENT HANDS ITS GROUND BACK, AND IT IS THE ONE WITH A STANDING
+      COUNTER-ARGUMENT ──────────────────────────────────────────────────────
+   Owner, 23 Aug: the same font style and design in all the hubs.
+
+   THIS FILE ARGUED THE OPPOSITE AT LENGTH AND THE ARGUMENT IS NOT WRONG. What
+   stood here said: "THE ONE HUB THAT IS NOT WHITE, AND THE ONLY ONE THAT WILL
+   BE... a grid of film posters on white is a catalogue. On black it is a
+   screen." That is a real observation about a real page and nothing has
+   happened to make it false.
+
+   WHAT HAS HAPPENED IS THAT IT LOST TO A LARGER ONE. The owner asked for one
+   material for the whole city, and a single dark room inside a city of paper
+   is not an exception any more — it is the one door that opens onto a
+   different product. The exception was narrow and named while every other room
+   was white with its own tint; it is not narrow when it is the only survivor.
+
+   SO THIS IS A REVERSAL, WRITTEN AS ONE. If the posters stop working — and
+   they may — it is one block to put back, and the paragraph above is the
+   argument for putting it back rather than something to rediscover.
+
+   --media-bg SURVIVES, and it is the piece of the old room that was never
+   about the room: a video letterbox and a camera viewfinder are black because
+   that is what a picture is shown in, on any ground. .citymap and .poster-hero
+   read it in relief.css and always did. */
 [data-hub="entertainment"] {
-  /* The sky is dark, so the signature is white ink — near-black, 1.21:1 black. */
-  --word-filter: invert(1);
-  /* Grounds. Four steps, and they are four because the shell, the page, a
-     card and a field have to be told apart without a single border. */
-  --ground: #0a1010;
-  --paper:  #0a1010;
-  --card:   #0c1312;
-  --wash:   #101616;
   --media-bg: #05090a;
-
-  --ink:      #ffffff;   /* 19.2:1 on the page */
-  --ink-soft: #e6ebe8;   /* 15.6:1 on a card */
-  --muted:    #a5a8a8;   /*  8.0:1 — the sub-line under a title */
-  --faint:    #8a938f;   /*  6.1:1 — labels, placeholders, metadata */
-  --line:   #1b2321;
-  --line-2: #232c29;
-
-  /* THE GREEN, AND WHICH WAY ROUND IT GOES.
-     On white, --accent is the dark fill and --accent-ink is the same hue
-     darkened until it can be read. On black that inverts: the READABLE one is
-     the pale sage, and the fill is the deep green it sits on. Both names keep
-     their jobs, which is why nothing that reads them has to change. */
-  --accent:      #2c4030;   /* fill — --on-accent sits on it at 10.2:1 */
-  --accent-ink:  #cbe7a1;   /* 14.2:1 on the page, 13.9:1 on a card */
-  --accent-soft: #16201a;   /* the pill wash */
-  --accent-line: #24332a;
-  --on-accent:   #f0f7e4;
-
-  /* Status. The white-ground inks are all dark, which on this ground is a
-     warning nobody can read. Same four meanings, lifted. */
-  --ok-ink: #7fd396;     --ok-soft: #101a13;    --ok-line: #23392a;
-  --warn-ink: #e5c169;   --warn-soft: #1a1710;  --warn-line: #3a3018;
-  --danger-ink: #f2938c; --danger-soft: #1c1211; --danger-line: #3d2320;
-  --info-ink: #84c1ee;   --info-soft: #0f171d;  --info-line: #1f3444;
-
-  /* FACES. A gradient from the lit top edge down, exactly as on white — the
-     numbers are dark and the direction of the light is identical. */
-  --face:      linear-gradient(180deg, #141b1a 0%, #101716 44%, #0a1010 100%);
-  --face-2:    linear-gradient(180deg, #161d1c 0%, #111817 48%, #0a1110 100%);
-  --face-tall: linear-gradient(180deg, #121918 0%, #111817 calc(100% - min(96px, 40%)), #0b1211 100%);
-  --face-key:  linear-gradient(180deg, #161e1c 0%, #121917 52%, #0c1312 100%);
-  --well:      linear-gradient(180deg, #070c0c 0%, #0b1110 58%, #0e1514 100%);
-
-  /* RIMS. The white-ground rim is `rgba(255,255,255,1)` on top and a black
-     hairline around. Here the top edge is a sixteenth of that and the ring is
-     black — which is the same edge, seen in a dark room. */
-  --rim:        inset 0 0 0 1px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.07), inset 0 -1px 0 rgba(0,0,0,.5);
-  --rim-strong: inset 0 0 0 1px rgba(0,0,0,.65), inset 0 1.5px 0 rgba(255,255,255,.09), inset 0 -1.5px 0 rgba(0,0,0,.55);
-
-  /* The five depths keep their shape and their spreads. Only the opacity
-     rises, because a shadow has to be darker than a ground that is already
-     nearly black before it separates anything from it. */
-  --e1: var(--rim),        0 1px 1px rgba(0,0,0,.5), 0 2px 4px rgba(0,0,0,.45), 0 6px 13px rgba(0,0,0,.5);
-  --e2: var(--rim-strong), 0 1px 1px rgba(0,0,0,.5), 0 3px 6px rgba(0,0,0,.5),  0 11px 24px rgba(0,0,0,.55), 0 22px 48px rgba(0,0,0,.45);
-  --e3: var(--rim-strong), 0 2px 2px rgba(0,0,0,.55), 0 7px 14px rgba(0,0,0,.5), 0 20px 42px rgba(0,0,0,.6), 0 40px 88px rgba(0,0,0,.5);
-  --e1-key: var(--rim),        0 1px 1px rgba(0,0,0,.5), 0 2px 4px rgba(0,0,0,.5), 0 5px 10px rgba(0,0,0,.42);
-  --e2-key: var(--rim-strong), 0 2px 3px rgba(0,0,0,.5), 0 5px 10px rgba(0,0,0,.55), 0 10px 20px rgba(0,0,0,.45);
-
-  --carve:      inset 0 0 0 1px rgba(0,0,0,.6), inset 0 3px 6px rgba(0,0,0,.6), inset 0 -1px 0 rgba(255,255,255,.06), inset 3px 0 5px -3px rgba(0,0,0,.45), inset -3px 0 5px -3px rgba(0,0,0,.45);
-  --carve-deep: inset 0 0 0 1px rgba(0,0,0,.7), inset 0 4px 10px rgba(0,0,0,.7), inset 0 -1px 0 rgba(255,255,255,.06);
-  --press: inset 0 0 0 1px rgba(0,0,0,.6), inset 0 3px 6px rgba(0,0,0,.6), 0 1px 0 rgba(255,255,255,.05);
-  --edge-up: 0 1px 0 rgba(255,255,255,.05);
-  --edge-in: inset 0 -1px 0 rgba(0,0,0,.5);
-  --pip-ok: 0 0 0 2px var(--card), 0 1px 2px rgba(0,0,0,.6);
-  --case-rim: inset 0 0 0 1px rgba(0,0,0,.7), inset 0 4px 12px rgba(0,0,0,.6), inset 0 -2px 8px rgba(0,0,0,.4);
-  --case-rim-soft: inset 0 0 0 1px rgba(0,0,0,.6), inset 0 3px 7px rgba(0,0,0,.55), inset 0 -1px 0 rgba(255,255,255,.07);
-
-  /* THE RAIL. The well behind the glass keys, and the keys themselves. The
-     lit key is green here rather than the city's orange — in a room this dark
-     the orange lamp was the brightest thing on the screen and the eye went to
-     the navigation instead of to the posters. */
-  --rail-well: #090f0f;
-  --rail-well-shadow: inset -1px 0 0 #141c1a;
-  --lens-face: linear-gradient(180deg, rgba(255,255,255,.055) 0%, rgba(255,255,255,.02) 55%, rgba(0,0,0,.18) 100%);
-  --lens: inset 0 0 0 1.5px rgba(255,255,255,.10), inset 0 1px 0 rgba(255,255,255,.14), 0 4px 12px rgba(0,0,0,.5);
-  --lens-key: inset 0 0 0 1.2px rgba(255,255,255,.07), inset 0 1px 0 rgba(255,255,255,.10), 0 2px 6px rgba(0,0,0,.45);
-  --lamp-face: linear-gradient(180deg, #1d2a1f 0%, #24331f 46%, #1a2618 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.10), inset 0 2px 5px rgba(0,0,0,.5), inset 0 -1px 0 rgba(255,255,255,.14), 0 2px 8px rgba(0,0,0,.45);
-  --lamp-badge: inset 0 0 0 1px rgba(255,255,255,.14), inset 0 1px 0 rgba(255,255,255,.12);
-
-  --glass: inset 0 0 0 1.3px rgba(255,255,255,.10), inset 0 1px 0 rgba(255,255,255,.14), 0 6px 16px rgba(0,0,0,.5);
-  --glass-key: inset 0 0 0 1.1px rgba(255,255,255,.08), inset 0 1px 0 rgba(255,255,255,.11), 0 3px 8px rgba(0,0,0,.45);
-  --glass-in: inset 0 0 0 1.1px rgba(255,255,255,.07), inset 0 2px 5px rgba(0,0,0,.5);
-  --glass-face: linear-gradient(158deg, rgba(255,255,255,.07), rgba(255,255,255,.02) 52%, rgba(0,0,0,.16));
-  --glass-well: linear-gradient(180deg, #080d0d 0%, #0b1110 58%, #0e1413 100%);
-  --glass-bubble: linear-gradient(150deg, #141c1a, #0f1615 52%, #0c1211);
-  --glass-tray: linear-gradient(180deg, #0a100f, #0e1514);
-  --glass-tray-shadow: inset 0 2px 8px rgba(0,0,0,.5), inset 0 -1px 0 rgba(255,255,255,.06);
-
-  --scrim-top: rgba(0, 0, 0, .45);
-  --scrim-deep: rgba(0, 0, 0, .82);
-  --glass-line: rgba(255, 255, 255, .16);
-  --focus-ring: 0 0 0 3px rgba(203,231,161,.34);
-
-
-  /* THE LOUD ONE INVERTS, AND IT HAS TO.
-     On white, the single emphasised button is black. Kept black here it would
-     be the QUIETEST thing on the screen — a near-black pill on a near-black
-     page — which is the precise opposite of the one job it has. Loud is not a
-     colour, it is a distance from the ground, so on this ground it is the
-     green: the same button, the same relief, the same white type on it. */
-  --loud-face:        linear-gradient(180deg, #3a5240 0%, #2c4030 55%, #22321f 100%);
-  --loud-face-hover:  linear-gradient(180deg, #44603f 0%, #34492f 55%, #253620 100%);
-  --loud-face-active: linear-gradient(180deg, #22321f 0%, #2a3c26 60%, #35492e 100%);
-  --on-loud: #f4faec;
-
-  /* A frosted panel over a dark room is smoke, not milk. */
-  /* ── FROST LIFTS HERE, WHERE EVERYWHERE ELSE IN THE CITY IT DIMS ──────────
-     rgba(6,10,10,.74) is what this said until the black sky arrived, and it was
-     right for a hub whose page was a flat near-black: a dark veil over a dark
-     page is a panel a step further into the room. Over a sky that RANGES from
-     #020202 to #1a1a1a it stops being one thing. The same veil is a visible
-     darkening where the light falls and nothing at all in the top corner —
-     one surface reading as two materials on one screen, which is the precise
-     failure the five depths exist to prevent.
-
-     A translucent surface is worth having because it is a fixed OFFSET from
-     whatever is behind it, and on a black ground the offset has to point up.
-     At .06 a panel sits 13 to 15 sRGB points above the sky at every stop: it
-     is always a panel, the sky's own modelling still shows through it, and
-     nothing has to know which part of the picture it landed on.
-
-     .06 AND NOT MORE, AND THE FLOOR OF THE INK SCALE IS WHY. This hub's greys
-     were measured on near-black — --faint is #8a938f at 6.1:1 on --paper — and
-     they fail upward: the lighter the panel, the worse the smallest text on it.
-     At .06 the brightest panel is #282828 and --faint still reads 4.67, --muted
-     6.15, --ink 14.74. At .085 --faint drops to 3.60 and the bottom rung of the
-     scale would have had to be merged into the one above it. Six hundredths of
-     white is the whole difference between keeping this hub's ink scale and
-     spending it.
-
-     THE TWO SCRIMS DO NOT FOLLOW IT. --frost is also what .modal-ov and
-     .sheet-ov dim with, and a dim that lifts is not a dim. They are pointed at
-     --scrim-deep for this hub in relief.css — an existing name, and the one
-     that means what they are. */
-  --frost: rgba(255,255,255,.06);
-
-  /* The outline button. Its fill is the card it would sit on and its top edge
-     is the sliver of light along that card's rim — two values on this ground,
-     where on white they were both #fff and read as one. */
-  --btn-line-edge:       rgba(255,255,255,.08);
-  --btn-line-ring:       rgba(255,255,255,.20);
-  --btn-line-ring-hover: rgba(255,255,255,.38);
-
-  /* THE LEGACY NAMES, AND THE ONE THAT IS NOT DECORATIVE.
-     --gold-bright is the star beside a rating. On white it resolves to
-     --accent, which is dark and reads; on this ground the same rule renders a
-     rating in near-black on near-black. It is the only one of the nine legacy
-     aliases used as TEXT, so it is the only one that has to move. --gold stays
-     a fill (the "New" badge on a poster) and white still sits on it. */
-  --gold-bright: var(--accent-ink);
-  --rose: var(--accent-ink);
-
-  /* ── THE SKY, AND IT IS THE FIRST BLACK ONE ──────────────────────────────
-     Owner, 18 Aug, second reference the same day: not slate — BLACK, with soft
-     light moving across it, brightest around two-thirds down and never brighter
-     than #1a1a1a. The slate went the way financial's first sage did, and this
-     replaces it outright rather than sitting beside it. Same machinery either
-     way: --sky-image, `none` at :root, painted by the one fixed layer every sky
-     in the city already uses.
-
-     THE INK NEEDED NOTHING, WHICH IS THE FIRST TIME A SKY HAS COST NOTHING.
-     The slate's lit corner had to be darkened by a fifth before this hub's
-     white ink cleared it. On black there is no such corner: --ink reads 17.40
-     at the sky's brightest point and --ink-soft 14.43. The reference is used
-     exactly as measured, and the axis it is read on is the vertical one it
-     actually has — dark at the top, lifting through the middle, easing back a
-     step at the foot.
-
-     BUT THE PANEL HAD TO INVERT, AND THAT IS THE REAL CHANGE — see --frost
-     directly below. */
-  --sky-image: linear-gradient(180deg,
-    #020202 0%, #080808 18%, #0e0e0e 34%, #141414 50%,
-    #1a1a1a 66%, #181818 84%, #171717 100%);
-
-  /* The press surface — the recipe-card typography — is not worn by anything
-     in this hub. Left alone rather than guessed at. */
 }
 
 /* The medical ink handoff left with the sheet it was mixed for, and the
@@ -2238,160 +1543,7 @@
    nobody else has. A monochrome room with a single point of colour in the one
    place you are looking for is the reference's own logic, not a departure from
    it. Say the word and it goes; it is one declaration.                      */
-[data-hub="beauty"] {
-  /* ── THE WALL AND THE PRINT ──────────────────────────────────────────────
-     TWO MATERIALS, STILL. --ground is only ever BEHIND things; --paper and
-     --card are the print, and everything a citizen reads is on one of them.
-     The distinction survives every repaint because it is structural: the edge
-     of a plate against the wall is what makes it a plate.
 
-     THE PRINT IS PURE WHITE NOW rather than a cream a step off it. Both names
-     resolve to the same value today and both stay declared, for the reason the
-     three ground inks stay declared below: two materials that happen to agree
-     on a value have not become one material, and collapsing them is how a hub
-     loses the machinery it needs the next time somebody changes their mind.
-
-     AND SINCE THE SKY ARRIVED THEY HAVE A SECOND JOB: THEY ARE THE HONEST
-     FALLBACK. Everything a citizen reads in this hub now floats in frost on
-     the gradient declared below, so what these four describe is the room with
-     the atmosphere switched off — which is exactly what somebody asking for
-     prefers-reduced-transparency is asking for. They break nothing by staying
-     declared, because this hub is on relief.spec's granted list already; they
-     were the ground, and they are now also the answer to a preference. */
-  --ground: #e8eaed;
-  --paper:  #ffffff;
-  --card:   #ffffff;
-  /* The one surface that is neither wall nor print — a field, a track, a
-     pressed state. A hair off the print so it reads as recessed against it
-     without becoming the wall. */
-  --wash:   #f2f4f6;
-  /* The hairline, mixed cool from the ground rather than from neutral grey.
-     A warm rule on a cool ground reads pink, which is the tell of a palette
-     that was tinted halfway — the same mistake the sand room's #e6e6e6 note
-     was written to prevent, arriving from the other side. */
-  --line:      #dee2e7;
-
-  /* ── THE SKY, AND THIS TIME EVERYTHING FLOATS ON IT ────────────────────
-     Owner, 18 Aug: the beauty rooms sit inside a dawn — pale blue overhead,
-     warming through cream to peach, then rose and lilac, and back to pale blue
-     at the foot. It is dating's mechanism, taken the same week and on purpose:
-     it rides --sky-image, which is `none` at :root and in every hub that hangs
-     nothing on it, so the one fixed layer every sky in the city already uses
-     paints this one too. No second machinery, and no fourth ground grant —
-     this hub has had its ground since the gallery wall, and the sky does not
-     touch it.
-
-     A GRADIENT RATHER THAN A PHOTOGRAPH, for dating's two reasons: colour
-     lives in this file, which is the rule the whole stylesheet is organised
-     around, and a gradient has no aspect ratio, so it cannot be cropped or
-     letterboxed at any viewport the city is opened at.
-
-     AND NOTHING HAD TO BE HELD BACK THIS TIME, WHICH IS A MEASUREMENT AND NOT
-     A NERVE. Bare on this sky the hub's own ink reads 10.89:1 at its worst
-     stop and ink-soft 8.17:1, so both are safe anywhere on it — no held head
-     for the breadcrumb, the way dating had to hold one, and no whole gradient
-     lifted off its reference, the way financial's was. --muted runs 3.75–5.32
-     across the same sweep and --faint 3.43–4.86: the SAME grey passing where
-     the page begins and failing where it ends, which is the worst kind of
-     failure because it looks right to whoever writes it. So those two are NOT
-     safe bare. On a frost panel at the city's own --frost every stop clears —
-     muted 5.17 at its worst, faint 4.72.
-
-     THAT ONE NUMBER IS WHY BEAUTY CAN FLOAT EVERYTHING AND FINANCIAL COULD
-     NOT. On the sage sky the same panel bottomed out at 3.48 and the tables
-     had to stay on paper. Here the panel clears at every stop, so every
-     surface in the hub can go translucent and nothing is left behind on white
-     to explain itself. The rule that follows — MUTED INK NEVER SITS ON THE
-     SKY — is written where it is enforced, in relief.css. */
-  --sky-image: linear-gradient(180deg,
-    #bcd4e7 0%, #cfe0ec 18%, #f4eddd 42%, #f0d5c4 62%,
-    #e2c8cf 78%, #cdc6dc 90%, #bcd0e4 100%);
-
-  /* The seamless the merchandise was photographed on, and the one value here
-     that is a photographic fact rather than a taste decision: these bottles
-     were lit on white by a retailer. It stays declared even though the card is
-     now the same white, because the day the print moves again the well must
-     not move with it. AND THE SKY MADE IT LOAD-BEARING AGAIN THE SAME DAY: it
-     is the one surface in the hub that does not go translucent, because a
-     cut-out bottle over a thin well is a bottle with a dawn showing through
-     the glass it was never photographed against. */
-  --shot-ground: #ffffff;
-
-  /* ── THE INK ON THE WALL ─────────────────────────────────────────────────
-     For the little that is drawn STRAIGHT onto the ground — a page heading, a
-     tab rule, the index between two plates. They point at the print's inks
-     through one var() hop rather than being copied, so the two lists cannot
-     drift, and relief.spec follows that hop and recomputes every one of them
-     against THIS ground at build time.
-
-     The grey is darker than the print, so a ground ink is always the tighter
-     measurement of the two. All three clear it with room: 14.9:1, 11.2:1 and
-     5.2:1 against 4.5 required. */
-  --on-ground:       var(--on-paper);        /* 14.9:1 on the grey */
-  --on-ground-soft:  var(--on-paper-soft);   /* 11.2:1 */
-  --on-ground-muted: var(--on-paper-muted);  /*  5.2:1 — the floor, clear */
-
-  /* ── THE INK, MEASURED ───────────────────────────────────────────────────
-     CHARCOAL, NOT BROWN — the brief's plainest instruction. The sand room's
-     scale was warm by construction (#171310, #5b5145): a hand-picked warm grey
-     is what a brown ink IS, and on a cool ground it reads as a stain. These
-     are the same four steps with the warmth taken out and a trace of blue left
-     in, so the type belongs to the room rather than sitting on top of it.
-
-     Every figure is measured against this hub's own surfaces — the grey wall,
-     which is the tightest, and the white print. relief.spec recomputes all of
-     them, which is the whole reason a ground is granted rather than
-     approximated. */
-  --on-paper:       #14171a;   /* 18.0:1 on the print · 14.9:1 on the wall */
-  --on-paper-soft:  #2a2f34;   /* 13.5:1 · 11.2:1 */
-  --on-paper-muted: #59626b;   /*  6.2:1 ·  5.2:1 */
-  --on-paper-faint: #5f6871;   /*  5.7:1 ·  4.7:1 — the floor of the scale */
-  /* Declared through the four above rather than beside them: two lists of the
-     same four greys is two lists that disagree the first time one is nudged. */
-  --ink:        var(--on-paper);
-  --ink-soft:   var(--on-paper-soft);
-  --muted:      var(--on-paper-muted);
-  --faint:      var(--on-paper-faint);
-
-  /* ── THE ACCENT, AND IT IS THE ONE THING THAT GAINED A HUE ───────────────
-     The sand room's accent was the city's near-black, on the argument that
-     this hub never had a coloured one. The brief asks for a restrained
-     blue-grey — the ocean tone in the reference — for active states, and this
-     is it: a NEUTRAL with enough blue in it to read as chosen, dark enough to
-     be type on either surface at 7.5:1 and 6.2:1.
-
-     It is not the magenta and it is not near it. An accent that approached the
-     lamp would put this hub's key on every chip in the room, which is the
-     failure the hue rule above exists to name. */
-  --accent-ink:  #425768;  /* 7.5:1 on the print · 6.2:1 on the wall */
-  --accent-soft: #dde5ec;
-  --accent-line: #c2ceda;
-
-  /* STATUS. Cool-tuned rather than warm, and re-measured: the sand room took
-     green and amber DOWN because they sat close to the sand in luminance. On a
-     grey wall the same two are the tight pair for the same reason, so both
-     keep their hue and their depth, and red and blue come back toward the root
-     now that there is no warmth to fight. */
-  --ok-ink:     #1a6b30;   /*  6.6:1 on the print · 5.5:1 on the wall */
-  --warn-ink:   #6b4a0a;   /*  8.1:1 · 6.7:1 */
-  --danger-ink: #a52420;   /*  7.3:1 · 6.1:1 */
-  --info-ink:   #1a5c96;   /*  7.0:1 · 5.8:1 */
-  /* Their washes were the card's cream carried toward each hue. They are the
-     print's white carried the same distance now — a warm mint banner in a cool
-     room is the one thing that would give the repaint away. */
-  --ok-soft:     #e4efe7;  --ok-line:     #c3d8c9;
-  --warn-soft:   #f3ecdd;  --warn-line:   #ded0b0;
-  --danger-soft: #f6e5e4;  --danger-line: #e7c4c2;
-  --info-soft:   #e2ebf2;  --info-line:   #c1d2e0;
-
-  /* THE LAMP, UNTOUCHED. See the block comment above for why the one magenta
-     object in a grey room is the reference's logic rather than a breach of it. */
-  --lamp-face: linear-gradient(180deg, #c05289 0%, #96406b 44%, #723151 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 0 0 4px rgba(255,255,255,.14),
-          inset 0 8px 12px -8px rgba(0,0,0,.42), inset 0 -10px 14px -7px rgba(255,255,255,.28),
-          0 1px 1px rgba(150,64,107,.30), 0 8px 20px rgba(150,64,107,.34), 0 20px 46px rgba(150,64,107,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30), inset 0 -3px 6px rgba(0,0,0,.30);
-}
 
 /* ═══ THE GROCERY LIST PRINTS ON THE SAME SHEET AS THE PLAN ═════════════════
    It had a blue paper of its own — the owner's flat dusty-blue card of 13 Aug,

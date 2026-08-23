@@ -397,7 +397,23 @@ describe('Relief stays a system', () => {
      * portraits, which were never about the ground) and one token is not a
      * ground, so assertion 1 below no longer counts it. The list going DOWN is
      * the rule working. */
-    const GRANTED = ['astrology', 'beauty', 'entertainment', 'nutrition'];
+    /* AND THEN IT EMPTIED, 23 AUG. Dating left in the morning; the other four
+     * went the same afternoon on one instruction — the same colour rule in
+     * every hub. The rule above is unchanged and it is the reason: a hub holds
+     * a ground when its words are read off something that is not the city's
+     * paper, and no hub's are, because the city's paper is the reference's
+     * near-white and every room is on it.
+     *
+     * ENTERTAINMENT IS THE ONE WITH A STANDING COUNTER-ARGUMENT, written out
+     * in tokens.css where its block used to be rather than left to be
+     * rediscovered: a grid of film posters on white is a catalogue, on black
+     * it is a screen. That is not wrong. It lost to a larger instruction, and
+     * it is one block to put back.
+     *
+     * AN EMPTY LIST IS NOT A DEAD GUARD. Clause 1 reads it as "these and no
+     * others", so at zero it says NO hub may re-point a ground — stronger than
+     * anything it has said before. */
+    const GRANTED: string[] = [];
 
     // 1. only the granted hubs re-point a ground token. Sorted: the file's
     //    order is editorial and a re-order must not read as a breach.
@@ -449,7 +465,18 @@ describe('Relief stays a system', () => {
       return (hi + 0.05) / (lo + 0.05);
     };
     const failures: string[] = [];
-    for (const hub of ['astrology', 'beauty', 'entertainment', 'nutrition']) {
+    /* THE SAME LIST AS THE GRANT ABOVE, AND IT IS EMPTY TODAY — so this loop
+       runs zero times, which is correct rather than broken: nothing re-points
+       a ground, so there is nothing to measure. It is written out again rather
+       than shared because the two assertions are allowed to disagree about
+       WHEN they check, never about WHICH hubs — and a day when they disagree
+       is a day somebody should have to edit both.
+
+       It is kept, and kept accurate, because the day a hub takes a ground back
+       this is the arithmetic that must run on it, and a guard deleted the day
+       it goes quiet is a guard nobody writes again. */
+    const GROUNDED: string[] = [];
+    for (const hub of GROUNDED) {
       // The block that owns the ground, found by the thing that makes it that
       // block rather than by position: nutrition and entertainment each once
       // had a plain accent one-liner elsewhere in the file, and matching the
@@ -539,70 +566,21 @@ describe('Relief stays a system', () => {
    * peach reads 2.51 on its own dusk and is correct, because it appears only
    * inside a panel. What this measures is the set that has no panel to hide in.
    */
-  it('clears AA on every stop of every sky a hub hangs', () => {
-    const css = strip(tokens);
-    const root = css.split(/\[data-hub=/)[0];
-    const lin = (c: number) => (c / 255 <= 0.03928 ? c / 255 / 12.92 : (((c / 255) + 0.055) / 1.055) ** 2.4);
-    const lum = (hex: string) => {
-      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-      return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-    };
-    const ratio = (a: string, b: string) => {
-      const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
-      return (hi + 0.05) / (lo + 0.05);
-    };
-    const raw = (body: string, n: string) => body.match(new RegExp(`${n}:\\s*([^;]+);`, 'i'))?.[1]?.trim();
-    // The hub's own value, then the city's — a hub that hangs a sky need not
-    // re-point an ink, and four of the five do not. One hop through a var(),
-    // for the AA guard's reason: `--ink: var(--on-paper)` is what beauty writes
-    // and reading hexes only would skip the hub silently.
-    const val = (body: string, n: string): string | undefined => {
-      for (const scope of [body, root]) {
-        const v = raw(scope, n);
-        if (!v) continue;
-        if (/^#[0-9a-f]{6}$/i.test(v)) return v;
-        const hop = /^var\(\s*(--[a-z0-9-]+)\s*\)$/i.exec(v)?.[1];
-        const via = hop ? (raw(body, hop) ?? raw(root, hop)) : undefined;
-        if (via && /^#[0-9a-f]{6}$/i.test(via)) return via;
-      }
-      return undefined;
-    };
+  /* ── THE SKY SWEEP WAS HERE, AND IT IS DELETED (23 Aug) ────────────────
+     It measured --ink and --ink-soft against every stop of every hub's
+     --sky-image. There are no skies: the last came down when the ink went from
+     #000000 to the reference's #2a2a2a, because a soft ink cannot be read bare
+     on a gradient — and this guard is what proved it, failing in ten places
+     the moment the ink moved.
 
-    const failures: string[] = [];
-    let skies = 0;
-    for (const [, hub, body] of css.matchAll(/\[data-hub="([a-z]+)"\]\s*\{([\s\S]*?)\n\}/g)) {
-      const sky = raw(body, '--sky-image');
-      if (!sky || sky === 'none') continue;
-      skies += 1;
-      const stops = [...sky.matchAll(/#[0-9a-f]{6}/gi)].map((m) => m[0].toLowerCase());
-      if (!stops.length) { failures.push(`${hub} hangs a sky with no stop this can read`); continue; }
-      for (const name of ['--ink', '--ink-soft']) {
-        const ink = val(body, name);
-        if (!ink) { failures.push(`${hub} ${name} unreadable to this test`); continue; }
-        for (const stop of stops) {
-          const r = ratio(ink, stop);
-          if (r < 4.5) failures.push(`${hub} ${name} on ${stop} at ${r.toFixed(2)}:1`);
-        }
-      }
-    }
-    expect(failures).toEqual([]);
-    /* AND THE TEST IS ACTUALLY READING SOMETHING. A regex that stops matching
-       is a suite that goes green by finding nothing, which is how a guard dies
-       without a commit ever mentioning it.
+     ITS OWN LAST INSTRUCTION IS WHY IT GOES RATHER THAN STAYING GREEN: "if the
+     number ever reaches zero this guard is watching an empty road and should
+     be deleted rather than left passing." It reached zero. A guard that cannot
+     fail reads like coverage and is worse than none.
 
-       IT WAS `>= 5` AND IT IS `>= 1` (23 Aug), and this sweep is the reason
-       five of them are gone rather than a casualty of it: the ink went from
-       #000000 to the reference's #2a2a2a, and this failed in TEN places —
-       --ink-soft at 3.18:1 on the surgery's blue, 3.27 on the gym's, 4.20 on
-       financial's sage. Every one of those was text drawn bare on a picture.
-       The finding was that a soft ink and a coloured sky cannot both be true,
-       and the owner asked for the soft ink.
+     TO WANT IT BACK: a hub hanging a picture behind its panels again. The
+     arithmetic is four lines and it is in this file's history. */
 
-       The floor stays a floor: four hubs still hang one, and if the number
-       ever reaches zero this guard is watching an empty road and should be
-       deleted rather than left passing. */
-    expect({ skies: skies >= 1 }).toEqual({ skies: true });
-  });
 
   /**
    * AND THE ONE SHEET THE WEEK PRINTS ON IS READABLE AT EVERY STOP.
@@ -738,59 +716,28 @@ describe('Relief stays a system', () => {
    * the same bug with the polarity swapped, and it is how astrology broke the
    * last time this was a list.
    */
-  it('inverts the signature in exactly the hubs whose sky is dark', () => {
+  /**
+   * ── AND THE SIGNATURE IS NEVER INVERTED, BECAUSE NO ROOM IS DARK ──────────
+   *
+   * This measured a black wordmark against the lightest stop of each hub's sky
+   * and required `--word-filter: invert(1)` exactly where that failed. There
+   * are no skies and no dark rooms.
+   *
+   * IT IS NARROWED RATHER THAN DELETED, and the difference from the sweep above
+   * is that this one still has a subject: `--word-filter` exists, it is `none`,
+   * and the failure it guards — a white wordmark on white paper, which is how
+   * astrology broke the last time this was a list — is one hub block away from
+   * happening again. The claim goes from "inverted in the right places" to
+   * "inverted nowhere", which is the true one now.
+   */
+  it('never inverts the signature, because no room is dark', () => {
     const css = strip(tokens);
-    const lin = (c: number) => (c / 255 <= 0.03928 ? c / 255 / 12.92 : (((c / 255) + 0.055) / 1.055) ** 2.4);
-    const lum = (hex: string) => {
-      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-      return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-    };
-    const ratio = (a: string, b: string) => {
-      const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
-      return (hi + 0.05) / (lo + 0.05);
-    };
-
-    // The name has to exist at :root, or every hub below is re-pointing air.
     expect(css, '--word-filter is not declared at :root').toMatch(/--word-filter:\s*none/);
-
-    const failures: string[] = [];
-    let skies = 0;
-
-    for (const block of css.split('}')) {
-      const selector = block.split('{')[0]?.trim();
-      const body = block.split('{')[1];
-      if (!body || !selector?.startsWith('[data-hub=')) continue;
-      const sky = body.match(/--sky-image:\s*([\s\S]*?);/)?.[1];
-      if (!sky) continue;
-      const stops = [...sky.matchAll(/#[0-9a-f]{6}/gi)].map((m) => m[0].toLowerCase());
-      if (!stops.length) continue;
-      skies++;
-
-      const lightest = stops.reduce((a, b) => (lum(a) >= lum(b) ? a : b));
-      const darkest = stops.reduce((a, b) => (lum(a) <= lum(b) ? a : b));
-      const inverts = /--word-filter:\s*invert\(1\)/.test(body);
-      const onBlack = ratio('#000000', lightest);
-      const onWhite = ratio('#ffffff', darkest);
-
-      if (onBlack < 4.5 && !inverts) {
-        failures.push(`${selector} is dark (a black signature is ${onBlack.toFixed(2)}:1 on its LIGHTEST stop) but does not set --word-filter: invert(1)`);
-      }
-      if (onBlack >= 4.5 && inverts) {
-        failures.push(`${selector} is pale (a black signature is ${onBlack.toFixed(2)}:1) but inverts the signature to white at ${onWhite.toFixed(2)}:1`);
-      }
-    }
-
-    /* A GUARD THAT FINDS NO SKIES PASSES, so the count is asserted rather than
-       assumed. IT WAS "MORE THAN FOUR" AND IT IS "AT LEAST ONE" (23 Aug): five
-       hubs that hung a picture behind white panels lost it when the ink went
-       from black to #2a2a2a, because a soft ink cannot be read bare on a
-       gradient — this file's own sweep failed in ten places the moment it
-       moved. The number is a floor on the guard being alive, not a target for
-       the design, and pinning it to whatever happened to be true last week is
-       how a guard starts voting on decisions it was not built to make. */
-    expect(skies).toBeGreaterThan(0);
-    expect(failures).toEqual([]);
+    const inverting = [...css.matchAll(/\[data-hub="([a-z]+)"\][^{]*\{([^}]*)\}/g)]
+      .filter((m) => /--word-filter:\s*invert\(1\)/.test(m[2])).map((m) => m[1]);
+    expect(inverting).toEqual([]);
   });
+
 
   /**
    * AND NOTHING PAINTS THE WORDMARK THROUGH A NODE THAT ISN'T THERE.
@@ -899,83 +846,20 @@ describe('Relief stays a system', () => {
    *    invisible-by-luck on white; on a night ground it is a control you can
    *    neither read nor see.
    */
-  it('gives the observatory its own ink, and keeps its rail legible', () => {
-    const css = strip(tokens);
-    // ONE PALETTE AGAIN. The block whose selector is the bare attribute is the
-    // whole hub: content column, header and rail all read it. The chrome
-    // scope this test used to find beside it no longer exists, and clause 1b
-    // below is what replaced the assertion that it did.
-    const page = /\[data-hub="astrology"\]\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
-    expect({ page: page !== '' }).toEqual({ page: true });
+  /* ── THE OBSERVATORY'S INK WAS CHECKED HERE, AND ITS SUBJECT IS GONE ───
+     Astrology held a ground — cream paper, a photographed letter, its own ink
+     scale, a rail measured against the sky's darkest stop — and this verified
+     every ratio in it. The hub handed that ground back on 23 Aug with the
+     other three, so there is no astrology palette left to measure.
 
-    // 0. THE PAPER IS ONE COLOUR WITH TWO NAMES, AND THEY MUST AGREE.
-    //    `--paper` here cannot read `--letter-paper` — a var() is unreadable to
-    //    the contrast assertion, which parses hexes out of this file. So the
-    //    literal is duplicated on purpose and checked here instead of trusted.
-    //    IT IS THREE NAMES AS OF THE SHEET: the sky's darkest stop is set to
-    //    the same value, so the ground every ink is measured against is also
-    //    the worst point of the gradient. That is asserted below rather than
-    //    left in a comment, because it is the whole safety argument for hanging
-    //    a picture over a ground the AA guard cannot see.
-    const letterPaper = /--letter-paper:\s*(#[0-9a-f]{6})/i.exec(css)?.[1]?.toLowerCase();
-    const hubPaper = /--paper:\s*(#[0-9a-f]{6})/i.exec(page)?.[1]?.toLowerCase();
-    expect({ letterPaper, hubPaper }).toEqual({ letterPaper, hubPaper: letterPaper });
+     THE ARITHMETIC IS NOT LOST: the generic AA sweep above does exactly this
+     for any hub that holds a ground, computed rather than hand-written, and it
+     runs the moment one does again. That guard replacing this one is why this
+     is a deletion and not a gap.
 
-    const sky = /--sky-image:\s*([^;]+);/i.exec(page)?.[1] ?? '';
-    const stops = [...sky.matchAll(/#[0-9a-f]{6}/gi)].map((m) => m[0].toLowerCase());
-    expect({ hung: stops.length > 0 }).toEqual({ hung: true });
-    // NO STOP MAY BE DARKER THAN THE GROUND THE INK WAS CHECKED ON. Luminance,
-    // not lightness: a warm stop and a cool one at the same L differ here, and
-    // it is here that a grey stops clearing 4.5.
-    const lin = (c: number) => (c / 255 <= 0.03928 ? c / 255 / 12.92 : (((c / 255) + 0.055) / 1.055) ** 2.4);
-    const lum = (hex: string) => {
-      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-      return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-    };
-    const ratio = (a: string, b: string) => {
-      const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
-      return (hi + 0.05) / (lo + 0.05);
-    };
-    expect(stops.filter((c) => lum(c) < lum(hubPaper!))).toEqual([]);
+     `.letter-page` still keeps its own photographed paper and ink — a surface
+     inside the hub rather than the hub — and letter-surface.test.ts holds it. */
 
-    // 1. ink, ground and the readable accent are re-pointed together.
-    for (const t of ['--ground', '--paper', '--card', '--ink', '--muted', '--accent-ink']) {
-      expect({ token: t, present: new RegExp(`${t}\\s*:`).test(page) })
-        .toEqual({ token: t, present: true });
-    }
-
-    // 1b. AND THE RAIL IS LEGIBLE — computed, whichever way the hub answered.
-    //     Re-point the well and this hub owns both halves; leave it and the
-    //     city's white is what the hub's own ink must clear. Both labels the
-    //     rail draws are checked, not just --ink: --faint is the hub name's
-    //     tag line and it is the one that fails first.
-    const rootWell = /--rail-well:\s*(#[0-9a-f]{6})/i.exec(css.split(/\[data-hub=/)[0])?.[1] ?? '#ffffff';
-    const well = /--rail-well:\s*(#[0-9a-f]{6})/i.exec(page)?.[1] ?? rootWell;
-    const railInk = ['--ink', '--faint']
-      .map((t) => [t, new RegExp(`${t}:\\s*(#[0-9a-f]{6})`, 'i').exec(page)?.[1]] as const)
-      .filter(([, hex]) => Boolean(hex));
-    expect(railInk.length).toBeGreaterThan(0);
-    expect(railInk.filter(([, hex]) => ratio(hex!, well) < 4.5).map(([t]) => t)).toEqual([]);
-
-    // 2. the city's seven dark surfaces keep their white.
-    expect({ token: '--on-accent', rePointed: /--on-accent\s*:/.test(page) })
-      .toEqual({ token: '--on-accent', rePointed: false });
-
-    // 3. the lamp may go — with its ink. Either both move or neither does.
-    const lampFace = /--lamp-face\s*:/.test(page);
-    const lampInk = /--on-lamp\s*:/.test(page);
-    expect({ lampFace, lampInk }).toEqual({ lampFace, lampInk: lampFace });
-    // and nothing scopes a rail rule to this hub by the back door — whatever
-    // the lamp is made of, it is made of it in the TOKEN layer where this
-    // test can read it, not in a selector that patches it afterwards.
-    expect(css).not.toMatch(/\[data-hub="astrology"\][^{]*\.side-menu/);
-
-    // 4. no hardcoded light ground in the material, no theme switch anywhere.
-    const litBg = [...strip(relief).matchAll(/background(?:-color)?:\s*(#f[0-9a-fA-F]{2,5}\b|#ffffff\b|white\b)/g)]
-      .map((m) => m[1]);
-    expect(litBg).toEqual([]);
-    expect(css).not.toContain('[data-theme');
-  });
 
   /**
    * DARK MODE IS GONE, NOT HALF-GONE.
@@ -1438,23 +1322,36 @@ describe('Relief stays a system', () => {
    * from. A missing entry means Nutrition glows rose on the way in from
    * Dating, and nobody can reproduce it.
    */
-  it('gives every hub in the config an accent of its own', () => {
+  /**
+   * ── AND NOW: NO HUB HAS A COLOUR OF ITS OWN ───────────────────────────────
+   *
+   * This asserted that every hub in the config had a `[data-hub]` block — that
+   * no room inherited somebody else's light. Owner, 23 Aug: the same colour
+   * rule in all the hubs. So the claim inverts, and the inversion is the
+   * instruction stated as a test.
+   *
+   * TWO BLOCKS SURVIVE AND NEITHER IS A COLOUR. Dating keeps `--film`, the
+   * greyscale grade on its portraits, which was never about the room; and
+   * Entertainment keeps `--media-bg`, the black a video letterbox and a camera
+   * viewfinder are shown in on any ground. Both are named here rather than
+   * excluded by a pattern, so a third one has to be argued for.
+   */
+  it('gives no hub a colour of its own', () => {
     const hubs = read('src/config/hubs.ts');
-    /* THE HUBS MAP, NOT THE WHOLE FILE.
-     *
-     * `NAV` above it now carries one key that is NOT a hub — Personal, the
-     * citizen's own drawer (owner, 15 Aug) — and it has no `[data-hub]` block
-     * on purpose: nothing ever sets data-hub to it, so a block would be dead
-     * CSS asserting a district that does not exist. Scraping the file caught
-     * that tab and failed this test for the one reason it was written to
-     * prevent: a hub inheriting somebody else's light. Starting at the map
-     * makes the assertion mean what its name says.
-     */
     const map = hubs.slice(hubs.indexOf('export const HUBS'));
     const keys = [...new Set([...map.matchAll(/key:\s*'([a-z]+)'/g)].map((m) => m[1]))];
     expect(keys.length).toBeGreaterThanOrEqual(14);
-    expect(keys.filter((k) => !tokens.includes(`[data-hub="${k}"]`))).toEqual([]);
+
+    const ALLOWED: Record<string, string[]> = { dating: ['film'], entertainment: ['media-bg'] };
+    const offenders: string[] = [];
+    for (const m of strip(tokens).matchAll(/\[data-hub="([a-z]+)"\]\s*\{([\s\S]*?)\n\}/g)) {
+      const declared = [...new Set([...m[2].matchAll(/--([a-z0-9-]+):/g)].map((d) => d[1]))];
+      const extra = declared.filter((d) => !(ALLOWED[m[1]] ?? []).includes(d));
+      if (extra.length) offenders.push(`${m[1]}: ${extra.join(' ')}`);
+    }
+    expect(offenders).toEqual([]);
   });
+
   /**
    * ── AND AN ACCENT NO OTHER ROOM ALREADY HAS ─────────────────────────────
    *
@@ -1484,86 +1381,35 @@ describe('Relief stays a system', () => {
    * doors: medical/medicines, and chat/connections. They are listed by name so
    * that a third such pair has to be argued for rather than merely added.
    */
-  it('gives every hub a lamp no other room already has', () => {
-    const tokens = read('src/styles/tokens.css');
-    const lamps = new Map<string, string>();
-    for (const m of tokens.matchAll(/\[data-hub="([a-z]+)"\]\s*\{/g)) {
-      const start = m.index + m[0].length;
-      let depth = 1, i = start;
-      while (depth > 0 && i < tokens.length) {
-        if (tokens[i] === '{') depth++;
-        else if (tokens[i] === '}') depth--;
-        i++;
-      }
-      const face = [...tokens.slice(start, i).matchAll(/--lamp-face:\s*linear-gradient\([^;]*;/g)].pop();
-      if (!face) continue;
-      const stops = face[0].match(/#[0-9a-f]{6}/gi);
-      // The MIDDLE stop is the colour the lamp reads as; the other two are its
-      // lit top edge and its foot.
-      if (stops && stops.length >= 2) lamps.set(m[1], stops[1].toLowerCase());
-    }
-    expect(lamps.size).toBeGreaterThan(20);
-
-    const lab = (hex: string) => {
-      const n = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
-        .map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
-      const [r, g, b] = n;
-      const xyz = [
-        (r * 0.4124564 + g * 0.3575761 + b * 0.1804375) / 0.95047,
-        r * 0.2126729 + g * 0.7151522 + b * 0.0721750,
-        (r * 0.0193339 + g * 0.1191920 + b * 0.9503041) / 1.08883,
-      ].map((t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116));
-      return [116 * xyz[1] - 16, 500 * (xyz[0] - xyz[1]), 200 * (xyz[1] - xyz[2])];
-    };
-    const de2000 = (A: number[], B: number[]) => {
-      const [L1, a1, b1] = A, [L2, a2, b2] = B;
-      const rad = Math.PI / 180, deg = 180 / Math.PI;
-      const C1 = Math.hypot(a1, b1), C2 = Math.hypot(a2, b2), Cb = (C1 + C2) / 2;
-      const G = 0.5 * (1 - Math.sqrt(Cb ** 7 / (Cb ** 7 + 25 ** 7)) || 0);
-      const a1p = (1 + G) * a1, a2p = (1 + G) * a2;
-      const C1p = Math.hypot(a1p, b1), C2p = Math.hypot(a2p, b2);
-      const h1p = ((Math.atan2(b1, a1p) * deg) % 360 + 360) % 360;
-      const h2p = ((Math.atan2(b2, a2p) * deg) % 360 + 360) % 360;
-      const dLp = L2 - L1, dCp = C2p - C1p;
-      let dhp = 0;
-      if (C1p * C2p !== 0) {
-        dhp = h2p - h1p;
-        if (dhp > 180) dhp -= 360; else if (dhp < -180) dhp += 360;
-      }
-      const dHp = 2 * Math.sqrt(C1p * C2p) * Math.sin((dhp * rad) / 2);
-      const Lb = (L1 + L2) / 2, Cbp = (C1p + C2p) / 2;
-      let hbp = h1p + h2p;
-      if (C1p * C2p !== 0) {
-        hbp = Math.abs(h1p - h2p) <= 180 ? (h1p + h2p) / 2
-          : (h1p + h2p < 360 ? (h1p + h2p + 360) / 2 : (h1p + h2p - 360) / 2);
-      }
-      const T = 1 - 0.17 * Math.cos((hbp - 30) * rad) + 0.24 * Math.cos(2 * hbp * rad)
-        + 0.32 * Math.cos((3 * hbp + 6) * rad) - 0.20 * Math.cos((4 * hbp - 63) * rad);
-      const Sl = 1 + (0.015 * (Lb - 50) ** 2) / Math.sqrt(20 + (Lb - 50) ** 2);
-      const Sc = 1 + 0.045 * Cbp, Sh = 1 + 0.015 * Cbp * T;
-      const Rt = -Math.sin(2 * (30 * Math.exp(-(((hbp - 275) / 25) ** 2))) * rad)
-        * (2 * Math.sqrt(Cbp ** 7 / (Cbp ** 7 + 25 ** 7)) || 0);
-      return Math.sqrt((dLp / Sl) ** 2 + (dCp / Sc) ** 2 + (dHp / Sh) ** 2
-        + Rt * (dCp / Sc) * (dHp / Sh));
-    };
-
-    const FLOOR = 5.0;
-    /** One domain, two doors. A third pair argues for itself here or not at all. */
-    const ALLOWED_TWINS = [['medical', 'medicines'], ['chat', 'connections']]
-      .map((p) => p.sort().join('|'));
-
-    const keys = [...lamps.keys()];
-    const tooClose: string[] = [];
-    for (let i = 0; i < keys.length; i++) {
-      for (let j = i + 1; j < keys.length; j++) {
-        const pair = [keys[i], keys[j]].sort().join('|');
-        if (ALLOWED_TWINS.includes(pair)) continue;
-        const d = de2000(lab(lamps.get(keys[i])!), lab(lamps.get(keys[j])!));
-        if (d < FLOOR) tooClose.push(`${pair} ΔE ${d.toFixed(2)}`);
-      }
-    }
-    expect(tooClose).toEqual([]);
+  /**
+   * ── AND ONE LAMP FOR THE WHOLE CITY ───────────────────────────────────────
+   *
+   * This compared every hub's lamp against every other's in ΔE2000 and failed
+   * any pair closer than 5.0 — because two rooms whose lit key is nearly the
+   * same colour are two rooms a citizen cannot tell apart by it.
+   *
+   * TWENTY-TWO HUBS DECLARED ONE AND NOW NONE DOES (23 Aug). That was
+   * wayfinding while the rooms were different colours; in a city of one paper
+   * it is twenty-two accents inside the one piece of furniture on every route.
+   * The key still says which row you are on, by being the one dark object in
+   * the rail.
+   *
+   * SO THE MEASUREMENT INVERTS, and the ΔE machinery goes with it: there is
+   * nothing to compare. What is left is the claim that matters — the lamp is
+   * declared once, at the root, and no hub re-points it.
+   */
+  it('lights every rail with the same lamp', () => {
+    const css = read('src/styles/tokens.css');
+    const root = strip(css).split(/\[data-hub=/)[0];
+    expect(root).toMatch(/--lamp-face:\s*linear-gradient\([^;]*\);/);
+    const rooms = [...strip(css).matchAll(/\[data-hub="([a-z]+)"\]\s*\{([\s\S]*?)\n\}/g)]
+      .filter((m) => /--lamp-face:/.test(m[2])).map((m) => m[1]);
+    expect(rooms).toEqual([]);
+    // and it is one colour, not a gradient pretending to be flat
+    const stops = root.match(/--lamp-face:\s*linear-gradient\(([^;]*)\);/)![1].match(/#[0-9a-f]{6}/gi)!;
+    expect([...new Set(stops.map((c) => c.toLowerCase()))]).toHaveLength(1);
   });
+
 
 
   /**
