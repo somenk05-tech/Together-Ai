@@ -477,7 +477,14 @@ export class AiService {
            a handwritten board photographed at an angle, which is what a small
            restaurant actually has on the wall. */
         model: this.visionModel,
-        max_tokens: 3000,
+        /* ── A LONG MENU IS NOT A BAD PHOTOGRAPH (24 Aug) ────────────────
+           3000 tokens transcribes a test card and runs out a third of the way
+           down a real restaurant's page — the reply stops mid-item, the JSON
+           never closes, and the shopkeeper with the densest menu (the one who
+           needs the reader most) is told to take a better photo of a perfectly
+           good one. The budget now fits a full page, and the salvage below
+           catches the page that still overruns it. */
+        max_tokens: 8000,
         system: `${system}\n\nRespond with ONLY valid JSON — no prose, no markdown fences.`,
         messages: [{
           role: 'user',
@@ -491,9 +498,19 @@ export class AiService {
         }],
       });
       const text = res.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('');
-      const parsed = this.extractJson(text) as { items?: unknown[]; note?: string } | null;
+      let parsed = this.extractJson(text) as { items?: unknown[]; note?: string } | null;
+      /* A reply cut off by the token budget is not the model failing to read —
+         it read fine and was stopped mid-sentence. Closing the JSON at the
+         last complete item turns "unreadable, retake the photo" into every
+         item up to the cut plus a note saying the tail may be missing, which
+         is the honest description of what happened. */
+      let clipped = false;
+      if ((!parsed || !Array.isArray(parsed.items)) && res.stop_reason === 'max_tokens') {
+        parsed = this.salvageTruncatedMenu(text);
+        clipped = parsed != null;
+      }
       if (!parsed || !Array.isArray(parsed.items)) {
-        this.logger.warn(`menu extraction returned no usable JSON (${text.slice(0, 120).replace(/\s+/g, ' ')})`);
+        this.logger.warn(`menu extraction returned no usable JSON (stop=${res.stop_reason}; ${text.slice(0, 120).replace(/\s+/g, ' ')})`);
         return { ok: false, reason: 'unreadable' };
       }
       const items = parsed.items.slice(0, 200).flatMap((raw) => {
@@ -511,7 +528,9 @@ export class AiService {
           priceInr: p,
         }];
       });
-      return { ok: true, items, note: typeof parsed.note === 'string' ? parsed.note.slice(0, 300) : '' };
+      const note = typeof parsed.note === 'string' ? parsed.note.slice(0, 300) : '';
+      const clipNote = 'The photo held more lines than one read could carry — the end of the menu may be missing. Check the last section and add anything absent.';
+      return { ok: true, items, note: clipped ? (note ? `${note} ${clipNote}` : clipNote) : note };
     } catch (e) {
       const detail = (e as Error).message ?? '';
       this.logger.warn(`menu extraction failed on every model: ${detail.slice(0, 200)}`);
@@ -744,5 +763,33 @@ export class AiService {
       }
       return null;
     }
+  }
+
+  /**
+   * Recover a menu read that the token budget cut off mid-item.
+   *
+   * The reply is well-formed JSON right up to the cut, so walking back one
+   * closing brace at a time and re-closing the structure finds the longest
+   * prefix that parses — the last complete item ends at a `}`, and `]}` closes
+   * the items array and the object around it. Only a result with at least one
+   * item counts: an empty salvage is indistinguishable from a genuine misread
+   * and must fall through to `unreadable`.
+   */
+  private salvageTruncatedMenu(raw: string): { items?: unknown[]; note?: string } | null {
+    const start = raw.indexOf('{');
+    if (start < 0) return null;
+    let body = raw.slice(start);
+    for (let tries = 0; tries < 24; tries++) {
+      const cut = body.lastIndexOf('}');
+      if (cut <= 0) return null;
+      for (const tail of [']}', '}', '']) {
+        try {
+          const parsed = JSON.parse(body.slice(0, cut + 1) + tail) as { items?: unknown[]; note?: string };
+          if (Array.isArray(parsed.items) && parsed.items.length > 0) return parsed;
+        } catch { /* cut further back and try again */ }
+      }
+      body = body.slice(0, cut);
+    }
+    return null;
   }
 }
