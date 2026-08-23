@@ -110,7 +110,7 @@
      the rule above the archive is a separator, and a separator is exactly what
      was asked to go. The name stays so the two rules that read it keep a
      token rather than growing a literal. */
-  --letter-rule:     transparent;
+  --letter-rule:     rgba(20, 19, 15, .14);
 
   /* ── THE INK SCALE, AND THE TWO STEPS THAT NEVER READ ────────────────────
      --faint was #9b9b9b: 2.78:1 on the ground directly above it. It is
@@ -160,8 +160,26 @@
      drawn over a photograph. White would paint a white line there; transparent
      draws nothing, which is what the word means. Both keep the 1px of layout,
      so nothing reflows and no ceiling moves. */
-  --line: transparent;
-  --line-2: transparent;
+  /* ── AND THEY ARE DRAWN AGAIN (owner, 23 Aug: "add back the lines and
+     separation for the entire website") ──────────────────────────────────
+     Transparent lasted a few hours and the reason is on the screenshots: a
+     white page with no ground, no plate and no rule is one uninterrupted
+     sheet of type, and a dense screen — a routine with three budget columns,
+     a week of remedies — has nothing telling the eye where one thing ends.
+     Space alone does that job on a page with six elements on it and stops
+     doing it at thirty.
+
+     THE GROUND STAYS PURE WHITE. That half of the same instruction is not
+     reversed: what comes back is the rule, not the grey page and not the
+     plate. Which is the reference's own arrangement — white paper, hairline
+     rules, nothing raised.
+
+     ONE VALUE, SIXTY-ONE DECLARATIONS, AND NOT ONE OF THEM WAS TOUCHED IN
+     EITHER DIRECTION. This is the whole argument for the token, made twice in
+     a day: the lines went in one edit and came back in one edit, and every
+     selector, every depth and every material has sat still throughout. */
+  --line: #e4e4e4;
+  --line-2: #dcdcdc;
 
   /* A BLOCK THAT IS NOT THE SAME AS THE ONE BELOW IT.
      Unread mail is carried by weight — the sender and the subject go bold —
@@ -359,6 +377,12 @@
      BEHIND a replaced element, so a carved well around an <img> is invisible
      and this has to be drawn on a ::after above it — in four separate places
      before it had a name, each with slightly different numbers. */
+  /* THE LINE ROUND A PHOTOGRAPH, and it is a token because the ceiling made it
+     one: this value lived in relief.css as a literal for as long as the rim
+     did, and it only surfaced when the rim came off and went back on. A colour
+     that can be removed and restored without anybody noticing where it lives
+     is a colour in the wrong file. */
+  --case-line: rgba(0,0,0,.10);
   --case-rim: inset 0 0 0 1px rgba(0,0,0,.14), inset 0 4px 12px rgba(0,0,0,.24), inset 0 -2px 8px rgba(0,0,0,.10);
   --case-rim-soft: inset 0 0 0 1px rgba(0,0,0,.10), inset 0 3px 7px rgba(0,0,0,.22), inset 0 -1px 0 rgba(255,255,255,.28);
 
@@ -371,10 +395,10 @@
      nothing stands on them, and they have no lit face. They are named here so
      that "there are five depths" stays literally true and the guard does not
      need a list of exceptions. */
-  /* The lit underside of a rule and the shade under a table head — both of
-     them an edge on an object that no longer has one. */
-  --edge-up: none;
-  --edge-in: none;
+  /* The lit underside of a rule and the shade under a table head. Back with
+     the lines they belong to — an edge with no line under it is half a rule. */
+  --edge-up: 0 1px 0 #fff;
+  --edge-in: inset 0 -1px 0 rgba(0,0,0,.06);
   --pip: 0 0 0 3px var(--accent-soft), inset 0 1px 1px rgba(0,0,0,.3);
   --pip-ok: 0 0 0 2px #fff, 0 1px 2px rgba(0,0,0,.3);
 
@@ -606,43 +630,53 @@
      object at all until somebody reaches for one, which is the other half of
      the same idea and the owner's call between them.
 
-     A PRIMARY AND A SECONDARY STILL HAVE TO DIFFER AT REST, and this is the
-     part that would have gone wrong quietly: .btn-line already wears
-     --quiet-case, so pointing the primary at it too would leave the two
-     buttons in a row identical until one of them is pressed. --calm-case is
-     the primary's rest: the same clear lozenge with a WARM shell and a warm
-     fall instead of a neutral one. Side by side the difference reads before
-     the labels do; alone on a screen it is quiet. */
+     AND EVERY UNPRESSED BUTTON IS THE SAME GLASS (owner, 23 Aug, with a
+     reference of a plain neutral lozenge: "for all the buttons which are not
+     clicked should have the glass button feel").
+
+     The first cut of --calm-case gave the resting PRIMARY a warm shell so that
+     it and .btn-line could be told apart in a row. That was a real problem and
+     this is the owner overruling the answer to it: one resting appearance for
+     every button in the city, and the sun is the only thing that separates
+     what you are pressing from what you are not.
+
+     What carries primary against secondary at rest is now the label — .btn is
+     500 weight at .22em tracking and the ink is the same on both, so a row of
+     two reads as two equal doors until one is chosen. That is a real cost and
+     it is worth naming rather than hiding: on a screen with a Cancel and a
+     Publish, nothing but the words says which is which. The owner has seen the
+     row and asked for it.
+
+     THE FACE IS A SHADE OFF WHITE, from the reference: the lozenge is a pale
+     grey pill and the casing round it is the lighter thing, which is what
+     makes it read as glass over a surface rather than as a white box. On a
+     pure white page a pure white button is not a button. */
   --calm-case:
-    0 0 0 7px var(--loud-shell),
-    0 0 0 8px var(--loud-shell-lit),
-    inset 0 1.5px 1px rgba(255, 255, 255, .9),
-    0 5px 10px rgba(203, 84, 44, .12),
-    0 16px 32px rgba(203, 84, 44, .10);
-  --calm-case-sm:
-    0 0 0 5px var(--loud-shell),
-    0 0 0 5.8px var(--loud-shell-lit),
-    inset 0 1.5px 1px rgba(255, 255, 255, .9),
-    0 4px 8px rgba(203, 84, 44, .12),
-    0 10px 22px rgba(203, 84, 44, .10);
-  /* The face a resting primary is cut from: white, with the warmth kept in the
-     casing round it rather than in the lozenge. */
-  --calm-face: linear-gradient(180deg, #ffffff 0%, #fdfaf8 100%);
-  /* AND THE POINTER HAS TO CHANGE SOMETHING VISIBLE. Rest and hover shared the
-     same two shell rings, so the only difference between them was the depth of
-     the fall — which on a white page at a glance is no difference at all, and a
-     control that does nothing under the cursor reads as one you cannot press.
-     The glass takes a breath of the sun; it does not light. */
-  --calm-face-hover: linear-gradient(180deg, #fffaf6 0%, #fdeee3 100%);
-  --quiet-case:
     0 0 0 7px rgba(0, 0, 0, .035),
     0 0 0 8px rgba(255, 255, 255, .95),
-    inset 0 1.5px 1px rgba(255, 255, 255, .9),
+    inset 0 1.5px 1px rgba(255, 255, 255, .95),
+    inset 0 -6px 12px -6px rgba(0, 0, 0, .07),
     0 5px 10px rgba(0, 0, 0, .06),
     0 16px 32px rgba(0, 0, 0, .05);
-  /* The lozenge's own face, one shade off white, so the casing has something
-     to be a casing around. */
-  --quiet-face: #fbfbfb;
+  --calm-case-sm:
+    0 0 0 5px rgba(0, 0, 0, .035),
+    0 0 0 5.8px rgba(255, 255, 255, .95),
+    inset 0 1.5px 1px rgba(255, 255, 255, .95),
+    inset 0 -5px 10px -5px rgba(0, 0, 0, .07),
+    0 4px 8px rgba(0, 0, 0, .06),
+    0 10px 22px rgba(0, 0, 0, .05);
+  --calm-face: linear-gradient(180deg, #fbfbfc 0%, #f1f1f3 100%);
+  /* AND THE POINTER HAS TO CHANGE SOMETHING VISIBLE. A control that does
+     nothing under the cursor reads as one you cannot press. The glass clears —
+     it does not light; lighting is what the press is for. */
+  --calm-face-hover: linear-gradient(180deg, #ffffff 0%, #f7f7f9 100%);
+  /* THE SECONDARY'S REST, AND IT IS THE SAME GLASS. It kept its own pair of
+     names for one afternoon, while the primary rested in a warm shell and this
+     one did not. They are the same object now — see --calm-case — and the
+     names stay separate so that the day the two are asked to differ again it
+     is one value rather than a search. */
+  --quiet-case: var(--calm-case);
+  --quiet-face: var(--calm-face);
 
   --lamp-face: var(--loud-face);
   /* AND THE LAMP'S OWN GLOW GOES WITH THE REST. --lamp was a rim, two inner
@@ -705,7 +739,7 @@
   --accent: #2a2a2a;
   --accent-ink: #2a2a2a;
   --accent-soft: #ffffff;
-  --accent-line: transparent;
+  --accent-line: #e0e0e0;
 
   /* --on-accent is the foreground for anything sitting ON a filled accent or
      a status ink. 177 call sites hard-coded #fff for this and had no name for

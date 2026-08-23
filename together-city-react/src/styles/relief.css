@@ -318,12 +318,29 @@ h1 { letter-spacing: .015em; }
    THE HOVER LIFT GOES WITH IT. A surface with no elevation cannot rise, and
    `transform: translateY(-3px)` on a thing with no edge is content that jumps
    for no visible reason. */
+/* ── SEPARATION IS A RULE, NOT A PLATE (owner, 23 Aug) ─────────────────────
+   "Add back the lines and separation for the entire website."
+
+   These eight kept their padding and lost their sheet when the plates came
+   off, and that is not what is being reversed: no fill, no radius, no
+   elevation, nothing raised. What comes back is a LINE — one at the foot of a
+   row, one at the head of a card — which is what a magazine uses to separate a
+   block from the block under it, and what a white page with no ground has
+   nothing else to do it with.
+
+   A ROW TAKES ITS RULE AT THE FOOT AND THE LAST ONE GOES WITHOUT, because a
+   list that ends on a line is a list with something missing under it. A card
+   takes its rule at the HEAD, so a run of cards reads as sections of one sheet
+   rather than as a stack of trays. */
 .card, .stat, .row, .console, .mincal, table.tc, .blk > .card, .pcard {
   background: none;
   border: 0;
   border-radius: 0;
   box-shadow: none;
 }
+.row { border-bottom: 1px solid var(--line); }
+.row:last-child { border-bottom: 0; }
+.card + .card, .stat + .stat { border-top: 1px solid var(--line); }
 /* AND THE MODAL IS STILL NOT ON THIS LIST. The sentence above holds — an
    overlay that cannot be told from the page is not an overlay — and on 23 Aug
    the thing that carries it changed. It used to be the hairline; --line is
@@ -364,9 +381,6 @@ h1 { letter-spacing: .015em; }
 .rule, .trust, .tabrow, .console .tabs, .console .below, table.tc td, table.tc th {
   border-color: var(--line);
 }
-/* A RULE IS A SEPARATOR AND SEPARATORS WENT. It keeps its height so the
-   spacing either side of it is unchanged — the air it was holding open is the
-   half of it that still works. */
 .rule { height: 1px; background: var(--line); box-shadow: var(--edge-up); }
 
 table.tc { font-size: var(--fs-4); }
@@ -548,12 +562,12 @@ table.tc th { background: var(--well); box-shadow: var(--edge-in); color: var(--
    "the other thing you could do here" more clearly than a hairline box did,
    and says it in the same language. */
 .btn-line, .btn-outline, .btn-secondary {
-  background: var(--quiet-face); color: var(--ink);
-  box-shadow: var(--quiet-case);
+  background: var(--calm-face); color: var(--ink);
+  box-shadow: var(--calm-case);
 }
 .btn-line:not(:disabled):hover, .btn-outline:not(:disabled):hover, .btn-secondary:not(:disabled):hover {
-  border-color: transparent; color: var(--ink); background: var(--card);
-  box-shadow: var(--quiet-case);
+  border-color: transparent; color: var(--ink); background: var(--calm-face-hover);
+  box-shadow: var(--calm-case);
 }
 
 /* Ghost — flat until touched, for the third and fourth action in a row.
@@ -714,9 +728,9 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
 }
 /* The console's fields sit in one long trough rather than several. */
 .console .fields { background: var(--well); box-shadow: var(--carve); }
-/* The one line in the fields row that was NOT reading --line, so "no lines"
-   would have left exactly one standing. */
-.console .f { border-right: 1px solid transparent; }
+/* The one line in the fields row that was not reading --line, so it had to be
+   pointed by hand in both directions. It reads the token now. */
+.console .f { border-right: 1px solid var(--line); }
 .console .f input, .console .f select { background: transparent; box-shadow: none; }
 
 /* ══ TABS AND SEGMENTS — ONE TROUGH, ONE RAISED KEY IN IT ════════════════ */
@@ -1179,7 +1193,12 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
    nothing, so a rim is one value away if a room ever needs one back. What is
    left holding the shelf apart is space, which is what it should have been. */
 img:not(:where(.no-case, .bg)), video:not(:where(.no-case, .bg)), .case-auto > img, .case-auto > video {
-  outline: 1px solid transparent;
+  /* THE RIM IS BACK AND THE LIFT IS NOT (owner, 23 Aug). A photograph on a
+     white page with no edge bleeds into the paper at every pale corner — which
+     is what "seamless" cost the shop and what "add back the separation" is
+     asking for. The 12px fall stays gone: a line is separation, a shadow is
+     height, and only one of those was asked for. */
+  outline: 1px solid var(--case-line);
   outline-offset: -1px;
   box-shadow: none;
   background: none;
@@ -1356,7 +1375,7 @@ img[src$=".svg"], .no-case {
 .hub-plate-go:active { background: var(--loud-face); color: var(--on-loud); box-shadow: var(--loud-case); }
 .hub-plate-go:focus-visible { outline: none; box-shadow: var(--calm-case), 0 0 0 11px rgba(0,0,0,.28); }
 /* Not yet open: the casing empty, like a secondary. */
-.hub-plate.is-soon .hub-plate-go { background: var(--quiet-face); color: var(--muted); box-shadow: var(--quiet-case); }
+.hub-plate.is-soon .hub-plate-go { background: var(--calm-face); color: var(--muted); box-shadow: var(--calm-case); }
 
 /* ── ON A PHONE THE CONTROL IS HALVED, AND IT IS ONE SIZE ─────────────────
    Owner, 19 Aug, looking at the run on a phone: the pill was reading as a
@@ -1495,7 +1514,7 @@ img[src$=".svg"], .no-case {
    pressable — the CTA reads as a label and the whole plate stops lifting. */
 .district-plate.is-soon { cursor: default; }
 .district-plate.is-soon:hover { box-shadow: var(--e3); }
-.district-plate.is-soon:hover .hub-plate-go { background: var(--quiet-face); color: var(--muted); box-shadow: var(--quiet-case); }
+.district-plate.is-soon:hover .hub-plate-go { background: var(--calm-face); color: var(--muted); box-shadow: var(--calm-case); }
 
 
 /* ══ A WALL OF PICTURES, IN THE HUB'S LANGUAGE ═══════════════════════════

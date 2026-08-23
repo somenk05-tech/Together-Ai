@@ -262,24 +262,32 @@ describe('Relief stays a system', () => {
   });
 
   /**
-   * AND NOTHING DRAWS AN EDGE ON IT.
+   * AND EVERY EDGE IN THE CITY IS SPELT WITH ONE OF TWO NAMES.
    *
-   * Owner, same sentence: "no boarders and lines". Sixty-one border
-   * declarations resolve through --line and --line-2, and so do every depth
-   * (--rim, --rim-strong, --e1..--e3, --e1-key, --e2-key) and four of the five
-   * materials. One value each removes all of it — which is the point of the
-   * token and the reason not one of those 61 selectors was edited.
+   * Sixty-one border declarations resolve through --line and --line-2, and so
+   * does every depth (--rim, --rim-strong, --e1..--e3, --e1-key, --e2-key) and
+   * four of the five materials.
    *
-   * THIS IS THE GUARD THAT MATTERS AFTERWARDS. Re-pointing a token is
-   * reversible in one line; what is NOT reversible is somebody writing
-   * `border: 1px solid #e4e4e4` next month because the token "doesn't work
-   * any more". The colour-literal ceiling catches the literal; this catches
-   * the other half — the two names still being the only way an edge is spelt.
+   * THIS GUARD WAS WRITTEN THE DAY THE LINES WENT AND IT ASSERTED THE VALUE,
+   * which was a mistake worth recording: it read `--line: transparent`, so
+   * when the owner asked for the lines back — the same afternoon — a test
+   * failed for describing a decision rather than a rule. The decision was
+   * never the invariant. The invariant is that there are exactly TWO names for
+   * an edge and everything that draws one reads them, which is what made both
+   * changes a single value and left all 61 selectors untouched in both
+   * directions.
+   *
+   * So it holds the wiring rather than the colour. Re-pointing a token is
+   * reversible in one line; what is not reversible is somebody writing
+   * `border: 1px solid #e4e4e4` next month because the token "doesn't work any
+   * more". The colour-literal ceiling catches the literal; this catches the
+   * other half.
    */
-  it('draws every edge in nothing at all', () => {
+  it('spells every edge with one of two names', () => {
     const root = strip(tokens).split(/\[data-hub=/)[0];
-    expect(root).toMatch(/--line:\s*transparent;/);
-    expect(root).toMatch(/--line-2:\s*transparent;/);
+    for (const t of ['--line', '--line-2']) {
+      expect(root, `${t} is not declared at the root`).toMatch(new RegExp(`${t}:\\s*\\S+;`));
+    }
     // The depths and materials are not re-pointed away from them — a hairline
     // spelt any other way is a hairline that survives the next change of mind.
     for (const t of ['--rim', '--lens', '--lens-key', '--glass', '--prism', '--lamp', '--lamp-badge']) {
