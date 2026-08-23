@@ -941,17 +941,29 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
    "you are here". So the lamp keeps the recess: its top rim is the DARK one
    and its bottom rim is the bright one, exactly inverted from the keys above
    and below it. It glows, and it is still pressed in. */
+/* ── AND THE UNLIT KEYS ARE GLASS TOO (owner, 23 Aug) ──────────────────────
+   "The side button is square, it needs to be like the reference." Which it
+   was, and the way it got there is worth a line: these rows carried
+   --lens-key, a hairline made of --line, and while --line was transparent
+   they read as bare text. The lines came back an hour ago and eight square
+   1px boxes came back with them, in a rail whose ONE lit row is a stadium.
+
+   So they take the same glass as every other unpressed button in the city —
+   "for all the buttons which are not clicked should have the glass button
+   feel" — at the small size the rail has room for, and the same --r-full the
+   lit key wears. What separates the one you are on from the seven you are not
+   is the sun and nothing else, which is the whole of what a rail has to say.
+
+   The paragraph this replaces was right for the day it was written: square
+   and flat, like everything else. Nothing is square any more and the buttons
+   are not flat. */
 .side-menu a {
-  /* SQUARE AND FLAT, like everything else (23 Aug). 16px was a hand-written
-     radius rather than a --r-* token, so squaring the scale did not reach it;
-     the blur was there to make glass out of a translucent face, and there is
-     no picture behind the rail for glass to bend. */
-  border-radius: 0; border: 0;
-  background: var(--lens-face); box-shadow: var(--lens-key);
+  border-radius: var(--r-full); border: 0;
+  background: var(--calm-face); box-shadow: var(--calm-case-sm);
   color: var(--ink-soft); font-weight: 500;
   transition: box-shadow var(--dur-base) var(--ease), transform var(--dur-base) var(--ease-out), background var(--dur-base) var(--ease);
 }
-.side-menu a:hover { box-shadow: var(--lens); color: var(--ink); }
+.side-menu a:hover { background: var(--calm-face-hover); box-shadow: var(--calm-case-sm); color: var(--ink); }
 @media (hover: hover) and (pointer: fine) {
   .side-menu a:hover { transform: translateY(-1.5px); }
 }
@@ -992,8 +1004,10 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
 .side-menu a.active .s { color: var(--on-lamp-soft); }
 .side-menu a.active:hover { transform: none; box-shadow: var(--loud-case-sm); }
 
+/* The index goes round with the key it sits in — a square in a stadium is the
+   one corner left in the object, lit or not. */
 .side-menu a .n {
-  background: var(--lens-face); box-shadow: var(--lens-key); border-radius: var(--r-1); color: var(--ink-soft);
+  background: var(--lens-face); box-shadow: var(--lens-key); border-radius: var(--r-full); color: var(--ink-soft);
 }
 /* The index inside the lozenge goes round with it. A 9px-cornered square in a
    stadium is the one corner left in the object. */
