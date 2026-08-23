@@ -322,8 +322,14 @@ export const servicesApi = {
     api.post<ListingTrust>(`/services/${listingId}/verification`, input).then((r) => r.data),
 
   menu: (listingId: string) => api.get<MenuPage>(`/services/${listingId}/menu`).then((r) => r.data),
+  // Reading a photographed menu is a vision-model call and routinely outruns
+  // the client's default 20s timeout on a real menu (a dense page takes the
+  // model longer than a test card). Without this override the browser gave up
+  // mid-read and showed "Could not reach the server" — the same lesson
+  // medical/api.ts already recorded on ingestBlood, learned here a second
+  // time from the owner's own restaurant listing (24 Aug).
   scanMenu: (listingId: string, image: string) =>
-    api.post<{ items: MenuDraftItem[]; note: string; review: string }>(`/services/${listingId}/menu/scan`, { image }).then((r) => r.data),
+    api.post<{ items: MenuDraftItem[]; note: string; review: string }>(`/services/${listingId}/menu/scan`, { image }, { timeout: 180000 }).then((r) => r.data),
   saveMenu: (listingId: string, input: { scanUrl?: string; items: MenuDraftItem[] }) =>
     api.post<MenuPage>(`/services/${listingId}/menu`, input).then((r) => r.data),
   askAboutMenu: (listingId: string, itemIds: string[], note?: string) =>

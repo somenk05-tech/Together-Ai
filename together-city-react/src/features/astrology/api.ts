@@ -355,8 +355,15 @@ export const astrologyApi = {
   monthly: () => api.get<MonthlyLetter>('/astrology/monthly').then((r) => r.data),
   monthlyHistory: () => api.get<Array<Omit<MonthlyLetter, 'needsProfile' | 'pending'>>>('/astrology/monthly/history').then((r) => r.data),
   askQuota: () => api.get<AskQuota>('/astrology/ask').then((r) => r.data),
+  // The astrologer writes the answer inline — an AI call that can outrun the
+  // client's default 20s timeout. That default is not merely slow here, it is
+  // WRONG: the server charges only after the answer exists, so a browser that
+  // gives up at 20s shows "could not reach the server" to a citizen who is
+  // then charged for a consultation they never saw. Waiting is the only
+  // honest behaviour. Same class of fix as medical ingestBlood and the menu
+  // reader (24 Aug).
   ask: (dto: { topic: string; question: string; method?: 'wallet' | 'card' }) =>
-    api.post<AskResult>('/astrology/ask', dto).then((r) => r.data),
+    api.post<AskResult>('/astrology/ask', dto, { timeout: 180000 }).then((r) => r.data),
   questions: () => api.get<AstroQuestion[]>('/astrology/questions').then((r) => r.data),
   deleteQuestion: (id: string) =>
     api.delete<{ deleted: boolean }>(`/astrology/questions/${id}`).then((r) => r.data),

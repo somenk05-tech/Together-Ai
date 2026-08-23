@@ -46,6 +46,14 @@ export function uploadErrorMessage(err: unknown): string {
   if (status === 401 || status === 403) return 'Your session may have expired — please sign in again and retry.';
   if (status && status >= 500) return `The server had a problem (${status}). Please try again in a moment.`;
   if (status) return `Upload failed (${status}). Please try again.`;
+  // An axios timeout has no response either, but it is NOT a connection
+  // problem — the server is usually still working on the request. Blaming the
+  // citizen's connection here sent the menu reader's owner (and this file's
+  // authors) hunting through CORS and deploys for a bug that was a stopwatch.
+  const code = (err as { code?: string })?.code;
+  if (code === 'ECONNABORTED' || /timeout/i.test(e?.message ?? '')) {
+    return 'The server is taking longer than we waited. It may still be working — give it a moment and try again.';
+  }
   return 'Could not reach the server — check your connection and try again.';
 }
 
