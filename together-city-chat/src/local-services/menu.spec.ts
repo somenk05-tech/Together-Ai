@@ -63,7 +63,12 @@ function harness(opts: { menu?: any[]; extract?: any } = {}) {
   const svc: any = Object.create(LocalServicesService.prototype);
   svc.prisma = prisma;
   svc.notifications = { create: async () => undefined };
-  svc.ai = { extractMenu: async () => opts.extract ?? null };
+  /* THE READER'S ANSWER IS A RESULT, NOT A MAYBE (23 Aug). It used to return
+     the draft or `null`, and `null` stood for three unrelated things at once:
+     no key on the server, a picture the model could not read, and the provider
+     being unreachable. The fixtures pass the shape through so the tests below
+     can hold each of the three to its own sentence and its own status code. */
+  svc.ai = { extractMenu: async () => opts.extract ?? { ok: false, reason: 'failed' } };
   /* THE GATE, STUBBED OPEN. These tests are about who the business can see,
      not about how many new neighbours a day it is given, and the real rule has
      its own two suites (trust.spec.ts, trust-gate.spec.ts, verification.spec.ts).
@@ -83,7 +88,7 @@ const IMG = 'data:image/jpeg;base64,' + 'A'.repeat(64);
 describe('reading a menu proposes and stores nothing', () => {
   it('returns a draft, and the table stays empty', async () => {
     const { svc, menu } = harness({
-      extract: { items: [{ name: 'Idli', priceInr: 40 }, { name: 'Filter coffee', priceInr: 20 }], note: '' },
+      extract: { ok: true, items: [{ name: 'Idli', priceInr: 40 }, { name: 'Filter coffee', priceInr: 20 }], note: '' },
     });
     const out = await svc.scanMenu(OWNER, 'L1', IMG);
     expect(out.items).toHaveLength(2);
@@ -92,24 +97,57 @@ describe('reading a menu proposes and stores nothing', () => {
   });
 
   it('the draft carries no ids, because nothing exists to have one', async () => {
-    const { svc } = harness({ extract: { items: [{ name: 'Idli', priceInr: 40 }], note: '' } });
+    const { svc } = harness({ extract: { ok: true, items: [{ name: 'Idli', priceInr: 40 }], note: '' } });
     const out = await svc.scanMenu(OWNER, 'L1', IMG);
     expect(out.items[0].id).toBeUndefined();
     expect(out.review).toMatch(/check every price/i);
   });
 
   it('refuses anything that is not an image', async () => {
-    const { svc } = harness({ extract: { items: [], note: '' } });
+    const { svc } = harness({ extract: { ok: true, items: [], note: '' } });
     await expect(svc.scanMenu(OWNER, 'L1', 'https://example.com/menu.jpg')).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('says so plainly when the reader is unavailable, rather than silently doing nothing', async () => {
-    const { svc } = harness({ extract: null });
-    await expect(svc.scanMenu(OWNER, 'L1', IMG)).rejects.toBeInstanceOf(BadRequestException);
+  /**
+   * ── THREE WAYS TO NOT READ A MENU, AND THEY ARE NOT THE SAME ─────────────
+   *
+   * One sentence used to cover all three — "the menu reader is unavailable
+   * right now" — for a server with no API key, a photograph the model could
+   * not make sense of, and a provider that could not be reached. Only one of
+   * those is anything the shopkeeper can act on, and the message they got did
+   * not say which they had.
+   *
+   * The status codes carry the same split, and that half is for whoever runs
+   * the server: 400 is a picture that needs retaking, 503 is a feature that is
+   * down. A monitor cannot tell those apart if both are 400.
+   */
+  it('tells a shopkeeper which kind of failure they have', async () => {
+    const cases = [
+      { reason: 'off', status: 503, says: /switched off on this server/i },
+      { reason: 'failed', status: 503, says: /try that photograph again/i },
+      { reason: 'unreadable', status: 400, says: /could not make sense of that photograph/i },
+    ] as const;
+    for (const c of cases) {
+      const { svc } = harness({ extract: { ok: false, reason: c.reason } });
+      const err = await svc.scanMenu(OWNER, 'L1', IMG).then(() => null, (e: any) => e);
+      expect({ reason: c.reason, status: err?.getStatus?.() }).toEqual({ reason: c.reason, status: c.status });
+      expect(err.message).toMatch(c.says);
+      // Every one of them points at the way through that always works. A dead
+      // end is what makes a shopkeeper close the page.
+      expect(err.message).toMatch(/type the items in yourself/i);
+    }
+  });
+
+  /* And a failure still writes nothing, which is the rule the whole file is
+     about — there is no path from a failed read to the table. */
+  it('writes nothing when the reader fails', async () => {
+    const { svc, menu } = harness({ extract: { ok: false, reason: 'failed' } });
+    await expect(svc.scanMenu(OWNER, 'L1', IMG)).rejects.toBeTruthy();
+    expect(menu).toHaveLength(0);
   });
 
   it('is only scannable by the business it belongs to', async () => {
-    const { svc } = harness({ extract: { items: [], note: '' } });
+    const { svc } = harness({ extract: { ok: true, items: [], note: '' } });
     await expect(svc.scanMenu(SEEKER, 'L1', IMG)).rejects.toBeTruthy();
   });
 });

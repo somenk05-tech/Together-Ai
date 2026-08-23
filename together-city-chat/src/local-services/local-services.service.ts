@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { swallowed } from '../shared/swallow';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -1110,8 +1110,28 @@ export class LocalServicesService {
     const m = /^data:(image\/[a-zA-Z+]+);base64,(.+)$/.exec(dataUrl.trim());
     if (!m) throw new BadRequestException('That does not look like an image.');
     const out = await this.ai.extractMenu({ mediaType: m[1], base64: m[2] });
-    if (!out) {
-      throw new BadRequestException('The menu reader is unavailable right now — you can still type the items in yourself.');
+    /* ── AND WHEN IT DOES NOT READ, IT SAYS WHICH KIND OF NOT (23 Aug) ────
+       One sentence used to cover three unrelated things — no key on the
+       server, a picture the model could not make sense of, and the provider
+       being down — and "the menu reader is unavailable right now" is only
+       actionable for none of them. The owner of a small restaurant reads that
+       and has no idea whether to take the photograph again.
+
+       The status codes differ for the same reason the sentences do: an
+       unreadable photograph is the request's problem (400) and the other two
+       are the server's (503), which is also what tells a monitor the
+       difference between a bad snapshot and a feature that is down. */
+    if (!out.ok) {
+      if (out.reason === 'unreadable') {
+        throw new BadRequestException(
+          'The reader could not make sense of that photograph. One page at a time, straight on and in good light usually does it — or type the items in yourself.',
+        );
+      }
+      throw new ServiceUnavailableException(
+        out.reason === 'off'
+          ? 'The menu reader is switched off on this server. Nothing you did — type the items in yourself and they publish exactly the same.'
+          : 'The menu reader could not be reached just now. Try that photograph again in a moment, or type the items in yourself.',
+      );
     }
     return {
       // Draft, and the shape says so: no ids, because nothing has been stored.

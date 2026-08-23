@@ -9,6 +9,23 @@ import Anthropic from '@anthropic-ai/sdk';
  * unset (or a call fails), callers receive their supplied deterministic
  * fallback, so every feature keeps working without the key.
  */
+/**
+ * WHAT THE MENU READER CAME BACK WITH, AND WHY IT DID NOT.
+ *
+ *   off        — no ANTHROPIC_API_KEY in this deployment. Nothing was tried.
+ *                Nobody using the app can fix this; the message must say so
+ *                rather than implying the photograph was at fault.
+ *   unreadable — a model answered, and not with the JSON it was asked for.
+ *                Usually the picture: a page at an angle, a dark board, two
+ *                pages in one frame. The shopkeeper CAN act on this.
+ *   failed     — every model in the chain threw. Transient far more often than
+ *                not, so the message is "try again", and `detail` carries the
+ *                provider's own words into the log.
+ */
+export type MenuRead =
+  | { ok: true; items: Array<{ section?: string; name: string; description?: string; priceInr: number | null }>; note: string }
+  | { ok: false; reason: 'off' | 'unreadable' | 'failed'; detail?: string };
+
 @Injectable()
 export class AiService {
   private readonly logger = new Logger('AiService');
@@ -415,8 +432,23 @@ export class AiService {
 
   async extractMenu(
     image: { base64: string; mediaType: string },
-  ): Promise<{ items: Array<{ section?: string; name: string; description?: string; priceInr: number | null }>; note: string } | null> {
-    if (!this.client) return null;
+  ): Promise<MenuRead> {
+    /* ── THREE FAILURES, THREE ANSWERS (23 Aug) ───────────────────────────
+       This returned `null` for all of: no API key in the deployment, a model
+       that answered with something that was not the JSON it was asked for,
+       and every model in the chain throwing. The caller turned all three into
+       one sentence — "the menu reader is unavailable right now" — which tells
+       the shopkeeper nothing they can act on and whoever runs the server
+       nothing they can fix. A shopkeeper whose photograph was too dark and a
+       shopkeeper whose deployment has no key got the same message, and only
+       one of them could do anything about it.
+
+       The reasons are separated HERE rather than in the caller because this is
+       the only place that knows which one happened. */
+    if (!this.client) {
+      this.logger.warn('menu extraction asked for, but ANTHROPIC_API_KEY is not set');
+      return { ok: false, reason: 'off' };
+    }
     const system =
       'You transcribe a photographed restaurant or service menu into structured items. ' +
       'Return ONLY JSON: {"items":[{"section":string,"name":string,"description":string,"priceInr":number|null}],"note":string}. ' +
@@ -430,7 +462,21 @@ export class AiService {
       'because the person correcting this needs to know where to look.';
     try {
       const res = await this.createWithFallback({
-        model: this.model,
+        /* ── AND IT READS WITH ITS EYES (23 Aug) ─────────────────────────
+           This was `this.model` — the cheap text tier, the one used for recipe
+           steps and moderation. It is the ONLY vision call in this file that
+           was not on --visionModel: extractBloodMarkers and analyzeMeal both
+           use it, and this one was written later and did not.
+
+           It is not a preference. The comment at the top of this class already
+           says why a blood report gets the vision tier — accuracy matters —
+           and a photographed menu is the same shape of job with the same shape
+           of consequence: the file that calls this one says a misread price is
+           "twenty rupees a plate, discovered by an argument at a table". The
+           cheap model transcribes a clean printed card and starts guessing on
+           a handwritten board photographed at an angle, which is what a small
+           restaurant actually has on the wall. */
+        model: this.visionModel,
         max_tokens: 3000,
         system: `${system}\n\nRespond with ONLY valid JSON — no prose, no markdown fences.`,
         messages: [{
@@ -446,7 +492,10 @@ export class AiService {
       });
       const text = res.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('');
       const parsed = this.extractJson(text) as { items?: unknown[]; note?: string } | null;
-      if (!parsed || !Array.isArray(parsed.items)) return null;
+      if (!parsed || !Array.isArray(parsed.items)) {
+        this.logger.warn(`menu extraction returned no usable JSON (${text.slice(0, 120).replace(/\s+/g, ' ')})`);
+        return { ok: false, reason: 'unreadable' };
+      }
       const items = parsed.items.slice(0, 200).flatMap((raw) => {
         const it = raw as Record<string, unknown>;
         const name = typeof it.name === 'string' ? it.name.trim().slice(0, 90) : '';
@@ -462,10 +511,11 @@ export class AiService {
           priceInr: p,
         }];
       });
-      return { items, note: typeof parsed.note === 'string' ? parsed.note.slice(0, 300) : '' };
+      return { ok: true, items, note: typeof parsed.note === 'string' ? parsed.note.slice(0, 300) : '' };
     } catch (e) {
-      this.logger.warn(`menu extraction failed: ${(e as Error).message}`);
-      return null;
+      const detail = (e as Error).message ?? '';
+      this.logger.warn(`menu extraction failed on every model: ${detail.slice(0, 200)}`);
+      return { ok: false, reason: 'failed', detail: detail.slice(0, 200) };
     }
   }
 
