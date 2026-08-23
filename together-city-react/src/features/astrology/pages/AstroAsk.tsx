@@ -122,12 +122,45 @@ export function AstroAsk() {
     <div className="ask-stage">
       <div className="ask-panel">
         <div className="ask-panel-inner">
-          <p className="ask-eyebrow">Astrology Zone</p>
-          <h1 className="ask-title">Ask the Astrologer</h1>
-          <p className="ask-lede">
-            A private consultation drawn from your birth profile and your own question. Every answer
-            is written for you and kept permanently under My Questions.
-          </p>
+          {/* ── THE CASE FOR ASKING HERE (owner, 23 Aug) ─────────────────────
+              The masthead used to describe the room: "a private consultation
+              drawn from your birth profile". True, and it answered a question
+              nobody had asked yet. This says why a reading from here is worth
+              having at all — that two astrologers given one chart will hand
+              back two readings, and that the thing this room is FOR is giving
+              one answer instead.
+
+              A BAND OF ITS OWN, NOT A RETHEME. This hub is cream paper with
+              black ink, and the note in relief.css defends that at length:
+              "there is no version of this hub where the chrome floats and stays
+              dark." So the night is inside a bordered band the page contains,
+              and every other surface on the page is untouched. */}
+          <header className="astra">
+            <img className="astra-sky" src="/assets/img/astra-sky.webp" alt="" />
+            <span className="astra-veil" aria-hidden />
+            <div className="astra-in">
+              <p className="astra-kicker">Astrology Zone</p>
+              <p className="astra-lead">One question. Three astrologers. Three different answers.</p>
+              <p className="astra-body">
+                Different astrologers can interpret the same birth chart differently &mdash; sometimes
+                giving you completely contradictory predictions.
+              </p>
+              <h1 className="astra-title">Ask Astra</h1>
+              {/* WHAT IT ACTUALLY READS, because a claim on a masthead is still
+                  a claim. Every item in this sentence is a thing `ask()` puts in
+                  front of the model: the natal chart, the transiting positions
+                  at the moment of asking, the aspects between them on the
+                  question's own ruling planets, the month's best and slowest
+                  days, and the last five questions with the last three answers.
+                  Nothing here is a number nobody counted. */}
+              <p className="astra-body">
+                Astra reads your birth chart against the sky as it stands right now &mdash; the
+                transits, the aspects on your subject, the month&rsquo;s timing and every question
+                you have asked before &mdash; to give you one personalised answer, powered by AI.
+                Every answer is kept permanently under My Questions.
+              </p>
+            </div>
+          </header>
 
           {profile.isLoading && <div className="ask-note"><Spinner label="Opening the room…" /></div>}
 
