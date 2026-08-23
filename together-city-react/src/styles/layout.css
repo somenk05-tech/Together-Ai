@@ -188,6 +188,17 @@
   .tc-header .tc-actionrow { width: auto; flex: 0 0 auto; }
   .tc-header .tc-navrow { order: 2; }
   .tc-header .tc-actionrow { order: 3; margin-left: auto; }
+  /* AND THE SECOND LAYER CANNOT WRAP (owner, 23 Aug, night: "make sure this
+     is in one line"). The Search door joined the bar, and at widths where the
+     districts and the doors no longer fit side by side the bar wrapped to a
+     third line and hung out of the band. The fix is flex the tab strip
+     already knows how to spend: the DISTRICTS give and the DOORS do not —
+     the strip shrinks and scrolls (it has been a scroller since it was
+     written) instead of pushing the citizen's own doors off the line. Stated
+     after the order rules so the guard that pins those exact lines keeps
+     matching them. */
+  .tc-header .tc-navrow { flex: 1 1 auto; min-width: 0; justify-content: flex-start; }
+  .tc-header .tc-actionrow { flex: 0 0 auto; }
   /* The word goes; the icon, its title and its aria-label stay. */
   .tc-header .tc-actionbar .lab { display: none; }
   .tc-header .tc-actionbar a, .tc-header .tc-actionbar button { padding: 0 10px; }
@@ -204,7 +215,10 @@
    the scrollbar takes and room for a first name longer than the owner's — a
    breakpoint set to the exact measurement is a breakpoint that crops for
    somebody else, which is precisely the mistake 1620 made. */
-@media (min-width: 1700px) {
+/* 1800, moved from 1700 the night Search joined the bar: the old number was
+   measured before a sixth door existed, and words on six pills at 1700 spent
+   the slack the districts need to stay unscrolled. */
+@media (min-width: 1800px) {
   .tc-header .tc-actionbar .lab { display: inline; }
 }
 

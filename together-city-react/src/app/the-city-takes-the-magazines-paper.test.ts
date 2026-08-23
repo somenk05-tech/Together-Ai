@@ -47,16 +47,23 @@ describe('the city takes the magazine’s paper', () => {
    * type, the tracking and the air are untouched by any of it.
    */
   /**
-   * AND THEN THE PAGE BECAME PORCELAIN (owner, 23 Aug, night, with four
-   * neumorphic references). Soft relief cannot exist on #ffffff — a white
-   * highlight on a white ground is nothing — so the ground comes down to a
-   * cool porcelain the light can stand off. The ink survives its second
+   * AND THE PAGE IS WHITE AGAIN, STILL MOULDED (owner, 23 Aug, night — the
+   * porcelain lasted an hour: "use white color instead of the grey feel,
+   * rest everything is good"). The reversal is narrower than it looks and is
+   * recorded as such: only the GROUND returns to #ffffff. The twin depths,
+   * the 145° mouldings, the carved press states and the soft radius ladder
+   * all stay — on white the relief rides on the shade alone, which is the
+   * owner's own reference study's second square ("drop shadows on a plain
+   * square"). The lit half of each twin is a no-op on white and is kept on
+   * purpose: it is what makes the next ground change a one-line move. The
+   * faces keep two stops (white down to a cool off-white), so a moulded
+   * face and the flat page cannot be confused. The ink survives its third
    * repaint unmoved, which is the part of the magazine that was always the
    * point.
    */
-  it('keeps the reference’s ink, on a page that is porcelain now', () => {
-    expect(val('--paper')).toBe('#e9ecf3');
-    expect(val('--card')).toBe('#e9ecf3');
+  it('keeps the reference’s ink, on a white page that is still moulded', () => {
+    expect(val('--paper')).toBe('#ffffff');
+    expect(val('--card')).toBe('#ffffff');
     expect(val('--ink')).toBe('#2a2a2a');
   });
 

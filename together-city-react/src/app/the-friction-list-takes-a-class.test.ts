@@ -61,7 +61,9 @@ describe('the friction list takes a class', () => {
    */
   it('lowered the ceiling to what is actually there', () => {
     const s = read('../scripts/size-system-ceiling.mjs');
-    expect(s).toMatch(/inlineStyleBlocks: 6790,/);
-    expect(s).toMatch(/rawSpacing: 3685,/);
+    // Lowered 23 Aug night with the neumorphic re-cut — the tree had drifted
+    // one below on both counts, and a ratchet below its ceiling is slack.
+    expect(s).toMatch(/inlineStyleBlocks: 6789,/);
+    expect(s).toMatch(/rawSpacing: 3684,/);
   });
 });

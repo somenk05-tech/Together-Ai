@@ -60,9 +60,9 @@
      REVERSED object writes its letters in (`color: var(--card)` on solid ink),
      and collapsing it into --paper would leave 200 call sites saying "paper"
      when they mean "the opposite of the ink". */
-  --ground: #e9ecf3;
-  --paper: #e9ecf3;
-  --card: #e9ecf3;
+  --ground: #ffffff;
+  --paper: #ffffff;
+  --card: #ffffff;
 
   /* ── THE LETTER'S PAPER, WHICH IS NOT --paper ────────────────────────────
      A false friend, and worth the four lines it costs to say so. `--paper`
@@ -99,7 +99,7 @@
      THE INK IS UNCHANGED AND STILL MEASURED. Every ratio below was taken
      against #ebe8e3; on white each one gets EASIER, so the floor moves the
      safe way and no value has to be re-derived to keep it. */
-  --letter-paper:    #f4f6fa;
+  --letter-paper:    #ffffff;
   --letter-ink:      #14130f;   /* 17.5:1 on white (was 15.2 on the cream) */
   --letter-ink-soft: #35322c;   /* 12.1:1 (was 10.5) */
   --letter-faint:    #5f5a52;   /*  6.4:1 (was 5.6) */
@@ -194,7 +194,7 @@
      uses. It is a shade lighter than the reference's full-bleed band (#ededed)
      on purpose: this token is fields, tracks and pressed states, and at
      #ededed the ink floor goes under AA on the surface it is read on most. */
-  --wash: #e2e6ef;
+  --wash: #f2f4f8;
   /* ── AND THE HOVER KEEPS THE SHADE THE PAGE GAVE UP ────────────────────
      --wash WAS the pointer's acknowledgement: `.card.lift:hover, .row:hover,
      .pcard:hover` darkened the ground by a step, and it was the ONLY feedback
@@ -247,26 +247,26 @@
      underside of an edge; on a 700px article it greys out a third of the page.
      Tall surfaces measure their shade in PIXELS FROM THE BOTTOM, so an edge
      stays an edge at any height. Anything that can grow past ~300px uses it. */
-  --face:      linear-gradient(145deg, #f2f4fa 0%, #e6eaf2 100%);
-  --face-2:    linear-gradient(145deg, #f0f2f8 0%, #e5e9f1 100%);
+  --face:      linear-gradient(145deg, #ffffff 0%, #f0f3f7 100%);
+  --face-2:    linear-gradient(145deg, #fcfdfe 0%, #edf0f5 100%);
   /* min() IS LOad-BEARING. Without it the first white stop is calc(100% - 96px),
      which on the 78px header is MINUS 18px — the gradient starts already grey
      and washes the whole bar out. A token whose correctness depends on the
      element being taller than a number buried inside it is a trap, so the shade
      is now "the last 96px, or the last 40%, whichever is less". */
-  --face-tall: linear-gradient(145deg, #f2f4fa 0%, #e6eaf2 100%);
+  --face-tall: linear-gradient(145deg, #ffffff 0%, #f0f3f7 100%);
 
   /* A KEY IS NOT A CARD. At 30px tall there is almost no face to light, and
      --e1's soft 13px shadow spreads to nothing. Small controls get a face with
      more travel and a shadow that is tighter and darker — the same amount of
      relief, compressed into the space they actually have. */
-  --face-key: linear-gradient(145deg, #f4f6fb 0%, #e8ecf4 100%);
+  --face-key: linear-gradient(145deg, #ffffff 0%, #f2f4f9 100%);
   /* AND THE WELL IS WHITE. It is the fill of a field, a tab trough and a table
      head — the three places a shade was still being used to say "this bit is
      recessed". Nothing is recessed. The fields keep their mark; the trough and
      the head keep their padding, which is what was actually holding them
      apart. */
-  --well:      linear-gradient(145deg, #dee3ec 0%, #e5e9f1 100%);
+  --well:      linear-gradient(145deg, #ebeef4 0%, #f5f7fa 100%);
 
   /* ── FLAT, 23 AUG — AND THE FIVE DEPTHS SURVIVE IT ──────────────────────
      Owner: "make everything flat instead of the raised feeling."
@@ -461,7 +461,7 @@
   --prism:    inset 0 0 0 1px var(--line);
   --carve:    inset 0 -1px 0 var(--mark);
 
-  --lens-face: linear-gradient(145deg, #f1f3f9 0%, #e7ebf3 100%);
+  --lens-face: linear-gradient(145deg, #fbfcfe 0%, #eff2f7 100%);
 
   /* ══ GROUND GLASS ════════════════════════════════════════════════════════
      The lens above, thickened — and OPAQUE, because this application's ground
@@ -661,11 +661,11 @@
     5px 5px 14px rgba(13, 39, 80, .15),
     inset 0 1px 1px rgba(255, 255, 255, .95),
     inset 0 -4px 8px -4px rgba(13, 39, 80, .06);
-  --calm-face: linear-gradient(145deg, #f2f4fa 0%, #e7ebf3 100%);
+  --calm-face: linear-gradient(145deg, #ffffff 0%, #f1f3f8 100%);
   /* AND THE POINTER HAS TO CHANGE SOMETHING VISIBLE. A control that does
      nothing under the cursor reads as one you cannot press. The glass clears —
      it does not light; lighting is what the press is for. */
-  --calm-face-hover: linear-gradient(145deg, #f7f9fd 0%, #edf0f7 100%);
+  --calm-face-hover: linear-gradient(145deg, #ffffff 0%, #f6f8fc 100%);
   /* THE SECONDARY'S REST, AND IT IS THE SAME GLASS. It kept its own pair of
      names for one afternoon, while the primary rested in a warm shell and this
      one did not. They are the same object now — see --calm-case — and the
