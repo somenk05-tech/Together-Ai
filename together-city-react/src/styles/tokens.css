@@ -1246,10 +1246,17 @@
      colour is invisible; the paper steps down one shade and the sheet steps
      UP into translucent white, so the card now reads lighter than the room
      the way the reference's pane reads lighter than its pearls. */
-  --press-paper:  #c6e6cf;
-  --press-ink:    #0a2422;   /* 13.6:1 on the glass sheet's darkest stop */
-  --press-ink-2:  #1c453c;   /*  8.9:1 — descriptions */
-  --press-ink-3:  #3d6b5c;   /*  5.1:1 — labels and metadata ONLY, never body copy */
+  /* AND THE GREEN LEAVES THE ROOM (owner, 24 Aug: "remove the green, want
+     the glass feel"). The reference pane floats over PORCELAIN — neutral
+     greys, pearl objects, no hue in the room at all — and the first glass
+     cut kept the old mint behind the pane, which read as the same green
+     room frosted. The room is neutral now; the emerald survives ONLY as the
+     accent (--press-green, the lock, the figures), which is how every
+     reference in this run treats colour: one accent on a quiet ground. */
+  --press-paper:  #e2e5ea;
+  --press-ink:    #171b21;   /* 14.7:1 on the glass sheet's darkest stop */
+  --press-ink-2:  #333b47;   /*  9.7:1 — descriptions */
+  --press-ink-3:  #4f5967;   /*  6.1:1 — labels and metadata ONLY, never body copy */
   /* THE RULES CAME OFF THE BEIGE TOO. A warm hairline on warm paper is just a
      hairline; the same line on white is the only warm thing left on the page,
      and it reads as a stain rather than a rule. These are the old values with
@@ -1309,10 +1316,10 @@
      apart, one of them working by luck.
      The value now has a second name that no hub touches, so the hand-back can
      read it without pointing a token at itself. */
-  --press-sheet-band: #cfe9d5;
+  --press-sheet-band: #dfe3ea;
   --press-band:   var(--press-sheet-band);
-  --press-rule:   #a9cfb5;
-  --press-rule-2: #c2e0ca;
+  --press-rule:   #c6cbd4;
+  --press-rule-2: #d6dae2;
   --press-green:  #1f5d43;   /*  7.8:1 — deep emerald */
   --press-macro-1:#1f5d43;
   --press-macro-2:#5b957a;
@@ -1330,10 +1337,10 @@
      moved: [data-press] has painted var(--press-grain) since the grain was
      mottle, which is exactly why the name stayed when it asked for nothing. */
   --press-grain:
-    radial-gradient(560px 420px at 84% 6%,  rgba(255, 255, 255, .55), transparent 70%),
-    radial-gradient(640px 520px at 6% 88%,  rgba(255, 255, 255, .42), transparent 72%),
-    radial-gradient(520px 460px at 92% 74%, rgba(138, 196, 156, .35), transparent 72%),
-    linear-gradient(157deg, #cbe8d2 0%, #bfe2c9 46%, #b0d8bd 100%);
+    radial-gradient(560px 420px at 84% 6%,  rgba(255, 255, 255, .60), transparent 70%),
+    radial-gradient(640px 520px at 6% 88%,  rgba(255, 255, 255, .45), transparent 72%),
+    radial-gradient(520px 460px at 92% 74%, rgba(148, 158, 176, .35), transparent 72%),
+    linear-gradient(157deg, #dfe2e8 0%, #d8dce3 46%, #cfd4dd 100%);
 
   /* ══ THE DAY IS TWO SHEETS, AND THE WEEK PRINTS ON ONE SKY ══════════════
      This was fourteen photographs — a recto and a verso for each weekday, each
@@ -1379,10 +1386,10 @@
      the sun's texture already made. The AA guard keeps measuring every ink
      against every stop, and the numbers describe what is rendered. */
   --press-sky: linear-gradient(157deg,
-    #e9f5ec  0%,
-    #e4f3e8 46%,
-    #deefe3 100%);
-  --press-sky-worst: #deefe3;
+    #f2f3f5  0%,
+    #eff0f3 46%,
+    #ebedf1 100%);
+  --press-sky-worst: #ebedf1;
   /* The pane itself: what a sheet paints, and the whole of why the stops
      above are light. One alpha, declared once, so the composite arithmetic
      has exactly one input that can move. */
@@ -1411,19 +1418,19 @@
   --press-recto-sheet: none;
   --press-recto-veil:  var(--press-glass);
   --press-recto-ground:var(--press-sky-worst);
-  --press-recto-ink:   #0a2422;   /* 13.6:1 on the glass's darkest stop */
-  --press-recto-ink-2: #1c453c;   /*  8.9:1 */
-  --press-recto-ink-3: #3d6b5c;   /*  5.1:1 — labels and metadata ONLY */
-  --press-recto-rule:  #a9cfb5;
+  --press-recto-ink:   #171b21;   /* 14.7:1 on the glass's darkest stop */
+  --press-recto-ink-2: #333b47;   /*  9.7:1 */
+  --press-recto-ink-3: #4f5967;   /*  6.1:1 — labels and metadata ONLY */
+  --press-recto-rule:  #c6cbd4;
   --press-recto-lift:  rgba(255, 255, 255, .72);
 
   --press-verso-sheet: none;
   --press-verso-veil:  var(--press-glass);
   --press-verso-ground:var(--press-sky-worst);
-  --press-verso-ink:   #0a2422;
-  --press-verso-ink-2: #1c453c;
-  --press-verso-ink-3: #3d6b5c;
-  --press-verso-rule:  #a9cfb5;
+  --press-verso-ink:   #171b21;
+  --press-verso-ink-2: #333b47;
+  --press-verso-ink-3: #4f5967;
+  --press-verso-rule:  #c6cbd4;
   --press-verso-lift:  rgba(255, 255, 255, .72);
   --press-verso-macro-1:var(--press-macro-1);
   --press-verso-macro-2:var(--press-macro-2);
