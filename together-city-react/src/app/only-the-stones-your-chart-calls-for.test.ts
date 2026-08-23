@@ -86,7 +86,7 @@ describe('the gemstone band', () => {
    * no page brings masthead rules of its own.
    */
   it('is the third room on the same block, not a third copy of it', () => {
-    expect(copy()).toMatch(/<header className="astra has-tabs">/);
+    expect(copy()).toMatch(/<header className="astra has-tabs is-clear">/);
     const css = readFileSync(join(SRC, 'styles/layout.css'), 'utf8');
     expect(css).not.toMatch(/\.gem-astra|\.gem-masthead|\.gem-band/);
     expect((css.match(/^\.astra \{/gm) ?? []).length).toBe(1);
@@ -114,7 +114,45 @@ describe('the gemstone band', () => {
   it('ships the photograph it draws, at the weight of a masthead', () => {
     const file = join(APP, 'public/assets/img/gem-field.webp');
     expect(existsSync(file)).toBe(true);
-    expect(Math.round(statSync(file).size / 1024)).toBeLessThanOrEqual(120);
+    // Heavier than the other two bands and knowingly so: this one is shown
+    // whole rather than half-covered, so it is real detail rather than an
+    // upscale, and it is the only picture on the page.
+    expect(Math.round(statSync(file).size / 1024)).toBeLessThanOrEqual(140);
     expect(copy()).toMatch(/className="astra-sky"[^>]*alt=""/);
+  });
+
+  /**
+   * ── NO BLACK GRADING ──────────────────────────────────────────────────────
+   *
+   * Owner, 23 Aug. This room draws no wash: the element is simply not
+   * rendered, and the type carries its own shadow instead. Both halves are
+   * asserted, because either one alone is a bug — the veil back would cover
+   * the picture, and the shadow gone would leave white 15px type on a lit
+   * orange petal.
+   */
+  it('draws no wash over the picture, and the type carries its own shadow', () => {
+    expect(copy()).toMatch(/<header className="astra has-tabs is-clear">/);
+    expect(copy()).not.toMatch(/astra-veil/);
+
+    const css = readFileSync(join(SRC, 'styles/layout.css'), 'utf8');
+    const at = css.indexOf('.astra.is-clear');
+    const clear = css.slice(at, css.indexOf('@media (max-width: 640px)', at));
+    expect(clear).toMatch(/text-shadow:/);
+    // Scrim tokens only — an invented rgba here would fail
+    // colour-literal-ceiling, which is at its ceiling.
+    expect(clear).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(/i);
+    // The kicker and body drop the opacity they wear over a wash; at .62 and
+    // .78 they go missing over a photograph.
+    expect(clear).toMatch(/opacity: 1;/);
+  });
+
+  it('leaves the wash alone in the two rooms that need it', () => {
+    const css = readFileSync(join(SRC, 'styles/layout.css'), 'utf8');
+    // The shared veil is untouched: still a gradient, still clearing at 60%.
+    expect(css).toMatch(/\.astra-veil \{[\s\S]{0,600}?linear-gradient\(96deg/);
+    for (const page of ['AstroAsk', 'AstroTarot']) {
+      expect(read(`features/astrology/pages/${page}.tsx`)).toMatch(/className="astra-veil"/);
+      expect(read(`features/astrology/pages/${page}.tsx`)).not.toMatch(/is-clear/);
+    }
   });
 });

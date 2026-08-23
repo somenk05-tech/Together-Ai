@@ -575,9 +575,13 @@ export function AstroGemstones() {
 
           `.has-tabs` because `AstroTabs` sits directly under this one, and the
           header it replaces carried 18px of air below it. */}
-      <header className="astra has-tabs">
+      <header className="astra has-tabs is-clear">
         <img className="astra-sky" src="/assets/img/gem-field.webp" alt="" />
-        <span className="astra-veil" aria-hidden />
+        {/* NO `.astra-veil` HERE, ON PURPOSE (owner, 23 Aug: "no black
+            grading"). The other two rooms in this zone draw one; this
+            picture is bright the whole way across and a wash over half of it
+            is half a picture thrown away. `.is-clear` gives the type the
+            shadow that buys back what the wash was buying. */}
         <div className="astra-in">
           <p className="astra-kicker">Astrology Zone</p>
           <h1 className="astra-title">Gemstones</h1>

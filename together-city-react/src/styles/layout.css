@@ -604,6 +604,42 @@
    other rooms would have to undo. */
 .astra.has-tabs { margin-bottom: 18px; }
 
+/* ── A BAND WITH NO WASH ──────────────────────────────────────────────────
+   Owner, 23 Aug: "no black grading". A gradient across the left half of a
+   field of jewelled flowers is half a picture thrown away, so this room
+   draws no `.astra-veil` at all — the element is simply not rendered — and
+   the type earns its own contrast instead.
+
+   NOT A CHANGE TO `.astra-veil`. The consultation room and the tarot table
+   are dark photographs with the type sitting on the dark side of them. They
+   need their wash and they keep it; this class only exists for a band whose
+   picture is bright the whole way across.
+
+   THE SHADOW IS THE ONE THE SHOP CARDS USE — a tight one for the edge and a
+   wide soft one for the ground, both from scrim tokens, which is what lets a
+   white letter hold its shape over a red gem and a white sparkle in the same
+   line. The kicker and the body also drop the opacity they wear over a wash:
+   at .62 and .78 they were greys designed to sit back from black, and over a
+   photograph they simply go missing. */
+.astra.is-clear .astra-title,
+.astra.is-clear .astra-lead {
+  text-shadow: 0 1px 2px var(--scrim-top), 0 2px 14px var(--scrim-deep);
+}
+/* THE SMALL LINES NEED MORE THAN THE BIG ONES. A 46px letter is thick enough
+   to hold its own edge; a 15px one over a lit orange petal is not, and the
+   same shadow that reads as weight under the title reads as nothing under the
+   body. Three stacked scrims — one tight for the edge, two wide for the
+   ground — darken only what is directly behind the letters. That is the
+   opposite of a wash: it follows the type instead of covering the picture. */
+.astra.is-clear .astra-kicker,
+.astra.is-clear .astra-body {
+  opacity: 1;
+  text-shadow:
+    0 1px 1px var(--scrim-deep),
+    0 1px 6px var(--scrim-deep),
+    0 2px 18px var(--scrim-deep);
+}
+
 @media (max-width: 640px) {
   /* One column, so the wash runs down instead of across and the figure reads
      behind the type rather than beside it. */
