@@ -42,6 +42,10 @@ export interface DXProfile {
   heightCm?: number | null;
   prefHeightMinCm?: number | null; prefHeightMaxCm?: number | null;
   dealBreakers?: string[]; wantsChildren?: string;
+  /** Collected since the first version of this form and, until now, read by
+   *  nothing at all (L1). It is a deal-breaker when the citizen says so and
+   *  nothing when they do not — the same rule as every other chip. */
+  religion?: string;
 }
 
 export interface FactorBreakdown {
@@ -49,10 +53,36 @@ export interface FactorBreakdown {
   values: number; lifestyle: number; interests: number; location: number;
 }
 
-export const WEIGHTS: Record<keyof FactorBreakdown, number> = {
+/**
+ * H1 — the weights, and what follows from leaving them alone.
+ *
+ * OWNER DECISION, 23 Aug: astrology stays at 0.50. The audit measured it at
+ * r = 0.92 with the final score, which is another way of saying astrology IS
+ * the sort order and the other six factors decorate it. That cost is accepted
+ * and recorded here, rather than re-argued by whoever reads this next.
+ *
+ * What follows from the decision is the rest of this file. At 0.15 a mismatched
+ * intent can be out-scored by a good chart and the damage is a bad ranking; at
+ * 0.50 it is out-scored nearly always, so the only thing standing between a
+ * citizen and somebody whose star sign flatters the arithmetic is a filter that
+ * REMOVES people. That is why every chip the form offers is implemented in
+ * `hardFilterReason` below — and why two of them silently doing nothing was a
+ * worse bug here than the same bug would have been in a balanced model.
+ *
+ * The retune the audit suggested is kept whole, behind an env var. Setting
+ * DATING_WEIGHTS=retuned is the entire change; nothing else reads the flag, and
+ * `confidence()` below is deliberately independent of which table is in use.
+ */
+export const ASTROLOGY_LED_WEIGHTS: Record<keyof FactorBreakdown, number> = {
   astrology: 0.50, personality: 0.15, relationshipGoals: 0.10,
   values: 0.10, lifestyle: 0.05, interests: 0.05, location: 0.05,
 };
+export const RETUNED_WEIGHTS: Record<keyof FactorBreakdown, number> = {
+  relationshipGoals: 0.22, values: 0.18, lifestyle: 0.15,
+  personality: 0.15, astrology: 0.15, interests: 0.10, location: 0.05,
+};
+export const WEIGHTS: Record<keyof FactorBreakdown, number> =
+  process.env.DATING_WEIGHTS === 'retuned' ? RETUNED_WEIGHTS : ASTROLOGY_LED_WEIGHTS;
 
 const lc = (s: string) => s.toLowerCase();
 function overlapPct(a: string[] = [], b: string[] = []): number {
@@ -67,7 +97,22 @@ export function sharedItems(a: string[] = [], b: string[] = []): string[] {
   return a.filter((x) => B.has(lc(x)));
 }
 
-const GOAL_ORDER = ['Friendship First', 'Casual Dating', 'Serious Dating', 'Long-term Relationship', 'Marriage'];
+export const GOAL_ORDER = ['Friendship First', 'Casual Dating', 'Serious Dating', 'Long-term Relationship', 'Marriage'];
+
+/**
+ * The line the "Marriage Intentions" deal-breaker draws.
+ *
+ * Not a distance along GOAL_ORDER — a side. Serious Dating and Marriage are two
+ * steps apart and belong together; Casual Dating and Serious Dating are one step
+ * apart and do not. Somebody looking for a spouse and somebody looking for a
+ * fortnight are not a near miss that a good chart should be able to close.
+ */
+const COMMITTED_FROM = 2; // index of 'Serious Dating'
+function committed(goal?: string): boolean | null {
+  if (!goal) return null;
+  const i = GOAL_ORDER.indexOf(goal);
+  return i < 0 ? null : i >= COMMITTED_FROM;
+}
 function goalScore(a?: string, b?: string): number {
   // Unanswered is 45, not 60. Two people who have not said what they want are
   // not a better prospect than two who said different things.
@@ -193,10 +238,112 @@ export function factorScores(astrology: number, aInterests: string[], bInterests
   };
 }
 
-export function overallScore(f: FactorBreakdown): number {
+export function overallScore(f: FactorBreakdown, confidenceFactor = 1): number {
   let sum = 0;
   (Object.keys(WEIGHTS) as (keyof FactorBreakdown)[]).forEach((k) => { sum += f[k] * WEIGHTS[k]; });
-  return Math.round(sum);
+  return Math.round(sum * confidenceFactor);
+}
+
+/**
+ * M4 — how much of this score is an answer, and how much is arithmetic.
+ *
+ * The floors came down in H1/M4 so that a blank answer costs score. It was not
+ * enough. Astrology carries half the weight and is computed from a birth date
+ * everybody gives at sign-up, so two profiles that have answered NOTHING ELSE
+ * still arrive with 50% of the model filled in for them by the calendar. On
+ * favourable signs that reached the 75% "curated" bar — the audit's M4 — and the
+ * number on the card said "87% compatible" when the honest sentence was "we know
+ * almost nothing about either of you".
+ *
+ * So the score is multiplied by how much of the model was actually answered.
+ * A factor counts as answered when BOTH people supplied something it can read;
+ * `coverage` is the share of the weight that reaches, and `confidence` turns it
+ * into a multiplier that never falls below 0.775 — a penalty, not a demolition.
+ *
+ * Worked, on today's weights: two entirely blank profiles with a 99 astrology
+ * score make 66 raw and 51 shown. The same pair could reach 77 before. Nothing
+ * moves for a pair who have both filled the form in: coverage 1.0 is ×1.0.
+ *
+ * Deliberately independent of the weight table, so the flag in `WEIGHTS` above
+ * cannot change what "answered" means.
+ */
+export function coverage(aD: DXProfile, bD: DXProfile, aInterests: string[] = [], bInterests: string[] = []): number {
+  const some = (v?: string[] | null) => Array.isArray(v) && v.length > 0;
+  const lifestyleKeys: (keyof DXProfile)[] = ['diet', 'smoking', 'drinking', 'fitnessLevel'];
+  const answered: Record<keyof FactorBreakdown, boolean> = {
+    astrology: true, // the birth date is mandatory at sign-up; this is always known
+    personality: some(aD.personalityTraits) && some(bD.personalityTraits),
+    relationshipGoals: !!aD.relationshipGoal && !!bD.relationshipGoal,
+    values: some(aD.values) && some(bD.values),
+    lifestyle: lifestyleKeys.some((k) => !!aD[k]) && lifestyleKeys.some((k) => !!bD[k]),
+    interests: some(aInterests) && some(bInterests),
+    location: distanceBetween(aD, bD) !== null || (!!aD.city && !!bD.city),
+  };
+  let reached = 0, total = 0;
+  (Object.keys(WEIGHTS) as (keyof FactorBreakdown)[]).forEach((k) => {
+    total += WEIGHTS[k];
+    if (answered[k]) reached += WEIGHTS[k];
+  });
+  return total ? reached / total : 1;
+}
+
+export function confidence(cov: number): number {
+  return 0.55 + 0.45 * Math.max(0, Math.min(1, cov));
+}
+
+/**
+ * Both at once, and the one place the multiplier can be switched off.
+ *
+ * MEASURED COST, 23 Aug (`sim/stress-100k.ts`, 100,000 profiles): the multiplier
+ * takes the partially-complete cohort — 27% of the city — from 0.43% of their
+ * candidates clearing the 75% curated bar to **0.00%**, and from 87.8% empty
+ * decks to **100%**. It does not cause that problem; a bar of 75 on an
+ * astrology-inflated score already left seven of eight of them with nothing.
+ * What it does is close the last of the door, and "rarely" and "never" are
+ * different products.
+ *
+ * So it is reversible in one env var, exactly like the weight table above:
+ * DATING_CONFIDENCE=off restores the previous arithmetic everywhere at once,
+ * because every caller in the service asks this function and not `confidence`.
+ *
+ * The real fix is not this switch. It is that a fixed 75 cannot mean the same
+ * thing to a complete profile and a half-finished one — the curated bar wants to
+ * be a percentile of the viewer's own candidate distribution. Until that lands,
+ * shipping this multiplier means deciding that a half-finished profile should
+ * see nothing, and that should be a decision somebody makes rather than one that
+ * arrives as arithmetic.
+ */
+export function confidenceFor(aD: DXProfile, bD: DXProfile, aInterests: string[] = [], bInterests: string[] = []): number {
+  if (process.env.DATING_CONFIDENCE === 'off') return 1;
+  return confidence(coverage(aD, bD, aInterests, bInterests));
+}
+
+/**
+ * The sentence the card was missing.
+ *
+ * Every match already arrives with reasons to like it. None of them arrived
+ * with a reason to be careful, and a screen that only ever agrees with itself
+ * reads as a sales pitch rather than an assessment. `explain` says what fits;
+ * this says what does not, in the same voice, from the same numbers — the
+ * lowest-scoring factors that are low enough to be worth a sentence, plus the
+ * two differences a person would rather hear now than on the evening.
+ *
+ * Returns at most two. A card with a friction is honest; a card with five is
+ * an argument against the match, and if the match were that bad the filters
+ * should have removed it.
+ */
+export function frictions(f: FactorBreakdown, aD: DXProfile, bD: DXProfile): string[] {
+  const out: string[] = [];
+  const goalGap = aD.relationshipGoal && bD.relationshipGoal && aD.relationshipGoal !== bD.relationshipGoal;
+  if (goalGap) out.push(`You said ${aD.relationshipGoal}; they said ${bD.relationshipGoal}.`);
+  if (aD.wantsChildren && bD.wantsChildren && aD.wantsChildren !== bD.wantsChildren) {
+    out.push(`Different answers on children — ${aD.wantsChildren} and ${bD.wantsChildren}.`);
+  }
+  if (f.location <= 50) out.push('You are a long way apart.');
+  if (f.lifestyle < 50) out.push('Your day-to-day habits look quite different.');
+  if (f.values < 45) out.push('Not much overlap in what you each said you value.');
+  if (f.personality < 45) out.push('Very different temperaments.');
+  return out.slice(0, 2);
 }
 
 /** A number that can be a height or a bound, or undefined. Zero, negatives,
@@ -260,16 +407,71 @@ export function heightFilterReason(myD: DXProfile, theirD: DXProfile): 'height' 
   return null;
 }
 
-/** Hard filters. Returns a rejection reason, or null if the candidate passes. */
+/**
+ * Every deal-breaker the form offers, and nothing it does not.
+ *
+ * THE BUG THIS CLOSES. The chip list on the profile form has read
+ * `['Smoking', 'Drinking', 'Marriage Intentions', 'Wants Children', 'Distance']`
+ * for as long as it has existed. Three of those five were implemented here.
+ * **A citizen who ticked "Marriage Intentions" or "Distance" was told, by a
+ * control that lit up and saved, that they had set a non-negotiable — and the
+ * engine never read it.** That is H3's shape exactly, on the one list in the
+ * product whose entire job is to remove people, and it survived H3 because H3
+ * went looking at `prefDiet`/`prefSmoking`/`prefDrinking` and this list is a
+ * different field.
+ *
+ * Two more are added, because both were already collected and neither was read:
+ * `Diet` (the strict-vegetarian case the audit measured crossing 75% 29.8% of
+ * the time) and `Religion` (L1 — collected since the first version of the form,
+ * read by nothing).
+ *
+ * THREE RULES, THE SAME THREE EVERYWHERE IN THIS FILE.
+ *
+ * · A chip that is not ticked filters nobody. Absence is "no preference", never
+ *   "exclude" — which is what keeps a hard filter from quietly emptying the pool
+ *   of everyone who has not finished their profile.
+ * · A field neither side filled in filters nobody. We do not exclude a stranger
+ *   over an answer we never asked them for, the same reasoning that keeps
+ *   `prefDistanceKm` off a distance nobody measured and `heightFilterReason`
+ *   off a height nobody recorded.
+ * · A filter is a decision, and no score overrides it. At astrology 0.50 that
+ *   is the whole of the protection: an intent mismatch cannot be out-scored by
+ *   a chart, because it is not scored at all.
+ *
+ * Both directions are `unreachableReason`'s job, not this one's.
+ */
 export function hardFilterReason(myD: DXProfile, theirD: DXProfile, theirAge: number): string | null {
   if (myD.prefAgeMin && theirAge < myD.prefAgeMin) return 'age';
   if (myD.prefAgeMax && theirAge > myD.prefAgeMax) return 'age';
   const height = heightFilterReason(myD, theirD);
   if (height) return height;
+
   const db = myD.dealBreakers ?? [];
   if (db.includes('Smoking') && theirD.smoking === 'Regularly') return 'smoking';
   if (db.includes('Drinking') && theirD.drinking === 'Regularly') return 'drinking';
   if (db.includes('Wants Children') && myD.wantsChildren && theirD.wantsChildren && myD.wantsChildren !== theirD.wantsChildren) return 'children';
+
+  // Marriage Intentions — a side of the line, not a distance along it.
+  if (db.includes('Marriage Intentions')) {
+    const mine = committed(myD.relationshipGoal), theirs = committed(theirD.relationshipGoal);
+    if (mine !== null && theirs !== null && mine !== theirs) return 'intent';
+  }
+
+  // Distance — the limit they already stated, now honoured as the boundary they
+  // wrote it as. Unmeasurable distance filters nobody: `distanceBetween` returns
+  // null outside the coordinate table, and a filter must not fire on a guess.
+  if (db.includes('Distance') && typeof myD.prefDistanceKm === 'number' && myD.prefDistanceKm > 0) {
+    const km = distanceBetween(myD, theirD);
+    if (km !== null && km > myD.prefDistanceKm) return 'distance';
+  }
+
+  // Diet — only against a preference they actually stated. "Any" is not a
+  // preference and must never be scored, or filtered, as one.
+  if (db.includes('Diet') && myD.prefDiet && theirD.diet && myD.prefDiet !== theirD.diet) return 'diet';
+
+  // Religion — same shape. Collected for a year, read for the first time here.
+  if (db.includes('Religion') && myD.religion && theirD.religion && myD.religion !== theirD.religion) return 'religion';
+
   return null;
 }
 

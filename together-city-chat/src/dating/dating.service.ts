@@ -15,7 +15,7 @@ import { StorageProvider } from '../media/storage.provider';
 import { MediaService } from '../media/media.service';
 import { compatibilityScore, zodiacSign } from './astrology';
 import {
-  distanceNote, explain, factorScores, matchAlertBody, matchAlertReason, overallScore, preferenceNotes, sharedItems, type DXProfile, type FactorBreakdown, unreachableReason,
+  confidenceFor, distanceNote, explain, factorScores, frictions, matchAlertBody, matchAlertReason, overallScore, preferenceNotes, sharedItems, type DXProfile, type FactorBreakdown, unreachableReason,
 } from './matching';
 import { LEARNING_WINDOW, learnWeights, overallScoreWith, type Decision } from './learned-weights';
 import { profileCompletion } from './completion';
@@ -377,7 +377,7 @@ export class DatingService {
         { userId: cand.userId, birthDate: cand.birthDate, interests: this.splitInterests(cand.interests) },
       );
       const breakdown = factorScores(astro, myInterests, this.splitInterests(cand.interests), myD, candD);
-      const score = overallScore(breakdown);
+      const score = overallScore(breakdown, confidenceFor(myD, candD, myInterests, this.splitInterests(cand.interests)));
 
       // Threshold-visibility: the candidate only wants to appear to people they
       // score highly with — don't announce a match that won't be shown.
@@ -572,7 +572,7 @@ export class DatingService {
       });
       if (candCompletion.percent < CURATED_MIN_COMPLETION) continue;
       const breakdown = factorScores(astro, myInterests, theirInterests, myD, candDX);
-      const score = overallScore(breakdown);
+      const score = overallScore(breakdown, confidenceFor(myD, candDX, myInterests, theirInterests));
       if (score < MATCH_THRESHOLD) continue;
       // Threshold-visibility: this candidate only wants to be seen by people
       // they score highly with — hide them from viewers below their minimum.
@@ -595,6 +595,7 @@ export class DatingService {
         score,
         breakdown,
         reasons: explain(breakdown, sharedItems(myInterests, theirInterests), preferenceNotes(myD, candDX), distanceNote(myD, candDX)),
+        frictions: frictions(breakdown, myD, candDX),
         likedByMe: state ? this.likedBy(state, userId) : false,
         matched: false,
         conversationId: state?.conversationId ?? null,
@@ -685,7 +686,7 @@ export class DatingService {
       const theirInterests = this.splitInterests(cand.interests);
       const candDX = this.parseDX((cand as { extras?: string | null }).extras) as DXProfile & DXVisibility & { city?: string; photos?: string[] };
       const breakdown = factorScores(astro, myInterests, theirInterests, myD, candDX);
-      const score = overallScore(breakdown);
+      const score = overallScore(breakdown, confidenceFor(myD, candDX, myInterests, theirInterests));
       // Respect each candidate's own opt-in even in discovery — never override it.
       if (candDX.visibility === 'threshold' && score < (candDX.minMatchScore ?? MATCH_THRESHOLD)) continue;
 
@@ -704,6 +705,7 @@ export class DatingService {
           score,
           breakdown,
           reasons: explain(breakdown, sharedItems(myInterests, theirInterests), preferenceNotes(myD, candDX), distanceNote(myD, candDX)),
+          frictions: frictions(breakdown, myD, candDX),
           likedByMe: state ? this.likedBy(state, userId) : false,
           matched: false,
           conversationId: state?.conversationId ?? null,
@@ -967,8 +969,9 @@ export class DatingService {
       // the weights, somebody's own swiping would start removing people from
       // their list, which is how a recommender narrows a world without anybody
       // choosing to.
-      const standard = overallScore(breakdown);
-      const score = overallScoreWith(breakdown, ranking.weights);
+      const conf = confidenceFor(myD, candDX, myInterests, theirInterests);
+      const standard = overallScore(breakdown, conf);
+      const score = overallScoreWith(breakdown, ranking.weights, conf);
       // No score floor. A 17% was dropped here silently, which is a judgement
       // about who is worth meeting made by a weighting formula the citizen
       // never saw. The number is shown on every card; they can disagree with it.
@@ -988,6 +991,7 @@ export class DatingService {
         score,
         breakdown,
         reasons: explain(breakdown, sharedItems(myInterests, theirInterests), preferenceNotes(myD, candDX), distanceNote(myD, candDX)),
+        frictions: frictions(breakdown, myD, candDX),
         likedByMe: state ? this.likedBy(state, userId) : false,
         matched: isMatched,
         // Null until Connect to Chat opens the conversation — the card reads it
@@ -1088,7 +1092,7 @@ export class DatingService {
       { userId: targetUserId, birthDate: cand.birthDate, interests: theirInterests },
     );
     const breakdown = factorScores(astro, myInterests, theirInterests, myD, candD);
-    const score = overallScore(breakdown);
+    const score = overallScore(breakdown, confidenceFor(myD, candD, myInterests, theirInterests));
 
     const state = await this.prisma.datingMatch.findFirst({
       where: { OR: [{ userOneId: userId, userTwoId: targetUserId }, { userOneId: targetUserId, userTwoId: userId }], kind },
@@ -1115,6 +1119,7 @@ export class DatingService {
       yourSign: signA, theirSign: signB,
       score, breakdown,
       reasons: explain(breakdown, sharedItems(myInterests, theirInterests), preferenceNotes(myD, candD), distanceNote(myD, candD)),
+      frictions: frictions(breakdown, myD, candD),
       likedByMe: state ? this.likedBy(state, userId) : false,
       matched: state?.status === 'matched',
       conversationId: state?.conversationId ?? null,

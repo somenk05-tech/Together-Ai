@@ -19,7 +19,13 @@ const label: React.CSSProperties = { fontSize: 12, fontWeight: 600, letterSpacin
 const INTERESTS = ['Travel', 'Movies', 'Music', 'Reading', 'Cooking', 'Fitness', 'Sports', 'Photography', 'Gaming', 'Art', 'Pets', 'Technology', 'Fashion', 'Nature'];
 const TRAITS = ['Funny', 'Calm', 'Ambitious', 'Romantic', 'Adventurous', 'Introvert', 'Extrovert', 'Creative', 'Family-Oriented', 'Spiritual'];
 const VALUES = ['Family', 'Honesty', 'Loyalty', 'Kindness', 'Career', 'Adventure', 'Personal Growth', 'Financial Stability'];
-const DEAL_BREAKERS = ['Smoking', 'Drinking', 'Marriage Intentions', 'Wants Children', 'Distance'];
+// Every chip here is read by `hardFilterReason` on the server. 'Marriage
+// Intentions' and 'Distance' were offered by this list and implemented by
+// nothing — a control that lit up, saved, and removed nobody. 'Diet' and
+// 'Religion' are new, and both were already collected fields the engine never
+// read. If a chip is ever added here again, add the branch there in the same
+// commit: this list is a promise the engine keeps.
+const DEAL_BREAKERS = ['Smoking', 'Drinking', 'Marriage Intentions', 'Wants Children', 'Distance', 'Diet', 'Religion'];
 const AI_DIMENSIONS = ['Astrology compatibility', 'Numerology compatibility', 'Personality compatibility', 'Lifestyle compatibility', 'Interest match', 'Values match', 'Overall AI score'];
 
 /** Height options (120–220 cm) — a numeric range, generated locally. */

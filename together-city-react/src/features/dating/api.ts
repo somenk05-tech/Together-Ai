@@ -51,6 +51,9 @@ export interface CuratedMatch {
   score: number;
   breakdown?: FactorBreakdown;
   reasons?: string[];
+  /** What does NOT fit, from the same numbers. A card that only ever agrees
+   *  with itself reads as a sales pitch rather than an assessment. */
+  frictions?: string[];
   likedByMe: boolean;
   matched: boolean;
   chatLocked?: boolean;
@@ -98,6 +101,7 @@ export interface MatchDetail {
   score: number;
   breakdown: FactorBreakdown;
   reasons: string[];
+  frictions?: string[];
   likedByMe: boolean;
   matched: boolean;
   conversationId: string | null;

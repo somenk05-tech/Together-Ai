@@ -205,9 +205,9 @@ const listOf = (xs: readonly string[]): string =>
 
 /** Score a pair against one citizen's own weights. Mirrors overallScore. */
 export function overallScoreWith(
-  f: FactorBreakdown, weights: Record<keyof FactorBreakdown, number>,
+  f: FactorBreakdown, weights: Record<keyof FactorBreakdown, number>, confidenceFactor = 1,
 ): number {
   let sum = 0;
   (Object.keys(weights) as (keyof FactorBreakdown)[]).forEach((k) => { sum += f[k] * weights[k]; });
-  return Math.round(sum);
+  return Math.round(sum * confidenceFactor);
 }

@@ -221,6 +221,14 @@ export function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKin
               </ul>
             </>
           )}
+          {match.frictions && match.frictions.length > 0 && (
+            <>
+              <div style={{ fontWeight: 600, fontSize: 12.5, margin: '10px 0 4px' }}>One thing to explore</div>
+              <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12.5, color: 'var(--muted)' }}>
+                {match.frictions.map((r, i) => <li key={i} style={{ marginBottom: 2 }}>{r}</li>)}
+              </ul>
+            </>
+          )}
         </div>
       )}
 
