@@ -113,14 +113,17 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
       setPick({ country: hit.country, state: hit.state, city: hit.city.name });
       if (city.trim() && city.trim() !== hit.city.name) setCity(hit.city.name);
     } else if (city.trim()) {
-      setPick({ country: '__other', state: '__other', city: '__other' });
+      // A saved city the tree has never heard of: keep the typed box open,
+      // but the country stays India — that is not a question any more.
+      setPick({ country: 'India', state: '', city: '__other' });
     }
   }, [pickDerived, countries, city]);
   const statesOf = countries.find((c) => c.name === pick.country)?.states ?? [];
   const citiesOf = statesOf.find((st) => st.name === pick.state)?.cities ?? [];
-  const typedPlace = pick.country === '__other' || pick.state === '__other' || pick.city === '__other';
+  const typedPlace = pick.city === '__other';
   const knownCity = findCityIn(countries, city);
-  const areaList = areas.split(',').map((a) => a.trim().toLowerCase()).filter(Boolean);
+  const areaParts = areas.split(',').map((a) => a.trim()).filter(Boolean);
+  const areaList = areaParts.map((a) => a.toLowerCase());
   const toggleArea = (name: string) => {
     const parts = areas.split(',').map((a) => a.trim()).filter(Boolean);
     const next = parts.some((a) => a.toLowerCase() === name.toLowerCase())
@@ -369,27 +372,26 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
 
         <DynamicFields type={chosenType} values={details} onChange={setDetails} />
 
-        {/* ── WHERE, AS DROPDOWNS (owner, 24 Aug): country → state → city,
-            then the areas as one-tap chips — with a typed hatch at every
-            level, because a business in a town the tree has never heard of
-            must stay listable the minute its owner arrives. What is STORED is
-            unchanged: `city` and the csv of areas, exactly as before. */}
+        {/* ── WHERE, AS DROPDOWNS — AND THE COUNTRY IS INDIA (owner, 24 Aug:
+            "lock india"). The country select stays visible but answers itself;
+            every state and union territory is in the tree, so the state drawer
+            needs no typed hatch any more. Only the CITY keeps its "Somewhere
+            else…" escape, because a town the tree has never heard of must stay
+            listable the minute its owner arrives. What is STORED is unchanged:
+            `city` and the csv of areas, exactly as before. */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12 }}>
           <div>
             <label htmlFor="svc-country" style={label}>Country</label>
-            <select id="svc-country" style={field} value={pick.country}
-              onChange={(e) => setPick({ country: e.target.value, state: '', city: '' })}>
-              {countries.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
-              <option value="__other">Somewhere else…</option>
+            <select id="svc-country" style={field} value="India" disabled aria-readonly="true">
+              <option value="India">India</option>
             </select>
           </div>
           <div>
             <label htmlFor="svc-state" style={label}>State</label>
-            <select id="svc-state" style={field} value={pick.state} disabled={pick.country === '__other'}
+            <select id="svc-state" style={field} value={pick.state}
               onChange={(e) => setPick((v) => ({ ...v, state: e.target.value, city: '' }))}>
               <option value="">Choose…</option>
               {statesOf.map((st) => <option key={st.name} value={st.name}>{st.name}</option>)}
-              <option value="__other">Somewhere else…</option>
             </select>
           </div>
           <div>
@@ -411,23 +413,35 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
           </div>
         </div>
 
-        <div>
-          <label htmlFor="svc-areas" style={label}>Areas you cover</label>
+        {/* ── AREAS AS A DROPDOWN (owner, 24 Aug: "add a detailed drop down
+            menu for all areas"). Thirty-four Mumbai chips was a wall, not a
+            choice; the drawer lists only what is not yet picked, each pick
+            becomes a removable chip, and the typed box stays for the locality
+            no list ever has. */}
+        <div className="svo-gap6">
+          <label htmlFor="svc-area-add" style={label}>Areas you cover</label>
           {knownCity && (
+            <select id="svc-area-add" style={field} value=""
+              onChange={(e) => { if (e.target.value) toggleArea(e.target.value); }}>
+              <option value="">Add an area…</option>
+              {knownCity.city.areas
+                .filter((a) => !areaList.includes(a.toLowerCase()))
+                .map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+          )}
+          {areaParts.length > 0 && (
             <div className="svo-row is-chips">
-              {knownCity.city.areas.map((a) => {
-                const on = areaList.includes(a.toLowerCase());
-                return (
-                  <Button key={a} type="button" variant={on ? 'accent' : 'line'} size="sm"
-                    aria-pressed={on} onClick={() => toggleArea(a)}>
-                    {a}
-                  </Button>
-                );
-              })}
+              {areaParts.map((a) => (
+                <Button key={a.toLowerCase()} type="button" variant="accent" size="sm"
+                  aria-label={`Remove ${a}`} onClick={() => toggleArea(a)}>
+                  {a} ✕
+                </Button>
+              ))}
             </div>
           )}
           <input id="svc-areas" style={field} value={areas} onChange={(e) => setAreas(e.target.value)}
-            placeholder={knownCity ? 'Tap above, or add your own, comma-separated' : 'Bandra, Khar, Santacruz'} maxLength={300} />
+            aria-label="Areas you cover, comma-separated"
+            placeholder={knownCity ? 'Or type your own, comma-separated' : 'Bandra, Khar, Santacruz'} maxLength={300} />
         </div>
 
         {/*
