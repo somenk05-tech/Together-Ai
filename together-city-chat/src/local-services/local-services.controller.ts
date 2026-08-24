@@ -6,6 +6,7 @@ import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { LocalServicesService } from './local-services.service';
 import { categoriesByGroup } from './categories';
 import { BUSINESS_TYPES } from './business-types';
+import { PLACES } from './places';
 import {
   BrowseSchema, type BrowseDto,
   CreateListingSchema, type CreateListingDto,
@@ -41,6 +42,11 @@ export class LocalServicesController {
    */
   @Get('business-types')
   businessTypes() { return { types: BUSINESS_TYPES }; }
+
+  /** Country → state → city → areas, served like the trades: one file, one
+   *  deploy, and the form can never be a version behind the tree. */
+  @Get('places')
+  places() { return { countries: PLACES }; }
 
   @Get('facets')
   facets(@Query('city') city?: string) { return this.services.facets(city); }

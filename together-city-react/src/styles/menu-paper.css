@@ -252,6 +252,7 @@
 .svo-wide { max-width: 86%; width: 100%; }
 .svo-list { display: grid; gap: 10px; margin-top: 8px; }
 .svo-cardname { font-size: var(--fs-5); font-weight: 700; }
+.svo-row.is-chips { margin-bottom: 8px; }
 .svo-dim { opacity: .75; }
 
 .mcc-block { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 4px; }

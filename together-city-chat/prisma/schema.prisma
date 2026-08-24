@@ -3338,6 +3338,12 @@ model ServiceOrder {
   /// difference is written in the same transaction.
   itemsJson   String
   subtotalInr Int
+  /// The two flat fees, itemized (owner, 24 Aug): ₹20 platform on every
+  /// order, ₹50 delivery on delivery orders. Snapshots, so a later fee change
+  /// never rewrites what somebody already paid. Zero on rows that predate
+  /// them, which is also the truth about those orders.
+  platformFeeInr Int @default(0)
+  deliveryFeeInr Int @default(0)
   totalInr    Int
 
   /// The kitchen's answer at accept — "about 25 minutes". NULL until they say.

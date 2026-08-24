@@ -54,6 +54,16 @@ function OrderLines({ o }: { o: ServiceOrderView }) {
           <span className="svo-amt">{rupees(l.lineTotalInr)}</span>
         </div>
       ))}
+      {(o.deliveryFeeInr > 0 || o.platformFeeInr > 0) && (
+        <>
+          {o.deliveryFeeInr > 0 && (
+            <div className="svo-line"><span className="muted">Delivery fee</span><span className="svo-amt">{rupees(o.deliveryFeeInr)}</span></div>
+          )}
+          {o.platformFeeInr > 0 && (
+            <div className="svo-line"><span className="muted">Platform fee</span><span className="svo-amt">{rupees(o.platformFeeInr)}</span></div>
+          )}
+        </>
+      )}
       <div className="svo-total"><span>Total · paid</span><span>{rupees(o.totalInr)}</span></div>
     </div>
   );

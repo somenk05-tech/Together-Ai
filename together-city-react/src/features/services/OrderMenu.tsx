@@ -216,8 +216,9 @@ export function OrderMenu({ listingId, businessName, logoUrl, onSent }: {
           </span>
           <span className="mpaper-cartdivide" aria-hidden />
           <span className="mpaper-cartlabel">
-            Total
+            Items
             <span className="mpaper-carttotal">{rupees(roughTotal)}</span>
+            <span className="mpaper-cartsub">+ ₹20 platform · ₹50 delivery</span>
           </span>
           <span className="mpaper-flex mp-auto">
             {count > 0 && <button type="button" className="mpaper-quiet" onClick={() => setCart([])}>Clear</button>}
@@ -381,18 +382,18 @@ function Checkout({ listingId, picks, onBack, onPlaced }: {
   // retries the SAME order instead of placing a second one.
   const [idemKey] = useState(() => crypto.randomUUID());
 
-  // One quote per cart shape — the server's number, fetched when this panel
-  // opens and refetched if the cart changes behind it.
+  // One quote per cart shape AND per fulfilment — the delivery fee is part of
+  // the number, so flipping to pickup reprices honestly instead of pretending.
   const cartShape = JSON.stringify(picks);
   useEffect(() => {
-    quoteM.mutate(JSON.parse(cartShape) as OrderPick[], {
+    quoteM.mutate({ items: JSON.parse(cartShape) as OrderPick[], fulfilment }, {
       onSuccess: (r) => { setQuote(r); setQuoteErr(null); },
       onError: (e) => { setQuote(null); setQuoteErr(failText(e, 'Could not price this order just now.')); },
     });
-    // quoteM is a fresh mutation object every render; the cart shape is the
-    // real dependency and the only one.
+    // quoteM is a fresh mutation object every render; the cart shape and the
+    // fulfilment are the real dependencies and the only ones.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cartShape]);
+  }, [cartShape, fulfilment]);
 
   const phoneValue = phoneTouched ? phone : (phone || profile.data?.phone || '');
   const composed = [
@@ -465,6 +466,21 @@ function Checkout({ listingId, picks, onBack, onPlaced }: {
               <span className="mp-amt">{rupees(l.lineTotalInr)}</span>
             </div>
           ))}
+          {/* The two flat fees, named — the same rows the server put in the
+              quote, never a total that quietly grew. */}
+          <div className="mpaper-quoteline mp-mt">
+            <span>Items</span><span className="mp-amt">{rupees(quote.subtotalInr)}</span>
+          </div>
+          {quote.deliveryFeeInr > 0 && (
+            <div className="mpaper-quoteline">
+              <span>Delivery fee <span className="mpaper-small">(flat)</span></span>
+              <span className="mp-amt">{rupees(quote.deliveryFeeInr)}</span>
+            </div>
+          )}
+          <div className="mpaper-quoteline">
+            <span>Platform fee <span className="mpaper-small">(flat)</span></span>
+            <span className="mp-amt">{rupees(quote.platformFeeInr)}</span>
+          </div>
           <div className="mpaper-quotetotal"><span>Total</span><span>{rupees(quote.totalInr)}</span></div>
           <p className="mpaper-small mp-mt">
             Paid from your wallet now ({rupees(quote.walletInr)} in it{quote.card ? `, card ····${quote.card.last4} for any rest` : ''}).

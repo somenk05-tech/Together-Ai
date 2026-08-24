@@ -282,6 +282,10 @@ export interface OrderLine {
 export interface OrderQuote {
   lines: OrderLine[];
   subtotalInr: number;
+  /** The two flat fees, itemized — ₹20 platform always, ₹50 delivery on
+   *  delivery orders. Never folded into a line, never only in the charge. */
+  platformFeeInr: number;
+  deliveryFeeInr: number;
   totalInr: number;
   walletInr: number;
   card: { brand: string | null; last4: string | null; name: string | null } | null;
@@ -300,6 +304,8 @@ export interface ServiceOrderView {
   fulfilment: 'delivery' | 'pickup';
   lines: OrderLine[];
   subtotalInr: number;
+  platformFeeInr: number;
+  deliveryFeeInr: number;
   totalInr: number;
   prepMinutes: number | null;
   note: string | null;
@@ -373,8 +379,31 @@ export interface RegularCard extends ServiceCard {
   offersToday: ServiceOffer[];
 }
 
+// ── the place tree: country → state → city → areas ──────────────────────────
+export interface PlaceCity { name: string; aliases?: string[]; areas: string[] }
+export interface PlaceState { name: string; cities: PlaceCity[] }
+export interface PlaceCountry { name: string; states: PlaceState[] }
+
+/** The canonical city for whatever name arrived — picker value, alias, or the
+ *  geocoder's district — or null, which sends the form to its typed hatch. */
+export function findCityIn(tree: PlaceCountry[], name: string): { country: string; state: string; city: PlaceCity } | null {
+  const n = name.trim().toLowerCase();
+  if (!n) return null;
+  for (const country of tree) {
+    for (const state of country.states) {
+      for (const city of state.cities) {
+        if (city.name.toLowerCase() === n || (city.aliases ?? []).some((a) => a.toLowerCase() === n)) {
+          return { country: country.name, state: state.name, city };
+        }
+      }
+    }
+  }
+  return null;
+}
+
 export const servicesApi = {
   categories: () => api.get<{ groups: CategoryGroup[] }>('/services/categories').then((r) => r.data),
+  places: () => api.get<{ countries: PlaceCountry[] }>('/services/places').then((r) => r.data),
   facets: (city?: string) => api.get<Record<string, number>>('/services/facets', { params: { city } }).then((r) => r.data),
   browse: (q: { category?: string; group?: string; city?: string; area?: string; q?: string; page?: number; near?: string; withinKm?: number }) =>
     api.get<{ items: ServiceCard[]; total: number; page: number; pages: number; saved: string[] }>('/services', { params: q }).then((r) => r.data),
@@ -449,8 +478,8 @@ export const servicesApi = {
   patchMenuItem: (listingId: string, itemId: string, patch: PatchMenuItemInput) =>
     api.patch<MenuPage>(`/services/${listingId}/menu/${itemId}`, patch).then((r) => r.data),
 
-  quoteOrder: (listingId: string, items: OrderPick[]) =>
-    api.post<OrderQuote>(`/services/${listingId}/order/quote`, { items }).then((r) => r.data),
+  quoteOrder: (listingId: string, items: OrderPick[], fulfilment: 'delivery' | 'pickup') =>
+    api.post<OrderQuote>(`/services/${listingId}/order/quote`, { items, fulfilment }).then((r) => r.data),
   // The one call here that moves money. `Idempotency-Key` is the standard
   // header, the same way the wallet's top-up and the till's pay already say it.
   placeOrder: (listingId: string, input: PlaceOrderInput, idempotencyKey: string) =>
@@ -490,6 +519,10 @@ export function useSubmitVerification(listingId?: string) {
   });
 }
 
+/** The place tree — static vocabulary, cached like the categories are. */
+export function usePlaces() {
+  return useQuery({ queryKey: ['services', 'places'], queryFn: servicesApi.places, staleTime: 3_600_000 });
+}
 export function useMenu(listingId?: string) {
   return useQuery({
     queryKey: ['services', 'menu', listingId],
@@ -524,7 +557,10 @@ export function usePatchMenuItem(listingId?: string) {
   });
 }
 export function useQuoteOrder(listingId?: string) {
-  return useMutation({ mutationFn: (items: OrderPick[]) => servicesApi.quoteOrder(listingId as string, items) });
+  return useMutation({
+    mutationFn: (v: { items: OrderPick[]; fulfilment: 'delivery' | 'pickup' }) =>
+      servicesApi.quoteOrder(listingId as string, v.items, v.fulfilment),
+  });
 }
 export function usePlaceOrder(listingId?: string) {
   const qc = useQueryClient();

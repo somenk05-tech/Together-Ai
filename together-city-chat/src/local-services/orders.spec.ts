@@ -202,7 +202,7 @@ describe('the state machine walks forward only', () => {
 });
 
 describe('the quote prices from the live menu and nowhere else', () => {
-  it('does the arithmetic: variant price, add-ons, quantity', async () => {
+  it('does the arithmetic: variant price, add-ons, quantity — and the two flat fees, named', async () => {
     const { svc } = harness();
     const q = await svc.quote(SEEKER, 'L1', {
       items: [
@@ -211,8 +211,20 @@ describe('the quote prices from the live menu and nowhere else', () => {
       ],
     });
     expect(q.lines.map((l: any) => l.lineTotalInr)).toEqual([460, 240]);
-    expect(q.totalInr).toBe(700);
+    expect(q.subtotalInr).toBe(700);
+    // Itemized, never folded into a line: ₹20 platform + ₹50 delivery.
+    expect(q.platformFeeInr).toBe(20);
+    expect(q.deliveryFeeInr).toBe(50);
+    expect(q.totalInr).toBe(770);
     expect(q.shortfallInr).toBe(0);
+  });
+
+  it('a pickup order carries the platform fee and no delivery fee', async () => {
+    const { svc } = harness();
+    const q = await svc.quote(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], fulfilment: 'pickup' });
+    expect(q.platformFeeInr).toBe(20);
+    expect(q.deliveryFeeInr).toBe(0);
+    expect(q.totalInr).toBe(440);
   });
 
   it('refuses a sold-out item by name', async () => {
@@ -237,10 +249,10 @@ describe('the quote prices from the live menu and nowhere else', () => {
       .rejects.toThrow(/no longer offers/i);
   });
 
-  it('says the shortfall when the wallet does not cover it', async () => {
+  it('says the shortfall when the wallet does not cover it — fees included', async () => {
     const { svc } = harness({ balance: 100 });
     const q = await svc.quote(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }] });
-    expect(q.shortfallInr).toBe(320);
+    expect(q.shortfallInr).toBe(390); // 420 + 20 + 50 − 100
   });
 
   it('is not for ordering from your own shop', async () => {
@@ -255,12 +267,12 @@ describe('placing an order: pay, then promise', () => {
     const { svc, invoices, orders, messages, payCalls, notes } = harness();
     const out = await svc.place(SEEKER, 'L1', {
       items: [{ itemId: BUTTER, qty: 1 }, { itemId: NAAN, qty: 2, variant: 'Single' }],
-      expectInr: 660, ...DELIVERY, note: 'Less oil please',
+      expectInr: 730, ...DELIVERY, note: 'Less oil please',
     }, 'key-1');
 
     expect(invoices).toHaveLength(1);
     expect(invoices[0].status).toBe('sent'); // born sent — never a draft
-    expect(payCalls).toEqual([expect.objectContaining({ invoiceId: invoices[0].id, dto: { expectInr: 660, useWallet: true }, key: 'key-1' })]);
+    expect(payCalls).toEqual([expect.objectContaining({ invoiceId: invoices[0].id, dto: { expectInr: 730, useWallet: true }, key: 'key-1' })]);
     expect(orders).toHaveLength(1);
     expect(orders[0].number).toMatch(/^TCO-/);
     expect(orders[0].invoiceId).toBe(invoices[0].id);
@@ -274,7 +286,7 @@ describe('placing an order: pay, then promise', () => {
 
   it('the thread message names nobody and locates nobody — the identity is on the order, for the owner', async () => {
     const { svc, messages } = harness();
-    await svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 420, ...DELIVERY });
+    await svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 490, ...DELIVERY });
     // The purge plan's promise — "no identity in those rows to destroy" —
     // holds only if this body never carries what the checkout shared.
     expect(messages[0].body).not.toContain('Rahul');
@@ -285,7 +297,7 @@ describe('placing an order: pay, then promise', () => {
 
   it('shows the owner the identity and keeps it out of the citizen’s own copy of the wire', async () => {
     const { svc, orders } = harness();
-    await svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 420, ...DELIVERY });
+    await svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 490, ...DELIVERY });
     const mineCopy = await svc.one(SEEKER, orders[0].id);
     const ownerCopy = await svc.one(OWNER, orders[0].id);
     expect(mineCopy.customerName).toBeUndefined();
@@ -295,12 +307,21 @@ describe('placing an order: pay, then promise', () => {
     expect(ownerCopy.phone).toBe('9876543210');
   });
 
-  it('charges the number the citizen was shown, or nothing', async () => {
+  it('charges the number the citizen was shown, or nothing — fees inside that number', async () => {
     const { svc, payCalls, orders } = harness();
-    await expect(svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 400, ...DELIVERY }))
-      .rejects.toThrow(/now comes to ₹420/);
+    // 420 of food is not the total any more: the guard answers with 490.
+    await expect(svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 420, ...DELIVERY }))
+      .rejects.toThrow(/now comes to ₹490/);
     expect(payCalls).toHaveLength(0);
     expect(orders).toHaveLength(0);
+  });
+
+  it('the invoice carries the fees on its own extra line, and the order snapshots them', async () => {
+    const { svc, invoices, orders } = harness();
+    await svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 490, ...DELIVERY });
+    expect(invoices[0]).toMatchObject({ subtotalInr: 420, extraInr: 70, totalInr: 490 });
+    expect(invoices[0].notes).toMatch(/platform fee/i);
+    expect(orders[0]).toMatchObject({ subtotalInr: 420, platformFeeInr: 20, deliveryFeeInr: 50, totalInr: 490 });
   });
 
   it('a delivery order without location services is refused, and told why', async () => {
@@ -325,19 +346,19 @@ describe('placing an order: pay, then promise', () => {
 
   it('saves the address to the book ONLY when the box was ticked — home also mirrors the legacy line', async () => {
     const first = harness();
-    await first.svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 420, ...DELIVERY });
+    await first.svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 490, ...DELIVERY });
     expect(first.profiles).toHaveLength(0);
     expect(first.book).toHaveLength(0);
 
     const second = harness();
-    await second.svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 420, ...DELIVERY, saveAddress: true });
+    await second.svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 490, ...DELIVERY, saveAddress: true });
     expect(second.book[0]).toMatchObject({ label: 'home' });
     expect(second.book[0].addressText).toContain('Marine Drive');
     // home mirrors the legacy single line, so its old readers keep reading true
     expect(second.profiles[0].address).toContain('Marine Drive');
 
     const third = harness();
-    await third.svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 420, ...DELIVERY, saveAddress: true, saveLabel: 'work' });
+    await third.svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 490, ...DELIVERY, saveAddress: true, saveLabel: 'work' });
     expect(third.book[0]).toMatchObject({ label: 'work' });
     // …and a page that is not home touches the legacy line not at all.
     expect(third.profiles).toHaveLength(0);
@@ -345,7 +366,7 @@ describe('placing an order: pay, then promise', () => {
 
   it('a failed payment leaves no order and no live invoice', async () => {
     const { svc, invoices, orders, messages } = harness({ payFails: true });
-    await expect(svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 420, ...DELIVERY }))
+    await expect(svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 490, ...DELIVERY }))
       .rejects.toThrow(/wallet/i);
     expect(orders).toHaveLength(0);
     expect(messages).toHaveLength(0);
@@ -354,7 +375,7 @@ describe('placing an order: pay, then promise', () => {
 
   it('a replayed payment returns the original order and kills the duplicate invoice', async () => {
     const h = harness();
-    await h.svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 420, ...DELIVERY }, 'key-1');
+    await h.svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 490, ...DELIVERY }, 'key-1');
     const originalInvoice = h.invoices[0].id;
     const originalOrder = h.orders[0].id;
 
@@ -362,7 +383,7 @@ describe('placing an order: pay, then promise', () => {
     (h.svc as any).payments.pay = async () => {
       return { paid: true, replayed: true, invoice: { id: originalInvoice }, payment: {} };
     };
-    const out = await h.svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 420, ...DELIVERY }, 'key-1');
+    const out = await h.svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 490, ...DELIVERY }, 'key-1');
     expect(out.order.id).toBe(originalOrder);
     expect(h.orders).toHaveLength(1); // promised exactly once
     const duplicate = h.invoices.find((i: any) => i.id !== originalInvoice);
@@ -374,7 +395,7 @@ describe('the owner’s verbs', () => {
   const placed = async (h = harness()) => {
     await h.svc.place(SEEKER, 'L1', {
       items: [{ itemId: BUTTER, qty: 1 }, { itemId: NAAN, qty: 2, variant: 'Single' }],
-      expectInr: 660, ...DELIVERY,
+      expectInr: 730, ...DELIVERY,
     });
     return { ...h, order: h.orders[0] };
   };
@@ -391,7 +412,9 @@ describe('the owner’s verbs', () => {
   it('an agreed removal makes the order smaller and refunds the difference through the till', async () => {
     const h = await placed();
     await h.svc.accept(OWNER, h.order.id, { removeLines: [1], adjustmentNote: 'Out of naan tonight.' });
-    expect(h.order.totalInr).toBe(420);
+    // The naan's ₹240 comes back; the two fees stay, because dinner is still
+    // being cooked and carried.
+    expect(h.order.totalInr).toBe(490);
     expect(JSON.parse(h.order.itemsJson)).toHaveLength(1);
     expect(h.refundCalls).toEqual([expect.objectContaining({ amountInr: 240, invoiceId: h.order.invoiceId })]);
   });
@@ -407,7 +430,7 @@ describe('the owner’s verbs', () => {
     const h = await placed();
     await h.svc.reject(OWNER, h.order.id, { reason: 'Kitchen closed early tonight.' });
     expect(h.order.status).toBe('rejected');
-    expect(h.refundCalls).toEqual([expect.objectContaining({ amountInr: 660 })]);
+    expect(h.refundCalls).toEqual([expect.objectContaining({ amountInr: 730 })]);
     expect(h.notes.at(-1).body).toContain('Kitchen closed early tonight.');
     expect(h.notes.at(-1).body).toContain('refunded');
   });
@@ -439,15 +462,15 @@ describe('the owner’s verbs', () => {
 describe('the citizen’s cancel', () => {
   it('works while the order is only submitted, and the money comes straight back', async () => {
     const h = harness();
-    await h.svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 420, ...DELIVERY });
+    await h.svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 490, ...DELIVERY });
     await h.svc.cancel(SEEKER, h.orders[0].id, { reason: 'Ordered twice by mistake' });
     expect(h.orders[0].status).toBe('cancelled');
-    expect(h.refundCalls).toEqual([expect.objectContaining({ amountInr: 420, ownerId: OWNER })]);
+    expect(h.refundCalls).toEqual([expect.objectContaining({ amountInr: 490, ownerId: OWNER })]);
   });
 
   it('is refused once the kitchen has said yes — the thread is the way from there', async () => {
     const h = harness();
-    await h.svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 420, ...DELIVERY });
+    await h.svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 490, ...DELIVERY });
     await h.svc.accept(OWNER, h.orders[0].id, {});
     await expect(h.svc.cancel(SEEKER, h.orders[0].id, {})).rejects.toThrow(/already taken this order/i);
     expect(h.refundCalls).toHaveLength(0);

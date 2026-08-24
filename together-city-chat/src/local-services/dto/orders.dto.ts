@@ -25,6 +25,10 @@ const pickedItem = z.object({
 
 export const QuoteOrderSchema = z.object({
   items: z.array(pickedItem).min(1).max(30),
+  /** The fees differ by it (delivery carries the delivery fee), so the quote
+   *  needs it to say a number the button can honour. Defaults to delivery —
+   *  the dearer one — so an old caller is never under-quoted. */
+  fulfilment: z.enum(['delivery', 'pickup']).optional(),
 });
 export type QuoteOrderDto = z.infer<typeof QuoteOrderSchema>;
 

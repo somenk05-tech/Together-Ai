@@ -54,7 +54,8 @@ type ListingRow = {
 
 type OrderRow = {
   id: string; listingId: string; userId: string; enquiryId: string; number: string;
-  status: string; fulfilment: string; itemsJson: string; subtotalInr: number; totalInr: number;
+  status: string; fulfilment: string; itemsJson: string; subtotalInr: number;
+  platformFeeInr: number; deliveryFeeInr: number; totalInr: number;
   prepMinutes: number | null; note: string | null; customerName: string; phone: string | null;
   addressText: string | null; lat: number | null; lng: number | null;
   rejectReason: string | null; cancelReason: string | null; adjustmentNote: string | null;
@@ -73,6 +74,23 @@ export interface OrderLine {
 }
 
 interface NamedPrice { name: string; priceInr: number }
+
+/**
+ * THE TWO FLAT FEES (owner, 24 Aug) — ₹20 platform on every order, ₹50
+ * delivery on delivery orders. Declared once, ITEMIZED EVERYWHERE THE NUMBER
+ * APPEARS — the quote, the checkout, the order card, the invoice's own
+ * extra line — and never only in the charge: the promise priceLines made
+ * ("the day a fee exists it appears HERE, named") comes due today. The
+ * merchant side is untouched: the city's per-sale commission stays where the
+ * settlement service already takes it.
+ */
+export const PLATFORM_FEE_INR = 20;
+export const DELIVERY_FEE_INR = 50;
+
+const feesFor = (fulfilment: 'delivery' | 'pickup') => ({
+  platformFeeInr: PLATFORM_FEE_INR,
+  deliveryFeeInr: fulfilment === 'delivery' ? DELIVERY_FEE_INR : 0,
+});
 
 /** The one arbiter. Everything a status may become, from where it is. */
 export function transitions(status: string): readonly string[] {
@@ -130,7 +148,7 @@ export class ServiceOrdersService {
    * something anybody can fix.
    */
   private async priceLines(listingId: string, picks: QuoteOrderDto['items']): Promise<{
-    lines: OrderLine[]; subtotalInr: number; totalInr: number;
+    lines: OrderLine[]; subtotalInr: number;
   }> {
     const rows = await this.prisma.serviceMenuItem.findMany({
       where: { id: { in: picks.map((p) => p.itemId) }, listingId }, take: 30,
@@ -172,10 +190,9 @@ export class ServiceOrdersService {
     }
 
     const subtotalInr = lines.reduce((s, l) => s + l.lineTotalInr, 0);
-    // No tax, no platform fee, no delivery fee: nothing is added that no screen
-    // has explained. The day a fee exists it appears HERE, named, and in the
-    // quote the citizen sees — never only in the charge.
-    return { lines, subtotalInr, totalInr: subtotalInr };
+    // The items alone. The two flat fees are added — NAMED — by quote() and
+    // place(), which know the fulfilment; nothing is ever only in the charge.
+    return { lines, subtotalInr };
   }
 
   private async approvedListing(listingId: string): Promise<ListingRow> {
@@ -194,14 +211,17 @@ export class ServiceOrdersService {
     const l = await this.approvedListing(listingId);
     if (l.ownerId === userId) throw new BadRequestException('This is your own business.');
     const priced = await this.priceLines(listingId, dto.items);
+    const fees = feesFor(dto.fulfilment ?? 'delivery');
+    const totalInr = priced.subtotalInr + fees.platformFeeInr + fees.deliveryFeeInr;
     const wallet = await this.financial.wallet(userId);
     return {
       lines: priced.lines,
       subtotalInr: priced.subtotalInr,
-      totalInr: priced.totalInr,
+      ...fees,
+      totalInr,
       walletInr: wallet.balanceInr,
       card: wallet.card,
-      shortfallInr: Math.max(0, priced.totalInr - wallet.balanceInr),
+      shortfallInr: Math.max(0, totalInr - wallet.balanceInr),
       // The sentence the sheet prints beside the button. Server-owned so the
       // one wording exists.
       shares: 'Placing this order shares your name and phone — and for delivery, your address — with this business only.',
@@ -236,9 +256,11 @@ export class ServiceOrdersService {
     }
 
     const priced = await this.priceLines(listingId, dto.items);
-    if (priced.totalInr !== dto.expectInr) {
+    const fees = feesFor(dto.fulfilment);
+    const totalInr = priced.subtotalInr + fees.platformFeeInr + fees.deliveryFeeInr;
+    if (totalInr !== dto.expectInr) {
       throw new BadRequestException(
-        `This order now comes to ₹${priced.totalInr.toLocaleString('en-IN')}. Look it over again before placing it.`,
+        `This order now comes to ₹${totalInr.toLocaleString('en-IN')}. Look it over again before placing it.`,
       );
     }
 
@@ -253,12 +275,16 @@ export class ServiceOrdersService {
     const customerName = user?.name ?? 'A customer';
 
     // ── the quiet invoice — the money's record, not the conversation's ──────
-    const invoiceId = await this.mintInvoice(l, userId, priced.lines, priced.totalInr);
+    const invoiceId = await this.mintInvoice(l, userId, priced.lines, {
+      subtotalInr: priced.subtotalInr,
+      extraInr: fees.platformFeeInr + fees.deliveryFeeInr,
+      totalInr,
+    });
 
     // ── the till. Its idempotency is the order's idempotency. ───────────────
     let payment: Awaited<ReturnType<PaymentsService['pay']>>;
     try {
-      payment = await this.payments.pay(userId, invoiceId, { expectInr: priced.totalInr, useWallet: true }, idempotencyKey);
+      payment = await this.payments.pay(userId, invoiceId, { expectInr: totalInr, useWallet: true }, idempotencyKey);
     } catch (e) {
       // Nothing was taken (the till already said so, in its own words). The
       // invoice this attempt minted must not sit in anybody's list as owed.
@@ -283,7 +309,7 @@ export class ServiceOrdersService {
     if (!order) {
       order = await this.mintOrder({
         listing: l, userId, enquiryId: enquiry.id, invoiceId: paidInvoiceId,
-        dto, lines: priced.lines, subtotalInr: priced.subtotalInr, totalInr: priced.totalInr, customerName,
+        dto, lines: priced.lines, subtotalInr: priced.subtotalInr, fees, totalInr, customerName,
       });
 
       // The card in the room, then the knock on the door. Both are delivery,
@@ -292,7 +318,7 @@ export class ServiceOrdersService {
       void this.notifications.create({
         userId: l.ownerId, kind: 'service_order', entityId: order.id,
         title: `New order at ${l.businessName}`,
-        body: `${customerName} — ${priced.lines.length} ${priced.lines.length === 1 ? 'item' : 'items'}, ₹${priced.totalInr.toLocaleString('en-IN')}, paid.`,
+        body: `${customerName} — ${priced.lines.length} ${priced.lines.length === 1 ? 'item' : 'items'}, ₹${totalInr.toLocaleString('en-IN')}, paid.`,
         href: `/services/messages/${enquiry.id}`,
       });
 
@@ -320,8 +346,12 @@ export class ServiceOrdersService {
     return { order: this.shape(order, 'seeker'), threadId: enquiry.id };
   }
 
-  /** TC- invoice numbering's sibling, same unique-index-is-the-mechanism loop. */
-  private async mintInvoice(l: ListingRow, userId: string, lines: OrderLine[], totalInr: number): Promise<string> {
+  /** TC- invoice numbering's sibling, same unique-index-is-the-mechanism loop.
+   *  The two flat fees ride in `extraInr` — the till's own after-tax line — so
+   *  the invoice's arithmetic says exactly what the checkout said. */
+  private async mintInvoice(l: ListingRow, userId: string, lines: OrderLine[], money: {
+    subtotalInr: number; extraInr: number; totalInr: number;
+  }): Promise<string> {
     const items = lines.map((line, position) => ({
       name: line.variant ? `${line.name} (${line.variant})` : line.name,
       description: line.addons?.length ? `with ${line.addons.map((a) => a.name).join(', ')}` : null,
@@ -340,8 +370,10 @@ export class ServiceOrdersService {
             // Born sent: an order's invoice was never a draft anybody edits,
             // and the till only accepts payment against a sent invoice.
             status: 'sent', sentAt: this.clock.now(),
-            subtotalInr: totalInr, totalInr,
-            notes: 'Paid at checkout for an order.',
+            subtotalInr: money.subtotalInr, extraInr: money.extraInr, totalInr: money.totalInr,
+            notes: money.extraInr > 0
+              ? `Paid at checkout for an order. Includes the flat ₹${PLATFORM_FEE_INR} platform fee${money.extraInr > PLATFORM_FEE_INR ? ` and ₹${DELIVERY_FEE_INR} delivery fee` : ''}.`
+              : 'Paid at checkout for an order.',
             items: { create: items },
           },
         });
@@ -355,9 +387,10 @@ export class ServiceOrdersService {
 
   private async mintOrder(args: {
     listing: ListingRow; userId: string; enquiryId: string; invoiceId: string;
-    dto: PlaceOrderDto; lines: OrderLine[]; subtotalInr: number; totalInr: number; customerName: string;
+    dto: PlaceOrderDto; lines: OrderLine[]; subtotalInr: number;
+    fees: { platformFeeInr: number; deliveryFeeInr: number }; totalInr: number; customerName: string;
   }): Promise<OrderRow> {
-    const { listing, userId, enquiryId, invoiceId, dto, lines, subtotalInr, totalInr, customerName } = args;
+    const { listing, userId, enquiryId, invoiceId, dto, lines, subtotalInr, fees, totalInr, customerName } = args;
     const base = 10_000 + await this.prisma.serviceOrder.count();
     for (let attempt = 0; attempt < 8; attempt += 1) {
       try {
@@ -367,7 +400,10 @@ export class ServiceOrdersService {
             number: `TCO-${base + attempt}`,
             fulfilment: dto.fulfilment,
             itemsJson: JSON.stringify(lines),
-            subtotalInr, totalInr,
+            subtotalInr,
+            platformFeeInr: fees.platformFeeInr,
+            deliveryFeeInr: fees.deliveryFeeInr,
+            totalInr,
             note: dto.note?.trim() || null,
             customerName,
             phone: dto.phone,
@@ -394,9 +430,14 @@ export class ServiceOrdersService {
        on the ORDER row, which the purge takes with them. The card the owner
        sees fetches that row live; when it is gone, this sentence is what
        remains, and it identifies nobody. */
+    const fees = [
+      ...(order.deliveryFeeInr > 0 ? [`· Delivery fee — ₹${order.deliveryFeeInr}`] : []),
+      ...(order.platformFeeInr > 0 ? [`· Platform fee — ₹${order.platformFeeInr}`] : []),
+    ];
     const body = [
       `Order ${order.number} · ₹${order.totalInr.toLocaleString('en-IN')} · paid`,
       ...lines,
+      ...fees,
       order.fulfilment === 'delivery' ? 'Delivery — address on the order card.' : 'Pickup',
       ...(order.note ? [`Note: ${order.note}`] : []),
     ].join('\n');
@@ -440,6 +481,8 @@ export class ServiceOrdersService {
       fulfilment: o.fulfilment,
       lines: JSON.parse(o.itemsJson) as OrderLine[],
       subtotalInr: o.subtotalInr,
+      platformFeeInr: o.platformFeeInr,
+      deliveryFeeInr: o.deliveryFeeInr,
       totalInr: o.totalInr,
       prepMinutes: o.prepMinutes,
       note: o.note,

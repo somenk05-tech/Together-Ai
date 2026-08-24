@@ -3,7 +3,7 @@ import { Card, Button, Spinner, EmptyState , Switch} from '@/components/ui';
 import { LocationPicker, type LocationValue } from '@/components/LocationPicker';
 import { splitPlace } from '@/features/profile/placeParts';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
-import { servicesApi, useServiceCategories, useBusinessTypes } from './api';
+import { findCityIn, servicesApi, useServiceCategories, useBusinessTypes, usePlaces } from './api';
 import { DynamicFields } from './DynamicFields';
 
 /**
@@ -98,6 +98,36 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
   const [about, setAbout] = useState(str(initial?.about));
   const [city, setCity] = useState(str(initial?.city));
   const [areas, setAreas] = useState((initial?.areas ?? []).join(', '));
+  /* The pickers' own state. `city` above stays the stored truth; this is only
+     which drawers are open. Derived once from the saved city when the tree
+     arrives (an alias or a geocoder district lands on its canonical city). */
+  const places = usePlaces();
+  const [pick, setPick] = useState<{ country: string; state: string; city: string }>({ country: 'India', state: '', city: '' });
+  const [pickDerived, setPickDerived] = useState(false);
+  const countries = places.data?.countries ?? [];
+  useEffect(() => {
+    if (pickDerived || countries.length === 0) return;
+    setPickDerived(true);
+    const hit = findCityIn(countries, city);
+    if (hit) {
+      setPick({ country: hit.country, state: hit.state, city: hit.city.name });
+      if (city.trim() && city.trim() !== hit.city.name) setCity(hit.city.name);
+    } else if (city.trim()) {
+      setPick({ country: '__other', state: '__other', city: '__other' });
+    }
+  }, [pickDerived, countries, city]);
+  const statesOf = countries.find((c) => c.name === pick.country)?.states ?? [];
+  const citiesOf = statesOf.find((st) => st.name === pick.state)?.cities ?? [];
+  const typedPlace = pick.country === '__other' || pick.state === '__other' || pick.city === '__other';
+  const knownCity = findCityIn(countries, city);
+  const areaList = areas.split(',').map((a) => a.trim().toLowerCase()).filter(Boolean);
+  const toggleArea = (name: string) => {
+    const parts = areas.split(',').map((a) => a.trim()).filter(Boolean);
+    const next = parts.some((a) => a.toLowerCase() === name.toLowerCase())
+      ? parts.filter((a) => a.toLowerCase() !== name.toLowerCase())
+      : [...parts, name];
+    setAreas(next.join(', '));
+  };
   const [phone, setPhone] = useState(str(initial?.phone));
   const [phonePublic, setPhonePublic] = useState(initial?.phonePublic ?? false);
   const [priceFrom, setPrice] = useState(str(initial?.priceFrom));
@@ -339,16 +369,65 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
 
         <DynamicFields type={chosenType} values={details} onChange={setDetails} />
 
+        {/* ── WHERE, AS DROPDOWNS (owner, 24 Aug): country → state → city,
+            then the areas as one-tap chips — with a typed hatch at every
+            level, because a business in a town the tree has never heard of
+            must stay listable the minute its owner arrives. What is STORED is
+            unchanged: `city` and the csv of areas, exactly as before. */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12 }}>
           <div>
-            <label htmlFor="svc-city" style={label}>City</label>
-            <input id="svc-city" style={field} value={city} onChange={(e) => setCity(e.target.value)} placeholder="Mumbai" maxLength={60} />
+            <label htmlFor="svc-country" style={label}>Country</label>
+            <select id="svc-country" style={field} value={pick.country}
+              onChange={(e) => setPick({ country: e.target.value, state: '', city: '' })}>
+              {countries.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
+              <option value="__other">Somewhere else…</option>
+            </select>
           </div>
           <div>
-            <label htmlFor="svc-areas" style={label}>Areas you cover</label>
-            <input id="svc-areas" style={field} value={areas} onChange={(e) => setAreas(e.target.value)}
-              placeholder="Bandra, Khar, Santacruz" maxLength={300} />
+            <label htmlFor="svc-state" style={label}>State</label>
+            <select id="svc-state" style={field} value={pick.state} disabled={pick.country === '__other'}
+              onChange={(e) => setPick((v) => ({ ...v, state: e.target.value, city: '' }))}>
+              <option value="">Choose…</option>
+              {statesOf.map((st) => <option key={st.name} value={st.name}>{st.name}</option>)}
+              <option value="__other">Somewhere else…</option>
+            </select>
           </div>
+          <div>
+            <label htmlFor="svc-city" style={label}>City</label>
+            {typedPlace ? (
+              <input id="svc-city" style={field} value={city} onChange={(e) => setCity(e.target.value)} placeholder="Your city" maxLength={60} />
+            ) : (
+              <select id="svc-city" style={field} value={pick.city}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setPick((p) => ({ ...p, city: v }));
+                  setCity(v === '__other' || v === '' ? '' : v);
+                }}>
+                <option value="">Choose…</option>
+                {citiesOf.map((ct) => <option key={ct.name} value={ct.name}>{ct.name}</option>)}
+                <option value="__other">Somewhere else…</option>
+              </select>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="svc-areas" style={label}>Areas you cover</label>
+          {knownCity && (
+            <div className="svo-row is-chips">
+              {knownCity.city.areas.map((a) => {
+                const on = areaList.includes(a.toLowerCase());
+                return (
+                  <Button key={a} type="button" variant={on ? 'accent' : 'line'} size="sm"
+                    aria-pressed={on} onClick={() => toggleArea(a)}>
+                    {a}
+                  </Button>
+                );
+              })}
+            </div>
+          )}
+          <input id="svc-areas" style={field} value={areas} onChange={(e) => setAreas(e.target.value)}
+            placeholder={knownCity ? 'Tap above, or add your own, comma-separated' : 'Bandra, Khar, Santacruz'} maxLength={300} />
         </div>
 
         {/*
@@ -383,12 +462,18 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
               onPlace={(p) => {
                 const parts = splitPlace(p.label, p.short);
                 const bits = p.label.split(',').map((b) => b.trim()).filter(Boolean);
-                const cityAt = parts.city ? bits.indexOf(parts.city) : -1;
+                // The geocoder often answers with the district — the tree
+                // knows "Mumbai Suburban District" IS Mumbai, and sets the
+                // pickers to the canonical drawer.
+                const hit = bits.map((b) => findCityIn(countries, b)).find(Boolean) ?? (parts.city ? findCityIn(countries, parts.city) : null);
+                const canonical = hit?.city.name ?? parts.city ?? null;
+                const cityAt = canonical ? bits.findIndex((b) => findCityIn(countries, b)?.city.name === canonical || b === canonical) : -1;
                 // The locality is the segment just before the city in
                 // Nominatim's local→global run ("…, Powai, Mumbai, …").
                 const area = cityAt > 0 ? bits[cityAt - 1] : null;
-                setCity((v) => (v.trim() ? v : parts.city ?? v));
-                setAreas((v) => (v.trim() ? v : (area && area !== parts.city ? area : v)));
+                setCity((v) => (v.trim() ? v : canonical ?? v));
+                if (hit) setPick({ country: hit.country, state: hit.state, city: hit.city.name });
+                setAreas((v) => (v.trim() ? v : (area && area !== canonical ? area : v)));
                 setRadius((v) => (v.trim() ? v : '5'));
               }}
             />
