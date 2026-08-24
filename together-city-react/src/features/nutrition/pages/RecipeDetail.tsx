@@ -428,17 +428,6 @@ export function RecipeDetail() {
               </p>
             )}
 
-            {/* the boxed panel the references close their column with — here it
-                is the two things this hub can actually do next, not a list of
-                serving suggestions somebody made up */}
-            <div className="press-r-box">
-              <h3>Make it even better</h3>
-              <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.8, color: 'var(--press-ink-2)' }}>
-                <li>Change the servings above — quantities, cost and nutrition all rescale.</li>
-                <li>Cook mode reads each step aloud, keeps the screen awake and times the steps that need it.</li>
-                <li>Tap a step to strike it out as you go.</li>
-              </ul>
-            </div>
           </section>
         </div>
       </section>

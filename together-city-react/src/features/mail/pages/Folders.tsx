@@ -235,7 +235,7 @@ function Row({ convo, folder, tag }: { convo: Convo; folder: Folder; tag?: strin
         )}
         {confirmGone && (
           <div className="mail-mishap" role="alert" onClick={(e) => e.stopPropagation()}>
-            <span>Delete this forever? Trash is the last stop — there is nowhere to take it back from.</span>
+            <span>Delete forever? This can’t be undone.</span>
             <span className="mail-mishap-keys">
               <Button variant="line" size="sm" disabled={remove.isPending}
                 onClick={() => remove.mutate(m.id, { onSuccess: () => setConfirmGone(false) })}>
@@ -370,21 +370,20 @@ function FolderView({ folder, project }: { folder: Folder; project?: MailProject
       </div>
       <MailSearch value={typed} onChange={setTyped} scope={project?.name} />
       {q.isLoading ? <Spinner label="Loading mail…" />
-        : q.isError ? <EmptyState title="Couldn't load mail" hint="Nothing has been deleted — we couldn’t reach your mailbox. Try again in a moment." />
+        : q.isError ? <EmptyState title="Couldn't load mail" hint="Couldn’t reach your mailbox — nothing’s lost. Try again in a moment." />
         : rows.length === 0 ? (
           needle
             // A search that finds nothing is not an empty mailbox, and saying
             // "no mail yet" to somebody looking at a full inbox is a lie the
             // interface tells about itself.
-            ? <EmptyState icon="🔍" title={`Nothing in ${meta.title} matches “${needle}”`}
-                hint="Search looks at the sender, the recipients, the subject and the words in the message — in this folder." />
+            ? <EmptyState icon="🔍" title={`Nothing in ${meta.title} matches “${needle}”`} />
             /* A NEW PROJECT IS EMPTY, AND THE EMPTY STATE IS THE INSTRUCTION.
                No mail is swept in when a project is made, so the first thing
                somebody sees here has to say how it fills — otherwise an empty
                room reads as a broken one. */
             : project
               ? <EmptyState icon="✉️" title={`Nothing in ${project.name} yet`}
-                  hint="Mail you write from inside this project lands in its Sent — and every reply to it arrives here. Old mail is not moved in automatically; open a conversation in All Email and move it here if it belongs." />
+                  hint="Mail sent from this project — and every reply — lands here. Move older mail in from All Email." />
               : <EmptyState icon={meta.icon} title={meta.empty} hint={folder === 'inbox' ? 'City mail will appear here.' : undefined} />
         )
         : <div className="card mail-list" style={{ padding: 0, overflow: 'hidden' }}>
@@ -549,7 +548,7 @@ function ProjectSettings({ project }: { project: MailProject }) {
         <span>
           This project's id is <strong>{project.address ?? `your address +${project.key}`}</strong>.
           <span className="muted"> Mail sent from here replies to it, so answers come back to this
-          folder. Turning it off leaves the folder relying on the conversation being matched instead.</span>
+          folder.</span>
         </span>
       </label>
 
@@ -561,7 +560,7 @@ function ProjectSettings({ project }: { project: MailProject }) {
         <span className="muted" style={{ fontSize: 12 }}>
           {project.archived
             ? 'Archived: out of the rail, filing kept, accepting nothing new.'
-            : 'Finished with it? Archiving keeps the filing and stops new mail arriving here.'}
+            : 'Archiving keeps everything and stops new mail.'}
         </span>
       </div>
 
@@ -617,14 +616,14 @@ export function ProjectMailbox({ folder = 'inbox' }: { folder?: Folder }) {
   if (q.isError) {
     return (
       <EmptyState icon="⚠️" title="Couldn't open your projects"
-        hint="Nothing has been deleted and nothing has moved — we couldn’t reach your mailbox just now. Try again in a moment." />
+        hint="Couldn’t reach your mailbox — nothing’s lost. Try again in a moment." />
     );
   }
   const project = (q.data ?? []).find((p) => p.key === key.toLowerCase());
   if (!project) {
     return (
       <EmptyState icon="✉️" title={`No project called “${key}”`}
-        hint="It may have been deleted — which never deletes mail. Everything it held is in All Email." />
+        hint="Deleting a project never deletes mail — it’s all in All Email." />
     );
   }
   return <FolderView folder={folder} project={project} />;

@@ -32,21 +32,21 @@ const ZONES: Zone[] = [
   { to: '/fitness', label: 'Fitness Hub', shape: 'poly', points: '1490.6,557.4 1790.7,557.4 1790.7,753.8 1490.6,753.8' },
 ];
 
-interface Pavilion { to: string; img: string; title: string; meta: string; blurb: string; }
+interface Pavilion { to: string; img: string; title: string; }
 const PAVILIONS: Pavilion[] = [
   // Travel's tile went with its tab (owner, 15 Aug) — the hub is alive, it is
   // just not being advertised here.
-  { to: '/astrology', img: 'astrology-hub.webp', title: 'Astrology Hub', meta: 'Birth chart · Horoscope · Compatibility', blurb: 'Your natal chart, daily readings and cosmic compatibility — guidance written in the stars, personalised to you.' },
-  { to: '/nutrition', img: 'nutrition-and-groceies.webp', title: 'Nutrition & Groceries', meta: 'Meal plans · Grocery · Supplements', blurb: 'Every meal plan and grocery list personalised around your body, blood reports and goals.' },
-  { to: '/social', img: 'social-life.webp', title: 'Social Life', meta: 'Feed · Explore · Circles · Events', blurb: 'Discover everything happening around you — and earn rewards for authentic contributions.' },
-  { to: '/dating', img: 'dating-hub.webp', title: 'Dating Hub', meta: 'Curated matches · Activity dating', blurb: 'Instead of endless profiles, we introduce you to your most compatible matches.' },
-  { to: '/entertainment', img: 'entertainment.webp', title: 'Entertainment', meta: 'Movies · OTT · Trailers · Curated', blurb: "There's always something worth experiencing — personalised to you and your friends." },
-  { to: '/realestate', img: 'real-estate.webp', title: 'Real Estate', meta: 'Houses · Offices · Shops', blurb: 'Properties that match your lifestyle, budget and future plans — focused, not overwhelming.' },
-  { to: '/jobs', img: 'jobs-hub.webp', title: 'Jobs Hub', meta: 'Upload CV · Private matching', blurb: 'Companies come to us; we match your profile privately and send opportunities to you.' },
-  { to: '/medical', img: 'medical-hub.webp', title: 'Medical Hub', meta: 'Records · Doctors · Insights', blurb: '5 GB of secure records, trusted doctors, and health insights that power your whole city.' },
-  { to: '/beauty', img: 'beautymarket.webp', title: 'Beauty Market', meta: 'Profile · Market · Routine', blurb: 'A routine built from your skin, your goals and verified expertise — not marketing.' },
-  { to: '/fitness', img: 'fitness-hero.webp', title: 'Fitness Hub', meta: 'Workouts · Walks · Supplements', blurb: 'Personalised home & gym plans, a live guided timer, and everything tracked.' },
-  { to: '/financial', img: 'financial-district.webp', title: 'Financial District', meta: 'Budget · Wallet · Payments', blurb: 'All your city spending in one simple dashboard — understand, plan, decide.' },
+  { to: '/astrology', img: 'astrology-hub.webp', title: 'Astrology Hub' },
+  { to: '/nutrition', img: 'nutrition-and-groceies.webp', title: 'Nutrition & Groceries' },
+  { to: '/social', img: 'social-life.webp', title: 'Social Life' },
+  { to: '/dating', img: 'dating-hub.webp', title: 'Dating Hub' },
+  { to: '/entertainment', img: 'entertainment.webp', title: 'Entertainment' },
+  { to: '/realestate', img: 'real-estate.webp', title: 'Real Estate' },
+  { to: '/jobs', img: 'jobs-hub.webp', title: 'Jobs Hub' },
+  { to: '/medical', img: 'medical-hub.webp', title: 'Medical Hub' },
+  { to: '/beauty', img: 'beautymarket.webp', title: 'Beauty Market' },
+  { to: '/fitness', img: 'fitness-hero.webp', title: 'Fitness Hub' },
+  { to: '/financial', img: 'financial-district.webp', title: 'Financial District' },
 ];
 
 /* Twelve tiles, six across and two down. This used to be `slice(0, 12)`,
@@ -217,10 +217,9 @@ export function Home() {
       <div className="wrap" style={{ maxWidth: 1240, margin: '0 auto', padding: '88px 32px 24px' }}>
         {/* ============ WELCOME ============ */}
         <div className="center rise" style={{ textAlign: 'center' }}>
-          <div className="eyebrow" style={{ fontSize: 'clamp(14px, 1.5vw, 18px)', letterSpacing: '0.22em' }}>Welcome to Together City</div>
           <h1 style={{ maxWidth: '22ch', margin: '0 auto', fontSize: 'clamp(34px, 5.2vw, 64px)', lineHeight: 1.1 }}>A personalized engine for every aspect of your life.</h1>
           <p className="lede" style={{ margin: '22px auto 0', fontSize: 'clamp(18px, 1.9vw, 23px)', lineHeight: 1.6, maxWidth: '58ch' }}>
-            Set your preferences once, and every service in Together City is personalized just for you. No more random browsing.
+            Set your preferences once. Every hub personalizes to you.
           </p>
           <div style={{ marginTop: 30, display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
             {authed ? (
@@ -244,11 +243,11 @@ export function Home() {
                  way: the smaller the screen, the more it costs to go and find
                  the page yourself. */
               <Link className="btn btn-gold" to="/chats?c=__mira__">
-                Talk to Mira — your personal assistant
+                Talk to Mira
               </Link>
             ) : (
               <>
-                <Link className="btn btn-gold" to="/sign-up">Talk to Mira — your personal assistant</Link>
+                <Link className="btn btn-gold" to="/sign-up">Talk to Mira</Link>
                 <Link className="btn" to="/sign-in">Sign in</Link>
               </>
             )}

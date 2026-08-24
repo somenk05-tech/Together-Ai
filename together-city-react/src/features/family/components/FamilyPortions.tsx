@@ -72,11 +72,6 @@ export function FamilyPortions({ dayIndex, bare }: { dayIndex: number; bare?: bo
         </div>
       ))}
 
-      {!soloOnly && (
-        <p className="muted" style={{ fontSize: 11, marginTop: 6, lineHeight: 1.5 }}>
-          One dish, cooked once: portions scale to each person's target, the protein swaps for veg members on the same gravy, and medical needs (low sodium, lighter protein) are noted per person.
-        </p>
-      )}
     </div>
   );
 }

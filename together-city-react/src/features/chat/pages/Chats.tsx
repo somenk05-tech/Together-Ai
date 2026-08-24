@@ -512,7 +512,7 @@ export function Chats() {
   }, [activeId, qc]);
 
   if (conversations.isLoading) return <Spinner label="Loading your chats…" />;
-  if (conversations.isError) return <EmptyState title="Couldn't load chats" hint="Every conversation is still there — this didn’t reach us. Try again in a moment." />;
+  if (conversations.isError) return <EmptyState title="Couldn't load chats" hint="Your chats are safe — try again in a moment." />;
 
   const list = conversations.data ?? [];
   const onOpened = (id: string) => { setActiveId(id); void conversations.refetch(); };
@@ -578,7 +578,7 @@ export function Chats() {
           <MiraRow active={activeId === MIRA_ID} onSelect={() => setActiveId(MIRA_ID)} />
           {list.length === 0
             ? <p style={{ fontSize: 13, padding: '4px 18px 18px', color: 'var(--on-stage-faint)', lineHeight: 1.55 }}>
-                No conversations yet. Start one above, or open a member’s profile and tap Message.
+                No conversations yet — start one above.
               </p>
             : <ConversationList items={list} activeId={activeId} onSelect={setActiveId}
                 onRemove={onRemove} removingId={clear.isPending ? clear.variables : undefined}
@@ -864,7 +864,7 @@ export function Chats() {
                 <div style={{ fontSize: 34 }}>💬</div>
                 <p style={{ fontSize: 14, fontWeight: 700, margin: '10px 0 4px' }}>No conversation open</p>
                 <p style={{ fontSize: 13, color: 'var(--on-stage-faint)', margin: 0, lineHeight: 1.55, maxWidth: '34ch' }}>
-                  Pick one on the left, start a chat, or message somebody from their profile.
+                  Pick a conversation, or start one.
                 </p>
               </div>
             </div>

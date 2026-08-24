@@ -136,7 +136,7 @@ export function InstallCity() {
         <>
           <button type="button" className={`instl-cta${tookIt && pct === null ? ' is-quiet' : ''}`}
             onClick={() => { void download(); }} disabled={pct !== null && !done && !failed}>
-            {pct === null || failed ? (tookIt ? 'Download again' : 'Download App for Android')
+            {pct === null || failed ? (tookIt ? 'Download again' : 'Download for Android')
               : done ? 'Downloaded — open it to install'
               : `Downloading Together City… ${pct}%`}
           </button>
@@ -159,7 +159,7 @@ export function InstallCity() {
           {!done && !failed && pct === null && (
             <p className="instl-note">
               {tookIt
-                ? 'You downloaded this before — take it again only if you need the latest version.'
+                ? 'Already downloaded — tap for the latest version.'
                 : 'Installs straight from us — no store account, no waiting.'}
             </p>
           )}

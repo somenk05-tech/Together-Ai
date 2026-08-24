@@ -152,7 +152,7 @@ export function Makeup() {
         image="/assets/img/makeup-studio-hero.webp"
         eyebrow="Beauty Market · 04"
         title="Makeup Studio"
-        sub="Your personal AI makeup artist — looks built from your face analysis, skin, colouring and the occasion. Blood biomarkers play no part here."
+        sub="Looks built from your face analysis, colouring and the occasion."
         objectPosition="center top"
       />
 
@@ -251,7 +251,7 @@ export function Makeup() {
     <div className="mk-split">
         <div>
           <div style={{ fontSize: 12.5, color: 'var(--ink-soft)', background: 'var(--accent-soft)', borderRadius: 'var(--r-1)', padding: '10px 14px', marginBottom: 16 }}>
-            ◈ Products below are matched to your <b>{(look.data?.finish ?? 'natural').toLowerCase()} finish</b> {occasion} look — shades from your {look.data?.season ?? 'colour'} palette above. Each pick has a lower-cost and premium option.
+            ◈ Products below are matched to your <b>{(look.data?.finish ?? 'natural').toLowerCase()} finish</b> {occasion} look — shades from your {look.data?.season ?? 'colour'} palette above.
           </div>
 
           {SECTION_TITLES.map(([sec, title]) => {
@@ -281,7 +281,7 @@ export function Makeup() {
                         <div style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 20, color: 'var(--ink)' }}>₹{inr(eff.price)}</div>
                       </div>
                       <div style={{ fontSize: 12.5, color: 'var(--ink)', background: 'var(--accent-soft)', borderRadius: '0 8px 8px 0', borderLeft: '3px solid var(--accent)', padding: '8px 12px', margin: '8px 0' }}>
-                        <b>Why we recommended this:</b> {it.why}
+                        <b>Why this:</b> {it.why}
                       </div>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
                         <button type="button" className="btn btn-line btn-sm" onClick={() => setOpenCmp((o) => ({ ...o, [it.slot]: !o[it.slot] }))}>Compare price options</button>
@@ -358,9 +358,8 @@ export function Makeup() {
               </div>
               {over && <div className="btn btn-line" style={{ width: '100%', justifyContent: 'center', marginTop: 10, opacity: .55, pointerEvents: 'none' }}>Over budget</div>}
               <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.6, marginTop: 14 }}>
-                Your look above is yours — read from your own face analysis. This kit is a shopping list rather than a basket:
-                Together City doesn't sell makeup yet, so the brands, shades and prices are here for you to take to wherever
-                you already shop. We'll tell you the day that changes.
+                Together City doesn't sell makeup yet — this kit is a shopping list to take
+                wherever you already shop. We'll tell you the day that changes.
               </p>
               <p style={{ fontSize: 11.5, lineHeight: 1.6, marginTop: 8 }}>
                 Skincare you <em>can</em> order today: <Link to="/beauty/market" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>the Beauty Market</Link> —

@@ -75,7 +75,7 @@ export function HubConsentGate({ hub, children }: { hub?: string; children: Reac
         </p>
 
         <div style={{ display: 'flex', gap: 10 }}>
-          <Button variant="accent" style={{ flex: 1, justifyContent: 'center' }} onClick={accept}>Got it — continue</Button>
+          <Button variant="accent" style={{ flex: 1, justifyContent: 'center' }} onClick={accept}>Continue</Button>
           <Button variant="ghost" style={{ justifyContent: 'center' }} onClick={() => nav(-1)}>Not now</Button>
         </div>
       </div>

@@ -232,17 +232,6 @@ export function SocialFeed() {
 
       {items.length > 0 && (
         <>
-          <div className="sl-band">
-            <span className="sl-ic"><Icon name="grid" size={19} /></span>
-            <span className="sl-band-t">
-              <b>Today in Together City</b>
-              <span>Real moments. Real people. Right now.</span>
-            </span>
-            <span className="muted" style={{ fontSize: 12.5, fontWeight: 600 }}>
-              {items.length} {items.length === 1 ? 'moment' : 'moments'}
-            </span>
-          </div>
-
           {phone ? (
             /* ONE POST AT A TIME, WHOLE. On a phone column the poster tile and
                the post are the same width, so the tile is no longer a

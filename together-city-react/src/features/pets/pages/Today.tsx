@@ -36,7 +36,7 @@ export function Today() {
     return <Empty glyph="🐾" title="No pet selected" line="Add a pet or pick one to see today’s plan." action={<button type="button" className="btn" onClick={() => nav('/pets/profiles?new=1')}>Add a pet</button>} />;
   }
   if (!plan) {
-    return <Empty glyph="🥣" title={`No plan for ${pet.name} yet`} line="Seven short questions and the week is built." action={<button type="button" className="btn" onClick={() => nav('/pets/plan')}>Create the diet plan</button>} />;
+    return <Empty glyph="🥣" title={`No plan for ${pet.name} yet`} line="The plan builds itself from the profile." action={<button type="button" className="btn" onClick={() => nav('/pets/plan')}>Create the diet plan</button>} />;
   }
 
   const day = plan.days[0];
@@ -86,8 +86,7 @@ export function Today() {
         <Panel title="Treat allowance" glyph="🦴">
           <strong style={{ fontSize: 24, fontWeight: 700 }}>{plan.treatKcal} kcal</strong>
           <p className="muted" style={{ margin: 0, fontSize: 12.5, lineHeight: 1.6 }}>
-            Ten per cent of the day, which is where UC Davis and WSAVA both put the ceiling. Treats come out of the
-            meal budget, not on top of it — the meals above already account for this.
+            10% of the day — the UC Davis and WSAVA ceiling, already counted in the meals above.
           </p>
         </Panel>
 

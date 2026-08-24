@@ -206,9 +206,8 @@ function Detail({ p, personalised, qty, busy, onSet, onClose }: {
 
           {refused ? (
             <p style={{ fontSize: 13, lineHeight: 1.6, margin: '12px 0 0' }}>
-              It is on sale here because hiding it would not stop the purchase — it would only mean you
-              made it somewhere that never showed you the trials. The checkout will ask you to read that
-              once before it takes any money.
+              On sale here so the trials stay in front of you — the checkout asks you to read
+              them once before taking any money.
             </p>
           ) : null}
         </div>
@@ -283,8 +282,7 @@ export function Store() {
         <section className="card rise" style={{ padding: '18px 20px' }}>
           <b style={{ display: 'block', fontSize: 16 }}>The shelf didn’t load</b>
           <p className="muted" style={{ margin: '6px 0 12px' }}>
-            Nothing was lost and nothing was charged. An empty shop here would read as “there is nothing
-            worth taking”, which is a claim we haven’t checked.
+            Nothing was lost and nothing was charged.
           </p>
           <button type="button" className="btn btn-sm" onClick={() => void q.refetch()}>Try again</button>
         </section>
@@ -361,8 +359,7 @@ export function Store() {
             <section className="card rise" style={{ padding: '18px 20px', marginBottom: 24 }}>
               <b style={{ display: 'block', fontSize: 15 }}>Nothing on this shelf matches that</b>
               <p className="muted" style={{ margin: '6px 0 0', fontSize: 13.5 }}>
-                Three of the nineteen supplements in the review — folate, L-theanine and standalone K2 —
-                have no verified Indian product at all, so they are in the plan and not in the shop.
+                Try another spelling, a brand, or clear the filters.
               </p>
             </section>
           ) : null}

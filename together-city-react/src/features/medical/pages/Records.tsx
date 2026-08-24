@@ -134,8 +134,7 @@ export function Records() {
         <div className="eyebrow">Medical</div>
         <h1 style={{ fontSize: 26, margin: '2px 0 0' }}>We couldn’t open your records</h1>
         <p className="muted" style={{ fontSize: 14, lineHeight: 1.65, margin: '10px 0 0', maxWidth: '56ch' }}>
-          Your vault is untouched — nothing has been deleted or changed. We simply couldn’t
-          read it just now, and we would rather say that than show you an empty shelf.
+          Your vault is untouched — we just couldn’t read it. Try again.
         </p>
         <div style={{ marginTop: 18 }}>
           <Button onClick={() => void records.refetch()}>Try again</Button>
@@ -219,8 +218,7 @@ export function Records() {
       <div className="eyebrow">Medical Hub · Records</div>
       <h1 style={{ fontSize: 26 }}>Your health record</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 0' }}>
-        One secure place for conditions, prescriptions, reports, allergies and vaccinations —
-        your <strong>source of truth</strong>, shared with other hubs only with your consent.
+        One secure place for every record — shared only with your consent.
       </p>
 
       {/* Blood group. Asked once on the Master Profile and read here — the only
@@ -343,8 +341,7 @@ export function Records() {
         ) : latest.isError ? (
           // Its own query, so the early return above does not cover it.
           <p className="muted" style={{ fontSize: 13, margin: '6px 0 0' }}>
-            We couldn’t load your latest panel just now — which is not the same as there not
-            being one. Nothing has been lost; it’s worth another try in a moment.
+            We couldn’t load your latest panel — nothing has been lost. Try again in a moment.
           </p>
         ) : (
           <p className="muted" style={{ fontSize: 13, margin: '6px 0 0' }}>

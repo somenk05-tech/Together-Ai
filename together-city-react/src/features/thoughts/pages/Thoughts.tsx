@@ -286,7 +286,7 @@ export function Thoughts() {
             Thoughts
             <span className="sl-ic sm flat amber" aria-hidden><Icon name="shield" size={17} /></span>
           </h1>
-          <p>A private journal. Only you can read these — they never reach the social feed, and no one is notified.</p>
+          <p>A private journal — only you can read it.</p>
         </div>
       </div>
 
@@ -363,7 +363,7 @@ export function Thoughts() {
         // that is the question actually in somebody's head.
         <EmptyState
           title="We couldn’t open your journal"
-          hint="Nothing has been lost — every entry is still there, we just couldn’t read them just now. Try again in a moment."
+          hint="Nothing has been lost — try again in a moment."
         />
       ) : items.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '44px 24px' }}>
@@ -372,7 +372,7 @@ export function Thoughts() {
             {q ? 'Nothing matches that' : 'Your journal is empty'}
           </div>
           <p className="muted" style={{ fontSize: 14, margin: '7px 0 0' }}>
-            {q ? 'Try a different word.' : 'Write the first thing above — it stays private to you.'}
+            {q ? 'Try a different word.' : 'Write the first thing above.'}
           </p>
         </div>
       ) : (

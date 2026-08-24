@@ -355,7 +355,7 @@ export function DatingChats() {
       <div className="eyebrow">Dating Hub · Chats</div>
       <h1 style={{ fontSize: 26 }}>Your dating chats</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px' }}>
-        Intentional dating — a few conversations, not endless ones. Everyone appears as themselves, with the same name and photos as their profile. These chats live only here, never in your main Chats.
+        A few conversations, not endless ones. These chats live only here — never in your main Chats.
       </p>
 
       {active ? (

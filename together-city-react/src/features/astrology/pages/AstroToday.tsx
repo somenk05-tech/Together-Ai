@@ -75,9 +75,8 @@ export function AstroToday() {
 
       {isToday && d && !d.needsProfile && d.pending && (
         <LetterNote action={<button type="button" className="letter-link" onClick={() => void daily.refetch()}>Check again</button>}>
-          Today&rsquo;s letter isn&rsquo;t ready yet. It is written fresh each morning rather than
-          assembled from parts, and that hasn&rsquo;t finished &mdash; so rather than hand you
-          something that only looks like it, we would rather you came back in a little while.
+          Today&rsquo;s letter isn&rsquo;t ready yet. It&rsquo;s written fresh each morning and
+          hasn&rsquo;t finished &mdash; check back in a little while.
         </LetterNote>
       )}
 

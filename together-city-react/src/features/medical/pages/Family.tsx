@@ -130,7 +130,7 @@ export function Family() {
       <div className="eyebrow">Medical Hub · Family Profiles</div>
       <h1 style={{ fontSize: 26 }}>Family Health Command Centre</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px' }}>
-        A high-level view of every household member's health. Detailed records stay private in each person's own Medical Hub — this page only shows summaries they've chosen to share.
+        Records stay private in each person's own Medical Hub — this page shows only what they've chosen to share.
       </p>
 
       {/* Family summary */}
@@ -161,7 +161,7 @@ export function Family() {
       </div>
 
       <p className="muted" style={{ fontSize: 11.5, marginTop: 18, lineHeight: 1.5 }}>
-        ◈ Household members are managed in <Link to="/family/connect" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Family Nutrition → Connect</Link>, where each person also controls what they share. The Family Dashboard reads summaries from each individual's Medical Hub but never stores the underlying records.
+        ◈ Household members are managed in <Link to="/family/connect" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Family Nutrition → Connect</Link>.
       </p>
     </div>
   );

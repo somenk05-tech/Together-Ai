@@ -68,9 +68,8 @@ export function UnderConstruction() {
           { label: 'List a property', to: '/realestate/sell' },
           { label: 'My listings', to: '/realestate/mine' },
         ]}>
-        Pre-launch and in-progress projects, each with its RERA registration, a
-        live build-progress tracker, floor plans, and the payment and
-        construction milestones you are agreeing to.
+        Pre-launch and in-progress projects — RERA registration, build progress,
+        floor plans, milestones.
       </Masthead>
 
       <div style={{ marginTop: 28 }}>

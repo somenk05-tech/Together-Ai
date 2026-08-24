@@ -296,7 +296,7 @@ export function DatingMatches() {
               <EmptyState
                 icon="🌙"
                 title="Nobody has matched you back yet"
-                hint="A match is two people choosing each other, so this page fills up from the other room. Everyone in your city is in Potential Matches, with your compatibility on every card."
+                hint="This page fills up when someone likes you back. Everyone in your city is in Potential Matches — start there."
               />
               <div style={{ textAlign: 'center', marginTop: 14 }}>
                 <Link to="/dating/browse"><Button variant="accent">Browse Potential Matches</Button></Link>
@@ -335,21 +335,12 @@ export function DatingMatches() {
 
           {matched.length > 0 && !atCapacity && (
             <p className="dt-onward">
-              Looking for more? <Link to="/dating/browse">Potential Matches</Link> has
-              everyone in your city, with your compatibility on every card.
+              Looking for more? Browse <Link to="/dating/browse">Potential Matches</Link>.
             </p>
           )}
         </div>
 
         <aside className="dt-rail">
-          <section className="dt-panel">
-            <h2 className="dt-panel-h">Intentional dating</h2>
-            <p>
-              Up to {chatCap} conversations at once. If one isn’t going anywhere, unmatch and
-              move forward.
-            </p>
-          </section>
-
           <section className="dt-panel">
             <h2 className="dt-panel-h">Your activity</h2>
             <dl className="dt-stats">

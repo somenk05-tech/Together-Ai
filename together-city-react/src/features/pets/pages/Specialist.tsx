@@ -70,7 +70,7 @@ export function Specialist() {
     <div style={{ display: 'grid', gap: 24 }}>
       <SectionTitle
         title="Pet specialist"
-        line="Shop by what your pet needs rather than by what a shelf is called. Every need here carries the line where shopping stops and veterinary care starts."
+        line="Shop by need, not by shelf name. Every need shows where shopping stops and the vet starts."
       />
 
       <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
@@ -105,7 +105,7 @@ export function Specialist() {
       </header>
 
       {matches.length === 0 ? (
-        <Empty glyph="🔎" title="Nothing verified for this need yet" line="The catalogue is 184 real products deep and this need is not covered by any of them for this species. Rather than showing you something adjacent, we are saying so." action={<button type="button" className="btn btn-line" onClick={() => nav('/pets/shop')}>Browse everything</button>} />
+        <Empty glyph="🔎" title="Nothing verified for this need yet" line="None of our 184 products covers this need for this species yet." action={<button type="button" className="btn btn-line" onClick={() => nav('/pets/shop')}>Browse everything</button>} />
       ) : (
         <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fill, minmax(216px, 1fr))' }}>
           {matches.map((p) => (

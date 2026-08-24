@@ -166,7 +166,7 @@ export function Drive() {
             <div style={{ textAlign: 'center', padding: '48px 24px' }}>
               <div style={{ fontSize: 38, marginBottom: 8 }}>🗂</div>
               <p style={{ fontSize: 15, margin: '0 0 4px' }}>This folder is empty</p>
-              <p className="muted" style={{ fontSize: 13, margin: 0 }}>Upload a file or create a folder to get started.</p>
+              <p className="muted" style={{ fontSize: 13, margin: 0 }}>Upload a file or create a folder.</p>
             </div>
           )}
 

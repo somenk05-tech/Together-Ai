@@ -139,7 +139,7 @@ export function Connections() {
   };
 
   if (all.isLoading) return <Spinner label="Loading your connections…" />;
-  if (all.isError) return <EmptyState title="Couldn't load connections" hint="Your connections are unchanged — nobody has been added or removed. We couldn’t read them just now." />;
+  if (all.isError) return <EmptyState title="Couldn't load connections" hint="Couldn’t load them just now — your connections are unchanged." />;
 
   const incoming = (all.data ?? []).filter((c) => c.status === 'pending' && c.incoming);
   const outgoing = (all.data ?? []).filter((c) => c.status === 'pending' && !c.incoming);

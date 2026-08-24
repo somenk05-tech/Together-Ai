@@ -129,8 +129,8 @@ export function MenuEditor({ listingId }: { listingId: string }) {
       {open && !draft && (
         <div style={{ marginTop: 10 }}>
           <p className="muted" style={{ fontSize: 12.5, margin: '0 0 8px' }}>
-            Photograph your menu and it will be typed out for you. You check every line before
-            anything is published — nothing is saved until you say so.
+            Photograph your menu and it&rsquo;s typed out for you. Nothing publishes until you
+            approve every line.
           </p>
           <input type="file" accept="image/*" disabled={busy}
             aria-label="Photograph of your menu"

@@ -3,12 +3,12 @@ import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 type Slug = 'privacy' | 'terms' | 'about' | 'help' | 'contact';
 
-interface Doc { title: string; lede: string; sections: { h: string; p: string[] }[] }
+interface Doc { title: string; lede?: string; sections: { h: string; p: string[] }[] }
 
 const DOCS: Record<Slug, Doc> = {
   privacy: {
     title: 'Privacy Policy',
-    lede: 'Plain-language summary of what Together City collects, why, and the control you keep. This is a product summary, not a substitute for legal counsel.',
+    lede: 'What we collect, why, and the control you keep — in plain language.',
     sections: [
       { h: 'What we collect', p: [
         'Account basics you give us (handle, name, email, optional phone) and the content you create — posts, messages, plans, saved items.',
@@ -77,7 +77,6 @@ const DOCS: Record<Slug, Doc> = {
   },
   contact: {
     title: 'Contact',
-    lede: 'We\'d love to hear from you.',
     sections: [
       { h: 'Get in touch', p: [
         'Email: connect@togethercity.app',
@@ -94,7 +93,7 @@ export function Info({ slug }: { slug: Slug }) {
       <Breadcrumbs />
       <div className="eyebrow" style={{ marginTop: 10 }}>Together City</div>
       <h1 style={{ fontSize: 30, marginBottom: 8 }}>{doc.title}</h1>
-      <p className="muted" style={{ fontSize: 15, lineHeight: 1.7, marginBottom: 26 }}>{doc.lede}</p>
+      {doc.lede && <p className="muted" style={{ fontSize: 15, lineHeight: 1.7, marginBottom: 26 }}>{doc.lede}</p>}
       {doc.sections.map((s) => (
         <section key={s.h} style={{ marginBottom: 22 }}>
           <h2 style={{ fontSize: 17, marginBottom: 8 }}>{s.h}</h2>

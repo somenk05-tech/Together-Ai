@@ -42,7 +42,7 @@ export function CityCart() {
       <PageHeader
         eyebrow="E-Commerce"
         title="Your Cart"
-        sub="Everything you have added, from every shop in the city. Each shop keeps its own bag — this is all of them in one place, with one total."
+        sub="Every shop's bag, one total."
       />
 
       {cart.outcomes.length > 0 && (
@@ -134,8 +134,8 @@ export function CityCart() {
               partial failure comprehensible when it happens. */}
           <p className="st-blocked">
             One payment from your city wallet, and one order per shop —
-            {' '}{cart.sections.map((s) => s.title).join(', ')}. Each shop confirms separately,
-            so you will see a line for each. Nothing is charged until you press Pay.
+            {' '}{cart.sections.map((s) => s.title).join(', ')}. Each shop confirms separately.
+            Nothing is charged until you press Pay.
           </p>
         </>
       )}

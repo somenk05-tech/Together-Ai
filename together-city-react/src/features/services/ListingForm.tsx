@@ -279,7 +279,7 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
   };
 
   if (cats.isLoading) return <Spinner label="Loading categories…" />;
-  if (cats.isError) return <EmptyState title="Couldn't load the categories" hint="A business has to pick one, so the form waits for them. Try again in a moment." />;
+  if (cats.isError) return <EmptyState title="Couldn't load the categories" hint="Try again in a moment." />;
 
   return (
       <Card style={{ display: 'grid', gap: 16 }}>
@@ -327,8 +327,7 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
           )}
           {!slug.trim() && (
             <p className="muted" style={{ fontSize: 11.5, margin: '6px 0 0' }}>
-              Leave it blank and we will make one from your business name. You can change it later
-              — but anyone who has your old address will stop finding you, so change it early.
+              Blank? We make one from your name. Changing it later breaks old links.
             </p>
           )}
         </div>
@@ -646,8 +645,7 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
                 label={<>
                   Show this number on my page so people can ring me
                   <span className="muted" style={{ display: 'block', fontSize: 11.5 }}>
-                    Leave it off and people reach you only through the message room, where they
-                    stay anonymous and so does your number.
+                    Off, people reach you only through messages — your number stays private.
                   </span>
                 </>} />
             </div>

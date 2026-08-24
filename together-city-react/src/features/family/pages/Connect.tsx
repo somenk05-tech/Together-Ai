@@ -179,9 +179,6 @@ function FamilyMealPlanningCard() {
           </span>
         )}
       </div>
-      <p className="muted" style={{ fontSize: 11, marginTop: 10 }}>
-        This is a family-level setting — it applies to everyone in the household.
-      </p>
     </div>
   );
 }
@@ -448,9 +445,6 @@ export function FamilyConnect() {
           </div>
         )}
 
-        <p className="muted" style={{ fontSize: 12, marginTop: 18, lineHeight: 1.5 }}>
-          Each member keeps their own private medical profile, blood tests, preferences and targets — nothing is merged or overwritten. The Family Profile aggregates everyone into one intelligent household plan, cooking shared meals portioned per person.
-        </p>
       </div>
 
       {inviting && (

@@ -49,16 +49,6 @@ export function Curated() {
             <p className="muted" style={{ fontSize: 11, marginTop: 18 }}>Movie data & images: TMDB · This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
           </div>
 
-          <div>
-            <div className="card" style={{ marginBottom: 16 }}>
-              <h4>Why Curated?</h4>
-              <p className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>These shelves are built from real audience ratings — the all-time greats, under-the-radar gems with small but devoted audiences, and the best of Indian-language cinema.</p>
-            </div>
-            <div className="card">
-              <h4>Tap any film</h4>
-              <p className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>Trailer, cast with bios, where to stream or rent it in India, and more films like it.</p>
-            </div>
-          </div>
         </div>
       )}
 

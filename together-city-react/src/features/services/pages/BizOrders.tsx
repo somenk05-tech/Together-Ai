@@ -41,7 +41,7 @@ export function BizOrders() {
       <h1 className="svo-pagehead">Orders</h1>
       <p className="muted svo-pageblurb">
         Every order here is already paid. Accept it and say how long; reject it with a reason and
-        the money goes straight back to them. This page keeps itself current while it is open.
+        the money goes straight back to them.
       </p>
 
       {open.length === 0 && done.length === 0 && (

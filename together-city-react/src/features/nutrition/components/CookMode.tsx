@@ -176,7 +176,6 @@ function Overlay() {
           <div style={{ textAlign: 'center', marginBottom: 14 }}>
             <div style={{ fontSize: 12, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--accent-ink)', fontWeight: 700 }}>Timer stopped</div>
             <h2 style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(20px,4vw,30px)', margin: '6px 0' }}>Which step have you finished?</h2>
-            <p style={{ fontSize: 13.5, color: 'rgba(255,255,255,.75)' }}>Tell us where you got to and we'll pick the method back up from the next step — with its timer.</p>
           </div>
           {s.steps.map((st, i) => (
             <button key={i} type="button" onClick={() => s.resumeFrom(i)}

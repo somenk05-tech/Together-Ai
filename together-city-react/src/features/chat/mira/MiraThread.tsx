@@ -21,14 +21,12 @@ import { clearDay, daySeed, firstOpenToday, loadDay, saveDay, turnId, type Store
  * the thing she exists to replace.
  */
 function opening(canDo: string[]): string {
-  const head =
-    'Tell me what you want done in the city and I’ll do it — you don’t need to know which page it lives on. ' +
-    'Talking is enough; no hands needed.';
+  const head = 'Tell me what you want done in the city — I’ll do it.';
   if (!canDo.length) return head;
   const shown = canDo.slice(0, 3).join(', ');
   const rest = canDo.length - 3;
   const tail = rest > 0 ? `${shown}, and ${rest} more like them` : shown;
-  return `${head} Right now that means ${tail} — and taking you anywhere you ask for. Booking and paying come next; I’ll say so rather than pretend.`;
+  return `${head} Right now that means ${tail}. Booking and paying come next.`;
 }
 
 const mmss = (s: number): string => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -76,7 +74,7 @@ const clearedAt = (): number => {
    she can say in her first breath.
 */
 const WELCOME = `Hey. I’m Mira. 👋 Your buddy in Together City.
-Talk to me however you like — you don’t have to figure out which version of me you need.`;
+No need to figure out which version of me you need — just talk.`;
 
 /** A record written before turns carried ids is still a record, and one bubble
  *  with no key is a whole list keyed by position again. Named here rather than
@@ -137,14 +135,14 @@ function merge(mine: StoredTurn[], theirs: StoredTurn[]): StoredTurn[] {
  */
 function whyFailed(err: unknown): string {
   if (err instanceof ZodError) {
-    return 'I heard the city, but we are not speaking the same language yet — the app and the server are on different versions. Give the update a minute to land.';
+    return 'We’re not speaking the same language — the app is mid-update. Give it a minute.';
   }
   const e = err as { code?: string; message?: string; response?: { status?: number } };
   if (e?.code === 'ERR_CANCELED') return 'Stopped.';
   const status = e?.response?.status;
   if (status === 401 || status === 403) return 'Your session has expired. Sign in again and I’ll pick this up.';
   if (status === 429) return 'Too many messages too fast. Give it a moment.';
-  if (status && status >= 500) return 'The city answered with an error. It is not you, and it is not the connection.';
+  if (status && status >= 500) return 'The city answered with an error — not you, not your connection.';
   // No status at all: the request never reached anything that could answer —
   // a dead connection, a timeout, or a browser refusing the origin.
   if (e?.code === 'ECONNABORTED') return 'That took too long and I stopped waiting. Try again?';
@@ -597,7 +595,7 @@ export function MiraThread({ dial, about, onBack }: {
           Both are stated now, in the order somebody presses them. */}
       {turns.length > 0 && (
         <p className="miranote">
-          Today’s conversation is kept with your account and shows on every device. Clearing takes it off this device only — she still has it.{' '}
+          Saved to your account, on every device. Clearing only clears this screen.{' '}
           <button type="button" className="miraforget" onClick={() => {
             try { window.localStorage.setItem(CLEARED_KEY, String(Date.now())); } catch { /* view-only marker */ }
             clearDay(); setTurns([]); pending.current = undefined; setFailure(null);

@@ -83,8 +83,7 @@ export function MiraDay({ date, onClose }: { date: string; onClose: () => void }
         <div className="miraturns">
           {turns.length === 0 && (
             <p className="miraopentext" style={{ margin: 0 }}>
-              I can read this one day with you — what you put down, how you said it felt, what you wrote.
-              Just this day, nothing around it.
+              I can read this day with you — just this one, nothing around it.
             </p>
           )}
           {turns.map((t, i) => (

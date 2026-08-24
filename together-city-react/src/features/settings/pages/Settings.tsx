@@ -127,7 +127,6 @@ export function Settings() {
     <div className="page">
       <div className="eyebrow">Together City</div>
       <h1 style={{ marginBottom: 4 }}>Settings</h1>
-      <p className="lede" style={{ marginTop: 0 }}>One neutral chassis for everything that governs how the city behaves for you.</p>
 
       {/* Privacy */}
       <Card style={{ marginTop: 22 }}>
@@ -149,9 +148,7 @@ export function Settings() {
       <Card style={{ marginTop: 18 }}>
         <SectionTitle eyebrow="Appearance" title="The colour of your two rooms" />
         <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 4px' }}>
-          White and black is the city, and it stays the default. Mail and Chat are the two rooms whose
-          contents are entirely yours, so they are the two you can repaint. This is remembered on this
-          device — your phone and your laptop can wear different colours.
+          Repaint Mail and Chat. Remembered per device — your phone and laptop can differ.
         </p>
         <SkinPicker hub="mail" label="Mail" hint="Your inbox, drafts, sent and trash." />
         <SkinPicker hub="chat" label="Chat" hint="Every conversation, and Mira." />

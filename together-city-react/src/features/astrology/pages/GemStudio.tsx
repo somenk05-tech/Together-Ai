@@ -275,8 +275,7 @@ export function GemStudio() {
 
           <h2 className="gem-step">04 · Your size</h2>
           <p className="muted gem-step-note">
-            Indian sizes. Measure at the end of the day, when fingers are largest — and if your
-            knuckle is wider than the base, size for the knuckle and take the nearer size up.
+            Indian sizes. Measure at the end of the day; if your knuckle is wider, size for the knuckle.
           </p>
           {sizeMin === null || sizeMax === null ? (
             <p className="muted gem-step-note">

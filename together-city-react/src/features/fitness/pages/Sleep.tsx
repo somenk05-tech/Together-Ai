@@ -113,7 +113,7 @@ export function Sleep() {
         <div className="inner" style={{ position: 'relative', zIndex: 2 }}>
           <div className="eyebrow" style={{ color: '#c6b7ff' }}>Fitness · 04</div>
           <h1 style={{ fontSize: 'clamp(26px,3vw,40px)', color: '#fff' }}>Sleep Cycle</h1>
-          <p className="sub" style={{ marginTop: 6, color: 'rgba(255,255,255,.82)' }}>Track how long and how well you sleep, keep a steady bedtime, and see how rest feeds your Health Score, recovery and nutrition.</p>
+          <p className="sub" style={{ marginTop: 6, color: 'rgba(255,255,255,.82)' }}>How long and how well you sleep — and what a steady bedtime buys you.</p>
         </div>
       </div>
 
@@ -138,8 +138,7 @@ export function Sleep() {
             </div>
             {!latest && (
               <p className="muted" style={{ fontSize: 12.5, marginTop: 10, lineHeight: 1.6 }}>
-                Nothing logged yet. Add last night below and this fills in — we would rather start
-                empty than show you a week you did not sleep.
+                Nothing logged yet — add last night below.
               </p>
             )}
           </div>
@@ -209,11 +208,9 @@ export function Sleep() {
         <div className="blk-head"><h2>Health app &amp; smartwatch</h2></div>
         <div className="card">
           <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.65, margin: 0 }}>
-            Together City cannot read your watch or your health app yet. There is no Apple Health,
-            Google Fit, Fitbit or Samsung Health connection behind this page — so rather than offer
-            you buttons that would only look like they worked, we are telling you it is manual for
-            now. Your nights above are kept on this device; they will not follow you to another
-            phone until there is somewhere to save them.
+            Together City can't read your watch or health app yet — no Apple Health, Google Fit,
+            Fitbit or Samsung Health. Logging is manual for now, and your nights are kept on this
+            device only.
           </p>
         </div>
       </section>
@@ -232,8 +229,6 @@ export function Sleep() {
           </div>
         </div>
       </section>
-
-      <div className="note">◈ Rest is part of training. Your Health Profile reads your sleep to tune recovery days, calorie needs and workout intensity.</div>
     </div>
   );
 }

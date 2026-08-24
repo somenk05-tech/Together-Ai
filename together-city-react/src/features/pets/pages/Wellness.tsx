@@ -119,8 +119,7 @@ export function Wellness() {
           <div style={{ display: 'grid', gap: 3 }}>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Medical information</h3>
             <p className="muted" style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55, maxWidth: 560 }}>
-              What a vet would ask for, kept where you can read it out. Together City stores this and does not
-              interpret it — nothing here changes a recommendation, and no product on this site treats a condition.
+              What a vet would ask for, kept where you can read it out. Stored, never interpreted.
             </p>
           </div>
           <button

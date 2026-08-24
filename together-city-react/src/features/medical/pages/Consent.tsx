@@ -44,8 +44,7 @@ export function Consent() {
       ))}
 
       <p className="muted" style={{ fontSize: 11.5, marginTop: 14 }}>
-        🔒 Consent is enforced server-side: a hub without permission is refused at the data boundary,
-        not just hidden in the interface. You can change this any time.
+        🔒 Enforced server-side — a hub without permission is refused, not just hidden.
       </p>
     </div>
   );

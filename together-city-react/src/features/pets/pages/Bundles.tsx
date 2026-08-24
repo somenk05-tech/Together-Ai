@@ -63,7 +63,7 @@ export function Bundles() {
 
   return (
     <div style={{ display: 'grid', gap: 22 }}>
-      <SectionTitle title="Pet bundles" line="Curated kits, priced from real listings. A kit’s total counts only the items whose price we could verify." />
+      <SectionTitle title="Pet bundles" line="Curated kits, priced from real listings. Totals count verified prices only." />
 
       <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))' }}>
         {bundles.map((b) => {

@@ -59,7 +59,7 @@ export function VerifyEmailBanner() {
       <span aria-hidden style={{ fontSize: 15 }}>✉️</span>
       <span style={{ flex: 1, minWidth: 220 }}>
         Confirm your email{user?.email ? <> (<strong>{user.email}</strong>)</> : ''} so you can get back
-        in if you forget your password. Nothing is locked until you do.
+        in if you forget your password.
       </span>
       <Link
         to="/profile"

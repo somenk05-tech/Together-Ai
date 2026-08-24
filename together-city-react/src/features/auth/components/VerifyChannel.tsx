@@ -8,14 +8,14 @@ const COPY = {
     placeholder: 'you@gmail.com',
     inputType: 'email' as const,
     autoComplete: 'email',
-    hint: 'Use the address you actually read — Gmail, Yahoo, or your work address. Your @togethercity.app inbox does not need verifying.',
+    hint: 'An address you actually read — not your @togethercity.app inbox.',
   },
   phone: {
     noun: 'phone number',
     placeholder: '+91 98765 43210',
     inputType: 'tel' as const,
     autoComplete: 'tel',
-    hint: 'Include the country code. We only use this to secure your account.',
+    hint: 'Include the country code.',
   },
 };
 
@@ -153,8 +153,7 @@ export function VerifyChannel({ channel, current, onVerified, onCancel }: Verify
         // an hour of pressing it is what this message exists to prevent.
         <p role="alert" style={{ ...errorStyle }}>
           {deliveryReason ?? 'The email provider refused the message, so no code is on its way.'}
-          {' '}Nothing is wrong with your address or your account — the send itself is failing,
-          and it needs fixing on our side before a code can reach you.
+          {' '}It's on our side — your address and account are fine. Try again later.
         </p>
       )}
 

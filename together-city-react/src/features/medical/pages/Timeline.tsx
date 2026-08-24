@@ -101,7 +101,7 @@ export function Timeline() {
       </section>
 
       <div className="trust">
-        <span>◈ Your Longitudinal History</span><span>◈ Auto-Plotted from Records</span><span>◈ Private to You</span><span>◈ Shareable, Consent-Scoped</span>
+        <span>◈ Private to You</span><span>◈ Consent-Scoped</span>
       </div>
     </>
   );

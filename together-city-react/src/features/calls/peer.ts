@@ -124,8 +124,7 @@ export class CallPeer {
         // Almost always no TURN relay on a network that needs one. Say that,
         // rather than "connection failed", which tells the citizen nothing.
         this.opts.onFailure(
-          'The call could not connect. This usually means one of you is on a ' +
-            'network that needs a relay server we have not set up yet.',
+          'Couldn’t connect — one of you is on a network that needs a relay server we don’t have yet.',
         );
       }
     };

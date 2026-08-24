@@ -99,9 +99,6 @@ export function FamilyPantry() {
           </>
         )}
 
-        <p className="muted" style={{ fontSize: 12, marginTop: 8, lineHeight: 1.5 }}>
-          The pantry is owned by the household, not any one person. It updates when groceries are ordered and as meals are cooked, so the grocery planner can skip what you already have.
-        </p>
       </div>
     </div>
   );

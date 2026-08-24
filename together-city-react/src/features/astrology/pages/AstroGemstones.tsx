@@ -443,9 +443,8 @@ function BudgetPicker({ data }: { data: GemstonesResponse }) {
     <Card style={{ padding: '26px 28px', marginTop: 26 }}>
       <h2 style={{ fontSize: 17, margin: '0 0 4px' }}>What your budget buys</h2>
       <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.6, margin: '0 0 18px', maxWidth: 580 }}>
-        Move this to whatever you have in mind. We spend it in the order above — the must-have
-        first — and take the recommended stone whenever it fits, or the stand-in for the same
-        planet when it doesn&rsquo;t.
+        Spent in the order above, must-have first — the recommended stone when it fits, its
+        stand-in when it doesn&rsquo;t.
       </p>
 
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
@@ -544,11 +543,9 @@ function BudgetPicker({ data }: { data: GemstonesResponse }) {
         </p>
       )}
       <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.6, margin: '12px 0 0' }}>
-        Stones only, at the bottom of each one&rsquo;s range and the weight you are prescribed.
-        Setting one as a ring or a pendant adds a weight of gold that can cost more than the stone
-        did — that is priced in the studio, where the mount and the size that decide it are chosen,
-        and where these buttons take you. A finer grade of the same stone costs more; the sheets
-        above give both ends.
+        Stones only, at each one&rsquo;s starting grade and your prescribed weight. A ring or
+        pendant adds a weight of gold that can cost more than the stone — that&rsquo;s priced in the studio,
+        where these buttons go.
       </p>
     </Card>
   );

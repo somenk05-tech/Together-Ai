@@ -395,7 +395,7 @@ export function DayPage() {
               const clean = title.trim();
               if (!clean) return;
               if (timeRef.current?.validity.badInput) {
-                setTimeErr('That time is half-written — finish it, or clear it and add this without one.');
+                setTimeErr('Finish or clear the half-written time first.');
                 timeRef.current.focus();
                 return;
               }

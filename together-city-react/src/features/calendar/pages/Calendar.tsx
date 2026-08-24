@@ -95,7 +95,7 @@ export function Calendar() {
           {/* IT SAID "every hub in one view" WHILE SHOWING AN EMPTY GRID. The
               hub bookings were never wired in; this page's own promise is the
               one it can keep today — open a day and it is yours to keep. */}
-          <p className="muted" style={{ fontSize: 13, marginTop: 2 }}>Open any day to keep it: how it felt, what was on it, what you want to remember.</p>
+          <p className="muted" style={{ fontSize: 13, marginTop: 2 }}>Open any day to keep it.</p>
         </div>
       </div>
 

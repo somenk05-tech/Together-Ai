@@ -72,8 +72,8 @@ export function ServiceMessages() {
       <div className="eyebrow">Local Services</div>
       <h1 style={{ fontSize: 26 }}>Messages</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px', maxWidth: '62ch' }}>
-        These conversations live here only — they are not in your Chats. A business sees a
-        customer number, not your name, until you decide to show it.
+        Separate from your Chats. A business sees a customer number, not your name, until
+        you show it.
       </p>
 
       {seeking.length === 0 && receiving.length === 0 && (

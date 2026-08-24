@@ -81,8 +81,7 @@ export function Checkout() {
         <div className="eyebrow">Shopping list</div>
         <h1 style={{ marginBottom: 10 }}>Your list is empty</h1>
         <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.6 }}>
-          Nothing has been added yet. Your grocery list is built from the meals in your plan — open
-          it and add what you need.
+          Your grocery list is built from the meals in your plan — open it and add what you need.
         </p>
         <Link className="btn btn-accent" to="/nutrition/grocery" style={{ marginTop: 18 }}>Open the grocery list</Link>
       </div>

@@ -66,10 +66,8 @@ export function BlockedPeople() {
       <div className="eyebrow" style={{ marginTop: 10 }}>Settings</div>
       <h1 style={{ fontSize: 26 }}>Blocked citizens</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px', lineHeight: 1.6 }}>
-        Someone you block cannot message you, call you, send you a connection request or appear in your
-        matches, and their posts do not reach your feed. They are not told. Unblocking takes effect
-        straight away — it does not restore a connection or a follow you had before, so you would both
-        be starting again.
+        Blocking hides you from each other everywhere — messages, calls, requests, matches, feed.
+        They are not told. Unblocking is instant, but old connections and follows don&rsquo;t come back.
       </p>
 
       {isLoading && <p className="muted" style={{ fontSize: 13.5 }}>Loading…</p>}
@@ -82,8 +80,7 @@ export function BlockedPeople() {
 
       {data && data.length === 0 && (
         <p className="muted" style={{ fontSize: 13.5 }}>
-          You have not blocked anyone. If you ever need to, it is on the citizen&rsquo;s profile, and
-          they will appear here so you can undo it.
+          You haven&rsquo;t blocked anyone.
         </p>
       )}
 

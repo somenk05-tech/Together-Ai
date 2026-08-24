@@ -28,7 +28,7 @@ export function EditBusiness() {
   if (mine.isLoading) return <Spinner label="Loading your listing…" />;
   if (mine.isError) {
     return <EmptyState title="Couldn't load your listing"
-      hint="The form starts from what you already wrote, so it waits rather than showing you a blank page. Try again in a moment." />;
+      hint="Nothing you wrote is lost — try again in a moment." />;
   }
 
   const listing = (mine.data ?? []).find((l) => l.id === id);
@@ -48,8 +48,7 @@ export function EditBusiness() {
       <div className="eyebrow">Local Services</div>
       <h1 style={{ fontSize: 26 }}>Edit your business</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px', maxWidth: '60ch' }}>
-        Everything here can change — the name, what you do, where you are, your photos.
-        Your messages and the people who kept you stay exactly as they are.
+        Change anything — your messages and regulars stay put.
       </p>
 
       <ListingForm

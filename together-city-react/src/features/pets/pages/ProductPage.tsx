@@ -77,7 +77,7 @@ export function ProductPage() {
           </div>
           <p className="muted" style={{ margin: 0, fontSize: 11, lineHeight: 1.5 }}>
             {product.imageUrl
-              ? `Photograph: ${product.retailer}, from the source listing. Held for catalogue research — merchant authorisation is needed before it is republished commercially.`
+              ? `Photograph: ${product.retailer}, from the source listing.`
               : 'No product photograph was published on the source listing, so the shelf draws its own pack.'}
           </p>
         </div>
@@ -122,9 +122,8 @@ export function ProductPage() {
 
           {product.vetGuidance && (
             <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.6, padding: '12px 14px', borderRadius: 'var(--r-2)', background: 'var(--warn-soft)', border: '1px solid var(--warn-line)', color: 'var(--warn-ink)' }}>
-              <strong>Veterinary guidance required.</strong> This is a prescription-channel or health-claim product.
-              Together City does not diagnose, and no product page here claims a product treats or prevents disease.
-              Your vet decides whether this is right for your pet.
+              <strong>Veterinary guidance required.</strong> Prescription-channel product. Your vet decides whether
+              it’s right for your pet.
             </p>
           )}
 
@@ -172,9 +171,8 @@ export function ProductPage() {
           </table>
         ) : (
           <p className="muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.65, maxWidth: 620 }}>
-            The source listing does not publish a guaranteed analysis for this product, and we will not reproduce one
-            from memory or from a similar SKU. The pack itself carries the analysis and the feeding chart — that is
-            the number to feed against until the merchant supplies data directly.
+            The source listing doesn’t publish a guaranteed analysis, and we won’t invent one. Feed to the analysis
+            and chart on the pack itself.
           </p>
         )}
         {product.keyIngredients && <p style={{ margin: 0, fontSize: 13, lineHeight: 1.65 }}><strong>Ingredients: </strong>{product.keyIngredients}</p>}

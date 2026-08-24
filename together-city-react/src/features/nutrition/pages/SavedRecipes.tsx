@@ -97,7 +97,7 @@ export function SavedRecipes() {
         <div className="eyebrow">Nutrition</div>
         <h1 style={{ fontSize: 26, margin: '2px 0 6px' }}>Saved recipes</h1>
         <EmptyState icon="🔖" title="Nothing saved yet"
-          hint="Open any recipe and press Save — it lands here, and it is the same list the recipe page reads to decide whether its bookmark is filled in." />
+          hint="Open any recipe and press Save — it lands here." />
         <div style={{ textAlign: 'center' }}>
           <Link to="/nutrition/recipes"><Button variant="line" size="sm">Browse recipes →</Button></Link>
         </div>

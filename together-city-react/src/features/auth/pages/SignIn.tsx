@@ -63,7 +63,7 @@ export function SignIn({ initialMode = 'login' }: { initialMode?: Mode } = {}) {
           // "does this account have a phone?" for any address a stranger types.
           // So the copy covers both, which is the only true thing available.
           setNotice(channel === 'sms'
-            ? `If an account matches, we've sent a 6-digit code to the phone on it — or to its email if there is no phone. Enter the code below.`
+            ? `If an account matches, a 6-digit code is on its way — to its phone, or its email if there's no phone.`
             : `If an account matches, we've emailed a 6-digit recovery code to its primary email. Enter it below.`);
           setMode('reset');
         }
@@ -228,8 +228,6 @@ export function SignIn({ initialMode = 'login' }: { initialMode?: Mode } = {}) {
                 {cta}<ArrowRight />
               </button>
             </form>
-
-            {mode === 'login' && <p style={{ fontSize: 11.5, marginTop: 10, textAlign: 'center', color: 'rgba(255,255,255,.55)' }}>You'll stay signed in on this device until you sign out.</p>}
             {mode === 'login' && handle && <p style={{ fontSize: 11.5, marginTop: 6, textAlign: 'center', color: 'rgba(255,255,255,.6)' }}>@{handle} · {handle}@togethercity.app</p>}
             {notice && <p style={{ color: 'var(--gold-bright)', fontSize: 12.5, marginTop: 12, textAlign: 'center' }}>{notice}</p>}
             {error && <p className="tc-shake" style={{ color: 'var(--danger-line)', fontSize: 12.5, marginTop: 12, textAlign: 'center' }}>{error}</p>}

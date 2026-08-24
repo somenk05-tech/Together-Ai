@@ -48,8 +48,8 @@ export function Blood() {
 
       <div className="card" style={{ marginTop: 14 }}>
         <p style={{ fontSize: 13.5, margin: 0, lineHeight: 1.6 }}>
-          All medical records live in your <strong>Medical Hub</strong> — the single source of truth. Nutrition reads your
-          biomarkers <strong>by reference</strong> (never a copy), only while this connection is on.
+          Your records stay in the <strong>Medical Hub</strong>. Nutrition reads them only while this
+          connection is on — never a copy.
         </p>
       </div>
 
@@ -59,8 +59,7 @@ export function Blood() {
           <>
             <strong style={{ fontSize: 15 }}>Connect to Medical Hub</strong>
             <p className="muted" style={{ fontSize: 13, margin: '6px 0 0', lineHeight: 1.6 }}>
-              We couldn’t check whether this connection is on, so we’re not showing you a switch —
-              one that guessed would be worse than none. Nothing has changed either way.
+              We couldn’t check whether this connection is on. Nothing has changed either way.
             </p>
             <p className="muted" style={{ fontSize: 12.5, margin: '10px 0 0', lineHeight: 1.6 }}>
               If you came here to turn it off, you can read and change the same setting in{' '}

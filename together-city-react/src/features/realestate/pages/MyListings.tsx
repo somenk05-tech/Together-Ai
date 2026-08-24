@@ -91,9 +91,8 @@ export function MyListings() {
           { label: 'Explore', to: '/realestate/explore' },
           { label: 'Under construction', to: '/realestate/under-construction' },
         ]}>
-        Each one appears here the moment you submit it, with the review it is
-        waiting on and the reasons behind any decision. Edit a rejected listing
-        and it goes back through review; close one and it leaves Explore.
+        Every listing, with where it stands and why. Edit a rejected one and it
+        goes back through review.
       </Masthead>
 
       <div style={{ marginTop: 28 }}>

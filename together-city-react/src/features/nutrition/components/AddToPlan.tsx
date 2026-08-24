@@ -85,9 +85,7 @@ export function AddToPlan({ recipeId, recipeName }: { recipeId: string; recipeNa
       <Card style={{ marginTop: 16 }}>
         <div style={{ fontWeight: 700, fontSize: 14 }}>Add this to your week</div>
         <p className="muted" style={{ fontSize: 12.5, margin: '6px 0 10px', lineHeight: 1.6 }}>
-          Your plan ran to {dates.length ? longDate(dates[dates.length - 1]) : 'an earlier date'} and
-          every day in it has passed, so there is no day left to put this in. Build the next block
-          and it can go straight into one.
+          Your plan has ended — every day in it has passed. Start the next block and this dish can go straight in.
         </p>
         <Link to="/nutrition/weekly"><Button variant="line" size="sm">Open the weekly planner →</Button></Link>
       </Card>

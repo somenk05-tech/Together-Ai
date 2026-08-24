@@ -147,7 +147,7 @@ export function FamilyWeekly() {
               sheet prints the SHARED courses and the snacks follow it. */}
           <PressDay
             d={{ ...day, meals: mains }} date={dates[clamped]} dayIndex={clamped} dayCount={days.length}
-            note={`One kitchen for ${people} — every dish below is cooked once and plated to each member's own target, with everyone's allergies, exclusions and conditions already applied to the shared dishes.`}
+            note={`One kitchen for ${people} — everyone's allergies and conditions already applied.`}
             head="Cooked once, plated to each."
             readOnly={week.readOnly}
             household={people}

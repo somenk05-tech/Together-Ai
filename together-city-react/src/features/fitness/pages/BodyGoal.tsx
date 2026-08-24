@@ -36,7 +36,7 @@ export function BodyGoal() {
       <div className="eyebrow">Fitness · Body Goal</div>
       <h1 style={{ fontSize: 26 }}>{p.goalLabel}</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 14px' }}>
-        {p.tag} One systematic program across workout, nutrition and your health data.
+        {p.tag}
       </p>
 
       {/* "Numbers below use population defaults for now" is the sentence this

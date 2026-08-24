@@ -719,8 +719,7 @@ export function CreatePost() {
         )}
 
         <p className="muted" style={{ fontSize: 11.5, margin: '8px 0 0' }}>
-          <Icon name="video" size={14} /> {VIDEO_FORMATS} · up to {mb(MAX_VIDEO_BYTES)} MB each. MP4 plays on
-          every device, and photos are optimised automatically.
+          <Icon name="video" size={14} /> {VIDEO_FORMATS} · up to {mb(MAX_VIDEO_BYTES)} MB each.
         </p>
 
         <input ref={photoPicker} type="file" accept="image/*" multiple style={{ display: 'none' }}
@@ -859,8 +858,7 @@ export function CreatePost() {
           <span className="sl-note-t">
             <b>Post &amp; Earn is not open yet</b>
             <p>
-              There is no way to earn from your videos on Together City today — no rate, no review,
-              no payout. Post because you want to. The day that changes, you will be told here first.
+              No rate, no review, no payout yet. When that changes, you’ll be told here first.
             </p>
           </span>
         </div>

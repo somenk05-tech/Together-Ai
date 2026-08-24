@@ -104,7 +104,7 @@ export function Watchlist() {
         />
       )}
       {!wl.isLoading && !wl.isError && items.length === 0 && (
-        <EmptyState icon="🔖" title="Nothing saved yet" hint="Tap the bookmark on any movie or show — in Movies Now, OTT Watch, Curated or search — and it lands here instantly." />
+        <EmptyState icon="🔖" title="Nothing saved yet" hint="Tap the bookmark on any movie or show — it lands here." />
       )}
 
       {items.length > 0 && (
@@ -152,7 +152,7 @@ export function Watchlist() {
             </>
           )}
 
-          <p className="muted rise" style={{ fontSize: 11, marginTop: 18 }}>Saved to your Together City account — synced on every device. Data & images: TMDB.</p>
+          <p className="muted rise" style={{ fontSize: 11, marginTop: 18 }}>Data & images: TMDB.</p>
         </>
       )}
 

@@ -120,13 +120,11 @@ export function OwnRecipes() {
     <section id="your-own-recipes" style={{ marginTop: 34, borderTop: '1px solid var(--line)', paddingTop: 26 }}>
       <h2 style={{ fontSize: 20, margin: '0 0 4px' }}>Your own recipes</h2>
       <p className="muted" style={{ fontSize: 13.5, margin: '0 0 4px', lineHeight: 1.6 }}>
-        Add a dish you cook. List what goes in it and how much, and we’ll work out the calories and
-        macros the same way we do for every recipe in the library — from the ingredients, not from a
-        number anybody typed.
+        Add a dish you cook. List what goes in it — we work out the calories and macros from the
+        ingredients.
       </p>
       <p className="muted" style={{ fontSize: 12.5, margin: '0 0 18px', lineHeight: 1.6 }}>
-        Your recipes are yours alone. Nobody else can see them, and they can turn up in your own
-        weekly plan alongside everything else.
+        Your recipes are yours alone.
       </p>
 
       {saved && (

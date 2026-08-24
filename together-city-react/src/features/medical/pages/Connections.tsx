@@ -46,11 +46,8 @@ export function Connections() {
         <div className="blk-head"><h2>Who has looked</h2></div>
         <div className="card">
           <p className="muted" style={{ fontSize: 13, lineHeight: 1.65, margin: 0 }}>
-            We don’t have an honest answer for you yet. Together City does not currently record which hub read
-            which part of your medical data, so anything listed here would be invented — and an invented answer
-            is the last thing that belongs on a privacy page. The switches above are real: turn one off and that
-            hub stops reading, immediately. A true read-by-read log is what should live here, and when it exists
-            this is where you will find it.
+            Together City doesn’t yet record which hub read what, and we won’t invent a log. When a
+            true read-by-read record exists, it will live here.
           </p>
         </div>
       </section>

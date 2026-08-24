@@ -8,14 +8,9 @@ export function NeedsProfileCard() {
       <div style={{ fontSize: 34, marginBottom: 10 }}>🔭</div>
       <h2 style={{ fontFamily: 'var(--serif)', marginBottom: 10 }}>Complete Your Birth Details</h2>
       <p className="muted" style={{ fontSize: 14, lineHeight: 1.65, marginBottom: 18 }}>
-        To write your personalised daily and monthly guidance, please add your
-        birth details. This information is saved once in your Master Profile and automatically used
-        across Together AI.
+        Your guidance is written from your birth details — saved once, used across Together AI.
       </p>
       <Link to="/profile/astrology"><Button variant="accent">Complete Birth Details</Button></Link>
-      <p className="muted" style={{ fontSize: 12, marginTop: 14 }}>
-        Already added these during onboarding or dating? They're reused automatically — you never enter them twice.
-      </p>
     </Card>
   );
 }

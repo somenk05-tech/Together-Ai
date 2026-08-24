@@ -35,8 +35,7 @@ export function PendingRequestNotice({ result }: { result: LookupResult }) {
       <ModuleChips modules={modules} caption="Hubs they want to open:" />
       <p className="muted" style={{ fontSize: 11.5, margin: '7px 0 0', lineHeight: 1.55 }}>
         {modules.length
-          ? <>They chose these. Accepting opens exactly them &mdash; you can change them, or
-              disconnect, any time afterwards.</>
+          ? <>They chose these. Accepting opens exactly them &mdash; change them any time afterwards.</>
           : <>No hubs beyond chat and mail. You can open more from People afterwards.</>}
       </p>
     </div>

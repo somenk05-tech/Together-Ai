@@ -894,9 +894,8 @@ function EarnView({ posts }: { posts: ProfilePost[] }) {
         <div className="eyebrow">Post &amp; Earn</div>
         <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-.035em', lineHeight: 1.2, marginTop: 6 }}>Not open yet</div>
         <div className="muted" style={{ fontSize: 13.5, lineHeight: 1.65, marginTop: 8, maxWidth: '54ch' }}>
-          We would rather tell you this plainly than show you a balance. There is no way to earn
-          from your videos on Together City today — no rate, no review, no payout. The day that
-          changes, you will be told, and it will be told to you here first.
+          No way to earn from your videos today — no rate, no review, no payout. When that
+          changes, you’ll hear it here first.
         </div>
       </div>
 
@@ -905,8 +904,7 @@ function EarnView({ posts }: { posts: ProfilePost[] }) {
         <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.65 }}>
           A way for the people who make this city worth living in to be paid for it — authentic
           videos about your life and your corner of the city, and a share of what they bring in.
-          It is a real intention, not a promise with a date on it, and until it exists we are not
-          going to quote you a figure.
+          A real intention — not a promise with a date on it.
         </p>
       </div>
 
@@ -917,9 +915,6 @@ function EarnView({ posts }: { posts: ProfilePost[] }) {
             <span key={t} className="tag" style={{ margin: '0 6px 6px 0' }}>{t}</span>
           ))}
         </div>
-        <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>
-          Post them because you want to — they are posts on your profile, not submissions to anything.
-        </p>
       </div>
 
       <div className="card" style={{ marginTop: 16 }}>
@@ -978,7 +973,7 @@ function FollowList({ kind }: { kind: 'followers' | 'following' }) {
   if (!people.length) {
     return (
       <p className="muted" style={{ fontSize: 13.5, marginTop: 20 }}>
-        {kind === 'followers' ? 'No followers yet — share posts and connect with people to grow your circle.' : "You're not following anyone yet. Find people to follow below."}
+        {kind === 'followers' ? 'No followers yet.' : "You're not following anyone yet. Find people to follow below."}
       </p>
     );
   }

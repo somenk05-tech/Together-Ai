@@ -110,9 +110,8 @@ export function Explore() {
           { label: 'Under construction', to: '/realestate/under-construction' },
           { label: 'List a property', to: '/realestate/sell' },
         ]}>
-        Real listings from real owners, photo-verified and moderated before they go
-        live. Every one below is somebody’s actual address, priced by the person who
-        owns it.
+        Real listings from real owners — photo-verified before they go live, priced by
+        the person who owns it.
         <span className="efind">
           <input value={q} onChange={(e) => setQ(e.target.value)}
             aria-label="Search listings by locality, city or title"

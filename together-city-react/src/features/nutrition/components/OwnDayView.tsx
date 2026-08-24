@@ -332,9 +332,7 @@ function DaySheet({ day, targets, live, now, busy, people, onPeople, onRemove, o
                     <span>{people === 1 ? 'person' : 'people'}</span>
                   </div>
                   <p className="press-desc" style={{ marginTop: 10 }}>
-                    Every ingredient quantity on your grocery list multiplies by this. The calories
-                    and macros above stay one person's — they are what you are eating, not what the
-                    kitchen is producing.
+                    Grocery quantities multiply by this; the figures above stay one person's.
                   </p>
                 </section>
               )}
@@ -415,7 +413,7 @@ function MonthStrip({ plan, openRow, onOpen }: {
       </div>
       <p className="own-month-note">
         Building <strong>{building.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</strong>.
-        {' '}Lock it and the next dish you add starts the day after — that is how the month fills.
+        {' '}Lock it and the next dish you add starts the day after.
       </p>
     </section>
   );
@@ -464,7 +462,7 @@ export function OwnDayView({ plan, loading, failed, onRetry, onRemove, onLock, o
       <div className="card" style={{ marginBottom: 22 }}>
         <h3 style={{ margin: 0, fontSize: 16 }}>We couldn’t open your plan</h3>
         <p className="muted" style={{ fontSize: 12.5, margin: '8px 0 12px', lineHeight: 1.6 }}>
-          Nothing has been lost — anything you added is still there. This is only the reading of it.
+          Anything you added is still there — try again.
         </p>
         <Button variant="line" size="sm" onClick={onRetry}>Try again</Button>
       </div>
@@ -560,9 +558,7 @@ export function OwnDayView({ plan, loading, failed, onRetry, onRemove, onLock, o
             </div>
           ))}
           <p className="muted" style={{ fontSize: 12.5, margin: '12px 0 0', lineHeight: 1.6, maxWidth: '68ch' }}>
-            A day that was never locked is not on your grocery list and never will be — locking is
-            what puts a day's ingredients there. It is still yours: open a dish to cook it, or add
-            it again to the day you are building now.
+            Unlocked days never reach your grocery list — lock a day to shop it.
           </p>
         </section>
       )}

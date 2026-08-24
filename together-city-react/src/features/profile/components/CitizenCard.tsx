@@ -89,7 +89,7 @@ export function CitizenCard({ name, handle, email, photo, since }: {
         </Button>
         <span className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, flex: 1, minWidth: 220 }}>
           {noPhoto
-            ? 'Your photograph could not be included — it is served from somewhere the browser will not let us copy from. The card shows your initials instead.'
+            ? 'Your photo couldn’t be included, so the card shows your initials.'
             : 'A PNG, 2000 × 1260. What you see here is exactly the file.'}
         </span>
       </div>

@@ -107,7 +107,6 @@ function CreateForm() {
   return (
     <div className="card">
       <h3 style={{ marginTop: 0 }}>Create an activity</h3>
-      <p className="muted" style={{ fontSize: 12.5 }}>Say what you want to do — the AI invites the most compatible people, and only they see it.</p>
       <span style={fl}>Activity</span>
       <input value={text} onChange={(e) => setText(e.target.value)} placeholder={EXAMPLES[0]} style={fi} />
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>{EXAMPLES.slice(1).map((e) => <button key={e} type="button" onClick={() => setText(e)} className="pill" style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '4px 10px', fontSize: 11.5, cursor: 'pointer', background: 'transparent' }}>{e}</button>)}</div>

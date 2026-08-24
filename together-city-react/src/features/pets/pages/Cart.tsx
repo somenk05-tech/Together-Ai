@@ -96,16 +96,14 @@ export function Cart() {
         {unpriced > 0 && (
           <p className="muted" style={{ margin: 0, fontSize: 12, lineHeight: 1.6 }}>
             {unpriced} line{unpriced === 1 ? '' : 's'} in this bag had no confirmed price on the source listing and
-            {unpriced === 1 ? ' is' : ' are'} not included in that figure. They are still in the bag — we would rather
-            show you an incomplete total than a confident wrong one.
+            {unpriced === 1 ? ' is' : ' are'} not included in that figure. They stay in the bag.
           </p>
         )}
         <button type="button" className="btn" style={{ background: 'var(--accent)', color: 'var(--on-accent)', border: 'none' }} disabled>
-          Checkout — connects to Together City Pay
+          Checkout
         </button>
         <p className="muted" style={{ margin: 0, fontSize: 11.5 }}>
-          Checkout is not wired in this build. Payments belong to the city’s existing Pay service rather than to a
-          second implementation inside this hub.
+          Checkout arrives with Together City Pay.
         </p>
       </div>
     </div>

@@ -220,8 +220,7 @@ function DailyCard() {
       {d && !d.chosen && (
         <>
           <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.65, margin: '0 0 20px', maxWidth: '54ch' }}>
-            Seven cards, face down. Take your time and turn one &mdash; whichever you choose is the
-            card for your day, and it stays yours until midnight.
+            Seven cards, face down. Turn one &mdash; it&rsquo;s yours until midnight.
           </p>
           <div className="tarot-fan" role="group" aria-label="Seven face-down cards">
             {Array.from({ length: d.fan }, (_, i) => (
@@ -366,8 +365,7 @@ export function AstroTarot() {
           <h1 className="astra-title">Tarot</h1>
           <p className="astra-lead">A card a day, free &mdash; or ask a question and turn a full spread yourself.</p>
           <p className="astra-body">
-            Nothing is dealt until you have turned every card. Every reading is reproducible: the
-            same draw can be regenerated from its seed.
+            Nothing is dealt until you have turned every card.
           </p>
         </div>
       </header>

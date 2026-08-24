@@ -309,7 +309,7 @@ export function MasterProfile() {
             value={(v.dateOfBirth ?? '').slice(0, 10)}
             onChange={(e) => set('dateOfBirth', e.target.value || null)}
             onBlur={() => commit('dateOfBirth')} style={inputStyle} />,
-          v.age != null ? `You are ${v.age}. Age is worked out from this rather than stored, so it is never out of date.` : 'Age is worked out from this rather than stored, so it is never out of date.')}
+          v.age != null ? `You are ${v.age}.` : undefined)}
 
         {/* The two-field block the ticket asks for, each with why we ask. They
             are separate because they answer different questions and only one of
@@ -347,16 +347,13 @@ export function MasterProfile() {
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>,
-          'Optional. Nothing in Together City uses it — it is not your dating profile, '
-          + 'which asks separately what you are looking for, and no hub reads it. '
-          + '"Prefer not to say" is recorded as your answer; leaving it blank records nothing.')}
+          'Optional — nothing else in the city reads it, including dating.')}
       </Section>
 
       {/* ── Body ─────────────────────────────────────────────────── */}
       <Section id="body" title="Body">
         <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.6, margin: '0 0 12px' }}>
-          These set your calorie and nutrient targets. Leave one blank and we say so rather than
-          working them out from somebody else’s body.
+          These set your calorie and nutrient targets.
         </p>
         {textField('heightCm', 'Height (cm)', undefined, 'number')}
         {textField('weightKg', 'Weight (kg)', undefined, 'number')}
@@ -424,9 +421,7 @@ export function MasterProfile() {
                 different facts, and the health record says which. */}
             <option value="unknown">I don’t know</option>
           </select>,
-          'Optional — skip it and we leave it blank rather than working it out from anything else. '
-          + 'We show it back to you on your health record; nothing in Together City uses it to make '
-          + 'a clinical decision, and no other hub sees it without your consent.')}
+          'Optional — skip it and we leave it blank. Shown on your health record; nothing in Together City uses it to make a clinical decision, and no hub sees it without your consent.')}
 
         {/* ── Health conditions ────────────────────────────────────
             The picker computeTargets has been waiting for. Ticked here, saved
@@ -439,8 +434,7 @@ export function MasterProfile() {
             {healthDirty && <span style={{ color: 'var(--accent-ink)', textTransform: 'none', letterSpacing: 0, fontWeight: 600 }}> · unsaved</span>}
           </span>
           <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, margin: '4px 0 8px' }}>
-            Tick anything a doctor has told you about. All optional — and saving with nothing
-            ticked is recorded as your answer, which is not the same as never being asked.
+            Tick anything a doctor has told you about. All optional.
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 4 }}>
             {HEALTH_CONDITION_OPTIONS.map((o) => (

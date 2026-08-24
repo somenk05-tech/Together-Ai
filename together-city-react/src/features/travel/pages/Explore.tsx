@@ -47,7 +47,7 @@ export function Explore() {
       </div>
 
       {pkgs.isLoading ? <Spinner label="Finding trips…" />
-        : pkgs.isError ? <EmptyState title="Couldn't load trips" hint="This didn’t reach us — it isn’t that there’s nowhere to go. Try again in a moment." />
+        : pkgs.isError ? <EmptyState title="Couldn't load trips" hint="This didn’t reach us. Try again in a moment." />
         : (pkgs.data ?? []).length === 0 ? <EmptyState icon="🧳" title="Nothing in that category" hint="Try another." />
         : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>

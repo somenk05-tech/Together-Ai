@@ -77,7 +77,7 @@ export function Market() {
     <div style={{ display: 'grid', gap: 26 }}>
       <SectionTitle
         title="Pet shop"
-        line="Everything your pet needs, personalised for them. Every price, pack size and source on this shelf was read off the retailer’s own page."
+        line="Everything your pet needs, personalised for them. Every price read off the retailer’s own page."
         action={
           <div style={{ display: 'flex', gap: 8 }}>
             <button type="button" className="btn btn-sm btn-line" onClick={() => nav('/pets/specialist')}>Pet Specialist</button>

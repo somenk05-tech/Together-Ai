@@ -157,7 +157,6 @@ export function AstroAsk() {
                 Astra reads your birth chart against the sky as it stands right now &mdash; the
                 transits, the aspects on your subject, the month&rsquo;s timing and every question
                 you have asked before &mdash; to give you one personalised answer, powered by AI.
-                Every answer is kept permanently under My Questions.
               </p>
             </div>
           </header>
@@ -208,7 +207,7 @@ export function AstroAsk() {
                   <span className="ask-sr">Your question</span>
                   <textarea value={question} onChange={(e) => setQuestion(e.target.value)} rows={5}
                     className="ask-textarea"
-                    placeholder="Ask about your current situation. The more specific your question, the more personalized your guidance will be." />
+                    placeholder="Your question — the more specific, the better." />
                 </label>
 
                 <div className="ask-meta">
@@ -243,8 +242,7 @@ export function AstroAsk() {
 
                 <p className="ask-fineprint">
                   {price
-                    ? `₹${price} is charged once to your Together City Wallet and covers this consultation and the `
-                      + `${(quota.data?.packSize ?? 5) - 1} after it. Every one is permanently available inside My Questions.`
+                    ? `₹${price} is charged once to your city wallet. Every answer is kept under My Questions.`
                     : 'Nothing to pay for this one. Your consultation will be permanently available inside My Questions.'}
                 </p>
               </section>

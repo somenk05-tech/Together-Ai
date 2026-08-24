@@ -245,7 +245,7 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
             </div>
           )}
           <p className="muted" style={{ fontSize: 11.5, marginTop: 10, textAlign: 'center' }}>
-            {matched ? 'Connecting opens an anonymous chat in the Dating Hub — up to three at a time. First 3 connections are free.' : 'They’re notified only if you both like each other.'}
+            {matched ? 'Chat opens in the Dating Hub — up to three at a time. Your first 3 are free.' : 'They’re notified only if you both like each other.'}
           </p>
           <div style={{ marginTop: 14, textAlign: 'center' }}>
             <SafetyMenu userId={targetUserId} kind={kind} />

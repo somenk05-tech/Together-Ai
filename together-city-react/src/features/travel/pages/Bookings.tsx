@@ -49,7 +49,7 @@ export function TravelBookings() {
 
   return (
     <>
-      <TravelHero eyebrow="Travel Hub · 05" title="My Bookings" sub="View and manage all your travel bookings in one place." bg={`${IMG}mybookings-image.webp`} />
+      <TravelHero eyebrow="Travel Hub · 05" title="My Bookings" sub="Every booking, in one place." bg={`${IMG}mybookings-image.webp`} />
 
       <TabRow tabs={TABS} onChange={setTab} />
 
@@ -81,10 +81,8 @@ export function TravelBookings() {
 
       <section className="blk rise d3" style={{ textAlign: 'center' }}>
         <p className="muted" style={{ fontSize: 12.5, maxWidth: '62ch', margin: '0 auto 18px', lineHeight: 1.65 }}>
-          Changing or cancelling a booking isn’t something we can do for you inside Together City yet.
-          Your booking reference is on each row above — the airline or the trip operator will need it,
-          and they can act on it today. We’d rather point you somewhere that works than put a button
-          here that doesn’t.
+          We can’t change or cancel bookings inside Together City yet. Take the booking
+          reference above to the airline or trip operator — they can act on it today.
         </p>
         <Link className="btn btn-gold" to="/travel/packages">Explore more packages</Link>
       </section>

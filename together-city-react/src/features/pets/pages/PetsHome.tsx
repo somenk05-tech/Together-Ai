@@ -101,13 +101,13 @@ export function PetsHome() {
       <section style={{ display: 'grid', gap: 16 }}>
         <SectionTitle
           title="Your pet’s world"
-          line={pets.length ? 'Switch between pets — every plan, list and recommendation follows the one you choose.' : 'No pets on file yet.'}
+          line={pets.length ? 'Switch pets — the whole district follows the one you choose.' : 'No pets on file yet.'}
         />
         {pets.length === 0 ? (
           <Empty
             glyph="🐾"
             title="Start with one pet"
-            line="Add a profile and the whole district reshapes around them — the planner, the shelf, the shopping list and the reminders."
+            line="Add a profile and the whole district reshapes around them."
             /* ONE DOOR, AND IT IS THE REAL ONE.
                There was a second button here that filled the district with two
                invented pets to look around with. `scripts/nav-audit.mjs` counts
@@ -139,7 +139,7 @@ export function PetsHome() {
       </section>
 
       <section style={{ display: 'grid', gap: 16 }}>
-        <SectionTitle title="The district" line="Six rooms, one animal at the centre of all of them." />
+        <SectionTitle title="The district" line="Six rooms, one animal at the centre." />
         <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(248px, 1fr))' }}>
           {ROOMS.map((room) => (
             <button
@@ -174,8 +174,7 @@ export function PetsHome() {
           Don’t just shop for your pet.<br />Build a life for your pet.
         </h2>
         <p className="muted" style={{ margin: 0, fontSize: 14, lineHeight: 1.65, maxWidth: 620 }}>
-          Profile, nutrition, home cooking, shopping, wellness, activity and services are one chain here, not eight
-          tabs. The profile decides the calories, the calories decide the meals, the meals write the shopping list,
+          The profile decides the calories, the calories decide the meals, the meals write the shopping list,
           and the list knows when the bag runs out.
         </p>
       </section>

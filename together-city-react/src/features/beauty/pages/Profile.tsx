@@ -42,7 +42,7 @@ function SkinHairTimeline() {
       {d.followUpDue && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 8, padding: '11px 14px', background: 'var(--warn-soft)', border: '1px solid var(--warn-line)', borderRadius: 12, fontSize: 12.5 }}>
           <span style={{ fontSize: 16 }}>📸</span>
-          <span>It's been {d.daysSinceLast} days since your last assessment — upload a new set of photos to measure your progress. Optional, whenever you're ready.</span>
+          <span>It's been {d.daysSinceLast} days since your last assessment — new photos will measure your progress — whenever you're ready.</span>
         </div>
       )}
 
@@ -122,7 +122,7 @@ function BiomarkerCorrelation() {
       <div className="beauty-sheet">
         <div className="beauty-rule"><span>Biomarker correlation</span><span /><span /></div>
         <p className="muted" style={{ fontSize: 13, margin: '6px 0 0', lineHeight: 1.55 }}>
-          Add a blood test in the <Link to="/medical/blood" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Medical Hub</Link> and we'll link markers like ferritin, vitamin D, HbA1c and CRP to your skin & hair here — for example, low ferritin → increased shedding, or raised HbA1c → glycation and loss of firmness.
+          Add a blood test in the <Link to="/medical/blood" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Medical Hub</Link> and we'll link markers like ferritin and HbA1c to your skin & hair — low ferritin → shedding, for example.
         </p>
       </div>
     );
@@ -154,7 +154,7 @@ function BiomarkerCorrelation() {
   return (
     <BeautyLeaf title="Biomarker correlation" meta={meta}>
       {d.insights.length === 0 ? (
-        <p style={{ fontSize: 13, marginTop: 8, color: 'var(--ok-ink)' }}>✓ No biomarker flags are affecting your skin or hair right now — a good foundation.</p>
+        <p style={{ fontSize: 13, marginTop: 8, color: 'var(--ok-ink)' }}>✓ No biomarker flags affecting your skin or hair.</p>
       ) : (
         <div style={{ marginTop: 8 }}>
           {d.insights.map((i) => (
@@ -711,7 +711,7 @@ export function Profile() {
       <BeautyPlate
         hero
         title={<>Your Skin &amp;<br />Hair Analysis</>}
-        blurb="A personalised assessment of your skin, hair and unique needs — created to build a routine that works for you."
+        blurb="Your skin and hair, read — and a routine built from the reading."
       />
 
       {/* The tabs, set as a rule rather than a pill switch: two tracked words
@@ -746,7 +746,7 @@ export function Profile() {
               than never folding it at all. */}
           <BeautyPlate
             title={<>Your Photos<br />&amp; Details<br />for Analysis</>}
-            blurb="Share your skin, hair and personal details so we can create your personalised assessment."
+            blurb="Two photos and a few answers — the assessment comes from these."
             meta={`${picsRequired} / ${PHOTOS_NEEDED} staged · ${profile.data?.uploads?.remaining ?? 0} left this week`}
             defaultOpen={!analysed || picsCount > 0}
           >
@@ -756,7 +756,7 @@ export function Profile() {
             <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 12, padding: '10px 12px', background: 'var(--paper)', borderRadius: 'var(--r-1)' }}>
               <span style={{ fontSize: 15 }}>📷</span>
               <p className="muted" style={{ fontSize: 11.5, margin: 0, lineHeight: 1.5 }}>
-                Bare face and scalp, good even light, and take them however suits you — the camera here, a file, or dragged onto a tile. <strong>No beauty filters and no AI-generated images</strong> — they distort the analysis and will be rejected. {aiEnabled ? 'AI reviews clear photos once to spot visible issues (acne, pigmentation, texture, pores, redness, hydration, hair density & scalp).' : 'Photos build your before/after alongside your profile assessment.'} Full images aren't stored — only a small unedited thumbnail for your timeline. <strong>🔒 Your photos are completely private: no one but you ever sees them</strong> — they're never shown to other users, never shared, and never used for anything except your own analysis.
+                Bare face, even light. Camera, file, or drag one in. <strong>No beauty filters and no AI-generated images</strong> — they distort the analysis and will be rejected. {aiEnabled ? 'AI reviews clear photos once to spot visible issues (acne, pigmentation, texture, pores, redness, hydration, hair density & scalp).' : 'Photos build your before/after alongside your profile assessment.'} Full images aren't stored — only a small unedited thumbnail for your timeline. <strong>🔒 Your photos are never shared, never used for anything but your analysis.</strong>
               </p>
             </div>
             {warning && (
@@ -782,7 +782,7 @@ export function Profile() {
               )}
               {progress.length > 0 && (
                 <button type="button" disabled={del.isPending}
-                  onClick={() => { if (window.confirm('Delete your latest photo check-in? Your current assessment will be cleared and stays empty until you upload new photos and re-analyse. Earlier timeline entries stay; this does not refund a weekly analysis.')) del.mutate(); }}
+                  onClick={() => { if (window.confirm('Delete your latest check-in? Your current assessment clears until you re-analyse. Earlier entries stay; no weekly analysis is refunded.')) del.mutate(); }}
                   style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: 'var(--danger-ink)', padding: 0 }}>
                   {del.isPending ? 'Deleting…' : '🗑 Delete latest & re-upload'}
                 </button>
@@ -822,7 +822,7 @@ export function Profile() {
           {analysis && (budget.data ? (
             <BeautyPlate
               title={<>Create<br />Your Budget</>}
-              blurb="Set your budget and let us personalise your beauty, wellness and care routine within your comfort."
+              blurb="Your routine is built inside this number — never over it."
               meta={budgetSummary(budget.data)}
             >
               <BudgetPanel compact priorities={priorities} />
@@ -862,13 +862,13 @@ export function Profile() {
               away the only unfinished thing on the page. */}
           <BeautyPlate
             title="Your Details"
-            blurb="Share your skin, hair and personal details so we can create your personalised assessment."
+            blurb="Two photos and a few answers — the assessment comes from these."
             meta={`${answered} / ${profileTotal} answered`}
           />
           {photoBanner && (
             <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 14, padding: '12px 14px', background: 'var(--ok-soft)', border: '1px solid var(--ok-line)', borderRadius: 12, fontSize: 13 }}>
               <span>✅</span>
-              <span>Photos uploaded successfully. Now complete your Skin &amp; Hair Profile to generate your personalised AI assessment.</span>
+              <span>Photos in. Finish your profile to unlock your assessment.</span>
               <button type="button" onClick={() => setPhotoBanner(false)} aria-label="Dismiss this message" style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--ok-ink)' }}>✕</button>
             </div>
           )}

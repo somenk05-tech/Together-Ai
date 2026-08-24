@@ -113,7 +113,7 @@ export function CreateInvoice() {
       {people.length === 0 ? (
         <EmptyState
           title="Nobody to bill yet"
-          hint="You can invoice a neighbour who has messaged this listing and chosen to show you their name. Until they do, you are talking to a customer number and there is nobody to address a bill to."
+          hint="Invoices go to neighbours who have messaged you and shown their name."
           action={<Link to="/services/messages" style={{ color: 'var(--accent-ink)', fontWeight: 700, fontSize: 13.5 }}>Open your messages →</Link>}
         />
       ) : (

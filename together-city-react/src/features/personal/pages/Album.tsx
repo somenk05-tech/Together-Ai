@@ -44,7 +44,7 @@ export function Album() {
           </Link>
           <div className="eyebrow">Personal · Album</div>
           <h1>Everything you have shared</h1>
-          <p>Every photo and video you have posted to the city, newest first. Only you are looking at this page.</p>
+          <p>Every photo and video you’ve posted, newest first. Only you can see this.</p>
         </div>
       </div>
 

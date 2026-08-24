@@ -294,8 +294,7 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
               </div>
             </header>
             <p className="gsheet-intro">
-              Every item below comes from the menus you locked, in the plan you locked them in —
-              real quantities, duplicates merged, nothing inferred.
+              Everything below comes from the menus you locked — nothing inferred.
               {' '}This menu is for <strong>{menuFor} {menuFor === 1 ? 'person' : 'people'}</strong>
               {summary?.peopleBasis === 'household' ? ' — your household, portioned to each member' : ''}.
             </p>

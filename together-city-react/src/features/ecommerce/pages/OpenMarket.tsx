@@ -41,7 +41,7 @@ export function OpenMarket() {
       <PageHeader
         eyebrow="E-Commerce"
         title="Open Market"
-        sub="Everything the city sells, by category — the whole shelf, in the room that stands behind it."
+        sub="Everything the city sells, by category."
       />
       <div className="ec-run">
         {shelves.map((s) => (
@@ -54,10 +54,7 @@ export function OpenMarket() {
         ))}
       </div>
       <p className="ec-note">
-        Together City lists what it has checked rather than everything that could be
-        sold, so this floor is the size of the work behind it and grows as a hub adds a
-        shelf. There are no resellers here: each aisle belongs to the hub that verified
-        what is on it.
+        No resellers — every aisle belongs to the hub that verified what is on it.
       </p>
     </>
   );

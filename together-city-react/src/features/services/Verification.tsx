@@ -194,8 +194,7 @@ export function VerificationTab({ listingId }: { listingId: string }) {
       {waiting > 0 && (
         <p style={{ fontSize: 13, margin: '8px 0 0' }}>
           <strong>{waiting} {waiting === 1 ? 'neighbour has' : 'neighbours have'} messaged you</strong> beyond
-          today&rsquo;s free {t.freePerDay}. They are not lost — you will get them over the coming days, or all
-          at once the moment this listing is verified.
+          today&rsquo;s free {t.freePerDay}. They are not lost — verify and they arrive all at once.
         </p>
       )}
 

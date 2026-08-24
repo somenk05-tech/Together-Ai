@@ -80,7 +80,7 @@ export function Compare() {
 
   return (
     <div style={{ display: 'grid', gap: 20 }}>
-      <SectionTitle title="Compare" line="Only rows the source data actually supports. A blank here is a gap in the retailer’s listing, not a gap in the product." />
+      <SectionTitle title="Compare" line="A blank is a gap in the retailer’s listing, not in the product." />
 
       <div style={{ overflowX: 'auto' }}>
         <table style={{ borderCollapse: 'collapse', minWidth: 520, width: '100%', fontSize: 13 }}>
@@ -127,9 +127,7 @@ export function Compare() {
 
       {withAnalysis.length < 2 && (
         <p className="muted" style={{ margin: 0, fontSize: 12.5, lineHeight: 1.65, maxWidth: 660 }}>
-          No “best ingredient profile” verdict is shown: fewer than two of these products publish a guaranteed
-          analysis on their source listing, and comparing a published protein figure against an absent one would be a
-          ranking of paperwork rather than of food.
+          No ingredient verdict — fewer than two of these publish a guaranteed analysis.
         </p>
       )}
     </div>

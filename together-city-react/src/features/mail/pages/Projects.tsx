@@ -264,7 +264,7 @@ export function MailProjects() {
           first-run copy inviting them to make their first one. */}
       {q.isError ? (
         <EmptyState icon="⚠️" title="Couldn't open your projects"
-          hint="Nothing has been deleted — we couldn’t reach your mailbox just now. Your mail is all still in All Emails. Try again in a moment." />
+          hint="Couldn’t reach your mailbox — nothing’s lost. Try again in a moment." />
       ) : q.isLoading ? <Spinner label="Opening your mailbox…" /> : (
         <>
           {/* The whole mailbox, and never one of the nine tints: it is not a

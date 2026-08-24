@@ -9,12 +9,12 @@ export function TravelPackages() {
 
   return (
     <>
-      <TravelHero eyebrow="Travel Hub · 04" title="Packages" sub="Curated travel experiences, all in one place." bg={`${IMG}packages-image.webp`} />
+      <TravelHero eyebrow="Travel Hub · 04" title="Packages" sub="Trips worth packing for." bg={`${IMG}packages-image.webp`} />
 
       <section className="blk rise d2">
         <div className="blk-head"><h2>Popular packages</h2><Link className="more" to="/travel/explore">View all packages →</Link></div>
         {pkgs.isLoading ? <Spinner label="Loading packages…" />
-          : pkgs.isError ? <EmptyState title="Couldn't load packages" hint="This didn’t reach us — it isn’t that there’s nothing on offer. Try again in a moment." />
+          : pkgs.isError ? <EmptyState title="Couldn't load packages" hint="This didn’t reach us. Try again in a moment." />
           : list.length === 0 ? <EmptyState icon="🧳" title="No packages yet" hint="Check back soon." />
           : (
             <div className="grid3">

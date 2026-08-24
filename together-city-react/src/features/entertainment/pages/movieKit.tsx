@@ -342,7 +342,7 @@ export function TitleSheet({ sel, onClose, onOpen, autoplay = false }: { sel: Ti
                 {srcs.data?.live && srcs.data.sources.length > 0 && (
                   <div style={{ border: '1.5px solid var(--accent)', borderRadius: 12, padding: '12px 14px', marginBottom: 16, background: 'var(--accent-soft)' }}>
                     <h4 style={{ margin: '0 0 4px' }}>📡 Watch at Together City</h4>
-                    <p className="muted" style={{ fontSize: 11.5, margin: '0 0 10px' }}>Every platform carrying this title in India — tap to jump straight in.</p>
+                    <p className="muted" style={{ fontSize: 11.5, margin: '0 0 10px' }}>Every platform carrying this title in India.</p>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       {srcs.data.sources.map((so) => (
                         <a key={`${so.name}${so.kind}`} href={so.url} target="_blank" rel="noopener noreferrer"

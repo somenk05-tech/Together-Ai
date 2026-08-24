@@ -76,9 +76,8 @@ export function Dashboard() {
         <div className="eyebrow">Your city</div>
         <h1 style={{ fontSize: 28, margin: '2px 0 0' }}>We couldn’t open your city just now</h1>
         <p className="muted" style={{ fontSize: 14, lineHeight: 1.65, margin: '10px 0 0', maxWidth: '54ch' }}>
-          Your profile didn’t come back from the server, and everything on this page is
-          built out of it — so rather than draw you a city we’d be guessing at, we’ve
-          stopped here. Nothing has been lost or changed. This is ours, not yours.
+          Your profile didn’t load, and this page is built from it. Nothing has been
+          lost — this is on us. Try again.
         </p>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 18 }}>
           <button type="button" onClick={() => void completion.refetch()} style={{ ...startStyle, background: 'none', cursor: 'pointer' }}>
@@ -107,7 +106,6 @@ export function Dashboard() {
           nobody. The early return above is what makes the fallback unnecessary. */}
       <h1 style={{ fontSize: 28, margin: '2px 0 0' }}>{c.greeting}</h1>
       <p className="muted" style={{ fontSize: 14, lineHeight: 1.6, margin: '8px 0 0', maxWidth: '54ch' }}>
-        Everything here is yours — what you’ve told us, what you’ve planned, what’s waiting.
         Nothing on this page is a sample.
       </p>
 
@@ -127,8 +125,8 @@ export function Dashboard() {
           </div>
           <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.6, margin: '10px 0 0' }}>
             {c.complete
-              ? 'Everything we ask for is filled in. Every hub is reading from it — you won’t be asked twice.'
-              : 'Each hub reads from this one profile, so anything you add here saves you answering it somewhere else.'}
+              ? 'Everything we ask for is filled in — one profile, every hub.'
+              : 'One profile, every hub — add it once, never again.'}
           </p>
 
           {c.nextUp.length > 0 && (
@@ -180,11 +178,6 @@ export function Dashboard() {
                 ? panel.data.inRangeLine
                 : `${flagged.length} marker${flagged.length === 1 ? '' : 's'} to look at${panel.data.takenOn ? `, from your panel on ${panel.data.takenOn}` : ''}.`}
             </p>
-            {/* The numbers stay on the medical page. This is the screen somebody
-                opens on a train; a lab value is not a thing to meet in passing. */}
-            <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.55, margin: '8px 0 0' }}>
-              The values are on your medical page, where the ranges and what they mean are with them.
-            </p>
           </div>
         </section>
       )}
@@ -201,8 +194,7 @@ export function Dashboard() {
           <h2 style={{ fontSize: 17, margin: '0 0 10px' }}>Waiting for you</h2>
           {countsUnknown && (
             <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.6, margin: '0 0 10px', maxWidth: '54ch' }}>
-              Some of these didn’t load just now, so this list may be short. Alerts and Dating
-              will have the real answer.
+              Some counts didn’t load — Alerts and Dating have the full picture.
             </p>
           )}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -230,8 +222,7 @@ export function Dashboard() {
         <section className="card" style={{ marginTop: 22, padding: '20px' }}>
           <h2 style={{ fontSize: 16, margin: 0 }}>Your city is quiet so far</h2>
           <p className="muted" style={{ fontSize: 13, lineHeight: 1.65, margin: '8px 0 14px', maxWidth: '52ch' }}>
-            That’s not a mistake — there’s nothing here yet because you haven’t put anything here yet.
-            Start anywhere; the rest of the city will read from it.
+            Nothing here yet. Start anywhere — the city reads from it.
           </p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <Link to="/nutrition/preferences" style={startStyle}>Plan your meals</Link>

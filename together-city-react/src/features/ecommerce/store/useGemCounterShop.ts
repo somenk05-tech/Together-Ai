@@ -190,7 +190,7 @@ export function useGemCounterShop(): Shop {
        better be clear which one somebody is looking at. */
     note: [
       catalog.data?.disclaimer,
-      'Sold loose and unset — a mounting is four more decisions and the studio in the Astrology Zone asks them one at a time, judging each against the stone. Nothing here is a recommendation: the stones your own chart calls for are in the Personalized Store.',
+      'Sold loose and unset — the Astrology Zone studio handles mounting. Nothing here is a recommendation: the stones your own chart calls for are in the Personalized Store.',
     ].filter(Boolean).join(' '),
 
     bag: cart.data ? {

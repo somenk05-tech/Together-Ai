@@ -120,7 +120,6 @@ export function Matches() {
         <div className="eyebrow">Jobs · Jobs for you</div>
         <h1 style={{ fontSize: 26 }}>Upload your resume first</h1>
         <div className="card" style={{ marginTop: 14 }}>
-          <p style={{ fontSize: 13.5, margin: 0 }}>We match roles to your parsed skills — add your resume to get started.</p>
           <div style={{ marginTop: 12 }}><Link to="/jobs/profile"><Button variant="accent" size="sm">Add my resume</Button></Link></div>
         </div>
       </div>

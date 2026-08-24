@@ -156,7 +156,6 @@ export function MiraConfidant({ otherName, transcript, onClose }: {
           {turns.length === 0 && (
             <p className="miraopentext" style={{ margin: 0 }}>
               I can read this conversation with {otherName} — just this one, nothing else, and I keep none of it.
-              Ask me what’s going on, where they’re coming from, or for help saying what you mean.
             </p>
           )}
           {turns.map((t) => (
@@ -221,7 +220,7 @@ export function MiraConfidant({ otherName, transcript, onClose }: {
         {/* The scope, said out loud where it is true — the same honesty the
             day-store note keeps in her own room. */}
         <p className="miranote">
-          Mira sees only what’s on this screen, and keeps none of it — close this panel and it’s gone.
+          Close this panel and it’s gone.
         </p>
       </aside>
     </>

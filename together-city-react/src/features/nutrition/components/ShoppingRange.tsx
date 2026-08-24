@@ -135,8 +135,7 @@ export function ShoppingRange({ mode, days, onDays }: {
       </div>
 
       <p className="muted" style={{ fontSize: 12.5, margin: '14px 0 0', lineHeight: 1.65 }}>
-        Only ingredients from <strong>locked menus</strong> appear below — a menu you have not
-        locked can still change, and buying for it would buy food you may never cook.
+        Only ingredients from <strong>locked menus</strong> appear below.
         {(() => {
           /* WHICH plan the menus come from, said in words. Every day has two
              real menus — My Preferences and Optimal Health — and each lock
@@ -158,7 +157,6 @@ export function ShoppingRange({ mode, days, onDays }: {
             {locked === 0
               ? `None of these ${inRange.length} menu${inRange.length === 1 ? '' : 's'} is locked yet, so there is nothing to shop for.`
               : `${locked} of ${inRange.length} menus locked. ${unlocked.length} still to go.`}
-            {' '}Open the meal plan, read the menu for {unlocked.length === 1 ? 'that day' : 'each of these days'}, and lock the ones you are happy with.
           </p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
             {unlocked.map((d) => (

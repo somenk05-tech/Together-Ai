@@ -188,8 +188,8 @@ export function Monthly() {
         <SectionTitle
           title={fed.length > 1 ? 'This month’s grocery list — the whole house' : 'This month’s grocery list'}
           line={fed.length > 1
-            ? `Every meal for ${forWhom}, added up and merged into one order. Two halves, because they are bought in two different places.`
-            : 'Every meal above, added up. Two halves, because they are bought in two different places.'}
+            ? `Every meal for ${forWhom}, merged into one order.`
+            : 'Every meal above, added up.'}
           action={
             <button
               type="button"
@@ -197,7 +197,7 @@ export function Monthly() {
               style={{ background: 'var(--accent)', color: 'var(--on-accent)', border: 'none' }}
               onClick={() => city.forEach((i) => i.productId && addToCart(i.productId, 0))}
             >
-              {fed.length > 1 ? 'Add the whole order to cart' : 'Add everything to cart'}
+              {fed.length > 1 ? 'Add all to cart' : 'Add all to cart'}
             </button>
           }
         />
@@ -229,7 +229,7 @@ export function Monthly() {
         <List
           title="Buy for home cooking"
           line={fed.length > 1
-            ? 'From your own kitchen shop — one quantity per ingredient, for every pet’s home-cooked meals this month.'
+            ? 'One quantity per ingredient, for the month’s home-cooked meals.'
             : 'From your own kitchen shop — quantities are for the month’s home-cooked meals.'}
           items={kitchen}
           split={fed.length > 1}

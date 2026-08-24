@@ -65,7 +65,7 @@ function DraftNote() {
     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 11, background: 'var(--warn-soft)', border: '1px solid var(--warn-line)', borderRadius: 12, padding: '14px 18px', margin: '26px 0 34px' }}>
       <span style={{ fontSize: 17 }}>⚖</span>
       <p style={{ margin: 0, fontSize: 13.5, color: 'var(--warn-ink)' }}>
-        <strong style={{ color: 'var(--warn-ink)' }}>Draft for legal review.</strong> These documents are written to a publishable standard but are templates. They must be reviewed and finalised by an Indian technology lawyer before publication; details marked <span className="doc-body"><span className="tf">like this</span></span> need to be filled in.
+        <strong style={{ color: 'var(--warn-ink)' }}>Draft for legal review.</strong> Drafts pending review by Indian counsel; items marked <span className="doc-body"><span className="tf">like this</span></span> are placeholders.
       </p>
     </div>
   );
@@ -89,7 +89,7 @@ function HubView({ q, setQ, totalCount }: { q: string; setQ: (v: string) => void
       <section style={{ padding: '56px 0 30px', borderBottom: '1px solid var(--lg-line)' }}>
         <div className="mono" style={{ fontSize: 11.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--lg-accent)', marginBottom: 16 }}>{CO.company}</div>
         <h1 className="serif" style={{ fontWeight: 600, fontSize: 'clamp(32px,5vw,52px)', lineHeight: 1.08, margin: '0 0 18px', maxWidth: '16ch' }}>The Together City legal &amp; policy library</h1>
-        <p style={{ fontSize: 17, color: 'var(--ink-soft)', maxWidth: '62ch', margin: '0 0 26px' }}>Every term, disclaimer, and agreement that governs Together City — a single platform spanning social, dating, AI, medical, nutrition, restaurants, travel, commerce, payments, and the creator economy. Organised into five volumes. Each document is linked below.</p>
+        <p style={{ fontSize: 17, color: 'var(--ink-soft)', maxWidth: '62ch', margin: '0 0 26px' }}>Every term, disclaimer and agreement that governs Together City, in five volumes.</p>
         <span className="mono" style={{ fontSize: 12, color: 'var(--lg-muted)' }}>{totalCount} documents · 5 volumes · Governed by Indian law (Mumbai)</span>
       </section>
 

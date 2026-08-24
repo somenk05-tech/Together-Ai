@@ -90,7 +90,7 @@ export function useFitnessShop(): Shop {
     isError: store.isError,
     emptyTitle: store.data && !store.data.personalised ? 'Not matched to you yet' : 'Nothing on the shortlist',
     emptyHint: store.data && !store.data.personalised
-      ? 'The shelf is the general one until your training profile and health data have been read, and a general list shown as yours is worse than no list.'
+      ? 'Fill in your training profile and this shelf is matched to you.'
       : 'The engine has nothing at priority or consider for you right now. The full shelf is in the Fitness hub.',
     /* Not personalised yet → the profile that would personalise it. Empty with
        a profile on file → the full shelf, which is what the hint already
@@ -100,7 +100,7 @@ export function useFitnessShop(): Shop {
       : { label: 'Open the Fitness shelf', path: '/fitness/store' },
     /* THE STORE TAKES NO CUT, and that sentence belongs to the hub that means
        it. Quoted rather than re-worded so the two cannot drift. */
-    note: 'Verified in India · we take no cut. Prescription items are not sold here — they are on the Fitness shelf, beside the reasoning and the limits that belong with them.',
+    note: 'Verified in India · we take no cut. Prescription items live on the Fitness shelf.',
 
     bag: bagQ.data ? {
       lines: bagLines,

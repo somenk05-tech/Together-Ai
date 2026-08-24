@@ -102,7 +102,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
   // hub is the opposite shape: everything in it is put there by a citizen, so
   // it is empty on the day it ships and honest about it.
   services: {
-    key: 'services', name: 'Local Services', tag: 'The people who fix, teach and take care of things near you', backPath: '/services',
+    key: 'services', name: 'Local Services', tag: 'Fix it, learn it, book it — near you', backPath: '/services',
     items: [
       { path: '/services/browse', index: '01', label: 'Find a service', sub: 'By trade and by where you are' },
       { path: '/services/list', index: '02', label: 'List your business', sub: 'Pick a category, name your areas' },
@@ -157,7 +157,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // Seven destinations were removed by the review (p14, p26) and two were
       // renamed. The removed paths still resolve — see REMOVED_ROUTES — they
       // just no longer have a way in from the menu.
-      { path: '/nutrition/blood', index: '01', label: 'Connect with Blood Test', sub: 'Personalise from your labs' },
+      { path: '/nutrition/blood', index: '01', label: 'Connect Blood Test', sub: 'Personalise from your labs' },
       { path: '/nutrition/preferences', index: '02', label: 'Food Preference Profile', sub: 'Your taste & goals' },
       { path: '/nutrition/weekly', index: '03', label: 'Weekly Meal Planner', sub: 'Personalised 7-day plan' },
       { path: '/nutrition/grocery', index: '04', label: LABELS.groceryLists, sub: 'Built from your plan' },
@@ -273,7 +273,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
          carts and also a cross-hub cart in e-commerce". Every shop still owns
          and shows its own; this room is all of them in one list with one total,
          and one press that places an order in each. */
-      { path: '/ecommerce/cart', index: '03', label: 'Your Cart', sub: 'Every shop in the city, one list' },
+      { path: '/ecommerce/cart', index: '03', label: 'Your Cart', sub: 'One list, one checkout' },
     ],
   },
   beauty: {
@@ -390,7 +390,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // rail keeps its own way out in the same place for the same reason.
       { path: '/mail/inbox', index: '01', label: 'All Email', sub: 'Every message, always' },
       { path: '/mail/compose', index: '02', label: 'Compose', sub: 'Write a new message' },
-      { path: '/mail/sent', index: '03', label: 'Sent', sub: 'Messages that were accepted' },
+      { path: '/mail/sent', index: '03', label: 'Sent', sub: 'What went out' },
       // One room for everything still waiting on the citizen: what they were
       // still writing, and what the provider refused. /mail/failed still
       // resolves for old links — see router.

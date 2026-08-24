@@ -120,8 +120,7 @@ export function Orders() {
           {(bagQ.data?.unsellable ?? 0) > 0 && (
             <p className="muted" style={{ fontSize: 12.5, margin: '0 0 14px', lineHeight: 1.55 }}>
               {bagQ.data?.unsellable} of these can’t go through this checkout and {(bagQ.data?.unsellable ?? 0) === 1 ? 'is' : 'are'} not
-              in the total. Still listed rather than deleted — a bag that quietly empties itself is a bag
-              that lies about what you asked for.
+              in the total.
             </p>
           )}
 
@@ -162,7 +161,7 @@ export function Orders() {
                 },
                 { onSuccess: () => { setPlaced(true); setRead(false); } },
               )}>
-              {pay.isPending ? 'Paying…' : `Pay ${rupees(bagQ.data?.totalInr ?? 0)} from your city wallet`}
+              {pay.isPending ? 'Paying…' : `Pay ${rupees(bagQ.data?.totalInr ?? 0)}`}
             </button>
             <Link className="btn btn-sm" to="/fitness/store">Keep shopping</Link>
             <button type="button" className="btn btn-sm" disabled={busy} onClick={() => save.mutate([])}>Empty the bag</button>
@@ -211,8 +210,7 @@ export function Orders() {
           ))}
           {list.length > 0 && (
             <p className="muted" style={{ fontSize: 11.5, marginTop: 4, lineHeight: 1.55 }}>
-              Each line is what it cost on the day you bought it. A receipt that changes when a shelf
-              price changes is not a receipt.
+              Prices are what you paid on the day.
             </p>
           )}
         </div>

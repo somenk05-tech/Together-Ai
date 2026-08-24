@@ -30,12 +30,13 @@ const copy = () => read('features/astrology/pages/AstroTarot.tsx')
  * new claim — but they are about to be set at masthead size, and a sentence
  * read at 40px is a promise in a way the same sentence in a grey lede is not.
  *
- * Two of the three lines are claims about our own software rather than
- * atmosphere: "nothing is dealt until you have turned every card" and "the same
- * draw can be regenerated from its seed". Both were true when they were small
- * and untested. Each is tied here to the line that earns it, so if the draw
- * ever fires before the last back turns, or a reading stops carrying its seed,
- * this file goes red rather than the masthead quietly becoming untrue.
+ * One of the lines is a claim about our own software rather than atmosphere:
+ * "nothing is dealt until you have turned every card". (The masthead's second
+ * claim, "the same draw can be regenerated from its seed", was retired in the
+ * 24 Aug copy audit — the mechanism is still asserted below.) Each claim is
+ * tied here to the line that earns it, so if the draw ever fires before the
+ * last back turns, or a reading stops carrying its seed, this file goes red
+ * rather than the masthead quietly becoming untrue.
  */
 describe('the tarot masthead claims what the table does', () => {
   it('offers a free card a day, and the daily draw is priced at zero', () => {
@@ -65,8 +66,9 @@ describe('the tarot masthead claims what the table does', () => {
     expect(deal).toBeGreaterThan(guard);
   });
 
-  it('calls a reading reproducible, and the seed is stored with it and composed from', () => {
-    expect(copy()).toMatch(/the same draw can be regenerated from its seed/);
+  it('stores the seed with a reading and composes from it', () => {
+    // The masthead no longer advertises reproducibility (copy audit, 24 Aug) —
+    // the mechanism stays: the seed is stored and every read composes from it.
     const svc = api('astrology/tarot.service.ts');
     expect(svc).toMatch(/create: \{[^}]*seed,/);
     expect(svc).toMatch(/composeTarot\('daily', hit\.seed\)/);

@@ -56,8 +56,7 @@ export function StoreBagPage({ shop }: { shop: Shop }) {
         <h1 className="st-title">{empty ? 'Your bag is empty' : 'Your bag'}</h1>
         {!empty && (
           <p className="st-line">
-            Nothing is charged until you pay, and it stays here until you take it out. This is the
-            same bag as the one in {shop.hubName} — one bag, wherever you filled it.
+            Nothing is charged until you pay. Same bag as in {shop.hubName} — wherever you filled it.
           </p>
         )}
       </header>

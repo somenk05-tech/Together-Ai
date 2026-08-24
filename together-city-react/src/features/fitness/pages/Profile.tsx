@@ -237,8 +237,8 @@ export function Profile() {
       <div className="card" style={{ marginBottom: 14 }}>
         <div className="eyebrow">Your training set-up <span className="muted" style={{ fontWeight: 400 }}>· this builds today&rsquo;s session</span></div>
         <p className="muted" style={{ fontSize: 12, lineHeight: 1.6, margin: '6px 0 10px' }}>
-          Tell us what you actually have. If you have nothing, say so — a bodyweight session built
-          on purpose beats one built on a guess about your dumbbells.
+          Tell us what you actually have — &ldquo;nothing&rdquo; is a real answer, and gets a
+          bodyweight session built on purpose.
         </p>
         <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', margin: '0 0 6px' }}>Equipment</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -289,7 +289,7 @@ export function Profile() {
         <Button variant="accent" disabled={save.isPending}
           onClick={() => { if (!v.validate()) return; save.mutate({ age, sex, level, mode, goal, conditions, heightCm: num(heightCm), weightKg: num(weightKg), bodyGoal,
             equipment, daysPerWeek: daysPerWeek === '' ? undefined : daysPerWeek, limitations: limitations.trim() || undefined,
-            place: place || undefined, sessionMinutes: sessionMinutes === '' ? undefined : sessionMinutes }, { onSuccess: () => { setCollapsed(true); successToast('Fitness profile saved successfully.'); } }); }}>
+            place: place || undefined, sessionMinutes: sessionMinutes === '' ? undefined : sessionMinutes }, { onSuccess: () => { setCollapsed(true); successToast('Profile saved.'); } }); }}>
           {save.isPending ? 'Saving…' : 'Save & build my plan'}
         </Button>
         {save.isSuccess && <span style={{ fontSize: 13, color: 'var(--accent-ink)', fontWeight: 700 }}>✓ Saved — see My Plan & Body Goal</span>}

@@ -33,7 +33,7 @@ export const SENSITIVE_HUBS: Record<string, HubConsent> = {
   },
   dating: {
     hub: 'dating', label: 'Dating Hub', icon: 'heart',
-    inline: 'Your dating profile is never visible to connected family or friends, and only appears to compatible matches you choose to interact with.',
+    inline: 'Family and friends never see this — only compatible matches you choose do.',
     promise: 'Only information you choose to make public will be visible to potential matches.',
     what: 'Your dating profile, preferences, interests and the birth details used for compatibility.',
     why: 'To find genuinely compatible matches (75%+) and improve who we surface to you.',

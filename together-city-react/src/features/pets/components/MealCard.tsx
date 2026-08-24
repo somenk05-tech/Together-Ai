@@ -85,7 +85,7 @@ export function MealCard({ meal, onToggle, onRegenerate, onOpen, favourite, onFa
       {meal.gramsRange && (
         <p className="muted" style={{ margin: 0, fontSize: 11.5, lineHeight: 1.5 }}>
           Estimated from {meal.portionBasis} — this listing doesn’t publish its own. Weigh to your pack’s
-          feeding guide for {meal.kcal} kcal; it is the figure that counts.
+          feeding guide for {meal.kcal} kcal.
         </p>
       )}
       {!meal.grams && !meal.gramsRange && (

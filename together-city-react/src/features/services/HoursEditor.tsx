@@ -180,10 +180,6 @@ export function HoursEditor({ listing }: { listing: MyServiceCard }) {
               </Button>
             )}
           </div>
-          <p className="muted" style={{ fontSize: 11.5, margin: 0, lineHeight: 1.55 }}>
-            Set once. Your page and your card work out “open now” from these — there is no switch to
-            flip each morning, which is the one nobody remembers.
-          </p>
         </div>
       )}
     </div>

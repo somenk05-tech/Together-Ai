@@ -412,7 +412,7 @@ export function BloodAnalysis() {
       <div className="card" style={{ marginTop: 18 }}>
         <div className="eyebrow">Upload your report — we read &amp; analyse it for you</div>
         <p className="muted" style={{ fontSize: 13, margin: '4px 0 0' }}>
-          Upload a photo or PDF of your blood report. We read the values and analyse it automatically — no extra steps. The same report also appears in your <Link to="/medical/records" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Health Records</Link>. It extracts numbers only, never diagnoses; you can edit any reading below and re-analyse.
+          The report is filed in your <Link to="/medical/records" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Health Records</Link> too. Numbers only, never diagnoses — edit any reading below.
         </p>
         <label style={{ display: 'block', border: '1.5px dashed var(--line)', borderRadius: 'var(--r-2)', padding: '22px', textAlign: 'center', cursor: extracting ? 'default' : 'pointer', marginTop: 12 }}>
           <input type="file" accept="image/*,.heic,.heif,.tiff,application/pdf" style={{ display: 'none' }} disabled={extracting}
@@ -433,7 +433,7 @@ export function BloodAnalysis() {
       <form onSubmit={submit} className="card" style={{ marginTop: 18 }}>
         <div className="eyebrow">Review &amp; save</div>
         <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 12px' }}>
-          Enter any values from your report — the more you add, the more precise your Nutrition, Beauty and Fitness personalisation. Each field shows its reference range and flags out-of-range values. Decimals are kept exactly as entered.
+          Enter any values from your report — the more you add, the more precise your Nutrition, Beauty and Fitness personalisation.
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginBottom: 12 }}>
           <input value={lab} onChange={(e) => setLab(e.target.value)} placeholder="Lab name (optional)"

@@ -68,9 +68,8 @@ export function AstroMonthly() {
 
       {isCurrent && m && !m.needsProfile && m.pending && (
         <LetterNote action={<button type="button" className="letter-link" onClick={() => void monthly.refetch()}>Check again</button>}>
-          Your letter for the month isn&rsquo;t ready yet. It is written once, properly, rather than
-          assembled from parts &mdash; and until it is, there is nothing here worth your time.
-          Please come back a little later.
+          Your letter for the month isn&rsquo;t ready yet. It&rsquo;s still being written &mdash;
+          come back a little later.
         </LetterNote>
       )}
 

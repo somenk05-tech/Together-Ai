@@ -284,9 +284,8 @@ export function Profile() {
             passport actually looks like. */}
         <div>
           <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.65, margin: '2px 0 14px', maxWidth: '46ch' }}>
-            One identity, and a page for every hub that reads from it. The data
-            page is entered once — every hub in the city works from it, and
-            nothing is asked for twice.
+            Entered once — every hub in the city reads from it. Nothing is
+            asked for twice.
           </p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 26 }}>
             <Link to="/profile/master"><Button variant="accent" size="sm">Edit the data page</Button></Link>
@@ -296,9 +295,8 @@ export function Profile() {
 
           <div className="eyebrow">Visas &amp; permits</div>
           <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 14px', maxWidth: '48ch', lineHeight: 1.55 }}>
-            One page per hub, stamped by what that hub knows about you — and
-            blank until you have been there, which is the honest way to show a
-            hub you have never opened.
+            One page per hub, stamped by what it knows about you — blank until
+            you’ve been there.
           </p>
           {isLoading && <Spinner />}
           {isError && <EmptyState title="Couldn't load your pages" hint="Reload in a moment." />}

@@ -141,8 +141,7 @@ export function DatingBrowse() {
         </div>
         <span className="dnote-cap">Because meaningful relationships should begin with intention</span>
         <p className="dnote-fine">
-          Nobody is hidden for scoring low &mdash; the percentage is our reading of the two of
-          you, and the choice is yours. Like someone and they hear nothing; like each other and
+          Nobody is hidden for scoring low. Like someone and they hear nothing; like each other and
           you both do.
         </p>
       </header>
@@ -155,8 +154,8 @@ export function DatingBrowse() {
       <div style={{ marginBottom: 18, display: 'flex', gap: 12, alignItems: 'flex-start', background: 'var(--paper)', borderRadius: 'var(--r-2)', padding: '13px 16px' }}>
         <span aria-hidden style={{ display: 'grid', placeItems: 'center', width: 34, height: 34, borderRadius: '50%', border: '1.5px solid var(--accent-ink)', color: 'var(--muted)', flex: 'none' }}>💫</span>
         <div style={{ fontSize: 12.5, lineHeight: 1.5 }}>
-          <strong>When you both like each other, they move to Curated Matches</strong> — that is
-          where a match lives, and where chat opens. <Link to="/dating/matches" style={{ fontWeight: 700 }}>Curated Matches →</Link>
+          <strong>When you both like each other, they move to Curated Matches</strong> — and
+          chat opens there. <Link to="/dating/matches" style={{ fontWeight: 700 }}>Curated Matches →</Link>
         </div>
       </div>
 
@@ -175,7 +174,7 @@ export function DatingBrowse() {
           <EmptyState
             icon="🌙"
             title="No one to show just yet"
-            hint="Your city is just getting started here. As more residents join, they appear on this page the day they do — everyone, not only the strong matches."
+            hint="New residents appear here the day they join — everyone, not only the strong matches."
           />
           <div style={{ textAlign: 'center', marginTop: 14 }}>
             <Link to="/dating/profile"><Button variant="line">Check who can find you</Button></Link>

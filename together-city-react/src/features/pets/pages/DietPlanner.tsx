@@ -70,13 +70,13 @@ export function DietPlanner() {
       <Empty
         glyph="⚖️"
         title={`${pet.name} needs a weight`}
-        line="Weight and age are the two figures the energy equation runs on. Add them to the profile and the plan builds itself."
+        line="Add a weight to the profile and the plan builds itself."
         action={<button type="button" className="btn" onClick={() => nav(`/pets/profiles?edit=${pet.id}`)}>Open {pet.name}’s profile</button>}
       />
     );
   }
 
-  if (!plan) return <Loading line={`Building ${pet.name}’s month from the energy equations, the catalogue and the composition tables…`} />;
+  if (!plan) return <Loading line={`Building ${pet.name}’s month…`} />;
 
   const energy = energyFor(pet);
   const age = readAge(pet);
@@ -86,7 +86,7 @@ export function DietPlanner() {
     <div style={{ display: 'grid', gap: 24 }}>
       <SectionTitle
         title="Diet plan"
-        line="Calculated from the profile — no second form to fill in."
+        line="Calculated from the profile."
         action={
           <div style={{ display: 'flex', gap: 8 }}>
             <button type="button" className="btn btn-sm btn-line" onClick={() => nav(`/pets/profiles?edit=${pet.id}`)}>Edit profile</button>
@@ -178,7 +178,7 @@ export function DietPlanner() {
              leads there says what it leads to, rather than letting somebody
              assume they will have to do this once per pet. */
           <p className="muted" style={{ margin: 0, fontSize: 12.5, lineHeight: 1.6 }}>
-            The grocery list under the month covers every pet in the house — {pets.map((p) => p.name).join(', ')} — as one order.
+            One grocery list covers the whole house — {pets.map((p) => p.name).join(', ')}.
           </p>
         )}
       </div>

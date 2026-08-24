@@ -45,10 +45,8 @@ export function DeleteAccountCard() {
         <h3 style={{ margin: 0 }}>Delete account</h3>
       </div>
       <p className="muted" style={{ fontSize: 13, marginTop: 2 }}>
-        This permanently removes your Together City identity: your posts, photos, listings and
-        social connections are erased, your profile stops existing for other citizens, and every
-        device is signed out. It cannot be undone. Type <strong>DELETE</strong> and confirm your
-        password to continue.
+        Erases your posts, photos, listings and connections, and signs out every device. It cannot
+        be undone. Type <strong>DELETE</strong> and confirm your password.
       </p>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 6 }}>
         <input

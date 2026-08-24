@@ -84,7 +84,7 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!agreed) { setError('Please accept the Terms of Service and Privacy Policy to continue.'); return; }
+    if (!agreed) { setError('Accept the Terms and Privacy Policy to continue.'); return; }
     if (!canSubmit) { setError('Please complete the highlighted fields.'); return; }
     setBusy(true);
     try {
@@ -104,7 +104,7 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
         <h1 style={{ fontSize: 26, marginBottom: 6 }}>Welcome to Together City</h1>
         <p className="muted" style={{ fontSize: 13.5, marginBottom: 16 }}>
           Your account is ready, {firstName(name) ?? handle}. One more step —
-          confirm <strong>{email}</strong> so we can reach you if you lose your password.
+          confirm <strong>{email}</strong> so you can recover your account.
         </p>
 
         {/* Verifying here rather than sending them off to find an email later:
@@ -130,7 +130,7 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
     <>
       <div className="eyebrow" style={{ textAlign: 'center' }}>Together City</div>
       <h1 style={{ fontSize: 28, marginBottom: 6, textAlign: 'center' }}>Join the City</h1>
-      <p className="muted" style={{ fontSize: 13.5, marginBottom: 20, textAlign: 'center' }}>One city for your whole life. Create your account in seconds.</p>
+      <p className="muted" style={{ fontSize: 13.5, marginBottom: 20, textAlign: 'center' }}>One city for your whole life.</p>
 
       <form onSubmit={(e) => void submit(e)} className="tc-riser" noValidate>
         {/* Handle */}
@@ -211,7 +211,7 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
             <Link to="/legal/terms" target="_blank" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Terms of Service</Link>{' '}and{' '}
             <Link to="/legal/privacy" target="_blank" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Privacy Policy</Link>.
             <span id="tos-note" className="muted" style={{ display: 'block', marginTop: 3 }}>
-              Your data is yours. Sensitive information — health, dating, finances — stays private by default and is only used to personalize the features you choose.
+              Your data is yours. Health, dating and money stay private by default.
             </span>
           </span>
         </label>

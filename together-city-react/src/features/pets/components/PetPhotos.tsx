@@ -264,7 +264,6 @@ export function PetPhotos({ petName, species, photos, onChange }: Props) {
       {scrubbed > 0 && (
         <p className="muted" style={{ margin: 0, fontSize: 11.5, lineHeight: 1.55 }}>
           Location data was removed from {scrubbed === 1 ? 'one photo' : `${scrubbed} photos`} before it was saved.
-          Photos of a pet at home carry the coordinates of that home, and Together City takes them out on the device.
         </p>
       )}
     </div>

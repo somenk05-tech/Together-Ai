@@ -86,7 +86,7 @@ export function BusinessInvoices() {
         <EmptyState
           title={tab === 'all' ? 'You haven’t billed anybody yet' : 'Nothing in here'}
           hint={tab === 'all'
-            ? 'An invoice goes to a neighbour who has messaged you and shown you their name. They can pay it from their wallet or a card.'
+            ? 'Invoices go to neighbours who have messaged you and shown their name.'
             : 'Try another state — the counts beside each tab are of everything you have written.'}
           action={tab === 'all'
             ? <Link to={`/services/${listingId}/invoices/new`} style={{ color: 'var(--accent-ink)', fontWeight: 700, fontSize: 13.5 }}>Write your first invoice →</Link>

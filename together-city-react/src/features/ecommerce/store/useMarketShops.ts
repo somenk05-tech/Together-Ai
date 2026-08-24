@@ -198,7 +198,7 @@ export function useSupplementsMarketShop(): Shop {
     isError: store.isError,
     emptyTitle: 'The shelf is empty',
     emptyHint: 'Nothing is listed in the fitness store at the moment.',
-    note: 'Verified in India · we take no cut. Prescription items are not sold here — they are on the Fitness shelf, beside the reasoning, the doses and the limits that belong with them.',
+    note: 'Verified in India · we take no cut. Prescription items live on the Fitness shelf.',
 
     bag: bagQ.data ? {
       lines: bagLines,
@@ -275,7 +275,7 @@ export function usePetMarketShop(): Shop {
     emptyHint: 'Nothing is listed in Pet Care at the moment.',
     /* NO TILL, SAID OUT LOUD. The bag being null is what hides the Bag link and
        the checkout bar; this sentence is what explains the absence. */
-    blocked: 'This aisle is for looking. The pet basket lives in Pet Care, where the ingredient checks and the species filters are — every tile here opens the product there.',
+    blocked: 'This aisle is for looking — every tile opens the product in Pet Care, where the basket lives.',
 
     bag: null,
     isSaving: false,

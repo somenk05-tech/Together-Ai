@@ -317,7 +317,7 @@ export function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKin
             </div>
             <p className="muted" style={{ fontSize: 11.5, margin: '10px 0 0', textAlign: 'center' }}>
               {match.likedByMe
-                ? 'You’ve liked them. They’re notified only if you both like each other — and the moment they do, they move to Curated Matches and chat opens.'
+                ? 'You’ve liked them. They’ll only know if they like you back — then chat opens in Curated Matches.'
                 : 'They’re notified only if you both like each other. That moves them to Curated Matches, and chat opens there.'}
             </p>
           </>
@@ -417,9 +417,8 @@ export function Distribution({ bands, total, highlightScore }: { bands: Compatib
         })}
       </div>
       <p className="muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.5 }}>
-        Everyone here fits what you asked for. They are listed strongest first and grouped by
-        category, so you can start at the top or go looking — the percentage is our reading of
-        the two of you, and the choice is yours.
+        Everyone here fits what you asked for, listed strongest first. The percentage is our
+        reading — the choice is yours.
       </p>
     </div>
   );
@@ -436,15 +435,13 @@ export function EngagedPanel({ chat, openChats, cap }: { chat: DatingChatSummary
         {openChats === 1 ? `You’re getting to know ${chat ? chat.name : 'someone'}` : `You have ${openChats} conversations going`}
       </h2>
       <p className="muted" style={{ fontSize: 13, margin: '0 auto 16px', maxWidth: 380, lineHeight: 1.55 }}>
-        Intentional dating means a few conversations, not endless ones — {cap} at a time.
-        What is paused is starting another one, not looking: your matches stay on this page and
-        the whole city stays in Potential Matches. Unmatch one and the next chat opens.
+        Intentional dating means {cap} conversations at a time. Your matches stay right
+        here — unmatch one and the next chat opens.
       </p>
       <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
         <Link to={chat ? `/dating/chats?c=${chat.conversationId}` : '/dating/chats'}><Button variant="accent">Open your chat</Button></Link>
         <Link to="/dating/chats"><Button variant="line">Dating chats</Button></Link>
       </div>
-      <p className="muted" style={{ fontSize: 11.5, marginTop: 14 }}>To start another, unmatch one of these first.</p>
     </div>
   );
 }

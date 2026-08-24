@@ -121,7 +121,7 @@ export function Composer({ onSend, onTyping, replyTo, onCancelReply }: {
       tick.current = setInterval(() => setRecSec((s) => (s === null ? 0 : s + 1)), 1000);
     } catch {
       // A refused microphone is a decision, not a failure — say what to do.
-      setError('Microphone access is off for this site. Allow it in your browser’s settings to record a voice note.');
+      setError('Microphone blocked — allow it in your browser settings.');
     }
   };
 

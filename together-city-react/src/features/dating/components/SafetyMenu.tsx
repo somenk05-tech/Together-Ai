@@ -64,8 +64,8 @@ export function SafetyMenu({ userId, kind, compact = false }: {
               <>
                 <h3 style={{ margin: '0 0 4px', fontSize: 17 }}>What would you like to do?</h3>
                 <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.55, margin: '0 0 16px' }}>
-                  Neither of these tells them anything. They won’t know you reported them, and a block
-                  looks to them like nothing happened.
+                  Neither tells them anything — a report is anonymous, and a block looks like
+                  nothing happened.
                 </p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <button type="button" onClick={() => setMode('report')}
@@ -91,8 +91,7 @@ export function SafetyMenu({ userId, kind, compact = false }: {
               <>
                 <h3 style={{ margin: '0 0 4px', fontSize: 17 }}>Report this person</h3>
                 <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.55, margin: '0 0 12px' }}>
-                  Tell us what happened, in your own words. You don’t have to — send it blank if you’d
-                  rather not write it out. A moderator reads this; they’re never told who reported them.
+                  Optional — a moderator reads this, and they’re never told who reported them.
                 </p>
                 <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={4} maxLength={500}
                   aria-label="What happened"

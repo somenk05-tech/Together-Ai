@@ -302,11 +302,10 @@ export function Compose() {
             role="combobox" aria-autocomplete="list" aria-controls="mail-to-suggestions"
             aria-expanded={showSug && suggestions.length > 0}
             aria-activedescendant={sugAt >= 0 ? `mail-to-sug-${sugAt}` : undefined}
-            placeholder="a connection's @togethercity.app handle · or any email address" style={inp} autoComplete="off" />
+            placeholder="Handle or email address" style={inp} autoComplete="off" />
           {dir.isSuccess && (dir.data?.length ?? 0) === 0 && (
             <div className="muted" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.5 }}>
-              You're not connected to anyone yet — city mail goes to your connections.
-              You can still write to any external email address.
+              No connections yet — but you can write to any email address.
             </div>
           )}
           {showSug && suggestions.length > 0 && (
@@ -366,8 +365,7 @@ export function Compose() {
                 {refused.map((f) => <li key={f.to}><span className="mrefused-to">{f.to}</span> {f.reason}</li>)}
               </ul>
               <span className="muted">
-                Your message is in Sent. Fix or remove those addresses and send again — the people who received it
-                will get a second copy.
+                It’s in Sent — fix those addresses and resend. Recipients will get a second copy.
               </span>
             </div>
           )}
@@ -477,7 +475,7 @@ export function Compose() {
           <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }} role="status" aria-live="polite">
             {savedAt
               ? `Draft saved ${savedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · in Drafts & Failed`
-              : 'Delivers to citizens and external emails · up to 1 GB of attachments'}
+              : null}
           </span>
         </div>
       </div>

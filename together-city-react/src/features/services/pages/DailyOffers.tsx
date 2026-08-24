@@ -31,15 +31,14 @@ export function DailyOffers() {
       <div className="eyebrow">Local Services</div>
       <h1 style={{ fontSize: 26 }}>Daily offers</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px', maxWidth: '62ch' }}>
-        What businesses near you are offering on {today}. Every one of these has an end
-        date and goes away on its own, so nothing here is stale.
+        What businesses near you are offering on {today}.
       </p>
 
       {rows.length === 0 ? (
         <>
           <EmptyState
             title="Nothing on today"
-            hint="Businesses post their own offers, and they run for the days they choose. If you list a business, this is where yours would appear."
+            hint="Businesses post their own offers, for the days they choose."
           />
           <Link to="/services/mine"><Button variant="line">Post an offer</Button></Link>
         </>

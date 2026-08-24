@@ -118,7 +118,7 @@ export function FamilySearch() {
     <div>
       <PageHeader eyebrow="Family Nutrition · 04"
         title="Search by Ingredients"
-        sub="Tell us what's in the kitchen — we search the Together City world database and respect every member's diet, flag kid-friendly recipes, and portion ingredients for the whole family." />
+        sub="Tell us what's in the kitchen — we find dishes that fit every member, portioned for the family." />
 
       <div className="card" style={{ marginBottom: 26 }}>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -187,7 +187,7 @@ export function FamilySearch() {
             <h4>Long-Term Memory</h4>
             <p className="meta" style={{ display: 'block', marginTop: 10 }}>
               {members.length > 1
-                ? <>Cooking for <strong>{headN}</strong>{hasVegMember ? ' — vegetarian members are honoured, so non-veg dishes are auto-excluded while “Family-safe” is on' : ''}. Lighter meals are flagged <span className="tag green">Kid-Friendly</span>.</>
+                ? <>Cooking for <strong>{headN}</strong>. Lighter meals are flagged <span className="tag green">Kid-Friendly</span>.</>
                 : <>Dietary needs you set for each family member are remembered — non-veg and high-sugar dishes are auto-excluded for those who need it, and lighter meals are flagged <span className="tag green">Kid-Friendly</span>.</>}
             </p>
           </div>

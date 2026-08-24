@@ -279,11 +279,8 @@ export function RecipeLibrary() {
         <div className="eyebrow">Nutrition</div>
         <h1 style={{ fontSize: 26 }}>{LABELS.createYourOwnMealPlan}</h1>
         <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px' }}>
-          Add the dishes you want and they build the day below. Lock a day and its ingredients go
-          straight to your grocery list — then the next dish you add starts the day after, which is
-          how you fill a month. Say how many people you are cooking for and every quantity on that
-          list scales. Browse a cuisine for ideas, or add a dish you cook yourself under{' '}
-          <Link to="/nutrition/saved">Saved recipes</Link>.
+          Add dishes to build your day. Lock it — the ingredients go straight to your grocery list.
+          Your own dishes live under <Link to="/nutrition/saved">Saved recipes</Link>.
         </p>
 
         {buildBar}

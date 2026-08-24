@@ -181,7 +181,7 @@ function Dial(
       {cap && (
         <p className="muted" style={{ fontSize: 11, lineHeight: 1.55, margin: '6px 0 0' }}>
           {value > cap
-            ? `Your ${label.toLowerCase()} shelf tops out at about ${rupees(cap)} for your profile — everything past that either repeats what your routine already carries or doesn't address anything you told us about, so the rest of the ${rupees(value)} you've set can't be spent.`
+            ? `Your ${label.toLowerCase()} shelf tops out at about ${rupees(cap)} for your profile — past that, products only repeat your routine or miss your concerns — the rest of your ${rupees(value)} can't be spent.`
             : `Your ${label.toLowerCase()} shelf tops out at about ${rupees(cap)} for your profile, so the dial stops there rather than offering money the shelf can't use.`}
         </p>
       )}
@@ -250,19 +250,16 @@ export function BudgetPanel(
   }, [saved.data, draft]);
 
   const priorityLine = priorities?.length
-    ? `Your profile suggests your face routine should prioritise ${priorities.slice(0, 2).join(' and ').toLowerCase()}. Set your budget and we'll prioritise accordingly.`
+    ? `Your face routine will prioritise ${priorities.slice(0, 2).join(' and ').toLowerCase()}.`
     : null;
 
   return (
     <div>
       {!compact && (
         <>
-          <p className="muted" style={{ fontSize: 13.5, margin: '0 0 4px', maxWidth: 560 }}>
-            Set what you&rsquo;re comfortable handing over for this routine. We&rsquo;ll build it around that.
-          </p>
           <p className="muted" style={{ fontSize: 12.5, margin: '0 0 18px', maxWidth: 560 }}>
-            Your budget is what the routine may cost to buy. We&rsquo;ll prioritise the products that matter most and keep
-            your routine lean. Leave a category at nothing and we&rsquo;ll leave it out altogether.
+            Your budget is what the routine costs to buy. Leave a category at nothing and
+            it&rsquo;s left out altogether.
           </p>
         </>
       )}
@@ -304,7 +301,7 @@ export function BudgetPanel(
       </div>
 
       <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.55, margin: '14px 0 0', maxWidth: 620 }}>
-        We&rsquo;ll never recommend products that push your routine beyond your selected budget without asking you first.
+        We never go past your budget without asking first.
       </p>
     </div>
   );

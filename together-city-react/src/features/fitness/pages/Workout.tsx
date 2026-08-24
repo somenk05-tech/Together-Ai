@@ -276,7 +276,7 @@ export function Workout() {
     force();
   };
   const skipToWalk = () => { const wi = rt.current.seq.findIndex((s) => s.walk); if (wi >= 0) goStep(wi); else finish(true); };
-  const markSkipAll = () => { if (window.confirm('Skip all activity today? You will be marked as no physical activity.')) setLog((l) => ({ ...l, [dayKey()]: { status: 'none', kcal: 0 } })); };
+  const markSkipAll = () => { if (window.confirm('Skip today? It logs as no activity.')) setLog((l) => ({ ...l, [dayKey()]: { status: 'none', kcal: 0 } })); };
 
   const today = log[dayKey()]; const tStatus: Status = today ? today.status : 'rest';
   const running = rt.current.running; const s = rt.current.seq[rt.current.idx];
@@ -305,7 +305,7 @@ export function Workout() {
       <div style={{ marginBottom: 28 }}>
         <div className="eyebrow">Together City · Hub 012</div>
         <h1 style={{ fontSize: 'clamp(26px,3vw,42px)' }}>Your Workout</h1>
-        <p className="lede" style={{ marginTop: 6 }}>Your personalised home &amp; gym plan for today — level &amp; goal matched, with a live guided timer.</p>
+        <p className="lede" style={{ marginTop: 6 }}>Today's session, matched to your level and goal — with a live timer.</p>
       </div>
 
       <div style={{ marginBottom: 14 }}>
@@ -442,10 +442,10 @@ export function Workout() {
 
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '16px 0 14px' }}>
             <Button variant="accent" disabled={!session} onClick={() => start('full')}>▶ Start workout + walk</Button>
-            <Button variant="line" onClick={() => start('walk')}>🚶 Skip workout — just walk ({walkMin || 20} min)</Button>
+            <Button variant="line" onClick={() => start('walk')}>🚶 Just walk ({walkMin || 20} min)</Button>
             <Button variant="ghost" onClick={markSkipAll}>Skip today</Button>
           </div>
-          <p className="muted" style={{ fontSize: 11.5, marginBottom: 10 }}>Start the timer and Together City guides you exercise-by-exercise. You can pause, skip an exercise, jump to the walk, or end anytime.</p>
+          <p className="muted" style={{ fontSize: 11.5, marginBottom: 10 }}>The timer guides you exercise-by-exercise.</p>
 
           {todays.isLoading && <p className="muted" style={{ fontSize: 12.5 }}>Building today&rsquo;s session from your profile…</p>}
           {todays.isError && (

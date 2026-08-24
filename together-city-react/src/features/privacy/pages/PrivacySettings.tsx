@@ -41,8 +41,7 @@ export function PrivacySettings() {
       <div className="eyebrow" style={{ marginTop: 10 }}>Settings</div>
       <h1 style={{ fontSize: 26 }}>Privacy &amp; Permissions</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 22px', lineHeight: 1.6 }}>
-        You choose what Together City can use, feature by feature. Nothing here is required to have an
-        account — turn anything off and it takes effect immediately.
+        Feature-by-feature control. Turn anything off — it takes effect immediately.
       </p>
 
       <h2 style={{ fontSize: 16, marginBottom: 10 }}>Optional features</h2>
@@ -58,7 +57,7 @@ export function PrivacySettings() {
 
       <h2 style={{ fontSize: 16, margin: '26px 0 10px' }}>Sensitive hubs</h2>
       <p className="muted" style={{ fontSize: 12.5, marginBottom: 12, lineHeight: 1.55 }}>
-        Each of these shows a short privacy explainer the first time you enter. Here's the promise for each and whether you've reviewed it.
+        Each hub's promise, and whether you've reviewed it.
       </p>
       {Object.values(SENSITIVE_HUBS).map((h) => (
         <div key={h.hub} className="card" style={{ marginBottom: 10, display: 'flex', gap: 12, alignItems: 'flex-start' }}>

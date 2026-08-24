@@ -59,8 +59,7 @@ export function Orders() {
       {hasBag && bag && (
         <>
           <p className="muted" style={{ fontSize: 13, margin: '0 0 14px', maxWidth: 560 }}>
-            Everything you’ve added, from the routine and the market alike. Nothing is charged until
-            you pay, and it stays here until you remove it.
+            Nothing is charged until you pay.
           </p>
 
           <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 16 }}>

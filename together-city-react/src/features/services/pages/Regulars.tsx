@@ -34,15 +34,14 @@ export function Regulars() {
       <div className="eyebrow">Local Services</div>
       <h1 style={{ fontSize: 26 }}>Regulars</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px', maxWidth: '62ch' }}>
-        The businesses you keep. Nobody is told they have been saved — this list is yours
-        and only yours.
+        The businesses you keep. Only you see this list.
       </p>
 
       {rows.length === 0 ? (
         <>
           <EmptyState
             title="Nothing saved yet"
-            hint="When you find someone worth keeping — the electrician who turns up, the tiffin you actually like — press Keep on their card and they land here."
+            hint="Press Keep on the electrician who turns up, the tiffin you actually like — they land here."
           />
           <Link to="/services/browse"><Button variant="accent">Find a service</Button></Link>
         </>

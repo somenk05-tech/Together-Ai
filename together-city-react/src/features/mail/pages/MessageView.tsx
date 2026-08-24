@@ -293,7 +293,7 @@ function InlineReply({ to, name, subject, threadId, latest, trailPending, open, 
       <div>
         <label style={{ fontSize: 12 }} className="muted">To</label>
         <input value={toAddr} onChange={(e) => setToAddr(e.target.value)} style={inp}
-          placeholder="a citizen's @togethercity.app handle · or any email address" autoComplete="off" />
+          placeholder="Handle or email address" autoComplete="off" />
       </div>
       {(showCopies || cc || bcc) ? (
         <div style={{ display: 'grid', gap: 12 }}>
@@ -568,7 +568,7 @@ export function MessageView() {
 
       {confirmGone && (
         <div className="mail-mishap" role="alert" style={{ marginTop: 12 }}>
-          <span>Delete this forever? Trash is the last stop — there is nowhere to take it back from.</span>
+          <span>Delete forever? This can’t be undone.</span>
           <span className="mail-mishap-keys">
             <Button variant="line" size="sm" disabled={remove.isPending}
               onClick={() => remove.mutate(m.id, { onSuccess: () => nav(backTo) })}>

@@ -512,7 +512,7 @@ function BudgetCard(
       {c.overInr > 0 && (
         <p className="muted" style={{ fontSize: 12, lineHeight: 1.55, margin: '7px 0 0' }}>
           {rupees(c.overInr)} over the {rupees(c.budgetInr)} you set — shelf prices can&rsquo;t always
-          land exactly on your number, so we allow up to five per cent, and never more than that.
+          land exactly on your number — we allow up to five per cent over, never more.
         </p>
       )}
 
@@ -560,7 +560,7 @@ function BudgetCard(
           <strong>Not treated here</strong>
           <span className="muted"> — {(c.uncoveredNeeds ?? []).map(needLabel).join(', ')}. Nothing on this
             shelf that answers {(c.uncoveredNeeds ?? []).length === 1 ? 'it' : 'them'} fits a step in your
-            {' '}{meta.label.toLowerCase()} routine. We would rather say so than let the chip stand for an answer.</span>
+            {' '}{meta.label.toLowerCase()} routine.</span>
         </p>
       )}
 
@@ -585,9 +585,8 @@ function BudgetCard(
           dearer version of the same answer. */}
       {c.usefulMaxInr > 0 && c.spendInr > c.usefulMaxInr && (
         <p className="muted" style={{ fontSize: 12, lineHeight: 1.55, margin: '10px 0 0' }}>
-          Past about {rupees(c.usefulMaxInr)} this shelf stops being able to match you better
-          for your {meta.label.toLowerCase()} — above that the money buys a dearer version of
-          the same answer, not a closer one.
+          Past about {rupees(c.usefulMaxInr)}, extra money buys a dearer version of the same
+          answer — not a closer match.
         </p>
       )}
 
@@ -606,13 +605,13 @@ function BudgetCard(
               <>
                 {rupees(c.budgetInr)} won&rsquo;t carry the full base for your {meta.label.toLowerCase()} —
                 the essentials come to about <strong>{rupees(ask)} to buy</strong> together. We&rsquo;ve built
-                what fits and put the most important steps in first. Nothing has been changed on your behalf.
+                what fits, essentials first. Nothing has been changed on your behalf.
               </>
             ) : (
               <>
                 The best routine we can build for your {meta.label.toLowerCase()} comes
-                to <strong>{rupees(ask)} to buy</strong>, above the {rupees(c.budgetInr)} you set. We&rsquo;ve
-                built the best one that fits instead — we won&rsquo;t go over your budget without asking.
+                to <strong>{rupees(ask)} to buy</strong>, above the {rupees(c.budgetInr)} you set. This is
+                the best one that fits — we won&rsquo;t go over your budget without asking.
               </>
             )}
           </p>
@@ -645,9 +644,8 @@ function BudgetCard(
           own words; this line gives the number a reader can argue with. */}
       {!short && c.usefulMaxInr > 0 && c.usefulMaxInr < c.targetLowInr && (
         <p className="muted" style={{ fontSize: 12, lineHeight: 1.6, margin: '10px 0 0' }}>
-          For your profile this shelf tops out at about {rupees(c.usefulMaxInr)} of {c.category} products —
-          everything past that either repeats what your routine already carries or doesn&rsquo;t address
-          anything you told us about. You&rsquo;ve set {rupees(c.budgetInr)}.
+          This shelf tops out at about {rupees(c.usefulMaxInr)} for your profile; you&rsquo;ve
+          set {rupees(c.budgetInr)}.
         </p>
       )}
 
@@ -818,9 +816,8 @@ export function Routine() {
         <div className="card" style={{ maxWidth: 560, borderLeft: '4px solid var(--accent)' }}>
           <h2 style={{ fontSize: 16, margin: 0 }}>Set your beauty budget first</h2>
           <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.6, margin: '8px 0 14px' }}>
-            We&rsquo;ll use your profile and your budget to build your routine — face, hair and
-            body each with their own limit, and nothing chosen that goes over it. The
-            budget sits on your Skin &amp; Hair Profile, under the assessment.
+            Face, hair and body each get their own limit, and nothing is chosen that goes
+            over it. Set it on your Skin &amp; Hair Profile.
           </p>
           <Link to="/beauty/profile"><Button variant="accent">Set my budget</Button></Link>
         </div>
@@ -987,9 +984,9 @@ export function Routine() {
             of them — a routine that quietly cost what it cost would make the
             budget a filter applied afterwards, which is the thing it isn't. */}
         <p className="muted" style={{ fontSize: 12, margin: '16px 0 0', lineHeight: 1.55 }}>
-          Built from your saved skin and hair profile, what you told us you want to work on
-          {data?.budget && data.plan ? `, and your ${rupees(data.plan.totalBudgetInr)} budget` : ''} —
-          what to use, in what order, and when. Anything you’ve told us you react to is left out.
+          Built from your profile, your goals
+          {data?.budget && data.plan ? `, and your ${rupees(data.plan.totalBudgetInr)} budget` : ''}.
+          Anything you react to is left out.
         </p>
       </div>
 

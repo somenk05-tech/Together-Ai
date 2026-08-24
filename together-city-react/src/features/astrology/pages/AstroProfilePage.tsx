@@ -573,9 +573,7 @@ export function AstroProfilePage() {
       <Card style={{ marginTop: 16, padding: '16px 20px', background: 'var(--paper)' }}>
         <p style={{ fontSize: 13, fontWeight: 700, margin: '0 0 4px' }}>🔒 Your birth details are private.</p>
         <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.6, margin: 0 }}>
-          We use your date, time and place of birth only to generate personalized astrological insights and
-          compatibility reports. Your birth details are never shown publicly and are only shared if you
-          explicitly choose to do so.
+          Used only for your readings and compatibility. Never shown publicly, never shared unless you choose to.
         </p>
       </Card>
     </div>

@@ -24,7 +24,7 @@ export interface FieldRule {
   label: string;
   /** true when the field is complete/valid */
   valid: () => boolean;
-  /** inline + summary message; defaults to "Please complete <label>." */
+  /** inline + summary message; defaults to "<label> is required." */
   message?: string;
 }
 
@@ -37,7 +37,7 @@ export function useFormValidation(rules: FieldRule[]) {
   const validate = useCallback((): boolean => {
     const errs: Record<string, string> = {};
     for (const r of rules) {
-      if (!r.valid()) errs[r.key] = r.message ?? `Please complete ${r.label}.`;
+      if (!r.valid()) errs[r.key] = r.message ?? `${r.label} is required.`;
     }
     setErrors(errs);
     const first = rules.find((r) => errs[r.key]);
@@ -67,7 +67,7 @@ export function useFormValidation(rules: FieldRule[]) {
 }
 
 /** The summary card shown at the top of the form after a failed save. */
-export function ValidationSummary({ missing, title = 'Please complete the following before saving:' }: {
+export function ValidationSummary({ missing, title = 'Complete these to save:' }: {
   missing: { key: string; label: string; message: string }[]; title?: string;
 }) {
   if (!missing.length) return null;

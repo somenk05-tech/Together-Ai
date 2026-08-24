@@ -75,7 +75,7 @@ export const DENSITY: Record<'dry' | 'wet', Record<Species, DensityBand>> = {
 
 /** The sentence the UI prints under an estimated portion. */
 export const ESTIMATE_CAVEAT =
-  'Estimated: this listing doesn’t publish calories per kilogram, so the range assumes a published density band. Your pack’s own feeding guide is the number that counts — real foods vary, and an individual animal’s requirement can sit 50% either side of any formula (WSAVA).';
+  'Estimated — this listing doesn’t publish kcal/kg. Feed to your pack’s own guide; individual needs can vary 50% either side of any formula (WSAVA).';
 
 /** Dry, wet or a treat, read off the product's own words. */
 export function foodForm(name: string, subcategory: string, category: string): FoodForm {

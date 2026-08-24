@@ -25,7 +25,7 @@ export function Grocery() {
       <div className="eyebrow">Nutrition Hub · 05</div>
       <h1 style={{ fontSize: 26 }}>Your grocery list 🛒</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px' }}>
-        Built from your saved meal plan and organised like a supermarket — real quantities, duplicates merged, tap to check items off as you shop.
+        Built from your meal plan, organised like a supermarket.
       </p>
 
       <GroceryPlanner mode="individual" />

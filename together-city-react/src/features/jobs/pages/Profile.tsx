@@ -281,8 +281,7 @@ export function Profile() {
         <div className="eyebrow">Jobs · Your professional profile</div>
         <h1 style={{ fontSize: 26 }}>Upload your CV</h1>
         <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px', maxWidth: 620 }}>
-          Drop your CV in and we will read it into a professional profile — your roles, your
-          qualifications and the things you have built, each one an entry you can edit.
+          Drop your CV in — it becomes a profile you can edit, entry by entry.
         </p>
         {uploader}
         <PrivacyNote p={p} />
@@ -319,8 +318,7 @@ export function Profile() {
               {unchecked.length === 1 ? 'One entry has not been checked' : `${unchecked.length} entries have not been checked`}
             </div>
             <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>
-              These were read off your document and we were not certain about them. Until you confirm one,
-              it is a reading rather than something you have said.
+              Read from your CV, not yet confirmed by you.
             </p>
           </div>
           <Button variant="accent" size="sm" onClick={() => setPhase('review')}>Check them</Button>

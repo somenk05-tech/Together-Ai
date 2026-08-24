@@ -52,7 +52,7 @@ export function Movies() {
   return (
     <EntPage className="ent-movies">
       <style>{CSS}</style>
-      <PosterLead eyebrow="Entertainment · 01" title="Movies Now" sub="Decide what to watch in one place — theatres and OTT together, instead of scrolling a hundred different apps." />
+      <PosterLead eyebrow="Entertainment · 01" title="Movies Now" sub="Theatres and OTT, one place." />
 
       <div className="searchbar rise d1">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 Search any movie or series…" />

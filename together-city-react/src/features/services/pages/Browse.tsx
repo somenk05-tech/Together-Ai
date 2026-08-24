@@ -106,8 +106,7 @@ export function ServicesBrowse() {
           </h1>
           <p className="muted" style={{ fontSize: 15, margin: '10px 0 0', maxWidth: '54ch' }}>
             {firstName ? `${greeting(new Date().getHours())}, ${firstName}. ` : ''}
-            Genuine businesses and people around you. Compare them, message them without giving your
-            name, and decide with something behind the badge.
+            Genuine businesses near you. Message them without giving your name.
           </p>
         </div>
         <div style={{ flex: '0 0 auto' }}>
@@ -188,9 +187,8 @@ export function ServicesBrowse() {
           <div style={{ minWidth: 0 }}>
             <strong style={{ fontSize: 13.5 }}>Together Verified</strong>
             <p className="muted" style={{ fontSize: 12.5, margin: '3px 0 0', maxWidth: '78ch' }}>
-              A badge here means Together City has checked something specific — the person&rsquo;s identity, the
-              business&rsquo;s registration, the address — and each badge says which. It is not a recommendation, and
-              nobody buys one. Messaging stays inside Together City: you never have to give a business your number.
+              Each badge names one thing we checked — identity, registration, address. Nobody buys one.
+              Messaging stays inside Together City.
             </p>
           </div>
         </Card>
@@ -201,7 +199,7 @@ export function ServicesBrowse() {
             <EmptyState
               title={cityTotal === 0 ? 'Nobody has listed a business yet' : 'Nothing in this corner yet'}
               hint={cityTotal === 0
-                ? 'This directory fills up from the people who live here. If you run something — a trade, a class, a kitchen — you can be the first.'
+                ? 'Run something — a trade, a class, a kitchen? Be the first to list it.'
                 : 'Try another category, widen the area, or clear the search.'}
             />
           ) : view === 'map' ? (
@@ -220,7 +218,7 @@ export function ServicesBrowse() {
         <div style={{ flex: '1 1 320px', minWidth: 0 }}>
           <strong style={{ fontSize: 15 }}>Own a business?</strong>
           <p className="muted" style={{ fontSize: 12.5, margin: '3px 0 0' }}>
-            Get discovered by people nearby. Listing is free, and verification is what makes people write to you.
+            Free to list. Verification is what makes people write to you.
           </p>
         </div>
         <Link to="/services/list"><Button variant="line" size="sm">List your business →</Button></Link>

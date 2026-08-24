@@ -435,7 +435,7 @@ export function DatingProfilePage() {
         <EmptyState
           icon="⚠️"
           title="We couldn’t load your dating profile"
-          hint="Nothing has been lost. We’re not showing you the form, because an empty one would look like a profile you never made — and saving it would replace the one you have. Try again in a moment."
+          hint="Nothing has been lost — we’ve kept the form closed so a blank one can’t overwrite what you saved. Try again in a moment."
         />
       </div>
     );
@@ -666,7 +666,7 @@ export function DatingProfilePage() {
           {/* Footer */}
           <div style={{ marginTop: 18, background: 'var(--paper)', borderRadius: 'var(--r-2)', padding: '13px 16px', display: 'flex', alignItems: 'center', gap: 9, fontSize: 12.5 }}>
             <span aria-hidden style={{ color: 'var(--accent-ink)' }}>✨</span>
-            <span className="muted">Matches also see your live compatibility score with you.</span>
+            <span className="muted">Matches also see their live compatibility score with you.</span>
           </div>
         </div>
       </div>
@@ -678,7 +678,7 @@ export function DatingProfilePage() {
       <div className="eyebrow">Dating Hub · Your profile</div>
       <h1 style={{ fontSize: 26 }}>Tell the stars about you</h1>
       <p className="muted" style={{ fontSize: 13.5, marginTop: 6 }}>
-        Four short screens (~3–5 min). Matching is astrology-first; only matches scoring 75%+ are ever shown. Your profile passes a safety check before it goes live.
+        Four short screens (~3–5 min). Your profile passes a safety check before it goes live.
       </p>
       <StatusBanner />
       <CompletionCard completion={completion} />
@@ -708,7 +708,6 @@ export function DatingProfilePage() {
 
             <div style={{ gridColumn: '1 / -1', margin: '10px 0 -2px' }}>
               <span style={{ ...label, margin: 0 }}>📍 Your current location</span>
-              <p className="muted" style={{ fontSize: 11.5, margin: '2px 0 0', textTransform: 'none', letterSpacing: 0 }}>Mention your current location — where you live right now.</p>
             </div>
             <div><span style={label}>Country</span>
               <SearchSelect category="country" value={dx.country ?? 'India'} placeholder="Select country"
@@ -822,8 +821,7 @@ export function DatingProfilePage() {
                   names, with the preference left out rather than applied to a
                   distance nobody measured. */}
               <span className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, display: 'block', marginTop: 4 }}>
-                Someone further away than this still appears, scored lower — it shapes your matches
-                rather than hiding people. If we don’t recognise a city we leave this out rather than guess.
+                Shapes scores rather than hiding people — someone further away still appears, scored lower.
               </span>
             </label>
             <div><span style={label}>Diet</span><SearchSelect category="diet" value={dx.prefDiet ?? ''} clearable clearLabel="Any" placeholder="Any" onChange={(o) => setD({ prefDiet: o?.label })} /></div>
@@ -834,7 +832,6 @@ export function DatingProfilePage() {
           </div>
 
           <span style={label}>Where to find your partner</span>
-          <p className="muted" style={{ fontSize: 11.5, margin: '0 0 8px', textTransform: 'none', letterSpacing: 0 }}>Choose the location you'd like your partner to be from. This can be anywhere.</p>
           <div style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
             <Chip on={(dx.partnerLocationMode ?? 'any') === 'any'} onClick={() => setD({ partnerLocationMode: 'any' })}>🌍 Anywhere</Chip>
             <Chip on={dx.partnerLocationMode === 'specific'} onClick={() => setD({ partnerLocationMode: 'specific' })}>📍 Specific location</Chip>
@@ -864,7 +861,7 @@ export function DatingProfilePage() {
         {/* AI auto-calculated — no user input */}
         <div className="card" style={{ marginTop: 16, background: 'var(--accent-soft)', border: 'none' }}>
           <div className="eyebrow">✨ The AI calculates automatically</div>
-          <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 8px' }}>No input needed — from your details we compute your compatibility for every candidate:</p>
+          <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 8px' }}>Computed from your details, for every candidate:</p>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{AI_DIMENSIONS.map((d) => <span key={d} className="tag">{d}</span>)}</div>
         </div>
 

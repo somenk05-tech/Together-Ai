@@ -132,7 +132,7 @@ export function Profiles() {
     <div style={{ display: 'grid', gap: 24 }}>
       <SectionTitle
         title="Pet profiles"
-        line="Everything downstream — calories, meals, the shelf, the reminders — is computed from these."
+        line="Everything downstream is computed from these."
         action={
           <button type="button" className="btn" onClick={() => setParams({ new: '1' })} style={{ background: 'var(--accent)', color: 'var(--on-accent)', border: 'none' }}>
             Add a pet
@@ -197,8 +197,8 @@ function PetForm(
       <Fieldset
         legend="Photos"
         note={existing
-          ? 'Up to five. The first is the one the city shows on every card. Location data is removed on your device before anything leaves it, and each photo is saved to your account as you add it.'
-          : 'Up to five. The first is the one the city shows on every card. Location data is removed on your device before anything leaves it; these are saved with the profile.'}
+          ? 'Up to five — the first is the one every card shows. Location data is stripped on your device.'
+          : 'Up to five — the first is the one every card shows. Location data is stripped on your device.'}
       >
         <PetPhotos
           petName={draft.name}
@@ -296,7 +296,6 @@ function PetForm(
           </button>
         )}
       </div>
-      {!valid && <p className="muted" style={{ margin: 0, fontSize: 12 }}>A name and a weight are needed before a plan can be calculated.</p>}
     </form>
   );
 }

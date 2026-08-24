@@ -183,7 +183,7 @@ export function PersonalHome() {
         <div className="sl-head-t">
           <div className="eyebrow">Together City · Personal</div>
           <h1>Yours, and only yours</h1>
-          <p>Your journal, your week, your documents, your pictures and your money — the part of the city that belongs to you.</p>
+          <p>Your journal, week, documents, pictures and money.</p>
         </div>
       </div>
 

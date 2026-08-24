@@ -23,9 +23,7 @@ function ProfileGate() {
     <div className="page-note centred">
       <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 8 }}>Complete your Food Preference Profile</div>
       <p className="muted" style={{ fontSize: 13.5, marginBottom: 18, lineHeight: 1.5 }}>
-        Your weekly plan is built from your Food Preference Profile — diet, cuisines, foods you avoid,
-        allergies and protein sources — then refined by your health profile and blood reports. Save it
-        once and every future plan uses it.
+        Save it once — every plan is built from it.
       </p>
       <Link to="/nutrition/preferences"><Button>Complete Food Preference Profile</Button></Link>
     </div>
@@ -188,7 +186,7 @@ function DayShoppingPanel({ d, dayIndex, locked, skips, bare }: {
           )}
           {pantry > 0 && (
             <p className="muted" style={{ fontSize: bare ? 12.5 : 11.5, margin: '6px 0 0', lineHeight: 1.55 }}>
-              {pantry} pantry item{pantry === 1 ? "" : "s"} (salt, oil and the like) left off &mdash; you almost certainly have them.
+              {pantry} pantry item{pantry === 1 ? "" : "s"} (salt, oil and the like) left off.
             </p>
           )}
         </>
@@ -579,9 +577,8 @@ export function MealPlan() {
       <div className="page-note">
         <h1 style={{ fontSize: 22, margin: '0 0 6px' }}>We can’t size a plan for you yet</h1>
         <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.6, margin: '0 0 4px' }}>
-          A meal plan is portions, and portions come from a body. We’d rather ask
-          than guess — a week of meals measured for somebody else isn’t a plan,
-          it’s a plan for somebody else.
+          Portions come from your body’s numbers — add them below and the plan
+          builds itself.
         </p>
         <TargetsRefusal r={readiness} />
       </div>
@@ -618,7 +615,6 @@ export function MealPlan() {
         <div>
           <div className="eyebrow">Nutrition · Meal Plan</div>
           <h1 style={{ fontSize: 26 }}>Weekly Meal Plan</h1>
-          <p className="muted" style={{ fontSize: 13, margin: '2px 0 0' }}>Personalized for your goals, preferences &amp; health.</p>
         </div>
         {!wk.readOnly && <Button variant="line" size="sm" onClick={() => setShowSettings(true)}>Meal settings</Button>}
       </div>
@@ -821,7 +817,7 @@ export function MealPlan() {
           </div>
 
           <div style={{ marginTop: 22, textAlign: 'center', background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: '12px 16px', fontSize: 12.5, color: 'var(--muted)' }}>
-            Tap any meal to view the full recipe — ingredients &amp; step-by-step instructions.
+            Tap any meal for the full recipe.
           </div>
         </>
       )}

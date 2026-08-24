@@ -45,15 +45,11 @@ export function Quiz() {
   if (!done) {
     return (
       <div style={{ display: 'grid', gap: 22, maxWidth: 720 }}>
-        <SectionTitle title="What does your pet need?" line={`Three questions the profile can’t answer for ${pet.name}. Everything else comes from what you’ve already told us.`} />
+        <SectionTitle title="What does your pet need?" line="Three questions the profile can’t answer. The rest we already know." />
         <div className="card" style={{ padding: 22, display: 'grid', gap: 18 }}>
           <Toggle label={`Has ${pet.name} been groomed in the last month?`} value={answers.groomedRecently} onChange={(v) => setAnswers({ ...answers, groomedRecently: v })} />
           <Toggle label="Do you brush their teeth or use a dental routine?" value={answers.dentalRoutine} onChange={(v) => setAnswers({ ...answers, dentalRoutine: v })} />
           <Toggle label="Any puzzle feeders, training or nosework this week?" value={answers.enrichment} onChange={(v) => setAnswers({ ...answers, enrichment: v })} />
-          <p className="muted" style={{ margin: 0, fontSize: 12.5, lineHeight: 1.6 }}>
-            Activity comes from what you logged today ({logged} minutes). Nutrition, environment and preventive care
-            are read from {pet.name}’s profile.
-          </p>
           <button type="button" className="btn" onClick={() => setDone(true)} style={{ justifySelf: 'start', background: 'var(--accent)', color: 'var(--on-accent)', border: 'none' }}>
             See the scorecard
           </button>
@@ -71,8 +67,7 @@ export function Quiz() {
         <span className="muted" style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.2em', textTransform: 'uppercase' }}>{pet.name}’s scorecard</span>
         <h2 style={{ margin: 0, fontSize: 'clamp(30px, 6vw, 52px)', fontWeight: 300, letterSpacing: '-.03em' }}>{overall} / 100</h2>
         <p className="muted" style={{ margin: 0, fontSize: 13.5, lineHeight: 1.6, maxWidth: 560 }}>
-          Eight dimensions, scored from your profile and today’s logs. This is a prompt sheet, not an assessment of
-          your pet’s health — the only person who can do that has met them.
+          Scored from your profile and today’s logs. A prompt sheet, not a diagnosis — that’s your vet’s job.
         </p>
       </header>
 

@@ -280,8 +280,7 @@ export function Supplements() {
         <section className="card rise" style={{ padding: '18px 20px' }}>
           <b style={{ display: 'block', fontSize: 16 }}>We couldn’t build your plan</b>
           <p className="muted" style={{ margin: '6px 0 12px' }}>
-            Nothing has changed and nothing was lost — we just couldn’t reach your health data just now.
-            An empty plan here would read as “you need nothing”, which is a claim we haven’t checked.
+            Nothing has changed and nothing was lost — we couldn’t reach your health data just now.
           </p>
           <button type="button" className="btn btn-sm" onClick={() => void q.refetch()}>Try again</button>
         </section>
@@ -330,10 +329,9 @@ export function Supplements() {
                 ))}
                 {refusedBucket && (
                   <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.6, margin: '4px 0 0' }}>
-                    These have no price and no button here, on purpose. They are still on the
-                    shelf in <Link to="/fitness/store">the store</Link> — hiding them wouldn’t stop
-                    the purchase, it would only move it somewhere that never showed you the trials —
-                    and the checkout there asks you to read this once before it takes any money.
+                    No price and no button here, on purpose. They’re still
+                    in <Link to="/fitness/store">the store</Link> — the checkout there asks you
+                    to read the trial first.
                   </p>
                 )}
               </section>

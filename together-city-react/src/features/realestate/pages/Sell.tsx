@@ -233,9 +233,8 @@ export function Sell() {
         nav={(Object.keys(KIND_LABEL) as Kind[]).map((k) => ({
           label: KIND_LABEL[k], onSelect: () => switchKind(k), on: kind === k,
         }))}>
-        Capture live photos, add accurate details, and list as many properties
-        as you like. Everything you post is checked before it appears in
-        Explore, and you can see exactly why in My Listings.
+        List as many properties as you like. Everything is checked before it
+        appears in Explore.
       </Masthead>
 
       <div id="sell" />
@@ -254,7 +253,7 @@ export function Sell() {
           <div className="card" style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
             <span style={{ fontSize: 22, lineHeight: 1 }}>📸</span>
             <div style={{ fontSize: 12.5, lineHeight: 1.55 }}>
-              <b>Authentic photos only.</b> Pictures should be taken <b>live through your camera</b> so every buyer can trust the listing.
+              <b>Authentic photos only</b> — taken <b>live through your camera</b>.
             </div>
           </div>
 
@@ -304,7 +303,6 @@ export function Sell() {
           <div className="rule" />
 
           <h3 style={{ marginBottom: 12 }}>Add this property</h3>
-          <p className="muted" style={{ fontSize: 13, marginBottom: 14 }}>Add it to your submission list, then capture the next one.</p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
             <Button variant="gold" onClick={addProperty}>＋ Add property to list</Button>
             <Button variant="line" onClick={resetDraft}>Reset form</Button>

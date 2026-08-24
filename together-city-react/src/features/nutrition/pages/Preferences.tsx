@@ -290,10 +290,8 @@ export function Preferences() {
     return (
       <div className="card page-note">
         <p style={{ fontSize: 13.5, margin: 0, lineHeight: 1.6 }}>
-          We couldn’t load your food preference profile just now. Everything you
-          saved is untouched — and we won’t show a blank form over it, because
-          saving that would overwrite preferences that still exist. Try again in
-          a moment.
+          We couldn’t load your profile just now. Everything you saved is
+          untouched — try again in a moment.
         </p>
       </div>
     );
@@ -488,7 +486,7 @@ export function Preferences() {
             </span>
           </div>
           <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 12px' }}>
-            Set how much of each kitchen your plans should lean on. Drag a slider up to give it a bigger share of your weekly meals.
+            Give each kitchen its share of your week.
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -708,7 +706,6 @@ export function Preferences() {
             <span style={label}>Max cook time (min)</span>
             <input type="number" min={5} max={240} value={ex.maxCookMin ?? ''} placeholder="45"
               onChange={(e) => setEx({ ...ex, maxCookMin: num(e.target.value) })} style={field} />
-            <p className="muted" style={{ fontSize: 11.5, marginTop: 6 }}>Health conditions moved to their own section above.</p>
           </div>
         </div>
 
@@ -742,10 +739,6 @@ export function Preferences() {
       </form>
 
       <TargetsCard />
-
-      <p className="muted" style={{ fontSize: 11.5, marginTop: 16, textAlign: 'center' }}>
-        Personalised for you · Expert guidance · Quality you can trust · Better every day
-      </p>
     </div>
   );
 }

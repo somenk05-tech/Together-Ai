@@ -57,10 +57,10 @@ export function Ott() {
   return (
     <EntPage className="ent-ott">
       <style>{CSS}</style>
-      <PosterLead eyebrow="Entertainment · 02" title="OTT Watch" sub="Lock tonight's show in one place — search everything, browse by genre, see where it streams." />
+      <PosterLead eyebrow="Entertainment · 02" title="OTT Watch" sub="Lock tonight's show — and see where it streams." />
 
       <div className="searchbar rise d1">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 Search any show or movie across all platforms…" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 Search shows &amp; movies…" />
         {q && <button type="button" className="btn btn-line btn-sm" onClick={() => setQ('')}>Clear</button>}
       </div>
 

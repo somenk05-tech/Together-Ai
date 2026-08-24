@@ -39,7 +39,7 @@ export function PersonalizedStore() {
       <PageHeader
         eyebrow="E-Commerce"
         title="Personalized Store"
-        sub="Made for you, out of what you have already told the city. Each shelf here reads one profile and answers with a shortlist instead of a catalogue."
+        sub="Each shelf reads one profile and answers with a shortlist, not a catalogue."
       />
       <div className="ec-run">
         {shelves.map((s) => (s.download ? (
@@ -53,11 +53,8 @@ export function PersonalizedStore() {
         )))}
       </div>
       <p className="ec-note">
-        This district keeps no shelf of its own. Every product on it belongs to the hub
-        that verified it, and that hub is where the price is set — which is why a card
-        opens that shop rather than a till of this district’s own. The grocery list is the
-        exception and the reason is the same one: it has no price on it and nothing to
-        charge for, so the card simply hands it to you.
+        Every product belongs to the hub that verified it — each card opens that shop.
+        The grocery list has no price, so its card hands you the list.
       </p>
     </>
   );

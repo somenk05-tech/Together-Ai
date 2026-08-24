@@ -199,9 +199,8 @@ export function LetterNote({ children, action }: { children: ReactNode; action?:
 export function NeedsBirthDetails() {
   return (
     <LetterNote action={<Link className="letter-link" to="/profile/astrology">Add your details</Link>}>
-      There is no letter here yet, because writing one to you means knowing when and where you were
-      born. It is asked once and shared across everything else you use, so you will not be asked
-      again.
+      Your letter is written from when and where you were born. Add that once &mdash; it&rsquo;s
+      shared everywhere you use it.
     </LetterNote>
   );
 }
