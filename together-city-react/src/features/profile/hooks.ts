@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { profileApi } from './api';
 
 export function useProfileSummary() {
@@ -22,4 +22,16 @@ export function useProfileCompletion() {
  *  number: `incomplete` and `unavailable` are real states, not errors. */
 export function useHealthScore() {
   return useQuery({ queryKey: ['profile', 'health-score'], queryFn: () => profileApi.healthScore(), staleTime: 60_000 });
+}
+
+/** The address book — home, work, other; the legacy line answers as home. */
+export function useSavedAddresses() {
+  return useQuery({ queryKey: ['profile', 'addresses'], queryFn: () => profileApi.addresses() });
+}
+export function useForgetAddress() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (label: string) => profileApi.forgetAddress(label),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['profile', 'addresses'] }); },
+  });
 }

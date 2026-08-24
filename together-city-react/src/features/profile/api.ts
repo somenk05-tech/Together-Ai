@@ -43,6 +43,9 @@ export interface MasterProfileView {
   age?: number | null; updatedAt?: string | null;
 }
 
+/** One page of the address book — home | work | other. */
+export interface SavedAddressView { label: string; addressText: string; lat: number | null; lng: number | null }
+
 export interface CompletionSection {
   key: string; label: string; href: string;
   done: number; total: number; percent: number; complete: boolean;
@@ -102,6 +105,11 @@ export interface DeclaredHealthDraft {
 
 export const profileApi = {
   master: () => api.get<MasterProfileView>('/profile/master').then((r) => r.data),
+  // The book is read here and forgotten here; WRITING happens at the order
+  // checkout, where the "save this as…" tick is — the consent gate.
+  addresses: () => api.get<{ addresses: SavedAddressView[] }>('/profile/addresses').then((r) => r.data),
+  forgetAddress: (label: string) =>
+    api.delete<{ addresses: SavedAddressView[] }>(`/profile/addresses/${label}`).then((r) => r.data),
   completion: () => api.get<ProfileCompletion>('/profile/completion').then((r) => r.data),
   updateMaster: (patch: Partial<MasterProfileView>) =>
     api.patch<MasterProfileView>('/profile/master', patch).then((r) => r.data),

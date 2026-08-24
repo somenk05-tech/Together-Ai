@@ -138,6 +138,7 @@ export const PURGE_RULES: PurgeRule[] = [
   // copy of what the citizen shared at checkout. The money's record survives
   // separately: the invoice under the listing and the tombstoned PaymentIntent,
   // neither of which says where anybody lives.
+  { model: 'SavedAddress', by: 'userId', action: 'purge', reason: 'Their address book — home, office, wherever they had dinner sent. Where somebody lives is the last thing that should outlive them here.' },
   { model: 'ServiceOrder', by: 'userId', action: 'purge', reason: 'What they ordered, and the name, phone and delivery address they shared to get it. The identity a kitchen needed for one dinner dies with the account; the business keeps the invoice, which identifies nobody.' },
   // ── The Till. Two-sided money, and the asymmetry decides every rule below.
   //

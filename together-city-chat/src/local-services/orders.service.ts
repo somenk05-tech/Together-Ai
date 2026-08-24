@@ -296,13 +296,24 @@ export class ServiceOrdersService {
         href: `/services/messages/${enquiry.id}`,
       });
 
-      // The address outlives the order ONLY because they ticked the box.
+      // The address outlives the order ONLY because they ticked the box — and
+      // it lands on the page of the book they picked (home | work | other).
+      // "home" is also mirrored into the legacy MasterProfile.address, so the
+      // one place that read it before the book existed keeps reading true.
       if (dto.fulfilment === 'delivery' && dto.saveAddress && dto.address) {
-        await this.prisma.masterProfile.upsert({
-          where: { userId },
-          update: { address: dto.address },
-          create: { userId, address: dto.address },
+        const label = dto.saveLabel ?? 'home';
+        await this.prisma.savedAddress.upsert({
+          where: { userId_label: { userId, label } },
+          update: { addressText: dto.address, lat: dto.lat ?? null, lng: dto.lng ?? null },
+          create: { userId, label, addressText: dto.address, lat: dto.lat ?? null, lng: dto.lng ?? null },
         }).catch(swallowed('serviceOrders.saveAddress', undefined));
+        if (label === 'home') {
+          await this.prisma.masterProfile.upsert({
+            where: { userId },
+            update: { address: dto.address },
+            create: { userId, address: dto.address },
+          }).catch(swallowed('serviceOrders.saveHomeMirror', undefined));
+        }
       }
     }
 

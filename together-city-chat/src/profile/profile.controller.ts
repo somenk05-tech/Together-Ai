@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Query, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Query, UseGuards, UsePipes } from '@nestjs/common';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -26,6 +26,19 @@ export class ProfileController {
   @Get('master')
   master(@CurrentUser() user: JwtUser) {
     return this.masterProfile.get(user.sub);
+  }
+
+  /** The address book — home, work, other; the legacy line answers as home. */
+  @Get('addresses')
+  addresses(@CurrentUser() user: JwtUser) {
+    return this.masterProfile.addresses(user.sub);
+  }
+
+  /** Forget one saved address. Writing happens at the order checkout, where
+   *  the consent tick is — there is deliberately no POST here. */
+  @Delete('addresses/:label')
+  forgetAddress(@CurrentUser() user: JwtUser, @Param('label') label: string) {
+    return this.masterProfile.forgetAddress(user.sub, label);
   }
 
   /** One platform-wide profile-completion score + per-hub breakdown. */

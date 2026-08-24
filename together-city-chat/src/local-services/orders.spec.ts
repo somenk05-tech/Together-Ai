@@ -42,6 +42,7 @@ function harness(opts: {
   const invoices: any[] = [];
   const orders: any[] = [];
   const profiles: any[] = opts.allergens !== undefined ? [{ userId: SEEKER, foodAllergens: opts.allergens, address: null }] : [];
+  const book: any[] = [];
   const payCalls: any[] = [];
   const refundCalls: any[] = [];
   let seq = 0;
@@ -130,6 +131,14 @@ function harness(opts: {
         const made = { ...create }; profiles.push(made); return made;
       },
     },
+    savedAddress: {
+      upsert: async ({ where, update, create }: any) => {
+        const k = where.userId_label;
+        const r = book.find((b) => b.userId === k.userId && b.label === k.label);
+        if (r) { applyData(r, update); return r; }
+        const made = { ...create }; book.push(made); return made;
+      },
+    },
   };
   prisma.$transaction = async (arg: any) => (Array.isArray(arg) ? Promise.all(arg) : arg(prisma));
 
@@ -164,7 +173,7 @@ function harness(opts: {
   svc.ai = opts.ai ?? { recommendFromMenu: async () => ({ ok: false, reason: 'off' }) };
   svc.services = services;
 
-  return { svc, prisma, menu, enquiries, messages, invoices, orders, profiles, payCalls, refundCalls, notes };
+  return { svc, prisma, menu, enquiries, messages, invoices, orders, profiles, book, payCalls, refundCalls, notes };
 }
 
 const BUTTER = 'aaaaaaaa-0000-4000-8000-000000000001';
@@ -314,14 +323,24 @@ describe('placing an order: pay, then promise', () => {
     })).rejects.toThrow(/does not take an address/i);
   });
 
-  it('saves the address to the Master Profile ONLY when the box was ticked', async () => {
+  it('saves the address to the book ONLY when the box was ticked — home also mirrors the legacy line', async () => {
     const first = harness();
     await first.svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 420, ...DELIVERY });
     expect(first.profiles).toHaveLength(0);
+    expect(first.book).toHaveLength(0);
 
     const second = harness();
     await second.svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 420, ...DELIVERY, saveAddress: true });
+    expect(second.book[0]).toMatchObject({ label: 'home' });
+    expect(second.book[0].addressText).toContain('Marine Drive');
+    // home mirrors the legacy single line, so its old readers keep reading true
     expect(second.profiles[0].address).toContain('Marine Drive');
+
+    const third = harness();
+    await third.svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 420, ...DELIVERY, saveAddress: true, saveLabel: 'work' });
+    expect(third.book[0]).toMatchObject({ label: 'work' });
+    // …and a page that is not home touches the legacy line not at all.
+    expect(third.profiles).toHaveLength(0);
   });
 
   it('a failed payment leaves no order and no live invoice', async () => {

@@ -534,6 +534,46 @@ export class MasterProfileService {
     // shared/salutation.ts, which was written after exactly that happened.
     return { greeting: salutation(m.name), percent, complete: percent >= 100, sections, nextUp };
   }
+
+  // ───────────────────────── the address book ─────────────────────────
+
+  /**
+   * home | work | other — the vocabulary every delivery app already taught
+   * the city. Written from the order checkout's "save this as…" tick (the
+   * consent gate), read back as the checkout's radio list. When the book is
+   * empty, the legacy single MasterProfile.address still answers as "home",
+   * so nobody's one saved address vanished the day the book arrived.
+   */
+  async addresses(userId: string) {
+    const px = this.prisma as unknown as {
+      savedAddress: { findMany(a: unknown): Promise<Array<{ label: string; addressText: string; lat: number | null; lng: number | null }>> };
+      masterProfile: { findUnique(a: unknown): Promise<{ address: string | null } | null> };
+    };
+    const rows = await px.savedAddress.findMany({ where: { userId }, orderBy: { label: 'asc' }, take: 6 });
+    if (rows.length) {
+      return { addresses: rows.map((r) => ({ label: r.label, addressText: r.addressText, lat: r.lat, lng: r.lng })) };
+    }
+    const legacy = await px.masterProfile.findUnique({ where: { userId }, select: { address: true } });
+    return {
+      addresses: legacy?.address?.trim()
+        ? [{ label: 'home', addressText: legacy.address.trim(), lat: null, lng: null }]
+        : [],
+    };
+  }
+
+  /** Forget one label. The legacy profile line goes with "home", because the
+   *  book presents it AS home and a forget that leaves a ghost is not one. */
+  async forgetAddress(userId: string, label: string) {
+    const px = this.prisma as unknown as {
+      savedAddress: { deleteMany(a: unknown): Promise<{ count: number }> };
+      masterProfile: { updateMany(a: unknown): Promise<{ count: number }> };
+    };
+    await px.savedAddress.deleteMany({ where: { userId, label } });
+    if (label === 'home') {
+      await px.masterProfile.updateMany({ where: { userId }, data: { address: null } });
+    }
+    return this.addresses(userId);
+  }
 }
 
 /**

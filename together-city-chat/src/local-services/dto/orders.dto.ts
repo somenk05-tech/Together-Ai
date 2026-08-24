@@ -39,8 +39,10 @@ export const PlaceOrderSchema = z.object({
   phone: z.string().trim().min(6).max(20),
   /** Delivery only — refused on pickup so nothing is over-shared by habit. */
   address: z.string().trim().min(10).max(400).optional(),
-  /** Write the address to the Master Profile too. Their tick, never a default. */
+  /** Write the address to their book too. Their tick, never a default. */
   saveAddress: z.boolean().optional(),
+  /** Which page of the book it goes on. Defaults to home. */
+  saveLabel: z.enum(['home', 'work', 'other']).optional(),
   /** Where they stood when they ordered. Required for delivery. */
   lat: z.number().min(-90).max(90).optional(),
   lng: z.number().min(-180).max(180).optional(),

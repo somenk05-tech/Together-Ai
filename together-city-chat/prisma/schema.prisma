@@ -196,6 +196,7 @@ model User {
   serviceRegulars      ServiceRegular[]
   serviceReviews       ServiceReview[]
   serviceOrders        ServiceOrder[]
+  savedAddresses       SavedAddress[]
   ticketBookings       TicketBooking[]
   tripBookings         TripBooking[]
   mailAccount          MailAccount?
@@ -2628,6 +2629,34 @@ model MasterProfile {
 /// In-app notification feed (social likes/comments/follows, connection
 /// requests/accepts, etc.). No User relation by design — kept as a lightweight
 /// append-only log keyed by recipient userId, so it never blocks a User write.
+/// THE ADDRESS BOOK — home, office, other (owner, 24 Aug).
+///
+/// One row per label per citizen, upserted whole: an address is a small
+/// document somebody re-dictates, not a form they patch. Written from the
+/// order checkout when the citizen ticks "save this as…" and picks a label —
+/// the same consent gate MasterProfile.address has, one level richer. The
+/// legacy single MasterProfile.address stays what it was (and is still
+/// mirrored by a save labelled "home"), so nothing that read it breaks.
+///
+/// The pin travels with the text when the checkout had one. It is a
+/// convenience for a future map, never a substitute for the live location a
+/// delivery order still requires — where you ARE is the fact being checked.
+model SavedAddress {
+  id          String   @id @default(uuid())
+  userId      String
+  /// home | work | other. The vocabulary every delivery app taught the city.
+  label       String
+  addressText String
+  lat         Float?
+  lng         Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, label])
+}
+
 model Notification {
   id        String   @id @default(uuid())
   userId    String // recipient

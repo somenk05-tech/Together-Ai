@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Spinner } from '@/components/ui';
-import { useMasterProfile } from '@/features/profile/hooks';
+import { useForgetAddress, useMasterProfile, useSavedAddresses } from '@/features/profile/hooks';
 import {
   currentPosition, rupees,
   useAskAboutMenu, useMenu, usePlaceOrder, useQuoteOrder, useRecommend,
@@ -354,8 +354,16 @@ function Checkout({ listingId, picks, onBack, onPlaced }: {
   const [fulfilment, setFulfilment] = useState<'delivery' | 'pickup'>('delivery');
   const [phone, setPhone] = useState('');
   const [phoneTouched, setPhoneTouched] = useState(false);
-  const savedAddress = profile.data?.address?.trim() || null;
-  const [addressMode, setAddressMode] = useState<'saved' | 'new'>(savedAddress ? 'saved' : 'new');
+  /* THE ADDRESS BOOK (owner, 24 Aug) — home, office, other, each its own
+     radio, exactly the way the city's other delivery apps taught everybody.
+     The legacy single profile line still answers as "home" when the book is
+     empty, so nobody's one saved address vanished. */
+  const bookQ = useSavedAddresses();
+  const forget = useForgetAddress();
+  const book = bookQ.data?.addresses ?? [];
+  const [pickedLabel, setPickedLabel] = useState<string | null>(null);
+  const addressMode: string = pickedLabel ?? (book[0]?.label ?? 'new');
+  const chosenEntry = book.find((b) => b.label === addressMode) ?? null;
   /* THE ADDRESS, ASKED THE WAY A DELIVERY NEEDS IT (owner, 24 Aug) — flat and
      building and street as their own boxes, not one field a hungry person
      under-fills. It travels to the kitchen COMPOSED into one line, so the
@@ -363,6 +371,7 @@ function Checkout({ listingId, picks, onBack, onPlaced }: {
      shape and nothing on the wire changed. */
   const [addr, setAddr] = useState({ flat: '', building: '', street: '', area: '', city: profile.data?.city?.trim() ?? '', pin: '', landmark: '' });
   const [saveAddress, setSaveAddress] = useState(false);
+  const [saveLabel, setSaveLabel] = useState<'home' | 'work' | 'other'>('home');
   const [pin, setPin] = useState<{ lat: number; lng: number } | null>(null);
   const [pinErr, setPinErr] = useState<string | null>(null);
   const [pinBusy, setPinBusy] = useState(false);
@@ -394,7 +403,7 @@ function Checkout({ listingId, picks, onBack, onPlaced }: {
     addr.landmark.trim() ? `Landmark: ${addr.landmark.trim()}` : '',
   ].filter(Boolean).join(', ').slice(0, 400);
   const addrComplete = !!addr.flat.trim() && !!addr.area.trim() && !!addr.city.trim() && /^\d{6}$/.test(addr.pin.trim());
-  const address = fulfilment === 'delivery' ? (addressMode === 'saved' ? savedAddress ?? '' : composed) : '';
+  const address = fulfilment === 'delivery' ? (chosenEntry ? chosenEntry.addressText : composed) : '';
 
   const locate = () => {
     setPinErr(null); setPinBusy(true);
@@ -409,7 +418,7 @@ function Checkout({ listingId, picks, onBack, onPlaced }: {
   const ready = !!quote
     && phoneValue.trim().length >= 6
     && (fulfilment === 'pickup'
-      || ((addressMode === 'saved' ? address.length >= 10 : addrComplete) && !!pin));
+      || ((chosenEntry ? address.length >= 10 : addrComplete) && !!pin));
 
   const submit = () => {
     if (!quote) return;
@@ -424,7 +433,8 @@ function Checkout({ listingId, picks, onBack, onPlaced }: {
         ...(note.trim() ? { note: note.trim() } : {}),
         ...(fulfilment === 'delivery' ? {
           address,
-          saveAddress: addressMode === 'new' && saveAddress,
+          saveAddress: !chosenEntry && saveAddress,
+          ...(!chosenEntry && saveAddress ? { saveLabel } : {}),
           lat: pin?.lat, lng: pin?.lng,
         } : {}),
       },
@@ -484,17 +494,25 @@ function Checkout({ listingId, picks, onBack, onPlaced }: {
 
       {fulfilment === 'delivery' && (
         <div className="mpaper-grid">
-          {savedAddress && (
-            <label className="mpaper-choice">
-              <input type="radio" name="addr" checked={addressMode === 'saved'} onChange={() => setAddressMode('saved')} />
-              <span><strong>Deliver to your saved address</strong><br /><span className="mpaper-small">{savedAddress}</span></span>
+          {book.map((b) => (
+            <label key={b.label} className="mpaper-choice">
+              <input type="radio" name="addr" checked={addressMode === b.label} onChange={() => setPickedLabel(b.label)} />
+              <span className="mp-flex1">
+                <strong>{b.label === 'home' ? '🏠 Home' : b.label === 'work' ? '💼 Office' : '📍 Other'}</strong>
+                <br /><span className="mpaper-small">{b.addressText}</span>
+              </span>
+              <button type="button" className="mpaper-quiet" disabled={forget.isPending}
+                aria-label={`Forget the ${b.label} address`}
+                onClick={() => { forget.mutate(b.label); if (addressMode === b.label) setPickedLabel('new'); }}>
+                forget
+              </button>
             </label>
-          )}
+          ))}
           <label className="mpaper-choice">
-            {savedAddress && <input type="radio" name="addr" checked={addressMode === 'new'} onChange={() => setAddressMode('new')} />}
+            {book.length > 0 && <input type="radio" name="addr" checked={addressMode === 'new'} onChange={() => setPickedLabel('new')} />}
             <span className="mp-flex1">
-              <strong>{savedAddress ? 'Somewhere else this time' : 'Delivery address'}</strong>
-              {(addressMode === 'new' || !savedAddress) && (
+              <strong>{book.length > 0 ? 'Somewhere else this time' : 'Delivery address'}</strong>
+              {(addressMode === 'new' || book.length === 0) && (
                 <>
                   <span className="mpaper-addr">
                     <input className="mpaper-input" value={addr.flat} maxLength={60} aria-label="Flat or house number"
@@ -515,8 +533,18 @@ function Checkout({ listingId, picks, onBack, onPlaced }: {
                   {composed && <span className="mpaper-small">Goes to the kitchen as: {composed}</span>}
                   <label className="mpaper-choice mp-mid mp-plain mp-mt">
                     <input type="checkbox" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} />
-                    Save this as my address for next time
+                    Save this address for next time, as
                   </label>
+                  {saveAddress && (
+                    <span className="mpaper-seg" role="radiogroup" aria-label="Save this address as">
+                      {(['home', 'work', 'other'] as const).map((l) => (
+                        <button key={l} type="button" role="radio" aria-checked={saveLabel === l}
+                          className={`mpaper-segbtn${saveLabel === l ? ' is-on' : ''}`} onClick={() => setSaveLabel(l)}>
+                          {l === 'home' ? '🏠 Home' : l === 'work' ? '💼 Office' : '📍 Other'}
+                        </button>
+                      ))}
+                    </span>
+                  )}
                 </>
               )}
             </span>
@@ -561,9 +589,9 @@ function Checkout({ listingId, picks, onBack, onPlaced }: {
       {!ready && quote && (
         <p className="mpaper-small">
           {phoneValue.trim().length < 6 ? 'A phone number is needed so the kitchen can reach you.'
-            : fulfilment === 'delivery' && addressMode === 'new' && !addrComplete
+            : fulfilment === 'delivery' && !chosenEntry && !addrComplete
               ? 'The kitchen needs at least the flat number, the area, the city and a 6-digit PIN.'
-              : fulfilment === 'delivery' && addressMode === 'saved' && (savedAddress ?? '').length < 10 ? 'Your saved address is too short — write it out this time.'
+              : fulfilment === 'delivery' && chosenEntry && address.length < 10 ? 'That saved address is too short — write it out this time.'
                 : fulfilment === 'delivery' && !pin ? 'Turn on location to place a delivery order.'
                   : ''}
         </p>
