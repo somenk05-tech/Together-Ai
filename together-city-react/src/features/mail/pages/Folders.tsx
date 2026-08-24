@@ -107,7 +107,7 @@ export function AccountBar() {
         ) : (
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" type="email" style={{ ...inp, flex: 1, minWidth: 180 }} />
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone (optional)" style={{ ...inp, width: 160 }} />
+            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone (optional)" type="tel" inputMode="tel" autoComplete="tel" style={{ ...inp, width: 160 }} />
             <Button variant="accent" size="sm" disabled={setPrimary.isPending} onClick={() => setPrimary.mutate({ email, phone }, { onSuccess: () => setEditing(false) })}>Save</Button>
             <Button variant="line" size="sm" onClick={() => setEditing(false)}>Cancel</Button>
           </div>

@@ -108,7 +108,7 @@ function HubView({ q, setQ, totalCount }: { q: string; setQ: (v: string) => void
             <h2 className="serif" style={{ fontWeight: 600, fontSize: 24, margin: 0 }}>{vol.title}</h2>
           </div>
           <p style={{ margin: '0 0 20px', color: 'var(--muted)', fontSize: 15 }}>{vol.desc}</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(100%, 300px), 1fr))', gap: 14 }}>
             {vol.items.map((item) => {
               const pl = pill(item.drafted);
               return (
@@ -161,8 +161,12 @@ function PolicyView({ id }: { id: string }) {
         <p style={{ margin: 0, fontSize: 13, color: 'var(--warn-ink)' }}>Template pending legal review — have Indian legal counsel finalise before publishing.</p>
       </div>
 
-      <div className="legal-grid" style={{ display: 'grid', gridTemplateColumns: '230px 1fr', gap: 52, alignItems: 'start' }}>
-        <nav style={{ position: 'sticky', top: 82, display: 'flex', flexDirection: 'column', gap: 2 }}>
+      {/* THE SPLIT LIVES IN CSS, NOT HERE. `230px 1fr` + a 52px gap costs 282px
+          before the prose gets a pixel — on a 320px phone that is the entire
+          content column. It was inline, so `.legal-grid` (which had no rule at
+          all) could not fold it. Both halves are in layout.css now. */}
+      <div className="legal-grid">
+        <nav className="legal-toc">
           <span className="mono" style={{ fontSize: 10.5, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 10 }}>On this page</span>
           {p.sections.map((s, i) => (
             <a key={i} href={`#sec${i}`} onClick={(e) => { e.preventDefault(); scrollTo(`sec${i}`); }}

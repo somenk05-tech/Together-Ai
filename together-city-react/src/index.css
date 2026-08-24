@@ -23,9 +23,19 @@ body {
   line-height: 1.6;
   font-size: var(--fs-5);
   -webkit-font-smoothing: antialiased;
-  padding-top: var(--safe-top);
+  /* NO padding-top HERE. The fixed header owns the notch band now (it starts
+     at 0 and spends the inset as its own padding), and .tc-main clears the
+     bar's full height. When body ALSO paid the inset, a notched iPhone got a
+     ~59px dead strip under the header on every page — the inset counted
+     twice, once by a fixed element the body padding cannot move and once by
+     the column that clears it. */
   padding-bottom: var(--safe-bottom);
 }
+/* One wide child anywhere used to scroll the WHOLE page sideways — there was
+   no root guard at all. `clip` rather than `hidden`: hidden makes the root a
+   scroll container and breaks position: sticky below it; clip only forbids
+   the overflow. Vertical scrolling is untouched. */
+html { overflow-x: clip; }
 h1, h2, h3, h4 { font-family: var(--sans); font-weight: 600; letter-spacing: -.01em; line-height: 1.15; margin: 0; }
 a { color: inherit; text-decoration: none; }
 img { max-width: 100%; }
@@ -225,6 +235,12 @@ section.blk { margin: 0 0 40px; }
 .console .below a { color: var(--accent-ink); font-weight: 600; }
 
 /* tables */
+/* THE WRAPPER THAT WAS NAMED BUT NEVER WRITTEN. `<div className="tablewrap">`
+   is in the JSX (travel/pages/Bookings.tsx) and had no rule in any stylesheet,
+   so a five-column table with 160px of cell padding could not shrink below its
+   min-content and scrolled the whole page sideways on a phone. The table scrolls
+   inside its own box now; the page does not. */
+.tablewrap { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 table.tc { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; font-size: var(--fs-4); box-shadow: var(--shadow); }
 table.tc th { background: var(--accent-soft); text-align: left; padding: 11px 16px; font-size: var(--fs-1); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); border-bottom: 1px solid var(--line); }
 table.tc td { padding: 12px 16px; border-bottom: 1px solid var(--line); color: var(--ink-soft); vertical-align: middle; }
@@ -498,9 +514,13 @@ table.tc td b { color: var(--ink); }
   .mail-account-meter, .mail-account-compose { display: none; }
   .mail-account-rest { display: none; }
 
-  /* Above the bottom bar, clear of the home indicator. */
+  /* STACKED ABOVE MIRA, WHO OWNS THE CORNER. The 70px it used to sit up was
+     clearance for a bottom bar that has never been mounted — and Mira's mark
+     (z-index 180) sat at the same right edge and printed over Compose. Mira
+     keeps the corner on every page, so Compose takes the slot above her:
+     56px of her disc + 12px of air. */
   .mail-fab { display: inline-flex; align-items: center; gap: 8px;
-    position: fixed; right: 16px; bottom: calc(var(--safe-bottom) + 70px); z-index: 55;
+    position: fixed; right: 16px; bottom: calc(var(--safe-bottom) + 84px); z-index: 55;
     min-height: 48px; padding: 0 20px; border-radius: var(--r-full);
     background: var(--ink); color: var(--on-accent); text-decoration: none;
     font-size: 14px; font-weight: 700; box-shadow: var(--e2); }
@@ -667,11 +687,10 @@ table.tc td b { color: var(--ink); }
   .mail-fail { margin-top: 0; padding-left: 12px; flex-shrink: 0; }
 }
 
-/* Narrow phones (SE, 360px Androids): the row gives back its own margins
-   before it gives up a word. Measured — at 360px the longest line was 7px
-   over, which is a gutter, not a font size. */
-@media (max-width: 380px) {
-}
+/* An empty 380px block sat here — a comment about a measured mail-row trim
+   whose rule had been deleted out from under it. The culprit it described is
+   desktop-gated now (.mail-l1 lives behind min-width: 900px), so the block
+   goes rather than being refilled with a guess. */
 
 /* ---- Chats: a phone shows one room at a time (9 Aug, WhatsApp's rule) ----
    The stage's own 860px rule collapses two columns into one; the page still
@@ -838,6 +857,24 @@ html.tc-noscale, html.tc-noscale body {
 html.tc-noscale input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
 html.tc-noscale textarea,
 html.tc-noscale select { font-size: 16px !important; }
+
+/* THE SAME FLOOR, EVERYWHERE A FINGER IS.
+   The rule above shipped for the eight surfaces that call useScaleLock — the
+   chat rooms and Mail. Every other form in the city was left at the sizes its
+   components ask for inline (13.5, 14, 12.5), and Safari zooms into every one
+   of them: sign-up, the dating profile, Post a job, List a property, the
+   beauty market's search and sort. The page comes back at 1.2x with the
+   layout shifted under the citizen's thumb, and nothing brings it back but a
+   pinch the viewport tag has told the phone to refuse.
+   `pointer: coarse` is the honest gate — this is a finger's problem, not a
+   phone-width one, and a mouse on a small window is unaffected. `!important`
+   for the reason the note above gives: these sizes are inline, and inline
+   wins every other fight. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select { font-size: 16px !important; }
+}
 
 /* Fixed, not flowing: a room does not scroll away when the keyboard opens.
    (What stops it SCALING is the flag above; the thread asks for it too.) */

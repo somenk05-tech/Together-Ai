@@ -194,7 +194,7 @@ function PersonalInfoSection() {
             </div>
             <div>
               <label style={label}>Phone</label>
-              <input value={form.phone} placeholder="+91…"
+              <input value={form.phone} placeholder="+91…" type="tel" inputMode="tel" autoComplete="tel"
                 onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} style={field} />
             </div>
           </div>

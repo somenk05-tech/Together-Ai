@@ -96,7 +96,7 @@ export function NotificationToaster() {
 
   if (!toasts.length) return null;
   return (
-    <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 1000, display: 'flex', flexDirection: 'column', maxWidth: 340 }}>
+    <div style={{ position: 'fixed', top: 'calc(16px + var(--safe-top))', right: 16, zIndex: 1000, display: 'flex', flexDirection: 'column', maxWidth: 340 }}>
       {toasts.map((t) => (
         <ToastRow key={t.id} toast={t}
           // Navigation is immediate; the card animates out behind it.

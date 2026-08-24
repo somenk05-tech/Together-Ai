@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useScrollLock } from '@/hooks/useScrollLock';
 import { informalName } from '@/lib/salutation';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -117,11 +118,10 @@ export function SocialFeed() {
   }, [feed.hasNextPage, feed.isFetchingNextPage, feed]);
 
   // Lock the page behind the full-screen reels so only the reels scroll.
-  useEffect(() => {
-    if (filter !== 'videos' && reelAt == null) return;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
-  }, [filter, reelAt]);
+  // The shared counted lock: iOS actually honours it (overflow:hidden alone
+  // does not stop touch scroll), it restores the scroll position, and it
+  // survives the post reader opening on top.
+  useScrollLock(filter === 'videos' || reelAt != null);
 
   // Videos = full-screen immersive reels: nothing else on the page. A single
   // back button returns to the City Feed (For You).
@@ -173,7 +173,7 @@ export function SocialFeed() {
   return (
     <div>
       {toast && (
-        <div role="status" style={{ position: 'fixed', top: 18, left: '50%', transform: 'translateX(-50%)', zIndex: 80,
+        <div role="status" style={{ position: 'fixed', top: 'calc(18px + var(--safe-top))', left: '50%', transform: 'translateX(-50%)', zIndex: 80,
           background: 'var(--ok-ink)', color: 'var(--on-accent)', borderRadius: 'var(--r-full)', padding: '11px 20px', fontSize: 13.5, fontWeight: 600,
           boxShadow: 'var(--e3)', animation: 'tc-rise .3s ease-out', display: 'flex', alignItems: 'center', gap: 8 }}>
           <Icon name="accepted" size={16} /> Your post has been shared to your city.

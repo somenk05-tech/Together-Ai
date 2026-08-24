@@ -300,7 +300,9 @@
    — and the panel's depth is the city's own deepest token, not a bespoke
    shadow. z-order: fab under the drawer (200); the open panel over both. */
 .mira-fab {
-  position: fixed; right: 16px; bottom: calc(var(--safe-bottom) + 74px);
+  /* +16, not +74: the 74 was clearance for the phone bottom bar, which has
+     never been mounted — her mark floated over nothing. The corner is hers. */
+  position: fixed; right: 16px; bottom: calc(var(--safe-bottom) + 16px);
   z-index: 180; width: 56px; height: 56px; border-radius: 50%;
   display: grid; place-items: center; cursor: pointer;
   border: 1px solid var(--mira-line);

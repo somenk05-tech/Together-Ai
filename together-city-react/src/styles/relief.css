@@ -725,6 +725,25 @@ table.tc th { background: var(--well); box-shadow: var(--edge-in); color: var(--
    and must not grow a target for a press that does nothing. */
 .tag::after { content: none; }
 
+/* THE SECOND SWEEP, from walking the app with a measuring script rather than
+   grepping for inline heights: the controls below live in stylesheets, sit
+   between 26 and 34px, and several have neighbours a different DAY or a
+   different QUANTITY 5px away. Same pattern as above — the paint stays, the
+   target grows. Kept as its own list because the block above is guarded by
+   tap-targets.test.ts against exactly this kind of well-meant edit. */
+.dayb-dot, button.own-month-day, .own-people button,
+.mail-search-clear, .mfold-menu-key, .wkrail-key { position: relative; }
+.dayb-dot::after, button.own-month-day::after, .own-people button::after,
+.mail-search-clear::after, .mfold-menu-key::after, .wkrail-key::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%; height: 100%;
+  min-width: 44px; min-height: 44px;
+  z-index: 0;
+}
+
 
 /* Status tags keep their ink and gain a hairline of the same hue. They are
    raised cards with a coloured ink, never coloured rectangles. */
@@ -1305,7 +1324,7 @@ img[src$=".svg"], .no-case {
    grows a second column, a stat strip or a row of tiles, this stops being a
    threshold and becomes a dashboard, which is the one thing it must not be. */
 .hub-stage {
-  min-height: calc(100vh - var(--header-h));
+  min-height: calc(100dvh - var(--header-h) - var(--safe-top));
   display: grid; place-items: center;
   /* The gutter is what is left of the page, not a margin the plate sits in.
      It was clamped to 64px at the top end, which on a 2560px screen left the
@@ -1609,10 +1628,11 @@ img[src$=".svg"], .no-case {
   box-shadow: var(--case-rim-soft);
 }
 @media (max-width: 560px) { .social-grid { gap: 6px; } .social-tile { border-radius: var(--r-2); } }
-@media (max-width: 560px) {
-  /* The label keeps all five columns; they just wear phone sizes. */
-  .press-grid { grid-template-columns: minmax(0,1fr) 48px 36px 36px 36px; column-gap: 8px; }
-}
+/* The phone press-grid sizes lived here and were DEAD ON ARRIVAL: the 1040px
+   block further down sets the same property on the same selector, both match
+   at phone width, and with equal specificity the later source position wins.
+   The rule moved to after that block — same declaration, a place where the
+   cascade actually delivers it. */
 
 /* ── THE SHEET ────────────────────────────────────────────────────────────
    Every overlay on this page dimmed the city with a brown-black scrim, which
@@ -1997,8 +2017,22 @@ textarea.g-field { resize: none; line-height: 1.55; }
   .press-aside { position: static; }
   .press-grid { grid-template-columns: minmax(0,1fr) 56px 42px 42px 42px; }
   .press-colhead span:last-child, .press-acts { grid-column: 1 / -1; }
+
   .press-acts { justify-content: flex-start; padding-top: 0; border-bottom: 0; }
   .press-dish > .press-name-cell { padding-bottom: 8px; border-bottom: 0; }
+}
+
+/* ── the label on a phone ─────────────────────────────────────────────────
+   (Moved from above the 1040px block, where the cascade silently discarded
+   it — see the note there.) The label keeps all five columns; they just wear
+   phone sizes. */
+@media (max-width: 560px) {
+  .press-grid { grid-template-columns: minmax(0,1fr) 48px 36px 36px 36px; column-gap: 8px; }
+  /* One column of shopping list on a phone-width aside — two 130px columns
+     of 1.8-line-height prose is a newspaper folded too many times. */
+  .press-shop { columns: 1; }
+  /* And the stat cells give back their desk padding before a digit clips. */
+  .press-stats > div { padding: 0 12px; }
 }
 
 /* ══ THE DAY IN TWO SHEETS ═══════════════════════════════════════════════

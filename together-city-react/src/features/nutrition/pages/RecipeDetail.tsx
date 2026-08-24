@@ -622,7 +622,7 @@ export function RecipeDetail() {
       </p>
 
       {toast && (
-        <div role="status" style={{ position: 'fixed', left: '50%', bottom: 28, transform: 'translateX(-50%)', background: 'var(--press-ink)', color: 'var(--press-paper)', fontSize: 12, fontWeight: 500, letterSpacing: '.08em', textTransform: 'uppercase', padding: '12px 22px', borderRadius: 4, zIndex: 40 }}>{toast}</div>
+        <div role="status" style={{ position: 'fixed', left: '50%', bottom: 'calc(28px + var(--safe-bottom))', transform: 'translateX(-50%)', background: 'var(--press-ink)', color: 'var(--press-paper)', fontSize: 12, fontWeight: 500, letterSpacing: '.08em', textTransform: 'uppercase', padding: '12px 22px', borderRadius: 4, zIndex: 40 }}>{toast}</div>
       )}
     </div>
   );

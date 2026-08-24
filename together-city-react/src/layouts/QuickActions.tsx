@@ -23,7 +23,7 @@ function Badge({ count }: { count: number }) {
  * The class `.tc-actions a/button` in relief.css owns the material now.
  */
 const pill: React.CSSProperties = {
-  display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', position: 'relative',
+  alignItems: 'center', gap: 6, whiteSpace: 'nowrap', position: 'relative',
 };
 
 /**

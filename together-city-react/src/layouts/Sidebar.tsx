@@ -86,7 +86,9 @@ export function Sidebar({ hub }: { hub: HubConfig }) {
     <>
     <DrawerScrim open={open} onClose={close} />
     <aside className={`tc-side${open ? ' open' : ''}`} data-side={hub.key} {...swipe}>
-      <button className="back" onClick={() => navigate(-1)}>← Back</button>
+      {/* Close first: Back moves the page UNDER the drawer, and a drawer that
+          stays open over the previous page reads as a navigation that failed. */}
+      <button className="back" onClick={() => { toggle(false); navigate(-1); }}>← Back</button>
       <div className="hubname">{hub.key === 'family' ? 'Nutrition Hub' : hub.name}</div>
       <div className="hubtag">{hub.key === 'family' ? 'Eat healthy, live better' : hub.tag}</div>
 

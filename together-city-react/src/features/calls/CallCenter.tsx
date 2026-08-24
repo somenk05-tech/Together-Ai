@@ -416,7 +416,12 @@ export function CallCenter({ children }: { children: ReactNode }) {
           aria-labelledby="tc-call-who"
           aria-describedby="tc-call-status"
           style={{
-            position: 'fixed', inset: 0, zIndex: 4000, display: 'grid', placeItems: 'center',
+            /* 10500, NOT 4000. At 4000 an incoming call rendered UNDERNEATH
+               the chat forward/group panels (9500) and cook mode (9998/9999)
+               — and forwarding a message or cooking with a timer running is
+               exactly when a call lands. A ringing call is the one surface
+               with a person waiting on the other end; nothing outranks it. */
+            position: 'fixed', inset: 0, zIndex: 10500, display: 'grid', placeItems: 'center',
             background: 'rgba(12,14,18,.72)', backdropFilter: 'blur(6px)',
           }}
         >

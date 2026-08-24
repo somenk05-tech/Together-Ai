@@ -156,7 +156,7 @@ export function Family() {
           hint="Invite household members in Family Nutrition — one connection powers meal plans and these health summaries together." />
       ) : null}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(100%, 300px), 1fr))', gap: 16 }}>
         {members.map((m) => <MemberCard key={m.id} m={m} />)}
       </div>
 

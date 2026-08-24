@@ -284,7 +284,9 @@ function Pill() {
   const label = rung ? 'Timer done — next step ready' : ticking ? `${active ? 'Cooking' : 'Timer'} · ${mmss(remain)}` : `Step ${idx} of ${cookingSteps}`;
   return (
     <button type="button" onClick={() => minimize(false)}
-      style={{ position: 'fixed', left: 16, bottom: 16, zIndex: 9998, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer',
+      /* Above the home indicator — a bar ON it made the dismiss-swipe exit
+         the app instead of opening the timer. */
+      style={{ position: 'fixed', left: 16, bottom: 'calc(16px + var(--safe-bottom))', zIndex: 9998, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer',
         background: rung ? 'var(--ok-ink)' : 'var(--ground)', color: 'var(--on-ground)', border: '1px solid rgba(255,255,255,.25)',
         borderRadius: 'var(--r-full)', padding: '11px 18px', boxShadow: '0 8px 24px rgba(0,0,0,.35)', fontFamily: 'inherit', fontWeight: 700, fontSize: 13.5 }}>
       <span style={{ fontSize: 17 }}>🍳</span>
@@ -294,7 +296,7 @@ function Pill() {
   );
 }
 
-const shell: React.CSSProperties = { position: 'fixed', inset: 0, background: 'var(--ground)', color: 'var(--on-ground)', display: 'flex', flexDirection: 'column', zIndex: 9999, padding: 22 };
+const shell: React.CSSProperties = { position: 'fixed', inset: 0, background: 'var(--ground)', color: 'var(--on-ground)', display: 'flex', flexDirection: 'column', zIndex: 9999, padding: 'calc(22px + var(--safe-top)) 22px calc(22px + var(--safe-bottom))' };
 const topBar: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: 'rgba(255,255,255,.7)' };
 const endBtn: React.CSSProperties = { background: 'rgba(255,255,255,.14)', color: 'var(--on-ground)', border: '1px solid rgba(255,255,255,.3)' };
 

@@ -61,9 +61,17 @@ describe('the sidebar does not move', () => {
     expect(store).toMatch(/sidebarOpen: false/);
   });
 
-  it('leaves the phone drawer exactly as it was — the second half of the ask', () => {
-    expect(layout).toMatch(/\.tc-side \{ position: fixed; top: 0; left: 0; bottom: 0; z-index: 200; transform: translateX\(-100%\)/);
-    expect(layout).toMatch(/\.tc-side\.open \{ transform: translateX\(0\); \}/);
+  it('leaves the phone drawer a drawer — the second half of the ask', () => {
+    /* THE PIN LOOSENED ON 24 AUG, deliberately. This assertion used to quote
+       the phone rule verbatim, and the phone audit then changed that rule for
+       cause: `height: auto` (the desktop height beat `bottom: 0` and the
+       drawer stopped 54px short of the floor), a width cap for 320px screens,
+       a safe-area bottom pad, and `visibility` so a closed drawer leaves the
+       tab order. None of that is the rail creeping back — the guard now pins
+       what the ask was actually about: it is a fixed, full-height, slide-in
+       drawer with a scrim, not a collapsing rail. */
+    expect(layout).toMatch(/\.tc-side \{ position: fixed; top: 0; left: 0; bottom: 0; height: auto;[^}]*z-index: 200;[^}]*transform: translateX\(-100%\)/);
+    expect(layout).toMatch(/\.tc-side\.open \{ transform: translateX\(0\); visibility: visible;/);
     expect(side).toMatch(/DrawerScrim open=\{open\} onClose=\{close\}/);
   });
 

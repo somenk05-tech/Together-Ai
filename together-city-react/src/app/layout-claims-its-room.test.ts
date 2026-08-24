@@ -62,14 +62,60 @@ describe('the layout uses the space it has', () => {
     expect(phone).toMatch(/\.tc-nav \{ display: none/);
   });
 
-  it('hides the header actions the bottom bar already carries', () => {
+  /**
+   * THIS TEST USED TO ASSERT THE OPPOSITE, AND IT WAS GUARDING A PREMISE THAT
+   * WAS NEVER TRUE.
+   *
+   * It required the 899px block to hide Chats, Alerts and Profile, on the
+   * grounds that "the bottom bar already carries them". `BottomNav` has never
+   * been mounted — grep the tree, it has no importer — so there is no bottom
+   * bar, and hiding those three left the three rooms with no phone door at
+   * all. Nobody noticed for nineteen days because the rule was ALSO inert:
+   * QuickActions gave every pill an inline `display: flex`, and an inline
+   * style outranks any stylesheet, so the pills went on rendering and the
+   * header ran over the wordmark instead.
+   *
+   * Both halves are fixed. The pills carry no inline display (guarded below),
+   * which makes the 899px block real for the first time — and because it is
+   * real, it may no longer take away a door that nothing else gives back.
+   */
+  it('keeps every door the phone has no other way into', () => {
     const phone = layout.match(/@media \(max-width: 899px\) \{[\s\S]*?\n\}/)?.[0] ?? '';
-    for (const sel of ['a[href="/chats"]', 'a[href="/profile"]', 'button[aria-label="Notifications"]']) {
-      expect(phone, `${sel} still shows on a phone`).toContain(sel);
+    for (const sel of ['a[href="/chats"]', 'a[href="/profile"]', 'a[href="/mail"]', 'button[aria-label="Notifications"]']) {
+      expect(phone, `${sel} is hidden on a phone with nothing to replace it`).not.toContain(sel);
     }
-    // Mail is NOT in the bottom bar, so it must survive — hiding it would leave
-    // the mailbox with no door on a phone at all.
-    expect(phone).not.toContain('a[href="/mail"]');
+  });
+
+  /**
+   * THE PILLS MAY NOT CARRY THEIR OWN `display`.
+   *
+   * This is the line the header's phone rules stand on: every one of them
+   * works by setting `display: none` on a pill, and an inline style wins that
+   * fight silently — no error, no failing screen, just a rule that reads
+   * correctly and does nothing. `.tc-actionbar a/button` in layout.css is
+   * where these get `display: flex`; the components supply geometry only.
+   */
+  it('leaves the pills no inline display for a phone rule to lose to', () => {
+    // The shared geometry object behind Search, Mail, Chat and Personal.
+    const pill = read('layouts/QuickActions.tsx').match(/const pill: React\.CSSProperties = \{[^}]*\}/)?.[0] ?? '';
+    expect(pill, 'no `pill` object in QuickActions.tsx').toBeTruthy();
+    expect(pill, 'the pill sets its own display').not.toMatch(/display:/);
+
+    const header = read('layouts/Header.tsx');
+    // The two pills Header draws itself: the Alerts button and the avatar.
+    const slice = (from: string, to: string) => {
+      const i = header.indexOf(from);
+      return i < 0 ? '' : header.slice(i, header.indexOf(to, i));
+    };
+    const bell = slice('aria-label="Notifications"', '<Icon name="bell"');
+    expect(bell, 'no Alerts button in Header.tsx').toBeTruthy();
+    expect(bell, 'the Alerts pill sets its own display').not.toMatch(/display:\s*'/);
+    const profile = slice('to="/profile"', '{user?.profileImage');
+    expect(profile, 'no Profile pill in Header.tsx').toBeTruthy();
+    expect(profile, 'the Profile pill sets its own display').not.toMatch(/display:\s*'/);
+
+    // …because this is where they get it, and where a media query can take it.
+    expect(layout).toMatch(/\.tc-actionbar a, \.tc-actionbar button[^{]*\{[^}]*display: flex/);
   });
 
   /**

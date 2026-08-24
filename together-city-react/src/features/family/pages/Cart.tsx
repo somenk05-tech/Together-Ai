@@ -6,7 +6,9 @@ import type { GroceryItem } from '@/features/nutrition/api';
 import { useFamily, headcount } from '../members';
 
 function Stepper({ qty, onChange }: { qty: number; onChange: (q: number) => void }) {
-  const btn: React.CSSProperties = { background: 'var(--accent)', color: 'var(--on-accent)', border: 'none', width: 26, height: 30, fontSize: 16, lineHeight: 1, cursor: 'pointer' };
+  // minWidth/minHeight 44 — the same floor the nutrition cart's identical
+  // stepper got in the tap-target sweep; this copy was missed.
+  const btn: React.CSSProperties = { background: 'var(--accent)', color: 'var(--on-accent)', border: 'none', minWidth: 44, minHeight: 44, width: 26, height: 30, fontSize: 16, lineHeight: 1, cursor: 'pointer' };
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', border: '1.3px solid var(--accent)', borderRadius: 9, overflow: 'hidden' }}>
       <button type="button" onClick={() => onChange(qty - 1)} aria-label="Decrease quantity" style={btn}>−</button>

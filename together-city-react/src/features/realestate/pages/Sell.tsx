@@ -246,7 +246,10 @@ export function Sell() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 320px', gap: 28, alignItems: 'start' }}>
+      {/* THE SPLIT LIVES IN CSS (see .sell-split in layout.css). Inline, its
+          320px sidebar + 28px gap put a hard 348px floor under a 358px phone
+          column — the form beside it collapsed and the page scrolled sideways. */}
+      <div className="sell-split">
         <section>
           <div className="card" style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
             <span style={{ fontSize: 22, lineHeight: 1 }}>📸</span>
@@ -256,7 +259,7 @@ export function Sell() {
           </div>
 
           <h3 style={{ marginBottom: 16 }}>{schema.heading}</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+          <div className="sell-fields">
             {[...PLACE, ...schema.fields].map((f) => (
               <div key={f.key} style={{ marginBottom: 16 }}>
                 <label style={labelS}>{f.label}</label>
@@ -287,7 +290,7 @@ export function Sell() {
           <div className="rule" />
 
           <h3 style={{ marginBottom: 16 }}>Pricing</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+          <div className="sell-fields">
             <div style={{ marginBottom: 16 }}>
               <label style={labelS}>Asking price (₹)</label>
               <input inputMode="numeric" value={asking} onChange={(e) => setAsking(e.target.value)} placeholder="e.g. 95,00,000" style={inputS} />

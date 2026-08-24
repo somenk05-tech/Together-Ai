@@ -69,7 +69,7 @@ export function ProductPage() {
     <div style={{ display: 'grid', gap: 24 }}>
       <button type="button" className="btn btn-sm btn-line" style={{ justifySelf: 'start' }} onClick={() => nav('/pets/shop')}>← Shop</button>
 
-      <div style={{ display: 'grid', gap: 26, gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
+      <div style={{ display: 'grid', gap: 26, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))' }}>
         <div style={{ display: 'grid', gap: 12, alignContent: 'start' }}>
           <div style={{ display: 'grid', placeItems: 'center', padding: 20, borderRadius: 'var(--r-3)', background: 'var(--wash)', gap: 10 }}>
             <PackShot src={product.imageUrl} alt={product.name} category={product.category} height={300} drawnSize={140} />

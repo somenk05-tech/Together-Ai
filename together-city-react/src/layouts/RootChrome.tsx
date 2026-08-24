@@ -1,5 +1,7 @@
-import { Outlet } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
 import { MiraDock } from './MiraDock';
+import { useUiStore } from '@/store/ui.store';
 
 /**
  * ── THE CHROME THAT IS TRUE OF THE APPLICATION, NOT OF ONE LAYOUT ───────────
@@ -35,6 +37,15 @@ import { MiraDock } from './MiraDock';
  * returns null when signed out, so it draws nothing there anyway.
  */
 export function RootChrome() {
+  /* ARRIVING SOMEWHERE CLOSES THE DRAWER. `sidebarOpen` is global and nothing
+     reset it on navigation, so a burger pressed on a page whose drawer didn't
+     render left the flag armed — and the NEXT page's drawer slid open over a
+     screen the citizen never asked to cover. Every in-drawer link already
+     closes on tap; this is the safety net for every other way a route can
+     change. */
+  const { pathname } = useLocation();
+  const toggle = useUiStore((s) => s.toggleSidebar);
+  useEffect(() => { toggle(false); }, [pathname, toggle]);
   return (
     <>
       <Outlet />

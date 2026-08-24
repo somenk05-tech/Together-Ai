@@ -27,9 +27,17 @@ export function AppShell() {
     // hub inner page in the app.
     <>
       <Header />
-      <VerifyEmailBanner />
       <CityDrawer /> {/* the burger's door on pages without a hub rail */}
-      <main className="tc-main" style={isChat ? { minHeight: 0, overflow: 'hidden' } : undefined}><Outlet /></main>
+      {/* INSIDE the main column, not above it. As the first in-flow element in
+          body it painted at the very top of the page — the exact band the
+          fixed header covers — so it has been invisible since it was written,
+          while still pushing the page down by its own height. The main column
+          starts below the header, which is the first place a banner can
+          actually be seen. */}
+      <main className="tc-main" style={isChat ? { minHeight: 0, overflow: 'hidden' } : undefined}>
+        {!isChat && <VerifyEmailBanner />}
+        <Outlet />
+      </main>
       {!isChat && <Footer />}
       {/* MIRA IS NOT MOUNTED HERE ANY MORE, and the comment that used to sit on
           this line is why: "her mark on every page" was true of this subtree

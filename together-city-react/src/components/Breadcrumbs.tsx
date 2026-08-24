@@ -15,7 +15,9 @@ export function Breadcrumbs({ style }: { style?: React.CSSProperties }) {
   return (
     <nav aria-label="Breadcrumb" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
       padding: '10px 4px 2px', fontSize: 12.5, ...style }}>
-      <button type="button" onClick={() => nav(-1)}
+      {/* On a deep link or an installed-app cold start there is no history
+          entry behind this one, and nav(-1) exits the app. Home is the floor. */}
+      <button type="button" onClick={() => (window.history.length > 1 ? nav(-1) : nav('/'))}
         style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: '1px solid var(--line)',
           borderRadius: 'var(--r-full)', padding: '3px 10px', cursor: 'pointer', color: 'var(--ink)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600 }}>
         ← Back

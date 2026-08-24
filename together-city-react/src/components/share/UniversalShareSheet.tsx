@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useScrollLock } from '@/hooks/useScrollLock';
 import { createPortal } from 'react-dom';
 import { chatApi, useConversations, useConnections, useChatContacts, isServerUnreachable, type ShareCard } from '@/api';
 
@@ -365,18 +366,10 @@ export function UniversalShareSheet({
   // Clear the pending close timer if we unmount mid-animation (no leaked timer).
   useEffect(() => () => { if (closeTimer.current) window.clearTimeout(closeTimer.current); }, []);
 
-  // Lock background scroll while open; compensate for the removed scrollbar so
-  // the page behind doesn't shift. Restores exactly what was there before.
-  useEffect(() => {
-    if (!open) return;
-    const body = document.body;
-    const prevOverflow = body.style.overflow;
-    const prevPad = body.style.paddingRight;
-    const scrollbar = window.innerWidth - document.documentElement.clientWidth;
-    body.style.overflow = 'hidden';
-    if (scrollbar > 0) body.style.paddingRight = `${scrollbar}px`;
-    return () => { body.style.overflow = prevOverflow; body.style.paddingRight = prevPad; };
-  }, [open]);
+  // Lock background scroll while open — the shared counted lock. This copy
+  // was the best of the three ad-hoc ones (it restored what it found), but it
+  // still didn't hold on iOS and didn't count nested overlays.
+  useScrollLock(open);
 
   // Focus management: initial focus, focus trap, Esc-to-close, focus restore.
   useEffect(() => {

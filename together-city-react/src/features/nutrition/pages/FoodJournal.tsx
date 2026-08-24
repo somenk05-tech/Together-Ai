@@ -304,7 +304,10 @@ export function FoodJournal() {
         {day.isLoading ? <Spinner label="Opening your journal…" />
           : day.isError || !d ? <EmptyState title="Couldn't open your journal" hint="Please check your connection and try again." />
           : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.4fr) minmax(260px,1fr)', gap: 16, alignItems: 'start' }}>
+            /* The 260px sidebar floor beat the 1.4fr content track on a phone
+               — the timeline this page exists for got 82px. The split is
+               .fj-split in layout.css now, and folds. */
+            <div className="fj-split">
               {/* Timeline */}
               <div className="card">
                 {timeline.length === 0

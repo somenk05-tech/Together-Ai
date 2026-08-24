@@ -246,7 +246,9 @@ export function Makeup() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2.2fr) minmax(240px, 1fr)', gap: 28, alignItems: 'start' }}>
+      {/* Same inversion as the food journal: the 240px floor won the phone.
+        Class + fold in layout.css. */}
+    <div className="mk-split">
         <div>
           <div style={{ fontSize: 12.5, color: 'var(--ink-soft)', background: 'var(--accent-soft)', borderRadius: 'var(--r-1)', padding: '10px 14px', marginBottom: 16 }}>
             ◈ Products below are matched to your <b>{(look.data?.finish ?? 'natural').toLowerCase()} finish</b> {occasion} look — shades from your {look.data?.season ?? 'colour'} palette above. Each pick has a lower-cost and premium option.

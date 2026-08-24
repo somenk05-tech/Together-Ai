@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { useVisualViewport } from '@/hooks/useVisualViewport';
 
 export interface ModalProps {
   open: boolean;
@@ -28,6 +29,14 @@ export function Modal({ open, onClose, title, children, footer, width = 460 }: M
   const dialogRef = useRef<HTMLDivElement>(null);
   const prevFocus = useRef<HTMLElement | null>(null);
   const titleId = useId();
+  /* THE KEYBOARD, HANDLED WHERE EVERY DIALOG GETS IT AT ONCE. On iOS,
+     focusing a field in a centred fixed overlay does not shrink the window —
+     Safari scrolls the LAYOUT viewport up and takes every fixed element with
+     it, so the dialog slides off the top while its own input hides behind the
+     keyboard. --tc-vvh/--tc-vvt are the visible viewport, kept live by the
+     same hook Mira's panel uses; the overlay below is anchored to them, with
+     the old values as fallbacks so a desk sees nothing change. */
+  useVisualViewport(open);
 
   // Esc closes.
   useEffect(() => {
@@ -80,12 +89,13 @@ export function Modal({ open, onClose, title, children, footer, width = 460 }: M
      behave exactly as before. */
   return createPortal(
     <div onMouseDown={onClose}
-      style={{ position: 'fixed', inset: 0, zIndex: 1300, background: 'rgba(10,10,12,.45)', backdropFilter: 'blur(3px)',
+      style={{ position: 'fixed', top: 'var(--tc-vvt, 0px)', left: 0, right: 0, height: 'var(--tc-vvh, 100dvh)',
+        zIndex: 1300, background: 'rgba(10,10,12,.45)', backdropFilter: 'blur(3px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 18 }}>
       <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}
         aria-labelledby={title != null ? titleId : undefined}
         onKeyDown={onKeyDown} onMouseDown={(e) => e.stopPropagation()}
-        style={{ width: `min(${width}px, 94vw)`, maxHeight: '86vh', overflowY: 'auto', background: 'var(--card)',
+        style={{ width: `min(${width}px, 94vw)`, maxHeight: 'min(86vh, calc(var(--tc-vvh, 100dvh) - 36px))', overflowY: 'auto', background: 'var(--card)',
           border: '1px solid var(--line)', borderRadius: 18, boxShadow: '0 24px 70px rgba(0,0,0,.32)', outline: 'none' }}>
         {title != null && (
           <div style={{ padding: '18px 20px 0' }}>

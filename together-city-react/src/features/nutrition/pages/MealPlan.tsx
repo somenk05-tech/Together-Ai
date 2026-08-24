@@ -742,7 +742,7 @@ export function MealPlan() {
         <>
           {/* Premium day tabs — Monday → Sunday with real dates + prev/next. */}
           <div style={{ display: 'flex', alignItems: 'stretch', gap: 8, marginBottom: 8 }}>
-            <button type="button" aria-label="Previous day" disabled={day <= todayIdx} onClick={() => setDay(Math.max(todayIdx, day - 1))}
+            <button type="button" className="wkrail-key" aria-label="Previous day" disabled={day <= todayIdx} onClick={() => setDay(Math.max(todayIdx, day - 1))}
               style={{ display: 'grid', placeItems: 'center', width: 34, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--muted)', cursor: day <= todayIdx ? 'default' : 'pointer', opacity: day <= todayIdx ? 0.4 : 1 }}><NIc name="chevL" size={18} /></button>
             <div ref={stripRef} style={{ flex: 1, display: 'flex', gap: 2, overflowX: 'auto', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 16, padding: 5, scrollbarWidth: 'none' }}>
               {wk.days.map((_, i) => i).filter((i) => i >= todayIdx && i <= lastVisible).map((i) => {
@@ -759,7 +759,7 @@ export function MealPlan() {
                 );
               })}
             </div>
-            <button type="button" aria-label="Next day" disabled={day >= lastVisible} onClick={() => setDay(Math.min(lastVisible, day + 1))}
+            <button type="button" className="wkrail-key" aria-label="Next day" disabled={day >= lastVisible} onClick={() => setDay(Math.min(lastVisible, day + 1))}
               style={{ display: 'grid', placeItems: 'center', width: 34, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--muted)', cursor: day >= lastVisible ? 'default' : 'pointer', opacity: day >= lastVisible ? 0.4 : 1 }}><NIc name="chevR" size={18} /></button>
           </div>
 

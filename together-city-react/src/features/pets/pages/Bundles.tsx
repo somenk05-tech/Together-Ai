@@ -65,7 +65,7 @@ export function Bundles() {
     <div style={{ display: 'grid', gap: 22 }}>
       <SectionTitle title="Pet bundles" line="Curated kits, priced from real listings. A kit’s total counts only the items whose price we could verify." />
 
-      <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
+      <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))' }}>
         {bundles.map((b) => {
           const edit = editOf(b.id);
           const ids = [...b.productIds.filter((id) => !edit.removed.includes(id)), ...edit.added];

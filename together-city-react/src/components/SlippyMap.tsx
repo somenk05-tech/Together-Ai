@@ -128,7 +128,10 @@ export function SlippyMap({ lat, lng, zoom = 15, height = 260, onMove, pin = tru
           position: 'relative', height, overflow: 'hidden', borderRadius: 12,
           border: '1px solid var(--line)', background: 'var(--wash)',
           cursor: onMove ? (drag ? 'grabbing' : 'grab') : 'default',
-          touchAction: 'none', userSelect: 'none',
+          /* 'none' only where there is a drag to protect. A read-only map
+             (no onMove) with touchAction: 'none' was a 240px scroll trap —
+             a thumb swiping across it could not move the page. */
+          touchAction: onMove ? 'none' : 'pan-y', userSelect: 'none',
         }}
         onPointerDown={(e) => {
           if (!onMove) return;

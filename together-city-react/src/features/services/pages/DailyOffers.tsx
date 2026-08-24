@@ -44,7 +44,7 @@ export function DailyOffers() {
           <Link to="/services/mine"><Button variant="line">Post an offer</Button></Link>
         </>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(100%, 300px), 1fr))', gap: 14 }}>
           {rows.map((o) => (
             <Card key={o.id} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '16px 18px' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>

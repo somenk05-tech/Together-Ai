@@ -189,7 +189,9 @@ export function Avatars() {
         sub="Choose a face to use beside your name and in calls."
       />
 
-      <div style={{ display: 'grid', gap: 20, gridTemplateColumns: 'minmax(200px, 260px) 1fr', alignItems: 'start' }}>
+      {/* Inline `minmax(200px, 260px) 1fr` had a hard 200px floor that overflowed
+        a 320px screen. The split lives in layout.css now, and folds. */}
+    <div className="av-split">
         <div className="card" style={{ padding: 18, textAlign: 'center', position: 'sticky', top: 12 }}>
           <div style={{ width: 160, height: 160, margin: '0 auto' }}>
             {preview.data

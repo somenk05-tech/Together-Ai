@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useScrollLock } from '@/hooks/useScrollLock';
 import { Icon } from '@/components/ui/Icon';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -173,10 +174,9 @@ function PostReader({
   // open, so a flick at the reader's end cannot hand the gesture to the wall
   // underneath — two scrollable layers under one thumb is the classic "the
   // feed fights the swipe" bug. Same pattern the reels portal uses.
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
-  }, []);
+  // The shared counted lock — see useScrollLock. This reader can sit OVER the
+  // reels player, and the two ad-hoc body locks used to clobber each other.
+  useScrollLock(true);
 
   const chip = (postId: string, cur: string, key: '' | 'personal' | 'work', label: string) => (
     <button key={key || 'none'} type="button" disabled={setCategory.isPending}
@@ -412,7 +412,12 @@ export function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' 
               onDrop={(e) => { e.preventDefault(); if (dragFrom.current !== null) move(dragFrom.current, i); dragFrom.current = null; setDragOver(null); }}
               onDragEnd={() => { dragFrom.current = null; setDragOver(null); }}
               style={{
-                position: 'relative', cursor: 'grab', touchAction: 'none',
+                /* pan-y, not none: HTML5 drag-and-drop never fires from a
+                   touch anyway, and 'none' also blocked SCROLLING the grid —
+                   while the copy above says "scroll to load all posts before
+                   rearranging". Reordering by touch still needs a pointer-
+                   event implementation; until then the thumb keeps the page. */
+                position: 'relative', cursor: 'grab', touchAction: 'pan-y',
                 outline: dragOver === i ? '2px solid var(--accent)' : 'none', outlineOffset: 2, borderRadius: 8,
                 opacity: dragFrom.current === i ? 0.5 : 1,
               }}

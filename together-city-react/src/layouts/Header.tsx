@@ -77,7 +77,7 @@ function NotificationBell() {
         // Geometry only — see the note on QuickActions' `pill`. `padding: 0` and
         // `background: transparent` here beat relief.css and flattened this
         // button against a page where everything else was raised.
-        style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6,
+        style={{ position: 'relative', alignItems: 'center', gap: 6,
           fontFamily: 'inherit', cursor: 'pointer' }}>
         <Icon name="bell" size={17} /> <span className="lab">Alerts</span>
         <Badge count={unread.data ?? 0} />
@@ -199,7 +199,7 @@ export function Header() {
             <>
               <QuickActions show="all" />
               <NotificationBell />
-              <Link to="/profile" aria-label="Profile" title="Profile" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Link to="/profile" aria-label="Profile" title="Profile" style={{ alignItems: 'center', gap: 6 }}>
                 {user?.profileImage ? (
                   <img src={user.profileImage} alt="" width={24} height={24}
                     style={{ borderRadius: '50%', objectFit: 'cover', display: 'block', border: '1.5px solid var(--line)' }} />
