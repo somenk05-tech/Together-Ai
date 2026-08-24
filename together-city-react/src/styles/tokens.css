@@ -225,6 +225,9 @@
   --scrim-top: rgba(0, 0, 0, .22);
   --scrim-clear: rgba(0, 0, 0, 0);
   --scrim-deep: rgba(0, 0, 0, .72);
+  /* Ink that sits ON a scrim — white in every theme, because the scrim is
+     dark in every theme. */
+  --on-scrim: #ffffff;
   /* TWO NAMES, BECAUSE THIS ONE WAS TWO THINGS. `--glass` was declared here as
      a translucent white and again 144 lines below as a four-layer box-shadow;
      the second won, so the colour was unreachable and `.hero .btn-ghost` wrote

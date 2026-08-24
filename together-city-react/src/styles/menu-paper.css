@@ -285,3 +285,10 @@
 .biz-site { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 4px; display: grid; gap: 6px; justify-items: start; }
 .biz-site-k { font-size: var(--fs-4); }
 .biz-site-url { font-size: var(--fs-4); font-weight: 600; word-break: break-all; }
+
+/* ── A FEED VIDEO, UNTIL IT IS TAPPED (owner, 24 Aug) ───────────────────────
+   The browser's control overlay waits for a tap; until then the card shows
+   the picture and, when paused, one play glyph. The glyph takes no clicks —
+   the tap lands on the video and summons the real controls. */
+.vf-wrap { position: relative; margin-top: 12px; line-height: 0; }
+.vf-play { position: absolute; inset: 0; margin: auto; width: 64px; height: 64px; border-radius: var(--r-full); background: var(--scrim-deep); color: var(--on-scrim); display: grid; place-items: center; font-size: var(--fs-8); pointer-events: none; }

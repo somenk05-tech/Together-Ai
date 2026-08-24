@@ -90,7 +90,7 @@ export function ReelsView({ items, onOpenAuthor, hasNextPage, fetchNextPage, isF
            the reels inside the reels instead of handing the gesture to the page
            behind the portal; the -webkit property keeps iOS momentum native. */
         style={{ height: '100%', overflowY: 'auto', scrollSnapType: 'y mandatory', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
-        {items.map((p) => <Reel key={p.key ?? p.id} post={p} onOpenAuthor={onOpenAuthor} muted={muted} onToggleMute={toggleMute} />)}
+        {items.map((p, i) => <Reel key={p.key ?? p.id} post={p} onOpenAuthor={onOpenAuthor} muted={muted} onToggleMute={toggleMute} eager={Math.abs(i - (startAt ?? 0)) <= 1} />)}
         {isFetchingNextPage && <div style={{ height: 60, display: 'grid', placeItems: 'center' }}><Spinner /></div>}
       </div>
       {/* Instagram-web up/down navigation on the far right */}
@@ -111,7 +111,7 @@ export function ReelsView({ items, onOpenAuthor, hasNextPage, fetchNextPage, isF
 /* memo: appending a page of reels re-renders the list; the reels already
  * mounted have identical props and skip their render entirely — a scroll
  * that fetches page 3 does not re-run pages 1 and 2. */
-const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute }: { post: Post; onOpenAuthor?: (handle: string) => void; muted: boolean; onToggleMute: () => void }) {
+const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute, eager }: { post: Post; onOpenAuthor?: (handle: string) => void; muted: boolean; onToggleMute: () => void; eager?: boolean }) {
   // Phone: the reel IS the screen — 9:16 full-bleed like every reels player.
   // The action rail and caption move ONTO the video in white; desktop keeps
   // the white-page card with the rail beside it. Mount-time matchMedia, the
@@ -139,8 +139,9 @@ const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute }: { p
   const [saved, setSaved] = useState(() => savedIds().has(post.id));
   const toggleSave = () => setSaved(toggleSaved(post));
   // Preload the video BEFORE it reaches the screen so playback starts instantly
-  // instead of buffering on arrival (the "lag"). Flips true ~1 screen ahead.
-  const [near, setNear] = useState(false);
+  // instead of buffering on arrival (the "lag"). The reel the viewer opened on
+  // and its neighbours load at once; the rest flip true ~3 screens ahead.
+  const [near, setNear] = useState(eager ?? false);
 
   // Keep the music track in lock-step with the video: play/pause/seek together.
   const syncAudioPlay = () => {
@@ -154,17 +155,35 @@ const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute }: { p
   useEffect(() => {
     const el = vref.current;
     if (!el) return;
+    /**
+     * THE LAG, AND WHERE IT ACTUALLY LIVED (owner, 24 Aug). A fast fling
+     * outran the preload margin: the reel arrived before its `src` was
+     * attached, `play()` rejected against an empty element, and nothing
+     * retried when the bytes finally came — the screen just sat there until
+     * a tap. Same cure as the feed cards: the wish to play is KEPT, and
+     * honoured the moment the data arrives. Arrival also forces the src on,
+     * so the warm-up observer can no longer be outrun.
+     */
+    let wants = false;
+    const attempt = () => {
+      if (!wants || !el.getAttribute('src')) return;
+      // The claim pauses whichever video (reel or feed card) played before —
+      // one video at a time, app-wide, without destroying anything.
+      claimPlayback(el);
+      void el.play().then(() => { setPaused(false); if (hasMusic) syncAudioPlay(); }).catch(() => {});
+    };
+    const onLoaded = () => attempt();
+    el.addEventListener('loadeddata', onLoaded);
     const io = new IntersectionObserver((entries) => {
       const e = entries[0];
-      if (e.isIntersecting && e.intersectionRatio >= 0.6) {
-        // The claim pauses whichever video (reel or feed card) played before —
-        // one video at a time, app-wide, without destroying anything.
-        claimPlayback(el);
-        void el.play().then(() => { setPaused(false); if (hasMusic) syncAudioPlay(); }).catch(() => {});
-      } else { el.pause(); releasePlayback(el); if (hasMusic) syncAudioPause(); }
-    }, { threshold: [0, 0.6] });
+      if (e.isIntersecting && e.intersectionRatio >= 0.5) {
+        wants = true;
+        setNear(true);
+        attempt();
+      } else { wants = false; el.pause(); releasePlayback(el); if (hasMusic) syncAudioPause(); }
+    }, { threshold: [0, 0.5] });
     io.observe(el);
-    return () => { io.disconnect(); releasePlayback(el); syncAudioPause(); };
+    return () => { io.disconnect(); el.removeEventListener('loadeddata', onLoaded); releasePlayback(el); syncAudioPause(); };
   }, [hasMusic]);
 
   // Warm the buffer ~1 screen before the reel scrolls into view.
@@ -173,7 +192,7 @@ const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute }: { p
     if (!el || near) return;
     const io = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting) { setNear(true); io.disconnect(); }
-    }, { rootMargin: '120% 0px 120% 0px', threshold: 0 });
+    }, { rootMargin: '300% 0px 300% 0px', threshold: 0 });
     io.observe(el);
     return () => io.disconnect();
   }, [near]);

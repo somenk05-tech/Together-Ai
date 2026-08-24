@@ -33,7 +33,7 @@ const CEILING = {
   rawRadii: 329,
   inlineStyleBlocks: 6783,
   distinctFontSizes: 36,
-  rawSpacing: 3679,
+  rawSpacing: 3678,
 };
 
 const walk = (d, ext) => readdirSync(d).flatMap((n) => {

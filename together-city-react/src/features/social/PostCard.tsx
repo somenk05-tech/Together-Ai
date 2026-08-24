@@ -168,6 +168,15 @@ function VideoFrame({ url, isNew, vref, autoInView }: { url: string; isNew: bool
    * the citizen is on this page, and it loads at once.
    */
   const [near, setNear] = useState(isNew);
+  /**
+   * THE CONTROLS WAIT FOR A TAP (owner, 24 Aug: the play button and the
+   * ±10s rings sat on every video in the feed). A feed video shows the
+   * picture; the first tap starts it — or, once started, summons the native
+   * controls. The overlay is the browser's own, so nothing here re-invents
+   * scrubbing; it is only no longer uninvited.
+   */
+  const [ctl, setCtl] = useState(false);
+  const [playing, setPlaying] = useState(false);
   const localRef = useRef<HTMLVideoElement | null>(null);
   const setRefs = useCallback((el: HTMLVideoElement | null) => {
     localRef.current = el;
@@ -225,14 +234,28 @@ function VideoFrame({ url, isNew, vref, autoInView }: { url: string; isNew: bool
     };
   }, [autoInView]);
   return (
-    <video ref={setRefs} src={near ? url : undefined} preload={near ? 'auto' : 'none'}
-      controls playsInline autoPlay={isNew} muted={isNew || autoInView} loop={isNew || autoInView}
-      onLoadedMetadata={(e) => {
-        const r = (e.currentTarget.videoWidth || 16) / Math.max(1, e.currentTarget.videoHeight || 9);
-        rememberRatio(url, r);
-        setAr(r);
-      }}
-      style={{ width: '100%', aspectRatio: String(ar), maxHeight: 720, objectFit: 'contain', borderRadius: 'var(--r-2)', marginTop: 12, background: 'var(--media-bg)', display: 'block' }} />
+    <div className="vf-wrap">
+      <video ref={setRefs} src={near ? url : undefined} preload={near ? 'auto' : 'none'}
+        controls={ctl} playsInline autoPlay={isNew} muted={isNew || autoInView} loop={isNew || autoInView}
+        onClick={() => {
+          // First tap: play a paused video, and hand over the native controls.
+          if (ctl) return;
+          setCtl(true);
+          const el = localRef.current;
+          if (el && el.paused && el.getAttribute('src')) playWithSharedSound(el);
+        }}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onLoadedMetadata={(e) => {
+          const r = (e.currentTarget.videoWidth || 16) / Math.max(1, e.currentTarget.videoHeight || 9);
+          rememberRatio(url, r);
+          setAr(r);
+        }}
+        style={{ width: '100%', aspectRatio: String(ar), maxHeight: 720, objectFit: 'contain', borderRadius: 'var(--r-2)', background: 'var(--media-bg)', display: 'block' }} />
+      {/* The one affordance a bare paused video still owes: a play glyph.
+          pointer-events: none — the tap lands on the video underneath. */}
+      {!ctl && !playing && <span className="vf-play" aria-hidden>▶</span>}
+    </div>
   );
 }
 
