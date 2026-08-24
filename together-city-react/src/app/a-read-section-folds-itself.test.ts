@@ -241,6 +241,11 @@ describe('the fold itself', () => {
       'components/SearchSelect.tsx',
       'components/ui/Fold.tsx',
       'features/beauty/components/Plates.tsx',
+      // Market's Details drawer on the store card (24 Aug): a per-tile
+      // disclosure inside a shop grid, not a titled section of the page — the
+      // same argument as Compose's three-dot key. It gained aria-expanded the
+      // day the tile took the store's card anatomy.
+      'features/beauty/pages/Market.tsx',
       'features/mail/MoveToProject.tsx',
       'features/mail/pages/Compose.tsx',
       'features/mail/pages/MessageView.tsx',

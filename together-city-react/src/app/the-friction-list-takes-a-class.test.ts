@@ -65,7 +65,7 @@ describe('the friction list takes a class', () => {
     // menu paper landed its components in classes, and once more the same day
     // when the business card's verbs and the gallery's hero took classes too —
     // a ratchet below its ceiling is slack.
-    expect(s).toMatch(/inlineStyleBlocks: 6783,/);
-    expect(s).toMatch(/rawSpacing: 3678,/);
+    expect(s).toMatch(/inlineStyleBlocks: 6768,/);
+    expect(s).toMatch(/rawSpacing: 3672,/);
   });
 });

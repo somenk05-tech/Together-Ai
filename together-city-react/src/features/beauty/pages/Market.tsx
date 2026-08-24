@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { AllergyNote, Button, EmptyState, Spinner } from '@/components/ui';
+import { AllergyNote, EmptyState, Spinner } from '@/components/ui';
 import { useBagActions, useBeautyProducts, useBeautyRoutine, type RecommendedProduct } from '../api';
 import { BeautyBagBar } from '../components/BeautyBagBar';
 import { ShareToChat } from '@/features/chat/share';
@@ -55,8 +55,6 @@ const SORTS = [
 ] as const;
 type Sort = typeof SORTS[number]['key'];
 
-const TIER_TONE: Record<string, string> = { Budget: 'var(--ok-ink)', 'Mid-range': 'var(--info-ink)', Premium: 'var(--accent-ink)' };
-
 /** Where in the routine a product already appears, in the reader's words. */
 const BAND_WORD: Record<string, string> = { morning: 'morning', evening: 'evening', weekly: 'wash day', body: 'body care' };
 
@@ -66,67 +64,46 @@ function Tile(
 ) {
   const [open, setOpen] = useState(false);
   return (
-    <article style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-      <div style={{ position: 'relative' }}>
-        {/* THE + IS THE WHOLE INTERACTION on the reference's tile, and it is a
-            44px target around a small mark for the same reason the photo grid
-            uses one: the tap area is not the drawing. */}
-        <button type="button" onClick={qty > 0 ? onRemove : onAdd}
-          aria-label={qty > 0 ? `Remove ${p.name} from your bag` : `Add ${p.name} to your bag`}
-          style={{ position: 'absolute', top: 0, right: 0, zIndex: 1, width: 44, height: 44, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, display: 'grid', placeItems: 'center' }}>
-          <span aria-hidden style={{
-            width: 26, height: 26, borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 15, lineHeight: 1,
-            background: qty > 0 ? 'var(--accent)' : 'transparent', color: qty > 0 ? 'var(--on-accent)' : 'var(--ink-soft)',
-          }}>{qty > 0 ? '−' : '+'}</span>
-        </button>
-
-        <div style={{ display: 'grid', placeItems: 'center', padding: '18px 10px 6px' }}>
-          <ProductShot image={p.image} imageAlt={p.imageAlt} category={p.category} size={168} bare />
-        </div>
+    /*
+      THE SAME CARD AS THE E-COMMERCE SHELF (owner, 24 Aug: "match the beauty
+      market shop design with the e-commerce beauty page"). One card anatomy,
+      one set of classes — the `.st-*` block the store shell already wears —
+      so the same product looks like the same product on both floors: framed
+      square shot with the one chip that matters on it, uppercase role,
+      left-aligned name, brand, price, one quiet why-line, and the black
+      Add-to-bag that becomes a stepper. What this page knows that the store
+      does not — match score, price tier, the full dossier — stays: score and
+      tier ride the why-line and the price, and the dossier keeps its Details
+      drawer below.
+    */
+    <article className="st-card">
+      <div className="st-shot">
+        {inRoutine.length > 0 ? (
+          <span className="st-tier">✓ Routine · {inRoutine.map((b) => BAND_WORD[b] ?? b).join(' & ')}</span>
+        ) : p.matched ? (
+          <span className="st-tier">Matched to you</span>
+        ) : null}
+        <ProductShot image={p.image} imageAlt={p.imageAlt} category={p.category} fill />
       </div>
-
-      <div style={{ textAlign: 'center', padding: '0 6px' }}>
-        <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.09em', textTransform: 'uppercase' }}>{p.brand}</div>
-        <div style={{ marginTop: 3 }}>
-          {/* NO WAY OUT OF THE SHOP. The last outbound link in the hub — the
-              tile's name opened the retailer's own page in a new tab. The
-              routine's equivalent went at the owner's word and this is the
-              same argument one page over: a market that sends you to
-              plumgoodness.com is a market showing you the door on the way to
-              its own checkout. `productUrl` stays on the wire; the shelf spec
-              requires it and it is what the order is fulfilled against. */}
-          <span style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.35 }}>{p.name}</span>
-        </div>
-        <div className="muted" style={{ fontSize: 12.5, marginTop: 4 }}>₹{p.priceInr.toLocaleString('en-IN')}</div>
-
-        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: 'center', marginTop: 7, minHeight: 20 }}>
-          {/* THE ONE FLAG THAT IS NOT ABOUT SELLING. Somebody browsing the shop
-              needs to know they have already been told to use this — otherwise
-              the market and the routine are two lists of products that do not
-              acknowledge each other, and you buy your own cleanser twice. */}
-          {inRoutine.length > 0 && (
-            <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--accent-ink)', background: 'var(--accent-soft)', border: '1px solid var(--accent-line)', borderRadius: 'var(--r-full)', padding: '3px 9px' }}>
-              ✓ Routine · {inRoutine.map((b) => BAND_WORD[b] ?? b).join(' & ')}
-            </span>
-          )}
-          {p.matched && inRoutine.length === 0 && (
-            <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '3px 9px' }}>
-              {p.matchScore}% match
-            </span>
-          )}
-          {p.tier && (
-            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: TIER_TONE[p.tier] ?? 'var(--muted)' }}>{p.tier}</span>
-          )}
-        </div>
-
-        <button type="button" onClick={() => setOpen(!open)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: 700, color: 'var(--accent-ink)', padding: '8px 4px 0' }}>
-          {open ? '▴ Less' : '▾ Details'}
-        </button>
+      <div className="st-role">{p.category}</div>
+      <h2 className="st-name">{p.name}</h2>
+      <div className="st-brand">{p.brand}</div>
+      <div className="st-price">
+        ₹{p.priceInr.toLocaleString('en-IN')}
+        {p.tier && <span className="st-keep"> · {p.tier}</span>}
       </div>
+      <p className="st-why">
+        {(p.actives.slice(0, 2).join(' · ') || p.keyIngredient)}
+        {p.matched ? ` · ${p.matchScore}% match` : ''}
+      </p>
+
+      <button type="button" className="st-details" onClick={() => setOpen(!open)}
+        aria-expanded={open}>
+        {open ? '▴ Less' : '▾ Details'}
+      </button>
 
       {open && (
-        <div style={{ textAlign: 'left', marginTop: 6, padding: '10px 12px', background: 'var(--paper)', borderRadius: 'var(--r-1)', display: 'flex', flexDirection: 'column', gap: 7 }}>
+        <div style={{ textAlign: 'left', margin: '6px 0 10px', padding: '10px 12px', background: 'var(--paper)', borderRadius: 'var(--r-1)', display: 'flex', flexDirection: 'column', gap: 7 }}>
           <p style={{ fontSize: 12, lineHeight: 1.55, margin: 0, color: 'var(--ink-soft)' }}>{p.blurb}</p>
           <div className="muted" style={{ fontSize: 11 }}>
             <strong style={{ color: 'var(--ink-soft)' }}>{p.actives.slice(0, 3).join(' · ')}</strong>
@@ -148,7 +125,6 @@ function Tile(
           )}
           <p style={{ fontSize: 11.5, lineHeight: 1.55, margin: 0, color: 'var(--muted)' }}>{p.explanation}</p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Button variant="line" size="sm" onClick={onAdd}>{qty > 0 ? `In bag · ${qty}` : 'Add to bag'}</Button>
             <span style={{ marginLeft: 'auto' }}>
               <ShareToChat label="" item={{
                 kind: 'product', hub: 'Beauty', title: p.name, subtitle: `${p.category} · ${p.keyIngredient}`,
@@ -157,6 +133,16 @@ function Tile(
             </span>
           </div>
         </div>
+      )}
+
+      {qty > 0 ? (
+        <div className="st-qty">
+          <button type="button" onClick={onRemove} aria-label={`One fewer ${p.name}`}>–</button>
+          <span>{qty} in bag</span>
+          <button type="button" onClick={onAdd} aria-label={`One more ${p.name}`}>+</button>
+        </div>
+      ) : (
+        <button type="button" className="st-add" onClick={onAdd}>Add to bag</button>
       )}
     </article>
   );
@@ -287,9 +273,7 @@ export function Market() {
         {[['', `Everything ${inSegment.length}`] as [string, string],
           ...categories.map(([c, n]) => [c, `${c} ${n}`] as [string, string])].map(([value, label]) => (
           <button key={value || 'all'} type="button" onClick={() => setCat(value)}
-            /* minHeight 44: these are the page's primary filter and were
-               ~34px in a 6px-gap wrap row — the classic mis-tap geometry. */
-            style={{ cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '6px 13px', minHeight: 44, fontSize: 12, fontFamily: 'inherit', fontWeight: 600,
+            style={{ cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '6px 13px', fontSize: 12, fontFamily: 'inherit', fontWeight: 600,
               border: `1.5px solid ${cat === value ? 'var(--accent)' : 'var(--line)'}`,
               background: cat === value ? 'var(--accent)' : 'transparent',
               color: cat === value ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
