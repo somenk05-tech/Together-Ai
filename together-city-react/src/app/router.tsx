@@ -16,6 +16,7 @@ import { AdminConsole } from '@/features/admin/pages/Console';
 import { DevPage } from '@/features/dev/pages/Dev';
 import { MyBusiness } from '@/features/services/pages/MyBusiness';
 import { ServiceMessages, ServiceThreadView } from '@/features/services/pages/Messages';
+import { MyOrders } from '@/features/services/pages/MyOrders';
 import { Regulars } from '@/features/services/pages/Regulars';
 import { DailyOffers } from '@/features/services/pages/DailyOffers';
 import { HubLanding } from '@/pages/HubLanding';
@@ -493,6 +494,10 @@ const ROUTE_BLOCKS: RouteObject[] = [
       { path: '/services/browse', element: <RequireAuth>{wrap(<ServicesBrowse />)}</RequireAuth> },
       { path: '/services/list', element: <RequireAuth>{wrap(<ListBusiness />)}</RequireAuth> },
       { path: '/services/mine', element: <RequireAuth>{wrap(<MyBusiness />)}</RequireAuth> },
+      // Declared before ':id' on the server for the same reason it needs no
+      // care here: 'orders' is a literal, and the citizen's own orders are a
+      // room of their own rather than a tab inside somebody's business.
+      { path: '/services/orders', element: <RequireAuth>{wrap(<MyOrders />)}</RequireAuth> },
       { path: '/services/:id/edit', element: <RequireAuth>{wrap(<EditBusiness />)}</RequireAuth> },
       // THE TILL, BUSINESS SIDE. Every one of these is per LISTING rather than
       // per owner: somebody with a salon and a tuition class keeps two books,

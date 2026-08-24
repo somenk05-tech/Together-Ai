@@ -110,6 +110,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/services/regulars', index: '04', label: 'Regulars', sub: 'The businesses you keep' },
       { path: '/services/offers', index: '05', label: 'Daily offers', sub: 'What is on today' },
       { path: '/services/messages', index: '06', label: 'Messages', sub: 'Anonymous, and only in this hub' },
+      { path: '/services/orders', index: '07', label: 'My orders', sub: 'Paid from your wallet, tracked to the door' },
     ],
   },
   travel: {

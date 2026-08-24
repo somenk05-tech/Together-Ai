@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { SlippyMap } from '@/components/SlippyMap';
 import { Button, Card, Spinner, EmptyState } from '@/components/ui';
 import { MenuView } from '../MenuView';
+import { OrderMenu } from '../OrderMenu';
 import { HoursTable, OpenBadge } from '../HoursEditor';
 import { TrustBadge, TrustNote } from '../Verification';
 import { Gallery, Reviews } from '../ListingPanel';
@@ -282,7 +283,17 @@ export function BusinessPage() {
         list has said what it wants shown, and no schema of ours outranks that.
         MenuView renders nothing of its own accord when there is nothing.
       */}
-      <MenuView listingId={s.id} group={s.categoryGroup} onSent={(threadId) => nav(`/services/messages/${threadId}`)} />
+      {/* FOOD ORDERS AND PAYS; EVERYONE ELSE ASKS. A kitchen's menu takes a
+          cart, a wallet payment and a delivery address; a plumber's price list
+          takes a question — and "order a haircut × 2" is the app telling the
+          citizen it has not understood what a salon does. Both end in the same
+          thread. */}
+      {s.categoryGroup === 'Food & Daily Needs' ? (
+        <OrderMenu listingId={s.id} businessName={s.businessName} logoUrl={s.photos[0]?.url ?? null}
+          onSent={(threadId) => nav(`/services/messages/${threadId}`)} />
+      ) : (
+        <MenuView listingId={s.id} group={s.categoryGroup} onSent={(threadId) => nav(`/services/messages/${threadId}`)} />
+      )}
 
       {/* Photographs on a dark ground, which is where photographs look their
           best and the only reason this band exists. */}

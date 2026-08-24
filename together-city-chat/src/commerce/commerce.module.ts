@@ -32,6 +32,10 @@ import { PAYMENT_PROVIDER, PAYOUT_PROVIDER } from './provider';
     { provide: PAYMENT_PROVIDER, useClass: SandboxPaymentProvider },
     { provide: PAYOUT_PROVIDER, useClass: SandboxPayoutProvider },
   ],
-  exports: [InvoicesService],
+  // PaymentsService rides out too: Local Services orders pay and refund
+  // through the SAME till — a second charge path written over there would be a
+  // second answer to "was this citizen charged", which is the whole reason the
+  // provider bindings above exist once.
+  exports: [InvoicesService, PaymentsService],
 })
 export class CommerceModule {}

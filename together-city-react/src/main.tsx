@@ -19,6 +19,8 @@ import './styles/relief.css';
    noticing for two days. */
 import './styles/social.css';
 import './styles/mira.css';
+// The one menu design every kitchen wears — see the file's own head note.
+import './styles/menu-paper.css';
 
 const container = document.getElementById('root');
 if (!container) throw new Error('#root not found');

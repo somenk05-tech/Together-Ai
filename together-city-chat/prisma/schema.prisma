@@ -195,6 +195,7 @@ model User {
   serviceEnquiries     ServiceEnquiry[]
   serviceRegulars      ServiceRegular[]
   serviceReviews       ServiceReview[]
+  serviceOrders        ServiceOrder[]
   ticketBookings       TicketBooking[]
   tripBookings         TripBooking[]
   mailAccount          MailAccount?
@@ -2530,11 +2531,13 @@ model MasterProfile {
   weightKg     Int?
   occupation   String?
   phone        String?
-  /// Where deliveries go — and NO WRITER TODAY (B.18). It was collected at the
-  /// grocery checkout, for a delivery that does not happen; the checkout now
-  /// stops at the shopping list and asks for nothing. Existing values are the
-  /// citizens' own answers and are left alone. The hub that starts delivering
-  /// is the one that earns the right to ask again.
+  /// Where deliveries go. B.18 removed this column's only writer — the grocery
+  /// checkout collected it for a delivery that never happened — and recorded
+  /// that "the hub that starts delivering is the one that earns the right to
+  /// ask again." Local Services ordering (24 Aug) is that hub: the checkout
+  /// asks for an address only on a delivery order, and writes it here ONLY
+  /// when the citizen ticks "save this as my address" — an unticked box shares
+  /// it with that one business and stores nothing.
   address      String?
   /// Declared food allergens, csv, as the citizen wrote them (canonicalised by
   /// declaredTerm() — "nut allergy" is stored as "nut").
@@ -3029,6 +3032,7 @@ model ServiceListing {
   merchantAccount MerchantAccount?
   settlements     Settlement[]
   merchantLedger  MerchantLedgerEntry[]
+  orders          ServiceOrder[]
 
   @@index([moderation, city])
   @@index([categoryKey, city])
@@ -3233,11 +3237,126 @@ model ServiceMenuItem {
   // "seasonal" must not become ₹0 on a card.
   priceInr    Int?
   sortOrder   Int      @default(0)
+  /// THE SOLD-OUT SWITCH — the owner's, flipped from the command centre in one
+  /// tap and honoured everywhere the same minute: the card greys, the cart
+  /// refuses it, and the recommender never says its name. TRUE by default
+  /// because a menu that publishes an item is claiming to serve it.
+  available   Boolean  @default(true)
+  /// veg | nonveg | egg. NULL is "the menu did not say", which is not the same
+  /// as any of the three and never rendered as one.
+  veg         String?
+  /// 0–3, the menu's own chilli count. NULL is unsaid.
+  spice       Int?
+  /// One photograph of the dish itself, through the same upload chokepoint as
+  /// every other image in the city.
+  photoUrl    String?
+  /// The kitchen's own estimate for this item, minutes. NULL is unsaid.
+  prepMinutes Int?
+  /// Sizes of the SAME dish — [{name, priceInr}], e.g. Half/Full. When present
+  /// the base priceInr is the cheapest, so cards and sorts stay honest.
+  variantsJson String?
+  /// Extras that ride on it — [{name, priceInr}], e.g. "Extra gravy +₹40".
+  addonsJson  String?
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
 
   listing ServiceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
 
   @@index([listingId, sortOrder])
+}
+
+/// AN ORDER A KITCHEN CAN BE HELD TO.
+///
+/// `itemsJson` is a SNAPSHOT — names, quantities and prices as they stood the
+/// moment the citizen paid. The live menu keeps moving underneath it (that is
+/// what the command centre is for) and none of those edits may rewrite what
+/// somebody already agreed to pay. The invoice the money moved through is the
+/// financial record; this row is the kitchen's copy, and the two are minted
+/// together in one transaction.
+///
+/// THE STATE MACHINE ONLY WALKS FORWARD: submitted → accepted → preparing →
+/// ready → completed, with rejected (owner, from submitted) and cancelled
+/// (citizen, from submitted) as the two exits. Every transition stamps its own
+/// column, transitions() in orders.service.ts is the single arbiter, and there
+/// is no route that takes a status from a request body.
+///
+/// WHAT THE CITIZEN CHOSE TO SHARE travels ON THE ORDER — name, phone, and for
+/// delivery an address — never on the thread. The thread keeps its alias and
+/// its revealName switch untouched: trusting a kitchen with your address for
+/// one dinner is not renaming yourself to the whole shop, and the checkout
+/// says exactly what is shared before the button is pressed.
+model ServiceOrder {
+  id        String @id @default(uuid())
+  listingId String
+  /// The customer. Named userId so the purge scanner sees a citizen here.
+  userId    String
+  /// The thread this order rides in — the same room the two of them already
+  /// share, which is where the card lands and where any talking happens.
+  enquiryId String
+
+  /// TCO-10482. Unique across the city, minted once, never reused.
+  number String @unique
+
+  /// submitted | accepted | preparing | ready | completed | rejected | cancelled
+  status String @default("submitted")
+
+  /// delivery | pickup
+  fulfilment String
+
+  /// The snapshot: [{name, qty, unitPriceInr, variant?, addons?: [{name,
+  /// priceInr}], lineTotalInr}]. Written once at submit, never edited upward —
+  /// an accepted adjustment may only remove lines, and the refund of the
+  /// difference is written in the same transaction.
+  itemsJson   String
+  subtotalInr Int
+  totalInr    Int
+
+  /// The kitchen's answer at accept — "about 25 minutes". NULL until they say.
+  prepMinutes Int?
+  /// The citizen's note to the kitchen, in their words.
+  note        String?
+
+  /// What they chose to share with THIS business for THIS order. Snapshots,
+  /// deliberately — a later profile edit must not rewrite what a kitchen was
+  /// told, and deleting the profile line must not blank a record the kitchen
+  /// is mid-way through cooking against.
+  customerName String
+  phone        String?
+  /// Delivery only. NULL on pickup orders, which share no address at all.
+  addressText  String?
+  /// Where the citizen actually stood when they ordered — required for
+  /// delivery, taken with the browser's own permission prompt. A pin the
+  /// kitchen can sanity-check the address against.
+  lat          Float?
+  lng          Float?
+
+  /// Owner's words when they say no; citizen reads them verbatim.
+  rejectReason String?
+  /// Citizen's reason when they pull it back; owner reads it verbatim.
+  cancelReason String?
+  /// "No Coke tonight — swapped for Pepsi, same price." Written at accept when
+  /// the two of them agreed to a change in the thread first.
+  adjustmentNote String?
+
+  /// The invoice the money moved through. One order, one invoice, always.
+  invoiceId String @unique
+
+  submittedAt DateTime  @default(now())
+  acceptedAt  DateTime?
+  preparingAt DateTime?
+  readyAt     DateTime?
+  completedAt DateTime?
+  rejectedAt  DateTime?
+  cancelledAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  listing ServiceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, status, createdAt])
+  @@index([userId, createdAt])
+  @@index([enquiryId])
 }
 
 model ServiceMessage {
@@ -3256,6 +3375,11 @@ model ServiceMessage {
   /// search result — so an invoice message is never a blank bubble; the id
   /// upgrades it to a card wherever the card is known.
   invoiceId  String?
+  /// AN ORDER, DELIVERED THE SAME WAY AN INVOICE IS — in the thread the two of
+  /// them already share, as a plain sentence the id upgrades to a card. The
+  /// card is where Accept and Reject live for the owner and where the status
+  /// walks for the citizen.
+  orderId    String?
   createdAt  DateTime @default(now())
 
   enquiry ServiceEnquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)

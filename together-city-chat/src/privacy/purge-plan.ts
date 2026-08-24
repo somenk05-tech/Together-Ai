@@ -133,6 +133,12 @@ export const PURGE_RULES: PurgeRule[] = [
   // written down all the same: audit rows are KEPT.
 { model: 'ServiceListing', by: 'ownerId', action: 'purge', reason: 'Their own business page, and the threads hanging off it — a shopfront for somebody who has left is a door onto nothing.' },
   { model: 'ServiceRegular', by: 'userId', action: 'purge', reason: 'A private shortlist of the businesses they kept going back to. Nobody else has ever seen it, and it says a great deal about a person.' },
+  // The order card in the thread deliberately carries no name and no address
+  // (see deliverCard in orders.service.ts), so purging the row takes the ONLY
+  // copy of what the citizen shared at checkout. The money's record survives
+  // separately: the invoice under the listing and the tombstoned PaymentIntent,
+  // neither of which says where anybody lives.
+  { model: 'ServiceOrder', by: 'userId', action: 'purge', reason: 'What they ordered, and the name, phone and delivery address they shared to get it. The identity a kitchen needed for one dinner dies with the account; the business keeps the invoice, which identifies nobody.' },
   // ── The Till. Two-sided money, and the asymmetry decides every rule below.
   //
   // An invoice is a document between two people, and only one of them has
@@ -222,8 +228,12 @@ export const PURGE_RULES: PurgeRule[] = [
   { model: 'DriveFile', by: 'ownerId', action: 'purge', storageKey: 'storageKey', reason: 'Files in the vault, with the stored objects.' },
   { model: 'TripBooking', by: 'userId', action: 'purge', reason: 'Where they went, and when they were away.' },
   { model: 'TicketBooking', by: 'userId', action: 'purge', reason: 'Which events they bought tickets to attend.' },
-  { model: 'Reservation', by: 'userId', action: 'purge', reason: 'Restaurant reservations.' },
-  { model: 'DiningOrder', by: 'userId', action: 'purge', reason: 'What they ordered, from where, and when.' },
+  // Reservation and DiningOrder were dropped with the invented Restaurants hub
+  // (22 Aug) — rules for them here were deletes that silently never ran, which
+  // is exactly what the "classifies nothing that no longer exists" guard is for.
+  { model: 'MiraFact', by: 'userId', action: 'purge', reason: 'What Mira learned about them, in their own terms — subjects, habits, people. The most personal table in the building; it dies first.' },
+  { model: 'Pet', by: 'userId', action: 'purge', reason: 'Their pets\u2019 records — names, species, weights, vet notes. A household detail nobody else was ever shown.' },
+  { model: 'PetPhoto', by: 'userId', action: 'purge', storageKey: 'fileKey', reason: 'Photographs of their pets, with the stored objects. They cascade from Pet, but the stored file needs its own carrying away.' },
 
   // ── Credentials. Dead the moment the account was deleted; removed now rather
   //    than left as hashes tied to a person in every future database dump.

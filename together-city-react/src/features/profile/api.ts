@@ -15,6 +15,9 @@ export interface MasterProfileView {
   country?: string | null; state?: string | null; city?: string | null;
   timeZone?: string | null; languages?: string | null; heightCm?: number | null;
   weightKg?: number | null; occupation?: string | null; phone?: string | null;
+  /** Where deliveries go. Written from the order checkout only when the
+   *  citizen ticks "save this as my address" — see the schema's own note. */
+  address?: string | null;
   /** single | inRelationship | … | preferNotToSay. `preferNotToSay` is an
    *  ANSWER; absent means nobody asked. Nothing computes with it. */
   relationshipStatus?: string | null;

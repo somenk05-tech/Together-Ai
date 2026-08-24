@@ -7,6 +7,7 @@ import {
   useRevealName, useSendServiceMessage, useServiceInbox, useServiceThread, type ServiceThread,
 } from '../api';
 import { ThreadInvoice } from '@/features/pay/ThreadInvoice';
+import { ThreadOrder } from '../ThreadOrder';
 
 
 /**
@@ -238,8 +239,19 @@ export function ServiceThreadView() {
                 there underneath: a client that does not know about invoices
                 shows the sentence, never a blank. */}
             {m.invoiceId ? (
-              <div style={{ maxWidth: '86%', width: '100%' }}>
+              <div className="svo-wide">
                 <ThreadInvoice invoiceId={m.invoiceId} body={m.body} at={when(m.createdAt)} />
+              </div>
+            ) : m.orderId ? (
+              /* AN ORDER ARRIVES THE SAME WAY AN INVOICE DOES — a card in the
+                 room where the two of them already talk. For the business this
+                 card IS the counter: accept, reject and the status steps live
+                 on it, so taking an order never means watching a second
+                 screen. The body underneath is a plain sentence that carries
+                 no name and no address, which is what lets these rows outlive
+                 the citizen's account the way every other thread line does. */
+              <div className="svo-wide">
+                <ThreadOrder orderId={m.orderId} body={m.body} at={when(m.createdAt)} />
               </div>
             ) : (
               <div style={{

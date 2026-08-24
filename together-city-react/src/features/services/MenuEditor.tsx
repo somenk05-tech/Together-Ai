@@ -54,11 +54,15 @@ export function MenuEditor({ listingId }: { listingId: string }) {
     setErr(null); setNote(from ?? ''); setScanUrl(undefined); setDraft(items); setOpen(true);
   };
 
-  /** The live menu, flattened back into editable lines. Sections included. */
+  /** The live menu, flattened back into editable lines — WITH their ids, so
+   *  publishing an edit updates each line in place and everything this editor
+   *  does not show (sold-out switches, photos, sizes, add-ons, prep times)
+   *  survives a corrected price. A line added here has no id and is new. */
   const editLive = () =>
     begin(
       (live.data?.sections ?? []).flatMap((s) =>
         s.items.map((i) => ({
+          id: i.id,
           name: i.name,
           section: s.section ?? undefined,
           description: i.description ?? undefined,

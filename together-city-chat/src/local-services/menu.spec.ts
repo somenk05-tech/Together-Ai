@@ -35,6 +35,7 @@ function harness(opts: { menu?: any[]; extract?: any } = {}) {
     for (const [k, v] of Object.entries(where ?? {})) {
       if (k === 'listingId_seekerId') { const c = v as any; if (r.listingId !== c.listingId || r.seekerId !== c.seekerId) return false; continue; }
       if (v && typeof v === 'object' && 'in' in (v as any)) { if (!(v as any).in.includes(r[k])) return false; }
+      else if (v && typeof v === 'object' && 'notIn' in (v as any)) { if ((v as any).notIn.includes(r[k])) return false; }
       else if (r[k] !== v) return false;
     }
     return true;
@@ -46,8 +47,11 @@ function harness(opts: { menu?: any[]; extract?: any } = {}) {
     },
     serviceMenuItem: {
       findMany: async ({ where }: any) => menu.filter((m) => cmp(where, m)).sort((a, b) => a.sortOrder - b.sortOrder),
+      findFirst: async ({ where }: any) => menu.find((m) => cmp(where, m)) ?? null,
       deleteMany: async ({ where }: any) => { const keep = menu.filter((m) => !cmp(where, m)); const n = menu.length - keep.length; menu.length = 0; menu.push(...keep); return { count: n }; },
-      createMany: async ({ data }: any) => { for (const d of data) menu.push({ id: `M${++seq}`, description: null, section: null, priceInr: null, ...d }); return { count: data.length }; },
+      createMany: async ({ data }: any) => { for (const d of data) menu.push({ id: `M${++seq}`, description: null, section: null, priceInr: null, available: true, ...d }); return { count: data.length }; },
+      create: async ({ data }: any) => { const r = { id: `M${++seq}`, description: null, section: null, priceInr: null, available: true, veg: null, spice: null, photoUrl: null, prepMinutes: null, variantsJson: null, addonsJson: null, ...data }; menu.push(r); return r; },
+      update: async ({ where, data }: any) => { const r = menu.find((m) => m.id === where.id); Object.assign(r, data); return r; },
     },
     serviceEnquiry: {
       findUnique: async ({ where }: any) => enquiries.find((e) => cmp(where, e)) ?? null,
@@ -60,6 +64,10 @@ function harness(opts: { menu?: any[]; extract?: any } = {}) {
       findMany: async () => messages,
     },
   };
+  /* The same two shapes the real client answers: an array of writes, or a
+     callback handed the client itself. Nothing here is a transaction — these
+     tests are about what is written, not about atomicity. */
+  prisma.$transaction = async (arg: any) => (Array.isArray(arg) ? Promise.all(arg) : arg(prisma));
   const svc: any = Object.create(LocalServicesService.prototype);
   svc.prisma = prisma;
   svc.notifications = { create: async () => undefined };
@@ -210,7 +218,7 @@ describe('publishing the corrected menu', () => {
     // Editing is the same door as publishing: the whole list is submitted and
     // replaces what was there. A price that changed on Monday should not need
     // the printed menu back out of the drawer.
-    const { svc, listings } = harness();
+    const { svc } = harness();
     await svc.saveMenu(OWNER, 'L1', {
       scanUrl: 'https://cdn.example/menu.webp',
       items: [{ name: 'Idli', priceInr: 40 }, { name: 'Vada', priceInr: 30 }],
@@ -225,6 +233,44 @@ describe('publishing the corrected menu', () => {
     // the same as cleared, and losing the original would remove the only way to
     // check the transcription.
     expect(page.scanUrl).toBe('https://cdn.example/menu.webp');
+  });
+});
+
+describe('a line that keeps its id keeps what the bulk editor cannot see', () => {
+  it('an id-carrying edit preserves the sold-out switch; a recreated line would not', async () => {
+    const { svc, menu } = harness();
+    await svc.saveMenu(OWNER, 'L1', { items: [{ name: 'Idli', priceInr: 40 }] });
+    // The command centre turns it off for the evening…
+    await svc.patchMenuItem(OWNER, 'L1', menu[0].id, { available: false });
+    // …and a price correction through the bulk editor must not turn it back on.
+    await svc.saveMenu(OWNER, 'L1', { items: [{ id: menu[0].id, name: 'Idli', priceInr: 45 }] });
+    expect(menu).toHaveLength(1);
+    expect(menu[0].priceInr).toBe(45);
+    expect(menu[0].available).toBe(false);
+  });
+
+  it('a line sent without its id is a new line, and the old one is gone', async () => {
+    const { svc, menu } = harness();
+    await svc.saveMenu(OWNER, 'L1', { items: [{ name: 'Idli', priceInr: 40 }] });
+    const oldId = menu[0].id;
+    await svc.saveMenu(OWNER, 'L1', { items: [{ name: 'Idli', priceInr: 40 }] });
+    expect(menu).toHaveLength(1);
+    expect(menu[0].id).not.toBe(oldId);
+  });
+
+  it('sold out is shown to citizens, not hidden — the row stays on the page', async () => {
+    const { svc, menu } = harness();
+    await svc.saveMenu(OWNER, 'L1', { items: [{ name: 'Idli', priceInr: 40 }] });
+    await svc.patchMenuItem(OWNER, 'L1', menu[0].id, { available: false });
+    const page = await svc.menu('L1', SEEKER);
+    expect(page.count).toBe(1);
+    expect(page.sections[0].items[0].available).toBe(false);
+  });
+
+  it('the one-tap edit is the owner\u2019s alone', async () => {
+    const { svc, menu } = harness();
+    await svc.saveMenu(OWNER, 'L1', { items: [{ name: 'Idli', priceInr: 40 }] });
+    await expect(svc.patchMenuItem(SEEKER, 'L1', menu[0].id, { available: false })).rejects.toBeTruthy();
   });
 });
 

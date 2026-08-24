@@ -1,0 +1,260 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   THE MENU PAPER — the one design every kitchen's menu wears (owner, 24 Aug).
+
+   The owner commissioned this the way the e-commerce facade was commissioned:
+   a universal artefact, not a palette per business. Every restaurant's menu
+   renders on the same cream paper, under the same Together City script mark
+   with the restaurant's own name beneath it — so a menu is recognisably a
+   TOGETHER CITY menu wherever you are, and no listing gets to repaint the
+   city. The reference sheet: script masthead, EXPLORE·CHOOSE·ENJOY, gold-ruled
+   section headings, letterspaced item names, italic descriptions, gold
+   steppers, a cream cart band with a gold pill.
+
+   IT IS PAPER, SO IT DOES NOT FOLLOW THE THEME. A printed menu is cream in a
+   dark room too; every colour here is scoped to .mpaper and declared
+   explicitly, which is the "deliberately commits to a single look" case, the
+   same argument the nutrition press made. No new typeface: the reference's
+   script is shipped as the wordmark IMAGE, and the engraved-card feel comes
+   from tracking and caps in the city's one family — the one-face law
+   (relief.spec) stands.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.mpaper {
+  /* Every name below is declared in tokens.css, where colour lives. */
+  background: var(--mp-paper) url('/menu/paper.webp') center / cover;
+  border: 1px solid var(--mp-line);
+  border-radius: var(--r-3);
+  padding: 26px 20px 16px;
+  margin-top: 16px;
+  color: var(--mp-ink);
+}
+.mpaper * { color: inherit; }
+
+/* ── the masthead: the city's mark, then the kitchen's name ────────────────── */
+.mpaper-mast { text-align: center; display: grid; gap: 6px; justify-items: center; margin-bottom: 6px; }
+.mpaper-tc { height: 40px; width: auto; opacity: .92; }
+.mpaper-restaurant {
+  font-size: var(--fs-4); font-weight: 600; letter-spacing: .2em; text-transform: uppercase;
+}
+.mpaper-restlogo { height: 34px; width: 34px; border-radius: var(--r-full); object-fit: cover; }
+.mpaper-tag { font-size: 10.5px; letter-spacing: .34em; text-transform: uppercase; color: var(--mp-faint); }
+.mpaper-meta { font-size: 11.5px; color: var(--mp-faint); }
+.mpaper-meta a { color: var(--mp-gold-deep); font-weight: 600; }
+
+/* ── section headings, ruled in gold ───────────────────────────────────────── */
+.mpaper-sec {
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  margin: 20px 0 4px; font-size: 12px; font-weight: 600;
+  letter-spacing: .26em; text-transform: uppercase;
+}
+.mpaper-sec::before, .mpaper-sec::after { content: ''; height: 1px; width: 54px; background: var(--mp-gold); flex-shrink: 0; }
+
+/* ── the lines of the menu ─────────────────────────────────────────────────── */
+.mpaper-row { display: flex; align-items: flex-start; gap: 10px; padding: 11px 0; border-bottom: 1px solid var(--mp-line); }
+.mpaper-row.is-out { opacity: .55; }
+.mpaper-main { flex: 1; min-width: 0; }
+.mpaper-titleline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mpaper-iname { font-size: 13px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
+.mpaper-desc { display: block; font-style: italic; font-size: 12.5px; color: var(--mp-faint); margin-top: 2px; }
+.mpaper-mins { display: block; font-size: 11px; color: var(--mp-faint); margin-top: 1px; }
+.mpaper-price { font-size: 13.5px; font-weight: 600; white-space: nowrap; flex-shrink: 0; padding-top: 1px; }
+.mpaper-photo { width: 44px; height: 44px; border-radius: var(--r-1); object-fit: cover; flex-shrink: 0; }
+.mpaper-spice { font-size: 10.5px; letter-spacing: .1em; }
+.mpaper-out {
+  font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--mp-out); border: 1px solid currentColor; border-radius: var(--r-full); padding: 1px 8px;
+}
+
+/* the veg / egg / non-veg mark — the square everyone in India reads */
+.mpaper-veg {
+  display: inline-grid; place-items: center; width: 13px; height: 13px;
+  border: 1.5px solid var(--mp-veg); border-radius: 25%; flex-shrink: 0;
+}
+.mpaper-veg i { width: 6px; height: 6px; border-radius: var(--r-full); background: var(--mp-veg); }
+.mpaper-veg.is-nonveg { border-color: var(--mp-nonveg); }
+.mpaper-veg.is-nonveg i { background: var(--mp-nonveg); }
+.mpaper-veg.is-egg { border-color: var(--mp-egg); }
+.mpaper-veg.is-egg i { background: var(--mp-egg); }
+
+/* ── the gold stepper: − 0 + ───────────────────────────────────────────────── */
+.mpaper-step {
+  display: inline-flex; align-items: center; flex-shrink: 0;
+  border: 1.5px solid var(--mp-gold); border-radius: var(--r-full); background: var(--mp-well);
+}
+.mpaper-stepbtn {
+  min-width: 40px; min-height: 42px; background: none; border: 0; cursor: pointer;
+  font: inherit; font-size: 16px; color: var(--mp-gold-deep); line-height: 1;
+}
+.mpaper-count { min-width: 18px; text-align: center; font-size: 13px; font-weight: 700; }
+
+/* text buttons and the gold pill */
+.mpaper-btn {
+  min-height: 42px; padding: 6px 16px; cursor: pointer; font: inherit;
+  font-size: 11.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--mp-gold-deep); background: var(--mp-well);
+  border: 1.5px solid var(--mp-gold); border-radius: var(--r-full);
+}
+.mpaper-btn:disabled { opacity: .5; cursor: default; }
+.mpaper-goldpill {
+  min-height: 44px; padding: 9px 24px; cursor: pointer; font: inherit;
+  font-size: 11.5px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
+  background: var(--mp-gold); border: 1.5px solid var(--mp-gold); border-radius: var(--r-full);
+}
+.mpaper *.mpaper-goldpill { color: var(--mp-on-gold); }
+.mpaper-goldpill:disabled { opacity: .5; cursor: default; }
+.mpaper-quiet {
+  min-height: 42px; background: none; border: 0; cursor: pointer; font: inherit;
+  font-size: 12px; font-weight: 600; color: var(--mp-gold-deep);
+}
+
+/* ── the legend and the cart band ──────────────────────────────────────────── */
+.mpaper-legend {
+  display: flex; justify-content: center; gap: 18px; margin: 12px 0 10px;
+  font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--mp-faint);
+  align-items: center; flex-wrap: wrap;
+}
+.mpaper-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.mpaper-cart {
+  position: sticky; bottom: 10px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  background: var(--mp-band); border-radius: var(--r-2); padding: 12px 16px; margin-top: 4px;
+}
+.mpaper-cartlabel { font-size: 11px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; }
+.mpaper-cartsub { display: block; font-style: italic; font-size: 11.5px; color: var(--mp-faint); letter-spacing: 0; text-transform: none; }
+.mpaper-carttotal { font-size: 17px; font-weight: 800; }
+.mpaper-cartdivide { width: 1px; align-self: stretch; background: var(--mp-line); }
+
+/* ── the waiter, the checkout, the small print ─────────────────────────────── */
+.mpaper-waiter { border: 1.5px dashed var(--mp-gold); border-radius: var(--r-2); padding: 11px 14px; margin-top: 12px; display: grid; gap: 8px; }
+.mpaper-panel { border: 1px solid var(--mp-line); border-radius: var(--r-2); background: var(--mp-well); padding: 14px 16px; margin-top: 12px; display: grid; gap: 12px; }
+.mpaper-sub { border: 1px solid var(--mp-line); border-radius: var(--r-2); padding: 10px 12px; display: grid; gap: 8px; margin: 6px 0 2px 23px; }
+.mpaper-input {
+  width: 100%; box-sizing: border-box; padding: 10px 12px; font: inherit; font-size: 13.5px;
+  border: 1.5px solid var(--mp-line); border-radius: var(--r-1); background: var(--mp-well); color: var(--mp-ink);
+}
+.mpaper-input::placeholder { color: var(--mp-faint); font-style: italic; }
+.mpaper-seg { display: flex; gap: 6px; }
+.mpaper-segbtn {
+  min-height: 44px; padding: 6px 18px; cursor: pointer; font: inherit; font-size: 11.5px;
+  font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  border: 1.5px solid var(--mp-line); border-radius: var(--r-full); background: var(--mp-well); color: var(--mp-faint);
+}
+.mpaper-segbtn.is-on { border-color: var(--mp-gold); color: var(--mp-gold-deep); }
+.mpaper-small { font-size: 11.5px; color: var(--mp-faint); margin: 0; }
+.mpaper-small a, .mpaper a { color: var(--mp-gold-deep); font-weight: 600; }
+.mpaper-alert { font-size: 12.5px; font-weight: 600; color: var(--mp-out); margin: 0; }
+.mpaper-good { font-size: 12.5px; font-weight: 700; color: var(--mp-veg); }
+.mpaper-choice { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; cursor: pointer; min-height: 44px; }
+.mpaper-quote { font-size: 13px; }
+.mpaper-quoteline { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
+.mpaper-quotetotal { display: flex; justify-content: space-between; font-weight: 800; font-size: 15px; border-top: 1px solid var(--mp-line); margin-top: 6px; padding-top: 6px; }
+.mpaper-flex { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.mpaper-grid { display: grid; gap: 8px; }
+.mpaper-label { display: grid; gap: 4px; font-size: 12.5px; font-weight: 600; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THE ORDER CARD — thread, board and My Orders. App ground, so tokens.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.svo { display: grid; gap: 8px; }
+.svo-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.svo-num { font-size: 13.5px; font-weight: 700; }
+.svo-meta { font-size: 11.5px; color: var(--muted); }
+.svo-steps { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.svo-step {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: capitalize;
+  padding: 2px 9px; border-radius: var(--r-full); border: 1px solid var(--line); color: var(--muted);
+}
+.svo-step.is-on { border-color: var(--accent-ink); color: var(--accent-ink); }
+.svo-dead { font-size: 12.5px; font-weight: 700; color: var(--danger-ink); }
+.svo-lines { font-size: 12.5px; }
+.svo-line { display: flex; justify-content: space-between; gap: 8px; }
+.svo-total { display: flex; justify-content: space-between; font-weight: 800; border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; }
+.svo-note { font-size: 12px; margin: 0; }
+.svo-who { font-size: 12.5px; margin: 0; }
+.svo-who a { color: var(--accent-ink); font-weight: 600; }
+.svo-statusline { font-size: 11.5px; color: var(--muted); margin: 0; }
+.svo-err { color: var(--danger-ink); font-size: 12px; margin: 0; }
+.svo-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.svo-mini {
+  width: 44px; padding: 7px 8px; text-align: center; font: inherit; font-size: 12.5px;
+  border: 1.5px solid var(--line); border-radius: var(--r-1); background: var(--card); color: inherit;
+}
+.svo-input {
+  flex: 1 1 220px; min-width: 0; padding: 8px 11px; font: inherit; font-size: 12.5px;
+  border: 1.5px solid var(--line); border-radius: var(--r-1); background: var(--card); color: inherit;
+}
+.svo-minlabel { font-size: 12px; display: flex; gap: 6px; align-items: center; }
+.svo-shell { border: 1px solid var(--line); border-radius: var(--r-2); padding: 11px 13px; background: var(--card); display: grid; gap: 7px; }
+.svo-when { font-size: 10.5px; color: var(--muted); }
+.svo-body { font-size: 13px; white-space: pre-wrap; }
+.svo-boarditem { border: 1px solid var(--line); border-radius: var(--r-2); padding: 11px 13px; }
+.svo-boarditem.is-done { opacity: .7; }
+.svo-linkbtn {
+  background: none; border: 0; cursor: pointer; font: inherit; font-size: 12.5px;
+  font-weight: 600; color: var(--accent-ink); min-height: 44px; padding: 0;
+}
+.svo-open { font-size: 12.5px; font-weight: 600; color: var(--accent-ink); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THE COMMAND CENTRE — the owner's counter. App ground, tokens.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.mcc-row { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.mcc-name { flex: 1 1 160px; min-width: 0; font-size: 13px; font-weight: 600; }
+.mcc-name.is-out { opacity: .55; }
+.mcc-price {
+  width: 76px; padding: 7px 9px; text-align: right; font: inherit; font-size: 12.5px;
+  border: 1.5px solid var(--line); border-radius: var(--r-1); background: var(--card); color: inherit;
+}
+.mcc-onoff {
+  min-height: 44px; padding: 4px 12px; cursor: pointer; font: inherit; font-size: 11.5px; font-weight: 700;
+  border-radius: var(--r-full); background: var(--card); border: 1.5px solid var(--ok-ink); color: var(--ok-ink);
+}
+.mcc-onoff.is-out { border-color: var(--danger-ink); color: var(--danger-ink); }
+.mcc-more { display: grid; gap: 10px; margin: 8px 0 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-2); }
+.mcc-select, .mcc-mini {
+  padding: 7px 9px; font: inherit; font-size: 12.5px; border: 1.5px solid var(--line);
+  border-radius: var(--r-1); background: var(--card); color: inherit;
+}
+.mcc-mini { width: 44px; text-align: center; }
+.mcc-thumb { width: 36px; height: 36px; border-radius: var(--r-1); object-fit: cover; }
+.mcc-optname { flex: 1; min-width: 0; }
+.mcc-optprice { width: 72px; }
+.mcc-x { min-width: 34px; min-height: 44px; background: none; border: 0; cursor: pointer; color: var(--muted); font: inherit; font-size: 15px; }
+.mcc-hint { font-size: 12px; font-weight: 700; }
+.mcc-hint span { font-weight: 400; color: var(--muted); }
+
+/* the My Orders page's own three rhythms */
+.svo-pagehead { font-size: 26px; }
+.svo-pageblurb { font-size: 13.5px; margin: 6px 0 18px; max-width: 62ch; }
+.svo-eyebrow-gap { margin-top: 8px; }
+.svo-stack { display: grid; gap: 12px; }
+.svo-stack.is-live { margin-bottom: 18px; }
+
+/* ── small utilities so the components carry no inline styles ─────────────── */
+.mp-center { justify-content: center; }
+.mp-auto { margin-left: auto; }
+.mp-grow { flex: 1 1 240px; width: auto; }
+.mp-half { flex: 1 1 200px; }
+.mp-amt { white-space: nowrap; font-weight: 600; }
+.mp-mt { margin-top: 4px; }
+.mp-resize { resize: vertical; margin-top: 4px; }
+.mp-mid { align-items: center; }
+.mp-plain { font-weight: 400; }
+.mp-flex1 { flex: 1; }
+.mp-m0 { margin: 0; }
+
+.svo-gap { display: grid; gap: 8px; }
+.svo-gap6 { display: grid; gap: 6px; }
+.svo-amt { white-space: nowrap; font-weight: 600; }
+.svo-wide { max-width: 86%; width: 100%; }
+.svo-list { display: grid; gap: 10px; margin-top: 8px; }
+.svo-cardname { font-size: var(--fs-5); font-weight: 700; }
+.svo-dim { opacity: .75; }
+
+.mcc-block { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 4px; }
+.mcc-title { font-size: 13.5px; font-weight: 700; }
+.mcc-sub { font-size: 12.5px; }
+.mcc-note { font-size: 11.5px; margin: 0 0 4px; }
+.mcc-open { margin-top: 6px; }
+.mcc-wide { gap: 12px; }
+.mcc-cap { max-width: 240px; }
+.mcc-file { font: inherit; font-size: 12px; min-width: 0; }

@@ -177,7 +177,7 @@ export interface ServiceThread {
   business?: { id: string; businessName: string; categoryLabel: string; city: string } | null;
   businessName?: string | null;
 }
-export interface ServiceMessage { id: string; body: string; createdAt: string; mine: boolean; invoiceId?: string }
+export interface ServiceMessage { id: string; body: string; createdAt: string; mine: boolean; invoiceId?: string; orderId?: string }
 
 export interface ListingInput {
   businessName: string;
@@ -233,6 +233,7 @@ export interface ReviewPage {
   mine: ServiceReview | null;
 }
 
+export interface MenuOption { name: string; priceInr: number }
 export interface MenuItem {
   id: string;
   section: string | null;
@@ -240,9 +241,24 @@ export interface MenuItem {
   description: string | null;
   /** null is "ask", and it is not the same as free. */
   priceInr: number | null;
+  /** The sold-out switch. A row that is off STAYS ON THE PAGE and says so —
+   *  a dish that vanishes reads as a menu that shrank. */
+  available: boolean;
+  /** veg | nonveg | egg | null. Null is "the menu did not say". */
+  veg: string | null;
+  /** 0–3 chillies, or null for unsaid. */
+  spice: number | null;
+  photoUrl: string | null;
+  prepMinutes: number | null;
+  /** Sizes of the same dish (Half/Full). Empty when it comes one way. */
+  variants: MenuOption[];
+  /** Extras that ride on it ("Extra gravy +₹40"). */
+  addons: MenuOption[];
 }
-/** What the reader proposed. No ids, because nothing has been stored. */
+/** What the reader proposed — no ids — or a live line loaded for editing,
+ *  which KEEPS its id so the fields the bulk editor does not show survive. */
 export interface MenuDraftItem {
+  id?: string;
   section?: string;
   name: string;
   description?: string;
@@ -252,6 +268,102 @@ export interface MenuPage {
   count: number;
   sections: Array<{ section: string | null; items: MenuItem[] }>;
   scanUrl: string | null;
+}
+
+// ── ordering ────────────────────────────────────────────────────────────────
+
+/** One line as the citizen picks it. Names, not prices — prices are the server's. */
+export interface OrderPick { itemId: string; qty: number; variant?: string; addons?: string[] }
+/** One line as it was agreed — a snapshot no later menu edit can rewrite. */
+export interface OrderLine {
+  name: string; qty: number; unitPriceInr: number;
+  variant?: string; addons?: MenuOption[]; lineTotalInr: number;
+}
+export interface OrderQuote {
+  lines: OrderLine[];
+  subtotalInr: number;
+  totalInr: number;
+  walletInr: number;
+  card: { brand: string | null; last4: string | null; name: string | null } | null;
+  shortfallInr: number;
+  /** The share-details sentence, server-owned so one wording exists. */
+  shares: string;
+}
+export type OrderStatus =
+  | 'submitted' | 'accepted' | 'preparing' | 'ready' | 'completed' | 'rejected' | 'cancelled';
+export interface ServiceOrderView {
+  id: string;
+  number: string;
+  status: OrderStatus;
+  /** What this state means, in the server's one wording. */
+  statusLine: string;
+  fulfilment: 'delivery' | 'pickup';
+  lines: OrderLine[];
+  subtotalInr: number;
+  totalInr: number;
+  prepMinutes: number | null;
+  note: string | null;
+  adjustmentNote: string | null;
+  rejectReason: string | null;
+  cancelReason: string | null;
+  enquiryId: string;
+  listingId: string;
+  submittedAt: string;
+  acceptedAt: string | null;
+  preparingAt: string | null;
+  readyAt: string | null;
+  completedAt: string | null;
+  rejectedAt: string | null;
+  cancelledAt: string | null;
+  /** Which states this one may still become. Empty when it is finished. */
+  next: OrderStatus[];
+  /** OWNER'S COPY ONLY — what the citizen chose to share for this order.
+   *  Absent on the citizen's own copy: they know where they live, and their
+   *  copy of the wire is one more place it could travel from. */
+  customerName?: string;
+  phone?: string | null;
+  addressText?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  /** On the citizen's list rows only. */
+  businessName?: string;
+}
+export interface PlaceOrderInput {
+  items: OrderPick[];
+  fulfilment: 'delivery' | 'pickup';
+  /** The total on the button. Charged only if it is still true. */
+  expectInr: number;
+  note?: string;
+  phone: string;
+  address?: string;
+  saveAddress?: boolean;
+  lat?: number;
+  lng?: number;
+}
+export interface RecommendResult {
+  picks: Array<{
+    itemId: string; name: string; section: string | null; description: string | null;
+    priceInr: number; veg: string | null; spice: number | null; qty: number; lineTotalInr: number;
+  }>;
+  totalInr: number;
+  why: string;
+  /** What was left out because of a declared allergen, named so a wrong match
+   *  can be corrected rather than trusted. */
+  screened?: string[];
+  caveat: string;
+}
+export interface PatchMenuItemInput {
+  available?: boolean;
+  priceInr?: number | null;
+  name?: string;
+  description?: string | null;
+  section?: string | null;
+  veg?: 'veg' | 'nonveg' | 'egg' | null;
+  spice?: number | null;
+  photoUrl?: string | null;
+  prepMinutes?: number | null;
+  variants?: MenuOption[] | null;
+  addons?: MenuOption[] | null;
 }
 
 export interface RegularCard extends ServiceCard {
@@ -334,6 +446,31 @@ export const servicesApi = {
     api.post<MenuPage>(`/services/${listingId}/menu`, input).then((r) => r.data),
   askAboutMenu: (listingId: string, itemIds: string[], note?: string) =>
     api.post<{ threadId: string }>(`/services/${listingId}/menu/ask`, { itemIds, note }).then((r) => r.data),
+  patchMenuItem: (listingId: string, itemId: string, patch: PatchMenuItemInput) =>
+    api.patch<MenuPage>(`/services/${listingId}/menu/${itemId}`, patch).then((r) => r.data),
+
+  quoteOrder: (listingId: string, items: OrderPick[]) =>
+    api.post<OrderQuote>(`/services/${listingId}/order/quote`, { items }).then((r) => r.data),
+  // The one call here that moves money. `Idempotency-Key` is the standard
+  // header, the same way the wallet's top-up and the till's pay already say it.
+  placeOrder: (listingId: string, input: PlaceOrderInput, idempotencyKey: string) =>
+    api.post<{ order: ServiceOrderView; threadId: string }>(`/services/${listingId}/order`, input,
+      { headers: { 'Idempotency-Key': idempotencyKey } }).then((r) => r.data),
+  recommend: (listingId: string, brief: string) =>
+    api.post<RecommendResult>(`/services/${listingId}/menu/recommend`, { brief }, { timeout: 60000 }).then((r) => r.data),
+
+  myOrders: () => api.get<{ orders: ServiceOrderView[] }>('/services/orders/mine').then((r) => r.data),
+  businessOrders: (listingId: string) =>
+    api.get<{ open: ServiceOrderView[]; done: ServiceOrderView[] }>(`/services/orders/business/${listingId}`).then((r) => r.data),
+  order: (orderId: string) => api.get<ServiceOrderView>(`/services/orders/${orderId}`).then((r) => r.data),
+  acceptOrder: (orderId: string, input: { prepMinutes?: number; removeLines?: number[]; adjustmentNote?: string }) =>
+    api.post<ServiceOrderView>(`/services/orders/${orderId}/accept`, input).then((r) => r.data),
+  rejectOrder: (orderId: string, reason: string) =>
+    api.post<ServiceOrderView>(`/services/orders/${orderId}/reject`, { reason }).then((r) => r.data),
+  advanceOrder: (orderId: string, to: 'preparing' | 'ready' | 'completed') =>
+    api.post<ServiceOrderView>(`/services/orders/${orderId}/advance`, { to }).then((r) => r.data),
+  cancelOrder: (orderId: string, reason?: string) =>
+    api.post<ServiceOrderView>(`/services/orders/${orderId}/cancel`, { reason }).then((r) => r.data),
 };
 
 /** The owner's verification tab. Its own query key so that approving a
@@ -376,6 +513,74 @@ export function useAskAboutMenu(listingId?: string) {
     mutationFn: (v: { itemIds: string[]; note?: string }) => servicesApi.askAboutMenu(listingId as string, v.itemIds, v.note),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['services'] }); },
   });
+}
+
+export function usePatchMenuItem(listingId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { itemId: string; patch: PatchMenuItemInput }) =>
+      servicesApi.patchMenuItem(listingId as string, v.itemId, v.patch),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['services', 'menu'] }); },
+  });
+}
+export function useQuoteOrder(listingId?: string) {
+  return useMutation({ mutationFn: (items: OrderPick[]) => servicesApi.quoteOrder(listingId as string, items) });
+}
+export function usePlaceOrder(listingId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { input: PlaceOrderInput; idempotencyKey: string }) =>
+      servicesApi.placeOrder(listingId as string, v.input, v.idempotencyKey),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['services'] }); },
+  });
+}
+export function useRecommend(listingId?: string) {
+  return useMutation({ mutationFn: (brief: string) => servicesApi.recommend(listingId as string, brief) });
+}
+export function useMyOrders() {
+  return useQuery({ queryKey: ['services', 'orders', 'mine'], queryFn: servicesApi.myOrders });
+}
+/** The kitchen's board. Polls while it is open — a kitchen does not refresh. */
+export function useBusinessOrders(listingId?: string) {
+  return useQuery({
+    queryKey: ['services', 'orders', 'business', listingId],
+    queryFn: () => servicesApi.businessOrders(listingId as string),
+    enabled: !!listingId,
+    refetchInterval: 15_000,
+  });
+}
+/** One order. Polls while it is still moving, rests once it is finished. */
+export function useOrder(orderId?: string) {
+  return useQuery({
+    queryKey: ['services', 'orders', orderId],
+    queryFn: () => servicesApi.order(orderId as string),
+    enabled: !!orderId,
+    refetchInterval: (q) => {
+      const s = q.state.data?.status;
+      return s && ['completed', 'rejected', 'cancelled'].includes(s) ? false : 12_000;
+    },
+  });
+}
+function useOrderVerb<T>(fn: (v: T) => Promise<ServiceOrderView>) {
+  // Every verb reprices the same three surfaces: the card, the board, the list.
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['services', 'orders'] }); },
+  });
+}
+export function useAcceptOrder(orderId?: string) {
+  return useOrderVerb((v: { prepMinutes?: number; removeLines?: number[]; adjustmentNote?: string }) =>
+    servicesApi.acceptOrder(orderId as string, v));
+}
+export function useRejectOrder(orderId?: string) {
+  return useOrderVerb((reason: string) => servicesApi.rejectOrder(orderId as string, reason));
+}
+export function useAdvanceOrder(orderId?: string) {
+  return useOrderVerb((to: 'preparing' | 'ready' | 'completed') => servicesApi.advanceOrder(orderId as string, to));
+}
+export function useCancelOrder(orderId?: string) {
+  return useOrderVerb((reason: string | undefined) => servicesApi.cancelOrder(orderId as string, reason));
 }
 
 /** Downscale a menu photo before it goes to the reader. 1600px because a menu

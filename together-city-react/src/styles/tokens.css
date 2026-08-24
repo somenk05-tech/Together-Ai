@@ -2949,3 +2949,24 @@ html[data-skin="sanmarino"] {
   --on-lamp: #ffffff;
   --on-lamp-soft: rgba(255, 255, 255, .82);
 }
+
+/* ── THE MENU PAPER'S INKS (24 Aug) ─────────────────────────────────────────
+   One printed artefact, worn by every kitchen's menu — see menu-paper.css for
+   the argument. Scoped to .mpaper and deliberately theme-blind: a printed menu
+   is cream in a dark room too. Declared HERE because tokens.css is where
+   colour lives; menu-paper.css reads these names and writes no literal. */
+.mpaper {
+  --mp-ink: #2a261e;
+  --mp-faint: #6d665a;
+  --mp-gold: #b08b52;
+  --mp-gold-deep: #8a6a38;
+  --mp-line: rgba(42, 38, 30, .16);
+  --mp-band: #eee4d2;
+  --mp-well: rgba(255, 255, 255, .62);
+  --mp-paper: #f7f2e8;
+  --mp-veg: #3e7d3a;
+  --mp-nonveg: #a03d2e;
+  --mp-egg: #8a6d1a;
+  --mp-out: #a03d2e;
+  --mp-on-gold: #ffffff;
+}

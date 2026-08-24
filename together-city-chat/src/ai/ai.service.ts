@@ -26,6 +26,15 @@ export type MenuRead =
   | { ok: true; items: Array<{ section?: string; name: string; description?: string; priceInr: number | null }>; note: string }
   | { ok: false; reason: 'off' | 'unreadable' | 'failed'; detail?: string };
 
+/**
+ * What the waiter suggests — ids from the menu it was shown and nothing else.
+ * The caller filters the answer against its own allowed set again, so a
+ * hallucinated id costs a dropped line, never a wrong order.
+ */
+export type MenuSuggestion =
+  | { ok: true; picks: Array<{ id: string; qty: number }>; why: string }
+  | { ok: false; reason: 'off' | 'failed'; detail?: string };
+
 @Injectable()
 export class AiService {
   private readonly logger = new Logger('AiService');
@@ -600,6 +609,71 @@ export class AiService {
     } catch (e) {
       this.logger.warn(`Meal analysis failed: ${(e as Error).message}`);
       return null;
+    }
+  }
+
+  /**
+   * THE WAITER — a brief and a menu in, picks and a reason out.
+   *
+   * The menu it is shown is already filtered by the caller to available,
+   * priced, allergen-screened items; this method's job is taste and budget,
+   * nothing else. It answers with IDS from that list, and the caller filters
+   * the answer against the same list again, so nothing this model says can put
+   * a sold-out or invented dish in front of a citizen. The cheap text tier is
+   * deliberate: a wrong pick here costs a shrug, not an argument at a table —
+   * the prices and availability are re-checked by arithmetic either way.
+   */
+  async recommendFromMenu(input: {
+    brief: string;
+    items: Array<{ id: string; name: string; section: string | null; description: string | null; priceInr: number; veg: string | null; spice: number | null }>;
+  }): Promise<MenuSuggestion> {
+    if (!this.client) {
+      this.logger.warn('menu recommendation asked for, but ANTHROPIC_API_KEY is not set');
+      return { ok: false, reason: 'off' };
+    }
+    const system =
+      'You are helping somebody choose from ONE restaurant\'s live menu. ' +
+      'Return ONLY JSON: {"picks":[{"id":string,"qty":number}],"why":string}. ' +
+      'Rules: every id MUST be copied exactly from the menu given — never invent one. ' +
+      'Respect the request: dietary words ("veg" means only veg items), spice limits (spice is 0–3), ' +
+      'and any budget in ₹ — keep the total of price × qty within it, and say the total in "why". ' +
+      'Suggest a sensible meal (2–6 lines, qty 1–3), not the whole menu. ' +
+      '"why" is two or three short sentences in plain words, naming the dishes and the total. ' +
+      'If nothing fits the request, return {"picks":[],"why":"<what got in the way, in one sentence>"}.';
+    try {
+      const menu = input.items.slice(0, 200).map((i) => ({
+        id: i.id, name: i.name,
+        ...(i.section ? { section: i.section } : {}),
+        ...(i.description ? { description: i.description } : {}),
+        priceInr: i.priceInr,
+        ...(i.veg ? { veg: i.veg } : {}),
+        ...(i.spice != null ? { spice: i.spice } : {}),
+      }));
+      const res = await this.createWithFallback({
+        model: this.model,
+        max_tokens: 1000,
+        system: `${system}\n\nRespond with ONLY valid JSON — no prose, no markdown fences.`,
+        messages: [{
+          role: 'user',
+          content: `Request: ${input.brief.slice(0, 500)}\n\nMenu (JSON): ${JSON.stringify(menu)}`,
+        }],
+      });
+      const text = res.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('');
+      const parsed = this.extractJson(text) as { picks?: unknown[]; why?: string } | null;
+      if (!parsed || !Array.isArray(parsed.picks)) {
+        this.logger.warn(`menu recommendation returned no usable JSON (${text.slice(0, 120).replace(/\s+/g, ' ')})`);
+        return { ok: false, reason: 'failed' };
+      }
+      const picks = parsed.picks.slice(0, 12).flatMap((raw) => {
+        const p = raw as Record<string, unknown>;
+        if (typeof p.id !== 'string') return [];
+        const qty = typeof p.qty === 'number' && isFinite(p.qty) ? Math.max(1, Math.min(6, Math.trunc(p.qty))) : 1;
+        return [{ id: p.id, qty }];
+      });
+      return { ok: true, picks, why: typeof parsed.why === 'string' ? parsed.why.slice(0, 600) : '' };
+    } catch (e) {
+      this.logger.warn(`menu recommendation failed: ${(e as Error).message}`);
+      return { ok: false, reason: 'failed', detail: (e as Error).message };
     }
   }
 

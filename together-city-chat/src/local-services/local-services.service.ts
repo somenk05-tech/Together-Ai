@@ -11,6 +11,7 @@ import { cleanDetails, isBusinessType, readDetails, sectionsFor } from './busine
 import { normaliseHours, parseHours } from './hours';
 import { VerificationService } from './verification.service';
 import type { BrowseDto, CreateListingDto, UpdateListingDto, PostOfferDto, SaveMenuDto } from './dto/local-services.dto';
+import type { PatchMenuItemDto } from './dto/orders.dto';
 
 type ListingRow = {
   id: string; ownerId: string; businessName: string; categoryKey: string; about: string | null;
@@ -1146,22 +1147,68 @@ export class LocalServicesService {
   /** The corrected menu, replacing whatever was there. */
   async saveMenu(ownerId: string, listingId: string, dto: SaveMenuDto) {
     await this.own(ownerId, listingId);
-    await this.prisma.serviceMenuItem.deleteMany({ where: { listingId } });
-    if (dto.items.length) {
-      await this.prisma.serviceMenuItem.createMany({
-        data: dto.items.map((it, i) => ({
-          listingId,
+    /* BY ID WHERE THE EDITOR HAD ONE (24 Aug). This was delete-and-recreate,
+       which was fine while a menu line was four text fields — but a line now
+       carries state the bulk editor does not show (availability, a photo,
+       variants, add-ons, prep time), and recreating the row would silently
+       reset every sold-out switch in the shop each time a typo was fixed. A
+       line that keeps its id keeps all of it; a line without one is new;
+       whatever was not sent is gone, exactly as the screen says. */
+    const existing = await this.prisma.serviceMenuItem.findMany({
+      where: { listingId }, select: { id: true }, take: 300,
+    }) as unknown as Array<{ id: string }>;
+    const known = new Set(existing.map((x) => x.id));
+    const keep = new Set(dto.items.map((it) => it.id).filter((id): id is string => !!id && known.has(id)));
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.serviceMenuItem.deleteMany({ where: { listingId, id: { notIn: [...keep] } } });
+      for (const [i, it] of dto.items.entries()) {
+        const data = {
           section: it.section ?? null,
           name: it.name,
           description: it.description ?? null,
           priceInr: it.priceInr ?? null,
           sortOrder: i,
-        })),
-      });
-    }
+        };
+        if (it.id && keep.has(it.id)) {
+          await tx.serviceMenuItem.update({ where: { id: it.id }, data });
+        } else {
+          await tx.serviceMenuItem.create({ data: { ...data, listingId } });
+        }
+      }
+    });
     if (dto.scanUrl !== undefined) {
       await this.prisma.serviceListing.update({ where: { id: listingId }, data: { menuScanUrl: dto.scanUrl } });
     }
+    return this.menu(listingId, ownerId);
+  }
+
+  /**
+   * THE COMMAND CENTRE'S ONE-TAP EDIT — sold out, a price, a photo, a variant
+   * list — on one line, without republishing two hundred others. The citizen-
+   * facing menu reads the same row, so the change is live the same minute:
+   * the card greys, the cart refuses it, the recommender stops saying its name.
+   */
+  async patchMenuItem(ownerId: string, listingId: string, itemId: string, dto: PatchMenuItemDto) {
+    await this.own(ownerId, listingId);
+    const item = await this.prisma.serviceMenuItem.findFirst({ where: { id: itemId, listingId }, select: { id: true } });
+    if (!item) throw new NotFoundException('menu item not found');
+    await this.prisma.serviceMenuItem.update({
+      where: { id: itemId },
+      data: {
+        ...(dto.available !== undefined ? { available: dto.available } : {}),
+        ...(dto.priceInr !== undefined ? { priceInr: dto.priceInr } : {}),
+        ...(dto.name !== undefined ? { name: dto.name } : {}),
+        ...(dto.description !== undefined ? { description: dto.description } : {}),
+        ...(dto.section !== undefined ? { section: dto.section } : {}),
+        ...(dto.veg !== undefined ? { veg: dto.veg } : {}),
+        ...(dto.spice !== undefined ? { spice: dto.spice } : {}),
+        ...(dto.photoUrl !== undefined ? { photoUrl: dto.photoUrl } : {}),
+        ...(dto.prepMinutes !== undefined ? { prepMinutes: dto.prepMinutes } : {}),
+        ...(dto.variants !== undefined ? { variantsJson: dto.variants?.length ? JSON.stringify(dto.variants) : null } : {}),
+        ...(dto.addons !== undefined ? { addonsJson: dto.addons?.length ? JSON.stringify(dto.addons) : null } : {}),
+      },
+    });
     return this.menu(listingId, ownerId);
   }
 
@@ -1170,7 +1217,11 @@ export class LocalServicesService {
     const [rows, listing] = await Promise.all([
       this.prisma.serviceMenuItem.findMany({
         where: { listingId }, orderBy: { sortOrder: 'asc' }, take: 300,
-      }) as unknown as Promise<Array<{ id: string; section: string | null; name: string; description: string | null; priceInr: number | null }>>,
+      }) as unknown as Promise<Array<{
+        id: string; section: string | null; name: string; description: string | null; priceInr: number | null;
+        available: boolean; veg: string | null; spice: number | null; photoUrl: string | null;
+        prepMinutes: number | null; variantsJson: string | null; addonsJson: string | null;
+      }>>,
       this.prisma.serviceListing.findUnique({ where: { id: listingId } }) as unknown as Promise<{ menuScanUrl: string | null; ownerId: string; moderation: string } | null>,
     ]);
     // The same visibility rule as the listing page it hangs off: a menu belongs
@@ -1180,8 +1231,29 @@ export class LocalServicesService {
     if (!listing || (listing.moderation !== 'approved' && listing.ownerId !== viewerId)) {
       throw new NotFoundException('listing not found');
     }
-    const sections: Array<{ section: string | null; items: typeof rows }> = [];
-    for (const r of rows) {
+    /* SOLD OUT IS SHOWN, NOT HIDDEN. An item that vanishes when the kitchen
+       runs out looks like a menu that shrank, and reappearing tomorrow looks
+       like a new dish. The row stays, says "sold out", and refuses the cart —
+       the same honesty rule the shelf uses for an empty shelf. */
+    const namedList = (json: string | null): Array<{ name: string; priceInr: number }> => {
+      if (!json) return [];
+      try {
+        const arr = JSON.parse(json) as unknown;
+        return Array.isArray(arr)
+          ? arr.filter((v): v is { name: string; priceInr: number } =>
+            !!v && typeof (v as { name?: unknown }).name === 'string' && typeof (v as { priceInr?: unknown }).priceInr === 'number').slice(0, 12)
+          : [];
+      } catch { return []; }
+    };
+    const shaped = rows.map((r) => ({
+      id: r.id, section: r.section, name: r.name, description: r.description, priceInr: r.priceInr,
+      available: r.available,
+      veg: r.veg, spice: r.spice, photoUrl: r.photoUrl, prepMinutes: r.prepMinutes,
+      variants: namedList(r.variantsJson),
+      addons: namedList(r.addonsJson),
+    }));
+    const sections: Array<{ section: string | null; items: typeof shaped }> = [];
+    for (const r of shaped) {
       let bucket = sections.find((x) => x.section === (r.section ?? null));
       if (!bucket) { bucket = { section: r.section ?? null, items: [] }; sections.push(bucket); }
       bucket.items.push(r);

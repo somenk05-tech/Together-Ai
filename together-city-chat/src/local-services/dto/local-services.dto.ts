@@ -135,6 +135,15 @@ export type ScanMenuDto = z.infer<typeof ScanMenuSchema>;
 export const SaveMenuSchema = z.object({
   scanUrl: z.string().url().optional(),
   items: z.array(z.object({
+    /**
+     * The line's existing id, when the editor loaded it from the live menu.
+     * A line that keeps its id keeps EVERYTHING the bulk editor does not show
+     * — availability, photo, variants, add-ons, prep time — and keeps working
+     * in any cart that is open on it. A line without one is new. Before this,
+     * "publish" was delete-and-recreate, which would have silently reset every
+     * sold-out switch in the shop each time a price was corrected.
+     */
+    id: z.string().uuid().optional(),
     section: z.string().trim().max(60).optional(),
     name: z.string().trim().min(1).max(90),
     description: z.string().trim().max(140).optional(),
