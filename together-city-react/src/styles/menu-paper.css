@@ -271,3 +271,17 @@
 .mcc-wide { gap: 12px; }
 .mcc-cap { max-width: 240px; }
 .mcc-file { font: inherit; font-size: 12px; min-width: 0; }
+
+/* ── THE SHOP'S OWN SIGN, AND THE ADDRESS IT SHARES (owner, 24 Aug) ─────────
+   The logo control on the form, the cover-picker on the photo strip, the
+   mark on the page masthead, and the "Your website" row on My Business.
+   Everything here speaks in tokens — no literal colour, radius or size. */
+.lf-soft { font-weight: 400; font-size: var(--fs-3); }
+.lf-logo { width: 56px; height: 56px; border-radius: var(--r-1); object-fit: cover; border: 1px solid var(--line); display: block; background: var(--card); }
+.lf-file { font-size: var(--fs-4); font-family: inherit; }
+.lf-note { font-size: var(--fs-3); margin: 6px 0 0; }
+.lf-cover-btn { position: absolute; left: 4px; top: 4px; border: 1px solid var(--line); background: var(--card); color: inherit; border-radius: var(--r-full); font-size: var(--fs-1); font-weight: 700; letter-spacing: .04em; padding: 2px 7px; cursor: pointer; font-family: inherit; }
+.biz-mark-logo { width: 34px; height: 34px; border-radius: var(--r-full); object-fit: cover; display: inline-block; vertical-align: middle; margin-right: 8px; border: 1px solid var(--glass-line); background: var(--card); }
+.biz-site { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 4px; display: grid; gap: 6px; justify-items: start; }
+.biz-site-k { font-size: var(--fs-4); }
+.biz-site-url { font-size: var(--fs-4); font-weight: 600; word-break: break-all; }

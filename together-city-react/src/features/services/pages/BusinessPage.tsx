@@ -133,7 +133,12 @@ export function BusinessPage() {
               they do different things. The hero carries the name; the row below
               carries the decision. */}
           <div className="biz-hero-top">
-            <span className="biz-mark">{s.businessName}</span>
+            <span className="biz-mark">
+              {/* The chosen sign, when there is one — never just whichever
+                  photo happened to be first (owner, 24 Aug). */}
+              {s.logoUrl && <img className="biz-mark-logo" src={s.logoUrl} alt="" />}
+              {s.businessName}
+            </span>
           </div>
           <div>
             <p className="biz-hero-eyebrow">{s.categoryLabel}</p>
@@ -293,7 +298,7 @@ export function BusinessPage() {
           citizen it has not understood what a salon does. Both end in the same
           thread. */}
       {s.categoryGroup === 'Food & Daily Needs' ? (
-        <OrderMenu listingId={s.id} businessName={s.businessName} logoUrl={s.photos[0]?.url ?? null}
+        <OrderMenu listingId={s.id} businessName={s.businessName} logoUrl={s.logoUrl ?? s.photos[0]?.url ?? null}
           onSent={(threadId) => nav(`/services/messages/${threadId}`)} />
       ) : (
         <MenuView listingId={s.id} group={s.categoryGroup} onSent={(threadId) => nav(`/services/messages/${threadId}`)} />

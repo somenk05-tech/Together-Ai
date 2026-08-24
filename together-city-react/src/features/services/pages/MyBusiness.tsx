@@ -4,6 +4,7 @@ import { Card, Button, Spinner, EmptyState } from '@/components/ui';
 import {
   useCloseService, useDeleteServiceForever, useMyServices, useServiceInbox, useMyOffers,
   usePostOffer, useRemoveOffer, useReviews, useReplyToReview, rupees, offerWhen, stars,
+  serviceHref,
 } from '../api';
 import { MenuEditor } from '../MenuEditor';
 import { MenuCommandCenter, OrdersStrip } from '../MenuCommandCenter';
@@ -20,6 +21,47 @@ import { VerificationTab } from '../Verification';
  * One reply per review. A thread under a rating is a second conversation in a
  * place built for one, and the room for that already exists.
  */
+/**
+ * THE ADDRESS THEY CAN PAINT ON A SHUTTER (owner, 24 Aug: "add the together
+ * city restaurant website link for business owners to share"). The listing
+ * page IS the business's website — this row finally hands the owner its
+ * address. Copy works everywhere; Share appears where the browser can hand
+ * the link straight to WhatsApp and the rest.
+ */
+function SiteLink({ l }: { l: { id: string; slug: string | null; businessName: string } }) {
+  const [copied, setCopied] = useState(false);
+  const url = `https://togethercity.app${serviceHref(l)}`;
+  const copy = async () => {
+    // If the clipboard refuses (an old browser, a denied permission), the URL
+    // is printed right there to copy by hand — no error state needed.
+    try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); }
+    catch { /* see above */ }
+  };
+  return (
+    <div className="biz-site">
+      <div className="svo-row">
+        <strong className="biz-site-k">Your website</strong>
+        <span className="biz-site-url">{url}</span>
+      </div>
+      <div className="svo-row">
+        <Button variant="accent" size="sm" onClick={() => { void copy(); }}>{copied ? 'Copied' : 'Copy link'}</Button>
+        {typeof navigator.share === 'function' && (
+          <Button variant="line" size="sm"
+            onClick={() => { navigator.share({ title: l.businessName, url }).catch(() => {}); }}>
+            Share…
+          </Button>
+        )}
+        <Link to={serviceHref(l)}><Button variant="line" size="sm">See it as customers do</Button></Link>
+      </div>
+      {!l.slug && (
+        <p className="muted lf-note">
+          This link uses an id. Give your page its own address — togethercity.app/services/your-name — in Edit business page.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function ReviewsReceived({ listingId }: { listingId: string }) {
   const q = useReviews(listingId);
   const reply = useReplyToReview();
@@ -281,6 +323,7 @@ export function MyBusiness() {
               {/* THE ORDERS STRIP FIRST. A paid order waiting on a yes is the
                   most urgent thing this page can hold — the strip carries the
                   count, and the board is its own room next door. */}
+              {!removed && <SiteLink l={l} />}
               {!removed && <OrdersStrip listingId={l.id} />}
               {!removed && <VerificationTab listingId={l.id} />}
               {!removed && <HoursEditor listing={l} />}

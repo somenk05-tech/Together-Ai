@@ -3016,6 +3016,11 @@ model ServiceListing {
   /// walked to. Nullable: every listing made before today has neither.
   building     String?
   street       String?
+  /// THE SHOP'S OWN SIGN (owner, 24 Aug: "they can add food pictures and
+  /// logo"). Until now the mark was whatever photo happened to be first in
+  /// the gallery; a logo is a choice, not an accident of upload order.
+  /// Nullable — the first gallery photo remains the honest fallback.
+  logoUrl      String?
   // WHERE IT ACTUALLY IS. A city and a list of locality names is how a person
   // describes where they work; it is not something a map can draw or a
   // "within 2 km" filter can answer. Nullable because a listing made before

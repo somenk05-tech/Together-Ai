@@ -55,6 +55,8 @@ export interface ServiceCard {
   /** The exact door — building name and road name. Public like the pin. */
   building: string | null;
   street: string | null;
+  /** The shop's own sign, chosen by the owner. Fallback: first gallery photo. */
+  logoUrl: string | null;
   priceFrom: number | null;
   photos: Array<{ url: string; caption?: string }>;
   lat: number | null;
@@ -194,6 +196,8 @@ export interface ListingInput {
   /** The exact door — building name and road name. Empty string clears it. */
   building?: string;
   street?: string;
+  /** The shop's own sign. null takes it down. */
+  logoUrl?: string | null;
   slug?: string;
   businessType?: string;
   details?: Record<string, unknown>;

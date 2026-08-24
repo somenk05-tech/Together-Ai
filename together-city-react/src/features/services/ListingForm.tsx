@@ -33,7 +33,7 @@ const field: React.CSSProperties = {
   background: 'var(--card)',
 };
 const label: React.CSSProperties = { display: 'block', fontSize: 12.5, fontWeight: 700, marginBottom: 6 };
-const MAX_PHOTOS = 5;
+const MAX_PHOTOS = 12;
 
 /** What the form hands back. Empty strings are real answers, not absences. */
 export interface ListingValues {
@@ -48,6 +48,8 @@ export interface ListingValues {
   /** The exact door — building name and road name. Empty is a real answer. */
   building: string;
   street: string;
+  /** The shop's own sign. null means none (the first photo stands in). */
+  logoUrl: string | null;
   phone: string;
   phonePublic: boolean;
   priceFrom?: number;
@@ -70,6 +72,7 @@ export interface ListingDraft {
   areas?: string[];
   building?: string | null;
   street?: string | null;
+  logoUrl?: string | null;
   phone?: string | null;
   phonePublic?: boolean;
   priceFrom?: number | null;
@@ -146,6 +149,8 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
   const [accuracy, setAccuracy] = useState<number | null>(null);
   const [radiusKm, setRadius] = useState(str(initial?.radiusKm));
   const [photos, setPhotos] = useState<string[]>((initial?.photos ?? []).map((p) => p.url));
+  const [logoUrl, setLogoUrl] = useState<string | null>(initial?.logoUrl ?? null);
+  const [logoBusy, setLogoBusy] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoErr, setPhotoErr] = useState<string | null>(null);
 
@@ -196,15 +201,26 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
     if (!files?.length) return;
     setPhotoErr(null);
     const room = MAX_PHOTOS - photos.length;
-    if (room <= 0) { setPhotoErr('Five photos is the most a listing can carry.'); return; }
+    if (room <= 0) { setPhotoErr('Twelve photos is the most a listing can carry.'); return; }
     setPhotoBusy(true);
     try {
       const picked = Array.from(files).slice(0, room);
       const urls = await Promise.all(picked.map((f) => mediaApi.upload(f)));
       setPhotos((p) => [...p, ...urls]);
-      if (files.length > room) setPhotoErr(`Only the first ${room} were added — five is the most a listing can carry.`);
+      if (files.length > room) setPhotoErr(`Only the first ${room} were added — twelve is the most a listing can carry.`);
     } catch (e) { setPhotoErr(uploadErrorMessage(e)); }
     finally { setPhotoBusy(false); }
+  };
+
+  /** The sign gets the same EXIF strip as the gallery, for the same reason. */
+  const addLogo = async (files: FileList | null) => {
+    const f = files?.[0];
+    if (!f) return;
+    setPhotoErr(null);
+    setLogoBusy(true);
+    try { setLogoUrl(await mediaApi.upload(f)); }
+    catch (e) { setPhotoErr(uploadErrorMessage(e)); }
+    finally { setLogoBusy(false); }
   };
 
   // locateMe and its two pieces of state moved into LocationPicker. The
@@ -249,6 +265,7 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
       areas: areas.trim(),
       building: building.trim(),
       street: street.trim(),
+      logoUrl,
       phone: phone.trim(),
       // A number with nowhere to be shown cannot be public. Otherwise an owner
       // who clears the field leaves a tick behind that publishes nothing and
@@ -531,10 +548,29 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
           </div>
         </div>
 
-        {/* A listing with no picture is a line of text competing with a
-            directory of them. One is worth more than four of the rest. */}
+        {/* ── THE SHOP'S OWN SIGN (owner, 24 Aug: "they can add food pictures
+            and logo"). A logo is a choice, not whichever photo happened to be
+            uploaded first — the page masthead and the menu paper wear this
+            when it exists, and fall back to the first photo when it does not. */}
         <div>
-          <span style={label}>Photos <span className="muted" style={{ fontWeight: 400 }}>(up to five — the first one is your cover)</span></span>
+          <span style={label}>Logo <span className="muted lf-soft">(optional — your page and your menu wear it)</span></span>
+          {logoUrl ? (
+            <div className="svo-row">
+              <img className="lf-logo" src={logoUrl} alt="Your logo" />
+              <Button variant="line" size="sm" onClick={() => setLogoUrl(null)}>Remove logo</Button>
+            </div>
+          ) : (
+            <input id="svc-logo" type="file" accept="image/*" className="lf-file" disabled={logoBusy}
+              aria-label="Upload your logo"
+              onChange={(e) => { void addLogo(e.target.files); e.target.value = ''; }} />
+          )}
+          {logoBusy && <p className="muted lf-note">Uploading your logo…</p>}
+        </div>
+
+        {/* A listing with no picture is a line of text competing with a
+            directory of them. One is worth more than eleven of the rest. */}
+        <div>
+          <span style={label}>Photos <span className="muted" style={{ fontWeight: 400 }}>(up to twelve — the first one is your cover, and food photographs are exactly what belongs here)</span></span>
           {photos.length > 0 && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
               {photos.map((url, i) => (
@@ -543,6 +579,15 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
                     style={{ objectFit: 'cover', borderRadius: 'var(--r-1)', display: 'block', border: '1px solid var(--line)' }} />
                   {i === 0 && (
                     <span style={{ position: 'absolute', left: 4, bottom: 4, fontSize: 9.5, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', background: 'var(--ink)', color: 'var(--on-accent)', borderRadius: 5, padding: '1px 5px' }}>Cover</span>
+                  )}
+                  {i > 0 && (
+                    /* One press promotes a photograph to the front — which IS
+                       the cover, so "pick a cover" and "reorder" stay one idea. */
+                    <button type="button" className="lf-cover-btn"
+                      aria-label={`Make photo ${i + 1} the cover`}
+                      onClick={() => setPhotos((p) => [url, ...p.filter((x) => x !== url)])}>
+                      Make cover
+                    </button>
                   )}
                   {/* The TARGET is 44px and the PAINT is 22px. A 22px button is
                       a 22px button on a desktop and a miss on a phone; the

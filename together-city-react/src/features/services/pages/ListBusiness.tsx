@@ -41,6 +41,7 @@ export function ListBusiness() {
             areas: v.areas || undefined,
             building: v.building || undefined,
             street: v.street || undefined,
+            ...(v.logoUrl ? { logoUrl: v.logoUrl } : {}),
             phone: v.phone || undefined,
             priceFrom: v.priceFrom,
             ...(v.photoUrls.length ? { photoUrls: v.photoUrls } : {}),

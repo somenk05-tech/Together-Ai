@@ -32,7 +32,9 @@ export const CreateListingSchema = z.object({
   // given under a promise that it stays private.
   phonePublic: z.boolean().optional(),
   priceFrom: z.number().int().min(0).max(10_000_000).optional(),
-  photoUrls: z.array(z.string().url()).max(6).optional(),
+  photoUrls: z.array(z.string().url()).max(12).optional(),
+  /** The shop's own sign. null takes it down (the first photo steps back in). */
+  logoUrl: z.string().url().nullable().optional(),
   // Bounded to the real world. A swapped lat/lng pair is the classic bug here
   // and it lands the business in the sea off West Africa; the ranges catch the
   // half of those where the longitude exceeds 90.
