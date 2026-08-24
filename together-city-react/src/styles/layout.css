@@ -375,6 +375,12 @@
   .tc-actionbar a[href="/chats"],
   .tc-actionbar a[href="/profile"],
   .tc-actionbar button[aria-label="Notifications"] { display: none; }
+  /* SEARCH GOES TOO (owner, 24 Aug). It is the sixth pill in a row that has
+     to share 390px with a burger and the signature — the pills were running
+     over the wordmark. Search is also the one door here that a phone has two
+     other ways into: the burger drawer's "Search the city" entry, and every
+     hub's own field. ⌘K is a desktop gesture and is untouched. */
+  .tc-header .tc-actions button[aria-label^="Search"] { display: none; }
   .tc-footer { padding: 28px 16px calc(28px + var(--safe-bottom)); }
 }
 
