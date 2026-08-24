@@ -103,6 +103,15 @@ const StoredTurnSchema = z.object({
   text: z.string(),
   levity: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional(),
   goto: z.object({ label: z.string(), path: z.string() }).optional(),
+  /**
+   * WHEN, in epoch ms — what keeps the thread in the order it was spoken.
+   * Hydration merges the server's record with this device's day store, and
+   * without a clock the merge could only guess: a turn the record had not
+   * caught up with yet was appended above OLDER recorded turns, and the
+   * owner's screenshot showed an earlier question sitting below a later one.
+   * Optional, because a turn written before this field existed still counts.
+   */
+  at: z.number().optional(),
 });
 export type StoredTurn = z.infer<typeof StoredTurnSchema>;
 

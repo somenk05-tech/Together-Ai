@@ -130,7 +130,7 @@ export class BeautyController {
   /** GET /api/beauty/routine — morning, evening and weekly, in order. */
   @Mira({
     intent: 'Read the citizen’s skincare routine',
-    utterances: ['my routine', 'my skincare', 'what do I put on my face', 'my products'],
+    utterances: ['my routine', 'my skincare', 'my skincare routine', 'my beauty routine', 'what do I put on my face', 'my products'],
     risk: 'R0',
   })
   @Get('routine')
@@ -166,6 +166,12 @@ export class BeautyController {
     return this.looks.remove(user.sub, id);
   }
 
+  /** The matched shelf — what the Market shows, asked for in a sentence. */
+  @Mira({
+    intent: 'Recommend the beauty products matched to the citizen',
+    utterances: ['beauty products', 'what beauty products are suggested for me', 'products suggested for me', 'recommend beauty products', 'skincare products', 'what products should I use'],
+    risk: 'R0',
+  })
   @Get('products')
   products(@CurrentUser() user: JwtUser) {
     return this.beauty.products(user.sub);

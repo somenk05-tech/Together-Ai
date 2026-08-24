@@ -32,6 +32,7 @@ import { readSituation, type Read } from './relate';
 import { readForget, readForgetConfirm } from './forget';
 import { greet, type Greeting } from './greeting';
 import { DaybookService } from '../daybook/daybook.service';
+import { PetsService } from '../pets/pets.service';
 
 /**
  * Narrowing helpers, because the hub services return their own shapes.
@@ -518,6 +519,7 @@ export class MiraService {
     private readonly ai: AiService,
     private readonly prisma: PrismaService,
     private readonly daybook: DaybookService,
+    private readonly pets: PetsService,
   ) {}
 
   async ask(text: string, ctx: AskContext): Promise<MiraTurn> {
@@ -2086,7 +2088,9 @@ export class MiraService {
        */
       case 'nutrition GET plan/today': {
         const plan = await this.nutrition.planToday(userId);
-        const to = { label: 'Nutrition', path: '/nutrition' };
+        // The EXACT page, not the hub door (owner, 24 Aug): the plan the
+        // answer was read from is the Weekly Meal Planner's.
+        const to = { label: 'Weekly Meal Planner', path: '/nutrition/weekly' };
         if (plan.needsProfile) {
           return {
             text: 'No plan yet — your food profile is not set, so there is nothing to cook from.',
@@ -2143,7 +2147,7 @@ export class MiraService {
         if (!a.length) return {
           text: 'Nothing needs soaking or marinating yet.',
           asides: ['Kitchen is quiet.'],
-          goto: { label: 'Nutrition', path: '/nutrition' },
+          goto: { label: 'Weekly Meal Planner', path: '/nutrition/weekly' },
         };
         const next = a[0];
         // Same two faults as the day brief had, in a second branch: a raw ISO
@@ -2156,7 +2160,7 @@ export class MiraService {
           text: when ? `Start ${what} by ${when}.` : `Next: ${what}.`,
           asides: ['Do not let it become an order.'],
           payload: a.slice(0, 4),
-          goto: { label: 'Nutrition', path: '/nutrition' },
+          goto: { label: 'Weekly Meal Planner', path: '/nutrition/weekly' },
         };
       }
 
@@ -2225,8 +2229,8 @@ export class MiraService {
       case 'fitness GET plan': {
         const p = await this.fitness.plan(userId);
         const focus = str(pick(p, 'todayFocus')) ?? str(pick(p, 'focus')) ?? str(pick(p, 'title'));
-        if (!focus) return { text: 'No plan set yet.', payload: p, goto: { label: 'Fitness', path: '/fitness' } };
-        return { text: `${focus}.`, asides: ['The plan is not the hard part.'], payload: p, goto: { label: 'Fitness', path: '/fitness' } };
+        if (!focus) return { text: 'No plan set yet.', payload: p, goto: { label: 'Fitness plan', path: '/fitness/plan' } };
+        return { text: `${focus}.`, asides: ['The plan is not the hard part.'], payload: p, goto: { label: 'Fitness plan', path: '/fitness/plan' } };
       }
       case 'fitness GET log': {
         const l = await this.fitness.log(userId);
@@ -2237,13 +2241,50 @@ export class MiraService {
           payload: l,
         };
       }
+      case 'beauty GET products': {
+        /* "what beauty products are suggested for me" used to wander off to
+           astrology (owner's screenshot, 24 Aug). The Market's own matched
+           shelf is the answer, by name, with the exact page on the card. */
+        const shelf = await this.beauty.products(userId);
+        const rows = asList(shelf, 'products');
+        const matched = rows.filter((r) => Boolean(pick(r, 'matched')));
+        const use = (matched.length ? matched : rows).slice(0, 3);
+        const names = use.map((r) => str(pick(r, 'name'))).filter((n): n is string => Boolean(n));
+        if (!names.length) {
+          return {
+            text: 'Your shelf is empty until your skin and hair profile is filled in.',
+            goto: { label: 'Skin & Hair Profile', path: '/beauty/profile' },
+          };
+        }
+        return {
+          text: `Matched to you: ${list(names)}.`,
+          asides: ['The rest of the shelf is sorted best-match first.'],
+          payload: use,
+          goto: { label: 'Beauty Market', path: '/beauty/market' },
+        };
+      }
+      case 'pets GET': {
+        const petsList = await this.pets.list(userId);
+        if (!petsList.length) {
+          return {
+            text: 'No pets on file yet — add one and I can keep their care in view.',
+            goto: { label: 'Pets', path: '/pets' },
+          };
+        }
+        const petNames = petsList.map((x) => str(pick(x, 'name'))).filter((n): n is string => Boolean(n));
+        return {
+          text: petNames.length ? `${list(petNames)}. Their care lives in the Pets hub.` : `${petsList.length} on file.`,
+          payload: petsList.slice(0, 4),
+          goto: { label: 'Pets', path: '/pets' },
+        };
+      }
       case 'beauty GET routine': {
         const r = await this.beauty.routine(userId);
         if (pick(r, 'needsBudget') === true) {
-          return { text: 'You need a budget before there is a routine.', payload: r, goto: { label: 'Beauty', path: '/beauty' } };
+          return { text: 'You need a budget before there is a routine.', payload: r, goto: { label: 'Your Beauty Routine', path: '/beauty/routine' } };
         }
         const count = num(pick(r, 'productCount')) ?? asList(r, 'routines').length;
-        return { text: `${count} steps.`, payload: r, goto: { label: 'Beauty', path: '/beauty' } };
+        return { text: `${count} steps.`, payload: r, goto: { label: 'Your Beauty Routine', path: '/beauty/routine' } };
       }
       case 'entertainment GET watchlist': {
         const items = asList(await this.entertainment.watchlist(userId), 'items');

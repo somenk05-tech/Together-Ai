@@ -134,6 +134,8 @@ const svc = (over: Partial<Hubs> = {}, account: unknown = NOBODY, ai: unknown = 
     as<18>(account),
     // The daybook, likewise: only readDay() reads it, and readDay is not ask().
     as<19>({}),
+    // Pets — empty by default, like every other hub a new citizen has.
+    as<20>({ list: () => Promise.resolve([]) }),
   );
 };
 
@@ -861,7 +863,8 @@ describe('she names a meal', () => {
     const t = await svc({ planToday: () => Promise.resolve({ needsProfile: false, meals: [] }) })
       .ask('what am i eating today', ctx());
     expect(t.text).toMatch(/2,?100/);
-    expect(t.goto?.path).toBe('/nutrition');
+    // The card names the exact page the plan lives on now (owner, 24 Aug).
+    expect(t.goto?.path).toBe('/nutrition/weekly');
   });
 
   it('a missing food profile is sent to the profile, not to the planner', async () => {

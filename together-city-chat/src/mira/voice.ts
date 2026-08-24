@@ -103,8 +103,20 @@ export const inVoice = (text: string): boolean => violations(text).length === 0;
  * spec — and a length floor would reject exactly the lines that sound most
  * like a person.
  */
+/**
+ * SHE SPEAKS, SHE DOES NOT TYPESET. The model drafts in markdown out of habit
+ * — the owner's screenshot had her saying "Your chart calls for **emerald**",
+ * asterisks and all, in a chat bubble that renders plain text. Emphasis
+ * markers, backticks and heading hashes are stripped; the words stay.
+ */
+const plain = (t: string): string => t
+  .replace(/\*\*([^*]+)\*\*/g, '$1')
+  .replace(/(^|\s)\*([^*\s][^*]*)\*(?=\s|[.,!?]|$)/g, '$1$2')
+  .replace(/`([^`]+)`/g, '$1')
+  .replace(/^#{1,4}\s+/gm, '');
+
 export function acceptOrFallback(candidate: string | undefined, fallback: string): string {
-  const text = (candidate ?? '').trim();
+  const text = plain((candidate ?? '').trim()).trim();
   if (!text) return fallback;
   return inVoice(text) ? text : fallback;
 }

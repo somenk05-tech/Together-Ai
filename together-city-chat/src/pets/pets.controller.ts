@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards, UsePipes } from '@nestjs/common';
+import { Mira } from '../mira/mira.decorator';
 import { z } from 'zod';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
@@ -109,6 +110,14 @@ export const AddPhotoSchema = z.object({
 export class PetsController {
   constructor(private readonly pets: PetsService) {}
 
+  /** Mira told a citizen "pets aren't in the city" while this hub stood
+   *  built and open (owner's screenshot, 24 Aug). They are, and she reads
+   *  them now like she reads every other hub. */
+  @Mira({
+    intent: 'List the citizen’s pets and where their care lives',
+    utterances: ['my pets', 'my pet', 'my dog', 'my cat', 'pets routine', 'my pets routine', 'pet care', 'what should my pets routine be'],
+    risk: 'R0',
+  })
   @Get()
   list(@CurrentUser() user: JwtUser) {
     return this.pets.list(user.sub);

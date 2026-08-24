@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ZodError } from 'zod';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FREE_CHATS, SUB_INR, useMiraAsk, useMiraCapabilities, useMiraGreeting, useMiraSubscribe, useMiraThread, type Choice } from './api';
 import { Icon } from '@/components/ui/Icon';
 import { MiraMark, type MarkState } from './MiraMark';
@@ -115,10 +115,23 @@ const sameTurn = (t: { who: string; text: string }): string => `${t.who} ${t.tex
 function merge(mine: StoredTurn[], theirs: StoredTurn[]): StoredTurn[] {
   const onRecord = new Set(theirs.map(sameTurn));
   const remembered = new Map(mine.map((t) => [sameTurn(t), t]));
-  return [
+  const joined = [
     ...mine.filter((t) => !onRecord.has(sameTurn(t))),
     ...theirs.map((t) => remembered.get(sameTurn(t)) ?? t),
   ];
+  /**
+   * AND THE CLOCK DECIDES THE ORDER, NOT THE JOIN. The union above put this
+   * device's not-yet-recorded turns in front of the whole record — so a turn
+   * the server had not caught up with sat ABOVE older recorded ones, and an
+   * earlier question rendered below a later answer (owner's screenshot,
+   * 24 Aug). Every turn carries `at` now; a turn from before the field
+   * existed sorts where the join left it. The sort is stable, so equal
+   * clocks keep their conversational order.
+   */
+  return joined
+    .map((t, i) => ({ t, i }))
+    .sort((a, b) => (a.t.at ?? 0) - (b.t.at ?? 0) || a.i - b.i)
+    .map((x) => x.t);
 }
 
 /**
@@ -248,7 +261,7 @@ export function MiraThread({ dial, about, onBack }: {
     hydrated.current = true;
     const kept = data.turns
       .filter((t) => new Date(t.at).getTime() > clearedAt())
-      .map((t) => ({ id: turnId(), who: t.who, text: t.text }));
+      .map((t) => ({ id: turnId(), who: t.who, text: t.text, at: new Date(t.at).getTime() }));
     if (kept.length) setTurns((mine) => merge(mine, kept));
   }, [serverThread.data]);
   /**
@@ -278,6 +291,10 @@ export function MiraThread({ dial, about, onBack }: {
   /** Asked ONCE per mount, because asking is what marks the day as greeted. */
   const firstOfDay = useRef(firstOpenToday());
   const ask = useMiraAsk({ dial, seed: heldSeed });
+  const navigate = useNavigate();
+  /** Held in a ref: `send` is an async closure and must use the live navigate. */
+  const goRef = useRef<(path: string) => void>(() => {});
+  useEffect(() => { goRef.current = (path: string) => navigate(path); }, [navigate]);
   const endRef = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLTextAreaElement>(null);
   /** The way to stop a request that is not coming back. See `send`. */
@@ -313,7 +330,7 @@ export function MiraThread({ dial, about, onBack }: {
     // it "just feeling lonely" arrives as a sentence from nowhere, which is
     // the exact conversation the owner screenshotted.
     const history = turns.slice(-12).map((t) => ({ who: t.who === 'you' ? ('me' as const) : ('mira' as const), text: t.text }));
-    if (echo) setTurns((t) => [...t, { id: turnId(), who: 'you', text: clean }]);
+    if (echo) setTurns((t) => [...t, { id: turnId(), who: 'you', text: clean, at: Date.now() }]);
     setDraft('');
     // A request nobody can stop is a disabled composer with no way out of it.
     const stop = new AbortController();
@@ -330,8 +347,17 @@ export function MiraThread({ dial, about, onBack }: {
         return;
       }
       setPaywall(null);
-      setTurns((t) => [...t, { id: turnId(), who: 'mira', text: reply.text, levity: reply.levity, goto: reply.goto }]);
+      setTurns((t) => [...t, { id: turnId(), who: 'mira', text: reply.text, levity: reply.levity, goto: reply.goto, at: Date.now() }]);
       speech.speak(reply.text);
+      /**
+       * HANDS-FREE (owner, 24 Aug: "take the user to the page instead of
+       * giving a link"). When her answer names a page, she walks you there —
+       * the dock rides above the router, so the page changes underneath and
+       * the conversation stays open. A LIVE reply only, never a card being
+       * re-read from history; the link stays in the bubble as the record of
+       * where she took you, and the way back is the browser's own.
+       */
+      if (reply.goto?.path) goRef.current?.(reply.goto.path);
     } catch (err) {
       pending.current = undefined;
       /**

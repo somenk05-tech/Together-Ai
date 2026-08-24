@@ -9,6 +9,7 @@ import { PrescriptionsModule } from '../prescriptions/prescriptions.module';
 import { NutritionModule } from '../nutrition/nutrition.module';
 import { MedicalModule } from '../medical/medical.module';
 import { MailModule } from '../mail/mail.module';
+import { PetsModule } from '../pets/pets.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ProfileModule } from '../profile/profile.module';
 import { FitnessModule } from '../fitness/fitness.module';
@@ -58,6 +59,7 @@ import { MiraLedger } from './ledger';
     NutritionModule,
     MedicalModule,
     MailModule,
+    PetsModule,
     NotificationsModule,
     ProfileModule,
     FitnessModule,

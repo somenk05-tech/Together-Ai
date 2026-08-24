@@ -49,6 +49,7 @@ export const useAuthStore = create<AuthState>()(
         // Wipe any prior user's cached/persisted state BEFORE establishing the
         // new session, so this login can't inherit the previous user's data.
         resetClientState();
+        try { sessionStorage.removeItem('tc:signed-out'); } catch { /* noop */ }
         const { accessToken, refreshToken } = await authApi.login({ handle, password });
         set({ tokens: { accessToken, refreshToken } });
         set({ user: await authApi.me() });
@@ -56,6 +57,7 @@ export const useAuthStore = create<AuthState>()(
 
       register: async (handle, name, password, contact) => {
         resetClientState();
+        try { sessionStorage.removeItem('tc:signed-out'); } catch { /* noop */ }
         const { accessToken, refreshToken } = await authApi.register({ handle, name, password, email: contact.email, phone: contact.phone || undefined });
         set({ tokens: { accessToken, refreshToken } });
         set({ user: await authApi.me() });
@@ -105,6 +107,13 @@ export const useAuthStore = create<AuthState>()(
       signOut: () => {
         const t = get().tokens;
         if (t?.accessToken && !isTokenExpired(t.accessToken)) void authApi.logout().catch(() => undefined);
+        // A DELIBERATE sign-out is a fresh start: the next login lands on the
+        // home page, not on whatever screen happened to be open (owner, 24
+        // Aug). Session EXPIRY deliberately does not set this — being sent
+        // back to the page you were working on after a token dies mid-task is
+        // the right behaviour there. sessionStorage, not localStorage: the
+        // marker is for this browser tab's next login, not for posterity.
+        try { sessionStorage.setItem('tc:signed-out', '1'); } catch { /* private mode */ }
         set({ user: null, tokens: null });
         // Drop the query cache + every per-user persisted store so the next user
         // on this browser starts clean (no inherited data). In-memory-only stores

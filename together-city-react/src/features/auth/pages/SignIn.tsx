@@ -32,7 +32,12 @@ export function SignIn({ initialMode = 'login' }: { initialMode?: Mode } = {}) {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as LocationState | null)?.from ?? '/';
+  /* After a DELIBERATE sign-out the next login goes home — the guard's
+     `from` points at whatever page the sign-out happened on, and being
+     dropped back there reads as "it didn't sign me out". Expiry keeps the
+     return-to-where-you-were behaviour: only signOut() sets the marker. */
+  const signedOut = (() => { try { return sessionStorage.getItem('tc:signed-out') === '1'; } catch { return false; } })();
+  const from = signedOut ? '/' : (location.state as LocationState | null)?.from ?? '/';
 
   const [mode, setMode] = useState<Mode>(initialMode);
   const [handle, setHandle] = useState('');

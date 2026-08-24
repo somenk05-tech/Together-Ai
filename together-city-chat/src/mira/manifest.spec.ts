@@ -151,7 +151,7 @@ describe('the parse itself', () => {
    */
   const OPENED = [
     'astrology GET daily', 'astrology GET gems', 'astrology GET remedies', 'astrology GET tarot/daily',
-    'beauty GET routine',
+    'beauty GET products', 'beauty GET routine',
     'drive GET', 'drive GET usage',
     'entertainment GET watchlist',
     'financial GET budgets', 'financial GET spending', 'financial GET transactions', 'financial GET wallet',
@@ -161,6 +161,7 @@ describe('the parse itself', () => {
     'medicines GET today',
     'notifications GET unread-count',
     'nutrition GET plan/today',
+    'pets GET',
   'nutrition GET prep-alerts', 'nutrition GET targets',
     'profile GET completion', 'profile GET health-score', 'profile GET master',
     'thoughts GET',
