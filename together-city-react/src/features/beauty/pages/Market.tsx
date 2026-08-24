@@ -273,7 +273,11 @@ export function Market() {
         {[['', `Everything ${inSegment.length}`] as [string, string],
           ...categories.map(([c, n]) => [c, `${c} ${n}`] as [string, string])].map(([value, label]) => (
           <button key={value || 'all'} type="button" onClick={() => setCat(value)}
-            style={{ cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '6px 13px', fontSize: 12, fontFamily: 'inherit', fontWeight: 600,
+            /* minHeight 44: these are the page's primary filter and were
+               ~34px in a 6px-gap wrap row — the classic mis-tap geometry.
+               (The owner's 3e05b7f fix, restored after c7e92d1 overwrote it
+               from a stale copy.) */
+            style={{ cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '6px 13px', minHeight: 44, fontSize: 12, fontFamily: 'inherit', fontWeight: 600,
               border: `1.5px solid ${cat === value ? 'var(--accent)' : 'var(--line)'}`,
               background: cat === value ? 'var(--accent)' : 'transparent',
               color: cat === value ? 'var(--on-accent)' : 'var(--ink-soft)' }}>

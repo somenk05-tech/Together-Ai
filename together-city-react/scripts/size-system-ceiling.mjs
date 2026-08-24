@@ -31,9 +31,9 @@ import { join } from 'node:path';
 /** Today's numbers. Lower them as work lands; never raise one to make a build pass. */
 const CEILING = {
   rawRadii: 328,
-  inlineStyleBlocks: 6768,
+  inlineStyleBlocks: 6732,
   distinctFontSizes: 36,
-  rawSpacing: 3672,
+  rawSpacing: 3646,
 };
 
 const walk = (d, ext) => readdirSync(d).flatMap((n) => {

@@ -26,7 +26,7 @@ import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 /** Today's numbers. */
-const CEILING = { css: 75, tsx: 166 };
+const CEILING = { css: 75, tsx: 164 };
 
 const walk = (d, ext) => readdirSync(d).flatMap((n) => {
   const p = join(d, n);
