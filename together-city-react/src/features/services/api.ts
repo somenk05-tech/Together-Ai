@@ -110,7 +110,7 @@ export interface TrustSummary {
    * cannot show its working for; `done of total` is the same reassurance and
    * every part of it can be pointed at.
    */
-  checks?: Array<{ key: 'phone' | 'identity' | 'business' | 'place'; label: string; done: boolean }>;
+  checks?: Array<{ key: 'phone' | 'identity' | 'business' | 'place' | 'video'; label: string; done: boolean }>;
   done?: number;
   total?: number;
 }
@@ -126,6 +126,9 @@ export interface ListingTrust extends TrustSummary {
   docStatus: DocStatus;
   docRejectReason: string | null;
   placeConfirmed: boolean;
+  /** The owner-on-video rung — none | submitted | verified | rejected. */
+  videoStatus: DocStatus;
+  videoRejectReason: string | null;
   /** Neighbours whose message this business has not been given yet. */
   waiting: number;
   freePerDay: number;
@@ -461,6 +464,8 @@ export const servicesApi = {
     api.get<ListingTrust>(`/services/${listingId}/verification`).then((r) => r.data),
   submitVerification: (listingId: string, input: SubmitVerificationInput) =>
     api.post<ListingTrust>(`/services/${listingId}/verification`, input).then((r) => r.data),
+  submitVerificationVideo: (listingId: string, videoUrl: string) =>
+    api.post<ListingTrust>(`/services/${listingId}/verification/video`, { videoUrl }).then((r) => r.data),
 
   menu: (listingId: string) => api.get<MenuPage>(`/services/${listingId}/menu`).then((r) => r.data),
   // Reading a photographed menu is a vision-model call and routinely outruns
@@ -515,6 +520,13 @@ export function useSubmitVerification(listingId?: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (v: SubmitVerificationInput) => servicesApi.submitVerification(listingId as string, v),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['services'] }); },
+  });
+}
+export function useSubmitVerificationVideo(listingId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (videoUrl: string) => servicesApi.submitVerificationVideo(listingId as string, videoUrl),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['services'] }); },
   });
 }

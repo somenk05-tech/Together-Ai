@@ -216,12 +216,12 @@ describe('what a directory card is given', () => {
   it('counts the checks that passed and invents no score', () => {
     // The whole reason this shape exists. A "Trust Score 92/100" on somebody
     // else's business is a number the platform cannot show its working for;
-    // "2 of 4 checks" is the same reassurance and every part of it can be
+    // "2 of 5 checks" is the same reassurance and every part of it can be
     // pointed at. If a `score` ever appears on this object, that argument was
     // lost somewhere and nobody noticed.
     const s = summaryOf({ ...bare, phoneVerified: true, identityVerified: true });
     expect(s.done).toBe(2);
-    expect(s.total).toBe(4);
+    expect(s.total).toBe(5);
     expect(s).not.toHaveProperty('score');
     expect(Object.keys(s).sort()).toEqual(['blurb', 'checks', 'done', 'label', 'tier', 'total']);
   });
@@ -245,5 +245,7 @@ describe('what a directory card is given', () => {
     expect(summaryOf(full, policyFor('restaurant')).tier).toBe('business');
     expect(summaryOf(full, policyFor('clinic')).tier).toBe('identity');
     expect(summaryOf(full, policyFor('clinic')).done).toBe(4);
+    // The camera is the fifth check, and it counts the same way.
+    expect(summaryOf({ ...full, videoVerified: true }, policyFor('restaurant')).done).toBe(5);
   });
 });

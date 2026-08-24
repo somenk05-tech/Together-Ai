@@ -11,6 +11,8 @@ import { swallowed } from '../shared/swallow';
 import { findAllergen } from '../shared/allergens';
 import { isUniqueViolation } from '../financial/financial.service';
 import { LocalServicesService } from './local-services.service';
+import { VerificationService } from './verification.service';
+import { FREE_ORDERS_BEFORE_VERIFIED, gateLifted } from './trust';
 import type {
   AcceptOrderDto, CancelOrderDto, PlaceOrderDto, QuoteOrderDto, RecommendDto, RejectOrderDto,
 } from './dto/orders.dto';
@@ -50,6 +52,7 @@ type MenuItemRow = {
 
 type ListingRow = {
   id: string; ownerId: string; businessName: string; moderation: string; categoryKey: string;
+  businessType: string | null; createdAt: Date;
 };
 
 type OrderRow = {
@@ -136,6 +139,7 @@ export class ServiceOrdersService {
     private readonly clock: ClockService,
     private readonly ai: AiService,
     private readonly services: LocalServicesService,
+    private readonly verification: VerificationService,
   ) {}
 
   // ───────────────────────── pricing ─────────────────────────
@@ -201,6 +205,30 @@ export class ServiceOrdersService {
     return l;
   }
 
+  /**
+   * FIVE ORDERS, TOTAL, BEFORE VERIFICATION (owner, 24 Aug) — the checkout's
+   * sibling of the five-threads-a-day gate, with one deliberate difference: a
+   * thread can wait in a queue, but an order moves money the moment it is
+   * placed, so the cap is a refusal said to the citizen in one honest
+   * sentence, checked at the QUOTE (before anything is typed) and again at
+   * place. Rejected and cancelled orders never count — those were never
+   * taken. The cap lifts the moment the owner is identity-verified, same rung
+   * that opens the inbox.
+   */
+  private async assertUnderOrderCap(l: ListingRow) {
+    const tier = await this.verification.tierOf(l);
+    if (gateLifted(tier)) return;
+    const taken = await this.prisma.serviceOrder.count({
+      where: { listingId: l.id, status: { notIn: ['rejected', 'cancelled'] } },
+    });
+    if (taken >= FREE_ORDERS_BEFORE_VERIFIED) {
+      throw new BadRequestException(
+        `${l.businessName} can take ${FREE_ORDERS_BEFORE_VERIFIED} orders before it verifies, and it has them. `
+        + 'Message them instead — verifying takes minutes, and your order can follow.',
+      );
+    }
+  }
+
   // ───────────────────────── the quote ─────────────────────────
 
   /**
@@ -210,6 +238,7 @@ export class ServiceOrdersService {
   async quote(userId: string, listingId: string, dto: QuoteOrderDto) {
     const l = await this.approvedListing(listingId);
     if (l.ownerId === userId) throw new BadRequestException('This is your own business.');
+    await this.assertUnderOrderCap(l);
     const priced = await this.priceLines(listingId, dto.items);
     const fees = feesFor(dto.fulfilment ?? 'delivery');
     const totalInr = priced.subtotalInr + fees.platformFeeInr + fees.deliveryFeeInr;
@@ -243,6 +272,7 @@ export class ServiceOrdersService {
   async place(userId: string, listingId: string, dto: PlaceOrderDto, idempotencyKey?: string) {
     const l = await this.approvedListing(listingId);
     if (l.ownerId === userId) throw new BadRequestException('This is your own business.');
+    await this.assertUnderOrderCap(l);
 
     // ── what a delivery needs, said before any money moves ──────────────────
     if (dto.fulfilment === 'delivery') {

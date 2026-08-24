@@ -33,3 +33,7 @@ export const SubmitVerificationSchema = z.object({
   docUrl: z.string().url().optional(),
 });
 export type SubmitVerificationDto = z.infer<typeof SubmitVerificationSchema>;
+
+/** The owner's clip, already uploaded through the media chokepoint. */
+export const SubmitVideoSchema = z.object({ videoUrl: z.string().url() });
+export type SubmitVideoDto = z.infer<typeof SubmitVideoSchema>;

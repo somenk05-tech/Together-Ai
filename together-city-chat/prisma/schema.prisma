@@ -3161,6 +3161,19 @@ model ServiceVerification {
   rejectReason String?
   /// The pin, checked against the areas the listing claims to serve.
   placeConfirmedAt DateTime?
+  /// THE OWNER, ON VIDEO (owner, 24 Aug) — a short clip of themselves at the
+  /// business, saying who they are. A person watches it, exactly like the
+  /// document: nothing but the console writes anything other than `submitted`.
+  /// Verified video stands in for the pin-check on the Trusted rung — a shop
+  /// seen moving is at least a pin on a map.
+  videoUrl          String?
+  /// none | submitted | verified | rejected — the document's own vocabulary.
+  videoStatus       String    @default("none")
+  videoSubmittedAt  DateTime?
+  videoDecidedAt    DateTime?
+  videoDecidedBy    String?
+  /// Shown to the owner verbatim, same rule as rejectReason.
+  videoRejectReason String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

@@ -25,10 +25,13 @@ function harness(opts: {
   allergens?: string | null;
   payReplayInvoiceId?: string;
   payFails?: boolean;
+  /** The listing's trust rung. Defaults to identity — gate lifted — so every
+   *  test that is not about the cap never meets it. */
+  tier?: string;
 } = {}) {
   const listings: any[] = [{
     id: 'L1', ownerId: OWNER, businessName: 'The Bombay Kitchen', categoryKey: 'restaurants',
-    moderation: 'approved', city: 'Mumbai',
+    moderation: 'approved', city: 'Mumbai', businessType: 'restaurant', createdAt: new Date(),
   }];
   const menu = opts.menu ?? [
     { id: 'aaaaaaaa-0000-4000-8000-000000000001', listingId: 'L1', section: 'Mains', name: 'Butter Chicken', description: 'Creamy tomato gravy', priceInr: 420, sortOrder: 0, available: true, veg: 'nonveg', spice: 1, photoUrl: null, prepMinutes: 25, variantsJson: null, addonsJson: JSON.stringify([{ name: 'Extra gravy', priceInr: 40 }]) },
@@ -100,7 +103,8 @@ function harness(opts: {
       },
     },
     serviceOrder: {
-      count: async () => orders.length,
+      count: async ({ where }: any = {}) =>
+        (where ? orders.filter((o) => cmp(where, o)).length : orders.length),
       findUnique: async ({ where }: any) => orders.find((o) => cmp(where, o)) ?? null,
       findMany: async ({ where }: any) => orders.filter((o) => cmp(where, o)),
       create: async ({ data }: any) => {
@@ -172,6 +176,7 @@ function harness(opts: {
   svc.clock = { now: () => new Date() };
   svc.ai = opts.ai ?? { recommendFromMenu: async () => ({ ok: false, reason: 'off' }) };
   svc.services = services;
+  svc.verification = { tierOf: async () => opts.tier ?? 'identity' };
 
   return { svc, prisma, menu, enquiries, messages, invoices, orders, profiles, book, payCalls, refundCalls, notes };
 }
@@ -456,6 +461,52 @@ describe('the owner’s verbs', () => {
     const h = await placed();
     await expect(h.svc.accept(SEEKER, h.order.id, {})).rejects.toBeInstanceOf(NotFoundException);
     await expect(h.svc.one('u-stranger', h.order.id)).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
+
+describe('five orders before verification', () => {
+  const load = async (h: any, n: number) => {
+    for (let i = 0; i < n; i += 1) {
+      h.orders.push({
+        id: `old${i}`, listingId: 'L1', userId: `u-${i}`, enquiryId: `E-${i}`, number: `TCO-x${i}`,
+        status: 'completed', fulfilment: 'pickup', itemsJson: '[]', subtotalInr: 100,
+        platformFeeInr: 20, deliveryFeeInr: 0, totalInr: 120, invoiceId: `I-x${i}`,
+        customerName: 'Someone', submittedAt: new Date(), createdAt: new Date(),
+      });
+    }
+  };
+
+  it('the sixth order at an unverified kitchen is refused, at the quote and at the till', async () => {
+    const h = harness({ tier: 'basic' });
+    await load(h, 5);
+    await expect(h.svc.quote(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }] }))
+      .rejects.toThrow(/can take 5 orders before it verifies/i);
+    await expect(h.svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 490, ...DELIVERY }))
+      .rejects.toThrow(/verifying takes minutes/i);
+    expect(h.payCalls).toHaveLength(0);
+  });
+
+  it('under five, the unverified kitchen still takes the order', async () => {
+    const h = harness({ tier: 'basic' });
+    await load(h, 4);
+    const out = await h.svc.place(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }], expectInr: 490, ...DELIVERY });
+    expect(out.order.status).toBe('submitted');
+  });
+
+  it('rejected and cancelled orders never count — those were never taken', async () => {
+    const h = harness({ tier: 'basic' });
+    await load(h, 5);
+    h.orders[0].status = 'rejected';
+    h.orders[1].status = 'cancelled';
+    const q = await h.svc.quote(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }] });
+    expect(q.totalInr).toBe(490);
+  });
+
+  it('an identity-verified kitchen has no cap at all', async () => {
+    const h = harness(); // default tier: identity
+    await load(h, 50);
+    const q = await h.svc.quote(SEEKER, 'L1', { items: [{ itemId: BUTTER, qty: 1 }] });
+    expect(q.totalInr).toBe(490);
   });
 });
 

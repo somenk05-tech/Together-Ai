@@ -83,6 +83,10 @@ export interface TrustEvidence {
   docStatus: DocStatus;
   /** The pin has been checked against the areas the listing claims to serve. */
   placeConfirmed: boolean;
+  /** A person has watched the owner's video of themselves at the business.
+   *  Optional so evidence assembled before the camera existed still
+   *  typechecks; absent reads as false, which is also the truth about it. */
+  videoVerified?: boolean;
   listedForDays: number;
   reviewCount: number;
   rating: number | null;
@@ -176,7 +180,8 @@ export function tierOf(ev: TrustEvidence, policy: CategoryPolicy = DEFAULT_POLIC
   if (!docAccepted) return 'identity';
 
   const established =
-    ev.placeConfirmed &&
+    // The pin-check or the video — a shop seen moving is at least a pin.
+    (ev.placeConfirmed || ev.videoVerified === true) &&
     ev.listedForDays >= TRUSTED_MIN_DAYS &&
     ev.reviewCount >= TRUSTED_MIN_REVIEWS &&
     ev.rating != null && ev.rating >= TRUSTED_MIN_RATING &&
@@ -231,6 +236,15 @@ export function badgeFor(tier: Tier): TrustBadge | null {
 export const FREE_NEW_THREADS_PER_DAY = 5;
 
 /**
+ * AND FIVE ORDERS, TOTAL, BEFORE VERIFICATION (owner, 24 Aug). A thread can
+ * wait in a queue; an order cannot — money moves when it is placed — so the
+ * unverified cap is a refusal at the checkout, said to the citizen in one
+ * honest sentence, not a hold. Orders the kitchen rejected or the citizen
+ * pulled back do not count against it: those were never taken.
+ */
+export const FREE_ORDERS_BEFORE_VERIFIED = 5;
+
+/**
  * WHICH RUNG OPENS THE INBOX — and it is identity, not the certificate.
  *
  * The fraud the cap exists to stop is one person standing up seventeen
@@ -262,7 +276,9 @@ export function nextStep(ev: TrustEvidence, policy: CategoryPolicy = DEFAULT_POL
     const need = policy.requires?.length ? DOC_KINDS[policy.requires[0]] : 'a registration document';
     return `Send us ${need} and this listing becomes Business verified.`;
   }
-  if (!ev.placeConfirmed) return 'Confirm where you work on the map.';
+  if (!ev.placeConfirmed && ev.videoVerified !== true) {
+    return 'Confirm where you work on the map, or send a short video of you at your shop.';
+  }
   if (ev.listedForDays < TRUSTED_MIN_DAYS) return 'Trusted comes with time. Keep going.';
   if (ev.reviewCount < TRUSTED_MIN_REVIEWS) return 'Trusted needs a few reviews from neighbours you have worked with.';
   return null;

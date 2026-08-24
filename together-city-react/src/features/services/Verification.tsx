@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button, Fold } from '@/components/ui';
-import { useListingTrust, useSubmitVerification, type DocKind, type EntityKind, type ListingTrust, type TrustSummary } from './api';
+import { mediaApi, uploadErrorMessage } from '@/api/media.api';
+import { useListingTrust, useSubmitVerification, useSubmitVerificationVideo, type DocKind, type EntityKind, type ListingTrust, type TrustSummary } from './api';
 
 /**
  * THE BADGE, AND WHY IT IS THREE WORDS AND A SENTENCE.
@@ -59,6 +60,7 @@ function Rungs({ t }: { t: ListingTrust }) {
     ['Who you are', t.identityVerified, 'A government ID, matched to you'],
     ['The business', t.docStatus === 'verified', t.docStatus === 'submitted' ? 'With us now' : 'A registration document'],
     ['Where you work', t.placeConfirmed, 'Your pin, checked against the areas you serve'],
+    ['On video', t.videoStatus === 'verified', t.videoStatus === 'submitted' ? 'With us now' : 'A short clip of you at your business'],
   ];
   return (
     <div style={{ display: 'grid', gap: 6, marginTop: 10 }}>
@@ -71,6 +73,57 @@ function Rungs({ t }: { t: ListingTrust }) {
           <span className="muted" style={{ fontSize: 11.5 }}>{done ? 'Done' : hint}</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+/** The owner on video — record, send, and a person watches it. */
+function VideoRung({ listingId, t }: { listingId: string; t: ListingTrust }) {
+  const send = useSubmitVerificationVideo(listingId);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const pick = async (file?: File | null) => {
+    if (!file) return;
+    setErr(null); setBusy(true);
+    try {
+      const url = await mediaApi.upload(file);
+      send.mutate(url, {
+        onError: (e: unknown) => {
+          const raw = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+          setErr(raw ?? 'That could not be sent just now.');
+        },
+      });
+    } catch (e) { setErr(uploadErrorMessage(e)); }
+    finally { setBusy(false); }
+  };
+
+  if (t.videoStatus === 'verified') return null; // the rung above already says Done
+  return (
+    <div className="vrung">
+      <strong>Show us you and your shop</strong>
+      {t.videoStatus === 'submitted' ? (
+        <p className="muted vrung-line">
+          Your video is with us. A person watches it — we write to you either way.
+        </p>
+      ) : (
+        <>
+          {t.videoStatus === 'rejected' && t.videoRejectReason && (
+            <p role="alert" className="vrung-line vrung-bad">
+              We could not accept that video: {t.videoRejectReason}
+            </p>
+          )}
+          <p className="muted vrung-note">
+            A short clip — you, at the business, saying your name and the business&rsquo;s. Under a
+            minute is plenty. A person watches it, never a machine.
+          </p>
+          <input type="file" accept="video/*" capture="environment" disabled={busy || send.isPending}
+            aria-label="A short video of you at your business" className="vrung-file"
+            onChange={(e) => { void pick(e.target.files?.[0]); e.target.value = ''; }} />
+          {(busy || send.isPending) && <p className="muted vrung-note">Sending…</p>}
+          {err && <p role="alert" className="vrung-line vrung-bad">{err}</p>}
+        </>
+      )}
     </div>
   );
 }
@@ -162,6 +215,13 @@ export function VerificationTab({ listingId }: { listingId: string }) {
             We could not accept that document: {t.docRejectReason}
           </p>
         )}
+
+        {/* ── THE CAMERA (owner, 24 Aug). A short clip of you at your
+            business, watched by a person — it stands in for the pin-check on
+            the Trusted rung, and it is the check a citizen can feel: somebody
+            SAW this place. Upload goes through the same media chokepoint as
+            every file in the city; submitting decides nothing. */}
+        <VideoRung listingId={listingId} t={t} />
 
         {!pending && (
           <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>

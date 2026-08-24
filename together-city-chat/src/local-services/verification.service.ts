@@ -19,6 +19,8 @@ type VerificationRow = {
   entityKind: string | null; docKind: string | null; docRef: string | null; docUrl: string | null;
   docStatus: string; submittedAt: Date | null; decidedAt: Date | null; decidedBy: string | null;
   rejectReason: string | null; placeConfirmedAt: Date | null;
+  videoUrl: string | null; videoStatus: string; videoSubmittedAt: Date | null;
+  videoDecidedAt: Date | null; videoDecidedBy: string | null; videoRejectReason: string | null;
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -41,7 +43,7 @@ export interface TrustSummary {
   tier: Tier;
   label: string | null;
   blurb: string | null;
-  checks: Array<{ key: 'phone' | 'identity' | 'business' | 'place'; label: string; done: boolean }>;
+  checks: Array<{ key: 'phone' | 'identity' | 'business' | 'place' | 'video'; label: string; done: boolean }>;
   done: number;
   total: number;
 }
@@ -54,6 +56,7 @@ export function summaryOf(ev: TrustEvidence, policy = policyFor(null)): TrustSum
     { key: 'identity', label: 'Identity verified', done: ev.identityVerified },
     { key: 'business', label: 'Business verified', done: ev.docStatus === 'verified' },
     { key: 'place', label: 'Address verified', done: ev.placeConfirmed },
+    { key: 'video', label: 'Seen on video', done: ev.videoVerified === true },
   ];
   return {
     tier,
@@ -118,6 +121,7 @@ export class VerificationService {
       docKind: (v?.docKind as DocKind | null) ?? null,
       docStatus: (v?.docStatus as TrustEvidence['docStatus']) ?? 'none',
       placeConfirmed: v?.placeConfirmedAt != null,
+      videoVerified: v?.videoStatus === 'verified',
       listedForDays: Math.max(0, Math.floor((now.getTime() - l.createdAt.getTime()) / DAY_MS)),
       reviewCount: reviews.length,
       rating,
@@ -191,6 +195,7 @@ export class VerificationService {
         docKind: (v?.docKind as DocKind | null) ?? null,
         docStatus: (v?.docStatus as TrustEvidence['docStatus']) ?? 'none',
         placeConfirmed: v?.placeConfirmedAt != null,
+        videoVerified: v?.videoStatus === 'verified',
         listedForDays: Math.max(0, Math.floor((now.getTime() - l.createdAt.getTime()) / DAY_MS)),
         reviewCount: count,
         // The same floor as the directory's star average, and for the same
@@ -293,6 +298,8 @@ export class VerificationService {
       docStatus: ev.docStatus,
       docRejectReason: v?.rejectReason ?? null,
       placeConfirmed: ev.placeConfirmed,
+      videoStatus: v?.videoStatus ?? 'none',
+      videoRejectReason: v?.videoRejectReason ?? null,
       waiting,
       freePerDay: FREE_NEW_THREADS_PER_DAY,
       gateLifted: gateLifted(tier),
@@ -351,6 +358,26 @@ export class VerificationService {
     return this.read(ownerId, listingId, now);
   }
 
+  /**
+   * THE VIDEO, SENT FOR CHECKING. Same split as the document: this sets
+   * `submitted` and a person in the console sets the rest. A short clip of
+   * the owner at the business, saying who they are — reviewed by eyes, never
+   * by a model, because the whole point of this rung is that a person looked.
+   */
+  async submitVideo(ownerId: string, listingId: string, videoUrl: string, now = new Date()) {
+    const l = await this.own(ownerId, listingId);
+    await this.upsert(l.id, {
+      videoUrl,
+      videoStatus: 'submitted',
+      videoSubmittedAt: now,
+      // A resubmission is a fresh question — same rule as the document.
+      videoRejectReason: null,
+      videoDecidedAt: null,
+      videoDecidedBy: null,
+    });
+    return this.read(ownerId, listingId, now);
+  }
+
   private async upsert(listingId: string, data: Record<string, unknown>) {
     await this.prisma.serviceVerification.upsert({
       where: { listingId },
@@ -365,7 +392,7 @@ export class VerificationService {
    *  gets to on Friday unless the queue is drained from its tail. */
   async queue(take = 50) {
     const rows = await this.prisma.serviceVerification.findMany({
-      where: { docStatus: 'submitted' },
+      where: { OR: [{ docStatus: 'submitted' }, { videoStatus: 'submitted' }] },
       orderBy: { submittedAt: 'asc' },
       take,
     }) as unknown as VerificationRow[];
@@ -390,7 +417,11 @@ export class VerificationService {
         docLabel: r.docKind ? DOC_KINDS[r.docKind as DocKind] : null,
         docRef: r.docRef,
         docUrl: r.docUrl,
+        docStatus: r.docStatus,
+        videoUrl: r.videoUrl,
+        videoStatus: r.videoStatus,
         submittedAt: r.submittedAt?.toISOString() ?? null,
+        videoSubmittedAt: r.videoSubmittedAt?.toISOString() ?? null,
       })),
     };
   }
@@ -402,28 +433,39 @@ export class VerificationService {
    * tab makes — "you will get them all the moment this is verified" — and a
    * promise kept by a nightly job is a promise broken until the job runs.
    */
-  async decide(adminId: string, listingId: string, decision: 'verified' | 'rejected', reason?: string, now = new Date()) {
+  async decide(adminId: string, listingId: string, decision: 'verified' | 'rejected', reason?: string, kind: 'doc' | 'video' = 'doc', now = new Date()) {
     const l = await this.prisma.serviceListing.findUnique({
       where: { id: listingId },
       select: { id: true, ownerId: true, businessType: true, businessName: true, createdAt: true },
     }) as unknown as (TrustableListing & { businessName: string }) | null;
     if (!l) throw new NotFoundException('listing not found');
 
-    await this.upsert(listingId, {
-      docStatus: decision,
-      decidedAt: now,
-      decidedBy: adminId,
-      rejectReason: decision === 'rejected' ? (reason ?? '') : null,
-    });
+    await this.upsert(listingId, kind === 'video'
+      ? {
+        videoStatus: decision,
+        videoDecidedAt: now,
+        videoDecidedBy: adminId,
+        videoRejectReason: decision === 'rejected' ? (reason ?? '') : null,
+      }
+      : {
+        docStatus: decision,
+        decidedAt: now,
+        decidedBy: adminId,
+        rejectReason: decision === 'rejected' ? (reason ?? '') : null,
+      });
 
     let released = 0;
-    if (decision === 'verified') released = await this.releaseFor(l, now);
+    // The inbox opens on identity, and the DOCUMENT decision is what changes
+    // the tier the release checks — a video verdict releases nothing by itself.
+    if (kind === 'doc' && decision === 'verified') released = await this.releaseFor(l, now);
 
     void this.notifications.create({
       userId: l.ownerId,
       kind: 'service_verification',
       entityId: listingId,
-      title: decision === 'verified' ? `${l.businessName} is verified` : `${l.businessName} — we could not verify that`,
+      title: decision === 'verified'
+        ? (kind === 'video' ? `${l.businessName} — your video checked out` : `${l.businessName} is verified`)
+        : `${l.businessName} — we could not verify that`,
       body: decision === 'verified'
         ? (released > 0
           ? `${released} ${released === 1 ? 'neighbour has' : 'neighbours have'} been waiting. They are in your messages now.`
@@ -432,6 +474,6 @@ export class VerificationService {
       href: '/services/mine',
     });
 
-    return { listingId, docStatus: decision, released };
+    return { listingId, kind, [kind === 'video' ? 'videoStatus' : 'docStatus']: decision, released };
   }
 }

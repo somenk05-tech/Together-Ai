@@ -36,6 +36,9 @@ const trusted: TrustEvidence = {
   rating: 4.4,
 };
 
+// The camera can stand in for the pin: a shop seen moving is at least a pin.
+const trustedByVideo: TrustEvidence = { ...trusted, placeConfirmed: false, videoVerified: true };
+
 describe('the four tiers', () => {
   it('starts at basic and says nothing about it', () => {
     expect(tierOf(basic)).toBe('basic');
@@ -159,5 +162,13 @@ describe('what the citizen reads', () => {
     expect(nextStep(identity, policyFor('restaurant'))).toContain('FSSAI');
     expect(nextStep(business)).toContain('map');
     expect(nextStep(trusted)).toBeNull();
+  });
+});
+
+describe('the camera on the ladder', () => {
+  it('a verified video stands in for the pin-check on Trusted, and for nothing below it', () => {
+    expect(tierOf(trustedByVideo)).toBe('trusted');
+    // Video without identity is still basic — seeing a shop is not knowing a person.
+    expect(tierOf({ ...basic, videoVerified: true })).toBe('basic');
   });
 });

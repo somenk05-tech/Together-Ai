@@ -4,7 +4,7 @@ import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { VerificationService } from './verification.service';
-import { SubmitVerificationSchema, type SubmitVerificationDto } from './dto/verification.dto';
+import { SubmitVerificationSchema, type SubmitVerificationDto, SubmitVideoSchema, type SubmitVideoDto } from './dto/verification.dto';
 
 /**
  * THE OWNER'S SIDE OF VERIFICATION.
@@ -32,5 +32,13 @@ export class VerificationController {
   @UsePipes(new ZodValidationPipe(SubmitVerificationSchema))
   submit(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: SubmitVerificationDto) {
     return this.verification.submit(user.sub, id, dto);
+  }
+
+  /** The owner on video, sent for a person to watch. Same split as the
+   *  document: submitting decides nothing. */
+  @Post(':id/verification/video')
+  @UsePipes(new ZodValidationPipe(SubmitVideoSchema))
+  submitVideo(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: SubmitVideoDto) {
+    return this.verification.submitVideo(user.sub, id, dto.videoUrl);
   }
 }

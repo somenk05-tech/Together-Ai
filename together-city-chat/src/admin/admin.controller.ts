@@ -31,6 +31,9 @@ type SuspendDto = z.infer<typeof SuspendSchema>;
 const VerifySchema = z.object({
   decision: z.enum(['verified', 'rejected']),
   reason: z.string().trim().min(8).max(1000),
+  /** Which submission the verdict is about — the document (default) or the
+   *  owner's video. One queue, two kinds of evidence. */
+  kind: z.enum(['doc', 'video']).optional(),
 });
 type VerifyDto = z.infer<typeof VerifySchema>;
 
@@ -78,7 +81,7 @@ export class AdminController {
     @Body() dto: VerifyDto,
     @Req() req: { ip?: string },
   ) {
-    return this.admin.decideVerification(user.sub, listingId, dto.decision, dto.reason, req.ip ?? null);
+    return this.admin.decideVerification(user.sub, listingId, dto.decision, dto.reason, req.ip ?? null, dto.kind ?? 'doc');
   }
 
   // Declared before ':id'-shaped routes for the usual reason, and named in

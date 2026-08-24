@@ -150,13 +150,14 @@ export class AdminService {
   async decideVerification(
     userId: string, listingId: string,
     decision: 'verified' | 'rejected', reason: string, ip?: string | null,
+    kind: 'doc' | 'video' = 'doc',
   ) {
     return this.access.act({
       actorId: userId, need: 'business.verify',
-      action: `verification.${decision}`, entity: 'listing', entityId: listingId,
-      after: { docStatus: decision },
+      action: `verification.${kind === 'video' ? 'video.' : ''}${decision}`, entity: 'listing', entityId: listingId,
+      after: kind === 'video' ? { videoStatus: decision } : { docStatus: decision },
       reason, ip,
-    }, () => this.verification.decide(userId, listingId, decision, reason));
+    }, () => this.verification.decide(userId, listingId, decision, reason, kind));
   }
 
   /**

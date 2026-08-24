@@ -222,6 +222,14 @@
 .mcc-hint { font-size: 12px; font-weight: 700; }
 .mcc-hint span { font-weight: 400; color: var(--muted); }
 
+/* the owner-on-video rung in the verification tab */
+.vrung { margin-top: 12px; }
+.vrung > strong { font-size: 12.5px; }
+.vrung-note { font-size: 12px; margin: 4px 0 6px; }
+.vrung-line { font-size: 12.5px; margin: 4px 0 0; }
+.vrung-bad { color: var(--danger-ink); }
+.vrung-file { font-size: 13px; font-family: inherit; }
+
 /* the My Orders page's own three rhythms */
 .svo-pagehead { font-size: 26px; }
 .svo-pageblurb { font-size: 13.5px; margin: 6px 0 18px; max-width: 62ch; }
