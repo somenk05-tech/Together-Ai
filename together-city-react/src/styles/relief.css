@@ -367,7 +367,13 @@ h1 { letter-spacing: .015em; }
    staircase (owner, 24 Aug, the Local Services browse page). The inline-style
    attribute is the scope because the inline style is how every such container
    is written. */
-:where([style*="grid"], [style*="flex"], .svo-stack, .svo-list, .mail-list) > :where(.card + .card, .stat + .stat) {
+/* The child half of this selector is deliberately OUTSIDE the :where() —
+   wrapped, the whole rule has zero specificity and the join rule above beats
+   it, which is exactly how the staircase survived its first "fix" (24 Aug,
+   found on the live directory). Bare, both rules weigh the same two classes
+   and this one is later, so it wins where it applies. */
+:where([style*="grid"], [style*="flex"], .svo-stack, .svo-list, .mail-list) > .card + .card,
+:where([style*="grid"], [style*="flex"], .svo-stack, .svo-list, .mail-list) > .stat + .stat {
   margin-top: 0;
 }
 /* AND THE MODAL IS STILL NOT ON THIS LIST. The sentence above holds — an
