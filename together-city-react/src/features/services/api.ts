@@ -52,6 +52,9 @@ export interface ServiceCard {
   details: Array<{ label: string; value: string }>;
   city: string;
   areas: string[];
+  /** The exact door — building name and road name. Public like the pin. */
+  building: string | null;
+  street: string | null;
   priceFrom: number | null;
   photos: Array<{ url: string; caption?: string }>;
   lat: number | null;
@@ -188,6 +191,9 @@ export interface ListingInput {
   about?: string;
   city: string;
   areas?: string;
+  /** The exact door — building name and road name. Empty string clears it. */
+  building?: string;
+  street?: string;
   slug?: string;
   businessType?: string;
   details?: Record<string, unknown>;

@@ -107,6 +107,10 @@ export function BusinessPage() {
       ? `${humanDistance(s.distanceKm)} away · ${s.areas[0] ?? s.city}`
       : (s.areas.length ? s.areas.join(' · ') : s.city),
   });
+  // The exact door — building and road, when the owner gave them. Public like
+  // the pin: an address nobody can walk to is a description, not an address.
+  const door = [s.building, s.street].filter(Boolean).join(', ');
+  if (door) facts.push({ k: 'Address', v: `${door}, ${s.city}` });
   if (s.priceFrom != null) facts.push({ k: 'Starting from', v: rupees(s.priceFrom) });
 
   return (

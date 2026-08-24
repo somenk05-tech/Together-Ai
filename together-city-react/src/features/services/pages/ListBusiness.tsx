@@ -39,6 +39,8 @@ export function ListBusiness() {
             about: v.about || undefined,
             city: v.city,
             areas: v.areas || undefined,
+            building: v.building || undefined,
+            street: v.street || undefined,
             phone: v.phone || undefined,
             priceFrom: v.priceFrom,
             ...(v.photoUrls.length ? { photoUrls: v.photoUrls } : {}),

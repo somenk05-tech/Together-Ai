@@ -45,6 +45,9 @@ export interface ListingValues {
   about: string;
   city: string;
   areas: string;
+  /** The exact door — building name and road name. Empty is a real answer. */
+  building: string;
+  street: string;
   phone: string;
   phonePublic: boolean;
   priceFrom?: number;
@@ -65,6 +68,8 @@ export interface ListingDraft {
   about?: string | null;
   city?: string;
   areas?: string[];
+  building?: string | null;
+  street?: string | null;
   phone?: string | null;
   phonePublic?: boolean;
   priceFrom?: number | null;
@@ -131,6 +136,8 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
       : [...parts, name];
     setAreas(next.join(', '));
   };
+  const [building, setBuilding] = useState(str(initial?.building));
+  const [street, setStreet] = useState(str(initial?.street));
   const [phone, setPhone] = useState(str(initial?.phone));
   const [phonePublic, setPhonePublic] = useState(initial?.phonePublic ?? false);
   const [priceFrom, setPrice] = useState(str(initial?.priceFrom));
@@ -240,6 +247,8 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
       about: about.trim(),
       city: city.trim(),
       areas: areas.trim(),
+      building: building.trim(),
+      street: street.trim(),
       phone: phone.trim(),
       // A number with nowhere to be shown cannot be public. Otherwise an owner
       // who clears the field leaves a tick behind that publishes nothing and
@@ -413,6 +422,23 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
           </div>
         </div>
 
+        {/* ── THE EXACT DOOR (owner, 24 Aug: "make sure we get the exact
+            address — road name and building name"). The pin answers "how
+            far"; these answer "which shutter". Both optional — a travelling
+            trade has no shutter — and public like the pin when given. */}
+        <div className="mpaper-addr">
+          <div>
+            <label htmlFor="svc-building" style={label}>Building name</label>
+            <input id="svc-building" style={field} value={building} onChange={(e) => setBuilding(e.target.value)}
+              placeholder="Shop 4, Sea View House" maxLength={90} />
+          </div>
+          <div>
+            <label htmlFor="svc-street" style={label}>Road / street</label>
+            <input id="svc-street" style={field} value={street} onChange={(e) => setStreet(e.target.value)}
+              placeholder="Juhu Tara Road" maxLength={120} />
+          </div>
+        </div>
+
         {/* ── AREAS AS A DROPDOWN (owner, 24 Aug: "add a detailed drop down
             menu for all areas"). Thirty-four Mumbai chips was a wall, not a
             choice; the drawer lists only what is not yet picked, each pick
@@ -485,9 +511,15 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
                 // The locality is the segment just before the city in
                 // Nominatim's local→global run ("…, Powai, Mumbai, …").
                 const area = cityAt > 0 ? bits[cityAt - 1] : null;
+                // And the segment before THAT is usually the road ("Juhu Tara
+                // Road, Juhu, Mumbai, …") — offered to an empty Road box only,
+                // same rule as everything else here: a name the owner typed is
+                // their answer, never overwritten.
+                const road = cityAt > 1 ? bits[cityAt - 2] : null;
                 setCity((v) => (v.trim() ? v : canonical ?? v));
                 if (hit) setPick({ country: hit.country, state: hit.state, city: hit.city.name });
                 setAreas((v) => (v.trim() ? v : (area && area !== canonical ? area : v)));
+                setStreet((v) => (v.trim() ? v : (road && road !== area ? road : v)));
                 setRadius((v) => (v.trim() ? v : '5'));
               }}
             />

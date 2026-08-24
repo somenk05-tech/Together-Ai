@@ -52,4 +52,15 @@ describe('the place tree', () => {
     expect(findCity('Atlantis')).toBeNull();
     expect(findCity('')).toBeNull();
   });
+
+  it('splits the suburban-line localities into East and West, and keeps the rest whole', () => {
+    // The suburban line splits a locality in two, and the split IS the address
+    // (owner, 24 Aug: "add east and west in the area too"): both sides are
+    // listed, and the unsplit name is gone so no chip claims both sides at once.
+    const mumbai = findCity('Mumbai')?.city.areas ?? [];
+    expect(mumbai).toContain('Andheri East');
+    expect(mumbai).toContain('Andheri West');
+    expect(mumbai).not.toContain('Andheri');
+    expect(mumbai).toContain('Juhu'); // no line runs through Juhu
+  });
 });

@@ -145,7 +145,17 @@ export const PLACES: PlaceCountry[] = [
       {
         name: 'Maharashtra',
         cities: [
-          c('Mumbai', ['Colaba', 'Fort', 'Marine Lines', 'Girgaon', 'Byculla', 'Parel', 'Lower Parel', 'Worli', 'Prabhadevi', 'Dadar', 'Matunga', 'Sion', 'Mahim', 'Bandra', 'Khar', 'Santacruz', 'Vile Parle', 'Juhu', 'Andheri', 'Versova', 'Jogeshwari', 'Goregaon', 'Malad', 'Kandivali', 'Borivali', 'Dahisar', 'Kurla', 'Ghatkopar', 'Vikhroli', 'Bhandup', 'Mulund', 'Powai', 'Chembur', 'Wadala'], ['Bombay', 'Mumbai Suburban', 'Mumbai Suburban District', 'Greater Mumbai', 'Mumbai City']),
+          c('Mumbai', [
+            // South of the line the names stand alone; on the suburban line a
+            // locality is two places — East and West of the tracks — and an
+            // owner in Andheri West is NOT in Andheri East (owner, 24 Aug:
+            // "add east and west in the area too").
+            'Colaba', 'Fort', 'Marine Lines', 'Girgaon', 'Byculla', 'Parel', 'Lower Parel', 'Worli', 'Prabhadevi', 'Matunga', 'Sion', 'Mahim', 'Juhu', 'Versova', 'Powai', 'Chembur', 'Wadala',
+            'Dadar East', 'Dadar West', 'Bandra East', 'Bandra West', 'Khar East', 'Khar West', 'Santacruz East', 'Santacruz West', 'Vile Parle East', 'Vile Parle West',
+            'Andheri East', 'Andheri West', 'Jogeshwari East', 'Jogeshwari West', 'Goregaon East', 'Goregaon West', 'Malad East', 'Malad West', 'Kandivali East', 'Kandivali West',
+            'Borivali East', 'Borivali West', 'Dahisar East', 'Dahisar West', 'Kurla East', 'Kurla West', 'Ghatkopar East', 'Ghatkopar West', 'Vikhroli East', 'Vikhroli West',
+            'Bhandup East', 'Bhandup West', 'Mulund East', 'Mulund West',
+          ], ['Bombay', 'Mumbai Suburban', 'Mumbai Suburban District', 'Greater Mumbai', 'Mumbai City']),
           c('Navi Mumbai', ['Vashi', 'Nerul', 'Belapur', 'Kharghar', 'Panvel', 'Airoli', 'Ghansoli', 'Kopar Khairane', 'Sanpada', 'Seawoods', 'Ulwe', 'Taloja']),
           c('Thane', ['Naupada', 'Ghodbunder Road', 'Majiwada', 'Vartak Nagar', 'Wagle Estate', 'Kalwa', 'Mumbra', 'Hiranandani Estate', 'Kolshet', 'Manpada']),
           c('Pune', ['Koregaon Park', 'Kalyani Nagar', 'Viman Nagar', 'Kharadi', 'Hadapsar', 'Camp', 'Shivajinagar', 'Deccan', 'Kothrud', 'Baner', 'Aundh', 'Wakad', 'Hinjawadi', 'Magarpatta', 'Katraj', 'Pimpri', 'Chinchwad', 'Bavdhan']),

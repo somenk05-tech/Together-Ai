@@ -13,6 +13,10 @@ export const CreateListingSchema = z.object({
   about: z.string().trim().max(1200).optional(),
   city: trimmed(2, 60),
   areas: areasSchema,
+  /** The exact door — building name and road name (owner, 24 Aug). Public
+   *  like the pin: a shopfront's address is not a secret. */
+  building: z.string().trim().max(90).optional(),
+  street: z.string().trim().max(120).optional(),
   // Stored, never returned to anyone but the owner. The anonymous thread is the
   // channel; a phone number in a public listing is the anonymity walking out.
   // Validated properly in claimSlug — the shape rules live in slug.ts so the

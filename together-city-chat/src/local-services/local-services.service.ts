@@ -15,7 +15,8 @@ import type { PatchMenuItemDto } from './dto/orders.dto';
 
 type ListingRow = {
   id: string; ownerId: string; businessName: string; categoryKey: string; about: string | null;
-  city: string; areas: string; phone: string | null; priceFrom: number | null; photosJson: string;
+  city: string; areas: string; building: string | null; street: string | null;
+  phone: string | null; priceFrom: number | null; photosJson: string;
   lat: number | null; lng: number | null; radiusKm: number | null;
   slug: string | null;
   businessType: string | null;
@@ -127,6 +128,8 @@ export class LocalServicesService {
       // The pin. Public on purpose — a shopfront's address is not a secret, and
       // a directory that will not say where anybody is cannot be walked to.
       lat: l.lat, lng: l.lng, radiusKm: l.radiusKm,
+      // The exact door, public like the pin (owner, 24 Aug).
+      building: l.building, street: l.street,
       /**
        * THE HOURS ON THE DOOR. Seven rows or null, and null is not "closed" —
        * it is "never told us", which every screen has to keep saying
@@ -428,6 +431,8 @@ export class LocalServicesService {
         about: dto.about ?? null,
         city: dto.city,
         areas: (dto.areas ?? '').trim(),
+        building: dto.building?.trim() || null,
+        street: dto.street?.trim() || null,
         slug: await this.slugForNew(dto.slug, dto.businessName),
         businessType: dto.businessType && isBusinessType(dto.businessType) ? dto.businessType : null,
         detailsJson: JSON.stringify(cleanDetails(dto.businessType ?? null, dto.details ?? {})),
@@ -459,6 +464,9 @@ export class LocalServicesService {
     if (dto.about !== undefined) data.about = dto.about;
     if (dto.city !== undefined) data.city = dto.city;
     if (dto.areas !== undefined) data.areas = dto.areas.trim();
+    // An emptied box takes the answer off the page; it does not freeze it.
+    if (dto.building !== undefined) data.building = dto.building.trim() || null;
+    if (dto.street !== undefined) data.street = dto.street.trim() || null;
     if (dto.slug !== undefined) {
       // An empty string means "take it off", which returns the listing to being
       // reachable by id only. It is a strange thing to want, and it is theirs.

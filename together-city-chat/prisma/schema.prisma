@@ -3009,6 +3009,13 @@ model ServiceListing {
   about        String? // what they do, in their words
   city         String
   areas        String   @default("") // csv of localities served — the "local" in Local Services
+  /// THE EXACT DOOR (owner, 24 Aug: "make sure we get the exact address —
+  /// road name and building name"). A pin answers "how far"; these answer
+  /// "which shutter". Public like the pin — a shopfront's address is not a
+  /// secret, and a directory that will not say where anybody is cannot be
+  /// walked to. Nullable: every listing made before today has neither.
+  building     String?
+  street       String?
   // WHERE IT ACTUALLY IS. A city and a list of locality names is how a person
   // describes where they work; it is not something a map can draw or a
   // "within 2 km" filter can answer. Nullable because a listing made before
