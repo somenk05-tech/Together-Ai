@@ -146,7 +146,17 @@ export function Chats() {
   const isMira = activeId === MIRA_ID;
   const convId = isMira ? undefined : activeId;
 
-  useChatRoom(Boolean(convId));
+  /* THE ROOM TREATMENT IS FOR ANY OPEN THREAD — MIRA INCLUDED. This was
+     `Boolean(convId)`, which made hers the one phone conversation that was
+     not immersive: header still fixed on top, page scroll still live
+     underneath, no --tc-vvh — so the stage's `var(--tc-vvh, 100dvh)` height
+     and `html.tc-immersive .cstage`'s fixed-one-row layout, both written for
+     this screen, never engaged for her. What the owner's phone showed was the
+     wreckage: the composer beached at the top of a content-sized panel with
+     the rest of the screen blank. Only the SOCKET JOIN and the MESSAGE FETCH
+     need a real conversation, and both key off `convId` below — the
+     immersion never did. */
+  useChatRoom(Boolean(activeId));
 
   const history = useMessages(convId);
   const [live, setLive] = useState<Message[]>([]);

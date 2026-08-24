@@ -881,6 +881,15 @@ html.tc-noscale select { font-size: 16px !important; }
 html.tc-immersive, html.tc-immersive body {
   overflow: hidden; height: 100%; width: 100%; overscroll-behavior: none;
 }
+/* THE ROOM IS FIXED TO THE SCREEN, SO NOTHING ABOVE IT MAY CARRY A
+   TRANSFORM. `.page` animates in with `pageIn`, and an animated transform —
+   even at its resting identity value — makes the page the containing block
+   for every `position: fixed` descendant. The room then rides the page:
+   scroll the page (or `.tc-main`, a hidden-overflow scroll container JS can
+   still move) and the "fixed" room leaves the screen with it, which is
+   exactly what the owner photographed in Mira's room. While a room is open,
+   the page keeps no motion. */
+html.tc-immersive .tc-main > .page { animation: none; transform: none; }
 html.tc-immersive .cstage {
   position: fixed; top: var(--tc-vvt, 0px); left: 0; right: 0;
   border-radius: 0; box-shadow: none;
@@ -894,6 +903,11 @@ html.tc-immersive .cstage {
    at the end of the list inside the list rather than handing it up to the
    page, which is the other way the screen used to shift. */
 html.tc-immersive .csmsgs {
+  overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+}
+/* Mira's room scrolls in .miraturns, not .csmsgs — same floor, same rule,
+   now that her thread is immersive like every other one. */
+html.tc-immersive .miraturns {
   overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
 }
 /* Neither row gives up a pixel to a long message or a two-line name. */

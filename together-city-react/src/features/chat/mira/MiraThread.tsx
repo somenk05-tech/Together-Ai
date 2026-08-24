@@ -422,10 +422,21 @@ export function MiraThread({ dial, about, onBack }: {
 
   /** Somebody who asked their system for less movement asked this scroll too.
    *  Read at the moment of the scroll rather than once, because the preference
-   *  can change while a tab is open. */
+   *  can change while a tab is open.
+   *
+   *  THE SCROLL IS THE FLOOR'S, NOT THE PAGE'S. `scrollIntoView` walks EVERY
+   *  scrollable ancestor to bring the target into view — including `.tc-main`,
+   *  which on /chats is `overflow: hidden` and therefore a scroll container
+   *  that JS can still move. On a phone that scrolled the whole room ~500px
+   *  up out of its own screen: the owner's photo of the bug is a composer
+   *  beached at the top of the viewport with nothing under it. `.miraturns`
+   *  is the one thing in her room that scrolls, so it is addressed by name
+   *  and nothing above it moves. */
   useEffect(() => {
     const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    endRef.current?.scrollIntoView({ behavior: still ? 'auto' : 'smooth' });
+    const floor = endRef.current?.closest('.miraturns');
+    if (floor) floor.scrollTo({ top: floor.scrollHeight, behavior: still ? 'auto' : 'smooth' });
+    else endRef.current?.scrollIntoView({ behavior: still ? 'auto' : 'smooth' });
   }, [turns.length, ask.isPending]);
 
   const state: MarkState =
