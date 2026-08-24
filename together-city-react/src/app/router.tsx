@@ -17,6 +17,7 @@ import { DevPage } from '@/features/dev/pages/Dev';
 import { MyBusiness } from '@/features/services/pages/MyBusiness';
 import { ServiceMessages, ServiceThreadView } from '@/features/services/pages/Messages';
 import { MyOrders } from '@/features/services/pages/MyOrders';
+import { BizOrders } from '@/features/services/pages/BizOrders';
 import { Regulars } from '@/features/services/pages/Regulars';
 import { DailyOffers } from '@/features/services/pages/DailyOffers';
 import { HubLanding } from '@/pages/HubLanding';
@@ -503,6 +504,10 @@ const ROUTE_BLOCKS: RouteObject[] = [
       // per owner: somebody with a salon and a tuition class keeps two books,
       // two payout accounts and two sets of invoices, because they are two
       // businesses however many of them one person runs.
+      // THE COUNTER. Before the till's rooms because it is the one an owner
+      // opens most: every order is already paid, and this is where it is
+      // accepted, rejected-with-refund, and walked to the door.
+      { path: '/services/:id/orders', element: <RequireAuth>{wrap(<BizOrders />)}</RequireAuth> },
       { path: '/services/:id/invoices', element: <RequireAuth>{wrap(<BizInvoices />)}</RequireAuth> },
       { path: '/services/:id/invoices/new', element: <RequireAuth>{wrap(<BizCreateInvoice />)}</RequireAuth> },
       { path: '/services/:id/payments', element: <RequireAuth>{wrap(<BizPayments />)}</RequireAuth> },

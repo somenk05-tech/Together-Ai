@@ -2870,3 +2870,27 @@
 @media (max-width: 899px) {
   .st-aisles { padding: 4px 18px 0; gap: 6px; }
 }
+
+/* ── THE BUSINESS CARD'S TWO VERBS ──────────────────────────────────────────
+   Message and View business share the row when the card is wide enough and
+   become two full-width buttons when it is not. Before this they were
+   shrink-wrapped pills in a wrapping flex row: on a narrow grid column the
+   second one wrapped into a ragged left-aligned stack that read as a layout
+   accident rather than a decision (owner, 24 Aug). */
+.biz-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+.biz-actions > * { flex: 1 1 auto; }
+.biz-actions .btn { width: 100%; }
+
+/* ── THE GALLERY, AT PHOTOGRAPH SIZE ────────────────────────────────────────
+   The hero used to take the band's full width — on a desktop that is a
+   photograph the size of the screen, and the page became the picture (owner,
+   24 Aug: a quarter of the size, opening full when asked). So the resting
+   view is a modest print; the full image is one click away in the product's
+   one branded overlay, where Esc and the backdrop already work. */
+.gal-open {
+  display: block; width: 100%; max-width: 320px; padding: 0;
+  border: 1.5px solid var(--line); border-radius: var(--r-1);
+  overflow: hidden; background: none; cursor: zoom-in;
+}
+.gal-open img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; }
+.gal-full { display: block; max-width: 100%; max-height: 76vh; margin: 0 auto; object-fit: contain; border-radius: var(--r-1); }

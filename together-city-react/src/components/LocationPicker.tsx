@@ -27,10 +27,18 @@ import { geoApi, type Place } from '@/api/geo.api';
 
 export interface LocationValue { lat: string; lng: string; accuracy: number | null }
 
-export function LocationPicker({ value, onChange, hint }: {
+export function LocationPicker({ value, onChange, hint, onPlace }: {
   value: LocationValue;
   onChange: (v: LocationValue) => void;
   hint?: string;
+  /**
+   * The reverse-geocoded place for the CURRENT pin, when the lookup lands —
+   * the same answer the address line under the map prints, handed to the form
+   * so it can pre-fill its own boxes (city, area, radius) from one press of
+   * "Use my location". Advisory: whatever the form fills stays editable, and
+   * a lookup that never answers costs nothing but the convenience.
+   */
+  onPlace?: (p: Place) => void;
 }) {
   const latN = Number(value.lat);
   const lngN = Number(value.lng);
@@ -49,12 +57,21 @@ export function LocationPicker({ value, onChange, hint }: {
   // reverse lookup for a pin the citizen has already dragged away from cannot
   // land afterwards and relabel the new position with the old address.
   const token = useRef(0);
+  // The callback rides in a ref so the effect below never has to depend on
+  // its identity — a parent that recreates the function every render must not
+  // re-fire a reverse lookup per render.
+  const onPlaceRef = useRef(onPlace);
+  onPlaceRef.current = onPlace;
   useEffect(() => {
     if (!pinned) { setAddress(null); return; }
     const mine = ++token.current;
     setAddress(null);
     geoApi.reverse(latN, lngN)
-      .then((p) => { if (mine === token.current) setAddress(p?.label ?? null); })
+      .then((p) => {
+        if (mine !== token.current) return;
+        setAddress(p?.label ?? null);
+        if (p) onPlaceRef.current?.(p);
+      })
       .catch(() => { if (mine === token.current) setAddress(null); });
   }, [pinned, latN, lngN]);
 

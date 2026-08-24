@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Spinner } from '@/components/ui';
+import { Modal, Spinner } from '@/components/ui';
 import { useReviews, stars } from './api';
 
 /**
@@ -22,14 +22,26 @@ import { useReviews, stars } from './api';
  */
 export function Gallery({ photos, name }: { photos: Array<{ url: string; caption?: string }>; name: string }) {
   const [big, setBig] = useState(0);
+  const [open, setOpen] = useState(false);
   if (photos.length === 0) return null;
+  const alt = photos[big].caption ?? `${name}, photo ${big + 1}`;
   return (
     <div>
-      <img src={photos[big].url} alt={photos[big].caption ?? `${name}, photo ${big + 1}`}
-        style={{ display: 'block', width: '100%', aspectRatio: '16 / 10', objectFit: 'cover', borderRadius: 12 }} />
+      {/* A print, not a mural — the full photograph is the click, and it opens
+          in the product's one overlay rather than a viewer invented here. */}
+      <button type="button" className="gal-open" onClick={() => setOpen(true)}
+        aria-label={`Open ${alt} at full size`}>
+        <img src={photos[big].url} alt={alt} />
+      </button>
       {photos[big].caption && (
         <p className="muted" style={{ fontSize: 12, margin: '6px 0 0' }}>{photos[big].caption}</p>
       )}
+      <Modal open={open} onClose={() => setOpen(false)} title={name} width={960}>
+        <img className="gal-full" src={photos[big].url} alt={alt} />
+        {photos[big].caption && (
+          <p className="muted" style={{ fontSize: 12.5, margin: '8px 0 0' }}>{photos[big].caption}</p>
+        )}
+      </Modal>
       {photos.length > 1 && (
         <div className="swipe-row" style={{ display: 'flex', gap: 8, marginTop: 8, overflowX: 'auto' }}>
           {photos.map((p, i) => (

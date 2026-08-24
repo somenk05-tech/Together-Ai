@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card, Button, Spinner, EmptyState , Switch} from '@/components/ui';
 import { LocationPicker, type LocationValue } from '@/components/LocationPicker';
+import { splitPlace } from '@/features/profile/placeParts';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
 import { servicesApi, useServiceCategories, useBusinessTypes } from './api';
 import { DynamicFields } from './DynamicFields';
@@ -372,6 +373,24 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
               value={{ lat, lng, accuracy }}
               onChange={(v: LocationValue) => { setLat(v.lat); setLng(v.lng); setAccuracy(v.accuracy); }}
               hint="Drag the pin to your door, search the address, or use your location. Optional — a listing with no pin is still found by area."
+              /* ── THE PIN FILLS THE BOXES (owner, 24 Aug) ─────────────────
+                 One press of "Use my location" and the city, the locality and
+                 a 5 km radius land in their fields — the same answer the
+                 address line under the map prints, so what the machine
+                 thought is always visible. EMPTY FIELDS ONLY: a name the
+                 owner already typed is their answer, not a suggestion box,
+                 and nothing here overwrites it. All three stay editable. */
+              onPlace={(p) => {
+                const parts = splitPlace(p.label, p.short);
+                const bits = p.label.split(',').map((b) => b.trim()).filter(Boolean);
+                const cityAt = parts.city ? bits.indexOf(parts.city) : -1;
+                // The locality is the segment just before the city in
+                // Nominatim's local→global run ("…, Powai, Mumbai, …").
+                const area = cityAt > 0 ? bits[cityAt - 1] : null;
+                setCity((v) => (v.trim() ? v : parts.city ?? v));
+                setAreas((v) => (v.trim() ? v : (area && area !== parts.city ? area : v)));
+                setRadius((v) => (v.trim() ? v : '5'));
+              }}
             />
           </div>
           <div style={{ marginTop: 10, maxWidth: 220 }}>

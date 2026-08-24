@@ -356,7 +356,12 @@ function Checkout({ listingId, picks, onBack, onPlaced }: {
   const [phoneTouched, setPhoneTouched] = useState(false);
   const savedAddress = profile.data?.address?.trim() || null;
   const [addressMode, setAddressMode] = useState<'saved' | 'new'>(savedAddress ? 'saved' : 'new');
-  const [newAddress, setNewAddress] = useState('');
+  /* THE ADDRESS, ASKED THE WAY A DELIVERY NEEDS IT (owner, 24 Aug) — flat and
+     building and street as their own boxes, not one field a hungry person
+     under-fills. It travels to the kitchen COMPOSED into one line, so the
+     server, the order card and the saved profile address all keep their one
+     shape and nothing on the wire changed. */
+  const [addr, setAddr] = useState({ flat: '', building: '', street: '', area: '', city: profile.data?.city?.trim() ?? '', pin: '', landmark: '' });
   const [saveAddress, setSaveAddress] = useState(false);
   const [pin, setPin] = useState<{ lat: number; lng: number } | null>(null);
   const [pinErr, setPinErr] = useState<string | null>(null);
@@ -381,7 +386,15 @@ function Checkout({ listingId, picks, onBack, onPlaced }: {
   }, [cartShape]);
 
   const phoneValue = phoneTouched ? phone : (phone || profile.data?.phone || '');
-  const address = fulfilment === 'delivery' ? (addressMode === 'saved' ? savedAddress ?? '' : newAddress.trim()) : '';
+  const composed = [
+    [addr.flat.trim(), addr.building.trim()].filter(Boolean).join(', '),
+    addr.street.trim(),
+    addr.area.trim(),
+    [addr.city.trim(), addr.pin.trim()].filter(Boolean).join(' '),
+    addr.landmark.trim() ? `Landmark: ${addr.landmark.trim()}` : '',
+  ].filter(Boolean).join(', ').slice(0, 400);
+  const addrComplete = !!addr.flat.trim() && !!addr.area.trim() && !!addr.city.trim() && /^\d{6}$/.test(addr.pin.trim());
+  const address = fulfilment === 'delivery' ? (addressMode === 'saved' ? savedAddress ?? '' : composed) : '';
 
   const locate = () => {
     setPinErr(null); setPinBusy(true);
@@ -395,7 +408,8 @@ function Checkout({ listingId, picks, onBack, onPlaced }: {
 
   const ready = !!quote
     && phoneValue.trim().length >= 6
-    && (fulfilment === 'pickup' || (address.length >= 10 && !!pin));
+    && (fulfilment === 'pickup'
+      || ((addressMode === 'saved' ? address.length >= 10 : addrComplete) && !!pin));
 
   const submit = () => {
     if (!quote) return;
@@ -482,9 +496,23 @@ function Checkout({ listingId, picks, onBack, onPlaced }: {
               <strong>{savedAddress ? 'Somewhere else this time' : 'Delivery address'}</strong>
               {(addressMode === 'new' || !savedAddress) && (
                 <>
-                  <textarea className="mpaper-input mp-resize"
-                    value={newAddress} onChange={(e) => setNewAddress(e.target.value)} maxLength={400} rows={2}
-                    placeholder="House, street, area, city, PIN" aria-label="Delivery address" />
+                  <span className="mpaper-addr">
+                    <input className="mpaper-input" value={addr.flat} maxLength={60} aria-label="Flat or house number"
+                      placeholder="Flat / house no." onChange={(e) => setAddr((a) => ({ ...a, flat: e.target.value }))} />
+                    <input className="mpaper-input" value={addr.building} maxLength={80} aria-label="Building or society"
+                      placeholder="Building / society" onChange={(e) => setAddr((a) => ({ ...a, building: e.target.value }))} />
+                    <input className="mpaper-input mp-span" value={addr.street} maxLength={80} aria-label="Street or road"
+                      placeholder="Street / road" onChange={(e) => setAddr((a) => ({ ...a, street: e.target.value }))} />
+                    <input className="mpaper-input" value={addr.area} maxLength={60} aria-label="Area or locality"
+                      placeholder="Area / locality" onChange={(e) => setAddr((a) => ({ ...a, area: e.target.value }))} />
+                    <input className="mpaper-input" value={addr.city} maxLength={60} aria-label="City"
+                      placeholder="City" onChange={(e) => setAddr((a) => ({ ...a, city: e.target.value }))} />
+                    <input className="mpaper-input" value={addr.pin} maxLength={6} inputMode="numeric" aria-label="PIN code"
+                      placeholder="PIN code" onChange={(e) => setAddr((a) => ({ ...a, pin: e.target.value.replace(/[^\d]/g, '') }))} />
+                    <input className="mpaper-input mp-span" value={addr.landmark} maxLength={80} aria-label="Landmark, optional"
+                      placeholder="Landmark (optional) — gate, corner, opposite what" onChange={(e) => setAddr((a) => ({ ...a, landmark: e.target.value }))} />
+                  </span>
+                  {composed && <span className="mpaper-small">Goes to the kitchen as: {composed}</span>}
                   <label className="mpaper-choice mp-mid mp-plain mp-mt">
                     <input type="checkbox" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} />
                     Save this as my address for next time
@@ -533,9 +561,11 @@ function Checkout({ listingId, picks, onBack, onPlaced }: {
       {!ready && quote && (
         <p className="mpaper-small">
           {phoneValue.trim().length < 6 ? 'A phone number is needed so the kitchen can reach you.'
-            : fulfilment === 'delivery' && address.length < 10 ? 'Write the full delivery address.'
-              : fulfilment === 'delivery' && !pin ? 'Turn on location to place a delivery order.'
-                : ''}
+            : fulfilment === 'delivery' && addressMode === 'new' && !addrComplete
+              ? 'The kitchen needs at least the flat number, the area, the city and a 6-digit PIN.'
+              : fulfilment === 'delivery' && addressMode === 'saved' && (savedAddress ?? '').length < 10 ? 'Your saved address is too short — write it out this time.'
+                : fulfilment === 'delivery' && !pin ? 'Turn on location to place a delivery order.'
+                  : ''}
         </p>
       )}
     </div>

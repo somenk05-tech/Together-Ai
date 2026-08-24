@@ -241,6 +241,10 @@
 .mp-plain { font-weight: 400; }
 .mp-flex1 { flex: 1; }
 .mp-m0 { margin: 0; }
+.mp-span { grid-column: 1 / -1; }
+
+/* the delivery address, one box per thing a rider actually needs */
+.mpaper-addr { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-top: 4px; }
 
 .svo-gap { display: grid; gap: 8px; }
 .svo-gap6 { display: grid; gap: 6px; }

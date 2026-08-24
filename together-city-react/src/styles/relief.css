@@ -358,6 +358,18 @@ h1 { letter-spacing: .015em; }
 .row:last-child { border-bottom: 0; }
 /* Extruded cards separate by air, not by a rule across their join. */
 .card + .card, .stat + .stat { margin-top: var(--s-3); }
+/* …BUT ONLY WHEN THEY STAND IN FLOW. A container that declares its own gap —
+   which in this codebase is every inline display:grid / display:flex layout,
+   and the class-based stacks — already provides the air, and the join margin
+   was being added ON TOP of it. In a multi-column grid it was worse than
+   double spacing: the second card in a ROW is also "a card after a card", so
+   every card but the first sat 24px lower and the directory read as a
+   staircase (owner, 24 Aug, the Local Services browse page). The inline-style
+   attribute is the scope because the inline style is how every such container
+   is written. */
+:where([style*="grid"], [style*="flex"], .svo-stack, .svo-list, .mail-list) > :where(.card + .card, .stat + .stat) {
+  margin-top: 0;
+}
 /* AND THE MODAL IS STILL NOT ON THIS LIST. The sentence above holds — an
    overlay that cannot be told from the page is not an overlay — and on 23 Aug
    the thing that carries it changed. It used to be the hairline; --line is

@@ -142,7 +142,9 @@ export function BusinessCard({ s, saved }: { s: ServiceCard; saved: boolean }) {
 
         <Checks trust={s.trust} />
 
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
+        {/* Side by side when the column allows it, two full-width buttons when
+            it does not — never a ragged wrap. See .biz-actions in layout.css. */}
+        <div className="biz-actions">
           <Button variant="accent" size="sm" disabled={enquire.isPending} onClick={message}>
             {enquire.isPending ? 'Opening…' : 'Message'}
           </Button>

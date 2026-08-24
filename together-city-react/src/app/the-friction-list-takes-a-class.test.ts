@@ -61,11 +61,11 @@ describe('the friction list takes a class', () => {
    */
   it('lowered the ceiling to what is actually there', () => {
     const s = read('../scripts/size-system-ceiling.mjs');
-    // Lowered 23 Aug night with the neumorphic re-cut, and again 24 Aug when
-    // the menu paper landed its four components in classes rather than inline
-    // objects — the ordering build finished one below the ceiling, and a
-    // ratchet below its ceiling is slack.
-    expect(s).toMatch(/inlineStyleBlocks: 6784,/);
-    expect(s).toMatch(/rawSpacing: 3681,/);
+    // Lowered 23 Aug night with the neumorphic re-cut, again 24 Aug when the
+    // menu paper landed its components in classes, and once more the same day
+    // when the business card's verbs and the gallery's hero took classes too —
+    // a ratchet below its ceiling is slack.
+    expect(s).toMatch(/inlineStyleBlocks: 6783,/);
+    expect(s).toMatch(/rawSpacing: 3679,/);
   });
 });

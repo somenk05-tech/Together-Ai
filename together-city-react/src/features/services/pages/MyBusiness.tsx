@@ -6,7 +6,7 @@ import {
   usePostOffer, useRemoveOffer, useReviews, useReplyToReview, rupees, offerWhen, stars,
 } from '../api';
 import { MenuEditor } from '../MenuEditor';
-import { MenuCommandCenter, OrdersBoard } from '../MenuCommandCenter';
+import { MenuCommandCenter, OrdersStrip } from '../MenuCommandCenter';
 import { HoursEditor, OpenBadge } from '../HoursEditor';
 import { VerificationTab } from '../Verification';
 
@@ -278,11 +278,10 @@ export function MyBusiness() {
                   It is where the count of neighbours nobody has been given
                   yet is shown, which is the one thing on this card an owner
                   cannot find out anywhere else. */}
-              {/* THE BOARD FIRST. A paid order waiting on a yes is the most
-                  urgent thing this page can possibly hold — it outranks even
-                  the verification queue, because somebody's dinner and
-                  somebody's money are both already committed to it. */}
-              {!removed && <OrdersBoard listingId={l.id} />}
+              {/* THE ORDERS STRIP FIRST. A paid order waiting on a yes is the
+                  most urgent thing this page can hold — the strip carries the
+                  count, and the board is its own room next door. */}
+              {!removed && <OrdersStrip listingId={l.id} />}
               {!removed && <VerificationTab listingId={l.id} />}
               {!removed && <HoursEditor listing={l} />}
               {/* The command centre edits today (sold out, a price, a photo);
@@ -303,6 +302,9 @@ export function MyBusiness() {
                 {/* THE TILL. Two doors rather than one, because writing a bill
                     and getting paid are different errands on different days —
                     and the second one is the screen an owner opens most. */}
+                {!removed && (
+                  <Link to={`/services/${l.id}/orders`}><Button variant="line" size="sm">Orders</Button></Link>
+                )}
                 {!removed && (
                   <Link to={`/services/${l.id}/invoices`}><Button variant="line" size="sm">Invoices</Button></Link>
                 )}

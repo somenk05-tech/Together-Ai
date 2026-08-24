@@ -1,11 +1,11 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
 import {
   rupees, useBusinessOrders, useMenu, usePatchMenuItem,
   type MenuItem, type MenuOption, type PatchMenuItemInput,
 } from './api';
-import { OrderCard } from './ThreadOrder';
 
 /**
  * THE COMMAND CENTRE — the owner's counter, in two halves.
@@ -27,9 +27,14 @@ import { OrderCard } from './ThreadOrder';
 const failText = (e: unknown, fallback: string) =>
   (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? fallback;
 
-export function OrdersBoard({ listingId }: { listingId: string }) {
+/**
+ * THE ONE-LINE SUMMARY, AND THE DOOR. The board itself became its own room
+ * (owner, 24 Aug) — /services/:id/orders, beside Invoices and Payments — so
+ * My Business carries the count and the way there, loudest when somebody's
+ * paid order is waiting on a yes.
+ */
+export function OrdersStrip({ listingId }: { listingId: string }) {
   const q = useBusinessOrders(listingId);
-  const [showDone, setShowDone] = useState(false);
   const open = q.data?.open ?? [];
   const done = q.data?.done ?? [];
   if (!q.data || (open.length === 0 && done.length === 0)) return null;
@@ -39,21 +44,15 @@ export function OrdersBoard({ listingId }: { listingId: string }) {
       <div className="svo-row">
         <strong className="mcc-title">Orders</strong>
         <span className="muted mcc-sub">
-          {open.length === 0 ? 'None waiting' : `${open.length} live — paid and waiting on you`}
+          {open.length === 0
+            ? `Nothing waiting · ${done.length} finished`
+            : `${open.length} paid and waiting on you`}
         </span>
-        {done.length > 0 && (
-          <button type="button" className="svo-linkbtn" onClick={() => setShowDone((v) => !v)}>
-            {showDone ? 'Hide finished' : `Finished (${done.length})`}
-          </button>
-        )}
-      </div>
-      <div className="svo-list">
-        {open.map((o) => (
-          <div key={o.id} className="svo-boarditem"><OrderCard o={o} /></div>
-        ))}
-        {showDone && done.map((o) => (
-          <div key={o.id} className="svo-boarditem is-done"><OrderCard o={o} /></div>
-        ))}
+        <Link to={`/services/${listingId}/orders`}>
+          <Button variant={open.length > 0 ? 'accent' : 'line'} size="sm">
+            {open.length > 0 ? 'Open the orders board' : 'Orders board'}
+          </Button>
+        </Link>
       </div>
     </div>
   );
