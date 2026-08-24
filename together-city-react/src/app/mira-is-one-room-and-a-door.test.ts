@@ -110,12 +110,16 @@ describe('Mira is one room', () => {
     // rendered directly under two chips that force exactly that choice. The
     // quota is a fact about the meter and is stated with the meter; the
     // privacy sentence belongs to the product, not to her.
-    expect(thread).toMatch(/Hey\. I’m Mira\./);
+    /* SIMPLER STILL (owner, 24 Aug: "I'm Mira, ask me anything to do in the
+       city"). The bubble is one breath — who she is — and the line above the
+       thread is the owner's sentence about what to do with her. The
+       which-version promise and the capability rundown both came off the
+       door; the rundown's honesty lives where it always really did, in the
+       server refusing what it cannot do. */
+    expect(thread).toMatch(/Hey, I’m Mira\./);
+    expect(thread).toMatch(/Ask me anything you want done in the city\./);
     expect(strip(thread)).not.toMatch(/200 free messages/);
     expect(strip(thread)).not.toMatch(/privacy framework/i);
-    // AND THIS SENTENCE CAME BACK. It was cut because two chips four
-    // centimetres above it made it false. There are no chips, so it is true.
-    expect(thread).toMatch(/which version of me you need/);
     // The capability rundown was the CITY tab's empty state and the friend
     // never got it. Everybody gets it now: it is the honest version of what
     // the chips were doing — telling you what happens to what you say.

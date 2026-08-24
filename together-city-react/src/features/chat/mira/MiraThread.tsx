@@ -20,13 +20,18 @@ import { clearDay, daySeed, firstOpenToday, loadDay, saveDay, turnId, type Store
  * out twenty-eight intents is not an introduction, it is a menu — and a menu is
  * the thing she exists to replace.
  */
+/*
+   THE MENU CAME OFF THE DOOR (owner, 24 Aug: "the introduction needs to be
+   simple — I'm Mira, ask me anything to do in the city"). The generated
+   capability rundown was honest, and it was still a rundown: three intents
+   and a count, read out before the citizen had said a word. The list is not
+   deleted — `canDo` still arrives, and the server still refuses what it
+   cannot do in her own voice, which is the honesty that matters. The door
+   now says one sentence, and the sentence is the owner's.
+*/
 function opening(canDo: string[]): string {
-  const head = 'Tell me what you want done in the city — I’ll do it.';
-  if (!canDo.length) return head;
-  const shown = canDo.slice(0, 3).join(', ');
-  const rest = canDo.length - 3;
-  const tail = rest > 0 ? `${shown}, and ${rest} more like them` : shown;
-  return `${head} Right now that means ${tail}. Booking and paying come next.`;
+  void canDo;
+  return 'Ask me anything you want done in the city.';
 }
 
 const mmss = (s: number): string => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -73,8 +78,11 @@ const clearedAt = (): number => {
    false. The chips are gone, so it is true, and it is the most useful thing
    she can say in her first breath.
 */
-const WELCOME = `Hey. I’m Mira. 👋 Your buddy in Together City.
-No need to figure out which version of me you need — just talk.`;
+/* One breath now (owner, 24 Aug). "No need to figure out which version of me
+   you need" earned its place when the two chips came down, and the chips are
+   long gone — a promise about a widget nobody has seen is just length. She
+   says who she is; the line above the thread says what to do with her. */
+const WELCOME = `Hey, I’m Mira. 👋`;
 
 /** A record written before turns carried ids is still a record, and one bubble
  *  with no key is a whole list keyed by position again. Named here rather than
