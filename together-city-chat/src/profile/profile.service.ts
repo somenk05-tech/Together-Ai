@@ -8,6 +8,7 @@ import { ConnectionsService } from '../connections/connections.service';
 import { isReservedAdminHandle } from '../auth/admin';
 import { orderPair } from '../connections/connection.util';
 import { MasterProfileService } from './master-profile.service';
+import { parseHiddenHubs, normalizeHiddenHubs, type DesignableHub } from './design-your-services';
 
 export interface HubContribution { hub: string; label: string; summary: string; href: string; }
 export interface ProfileSection { key: string; label: string; value: string | null; }
@@ -58,6 +59,28 @@ export class ProfileService {
     private readonly blocking: BlockingService,
     private readonly admin: AdminService,
   ) {}
+
+  /** DESIGN YOUR SERVICES — read which hubs this citizen keeps off the street.
+   *  Null, empty and corrupt all read as the whole city; see the module. */
+  async services(userId: string): Promise<{ hidden: DesignableHub[] }> {
+    const u = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { hiddenHubsJson: true },
+    });
+    return { hidden: parseHiddenHubs(u?.hiddenHubsJson) };
+  }
+
+  /** DESIGN YOUR SERVICES — replace the citizen's design with the list sent.
+   *  The controller has already refused unknown keys; normalising again here
+   *  keeps the stored string canonical whatever order the client clicked in. */
+  async designServices(userId: string, hidden: readonly string[]): Promise<{ hidden: DesignableHub[] }> {
+    const next = normalizeHiddenHubs(hidden);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { hiddenHubsJson: JSON.stringify(next) },
+    });
+    return { hidden: next };
+  }
 
   async summary(userId: string): Promise<ProfileSummary> {
     // The three verification columns are new enough that a checked-out client

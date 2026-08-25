@@ -17,6 +17,7 @@ import { DeleteAccountCard } from '@/features/settings/components/DeleteAccountC
 import { useMasterProfile } from '../hooks';
 import { Field, Visa } from '../components/Passport';
 import { CitizenCard } from '../components/CitizenCard';
+import { DesignYourServices } from '../components/DesignYourServices';
 import { codeBand, sexMark, splitName, visaPages } from '../passport';
 
 /* The Photo tab is gone: the passport's portrait IS the picker, and a second
@@ -335,6 +336,16 @@ export function Profile() {
               </div>
             </Link>
           ))}
+        </div>
+
+        {/* ── DESIGN YOUR SERVICES ─────────────────────────────────────────
+            The control room. The passport above says who you are; this says
+            which parts of the city you keep. It sits on the profile because
+            the profile is the one page that is about YOU rather than about a
+            hub — and because the section that can hide a hub's doors must
+            never live behind one of them. */}
+        <div style={{ margin: '0 0 30px' }}>
+          <DesignYourServices />
         </div>
 
         {/* ── THE BACK PAGES ───────────────────────────────────────────── */}

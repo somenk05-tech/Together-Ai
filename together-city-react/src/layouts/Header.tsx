@@ -11,6 +11,7 @@ import { Icon, type IconName } from '@/components/ui/Icon';
 import { CommandPalette } from '@/components/CommandPalette';
 import { QuickActions } from './QuickActions';
 import { useTrackRecent } from '@/hooks/useTrackRecent';
+import { useCityDesign } from '@/hooks/useCityDesign';
 
 /** Small red count bubble for pending connection requests. */
 function Badge({ count }: { count: number }) {
@@ -154,10 +155,17 @@ export function Header() {
   // the city to visit. Both stay in NAV, which is the one list carrying every
   // tab's path and label for the burger drawer and the Hubs page.
   const IN_THE_BAR: ReadonlySet<string> = new Set(['mail', 'personal']);
+  // DESIGN YOUR SERVICES: the tab row is the citizen's own street. A hub
+  // switched off in the profile section loses its tab HERE, at render — never
+  // in NAV, which stays the one full list every surface and test reads.
+  // Signed out, loading, or on error, hubOn answers true for everything and
+  // the whole city stands.
+  const { hubOn } = useCityDesign();
   // The sort is belt-and-braces: the list in config is already alphabetical,
   // and sorting here means a hub appended to it lands in its place rather than
   // on the end.
   const tabs = NAV.filter((n) => !IN_THE_BAR.has(n.key))
+    .filter((n) => hubOn(n.key))
     .slice()
     .sort((a, b) => a.label.localeCompare(b.label));
   useTrackRecent(); // remember where we've been — powers Recently Viewed + breadcrumbs

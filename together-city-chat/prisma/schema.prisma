@@ -104,6 +104,11 @@ model User {
   website      String? // optional public link
   passwordHash String
   watchlistJson String? // Entertainment Watchlist — JSON array of saved movies/series
+  /// DESIGN YOUR SERVICES — the hubs this citizen switched OFF, as a JSON array
+  /// of hub keys. Null and '[]' both mean the whole city: absence of a choice
+  /// is not a choice. Stored as the OFF list so a hub built later is on for
+  /// everyone without a backfill. See src/profile/design-your-services.ts.
+  hiddenHubsJson String?
   lastSeen     DateTime @default(now())
   onlineStatus Boolean  @default(false)
   createdAt    DateTime @default(now())

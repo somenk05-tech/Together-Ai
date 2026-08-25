@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { NAV, HUBS } from '@/config/hubs';
+import { useCityDesign } from '@/hooks/useCityDesign';
 import type { HubKey } from '@/types';
 import { tabIcon } from '@/nav/registry';
 import { HUB_HERO } from '@/pages/HubLanding';
@@ -37,6 +38,11 @@ import { Icon } from '@/components/ui/Icon';
 const NOT_A_DOOR = new Set<string>(['mail', 'personal']);
 
 export function Hubs() {
+  // DESIGN YOUR SERVICES: the grid shows the citizen's city, and says so out
+  // loud when that is fewer doors than the whole one — a count that reads as
+  // "13 hubs" with no explanation is a screen asserting an absence it never
+  // established. The line below is that explanation, and the way back.
+  const { hubOn, offCount } = useCityDesign();
   return (
     <div className="page">
       <div className="eyebrow">Together City</div>
@@ -44,7 +50,7 @@ export function Hubs() {
       <p className="muted" style={{ fontSize: 13.5, marginBottom: 18 }}>Every hub, one screen. Tap a door.</p>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14 }}>
-        {NAV.filter((n) => !NOT_A_DOOR.has(n.key)).map((n, i) => {
+        {NAV.filter((n) => !NOT_A_DOOR.has(n.key)).filter((n) => hubOn(n.key)).map((n, i) => {
           const cfg = HUBS[n.key as HubKey];
           const hero = HUB_HERO[n.key as HubKey];
           /* THE FIRST ROW IS NOT LAZY, BECAUSE IT IS NOT BELOW THE FOLD.
@@ -102,6 +108,14 @@ export function Hubs() {
           );
         })}
       </div>
+
+      {offCount > 0 && (
+        <p className="muted" style={{ fontSize: 12, margin: '12px 0 0', lineHeight: 1.55 }}>
+          {offCount === 1 ? 'One hub is' : `${offCount} hubs are`} switched off — hidden, not
+          gone. Turn {offCount === 1 ? 'it' : 'them'} back on in{' '}
+          <Link to="/profile" style={{ fontWeight: 700 }}>Design your services</Link>.
+        </p>
+      )}
 
       {/* The people layer — not hubs, but the doors a citizen reaches for daily. */}
       <div className="eyebrow" style={{ margin: '26px 0 10px' }}>Your city, your people</div>

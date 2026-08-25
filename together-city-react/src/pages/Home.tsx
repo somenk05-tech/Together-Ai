@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { CityHeader } from '@/components/CityHeader';
 import { RecentPanel } from '@/components/RecentPanel';
 import { HUBS } from '@/config/hubs';
+import { useCityDesign } from '@/hooks/useCityDesign';
 import type { HubKey } from '@/types';
 import { InstallCity } from '@/components/InstallCity';
 
@@ -163,6 +164,16 @@ export function Home() {
   useHubTheme(null);
   const navigate = useNavigate();
   const img = (f: string) => `/assets/img/${f}`;
+  /* DESIGN YOUR SERVICES: the home page shows the citizen's city. A hub
+     switched off in the profile section loses its map zone, its billboard on
+     the walk and its tile in the foot grid — at render, exactly the way Travel
+     left these surfaces for everyone. The buildings stay in the photograph;
+     a photograph is not a menu. Hidden is not deleted: the routes still
+     answer, and the profile section puts everything back in one press. */
+  const { hubOn } = useCityDesign();
+  const zones = ZONES.filter((z) => hubOn(z.to.slice(1)));
+  const districts = DISTRICTS.filter((p) => hubOn(p.key));
+  const tiles = FALLBACK.filter((p) => hubOn(p.to.slice(1)));
 
   return (
     <div>
@@ -203,7 +214,7 @@ export function Home() {
           />
         )}
         <svg className="bmap" viewBox="0 0 1903 826" preserveAspectRatio="xMidYMid slice" aria-label="Together City map">
-          {ZONES.map((z) => (
+          {zones.map((z) => (
             <g key={z.to} role="link" aria-label={z.label} onClick={() => navigate(z.to)} style={{ cursor: 'pointer' }}>
               <title>{z.label}</title>
               {z.shape === 'ellipse'
@@ -274,7 +285,15 @@ export function Home() {
           <div className="blk-head"><h2>Walk the districts</h2></div>
         </div>
         <div className="district-run">
-          {DISTRICTS.map((p, panelIndex) => {
+          {/* An all-off walk is a citizen's decision, not a broken page — it
+              says where the switch is rather than standing silently empty. */}
+          {districts.length === 0 && (
+            <p className="muted" style={{ fontSize: 13, padding: '18px 24px', lineHeight: 1.6 }}>
+              Every district is switched off. Turn hubs back on in{' '}
+              <Link to="/profile" style={{ fontWeight: 700 }}>Design your services</Link>.
+            </p>
+          )}
+          {districts.map((p, panelIndex) => {
             const cfg = HUBS[p.key];
             const soon = cfg.items.length === 0;   // a hub with no inner pages is not yet a room
             const name = districtName(p.key);
@@ -323,7 +342,7 @@ export function Home() {
           the same twelve tiles and the same markup; only the place and the
           shape changed (six across, two down; see index.css). */}
       <div className="cityfallback">
-        {FALLBACK.map((p) => (
+        {tiles.map((p) => (
           <Link key={p.to} to={p.to}><img loading="lazy" src={img(p.img)} alt="" /><span>{p.title}</span></Link>
         ))}
       </div>

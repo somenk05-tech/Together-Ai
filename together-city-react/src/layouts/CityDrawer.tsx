@@ -5,6 +5,7 @@ import type { HubKey } from '@/types';
 import { tabIcon } from '@/nav/registry';
 import { Icon } from '@/components/ui/Icon';
 import { useUiStore } from '@/store/ui.store';
+import { useCityDesign } from '@/hooks/useCityDesign';
 import { DrawerScrim, useSwipeClose } from './drawerDismiss';
 
 /**
@@ -40,6 +41,11 @@ export function CityDrawer() {
   // A hook, so it is called before the early return below like every other one.
   const swipe = useSwipeClose(close);
   const phone = useSyncExternalStore(subscribeMq, readMq, () => false);
+  // DESIGN YOUR SERVICES: same filter the header tabs wear, for the same
+  // reason — this drawer IS the header on a phone. Mail and Personal are the
+  // citizen's own doors, never designable, so hubOn always answers true for
+  // them and they keep their place.
+  const { hubOn } = useCityDesign();
   /* THE `inHub` NULL-CHECK IS GONE, AND IT WAS THE DEAD BURGER. It returned
      null whenever the path sat on or under a hub's backPath, assuming those
      pages render Sidebar. They don't — AppShell and HubLayout are SIBLING
@@ -70,7 +76,7 @@ export function CityDrawer() {
           <span className="n" aria-hidden><Icon name="sparkles" size={15} /></span>
           <span><span className="l">Home</span><span className="s">Your Together City</span></span>
         </NavLink>
-        {NAV.map((n) => (
+        {NAV.filter((n) => hubOn(n.key)).map((n) => (
           <NavLink key={n.key} to={n.path} onClick={() => toggle(false)}
             className={({ isActive }) => (isActive ? 'active' : undefined)}>
             <span className="n" aria-hidden><Icon name={tabIcon(n.key)} size={15} /></span>

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Query, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Put, Query, UseGuards, UsePipes } from '@nestjs/common';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -7,6 +7,7 @@ import { JwtUser } from '../shared/types';
 import { ProfileService } from './profile.service';
 import { MasterProfileService, type SharedFields } from './master-profile.service';
 import { declaredHealthPatch } from './master-health-conditions';
+import { DESIGNABLE_HUBS } from './design-your-services';
 
 import { Mira } from '../mira/mira.decorator';
 @Controller('profile')
@@ -130,6 +131,25 @@ export class ProfileController {
     const { expectedVersion, ...fields } = patch as typeof patch & { expectedVersion?: number };
     await this.masterProfile.syncShared(user.sub, fields, 'master-profile-page', { expectedVersion });
     return this.masterProfile.get(user.sub);
+  }
+
+  /** DESIGN YOUR SERVICES — the hubs this citizen has switched off. Null,
+   *  empty and corrupt all read as the whole city; see design-your-services.ts. */
+  @Get('services')
+  services(@CurrentUser() user: JwtUser) {
+    return this.profile.services(user.sub);
+  }
+
+  /** Replace the citizen's design. The whole list travels every time — a
+   *  toggle that can PATCH one key is a toggle that can store half an answer.
+   *  A key outside the designable list is refused rather than stored, so a
+   *  retired hub can never brick a saved design. */
+  @Put('services')
+  @UsePipes(new ZodValidationPipe(z.object({
+    hidden: z.array(z.enum(DESIGNABLE_HUBS)).max(DESIGNABLE_HUBS.length),
+  }).strict()))
+  designServices(@CurrentUser() user: JwtUser, @Body() body: { hidden: string[] }) {
+    return this.profile.designServices(user.sub, body.hidden);
   }
 
   @Get('summary')
