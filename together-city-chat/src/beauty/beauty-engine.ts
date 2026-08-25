@@ -23,6 +23,7 @@ const cite = (ids: string[]): Citation[] => ids.map((id) => CITATIONS[id]).filte
 
 /** Beauty "need" categories — the vocabulary that links insights to products. */
 import { isTopicallySafe } from '../shared/topical-sensitivities';
+import { claimableKeys, type ProductSite } from './product-site';
 import { conditionsDeclared, isSafeForConditions } from '../shared/topical-contraindications';
 
 export type BeautyTag =
@@ -144,6 +145,16 @@ export interface BeautyProduct {
   category: string;         // display category
   /** 'Skincare' | 'Hair Care' | 'Body Care' — which band of the routine it is in. */
   group: string;
+  /**
+   * WHERE ON THE BODY IT ACTS, when that is not what the group implies.
+   *
+   * Omitted on almost every row: absence means the group's default, resolved in
+   * one place by `siteOf()` in product-site.ts. It is present on the facial-hair
+   * products inside Hair Care, which is what stops a beard growth oil answering
+   * a reading about the hair on someone's head. See product-site.ts for what
+   * went wrong before this field existed.
+   */
+  site?: ProductSite;
   priceInr: number;
   /** 'Budget' | 'Mid-range' | 'Premium', as the data sheet grades it. */
   tier: string;
@@ -327,7 +338,17 @@ export function recommendProducts(opts: {
     // pregnant", and a shelf that conflates them explains neither.
     .filter((p) => isSafeForConditions(p.name, [...p.actives, p.keyIngredient], conditions))
     .map((p) => {
-      const matchedAttrs = p.profileKeys.map((k) => need.get(k)).filter(Boolean) as ReadingLite[];
+      /**
+       * NOT `p.profileKeys` — the keys this product may be MATCHED on.
+       *
+       * A beard oil in the Hair Care band legitimately carries `density`; what
+       * it must not do is answer a scalp reading with it. `claimableKeys` drops
+       * the scalp keys from anything whose site is not the scalp, and keeps the
+       * row's data intact so the shelf still shows the product to somebody
+       * shopping for a beard oil.
+       */
+      const claimable = claimableKeys(p);
+      const matchedAttrs = claimable.map((k) => need.get(k)).filter(Boolean) as ReadingLite[];
       /**
        * ── 'ALL SKIN TYPES' IS NOT A CLAIM ABOUT SENSITIVE SKIN ──────────────
        *
@@ -379,7 +400,9 @@ export function recommendProducts(opts: {
         const demand = [...need.values()].reduce((n, r) => n + severityOf(r), 0);
         const answered = matchedAttrs.reduce((n, r) => n + severityOf(r), 0);
         const coverage = demand > 0 ? Math.min(1, answered / demand) : 0;
-        const focus = p.profileKeys.length > 0 ? matchedAttrs.length / p.profileKeys.length : 0;
+        // Over the CLAIMABLE keys, not all of them: a product that cannot use
+        // half its keys for this person is not thereby more focused on them.
+        const focus = claimable.length > 0 ? matchedAttrs.length / claimable.length : 0;
         const fit = p.suitableSkin.includes(skinType) ? 1 : 0.94;
         // Coverage leads because it is the only one of the three that is about
         // the person rather than about the product.

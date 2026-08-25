@@ -179,6 +179,32 @@ const PROFILE_WORDS = {
   thickness: /volumis|volumiz|volume|thicken|fine hair|body.*hair|biotin/i,
 };
 
+/**
+ * ── FACIAL HAIR IS NOT THE HAIR ON YOUR HEAD ────────────────────────────────
+ *
+ * `density`'s rule below matches "growth" and "regrowth", and a beard growth
+ * oil is a hair-care product that promotes growth — so six Ustraa beard SKUs
+ * came out of this derivation carrying `density`, the key that means SCALP hair
+ * density. They were five of the ten Hair Care products under ₹1,000 carrying
+ * it, so "best hair-fall product under ₹500" answered **Beard Growth Oil at a
+ * match score of 85**.
+ *
+ * Nothing in the data was false. The row simply had no way to say which hair it
+ * was about. `site` is that way; it is emitted only where it differs from the
+ * group's default (product-site.ts resolves the default), so this shows up as
+ * fourteen changed rows rather than 1,841.
+ *
+ * SCOPED TO HAIR CARE ON PURPOSE. Lotus Professional's "Face And Beard Wash" is
+ * a Skincare row and claims face keys; it is a face wash that is also fine on a
+ * beard, not a beard product, and reclassifying it would be the same category
+ * error in the other direction.
+ */
+const FACIAL_HAIR = /\bbeard\b|\bbeards\b|moustache|mustache|\bmooch\b|stubble/i;
+const SCALP_KEYS = new Set(['scalp', 'density', 'thickness', 'hairline']);
+const SCALP_TAGS = new Set(['scalp', 'hair-density']);
+const siteFor = (group, name) =>
+  (group === 'Hair Care' && FACIAL_HAIR.test(name)) ? 'beard' : undefined;
+
 /** Which keys a group may claim. A face cream cannot have an opinion about a scalp. */
 const KEYS_FOR_GROUP = {
   Skincare: ['acne', 'oil', 'texture', 'hydration', 'pigmentation', 'wrinkles', 'redness'],
@@ -368,7 +394,11 @@ export function deriveOne(row) {
   if (RETINOID.test(text) && (group === 'Skincare' || group === 'Makeup')) usage = 'Night';
   else if (RETINOID.test(text) && group === 'Body Care') usage = 'Body';
 
-  const allowedKeys = KEYS_FOR_GROUP[group] ?? [];
+  const site = siteFor(group, row.name);
+  // A beard product keeps the Hair Care band and loses the scalp keys inside
+  // it. What is left is `damage` — conditioning facial hair is a real claim and
+  // the beard wash and softener rows already made only that one.
+  const allowedKeys = (KEYS_FOR_GROUP[group] ?? []).filter((k) => !(site === 'beard' && SCALP_KEYS.has(k)));
   /**
    * THE SHEET'S OWN CONCERN COLUMN IS READ FIRST, WHERE IT HAS ONE.
    *
@@ -408,7 +438,11 @@ export function deriveOne(row) {
     profileKeys = KEY_FALLBACK[category] ?? [allowedKeys[0]].filter(Boolean);
   }
 
-  const allowedTags = TAGS_FOR_GROUP[group] ?? [];
+  // The same site rule as the keys, and for the same reason one layer quieter:
+  // `hair-density` is what makes the engine print "Low ferritin (hair thinning
+  // & increased shedding)" as the reason a product was prioritised. On a beard
+  // oil that sentence is about the wrong hair.
+  const allowedTags = (TAGS_FOR_GROUP[group] ?? []).filter((t) => !(site === 'beard' && SCALP_TAGS.has(t)));
   const tags = allowedTags.filter((t) => {
     if (t === 'spf' && category !== 'Sunscreen') return false;
     return TAG_WORDS[t].test(text);
@@ -420,7 +454,7 @@ export function deriveOne(row) {
     // and size variants whose names collide once idFor() truncates at 47
     // characters. Disambiguating upstream keeps every one of them; letting
     // idFor() decide would silently drop a quarter of the shelf.
-    id: row.id ?? idFor(row.name), name: row.name, brand: row.brand, category, group,
+    id: row.id ?? idFor(row.name), name: row.name, brand: row.brand, category, group, site,
     priceInr: row.priceInr, tier: row.tier,
     tags, profileKeys,
     suitableSkin: suitableSkinFor(group, row.skinHair),
@@ -444,7 +478,9 @@ const q = (s) => `'${String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 const arr = (xs) => `[${xs.map(q).join(', ')}]`;
 
 function emit(p) {
-  return `  { id: ${q(p.id)}, name: ${q(p.name)}, brand: ${q(p.brand)}, category: ${q(p.category)}, group: ${q(p.group)},\n`
+  // `site` is emitted only where it differs from the group's default. See
+  // src/beauty/product-site.ts — absence means the default, not "unknown".
+  return `  { id: ${q(p.id)}, name: ${q(p.name)}, brand: ${q(p.brand)}, category: ${q(p.category)}, group: ${q(p.group)},${p.site ? ` site: ${q(p.site)},` : ''}\n`
     + `    priceInr: ${p.priceInr}, tier: ${q(p.tier)}, usage: ${q(p.usage)},\n`
     + `    tags: ${arr(p.tags)}, profileKeys: ${arr(p.profileKeys)}, suitableSkin: ${arr(p.suitableSkin)},\n`
     + `    actives: ${arr(p.actives)}, keyIngredient: ${q(p.keyIngredient)},\n`
