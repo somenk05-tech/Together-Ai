@@ -1,5 +1,6 @@
 import { HUBS } from '@/config/hubs';
 import { DESIGNABLE_HUBS } from '@/config/services';
+import { PATHS, type PathDef } from '@/config/paths';
 import { useCityDesign, useDesignServices } from '@/hooks/useCityDesign';
 import { Switch } from '@/components/ui';
 import { Icon } from '@/components/ui/Icon';
@@ -25,10 +26,31 @@ export function DesignYourServices() {
   const { hidden } = useCityDesign();
   const design = useDesignServices();
 
+  const save = (next: Set<string>) => design.mutate(DESIGNABLE_HUBS.filter((k) => next.has(k)));
+
   const setHub = (key: HubKey, on: boolean) => {
     const next = new Set(hidden);
     if (on) next.delete(key); else next.add(key);
-    design.mutate(DESIGNABLE_HUBS.filter((k) => next.has(k)));
+    save(next);
+  };
+
+  /* A path is ON when every hub in it is on — derived, never stored, so this
+     switch can never disagree with the hub switches above it. */
+  const pathOn = (p: PathDef) => p.hubs.every((h) => !hidden.has(h));
+
+  const setPath = (path: PathDef, on: boolean) => {
+    const next = new Set(hidden);
+    if (on) {
+      for (const h of path.hubs) next.delete(h);
+    } else {
+      /* Only the hubs no OTHER fully-on path is standing on. Turning off
+         Self Care must not quietly break the Healthy Lifestyle you left on. */
+      const held = new Set(PATHS
+        .filter((q) => q.key !== path.key && pathOn(q))
+        .flatMap((q) => [...q.hubs]));
+      for (const h of path.hubs) if (!held.has(h)) next.add(h);
+    }
+    save(next);
   };
 
   const onCount = DESIGNABLE_HUBS.length - hidden.size;
@@ -69,6 +91,42 @@ export function DesignYourServices() {
           ? 'The whole city is on. Everything stays exactly as it is until you switch something off.'
           : `${onCount} of ${DESIGNABLE_HUBS.length} hubs on. The ${hidden.size === 1 ? 'one you switched off is' : `${hidden.size} you switched off are`} hidden, not gone — saved links still open, and Mira can still take you there.`}
       </p>
+
+      {/* ── DESIGN YOUR PATHS ─────────────────────────────────────────────
+          A path is a named set of hubs that work together, and nothing more:
+          on when every hub in it is on, derived from the switches above
+          rather than stored beside them. See config/paths.ts for why. */}
+      <div className="eyebrow" style={{ marginTop: 26 }}>Design your paths</div>
+      <p className="muted" style={{ fontSize: 13, margin: '4px 0 14px', maxWidth: '62ch', lineHeight: 1.6 }}>
+        Hubs that work together, switched together. A path is on when every hub
+        in it is on; switching one on opens all of its hubs, and switching it
+        off closes only the hubs none of your other paths are using.
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 12 }}>
+        {PATHS.map((p) => {
+          const on = pathOn(p);
+          return (
+            <div key={p.key} className="card" style={{ display: 'flex', gap: 10, opacity: on ? 1 : 0.62 }}>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                  {p.hubs.map((h) => (
+                    <span key={h} aria-hidden style={{ color: 'var(--accent-ink)', display: 'grid', placeItems: 'center' }}>
+                      <Icon name={tabIcon(h)} size={14} />
+                    </span>
+                  ))}
+                </span>
+                <span style={{ display: 'block', fontWeight: 700, fontSize: 13.5, marginTop: 6, lineHeight: 1.25 }}>{p.name}</span>
+                <span className="muted" style={{ display: 'block', fontSize: 11, marginTop: 2, lineHeight: 1.5 }}>{p.line}</span>
+                <span className="muted" style={{ display: 'block', fontSize: 10.5, marginTop: 5, fontWeight: 600 }}>
+                  {p.hubs.map((h) => HUBS[h].name).join(' + ')}
+                </span>
+              </span>
+              <Switch checked={on} onChange={(next) => setPath(p, next)}
+                label={`${p.name} path ${on ? 'on' : 'off'}`} hideLabel />
+            </div>
+          );
+        })}
+      </div>
     </section>
   );
 }
