@@ -6,13 +6,17 @@ import {
   useMatchDetail, useLikeMatch, usePassMatch, useConnectChat, useUnmatch,
   type MatchKind, type MatchDetail,
 } from '../api';
-import { EmailConfirmed, EMAIL_CONFIRMED_NOTE } from '../components/SelfieOnFile';
+import { EmailConfirmed, EMAIL_CONFIRMED_NOTE, SelfieOnFile, SELFIE_ON_FILE_NOTE } from '../components/SelfieOnFile';
 import { SafetyMenu } from '../components/SafetyMenu';
 import { bandFor, coverageNote } from '../bands';
 
 const photoBox: CSSProperties = { position: 'relative', borderRadius: 16, overflow: 'hidden', background: 'var(--paper)' };
 const cover: CSSProperties = { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' };
 const pill: CSSProperties = { border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '5px 13px', fontSize: 12.5, background: 'var(--accent-soft)' };
+/** The two marks on the name, in words. Both wear this — one sentence per
+ *  thing actually checked, in the same voice, so neither reads as the
+ *  stronger claim. */
+const checkNote: CSSProperties = { fontSize: 11.5, lineHeight: 1.55, margin: '10px 2px 0' };
 
 /**
  * THE BAND COMES FROM ONE TABLE NOW, and it is `bandFor` in `bands.ts`.
@@ -79,6 +83,7 @@ function Collage({ d }: { d: MatchDetail }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontFamily: 'var(--serif)', fontSize: 29, fontWeight: 700, lineHeight: 1.05, textShadow: '0 2px 14px rgba(0,0,0,.5)' }}>
             <span>{d.name}{d.age ? `, ${d.age}` : ''}</span>
             <EmailConfirmed on={d.verified} />
+            <SelfieOnFile on={Boolean(d.selfieOnFile)} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 14, marginTop: 4, textShadow: '0 1px 8px rgba(0,0,0,.6)' }}>
             Looking for <strong style={{ color: 'var(--danger-line)', fontWeight: 700 }}>{goal}</strong>
@@ -96,9 +101,10 @@ function Collage({ d }: { d: MatchDetail }) {
           decides whether to meet a stranger, so the limits of what we checked
           belong here rather than in a tooltip nobody hovers. */}
       {d.verified && (
-        <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.55, margin: '10px 2px 0' }}>
-          ✉ {EMAIL_CONFIRMED_NOTE}
-        </p>
+        <p className="muted" style={checkNote}>✉ {EMAIL_CONFIRMED_NOTE}</p>
+      )}
+      {d.selfieOnFile && (
+        <p className="muted" style={checkNote}>📷 {SELFIE_ON_FILE_NOTE}</p>
       )}
 
       {/* Thumbnail strip — scroll/click through every photo */}

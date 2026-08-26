@@ -21,6 +21,7 @@ import { compatibilityScore, zodiacSign } from './astrology';
 import {
   canonicalGoal, confidenceFor, coverage, curatedBar, distanceNote, explain, factorScores, frictions, matchAlertBody, matchAlertReason, overallScore, preferenceNotes, sharedItems, seeks, shownName, type DXProfile, type FactorBreakdown, unreachableReason,
 } from './matching';
+import { carrySelfie, selfieOnFile, selfieTakenAt, SELFIE_KEY, SELFIE_AT } from './selfie';
 import { LEARNING_WINDOW, learnWeights, overallScoreWith, type Decision } from './learned-weights';
 import { profileCompletion } from './completion';
 import { DAILY_LIKES, DAILY_SUPER_LIKES, likeLimitMessage, superLimitMessage } from './limits';
@@ -392,6 +393,49 @@ export class DatingService implements OnModuleInit {
     };
   }
 
+  /**
+   * PUT THE SELFIE ON FILE (owner, 27 Aug).
+   *
+   * The bytes have already gone browser→bucket through the same presigned PUT
+   * the profile photos use, so what arrives here is a key. Two things make this
+   * a mark rather than a claim: it is written by the server, and the key must
+   * belong to this citizen — `dating/<someone-else>/…` is refused, exactly as
+   * `ownPhotosOnly` refuses it on the photo path.
+   *
+   * It is deliberately NOT proof of identity, and every surface that draws it
+   * says so. What it proves is that a selfie is on file.
+   */
+  async saveSelfie(userId: string, key: string) {
+    if (!StorageProvider.isOwnDatingKey(userId, key)) {
+      throw new BadRequestException('That photo does not belong to this profile.');
+    }
+    const row = await this.prisma.datingProfile.findUnique({ where: { userId }, select: { extras: true } });
+    if (!row) throw new NotFoundException('Create your dating profile before adding a selfie.');
+    const dx = this.parseDX(row.extras) as Record<string, unknown>;
+    const at = new Date().toISOString();
+    await this.prisma.datingProfile.update({
+      where: { userId },
+      data: { extras: JSON.stringify({ ...dx, [SELFIE_KEY]: key, [SELFIE_AT]: at }) },
+    });
+    await this.bumpListVersion(userId);
+    // No analytics event: the funnel's step names are a closed union and a new
+    // one belongs to the funnel's own decision, not to this fix.
+    return { selfieOnFile: true, selfieAt: at };
+  }
+
+  /** Take it off again. The same hand that wrote the mark is the only one that
+   *  can clear it — a profile save cannot, deliberately. */
+  async clearSelfie(userId: string) {
+    const row = await this.prisma.datingProfile.findUnique({ where: { userId }, select: { extras: true } });
+    if (!row) throw new NotFoundException('No dating profile to change.');
+    const dx = this.parseDX(row.extras) as Record<string, unknown>;
+    delete dx[SELFIE_KEY];
+    delete dx[SELFIE_AT];
+    await this.prisma.datingProfile.update({ where: { userId }, data: { extras: JSON.stringify(dx) } });
+    await this.bumpListVersion(userId);
+    return { selfieOnFile: false, selfieAt: null };
+  }
+
   /** A presigned PUT for one dating photo. Private bucket; the key comes back. */
   async presignPhoto(userId: string, mimeType: string, sizeBytes: number) {
     return this.media.requestDatingUpload(userId, mimeType, sizeBytes);
@@ -429,28 +473,34 @@ export class DatingService implements OnModuleInit {
     if (typeof dx.sensitiveConsentAt !== 'string' || Number.isNaN(Date.parse(dx.sensitiveConsentAt))) {
       throw new BadRequestException('Tick the box that lets us use who you seek and your religion for matching before saving.');
     }
+    // Read before the write: the selfie mark lives on the stored record and a
+    // save must carry it across rather than take the client's word for it.
+    const prior = await this.prisma.datingProfile.findUnique({ where: { userId }, select: { extras: true } });
+    const priorDX = this.parseDX(prior?.extras) as Record<string, unknown>;
     const visibility: Visibility = dx.visibility ?? (dto.visible === false ? 'hidden' : 'everyone');
     const inPool = visibility === 'everyone' || visibility === 'threshold';
     // Rewrite extras with only the photo entries this citizen owns. Filtered
     // rather than rejected: a save that throws over one bad entry would lose
     // the whole profile edit, and the honest outcome is the photo not appearing.
+    // A BADGE IS ONLY AS GOOD AS WHO CAN WRITE IT.
+    //
+    // `selfieVerified` lived in this free-form blob and was stored verbatim,
+    // so any request made outside the app could set it, with any image or with
+    // none. It is still dropped on every write — and since 27 Aug there is a
+    // real mark to drop it in favour of: `saveSelfie` writes a bucket KEY under
+    // the server's own hand, and `carrySelfie` re-applies it here, so a profile
+    // edit can neither forge a selfie nor lose one. See selfie.ts.
     const cleanedExtras = (() => {
-      if (!dto.extras) return dto.extras ?? null;
-      try {
-        const parsed = JSON.parse(dto.extras) as Record<string, unknown>;
-        // A BADGE IS ONLY AS GOOD AS WHO CAN WRITE IT.
-        //
-        // `selfieVerified` lived in this free-form blob, was stored verbatim,
-        // and was rendered as `verified: true` on a card. It has no server-side
-        // write site anywhere — which means any request made outside the app
-        // could set it, with any image, or with none. The React component that
-        // captures the selfie already says so in a comment; the server did not
-        // act on it. It is dropped on every write now, and `verified` on a card
-        // reports only what the server can prove (see `provableVerified`).
-        delete parsed.selfieVerified;
-        if (!('photos' in parsed)) return JSON.stringify(parsed);
-        return JSON.stringify({ ...parsed, photos: this.ownPhotosOnly(userId, parsed.photos) });
-      } catch { return dto.extras; }
+      let parsed: Record<string, unknown> = {};
+      if (dto.extras) {
+        try { parsed = JSON.parse(dto.extras) as Record<string, unknown>; }
+        catch { return dto.extras; }
+      } else if (!selfieOnFile(priorDX)) {
+        return dto.extras ?? null;
+      }
+      const carried = carrySelfie(parsed, priorDX);
+      if ('photos' in carried) carried.photos = this.ownPhotosOnly(userId, carried.photos);
+      return JSON.stringify(carried);
     })();
     const data = {
       gender: dto.gender,
@@ -463,7 +513,7 @@ export class DatingService implements OnModuleInit {
       extras: cleanedExtras,
       visible: inPool,
     };
-    const existed = await this.prisma.datingProfile.count({ where: { userId } });
+    const existed = prior !== null;
     const profile = await this.prisma.datingProfile.upsert({
       where: { userId },
       update: data,
@@ -1403,7 +1453,7 @@ export class DatingService implements OnModuleInit {
     const myD = this.parseDX((mine as { extras?: string | null }).extras);
     const candD = this.parseDX((cand as { extras?: string | null }).extras) as DXProfile & DXVisibility & {
       firstName?: string; photos?: string[]; languages?: string[]; heightCm?: number | null;
-      education?: string; profession?: string; selfieVerified?: boolean; selfiePhoto?: string;
+      education?: string; profession?: string;
     };
     const theirAge = this.ageOf(cand.birthDate);
 
@@ -1452,6 +1502,9 @@ export class DatingService implements OnModuleInit {
       // is no longer read; a contact channel this platform confirmed is a weaker
       // claim than identity, and it is the strongest one that is currently true.
       verified: Boolean((cand.user as { emailVerified?: boolean | null }).emailVerified),
+      // A second, separate fact — never folded into `verified`, which is the
+      // email and only the email. Drawn as its own mark, with its own sentence.
+      selfieOnFile: selfieOnFile(candD as Record<string, unknown>),
       yourSign: signA, theirSign: signB,
       score, breakdown,
       coverage: coverage(myD, candD, myInterests, theirInterests),
@@ -2501,6 +2554,10 @@ export class DatingService implements OnModuleInit {
       sign: zodiacSign(p.birthDate).name,
       visible: p.visible,
       visibility: (dx.visibility ?? 'everyone') as Visibility,
+      // Server-derived, both of them: the page asks whether a selfie is on
+      // file rather than being told by the blob it just posted.
+      selfieOnFile: selfieOnFile(dx as Record<string, unknown>),
+      selfieAt: selfieTakenAt(dx as Record<string, unknown>),
       minMatchScore: dx.minMatchScore ?? MATCH_THRESHOLD,
       extras: (p as { extras?: string | null }).extras ?? null,
       moderation: (p as { moderation?: string }).moderation ?? 'approved',

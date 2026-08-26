@@ -258,6 +258,25 @@ export class DatingController {
     return this.dating.presignPhoto(user.sub, String(b.mimeType ?? ''), Number(b.sizeBytes));
   }
 
+  /**
+   * THE SELFIE'S ONE WRITE SITE (owner, 27 Aug).
+   *
+   * The bytes go browser→bucket through the presign above; this takes the key
+   * and the server writes the mark itself. A profile save can no longer set it
+   * or clear it — see selfie.ts for why that is the whole point.
+   */
+  @Post('selfie')
+  @Throttle(UPLOAD_LIMIT)
+  saveSelfie(@CurrentUser() user: JwtUser, @Body() body: unknown) {
+    const b = (body ?? {}) as { key?: string };
+    return this.dating.saveSelfie(user.sub, String(b.key ?? ''));
+  }
+
+  @Delete('selfie')
+  clearSelfie(@CurrentUser() user: JwtUser) {
+    return this.dating.clearSelfie(user.sub);
+  }
+
   // ─── M2: a like you cannot spend twice, a super-like, and a way back. ───
 
   /** What is left of today, in the citizen's own timezone. */

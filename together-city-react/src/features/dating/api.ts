@@ -22,6 +22,11 @@ export interface DatingProfile {
   visible: boolean;
   visibility?: Visibility;
   minMatchScore?: number;
+  /** SERVER-DERIVED, both of them (27 Aug). A selfie is on file when the
+   *  server holds its key — the page asks, rather than being told by the
+   *  extras blob it just posted. Neither may be written through a save. */
+  selfieOnFile?: boolean;
+  selfieAt?: string | null;
   completion?: ProfileCompletion;
   extras: string | null;
   /**
@@ -111,6 +116,9 @@ export interface MatchDetail {
   /** Since 26 Aug this is exactly `emailVerified` on their account, rendered
    *  as an envelope by components/SelfieOnFile#EmailConfirmed. */
   verified: boolean;
+  /** A separate fact, never folded into `verified`: the server holds a selfie
+   *  for them. Not identity — components/SelfieOnFile says exactly that. */
+  selfieOnFile?: boolean;
   yourSign: string; theirSign: string;
   score: number;
   breakdown: FactorBreakdown;
@@ -163,6 +171,10 @@ export const datingApi = {
   profile: () => api.get<DatingProfile | null>('/dating/profile').then((r) => r.data),
   upsertProfile: (input: UpsertProfileInput) => api.post<DatingProfile>('/dating/profile', input).then((r) => r.data),
   deleteProfile: () => api.delete<{ ok: boolean; deleted: boolean }>('/dating/profile').then((r) => r.data),
+  /** The bytes are already in the bucket; this hands over the key and the
+   *  server writes the mark. See the API's selfie.ts. */
+  saveSelfie: (key: string) => api.post<{ selfieOnFile: true; selfieAt: string }>('/dating/selfie', { key }).then((r) => r.data),
+  clearSelfie: () => api.delete<{ selfieOnFile: false; selfieAt: null }>('/dating/selfie').then((r) => r.data),
   matches: (kind: MatchKind) => api.get<CuratedMatch[]>('/dating/matches', { params: { kind } }).then((r) => r.data),
   discover: (kind: MatchKind, limit?: number) => api.get<DiscoverResult>('/dating/discover', { params: { kind, limit } }).then((r) => r.data),
   matchDetail: (targetUserId: string, kind: MatchKind) => api.get<MatchDetail>(`/dating/matches/${targetUserId}`, { params: { kind } }).then((r) => r.data),
@@ -321,6 +333,24 @@ export function useUpsertDatingProfile() {
     },
   });
 }
+/** Put the selfie on file, or take it off. Both refetch the profile rather
+ *  than guessing at the new state: the mark is the server's to report. */
+export function useSaveSelfie() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (key: string) => datingApi.saveSelfie(key),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['dating', 'profile'] }); },
+  });
+}
+
+export function useClearSelfie() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => datingApi.clearSelfie(),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['dating', 'profile'] }); },
+  });
+}
+
 export function useDeleteDatingProfile() {
   const qc = useQueryClient();
   return useMutation({

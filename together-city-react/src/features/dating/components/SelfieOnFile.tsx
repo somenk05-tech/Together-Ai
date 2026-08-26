@@ -10,10 +10,11 @@
  * knows. Two things it does not know:
  *
  *  1. That the selfie came from a camera. The camera-only rule is enforced by
- *     the capture UI in the browser. `upsertProfile` stores the `extras` JSON it
- *     is handed, so a request made outside the app can set `selfieVerified` with
- *     any image at all. SelfieVerify's own comment says there is "no way to mark
- *     yourself verified by uploading a photo" — there is; it just isn't in the UI.
+ *     the capture UI in the browser. Since 27 Aug the MARK itself is the
+ *     server's — `upsertProfile` strips any selfie key the client sends, and
+ *     only POST /dating/selfie writes one, for a bucket key the caller owns —
+ *     so it can no longer be set by a hand-made save. What that endpoint still
+ *     cannot see is which lens the bytes came out of.
  *  2. That the person in the selfie is the person in the profile photos. No
  *     face match runs anywhere. A genuine live selfie of somebody else earns the
  *     same marker.

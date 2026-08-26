@@ -5,8 +5,8 @@ import { Button, EmptyState, Spinner } from '@/components/ui';
 import { SearchSelect } from '@/components/SearchSelect';
 import { MultiSelect } from '@/components/MultiSelect';
 import type { LookupOption } from '@/api/lookups.api';
-import { useDatingProfile, useUpsertDatingProfile, useDeleteDatingProfile, type UpsertProfileInput, type Visibility, type ProfileCompletion } from '../api';
-import { mediaApi } from '@/api/media.api';
+import { useDatingProfile, useUpsertDatingProfile, useDeleteDatingProfile, useSaveSelfie, useClearSelfie, type UpsertProfileInput, type Visibility, type ProfileCompletion } from '../api';
+import { mediaApi, uploadErrorMessage } from '@/api/media.api';
 import { useMasterProfile } from '@/features/profile/hooks';
 import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLockedField';
 import { SelfieOnFile } from '../components/SelfieOnFile';
@@ -15,6 +15,11 @@ const field: React.CSSProperties = {
   width: '100%', padding: '11px 13px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)',
   fontSize: 14, fontFamily: 'inherit', outline: 'none', background: 'var(--card)', boxSizing: 'border-box',
 };
+/** Something went wrong and the citizen has to know: the camera failing, the
+ *  upload failing, or the write that follows the upload failing. One shape
+ *  for all three — a selfie that silently did nothing IS the bug this pass
+ *  was opened to fix. */
+const errBox: React.CSSProperties = { background: 'var(--danger-soft)', color: 'var(--danger-ink)', borderRadius: 12, padding: '12px 14px', fontSize: 13 };
 const label: React.CSSProperties = { fontSize: 12, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', margin: '14px 0 6px' };
 
 const INTERESTS = ['Travel', 'Movies', 'Music', 'Reading', 'Cooking', 'Fitness', 'Sports', 'Photography', 'Gaming', 'Art', 'Pets', 'Technology', 'Fashion', 'Nature'];
@@ -56,7 +61,7 @@ const MOD: Record<string, { label: string; bg: string; c: string }> = {
 interface DX {
   firstName?: string; country?: string; countryCode?: string; state?: string; stateCode?: string; city?: string;
   heightCm?: number | null; languages?: string[];
-  photos?: string[]; selfieVerified?: boolean; selfiePhoto?: string; selfieVerifiedAt?: string;
+  photos?: string[];
   relationshipGoal?: string; diet?: string; smoking?: string; drinking?: string; fitnessLevel?: string; education?: string; profession?: string;
   personalityTraits?: string[]; values?: string[];
   prefAgeMin?: number | null; prefAgeMax?: number | null; prefDistanceKm?: number | null;
@@ -183,19 +188,24 @@ function VisibilityCard({ visibility, onChange, onDelete, deleting }: {
 /**
  * Take a selfie for the profile (H5).
  *
- * This used to say the badge was "EARNED" and that there was "no way to mark
- * yourself verified by uploading a photo". Neither held. The camera-only rule
- * lives entirely in this component; `upsertProfile` stores whatever `extras`
- * JSON it receives, so a request made outside the app sets the flag with any
- * image. And nothing anywhere compares the selfie to the profile photos — a
- * real live selfie of somebody else earns exactly the same marker.
+ * IT NEVER STUCK, AND THAT WAS THE BUG (owner, 27 Aug: "fix self verification
+ * for getting that verified profile tab"). The capture wrote `selfieVerified`
+ * into the `extras` blob, and `upsertProfile` deleted it on every save —
+ * correctly, because a badge the client can write is a badge anyone can forge.
+ * Nothing wrote it anywhere else, so the page said "No selfie yet" forever.
  *
- * The capture stays: it is the raw material a face match will need, and asking
- * for it through the camera is still the right default. What changes is that
- * nothing here claims the check has happened. See components/SelfieOnFile.tsx.
+ * NOW THE PICTURE GOES WHERE THE PROFILE PHOTOS GO — the private bucket, by
+ * presigned PUT — and the KEY is handed to an endpoint that writes the mark
+ * server-side. Nothing about the state is inferred here: `onFile` comes back
+ * from the profile read, so the button and the preview cannot disagree.
+ *
+ * The camera-only rule still lives in this component and is still not a proof
+ * of anything, and nothing here claims the check has happened. What the mark
+ * means is stated wherever it is drawn — see components/SelfieOnFile.tsx.
  */
-function SelfieVerify({ verified, onCapture, onClear }: {
-  verified: boolean; onCapture: (dataUrl: string) => void; onClear: () => void;
+function SelfieVerify({ onFile, onSaved, onClear, saving, clearing, failed }: {
+  onFile: boolean; onSaved: (key: string) => void; onClear: () => void;
+  saving: boolean; clearing: boolean; failed: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -226,10 +236,10 @@ function SelfieVerify({ verified, onCapture, onClear }: {
     }
   };
 
-  const capture = () => {
+  const capture = async () => {
     const v = videoRef.current;
     if (!v || !v.videoWidth) return;
-    setBusy(true);
+    setBusy(true); setErr(null);
     const maxDim = 480;
     const scale = Math.min(1, maxDim / Math.max(v.videoWidth, v.videoHeight));
     const w = Math.round(v.videoWidth * scale), h = Math.round(v.videoHeight * scale);
@@ -237,8 +247,21 @@ function SelfieVerify({ verified, onCapture, onClear }: {
     const ctx = c.getContext('2d');
     if (!ctx) { setBusy(false); return; }
     ctx.drawImage(v, 0, 0, w, h);
-    onCapture(c.toDataURL('image/jpeg', 0.85));
-    setBusy(false); stop(); setOpen(false);
+    // The frame goes to the bucket before anything is claimed about it: a mark
+    // written for bytes that never arrived would be the old bug with a longer
+    // journey. The camera stays on until the upload lands, so a failure can be
+    // retried from the same open sheet.
+    const blob = await new Promise<Blob | null>((res) => c.toBlob(res, 'image/jpeg', 0.85));
+    if (!blob) { setErr('The camera frame could not be read. Please try again.'); setBusy(false); return; }
+    try {
+      const key = await mediaApi.uploadDating(new File([blob], 'selfie.jpg', { type: 'image/jpeg' }));
+      onSaved(key);
+      stop(); setOpen(false);
+    } catch (e) {
+      setErr(uploadErrorMessage(e));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const close = () => { stop(); setOpen(false); };
@@ -248,24 +271,29 @@ function SelfieVerify({ verified, onCapture, onClear }: {
 
   return (
     <div style={{ marginTop: 12 }}>
-      {verified ? (
+      {onFile ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13.5, fontWeight: 700 }}>
             <SelfieOnFile on />
             Selfie on file
           </span>
-          <button type="button" onClick={onClear} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>Redo</button>
+          <button type="button" onClick={() => void start()} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>Retake</button>
+          <button type="button" onClick={onClear} disabled={clearing} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>{clearing ? 'Removing…' : 'Remove'}</button>
         </div>
       ) : (
-        <button type="button" onClick={() => void start()}
+        <button type="button" onClick={() => void start()} disabled={saving}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 13.5,
             color: 'var(--accent-ink)', background: 'var(--accent-soft)', border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '9px 16px' }}>
-          📷 Take a selfie with your camera
+          {saving ? 'Saving your selfie…' : '📷 Take a selfie with your camera'}
         </button>
       )}
+      {failed && (
+        <div style={{ ...errBox, margin: '10px 0 0' }}>{failed}</div>
+      )}
       <p className="muted" style={{ fontSize: 11.5, marginTop: 6 }}>
-        Matches see that a selfie is on file. We keep it so we can check it against your photos once that
-        check is built — until then it isn’t proof of identity, and your matches are told exactly that.
+        Matches see that a selfie is on file — the mark on your name beside the confirmed-email one. It is
+        kept so it can be checked against your photos once that check is built; until then it isn’t proof of
+        identity, and your matches are told exactly that. It is never added to your photos.
       </p>
 
       {open && (
@@ -274,7 +302,7 @@ function SelfieVerify({ verified, onCapture, onClear }: {
             <h3 style={{ margin: '0 0 4px', fontSize: 16 }}>Take your selfie</h3>
             <p className="muted" style={{ fontSize: 12.5, margin: '0 0 12px' }}>Center your face in the frame and capture a live selfie. This isn’t added to your photos.</p>
             {err ? (
-              <div style={{ background: 'var(--danger-soft)', color: 'var(--danger-ink)', borderRadius: 12, padding: '12px 14px', fontSize: 13 }}>{err}</div>
+              <div style={errBox}>{err}</div>
             ) : (
               <div style={{ position: 'relative', borderRadius: 'var(--r-2)', overflow: 'hidden', background: 'var(--media-bg)', aspectRatio: '3 / 4' }}>
                 <video ref={videoRef} playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
@@ -285,7 +313,7 @@ function SelfieVerify({ verified, onCapture, onClear }: {
               <Button variant="line" size="sm" onClick={close}>Cancel</Button>
               {err
                 ? <Button variant="accent" size="sm" onClick={() => void start()}>Try again</Button>
-                : <Button variant="accent" size="sm" disabled={!ready || busy} onClick={capture}>{busy ? 'Capturing…' : 'Capture selfie'}</Button>}
+                : <Button variant="accent" size="sm" disabled={!ready || busy} onClick={() => void capture()}>{busy ? 'Saving…' : 'Capture selfie'}</Button>}
             </div>
           </div>
         </div>
@@ -355,6 +383,11 @@ export function DatingProfilePage() {
   const existing = useDatingProfile();
   const upsert = useUpsertDatingProfile();
   const del = useDeleteDatingProfile();
+  // The selfie has its own two endpoints because it is the ONE thing on this
+  // form the client may not author: a mark the browser can write is a mark
+  // anyone can forge, so `upsertProfile` strips it and these write it.
+  const saveSelfie = useSaveSelfie();
+  const clearSelfie = useClearSelfie();
   const master = useMasterProfile();
   const dobLocked = Boolean(master.data?.dateOfBirth);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -500,6 +533,12 @@ export function DatingProfilePage() {
   // A prefill (saved:false) is NOT a saved profile — don't show status/summary for it.
   const saved = Boolean(existing.data) && (existing.data as { saved?: boolean }).saved !== false;
   const data = upsert.data ?? (saved ? existing.data : null);
+  // THE MARK IS READ OFF THE LIVE PROFILE, not off `data`. `data` prefers the
+  // save response, which is a snapshot of the moment a form was submitted and
+  // so can predate a selfie taken after it — the read below is refetched by
+  // both selfie mutations, which is what makes the button and the preview
+  // agree. Nothing about it is inferred on this side.
+  const selfieOnFile = Boolean(existing.data?.selfieOnFile ?? data?.selfieOnFile);
   const mod = data ? MOD[data.moderation] ?? MOD.approved : null;
   const photos = dx.photos ?? [];
   // What to RENDER. `photos` holds private storage keys now (M3), which are not
@@ -555,9 +594,10 @@ export function DatingProfilePage() {
     // the first character is touched: the rest of the name is theirs.
     const rawName = (dx.firstName || 'Your profile').trim();
     const displayName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
-    // "Is a selfie stored" — the only part of this the server can actually see.
-    // Not identity: nothing compares it to the photos. See components/SelfieOnFile.
-    const verified = Boolean(dx.selfieVerified && dx.selfiePhoto);
+    // "Is a selfie stored" — the only part of this the server can actually see,
+    // and now the only place it is said from. Not identity: nothing compares it
+    // to the photos. See components/SelfieOnFile.
+    const verified = selfieOnFile;
     const goal = dx.relationshipGoal || 'a connection';
     const location = [dx.city, dx.state, dx.country].filter(Boolean).join(', ');
     const sign = data?.sign ?? '—';
@@ -644,7 +684,7 @@ export function DatingProfilePage() {
           {/* Verification status line (mirrors what a match sees on the tick) */}
           <div style={{ marginTop: 12, fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 7 }}>
             {verified
-              ? <><SelfieOnFile on size="sm" /><span className="muted">Selfie on file — kept for a future identity check. Matches don’t see a badge for it yet.</span></>
+              ? <><SelfieOnFile on size="sm" /><span className="muted">Selfie on file — your matches see this mark beside your name. It isn’t checked against your photos, and they’re told so.</span></>
               : <span className="muted">No selfie yet — <button type="button" onClick={() => setCollapsed(false)} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent-ink)', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5 }}>take one with your camera</button>.</span>}
           </div>
 
@@ -807,9 +847,13 @@ export function DatingProfilePage() {
           <p className="muted" style={{ fontSize: 11.5, marginTop: 6 }}>{photos.length < 1 ? 'Add at least 1 photo to go live — 3 or more is recommended for better matches (a clear face photo first).' : photos.length < 3 ? `You’re good to go live — add ${3 - photos.length} more to reach the recommended 3+ for better matches.` : 'First photo is your primary — make it a clear face photo.'}</p>
 
           <SelfieVerify
-            verified={Boolean(dx.selfieVerified && dx.selfiePhoto)}
-            onCapture={(dataUrl) => setD({ selfieVerified: true, selfiePhoto: dataUrl, selfieVerifiedAt: new Date().toISOString() })}
-            onClear={() => setD({ selfieVerified: false, selfiePhoto: undefined, selfieVerifiedAt: undefined })}
+            onFile={selfieOnFile}
+            onSaved={(key) => saveSelfie.mutate(key)}
+            onClear={() => clearSelfie.mutate()}
+            saving={saveSelfie.isPending}
+            clearing={clearSelfie.isPending}
+            failed={saveSelfie.isError ? 'Your selfie reached us but couldn’t be saved to your profile. Please try again.'
+              : clearSelfie.isError ? 'We couldn’t remove your selfie. Please try again.' : null}
           />
         </div>
 
