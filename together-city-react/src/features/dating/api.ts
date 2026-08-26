@@ -203,6 +203,9 @@ export interface DatingAdminStats {
   pendingReview: number;
   rejected: number;
   pausedHidden: number;
+  /** The two invisibilities, told apart (26 Aug). */
+  paused?: number;
+  hidden?: number;
   gender: { male: number; female: number; nonbinary: number };
   connectedMembers: number;
   activeChats: number;

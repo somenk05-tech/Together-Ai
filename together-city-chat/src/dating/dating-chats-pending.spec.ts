@@ -16,9 +16,10 @@ const UPDATED = new Date('2026-07-29T12:00:00Z');
 function serviceWith(matches: Array<Record<string, unknown>>) {
   const prisma = {
     datingMatch: { findMany: jest.fn(async () => matches) },
-    datingProfile: { findUnique: jest.fn(async () => ({ userId: 'them', birthDate: new Date('1995-02-02T00:00:00Z'), extras: null })) },
-    user: { findUnique: jest.fn(async () => ({ name: 'Rhea', profileImage: 'photo.jpg' })) },
-    compatibilityScore: { findUnique: jest.fn(async () => null), findFirst: jest.fn(async () => null) },
+    // Batched since 26 Aug (the datingChats N+1): one findMany per table.
+    datingProfile: { findMany: jest.fn(async () => [{ userId: 'them', birthDate: new Date('1995-02-02T00:00:00Z'), extras: null }]) },
+    user: { findMany: jest.fn(async () => [{ id: 'them', name: 'Rhea', profileImage: 'photo.jpg' }]) },
+    compatibilityScore: { findMany: jest.fn(async () => []), findUnique: jest.fn(async () => null), findFirst: jest.fn(async () => null) },
   };
   const conversations = {
     summaryFor: jest.fn(async () => ({

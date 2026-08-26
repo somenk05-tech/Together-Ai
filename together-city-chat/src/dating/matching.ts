@@ -14,9 +14,9 @@
  * age range rather than a scoring nudge — see `heightFilterReason`, which is
  * also where to undo that if the pool cost turns out to bite.
  *
- * H1/M4: astrology stays at 0.50 — it is what this product is — but the other
- * six factors used to sit on high floors (personality 55, goals 60, lifestyle
- * 65, location 45) and so could barely separate one candidate from another.
+ * H1/M4 (as first fixed, when astrology held 0.50): the other six factors
+ * used to sit on high floors (personality 55, goals 60, lifestyle 65,
+ * location 45) and so could barely separate one candidate from another.
  * Two profiles that had answered almost nothing could clear the 75% "curated"
  * bar on favourable star signs alone. The floors are lower now: a blank answer
  * costs score, which is the only way a filled-in profile can be worth filling in.

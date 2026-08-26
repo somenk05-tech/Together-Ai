@@ -42,7 +42,8 @@ export function DatingAdminStats() {
         <Stat label="Live in matching" value={s.approvedVisible} hint="Approved & visible" />
         <Stat label="Pending review" value={s.pendingReview} />
         <Stat label="Rejected" value={s.rejected} />
-        <Stat label="Paused / hidden" value={s.pausedHidden} />
+        <Stat label="Paused" value={s.paused ?? s.pausedHidden} hint="Out of matching; their matches keep working" />
+        <Stat label="Hidden" value={s.hidden ?? 0} hint="Gone from everyone" />
         <Stat label="Connected members" value={s.connectedMembers} hint="Opened ≥1 chat" />
         <Stat label="Active chats" value={s.activeChats} hint="Open anonymous conversations" />
         <Stat label="Total matches" value={s.totalMatches} hint="Mutual matches formed" />

@@ -1695,9 +1695,26 @@ export class DatingService implements OnModuleInit {
   private async assertWritable(userId: string, targetUserId: string): Promise<void> {
     if (userId === targetUserId) throw new BadRequestException('That is you.');
     const cand = await this.prisma.datingProfile.findUnique({
-      where: { userId: targetUserId }, select: { visible: true, moderation: true },
+      where: { userId: targetUserId }, select: { visible: true, moderation: true, extras: true },
     });
-    if (!cand || !cand.visible || cand.moderation !== 'approved') throw new NotFoundException('This profile is not available.');
+    if (!cand || cand.moderation !== 'approved') throw new NotFoundException('This profile is not available.');
+    if (!cand.visible) {
+      // PAUSED IS NOT HIDDEN. The pause control promises "temporarily hidden
+      // from matching — nothing is deleted", and until now both modes were
+      // one boolean here, so pausing also froze the matches a citizen already
+      // had: the person they matched with could not connect or reveal. A
+      // paused profile stays writable to somebody it has ALREADY matched
+      // with; hidden stays unwritable to everyone. New likes stay blocked in
+      // both modes — that is what "out of matching" means.
+      const mode = (this.parseDX(cand.extras) as DXVisibility).visibility;
+      const existing = mode === 'paused'
+        ? await this.prisma.datingMatch.findFirst({
+          where: { OR: [{ userOneId: userId, userTwoId: targetUserId }, { userOneId: targetUserId, userTwoId: userId }], status: 'matched' },
+          select: { id: true },
+        })
+        : null;
+      if (!existing) throw new NotFoundException('This profile is not available.');
+    }
     const excluded = await this.connectionExclusions(userId);
     if (excluded.has(targetUserId)) throw new NotFoundException('This profile is not available.');
   }
@@ -2090,7 +2107,7 @@ export class DatingService implements OnModuleInit {
     const dp = this.prisma.datingProfile;
     const dm = this.prisma.datingMatch;
     const [
-      totalProfiles, approvedVisible, pendingReview, rejected, pausedHidden,
+      totalProfiles, approvedVisible, pendingReview, rejected, pausedHidden, pausedOnly,
       male, female, nonbinary, connectedMembers, activeChats, totalMatches, mutualLikes,
     ] = await Promise.all([
       dp.count(),
@@ -2098,6 +2115,9 @@ export class DatingService implements OnModuleInit {
       dp.count({ where: { moderation: { in: ['pending', 'review'] } } }),
       dp.count({ where: { moderation: 'rejected' } }),
       dp.count({ where: { visible: false } }),
+      // The two invisibilities, told apart: the mode lives in the extras JSON,
+      // which SQL can still match as text. paused = invisible minus hidden.
+      dp.count({ where: { visible: false, extras: { contains: '"visibility":"paused"' } } }),
       dp.count({ where: { gender: 'male' } }),
       dp.count({ where: { gender: 'female' } }),
       dp.count({ where: { gender: 'nonbinary' } }),
@@ -2112,6 +2132,8 @@ export class DatingService implements OnModuleInit {
       pendingReview,
       rejected,
       pausedHidden,
+      paused: pausedOnly,
+      hidden: pausedHidden - pausedOnly,
       gender: { male, female, nonbinary },
       connectedMembers,   // members who have connected to at least one chat
       activeChats,        // open anonymous dating conversations right now
@@ -2195,7 +2217,29 @@ export class DatingService implements OnModuleInit {
       where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: 'matched' },
       orderBy: { updatedAt: 'desc' },
     });
+    // FOUR READS PER ROW, BATCHED TO FOUR READS. Profile, account, and the
+    // pair score used to be fetched inside the loop — the datingChats N+1 the
+    // launch audit's P2 list named. The other person's ids are known up
+    // front, so each table is asked once with an IN. `summaryFor` stays
+    // per-conversation: the chat cap means at most three rows have one.
+    const otherIds = matches.map((m) => (m.userOneId === userId ? m.userTwoId : m.userOneId));
+    // unbounded: their matched partners — the product caps how many can exist
+    const profiles = await this.prisma.datingProfile.findMany({ where: { userId: { in: otherIds } } });
+    // unbounded: the same partners' accounts — same bound as above
+    const users = await this.prisma.user.findMany({ where: { id: { in: otherIds } }, select: { id: true, name: true, profileImage: true } });
+    const pairKeys = otherIds.map((o) => [userId, o].sort());
+    let scoreRows: Array<{ userA: string; userB: string; overall: number }> = [];
+    try {
+      // unbounded: one cached score per matched pair — same bound as above
+      scoreRows = await (this.prisma as unknown as { compatibilityScore: { findMany(x: unknown): Promise<Array<{ userA: string; userB: string; overall: number }>> } })
+        .compatibilityScore.findMany({ where: { OR: pairKeys.map(([a, b]) => ({ userA: a, userB: b })) }, select: { userA: true, userB: true, overall: true } });
+    } catch { /* no cache is "no score", same as readPairScore */ }
+    const profileOf = new Map(profiles.map((p) => [p.userId, p]));
+    const userOf = new Map(users.map((u) => [u.id, u]));
+    const scoreOf = new Map(scoreRows.map((r) => [`${r.userA}:${r.userB}`, r.overall]));
+
     const out = [];
+    const photoJobs: Array<{ keys: readonly string[]; into: string[] }> = [];
     for (const m of matches) {
       const otherId = m.userOneId === userId ? m.userTwoId : m.userOneId;
       const meIsOne = m.userOneId === userId;
@@ -2209,10 +2253,10 @@ export class DatingService implements OnModuleInit {
       const summary = m.conversationId
         ? await this.conversations.summaryFor(m.conversationId, userId)
         : { lastMessageAt: m.updatedAt.toISOString(), lastText: null, lastSenderId: null, unread: 0 };
-      const otherProfile = await this.prisma.datingProfile.findUnique({ where: { userId: otherId } });
-      const otherUser = await this.prisma.user.findUnique({ where: { id: otherId }, select: { name: true, profileImage: true } });
+      const otherProfile = profileOf.get(otherId) ?? null;
+      const otherUser = userOf.get(otherId);
       const candD = this.parseDX((otherProfile as { extras?: string | null } | null)?.extras) as DXProfile & { firstName?: string; photos?: string[] };
-      const score = await this.readPairScore(userId, otherId);
+      const score = scoreOf.get(pairKeys[matches.indexOf(m)].join(':')) ?? null;
 
       out.push({
         conversationId: m.conversationId,
@@ -2224,7 +2268,12 @@ export class DatingService implements OnModuleInit {
         // AFTER two people matched protected nothing, and read as the person
         // changing names between screens. Same expression the match card uses.
         name: candD.firstName || otherUser?.name || 'Member',
-        photo: (candD.photos && candD.photos[0]) ?? otherUser?.profileImage ?? null,
+        // SIGNED AND REVIEWED, like every other card. This used to hand the
+        // client the raw storage key — unloadable as an image, and outside
+        // the review gate. The gallery photo goes through the same batched
+        // sign-and-approve pass as the lists; the account photo is already
+        // public across the whole city and passes through as it always has.
+        photo: (() => { const arr: string[] = []; if (candD.photos?.length) photoJobs.push({ keys: [candD.photos[0]], into: arr }); return arr; })(),
         /** Which name YOU are chatting under, so the UI can offer the switch. */
         myIdentity: (myReveal ? 'real' : 'anonymous') as 'real' | 'anonymous',
         myNickname: nickname(userId),
@@ -2238,7 +2287,10 @@ export class DatingService implements OnModuleInit {
         unread: summary.unread,
       });
     }
-    return out.sort((a, b) => (a.lastMessageAt < b.lastMessageAt ? 1 : -1));
+    await this.fillPhotos(photoJobs);
+    // The card wants one photo or none; the job filled an array.
+    const shaped = out.map((row) => ({ ...row, photo: (row.photo as unknown as string[])[0] ?? userOf.get(row.otherUserId)?.profileImage ?? null }));
+    return shaped.sort((a, b) => (a.lastMessageAt < b.lastMessageAt ? 1 : -1));
   }
 
   async pass(userId: string, targetUserId: string, kind: MatchKind) {
