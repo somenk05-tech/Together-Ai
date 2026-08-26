@@ -12,7 +12,6 @@ import { bandFor, coverageNote } from '../bands';
 
 const photoBox: CSSProperties = { position: 'relative', borderRadius: 16, overflow: 'hidden', background: 'var(--paper)' };
 const cover: CSSProperties = { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' };
-const sectionH: CSSProperties = { margin: '0 0 6px', fontSize: 14, fontWeight: 700 };
 const pill: CSSProperties = { border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '5px 13px', fontSize: 12.5, background: 'var(--accent-soft)' };
 
 /**
@@ -48,7 +47,10 @@ function Collage({ d }: { d: MatchDetail }) {
 
   return (
     <div>
-      <div style={{ ...photoBox, aspectRatio: '4 / 5', touchAction: 'pan-y' }} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+      {/* The same view-transition-name the browse card's photograph carries,
+          so on browsers that support it the tap-through is the picture growing
+          into this page rather than a cut. Inert everywhere else. */}
+      <div style={{ ...photoBox, aspectRatio: '4 / 5', touchAction: 'pan-y', viewTransitionName: `pm-${d.user.id}` } as CSSProperties} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         {photos[active]
           ? <img src={photos[active]} alt={`${d.name} photo ${active + 1}`} style={cover} draggable={false} />
           : <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', fontSize: 64, color: 'var(--accent-ink)', background: 'var(--accent-soft)', fontFamily: 'var(--serif)' }}>{d.name.slice(0, 1)}</div>}
@@ -64,7 +66,7 @@ function Collage({ d }: { d: MatchDetail }) {
           <div style={{ position: 'absolute', top: 10, left: 12, right: 12, display: 'flex', gap: 4 }}>
             {photos.map((_, k) => (
               <button key={k} type="button" aria-label={`Photo ${k + 1}`} onClick={() => setI(k)}
-                style={{ minWidth: 44, minHeight: 44, flex: 1, height: 3, borderRadius: 2, border: 'none', padding: 0, cursor: 'pointer', background: k === active ? 'var(--on-accent)' : 'rgba(255,255,255,.42)' }} />
+                style={{ minWidth: 44, minHeight: 44, flex: 1, height: 3, borderRadius: 2, border: 'none', padding: 0, cursor: 'pointer', background: k === active ? 'var(--on-scrim)' : 'var(--on-scrim-dim)' }} />
             ))}
           </div>
         )}
@@ -115,6 +117,21 @@ function Collage({ d }: { d: MatchDetail }) {
   );
 }
 
+/**
+ * ── THE PROFILE, READ AS A PAGE (owner, 26 Aug, same brief as the card) ─────
+ *
+ * The card upstairs now shows only the photograph and four facts, so this page
+ * carries everything it used to split with the card, in the reference's order:
+ * the number and the sentence under it, WHY — seven horizontal indicators
+ * instead of seven numbers in a grid — then the person in their own words, the
+ * facts of a life, what you would share, and what does not fit. The decision
+ * rides the foot of the screen (`.pd-bar`) instead of waiting at the foot of
+ * the page.
+ *
+ * The factor bars are the same seven numbers the grid drew, from the same
+ * `d.breakdown` — a redraw, not a second engine. The thesis sentence stays
+ * word for word: it is the page where the number is weighed.
+ */
 function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: string; kind: MatchKind }) {
   const like = useLikeMatch(kind);
   const pass = usePassMatch(kind);
@@ -124,13 +141,19 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
   const [liked, setLiked] = useState(d.matched);
 
   const matched = liked || d.matched;
-  const lifestyle = [d.diet, d.smoking && `${d.smoking} smoker`, d.drinking && `${d.drinking} drinker`, d.fitnessLevel].filter(Boolean) as string[];
-  const traitPills = [...d.values, ...d.personalityTraits, ...lifestyle];
-  const stats: [string, string, string][] = [
-    ['📏', 'Height', d.heightCm ? `${d.heightCm} cm` : '—'],
-    ['🌐', 'Languages', d.languages.length ? d.languages.join(', ') : '—'],
-    ['✦', 'Zodiac Sign', d.theirSign || '—'],
+  const life: [string, string | null][] = [
+    ['Height', d.heightCm ? `${d.heightCm} cm` : null],
+    ['Languages', d.languages.length ? d.languages.join(', ') : null],
+    ['Zodiac sign', d.theirSign || null],
+    ['Education', d.education],
+    ['Occupation', d.occupation],
+    ['Diet', d.diet],
+    ['Smoking', d.smoking],
+    ['Drinking', d.drinking],
+    ['Fitness', d.fitnessLevel],
   ];
+  const shown = life.filter((row): row is [string, string] => Boolean(row[1]));
+  const traits = [...d.values, ...d.personalityTraits];
   const band = bandFor(d.score);
   const covNote = coverageNote(d.coverage);
 
@@ -149,90 +172,108 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
       <div className="card" style={{ padding: 16, borderRadius: 22 }}>
         <Collage d={d} />
 
-        {/* Stat strip */}
-        <div style={{ marginTop: 14, background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 16, padding: '14px 4px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr' }}>
-          {stats.map(([icon, k, v], i) => (
-            <div key={k} style={{ padding: '2px 16px', borderLeft: i ? '1px solid var(--line)' : 'none' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--muted)', fontSize: 12.5 }}>
-                <span aria-hidden style={{ color: 'var(--accent-ink)' }}>{icon}</span>{k}
-              </div>
-              <div style={{ fontSize: 14, fontWeight: 700, marginTop: 5 }}>{v}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Detail grid */}
-        <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px 24px' }}>
-          {d.bio && d.bio.trim() && (
-            <div><div style={sectionH}>👤 About Me</div><p className="muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>{d.bio}</p></div>
-          )}
-          {d.interests.length > 0 && (
-            <div><div style={sectionH}>🎬 Interests</div><p className="muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>{d.interests.join(', ')}</p></div>
-          )}
-          {d.personalityTraits.length > 0 && (
-            <div><div style={sectionH}>❤ Personality</div><p className="muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>{d.personalityTraits.join(', ')}</p></div>
-          )}
-          {d.values.length > 0 && (
-            <div><div style={sectionH}>✦ Values</div><p className="muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>{d.values.join(', ')}</p></div>
-          )}
-        </div>
-
-        {traitPills.length > 0 && (
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 14 }}>
-            {traitPills.map((v, k) => <span key={`${v}-${k}`} style={pill}>{v}</span>)}
+        {/* ── THE NUMBER, AND THE SENTENCE UNDER IT ────────────────────────
+            One line of large type rather than a boxed panel with a heart in
+            it: the reference's rule is that the number is the hero and a
+            badge is a costume. The band's own ink says what kind of number
+            it is; the first reason says why in words. */}
+        <section className="pd-sec">
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+            <span className="dating-display" style={{ fontSize: 'var(--fs-9)', lineHeight: 1 }}>{d.score}%</span>
+            <span style={{ fontSize: 'var(--fs-5)', fontWeight: 700, color: band.ink }}>{band.name}</span>
+            <span className="muted" style={{ fontSize: 'var(--fs-3)' }}>Compatibility</span>
           </div>
-        )}
+          {d.reasons[0] && <p className="pd-sub" style={{ margin: '6px 0 0' }}>{d.reasons[0]}</p>}
+        </section>
 
-        {/* Compatibility panel */}
-        <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 16, background: 'linear-gradient(135deg,var(--accent-soft),var(--wash))', border: '1px solid var(--line)', borderRadius: 16, padding: '16px 18px' }}>
-          <div style={{ width: 58, height: 58, borderRadius: '50%', flex: 'none', display: 'grid', placeItems: 'center', background: 'var(--card)', border: '2px solid var(--accent)', color: 'var(--accent-ink)', fontSize: 24 }}>♥</div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-              <span className="muted" style={{ fontSize: 12.5 }}>Compatibility</span>
-              <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--accent-ink)' }}>{d.score}%</span>
-              <span style={{ fontSize: 13.5, fontWeight: 700, color: band.ink }}>{band.name}</span>
-            </div>
-            {d.reasons[0] && <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>{d.reasons[0]}</p>}
-            {d.frictions && d.frictions.length > 0 && (
-              <p className="dt-note">
-                <strong>One thing to explore — </strong>{d.frictions[0]}
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* THE BREAKDOWN, ON THE PAGE THE DECISION IS ACTUALLY MADE ON.
-            `d.breakdown` has always arrived here and nothing read it: the seven
-            numbers behind the percentage were drawn on the browse card and
-            vanished on the profile somebody opens before meeting a stranger.
-            Same idiom as the card, deliberately — two drawings of one thing is
-            how two rooms start disagreeing about what a percentage is. */}
+        {/* ── WHY — the seven factors as indicators, not a grid.
+            `d.breakdown` has always arrived here; this is the same seven
+            numbers redrawn, not a second engine. */}
         {d.breakdown && (
-          <div style={{ marginTop: 12, background: 'var(--paper)', borderRadius: 12, padding: '12px 14px' }}>
-            <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8 }}>What the {d.score}% is made of</div>
+          <section className="pd-sec">
+            <h2>Why you’re compatible</h2>
             {/* The thesis, in one sentence, on the page where the number is
                 weighed. The weights are the engine's (matching.ts): nine
                 tenths is the two charts; the other tenth is what you both
                 said you want. A reader who disagrees with that can read the
-                seven numbers below and decide for themselves. */}
-            <p className="muted" style={{ fontSize: 12, margin: '0 0 10px', lineHeight: 1.5 }}>
+                seven indicators below and decide for themselves. */}
+            <p className="pd-sub">
               Nine tenths of this number is how your two charts sit together. The rest is what you both said you want — goals, values, personality, lifestyle, interests, distance.
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: '6px 14px' }}>
-              {([['Astrology', d.breakdown.astrology], ['Personality', d.breakdown.personality], ['Goals', d.breakdown.relationshipGoals], ['Values', d.breakdown.values], ['Lifestyle', d.breakdown.lifestyle], ['Interests', d.breakdown.interests], ['Location', d.breakdown.location]] as [string, number][]).map(([k, v]) => (
-                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                  <span className="muted">{k}</span><span style={{ fontWeight: 600 }}>{v}%</span>
+            {([['Astrology', d.breakdown.astrology], ['Personality', d.breakdown.personality], ['Goals', d.breakdown.relationshipGoals], ['Values', d.breakdown.values], ['Lifestyle', d.breakdown.lifestyle], ['Interests', d.breakdown.interests], ['Location', d.breakdown.location]] as [string, number][]).map(([k, v]) => (
+              <div key={k} className="pd-fac">
+                <span>{k}</span>
+                <div className="pd-track" role="img" aria-label={`${k}: ${v}%`}>
+                  <div className="pd-fill" style={{ width: `${Math.max(0, Math.min(100, v))}%` }} />
                 </div>
-              ))}
-            </div>
-            {covNote && (
-              <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, margin: '8px 0 0' }}>{covNote}</p>
+                <b>{v}%</b>
+              </div>
+            ))}
+            {covNote && <p className="pd-sub" style={{ margin: '10px 0 0' }}>{covNote}</p>}
+          </section>
+        )}
+
+        {/* ── THE PERSON IN THEIR OWN WORDS ───────────────────────────────── */}
+        {((d.bio && d.bio.trim()) || traits.length > 0) && (
+          <section className="pd-sec">
+            <h2>About {d.name}</h2>
+            {d.bio && d.bio.trim() && (
+              <p style={{ fontSize: 'var(--fs-5)', lineHeight: 1.6, margin: 0, color: 'var(--ink-soft)' }}>{d.bio}</p>
             )}
-          </div>
+            {traits.length > 0 && (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
+                {traits.map((v, k) => <span key={`${v}-${k}`} style={pill}>{v}</span>)}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ── THE FACTS OF A LIFE. Only the answered ones: an absent fact
+            draws nothing, because a dash row is a form and this is a person. */}
+        {shown.length > 0 && (
+          <section className="pd-sec">
+            <h2>Life details</h2>
+            <dl className="pd-life">
+              {shown.map(([k, v]) => (
+                <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
+              ))}
+            </dl>
+          </section>
+        )}
+
+        {d.interests.length > 0 && (
+          <section className="pd-sec">
+            <h2>Interests</h2>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {d.interests.map((i) => <span key={i} style={pill}>{i}</span>)}
+            </div>
+          </section>
+        )}
+
+        {/* ── YOUR CONNECTION — what you would share, and what to explore.
+            Both lists from the engine's own sentences; a page that only ever
+            agrees with itself reads as a sales pitch, so the frictions stay. */}
+        {((d.reasons.length > 1) || (d.frictions && d.frictions.length > 0)) && (
+          <section className="pd-sec">
+            <h2>Your connection</h2>
+            {d.reasons.length > 1 && (
+              <ul className="dt-reasons">
+                {d.reasons.slice(1).map((r, i) => <li key={i}>{r}</li>)}
+              </ul>
+            )}
+            {d.frictions && d.frictions.length > 0 && (
+              <>
+                <div className="dt-why">One thing to explore</div>
+                <ul className="dt-reasons is-friction">
+                  {d.frictions.map((r, i) => <li key={i}>{r}</li>)}
+                </ul>
+              </>
+            )}
+          </section>
         )}
 
         {/* Intentional-dating notice */}
-        <div style={{ marginTop: 12, display: 'flex', gap: 12, alignItems: 'flex-start', background: 'var(--paper)', borderRadius: 'var(--r-2)', padding: '13px 16px' }}>
+        <div style={{ marginTop: 16, display: 'flex', gap: 12, alignItems: 'flex-start', background: 'var(--paper)', borderRadius: 'var(--r-2)', padding: '13px 16px' }}>
           <span aria-hidden style={{ display: 'grid', placeItems: 'center', width: 34, height: 34, borderRadius: '50%', border: '1.5px solid var(--accent-ink)', color: 'var(--muted)', flex: 'none' }}>🔒</span>
           <div style={{ fontSize: 12.5, lineHeight: 1.5 }}>
             <strong>We believe in intentional dating.</strong> You can have up to three conversations
@@ -244,8 +285,10 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
           <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, marginTop: 10 }}>{payError(connect.error ?? unmatch.error)}</p>
         )}
 
-        {/* Actions */}
-        <div style={{ marginTop: 16 }}>
+        {/* ── THE DECISION, RIDING THE FOOT OF THE SCREEN ──────────────────
+            On a page this long the buttons used to sit below four screens of
+            reading. Sticky, over its own fade, clear of the home indicator. */}
+        <div className="pd-bar">
           {matched ? (
             /* NO SKIP ONCE YOU ARE MATCHED.
                Skip is what you do to a stranger the city is offering you: it
@@ -254,34 +297,34 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
                person, in a quieter word — two doors out of one room, one of
                them ambiguous. Somebody who wants out has Unmatch, which says
                what it does and asks before it does it. */
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'stretch' }}>
+            <>
               <Button variant="accent" size="md" disabled={connect.isPending} onClick={doConnect}>
                 {connect.isPending ? 'Connecting…' : '💬 Connect to Chat'}
               </Button>
               <Button variant="line" size="md" disabled={unmatch.isPending}
                 onClick={() => { if (window.confirm('Unmatch this person? They’ll be removed from your matches.')) unmatch.mutate(targetUserId, { onSuccess: () => navigate('/dating/matches') }); }}
-                style={{ color: 'var(--danger-ink)', borderColor: 'var(--danger-line)' }}>
+                style={{ color: 'var(--danger-ink)', borderColor: 'var(--danger-line)', flex: 'none' }}>
                 Unmatch
               </Button>
-            </div>
+            </>
           ) : (
-            <div style={{ display: 'flex', gap: 10 }}>
-              <Button variant="accent" size="md" disabled={like.isPending}
-                onClick={() => like.mutate(targetUserId, { onSuccess: (r) => setLiked(r.matched) })}>
-                {like.isPending ? '…' : kind === 'romantic' ? '♥ Like' : '＋ Connect'}
-              </Button>
-              <Button variant="line" size="md" disabled={pass.isPending}
+            <>
+              <Button variant="line" size="md" disabled={pass.isPending} style={{ flex: 'none' }}
                 onClick={() => pass.mutate(targetUserId, { onSuccess: () => navigate('/dating/matches') })}>
                 ✕ Skip
               </Button>
-            </div>
+              <Button variant="accent" size="md" disabled={like.isPending}
+                onClick={() => like.mutate(targetUserId, { onSuccess: (r) => setLiked(r.matched) })}>
+                {like.isPending ? '…' : '♡ Connect'}
+              </Button>
+            </>
           )}
-          <p className="muted" style={{ fontSize: 11.5, marginTop: 10, textAlign: 'center' }}>
-            {matched ? 'Chat opens in the Dating Hub — up to three at a time. Your first 3 are free.' : 'They’re notified only if you both like each other.'}
-          </p>
-          <div style={{ marginTop: 14, textAlign: 'center' }}>
-            <SafetyMenu userId={targetUserId} kind={kind} />
-          </div>
+        </div>
+        <p className="muted" style={{ fontSize: 11.5, marginTop: 4, textAlign: 'center' }}>
+          {matched ? 'Chat opens in the Dating Hub — up to three at a time. Your first 3 are free.' : 'They’re notified only if you both choose each other.'}
+        </p>
+        <div style={{ marginTop: 14, textAlign: 'center' }}>
+          <SafetyMenu userId={targetUserId} kind={kind} />
         </div>
       </div>
     </div>

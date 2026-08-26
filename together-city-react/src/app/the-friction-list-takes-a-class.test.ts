@@ -35,22 +35,32 @@ describe('the friction list takes a class', () => {
     expect(block).toMatch(/color: var\(--ink-soft\)/);
   });
 
+  /**
+   * THE WEARERS MOVED, 26 Aug, with the owner's full-bleed reference: the
+   * browse card now shows only the photograph and four facts, so both lists
+   * live on the profile — the page where the decision to meet a stranger is
+   * actually made. Same classes, same one-token difference; what this file
+   * exists to stop (a third inline copy) is still stopped, because the pattern
+   * still has a name and its wearers still wear it.
+   */
   it('both lists wear it, and neither carries an inline style any more', () => {
-    const m = read('features/dating/components/MatchCards.tsx');
-    expect(m).toMatch(/<div className="dt-why">Why this match\?<\/div>/);
-    expect(m).toMatch(/<div className="dt-why">One thing to explore<\/div>/);
-    expect(m).toMatch(/<ul className="dt-reasons">/);
-    expect(m).toMatch(/<ul className="dt-reasons is-friction">/);
+    const d = read('features/dating/pages/DatingMatchDetail.tsx');
+    expect(d).toMatch(/<div className="dt-why">One thing to explore<\/div>/);
+    expect(d).toMatch(/<ul className="dt-reasons">/);
+    expect(d).toMatch(/<ul className="dt-reasons is-friction">/);
     // The <li> carried a marginBottom each. The rule carries it now.
-    expect(m).not.toMatch(/<li key=\{i\} style=/);
+    expect(d).not.toMatch(/<li key=\{i\} style=/);
+    // And the card upstairs stopped wearing it rather than forking it.
+    const m = read('features/dating/components/MatchCards.tsx');
+    expect(m).not.toMatch(/dt-reasons/);
   });
 
-  it('the panel’s one-line version wears the same idea', () => {
-    const d = read('features/dating/pages/DatingMatchDetail.tsx');
-    expect(d).toMatch(/<p className="dt-note">/);
-    // A <strong> is 700 by default and this one wants 600 — the entire reason
-    // the inline object existed. The rule says it once.
-    expect(d).not.toMatch(/<strong style=\{\{ fontWeight: 600 \}\}>One thing/);
+  it('the one-line version wears the same idea where it still speaks', () => {
+    // The match-detail compat panel that carried a dt-note is gone with the
+    // 26 Aug redraw; Curated Matches still speaks in it, so the class and its
+    // 600-weight strong stay named once in the stylesheet.
+    const m = read('features/dating/pages/DatingMatches.tsx');
+    expect(m).toMatch(/<p className="dt-note">/);
     expect(css()).toMatch(/\.dt-note strong \{ font-weight: 600; \}/);
   });
 

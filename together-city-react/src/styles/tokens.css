@@ -228,6 +228,15 @@
   /* Ink that sits ON a scrim — white in every theme, because the scrim is
      dark in every theme. */
   --on-scrim: #ffffff;
+  /* The QUIET step of that ink — an unfilled story segment, the hairline over
+     a compatibility line, the rule around a translucent control. It is the
+     inline `rgba(255,255,255,.42)` the match-detail dots wrote by hand, given
+     the name that lets everything on a photograph read it from one place. */
+  --on-scrim-dim: rgba(255, 255, 255, .42);
+  /* The page's own white at zero alpha, for a fade INTO the page. A gradient
+     that ends at `transparent` ends at transparent BLACK, and the ramp between
+     white and it is a grey smear across whatever scrolls underneath. */
+  --paper-clear: rgba(255, 255, 255, 0);
   /* TWO NAMES, BECAUSE THIS ONE WAS TWO THINGS. `--glass` was declared here as
      a translucent white and again 144 lines below as a four-layer box-shadow;
      the second won, so the colour was unreachable and `.hero .btn-ghost` wrote

@@ -2994,6 +2994,173 @@ textarea.g-field { resize: none; line-height: 1.55; }
 .mstack.mflat .mcard { position: relative; width: 320px; max-width: 100%; transform: none; }
 @media (max-width: 720px) { .mstack.mflat .mcard { width: 100%; } }
 
+/* ══ THE PERSON, FULL BLEED (owner, 26 Aug, with a reference) ═════════════
+   Potential Matches redrawn as the reference draws it: the photograph IS the
+   card — no frame of chrome around it, no panel of numbers under it — with
+   the four facts a person decides on set in white ON the picture, in the
+   order the eye takes them: the face, the name, where they are, the number.
+   Everything else this hub knows about somebody lives one tap away on the
+   profile, which is what the reference means by "discover more".
+
+   THE GRADE STAYS. The portraits in this hub have been greyscale through
+   three grounds (see --film in tokens.css); a reference with colour
+   photographs in it is a reference for the LAYOUT, and the monochrome pass
+   was its own owner decision that this one does not name. If the film is
+   ever to go, it goes by the owner's word, where it is declared.
+
+   STORY SEGMENTS, NOT DOTS, at the top edge — the idiom every phone already
+   knows for "there are more pictures". They are indicators, not targets: a
+   3px bar is nothing to a thumb, so navigation is the two invisible half-
+   screen zones underneath them, the same pattern the match-detail collage
+   has always used.
+
+   EVERY COLOUR HERE IS A TOKEN, and the two that look new (--on-scrim,
+   --on-scrim-dim) are the root's own ink-on-a-photograph pair. The text
+   shadow is the established two-stop one (.ec-name, .astra) — a tight edge
+   and a wide ground, both cut from scrim tokens.                          */
+.pmatch { position: relative; margin: 0 auto var(--s-4); max-width: 440px; }
+.pm-stage {
+  position: relative; overflow: hidden; border-radius: var(--r-4);
+  aspect-ratio: 4 / 5; background: var(--wash); box-shadow: var(--e2);
+  isolation: isolate;
+}
+/* 85–90% OF THE SCREEN, SAID PRECISELY: the viewport minus the fixed header
+   and one visible foot of the card below it — enough of the next person to
+   say the list continues, which is this room's whole honesty argument. A
+   fixed 4/5 crop on a phone would waste the height the reference spends. */
+@media (max-width: 640px) {
+  .pm-stage {
+    aspect-ratio: auto;
+    height: calc(100dvh - var(--header-h) - var(--safe-top) - 92px);
+    min-height: 440px; max-height: 780px;
+  }
+}
+.pm-shot { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.pm-letter {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-size: 64px; color: var(--muted); background: var(--wash);
+}
+/* The scrim starts LOW. The reference's photograph breathes because the
+   gradient protects four lines at the foot and touches nothing else — a wash
+   that reaches the face to protect a caption is the picture thrown away. */
+.pm-scrim {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(to top, var(--scrim-deep) 0%, var(--scrim-top) 32%, var(--scrim-clear) 56%);
+}
+.pm-segs { position: absolute; top: 12px; left: 14px; right: 14px; z-index: 3; display: flex; gap: 5px; pointer-events: none; }
+.pm-seg { flex: 1; height: 3px; border-radius: var(--r-full); background: var(--on-scrim-dim); }
+.pm-seg.is-on { background: var(--on-scrim); }
+.pm-zone {
+  position: absolute; top: 0; bottom: 38%; width: 50%; z-index: 2;
+  border: 0; padding: 0; background: transparent; cursor: pointer;
+}
+.pm-zone.is-l { left: 0; } .pm-zone.is-r { right: 0; }
+/* THE NAME BLOCK IS THE DOOR. The half-screen zones flip photographs, so the
+   tap that opens the profile is the block a person is already reading —
+   name, place, number — plus the chevron that says it goes somewhere. */
+.pm-id {
+  position: absolute; left: 20px; right: 20px; bottom: 84px; z-index: 3;
+  display: block; text-decoration: none; color: var(--on-scrim);
+  text-shadow: 0 1px 2px var(--scrim-top), 0 2px 14px var(--scrim-deep);
+}
+.pm-name { margin: 0; font-size: var(--fs-8); font-weight: 400; line-height: 1.1; letter-spacing: -.01em; }
+.pm-name .pm-go { font-size: var(--fs-6); opacity: .85; }
+.pm-where { margin: 5px 0 0; font-size: var(--fs-4); font-weight: 500; opacity: .92; }
+/* The number is a LINE OF TYPE, not a badge — the reference's one hard rule.
+   A hairline above it separates it from the person the way a caption is
+   separated from its photograph, and the band's name beside it says what the
+   number means without a legend. */
+.pm-compat {
+  margin: 10px 0 0; padding-top: 9px; border-top: 1px solid var(--on-scrim-dim);
+  display: flex; align-items: baseline; gap: 8px; font-size: var(--fs-3); font-weight: 500;
+}
+.pm-compat b { font-size: var(--fs-7); font-weight: 600; letter-spacing: -.01em; }
+.pm-acts {
+  position: absolute; left: 16px; right: 16px; bottom: 16px; z-index: 4;
+  display: flex; gap: 10px; align-items: center;
+}
+/* Skip is charcoal translucent ON the picture; Connect is the hub's own
+   porcelain lifted OFF it. The pair says which one the room hopes for
+   without shouting, which is the whole register this hub writes in. */
+.pm-skip {
+  flex: none; display: inline-flex; align-items: center; gap: 7px; min-height: 46px; padding: 0 19px;
+  border: 1px solid var(--on-scrim-dim); border-radius: var(--r-full);
+  background: var(--lamp-badge-bg);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  color: var(--on-scrim); font-family: inherit; font-size: var(--fs-4); font-weight: 600; cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease);
+}
+.pm-connect {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px;
+  border: 0; border-radius: var(--r-full); background: var(--card); color: var(--ink);
+  font-family: inherit; font-size: var(--fs-4); font-weight: 700; cursor: pointer;
+  /* NO DEPTH ON A PHOTOGRAPH. The twin-shadow language says "porcelain on
+     porcelain", and its white top-light reads as a bloom on somebody's dark
+     coat. A solid white pill on a scrimmed picture separates itself. */
+  transition: transform var(--dur-fast) var(--ease);
+}
+.pm-skip:active, .pm-connect:active { transform: translateY(1px); }
+.pm-skip:disabled, .pm-connect:disabled { opacity: .55; cursor: default; }
+@media (prefers-reduced-motion: reduce) { .pm-skip, .pm-connect { transition: none; } }
+/* ── IT'S A CONNECTION ───────────────────────────────────────────────────
+   The mutual moment takes the whole photograph over, because it is the one
+   event in this room that changes which room the person is in. It says where
+   they went — the journey the two-rooms split promised to name. */
+.pm-hit {
+  position: absolute; inset: 0; z-index: 6; display: grid; place-content: center; gap: 6px;
+  text-align: center; padding: 24px; background: var(--scrim-deep); color: var(--on-scrim);
+  animation: pm-hit-in var(--dur-slow) var(--ease-out) both;
+}
+.pm-hit h3 { margin: 0; font-size: var(--fs-8); font-weight: 400; }
+.pm-hit p { margin: 0 0 10px; font-size: var(--fs-3); opacity: .92; }
+.pm-hit a { color: var(--on-scrim); font-weight: 700; }
+@keyframes pm-hit-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .pm-hit { animation: none; } }
+/* The quiet row under the photograph: the one-a-day star, the safety menu,
+   and the sentence about who hears what. Small on purpose — the reference
+   puts nothing here at all, and every line must argue its way in. */
+.pm-under { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 4px 0; }
+.pm-fine { margin: 8px 4px 0; font-size: var(--fs-2); color: var(--muted); line-height: 1.5; }
+.pm-said {
+  margin: 10px 4px 0; padding: 8px 12px; border-radius: var(--r-1);
+  background: var(--paper); color: var(--ink-soft); font-size: var(--fs-3); line-height: 1.5;
+}
+
+/* ══ THE PROFILE, READ AS A PAGE (same brief) ═════════════════════════════
+   The tap-through from the card. The collage keeps its job; what follows it
+   is re-set in the reference's order — the number and what it is made of,
+   the person in their own words, the facts of a life, what you would share —
+   and the decision travels at the foot of the screen instead of waiting at
+   the foot of the page. */
+.pd-sec { margin-top: var(--s-4); }
+.pd-sec > h2 { margin: 0 0 4px; font-size: var(--fs-6); font-weight: 700; letter-spacing: -.01em; }
+.pd-sub { margin: 0 0 12px; font-size: var(--fs-3); color: var(--muted); line-height: 1.55; }
+/* Seven horizontal indicators, not seven numbers in a grid: a bar admits
+   what a percentage is — a position on a line — and seven of them beside
+   each other is the comparison the grid made the reader do in their head. */
+.pd-fac { display: grid; grid-template-columns: 92px minmax(0, 1fr) 42px; align-items: center; gap: 12px; margin-top: 9px; }
+.pd-fac > span { font-size: var(--fs-3); color: var(--ink-soft); }
+.pd-fac > b { font-size: var(--fs-3); font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.pd-track { height: 4px; border-radius: var(--r-full); background: var(--wash); overflow: hidden; }
+.pd-fill { height: 100%; border-radius: var(--r-full); background: var(--accent); }
+/* The facts of a life, as a labelled grid rather than three boxed stats and
+   a prose paragraph pretending to be a table. An absent fact draws nothing:
+   a dash row is a form, and this is a person. */
+.pd-life { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 14px 20px; margin: 0; }
+.pd-life > div { min-width: 0; }
+.pd-life dt { font-size: var(--fs-2); font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.pd-life dd { margin: 3px 0 0; font-size: var(--fs-4); font-weight: 600; line-height: 1.35; overflow-wrap: break-word; }
+/* THE DECISION TRAVELS. On a page this long the two buttons at the foot are
+   below four screens of reading, so the bar rides the bottom edge — over its
+   own fade so the text underneath is never half-legible through it, and
+   clear of the home indicator on the phones that have one. */
+.pd-bar {
+  position: sticky; bottom: 0; z-index: 20; display: flex; gap: 10px;
+  margin-top: var(--s-4); padding: 14px 0 calc(10px + var(--safe-bottom));
+  background: linear-gradient(to top, var(--paper) 62%, var(--paper-clear));
+}
+.pd-bar > * { flex: 1; }
+
 /* ── AND THE PREFERENCE THE GRADE OWES ───────────────────────────────────
    The transparency one is answered where the frost is declared, above. This
    is the one that was never about the sky at all, and it matters MORE now

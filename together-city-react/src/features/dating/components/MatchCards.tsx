@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui';
 import {
@@ -6,11 +6,11 @@ import {
   type CuratedMatch, type MatchKind, type CompatibilityBand, type DatingChatSummary,
 } from '../api';
 import { SafetyMenu } from './SafetyMenu';
-// The band table, its names and inks, and the coverage sentence live in their
-// own module: react-refresh cannot hot-reload a file that exports both
-// components and plain functions, and three pages read these without rendering
-// a single card.
-import { bandFor, coverageNote } from '../bands';
+// The band table, its names and inks, live in their own module: react-refresh
+// cannot hot-reload a file that exports both components and plain functions,
+// and three pages read these without rendering a single card. (The coverage
+// sentence moved to the profile with the breakdown it explains — 26 Aug.)
+import { bandFor } from '../bands';
 
 /**
  * ── HOW A PERSON IS DRAWN IN THE DATING HUB ─────────────────────────────────
@@ -27,68 +27,6 @@ import { bandFor, coverageNote } from '../bands';
  * already global in relief.css, so nothing about their material changed on the
  * way out of the page.
  */
-
-function ScoreRing({ score }: { score: number }) {
-  return (
-    <div
-      style={{
-        width: 54, height: 54, borderRadius: '50%', display: 'grid', placeItems: 'center', flexShrink: 0,
-        background: `conic-gradient(var(--accent) ${score * 3.6}deg, var(--line) 0deg)`,
-      }}
-    >
-      <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--card)', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 13 }}>
-        {score}%
-      </div>
-    </div>
-  );
-}
-
-/** Photo hero + swipeable thumbnail strip. The primary photo fills a 16:10
- *  banner with a gradient scrim; the name, age and star-line sit on the image,
- *  and the score ring floats top-right. Tap a thumbnail to bring it forward. */
-function MatchGallery({ photos, name, age, theirSign, yourSign, score, href }: {
-  photos: string[]; name: string; age?: number; theirSign: string; yourSign: string; score: number; href?: string;
-}) {
-  const [active, setActive] = useState(0);
-  const hero = photos[active] ?? photos[0];
-  const HeroInner = (
-    <>
-      <img src={hero} alt={name} loading="lazy"
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, var(--scrim-deep) 0%, var(--scrim-top) 44%, var(--scrim-clear) 70%)' }} />
-      <div style={{ position: 'absolute', top: 12, right: 12, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,.45))' }}>
-        <ScoreRing score={score} />
-      </div>
-      <div style={{ position: 'absolute', left: 16, right: 16, bottom: 12, color: 'var(--on-accent)' }}>
-        <div style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 700, lineHeight: 1.15, textShadow: '0 1px 10px rgba(0,0,0,.5)' }}>
-          {name}{age ? `, ${age}` : ''}
-        </div>
-        <div style={{ fontSize: 12.5, opacity: 0.92, textShadow: '0 1px 8px rgba(0,0,0,.6)' }}>
-          {theirSign} · with your {yourSign} — written in the stars
-        </div>
-      </div>
-    </>
-  );
-  const heroStyle: React.CSSProperties = { position: 'relative', display: 'block', aspectRatio: '16 / 10', background: 'var(--paper)', overflow: 'hidden' };
-  return (
-    <div>
-      {href
-        ? <Link to={href} style={heroStyle} aria-label={`Open ${name}'s profile`}>{HeroInner}</Link>
-        : <div style={heroStyle}>{HeroInner}</div>}
-      {photos.length > 1 && (
-        <div style={{ display: 'flex', gap: 6, padding: '8px 10px 2px', overflowX: 'auto' }}>
-          {photos.map((p, i) => (
-            <button key={i} type="button" onClick={() => setActive(i)} aria-label={`Photo ${i + 1}`}
-              style={{ flex: 'none', width: 46, height: 46, padding: 0, borderRadius: 8, overflow: 'hidden', cursor: 'pointer',
-                border: `2px solid ${i === active ? 'var(--accent)' : 'transparent'}`, opacity: i === active ? 1 : 0.8, background: 'none' }}>
-              <img src={p} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 /**
  * THE MATCH STACK.
@@ -171,12 +109,44 @@ export function MatchStack({ people, kind }: { people: CuratedMatch[]; kind: Mat
   );
 }
 
+/**
+ * ── THE PERSON, FULL BLEED (owner, 26 Aug, with a reference) ────────────────
+ *
+ * The reference: one large photograph, the name and age in white ON it, where
+ * they are, "Compatibility 92%", story-style segments across the top, "× Skip"
+ * translucent and "♡ Connect" prominent at the foot. Nothing else. The bio,
+ * the seven factor numbers, the interest pills and the coverage sentence all
+ * moved to the profile a tap away — that page is where the decision to meet a
+ * stranger is made, and the card's job is only to make somebody open it.
+ *
+ * WHAT SURVIVED THE REDRAW, deliberately:
+ *   · the safety menu, under the photograph. Most people never open the detail
+ *     page, and "I had to go looking for it" is exactly the failure this
+ *     control exists to prevent.
+ *   · the super-like, its count on the button, and the server's own sentence
+ *     when an allowance refuses — the rule speaking, not a failed request.
+ *   · "They're in Curated Matches now": a connection is a person quietly
+ *     moving rooms, and the card says so where it happens.
+ *   · "Skip", not "Pass" — the same action on two screens keeps one name.
+ *
+ * THE WORD ON THE BUTTON IS "CONNECT" because the owner's reference writes it
+ * on the button. The room's rule at the top of the page still speaks of likes
+ * — that copy is the owner's own three lines, pinned by its test — so the
+ * captions here say "choose each other", which is both in one word.
+ *
+ * THE PHOTOGRAPH CARRIES A view-transition-name, and the profile's hero
+ * carries the same one, so on browsers that support it the tap-through is the
+ * picture growing into the page rather than a cut. Everywhere else the
+ * attribute is inert and navigation is what it always was.
+ */
 export function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKind }) {
   const like = useLikeMatch(kind);
   const pass = usePassMatch(kind);
   const superLike = useSuperLike(kind);
   const allowance = useLikeAllowance();
   const [result, setResult] = useState<{ matched: boolean; conversationId: string | null } | null>(null);
+  const [shot, setShot] = useState(0);
+  const touchX = useRef<number | null>(null);
   // The server is the authority on the limit; this only decides what the button
   // looks like before it is pressed. A refusal still arrives as a real message.
   const supersLeft = allowance.data?.supersLeft ?? 0;
@@ -184,154 +154,111 @@ export function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKin
   const limitError = (like.error ?? superLike.error) as { response?: { data?: { message?: string } } } | null;
 
   const matched = result?.matched || match.matched;
+  const chosen = match.likedByMe && !matched;
   const photos = match.photos ?? [];
-  const hasPhotos = photos.length > 0;
+  const n = photos.length;
+  const active = Math.min(shot, Math.max(0, n - 1));
+  const go = (delta: number) => setShot((x) => (n ? (x + delta + n) % n : 0));
   const detailHref = `/dating/match?u=${match.user.id}&kind=${kind}`;
+  const band = bandFor(match.score);
+  const label = `${match.user.name}${match.age ? `, ${match.age}` : ''}`;
+  const conversationId = result?.conversationId ?? match.conversationId;
+
+  // Same gesture, same threshold, as the profile's collage: a horizontal drag
+  // past 40px is a swipe between photographs; anything shorter is a tap and
+  // falls through to whatever was tapped.
+  const onTouchStart = (e: React.TouchEvent) => { touchX.current = e.touches[0].clientX; };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (touchX.current == null) return;
+    const dx = e.changedTouches[0].clientX - touchX.current;
+    if (Math.abs(dx) > 40 && n > 1) go(dx < 0 ? 1 : -1);
+    touchX.current = null;
+  };
 
   return (
-    <article className="card" style={{ marginBottom: 16, padding: 0, overflow: 'hidden' }}>
-      {hasPhotos ? (
-        <MatchGallery photos={photos} name={match.user.name} age={match.age}
-          theirSign={match.theirSign} yourSign={match.yourSign} score={match.score} href={detailHref} />
-      ) : (
-        <div style={{ display: 'flex', gap: 14, alignItems: 'center', padding: '18px 18px 0' }}>
-          <ScoreRing score={match.score} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <Link to={detailHref} style={{ fontWeight: 700, fontSize: 16 }}>{match.user.name}{match.age ? `, ${match.age}` : ''}</Link>
-            <div className="muted" style={{ fontSize: 12.5 }}>
-              {match.theirSign} · with your {match.yourSign} — written in the stars
-            </div>
+    <article className="pmatch">
+      <div className="pm-stage" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
+        style={{ viewTransitionName: `pm-${match.user.id}` } as React.CSSProperties}>
+        {photos[active]
+          ? <img className="pm-shot" src={photos[active]} alt={label} loading="lazy" draggable={false} />
+          : <span className="pm-letter" aria-hidden>{match.user.name.slice(0, 1)}</span>}
+        <div className="pm-scrim" aria-hidden />
+        {n > 1 && (
+          <div className="pm-segs" aria-hidden>
+            {photos.map((_, k) => <span key={k} className={`pm-seg${k === active ? ' is-on' : ''}`} />)}
           </div>
-        </div>
-      )}
-
-      <div style={{ padding: hasPhotos ? '14px 18px 18px' : '12px 18px 18px' }}>
-      {match.bio && <p style={{ fontSize: 14, lineHeight: 1.5, margin: '0 0 0', color: 'var(--ink-soft)' }}>{match.bio}</p>}
-
-      {match.breakdown && (
-        <div style={{ marginTop: 12, background: 'var(--paper)', borderRadius: 12, padding: '12px 14px' }}>
-          <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8 }}>{match.score}% compatibility</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: '6px 14px' }}>
-            {([['Astrology', match.breakdown.astrology], ['Personality', match.breakdown.personality], ['Goals', match.breakdown.relationshipGoals], ['Values', match.breakdown.values], ['Lifestyle', match.breakdown.lifestyle], ['Interests', match.breakdown.interests], ['Location', match.breakdown.location]] as [string, number][]).map(([k, v]) => (
-              <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                <span className="muted">{k}</span><span style={{ fontWeight: 600 }}>{v}%</span>
-              </div>
-            ))}
-          </div>
-          {coverageNote(match.coverage) && (
-            <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, margin: '8px 0 0' }}>{coverageNote(match.coverage)}</p>
-          )}
-          {match.reasons && match.reasons.length > 0 && (
-            <>
-              <div className="dt-why">Why this match?</div>
-              <ul className="dt-reasons">
-                {match.reasons.map((r, i) => <li key={i}>{r}</li>)}
-              </ul>
-            </>
-          )}
-          {match.frictions && match.frictions.length > 0 && (
-            <>
-              <div className="dt-why">One thing to explore</div>
-              <ul className="dt-reasons is-friction">
-                {match.frictions.map((r, i) => <li key={i}>{r}</li>)}
-              </ul>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* On the card, not only the detail page. Most people never open the
-          detail page, and "I had to go looking for it" is exactly the failure
-          this control exists to prevent. Outside the breakdown block, because a
-          match with no score breakdown still has a person behind it. */}
-      <div style={{ marginTop: 12 }}>
-        <SafetyMenu userId={match.user.id} kind={kind} compact />
-      </div>
-
-      {match.interests.length > 0 && (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
-          {match.interests.map((i) => (
-            <span key={i} className="pill" style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '4px 12px', fontSize: 12 }}>
-              {i}
-            </span>
-          ))}
-        </div>
-      )}
-
-      <div style={{ marginTop: 14 }}>
-        {matched ? (
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--accent-ink)' }}>💫 It’s a match!</span>
-            {/* AND WHERE IT NOW LIVES. A like that lands a match moves this
-                person into Curated Matches; saying so is the difference between
-                a card that changed and a person who has quietly moved rooms. */}
-            <Link to="/dating/matches" style={{ fontSize: 12.5, fontWeight: 700 }}>They’re in Curated Matches now →</Link>
-            {match.conversationId
-              ? <Link to={`/dating/chats?c=${match.conversationId}`}><Button variant="accent" size="sm">💬 Open chat</Button></Link>
-              : <Link to={detailHref}><Button variant="accent" size="sm">💬 Connect to Chat</Button></Link>}
-          </div>
-        ) : (
+        )}
+        {n > 1 && !matched && (
           <>
-            {/* A refused like is not a failed request — it is the rule speaking,
-                and the server's sentence already says when it lifts. */}
-            {limitError?.response?.data?.message && (
-              <p style={{ margin: '0 0 10px', fontSize: 12.5, color: 'var(--ink-soft)', background: 'var(--paper)', borderRadius: 8, padding: '8px 11px' }}>
-                {limitError.response.data.message}
-              </p>
-            )}
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-              <Button
-                variant="accent" size="sm" disabled={like.isPending}
-                onClick={() => like.mutate(match.user.id, { onSuccess: (r) => setResult(r) })}
-              >
-                {like.isPending ? '…' : kind === 'romantic' ? '♥ Like' : '＋ Connect'}
-              </Button>
-              {/* One a day, and it says which day it is. Scarcity you cannot see
-                  is a counter, not scarcity — so the count is on the button. */}
-              {kind === 'romantic' && (
-                <Button
-                  variant="line" size="sm"
-                  disabled={superLike.isPending || supersLeft < 1 || outOfLikes}
-                  title={supersLeft < 1
-                    ? `Your super-like comes back at midnight (${allowance.data?.resetsAtLocal ?? 'your local time'}).`
-                    : 'They will be told you used your one super-like of the day on them.'}
-                  onClick={() => superLike.mutate(match.user.id, { onSuccess: (r) => setResult({ matched: r.matched, conversationId: null }) })}
-                >
-                  {superLike.isPending ? '…' : `⭐ Super-like${supersLeft > 0 ? ` (${supersLeft})` : ''}`}
-                </Button>
-              )}
-              {/* "Skip", not "Pass" — the match detail page has always said Skip,
-                  and the same action on two screens should not have two names. */}
-              <Button variant="line" size="sm" disabled={pass.isPending || outOfLikes} onClick={() => pass.mutate(match.user.id)}>
-                ✕ Skip
-              </Button>
-              {/* Chat is shown here, always, so it is obvious that it exists and
-                  what opens it — but it stays disabled until both people have
-                  chosen each other. A dating hub where a stranger can open a
-                  thread you never agreed to is a harassment surface, and the
-                  whole flow (anonymous, one at a time) is built the other way.
-                  Disabled-with-a-reason beats hidden: hidden looks broken. */}
-              <Button
-                variant="line"
-                size="sm"
-                disabled
-                title={match.likedByMe
-                  ? 'Waiting for them to like you back — chat opens the moment they do.'
-                  : 'Chat opens once you both like each other.'}
-                style={{ opacity: 0.5, cursor: 'not-allowed' }}
-              >
-                💬 Chat
-              </Button>
-            </div>
-            <p className="muted" style={{ fontSize: 11.5, margin: '10px 0 0', textAlign: 'center' }}>
-              {match.likedByMe
-                ? 'You’ve liked them. They’ll only know if they like you back — then chat opens in Curated Matches.'
-                : 'They’re notified only if you both like each other. That moves them to Curated Matches, and chat opens there.'}
-            </p>
+            <button type="button" className="pm-zone is-l" aria-label="Previous photo" onClick={() => go(-1)} />
+            <button type="button" className="pm-zone is-r" aria-label="Next photo" onClick={() => go(1)} />
           </>
         )}
+        <Link to={detailHref} className="pm-id" viewTransition aria-label={`Open ${match.user.name}’s profile`}>
+          <h3 className="dating-display pm-name">{label} <span className="pm-go" aria-hidden>›</span></h3>
+          {match.city && <p className="pm-where"><span aria-hidden>📍</span> {match.city}</p>}
+          <p className="pm-compat"><b>{match.score}%</b> Compatible · {band.name}</p>
+        </Link>
+        {matched ? (
+          <div className="pm-hit">
+            <h3 className="dating-display">It’s a Connection</h3>
+            {/* AND WHERE THEY NOW LIVE. A connection is this person quietly
+                moving rooms; saying so is the difference between a card that
+                changed and a journey the citizen was promised. */}
+            <p>You chose each other.</p>
+            <Link to="/dating/matches">They’re in Curated Matches now →</Link>
+            <div style={{ marginTop: 12 }}>
+              {conversationId
+                ? <Link to={`/dating/chats?c=${conversationId}`}><Button variant="accent" size="sm">💬 Open chat</Button></Link>
+                : <Link to={detailHref}><Button variant="accent" size="sm">💬 Connect to Chat</Button></Link>}
+            </div>
+          </div>
+        ) : (
+          <div className="pm-acts">
+            <button type="button" className="pm-skip" disabled={pass.isPending || outOfLikes}
+              onClick={() => pass.mutate(match.user.id)}>
+              <span aria-hidden>✕</span> Skip
+            </button>
+            <button type="button" className="pm-connect" disabled={like.isPending || chosen}
+              onClick={() => like.mutate(match.user.id, { onSuccess: (r) => setResult(r) })}>
+              {like.isPending ? '…' : chosen ? '♡ Chosen' : <><span aria-hidden>♡</span> Connect</>}
+            </button>
+          </div>
+        )}
       </div>
-      </div>
+
+      {/* A refused like is not a failed request — it is the rule speaking,
+          and the server's sentence already says when it lifts. */}
+      {!matched && limitError?.response?.data?.message && (
+        <p className="pm-said">{limitError.response.data.message}</p>
+      )}
+
+      {!matched && (
+        <div className="pm-under">
+          {/* One a day, and it says which day it is. Scarcity you cannot see
+              is a counter, not scarcity — so the count is on the button. */}
+          {kind === 'romantic' && (
+            <Button
+              variant="line" size="sm"
+              disabled={superLike.isPending || supersLeft < 1 || outOfLikes}
+              title={supersLeft < 1
+                ? `Your super-like comes back at midnight (${allowance.data?.resetsAtLocal ?? 'your local time'}).`
+                : 'They will be told you used your one super-like of the day on them.'}
+              onClick={() => superLike.mutate(match.user.id, { onSuccess: (r) => setResult({ matched: r.matched, conversationId: null }) })}
+            >
+              {superLike.isPending ? '…' : `⭐ Super-like${supersLeft > 0 ? ` (${supersLeft})` : ''}`}
+            </Button>
+          )}
+          <SafetyMenu userId={match.user.id} kind={kind} compact />
+        </div>
+      )}
+      {!matched && (
+        <p className="pm-fine">
+          {chosen
+            ? 'You’ve chosen them. They’ll only know if they choose you back — then chat opens in Curated Matches.'
+            : 'They’re notified only if you both choose each other. That moves them to Curated Matches, and chat opens there.'}
+        </p>
+      )}
     </article>
   );
 }
