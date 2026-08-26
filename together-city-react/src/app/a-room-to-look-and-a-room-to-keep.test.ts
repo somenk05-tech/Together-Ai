@@ -42,6 +42,11 @@ describe('a room to look in, and a room to keep', () => {
   const browse = code('features/dating/pages/DatingBrowse.tsx');
   const curated = code('features/dating/pages/DatingMatches.tsx');
   const cards = code('features/dating/components/MatchCards.tsx');
+  // The band table moved out of the component file on 26 Aug — react-refresh
+  // cannot hot-reload a file that exports both components and functions — and
+  // this guard follows it there. What it pins is unchanged: one function, one
+  // signature, counted off the list being rendered.
+  const bands = code('features/dating/bands.ts');
   const router = code('app/router.tsx');
 
   it('gives the dating hub four rooms, in the order the journey runs', () => {
@@ -120,7 +125,7 @@ describe('a room to look in, and a room to keep', () => {
   it('counts the histogram off the list it sits above', () => {
     // /dating/discover sends no distribution. Counting the bands from the very
     // array being rendered means the summary cannot disagree with the list.
-    expect(cards).toMatch(/export function bandsOf\(matches: CuratedMatch\[\]\): CompatibilityBand\[\]/);
+    expect(bands).toMatch(/export function bandsOf\(matches: CuratedMatch\[\]\): CompatibilityBand\[\]/);
     expect(browse).toMatch(/bands=\{bandsOf\(everyone\)\} total=\{everyone\.length\}/);
   });
 

@@ -1,12 +1,27 @@
-import { compatibilityScore, zodiacSign } from './astrology';
+import { compatibilityScore, tropicalSign, vedicSign, zodiacSign } from './astrology';
+import { signOf, siderealLon, sunLongitude } from '../astrology/astro-engine';
 
 /**
  * The dating hub's scoring engine had no spec at all — the file that carries
- * 50% of every match weight was the one file in the module nobody tested.
+ * most of every match weight was the one file in the module nobody tested.
  *
  * The truth table below is built from the sign boundaries directly rather than
  * from the implementation, so it can disagree with the code. That is the point:
- * a test written by reading zodiacSign() would have agreed with the bug.
+ * a test written by reading the implementation would have agreed with the bug.
+ *
+ * WHAT MOVED, 26 Aug. The truth table is TROPICAL, and dating no longer is.
+ * The Astrology Zone computes sidereal (Vedic) placements — `astro-engine.ts`,
+ * Lahiri ayanamsa — and dating computed a Western sun sign from these calendar
+ * boundaries, so the two rooms of the same city agreed on 21.5% of birth dates.
+ * Adjacent signs are always different elements, and the element is the whole of
+ * what AFFINITY reads, so 78.5% of citizens were matched on an element the
+ * product itself said was not theirs.
+ *
+ * `zodiacSign` is the Vedic reading now. `tropicalSign` is kept whole and is
+ * still what this truth table tests, because DATING_ZODIAC=tropical restores it
+ * in one env var and a reversal nobody tests is not a reversal. The C2
+ * regression — 22-31 December read as Sagittarius — is guarded on the tropical
+ * function, where it happened.
  */
 const WINDOWS: [string, string, number, number, number, number][] = [
   ['Aquarius', 'air', 1, 20, 2, 18],
@@ -40,37 +55,53 @@ const everyDay = (): [number, number][] => {
 /** A birthday as the service stores it: date-only, midnight UTC. */
 const born = (m: number, d: number) => new Date(Date.UTC(1996, m - 1, d));
 
-describe('zodiacSign', () => {
+describe('tropicalSign — the Western reading, kept whole behind DATING_ZODIAC=tropical', () => {
   it('is right on every day of the year, leap day included', () => {
     const wrong = everyDay()
-      .filter(([m, d]) => zodiacSign(born(m, d)).name !== expected(m, d).name)
-      .map(([m, d]) => `${m}/${d}: got ${zodiacSign(born(m, d)).name}, want ${expected(m, d).name}`);
+      .filter(([m, d]) => tropicalSign(born(m, d)).name !== expected(m, d).name)
+      .map(([m, d]) => `${m}/${d}: got ${tropicalSign(born(m, d)).name}, want ${expected(m, d).name}`);
     expect(wrong).toEqual([]);
   });
 
   it('gets both cusp days of all twelve signs', () => {
     for (const [name, , m1, d1, m2, d2] of WINDOWS) {
-      expect(zodiacSign(born(m1, d1)).name).toBe(name);
-      expect(zodiacSign(born(m2, d2)).name).toBe(name);
+      expect(tropicalSign(born(m1, d1)).name).toBe(name);
+      expect(tropicalSign(born(m2, d2)).name).toBe(name);
     }
   });
 
   it('carries Capricorn across the year end', () => {
-    // The regression. 22-31 December returned Sagittarius before the fix.
+    // The C2 regression. 22-31 December returned Sagittarius before the fix,
+    // and this guards the tropical reading where the bug lived.
     for (let d = 22; d <= 31; d++) {
-      expect(zodiacSign(born(12, d)).name).toBe('Capricorn');
-      expect(zodiacSign(born(12, d)).element).toBe('earth');
+      expect(tropicalSign(born(12, d)).name).toBe('Capricorn');
+      expect(tropicalSign(born(12, d)).element).toBe('earth');
     }
-    for (let d = 1; d <= 19; d++) expect(zodiacSign(born(1, d)).name).toBe('Capricorn');
+    for (let d = 1; d <= 19; d++) expect(tropicalSign(born(1, d)).name).toBe('Capricorn');
     // And does not swallow the days either side of the boundary.
-    expect(zodiacSign(born(12, 21)).name).toBe('Sagittarius');
-    expect(zodiacSign(born(1, 20)).name).toBe('Aquarius');
+    expect(tropicalSign(born(12, 21)).name).toBe('Sagittarius');
+    expect(tropicalSign(born(1, 20)).name).toBe('Aquarius');
   });
 
   it('gives the element the affinity table actually scores', () => {
     for (const [m, d] of everyDay()) {
-      expect(zodiacSign(born(m, d)).element).toBe(expected(m, d).element);
+      expect(tropicalSign(born(m, d)).element).toBe(expected(m, d).element);
     }
+  });
+
+  it('agrees with the Astrology Zone on every date, which is the point', () => {
+    const jdOf = (d: Date) => d.getTime() / 86400000 + 2440587.5;
+    const disagree = everyDay()
+      .map(([m, d]) => born(m, d))
+      .filter((dt) => zodiacSign(dt).name !== signOf(siderealLon(sunLongitude(jdOf(dt)), jdOf(dt))));
+    expect(disagree).toEqual([]);
+  });
+
+  it('reads a different sign from the tropical one for most of the year', () => {
+    // Not a nicety — it is the whole reason the switch was made. If these ever
+    // agree everywhere, one of the two engines has silently changed.
+    const same = everyDay().filter(([m, d]) => vedicSign(born(m, d)).name === tropicalSign(born(m, d)).name);
+    expect(same.length / everyDay().length).toBeLessThan(0.35);
   });
 
   it('reaches all twelve signs and no thirteenth', () => {
@@ -84,15 +115,14 @@ describe('compatibilityScore', () => {
   const person = (id: string, m: number, d: number, interests: string[] = []) =>
     ({ userId: id, birthDate: born(m, d), interests });
 
-  it('scores a Christmas birthday as earth, not fire', () => {
-    // A Capricorn and a Taurus are both earth (88 in AFFINITY). Read as
-    // Sagittarius they would have been fire against earth (62) — a 26-point
-    // swing on the factor that carries half the weight.
-    const capricorn = person('a', 12, 25);
-    const taurus = person('b', 5, 1);
-    const r = compatibilityScore(capricorn, taurus);
-    expect(r.signA).toBe('Capricorn');
-    expect(r.signB).toBe('Taurus');
+  it('reports the same sign the rest of the city reports', () => {
+    // A Christmas birthday is Capricorn tropically and Sagittarius siderally.
+    // The card must say what the Astrology Zone says, because it is the same
+    // person looking at both screens.
+    const r = compatibilityScore(person('a', 12, 25), person('b', 5, 1));
+    expect(r.signA).toBe(vedicSign(born(12, 25)).name);
+    expect(r.signB).toBe(vedicSign(born(5, 1)).name);
+    expect(tropicalSign(born(12, 25)).name).toBe('Capricorn');
   });
 
   it('is symmetric in the pair, so two people see the same number', () => {

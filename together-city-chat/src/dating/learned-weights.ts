@@ -74,8 +74,22 @@ export const MIN_EACH = 5;
 export const CLEAR_LEAN = 8;
 /** The most any factor's share may move, relative to where it started. */
 export const MAX_SHIFT = 0.5;
-/** No factor is ever switched off. */
-export const WEIGHT_FLOOR = 0.02;
+/**
+ * No factor is ever switched off — as a SHARE of where it started, not as an
+ * absolute number.
+ *
+ * It was a flat 0.02, which worked while the six non-astrology factors shared
+ * 0.50 between them. At astrology 0.90 they share 0.10, four of the six START
+ * below 0.02, and six floors of 0.02 need 0.12 out of a pool of 0.10 — so the
+ * floor was not merely ineffective, it was infeasible, and it clamped every
+ * factor to the same value and switched the learning off entirely.
+ *
+ * A proportional floor says the same thing at any weight table: a factor may
+ * lose most of its influence but never all of it.
+ */
+export const WEIGHT_FLOOR_SHARE = 0.2;
+/** The smallest this factor may become, given where it started. */
+export const weightFloorFor = (k: keyof FactorBreakdown) => WEIGHTS[k] * WEIGHT_FLOOR_SHARE;
 /**
  * How far back the evidence goes.
  *
@@ -169,7 +183,7 @@ export function learnWeights(decisions: readonly Decision[]): LearnedWeights {
     // 50 points of separation is the most anybody gets credit for; beyond that
     // the factor is already doing all the work it can be trusted with.
     const shift = Math.max(-MAX_SHIFT, Math.min(MAX_SHIFT, lean / 50));
-    raw.set(k, Math.max(WEIGHT_FLOOR, WEIGHTS[k] * (1 + shift)));
+    raw.set(k, Math.max(weightFloorFor(k), WEIGHTS[k] * (1 + shift)));
   }
   const rawTotal = [...raw.values()].reduce((a, b) => a + b, 0);
 

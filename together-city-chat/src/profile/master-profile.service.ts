@@ -144,6 +144,22 @@ export function propagationPlan(shared: SharedFields): {
       gender: social, birthDate: shared.dateOfBirth ?? undefined,
       birthTime: shared.timeOfBirth, birthPlace,
     }),
+    /**
+     * THE 18+ CHECK WAS BYPASSABLE THROUGH THIS FILE.
+     *
+     * `moderateProfile` rejects an under-18 dating profile at the point it is
+     * created (`dating.service.ts`, check `age-18-plus`, severity hard). But
+     * `PATCH /profile/master` accepts `dateOfBirth` with no age validation at
+     * all, and the plan above writes it straight onto the dating row via
+     * `updateMany`, which does not re-run moderation and does not touch
+     * `moderation`. A profile approved at 25 could have its date of birth
+     * rewritten to any date and stay approved, visible and in everybody's pool.
+     *
+     * The propagation is where the guard belongs, because the propagation is
+     * what crosses the boundary. Below 18 the dating row is not written at all —
+     * the rest of the plan still propagates, because a birthday is shared data
+     * and only ONE hub has a legal minimum attached to it.
+     */
     // The level resolves to its factor HERE and nowhere else, so FoodPref keeps
     // holding a float its engine can multiply while the citizen's answer stays a
     // word. One lookup table, one direction.
@@ -167,6 +183,25 @@ interface MasterRow extends SharedFields { id: string; userId: string; updatedAt
 export class MasterProfileService {
   private readonly logger = new Logger('MasterProfile');
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Whether a propagated birth date may reach the dating row. See the note on
+   * `plan.dating` above: this is the one hub with a legal minimum, and this is
+   * the one crossing point that was not checking it.
+   *
+   * A plan that does not carry a birth date is allowed through untouched — this
+   * guards the field, not the propagation.
+   */
+  private datingAgeAllows(plan: Record<string, unknown>): boolean {
+    const dob = plan.birthDate;
+    if (dob === undefined || dob === null) return true;
+    const d = dob instanceof Date ? dob : new Date(String(dob));
+    if (Number.isNaN(d.getTime())) return false;
+    const years = (Date.now() - d.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+    if (years >= 18) return true;
+    this.logger.warn(`dating propagation blocked: propagated date of birth is under 18`);
+    return false;
+  }
 
   /**
    * A wellness summary from what the citizen has actually recorded.
@@ -432,7 +467,9 @@ export class MasterProfileService {
       // A propagation that fails silently is a hub quietly diverging from the
       // master — the exact disagreement §3 exists to end.
       Object.keys(plan.astro).length ? swallow(p.astroProfile.updateMany({ where: { userId }, data: plan.astro }), 'propagate shared fields to astro', { userId }) : null,
-      Object.keys(plan.dating).length ? swallow(p.datingProfile.updateMany({ where: { userId }, data: plan.dating }), 'propagate shared fields to dating', { userId }) : null,
+      Object.keys(plan.dating).length && this.datingAgeAllows(plan.dating)
+        ? swallow(p.datingProfile.updateMany({ where: { userId }, data: plan.dating }), 'propagate shared fields to dating', { userId })
+        : null,
       Object.keys(plan.food).length ? swallow(p.foodPref.updateMany({ where: { userId }, data: answeredNow(plan.food) }), 'propagate shared fields to food-pref', { userId }) : null,
       Object.keys(plan.fitness).length ? swallow(p.fitnessProfile.updateMany({ where: { userId }, data: answeredNow(plan.fitness) }), 'propagate shared fields to fitness', { userId }) : null,
     ]);
@@ -594,4 +631,5 @@ function markerShare(payload?: string | null): number | null {
   } catch {
     return null;
   }
+
 }

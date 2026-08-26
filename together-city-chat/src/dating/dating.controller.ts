@@ -12,6 +12,7 @@ import {
   type ReportMatchDto,
   UpsertDatingProfileSchema, type UpsertDatingProfileDto,
   CreateActivitySchema, type CreateActivityDto, RespondInviteSchema, TrustSchema,
+  ModerationDecisionSchema,
 } from './dto/dating.dto';
 
 @Controller('dating')
@@ -143,6 +144,23 @@ export class DatingController {
   @Get('admin/stats')
   adminStats(@CurrentUser() user: JwtUser) {
     return this.dating.adminStats(user.sub);
+  }
+
+  /**
+   * Move a dating profile out of `review` — the queue `adminStats` counts and
+   * nothing in the codebase could empty. The only write to `moderation` was the
+   * automatic decision taken on save, so a profile that landed in review stayed
+   * there for good, and one a moderator wanted off the platform could not be put
+   * there at all.
+   */
+  @Post('admin/moderation/:targetUserId')
+  moderateDecision(
+    @CurrentUser() user: JwtUser,
+    @Param('targetUserId') targetUserId: string,
+    @Body() body: unknown,
+  ) {
+    const dto = parseOrThrow(ModerationDecisionSchema, body);
+    return this.dating.moderateDecision(user.sub, targetUserId, dto.decision, dto.reason);
   }
 
   @Post('matches/:targetUserId/pass')

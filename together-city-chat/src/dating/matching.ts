@@ -46,6 +46,11 @@ export interface DXProfile {
    *  nothing at all (L1). It is a deal-breaker when the citizen says so and
    *  nothing when they do not — the same rule as every other chip. */
   religion?: string;
+  /** Languages the citizen speaks. Collected by the form since the beginning,
+   *  weighted 4 points by `completion.ts`, echoed onto every card — and, until
+   *  the 1M global run, read by no scoring or filtering code at all. Two people
+   *  with no language in common reached 92%. See `languageBarrier`. */
+  languages?: string[];
 }
 
 export interface FactorBreakdown {
@@ -56,33 +61,62 @@ export interface FactorBreakdown {
 /**
  * H1 — the weights, and what follows from leaving them alone.
  *
- * OWNER DECISION, 23 Aug: astrology stays at 0.50. The audit measured it at
- * r = 0.92 with the final score, which is another way of saying astrology IS
- * the sort order and the other six factors decorate it. That cost is accepted
- * and recorded here, rather than re-argued by whoever reads this next.
+ * OWNER DECISION, 23 Aug: astrology stays at 0.50.
+ * OWNER DECISION, 26 Aug: astrology goes to 0.90, the other six factors share
+ * the remaining 0.10.
+ *
+ * WHAT 0.90 MEANS, WRITTEN DOWN SO NOBODY HAS TO REDISCOVER IT. The astrology
+ * term is `AFFINITY[elemA][elemB]`, a 4x4 matrix with seven distinct values,
+ * plus an interest bonus capped at 8 and a deterministic per-pair hash of 0-8.
+ * At 0.90 the displayed percentage is that expression and almost nothing else:
+ * the 1M global run measured astrology at r = 0.68 with the final score when it
+ * held 0.50, and above 0.85 the correlation is effectively 1. The number on the
+ * card is an ASTROLOGICAL READING, and the surfaces that print it say so.
  *
  * What follows from the decision is the rest of this file. At 0.15 a mismatched
  * intent can be out-scored by a good chart and the damage is a bad ranking; at
- * 0.50 it is out-scored nearly always, so the only thing standing between a
- * citizen and somebody whose star sign flatters the arithmetic is a filter that
- * REMOVES people. That is why every chip the form offers is implemented in
- * `hardFilterReason` below — and why two of them silently doing nothing was a
+ * 0.90 it is out-scored always and by everything, so the ONLY thing standing
+ * between a citizen and somebody whose star sign flatters the arithmetic is a
+ * filter that REMOVES people. That is why every chip the form offers is
+ * implemented in `hardFilterReason` below, why the three fundamental questions
+ * now filter for everybody who has answered them, why a shared language is a
+ * filter and not a score, and why two chips silently doing nothing was a far
  * worse bug here than the same bug would have been in a balanced model.
  *
- * The retune the audit suggested is kept whole, behind an env var. Setting
- * DATING_WEIGHTS=retuned is the entire change; nothing else reads the flag, and
- * `confidence()` below is deliberately independent of which table is in use.
+ * The remaining 0.10 is split so that the factor a citizen is most likely to be
+ * hurt by — what each of them is looking for — keeps the largest share of it.
+ *
+ * Two alternative tables are kept whole behind one env var, so reversing is a
+ * deploy setting rather than a rewrite:
+ *   DATING_WEIGHTS=retuned           the audit's balanced table (astrology 0.15)
+ *   DATING_WEIGHTS=astro-personality astrology 0.75 + personality 0.15 = 0.90
+ * `confidence()` below is deliberately independent of which table is in use —
+ * see the note there, which is what stops a 0.90 weight from silently switching
+ * the confidence penalty off.
  */
 export const ASTROLOGY_LED_WEIGHTS: Record<keyof FactorBreakdown, number> = {
-  astrology: 0.50, personality: 0.15, relationshipGoals: 0.10,
-  values: 0.10, lifestyle: 0.05, interests: 0.05, location: 0.05,
+  astrology: 0.90, relationshipGoals: 0.04, values: 0.02,
+  personality: 0.015, lifestyle: 0.01, interests: 0.01, location: 0.005,
+};
+/** astrology + personality together at 0.90, if that is the reading intended. */
+export const ASTRO_PERSONALITY_WEIGHTS: Record<keyof FactorBreakdown, number> = {
+  astrology: 0.75, personality: 0.15, relationshipGoals: 0.04,
+  values: 0.02, lifestyle: 0.02, interests: 0.01, location: 0.01,
 };
 export const RETUNED_WEIGHTS: Record<keyof FactorBreakdown, number> = {
   relationshipGoals: 0.22, values: 0.18, lifestyle: 0.15,
   personality: 0.15, astrology: 0.15, interests: 0.10, location: 0.05,
 };
 export const WEIGHTS: Record<keyof FactorBreakdown, number> =
-  process.env.DATING_WEIGHTS === 'retuned' ? RETUNED_WEIGHTS : ASTROLOGY_LED_WEIGHTS;
+  process.env.DATING_WEIGHTS === 'retuned' ? RETUNED_WEIGHTS
+    : process.env.DATING_WEIGHTS === 'astro-personality' ? ASTRO_PERSONALITY_WEIGHTS
+      : ASTROLOGY_LED_WEIGHTS;
+
+/** Every table must sum to 1. A weight table that does not is a silent rescale. */
+for (const [name, table] of Object.entries({ ASTROLOGY_LED_WEIGHTS, ASTRO_PERSONALITY_WEIGHTS, RETUNED_WEIGHTS })) {
+  const sum = Object.values(table).reduce((a, b) => a + b, 0);
+  if (Math.abs(sum - 1) > 1e-9) throw new Error(`dating weights ${name} sum to ${sum}, not 1`);
+}
 
 const lc = (s: string) => s.toLowerCase();
 function overlapPct(a: string[] = [], b: string[] = []): number {
@@ -100,6 +134,49 @@ export function sharedItems(a: string[] = [], b: string[] = []): string[] {
 export const GOAL_ORDER = ['Friendship First', 'Casual Dating', 'Serious Dating', 'Long-term Relationship', 'Marriage'];
 
 /**
+ * THE BUG THIS CLOSES, AND IT IS THE LARGEST ONE THE 1M RUN FOUND.
+ *
+ * `lookup.data.ts` seeds the dropdown the citizen actually uses:
+ *
+ *   ['Marriage', 'Long-term relationship', 'Serious dating',
+ *    'Casual dating', 'Friendship first', 'Still figuring it out']
+ *
+ * `GOAL_ORDER` above is what this file could parse. **One of the six matched.**
+ * `DatingProfile.tsx` writes `o.label` straight from the lookup, nothing
+ * normalises it, and the Title-Case spellings existed in exactly two places:
+ * this file and its own unit tests. The tests passed against a vocabulary
+ * production had never sent.
+ *
+ * Measured consequences, enumerated over all 36 ordered pairs of served labels:
+ *   · `goalScore` returned 45 — the unanswered value — in 35 of 36;
+ *   · `committed()` returned true for 'Marriage' and null for the other five,
+ *     never false, so the "Marriage Intentions" condition was unsatisfiable and
+ *     **the deal-breaker could not fire at all**;
+ *   · `coverage()` still counted the field as answered, so no confidence
+ *     penalty applied to a goal the engine could not read.
+ *
+ * Normalising HERE rather than editing the lookup is deliberate: the seed uses
+ * `createMany({ skipDuplicates: true })` over a lower-cased code, so relabelling
+ * the seed would leave every existing row exactly as it is. This reads whatever
+ * is already in the database.
+ *
+ * 'Still figuring it out' has no place on the ladder and is not forced onto one.
+ * It normalises to `null` — an honest "not stated" — which is what it is.
+ */
+const GOAL_ALIASES = new Map<string, string>();
+for (const g of GOAL_ORDER) GOAL_ALIASES.set(g.toLowerCase().replace(/[^a-z]/g, ''), g);
+GOAL_ALIASES.set('longterm', 'Long-term Relationship');
+GOAL_ALIASES.set('longtermrelationship', 'Long-term Relationship');
+GOAL_ALIASES.set('friendship', 'Friendship First');
+GOAL_ALIASES.set('friendshipfirst', 'Friendship First');
+/** Deliberately absent: 'stillfiguringitout' — see above. */
+
+export function canonicalGoal(goal?: string | null): string | null {
+  if (!goal) return null;
+  return GOAL_ALIASES.get(goal.toLowerCase().replace(/[^a-z]/g, '')) ?? null;
+}
+
+/**
  * The line the "Marriage Intentions" deal-breaker draws.
  *
  * Not a distance along GOAL_ORDER — a side. Serious Dating and Marriage are two
@@ -108,17 +185,17 @@ export const GOAL_ORDER = ['Friendship First', 'Casual Dating', 'Serious Dating'
  * fortnight are not a near miss that a good chart should be able to close.
  */
 const COMMITTED_FROM = 2; // index of 'Serious Dating'
-function committed(goal?: string): boolean | null {
-  if (!goal) return null;
-  const i = GOAL_ORDER.indexOf(goal);
-  return i < 0 ? null : i >= COMMITTED_FROM;
+export function committed(goal?: string): boolean | null {
+  const g = canonicalGoal(goal);
+  if (!g) return null;
+  return GOAL_ORDER.indexOf(g) >= COMMITTED_FROM;
 }
 function goalScore(a?: string, b?: string): number {
   // Unanswered is 45, not 60. Two people who have not said what they want are
   // not a better prospect than two who said different things.
-  if (!a || !b) return 45;
-  const i = GOAL_ORDER.indexOf(a), j = GOAL_ORDER.indexOf(b);
-  if (i < 0 || j < 0) return 45;
+  const ca = canonicalGoal(a), cb = canonicalGoal(b);
+  if (!ca || !cb) return 45;
+  const i = GOAL_ORDER.indexOf(ca), j = GOAL_ORDER.indexOf(cb);
   return Math.max(15, 100 - Math.abs(i - j) * 25);
 }
 
@@ -158,11 +235,28 @@ function lifestyleScore(a: DXProfile, b: DXProfile): number {
   }
   return n ? Math.round(s / n) : 45;
 }
+/**
+ * ANTI-GAMING, from the 1M run's §13.
+ *
+ * This was `35 + 13 x shared`, a RAW COUNT with no denominator, so a profile
+ * that ticked every trait the form offers scored against everybody: eight
+ * traits beat three honest ones by 34 points, and the form's cap of eight was
+ * no defence because the old formula saturated at five. Values and interests
+ * were already ratios (`overlapPct`) and were never gameable this way; this now
+ * matches them. Two people who ticked the same three traits score 100; a
+ * maximalist who ticked everything scores what the overlap actually is.
+ *
+ * The Introvert/Extrovert complement also required one side to be exclusively
+ * one of them. Listing BOTH used to fire the bonus against the whole city.
+ */
 function personalityScore(a: string[] = [], b: string[] = []): number {
-  const A = new Set(a), B = new Set(b);
-  const shared = [...A].filter((x) => B.has(x)).length;
-  const complement = (A.has('Introvert') && B.has('Extrovert')) || (A.has('Extrovert') && B.has('Introvert')) ? 8 : 0;
-  return Math.min(100, 35 + shared * 13 + complement);
+  const A = new Set(a.map(lc)), B = new Set(b.map(lc));
+  if (!A.size || !B.size) return 35;
+  const only = (S: Set<string>, x: string, y: string) => S.has(x) && !S.has(y);
+  const complement =
+    (only(A, 'introvert', 'extrovert') && only(B, 'extrovert', 'introvert'))
+    || (only(A, 'extrovert', 'introvert') && only(B, 'introvert', 'extrovert')) ? 8 : 0;
+  return Math.min(100, 35 + Math.round(0.65 * overlapPct([...A], [...B])) + complement);
 }
 /**
  * Distance bands, in kilometres.
@@ -202,8 +296,14 @@ function locationScore(a: DXProfile, b: DXProfile): number {
   if (km === null) {
     if (a.city && b.city && lc(a.city) === lc(b.city)) return 100;
     if (a.state && b.state && lc(a.state) === lc(b.state)) return 70;
+    if (a.country && b.country && lc(a.country) === lc(b.country)) return 55;
     // Two people with no location in common share no location.
-    return 30;
+    //
+    // This was 30, which is MORE than the 25 a measured 4,000 km earns — so at
+    // 1M global scale, where three quarters of pairs could not be placed at all,
+    // being unlocatable scored better than being far away. 20 puts an unknown
+    // below every distance the table can actually measure.
+    return 20;
   }
   const base = bandFor(km);
   // A stated distance preference, honoured in both directions — the same rule
@@ -212,6 +312,30 @@ function locationScore(a: DXProfile, b: DXProfile): number {
   const limits = [a.prefDistanceKm, b.prefDistanceKm].filter((n): n is number => typeof n === 'number' && n > 0);
   const beyond = limits.some((limit) => km > limit);
   return beyond ? Math.min(base, 30) : base;
+}
+
+/**
+ * WHETHER THESE TWO CAN TALK TO EACH OTHER.
+ *
+ * `languages` was collected by the form from the first version, weighted four
+ * points by `completion.ts`, printed on every card — and read by no scoring or
+ * filtering code at all. At 1M global users that produced 39.4% of curated deck
+ * slots between people with no language in common, and a direct probe of a
+ * monolingual Japanese speaker against a monolingual Brazilian scored 92%.
+ *
+ * This is a FILTER and not a factor, deliberately. "How many languages do you
+ * share" is not a compatibility gradient — one is enough and zero is fatal — and
+ * a factor worth 0.01 of the weight could not express that at any value.
+ *
+ * The file's standing rule holds: a field neither side filled in filters nobody.
+ * If either person has listed no languages we do not know, and we do not guess.
+ */
+export function languageBarrier(a: DXProfile, b: DXProfile): boolean {
+  const mine = (a.languages ?? []).map(lc).filter(Boolean);
+  const theirs = (b.languages ?? []).map(lc).filter(Boolean);
+  if (!mine.length || !theirs.length) return false;
+  const T = new Set(theirs);
+  return !mine.some((l) => T.has(l));
 }
 
 /** The distance, in the words a card can print, or null when unmeasured. */
@@ -270,25 +394,49 @@ export function overallScore(f: FactorBreakdown, confidenceFactor = 1): number {
 export function coverage(aD: DXProfile, bD: DXProfile, aInterests: string[] = [], bInterests: string[] = []): number {
   const some = (v?: string[] | null) => Array.isArray(v) && v.length > 0;
   const lifestyleKeys: (keyof DXProfile)[] = ['diet', 'smoking', 'drinking', 'fitnessLevel'];
-  const answered: Record<keyof FactorBreakdown, boolean> = {
-    astrology: true, // the birth date is mandatory at sign-up; this is always known
-    personality: some(aD.personalityTraits) && some(bD.personalityTraits),
-    relationshipGoals: !!aD.relationshipGoal && !!bD.relationshipGoal,
-    values: some(aD.values) && some(bD.values),
-    lifestyle: lifestyleKeys.some((k) => !!aD[k]) && lifestyleKeys.some((k) => !!bD[k]),
-    interests: some(aInterests) && some(bInterests),
-    location: distanceBetween(aD, bD) !== null || (!!aD.city && !!bD.city),
-  };
-  let reached = 0, total = 0;
-  (Object.keys(WEIGHTS) as (keyof FactorBreakdown)[]).forEach((k) => {
-    total += WEIGHTS[k];
-    if (answered[k]) reached += WEIGHTS[k];
-  });
-  return total ? reached / total : 1;
+  // Astrology is deliberately NOT in this list. It is computed from a birth date
+  // that is mandatory at sign-up, so it is answered for everybody and counting it
+  // would only dilute the measure. What is left is the six things a citizen
+  // actually chooses to tell us, weighted equally.
+  //
+  // THIS USED TO BE A SHARE OF THE WEIGHT, and that broke the moment astrology
+  // went past 0.50: at 0.90 a pair who had answered NOTHING scored coverage 0.90
+  // and a confidence multiplier of 0.995, so the penalty that exists to stop a
+  // stranger being oversold quietly switched itself off exactly when it was
+  // needed most. An unweighted share cannot be disabled by a weight table.
+  const answered = [
+    some(aD.personalityTraits) && some(bD.personalityTraits),
+    !!canonicalGoal(aD.relationshipGoal) && !!canonicalGoal(bD.relationshipGoal),
+    some(aD.values) && some(bD.values),
+    lifestyleKeys.some((k) => !!aD[k]) && lifestyleKeys.some((k) => !!bD[k]),
+    some(aInterests) && some(bInterests),
+    distanceBetween(aD, bD) !== null || (!!aD.city && !!bD.city),
+  ];
+  return answered.filter(Boolean).length / answered.length;
 }
 
+/**
+ * A penalty, not a demolition — and now a smaller one than it was.
+ *
+ * It was `0.55 + 0.45 x coverage`. Two things changed underneath it. `coverage`
+ * is stricter than it was — six real answers rather than a share of the weight
+ * astrology dominates — so the same multiplier would bite far harder than it
+ * used to. And the curated bar is a percentile of the viewer's own list now, so
+ * a low score no longer means an empty shelf, which is what the old, heavier
+ * penalty was really being used to prevent.
+ *
+ * The floor is 0.70 and not higher because of M4. At astrology 0.90 a pair who
+ * have answered NOTHING still arrive with 0.90 of the model filled in by the
+ * calendar: raw 93 on a favourable chart. `matching.spec.ts` asserts that such a
+ * pair cannot reach 75 on any elemental pairing, and 0.70 + 0.30 x coverage is
+ * what keeps that true — a blank pair lands at 70, a half-answered one at 0.85
+ * of its raw score, and two complete profiles are untouched at x1.000.
+ *
+ * The honesty this was standing in for belongs in words, not in arithmetic:
+ * `coverage` is returned to the client and rendered next to the number.
+ */
 export function confidence(cov: number): number {
-  return 0.55 + 0.45 * Math.max(0, Math.min(1, cov));
+  return 0.70 + 0.30 * Math.max(0, Math.min(1, cov));
 }
 
 /**
@@ -334,9 +482,10 @@ export function confidenceFor(aD: DXProfile, bD: DXProfile, aInterests: string[]
  */
 export function frictions(f: FactorBreakdown, aD: DXProfile, bD: DXProfile): string[] {
   const out: string[] = [];
-  const goalGap = aD.relationshipGoal && bD.relationshipGoal && aD.relationshipGoal !== bD.relationshipGoal;
-  if (goalGap) out.push(`You said ${aD.relationshipGoal}; they said ${bD.relationshipGoal}.`);
-  if (aD.wantsChildren && bD.wantsChildren && aD.wantsChildren !== bD.wantsChildren) {
+  const mine = canonicalGoal(aD.relationshipGoal), theirs = canonicalGoal(bD.relationshipGoal);
+  if (mine && theirs && mine !== theirs) out.push(`You said ${aD.relationshipGoal}; they said ${bD.relationshipGoal}.`);
+  else if (mine && !theirs) out.push('They have not said what they are looking for yet.');
+  if (childrenConflict(aD.wantsChildren, bD.wantsChildren)) {
     out.push(`Different answers on children — ${aD.wantsChildren} and ${bD.wantsChildren}.`);
   }
   if (f.location <= 50) out.push('You are a long way apart.');
@@ -474,12 +623,76 @@ export function heightFilterReason(myD: DXProfile, theirD: DXProfile): 'height' 
  */
 export function effectiveDealBreakers(d: DXProfile): string[] {
   const on = new Set(d.dealBreakers ?? []);
-  if (process.env.DATING_CORE_FILTERS === 'on') {
-    if (d.relationshipGoal) on.add('Marriage Intentions');
+  // DEFAULT ON since 26 Aug. Measured at 100K, with the percentile bar, this
+  // takes curated slots carrying a fundamental mismatch from 45.4% to 15.8% and
+  // triples the score's predictive validity, while complete profiles end up with
+  // MORE matches than before because the bar opens the door wider than the
+  // filters close it. At astrology 0.90 it is not a refinement: it is the only
+  // mechanism left that can stop a good chart introducing a marriage-seeker to
+  // somebody looking for a fortnight.
+  //
+  // DATING_CORE_FILTERS=off restores the opt-in-chips-only behaviour.
+  // An unanswered field still filters nobody, flag or no flag. That rule does
+  // not bend: this makes a stated answer count, it does not invent one.
+  if (process.env.DATING_CORE_FILTERS !== 'off') {
+    if (canonicalGoal(d.relationshipGoal)) on.add('Marriage Intentions');
     if (d.wantsChildren) on.add('Wants Children');
     if (d.prefDiet) on.add('Diet');
   }
   return [...on];
+}
+
+/**
+ * EQUALITY IS NOT COMPATIBILITY, and three filters were using it as if it were.
+ *
+ * The 1M run enumerated what exact string comparison does to the lookup
+ * vocabularies: Atheist vs Agnostic removed; Yes vs Maybe on children removed;
+ * a Vegetarian preference removed Vegans and Jains; and two people who both
+ * answered "Prefer not to say" about religion counted as a match. Worse in the
+ * other direction — a citizen who ticked Religion and answered "Prefer not to
+ * say" excluded every candidate who had named one, turning a privacy answer into
+ * the most exclusionary filter on the form.
+ */
+
+/** Diet, as a containment ladder rather than a string comparison. A preference
+ *  is met by anything at least as restrictive as itself. */
+const DIET_PERMITS: Record<string, string[]> = {
+  jain: ['jain'],
+  vegan: ['vegan', 'jain'],
+  vegetarian: ['vegetarian', 'vegan', 'jain'],
+  eggetarian: ['eggetarian', 'vegetarian', 'vegan', 'jain'],
+  pescatarian: ['pescatarian', 'eggetarian', 'vegetarian', 'vegan', 'jain'],
+  // Somebody who asked for a non-vegetarian partner is stating a preference, not
+  // a restriction; a filter should remove less, not more, when it is unsure.
+  'non-vegetarian': ['non-vegetarian', 'pescatarian', 'eggetarian', 'vegetarian', 'vegan', 'jain'],
+};
+export function dietConflicts(pref?: string, actual?: string): boolean {
+  if (!pref || !actual) return false;
+  const permitted = DIET_PERMITS[lc(pref)];
+  if (!permitted) return false;               // a label we do not know filters nobody
+  return !permitted.includes(lc(actual));
+}
+
+/** Children. Only Yes against No is a conflict. "Maybe" is a conversation and
+ *  "Prefer not to say" is not an answer — neither is a reason to remove anyone. */
+const KID_DECIDED = new Set(['yes', 'no']);
+export function childrenConflict(a?: string, b?: string): boolean {
+  if (!a || !b) return false;
+  const x = lc(a), y = lc(b);
+  if (!KID_DECIDED.has(x) || !KID_DECIDED.has(y)) return false;
+  return x !== y;
+}
+
+/** Religion. Non-answers state nothing and remove nobody in either direction;
+ *  the three non-religious labels are compatible with each other. */
+const RELIGION_SILENT = new Set(['prefer not to say', 'other', '']);
+const NON_RELIGIOUS = new Set(['atheist', 'agnostic', 'spiritual']);
+export function religionConflict(a?: string, b?: string): boolean {
+  if (!a || !b) return false;
+  const x = lc(a), y = lc(b);
+  if (RELIGION_SILENT.has(x) || RELIGION_SILENT.has(y)) return false;
+  if (NON_RELIGIOUS.has(x) && NON_RELIGIOUS.has(y)) return false;
+  return x !== y;
 }
 
 /**
@@ -505,7 +718,13 @@ export function effectiveDealBreakers(d: DXProfile): string[] {
  * candidates still has a top tenth of four.
  */
 export function curatedBar(scores: number[], fixedBar = 75): number {
-  if (process.env.DATING_BAR !== 'p90') return fixedBar;
+  // DEFAULT p90 since 26 Aug. A fixed 75 is unreachable for anyone who has not
+  // finished their profile — measured at 1M, not one partially-filled profile
+  // clears it with anybody, ever — and it is calibrated to whatever the weight
+  // table happens to inflate to, which is why it could not survive astrology
+  // moving from 0.50 to 0.90. A percentile is the same promise at any weight.
+  // DATING_BAR=fixed restores the old behaviour.
+  if (process.env.DATING_BAR === 'fixed') return fixedBar;
   if (!scores.length) return fixedBar;
   const sorted = [...scores].sort((a, b) => b - a);
   const p90 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.1))];
@@ -521,7 +740,7 @@ export function hardFilterReason(myD: DXProfile, theirD: DXProfile, theirAge: nu
   const db = effectiveDealBreakers(myD);
   if (db.includes('Smoking') && theirD.smoking === 'Regularly') return 'smoking';
   if (db.includes('Drinking') && theirD.drinking === 'Regularly') return 'drinking';
-  if (db.includes('Wants Children') && myD.wantsChildren && theirD.wantsChildren && myD.wantsChildren !== theirD.wantsChildren) return 'children';
+  if (db.includes('Wants Children') && childrenConflict(myD.wantsChildren, theirD.wantsChildren)) return 'children';
 
   // Marriage Intentions — a side of the line, not a distance along it.
   if (db.includes('Marriage Intentions')) {
@@ -539,10 +758,16 @@ export function hardFilterReason(myD: DXProfile, theirD: DXProfile, theirAge: nu
 
   // Diet — only against a preference they actually stated. "Any" is not a
   // preference and must never be scored, or filtered, as one.
-  if (db.includes('Diet') && myD.prefDiet && theirD.diet && myD.prefDiet !== theirD.diet) return 'diet';
+  if (db.includes('Diet') && dietConflicts(myD.prefDiet, theirD.diet)) return 'diet';
 
   // Religion — same shape. Collected for a year, read for the first time here.
-  if (db.includes('Religion') && myD.religion && theirD.religion && myD.religion !== theirD.religion) return 'religion';
+  if (db.includes('Religion') && religionConflict(myD.religion, theirD.religion)) return 'religion';
+
+  // A shared language is not a chip and is not opt-in. Two people who cannot
+  // talk to each other are not a match at any score, and at astrology 0.90 the
+  // score will happily say otherwise. Neither side having listed a language
+  // filters nobody — see `languageBarrier`.
+  if (languageBarrier(myD, theirD)) return 'language';
 
   return null;
 }

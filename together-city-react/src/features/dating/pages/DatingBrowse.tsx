@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { useDatingProfile, useDiscover, type CuratedMatch, type MatchKind } from '../api';
-import { MatchCard, Distribution, UndoAndAllowance, bandsOf, byCategory } from '../components/MatchCards';
+import { useDatingProfile, useDiscover, type CuratedMatch, type DiscoverSection, type MatchKind } from '../api';
+import { MatchCard, Distribution, UndoAndAllowance } from '../components/MatchCards';
+import { bandsOf, byCategory } from '../bands';
 
 /**
  * ── POTENTIAL MATCHES ───────────────────────────────────────────────────────
@@ -43,6 +44,11 @@ import { MatchCard, Distribution, UndoAndAllowance, bandsOf, byCategory } from '
  * they have to decode. The bands are counted off the very array rendered below
  * them, so the summary cannot disagree with the list.
  */
+/** The server's tier, in the one word that adds something the label does not. */
+const TIER_WORD: Record<DiscoverSection['tier'], string> = {
+  ideal: 'Curated', recommended: 'Recommended', discovery: 'Discovery',
+};
+
 export function DatingBrowse() {
   const kind: MatchKind = 'romantic';
   const profile = useDatingProfile();
@@ -67,6 +73,33 @@ export function DatingBrowse() {
       }
     }
     return out.sort((a, b) => b.score - a.score);
+  }, [discover.data]);
+
+  /**
+   * THE SERVER'S OWN TIERS, one person once, in the order they were sent.
+   *
+   * `discover()` labels and annotates every section it builds — "Early days in
+   * your city — these are your closest matches so far", "Below 55% on our
+   * scoring. Shown because the score is our opinion and the choice is yours" —
+   * and this page read the matches out of them and threw every word away. Those
+   * sentences are the whole difference between a resident with two viable
+   * matches and one with two hundred, and only the server knows which they are.
+   * Deduped by the same rule `everyone` uses, so the two lists hold one face
+   * once and hold the same faces.
+   */
+  const sections = useMemo(() => {
+    const seen = new Set<string>();
+    const out: DiscoverSection[] = [];
+    for (const s of discover.data?.sections ?? []) {
+      const matches: CuratedMatch[] = [];
+      for (const m of s.matches) {
+        if (seen.has(m.user.id)) continue;
+        seen.add(m.user.id);
+        matches.push(m);
+      }
+      if (matches.length) out.push({ ...s, matches });
+    }
+    return out;
   }, [discover.data]);
 
   if (profile.isLoading) return <Spinner label="Consulting the stars…" />;
@@ -129,6 +162,9 @@ export function DatingBrowse() {
             {everyone.length > 0 ? `${everyone.length} people` : '\u2014'}</span></span>
         </div>
         <div className="dnote-box">
+          {/* THE OWNER'S THREE LINES, 23 Aug, pinned exactly by
+              a-note-not-a-paragraph.test.ts. Not this commit's to rewrite: what
+              the number is made of is said on the card, next to the number. */}
           <p className="dnote-claim">Stop investing your time in the wrong connections.</p>
           <p className="dnote-sub">
             Discover your compatibility first. Then start getting to know each other.
@@ -182,25 +218,65 @@ export function DatingBrowse() {
         </>
       ) : (
         <>
+          {/* A THIN MARKET IS NOT THE SAME ROOM AS A FULL ONE, and the server
+              has always said which this is. `lowDensity` is true when fewer
+              than six people clear the curated bar; saying so with the server's
+              own two counts is the difference between "these are your best
+              matches" and "these are all there are yet". Above the bands,
+              because it changes how the bands should be read. */}
+          {discover.data?.lowDensity && (
+            <div style={{ marginTop: 22, background: 'var(--paper)', borderRadius: 'var(--r-2)', padding: '13px 16px', fontSize: 12.5, lineHeight: 1.5 }}>
+              <strong>Your city is still filling up.</strong>{' '}
+              {discover.data.idealCount === 0
+                ? `None of the ${discover.data.totalDiscoverable} people here clear the curated bar yet`
+                : `${discover.data.idealCount} of the ${discover.data.totalDiscoverable} people here ${discover.data.idealCount === 1 ? 'clears' : 'clear'} the curated bar`}
+              , so the list below reaches further down than it would in a busier city.
+            </div>
+          )}
+
           <Distribution bands={bandsOf(everyone)} total={everyone.length} highlightScore={strongest} />
 
-          {groups.map((group) => (
-            <section key={group.label} style={{ marginTop: 26 }}>
-              <div style={{
-                display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap',
-                margin: '0 0 12px', paddingBottom: 6, borderBottom: '1px solid var(--line)',
-              }}>
-                <h2 style={{ fontSize: 16, margin: 0 }}>{group.name}</h2>
-                <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--accent-soft)', color: 'var(--accent-ink)', borderRadius: 'var(--r-full)', padding: '3px 10px' }}>
-                  {group.label}
-                </span>
-                <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>
-                  {group.matches.length} {group.matches.length === 1 ? 'person' : 'people'}
-                </span>
-              </div>
-              {group.matches.map((m) => <MatchCard key={m.user.id} match={m} kind={kind} />)}
-            </section>
-          ))}
+          {/* AND THEN IT IS GROUPED THE WAY THAT MARKET DESERVES. In a full
+              city the bands are the useful cut, and they stay. In a thin one
+              they are nine headings over a handful of people, so the server's
+              own tiers take over — each with the sentence it wrote for exactly
+              this case. Same cards either way; nothing is added or hidden. */}
+          {discover.data?.lowDensity
+            ? sections.map((s) => (
+              <section key={s.key} style={{ marginTop: 26 }}>
+                <div style={{
+                  display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap',
+                  margin: '0 0 6px', paddingBottom: 6, borderBottom: '1px solid var(--line)',
+                }}>
+                  <h2 style={{ fontSize: 16, margin: 0 }}>{s.label}</h2>
+                  <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--accent-soft)', color: 'var(--accent-ink)', borderRadius: 'var(--r-full)', padding: '3px 10px' }}>
+                    {TIER_WORD[s.tier]}
+                  </span>
+                  <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>
+                    {s.matches.length} {s.matches.length === 1 ? 'person' : 'people'}
+                  </span>
+                </div>
+                {s.note && <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.5, margin: '0 0 12px' }}>{s.note}</p>}
+                {s.matches.map((m) => <MatchCard key={m.user.id} match={m} kind={kind} />)}
+              </section>
+            ))
+            : groups.map((group) => (
+              <section key={group.label} style={{ marginTop: 26 }}>
+                <div style={{
+                  display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap',
+                  margin: '0 0 12px', paddingBottom: 6, borderBottom: '1px solid var(--line)',
+                }}>
+                  <h2 style={{ fontSize: 16, margin: 0 }}>{group.name}</h2>
+                  <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--accent-soft)', color: 'var(--accent-ink)', borderRadius: 'var(--r-full)', padding: '3px 10px' }}>
+                    {group.label}
+                  </span>
+                  <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>
+                    {group.matches.length} {group.matches.length === 1 ? 'person' : 'people'}
+                  </span>
+                </div>
+                {group.matches.map((m) => <MatchCard key={m.user.id} match={m} kind={kind} />)}
+              </section>
+            ))}
         </>
       )}
     </div>

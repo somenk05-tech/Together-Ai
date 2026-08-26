@@ -4,6 +4,8 @@
  * stable 0–100 score for a pair, so "curated matches" never flicker between reloads.
  */
 
+import { SIGNS as SIGNS12, siderealLon, sunLongitude } from '../astrology/astro-engine';
+
 export type Element = 'fire' | 'earth' | 'air' | 'water';
 
 const SIGNS: { name: string; element: Element; from: [number, number] }[] = [
@@ -43,7 +45,7 @@ const CAPRICORN = SIGNS[0];
  */
 const CALENDAR = [...SIGNS.slice(1), CAPRICORN];
 
-export function zodiacSign(birthDate: Date): { name: string; element: Element } {
+export function tropicalSign(birthDate: Date): { name: string; element: Element } {
   const m = birthDate.getUTCMonth() + 1;
   const d = birthDate.getUTCDate();
   // The latest boundary the calendar has reached by this date. Capricorn is the
@@ -56,6 +58,50 @@ export function zodiacSign(birthDate: Date): { name: string; element: Element } 
     if (m > sm || (m === sm && d >= sd)) match = s;
   }
   return { name: match.name, element: match.element };
+}
+
+/**
+ * THE CITY HAD TWO ZODIACS AND DATING WAS USING THE OTHER ONE.
+ *
+ * The Astrology Zone computes SIDEREAL (Vedic) placements — `astro-engine.ts`
+ * subtracts the Lahiri ayanamsa, and its header says so: "authentic Vedic
+ * astrology (Jyotish): every sign placement is SIDEREAL". Dating computed a
+ * tropical Western sun sign from the fixed calendar boundaries above.
+ *
+ * Checked date by date against the app's own engine over 1,344 birth dates, the
+ * two agree on 21.5%. Adjacent signs are always different ELEMENTS, and the
+ * element is the whole of what `AFFINITY` reads — so 78.5% of citizens were
+ * matched on an element the same product tells them is not theirs, on the factor
+ * carrying most of the weight. At astrology 0.90 that is not a detail.
+ *
+ * So Dating now asks the same engine the Astrology Zone asks. Two consequences
+ * worth knowing before this ships: every citizen's sign on their card changes,
+ * and every cached pair score is recomputed. `DATING_ZODIAC=tropical` restores
+ * the Western reading in one env var, and `tropicalSign` above is kept whole
+ * (and still tested) so that reversal is a setting rather than a rewrite.
+ *
+ * Memoised on the birth date, because this is now an ephemeris call on a path
+ * that runs once per candidate per request.
+ */
+const SIGN_ELEMENTS: Element[] = ['fire', 'earth', 'air', 'water'];
+const vedicCache = new Map<number, { name: string; element: Element }>();
+
+export function vedicSign(birthDate: Date): { name: string; element: Element } {
+  const key = birthDate.getTime();
+  const hit = vedicCache.get(key);
+  if (hit) return hit;
+  const jd = key / 86400000 + 2440587.5;
+  const lon = siderealLon(sunLongitude(jd), jd);
+  const idx = Math.floor(((lon % 360) + 360) % 360 / 30);
+  const out = { name: SIGNS12[idx], element: SIGN_ELEMENTS[idx % 4] };
+  // Unbounded growth is not a risk here: the key space is one entry per distinct
+  // birth date, and the population that shares this process is finite and small.
+  vedicCache.set(key, out);
+  return out;
+}
+
+export function zodiacSign(birthDate: Date): { name: string; element: Element } {
+  return process.env.DATING_ZODIAC === 'tropical' ? tropicalSign(birthDate) : vedicSign(birthDate);
 }
 
 /** Classical elemental affinity: same element ≥ complementary ≥ neutral ≥ clashing. */
@@ -82,9 +128,16 @@ export function compatibilityScore(
   const sb = zodiacSign(b.birthDate);
   const base = AFFINITY[sa.element][sb.element];
 
+  // ANTI-GAMING (1M run, §13). This was `min(8, shared x 2)` — a RAW COUNT, so
+  // a profile that ticked every interest the form offers collected the full +8
+  // against everybody, permanently. It is an overlap ratio now, exactly like
+  // `overlapPct` in matching.ts: two people who listed the same three interests
+  // still get 8; somebody who listed all fourteen against those three gets 2.
   const setA = new Set(a.interests.map((i) => i.toLowerCase()));
-  const shared = b.interests.filter((i) => setA.has(i.toLowerCase())).length;
-  const interestBonus = Math.min(8, shared * 2);
+  const setB = new Set(b.interests.map((i) => i.toLowerCase()));
+  const shared = [...setB].filter((i) => setA.has(i)).length;
+  const union = new Set([...setA, ...setB]).size;
+  const interestBonus = union ? Math.round(8 * (shared / union)) : 0;
 
   const score = Math.min(99, base + interestBonus - 4 + pairJitter(a.userId, b.userId));
   return { score, signA: sa.name, signB: sb.name };

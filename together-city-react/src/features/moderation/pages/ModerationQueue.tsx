@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { Button, Spinner } from '@/components/ui';
-import { useDecideReport, useReportQueue, type ReportGroup } from '../api';
+import { useDatingDecision, useDecideReport, useReportQueue, type ReportGroup } from '../api';
 
 /**
  * The moderation queue (FE-13.7).
@@ -69,10 +69,24 @@ function Subject({ group }: { group: ReportGroup }) {
 
 function Group({ group }: { group: ReportGroup }) {
   const decide = useDecideReport();
+  const dating = useDatingDecision();
   const [note, setNote] = useState('');
-  const [done, setDone] = useState<'remove' | 'dismiss' | null>(null);
+  const [done, setDone] = useState<'remove' | 'dismiss' | 'dating' | null>(null);
 
   const canRemove = group.targetType === 'post' && !group.subject.gone;
+  // A reported person can be taken out of Dating — their profile, not their
+  // account — and the reports are then closed under the same note.
+  const canUnlist = group.targetType === 'user' && !group.subject.gone;
+  const unlist = () =>
+    dating.mutate(
+      { userId: group.targetId, decision: 'rejected', reason: note.trim() || undefined },
+      {
+        onSuccess: () => decide.mutate(
+          { targetType: group.targetType, targetId: group.targetId, decision: 'dismiss', note: `Taken out of Dating. ${note.trim()}`.trim() },
+          { onSuccess: () => setDone('dating') },
+        ),
+      },
+    );
   const act = (decision: 'remove' | 'dismiss') =>
     decide.mutate(
       { targetType: group.targetType, targetId: group.targetId, decision, note: note.trim() || undefined },
@@ -83,7 +97,7 @@ function Group({ group }: { group: ReportGroup }) {
     return (
       <div className="card" style={{ marginTop: 12, padding: 14 }}>
         <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-          {done === 'remove' ? 'Removed. ' : 'Dismissed. '}
+          {done === 'remove' ? 'Removed. ' : done === 'dating' ? 'Taken out of Dating. ' : 'Dismissed. '}
           {group.reportCount} {group.reportCount === 1 ? 'report' : 'reports'} closed.
         </p>
       </div>
@@ -130,17 +144,27 @@ function Group({ group }: { group: ReportGroup }) {
             {decide.isPending ? 'Working…' : 'Remove post'}
           </Button>
         )}
+        {canUnlist && (
+          <Button variant="line" size="sm" disabled={dating.isPending || decide.isPending} onClick={unlist}>
+            {dating.isPending ? 'Working…' : 'Take out of Dating'}
+          </Button>
+        )}
         <Button variant="line" size="sm" disabled={decide.isPending} onClick={() => act('dismiss')}>
           Dismiss
         </Button>
       </div>
 
-      {!canRemove && group.targetType !== 'post' && (
+      {canUnlist && (
+        <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>
+          Taking someone out of Dating hides their dating profile from everyone. It does not touch their account.
+        </p>
+      )}
+      {!canRemove && !canUnlist && group.targetType !== 'post' && (
         <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>
           Only a post can be removed from here. An account action is not something this screen does.
         </p>
       )}
-      {decide.isError && (
+      {(decide.isError || dating.isError) && (
         <p className="muted" style={{ fontSize: 12, color: 'var(--danger-ink)', marginTop: 8 }}>
           That did not go through. Try again in a moment.
         </p>

@@ -1,5 +1,5 @@
 import {
-  LEARNING_WINDOW, MIN_DECISIONS, MIN_EACH, WEIGHT_FLOOR,
+  LEARNING_WINDOW, MIN_DECISIONS, MIN_EACH, weightFloorFor,
   learnWeights, overallScoreWith, type Decision,
 } from './learned-weights';
 import { WEIGHTS, type FactorBreakdown } from './matching';
@@ -69,11 +69,13 @@ describe('learned weights — what the city learns from who you choose (H2)', ()
       expect(r.weights.lifestyle).toBeLessThan(WEIGHTS.lifestyle);
     });
 
-    it('keeps astrology pinned at exactly 0.50, whatever the evidence says', () => {
-      // A product decision from an earlier round. This module does not reopen it,
-      // and no amount of swiping can.
+    it('keeps astrology pinned at whatever the owner set, whatever the evidence says', () => {
+      // A product decision from an earlier round — 0.50 on 23 Aug, 0.90 on
+      // 26 Aug. This module does not reopen it, and no amount of swiping can.
+      // Read from WEIGHTS rather than hard-coded, so a future change to the
+      // table does not need an edit here: what is pinned is the pinning.
       for (const r of [leaning(), learnWeights([...mk(20, true, { values: 100 }), ...mk(20, false, { values: 0 })])]) {
-        expect(r.weights.astrology).toBeCloseTo(0.5, 10);
+        expect(r.weights.astrology).toBeCloseTo(WEIGHTS.astrology, 10);
       }
     });
 
@@ -81,10 +83,10 @@ describe('learned weights — what the city learns from who you choose (H2)', ()
       expect(total(leaning().weights)).toBeCloseTo(1, 10);
     });
 
-    it('leaves the other six sharing exactly the half astrology does not take', () => {
+    it('leaves the other six sharing exactly what astrology does not take', () => {
       const w = leaning().weights;
       const six = Object.entries(w).filter(([k]) => k !== 'astrology').reduce((a, [, v]) => a + v, 0);
-      expect(six).toBeCloseTo(0.5, 10);
+      expect(six).toBeCloseTo(1 - WEIGHTS.astrology, 10);
     });
 
     it('NEVER switches a factor off, even when every one of them leans away', () => {
@@ -92,7 +94,14 @@ describe('learned weights — what the city learns from who you choose (H2)', ()
         ...mk(10, true, { personality: 0, relationshipGoals: 0, values: 0, lifestyle: 0, interests: 0, location: 0 }),
         ...mk(10, false, { personality: 100, relationshipGoals: 100, values: 100, lifestyle: 100, interests: 100, location: 100 }),
       ]);
-      for (const w of Object.values(r.weights)) expect(w).toBeGreaterThanOrEqual(WEIGHT_FLOOR);
+      // Proportional, not absolute: a factor may lose most of its influence and
+      // never all of it. An absolute floor could not survive astrology at 0.90,
+      // where six floors of 0.02 would need 0.12 out of a pool of 0.10.
+      for (const k of Object.keys(r.weights) as (keyof typeof r.weights)[]) {
+        if (k === 'astrology') continue;
+        expect(r.weights[k]).toBeGreaterThan(0);
+        expect(r.weights[k]).toBeGreaterThanOrEqual(weightFloorFor(k) * 0.99);
+      }
       expect(total(r.weights)).toBeCloseTo(1, 10);
     });
 
@@ -144,12 +153,27 @@ describe('learned weights — what the city learns from who you choose (H2)', ()
 
   describe('scoring with them', () => {
     it('matches the plain weighting when the weights are the standard ones', () => {
-      expect(overallScoreWith(F(), WEIGHTS)).toBe(Math.round(70 * 0.5 + 60 * 0.5));
+      // Computed from WEIGHTS rather than from the numbers that happened to be
+      // in the table on the day: F() is astrology 70 and everything else 60.
+      const expected = Math.round(70 * WEIGHTS.astrology + 60 * (1 - WEIGHTS.astrology));
+      expect(overallScoreWith(F(), WEIGHTS)).toBe(expected);
     });
 
     it('ranks a values-heavy pair higher for somebody who leans that way', () => {
       const w = leaning().weights;
-      expect(overallScoreWith(F({ values: 100 }), w)).toBeGreaterThan(overallScoreWith(F({ values: 100 }), WEIGHTS));
+      // The WEIGHT moves, which is the mechanism.
+      expect(w.values).toBeGreaterThan(WEIGHTS.values);
+      // The displayed number barely can, and that is worth stating rather than
+      // asserting around. At astrology 0.90 the six learnable factors share 0.10
+      // between them, so the whole range a learned re-rank can move a score
+      // across is about four points — and a single factor's share of that is
+      // well under one, which rounds away. Learning still reorders a deck; it no
+      // longer changes what the card says. Compared unrounded, so this tests the
+      // direction rather than the rounding.
+      const raw = (weights: typeof WEIGHTS) => (Object.keys(weights) as (keyof typeof weights)[])
+        .reduce((sum, k) => sum + F({ values: 100 })[k] * weights[k], 0);
+      expect(raw(w)).toBeGreaterThan(raw(WEIGHTS));
+      expect(overallScoreWith(F({ values: 100 }), w)).toBeGreaterThanOrEqual(overallScoreWith(F({ values: 100 }), WEIGHTS));
     });
 
     it('is bounded — no weighting can push a score outside 0–100', () => {

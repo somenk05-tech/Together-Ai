@@ -42,3 +42,15 @@ export type ReportMatchDto = z.infer<typeof ReportMatchSchema>;
 
 export const RespondInviteSchema = z.object({ action: z.enum(['connect', 'pass']) });
 export const TrustSchema = z.object({ step: z.enum(['reveal', 'friends']) });
+
+/**
+ * A moderator's decision on a dating profile. 'approved' puts it back in the
+ * pool, 'rejected' takes it out for good; 'review' is the state the automatic
+ * pass can leave a profile in, and until now nothing could move a profile out
+ * of it — `adminStats` counted the queue and no endpoint could drain it.
+ */
+export const ModerationDecisionSchema = z.object({
+  decision: z.enum(['approved', 'rejected']),
+  reason: z.string().max(500).optional(),
+});
+export type ModerationDecisionDto = z.infer<typeof ModerationDecisionSchema>;

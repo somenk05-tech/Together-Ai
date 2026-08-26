@@ -48,6 +48,21 @@ function scores(mod: typeof NEW, a: DX & { interests: string[] }, b: DX & { inte
   return { overall: mod.overallScore(f), f };
 }
 
+/**
+ * The number a citizen is actually shown — raw x confidence, which is what
+ * `dating.service.ts` computes at every one of its call sites.
+ *
+ * M4 is a claim about the CARD, not about an intermediate value: "the number on
+ * the card said 87% compatible when the honest sentence was we know almost
+ * nothing about either of you". Asserting it on the raw score happened to work
+ * while astrology carried 0.50 and stopped working at 0.90, where a blank pair's
+ * raw score is 93 and the multiplier is the thing holding the line.
+ */
+function shown(mod: typeof NEW, a: DX & { interests: string[] }, b: DX & { interests: string[] }, astro: number) {
+  const f = mod.factorScores(astro, a.interests, b.interests, a, b);
+  return mod.overallScore(f, mod.confidenceFor(a, b, a.interests, b.interests));
+}
+
 const PAIRS = 4000;
 function run(mod: typeof NEW, make: () => DX & { interests: string[] }) {
   seed = 20260731;
@@ -110,7 +125,11 @@ describe('the 75% bar still means something in both directions', () => {
 
   it('a well-matched, fully-answered pair still scores high', () => {
     expect(compatible(92)).toBeGreaterThanOrEqual(85);
-    expect(compatible(62)).toBeGreaterThanOrEqual(70);   // even on clashing elements
+    // Clashing elements no longer leave much room: at astrology 0.90 the other
+    // six factors can move a pair about ten points in total, so a clashing chart
+    // caps a perfect pair in the sixties. That is what 0.90 means, and asserting
+    // the old 70 here would only be asserting that the weight had not changed.
+    expect(compatible(62)).toBeGreaterThanOrEqual(60);
   });
 
   it('a plausible good-not-perfect pair can still clear 75', () => {
@@ -135,14 +154,17 @@ describe('a blank profile cannot buy a curated match with star signs (M4)', () =
     // nothing. Before the floors came down these pairs reached 78.
     for (const astro of [58, 60, 62, 64, 86, 88, 92, 99]) {
       const blank: DX & { interests: string[] } = { city: 'Pune', interests: [] };
-      expect(scores(NEW, blank, { ...blank }, astro).overall).toBeLessThan(75);
+      expect(shown(NEW, blank, { ...blank }, astro)).toBeLessThan(75);
+
     }
   });
 
-  it('still leads with astrology — the weight is deliberately untouched', () => {
-    expect(NEW.WEIGHTS.astrology).toBe(0.5);
+  it('leads with astrology, at the weight the owner set', () => {
+    // 0.50 (23 Aug) → 0.90 (26 Aug). The number is asserted rather than derived
+    // so that changing it is a deliberate edit in two places, not a drift.
+    expect(NEW.WEIGHTS.astrology).toBe(0.9);
     const sum = Object.values(NEW.WEIGHTS).reduce((a, b) => a + b, 0);
-    expect(Math.round(sum * 100) / 100).toBe(1);
+    expect(Math.round(sum * 1000) / 1000).toBe(1);
   });
 
   it('lets a filled-in profile out-score a blank one on identical stars', () => {
@@ -199,7 +221,10 @@ describe('when a place cannot be resolved, nothing is invented', () => {
   it('falls back to exactly the old behaviour', () => {
     expect(loc(at('Nowhereville', { state: 'MH' }), at('Elsewheretown', { state: 'MH' }))).toBe(70);
     expect(loc({ city: 'Nowhereville' }, { city: 'Nowhereville' })).toBe(100);
-    expect(loc({ city: 'Nowhereville' }, { city: 'Elsewheretown' })).toBe(30);
+    // 30 → 20. An unplaceable pair used to score MORE than a measured 4,000 km
+    // (25), so at global scale being unlocatable was worth more than being far
+    // away. 20 sits below every distance the table can actually measure.
+    expect(loc({ city: 'Nowhereville' }, { city: 'Elsewheretown' })).toBe(20);
   });
   it('does not apply a distance preference to a distance nobody measured', () => {
     const p = { city: 'Nowhereville', prefDistanceKm: 10 };

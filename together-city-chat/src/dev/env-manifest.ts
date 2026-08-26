@@ -132,6 +132,17 @@ export const ENV_MANIFEST: EnvEntry[] = [
   { name: 'MODERATION_ADMINS', group: 'Operations', purpose: 'Handles granted the moderator role at boot.', whenMissing: 'Nobody can reach the moderation surfaces outside the console.' },
   { name: 'DEV_PAGE_PASSWORD', group: 'Operations', purpose: 'The password on this page.', whenMissing: 'This page falls back to its shipped default, which is in the source and therefore public. Set it.', secret: true },
   { name: 'SEED_DEMO', group: 'Operations', purpose: 'Development-only: write demo rows at boot.', whenMissing: 'Correct for a real deployment.' },
+  // ── Dating engine switches ──────────────────────────────────────────────
+  // Every one of these is a reversal, not a feature. The defaults are what
+  // ships; the variable exists so that undoing a 26 Aug decision is a deploy
+  // setting rather than a rewrite. None is required.
+  { name: 'DATING_WEIGHTS', group: 'Operations', purpose: 'Which weight table scores a pair: unset = astrology 0.90; astro-personality = astrology 0.75 + personality 0.15; retuned = the balanced audit table.', whenMissing: 'Correct. Astrology carries nine tenths of every percentage, as decided on 26 Aug.' },
+  { name: 'DATING_ZODIAC', group: 'Operations', purpose: 'tropical restores the Western sun sign. Unset reads the same sidereal chart the Astrology Zone shows.', whenMissing: 'Correct. Dating and the Astrology Zone agree on every citizen\'s sign.' },
+  { name: 'DATING_CORE_FILTERS', group: 'Operations', purpose: 'off returns intent, children and diet to opt-in chips only.', whenMissing: 'Correct. The three core questions filter for everybody who has answered them.' },
+  { name: 'DATING_BAR', group: 'Operations', purpose: 'fixed restores the fixed 75% curated bar. Unset draws the bar at the viewer\'s own top tenth.', whenMissing: 'Correct. Every citizen with candidates has a curated shelf, including half-finished profiles.' },
+  { name: 'DATING_BAR_FLOOR', group: 'Operations', purpose: 'A score below which the percentile bar will not be drawn, so a top tenth of nothing stays nothing.', whenMissing: 'No floor: the bar is purely the top tenth of the list.' },
+  { name: 'DATING_CONFIDENCE', group: 'Operations', purpose: 'off disables the multiplier that lowers a score in proportion to how few of the six questions both people answered.', whenMissing: 'Correct. A number built from almost no answers is shown lower than one built from all of them.' },
+  { name: 'DATING_POOL_CEILING', group: 'Operations', purpose: 'The most profiles one match request will read, most recently active first. Default 2000.', whenMissing: 'Uses the built-in 2000. The response says when the cap bound, so nobody mistakes a capped list for the city.' },
   { name: 'TEST_DATABASE_URL', group: 'Operations', purpose: 'A throwaway database for the cross-user isolation tests.', whenMissing: 'Those tests SKIP rather than fail — the static guards still run, but nothing is proven against a live database.', secret: true },
 ];
 

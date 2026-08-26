@@ -59,6 +59,15 @@ export interface CuratedMatch {
   chatLocked?: boolean;
   conversationId: string | null;
   /**
+   * WHAT THE NUMBER IS MADE OF. `coverage` is the share of the six answerable
+   * factors BOTH people filled in; `confidence` is the multiplier the server
+   * already folded into `score`. Optional on purpose: a card built before the
+   * server sent these must still type-check, and a page that finds them
+   * missing omits the line rather than drawing an empty one.
+   */
+  coverage?: number;
+  confidence?: number;
+  /**
    * The six the curated card reads, and they are OPTIONAL because the list
    * endpoints are not the only thing that has ever built one of these — a
    * card rendered from a payload written before these existed must still
@@ -102,6 +111,9 @@ export interface MatchDetail {
   breakdown: FactorBreakdown;
   reasons: string[];
   frictions?: string[];
+  /** Same fields, same meaning, same reason for being optional, as CuratedMatch. */
+  coverage?: number;
+  confidence?: number;
   likedByMe: boolean;
   matched: boolean;
   conversationId: string | null;

@@ -39,8 +39,18 @@ describe('Marriage Intentions — a side of the line, not a distance along it', 
     expect(hardFilterReason(seeker, dx({ relationshipGoal: 'Friendship First' }), 30)).toBe('intent');
   });
 
-  it('filters nobody when the chip is not ticked', () => {
-    expect(hardFilterReason(dx({ relationshipGoal: 'Marriage' }), casual, 30)).toBeNull();
+  it('filters on a stated intent even with no chip ticked, since 26 Aug', () => {
+    // Intent, children and diet are core filters now — see effectiveDealBreakers.
+    // At astrology 0.90 a filter is the only thing that can remove anybody, and
+    // the chip section is one most citizens never open.
+    expect(hardFilterReason(dx({ relationshipGoal: 'Marriage' }), casual, 30)).toBe('intent');
+  });
+
+  it('goes back to chips-only with DATING_CORE_FILTERS=off', () => {
+    process.env.DATING_CORE_FILTERS = 'off';
+    try {
+      expect(hardFilterReason(dx({ relationshipGoal: 'Marriage' }), casual, 30)).toBeNull();
+    } finally { delete process.env.DATING_CORE_FILTERS; }
   });
 
   it('filters nobody when either side never said what they want', () => {
@@ -49,7 +59,14 @@ describe('Marriage Intentions — a side of the line, not a distance along it', 
   });
 
   it('is honoured in both directions, or in neither', () => {
-    expect(unreachableReason(casual, seeker, 30, 31)).toEqual({ by: 'them', reason: 'intent' });
+    // `casual` states an intent, so with core filters on its own side now
+    // removes the pair first — which is the same answer arrived at one step
+    // earlier, and still the stricter of the two.
+    expect(unreachableReason(casual, seeker, 30, 31)).toEqual({ by: 'you', reason: 'intent' });
+    process.env.DATING_CORE_FILTERS = 'off';
+    try {
+      expect(unreachableReason(casual, seeker, 30, 31)).toEqual({ by: 'them', reason: 'intent' });
+    } finally { delete process.env.DATING_CORE_FILTERS; }
   });
 });
 
@@ -110,8 +127,13 @@ describe('M4 — confidence, so a score says how much of it is an answer', () =>
   });
 
   it('is at its floor when only the birth date is known', () => {
-    expect(coverage(blank, blank, [], [])).toBeCloseTo(0.5, 2);
-    expect(confidence(coverage(blank, blank, [], []))).toBeCloseTo(0.775, 3);
+    // `coverage` is the share of the SIX answerable factors, not a share of the
+    // weight. It had to stop being weight-based: at astrology 0.90 a pair who
+    // had answered nothing scored coverage 0.90, so the penalty that exists to
+    // stop a stranger being oversold switched itself off exactly when it was
+    // most needed. Two blank profiles here share a city, which is one of the six.
+    expect(coverage(blank, blank, [], [])).toBeCloseTo(0, 5);
+    expect(confidence(coverage(blank, blank, [], []))).toBeCloseTo(0.7, 5);
   });
 
   it('is 1.0, and changes nothing, when both people filled the form in', () => {
@@ -196,29 +218,26 @@ describe('the curated bar', () => {
   afterEach(() => { delete process.env.DATING_BAR; delete process.env.DATING_BAR_FLOOR; });
   const spread = [90, 80, 70, 60, 50, 40, 30, 20, 10, 5];
 
-  it('is the fixed bar unless asked otherwise', () => {
+  it('is the fixed bar only when asked for it', () => {
+    process.env.DATING_BAR = 'fixed';
     expect(curatedBar(spread)).toBe(75);
     expect(curatedBar([], 75)).toBe(75);
   });
 
-  it('draws at the top tenth of the viewer’s own list', () => {
-    process.env.DATING_BAR = 'p90';
+  it('draws at the top tenth of the viewer’s own list by default', () => {
     expect(curatedBar(spread)).toBe(80);
   });
 
   it('gives a short list a top tenth of itself rather than nothing', () => {
-    process.env.DATING_BAR = 'p90';
     expect(curatedBar([61, 44, 38, 12])).toBe(61);
     expect(curatedBar([44])).toBe(44);
   });
 
   it('falls back to the fixed bar when there is no list at all', () => {
-    process.env.DATING_BAR = 'p90';
     expect(curatedBar([], 75)).toBe(75);
   });
 
   it('honours a floor, because a top tenth of nothing is still nothing', () => {
-    process.env.DATING_BAR = 'p90';
     process.env.DATING_BAR_FLOOR = '62';
     expect(curatedBar([50, 44, 30])).toBe(62);
     expect(curatedBar(spread)).toBe(80);
@@ -229,13 +248,13 @@ describe('core questions as filters', () => {
   afterEach(() => { delete process.env.DATING_CORE_FILTERS; });
   const answered = dx({ relationshipGoal: 'Marriage', wantsChildren: 'Yes', prefDiet: 'Vegetarian' });
 
-  it('changes nothing while the flag is off', () => {
+  it('changes nothing once it is switched off', () => {
+    process.env.DATING_CORE_FILTERS = 'off';
     expect(effectiveDealBreakers(answered)).toEqual([]);
     expect(hardFilterReason(answered, dx({ relationshipGoal: 'Casual Dating' }), 30)).toBeNull();
   });
 
-  it('filters on the three answers once it is on', () => {
-    process.env.DATING_CORE_FILTERS = 'on';
+  it('filters on the three answers by default', () => {
     expect(effectiveDealBreakers(answered).sort()).toEqual(['Diet', 'Marriage Intentions', 'Wants Children']);
     expect(hardFilterReason(answered, dx({ relationshipGoal: 'Casual Dating' }), 30)).toBe('intent');
     expect(hardFilterReason(answered, dx({ wantsChildren: 'No' }), 30)).toBe('children');
@@ -243,7 +262,6 @@ describe('core questions as filters', () => {
   });
 
   it('never invents an answer nobody gave', () => {
-    process.env.DATING_CORE_FILTERS = 'on';
     expect(effectiveDealBreakers(dx({}))).toEqual([]);
     expect(hardFilterReason(dx({}), dx({ relationshipGoal: 'Casual Dating', wantsChildren: 'No', diet: 'Non-vegetarian' }), 30)).toBeNull();
   });

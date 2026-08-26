@@ -6,6 +6,11 @@ import {
   type CuratedMatch, type MatchKind, type CompatibilityBand, type DatingChatSummary,
 } from '../api';
 import { SafetyMenu } from './SafetyMenu';
+// The band table, its names and inks, and the coverage sentence live in their
+// own module: react-refresh cannot hot-reload a file that exports both
+// components and plain functions, and three pages read these without rendering
+// a single card.
+import { bandFor, coverageNote } from '../bands';
 
 /**
  * ── HOW A PERSON IS DRAWN IN THE DATING HUB ─────────────────────────────────
@@ -213,6 +218,9 @@ export function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKin
               </div>
             ))}
           </div>
+          {coverageNote(match.coverage) && (
+            <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, margin: '8px 0 0' }}>{coverageNote(match.coverage)}</p>
+          )}
           {match.reasons && match.reasons.length > 0 && (
             <>
               <div className="dt-why">Why this match?</div>
@@ -328,60 +336,6 @@ export function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKin
   );
 }
 
-/** A compatibility score's category (band + friendly name).
- *
- *  These are the categories the pool is counted in and the list is grouped by,
- *  so there has to be one for every score a card can carry. The 0–20 row is new:
- *  §15.2 removed the floor that used to drop those people before they reached
- *  the page, and a card with no category would have fallen through to a nameless
- *  "Match" while the histogram counted it somewhere the list did not. */
-const BAND_NAMES: [number, number, string][] = [
-  [90, 100, 'Excellent match'], [80, 90, 'Great match'], [70, 80, 'Strong match'], [60, 70, 'Good match'],
-  [50, 60, 'Fair match'], [40, 50, 'Modest match'], [30, 40, 'Low match'], [20, 30, 'Faint match'],
-  [0, 20, 'Little in common'],
-];
-const inBand = (score: number, lo: number, hi: number) => score >= lo && (score < hi || (hi === 100 && score <= 100));
-
-function bandFor(score: number): { label: string; name: string } {
-  for (const [lo, hi, name] of BAND_NAMES) {
-    if (inBand(score, lo, hi)) return { label: `${lo}–${hi}%`, name };
-  }
-  return { label: `${score}%`, name: 'Match' };
-}
-
-/** The candidates grouped into those categories, best first, empty ones dropped.
- *  One pass over BAND_NAMES so the group headers, the counts in them and the
- *  histogram can never disagree about which category somebody is in. */
-export function byCategory(matches: CuratedMatch[]): { name: string; label: string; matches: CuratedMatch[] }[] {
-  return BAND_NAMES
-    .map(([lo, hi, name]) => ({
-      name,
-      label: `${lo}–${hi}%`,
-      matches: matches
-        .filter((m) => inBand(m.score, lo, hi))
-        .sort((a, b) => b.score - a.score),
-    }))
-    .filter((g) => g.matches.length > 0);
-}
-
-/**
- * The same histogram the server used to send, counted off the list on screen.
- *
- * `/dating/stack` computes a `distribution`; `/dating/discover` does not, and
- * Potential Matches is built on discover because discover is the endpoint that
- * returns EVERYONE. Counting the bands from the very array being rendered is
- * better than either: the summary cannot disagree with the list beneath it,
- * because it is made of it.
- */
-export function bandsOf(matches: CuratedMatch[]): CompatibilityBand[] {
-  return BAND_NAMES.map(([lo, hi]) => ({
-    label: `${lo}–${hi}`,
-    min: lo,
-    max: hi,
-    count: matches.filter((m) => inBand(m.score, lo, hi)).length,
-  }));
-}
-
 /** Compatibility-band histogram — only rendered once there are real people, and
  *  only for bands that actually contain someone. The top match's own band is
  *  highlighted so the user sees which category they're being shown. */
@@ -417,8 +371,8 @@ export function Distribution({ bands, total, highlightScore }: { bands: Compatib
         })}
       </div>
       <p className="muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.5 }}>
-        Everyone here fits what you asked for, listed strongest first. The percentage is our
-        reading — the choice is yours.
+        Everyone here fits what you asked for, listed strongest first. Nine tenths of the
+        percentage is your two charts; the rest is what you have both answered.
       </p>
     </div>
   );

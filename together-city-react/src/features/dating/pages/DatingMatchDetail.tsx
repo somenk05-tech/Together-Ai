@@ -9,17 +9,23 @@ import {
 } from '../api';
 import { SelfieOnFile, SELFIE_ON_FILE_NOTE } from '../components/SelfieOnFile';
 import { SafetyMenu } from '../components/SafetyMenu';
+import { bandFor, coverageNote } from '../bands';
 
 const photoBox: CSSProperties = { position: 'relative', borderRadius: 16, overflow: 'hidden', background: 'var(--paper)' };
 const cover: CSSProperties = { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' };
 const sectionH: CSSProperties = { margin: '0 0 6px', fontSize: 14, fontWeight: 700 };
 const pill: CSSProperties = { border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '5px 13px', fontSize: 12.5, background: 'var(--accent-soft)' };
 
-function matchLabel(score: number): { label: string; blurb: string } {
-  if (score >= 85) return { label: 'Great Match', blurb: 'You share similar values & life goals.' };
-  if (score >= 75) return { label: 'Strong Match', blurb: 'Lots of common ground to build on.' };
-  return { label: 'Good Match', blurb: 'Some real things in common — see where it goes.' };
-}
+/**
+ * THE BAND COMES FROM ONE TABLE NOW, and it is `bandFor` in `bands.ts`.
+ *
+ * What stood here was three rows with no floor: anything under 75 returned a
+ * green "Good Match" with "Some real things in common", so a 9% opened on this
+ * page as a Good Match while the browse page — one tap away, same number —
+ * called the same person "Little in common". The blurb went with it rather than
+ * being re-banded, because it was inventing an assessment the engine had not
+ * made; when there is no reason to show, the panel now says nothing.
+ */
 
 /** Swipeable photo gallery — matched users can slide/scroll through every photo.
  *  Swipe (touch), tap the left/right half, use the dots, or click a thumbnail. */
@@ -126,7 +132,8 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
     ['🌐', 'Languages', d.languages.length ? d.languages.join(', ') : '—'],
     ['✦', 'Zodiac Sign', d.theirSign || '—'],
   ];
-  const ml = matchLabel(d.score);
+  const band = bandFor(d.score);
+  const covNote = coverageNote(d.coverage);
 
   const doConnect = () => connect.mutate(
     { targetUserId, method: 'wallet' },
@@ -188,9 +195,9 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
               <span className="muted" style={{ fontSize: 12.5 }}>Compatibility</span>
               <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--accent-ink)' }}>{d.score}%</span>
-              <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ok-ink)' }}>{ml.label}</span>
+              <span style={{ fontSize: 13.5, fontWeight: 700, color: band.ink }}>{band.name}</span>
             </div>
-            <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>{d.reasons[0] ?? ml.blurb}</p>
+            {d.reasons[0] && <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>{d.reasons[0]}</p>}
             {d.frictions && d.frictions.length > 0 && (
               <p className="dt-note">
                 <strong>One thing to explore — </strong>{d.frictions[0]}
@@ -198,6 +205,28 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
             )}
           </div>
         </div>
+
+        {/* THE BREAKDOWN, ON THE PAGE THE DECISION IS ACTUALLY MADE ON.
+            `d.breakdown` has always arrived here and nothing read it: the seven
+            numbers behind the percentage were drawn on the browse card and
+            vanished on the profile somebody opens before meeting a stranger.
+            Same idiom as the card, deliberately — two drawings of one thing is
+            how two rooms start disagreeing about what a percentage is. */}
+        {d.breakdown && (
+          <div style={{ marginTop: 12, background: 'var(--paper)', borderRadius: 12, padding: '12px 14px' }}>
+            <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8 }}>What the {d.score}% is made of</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: '6px 14px' }}>
+              {([['Astrology', d.breakdown.astrology], ['Personality', d.breakdown.personality], ['Goals', d.breakdown.relationshipGoals], ['Values', d.breakdown.values], ['Lifestyle', d.breakdown.lifestyle], ['Interests', d.breakdown.interests], ['Location', d.breakdown.location]] as [string, number][]).map(([k, v]) => (
+                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                  <span className="muted">{k}</span><span style={{ fontWeight: 600 }}>{v}%</span>
+                </div>
+              ))}
+            </div>
+            {covNote && (
+              <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, margin: '8px 0 0' }}>{covNote}</p>
+            )}
+          </div>
+        )}
 
         {/* Intentional-dating notice */}
         <div style={{ marginTop: 12, display: 'flex', gap: 12, alignItems: 'flex-start', background: 'var(--paper)', borderRadius: 'var(--r-2)', padding: '13px 16px' }}>

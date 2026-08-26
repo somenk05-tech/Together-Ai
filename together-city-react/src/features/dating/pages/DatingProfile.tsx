@@ -26,7 +26,18 @@ const VALUES = ['Family', 'Honesty', 'Loyalty', 'Kindness', 'Career', 'Adventure
 // read. If a chip is ever added here again, add the branch there in the same
 // commit: this list is a promise the engine keeps.
 const DEAL_BREAKERS = ['Smoking', 'Drinking', 'Marriage Intentions', 'Wants Children', 'Distance', 'Diet', 'Religion'];
-const AI_DIMENSIONS = ['Astrology compatibility', 'Numerology compatibility', 'Personality compatibility', 'Lifestyle compatibility', 'Interest match', 'Values match', 'Overall AI score'];
+// THE SEVEN THE ENGINE ACTUALLY COMPUTES, and nothing else. `factorScores` in
+// the API's matching.ts returns exactly these: astrology, personality,
+// relationshipGoals, values, lifestyle, interests, location. 'Numerology
+// compatibility' was advertised here under "computed for every candidate" and
+// is computed nowhere in dating — the same failure as the deal-breaker chips
+// above, a promise with no engine behind it. 'Overall AI score' went too: it is
+// the total of the seven, not an eighth thing.
+const AI_DIMENSIONS = [
+  'Astrology', 'Personality traits', 'What you are each looking for',
+  'Values', 'Lifestyle', 'Interests', 'Where you both are',
+];
+
 
 /** Height options (120–220 cm) — a numeric range, generated locally. */
 const HEIGHTS: LookupOption[] = Array.from({ length: 220 - 120 + 1 }, (_, i) => {
@@ -863,6 +874,12 @@ export function DatingProfilePage() {
           <div className="eyebrow">✨ The AI calculates automatically</div>
           <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 8px' }}>Computed from your details, for every candidate:</p>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{AI_DIMENSIONS.map((d) => <span key={d} className="tag">{d}</span>)}</div>
+          {/* Not decoration: astrology is 0.90 of the weight table, so the six
+              answers below it share a tenth between them. Somebody deciding
+              whether to fill this form in is entitled to know that. */}
+          <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, margin: '8px 0 0' }}>
+            Astrology is nine tenths of the reading. The other six share what is left.
+          </p>
         </div>
 
         {/* Visibility + delete — only meaningful once a profile exists, but the

@@ -15,7 +15,7 @@ import { StorageProvider } from '../media/storage.provider';
 import { MediaService } from '../media/media.service';
 import { compatibilityScore, zodiacSign } from './astrology';
 import {
-  confidenceFor, curatedBar, distanceNote, explain, factorScores, frictions, matchAlertBody, matchAlertReason, overallScore, preferenceNotes, sharedItems, type DXProfile, type FactorBreakdown, unreachableReason,
+  canonicalGoal, confidenceFor, coverage, curatedBar, distanceNote, explain, factorScores, frictions, matchAlertBody, matchAlertReason, overallScore, preferenceNotes, sharedItems, type DXProfile, type FactorBreakdown, unreachableReason,
 } from './matching';
 import { LEARNING_WINDOW, learnWeights, overallScoreWith, type Decision } from './learned-weights';
 import { profileCompletion } from './completion';
@@ -55,6 +55,53 @@ const CURATED_MIN_COMPLETION = 40;
 export const DATING_CHAT_CAP = 3;
 
 const SCORING_POOL = 500;
+
+/**
+ * THE CEILING ON A READ, AND WHY THERE HAS TO BE ONE.
+ *
+ * `matches()`, `discover()` and `stack()` each ran an unbounded
+ * `datingProfile.findMany` with no take, no cursor and no geographic predicate —
+ * every visible approved profile on the platform, loaded and JSON-parsed, on
+ * every page view. Their comments called that deliberate: "the pool is the
+ * product". At small scale it was. Measured against the shipped code at
+ * 19.2 µs per candidate, one request costs 1.9 s of single-core CPU at 100,000
+ * profiles and 19.2 s at 1,000,000, three times over, with nothing cached. The
+ * 100K spec asks for p95 ≤ 400 ms.
+ *
+ * Two changes, in this order of importance.
+ *
+ * FIRST, the narrowing the database can actually do — gender/seeking both ways
+ * and the viewer's own age range as a birthDate range — moves out of JS and into
+ * SQL. `reindexAfterChange` has done this since the notifier was fixed; the
+ * three read paths had not. It removes roughly nine candidates in ten before a
+ * single row is parsed, and it cannot change WHO is eligible because every JS
+ * check still runs afterwards: the query can only be narrower than the filter,
+ * never looser. `pool-fixture.spec.ts` pins that.
+ *
+ * SECOND, a ceiling. This one DOES change what a citizen can see and is
+ * therefore reported rather than hidden: the response carries `poolCapped` and
+ * `poolSize`, and the surfaces say so. Ordered by `updatedAt` so that if the cap
+ * binds, it binds on the people most likely to still be here.
+ *
+ * This is a bound, not an architecture. The real answer is indexed retrieval —
+ * a geo index and a nightly batch — and it is named here rather than implied.
+ */
+const POOL_CEILING = Number(process.env.DATING_POOL_CEILING ?? 2000);
+
+/**
+ * A candidate cannot be CURATED without having said what they are looking for.
+ *
+ * The 1M run's §13: every deal-breaker branch requires the candidate's own field
+ * to be populated, so leaving diet, smoking, drinking, religion, children and
+ * height blank bought immunity from all seven chips. A profile built that way
+ * reached a stranger's curated shelf 6.1 times as often as an honest one, and
+ * the whole strategy was legal inside the form.
+ *
+ * The narrowest rule that closes it: a stated intent is the price of being on
+ * somebody's curated shelf. It is not a hidden penalty — the profile is still
+ * shown in Discover, `profileCompletion` already asks for the goal, and the one
+ * field involved is the one the product is about.
+ */
 
 /**
  * Photos sent per card in a LIST.
@@ -248,7 +295,17 @@ export class DatingService {
       if (!dto.extras) return dto.extras ?? null;
       try {
         const parsed = JSON.parse(dto.extras) as Record<string, unknown>;
-        if (!('photos' in parsed)) return dto.extras;
+        // A BADGE IS ONLY AS GOOD AS WHO CAN WRITE IT.
+        //
+        // `selfieVerified` lived in this free-form blob, was stored verbatim,
+        // and was rendered as `verified: true` on a card. It has no server-side
+        // write site anywhere — which means any request made outside the app
+        // could set it, with any image, or with none. The React component that
+        // captures the selfie already says so in a comment; the server did not
+        // act on it. It is dropped on every write now, and `verified` on a card
+        // reports only what the server can prove (see `provableVerified`).
+        delete parsed.selfieVerified;
+        if (!('photos' in parsed)) return JSON.stringify(parsed);
         return JSON.stringify({ ...parsed, photos: this.ownPhotosOnly(userId, parsed.photos) });
       } catch { return dto.extras; }
     })();
@@ -519,10 +576,14 @@ export class DatingService {
     const mine = await this.prisma.datingProfile.findUnique({ where: { userId } });
     if (!mine) throw new NotFoundException('create your dating profile first');
 
-    // unbounded: the matching pool — every visible approved profile is scored; the pool is the product
+    // Narrowed in SQL, capped, ordered — see POOL_CEILING. Every JS check below
+    // still runs, so this can only be narrower than the filter, never looser.
+    const myDForQuery = this.parseDX((mine as { extras?: string | null }).extras);
     const candidates = await this.prisma.datingProfile.findMany({
-      where: { userId: { not: userId }, visible: true, moderation: 'approved' },
-      include: { user: { select: { id: true, handle: true, name: true, profileImage: true } } },
+      where: this.poolWhere(userId, mine, myDForQuery),
+      include: { user: { select: { id: true, handle: true, name: true, profileImage: true, emailVerified: true } } },
+      orderBy: { updatedAt: 'desc' },
+      take: POOL_CEILING,
     });
 
     // unbounded: their own match states — bounded by the pool above
@@ -556,6 +617,8 @@ export class DatingService {
       signA: string; signB: string;
       candDX: DXProfile & DXVisibility & DXCard;
       myInterests: string[]; theirInterests: string[];
+      /** How much of the reading is an answer rather than arithmetic (0..1). */
+      cov: number;
     }[] = [];
     for (const cand of candidates) {
       if (excluded.has(cand.userId)) continue;
@@ -591,15 +654,19 @@ export class DatingService {
         bio: cand.bio, interests: this.splitInterests(cand.interests),
       });
       if (candCompletion.percent < CURATED_MIN_COMPLETION) continue;
+      // See POOL_CEILING's second note: a stated intent is the price of being on
+      // somebody's curated shelf. Discover still shows them.
+      if (!canonicalGoal(candDX.relationshipGoal)) continue;
       const breakdown = factorScores(astro, myInterests, theirInterests, myD, candDX);
+      const cov = coverage(myD, candDX, myInterests, theirInterests);
       const score = overallScore(breakdown, confidenceFor(myD, candDX, myInterests, theirInterests));
-      rows.push({ cand, state, score, breakdown, signA, signB, candDX, myInterests, theirInterests });
+      rows.push({ cand, state, score, breakdown, signA, signB, candDX, myInterests, theirInterests, cov });
     }
 
     // Where the shelf starts for this viewer. Fixed 75 unless DATING_BAR=p90.
     const bar = curatedBar(rows.map((r) => r.score), MATCH_THRESHOLD);
     for (const row of rows) {
-      const { cand, state, score, breakdown, signA, signB, candDX, myInterests, theirInterests } = row;
+      const { cand, state, score, breakdown, signA, signB, candDX, myInterests, theirInterests, cov } = row;
       if (score < bar) continue;
       // Threshold-visibility: this candidate only wants to be seen by people
       // they score highly with — hide them from viewers below their minimum.
@@ -624,6 +691,12 @@ export class DatingService {
         theirSign: signB,
         score,
         breakdown,
+        // WHAT THE NUMBER IS STANDING ON. `confidence` was computed, folded into
+        // the integer and never sent — so a citizen could not tell "51% because
+        // you are incompatible" from "51% because we know almost nothing about
+        // either of you". Both go on the card now; the arithmetic is unchanged.
+        coverage: cov,
+        confidence: confidenceFor(myD, candDX, myInterests, theirInterests),
         reasons: explain(breakdown, sharedItems(myInterests, theirInterests), preferenceNotes(myD, candDX), distanceNote(myD, candDX)),
         frictions: frictions(breakdown, myD, candDX),
         likedByMe: state ? this.likedBy(state, userId) : false,
@@ -667,10 +740,13 @@ export class DatingService {
     const mine = await this.prisma.datingProfile.findUnique({ where: { userId } });
     if (!mine) throw new NotFoundException('create your dating profile first');
 
-    // unbounded: the matching pool — every visible approved profile is scored
+    // Narrowed, capped and ordered — see POOL_CEILING.
+    const myDForQuery = this.parseDX((mine as { extras?: string | null }).extras);
     const candidates = await this.prisma.datingProfile.findMany({
-      where: { userId: { not: userId }, visible: true, moderation: 'approved' },
-      include: { user: { select: { id: true, handle: true, name: true, profileImage: true, createdAt: true, lastSeen: true, onlineStatus: true } } },
+      where: this.poolWhere(userId, mine, myDForQuery),
+      include: { user: { select: { id: true, handle: true, name: true, profileImage: true, createdAt: true, lastSeen: true, onlineStatus: true, emailVerified: true } } },
+      orderBy: { updatedAt: 'desc' },
+      take: POOL_CEILING,
     });
     // unbounded: their own match states — bounded by the pool above
     const states = await this.prisma.datingMatch.findMany({
@@ -826,6 +902,9 @@ export class DatingService {
       idealCount: ideal.length,
       lowDensity: ideal.length < 6,
       totalDiscoverable: scored.length,
+      // Reported, never silent — see POOL_CEILING.
+      poolSize: candidates.length,
+      poolCapped: candidates.length >= POOL_CEILING,
     };
   }
 
@@ -926,10 +1005,13 @@ export class DatingService {
       });
     } catch { /* keep the boolean-derived count */ }
 
-    // unbounded: the matching pool — every visible approved profile is scored
+    // Narrowed, capped and ordered — see POOL_CEILING.
+    const myDForQuery = this.parseDX((mine as { extras?: string | null }).extras);
     const candidates = await this.prisma.datingProfile.findMany({
-      where: { userId: { not: userId }, visible: true, moderation: 'approved' },
-      include: { user: { select: { id: true, handle: true, name: true, profileImage: true } } },
+      where: this.poolWhere(userId, mine, myDForQuery),
+      include: { user: { select: { id: true, handle: true, name: true, profileImage: true, emailVerified: true } } },
+      orderBy: { updatedAt: 'desc' },
+      take: POOL_CEILING,
     });
     // unbounded: their own match states — bounded by the pool above
     const states = await this.prisma.datingMatch.findMany({
@@ -1060,6 +1142,9 @@ export class DatingService {
     // something the citizen can scroll rather than the only thing they get.
     return {
       engaged, distribution, top, candidates: cards, matched, totalCandidates: cards.length,
+      // The cap is reported, never silent. If it bound, the citizen is looking at
+      // the most recently active POOL_CEILING profiles and not at the city.
+      poolSize: candidates.length, poolCapped: candidates.length >= POOL_CEILING,
       openChats, chatCap: DATING_CHAT_CAP, atCapacity: openChats >= DATING_CHAT_CAP,
       // Rendered, not logged. Once the weights differ per person so does the
       // percentage, and a screen showing the new number under the old sentence
@@ -1086,7 +1171,7 @@ export class DatingService {
     if (!mine) throw new NotFoundException('create your dating profile first');
     const cand = await this.prisma.datingProfile.findUnique({
       where: { userId: targetUserId },
-      include: { user: { select: { id: true, handle: true, name: true, profileImage: true } } },
+      include: { user: { select: { id: true, handle: true, name: true, profileImage: true, emailVerified: true } } },
     });
     if (!cand || !cand.visible || (cand as { moderation?: string }).moderation !== 'approved') {
       throw new NotFoundException('This profile is not available.');
@@ -1145,9 +1230,14 @@ export class DatingService {
       relationshipGoal: candD.relationshipGoal ?? null,
       diet: candD.diet ?? null, smoking: candD.smoking ?? null, drinking: candD.drinking ?? null,
       fitnessLevel: candD.fitnessLevel ?? null, education: candD.education ?? null, occupation: candD.profession ?? null,
-      verified: Boolean(candD.selfieVerified && candD.selfiePhoto), // camera-verified only
+      // Only what the server can prove. `selfieVerified` was client-authored and
+      // is no longer read; a contact channel this platform confirmed is a weaker
+      // claim than identity, and it is the strongest one that is currently true.
+      verified: Boolean((cand.user as { emailVerified?: boolean | null }).emailVerified),
       yourSign: signA, theirSign: signB,
       score, breakdown,
+      coverage: coverage(myD, candD, myInterests, theirInterests),
+      confidence: confidenceFor(myD, candD, myInterests, theirInterests),
       reasons: explain(breakdown, sharedItems(myInterests, theirInterests), preferenceNotes(myD, candD), distanceNote(myD, candD)),
       frictions: frictions(breakdown, myD, candD),
       likedByMe: state ? this.likedBy(state, userId) : false,
@@ -1507,6 +1597,25 @@ export class DatingService {
 
   /** Admin-only Dating Hub stats — registered profiles, the live matching pool,
    *  moderation queue, gender split, and chat activity. Gated to MODERATION_ADMINS. */
+  /**
+   * A moderator's decision on one dating profile, and the only write to
+   * `moderation` that is not the automatic pass taken on save.
+   *
+   * `approved` returns the profile to the pool; `rejected` takes it out and
+   * leaves it out. Both are written to the moderation log with the moderator's
+   * id rather than the string 'system', so the audit trail says who decided.
+   */
+  async moderateDecision(adminId: string, targetUserId: string, decision: 'approved' | 'rejected', reason?: string) {
+    await this.admin.assertAdmin(adminId, 'Admin access required.');
+    const updated = await this.prisma.datingProfile.updateMany({
+      where: { userId: targetUserId },
+      data: { moderation: decision, visible: decision === 'approved' },
+    });
+    if (!updated.count) throw new NotFoundException('That person has no dating profile.');
+    await this.logModeration(targetUserId, adminId, decision, reason ?? 'moderator decision');
+    return { userId: targetUserId, moderation: decision };
+  }
+
   async adminStats(userId?: string) {
     // Resolved from User.role, not from the caller's handle: a handle is
     // renameable by its owner, so it was never an authorisation fact.
@@ -1720,6 +1829,19 @@ export class DatingService {
    * Empty when they stated none — `hardFilterReason` treats 0 and null as "not
    * stated", and this mirrors that exactly rather than approximately.
    */
+  /**
+   * What the database can be asked for without changing who is eligible.
+   * Mirrors `reindexAfterChange`'s query exactly — see POOL_CEILING above.
+   */
+  private poolWhere(userId: string, mine: { gender: string; seeking: string }, myD: DXProfile) {
+    return {
+      userId: { not: userId }, visible: true, moderation: 'approved',
+      ...(mine.seeking === 'any' ? {} : { gender: mine.seeking }),
+      seeking: { in: ['any', mine.gender] },
+      ...this.birthDateRangeFor(myD),
+    };
+  }
+
   private birthDateRangeFor(myD: DXProfile): { birthDate?: { lte?: Date; gt?: Date } } {
     const now = Date.now();
     const range: { lte?: Date; gt?: Date } = {};

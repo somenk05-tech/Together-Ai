@@ -34,6 +34,15 @@ export const moderationApi = {
   queue: () => api.get<ReportQueue>('/social/reports/queue').then((r) => r.data),
   decide: (dto: { targetType: string; targetId: string; decision: 'remove' | 'dismiss'; note?: string }) =>
     api.post<{ decided: string; reportsClosed: number }>('/social/reports/decide', dto).then((r) => r.data),
+  /**
+   * The one thing this screen can do about a reported PERSON, and it is not an
+   * account action: it takes their dating profile out of everybody's pool and
+   * leaves the rest of the city untouched. Until 26 Aug a report about a dating
+   * user could only be dismissed — the decide endpoint refuses to remove
+   * anything but a post, deliberately, and still does.
+   */
+  datingDecision: (userId: string, dto: { decision: 'approved' | 'rejected'; reason?: string }) =>
+    api.post<{ userId: string; moderation: string }>(`/dating/admin/moderation/${encodeURIComponent(userId)}`, dto).then((r) => r.data),
 };
 
 export function useReportQueue() {
@@ -50,5 +59,14 @@ export function useDecideReport() {
       void qc.invalidateQueries({ queryKey: ['social'] });
       void qc.invalidateQueries({ queryKey: ['profile'] });
     },
+  });
+}
+
+export function useDatingDecision() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, ...dto }: { userId: string; decision: 'approved' | 'rejected'; reason?: string }) =>
+      moderationApi.datingDecision(userId, dto),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['dating'] }); },
   });
 }
