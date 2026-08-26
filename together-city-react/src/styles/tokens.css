@@ -2720,6 +2720,30 @@ html[data-skin="sanmarino"] {
   --on-stage-faint: #3a5060;
   --on-stage-ink: #f2f7fb;
 }
+/* ── PORCELAIN: THE DATING THREAD'S OWN ROOM (owner, 26 Aug: "make the chat
+   interface white") ─────────────────────────────────────────────────────────
+   Not a skin anybody picks — the dating conversation's one fixed material,
+   worn via data-stage the way the swatch themes are, because the stage is
+   tokens and a room that commits to one light should not need a second
+   mechanism. Pure white ground — the city's own coat — with the city's own
+   ink scale, so this room and the page around it are finally one sheet of
+   paper. Inks are the root's measured values: 13.75:1, 10.73:1 and 6.71:1
+   on white. The tiles are smoked glass like every light stage; "mine" gets
+   its own pairing in relief.css, because a white solid on a white ground is
+   a bubble nobody can see. */
+.cstage[data-stage="porcelain"] {
+  --stage: #ffffff;
+  --stage-panel: rgba(0,0,0,.04);
+  --stage-tile:  rgba(0,0,0,.07);
+  --stage-hover: rgba(0,0,0,.05);
+  --stage-well:  rgba(0,0,0,.06);
+  --stage-line: rgba(0,0,0,.14);
+  --stage-solid: #ffffff;
+  --on-stage: #2a2a2a;
+  --on-stage-soft: #3b3b3b;
+  --on-stage-faint: #595959;
+  --on-stage-ink: #ffffff;
+}
 .cstage[data-stage="ruby"] {
   --stage: linear-gradient(158deg, #ece3e3 0%, #ddd0d1 42%, #beaaac 100%);
   --stage-panel: rgba(0,0,0,.05);

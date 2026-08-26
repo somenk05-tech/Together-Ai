@@ -39,19 +39,30 @@ function pickMime(): string {
   return '';
 }
 
-export function Composer({ onSend, onTyping, replyTo, onCancelReply }: {
+export function Composer({ onSend, onTyping, replyTo, onCancelReply, seed }: {
   onSend: (body: string, attachments?: OutgoingAttachment[]) => void;
   onTyping: (t: boolean) => void;
   /** The message being answered, if any — shown above the capsule so nobody
    *  sends a reply into the wrong thread of a conversation. */
   replyTo?: { name: string; body: string } | null;
   onCancelReply?: () => void;
+  /** A suggestion PLACED, never sent (dating's conversation starters, 26 Aug):
+   *  the text lands in the field, focused, theirs to edit or delete. `n` makes
+   *  the same words placeable twice — a counter, not an id. */
+  seed?: { text: string; n: number } | null;
 }) {
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [recSec, setRecSec] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // The seed arrives from outside the capsule; a change of `n` is a tap.
+  useEffect(() => {
+    if (seed?.text) { setBody(seed.text); inputRef.current?.focus(); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- n IS the event
+  }, [seed?.n]);
   const rec = useRef<{ mr: MediaRecorder; chunks: Blob[]; stream: MediaStream; started: number } | null>(null);
   const tick = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -216,7 +227,7 @@ export function Composer({ onSend, onTyping, replyTo, onCancelReply }: {
               <button type="button" className="cstool" aria-label="Record a voice note"
                 disabled={Boolean(busy)} onClick={() => void startRec()}>🎙</button>
             </span>
-            <input value={body} placeholder="Write a message…" aria-label="Write a message"
+            <input ref={inputRef} value={body} placeholder="Write a message…" aria-label="Write a message"
               disabled={Boolean(busy)}
               onChange={(e) => { setBody(e.target.value); onTyping(e.target.value.length > 0); }} />
             {/* Disabled rather than absent: the capsule keeps its shape as you

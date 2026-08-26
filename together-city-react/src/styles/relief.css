@@ -3966,6 +3966,15 @@ textarea.g-field { resize: none; line-height: 1.55; }
   color: var(--on-stage-ink); background: var(--on-stage); }
 .csb + .csb { margin-top: 6px; }
 .csb.me { align-self: flex-end; color: var(--on-stage); background: var(--stage-solid); }
+/* THE WHITE ROOM'S OWN PAIRINGS (owner, 26 Aug: "make the chat interface
+   white"). The stage's standing bubble pair cannot survive a pure white
+   ground: the incoming tile is --on-stage used AS a ground — dark on every
+   light theme — and "mine" is the solid, which here IS the ground. So
+   porcelain restates both halves: their words on a soft neutral tile in the
+   city's charcoal, yours on soft black in white — the brief's own palette,
+   scoped to the one stage whose ground is the solid. */
+.cstage[data-stage="porcelain"] .csb { color: var(--on-stage); background: var(--stage-tile); }
+.cstage[data-stage="porcelain"] .csb.me { color: var(--stage-solid); background: var(--on-stage); }
 .csb.gone { color: var(--on-stage-faint); background: none; box-shadow: none;
   font-style: italic; font-size: 13px; outline: 1px dashed var(--stage-line); outline-offset: -1px; }
 
@@ -4057,6 +4066,86 @@ textarea.g-field { resize: none; line-height: 1.55; }
 @media (hover: hover) and (pointer: fine) {
   .cshead-menu button:hover { background: var(--stage-hover); }
 }
+
+/* ══ THE DATING THREAD'S OWN FURNITURE (owner, 26 Aug) ════════════════════
+   The dating chat wears the porcelain stage — pure white, the city's own
+   charcoal ink, soft neutral tiles ("make the chat interface white", said
+   after one afternoon of cream). These pieces are what that room is
+   furnished with: the introduction card, the tappable ways into a first
+   conversation, the quiet ideas popover, and the compatibility sheet.
+
+   Every colour is a stage or root token. The one warm-metal touch the brief
+   calls "Together City gold" is var(--gold-ink) on the connection figure —
+   the alias the token file keeps for exactly this register, spent on the
+   number and nowhere else. */
+.csintro {
+  align-self: center; max-width: 360px; width: 100%; flex: none;
+  margin: 2px 0 14px; padding: 14px 18px; border-radius: var(--r-3);
+  background: var(--stage-panel); text-align: center;
+}
+.csintro p { margin: 4px 0 0; font-size: var(--fs-3); line-height: 1.55; color: var(--on-stage-soft); }
+.csintro small { display: block; margin-top: 10px; font-size: var(--fs-1); color: var(--on-stage-faint); line-height: 1.5; }
+.csintro-pct { display: block; font-size: var(--fs-5); font-weight: 700; color: var(--gold-ink); }
+.csintro-lab {
+  display: block; margin: 12px 0 6px; font-style: normal; font-size: var(--fs-1);
+  font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--on-stage-faint);
+}
+/* The ways in: one column of quiet tiles, each a full sentence's landing pad.
+   A tap only places words in the composer — nothing here sends. */
+.csstarts { display: grid; gap: 6px; width: 100%; }
+.csstart {
+  display: block; width: 100%; min-height: 44px; padding: 10px 14px; text-align: left;
+  border: 0; border-radius: var(--r-2); cursor: pointer; font-family: inherit;
+  font-size: var(--fs-4); line-height: 1.4; color: var(--on-stage);
+  background: var(--stage-tile);
+}
+@media (hover: hover) and (pointer: fine) { .csstart:hover { background: var(--stage-hover); } }
+/* The room before the first message. Two faces, the number, the ways in —
+   and no confetti anywhere: the fact is the moment. */
+.csempty {
+  margin: auto; align-self: center; width: 100%; max-width: 340px; flex: none;
+  text-align: center; padding: 10px 0;
+}
+.csempty p { margin: 4px 0 0; font-size: var(--fs-4); line-height: 1.55; color: var(--on-stage-soft); }
+.csempty-common { font-size: var(--fs-3); }
+.csempty small { display: block; margin-top: 12px; font-size: var(--fs-1); color: var(--on-stage-faint); line-height: 1.5; }
+.csempty-faces { display: flex; justify-content: center; margin-bottom: 10px; }
+.csempty-faces img, .csempty-faces span {
+  width: 56px; height: 56px; border-radius: var(--r-full); object-fit: cover;
+  outline: 2px solid var(--stage-solid); outline-offset: 0;
+  display: grid; place-items: center; font-weight: 700; font-size: var(--fs-6);
+  color: var(--on-stage-soft); background: var(--stage-tile);
+}
+/* The ideas popover rides above the composer the way the header's menu rides
+   under the header: opaque stage ground, an edge rather than a shadow,
+   full-screen scrim underneath so a press anywhere dismisses it. */
+.csideas {
+  position: absolute; bottom: calc(100% + 10px); right: 0; left: auto; z-index: 41;
+  width: min(340px, 100%); padding: 10px; display: grid; gap: 6px;
+  border-radius: var(--r-3); background: var(--stage-solid);
+  outline: 1px solid var(--stage-line); outline-offset: -1px;
+}
+.csideas > b {
+  font-size: var(--fs-1); font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--on-stage-faint); padding: 2px 4px;
+}
+.csideas-note { display: block; font-size: var(--fs-1); font-weight: 400; color: var(--on-stage-faint); margin-top: 2px; }
+.csideas-row { position: relative; flex: none; display: flex; justify-content: flex-end; padding: 0 20px 8px; }
+/* The compatibility sheet is a DIALOG, and a dialog is the app interrupting
+   the stage — so it wears the city's white, the same call ChatStarter's
+   modal made, and rises from the foot of the screen where a thumb is. */
+.cssheet-scrim { position: fixed; inset: 0; z-index: 60; border: 0; padding: 0; cursor: pointer; background: var(--scrim-deep); }
+.cssheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 61; margin: 0 auto;
+  max-width: 560px; max-height: 82dvh; overflow-y: auto;
+  border-radius: var(--r-4) var(--r-4) 0 0; background: var(--card); color: var(--ink);
+  padding: 10px 22px calc(20px + var(--safe-bottom)); box-shadow: var(--e3);
+  animation: cssheet-in var(--dur-base) var(--ease-out);
+}
+.cssheet h2 { font-size: var(--fs-6); margin: 8px 0 10px; }
+.cssheet-grab { width: 40px; height: 4px; border-radius: var(--r-full); background: var(--line); margin: 2px auto 0; }
+@keyframes cssheet-in { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .cssheet { animation: none; } }
 
 /* ── THE STAGE ON A PHONE ─────────────────────────────────────────────────
    Measured in a browser at the widths people actually hold. The header's

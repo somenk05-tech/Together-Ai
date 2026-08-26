@@ -708,14 +708,17 @@ table.tc td b { color: var(--ink); }
      and did nothing: the first two declarations restate relief.css's, and the
      gap lost the tie to relief's 12px because relief.css is imported second.
      The phone's row is set in relief.css now, in one place. */
-  .csback {
-    flex: 0 0 auto; display: grid; place-items: center;
-    width: 40px; height: 40px; margin-left: -6px;
-    border: 0; border-radius: 50%; background: none; cursor: pointer;
-    color: var(--on-stage);
-  }
-  .csback:active { background: rgba(255,255,255,.12); }
 }
+/* OUT OF THE PHONE QUERY (26 Aug): the dating thread is a full-screen room on
+   every device now, so its back chevron renders on a desk too. The city chat
+   still mounts this only on a phone; nothing there changes. */
+.csback {
+  flex: 0 0 auto; display: grid; place-items: center;
+  width: 40px; height: 40px; margin-left: -6px;
+  border: 0; border-radius: 50%; background: none; cursor: pointer;
+  color: var(--on-stage);
+}
+.csback:active { background: rgba(255,255,255,.12); }
 
 /* ---- On a phone the hub landing is the poster (9 Aug) ----
    The art is TALL and already carries the hub's name and line, painted into

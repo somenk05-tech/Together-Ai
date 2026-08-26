@@ -1,16 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { animate, motion, useMotionValue } from 'framer-motion';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button, Spinner, EmptyState } from '@/components/ui';
 import { useMe } from '@/api';
-import { chatApi, useMessages, useChatRealtime } from '@/api';
+import { chatApi, useMessages, useChatRealtime, type OutgoingAttachment } from '@/api';
 import type { Message } from '@/api/schemas';
 import { useQueryClient } from '@tanstack/react-query';
-import { useDatingChats, useUnmatch, type DatingChatSummary } from '../api';
+import { useDatingChats, useMatchDetail, useUnmatch, type DatingChatSummary } from '../api';
 import { CallButtons } from '@/features/calls/CallButtons';
 import { SafetyMenu } from '../components/SafetyMenu';
 import { MiraMark } from '@/features/chat/mira/MiraMark';
 import { MiraConfidant } from '@/features/chat/mira/MiraConfidant';
+import { Composer } from '@/features/chat/components/Composer';
+import { MessageBody } from '@/features/chat/components/MessageBody';
+import { ConnectionIntro, ConversationIdeas, CompatibilitySheet, EmptyIntro } from '../components/ChatPieces';
+import { startersFor } from '../starters';
 import { useChatRoom } from '@/hooks/useChatRoom';
 import { useScaleLock } from '@/hooks/useScaleLock';
 
@@ -23,14 +27,18 @@ function initials(name: string): string {
   return (name || '?').split(' ').map((w) => w[0] || '').join('').slice(0, 2).toUpperCase();
 }
 
-function timeAgo(iso: string): string {
-  const t = new Date(iso).getTime();
-  if (!t || t < 1) return '';
-  const s = Math.floor((Date.now() - t) / 1000);
-  if (s < 60) return 'now';
-  if (s < 3600) return `${Math.floor(s / 60)}m`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h`;
-  return `${Math.floor(s / 86400)}d`;
+/** "8:32 PM" today, "Mon" this week, "12 Aug" beyond (owner's reference row,
+ *  26 Aug). A clock time is a thing you can act on tonight; "3h" is homework. */
+function fmtWhen(iso: string): string {
+  const t = new Date(iso);
+  const ms = t.getTime();
+  if (!ms || ms < 1) return '';
+  const now = new Date();
+  if (t.toDateString() === now.toDateString()) {
+    return t.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  }
+  if (now.getTime() - ms < 7 * 86400000) return t.toLocaleDateString(undefined, { weekday: 'short' });
+  return t.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
 
 function Avatar({ name, photo, size = 46 }: { name: string; photo: string | null; size?: number }) {
@@ -126,22 +134,39 @@ function ChatRow({ c, active, onClick }: { c: DatingChatSummary; active: boolean
           void animate(x, shouldOpen ? -DRAWER : 0, SPRING);
         }}
       >
+    {/* THE ROW, RE-SET TO THE OWNER'S 26 AUG REFERENCE: face · name and age ·
+        the last words — then the clock and the number in a quiet right-hand
+        column. Unread is said with TYPE, not a coloured badge: the name and
+        the preview take the full ink, and the count is a small charcoal pip.
+        The compatibility figure stays on the row because it is the thing this
+        app knows that a generic messenger does not — in the gold register,
+        and small, because the words are the hero here. */}
     <button type="button" onClick={() => { if (open) { close(); return; } onClick(); }} style={{
       display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
       padding: '12px 12px', borderRadius: 'var(--r-2)', border: '1px solid var(--line)',
       background: active ? 'var(--accent-soft)' : 'var(--card)',
     }}>
-      <Avatar name={c.name} photo={c.photo} />
+      <Avatar name={c.name} photo={c.photo} size={48} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <span style={{ fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
-          <span className="muted" style={{ marginLeft: 'auto', fontSize: 11.5, flex: 'none' }}>{timeAgo(c.lastMessageAt)}</span>
-        </div>
-        <div className="muted" style={{ fontSize: 12.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 2 }}>
+        <span style={{
+          display: 'block', fontWeight: c.unread > 0 ? 800 : 700, fontSize: 15,
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        }}>
+          {c.name}{c.age ? `, ${c.age}` : ''}
+        </span>
+        <span className={c.unread > 0 ? undefined : 'muted'} style={{
+          display: 'block', fontSize: 12.5, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          fontWeight: c.unread > 0 ? 600 : 400,
+        }}>
           {c.lastText ? `${c.lastFromMe ? 'You: ' : ''}${c.lastText}` : 'Say hello 👋'}
-        </div>
+        </span>
       </div>
-      {c.unread > 0 && <span style={{ flex: 'none', minWidth: 20, height: 20, borderRadius: 'var(--r-full)', background: 'var(--accent)', color: 'var(--on-accent)', fontSize: 11, fontWeight: 700, display: 'grid', placeItems: 'center', padding: '0 6px' }}>{c.unread}</span>}
+      <div style={{ flex: 'none', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+        <span className="muted" style={{ fontSize: 11.5 }}>{fmtWhen(c.lastMessageAt)}</span>
+        {c.unread > 0
+          ? <span aria-label={`${c.unread} unread`} style={{ minWidth: 18, height: 18, borderRadius: 'var(--r-full)', background: 'var(--ink)', color: 'var(--card)', fontSize: 11, fontWeight: 700, display: 'grid', placeItems: 'center', padding: '0 5px' }}>{c.unread}</span>
+          : c.score != null && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gold-ink)' }}>{c.score}%</span>}
+      </div>
     </button>
       </motion.div>
     </div>
@@ -177,14 +202,31 @@ function MatchBubble({ c }: { c: DatingChatSummary }) {
  *  conversation id is non-null by construction rather than by assertion. */
 type OpenChat = DatingChatSummary & { conversationId: string };
 
-function Thread({ chat, meId, onBack }: { chat: OpenChat; meId: string; onBack: () => void }) {
+function Thread({ chat, meId, mePhoto, onBack }: { chat: OpenChat; meId: string; mePhoto: string | null; onBack: () => void }) {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const unmatch = useUnmatch('romantic');
   const msgs = useMessages(chat.conversationId);
-  const [draft, setDraft] = useState('');
-  const [sending, setSending] = useState(false);
   const [local, setLocal] = useState<Message[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  /* WHAT THE ROOM KNOWS ABOUT THE TWO OF YOU. The same read the profile page
+     makes — breakdown, reasons, interests, city — fetched once and cached, so
+     the introduction card, the starters, the header's place-line and the
+     compatibility sheet all speak from one record. If the read fails (a
+     paused profile still chats with an existing match, and its detail can
+     404), everything downstream simply says less rather than breaking. */
+  const detail = useMatchDetail(chat.otherUserId, 'romantic');
+  const d = detail.data ?? null;
+  /* The composer seed: a starter tap PLACES words, focused, theirs to edit.
+     `n` is a counter so the same suggestion can be placed twice. */
+  const [seed, setSeed] = useState<{ text: string; n: number } | null>(null);
+  const pick = useCallback((q: string) => setSeed((s) => ({ text: q, n: (s?.n ?? 0) + 1 })), []);
+  const [menu, setMenu] = useState(false);
+  const [sheet, setSheet] = useState(false);
+  const [ideas, setIdeas] = useState(false);
+  const [peerTyping, setPeerTyping] = useState(false);
+  const typingClear = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /* MIRA, INVITED INTO THIS CONVERSATION (owner, 15 Aug: "add mira to dating
      chats too"). The same panel the city chats carry, scoped the same way:
      what she reads is the window this screen is already showing, handed over
@@ -219,46 +261,106 @@ function Thread({ chat, meId, onBack }: { chat: OpenChat; meId: string; onBack: 
       })),
   [messages, meId]);
 
-  useChatRealtime(chat.conversationId, (m) => setLocal((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m])));
+  /* LIVE, THE WAY THE CITY CHAT IS LIVE. One socket room does all of it:
+     receive (the echo of your own send included — the server addresses the
+     room, sender and all, which is what makes send-and-append unnecessary),
+     the other side's typing, and the send itself — which is what lets a
+     message carry a photograph or a voice note, because the socket schema
+     always accepted attachments and REST send never did. */
+  const { send: wsSend, setTyping } = useChatRealtime(
+    chat.conversationId,
+    (m) => {
+      setLocal((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
+      setPeerTyping(false);
+      void qc.invalidateQueries({ queryKey: ['dating', 'chats'] });
+    },
+    (userId, isTyping) => {
+      if (userId === meId) return;
+      setPeerTyping(isTyping);
+      if (typingClear.current) clearTimeout(typingClear.current);
+      // A typing flag with no stop frame behind it must expire on its own.
+      if (isTyping) typingClear.current = setTimeout(() => setPeerTyping(false), 6000);
+    },
+  );
+
+  useEffect(() => () => {
+    if (typingClear.current) clearTimeout(typingClear.current);
+    if (typingTimer.current) clearTimeout(typingTimer.current);
+  }, []);
 
   useEffect(() => { void chatApi.markRead(chat.conversationId).then(() => qc.invalidateQueries({ queryKey: ['dating', 'chats'] })).catch(() => undefined); }, [chat.conversationId, qc]);
-  useEffect(() => { const el = scrollRef.current; if (el) el.scrollTop = el.scrollHeight; }, [messages.length]);
+  useEffect(() => { const el = scrollRef.current; if (el) el.scrollTop = el.scrollHeight; }, [messages.length, peerTyping]);
 
-  const send = async () => {
-    const body = draft.trim();
-    if (!body || sending) return;
-    setSending(true); setDraft('');
-    try {
-      const m = await chatApi.send(chat.conversationId, body);
-      setLocal((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
-      void qc.invalidateQueries({ queryKey: ['dating', 'chats'] });
-    } catch { setDraft(body); } finally { setSending(false); }
-  };
+  const handleSend = useCallback((body: string, attachments?: OutgoingAttachment[]) => {
+    if (!body.trim() && !attachments?.length) return;
+    wsSend(body.trim(), attachments);
+  }, [wsSend]);
+  /* Typing, said while it is true and taken back when it stops being typed —
+     the same 2.5s the city chat uses, so one person reads as one person. */
+  const emitTyping = useCallback((t: boolean) => {
+    setTyping(t);
+    if (typingTimer.current) clearTimeout(typingTimer.current);
+    if (t) typingTimer.current = setTimeout(() => setTyping(false), 2500);
+  }, [setTyping]);
+
+  const starters = useMemo(() => startersFor({
+    name: chat.name, interests: d?.interests, city: d?.city, occupation: d?.occupation,
+  }), [chat.name, d]);
+  const profileHref = `/dating/match?u=${chat.otherUserId}&kind=romantic`;
+  const city = d?.city?.trim() || null;
+  const subline = [
+    chat.score != null ? `${chat.score}% compatible` : null,
+    city ?? (chat.sign || null),
+  ].filter(Boolean).join(' · ');
 
   return (
-    /* THE SAME STAGE AS THE CITY CHAT. A conversation is one thing wherever
-       you have it, so it is made of one material — the dark panel, the white
-       tile pressed in, the black tile raised. The candy ground the Dating hub
-       won stays exactly where it is: on the page AROUND this panel. */
-    <div className="cstage csthread" style={{ display: 'flex', height: phone ? 'var(--tc-vvh, 100dvh)' : 'min(72vh, 640px)' }}>
-      {/* header */}
+    /* THE SAME STAGE AS THE CITY CHAT — same classes, same bones, same socket
+       — WEARING PORCELAIN (owner, 26 Aug: "make the chat interface white").
+       Pure white ground, the city's own charcoal ink, soft neutral tiles for
+       their words and soft black for yours. The stage being tokens is what
+       lets this room commit to one light while the city chat keeps its
+       swatch row, with no component forked to get there. */
+    <div className="cstage csthread" data-stage="porcelain" style={{
+      display: 'flex',
+      /* Full screen on every device: the phone's height is the visible
+         viewport (tc-immersive pins the room to it); a desk gets everything
+         under the city header. Nothing else renders on this route while a
+         conversation is open, so there is nothing to scroll to. */
+      height: phone ? 'var(--tc-vvh, 100dvh)' : 'calc(100dvh - var(--header-h) - var(--safe-top) - 40px)',
+    }}>
+      {/* ── THE HEADER: who, then the two facts, then the doors (§1). The
+          face and the name are ONE door to the profile — the tap the owner
+          named as important. The percentage is its own door to the sheet,
+          because the number staying useful after the match is the point of
+          having computed it. Everything destructive lives behind ⋯. */}
       <div className="cshead-t" style={{ gap: 10 }}>
-        {/* The city chat's back arrow, down to the chevron: on a phone this is
-            now the only way out of the room, and two different arrows for the
-            same door is how one app starts feeling like two. */}
-        {phone && (
-          <button type="button" className="csback" aria-label="Back to your dating chats" onClick={onBack}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+        {/* The city chat's back arrow, down to the chevron — on EVERY device
+            now, because the room is the whole screen on every device and this
+            is the only door back to the list. */}
+        <button type="button" className="csback" aria-label="Back to your dating chats" onClick={onBack}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+        </button>
+        <Link to={profileHref} aria-label={`Open ${chat.name}’s profile`}
+          style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, textDecoration: 'none' }}>
+          <Avatar name={chat.name} photo={chat.photo} size={40} />
+          <span style={{ minWidth: 0 }}>
+            {/* One identity: the name here is the profile's, the same one the
+                match card showed. Nothing here changes anybody's name. */}
+            <b style={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {chat.name}{chat.age ? `, ${chat.age}` : ''}
+            </b>
+            <em>{peerTyping ? 'typing…' : subline}</em>
+          </span>
+        </Link>
+        {chat.score != null && (
+          <button type="button" className="cspip" style={{ minWidth: 44, border: 0, cursor: 'pointer', fontFamily: 'inherit' }}
+            aria-label={`Your compatibility: ${chat.score}% — open the breakdown`}
+            title="Your compatibility, opened"
+            onClick={() => setSheet(true)}>
+            {chat.score}%
           </button>
         )}
-        <Avatar name={chat.name} photo={chat.photo} size={40} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <b>{chat.name}{chat.sign ? ` · ${chat.sign}` : ''}</b>
-          {/* One identity: the name above is the profile's, the same one the
-              match card showed. Nothing here changes anybody's name. */}
-        </div>
-        {chat.score != null && <span className="cspip" style={{ minWidth: 44 }}>{chat.score}%</span>}
         {/* Her whole lockup, as in every other conversation in the city —
             hovering says what she is for. A press invites her into THIS
             thread and nothing else. */}
@@ -270,22 +372,37 @@ function Thread({ chat, meId, onBack }: { chat: OpenChat; meId: string; onBack: 
         {/* A call here carries no more identity than the chat does: the avatar
             and name above are already whatever each person chose to show. */}
         <CallButtons conversationId={chat.conversationId} compact />
-      </div>
-
-      {/* unmatch / safety bar */}
-      <div style={{ display: 'flex', flex: 'none', alignItems: 'center', gap: 8, padding: '9px 16px', background: 'var(--stage-well)', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12, color: 'var(--on-stage-faint)' }}>
-          You appear as yourself — the same name and photos as your profile.
-        </span>
-        <button type="button" className="cstab" style={{ marginLeft: 'auto' }}
-          disabled={unmatch.isPending}
-          onClick={() => { if (window.confirm('Unmatch and end this chat? This frees you to connect with someone new.')) unmatch.mutate(chat.otherUserId, { onSuccess: onBack }); }}>
-          Unmatch
-        </button>
-        {/* Unmatch and block are not the same thing, and the open chat is where
-            that difference matters most. Unmatch frees you to connect with
-            somebody else; block ends it and hides you from each other. */}
-        <SafetyMenu userId={chat.otherUserId} kind="romantic" compact />
+        <button type="button" className="cstool" aria-label="More options" aria-expanded={menu}
+          style={{ flex: 'none' }} onClick={() => setMenu((v) => !v)}>⋯</button>
+        {menu && (
+          <>
+            <button type="button" className="cshead-more-scrim" aria-label="Close menu"
+              style={{ border: 0, background: 'transparent', padding: 0, cursor: 'default' }}
+              onClick={() => setMenu(false)} />
+            <div className="cshead-menu" role="menu" aria-label="Conversation options">
+              <button type="button" role="menuitem" onClick={() => { setMenu(false); navigate(profileHref); }}>
+                View {chat.name}’s profile
+              </button>
+              <button type="button" role="menuitem" onClick={() => { setMenu(false); setSheet(true); }}>
+                Your compatibility{chat.score != null ? ` · ${chat.score}%` : ''}
+              </button>
+              {/* Unmatch and block are not the same thing, and the open chat is
+                  where that difference matters most. Unmatch frees you to
+                  connect with somebody else; block ends it and hides you from
+                  each other. Both ask before they act. */}
+              <button type="button" role="menuitem" disabled={unmatch.isPending}
+                onClick={() => {
+                  setMenu(false);
+                  if (window.confirm('Unmatch and end this chat? This frees you to connect with someone new.')) {
+                    unmatch.mutate(chat.otherUserId, { onSuccess: onBack });
+                  }
+                }}>
+                {unmatch.isPending ? 'Unmatching…' : 'Unmatch'}
+              </button>
+              <SafetyMenu userId={chat.otherUserId} kind="romantic" compact />
+            </div>
+          </>
+        )}
       </div>
 
       {confide && (
@@ -293,38 +410,72 @@ function Thread({ chat, meId, onBack }: { chat: OpenChat; meId: string; onBack: 
           onClose={() => setConfide(false)} />
       )}
 
-      {/* messages */}
+      {/* ── THE CONVERSATION (§2): the messages, and almost nothing else.
+          Before the first word, the room says why you are both in it and
+          offers four ways to start (§10); after it, the introduction card
+          heads the history the way a first page heads a book (§3). */}
       <div ref={scrollRef} className="csmsgs">
         {msgs.isLoading ? <Spinner /> : messages.length === 0 ? (
-          <div style={{ margin: 'auto', textAlign: 'center', maxWidth: 260 }}>
-            <div style={{ fontSize: 30 }}>💬</div>
-            <p style={{ fontSize: 13, color: 'var(--on-stage-faint)', lineHeight: 1.55 }}>You matched — start the conversation. Keep it kind.</p>
-          </div>
-        ) : messages.map((m, i) => {
-          const mine = m.senderId === meId;
-          const prev = messages[i - 1];
-          const opens = !prev || prev.senderId !== m.senderId;
-          return (
-            <div key={m.id} style={{ display: 'contents' }}>
-              {opens && (
-                <div className={mine ? 'csatt me' : 'csatt'}>
-                  {mine ? <b>You</b> : <b>{chat.name}</b>}
+          <EmptyIntro name={chat.name} score={chat.score} myPhoto={mePhoto} theirPhoto={chat.photo}
+            d={d} onPick={pick} />
+        ) : (
+          <>
+            <ConnectionIntro name={chat.name} score={chat.score} d={d} />
+            {messages.map((m, i) => {
+              const mine = m.senderId === meId;
+              const prev = messages[i - 1];
+              const opens = !prev || prev.senderId !== m.senderId;
+              return (
+                <div key={m.id} style={{ display: 'contents' }}>
+                  {opens && (
+                    <div className={mine ? 'csatt me' : 'csatt'}>
+                      {mine ? <b>You</b> : <b>{chat.name}</b>}
+                    </div>
+                  )}
+                  {/* The whole message, drawn by the one component the city
+                      chat draws it with — words, photographs, voice notes,
+                      the deleted tombstone — so the two rooms cannot drift
+                      into two ideas of what a message is. */}
+                  <div style={{
+                    alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: 'min(78%, 460px)',
+                    display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start',
+                  }}>
+                    <MessageBody m={m} mine={mine} currentUserId={meId} peerName={chat.name} />
+                  </div>
                 </div>
-              )}
-              <div className={mine ? 'csb me' : 'csb'} style={{ maxWidth: 'min(70%, 460px)' }}>{m.body}</div>
-            </div>
-          );
-        })}
+              );
+            })}
+            {peerTyping && <div className="csatt"><i>{chat.name} is typing…</i></div>}
+          </>
+        )}
       </div>
 
-      {/* composer */}
-      <div className="cscomposer">
-        <input value={draft} placeholder="Write a message…" aria-label="Write a message"
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void send(); } }} />
-        <button type="button" className="cssend" aria-label="Send"
-          disabled={sending || !draft.trim()} onClick={() => void send()}>➤</button>
-      </div>
+      {/* ── CONVERSATION IDEAS (§5): one quiet pill, only once there is a
+          conversation to stall. The popover offers the same profile-read
+          starters and the one door to Mira — no chatbot in the thread. */}
+      {messages.length > 0 && (
+        <div className="csideas-row">
+          {ideas && (
+            <ConversationIdeas starters={starters} onPick={pick}
+              onMira={() => setConfide(true)} onClose={() => setIdeas(false)} />
+          )}
+          <button type="button" className="cstab" aria-expanded={ideas}
+            onClick={() => setIdeas((v) => !v)}>
+            ✨ Conversation ideas
+          </button>
+        </div>
+      )}
+
+      {/* ── THE COMPOSER (§6): the city chat's own capsule — photo and voice
+          on the left, one filled send key, typing wired through the socket,
+          and the keyboard handled by the same visual-viewport machinery every
+          thread already rides. A starter tap lands here as editable words. */}
+      <Composer onSend={handleSend} onTyping={emitTyping} seed={seed} />
+
+      {sheet && (
+        <CompatibilitySheet name={chat.name} score={chat.score} otherUserId={chat.otherUserId}
+          d={d} onClose={() => setSheet(false)} />
+      )}
     </div>
   );
 }
@@ -346,9 +497,20 @@ export function DatingChats() {
   // The queue and the conversations, split once so no branch disagrees.
   const pendingMatches = list.filter((c) => !c.conversationId);
   const opened = list.filter((c) => c.conversationId);
-  const others = opened.filter((c) => c.conversationId !== active?.conversationId);
   const open = (id: string) => setParams((p) => { p.set('c', id); return p; });
   const back = () => setParams((p) => { p.delete('c'); return p; }, { replace: true });
+
+  /* AN OPEN CONVERSATION IS THE WHOLE SCREEN — on every device (owner, 26
+     Aug: "open in a different window, not like a scrolling effect… a full
+     screen chat for each connection"). A phone already got this through
+     tc-immersive; what scrolled was everything AROUND the thread — the
+     masthead above it and a "Your other chats" list below it, which made the
+     room a panel in a page. Now the thread is all there is: one connection,
+     one room, and Back is the way to the rest of them. The list this screen
+     used to keep visible is one tap away, where a list belongs. */
+  if (active && me.data) {
+    return <Thread chat={active} meId={me.data.id} mePhoto={me.data.profileImage ?? null} onBack={back} />;
+  }
 
   return (
     <div>
@@ -358,24 +520,7 @@ export function DatingChats() {
         A few conversations, not endless ones. These chats live only here — never in your main Chats.
       </p>
 
-      {active ? (
-        <>
-          {me.data && <Thread chat={active} meId={me.data.id} onBack={back} />}
-          {/* Opening a chat used to REPLACE the whole list, which was survivable
-              when only one could exist and is not now: the other people you are
-              talking to simply vanished until you pressed Back. They stay. */}
-          {others.length > 0 && (
-            <div style={{ marginTop: 18 }}>
-              <div className="eyebrow" style={{ marginBottom: 6 }}>
-                Your other {others.length === 1 ? 'chat' : 'chats'}
-              </div>
-              {others.map((c) => (
-                <ChatRow key={c.conversationId} c={c} active={false} onClick={() => open(c.conversationId as string)} />
-              ))}
-            </div>
-          )}
-        </>
-      ) : chats.isLoading ? (
+      {chats.isLoading ? (
         <Spinner label="Loading your chats…" />
       ) : chats.isError ? (
         // "No dating chats yet" is the sentence that used to appear here when
