@@ -640,7 +640,7 @@ export function MiraThread({ dial, about, onBack }: {
           Both are stated now, in the order somebody presses them. */}
       {turns.length > 0 && (
         <p className="miranote">
-          Saved to your account, on every device. Clearing only clears this screen.{' '}
+          Mira is an AI. Saved to your account, on every device. Clearing only clears this screen.{' '}
           <button type="button" className="miraforget" onClick={() => {
             try { window.localStorage.setItem(CLEARED_KEY, String(Date.now())); } catch { /* view-only marker */ }
             clearDay(); setTurns([]); pending.current = undefined; setFailure(null);

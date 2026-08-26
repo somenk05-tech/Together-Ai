@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { Button, Spinner } from '@/components/ui';
-import { useDatingDecision, useDecideReport, useReportQueue, type ReportGroup } from '../api';
+import { useAppeals, useDatingDecision, useDecideAppeal, useDecideReport, useHeldPhotos, usePhotoDecision, useReportQueue, type Appeal, type HeldPhoto, type ReportGroup } from '../api';
 
 /**
  * The moderation queue (FE-13.7).
@@ -79,7 +79,7 @@ function Group({ group }: { group: ReportGroup }) {
   const canUnlist = group.targetType === 'user' && !group.subject.gone;
   const unlist = () =>
     dating.mutate(
-      { userId: group.targetId, decision: 'rejected', reason: note.trim() || undefined },
+      { userId: group.targetId, decision: 'rejected', reason: note.trim() },
       {
         onSuccess: () => decide.mutate(
           { targetType: group.targetType, targetId: group.targetId, decision: 'dismiss', note: `Taken out of Dating. ${note.trim()}`.trim() },
@@ -145,7 +145,11 @@ function Group({ group }: { group: ReportGroup }) {
           </Button>
         )}
         {canUnlist && (
-          <Button variant="line" size="sm" disabled={dating.isPending || decide.isPending} onClick={unlist}>
+          // Taking somebody out of Dating is recorded in the console's audit
+          // with a reason, so the button waits for one. The note field above
+          // is that reason.
+          <Button variant="line" size="sm" disabled={dating.isPending || decide.isPending || note.trim().length < 3} onClick={unlist}
+            title={note.trim().length < 3 ? 'Write the reason in the note first.' : undefined}>
             {dating.isPending ? 'Working…' : 'Take out of Dating'}
           </Button>
         )}
@@ -156,7 +160,7 @@ function Group({ group }: { group: ReportGroup }) {
 
       {canUnlist && (
         <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>
-          Taking someone out of Dating hides their dating profile from everyone. It does not touch their account.
+          Taking someone out of Dating hides their dating profile from everyone. It does not touch their account. It needs a reason in the note — it is written to the audit.
         </p>
       )}
       {!canRemove && !canUnlist && group.targetType !== 'post' && (
@@ -199,8 +203,95 @@ export function ModerationQueue() {
               : `${queue.data.openTotal} open ${queue.data.openTotal === 1 ? 'report' : 'reports'} across ${queue.data.items.length} ${queue.data.items.length === 1 ? 'thing' : 'things'}, most-reported first. Who reported something is deliberately not shown.`}
           </p>
           {queue.data.items.map((g) => <Group key={`${g.targetType}:${g.targetId}`} group={g} />)}
+          <HeldPhotos />
+          <Appeals />
         </>
       )}
+    </div>
+  );
+}
+
+const reasonInput: CSSProperties = {
+  flex: 1, minWidth: 200, fontSize: 13, fontFamily: 'inherit', padding: '9px 11px',
+  border: '1px solid var(--line)', borderRadius: 9, background: 'var(--card)', color: 'inherit',
+};
+
+/**
+ * Photos the machine was not sure about. Every dating photo is reviewed
+ * before another citizen sees it (26 Aug); the ones Rekognition held wait
+ * here for a person, and stay unseen until one decides.
+ */
+function HeldPhotos() {
+  const q = useHeldPhotos();
+  if (!q.data) return null;
+  return (
+    <section style={{ marginTop: 28 }}>
+      <h2 style={{ fontSize: 18, margin: 0 }}>Photos held for a look</h2>
+      <p className="muted" style={{ fontSize: 13, margin: '6px 0 12px', lineHeight: 1.6 }}>
+        {q.data.length === 0
+          ? 'None waiting. A held photo is one the machine could not clear on its own; nobody else sees it until you decide.'
+          : `${q.data.length} waiting, oldest first. Nobody else sees a held photo until you decide.`}
+      </p>
+      {q.data.map((p) => <HeldPhotoCard key={p.key} photo={p} />)}
+    </section>
+  );
+}
+
+function HeldPhotoCard({ photo }: { photo: HeldPhoto }) {
+  const decide = usePhotoDecision();
+  const [reason, setReason] = useState('');
+  const ok = reason.trim().length >= 3;
+  const act = (decision: 'approved' | 'rejected') => decide.mutate({ key: photo.key, decision, reason: reason.trim() });
+  if (decide.isSuccess) return null;
+  return (
+    <div className="card" style={{ marginTop: 12, padding: 14, display: 'grid', gridTemplateColumns: 'minmax(120px, 180px) 1fr', gap: 14 }}>
+      {photo.url
+        ? <img src={photo.url} alt="Held dating photo" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: 10 }} />
+        : <div className="muted" style={{ fontSize: 12 }}>Could not load the photo.</div>}
+      <div>
+        <div className="muted" style={{ fontSize: 12 }}>{photo.labels || 'No labels'} · {when(photo.createdAt)}</div>
+        {photo.reason && <div style={{ fontSize: 12.5, marginTop: 4 }}>{photo.reason}</div>}
+        <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+          <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (written to the audit)" maxLength={500} style={reasonInput} />
+          <Button variant="line" size="sm" disabled={!ok || decide.isPending} onClick={() => act('approved')}>Show it</Button>
+          <Button variant="line" size="sm" disabled={!ok || decide.isPending} onClick={() => act('rejected')}>Remove it</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Citizens arguing with a decision on their own profile or photo. */
+function Appeals() {
+  const q = useAppeals();
+  if (!q.data) return null;
+  return (
+    <section style={{ marginTop: 28 }}>
+      <h2 style={{ fontSize: 18, margin: 0 }}>Appeals</h2>
+      <p className="muted" style={{ fontSize: 13, margin: '6px 0 12px', lineHeight: 1.6 }}>
+        {q.data.length === 0 ? 'None open.' : `${q.data.length} open, oldest first. Overturning puts the profile or photo back; either way the person is told.`}
+      </p>
+      {q.data.map((a) => <AppealCard key={a.id} appeal={a} />)}
+    </section>
+  );
+}
+
+function AppealCard({ appeal }: { appeal: Appeal }) {
+  const decide = useDecideAppeal();
+  const [reason, setReason] = useState('');
+  const ok = reason.trim().length >= 3;
+  if (decide.isSuccess) return null;
+  return (
+    <div className="card" style={{ marginTop: 12, padding: 14 }}>
+      <div className="muted" style={{ fontSize: 12 }}>
+        {appeal.kind === 'dating_profile' ? 'Profile' : 'Photo'} · {when(appeal.createdAt)}
+      </div>
+      <p style={{ fontSize: 13.5, margin: '8px 0 0', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{appeal.text}</p>
+      <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+        <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Your reason — the person reads this" maxLength={500} style={reasonInput} />
+        <Button variant="line" size="sm" disabled={!ok || decide.isPending} onClick={() => decide.mutate({ id: appeal.id, decision: 'overturned', reason: reason.trim() })}>Overturn</Button>
+        <Button variant="line" size="sm" disabled={!ok || decide.isPending} onClick={() => decide.mutate({ id: appeal.id, decision: 'upheld', reason: reason.trim() })}>Uphold</Button>
+      </div>
     </div>
   );
 }

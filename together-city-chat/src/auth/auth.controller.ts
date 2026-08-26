@@ -120,9 +120,17 @@ export class AuthController {
   @Public()
   @Post('refresh')
   async refresh(@Body() dto: { refreshToken?: string }, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const fromBody = typeof dto?.refreshToken === 'string' && dto.refreshToken.length > 0;
     const token = currentRefresh(req, dto?.refreshToken) ?? '';
     const pair = await this.auth.refresh(token, metaFrom(req));
     setRefreshCookie(res, pair.refreshToken);
+    // THE COOKIE PATH NEVER HANDS THE REFRESH TOKEN BACK IN THE BODY. A caller
+    // that authenticated with the ambient cookie is, by definition, a caller
+    // whose JS did not need to know the token — and a cross-site page that
+    // manages to ride the cookie must not be able to read it out. The body
+    // fallback (Safari ITP, no cookie) still gets both, because it proved it
+    // already held the token by sending it. See main.ts's CORS note.
+    if (!fromBody) return { ...pair, refreshToken: undefined };
     return pair;
   }
 

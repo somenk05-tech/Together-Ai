@@ -26,9 +26,19 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>Together City uses the camera to take the selfie on your dating profile and photos for your posts.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Together City needs your photo library to add pictures to your profile, posts and diary.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Together City uses the microphone for voice and video calls with people you are connected to.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Together City uses your location to show services and people near you. It is never shared exactly.</string>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
-		<string>armv7</string>
+		<string>arm64</string>
 	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>

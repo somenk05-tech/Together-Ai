@@ -135,7 +135,11 @@ describe('what it destroys', () => {
     // owner and empties a table for every citizen in the city.
     expect(seenWhere.length).toBe(deletions().length);
     for (const call of seenWhere) {
-      expect(Object.values(call.where)).toContain('gone');
+      // A pair rule names the owner on both sides of an OR; a plain rule names
+      // them as a value. Either way the owner is in the clause.
+      const w = call.where as Record<string, unknown> & { OR?: Record<string, unknown>[] };
+      const named = w.OR ? w.OR.flatMap((o) => Object.values(o)) : Object.values(w);
+      expect(named).toContain('gone');
     }
   });
 

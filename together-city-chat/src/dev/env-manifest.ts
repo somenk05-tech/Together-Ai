@@ -38,7 +38,7 @@
 
 export type EnvGroup =
   | 'Core' | 'Database & cache' | 'Mail' | 'Messaging & calls'
-  | 'Push' | 'Media' | 'AI' | 'Third-party data' | 'Operations';
+  | 'Push' | 'Media' | 'AI' | 'Third-party data' | 'Safety' | 'Operations';
 
 export interface EnvEntry {
   name: string;
@@ -143,6 +143,18 @@ export const ENV_MANIFEST: EnvEntry[] = [
   { name: 'DATING_BAR_FLOOR', group: 'Operations', purpose: 'A score below which the percentile bar will not be drawn, so a top tenth of nothing stays nothing.', whenMissing: 'No floor: the bar is purely the top tenth of the list.' },
   { name: 'DATING_CONFIDENCE', group: 'Operations', purpose: 'off disables the multiplier that lowers a score in proportion to how few of the six questions both people answered.', whenMissing: 'Correct. A number built from almost no answers is shown lower than one built from all of them.' },
   { name: 'DATING_POOL_CEILING', group: 'Operations', purpose: 'The most profiles one match request will read, most recently active first. Default 2000.', whenMissing: 'Uses the built-in 2000. The response says when the cap bound, so nobody mistakes a capped list for the city.' },
+  { name: 'SENTRY_DSN', group: 'Operations', purpose: 'Where 5xx errors and unhandled rejections are reported. No request bodies, no citizen data.', whenMissing: 'Errors go to the process log only. Fine in development; in production nobody is told.', secret: true },
+  { name: 'SENTRY_RELEASE', group: 'Operations', purpose: 'The release name errors are filed under. Falls back to the Vercel commit sha.', whenMissing: 'Errors are filed without a release name, which only makes them harder to place.' },
+  { name: 'PHOTO_MODERATION', group: 'Safety', purpose: '"rekognition" (default) reviews every dating photo before another citizen sees it; "off" approves all, for development only.', whenMissing: 'Correct. Rekognition, and without its keys every photo stays pending — fail-closed.' },
+  { name: 'REKOGNITION_REGION', group: 'Safety', purpose: 'AWS region of the Rekognition endpoint, e.g. ap-south-1.', whenMissing: 'Photo review cannot run; every dating photo stays pending and is shown to nobody but its owner.' },
+  { name: 'REKOGNITION_ACCESS_KEY_ID', group: 'Safety', purpose: 'An IAM key allowed rekognition:DetectModerationLabels and nothing else.', whenMissing: 'Photo review cannot run — see REKOGNITION_REGION.', secret: true },
+  { name: 'REKOGNITION_SECRET_ACCESS_KEY', group: 'Safety', purpose: 'The secret for REKOGNITION_ACCESS_KEY_ID.', whenMissing: 'Photo review cannot run — see REKOGNITION_REGION.', secret: true },
+  { name: 'PHOTO_MODERATION_HOLD_AT', group: 'Safety', purpose: 'Confidence (0–100) at which a moderation label holds a photo for a person. Default 60.', whenMissing: 'Uses the built-in 60, which holds anything the machine is more than slightly unsure of.' },
+  { name: 'PHOTO_MODERATION_REJECT_AT', group: 'Safety', purpose: 'Confidence at which explicit, violent or hateful content is refused outright. Default 90.', whenMissing: 'Uses the built-in 90; below it a person decides rather than the machine.' },
+  { name: 'DATING_REINDEX_DEBOUNCE_MS', group: 'Operations', purpose: 'How long a profile save waits for the next one before the new-match scan runs. Default 5000.', whenMissing: 'Uses the built-in five seconds between a save and its scan.' },
+  { name: 'WALLET_SELF_TOPUP', group: 'Operations', purpose: '"on" lets a citizen credit their own wallet through the API. Off in production until a payment processor confirms the money.', whenMissing: 'Correct: in production, self top-up is refused.' },
+  { name: 'CORS_PREVIEW_PROJECT', group: 'Operations', purpose: 'The Vercel project slug whose preview URLs may call the API with credentials.', whenMissing: 'No preview URL is allowed. Only CORS_ORIGIN and the site itself.' },
+  { name: 'CORS_PREVIEW_TEAM', group: 'Operations', purpose: 'The Vercel team slug, so preview URLs are matched to this team and not to every *.vercel.app.', whenMissing: 'Preview URLs are matched by project alone.' },
   { name: 'TEST_DATABASE_URL', group: 'Operations', purpose: 'A throwaway database for the cross-user isolation tests.', whenMissing: 'Those tests SKIP rather than fail — the static guards still run, but nothing is proven against a live database.', secret: true },
 ];
 

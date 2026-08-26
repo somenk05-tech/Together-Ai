@@ -71,7 +71,17 @@ function table(rows: Row[]) {
 function build(rows: Row[] = []) {
   const t = table(rows);
   const s: any = Object.create(DatingService.prototype);
-  s.prisma = { datingMatch: t };
+  // The write routes now refuse a target who is not a visible, approved
+  // profile outside the caller's connections (assertWritable, 26 Aug). Every
+  // target here is a stranger who is; the score cache write is best-effort.
+  s.prisma = {
+    datingMatch: t,
+    datingProfile: { findUnique: async () => ({ visible: true, moderation: 'approved', birthDate: new Date('1995-01-01T00:00:00Z'), interests: '', extras: null }) },
+    connection: { findMany: async () => [] },
+  };
+  s.blocking = { blockedWith: async () => [] };
+  s.cacheScore = async () => undefined;
+  s.analytics = { track: () => undefined };
   s.clock = {
     timezoneFor: async () => 'Asia/Kolkata',
     startOfDayIn: () => new Date('2026-08-01T00:00:00Z'),

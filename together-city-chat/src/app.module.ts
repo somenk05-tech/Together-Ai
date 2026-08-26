@@ -54,6 +54,7 @@ import { PetsModule } from './pets/pets.module';
 import { PrescriptionsModule } from './prescriptions/prescriptions.module';
 import { CallsModule } from './calls/calls.module';
 import { AvatarsModule } from './avatars/avatars.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -71,6 +72,7 @@ import { AvatarsModule } from './avatars/avatars.module';
       }),
     }),
     HealthModule,
+    AnalyticsModule,
     AstrologyModule,
     PrismaModule,
     RedisModule,

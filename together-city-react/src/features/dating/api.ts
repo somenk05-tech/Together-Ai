@@ -30,6 +30,9 @@ export interface DatingProfile {
    * the record (private storage keys) and these expire in minutes. (M3.)
    */
   photoUrls?: string[];
+  /** Review status per stored photo key (26 Aug): a photo shows to other
+   *  people only once it is `approved`. Absent for the account-photo fallback. */
+  photoReview?: Record<string, 'pending' | 'approved' | 'held' | 'rejected'>;
   moderation: 'approved' | 'pending' | 'rejected' | 'review';
   moderationReasons: string[];
   notice?: string;
@@ -105,6 +108,8 @@ export interface MatchDetail {
    *  than the server. Render it through components/SelfieOnFile, which says so.
    *  The name stays for now because the API shape is stable; when a real face
    *  match ships, this becomes two fields and one of them earns the word. */
+  /** Since 26 Aug this is exactly `emailVerified` on their account, rendered
+   *  as an envelope by components/SelfieOnFile#EmailConfirmed. */
   verified: boolean;
   yourSign: string; theirSign: string;
   score: number;
@@ -160,10 +165,11 @@ export const datingApi = {
   matchDetail: (targetUserId: string, kind: MatchKind) => api.get<MatchDetail>(`/dating/matches/${targetUserId}`, { params: { kind } }).then((r) => r.data),
   like: (targetUserId: string, kind: MatchKind) =>
     api.post<{ matched: boolean; conversationId: string | null; chatLocked: boolean; matchId: string }>(`/dating/matches/${targetUserId}/like`, { kind }).then((r) => r.data),
-  unlockChat: (targetUserId: string, kind: MatchKind, method: 'wallet' | 'card' = 'wallet') =>
-    api.post<{ conversationId: string; alreadyOpen: boolean; chargedInr?: number }>(`/dating/matches/${targetUserId}/unlock-chat`, { kind, method }).then((r) => r.data),
-  connect: (targetUserId: string, kind: MatchKind, method: 'wallet' | 'card' = 'wallet') =>
-    api.post<{ conversationId: string; alreadyOpen: boolean; chargedInr: number }>(`/dating/matches/${targetUserId}/connect`, { kind, method }).then((r) => r.data),
+  unlockChat: (targetUserId: string, kind: MatchKind) =>
+    api.post<{ conversationId: string; alreadyOpen: boolean; chargedInr?: number }>(`/dating/matches/${targetUserId}/unlock-chat`, { kind }).then((r) => r.data),
+  // Free since 26 Aug; `chargedInr` is always 0 and stays for the shape.
+  connect: (targetUserId: string, kind: MatchKind) =>
+    api.post<{ conversationId: string; alreadyOpen: boolean; chargedInr: number }>(`/dating/matches/${targetUserId}/connect`, { kind }).then((r) => r.data),
   unmatch: (targetUserId: string, kind: MatchKind) =>
     api.post<{ ok: boolean }>(`/dating/matches/${targetUserId}/unmatch`, { kind }).then((r) => r.data),
   reveal: (targetUserId: string, kind: MatchKind, show = true) =>
@@ -182,6 +188,10 @@ export const datingApi = {
   reportMatch: (targetUserId: string, kind: MatchKind, reason?: string) =>
     api.post<{ reported: true }>(`/dating/matches/${targetUserId}/report`, { kind, reason }).then((r) => r.data),
   adminStats: () => api.get<DatingAdminStats>('/dating/admin/stats').then((r) => r.data),
+  adminFunnel: (days: number) => api.get<DatingFunnel>('/dating/admin/funnel', { params: { days } }).then((r) => r.data),
+  appeal: (dto: { kind: 'dating_profile' | 'dating_photo'; targetId?: string; text: string }) =>
+    api.post<{ id: string; status: 'open'; duplicate?: true }>('/dating/appeals', dto).then((r) => r.data),
+  myAppeals: () => api.get<MyAppeal[]>('/dating/appeals/mine').then((r) => r.data),
 };
 
 export interface DatingAdminStats {
@@ -197,6 +207,15 @@ export interface DatingAdminStats {
   mutualLikes: number;
   generatedAt: string;
 }
+
+export interface DatingFunnel {
+  days: number; since: string;
+  steps: Array<{ name: string; users: number; events: number; ofPrevious: number | null }>;
+  counts: Record<string, number>;
+  distribution: Array<{ label: string; count: number }>;
+  scoredPairs: number; photosHeld: number; appealsOpen: number;
+}
+export interface MyAppeal { id: string; kind: 'dating_profile' | 'dating_photo'; targetId: string; text: string; status: 'open' | 'upheld' | 'overturned'; decision: string; createdAt: string; decidedAt: string | null }
 
 export interface CompatibilityBand { label: string; min: number; max: number; count: number }
 export interface DatingStack {
@@ -384,7 +403,7 @@ export function usePassMatch(kind: MatchKind) {
 export function useConnectChat(kind: MatchKind) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { targetUserId: string; method: 'wallet' | 'card' }) => datingApi.connect(v.targetUserId, kind, v.method),
+    mutationFn: (v: { targetUserId: string }) => datingApi.connect(v.targetUserId, kind),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['dating', 'chats'] });
       void qc.invalidateQueries({ queryKey: ['dating', 'discover', kind] });
@@ -413,6 +432,22 @@ export function useDatingStack(kind: MatchKind, enabled = true) {
 }
 export function useDatingAdminStats() {
   return useQuery({ queryKey: ['dating', 'admin', 'stats'], queryFn: () => datingApi.adminStats(), retry: false });
+}
+
+export function useDatingFunnel(days: number) {
+  return useQuery({ queryKey: ['dating', 'admin', 'funnel', days], queryFn: () => datingApi.adminFunnel(days), retry: false });
+}
+
+export function useMyAppeals() {
+  return useQuery({ queryKey: ['dating', 'appeals'], queryFn: () => datingApi.myAppeals(), retry: false });
+}
+
+export function useAppeal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: datingApi.appeal,
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['dating', 'appeals'] }); },
+  });
 }
 
 /**

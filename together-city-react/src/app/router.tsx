@@ -121,6 +121,7 @@ const DayPage = lazy(() => import('@/features/daybook/pages/DayPage').then((m) =
 const Avatars = lazy(() => import('@/features/avatars/pages/Avatars').then((m) => ({ default: m.Avatars })));
 const Medicines = lazy(() => import('@/features/medicines/pages/Medicines').then((m) => ({ default: m.Medicines })));
 const DatingAdminStats = lazy(() => import('@/features/dating/pages/DatingAdminStats').then((m) => ({ default: m.DatingAdminStats })));
+const DatingSafety = lazy(() => import('@/features/dating/pages/DatingSafety').then((m) => ({ default: m.DatingSafety })));
 const DatingMatchDetail = lazy(() => import('@/features/dating/pages/DatingMatchDetail').then((m) => ({ default: m.DatingMatchDetail })));
 // Nutrition sub-pages
 const NutCart = lazy(() => import('@/features/nutrition/pages/Cart').then((m) => ({ default: m.Cart })));
@@ -337,6 +338,7 @@ const ROUTE_BLOCKS: RouteObject[] = [
       { path: '/dating/activity', element: <RequireAuth>{wrap(<DatingActivity />)}</RequireAuth> },
       { path: '/dating/chats', element: <RequireAuth>{wrap(<DatingChats />)}</RequireAuth> },
       { path: '/dating/admin', element: <RequireAuth>{wrap(<DatingAdminStats />)}</RequireAuth> },
+      { path: '/dating/safety', element: <RequireAuth>{wrap(<DatingSafety />)}</RequireAuth> },
       // '/dating/chat' (singular) removed — it served a hardcoded conversation
       // with scripted replies. The real one is '/dating/chats'.
       { path: '/dating/chat', element: <Navigate to="/dating/chats" replace /> },

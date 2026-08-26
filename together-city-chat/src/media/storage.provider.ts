@@ -423,6 +423,18 @@ export class StorageProvider implements OnModuleInit {
     }
   }
 
+  /** The stored size of a vault object, or null when it cannot be read. */
+  async healthObjectSize(key: string): Promise<number | null> {
+    if (!this.s3 || !key) return null;
+    try {
+      const head = await this.s3.send(new HeadObjectCommand({ Bucket: this.healthBucket, Key: key }));
+      return head.ContentLength ?? null;
+    } catch (e) {
+      this.logger.warn(`healthObjectSize: ${key} (${(e as Error).message})`);
+      return null;
+    }
+  }
+
   async deleteHealthObject(key: string): Promise<void> {
     return this.deleteObject(key, this.healthBucket);
   }

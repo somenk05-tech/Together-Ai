@@ -203,4 +203,41 @@ export class TokenService {
       secret: this.config.get<string>('jwt.accessSecret'),
     });
   }
+
+  /**
+   * A signature check AND the account check, together — for the paths that
+   * are not HTTP requests and so never pass through JwtStrategy.validate.
+   *
+   * THE HOLE THIS CLOSES. The chat gateway authenticated a socket with
+   * `verifyAccess` alone. A signed token stays valid until it expires, so a
+   * suspended citizen, a deleted one, or a thief holding a token after "sign
+   * out everywhere" kept a LIVE SOCKET — reading and sending messages — for the
+   * rest of the access token's life, and a connection made inside that window
+   * was never re-checked afterwards. This is the exact hole JwtStrategy closed
+   * for HTTP on every request; the socket had been left on the old rule.
+   *
+   * Same three refusals as the strategy, same order, same wording.
+   */
+  async verifyAccessAndAccount(token: string): Promise<JwtUser & { iat?: number }> {
+    const payload = await this.verifyAccess(token) as JwtUser & { iat?: number };
+    await this.assertAccountLive(payload);
+    return payload;
+  }
+
+  /** The account half on its own, for re-checking a connection already open. */
+  async assertAccountLive(payload: { sub: string; iat?: number }): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: { id: true, deletedAt: true, suspendedAt: true, sessionsRevokedAt: true },
+    });
+    if (!user) throw new Error('account no longer exists');
+    if (user.deletedAt) throw new Error('account deleted');
+    if (user.suspendedAt) throw new Error('account suspended');
+    // Same rule as JwtStrategy.issuedAfter: a token with no iat cannot prove it
+    // post-dates the revocation, so it is treated as revoked.
+    if (user.sessionsRevokedAt) {
+      const ok = payload.iat !== undefined && payload.iat >= Math.floor(user.sessionsRevokedAt.getTime() / 1000);
+      if (!ok) throw new Error('session revoked — please sign in again');
+    }
+  }
 }

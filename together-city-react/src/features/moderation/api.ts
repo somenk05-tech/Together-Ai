@@ -41,9 +41,46 @@ export const moderationApi = {
    * user could only be dismissed — the decide endpoint refuses to remove
    * anything but a post, deliberately, and still does.
    */
-  datingDecision: (userId: string, dto: { decision: 'approved' | 'rejected'; reason?: string }) =>
+  datingDecision: (userId: string, dto: { decision: 'approved' | 'rejected'; reason: string }) =>
     api.post<{ userId: string; moderation: string }>(`/dating/admin/moderation/${encodeURIComponent(userId)}`, dto).then((r) => r.data),
+  /** Photos the machine held for a person, oldest first, each with a short-lived URL. */
+  heldPhotos: () => api.get<HeldPhoto[]>('/dating/admin/photos').then((r) => r.data),
+  photoDecision: (dto: { key: string; decision: 'approved' | 'rejected'; reason: string }) =>
+    api.post<{ key: string; status: string }>('/dating/admin/photos/decide', dto).then((r) => r.data),
+  appeals: () => api.get<Appeal[]>('/dating/admin/appeals').then((r) => r.data),
+  decideAppeal: (id: string, dto: { decision: 'upheld' | 'overturned'; reason: string }) =>
+    api.post<{ id: string; status: string }>(`/dating/admin/appeals/${encodeURIComponent(id)}/decide`, dto).then((r) => r.data),
 };
+
+export interface HeldPhoto { key: string; userId: string; status: string; labels: string; reason: string; createdAt: string; url: string | null }
+export interface Appeal { id: string; userId: string; kind: 'dating_profile' | 'dating_photo'; targetId: string; text: string; status: string; createdAt: string }
+
+export function useHeldPhotos() {
+  return useQuery({ queryKey: ['moderation', 'photos'], queryFn: () => moderationApi.heldPhotos(), retry: false });
+}
+
+export function usePhotoDecision() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: moderationApi.photoDecision,
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['moderation', 'photos'] }); },
+  });
+}
+
+export function useAppeals() {
+  return useQuery({ queryKey: ['moderation', 'appeals'], queryFn: () => moderationApi.appeals(), retry: false });
+}
+
+export function useDecideAppeal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...dto }: { id: string; decision: 'upheld' | 'overturned'; reason: string }) => moderationApi.decideAppeal(id, dto),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['moderation', 'appeals'] });
+      void qc.invalidateQueries({ queryKey: ['dating'] });
+    },
+  });
+}
 
 export function useReportQueue() {
   return useQuery({ queryKey: ['moderation', 'queue'], queryFn: () => moderationApi.queue(), retry: false });
@@ -65,7 +102,7 @@ export function useDecideReport() {
 export function useDatingDecision() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ userId, ...dto }: { userId: string; decision: 'approved' | 'rejected'; reason?: string }) =>
+    mutationFn: ({ userId, ...dto }: { userId: string; decision: 'approved' | 'rejected'; reason: string }) =>
       moderationApi.datingDecision(userId, dto),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['dating'] }); },
   });

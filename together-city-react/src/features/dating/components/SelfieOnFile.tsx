@@ -47,3 +47,31 @@ export function SelfieOnFile({ on, size = 'md' }: { on: boolean; size?: 'sm' | '
 export const SELFIE_ON_FILE_NOTE =
   'A selfie is on file for this member. We don’t yet check it against their photos, '
   + 'so treat it as a sign of effort, not proof of who they are.';
+
+/**
+ * What `verified` on a candidate ACTUALLY means, since 26 Aug: the server
+ * confirmed their email address. It is not a selfie — the client-authored
+ * selfie flag is stripped on save and nothing reads it — so drawing the
+ * camera for it was the same claim the blue tick made, one step removed.
+ * An envelope, and a sentence that says exactly what was checked.
+ */
+export const EMAIL_CONFIRMED_NOTE =
+  'Their email address is confirmed. That is all we have checked — it is not proof of who they are.';
+
+export function EmailConfirmed({ on, size = 'md' }: { on: boolean; size?: 'sm' | 'md' }) {
+  if (!on) return null;
+  const px = size === 'sm' ? 16 : 20;
+  return (
+    <span
+      title={EMAIL_CONFIRMED_NOTE}
+      aria-label="Email confirmed — not identity-checked"
+      style={{
+        display: 'inline-grid', placeItems: 'center', width: px, height: px, borderRadius: '50%',
+        background: 'var(--paper)', border: '1px solid var(--line)', color: 'var(--muted)',
+        fontSize: px * 0.55, flex: 'none', lineHeight: 1,
+      }}
+    >
+      ✉
+    </span>
+  );
+}

@@ -220,7 +220,7 @@ export function MiraConfidant({ otherName, transcript, onClose }: {
         {/* The scope, said out loud where it is true — the same honesty the
             day-store note keeps in her own room. */}
         <p className="miranote">
-          Close this panel and it’s gone.
+          Mira is an AI. She reads this one thread while the panel is open; close it and it’s gone. A draft is yours to send — the other person is never told she helped.
         </p>
       </aside>
     </>

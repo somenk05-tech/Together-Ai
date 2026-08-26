@@ -73,7 +73,10 @@ const RULES: Rule[] = [
  * meter that punishes a choice the form invited is a meter that lies.
  */
 const BOOSTS: Rule[] = [
-  { key: 'birthTime', label: 'Add your birth time — the astrology matching gets noticeably sharper', weight: 0, done: (i) => Boolean(i.birthTime) },
+  // The label used to promise the matching "gets noticeably sharper". Dating
+  // reads the sun sign only; birth time sharpens the Astrology Zone's chart,
+  // which is what the sentence now says.
+  { key: 'birthTime', label: 'Add your birth time — your Astrology Zone chart gets more precise', weight: 0, done: (i) => Boolean(i.birthTime) },
   { key: 'photos-more', label: 'Add more photos (5+) to stand out', weight: 0, done: (i) => (i.photos?.length ?? 0) >= 5 },
 ];
 

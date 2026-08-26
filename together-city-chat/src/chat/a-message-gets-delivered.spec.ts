@@ -58,7 +58,7 @@ function harness() {
   };
 
   const gateway = new ChatGateway(
-    { verifyAccess: () => Promise.resolve({ sub: 'u1', handle: 'somen' }) } as any,
+    { verifyAccess: () => Promise.resolve({ sub: 'u1', handle: 'somen' }), verifyAccessAndAccount: () => Promise.resolve({ sub: 'u1', handle: 'somen' }), assertAccountLive: async () => undefined } as any,
     { markOnline: () => Promise.resolve(true), markOffline: () => Promise.resolve(true) } as any,
     messages,
     { notifyNewMessage: () => Promise.resolve(), markConversationRead: () => Promise.resolve() } as any,

@@ -23,6 +23,8 @@ function build() {
       return key.includes('unsignable') ? null : `https://signed.example/${key}?exp=300`;
     },
   };
+  // Every entry here has passed review; the fail-closed case is its own test.
+  s.photoMod = { approvedOf: async (keys: string[]) => new Set(keys.filter((k) => !k.includes('unreviewed'))) };
   return { s, signed };
 }
 
@@ -53,6 +55,15 @@ describe('what a stored entry becomes', () => {
     const out = await s.photoUrls(['dating/u1/unsignable.jpg', 'dating/u1/ok.jpg']);
     expect(out).toHaveLength(1);
     expect(out[0]).toContain('ok.jpg');
+  });
+
+  it('an entry nobody has approved is not shown, and is not even signed', async () => {
+    // Fail-closed (26 Aug): no verdict reads as "not yet", for a vault key and
+    // a legacy inline photo alike. The storage layer is never asked.
+    const { s, signed } = build();
+    const out = await s.photoUrls(['dating/u1/unreviewed.jpg', 'data:image/png;base64,unreviewed', 'dating/u1/ok.jpg']);
+    expect(out).toHaveLength(1);
+    expect(signed).toEqual(['dating/u1/ok.jpg']);
   });
 
   it('the three shapes mix, because for a long time they will', async () => {

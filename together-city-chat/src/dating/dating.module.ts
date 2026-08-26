@@ -5,13 +5,14 @@ import { ConversationsModule } from '../conversations/conversations.module';
 import { ConnectionsModule } from '../connections/connections.module';
 import { DatingController } from './dating.controller';
 import { DatingService } from './dating.service';
-import { FinancialModule } from '../financial/financial.module';
+import { PhotoModerationService } from './photo-moderation.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { MediaModule } from '../media/media.module';
+import { AdminConsoleModule } from '../admin/admin.module';
 
 @Module({
-  imports: [PrismaModule, ProfileModule, ConversationsModule, ConnectionsModule, FinancialModule, NotificationsModule, MediaModule],
+  imports: [PrismaModule, ProfileModule, ConversationsModule, ConnectionsModule, NotificationsModule, MediaModule, AdminConsoleModule],
   controllers: [DatingController],
-  providers: [DatingService],
+  providers: [DatingService, PhotoModerationService],
 })
 export class DatingModule {}

@@ -32,10 +32,36 @@ import {
 } from './dto/socket.dto';
 import { CallSignalSchema } from '../calls/dto/calls.dto';
 
+/** How often an open socket re-reads its account row. */
+const RECHECK_MS = 60_000;
+
 interface AuthedSocket extends Socket {
   userId: string;
   handle: string;
   typingTimers: Map<string, NodeJS.Timeout>;
+  tokenIat?: number;
+  recheck?: ReturnType<typeof setInterval>;
+  /** Sends in the current minute, and when that minute started. */
+  sendWindow?: { startedAt: number; count: number };
+}
+
+/**
+ * A socket's own send ceiling. The HTTP send route sits behind the app-wide
+ * throttler; this one did not, so a script holding one socket could post
+ * without limit. Per connection, in memory: a limit that resets on reconnect
+ * is a limit a determined script can dodge, but it is the one that stops the
+ * accidental flood and the cheap one, and the HTTP path is the same number.
+ */
+const SEND_LIMIT_PER_MINUTE = 60;
+
+function overSendLimit(client: AuthedSocket, now = Date.now()): boolean {
+  const w = client.sendWindow;
+  if (!w || now - w.startedAt >= 60_000) {
+    client.sendWindow = { startedAt: now, count: 1 };
+    return false;
+  }
+  w.count += 1;
+  return w.count > SEND_LIMIT_PER_MINUTE;
 }
 
 /**
@@ -75,10 +101,24 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       const token =
         (client.handshake.auth?.token as string) ??
         (client.handshake.headers.authorization ?? '').replace('Bearer ', '');
-      const user = await this.tokens.verifyAccess(token);
+      // Signature AND account — see TokenService.verifyAccessAndAccount for
+      // the hole a signature-only check left open here.
+      const user = await this.tokens.verifyAccessAndAccount(token);
       client.userId = user.sub;
       client.handle = user.handle;
       client.typingTimers = new Map();
+      client.tokenIat = user.iat;
+      // A connection is re-checked for as long as it lives. Suspension,
+      // deletion and "sign out everywhere" take effect on an OPEN socket within
+      // one interval, not at the next reconnect — which for a laptop that
+      // never closes the tab is never.
+      client.recheck = setInterval(() => {
+        void this.tokens.assertAccountLive({ sub: user.sub, iat: user.iat }).catch((e: Error) => {
+          this.logger.warn(`socket ${client.id} closed on re-check: ${e.message}`);
+          client.disconnect(true);
+        });
+      }, RECHECK_MS);
+      client.recheck.unref?.();
 
       await client.join(room.user(user.sub));
 
@@ -119,6 +159,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   }
 
   async handleDisconnect(client: AuthedSocket): Promise<void> {
+    if (client.recheck) clearInterval(client.recheck);
     if (!client.userId) return;
     client.typingTimers?.forEach((t) => clearTimeout(t));
     await this.redis.setOpenConversation(client.userId, null, client.id);
@@ -159,6 +200,10 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   // ── messaging ──────────────────────────────────────────
   @SubscribeMessage(WS.SEND_MESSAGE)
   async onSend(@ConnectedSocket() client: AuthedSocket, @MessageBody() body: unknown): Promise<void> {
+    if (overSendLimit(client)) {
+      client.emit('error_event', { message: 'Too many messages — give it a minute.' });
+      return;
+    }
     const dto = parseOrThrow(SocketSendSchema, body);
     // MessagesService enforces the connection gate; throws 403 if not connected.
     const message = await this.messages.send(client.userId, dto);

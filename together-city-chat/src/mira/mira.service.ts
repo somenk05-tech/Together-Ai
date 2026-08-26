@@ -1237,8 +1237,12 @@ export class MiraService {
     // One user turn: the window of text, then the question. A single message
     // is trivially a legal transcript, and it keeps the model from mistaking
     // the OTHER person's words for its interlocutor's.
+    // One line per message, ALWAYS. The speaker label is the start of a line,
+    // so a message from the other person that contained "\nMe: ..." used to
+    // put words in this citizen's mouth inside her context. Line breaks in
+    // the text collapse to spaces; a label can now only be written by us.
     const window = input.transcript.slice(-40)
-      .map((t) => `${t.who === 'me' ? 'Me' : them}: ${t.text.slice(0, 1000)}`)
+      .map((t) => `${t.who === 'me' ? 'Me' : them}: ${t.text.slice(0, 1000).replace(/[\r\n]+/g, ' ')}`)
       .join('\n');
     const content = window
       ? `THE CONVERSATION SO FAR:\n${window}\n\nMY QUESTION: ${input.ask}`

@@ -19,7 +19,11 @@ import {
  */
 const SCHEMA = readFileSync(join(__dirname, '..', '..', 'prisma', 'schema.prisma'), 'utf8');
 
-const LINK_COLUMNS = ['userId', 'ownerId', 'authorId', 'senderId', 'createdById', 'hostId', 'postedById'];
+// PAIR COLUMNS ARE LINKS TOO. userOneId/userTwoId and userA/userB tie a row to
+// a citizen just as userId does; leaving them out let three dating tables pass
+// this guard green while surviving every account deletion. Found 26 Aug.
+const LINK_COLUMNS = ['userId', 'ownerId', 'authorId', 'senderId', 'createdById', 'hostId', 'postedById',
+  'userOneId', 'userTwoId', 'userA', 'userB'];
 
 /** Models whose rows belong to, or were written by, one citizen. */
 function citizenLinkedModels(): Array<{ model: string; columns: string[] }> {
@@ -57,7 +61,7 @@ describe('every model holding a citizen’s data has been classified', () => {
   it('classifies nothing that no longer exists', () => {
     // A rule for a deleted model is a delete that silently never runs.
     const real = new Set(citizenLinkedModels().map((m) => m.model));
-    const stale = [...classifiedModels()].filter((m) => !real.has(m)).sort();
+    const stale = [...classifiedModels()].filter((m) => !real.has(m) && m !== 'ModerationLog').sort();
     expect(stale).toEqual([]);
   });
 
@@ -68,6 +72,14 @@ describe('every model holding a citizen’s data has been classified', () => {
       // memberUserId is a link this scanner does not collect (it points at a
       // citizen who is not the row's owner), so it is allowed explicitly.
       if (rule.by === 'memberUserId') continue;
+      // listingId is a listing's id everywhere except ModerationLog, where
+      // dating writes a userId into it. Allowed by name, for that one table.
+      if (rule.by === 'listingId') { expect(rule.model).toBe('ModerationLog'); continue; }
+      if (rule.by === 'either') {
+        expect(rule.pair).toBeDefined();
+        expect({ model: rule.model, has: columns }).toEqual({ model: rule.model, has: expect.arrayContaining(rule.pair!) });
+        continue;
+      }
       expect({ model: rule.model, by: rule.by, has: columns }).toEqual({
         model: rule.model, by: rule.by, has: expect.arrayContaining([rule.by]),
       });
@@ -114,8 +126,13 @@ describe('what the plan destroys', () => {
     // A rule whose WHERE clause omits the citizen would delete every row in the
     // table for every citizen. This is the assertion that stops that.
     for (const rule of deletions()) {
-      const where = whereFor(rule, 'user-1');
-      expect(where[rule.by]).toBe('user-1');
+      const where = whereFor(rule, 'user-1') as Record<string, unknown> & { OR?: Record<string, string>[] };
+      if (rule.by === 'either') {
+        // A pair rule names the citizen on BOTH sides, and nothing else.
+        expect(where.OR).toEqual([{ [rule.pair![0]]: 'user-1' }, { [rule.pair![1]]: 'user-1' }]);
+      } else {
+        expect(where[rule.by]).toBe('user-1');
+      }
       expect(Object.keys(where).length).toBeGreaterThan(0);
     }
   });

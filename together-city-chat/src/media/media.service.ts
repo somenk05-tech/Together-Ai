@@ -30,6 +30,13 @@ const EXT: Record<string, string> = {
  * so we never reject a real file: unknown types fall back to a safe extension
  * derived from the MIME subtype rather than throwing "Unsupported mime type".
  */
+/** The four photo types a dating profile accepts, and the extension each is stored under. */
+export const DATING_PHOTO_MIME: Record<string, string> = {
+  'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/heic': 'heic',
+};
+/** Rekognition reads bytes up to 5 MB; that is the ceiling for a dating photo. */
+export const DATING_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
+
 function extFor(mimeType: string): string {
   if (EXT[mimeType]) return EXT[mimeType];
   const sub = (mimeType.split('/')[1] || '').replace(/[^a-z0-9]/gi, '').slice(0, 8).toLowerCase();
@@ -62,10 +69,16 @@ export class MediaService {
 
   /** Presign a PUT for a dating photo — private bucket, no public URL. (M3.) */
   async requestDatingUpload(userId: string, mimeType: string, sizeBytes: number): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
-    const max = this.config.get<number>('policy.maxUploadBytes') ?? 52428800;
-    if (sizeBytes > max) throw new BadRequestException(`File exceeds ${max} bytes`);
-    if (!mimeType.startsWith('image/')) throw new BadRequestException('A dating photo must be an image.');
-    return this.storage.presignDatingUpload(userId, mimeType, extFor(mimeType));
+    // An allowlist, not `image/*`: the Content-Type is signed into the PUT and
+    // an SVG is an image that runs script. The size must be a real number —
+    // `Number(undefined)` is NaN, and NaN > max is false, so a body with no
+    // size used to sail through. Reviewed after upload against the stored
+    // size too (photo-moderation.service.ts), which is the check that holds.
+    const ext = DATING_PHOTO_MIME[mimeType];
+    if (!ext) throw new BadRequestException('A dating photo must be a JPEG, PNG, WebP or HEIC image.');
+    if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) throw new BadRequestException('Say how large the photo is.');
+    if (sizeBytes > DATING_PHOTO_MAX_BYTES) throw new BadRequestException(`A dating photo must be under ${Math.round(DATING_PHOTO_MAX_BYTES / 1024 / 1024)} MB.`);
+    return this.storage.presignDatingUpload(userId, mimeType, ext);
   }
 
   /** Presign a PUT into the PRIVATE health vault (no public URL is returned). */

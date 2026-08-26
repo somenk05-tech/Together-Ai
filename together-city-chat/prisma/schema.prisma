@@ -69,6 +69,8 @@ enum DeliveryStatus {
 model User {
   id           String   @id @default(uuid())
   handle       String   @unique
+  compatAsA    CompatibilityScore[] @relation("CompatA")
+  compatAsB    CompatibilityScore[] @relation("CompatB")
   /// "citizen" | "admin". Moderation used to be decided by comparing the JWT's
   /// handle against MODERATION_ADMINS, while handles were freely renameable —
   /// so claiming a listed name granted moderation. Authorisation now reads this
@@ -392,7 +394,10 @@ model Message {
   updatedAt        DateTime    @updatedAt
 
   conversation Conversation    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender       User            @relation("MessageSender", fields: [senderId], references: [id])
+  /// Was Restrict by default, so a citizen who had ever sent a message could
+  /// not be hard-deleted at all. Cascade: a purged person's messages go with
+  /// them, which is what the purge plan already promised.
+  sender       User            @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
   replyTo      Message?        @relation("MessageReply", fields: [replyToMessageId], references: [id])
   replies      Message[]       @relation("MessageReply")
   attachments  Attachment[]
@@ -976,6 +981,9 @@ model Report {
 
   reporter User @relation("ReportsMade", fields: [reporterId], references: [id], onDelete: Cascade)
 
+  /// One open report per reporter per target. Without it one citizen could
+  /// file a thousand rows against a rival and the queue showed a thousand.
+  @@unique([reporterId, targetType, targetId])
   @@index([targetType, targetId])
   @@index([reporterId])
   @@index([status, createdAt])
@@ -1000,8 +1008,17 @@ model CompatibilityScore {
   overall          Int
   lastCalculated   DateTime @updatedAt
 
+  /// No relation to User existed. Deleting a citizen left every score
+  /// mentioning them forever, and the purge plan's own guard could not see the
+  /// table because the columns are not named userId. Two relations, both
+  /// cascading, and an index leading on userB so deleteProfile's OR is not
+  /// half a table scan.
+  a User @relation("CompatA", fields: [userA], references: [id], onDelete: Cascade)
+  b User @relation("CompatB", fields: [userB], references: [id], onDelete: Cascade)
+
   @@unique([userA, userB])
   @@index([userA, overall])
+  @@index([userB])
 }
 
 // Activity Dating — a host posts a plan; the AI invites the most compatible
@@ -1039,6 +1056,64 @@ model ActivityInvite {
   @@index([activityId])
 }
 
+/**
+ * One row per dating photo the bucket holds, written when the key is filed
+ * against a profile and decided by Rekognition (or a moderator). A key with
+ * NO row, or a row that is not `approved`, is never signed for another
+ * citizen — the pipeline fails closed. (26 Aug launch audit.)
+ */
+model DatingPhotoReview {
+  key       String   @id
+  userId    String
+  status    String   @default("pending") // pending | approved | held | rejected
+  labels    String   @default("") // top Rekognition labels, "Name:confidence" joined by " · "
+  reason    String   @default("")
+  checkedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status, createdAt])
+}
+
+/**
+ * One row per thing a citizen did that the funnel counts — profile started,
+ * approved, list viewed, like, match, connect, report. First-party, no
+ * third-party SDK, no page-view firehose: a handful of named steps, so the
+ * dashboard can say where people stop. (26 Aug launch audit.)
+ */
+model AppEvent {
+  id     String   @id @default(uuid())
+  name   String
+  userId String?
+  props  String   @default("{}")
+  at     DateTime @default(now())
+
+  @@index([name, at])
+  @@index([userId, at])
+}
+
+/**
+ * A citizen's appeal against a moderation decision on their own dating
+ * profile or photo. One open appeal per target; a moderator upholds or
+ * overturns it with a written reason, through the console's act().
+ */
+model Appeal {
+  id          String    @id @default(uuid())
+  userId      String
+  kind        String // dating_profile | dating_photo
+  targetId    String // the userId for a profile, the photo key for a photo
+  text        String
+  status      String    @default("open") // open | upheld | overturned
+  decidedById String?
+  decidedAt   DateTime?
+  decision    String    @default("")
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@index([status, createdAt])
+}
+
 model DatingProfile {
   id         String   @id @default(uuid())
   userId     String   @unique
@@ -1058,6 +1133,16 @@ model DatingProfile {
   updatedAt  DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// THE TABLE EVERY DATING READ SCANS HAD ONE INDEX, ON userId. Every
+  /// matches/discover/stack call — and every profile save, through the
+  /// reindex — filtered on (visible, moderation, gender, seeking, birthDate)
+  /// and sorted on updatedAt against a heap, which is a sequential scan plus a
+  /// full sort of the survivors before the LIMIT applies. The 26 Aug audit
+  /// priced it as the first thing to fail, around ten thousand profiles. This
+  /// composite is the exact predicate `poolWhere` builds, in that order.
+  @@index([visible, moderation, gender, seeking, birthDate])
+  @@index([updatedAt])
 }
 
 model DatingMatch {

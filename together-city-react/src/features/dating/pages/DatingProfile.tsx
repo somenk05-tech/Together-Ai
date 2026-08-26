@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 import { useFormValidation, ValidationSummary, FieldError, successToast } from '@/components/form-validation';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { SearchSelect } from '@/components/SearchSelect';
@@ -507,6 +508,22 @@ export function DatingProfilePage() {
   const minScore = dx.minMatchScore ?? 75;
   const onDelete = () => del.mutate(undefined, { onSuccess: () => { setCollapsed(false); setDx({}); successToast('Dating profile deleted.'); } });
 
+  // What each photo's review says, in one sentence, on the banner the owner
+  // already reads. A photo shows to other people only once it is approved.
+  const photoReviewNote = (() => {
+    const statuses = Object.values(data?.photoReview ?? {});
+    const pending = statuses.filter((x) => x === 'pending').length;
+    const held = statuses.filter((x) => x === 'held').length;
+    const rejected = statuses.filter((x) => x === 'rejected').length;
+    if (!pending && !held && !rejected) return null;
+    const parts = [
+      pending ? `${pending} being checked` : '',
+      held ? `${held} waiting for a person to look` : '',
+      rejected ? `${rejected} not allowed` : '',
+    ].filter(Boolean).join(', ');
+    return `Photos: ${parts}. Only photos that pass are shown to other people.`;
+  })();
+
   const StatusBanner = () => data && mod ? (
     <div style={{ marginTop: 14, background: mod.bg, color: mod.c, borderRadius: 12, padding: '11px 14px', fontSize: 13 }}>
       <strong>{mod.label}</strong>
@@ -514,6 +531,13 @@ export function DatingProfilePage() {
       {data.moderation !== 'approved' && data.moderationReasons.length > 0 && (
         <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>{data.moderationReasons.slice(0, 6).map((r, i) => <li key={i}>{r}</li>)}</ul>
       )}
+      {/* A decision you can argue with, from the sentence that delivered it. */}
+      {(data.moderation === 'rejected' || data.moderation === 'review') && (
+        <div style={{ marginTop: 6 }}>
+          <Link to="/dating/safety" style={{ color: 'inherit', fontWeight: 700 }}>Think we got this wrong? Appeal in the Safety Centre.</Link>
+        </div>
+      )}
+      {photoReviewNote && <div style={{ marginTop: 6 }}>{photoReviewNote}</div>}
     </div>
   ) : null;
 
@@ -586,7 +610,7 @@ export function DatingProfilePage() {
           </div>
           <span className="dnote-cap">Because who you meet should meet the real you</span>
         </header>
-        {(data?.moderation !== 'approved' || data?.notice) && <StatusBanner />}
+        {(data?.moderation !== 'approved' || data?.notice || photoReviewNote) && <StatusBanner />}
         {completion && !completion.complete && <CompletionCard completion={completion} />}
 
         <div className="card" style={{ marginTop: 12, padding: 16, borderRadius: 22 }}>
@@ -637,7 +661,7 @@ export function DatingProfilePage() {
           {/* Verification status line (mirrors what a match sees on the tick) */}
           <div style={{ marginTop: 12, fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 7 }}>
             {verified
-              ? <><SelfieOnFile on size="sm" /><span className="muted">Selfie on file — matches see that, and that we haven’t checked it against your photos yet.</span></>
+              ? <><SelfieOnFile on size="sm" /><span className="muted">Selfie on file — kept for a future identity check. Matches don’t see a badge for it yet.</span></>
               : <span className="muted">No selfie yet — <button type="button" onClick={() => setCollapsed(false)} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent-ink)', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5 }}>take one with your camera</button>.</span>}
           </div>
 
@@ -689,7 +713,7 @@ export function DatingProfilePage() {
       <div className="eyebrow">Dating Hub · Your profile</div>
       <h1 style={{ fontSize: 26 }}>Tell the stars about you</h1>
       <p className="muted" style={{ fontSize: 13.5, marginTop: 6 }}>
-        Four short screens (~3–5 min). Your profile passes a safety check before it goes live.
+        One page, about five minutes. Your profile and photos pass a safety check before they go live.
       </p>
       <StatusBanner />
       <CompletionCard completion={completion} />

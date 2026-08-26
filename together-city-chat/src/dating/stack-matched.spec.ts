@@ -46,9 +46,14 @@ function serviceWith(candidates: Array<Record<string, unknown>>, states: Array<R
   };
   const svc = new DatingService(
     prisma as never, {} as never, {} as never, {} as never,
-    {} as never, {} as never, {} as never, {} as never,
+    {} as never, {} as never, {} as never,
     new BlockingService(prisma as never),
     {} as never, {} as never,   // M3: StorageProvider, MediaService
+    // Photo review, fail-closed: nothing is approved in a stub, and the cards
+    // under test carry no photo keys, so nothing is asked to be signed.
+    { approvedOf: async () => new Set<string>(), statusOf: async () => ({}) } as never,
+    { track: () => undefined } as never,   // AnalyticsService
+    {} as never,                           // AdminAccessService
   );
   return { svc, prisma };
 }

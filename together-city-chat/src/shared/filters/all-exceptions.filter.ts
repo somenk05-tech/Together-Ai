@@ -6,7 +6,8 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
-import { Response } from 'express';
+import { Request, Response } from 'express';
+import { report } from '../errors/sentry';
 
 /** Uniform error envelope + logging for all REST errors. */
 @Catch()
@@ -22,7 +23,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
       exception instanceof HttpException
         ? exception.getResponse()
         : { message: 'Internal server error' };
-    if (status >= 500) this.logger.error(exception);
+    if (status >= 500) {
+      this.logger.error(exception);
+      const req = ctx.getRequest<Request>();
+      // The route pattern and method, never the body or the citizen.
+      report(exception, { method: req?.method, route: (req?.route as { path?: string } | undefined)?.path ?? req?.path, status });
+    }
     // Error bodies can carry citizen data (validation echoes, not-found detail)
     // and a 401 must never be cached against a URL a signed-in user will retry.
     // The NoStoreInterceptor doesn't run on the exception path, so set it here.

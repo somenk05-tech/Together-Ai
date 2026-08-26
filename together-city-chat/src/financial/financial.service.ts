@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { ForbiddenException, BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import type { PrismaTx } from '../shared/prisma/prisma-tx';
 import { LEDGER_CAP, SPEND_LOG_CAP } from '../shared/paging';
@@ -262,6 +262,15 @@ export class FinancialService {
    * retry loop, and telling it the balance is the truth it was asking for.
    */
   async topUp(userId: string, amountInr: number, idempotencyKey?: string) {
+    // MONEY IS NOT MINTED FROM A REQUEST BODY. Until a payment processor exists,
+    // this endpoint credited any signed-in citizen up to ₹1,000,000 per call
+    // from a number they typed, and everything the wallet bought — including
+    // the dating chat unlock — was therefore free to anyone who read the API.
+    // Found in the 26 Aug audit. Off in production unless WALLET_SELF_TOPUP=on
+    // is set deliberately, which a real processor's webhook will never need.
+    if (process.env.NODE_ENV === 'production' && process.env.WALLET_SELF_TOPUP !== 'on') {
+      throw new ForbiddenException('Wallet top-up is not available yet.');
+    }
     await this.ensureWallet(userId);
     const key = (idempotencyKey ?? '').trim().slice(0, 120) || null;
     try {

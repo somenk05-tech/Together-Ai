@@ -243,7 +243,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // The numbering closes up behind it rather than leaving a gap at 04: a
       // menu that counts 01-02-04 is a menu advertising the thing it is trying
       // not to advertise.
-      { path: '/dating/chats', index: '04', label: 'Dating Chats', sub: 'Anonymous, up to three' },
+      { path: '/dating/chats', index: '04', label: 'Dating Chats', sub: 'Up to three at a time' },
     ],
   },
   entertainment: {

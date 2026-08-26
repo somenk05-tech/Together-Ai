@@ -35,6 +35,14 @@ export interface AppConfig {
     clientEmail: string;
     privateKey: string;
   };
+  photoModeration: {
+    mode: string;
+    region: string;
+    accessKeyId: string;
+    secretAccessKey: string;
+    holdAt: number;
+    rejectAt: number;
+  };
 }
 
 const int = (v: string | undefined, d: number): number =>
@@ -159,6 +167,18 @@ export default (): AppConfig => {
     // Browser origins allowed to PUT directly to the bucket (presigned uploads).
     // Comma-separated; defaults cover the production site + Vercel URLs + dev.
     corsOrigins: process.env.MEDIA_CORS_ORIGINS ?? '',
+  },
+  photoModeration: {
+    // 'rekognition' | 'off'. Off is a DEVELOPMENT setting: every dating photo
+    // is approved unread. In production the service refuses 'off' at boot.
+    mode: process.env.PHOTO_MODERATION ?? 'rekognition',
+    region: process.env.REKOGNITION_REGION ?? '',
+    accessKeyId: process.env.REKOGNITION_ACCESS_KEY_ID ?? '',
+    secretAccessKey: process.env.REKOGNITION_SECRET_ACCESS_KEY ?? '',
+    // A label at or above this confidence holds the photo for a person to
+    // look at; at or above `rejectAt` it is refused outright.
+    holdAt: int(process.env.PHOTO_MODERATION_HOLD_AT, 60),
+    rejectAt: int(process.env.PHOTO_MODERATION_REJECT_AT, 90),
   },
   fcm: {
     enabled: process.env.FCM_ENABLED === 'true',

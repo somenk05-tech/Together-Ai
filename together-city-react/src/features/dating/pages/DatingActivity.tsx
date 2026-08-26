@@ -5,7 +5,7 @@ import {
   useDatingProfile, useMyActivities, useActivityInvites, useCreateActivity, useRespondInvite, useActivityTrust,
   type AnonParty, type ReceivedInvite, type ActivityConnection,
 } from '../api';
-import { SelfieOnFile } from '../components/SelfieOnFile';
+import { EmailConfirmed } from '../components/SelfieOnFile';
 
 type Tab = 'create' | 'invites' | 'mine';
 const CATEGORIES: [string, string][] = [['restaurant', '🍽 Restaurant'], ['theatre', '🎬 Theatre'], ['cafe', '☕ Café'], ['park', '🌳 Park'], ['city', '🏙 City'], ['any', '📍 Any location']];
@@ -32,7 +32,7 @@ function ConnectedParty({ party, compatibility, trustLevel, conversationId, myRe
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <Avatar p={party} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700 }}>{displayName}{party.verified && <span style={{ marginLeft: 6 }}><SelfieOnFile on size="sm" /></span>}</div>
+          <div style={{ fontWeight: 700 }}>{displayName}{party.verified && <span style={{ marginLeft: 6 }}><EmailConfirmed on size="sm" /></span>}</div>
           <div className="muted" style={{ fontSize: 12.5 }}>{[party.age && `${party.age}`, party.sign, `${compatibility}%`].filter(Boolean).join(' · ')}</div>
         </div>
         <span className="tag">Level {trustLevel}</span>
@@ -73,7 +73,7 @@ function InviteCard({ inv }: { inv: ReceivedInvite }) {
         <span>👥 {a.groupSize === '1' ? '1:1' : a.groupSize}</span>
       </div>
       {a.description && <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '4px 0 8px' }}>{a.description}</p>}
-      <div className="muted" style={{ fontSize: 12 }}>From <strong>{inv.trustLevel >= 2 && inv.host.name ? inv.host.name : inv.host.nickname}</strong>{inv.host.verified && <span style={{ marginLeft: 5 }}><SelfieOnFile on size="sm" /></span>} · {[inv.host.age, inv.host.sign].filter(Boolean).join(' · ')} — host stays hidden until you both connect</div>
+      <div className="muted" style={{ fontSize: 12 }}>From <strong>{inv.trustLevel >= 2 && inv.host.name ? inv.host.name : inv.host.nickname}</strong>{inv.host.verified && <span style={{ marginLeft: 5 }}><EmailConfirmed on size="sm" /></span>} · {[inv.host.age, inv.host.sign].filter(Boolean).join(' · ')} — host stays hidden until you both connect</div>
 
       {inv.status === 'pending' ? (
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>

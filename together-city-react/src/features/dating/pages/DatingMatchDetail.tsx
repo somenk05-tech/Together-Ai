@@ -1,13 +1,12 @@
 import { useRef, useState, type CSSProperties } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { Button, Spinner, EmptyState } from '@/components/ui';
-import { successToast } from '@/components/form-validation';
 import { payError } from '@/features/financial/api';
 import {
   useMatchDetail, useLikeMatch, usePassMatch, useConnectChat, useUnmatch,
   type MatchKind, type MatchDetail,
 } from '../api';
-import { SelfieOnFile, SELFIE_ON_FILE_NOTE } from '../components/SelfieOnFile';
+import { EmailConfirmed, EMAIL_CONFIRMED_NOTE } from '../components/SelfieOnFile';
 import { SafetyMenu } from '../components/SafetyMenu';
 import { bandFor, coverageNote } from '../bands';
 
@@ -77,7 +76,7 @@ function Collage({ d }: { d: MatchDetail }) {
         <div style={{ position: 'absolute', left: 18, right: 18, bottom: 16, color: 'var(--on-accent)', pointerEvents: 'none' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontFamily: 'var(--serif)', fontSize: 29, fontWeight: 700, lineHeight: 1.05, textShadow: '0 2px 14px rgba(0,0,0,.5)' }}>
             <span>{d.name}{d.age ? `, ${d.age}` : ''}</span>
-            <SelfieOnFile on={d.verified} />
+            <EmailConfirmed on={d.verified} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 14, marginTop: 4, textShadow: '0 1px 8px rgba(0,0,0,.6)' }}>
             Looking for <strong style={{ color: 'var(--danger-line)', fontWeight: 700 }}>{goal}</strong>
@@ -96,7 +95,7 @@ function Collage({ d }: { d: MatchDetail }) {
           belong here rather than in a tooltip nobody hovers. */}
       {d.verified && (
         <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.55, margin: '10px 2px 0' }}>
-          📷 {SELFIE_ON_FILE_NOTE}
+          ✉ {EMAIL_CONFIRMED_NOTE}
         </p>
       )}
 
@@ -135,14 +134,10 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
   const band = bandFor(d.score);
   const covNote = coverageNote(d.coverage);
 
+  // Connecting is free (26 Aug). The wallet path and its toast are gone with it.
   const doConnect = () => connect.mutate(
-    { targetUserId, method: 'wallet' },
-    {
-      onSuccess: (r) => {
-        if (r.chargedInr > 0) successToast(`Connected — ₹${r.chargedInr} charged from your wallet.`);
-        navigate(`/dating/chats?c=${r.conversationId}`);
-      },
-    },
+    { targetUserId },
+    { onSuccess: (r) => navigate(`/dating/chats?c=${r.conversationId}`) },
   );
 
   return (
@@ -215,6 +210,14 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
         {d.breakdown && (
           <div style={{ marginTop: 12, background: 'var(--paper)', borderRadius: 12, padding: '12px 14px' }}>
             <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8 }}>What the {d.score}% is made of</div>
+            {/* The thesis, in one sentence, on the page where the number is
+                weighed. The weights are the engine's (matching.ts): nine
+                tenths is the two charts; the other tenth is what you both
+                said you want. A reader who disagrees with that can read the
+                seven numbers below and decide for themselves. */}
+            <p className="muted" style={{ fontSize: 12, margin: '0 0 10px', lineHeight: 1.5 }}>
+              Nine tenths of this number is how your two charts sit together. The rest is what you both said you want — goals, values, personality, lifestyle, interests, distance.
+            </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: '6px 14px' }}>
               {([['Astrology', d.breakdown.astrology], ['Personality', d.breakdown.personality], ['Goals', d.breakdown.relationshipGoals], ['Values', d.breakdown.values], ['Lifestyle', d.breakdown.lifestyle], ['Interests', d.breakdown.interests], ['Location', d.breakdown.location]] as [string, number][]).map(([k, v]) => (
                 <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>

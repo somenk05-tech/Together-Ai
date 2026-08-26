@@ -45,7 +45,16 @@ export interface PurgeRule {
   /** Prisma model name, exactly as it appears in schema.prisma. */
   model: string;
   /** The column that ties a row to a citizen. */
-  by: 'userId' | 'ownerId' | 'authorId' | 'senderId' | 'createdById' | 'memberUserId' | 'hostId' | 'postedById';
+  by: 'userId' | 'ownerId' | 'authorId' | 'senderId' | 'createdById' | 'memberUserId' | 'hostId' | 'postedById'
+    | 'listingId' | 'either';
+  /**
+   * For `by: 'either'` — a PAIR table, where the citizen may sit in one of two
+   * columns. Dating's tables are all of this shape (userOneId/userTwoId,
+   * userA/userB) and the plan had no vocabulary for it, which is how a
+   * deleted citizen's every like, pass, reveal flag and per-pair intimacy
+   * score survived their account indefinitely. Found in the 26 Aug audit.
+   */
+  pair?: [string, string];
   action: Action;
   /** Why. Not optional — a rule nobody can explain is a rule nobody can review. */
   reason: string;
@@ -210,6 +219,16 @@ export const PURGE_RULES: PurgeRule[] = [
   { model: 'LookAnalysis', by: 'userId', action: 'purge', storageKey: 'fileKey', reason: 'Reference photos of a face, and what was read from them.' },
   { model: 'Avatar', by: 'userId', action: 'purge', storageKey: 'assetKey', reason: 'Generated avatars and their stored images.' },
   { model: 'DatingProfile', by: 'userId', action: 'purge', storageKeysJson: { column: 'extras', field: 'photos' }, reason: 'Dating preferences and intent — and the photos, whose keys live in the extras JSON.' },
+  // The three dating tables the plan could not see, because their columns are
+  // not called userId. The User row stays as a tombstone, so the cascades on
+  // these never fired; the plan has to name them.
+  { model: 'Connection', by: 'either', pair: ['userOneId', 'userTwoId'], action: 'purge', reason: 'Their connections — friend, family, blocked. A link to a tombstone is a name in somebody else\'s people list that leads nowhere; the other person\'s side of any thread they shared is classified on its own rows.' },
+  { model: 'DatingMatch', by: 'either', pair: ['userOneId', 'userTwoId'], action: 'purge', reason: 'Every like, pass, super-like and reveal between them and another citizen. Who somebody chose, and who chose them, is theirs — and the other person keeps nothing they could read from it once the profile is gone.' },
+  { model: 'CompatibilityScore', by: 'either', pair: ['userA', 'userB'], action: 'purge', reason: 'Seven per-pair intimacy scores against every candidate they were ever scored with. Derived entirely from their profile, and meaningless without it.' },
+  { model: 'Appeal', by: 'userId', action: 'purge', reason: 'What they wrote arguing with a moderation decision on their own profile or photo. Theirs, and about a profile that no longer exists.' },
+  { model: 'AppEvent', by: 'userId', action: 'purge', reason: 'Funnel steps recorded against their id — which page they opened, whom they liked. The aggregate counts the dashboard shows are recomputed from what remains; a deleted person is not a data point.' },
+  { model: 'DatingPhotoReview', by: 'userId', action: 'purge', reason: 'The review verdict on each of their dating photos. The photos themselves are carried away with DatingProfile, whose extras JSON holds the keys.' },
+  { model: 'ModerationLog', by: 'listingId', action: 'purge', reason: 'Dating reuses this table keyed by userId in the listingId column — the audit trail of approvals and rejections of THEIR profile. Once the profile is gone the record is a name and a verdict.' },
   { model: 'JobProfile', by: 'userId', action: 'purge', reason: 'Their CV — history, skills, salary expectations.' },
   { model: 'JobApplication', by: 'userId', action: 'purge', reason: 'Applications they sent. The employer keeps the job posting, not the applicant\'s file.' },
   { model: 'PrivacySetting', by: 'userId', action: 'purge', reason: 'Consent and permission flags.' },
@@ -284,6 +303,10 @@ export function storageBearing(): PurgeRule[] {
 
 /** The WHERE clause for one rule against one citizen. */
 export function whereFor(rule: PurgeRule, userId: string): Record<string, unknown> {
+  if (rule.by === 'either') {
+    if (!rule.pair) throw new Error(`purge rule for ${rule.model} says 'either' and names no pair`);
+    return { OR: [{ [rule.pair[0]]: userId }, { [rule.pair[1]]: userId }], ...(rule.filter ?? {}) };
+  }
   return { [rule.by]: userId, ...(rule.filter ?? {}) };
 }
 

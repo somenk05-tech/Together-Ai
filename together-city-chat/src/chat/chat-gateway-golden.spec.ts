@@ -20,7 +20,11 @@ function build() {
     in: (from: string) => ({ socketsJoin: (into: string) => out.push({ room: from, event: 'sockets_join', payload: into }) }),
   };
   (g as any).logger = { log: () => undefined, warn: () => undefined };
-  (g as any).tokens = { verifyAccess: async (t: string) => { if (t !== 'good') throw new Error('bad'); return { sub: 'u1', handle: 'asha' }; } };
+  // The gateway checks the account as well as the signature now (26 Aug):
+  // deleted, suspended and revoked sessions are refused at connect. This stub
+  // is the live-account case; the refusals are in ws-account-check.spec.ts.
+  const verify = async (t: string) => { if (t !== 'good') throw new Error('bad'); return { sub: 'u1', handle: 'asha' }; };
+  (g as any).tokens = { verifyAccess: verify, verifyAccessAndAccount: verify, assertAccountLive: async () => undefined };
   (g as any).presence = { markOnline: async () => true, markOffline: async () => true, heartbeat: async () => undefined };
   (g as any).messages = {
     pendingForUser: async () => [{ id: 'm-offline' }],

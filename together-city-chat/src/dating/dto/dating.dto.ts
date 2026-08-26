@@ -51,6 +51,28 @@ export const TrustSchema = z.object({ step: z.enum(['reveal', 'friends']) });
  */
 export const ModerationDecisionSchema = z.object({
   decision: z.enum(['approved', 'rejected']),
-  reason: z.string().max(500).optional(),
+  // Required, since the decision is recorded through the console's act().
+  reason: z.string().trim().min(3, 'Say why, in a sentence.').max(500),
 });
 export type ModerationDecisionDto = z.infer<typeof ModerationDecisionSchema>;
+
+export const PhotoDecisionSchema = z.object({
+  key: z.string().min(1).max(300),
+  decision: z.enum(['approved', 'rejected']),
+  reason: z.string().trim().min(3, 'Say why, in a sentence.').max(500),
+});
+
+export const AppealSchema = z.object({
+  kind: z.enum(['dating_profile', 'dating_photo']),
+  targetId: z.string().max(300).optional(),
+  text: z.string().trim().min(10, 'Tell us what you think we got wrong.').max(2000),
+});
+
+export const AppealDecisionSchema = z.object({
+  decision: z.enum(['upheld', 'overturned']),
+  reason: z.string().trim().min(3, 'Say why, in a sentence.').max(500),
+});
+
+export const FunnelQuerySchema = z.object({
+  days: z.coerce.number().int().min(1).max(90).default(7),
+});
