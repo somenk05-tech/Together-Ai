@@ -78,6 +78,29 @@ describe('a room to look in, and a room to keep', () => {
     expect(browse).toMatch(/Show more — \$\{discover\.data\.shown\} of \$\{discover\.data\.totalDiscoverable\}/);
   });
 
+  /**
+   * AS MANY AS POSSIBLE, BEST ONE FIRST (owner, 26 Aug). Two halves:
+   *
+   * The page opens two hundred deep — in today's city that is everyone, at
+   * scale it is the 200 best of a server-ranked pool, and "Show more" walks
+   * the rest. A later hand shrinking this back to a few dozen would be
+   * quietly re-deciding how much of the city a citizen may see at once.
+   *
+   * And the first card is the global best BY CONSTRUCTION, in both views:
+   * `everyone` sorts descending before the bands group it, and the band
+   * table opens at 90–100 — so banded view leads with the strongest; the
+   * sparse-city view renders the server's sections in order, and every
+   * tiered section is emitted score-descending. The sort lines are asserted
+   * because they are the construction.
+   */
+  it('opens two hundred deep, and the strongest face is always the first card', () => {
+    expect(browse).toMatch(/const BROWSE_PAGE = 200/);
+    expect(browse).toMatch(/out\.sort\(\(a, b\) => b\.score - a\.score\)/);
+    // The band table's first row is the top band, so grouped rendering
+    // cannot lead with anything but the best.
+    expect(bands).toMatch(/^const BAND_NAMES[\s\S]{0,80}\[90, 100/m);
+  });
+
   it('never silently truncates the list it was built to show in full', () => {
     // Any numeric slice of the candidate array is the removed `take(_, 24)`
     // coming back on the client. Grouping and sorting are fine; cutting is not.

@@ -5,8 +5,23 @@ import { useDatingProfile, useDiscover, type CuratedMatch, type DiscoverSection,
 import { MatchCard, Distribution, UndoAndAllowance } from '../components/MatchCards';
 import { bandsOf, byCategory } from '../bands';
 
-/** Cards per page of the ranked pool. */
-const BROWSE_PAGE = 48;
+/** Cards per page of the ranked pool.
+ *
+ *  200, NOT 48 (owner, 26 Aug: "let user have as many potential matches as
+ *  possible, but always the match with the highest potential card is always
+ *  the first one"). In today's city 200 is simply everyone; at scale it is
+ *  the 200 BEST — the pool is ranked server-side before the cut — and every
+ *  "Show more" is the next 200 down, so nothing is ever out of reach. The
+ *  page stays a page rather than the whole pool because photos are signed
+ *  per page (the 26 Aug page-at-a-time decision), and a first paint that
+ *  waits on the whole city is a first paint that loses the citizen.
+ *
+ *  The second half of the owner's sentence costs nothing here because it is
+ *  structural, and a test now pins it: `everyone` sorts descending, the
+ *  bands render strongest-band-first, and every server section is emitted
+ *  score-descending — so the first card on the page is the global best in
+ *  both the banded and the sparse-city view. */
+const BROWSE_PAGE = 200;
 
 /**
  * ── POTENTIAL MATCHES ───────────────────────────────────────────────────────
