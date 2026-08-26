@@ -7,11 +7,12 @@ import { TokenService } from './token.service';
 import { VerificationCodeService } from './verification-code.service';
 import { JwtStrategy } from './jwt.strategy';
 import { MailModule } from '../mail/mail.module';
+import { TurnstileService } from './turnstile.service';
 
 @Module({
   imports: [PassportModule, JwtModule.register({}), MailModule],
   controllers: [AuthController],
-  providers: [AuthService, TokenService, VerificationCodeService, JwtStrategy],
+  providers: [AuthService, TokenService, VerificationCodeService, JwtStrategy, TurnstileService],
   exports: [TokenService, JwtModule],
 })
 export class AuthModule {}

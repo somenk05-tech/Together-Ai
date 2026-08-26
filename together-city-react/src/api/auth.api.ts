@@ -6,12 +6,14 @@ import { AuthResultSchema, TokenPairSchema, UserSchema, type AuthResult, type To
 export const RegisterInput = z.object({
   handle: z.string().min(3), name: z.string().min(1), password: z.string().min(12),
   email: z.string().email(), phone: z.string().optional(),
+  /** Cloudflare Turnstile, when the site key is set. Absent otherwise. */
+  turnstileToken: z.string().optional(),
 });
 const HandleAvailability = z.object({
   handle: z.string(), valid: z.boolean(), available: z.boolean(), suggestions: z.array(z.string()),
 });
 export type HandleAvailability = z.infer<typeof HandleAvailability>;
-export const LoginInput = z.object({ handle: z.string().min(3), password: z.string().min(1) });
+export const LoginInput = z.object({ handle: z.string().min(3), password: z.string().min(1), turnstileToken: z.string().optional() });
 export type RegisterInput = z.infer<typeof RegisterInput>;
 export type LoginInput = z.infer<typeof LoginInput>;
 

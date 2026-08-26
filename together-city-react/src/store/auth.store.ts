@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import type { AuthTokens, User } from '@/types';
 import { authApi } from '@/api';
 import { resetClientState } from '@/api/session-reset';
+import { getTurnstileToken } from '@/lib/turnstile';
 
 /** Read a JWT's `exp` (no verification) to tell if it's already expired, so the
  *  app can refresh or log out cleanly BEFORE firing a burst of doomed requests. */
@@ -50,7 +51,7 @@ export const useAuthStore = create<AuthState>()(
         // new session, so this login can't inherit the previous user's data.
         resetClientState();
         try { sessionStorage.removeItem('tc:signed-out'); } catch { /* noop */ }
-        const { accessToken, refreshToken } = await authApi.login({ handle, password });
+        const { accessToken, refreshToken } = await authApi.login({ handle, password, turnstileToken: await getTurnstileToken() });
         set({ tokens: { accessToken, refreshToken } });
         set({ user: await authApi.me() });
       },
@@ -58,7 +59,7 @@ export const useAuthStore = create<AuthState>()(
       register: async (handle, name, password, contact) => {
         resetClientState();
         try { sessionStorage.removeItem('tc:signed-out'); } catch { /* noop */ }
-        const { accessToken, refreshToken } = await authApi.register({ handle, name, password, email: contact.email, phone: contact.phone || undefined });
+        const { accessToken, refreshToken } = await authApi.register({ handle, name, password, email: contact.email, phone: contact.phone || undefined, turnstileToken: await getTurnstileToken() });
         set({ tokens: { accessToken, refreshToken } });
         set({ user: await authApi.me() });
       },

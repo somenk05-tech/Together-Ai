@@ -55,6 +55,7 @@ function serviceWith(candidates: Array<Record<string, unknown>>, states: Array<R
     { track: () => undefined } as never,   // AnalyticsService
     {} as never,                           // AdminAccessService
     { up: false } as never,                // RedisService — no list cache in a stub
+    { add: async () => false, handle: () => undefined, schedule: async () => false } as never, // JobsService, off
   );
   return { svc, prisma };
 }

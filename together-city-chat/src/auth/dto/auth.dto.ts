@@ -7,6 +7,8 @@ export const RegisterSchema = z.object({
   email: z.string().email().max(160),            // required — verification + receipts
   phone: z.string().max(24).optional(),          // optional primary phone
   profileImage: z.string().url().optional(),
+  /** Cloudflare Turnstile token; required only when TURNSTILE_SECRET is set. */
+  turnstileToken: z.string().max(4096).optional(),
 });
 export type RegisterDto = z.infer<typeof RegisterSchema>;
 
@@ -26,6 +28,7 @@ export type ResetDto = z.infer<typeof ResetSchema>;
 export const LoginSchema = z.object({
   handle: z.string().min(1),
   password: z.string().min(1),
+  turnstileToken: z.string().max(4096).optional(),
 });
 export type LoginDto = z.infer<typeof LoginSchema>;
 

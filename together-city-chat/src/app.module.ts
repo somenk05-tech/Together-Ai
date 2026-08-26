@@ -55,6 +55,7 @@ import { PrescriptionsModule } from './prescriptions/prescriptions.module';
 import { CallsModule } from './calls/calls.module';
 import { AvatarsModule } from './avatars/avatars.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { QueueModule } from './shared/queue/queue.module';
 
 @Module({
   imports: [
@@ -73,6 +74,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
     }),
     HealthModule,
     AnalyticsModule,
+    QueueModule,
     AstrologyModule,
     PrismaModule,
     RedisModule,

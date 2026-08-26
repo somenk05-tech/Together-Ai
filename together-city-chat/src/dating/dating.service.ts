@@ -1,5 +1,5 @@
 import { swallow } from '../shared/swallow';
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, type OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ClockService, DEFAULT_TIMEZONE } from '../shared/clock/clock.service';
 import { AdminService } from '../auth/admin';
@@ -16,6 +16,7 @@ import { PhotoModerationService } from './photo-moderation.service';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { AdminAccessService } from '../admin/admin-access.service';
 import { RedisService } from '../shared/redis/redis.service';
+import { QueueService } from '../shared/queue/queue.service';
 import { compatibilityScore, zodiacSign } from './astrology';
 import {
   canonicalGoal, confidenceFor, coverage, curatedBar, distanceNote, explain, factorScores, frictions, matchAlertBody, matchAlertReason, overallScore, preferenceNotes, sharedItems, type DXProfile, type FactorBreakdown, unreachableReason,
@@ -96,6 +97,10 @@ const PRESIGN_CONCURRENCY = 16;
 const LIST_CACHE_SEC = Number(process.env.DATING_LIST_CACHE_SEC ?? 60);
 /** How long a profile save waits for the next one before its reindex runs. */
 const REINDEX_DEBOUNCE_MS = Number(process.env.DATING_REINDEX_DEBOUNCE_MS ?? 5000);
+/** Job names this hub registers with the queue. */
+const JOB_REINDEX = 'dating.reindex';
+const JOB_PHOTOS = 'dating.photo-review';
+const JOB_DIGEST = 'dating.funnel-digest';
 
 /**
  * A candidate cannot be CURATED without having said what they are looking for.
@@ -143,7 +148,7 @@ interface ActivityDelegate { create(a: unknown): Promise<ActivityRow>; findMany(
 interface InviteDelegate { createMany(a: unknown): Promise<{ count: number }>; findMany(a: unknown): Promise<InviteRow[]>; findUnique(a: unknown): Promise<InviteRow | null>; update(a: unknown): Promise<InviteRow>; }
 
 @Injectable()
-export class DatingService {
+export class DatingService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly masterProfile: MasterProfileService,
@@ -162,7 +167,49 @@ export class DatingService {
     // Moderator decisions go through the console: permission, reason, audit.
     private readonly access: AdminAccessService,
     private readonly redis: RedisService,
+    private readonly jobs: QueueService,
   ) {}
+
+  /**
+   * The three pieces of deferred work this hub owns, as durable jobs. Each
+   * handler is the same function the in-process path calls, so with the
+   * queue off (Redis down, tests) nothing is lost but durability.
+   */
+  onModuleInit(): void {
+    this.jobs.handle(JOB_REINDEX, async (d) => { await this.reindexAfterChange(String(d.userId)); });
+    this.jobs.handle(JOB_PHOTOS, async (d) => { await this.photoMod.fileAndReview(String(d.userId), (d.entries as string[]) ?? []); });
+    this.jobs.handle(JOB_DIGEST, async () => { await this.funnelDigest(); });
+    // 09:00 IST, every day. Upserted, so a redeploy is not a second schedule.
+    void this.jobs.schedule(JOB_DIGEST, '30 3 * * *');
+  }
+
+  /**
+   * THE DAILY DIGEST, AND THE ALARM INSIDE IT. Yesterday's funnel against the
+   * seven days before it, delivered to everybody holding a console role as a
+   * notification. When any step's share-of-previous falls below half its
+   * seven-day figure, the title says so — that is the alert the launch audit
+   * said nothing on the dashboard would raise.
+   */
+  async funnelDigest(): Promise<{ recipients: number; alarms: string[] }> {
+    const [day, week] = await Promise.all([this.analytics.funnel(1), this.analytics.funnel(7)]);
+    const alarms: string[] = [];
+    for (let i = 1; i < day.steps.length; i += 1) {
+      const d = day.steps[i], w = week.steps[i];
+      if (w.users < 20 || d.ofPrevious == null || w.ofPrevious == null) continue; // too few to mean anything
+      if (d.ofPrevious < w.ofPrevious / 2) alarms.push(`${d.name}: ${d.ofPrevious}% of previous, was ${w.ofPrevious}% over the week`);
+    }
+    const line = day.steps.map((st) => `${st.name.replace('dating.', '')} ${st.users}`).join(' · ');
+    const grants = await this.prisma.adminGrant.findMany({ where: { revokedAt: null }, select: { userId: true }, distinct: ['userId'], take: 50 });
+    for (const g of grants) {
+      await this.notifications.create({
+        userId: g.userId, kind: 'system',
+        title: alarms.length ? `Dating funnel: ${alarms.length} step${alarms.length === 1 ? '' : 's'} dropped by half` : 'Dating funnel, yesterday',
+        body: (alarms.length ? alarms.join(' — ') + '. ' : '') + line,
+        href: '/dating/admin',
+      });
+    }
+    return { recipients: grants.length, alarms };
+  }
 
   /**
    * A SHORT CACHE ON THE THREE LIST READS. Each one scores up to POOL_CEILING
@@ -459,7 +506,9 @@ export class DatingService {
     const stored = this.storedPhotos(profile.extras);
     // Off the request path: the save returns now; each photo reaches other
     // people when its review lands. A failure here leaves it pending, unseen.
-    void swallow(this.photoMod.fileAndReview(userId, stored), 'dating: photo review', { userId });
+    void this.jobs.add(JOB_PHOTOS, { userId, entries: stored }, { jobId: `photos:${userId}:${Date.now()}` }).then((queued) => {
+      if (!queued) void swallow(this.photoMod.fileAndReview(userId, stored), 'dating: photo review', { userId });
+    });
     const photoUrls = await this.photoUrlsAligned(stored);
     return { ...shaped, photoUrls, photoReview: await this.photoMod.statusOf(stored), notice: this.noticeFor(result) };
   }
@@ -485,6 +534,14 @@ export class DatingService {
   private reindexRunning = false;
 
   private queueReindex(userId: string): void {
+    // Durable when the queue is up: one delayed job per citizen, de-duplicated
+    // by id, so five saves in five seconds are one scan that survives a restart.
+    void this.jobs.add(JOB_REINDEX, { userId }, { jobId: `reindex:${userId}`, delayMs: REINDEX_DEBOUNCE_MS }).then((queued) => {
+      if (!queued) this.queueReindexInProcess(userId);
+    });
+  }
+
+  private queueReindexInProcess(userId: string): void {
     const prior = this.reindexPending.get(userId);
     if (prior) clearTimeout(prior);
     const t = setTimeout(() => {
