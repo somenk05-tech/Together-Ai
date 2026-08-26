@@ -416,8 +416,9 @@ export class DatingService implements OnModuleInit {
 
   async upsertProfile(userId: string, dto: UpsertDatingProfileDto) {
     // Visibility mode lives in the extras JSON. paused/hidden take the profile
-    // out of everyone's matching pool (visible=false); everyone/threshold keep
-    // it in (threshold is enforced per-viewer in matches()).
+    // out of everyone's matching pool (visible=false); everyone keeps it in.
+    // 'threshold' survives in the union only as a legacy stored value, and it
+    // reads as plainly visible — the per-viewer gate was removed 27 Aug.
     const dx = this.parseDX(dto.extras) as DXVisibility & { photos?: unknown; sensitiveConsentAt?: unknown };
     // Who they seek and their religion are special-category data and both
     // feed the filters. No save without the citizen having said so, once,
@@ -637,14 +638,12 @@ export class DatingService implements OnModuleInit {
       const breakdown = factorScores(astro, myInterests, this.splitInterests(cand.interests), myD, candD);
       const score = overallScore(breakdown, confidenceFor(myD, candD, myInterests, this.splitInterests(cand.interests)));
 
-      // Threshold-visibility: the candidate only wants to appear to people they
-      // score highly with — don't announce a match that won't be shown.
-      const candMin = candD.visibility === 'threshold' ? (candD.minMatchScore ?? MATCH_THRESHOLD) : MATCH_THRESHOLD;
-
+      // The threshold-visibility gate is gone (27 Aug — see matches()), so a
+      // crossing is announced on the one bar both people are shown.
       const prev = await this.readPairScore(userId, cand.userId);
       await this.cacheScore(userId, cand.userId, breakdown, score);
 
-      const crossedUp = (prev == null || prev < MATCH_THRESHOLD) && score >= MATCH_THRESHOLD && score >= candMin;
+      const crossedUp = (prev == null || prev < MATCH_THRESHOLD) && score >= MATCH_THRESHOLD;
       if (!crossedUp) continue;
 
       // Never announce a pair they've already passed on.
@@ -882,12 +881,11 @@ export class DatingService implements OnModuleInit {
     for (const row of rows) {
       const { cand, state, score, breakdown, signA, signB, candDX, myInterests, theirInterests, cov } = row;
       if (score < bar) continue;
-      // Threshold-visibility: this candidate only wants to be seen by people
-      // they score highly with — hide them from viewers below their minimum.
-      // Read against MATCH_THRESHOLD and not `bar` on purpose: it is a promise
-      // made to the CANDIDATE about a number they chose, and a bar that moves
-      // with somebody else's pool is not the number they were shown.
-      if (candDX.visibility === 'threshold' && score < (candDX.minMatchScore ?? MATCH_THRESHOLD)) continue;
+      // THE THRESHOLD-VISIBILITY GATE STOOD HERE AND IS GONE (owner, 27 Aug:
+      // "remove this filter all together and show the profile to everyone
+      // from 100 percent to 1 percent matches"). A stored
+      // visibility:'threshold' now means simply visible; paused and hidden
+      // are unchanged, and they are the only invisibilities left.
 
       // The pair's score is no longer written here. A read that wrote
       // POOL_CEILING rows was the write amplification the launch audit named;
@@ -959,8 +957,9 @@ export class DatingService implements OnModuleInit {
    *   3. still sparse → surfaces discovery pools: New Members, Recently Active,
    *      People Nearby and Growing Community Picks, so a new resident always
    *      sees real people.
-   * Privacy is unchanged: connection/blocked exclusions and each candidate's own
-   * threshold-visibility opt-in are still enforced — we only relax the GLOBAL bar.
+   * Privacy is unchanged: connection/blocked exclusions are still enforced —
+   * we only relax the GLOBAL bar. (The per-candidate threshold-visibility
+   * opt-in was removed at the owner's word, 27 Aug.)
    */
   async discover(userId: string, kind: MatchKind, limit?: number) {
     return this.cachedList(userId, 'discover', kind, limit, () => this.discoverUncached(userId, kind, limit));
@@ -1022,8 +1021,8 @@ export class DatingService implements OnModuleInit {
       const candDX = this.parseDX((cand as { extras?: string | null }).extras) as DXProfile & DXVisibility & { city?: string; photos?: string[] };
       const breakdown = factorScores(astro, myInterests, theirInterests, myD, candDX);
       const score = overallScore(breakdown, confidenceFor(myD, candDX, myInterests, theirInterests));
-      // Respect each candidate's own opt-in even in discovery — never override it.
-      if (candDX.visibility === 'threshold' && score < (candDX.minMatchScore ?? MATCH_THRESHOLD)) continue;
+      // The threshold-visibility gate stood here too and is gone (27 Aug —
+      // see matches()). Everyone visible is visible to every score.
 
       const candPhotos = candDX.photos ?? [];
       const photos: string[] = [];
@@ -1304,37 +1303,13 @@ export class DatingService implements OnModuleInit {
       const theirInterests = this.splitInterests(cand.interests);
       const candDX = this.parseDX((cand as { extras?: string | null }).extras) as DXProfile & DXVisibility & DXCard & { photos?: string[] };
       const breakdown = factorScores(astro, myInterests, theirInterests, myD, candDX);
-      // TWO SCORES, DELIBERATELY (H2).
-      //
-      // `standard` is the unlearned one — the same figure for both people — and
-      // it is what decides eligibility and what gets cached. `score` is scored
-      // against this citizen's own weights and is what they see and are sorted
-      // by.
-      //
-      // The split is the whole safety of the feature. If the threshold moved
-      // with the weights, somebody's own swiping would start removing people
-      // from their list, which is how a recommender narrows a world without
-      // anybody choosing to. And if the CACHE held the learned figure, the next
-      // round would learn from its own output.
-      // TWO SCORES, DELIBERATELY (H2).
-      //
-      // `standard` is the unlearned one — the same figure for both people. It is
-      // what a threshold-visibility citizen is judged against, because their
-      // "only show me to people I score above N with" is a statement about the
-      // pair, not about the viewer's swiping habits. `score` is scored against
-      // THIS citizen's own weights and is what they see and are sorted by.
-      //
-      // The split is the whole safety of the feature. If eligibility moved with
-      // the weights, somebody's own swiping would start removing people from
-      // their list, which is how a recommender narrows a world without anybody
-      // choosing to.
       const conf = confidenceFor(myD, candDX, myInterests, theirInterests);
-      const standard = overallScore(breakdown, conf);
       const score = overallScoreWith(breakdown, ranking.weights, conf);
-      // No score floor. A 17% was dropped here silently, which is a judgement
-      // about who is worth meeting made by a weighting formula the citizen
-      // never saw. The number is shown on every card; they can disagree with it.
-      if (!isMatched && candDX.visibility === 'threshold' && standard < (candDX.minMatchScore ?? MATCH_THRESHOLD)) continue;
+      // No score floor, and since 27 Aug no threshold-visibility gate either
+      // (the `standard` unlearned score existed to judge that gate fairly and
+      // left with it — see matches()). A 17% dropped silently would be a
+      // judgement about who is worth meeting made by a formula the citizen
+      // never saw. The number is on every card; they can disagree with it.
 
       const candPhotos = candDX.photos ?? [];
       const photos: string[] = [];

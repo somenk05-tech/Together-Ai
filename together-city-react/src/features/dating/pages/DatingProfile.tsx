@@ -130,38 +130,40 @@ function CompletionCard({ completion }: { completion?: ProfileCompletion }) {
   );
 }
 
+/* THE COMPATIBILITY FILTER IS GONE (owner, 27 Aug: "remove this filter all
+   together and show the profile to everyone from 100 percent to 1 percent
+   matches"). Two things left with it: the threshold option — a per-profile
+   score gate on who could see you — and the "≥75%" claim on the everyone
+   option, which had stopped being true when the browse floor was removed and
+   was by now simply wrong. What remains is not a filter: visible, paused and
+   hidden are three states of one switch, and pause's promise (an existing
+   match keeps chatting) has its own spec. Profiles that stored 'threshold'
+   render and save as visible — the server no longer reads the gate. */
 const VIS_OPTIONS: { key: Visibility; label: string; hint: string }[] = [
-  { key: 'everyone', label: 'Visible to everyone who matches', hint: 'Anyone you score ≥75% with can see you.' },
-  { key: 'threshold', label: 'Visible only above a compatibility threshold', hint: 'Only people above your chosen score see you.' },
+  { key: 'everyone', label: 'Visible to everyone who matches', hint: 'Every match can see you — from 100% right down to 1%.' },
   { key: 'paused', label: 'Pause my profile', hint: 'Temporarily hidden from matching — nothing is deleted.' },
   { key: 'hidden', label: 'Hide my profile', hint: 'Fully hidden from the matching pool.' },
 ];
 
 /** Profile visibility controls + delete. */
-function VisibilityCard({ visibility, minScore, onChange, onDelete, deleting }: {
-  visibility: Visibility; minScore: number;
-  onChange: (v: Visibility, min: number) => void; onDelete: () => void; deleting: boolean;
+function VisibilityCard({ visibility, onChange, onDelete, deleting }: {
+  visibility: Visibility;
+  onChange: (v: Visibility) => void; onDelete: () => void; deleting: boolean;
 }) {
   return (
     <div className="card" style={{ marginTop: 16 }}>
       <h3 style={{ margin: 0, fontSize: 16 }}>🔒 Profile visibility</h3>
-      <p className="muted" style={{ fontSize: 12, margin: '4px 0 12px' }}>Control who can see you in the matching pool.</p>
+      <p className="muted" style={{ fontSize: 12, margin: '4px 0 12px' }}>Control whether you appear in the matching pool.</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {VIS_OPTIONS.map((o) => {
           const active = visibility === o.key;
           return (
             <label key={o.key} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 12px', borderRadius: 'var(--r-1)', cursor: 'pointer',
               border: `1.5px solid ${active ? 'var(--accent)' : 'var(--line)'}`, background: active ? 'var(--accent-soft)' : 'transparent' }}>
-              <input type="radio" name="visibility" checked={active} onChange={() => onChange(o.key, minScore)} style={{ marginTop: 2 }} />
+              <input type="radio" name="visibility" checked={active} onChange={() => onChange(o.key)} style={{ marginTop: 2 }} />
               <span>
                 <span style={{ fontSize: 13.5, fontWeight: 600, display: 'block' }}>{o.label}</span>
                 <span className="muted" style={{ fontSize: 12 }}>{o.hint}</span>
-                {o.key === 'threshold' && active && (
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
-                    <input type="range" min={75} max={95} step={1} value={minScore} onChange={(e) => onChange('threshold', parseInt(e.target.value, 10))} style={{ flex: 1 }} />
-                    <strong style={{ fontSize: 13 }}>{minScore}%+</strong>
-                  </span>
-                )}
               </span>
             </label>
           );
@@ -508,8 +510,10 @@ export function DatingProfilePage() {
   const photoSrcs = (data as { photoUrls?: string[] } | null)?.photoUrls ?? [];
   const srcAt = (i: number) => photoSrcs[i] || (photos[i]?.startsWith('data:') ? photos[i] : '');
   const completion = upsert.data?.completion ?? (existing.data as { completion?: ProfileCompletion } | null)?.completion;
-  const visibility: Visibility = dx.visibility ?? 'everyone';
-  const minScore = dx.minMatchScore ?? 75;
+  // 'threshold' no longer exists as a choice; a profile that stored it is
+  // simply visible now, and the next save writes 'everyone'.
+  const visRaw: Visibility = dx.visibility ?? 'everyone';
+  const visibility: Visibility = visRaw === 'threshold' ? 'everyone' : visRaw;
   const onDelete = () => del.mutate(undefined, { onSuccess: () => { setCollapsed(false); setDx({}); successToast('Dating profile deleted.'); } });
 
   // What each photo's review says, in one sentence, on the banner the owner
@@ -958,8 +962,8 @@ export function DatingProfilePage() {
 
         {/* Visibility + delete — only meaningful once a profile exists, but the
             controls are always available so the user can set them up-front. */}
-        <VisibilityCard visibility={visibility} minScore={minScore}
-          onChange={(vv, min) => setD({ visibility: vv, minMatchScore: min })}
+        <VisibilityCard visibility={visibility}
+          onChange={(vv) => setD({ visibility: vv })}
           onDelete={onDelete} deleting={del.isPending} />
 
         {/* CONSENT, SAID ONCE, WHERE IT IS TRUE. Who somebody seeks and their
