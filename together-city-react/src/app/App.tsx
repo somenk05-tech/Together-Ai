@@ -2,6 +2,7 @@ import { RouterProvider } from 'react-router-dom';
 import { Providers } from './providers';
 import { CallCenter } from '@/features/calls/CallCenter';
 import { useZoomLock } from '@/hooks/useZoomLock';
+import { useDeepLinks } from '@/hooks/useDeepLinks';
 import { router } from './router';
 
 /**
@@ -31,6 +32,8 @@ export function App() {
   // including the ones that are siblings of AppShell rather than children of
   // it, which is the same trap CallCenter fell into above.
   useZoomLock();
+  // Same reasoning: a link from a push is a property of the application.
+  useDeepLinks();
   return (
     <Providers>
       <CallCenter>

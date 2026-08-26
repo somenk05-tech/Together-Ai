@@ -18,6 +18,22 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- togethercity://… — the scheme every push payload already carries
+                 (notifications.service.ts deepLink). Nothing opened it before. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="togethercity" />
+            </intent-filter>
+            <!-- https://togethercity.app/… opens in the app once
+                 /.well-known/assetlinks.json is served (ops). -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="togethercity.app" />
+            </intent-filter>
         </activity>
 
         <provider

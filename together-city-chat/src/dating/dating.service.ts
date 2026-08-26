@@ -15,6 +15,7 @@ import { MediaService } from '../media/media.service';
 import { PhotoModerationService } from './photo-moderation.service';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { AdminAccessService } from '../admin/admin-access.service';
+import { RedisService } from '../shared/redis/redis.service';
 import { compatibilityScore, zodiacSign } from './astrology';
 import {
   canonicalGoal, confidenceFor, coverage, curatedBar, distanceNote, explain, factorScores, frictions, matchAlertBody, matchAlertReason, overallScore, preferenceNotes, sharedItems, type DXProfile, type FactorBreakdown, unreachableReason,
@@ -91,6 +92,8 @@ const SCORING_POOL = 500;
 const POOL_CEILING = Number(process.env.DATING_POOL_CEILING ?? 2000);
 /** Signed-URL requests in flight at once while a list page is built. */
 const PRESIGN_CONCURRENCY = 16;
+/** How long a viewer's list answer is kept before it is scored again. */
+const LIST_CACHE_SEC = Number(process.env.DATING_LIST_CACHE_SEC ?? 60);
 /** How long a profile save waits for the next one before its reindex runs. */
 const REINDEX_DEBOUNCE_MS = Number(process.env.DATING_REINDEX_DEBOUNCE_MS ?? 5000);
 
@@ -158,7 +161,35 @@ export class DatingService {
     private readonly analytics: AnalyticsService,
     // Moderator decisions go through the console: permission, reason, audit.
     private readonly access: AdminAccessService,
+    private readonly redis: RedisService,
   ) {}
+
+  /**
+   * A SHORT CACHE ON THE THREE LIST READS. Each one scores up to POOL_CEILING
+   * profiles for one viewer; a citizen pulling to refresh, or two tabs, or the
+   * 30-second poll on the Curated page, was that scan again every time. The
+   * answer is kept for LIST_CACHE_SEC per viewer, kind and page, and thrown
+   * away the moment anything that changes it happens to THIS viewer — a like,
+   * a pass, a connect, a profile save — by bumping their version. Other
+   * people's saves reach them within the TTL, which is what the reindex
+   * notifier is for anyway. Redis down: no cache, the scan as before.
+   */
+  private async cachedList<T>(userId: string, name: string, kind: string, limit: number | undefined, compute: () => Promise<T>): Promise<T> {
+    if (!this.redis?.up) return compute();
+    const v = (await swallow(this.redis.raw.get(`dating:listv:${userId}`), 'dating: list cache version')) ?? '0';
+    const key = `dating:list:${userId}:${v}:${name}:${kind}:${limit ?? 'all'}`;
+    const hit = await swallow(this.redis.raw.get(key), 'dating: list cache read');
+    if (hit) { try { return JSON.parse(hit) as T; } catch { /* recompute */ } }
+    const out = await compute();
+    await swallow(this.redis.raw.set(key, JSON.stringify(out), 'EX', LIST_CACHE_SEC), 'dating: list cache write');
+    return out;
+  }
+
+  /** Everything this viewer has cached is stale now. */
+  private async bumpListVersion(userId: string): Promise<void> {
+    if (!this.redis?.up) return;
+    await swallow(this.redis.raw.incr(`dating:listv:${userId}`), 'dating: list cache bump');
+  }
 
   /**
    * A stored photo entry → something a browser can actually load. (M3.)
@@ -388,6 +419,7 @@ export class DatingService {
       create: { userId, ...data },
     });
     if (!existed) this.analytics.track('dating.profile.started', userId);
+    await this.bumpListVersion(userId);
 
     // Master Profile sync (spec: every hub writes shared fields back to the
     // single source of truth, which propagates to astrology/nutrition/fitness).
@@ -692,6 +724,10 @@ export class DatingService {
    * learned the parameter.
    */
   async matches(userId: string, kind: MatchKind, limit?: number) {
+    return this.cachedList(userId, 'matches', kind, limit, () => this.matchesUncached(userId, kind, limit));
+  }
+
+  private async matchesUncached(userId: string, kind: MatchKind, limit?: number) {
     const mine = await this.prisma.datingProfile.findUnique({ where: { userId } });
     if (!mine) throw new NotFoundException('create your dating profile first');
 
@@ -866,6 +902,10 @@ export class DatingService {
    * threshold-visibility opt-in are still enforced — we only relax the GLOBAL bar.
    */
   async discover(userId: string, kind: MatchKind, limit?: number) {
+    return this.cachedList(userId, 'discover', kind, limit, () => this.discoverUncached(userId, kind, limit));
+  }
+
+  private async discoverUncached(userId: string, kind: MatchKind, limit?: number) {
     const mine = await this.prisma.datingProfile.findUnique({ where: { userId } });
     if (!mine) throw new NotFoundException('create your dating profile first');
 
@@ -1121,6 +1161,10 @@ export class DatingService {
   }
 
   async stack(userId: string, kind: MatchKind, limit?: number) {
+    return this.cachedList(userId, 'stack', kind, limit, () => this.stackUncached(userId, kind, limit));
+  }
+
+  private async stackUncached(userId: string, kind: MatchKind, limit?: number) {
     const mine = await this.prisma.datingProfile.findUnique({ where: { userId } });
     if (!mine) throw new NotFoundException('create your dating profile first');
 
@@ -1603,6 +1647,7 @@ export class DatingService {
 
   async like(userId: string, targetUserId: string, kind: MatchKind, opts: { superLike?: boolean } = {}) {
     await this.assertWritable(userId, targetUserId);
+    await this.bumpListVersion(userId);
     void swallow(this.cachePairScore(userId, targetUserId), 'dating: score cache on like', { userId, targetUserId });
     const state = await this.upsertState(userId, targetUserId, kind);
     const meIsOne = state.userOneId === userId;
@@ -1660,6 +1705,7 @@ export class DatingService {
       // Tell the other person it's now a mutual match.
       void this.notifications.create({
         userId: targetUserId, actorId: userId, kind: 'dating_match',
+        push: { deepLink: 'togethercity://dating/matches' },
         title: kind === 'romantic' ? "It’s a match! 💫" : "You’re connected 🤝",
         body: kind === 'romantic' ? 'You both liked each other — open Dating to say hi.' : 'You both connected — open Dating to say hi.',
         href: '/dating/matches',
@@ -1675,6 +1721,7 @@ export class DatingService {
     // the order of one queue.
     void this.notifications.create({
       userId: targetUserId, actorId: userId, kind: 'dating_like',
+      push: { deepLink: 'togethercity://dating/matches' },
       title: opts.superLike
         ? (kind === 'romantic' ? 'Someone super-liked you ⭐' : 'Someone really wants to connect ⭐')
         : (kind === 'romantic' ? 'You have a new like 💛' : 'Someone wants to connect'),
@@ -1703,6 +1750,7 @@ export class DatingService {
    *    throw away their like.
    */
   async undoLastPass(userId: string, kind: MatchKind) {
+    await this.bumpListVersion(userId);
     // ONE QUERY PER SIDE, then compared here.
     //
     // A single findMany with orderBy [{passedAtOne:'desc'},{passedAtTwo:'desc'}]
@@ -1764,6 +1812,7 @@ export class DatingService {
    */
   async connect(userId: string, targetUserId: string, kind: MatchKind) {
     await this.assertWritable(userId, targetUserId);
+    await this.bumpListVersion(userId);
     const state = await this.upsertState(userId, targetUserId, kind);
     if (state.status !== 'matched') throw new NotFoundException('No active match to connect to.');
     if (state.conversationId) return { conversationId: state.conversationId, alreadyOpen: true, chargedInr: 0 };
@@ -1815,6 +1864,7 @@ export class DatingService {
 
     void this.notifications.create({
       userId: targetUserId, actorId: userId, kind: 'dating_match',
+      push: { deepLink: `togethercity://dating/chat/${conversationId}` },
       title: 'Someone connected to chat 💬', body: 'You have a new anonymous chat in the Dating Hub.', href: '/dating/chats',
     });
     this.analytics.track('dating.connect', userId, { kind });
@@ -2018,6 +2068,7 @@ export class DatingService {
    *  people. Keeps the conversation id on record so it stays hidden from the main
    *  Chats list, but archives it so it leaves the Dating Hub chat list too. */
   async unmatch(userId: string, targetUserId: string, kind: MatchKind) {
+    await this.bumpListVersion(userId);
     const [userOneId, userTwoId] = [userId, targetUserId].sort();
     const state = await this.prisma.datingMatch.findFirst({
       where: { OR: [{ userOneId, userTwoId }], kind },
@@ -2137,6 +2188,7 @@ export class DatingService {
     // A pass on somebody unreachable is harmless in effect but still a row
     // written against a stranger who cannot see you; refused for symmetry.
     await this.assertWritable(userId, targetUserId);
+    await this.bumpListVersion(userId);
     void swallow(this.cachePairScore(userId, targetUserId), 'dating: score cache on pass', { userId, targetUserId });
     const state = await this.upsertState(userId, targetUserId, kind);
     const meIsOne = state.userOneId === userId;

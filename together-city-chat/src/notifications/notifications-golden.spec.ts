@@ -96,6 +96,26 @@ describe('what the notifications engine decides today', () => {
     expect({ table, emitted }).toMatchSnapshot();
   });
 
+  it('a notification that opts in reaches the phone — only when the person is not here', async () => {
+    // The bell is the default; a push is an interruption a caller asks for by
+    // name (dating match, like). Online, the live toast is the news and no
+    // push follows; offline, every registered device is told, with the place
+    // a tap should land. (26 Aug.)
+    const away = build();
+    await away.svc.create({ userId: 'u1', actorId: 'u2', kind: 'dating_match', title: 'It’s a match', href: '/dating/matches', push: { deepLink: 'togethercity://dating/matches' } });
+    expect(away.pushes.map((p) => p.via).sort()).toEqual(['fcm', 'webpush']);
+    expect((away.pushes.find((p) => p.via === 'fcm')!.payload as { deepLink: string }).deepLink).toBe('togethercity://dating/matches');
+    expect((away.pushes.find((p) => p.via === 'webpush')!.payload as { url: string }).url).toBe('/dating/matches');
+
+    const here = build({ online: ['u1'] });
+    await here.svc.create({ userId: 'u1', actorId: 'u2', kind: 'dating_match', title: 'It’s a match', href: '/dating/matches', push: { deepLink: 'togethercity://dating/matches' } });
+    expect(here.pushes).toEqual([]);
+
+    const plain = build();
+    await plain.svc.create({ userId: 'u1', actorId: 'u2', kind: 'connection_request', title: 'A request' });
+    expect(plain.pushes).toEqual([]);
+  });
+
   it('messages group per conversation, updating in place; a second chat gets its own row', async () => {
     const { svc, table } = build();
     await svc.notifyNewMessage({ conversationId: 'c1', senderId: 'sender1', recipientIds: ['u1'], preview: 'first' });

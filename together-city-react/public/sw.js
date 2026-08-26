@@ -15,7 +15,7 @@ self.addEventListener('push', (event) => {
     badge: '/favicon.svg',
     tag: conversationId ? `chat-${conversationId}` : 'chat',
     renotify: true,
-    data: { conversationId },
+    data: { conversationId, url: payload.url || '' },
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });
@@ -23,7 +23,8 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const cid = event.notification.data && event.notification.data.conversationId;
-  const url = cid ? `/chats?c=${cid}` : '/chats';
+  const direct = event.notification.data && event.notification.data.url;
+  const url = cid ? `/chats?c=${cid}` : (direct || '/chats');
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
       // Focus an existing tab if we have one, else open a new one.

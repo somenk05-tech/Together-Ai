@@ -38,7 +38,7 @@ export class WebPushProvider {
   /** Push to a set of stored web-push subscriptions (each `token` is JSON). */
   async send(
     tokens: string[],
-    payload: { title: string; body: string; conversationId: string; icon?: string },
+    payload: { title: string; body: string; conversationId: string; icon?: string; url?: string },
   ): Promise<void> {
     if (!this.ready || !tokens.length) return;
     const data = JSON.stringify({
@@ -46,6 +46,8 @@ export class WebPushProvider {
       body: payload.body,
       conversationId: payload.conversationId,
       icon: payload.icon,
+      // Where a tap lands when it is not a chat (a dating match, a like).
+      url: payload.url,
     });
     await Promise.all(
       tokens.map(async (token) => {

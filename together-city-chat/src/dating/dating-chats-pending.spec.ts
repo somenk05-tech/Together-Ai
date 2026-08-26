@@ -35,6 +35,7 @@ function serviceWith(matches: Array<Record<string, unknown>>) {
     { approvedOf: async () => new Set<string>(), statusOf: async () => ({}) } as never,
     { track: () => undefined } as never,   // AnalyticsService
     {} as never,                           // AdminAccessService
+    { up: false } as never,                // RedisService — no list cache in a stub
   );
   return { svc, conversations };
 }

@@ -22,6 +22,12 @@ export interface CreateNotificationInput {
   href?: string | null;
   actorId?: string | null;  // who triggered it (never notify yourself of your own action)
   entityId?: string | null;
+  /**
+   * Reach the phone as well as the bell. Opt-in per call, because the bell
+   * is the right place for most of the city and a push is an interruption:
+   * a mutual match and a like are the two things worth one. (26 Aug.)
+   */
+  push?: { deepLink: string };
 }
 
 /**
@@ -78,9 +84,24 @@ export class NotificationsService {
       });
       const count = await this.unreadCount(input.userId);
       this.gateway.emitNew(input.userId, this.shape(row), count);
+      // Only when they are not here to see the bell: a push on top of a live
+      // toast is the same news twice.
+      if (input.push && !(await this.presence.isOnline(input.userId))) {
+        await this.pushToDevices(input.userId, input.title, input.body ?? '', input.push.deepLink, input.href ?? '/');
+      }
     } catch (e) {
       this.log.warn(`notification create failed (${input.kind}): ${(e as Error).message}`);
     }
+  }
+
+  /** Every device this citizen registered, FCM and web-push alike. Best-effort. */
+  private async pushToDevices(userId: string, title: string, body: string, deepLink: string, url: string): Promise<void> {
+    // unbounded: one citizen's device tokens — a handful
+    const devices = await this.prisma.deviceToken.findMany({ where: { userId }, select: { token: true, platform: true } });
+    const fcmTokens = devices.filter((d) => d.platform !== 'webpush').map((d) => d.token);
+    const webTokens = devices.filter((d) => d.platform === 'webpush').map((d) => d.token);
+    await this.fcm.send(fcmTokens, { title, body, deepLink, data: { deepLink } });
+    await this.webpush.send(webTokens, { title, body, conversationId: '', url });
   }
 
   /** Recent notifications for a user, newest first. Chats are NOT here —

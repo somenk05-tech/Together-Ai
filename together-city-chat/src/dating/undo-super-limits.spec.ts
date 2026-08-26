@@ -82,6 +82,7 @@ function build(rows: Row[] = []) {
   s.blocking = { blockedWith: async () => [] };
   s.cacheScore = async () => undefined;
   s.analytics = { track: () => undefined };
+  s.redis = { up: false };
   s.clock = {
     timezoneFor: async () => 'Asia/Kolkata',
     startOfDayIn: () => new Date('2026-08-01T00:00:00Z'),
