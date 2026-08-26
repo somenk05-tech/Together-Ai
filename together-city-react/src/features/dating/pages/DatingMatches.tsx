@@ -29,20 +29,21 @@ import { EngagedPanel } from '../components/MatchCards';
  *
  * ── AND WHAT IT IS NOW ──────────────────────────────────────────────────────
  *
- * ONE PERSON, SET LIKE A PROFILE RATHER THAN LIKE A ROW. The deck drew a match
- * as a photograph with a name and a percentage on it, which is the vocabulary
- * of a queue you are working through — the shape of the room you just left.
- * A person who chose you back is not a card in a pile, so they get the page:
- * a portrait, what they do and where, their own words, four facts, the words
- * they picked for themselves, and two ways forward. The percentage moves onto
- * the picture and gets small, because it is the least interesting true thing
- * on the screen.
+ * EVERY MATCH IS THE SAME CARD, AND THE CARD STOPS AT THEIR OWN WORDS
+ * (owner, 27 Aug: "all the curated matches we should only see till love pets
+ * section, and other curated matches card below, and when someone click on
+ * the cards should they reach their page with more details"). The first
+ * match used to be set at full size — portrait, facts grid, vibe, interests,
+ * two buttons — while the rest were thumbnails, which made one person a page
+ * and everybody else an afterthought. Now each person is one card: the
+ * portrait with the figure small on it, the name, what they do and where,
+ * and the one thing they wrote — and the CARD IS THE DOOR. Everything the
+ * long card carried (facts, traits, interests, Connect, Open chat) lives on
+ * the profile a tap opens, which is where the decision was always made.
  *
- * EVERYTHING HERE IS SOMETHING THE SERVER SENT. The list payload grew six
- * fields for this card (occupation, city, height, languages, what they are
- * looking for, their traits) and every one of them is omitted outright when
- * the profile behind it is empty. A dash where a fact should be is the same
- * lie as an invented one, told more quietly.
+ * EVERYTHING HERE IS SOMETHING THE SERVER SENT, and every line is omitted
+ * outright when the profile behind it is empty. A dash where a fact should
+ * be is the same lie as an invented one, told more quietly.
  *
  * THE RAIL IS THREE THINGS THIS PAGE ALREADY KNEW. The hub's rule about
  * intentional dating, the two counts that are real — matches and open
@@ -79,99 +80,36 @@ const portraitOf = (m: CuratedMatch) => m.photos?.[0] ?? m.user.profileImage ?? 
 const placeLine = (m: CuratedMatch) => [m.occupation, m.city].filter(Boolean).join(' · ');
 
 /**
- * THE MATCH, AT FULL SIZE.
+ * THE MATCH, AS ONE CARD, AND THE CARD IS THE DOOR (owner, 27 Aug).
  *
- * Portrait left, person right. The four-cell fact grid is built from whatever
- * is actually on file — a profile with no height and no languages shows two
- * cells, not four with two dashes in them.
+ * Portrait with the figure small on it, the name, what they do and where,
+ * and the one thing they wrote — nothing below the bio. Facts, traits,
+ * interests, Connect and Open chat all live on the profile the tap opens:
+ * this list's job is to hold the people who chose you back, not to be each
+ * of their pages at once. Every match gets THIS card — the first is first
+ * only by being first, not by being bigger.
  */
-function CuratedLead({ match, kind }: { match: CuratedMatch; kind: MatchKind }) {
-  const href = `/dating/match?u=${match.user.id}&kind=${kind}`;
+function CuratedCard({ match, kind }: { match: CuratedMatch; kind: MatchKind }) {
   const photo = portraitOf(match);
   const place = placeLine(match);
-  const facts: Array<[string, string]> = [];
-  if (match.heightCm) facts.push(['Height', `${match.heightCm} cm`]);
-  if (match.languages?.length) facts.push(['Languages', match.languages.join(', ')]);
-  if (match.relationshipGoal) facts.push(['Looking for', match.relationshipGoal]);
-  if (match.theirSign) facts.push(['Sign', match.theirSign]);
-  const traits = match.personalityTraits ?? [];
-
   return (
-    <article className="dt-lead">
-      <div className="dt-shot">
+    <Link className="dt-lead dt-door" to={`/dating/match?u=${match.user.id}&kind=${kind}`}
+      aria-label={`Open ${match.user.name}’s profile`}>
+      <span className="dt-shot">
         {photo
           ? <img src={photo} alt="" loading="lazy" />
           : <span className="dt-shot-none" aria-hidden>{match.user.name.slice(0, 1)}</span>}
         <span className="dt-pct">{match.score}% match</span>
-      </div>
-
-      <div className="dt-lead-body">
+      </span>
+      <span className="dt-lead-body">
         <h2 className="dating-display dt-who">
           {match.user.name}{match.age ? `, ${match.age}` : ''}
         </h2>
         {place && <p className="dt-place">{place}</p>}
-
         {match.bio && match.bio.trim() && (
           <blockquote className="dt-quote">{match.bio}</blockquote>
         )}
-
-        {facts.length > 0 && (
-          <dl className="dt-facts">
-            {facts.map(([k, v]) => (
-              <div key={k} className="dt-fact">
-                <dt>{k}</dt>
-                <dd>{v}</dd>
-              </div>
-            ))}
-          </dl>
-        )}
-
-        {traits.length > 0 && (
-          <div className="dt-set">
-            <h3 className="dt-set-h">{match.user.name}’s vibe</h3>
-            <p className="dt-words">{traits.map((t) => <span key={t} className="dt-word">{t}</span>)}</p>
-          </div>
-        )}
-
-        {match.interests.length > 0 && (
-          <div className="dt-set">
-            <h3 className="dt-set-h">Interests</h3>
-            <p className="dt-words">{match.interests.map((i) => <span key={i} className="dt-word">{i}</span>)}</p>
-          </div>
-        )}
-
-        {/* TWO WAYS FORWARD AND NO THIRD. Connect goes where connecting
-            actually happens — the chat if one is already open, the profile
-            where Connect to Chat charges and opens it if not. The heart is
-            not a control: it is the reason this person is on this page at
-            all, and a heart you can press here would be a like you have
-            already given. */}
-        <div className="dt-acts">
-          {match.conversationId
-            ? <Link className="dt-cta" to={`/dating/chats?c=${match.conversationId}`}>Open chat</Link>
-            : <Link className="dt-cta" to={href}>Connect</Link>}
-          <Link className="dt-ghost" to={href}>View profile</Link>
-          <span className="dt-heart"><span aria-hidden>♥</span> You both liked each other</span>
-        </div>
-      </div>
-    </article>
-  );
-}
-
-/** One of the rest, small: the photograph, who they are, and the figure. */
-function CuratedTile({ match, kind }: { match: CuratedMatch; kind: MatchKind }) {
-  const photo = portraitOf(match);
-  const place = placeLine(match);
-  return (
-    <Link className="dt-tile" to={`/dating/match?u=${match.user.id}&kind=${kind}`}>
-      <span className="dt-tile-shot">
-        {photo
-          ? <img src={photo} alt="" loading="lazy" />
-          : <span className="dt-shot-none" aria-hidden>{match.user.name.slice(0, 1)}</span>}
       </span>
-      <b className="dt-tile-who">{match.user.name}{match.age ? `, ${match.age}` : ''}</b>
-      {place && <i className="dt-tile-place">{place}</i>}
-      <i className="dt-tile-pct">{match.score}%</i>
     </Link>
   );
 }
@@ -223,7 +161,6 @@ export function DatingMatches() {
   const atCapacity = stack.data?.atCapacity ?? openChats >= chatCap;
   const activeChat = chats.data?.[0] ?? null;
   const matched = stack.data?.matched ?? [];
-  const rest = matched.slice(1);
   const prefs = readPrefs(profile.data.extras);
   const ageRange = prefs.prefAgeMin && prefs.prefAgeMax ? `${prefs.prefAgeMin}–${prefs.prefAgeMax}`
     : prefs.prefAgeMin ? `${prefs.prefAgeMin} and up`
@@ -292,7 +229,9 @@ export function DatingMatches() {
               hint="This didn’t reach us — it isn’t a verdict on who’s out there. Try again in a moment."
             />
           ) : matched.length > 0 ? (
-            <CuratedLead match={matched[0]} kind={kind} />
+            /* Every match, the same card, best first (the server sends them
+               newest-match-first; each card is the door to the full profile). */
+            <>{matched.map((m) => <CuratedCard key={m.user.id} match={m} kind={kind} />)}</>
           ) : (
             <>
               <EmptyState
@@ -316,15 +255,6 @@ export function DatingMatches() {
               anywhere, <strong>unmatch</strong> and move forward.
             </p>
           </aside>
-
-          {rest.length > 0 && (
-            <section className="dt-more">
-              <h2 className="dt-more-h">More curated matches for you</h2>
-              <div className="dt-grid">
-                {rest.map((m) => <CuratedTile key={m.user.id} match={m} kind={kind} />)}
-              </div>
-            </section>
-          )}
 
           {/* BELOW THE MATCHES, NEVER INSTEAD OF THEM. At capacity what is paused
               is starting something new — the people who already chose you are

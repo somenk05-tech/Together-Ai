@@ -3225,7 +3225,7 @@ textarea.g-field { resize: none; line-height: 1.55; }
 
 /* ── THE PERSON ──────────────────────────────────────────────────────────
    Portrait left, everything they said about themselves right. */
-.dt-lead, .dt-band, .dt-panel, .dt-tile { background: var(--frost); }
+.dt-lead, .dt-band, .dt-panel { background: var(--frost); }
 .dt-lead {
   display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: var(--s-3);
   padding: var(--s-3); border-radius: var(--r-3); box-shadow: var(--e2);
@@ -3263,43 +3263,24 @@ textarea.g-field { resize: none; line-height: 1.55; }
   border-left: 2px solid var(--line-2);
   font-size: var(--fs-5); font-style: italic; line-height: 1.6; color: var(--ink-soft);
 }
-.dt-facts {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
-  gap: var(--s-2); margin: var(--s-3) 0 0;
-  padding: var(--s-2) 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+/* THE CARD IS THE DOOR (owner, 27 Aug: every curated match is the same card,
+   ending at their own words, and a tap opens the full profile). The facts
+   grid, the vibe words, the interest pills and the two buttons that stood
+   below the quote went out with the markup that wore them — everything they
+   said now lives where the tap lands. The quote is clamped to three lines
+   here because the card ENDS at their words and the page holds the rest. */
+.dt-door {
+  text-decoration: none; color: inherit; cursor: pointer; margin-bottom: var(--s-3);
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
 }
-.dt-fact dt { font-size: var(--fs-1); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
-.dt-fact dd { margin: 4px 0 0; font-size: var(--fs-4); font-weight: 700; color: var(--ink); }
-.dt-set { margin-top: var(--s-2); }
-.dt-set-h {
-  margin: 0 0 var(--s-1); font-size: var(--fs-1); letter-spacing: .14em;
-  text-transform: uppercase; color: var(--muted); font-weight: 700;
-}
-/* QUIET OUTLINED WORDS. Not chips — a chip is pressable and none of these
-   are. An outline and nothing else is the least a word can wear and still
-   read as one of a set. */
-.dt-words { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
-.dt-word {
-  border: 1px solid var(--line-2); border-radius: var(--r-full);
-  padding: 4px 12px; font-size: var(--fs-3); color: var(--ink-soft);
-}
-.dt-acts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); margin-top: var(--s-3); }
-/* THE ONE COLOURED THING ON THE PAGE, and it is the thing you press. */
-.dt-cta, .dt-ghost {
-  display: inline-flex; align-items: center; min-height: 44px; padding: 0 22px;
-  border-radius: var(--r-full); font-size: var(--fs-4); font-weight: 700;
-  transition: box-shadow var(--dur-base) var(--ease), transform var(--dur-base) var(--ease-out);
-}
-.dt-cta { background: var(--accent); color: var(--on-accent); box-shadow: var(--e1); }
-.dt-ghost { border: 1px solid var(--line-2); color: var(--ink); }
 @media (hover: hover) and (pointer: fine) {
-  .dt-cta:hover { box-shadow: var(--e2); transform: translateY(-1px); }
-  .dt-ghost:hover { box-shadow: var(--e1); }
+  .dt-door:hover { transform: translateY(-2px); box-shadow: var(--e3); }
 }
-/* NOT A CONTROL. It is why this person is on this page — a heart you could
-   press here would be a like you have already given. */
-.dt-heart { font-size: var(--fs-3); color: var(--muted); }
-.dt-heart span { color: var(--accent-ink); }
+.dt-door:active { transform: translateY(1px); }
+.dt-door .dt-quote {
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+@media (prefers-reduced-motion: reduce) { .dt-door { transition: none; transform: none; } }
 
 /* ── THE BAND ────────────────────────────────────────────────────────────
    The hub's own rule, said once for the page in the display serif, because
@@ -3314,25 +3295,9 @@ textarea.g-field { resize: none; line-height: 1.55; }
   line-height: 1.2; color: var(--ink);
 }
 
-/* ── AND THE REST OF THEM ────────────────────────────────────────────────
-   Small, photographic, and every one of them a link to the same profile the
-   big card opens. */
-.dt-more-h { font-size: var(--fs-5); letter-spacing: -.005em; color: var(--ink); margin: 0 0 var(--s-2); }
-.dt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: var(--s-2); }
-.dt-tile {
-  display: grid; gap: 3px; padding: var(--s-1); border-radius: var(--r-2); box-shadow: var(--e1);
-  transition: box-shadow var(--dur-base) var(--ease), transform var(--dur-base) var(--ease-out);
-}
-.dt-tile-shot {
-  display: block; aspect-ratio: 3 / 4; overflow: hidden; margin-bottom: 5px;
-  border-radius: var(--r-1); background: var(--media-bg);
-}
-.dt-tile-shot img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.dt-tile-who { font-size: 13px; font-weight: 700; color: var(--ink); line-height: 1.25; }
-.dt-tile-place, .dt-tile-pct { font-style: normal; font-size: var(--fs-2); color: var(--muted); line-height: 1.3; }
-@media (hover: hover) and (pointer: fine) {
-  .dt-tile:hover { box-shadow: var(--e2); transform: translateY(-2px); }
-}
+/* THE SMALL TILES AND THE "MORE FOR YOU" GRID ARE GONE (27 Aug): every match
+   is the full-width card above now, so the tile family left with the markup
+   that wore it rather than a release later. */
 
 /* ── THE RAIL ────────────────────────────────────────────────────────────
    Three panels, and nothing in them is computed for the occasion: the copy
@@ -3356,9 +3321,6 @@ textarea.g-field { resize: none; line-height: 1.55; }
 [data-hub="dating"] .dt-onward { font-size: var(--fs-3); line-height: 1.6; color: var(--ink-soft); text-align: center; margin: 0; }
 [data-hub="dating"] .dt-onward a { font-weight: 700; color: var(--ink); }
 
-@media (prefers-reduced-motion: reduce) {
-  .dt-cta, .dt-ghost, .dt-tile { transition: none; transform: none; }
-}
 
 
 /* ══ THE OBSERVATORY OWNS NOTHING IN THIS FILE ═══════════════════════════
