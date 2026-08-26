@@ -19,7 +19,7 @@ import { RedisService } from '../shared/redis/redis.service';
 import { QueueService } from '../shared/queue/queue.service';
 import { compatibilityScore, zodiacSign } from './astrology';
 import {
-  canonicalGoal, confidenceFor, coverage, curatedBar, distanceNote, explain, factorScores, frictions, matchAlertBody, matchAlertReason, overallScore, preferenceNotes, sharedItems, seeks, type DXProfile, type FactorBreakdown, unreachableReason,
+  canonicalGoal, confidenceFor, coverage, curatedBar, distanceNote, explain, factorScores, frictions, matchAlertBody, matchAlertReason, overallScore, preferenceNotes, sharedItems, seeks, shownName, type DXProfile, type FactorBreakdown, unreachableReason,
 } from './matching';
 import { LEARNING_WINDOW, learnWeights, overallScoreWith, type Decision } from './learned-weights';
 import { profileCompletion } from './completion';
@@ -900,7 +900,10 @@ export class DatingService implements OnModuleInit {
       photoJobs.push({ keys: (candPhotos.length ? candPhotos : (cand.user.profileImage ? [cand.user.profileImage] : [])).slice(0, LIST_PHOTOS), into: photos });
       results.push({
         matchId: state?.id ?? null,
-        user: cand.user,
+        // The name they chose to date under, everywhere they are drawn —
+        // the detail page and the chats already preferred it; a card that
+        // said the account name instead was the same person twice.
+        user: { ...cand.user, name: shownName(candDX, cand.user.name) },
         bio: cand.bio,
         interests: theirInterests,
         photos,
@@ -1028,7 +1031,7 @@ export class DatingService implements OnModuleInit {
       scored.push({
         card: {
           matchId: state?.id ?? null,
-          user: { id: cand.user.id, handle: cand.user.handle, name: cand.user.name, profileImage: cand.user.profileImage },
+          user: { id: cand.user.id, handle: cand.user.handle, name: shownName(candDX, cand.user.name), profileImage: cand.user.profileImage },
           bio: cand.bio,
           interests: theirInterests,
           photos,
@@ -1338,7 +1341,8 @@ export class DatingService implements OnModuleInit {
       photoJobs.push({ keys: (candPhotos.length ? candPhotos : (cand.user.profileImage ? [cand.user.profileImage] : [])).slice(0, LIST_PHOTOS), into: photos });
       (isMatched ? matchedCards : cards).push({
         matchId: state?.id ?? null,
-        user: cand.user,
+        // Same rule as matches(): the chosen name or nothing bespoke at all.
+        user: { ...cand.user, name: shownName(candDX, cand.user.name) },
         bio: cand.bio,
         interests: theirInterests,
         photos,
@@ -1464,7 +1468,7 @@ export class DatingService implements OnModuleInit {
 
     return {
       user: cand.user,
-      name: candD.firstName || cand.user.name,
+      name: shownName(candD, cand.user.name),
       age: theirAge,
       gender: cand.gender,
       bio: cand.bio,
@@ -2265,7 +2269,7 @@ export class DatingService implements OnModuleInit {
         // candidate's first name and photos to anyone browsing — a pseudonym
         // AFTER two people matched protected nothing, and read as the person
         // changing names between screens. Same expression the match card uses.
-        name: candD.firstName || otherUser?.name || 'Member',
+        name: shownName(candD, otherUser?.name || 'Member'),
         // SIGNED AND REVIEWED, like every other card. This used to hand the
         // client the raw storage key — unloadable as an image, and outside
         // the review gate. The gallery photo goes through the same batched

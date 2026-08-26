@@ -33,6 +33,11 @@ export interface DXProfile {
    * exactly, without pretending 'any' means it. Absent = the column speaks.
    */
   seekingList?: string[];
+  /** The name they chose to be seen under — read only through shownName(),
+   *  which tidies it and falls back to the account name. On the interface so
+   *  every parsed-extras intersection carries it (and so the weak-type check
+   *  lets those intersections reach shownName at all). */
+  firstName?: string;
   personalityTraits?: string[]; values?: string[]; relationshipGoal?: string;
   diet?: string; smoking?: string; drinking?: string; fitnessLevel?: string;
   /** What they said they'd prefer in someone else. Empty = "Any", which is not
@@ -882,4 +887,26 @@ export function seeks(column: string, dx: { seekingList?: unknown } | null | und
   const list = Array.isArray(raw) ? raw.filter((x): x is string => typeof x === 'string' && SEEKABLE.includes(x)) : [];
   if (list.length) return list.includes(targetGender);
   return column === 'any' || column === targetGender;
+}
+
+/**
+ * THE NAME A PERSON CHOSE TO BE SEEN UNDER (owner, 26 Aug: "let the user take
+ * a name which is shown with the profile and the chat").
+ *
+ * `extras.firstName` has been the dating profile's own name field since the
+ * form shipped — the detail page and the chat list already preferred it — but
+ * the three list builders still sent the ACCOUNT name, so a citizen who chose
+ * to date as "Maya" was "Mayassarī Venkataraghavan" on every card and "Maya"
+ * only after you opened her. One helper, used at every site a person is
+ * drawn, so the name cannot depend on which screen you met them on.
+ *
+ * Defensive at the read, like seeks(): whitespace collapsed, length capped,
+ * anything that is not a non-empty string falls back to the account name —
+ * a stored blob is never trusted to be tidy.
+ */
+export function shownName(dx: { firstName?: unknown } | null | undefined, fallback: string): string {
+  const raw = dx?.firstName;
+  if (typeof raw !== 'string') return fallback;
+  const name = raw.replace(/\s+/g, ' ').trim().slice(0, 40).trim();
+  return name || fallback;
 }

@@ -42,7 +42,7 @@ export function ConnectionIntro({ name, score, d }: {
           <p>{d.reasons[0]}</p>
         </>
       )}
-      <small>You appear as yourself — the same name and photos as your profile.</small>
+      <small>You appear as the name and photos on your dating profile — nothing else is shown.</small>
     </div>
   );
 }
@@ -84,7 +84,7 @@ export function EmptyIntro({ name, score, myPhoto, theirPhoto, d, onPick }: {
       <ConversationStarters starters={startersFor({
         name, interests: d?.interests, city: d?.city, occupation: d?.occupation,
       })} onPick={onPick} />
-      <small>You appear as yourself — the same name and photos as your profile.</small>
+      <small>You appear as the name and photos on your dating profile — nothing else is shown.</small>
     </div>
   );
 }

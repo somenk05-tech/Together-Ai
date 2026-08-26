@@ -728,7 +728,16 @@ export function DatingProfilePage() {
         <Phase n={1} title="Basic information" />
         <div className="card">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
-            <label style={{ display: 'block' }}><span style={label}>First name</span><input value={dx.firstName ?? ''} onChange={(e) => setD({ firstName: e.target.value })} style={field} /></label>
+            {/* THE NAME THEY DATE UNDER (owner, 26 Aug: "let the user take a
+                name which is shown with the profile and the chat"). The field
+                always existed; what it did was said nowhere, and the browse
+                cards ignored it until today. Now the server draws this name
+                everywhere a match sees you — card, profile, chat — so the
+                label says exactly that. Empty falls back to the account name. */}
+            <label style={{ display: 'block' }}><span style={label}>Display name</span>
+              <input value={dx.firstName ?? ''} maxLength={40} onChange={(e) => setD({ firstName: e.target.value })} style={field} />
+              <p className="muted" style={{ fontSize: 11, margin: '4px 0 0' }}>How matches see you — on your card, your profile and in chat.</p>
+            </label>
             <div ref={v.reg('gender')}><span style={label}>Gender</span>
               <select aria-label="Gender" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value as UpsertProfileInput['gender'] })} style={field}>
                 <option value="">Select…</option>
