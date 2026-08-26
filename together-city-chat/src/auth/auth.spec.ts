@@ -52,7 +52,7 @@ describe('password policy', () => {
 });
 
 describe('registration', () => {
-  const build = () => { const f = makeFakes(); return { f, svc: new AuthService(f.prisma as never, f.tokens as never, f.mail as never) }; };
+  const build = () => { const f = makeFakes(); return { f, svc: new AuthService(f.prisma as never, f.tokens as never, f.mail as never, { up: false } as never) }; };
 
   it('creates a fully-initialised, verification-pending account', async () => {
     const { f, svc } = build();
@@ -92,12 +92,31 @@ describe('registration', () => {
     expect(taken.suggestions.length).toBeGreaterThan(0);
     expect((await svc.handleAvailable('ab')).valid).toBe(false);
   });
-  it('validates email availability + format', async () => {
+  it('validates email format, and no longer says whether an address is registered', async () => {
+    // The old answer was an enumeration oracle: any address in, member or
+    // not out, unauthenticated. register() is where "taken" is answered.
     const { f, svc } = build();
     f.prisma.user.rows.push({ id: 'x', email: 'used@e.com' });
     expect((await svc.emailAvailable('new@e.com')).available).toBe(true);
-    expect((await svc.emailAvailable('used@e.com')).available).toBe(false);
+    expect((await svc.emailAvailable('used@e.com')).available).toBe(true);
     expect((await svc.emailAvailable('bad')).valid).toBe(false);
+  });
+
+  it('locks a handle after ten wrong passwords, with the same generic refusal', async () => {
+    const { f } = build();
+    const store = new Map<string, number>();
+    const redis = { up: true, raw: {
+      get: async (k: string) => (store.has(k) ? String(store.get(k)) : null),
+      incr: async (k: string) => { store.set(k, (store.get(k) ?? 0) + 1); return store.get(k)!; },
+      expire: async () => 1,
+      del: async (k: string) => { store.delete(k); return 1; },
+    } };
+    const svc = new AuthService(f.prisma as never, f.tokens as never, f.mail as never, redis as never);
+    for (let i = 0; i < 10; i += 1) await expect(svc.login({ handle: 'nobody', password: 'x' })).rejects.toThrow('Invalid credentials');
+    expect(store.get('login:fail:nobody')).toBe(10);
+    // The eleventh is refused before the database is even asked.
+    f.prisma.user.findUnique = async () => { throw new Error('should not be read'); };
+    await expect(svc.login({ handle: 'nobody', password: 'x' })).rejects.toThrow('Invalid credentials');
   });
 });
 
@@ -189,7 +208,7 @@ describe('forgot / reset (recovery code)', () => {
       deliveryConfigured: () => configured,
     };
     const tokens = { revokedAll: [] as string[], revokeAll: (id: string) => { tokens.revokedAll.push(id); return Promise.resolve(); } };
-    const svc = new AuthService(prisma as never, tokens as never, mail as never);
+    const svc = new AuthService(prisma as never, tokens as never, mail as never, { up: false } as never);
     return { prisma, mail, tokens, svc };
   };
 

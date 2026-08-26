@@ -2,7 +2,7 @@ import { useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { Button, Spinner } from '@/components/ui';
-import { useAppeals, useDatingDecision, useDecideAppeal, useDecideReport, useHeldPhotos, usePhotoDecision, useReportQueue, type Appeal, type HeldPhoto, type ReportGroup } from '../api';
+import { useAppeals, useDatingDecision, useDecideAppeal, useDecideReport, useHeldPhotos, usePhotoBackfill, usePhotoDecision, useReportQueue, type Appeal, type HeldPhoto, type ReportGroup } from '../api';
 
 /**
  * The moderation queue (FE-13.7).
@@ -223,10 +223,19 @@ const reasonInput: CSSProperties = {
  */
 function HeldPhotos() {
   const q = useHeldPhotos();
+  const backfill = usePhotoBackfill();
   if (!q.data) return null;
   return (
     <section style={{ marginTop: 28 }}>
-      <h2 style={{ fontSize: 18, margin: 0 }}>Photos held for a look</h2>
+      <h2 style={{ fontSize: 18, margin: 0, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        Photos held for a look
+        {/* The pool that existed before photos were reviewed has no verdicts,
+            so those photos show to nobody. This queues every one of them.
+            Idempotent; safe to press twice. */}
+        <Button variant="line" size="sm" disabled={backfill.isPending} onClick={() => backfill.mutate()} title="Queue a review for every photo that predates photo review">
+          {backfill.isPending ? 'Queuing…' : backfill.isSuccess ? `Queued ${backfill.data.queued} profiles` : 'Review older photos'}
+        </Button>
+      </h2>
       <p className="muted" style={{ fontSize: 13, margin: '6px 0 12px', lineHeight: 1.6 }}>
         {q.data.length === 0
           ? 'None waiting. A held photo is one the machine could not clear on its own; nobody else sees it until you decide.'

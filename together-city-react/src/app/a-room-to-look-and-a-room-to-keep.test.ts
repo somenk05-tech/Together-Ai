@@ -65,10 +65,17 @@ describe('a room to look in, and a room to keep', () => {
   });
 
   it('browses the pool through the endpoint that scores everybody', () => {
-    // /dating/discover returns every eligible candidate with no floor and no
-    // truncation. Building a pool any other way would mean a second engine.
-    expect(browse).toMatch(/useDiscover\(kind, Boolean\(profile\.data\)\)/);
+    // /dating/discover scores every eligible candidate with no floor. Since
+    // 26 Aug it is read a PAGE at a time — ranked server-side before the cut,
+    // and the cut is said on screen — which is the opposite of the silent
+    // take(_, 24) this file was written against. Building a pool any other
+    // way would still mean a second engine.
+    expect(browse).toMatch(/useDiscover\(kind, Boolean\(profile\.data\), limit\)/);
     expect(browse).not.toMatch(/useDatingStack/);
+    // A page is honest only if the citizen can ask for the next one and can
+    // see how much of the city they have seen.
+    expect(browse).toMatch(/hasMore/);
+    expect(browse).toMatch(/Show more — \$\{discover\.data\.shown\} of \$\{discover\.data\.totalDiscoverable\}/);
   });
 
   it('never silently truncates the list it was built to show in full', () => {

@@ -19,6 +19,8 @@ export type UpsertDatingProfileDto = z.infer<typeof UpsertDatingProfileSchema>;
 
 export const MatchesQuerySchema = z.object({
   kind: MatchKindSchema.default('romantic'),
+  /** The best N, after ranking. Absent: the whole list, as before. */
+  limit: z.coerce.number().int().min(1).max(500).optional(),
 });
 export type MatchesQueryDto = z.infer<typeof MatchesQuerySchema>;
 

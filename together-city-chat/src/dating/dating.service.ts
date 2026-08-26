@@ -340,7 +340,13 @@ export class DatingService {
     // Visibility mode lives in the extras JSON. paused/hidden take the profile
     // out of everyone's matching pool (visible=false); everyone/threshold keep
     // it in (threshold is enforced per-viewer in matches()).
-    const dx = this.parseDX(dto.extras) as DXVisibility & { photos?: unknown };
+    const dx = this.parseDX(dto.extras) as DXVisibility & { photos?: unknown; sensitiveConsentAt?: unknown };
+    // Who they seek and their religion are special-category data and both
+    // feed the filters. No save without the citizen having said so, once,
+    // with the time kept in the profile. Enforced here, not only in the form.
+    if (typeof dx.sensitiveConsentAt !== 'string' || Number.isNaN(Date.parse(dx.sensitiveConsentAt))) {
+      throw new BadRequestException('Tick the box that lets us use who you seek and your religion for matching before saving.');
+    }
     const visibility: Visibility = dx.visibility ?? (dto.visible === false ? 'hidden' : 'everyone');
     const inPool = visibility === 'everyone' || visibility === 'threshold';
     // Rewrite extras with only the photo entries this citizen owns. Filtered
@@ -678,7 +684,14 @@ export class DatingService {
    * mutually-compatible profile with the astrology engine and returns only
    * pairs ≥75% that haven't been passed. Existing likes/matches carry state.
    */
-  async matches(userId: string, kind: MatchKind) {
+  /**
+   * `limit`, on all three list reads (26 Aug): scoring the whole capped pool
+   * is arithmetic and stays; the page is what gets photos signed and sent.
+   * Ranking happens before the cut, so page one is the best, not the first.
+   * No limit — the old behaviour, whole list — for any caller that never
+   * learned the parameter.
+   */
+  async matches(userId: string, kind: MatchKind, limit?: number) {
     const mine = await this.prisma.datingProfile.findUnique({ where: { userId } });
     if (!mine) throw new NotFoundException('create your dating profile first');
 
@@ -828,12 +841,15 @@ export class DatingService {
         personalityTraits: candDX.personalityTraits ?? [],
       });
     }
-    await this.fillPhotos(photoJobs);
-    this.analytics.track('dating.matches.viewed', userId, { kind, shown: results.length, pool: candidates.length });
-    // Everyone who passes the filters, best first. There is no slice here any
-    // more: choosing who is worth talking to is the citizen's decision, and a
-    // silent cut at 24 made it for them without ever saying it had.
-    return results.sort((a, b) => b.score - a.score);
+    // Everyone who passes the filters, best first. The only cut is the one
+    // the caller asked for by name: choosing who is worth talking to is the
+    // citizen's decision, and a silent cut at 24 once made it for them.
+    results.sort((a, b) => b.score - a.score);
+    const page = limit ? results.slice(0, limit) : results;
+    const shown = new Set(page.map((r) => r.photos));
+    await this.fillPhotos(photoJobs.filter((j) => shown.has(j.into)));
+    this.analytics.track('dating.matches.viewed', userId, { kind, shown: page.length, pool: candidates.length });
+    return page;
   }
 
   /**
@@ -849,7 +865,7 @@ export class DatingService {
    * Privacy is unchanged: connection/blocked exclusions and each candidate's own
    * threshold-visibility opt-in are still enforced — we only relax the GLOBAL bar.
    */
-  async discover(userId: string, kind: MatchKind) {
+  async discover(userId: string, kind: MatchKind, limit?: number) {
     const mine = await this.prisma.datingProfile.findUnique({ where: { userId } });
     if (!mine) throw new NotFoundException('create your dating profile first');
 
@@ -950,11 +966,15 @@ export class DatingService {
       return out;
     };
 
-    await this.fillPhotos(photoJobs);
     const sections: { key: string; label: string; note: string; tier: 'ideal' | 'recommended' | 'discovery'; matches: Record<string, unknown>[] }[] = [];
 
-    const ideal = scored.filter((s) => s.card.score >= MATCH_THRESHOLD).sort((a, b) => b.card.score - a.card.score);
-    const recommended = scored.filter((s) => s.card.score >= 55 && s.card.score < MATCH_THRESHOLD).sort((a, b) => b.card.score - a.card.score);
+    // The page: the best `limit` of everybody, ranked, before the bands are
+    // drawn — so a page never shows a 40% while hiding a 70%. The sparse-city
+    // pools below still read the whole scored set; they take eight each.
+    const ranked = [...scored].sort((a, b) => b.card.score - a.card.score);
+    const page = limit ? ranked.slice(0, limit) : ranked;
+    const ideal = page.filter((s) => s.card.score >= MATCH_THRESHOLD);
+    const recommended = page.filter((s) => s.card.score >= 55 && s.card.score < MATCH_THRESHOLD);
 
     // Everyone, in bands, with their percentage on every card (§15.2).
     //
@@ -965,7 +985,7 @@ export class DatingService {
     // had never asked for that filter. Both are gone. The bands stay, because
     // ranking is useful; the truncation goes, because deciding who is worth
     // talking to is the citizen's call and 68% is a number they can read.
-    const rest = scored.filter((s) => s.card.score < 55).sort((a, b) => b.card.score - a.card.score);
+    const rest = page.filter((s) => s.card.score < 55);
     const all = (arr: Scored[]) => take(arr, arr.length);
 
     if (ideal.length) {
@@ -1013,11 +1033,17 @@ export class DatingService {
       if (gp.length) sections.push({ key: 'growing', label: 'Growing Community Picks', note: 'More residents to meet as your city grows.', tier: 'discovery', matches: gp });
     }
 
+    // Photos for the cards that are actually going out, and only those.
+    const going = new Set(sections.flatMap((sec) => sec.matches.map((m) => m.photos)));
+    await this.fillPhotos(photoJobs.filter((j) => going.has(j.into)));
+
     return {
       sections,
-      idealCount: ideal.length,
-      lowDensity: ideal.length < 6,
+      idealCount: ranked.filter((s) => s.card.score >= MATCH_THRESHOLD).length,
+      lowDensity: ranked.filter((s) => s.card.score >= MATCH_THRESHOLD).length < 6,
       totalDiscoverable: scored.length,
+      shown: page.length,
+      hasMore: ranked.length > page.length,
       // Reported, never silent — see POOL_CEILING.
       poolSize: candidates.length,
       poolCapped: candidates.length >= POOL_CEILING,
@@ -1094,7 +1120,7 @@ export class DatingService {
     };
   }
 
-  async stack(userId: string, kind: MatchKind) {
+  async stack(userId: string, kind: MatchKind, limit?: number) {
     const mine = await this.prisma.datingProfile.findUnique({ where: { userId } });
     if (!mine) throw new NotFoundException('create your dating profile first');
 
@@ -1241,7 +1267,6 @@ export class DatingService {
       });
     }
 
-    await this.fillPhotos(photoJobs);
     // Compatibility-band histogram: 90–100, 80–90 … 20–30 (highest first).
     const bands = [[90, 101], [80, 90], [70, 80], [60, 70], [50, 60], [40, 50], [30, 40], [20, 30], [0, 20]];
     const distribution = bands.map(([lo, hi]) => ({
@@ -1252,15 +1277,20 @@ export class DatingService {
     }));
 
     const top = cards.sort((a, b) => b.score - a.score)[0] ?? null;
+    // The histogram above counts everybody; the cards sent are the page.
+    const shownCards = limit ? cards.slice(0, limit) : cards;
 
     // Newest match first, so the person you just matched with leads the page.
     const matched = matchedCards.sort((a, b) => b.score - a.score);
+    const going = new Set([...shownCards, ...matched].map((c) => c.photos));
+    await this.fillPhotos(photoJobs.filter((j) => going.has(j.into)));
 
     // `candidates` is the whole ranked list, not a page of it. `top` stays
     // because the page leads with it, but it is now the first element of
     // something the citizen can scroll rather than the only thing they get.
     return {
-      engaged, distribution, top, candidates: cards, matched, totalCandidates: cards.length,
+      engaged, distribution, top, candidates: shownCards, matched, totalCandidates: cards.length,
+      hasMore: cards.length > shownCards.length,
       // The cap is reported, never silent. If it bound, the citizen is looking at
       // the most recently active POOL_CEILING profiles and not at the city.
       poolSize: candidates.length, poolCapped: candidates.length >= POOL_CEILING,
@@ -1907,6 +1937,27 @@ export class DatingService {
       actorId: adminId, need: 'moderation.act', action: `dating.photo.${decision}`, entity: 'photo', entityId: key, reason,
     }, () => this.photoMod.decide(key, decision, adminId, reason));
     return { key, status: decision };
+  }
+
+  /**
+   * File and review every photo on every visible profile that has no review
+   * row yet — the one-off for the pool that existed before photos were
+   * reviewed. Idempotent: a reviewed key is skipped by fileAndReview. Runs
+   * off the request; the response says how many profiles were queued.
+   */
+  async backfillPhotoReviews(adminId: string) {
+    await this.access.act({
+      actorId: adminId, need: 'moderation.act', action: 'dating.photos.backfill', entity: 'dating', entityId: 'photos',
+      reason: 'Review the photos that predate photo review.',
+    }, async () => undefined);
+    // unbounded: a one-off sweep of the whole visible pool, run by a moderator on purpose — every profile must be reached
+    const rows = await this.prisma.datingProfile.findMany({ where: { visible: true }, select: { userId: true, extras: true } });
+    void swallow((async () => {
+      for (const row of rows) {
+        await swallow(this.photoMod.fileAndReview(row.userId, this.storedPhotos(row.extras)), 'dating: photo backfill', { userId: row.userId });
+      }
+    })(), 'dating: photo backfill sweep');
+    return { queued: rows.length };
   }
 
   /** The funnel and the score distribution, for the console. */

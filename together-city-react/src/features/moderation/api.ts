@@ -45,6 +45,8 @@ export const moderationApi = {
     api.post<{ userId: string; moderation: string }>(`/dating/admin/moderation/${encodeURIComponent(userId)}`, dto).then((r) => r.data),
   /** Photos the machine held for a person, oldest first, each with a short-lived URL. */
   heldPhotos: () => api.get<HeldPhoto[]>('/dating/admin/photos').then((r) => r.data),
+  /** One-off: queue a review for every photo that predates photo review. */
+  photoBackfill: () => api.post<{ queued: number }>('/dating/admin/photos/backfill').then((r) => r.data),
   photoDecision: (dto: { key: string; decision: 'approved' | 'rejected'; reason: string }) =>
     api.post<{ key: string; status: string }>('/dating/admin/photos/decide', dto).then((r) => r.data),
   appeals: () => api.get<Appeal[]>('/dating/admin/appeals').then((r) => r.data),
@@ -57,6 +59,14 @@ export interface Appeal { id: string; userId: string; kind: 'dating_profile' | '
 
 export function useHeldPhotos() {
   return useQuery({ queryKey: ['moderation', 'photos'], queryFn: () => moderationApi.heldPhotos(), retry: false });
+}
+
+export function usePhotoBackfill() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: moderationApi.photoBackfill,
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['moderation', 'photos'] }); },
+  });
 }
 
 export function usePhotoDecision() {

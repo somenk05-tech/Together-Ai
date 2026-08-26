@@ -59,7 +59,7 @@ export const HUB_HERO: Partial<Record<HubKey, string>> = {
 export const HUB_LINE: Partial<Record<HubKey, string>> = {
   travel: 'Your world, planned your way.',
   nutrition: 'Your food, personalized to you.',
-  dating: 'Your connection, intelligently matched.',
+  dating: 'Matched by your birth charts, then by what you both want. Twenty likes a day, three chats at a time.',
   entertainment: 'Your world of things you love.',
   jobs: 'Your career, your next move.',
   medical: 'Your health, all in one place.',

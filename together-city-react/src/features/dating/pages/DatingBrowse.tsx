@@ -1,9 +1,12 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useDatingProfile, useDiscover, type CuratedMatch, type DiscoverSection, type MatchKind } from '../api';
 import { MatchCard, Distribution, UndoAndAllowance } from '../components/MatchCards';
 import { bandsOf, byCategory } from '../bands';
+
+/** Cards per page of the ranked pool. */
+const BROWSE_PAGE = 48;
 
 /**
  * ── POTENTIAL MATCHES ───────────────────────────────────────────────────────
@@ -52,7 +55,11 @@ const TIER_WORD: Record<DiscoverSection['tier'], string> = {
 export function DatingBrowse() {
   const kind: MatchKind = 'romantic';
   const profile = useDatingProfile();
-  const discover = useDiscover(kind, Boolean(profile.data));
+  // A page at a time. The pool is ranked server-side before the cut, so the
+  // first page is the best of the city, and every "Show more" is the next
+  // best rather than the next in whatever order the database returned.
+  const [limit, setLimit] = useState(BROWSE_PAGE);
+  const discover = useDiscover(kind, Boolean(profile.data), limit);
 
   /**
    * ONE PERSON, ONCE. `discover()` fills its sections through a shared `used`
@@ -277,6 +284,13 @@ export function DatingBrowse() {
                 {group.matches.map((m) => <MatchCard key={m.user.id} match={m} kind={kind} />)}
               </section>
             ))}
+          {discover.data?.hasMore && (
+            <div style={{ textAlign: 'center', marginTop: 22 }}>
+              <Button variant="line" onClick={() => setLimit((n) => n + BROWSE_PAGE)} disabled={discover.isFetching}>
+                {discover.isFetching ? 'Loading…' : `Show more — ${discover.data.shown} of ${discover.data.totalDiscoverable} so far`}
+              </Button>
+            </div>
+          )}
         </>
       )}
     </div>

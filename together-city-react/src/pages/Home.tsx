@@ -78,7 +78,7 @@ const FALLBACK = PAVILIONS;
  */
 const DISTRICT_COPY: Partial<Record<HubKey, { name: string; line: string }>> = {
   nutrition: { name: 'Nutrition', line: 'Your food, personalized to you.' },
-  dating: { name: 'Matchmaking', line: 'Your connection, intelligently matched.' },
+  dating: { name: 'Matchmaking', line: 'Matched by your birth charts, then by what you both want.' },
   entertainment: { name: 'Entertainment', line: 'Your world of things you love.' },
   jobs: { name: 'Jobs', line: 'Your career, your next move.' },
   medical: { name: 'Medical', line: 'Your health, all in one place.' },

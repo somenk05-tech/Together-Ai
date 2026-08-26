@@ -57,22 +57,22 @@ export class DatingController {
   @Get('matches')
   @Throttle(LIST_LIMIT)
   matches(@CurrentUser() user: JwtUser, @Query() query: Record<string, unknown>) {
-    const { kind } = parseOrThrow(MatchesQuerySchema, query);
-    return this.dating.matches(user.sub, kind);
+    const { kind, limit } = parseOrThrow(MatchesQuerySchema, query);
+    return this.dating.matches(user.sub, kind, limit);
   }
 
   @Get('discover')
   @Throttle(LIST_LIMIT)
   discover(@CurrentUser() user: JwtUser, @Query() query: Record<string, unknown>) {
-    const { kind } = parseOrThrow(MatchesQuerySchema, query);
-    return this.dating.discover(user.sub, kind);
+    const { kind, limit } = parseOrThrow(MatchesQuerySchema, query);
+    return this.dating.discover(user.sub, kind, limit);
   }
 
   @Get('stack')
   @Throttle(LIST_LIMIT)
   stack(@CurrentUser() user: JwtUser, @Query() query: Record<string, unknown>) {
-    const { kind } = parseOrThrow(MatchesQuerySchema, query);
-    return this.dating.stack(user.sub, kind);
+    const { kind, limit } = parseOrThrow(MatchesQuerySchema, query);
+    return this.dating.stack(user.sub, kind, limit);
   }
 
   @Get('matches/:targetUserId')
@@ -194,6 +194,12 @@ export class DatingController {
   photoDecision(@CurrentUser() user: JwtUser, @Body() body: unknown) {
     const dto = parseOrThrow(PhotoDecisionSchema, body);
     return this.dating.photoDecision(user.sub, dto.key, dto.decision, dto.reason);
+  }
+
+  /** One-off: review every photo that predates photo review. Idempotent. */
+  @Post('admin/photos/backfill')
+  photoBackfill(@CurrentUser() user: JwtUser) {
+    return this.dating.backfillPhotoReviews(user.sub);
   }
 
   /** Where people stop, and where the numbers sit. */

@@ -179,7 +179,9 @@ function CuratedTile({ match, kind }: { match: CuratedMatch; kind: MatchKind }) 
 export function DatingMatches() {
   const kind: MatchKind = 'romantic';
   const profile = useDatingProfile();
-  const stack = useDatingStack(kind, Boolean(profile.data));
+  // This room keeps people; it never renders `candidates`. One is enough
+  // for `top`, and it stops a 2,000-card payload refetching every 30 s.
+  const stack = useDatingStack(kind, Boolean(profile.data), 1);
   const chats = useDatingChats();
 
   if (profile.isLoading) return <Spinner label="Consulting the stars…" />;

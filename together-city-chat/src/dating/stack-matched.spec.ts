@@ -121,6 +121,23 @@ describe('curated stack keeps mutually-liked people', () => {
     expect(res.distribution.reduce((n, b) => n + b.count, 0)).toBe(1);
   });
 
+  it('sends the page the caller asked for, ranked, and says the list goes on', async () => {
+    // `limit` cuts AFTER ranking; the histogram still counts everybody, and
+    // the page says whether there is more. No limit is the whole list.
+    const { svc } = serviceWith([profile('a'), profile('b'), profile('c')], []);
+    const page = await svc.stack('me', 'romantic', 2) as unknown as {
+      candidates: Array<{ score: number }>; totalCandidates: number; hasMore: boolean; distribution: Array<{ count: number }>;
+    };
+    expect(page.candidates).toHaveLength(2);
+    expect(page.totalCandidates).toBe(3);
+    expect(page.hasMore).toBe(true);
+    expect(page.candidates[0].score).toBeGreaterThanOrEqual(page.candidates[1].score);
+    expect(page.distribution.reduce((n, b) => n + b.count, 0)).toBe(3);
+    const whole = await svc.stack('me', 'romantic') as unknown as { candidates: unknown[]; hasMore: boolean };
+    expect(whole.candidates).toHaveLength(3);
+    expect(whole.hasMore).toBe(false);
+  });
+
   it('still drops people who were passed', async () => {
     const { svc } = serviceWith(
       [profile('rhea')],

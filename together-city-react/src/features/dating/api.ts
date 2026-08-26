@@ -138,6 +138,9 @@ export interface DiscoverResult {
   idealCount: number;
   lowDensity: boolean;
   totalDiscoverable: number;
+  /** The page (26 Aug): how many of `totalDiscoverable` came, and whether more would. */
+  shown: number;
+  hasMore: boolean;
 }
 
 export interface UpsertProfileInput {
@@ -161,7 +164,7 @@ export const datingApi = {
   upsertProfile: (input: UpsertProfileInput) => api.post<DatingProfile>('/dating/profile', input).then((r) => r.data),
   deleteProfile: () => api.delete<{ ok: boolean; deleted: boolean }>('/dating/profile').then((r) => r.data),
   matches: (kind: MatchKind) => api.get<CuratedMatch[]>('/dating/matches', { params: { kind } }).then((r) => r.data),
-  discover: (kind: MatchKind) => api.get<DiscoverResult>('/dating/discover', { params: { kind } }).then((r) => r.data),
+  discover: (kind: MatchKind, limit?: number) => api.get<DiscoverResult>('/dating/discover', { params: { kind, limit } }).then((r) => r.data),
   matchDetail: (targetUserId: string, kind: MatchKind) => api.get<MatchDetail>(`/dating/matches/${targetUserId}`, { params: { kind } }).then((r) => r.data),
   like: (targetUserId: string, kind: MatchKind) =>
     api.post<{ matched: boolean; conversationId: string | null; chatLocked: boolean; matchId: string }>(`/dating/matches/${targetUserId}/like`, { kind }).then((r) => r.data),
@@ -182,7 +185,7 @@ export const datingApi = {
   pass: (targetUserId: string, kind: MatchKind) =>
     api.post<{ ok: boolean }>(`/dating/matches/${targetUserId}/pass`, { kind }).then((r) => r.data),
   chats: () => api.get<DatingChatSummary[]>('/dating/chats').then((r) => r.data),
-  stack: (kind: MatchKind) => api.get<DatingStack>('/dating/stack', { params: { kind } }).then((r) => r.data),
+  stack: (kind: MatchKind, limit?: number) => api.get<DatingStack>('/dating/stack', { params: { kind, limit } }).then((r) => r.data),
   blockMatch: (targetUserId: string, kind: MatchKind) =>
     api.post<{ blocked: true }>(`/dating/matches/${targetUserId}/block`, { kind }).then((r) => r.data),
   reportMatch: (targetUserId: string, kind: MatchKind, reason?: string) =>
@@ -237,6 +240,8 @@ export interface DatingStack {
    *  a match is the point of the hub, not something to disappear on you. */
   matched: CuratedMatch[];
   totalCandidates: number;
+  /** True when `candidates` is a page of the ranked list rather than all of it. */
+  hasMore?: boolean;
   /** H2. `learned: false` means the standard weights and `headline` says why. */
   ranking?: { learned: boolean; headline: string; decisions: number; notes: string[] };
 }
@@ -326,8 +331,15 @@ export function useDeleteDatingProfile() {
     },
   });
 }
-export function useDiscover(kind: MatchKind, enabled = true) {
-  return useQuery({ queryKey: ['dating', 'discover', kind], queryFn: () => datingApi.discover(kind), enabled });
+/** A page of the ranked pool. `limit` grows when the citizen asks for more;
+ *  the previous page stays on screen while the next one loads. */
+export function useDiscover(kind: MatchKind, enabled = true, limit?: number) {
+  return useQuery({
+    queryKey: ['dating', 'discover', kind, limit ?? 'all'],
+    queryFn: () => datingApi.discover(kind, limit),
+    enabled,
+    placeholderData: (prev) => prev,
+  });
 }
 export function useMatchDetail(targetUserId: string | null, kind: MatchKind) {
   return useQuery({
@@ -427,8 +439,8 @@ export function useUnmatch(kind: MatchKind) {
 export function useDatingChats() {
   return useQuery({ queryKey: ['dating', 'chats'], queryFn: () => datingApi.chats(), refetchInterval: 15_000 });
 }
-export function useDatingStack(kind: MatchKind, enabled = true) {
-  return useQuery({ queryKey: ['dating', 'stack', kind], queryFn: () => datingApi.stack(kind), enabled, refetchInterval: 30_000 });
+export function useDatingStack(kind: MatchKind, enabled = true, limit?: number) {
+  return useQuery({ queryKey: ['dating', 'stack', kind, limit ?? 'all'], queryFn: () => datingApi.stack(kind, limit), enabled, refetchInterval: 30_000 });
 }
 export function useDatingAdminStats() {
   return useQuery({ queryKey: ['dating', 'admin', 'stats'], queryFn: () => datingApi.adminStats(), retry: false });

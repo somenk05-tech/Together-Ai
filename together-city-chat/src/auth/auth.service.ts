@@ -1,4 +1,5 @@
 import { swallow } from '../shared/swallow';
+import { RedisService } from '../shared/redis/redis.service';
 import { isDisposableEmail } from './disposable-domains';
 import {
   ConflictException,
@@ -17,6 +18,9 @@ import { isReservedAdminHandle } from './admin';
 
 /** Wrong guesses allowed against one recovery code before it is burned. */
 const MAX_RESET_ATTEMPTS = 5;
+/** Failed sign-ins per handle before the handle is refused, and for how long. */
+const LOGIN_LOCK_AFTER = 10;
+const LOGIN_LOCK_WINDOW_SEC = 15 * 60;
 
 @Injectable()
 export class AuthService {
@@ -24,7 +28,38 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly tokens: TokenService,
     private readonly mail: MailService,
+    private readonly redis: RedisService,
   ) {}
+
+  /**
+   * PER-ACCOUNT LOCKOUT. The login route is throttled per IP (8/min), which a
+   * distributed guess walks around; this counts failures per HANDLE. Ten in
+   * fifteen minutes and the handle is refused for the rest of the window —
+   * with the same "Invalid credentials" as every other refusal, so the lock
+   * does not become the oracle it exists to close. Redis down: no lockout,
+   * the per-IP throttle still stands.
+   */
+  private lockKey(handle: string): string { return `login:fail:${handle.toLowerCase()}`; }
+
+  private async isLocked(handle: string): Promise<boolean> {
+    if (!this.redis?.up) return false;
+    const n = await swallow(this.redis.raw.get(this.lockKey(handle)), 'login lockout read');
+    return Number(n ?? 0) >= LOGIN_LOCK_AFTER;
+  }
+
+  private async noteFailure(handle: string): Promise<void> {
+    if (!this.redis?.up) return;
+    const key = this.lockKey(handle);
+    await swallow((async () => {
+      const n = await this.redis.raw.incr(key);
+      if (n === 1) await this.redis.raw.expire(key, LOGIN_LOCK_WINDOW_SEC);
+    })(), 'login lockout write');
+  }
+
+  private async clearFailures(handle: string): Promise<void> {
+    if (!this.redis?.up) return;
+    await swallow(this.redis.raw.del(this.lockKey(handle)), 'login lockout clear');
+  }
 
   /** Every new account is fully initialised on sign-up — no lazy gaps. Seeds the
    *  default hub profiles (nutrition, beauty, fitness) so the account is complete
@@ -106,10 +141,13 @@ export class AuthService {
     // invalid HERE, at the availability check, so the form says so before
     // the citizen fills anything else in.
     if (isDisposableEmail(email)) return { email, valid: false, available: false };
-    // Same caveat as handleAvailable. No meta: an email address is PII and
-    // does not belong in the logs.
-    const taken = await swallow(this.prisma.user.findFirst({ where: { email } }), 'email availability read');
-    return { email, valid: true, available: !taken };
+    // NOT AN ORACLE ANY MORE. This used to answer "is somebody registered
+    // with this address" to anyone, unauthenticated, 15 times a minute — a
+    // list of addresses in, a list of members out. The form gets the format
+    // and disposable-domain answer, which is what it needs to say something
+    // before the citizen fills the rest in; whether the address is taken is
+    // answered once, by register(), after a password has been typed.
+    return { email, valid: true, available: true };
   }
 
   /**
@@ -228,8 +266,10 @@ export class AuthService {
   }
 
   async login(dto: LoginDto, meta: SessionMeta = {}): Promise<TokenPair & { userId: string }> {
+    if (await this.isLocked(dto.handle)) throw new UnauthorizedException('Invalid credentials');
     const user = await this.prisma.user.findUnique({ where: { handle: dto.handle } });
     if (!user || !(await argon2.verify(user.passwordHash, dto.password))) {
+      await this.noteFailure(dto.handle);
       throw new UnauthorizedException('Invalid credentials');
     }
     // A deleted account can never be signed into again (same generic message,
@@ -249,6 +289,7 @@ export class AuthService {
     if ((user as unknown as { suspendedAt?: Date | null }).suspendedAt) {
       throw new UnauthorizedException('Invalid credentials');
     }
+    await this.clearFailures(dto.handle);
     const pair = await this.tokens.issuePair({ sub: user.id, handle: user.handle }, meta);
     return { ...pair, userId: user.id };
   }

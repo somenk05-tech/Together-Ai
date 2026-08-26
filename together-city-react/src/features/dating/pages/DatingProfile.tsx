@@ -75,6 +75,8 @@ interface DX {
    *  than found later. */
   prefHeight?: string; prefHeightMinCm?: number | null; prefHeightMaxCm?: number | null;
   prefDiet?: string; prefSmoking?: string; prefDrinking?: string; wantsChildren?: string; religion?: string;
+  /** When the citizen agreed to religion and who-they-seek being used for matching (26 Aug). */
+  sensitiveConsentAt?: string;
   partnerLocationMode?: 'any' | 'specific';
   partnerCountry?: string; partnerCountryCode?: string; partnerState?: string; partnerStateCode?: string; partnerCity?: string;
   dealBreakers?: string[];
@@ -912,8 +914,19 @@ export function DatingProfilePage() {
           onChange={(vv, min) => setD({ visibility: vv, minMatchScore: min })}
           onDelete={onDelete} deleting={del.isPending} />
 
-        <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <Button type="submit" variant="accent" disabled={upsert.isPending}>{upsert.isPending ? 'Saving…' : saved ? 'Save profile' : 'Create profile'}</Button>
+        {/* CONSENT, SAID ONCE, WHERE IT IS TRUE. Who somebody seeks and their
+            religion are special-category data; both are read by the matching
+            filters. The profile does not save until the citizen has said so,
+            and the time they said it is kept in the profile. */}
+        <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: 18, fontSize: 13, lineHeight: 1.5, cursor: 'pointer' }}>
+          <input type="checkbox" checked={Boolean(dx.sensitiveConsentAt)} required
+            onChange={(e) => setD({ sensitiveConsentAt: e.target.checked ? new Date().toISOString() : undefined })}
+            style={{ marginTop: 3 }} />
+          <span>I agree that who I&rsquo;m seeking and, if I give it, my religion are used to filter and score my matches. Neither is shown to other people; I can delete my dating profile at any time.</span>
+        </label>
+
+        <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <Button type="submit" variant="accent" disabled={upsert.isPending || !dx.sensitiveConsentAt}>{upsert.isPending ? 'Saving…' : saved ? 'Save profile' : 'Create profile'}</Button>
           {data?.sign && <span className="pill" style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '6px 14px', fontSize: 12.5 }}>✨ Your sign: <strong>{data.sign}</strong></span>}
         </div>
       </form>
