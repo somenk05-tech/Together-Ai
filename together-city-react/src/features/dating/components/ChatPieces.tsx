@@ -1,20 +1,15 @@
 import { Link } from 'react-router-dom';
 import type { MatchDetail } from '../api';
 import { bandFor, coverageNote } from '../bands';
-import { startersFor, strengthsSentence, type Starter } from '../starters';
+import { startersFor, type Starter } from '../starters';
 
 /**
  * ── THE PIECES THE DATING THREAD IS FURNISHED WITH (owner, 26 Aug) ──────────
  *
  * The chat redesign brief: a conversation that opens with a reason to talk
- * rather than an empty room. Four pieces, all of them fed by data the engine
+ * rather than an empty room. Three pieces, all of them fed by data the engine
  * already computes — nothing here invents a fact about a person:
  *
- *   ConnectionIntro    — the card at the top of a conversation that has
- *                        started: what you connected at, where you are strong,
- *                        and one real thing in common (the engine's own first
- *                        reason). Replaces the old safety-bar sentence, which
- *                        moved into its foot.
  *   EmptyIntro         — the room before the first message: both faces, the
  *                        number, and four tappable ways in.
  *   ConversationIdeas  — the quiet popover for a stalled conversation: the
@@ -28,24 +23,6 @@ import { startersFor, strengthsSentence, type Starter } from '../starters';
  * the sheet, which is a dialog, and a dialog is the app interrupting the
  * stage: it wears the city's white, the same call ChatStarter's modal made.
  */
-
-export function ConnectionIntro({ name, score, d }: {
-  name: string; score: number | null; d?: MatchDetail | null;
-}) {
-  return (
-    <div className="csintro">
-      <b className="csintro-pct">You connected{score != null ? ` at ${score}%` : ''}</b>
-      <p>{strengthsSentence(name, d?.breakdown ?? null)}</p>
-      {d?.reasons?.[0] && (
-        <>
-          <i className="csintro-lab">Something you might have in common</i>
-          <p>{d.reasons[0]}</p>
-        </>
-      )}
-      <small>You appear as the name and photos on your dating profile — nothing else is shown.</small>
-    </div>
-  );
-}
 
 /** The tappable ways in. Every tap only SEEDS the composer — the words are
  *  theirs to edit before anything is sent. */

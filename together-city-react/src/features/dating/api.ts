@@ -225,12 +225,9 @@ export interface MyAppeal { id: string; kind: 'dating_profile' | 'dating_photo';
 
 export interface CompatibilityBand { label: string; min: number; max: number; count: number }
 export interface DatingStack {
-  /** True when ANY chat is open. Kept for older callers; prefer atCapacity. */
+  /** True when ANY chat is open. There is no cap on how many there may be
+   *  (owner, 27 Aug) — `openChats`, `chatCap` and `atCapacity` went with it. */
   engaged: boolean;
-  /** How many conversations are open, and the most this hub allows at once. */
-  openChats?: number;
-  chatCap?: number;
-  atCapacity?: boolean;
   distribution: CompatibilityBand[];
   /** The highest-scoring candidate. The page leads with it — but it is the
    *  first of `candidates`, not the only one anybody gets to see. */

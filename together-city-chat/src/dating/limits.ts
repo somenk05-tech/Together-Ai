@@ -11,8 +11,9 @@
  * signal that costs nothing carries nothing — the receiving end cannot tell
  * interest from a thumb moving down a list. The cap is not a monetisation
  * lever and must not become one by accident: it is what makes the like mean
- * something. This hub is defined against endless (see DATING_CHAT_CAP's note,
- * which is the same argument about conversations).
+ * something. (The conversation cap that used to make the same argument about
+ * talking was removed on 27 Aug; this one is about what a like means, and it
+ * stays.)
  *
  * WHY TWENTY. Set by the owner on 2 Aug, down from the 60 engineering had
  * chosen to unblock the work.

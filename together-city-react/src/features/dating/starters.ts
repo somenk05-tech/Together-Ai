@@ -81,30 +81,3 @@ export function startersFor(d: StarterSource): Starter[] {
   }
   return out.slice(0, 4);
 }
-
-/**
- * The sentence the introduction card says about WHY, read off the breakdown.
- *
- * Names the two or three strongest answered factors — never astrology, which
- * has its own sentence on the profile page and is nine tenths of the number
- * everywhere. Below 60 a factor is not a strength and is not claimed as one;
- * with nothing over the bar the card says the honest smaller thing.
- */
-export function strengthsSentence(
-  name: string,
-  b?: { personality: number; relationshipGoals: number; values: number; lifestyle: number; interests: number; location: number } | null,
-): string {
-  const rows: [string, number][] = b
-    ? [
-      ['values', b.values], ['lifestyle', b.lifestyle], ['relationship goals', b.relationshipGoals],
-      ['personality', b.personality], ['interests', b.interests], ['location', b.location],
-    ]
-    : [];
-  const strong = rows.filter(([, v]) => v >= 60).sort((a, z) => z[1] - a[1]).slice(0, 3).map(([k]) => k);
-  if (strong.length >= 2) {
-    const list = strong.length === 3 ? `${strong[0]}, ${strong[1]} and ${strong[2]}` : `${strong[0]} and ${strong[1]}`;
-    return `You and ${name} are strong across ${list}.`;
-  }
-  if (strong.length === 1) return `You and ${name} are strong on ${strong[0]}.`;
-  return `Your two charts sit well together — the rest is yours to find out.`;
-}

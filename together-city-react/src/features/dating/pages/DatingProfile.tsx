@@ -588,44 +588,6 @@ export function DatingProfilePage() {
 
     return (
       <div>
-        {/* ── THE SAME STATIONERY AS THE ROOMS NEXT DOOR (owner, 24 Aug:
-            "match this design to the reference image", holding up Potential
-            Matches' own note). The letterhead went onto Potential Matches and
-            Curated Matches on 23 Aug; this page still opened on a bare eyebrow
-            and an eye-emoji banner, so one hub greeted a citizen in two hands.
-            One card, third wearing — headed with the name the rail uses, like
-            both rooms before it.
-
-            THE CLAIM IN THE BOX IS THE BANNER'S OLD SENTENCE, because "this is
-            exactly what a match sees" IS this page's one big statement — the
-            eye emoji went with the banner, since the letterhead's tick already
-            carries the mark. The moderation label rides the labelled row as
-            plain words where "open to being found" rides it next door; the
-            coloured banner below survives for any state that carries a notice
-            or reasons, because a rejection's WHY cannot live in a label. */}
-        <header className="dnote">
-          <div className="dnote-top">
-            <h1 className="dnote-mark">My Dating Profile.</h1>
-            <span className="dnote-from">Together City &middot; Dating Hub</span>
-          </div>
-          <div className="dnote-rule" />
-          <div className="dnote-row">
-            <span className="dnote-to"><span className="dnote-lab">From:</span> <span className="dnote-val">You</span></span>
-            <span><span className="dnote-lab">Status:</span> <span className="dnote-val">{mod?.label ?? '\u2014'}</span></span>
-          </div>
-          <div className="dnote-box">
-            <p className="dnote-claim">This is exactly how your matches see you.</p>
-            <p className="dnote-sub">
-              Private settings &mdash; your visibility and your preferences &mdash; are never shown here.
-            </p>
-            <span className="dnote-tick" aria-hidden>
-              <svg viewBox="0 0 30 30" fill="none" stroke="currentColor" strokeWidth="1.6">
-                <path d="M4 17 L11 25 L27 2" />
-              </svg>
-            </span>
-          </div>
-          <span className="dnote-cap">Because who you meet should meet the real you</span>
-        </header>
         {(data?.moderation !== 'approved' || data?.notice || photoReviewNote) && <StatusBanner />}
         {completion && !completion.complete && <CompletionCard completion={completion} />}
 

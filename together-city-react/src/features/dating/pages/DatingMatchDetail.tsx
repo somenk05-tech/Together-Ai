@@ -272,15 +272,6 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
           </section>
         )}
 
-        {/* Intentional-dating notice */}
-        <div style={{ marginTop: 16, display: 'flex', gap: 12, alignItems: 'flex-start', background: 'var(--paper)', borderRadius: 'var(--r-2)', padding: '13px 16px' }}>
-          <span aria-hidden style={{ display: 'grid', placeItems: 'center', width: 34, height: 34, borderRadius: '50%', border: '1.5px solid var(--accent-ink)', color: 'var(--muted)', flex: 'none' }}>🔒</span>
-          <div style={{ fontSize: 12.5, lineHeight: 1.5 }}>
-            <strong>We believe in intentional dating.</strong> You can have up to three conversations
-            going at once. If one isn’t going anywhere, <strong>unmatch</strong> and move forward.
-          </div>
-        </div>
-
         {(connect.isError || unmatch.isError) && (
           <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, marginTop: 10 }}>{payError(connect.error ?? unmatch.error)}</p>
         )}
@@ -321,7 +312,7 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
           )}
         </div>
         <p className="muted" style={{ fontSize: 11.5, marginTop: 4, textAlign: 'center' }}>
-          {matched ? 'Chat opens in the Dating Hub — up to three at a time. Your first 3 are free.' : 'They’re notified only if you both choose each other.'}
+          {matched ? 'Chat opens in the Dating Hub.' : 'They’re notified only if you both choose each other.'}
         </p>
         <div style={{ marginTop: 14, textAlign: 'center' }}>
           <SafetyMenu userId={targetUserId} kind={kind} />

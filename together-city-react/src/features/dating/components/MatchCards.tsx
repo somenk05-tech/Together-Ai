@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui';
 import {
   useLikeMatch, usePassMatch, useLikeAllowance, useSuperLike, useUndoPass,
-  type CuratedMatch, type MatchKind, type CompatibilityBand, type DatingChatSummary,
+  type CuratedMatch, type MatchKind, type CompatibilityBand,
 } from '../api';
 import { SafetyMenu } from './SafetyMenu';
 // The band table, its names and inks, live in their own module: react-refresh
@@ -130,9 +130,8 @@ export function MatchStack({ people, kind }: { people: CuratedMatch[]; kind: Mat
  *   · "Skip", not "Pass" — the same action on two screens keeps one name.
  *
  * THE WORD ON THE BUTTON IS "CONNECT" because the owner's reference writes it
- * on the button. The room's rule at the top of the page still speaks of likes
- * — that copy is the owner's own three lines, pinned by its test — so the
- * captions here say "choose each other", which is both in one word.
+ * on the button, and the captions under it say "choose each other" — one word
+ * for the act, wherever the room mentions it.
  *
  * THE PHOTOGRAPH CARRIES A view-transition-name, and the profile's hero
  * carries the same one, so on browsers that support it the tap-through is the
@@ -301,28 +300,6 @@ export function Distribution({ bands, total, highlightScore }: { bands: Compatib
         Everyone here fits what you asked for, listed strongest first. Nine tenths of the
         percentage is your two charts; the rest is what you have both answered.
       </p>
-    </div>
-  );
-}
-
-/** Shown once the conversation cap is reached. It sits BELOW the matches rather
- *  than replacing them — a match is not something to hide from the person who
- *  made it, and the cap is about starting a new chat, not about looking. */
-export function EngagedPanel({ chat, openChats, cap }: { chat: DatingChatSummary | null; openChats: number; cap: number }) {
-  return (
-    <div className="card" style={{ padding: '22px 20px', textAlign: 'center' }}>
-      <div style={{ fontSize: 34 }}>💬</div>
-      <h2 style={{ fontSize: 17, margin: '6px 0 4px' }}>
-        {openChats === 1 ? `You’re getting to know ${chat ? chat.name : 'someone'}` : `You have ${openChats} conversations going`}
-      </h2>
-      <p className="muted" style={{ fontSize: 13, margin: '0 auto 16px', maxWidth: 380, lineHeight: 1.55 }}>
-        Intentional dating means {cap} conversations at a time. Your matches stay right
-        here — unmatch one and the next chat opens.
-      </p>
-      <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-        <Link to={chat ? `/dating/chats?c=${chat.conversationId}` : '/dating/chats'}><Button variant="accent">Open your chat</Button></Link>
-        <Link to="/dating/chats"><Button variant="line">Dating chats</Button></Link>
-      </div>
     </div>
   );
 }

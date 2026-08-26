@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { useDatingProfile, useDatingStack, useDatingChats, type CuratedMatch, type DatingProfile, type MatchKind } from '../api';
-import { EngagedPanel } from '../components/MatchCards';
+import { useDatingProfile, useDatingStack, type CuratedMatch, type DatingProfile, type MatchKind } from '../api';
 
 /**
  * ── CURATED MATCHES: THE PEOPLE WHO CHOSE YOU BACK ──────────────────────────
@@ -21,11 +20,11 @@ import { EngagedPanel } from '../components/MatchCards';
  * left this file is in `components/MatchCards.tsx`, rendered by Potential
  * Matches.
  *
- * A MATCH IS NEVER HIDDEN BY THE CAP. The chat limit is three conversations,
- * and the old page swapped the whole list for the "you're getting to know
- * someone" panel when you hit it. Here the panel sits BELOW your matches
- * rather than instead of them: at capacity what is paused is starting
- * something new, not seeing the people who already chose you.
+ * THERE IS NO CAP ANY MORE (owner, 27 Aug: "let users have unlimited
+ * conversations with curated matches... there should be no limit"). The three
+ * -conversation limit, the panel that announced reaching it, and the band that
+ * explained it are all gone: a match is a person who chose you back, and
+ * nothing about this page rations talking to them.
  *
  * ── AND WHAT IT IS NOW ──────────────────────────────────────────────────────
  *
@@ -45,12 +44,10 @@ import { EngagedPanel } from '../components/MatchCards';
  * outright when the profile behind it is empty. A dash where a fact should
  * be is the same lie as an invented one, told more quietly.
  *
- * THE RAIL IS THREE THINGS THIS PAGE ALREADY KNEW. The hub's rule about
- * intentional dating, the two counts that are real — matches and open
- * conversations — and the citizen's own preferences read off their profile.
- * There is no view count and no likes-received: nothing in the city records
- * either, and a rail that shows a zero for something nobody measures is worse
- * than a rail that says so in one line.
+ * THE RAIL IS ONE THING NOW (owner, 27 Aug). The manifesto band and the
+ * activity tiles went out with the rest of the room's editorial voice; the
+ * citizen's own preferences stay, because that panel is a door to a setting
+ * rather than a sentence about the product.
  */
 
 /** How somebody's own preferences are stored: keys inside the dating
@@ -120,7 +117,6 @@ export function DatingMatches() {
   // This room keeps people; it never renders `candidates`. One is enough
   // for `top`, and it stops a 2,000-card payload refetching every 30 s.
   const stack = useDatingStack(kind, Boolean(profile.data), 1);
-  const chats = useDatingChats();
 
   if (profile.isLoading) return <Spinner label="Consulting the stars…" />;
 
@@ -156,10 +152,6 @@ export function DatingMatches() {
     );
   }
 
-  const chatCap = stack.data?.chatCap ?? 3;
-  const openChats = stack.data?.openChats ?? (chats.data?.filter((c) => c.conversationId).length ?? 0);
-  const atCapacity = stack.data?.atCapacity ?? openChats >= chatCap;
-  const activeChat = chats.data?.[0] ?? null;
   const matched = stack.data?.matched ?? [];
   const prefs = readPrefs(profile.data.extras);
   const ageRange = prefs.prefAgeMin && prefs.prefAgeMax ? `${prefs.prefAgeMin}–${prefs.prefAgeMax}`
@@ -168,53 +160,6 @@ export function DatingMatches() {
 
   return (
     <div>
-      {/* ── THE SAME NOTE AS THE ROOM NEXT DOOR (owner, 23 Aug) ─────────────
-          Potential Matches got the stationery card and this is its pair, so the
-          two rooms a citizen moves between are one object seen twice. Same
-          `.dnote-*` block, not a copy of it.
-
-          THE WORDS ARE THE LEDE, BROKEN AT ITS OWN PUNCTUATION. The card wants
-          a large line, a small one and a caption, and the paragraph had two
-          sentences — so the second breaks at its comma: "…only by liking you
-          back." / "Which is why this list is short, and why chat opens on it."
-          The comma becomes a full stop, `which` takes a capital, and a comma
-          joins the two clauses that are now alone in a line. Not a word is
-          added or dropped.
-
-          AND NO DISPLAY FACE, because the room next door has none. `.dt-who`
-          and the band keep `.dating-display` and should: the serif is this
-          hub's voice for PEOPLE and for the house speaking, and the masthead
-          is a printed note. Two registers on purpose, rather than a serif
-          masthead here and a sans one thirty pixels away in the rail.
-
-          THE COUNT WAITS. `matched` is empty until the stack resolves, and
-          "0 people" for a second is the page's own bad news arriving early —
-          the same argument the error branch below makes. */}
-      <header className="dnote">
-        <div className="dnote-top">
-          <h1 className="dnote-mark">Curated Matches.</h1>
-          <span className="dnote-from">Together City &middot; Dating Hub</span>
-        </div>
-        <div className="dnote-rule" />
-        <div className="dnote-row">
-          <span className="dnote-to"><span className="dnote-lab">To:</span> <span className="dnote-val">You</span></span>
-          <span><span className="dnote-lab">Chose you back:</span> <span className="dnote-val">
-            {matched.length > 0 ? `${matched.length} ${matched.length === 1 ? 'person' : 'people'}` : '\u2014'}</span></span>
-        </div>
-        <div className="dnote-box">
-          <p className="dnote-claim">The people you and they both chose.</p>
-          <p className="dnote-sub">
-            Nobody arrives here by being scored highly &mdash; only by liking you back.
-          </p>
-          <span className="dnote-tick" aria-hidden>
-            <svg viewBox="0 0 30 30" fill="none" stroke="currentColor" strokeWidth="1.6">
-              <path d="M4 17 L11 25 L27 2" />
-            </svg>
-          </span>
-        </div>
-        <span className="dnote-cap">Which is why this list is short, and why chat opens on it</span>
-      </header>
-
       <div className="dt-wrap">
         <div className="dt-col">
           {stack.isLoading ? (
@@ -244,47 +189,9 @@ export function DatingMatches() {
               </div>
             </>
           )}
-
-          {/* The same notice the match detail page carries, shown ONCE for the
-              page rather than repeated under every person — it is a rule about
-              how this hub works, not a property of anybody on it. */}
-          <aside className="dt-band">
-            <p className="dating-display">We believe in intentional dating.</p>
-            <p>
-              You can have up to {chatCap} conversations going at once. If one isn’t going
-              anywhere, <strong>unmatch</strong> and move forward.
-            </p>
-          </aside>
-
-          {/* BELOW THE MATCHES, NEVER INSTEAD OF THEM. At capacity what is paused
-              is starting something new — the people who already chose you are
-              still yours to see. */}
-          {atCapacity && !stack.isLoading && !stack.isError && (
-            <div style={{ marginTop: 24 }}>
-              <EngagedPanel chat={activeChat} openChats={openChats} cap={chatCap} />
-            </div>
-          )}
-
-          {matched.length > 0 && !atCapacity && (
-            <p className="dt-onward">
-              Looking for more? Browse <Link to="/dating/browse">Potential Matches</Link>.
-            </p>
-          )}
         </div>
 
         <aside className="dt-rail">
-          <section className="dt-panel">
-            <h2 className="dt-panel-h">Your activity</h2>
-            <dl className="dt-stats">
-              <div><dt>Matches</dt><dd>{matched.length}</dd></div>
-              <div><dt>Conversations</dt><dd>{openChats}</dd></div>
-            </dl>
-            {/* Two numbers, and a line about the ones that are not here. The
-                city counts neither profile views nor likes received, so a
-                third and fourth tile would have had to be invented. */}
-            <p className="dt-note">Views and likes received aren’t counted.</p>
-          </section>
-
           <section className="dt-panel">
             <h2 className="dt-panel-h">Your preferences</h2>
             <dl className="dt-stats">

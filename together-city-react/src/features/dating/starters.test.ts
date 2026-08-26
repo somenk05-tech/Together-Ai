@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { startersFor, strengthsSentence } from './starters';
+import { startersFor } from './starters';
 
 /**
  * The starters are read off the profile, never invented — so their shape is a
@@ -38,18 +38,4 @@ describe('what to say first, made from what they said', () => {
     expect(startersFor({ name: 'Hans' })[0].label).toBe('Hans’ ideal Sunday');
   });
 
-  it('claims only factors that are actually strong, and never astrology', () => {
-    // Strongest first — the order is the numbers' own, not the brief's prose.
-    expect(strengthsSentence('Mira', {
-      personality: 40, relationshipGoals: 96, values: 94, lifestyle: 91, interests: 30, location: 20,
-    })).toBe('You and Mira are strong across relationship goals, values and lifestyle.');
-    expect(strengthsSentence('Mira', {
-      personality: 10, relationshipGoals: 20, values: 61, lifestyle: 12, interests: 30, location: 20,
-    })).toBe('You and Mira are strong on values.');
-    // Nothing over the bar: the honest smaller sentence, no invented strength.
-    expect(strengthsSentence('Mira', {
-      personality: 10, relationshipGoals: 20, values: 30, lifestyle: 12, interests: 30, location: 20,
-    })).toMatch(/yours to find out/);
-    expect(strengthsSentence('Mira', null)).toMatch(/yours to find out/);
-  });
 });

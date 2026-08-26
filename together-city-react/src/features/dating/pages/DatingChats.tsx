@@ -13,7 +13,7 @@ import { MiraMark } from '@/features/chat/mira/MiraMark';
 import { MiraConfidant } from '@/features/chat/mira/MiraConfidant';
 import { Composer } from '@/features/chat/components/Composer';
 import { MessageBody } from '@/features/chat/components/MessageBody';
-import { ConnectionIntro, ConversationIdeas, CompatibilitySheet, EmptyIntro } from '../components/ChatPieces';
+import { ConversationIdeas, CompatibilitySheet, EmptyIntro } from '../components/ChatPieces';
 import { startersFor } from '../starters';
 import { useChatRoom } from '@/hooks/useChatRoom';
 import { useScaleLock } from '@/hooks/useScaleLock';
@@ -420,7 +420,6 @@ function Thread({ chat, meId, mePhoto, onBack }: { chat: OpenChat; meId: string;
             d={d} onPick={pick} />
         ) : (
           <>
-            <ConnectionIntro name={chat.name} score={chat.score} d={d} />
             {messages.map((m, i) => {
               const mine = m.senderId === meId;
               const prev = messages[i - 1];
@@ -514,12 +513,6 @@ export function DatingChats() {
 
   return (
     <div>
-      <div className="eyebrow">Dating Hub · Chats</div>
-      <h1 style={{ fontSize: 26 }}>Your dating chats</h1>
-      <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px' }}>
-        A few conversations, not endless ones. These chats live only here — never in your main Chats.
-      </p>
-
       {chats.isLoading ? (
         <Spinner label="Loading your chats…" />
       ) : chats.isError ? (

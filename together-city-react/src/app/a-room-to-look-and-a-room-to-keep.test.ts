@@ -123,24 +123,49 @@ describe('a room to look in, and a room to keep', () => {
     expect(curated).not.toMatch(/useLikeMatch|usePassMatch|useSuperLike|MatchCard\b/);
   });
 
-  it('does not hide a match behind the conversation cap', () => {
-    // The old page swapped the whole list for the engaged panel at capacity.
-    // At capacity what is paused is starting something new, not seeing the
-    // people who already chose you — so the panel is a sibling below, and the
-    // matched branch is reached first.
+  /**
+   * AND THERE IS NO CAP TO HIDE ONE BEHIND (owner, 27 Aug: "let users have
+   * unlimited conversations with curated matches... there should be no
+   * limit").
+   *
+   * This guard used to hold the softer version of the same idea: three
+   * conversations at once, with the panel that announced reaching the limit
+   * placed BELOW the matches rather than instead of them. The limit itself is
+   * gone now — from the page, from the payload, and from the connect
+   * endpoint — so what is pinned is its absence, on the room where it was
+   * most visible.
+   */
+  it('holds no conversation cap, anywhere in the room', () => {
     expect(curated).toMatch(/matched\.length > 0 \? \(/);
-    expect(curated).toMatch(/\{atCapacity && !stack\.isLoading && !stack\.isError && \(/);
-    expect(curated.indexOf('matched.length > 0 ? (')).toBeLessThan(curated.indexOf('{atCapacity &&'));
+    for (const gone of ['atCapacity', 'chatCap', 'EngagedPanel']) {
+      expect({ gone, inRoom: curated.includes(gone) }).toEqual({ gone, inRoom: false });
+    }
+    // And nothing in the hub still draws the panel or offers the type.
+    expect(cards).not.toMatch(/EngagedPanel/);
+    // `code` strips comments: the type file NAMES the fields it dropped.
+    expect(code('features/dating/api.ts')).not.toMatch(/chatCap|atCapacity/);
   });
 
-  it('draws a person from one component in both rooms', () => {
+  /**
+   * ONE BROWSE CARD, AND ONE CURATED CARD, AND NEITHER IS A COPY OF THE OTHER.
+   *
+   * This began as "both rooms draw a person from one component", which was
+   * right while both rooms were drawing the same object. Since 27 Aug they are
+   * not: the browse card is a full-bleed photograph you act on in place, and
+   * the curated card is a door that ends at the person's own words. What still
+   * must not happen is the browse card being re-implemented next door — that is
+   * how two rooms start disagreeing about what a percentage means.
+   */
+  it('draws the browse card from one component, and never a second copy of it', () => {
     expect(browse).toMatch(/from '\.\.\/components\/MatchCards'/);
-    expect(curated).toMatch(/from '\.\.\/components\/MatchCards'/);
     // The definitions live there and nowhere else.
     expect(cards).toMatch(/export function MatchCard\(/);
     expect(cards).toMatch(/export function MatchStack\(/);
     expect(browse).not.toMatch(/function MatchCard\(/);
-    expect(curated).not.toMatch(/function MatchStack\(/);
+    expect(curated).not.toMatch(/function MatchCard\(|function MatchStack\(/);
+    // Curated draws its own one card, and it is the door to the profile.
+    expect(curated).toMatch(/function CuratedCard\(/);
+    expect(curated).toMatch(/to=\{`\/dating\/match\?u=\$\{match\.user\.id\}/);
   });
 
   it('names the journey on both sides, so nobody has to discover it', () => {

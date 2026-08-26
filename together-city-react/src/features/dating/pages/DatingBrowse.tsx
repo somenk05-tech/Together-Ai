@@ -48,8 +48,6 @@ const BROWSE_PAGE = 200;
  *   · minus people whose own stated filters exclude you — age, height, distance,
  *     deal-breakers. Showing somebody whose door is locked from the other side
  *     is not showing them.
- *   · minus anyone who set their own visibility to "only above my threshold"
- *     and whose threshold you do not meet. Their setting, not ours to relax.
  *   · minus people you have skipped, and people you have already matched — the
  *     matched are not gone, they are in Curated Matches, which is the whole
  *     point of the two rooms.
@@ -158,52 +156,6 @@ export function DatingBrowse() {
 
   return (
     <div>
-      {/* ── THE NOTE (owner, 23 Aug, with a piece of stationery for reference)
-          A bold wordmark over a heavy rule, a labelled row, a boxed field with
-          one large line in it, a ticked box, a letterspaced caption. The owner
-          chose the variant that borrows no typeface, so every word here is set
-          in the face the rest of the application uses.
-
-          THE WORDMARK IS THE ROOM'S OWN NAME. The rail and config/hubs.ts say
-          "Potential Matches"; a card that said "MATCHES." would be a room with
-          two names, which is a thing a citizen has to learn twice.
-
-          THE COUNT IS REAL AND IT WAITS. `everyone` is empty until discover
-          resolves, and "0 people" for a second is a small, plausible,
-          disheartening lie about somebody's whole city — the same argument the
-          error branch below makes. So the row shows it only when there is one. */}
-      <header className="dnote">
-        <div className="dnote-top">
-          <h1 className="dnote-mark">Potential Matches.</h1>
-          <span className="dnote-from">Together City &middot; Dating Hub</span>
-        </div>
-        <div className="dnote-rule" />
-        <div className="dnote-row">
-          <span className="dnote-to"><span className="dnote-lab">To:</span> <span className="dnote-val">You</span></span>
-          <span><span className="dnote-lab">Open to being found:</span> <span className="dnote-val">
-            {everyone.length > 0 ? `${everyone.length} people` : '\u2014'}</span></span>
-        </div>
-        <div className="dnote-box">
-          {/* THE OWNER'S THREE LINES, 23 Aug, pinned exactly by
-              a-note-not-a-paragraph.test.ts. Not this commit's to rewrite: what
-              the number is made of is said on the card, next to the number. */}
-          <p className="dnote-claim">Stop investing your time in the wrong connections.</p>
-          <p className="dnote-sub">
-            Discover your compatibility first. Then start getting to know each other.
-          </p>
-          <span className="dnote-tick" aria-hidden>
-            <svg viewBox="0 0 30 30" fill="none" stroke="currentColor" strokeWidth="1.6">
-              <path d="M4 17 L11 25 L27 2" />
-            </svg>
-          </span>
-        </div>
-        <span className="dnote-cap">Because meaningful relationships should begin with intention</span>
-        <p className="dnote-fine">
-          Nobody is hidden for scoring low. Like someone and they hear nothing; like each other and
-          you both do.
-        </p>
-      </header>
-
       <UndoAndAllowance kind={kind} />
 
       {/* THE ROOM NEXT DOOR, NAMED ON THE WAY IN. The journey the owner asked

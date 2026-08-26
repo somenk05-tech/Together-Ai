@@ -49,14 +49,17 @@ const CURATED_MIN_COMPLETION = 40;
  * 137 of the 500 people we looked at" is a sentence the page can say honestly.
  * A silent bound is the thing this change is removing; a stated one is a fact.
  */
-/**
- * How many dating conversations one citizen may have open at once.
+/*
+ * THERE IS NO CAP ON OPEN CONVERSATIONS (owner, 27 Aug: "let users have
+ * unlimited conversations with curated matches... there should be no limit").
  *
- * Was hardcoded as exactly one. Three is the same three as the free
- * connections, so the two limits in this hub are one number rather than two,
- * and it is small enough that "intentional" still means something.
+ * `DATING_CHAT_CAP` stood here — one, then three — and it was enforced in
+ * `connectChat` and reported by `stack()` as `chatCap`/`atCapacity`. All of it
+ * is gone: a match is somebody who chose you back, and rationing the talking
+ * afterwards made the second match a punishment for the first. The daily LIKE
+ * allowance in limits.ts is untouched; that one is about what a like means,
+ * not about who you may answer.
  */
-export const DATING_CHAT_CAP = 3;
 
 const SCORING_POOL = 500;
 
@@ -1238,19 +1241,8 @@ export class DatingService implements OnModuleInit {
       where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: 'matched', conversationId: { not: null } },
     });
     const engaged = Boolean(engagedRow);
-    // How many are actually open, so the page can say "two of three" rather than
-    // hiding the stack the moment a single conversation exists.
-    //
-    // try/catch around the WHOLE access, not just the promise: reaching for
-    // `.count` on a delegate that does not have it throws synchronously, before
-    // there is a promise for `.catch` to attach to. Falling back to the boolean
-    // is the honest degradation — we know there is at least one.
-    let openChats = engaged ? 1 : 0;
-    try {
-      openChats = await this.prisma.datingMatch.count({
-        where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: 'matched', conversationId: { not: null } },
-      });
-    } catch { /* keep the boolean-derived count */ }
+    // The count of open conversations was read here to say "two of three".
+    // With no cap there is no denominator, and nothing renders the numerator.
 
     // Narrowed, capped and ordered — see POOL_CEILING.
     const myDForQuery = this.parseDX((mine as { extras?: string | null }).extras);
@@ -1374,7 +1366,6 @@ export class DatingService implements OnModuleInit {
       // The cap is reported, never silent. If it bound, the citizen is looking at
       // the most recently active POOL_CEILING profiles and not at the city.
       poolSize: candidates.length, poolCapped: candidates.length >= POOL_CEILING,
-      openChats, chatCap: DATING_CHAT_CAP, atCapacity: openChats >= DATING_CHAT_CAP,
       // Rendered, not logged. Once the weights differ per person so does the
       // percentage, and a screen showing the new number under the old sentence
       // would be lying quietly.
@@ -1868,30 +1859,9 @@ export class DatingService implements OnModuleInit {
     if (state.status !== 'matched') throw new NotFoundException('No active match to connect to.');
     if (state.conversationId) return { conversationId: state.conversationId, alreadyOpen: true, chargedInr: 0 };
 
-    // Intentional dating: a few conversations, not one, and not endless.
-    //
-    // This was exactly one. Matching with somebody you could not talk to until
-    // you unmatched somebody else made the second match a punishment for the
-    // first, and the hub's whole job is to produce matches.
-    //
-    // THREE, and the number is not arbitrary. It is the same three as the free
-    // connections, so the two limits a citizen meets in this hub are one number
-    // rather than two — and it is small enough that "intentional" still means
-    // something. Endless is the thing this product is defined against.
-    // findMany + length rather than count(): this path decides whether somebody
-    // is allowed to open a conversation, so it must not depend on a delegate
-    // method the rest of this service never uses.
-    // unbounded: their matches — the product caps how many can exist
-    const others = await this.prisma.datingMatch.findMany({
-      where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: 'matched', conversationId: { not: null }, id: { not: state.id } },
-      select: { id: true },
-    });
-    const openCount = others.length;
-    if (openCount >= DATING_CHAT_CAP) {
-      throw new BadRequestException(
-        `You have ${openCount} conversations open, which is as many as this hub allows at once. Unmatch one to start another — the match itself stays until you do.`,
-      );
-    }
+    // NO CAP (owner, 27 Aug). The read that counted somebody's other open
+    // conversations, and the refusal it fed, are both gone — see the note
+    // where DATING_CHAT_CAP used to be declared.
 
     // FREE AT LAUNCH (owner decision, 26 Aug). The ₹199 unlock after three
     // connections is gone with the wallet path that took it: a launch has no
