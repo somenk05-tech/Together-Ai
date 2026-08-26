@@ -396,18 +396,25 @@ export class DatingService implements OnModuleInit {
   /**
    * PUT THE SELFIE ON FILE (owner, 27 Aug).
    *
-   * The bytes have already gone browser→bucket through the same presigned PUT
-   * the profile photos use, so what arrives here is a key. Two things make this
-   * a mark rather than a claim: it is written by the server, and the key must
-   * belong to this citizen — `dating/<someone-else>/…` is refused, exactly as
-   * `ownPhotosOnly` refuses it on the photo path.
+   * The bytes have already gone browser→bucket through a presigned PUT, so what
+   * arrives here is a key. Three things make this a mark rather than a claim:
+   * it is written by the server; the key must belong to this citizen; and the
+   * key must be a SELFIE key.
+   *
+   * THE SELFIE IS NOT A PHOTOGRAPH ANYBODY CHOSE TO SHOW (owner, 27 Aug: "the
+   * selfie should not become the part of the profile pictures displayed, that
+   * should be only for verification"). It lives in its own storage namespace,
+   * so `isOwnDatingKey` — the check that decides what may appear on a profile —
+   * does not match it, and this check does not match a profile photo either.
+   * Two questions, two answers, about the same string. Neither can drift into
+   * the other by somebody widening one prefix.
    *
    * It is deliberately NOT proof of identity, and every surface that draws it
    * says so. What it proves is that a selfie is on file.
    */
   async saveSelfie(userId: string, key: string) {
-    if (!StorageProvider.isOwnDatingKey(userId, key)) {
-      throw new BadRequestException('That photo does not belong to this profile.');
+    if (!StorageProvider.isOwnDatingSelfieKey(userId, key)) {
+      throw new BadRequestException('That image is not a selfie taken for this profile.');
     }
     const row = await this.prisma.datingProfile.findUnique({ where: { userId }, select: { extras: true } });
     if (!row) throw new NotFoundException('Create your dating profile before adding a selfie.');
@@ -417,6 +424,10 @@ export class DatingService implements OnModuleInit {
       where: { userId },
       data: { extras: JSON.stringify({ ...dx, [SELFIE_KEY]: key, [SELFIE_AT]: at }) },
     });
+    // A retake REPLACES; the frame it replaced is no longer referenced by
+    // anything and is kept by nothing. Off the request path and swallowed: the
+    // mark is already written, and a storage hiccup must not undo it.
+    await this.dropSelfieObject(dx[SELFIE_KEY], key);
     await this.bumpListVersion(userId);
     // No analytics event: the funnel's step names are a closed union and a new
     // one belongs to the funnel's own decision, not to this fix.
@@ -429,16 +440,33 @@ export class DatingService implements OnModuleInit {
     const row = await this.prisma.datingProfile.findUnique({ where: { userId }, select: { extras: true } });
     if (!row) throw new NotFoundException('No dating profile to change.');
     const dx = this.parseDX(row.extras) as Record<string, unknown>;
+    const had = dx[SELFIE_KEY];
     delete dx[SELFIE_KEY];
     delete dx[SELFIE_AT];
     await this.prisma.datingProfile.update({ where: { userId }, data: { extras: JSON.stringify(dx) } });
+    // "Remove" means removed. A selfie kept in a bucket after the citizen asked
+    // for it to go is the same broken promise as one shown on their profile.
+    await this.dropSelfieObject(had, null);
     await this.bumpListVersion(userId);
     return { selfieOnFile: false, selfieAt: null };
+  }
+
+  /** Delete a superseded selfie object, if there is one and it is not the key
+   *  that just replaced it. Best-effort by design — see the callers. */
+  private async dropSelfieObject(old: unknown, keeping: string | null) {
+    if (typeof old !== 'string' || old === '' || old === keeping) return;
+    await swallow(this.storage.deletePrivateObject(old), 'dating: drop superseded selfie');
   }
 
   /** A presigned PUT for one dating photo. Private bucket; the key comes back. */
   async presignPhoto(userId: string, mimeType: string, sizeBytes: number) {
     return this.media.requestDatingUpload(userId, mimeType, sizeBytes);
+  }
+
+  /** A presigned PUT for a verification selfie. A DIFFERENT namespace from the
+   *  photos, which is what keeps it off the profile — see saveSelfie. */
+  async presignSelfie(userId: string, mimeType: string, sizeBytes: number) {
+    return this.media.requestDatingSelfieUpload(userId, mimeType, sizeBytes);
   }
 
   /**

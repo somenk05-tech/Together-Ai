@@ -49,6 +49,7 @@ describe('a mark nobody can write themselves', () => {
   const profile = code('features/dating/pages/DatingProfile.tsx');
   const detail = code('features/dating/pages/DatingMatchDetail.tsx');
   const api = code('features/dating/api.ts');
+  const api2 = code('api/media.api.ts');
 
   it('never writes the mark from the browser', () => {
     // Not into extras, not into the form state, not anywhere. The words may
@@ -59,10 +60,9 @@ describe('a mark nobody can write themselves', () => {
   });
 
   it('sends the bucket key to the endpoint that owns the mark', () => {
-    // The frame goes where every other dating photo goes — presigned PUT to the
-    // private bucket — and only the key travels on. A data URL here would be
-    // the old bug wearing the new endpoint's clothes.
-    expect(profile).toMatch(/mediaApi\.uploadDating\(new File\(\[blob\]/);
+    // Presigned PUT to the private bucket, and only the key travels on. A data
+    // URL here would be the old bug wearing the new endpoint's clothes.
+    expect(profile).toMatch(/mediaApi\.uploadDatingSelfie\(new File\(\[blob\]/);
     expect(profile).toMatch(/onSaved=\{\(key\) => saveSelfie\.mutate\(key\)\}/);
     expect(api).toMatch(/saveSelfie: \(key: string\) => api\.post<[^>]*>\('\/dating\/selfie'/);
     expect(api).toMatch(/clearSelfie: \(\) => api\.delete<[^>]*>\('\/dating\/selfie'\)/);
@@ -81,6 +81,26 @@ describe('a mark nobody can write themselves', () => {
   it('says the failure out loud, because a silent one is what this was', () => {
     expect(profile).toMatch(/failed: string \| null/);
     expect(profile).toMatch(/saveSelfie\.isError \?/);
+  });
+
+  /**
+   * AND IT IS NOT ONE OF THEIR PICTURES (owner, 27 Aug: "the selfie should not
+   * become the part of the profile pictures displayed, that should be only for
+   * verification").
+   *
+   * The selfie shipped into the SAME storage namespace as the photos, so
+   * nothing but convention kept it off a profile. It now writes to a namespace
+   * of its own through a route of its own — `uploadDating` would put it back
+   * among the pictures, and `ownPhotosOnly` would then happily show it. The
+   * server half of this is pinned in dating/photo-storage.spec.ts.
+   */
+  it('uploads the selfie somewhere a photo list cannot reach', () => {
+    expect(api2).toMatch(/uploadDatingSelfie[\s\S]{0,300}'\/dating\/selfie\/presign'/);
+    // The photo route stays the photo route: one call each, neither borrowed.
+    expect(api2).toMatch(/uploadDating\(file: File\)[\s\S]{0,300}'\/dating\/photos\/presign'/);
+    // And the page still promises it in words, next to the button.
+    expect(read('features/dating/pages/DatingProfile.tsx'))
+      .toMatch(/It is never added to your photos\./);
   });
 
   /**

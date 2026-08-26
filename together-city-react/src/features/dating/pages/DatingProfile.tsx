@@ -251,10 +251,14 @@ function SelfieVerify({ onFile, onSaved, onClear, saving, clearing, failed }: {
     // written for bytes that never arrived would be the old bug with a longer
     // journey. The camera stays on until the upload lands, so a failure can be
     // retried from the same open sheet.
+    //
+    // uploadDatingSelfie, NOT uploadDating: the selfie writes into a namespace
+    // of its own, which is what makes "never shown on your profile" a fact
+    // about the key rather than a promise about the code around it.
     const blob = await new Promise<Blob | null>((res) => c.toBlob(res, 'image/jpeg', 0.85));
     if (!blob) { setErr('The camera frame could not be read. Please try again.'); setBusy(false); return; }
     try {
-      const key = await mediaApi.uploadDating(new File([blob], 'selfie.jpg', { type: 'image/jpeg' }));
+      const key = await mediaApi.uploadDatingSelfie(new File([blob], 'selfie.jpg', { type: 'image/jpeg' }));
       onSaved(key);
       stop(); setOpen(false);
     } catch (e) {

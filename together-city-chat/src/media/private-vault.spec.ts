@@ -119,6 +119,10 @@ describe('the vault is routed to the private bucket, and returns no public URL',
     ['presignHealthUpload', 'health/'],
     ['presignDriveUpload', 'drive/'],
     ['presignDatingUpload', 'dating/'],
+    // Its own prefix, and that IS the feature: a verification selfie is never
+    // displayed, and `ownPhotosOnly` admits anything under `dating/<me>/`.
+    // One prefix per thing that can be owned — see the daybook's own note.
+    ['presignDatingSelfieUpload', 'dating-selfie/'],
   ] as const;
 
   it.each(PRIVATE)('%s writes to the private bucket', (fn, prefix) => {

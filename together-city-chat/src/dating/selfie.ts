@@ -9,11 +9,19 @@
  * Nothing ever wrote it anywhere else. So a citizen took a selfie, saved the
  * profile, and the page said "No selfie yet" again, forever.
  *
- * THE FIX IS NOT TO TRUST THE BLOB. The bytes go to the same private bucket the
- * profile photos already use, and the KEY is written by a dedicated endpoint
- * under the server's own hand. A profile save may neither set the mark nor
- * clear it: `carrySelfie` strips whatever the client sent and re-applies what
- * the record already held, so an edit cannot forge a selfie and cannot lose one.
+ * THE FIX IS NOT TO TRUST THE BLOB. The bytes go to the private bucket and the
+ * KEY is written by a dedicated endpoint under the server's own hand. A profile
+ * save may neither set the mark nor clear it: `carrySelfie` strips whatever the
+ * client sent and re-applies what the record already held, so an edit cannot
+ * forge a selfie and cannot lose one.
+ *
+ * AND IT IS NOT A PICTURE ANYBODY CHOSE TO SHOW (owner, same day: "the selfie
+ * should not become the part of the profile pictures displayed, that should be
+ * only for verification"). It has its own storage namespace —
+ * `dating-selfie/<userId>/`, not the photos' `dating/<userId>/` — so the check
+ * that decides what may appear on a profile cannot match a selfie key, and the
+ * check that accepts a selfie cannot match a photo. The promise is a property
+ * of the string, not of the code that happens to be around it.
  *
  * WHAT THE MARK DOES NOT MEAN is unchanged, and it is stated wherever it is
  * drawn (components/SelfieOnFile.tsx): a selfie is on file, nothing has

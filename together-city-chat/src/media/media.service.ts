@@ -81,6 +81,20 @@ export class MediaService {
     return this.storage.presignDatingUpload(userId, mimeType, ext);
   }
 
+  /**
+   * Presign a PUT for a VERIFICATION SELFIE. Same rules as a dating photo —
+   * same allowlist, same ceiling — into its own namespace, because the one
+   * thing that must be true of a selfie is that it can never be filed as a
+   * photo somebody chose to show. See presignDatingSelfieUpload.
+   */
+  async requestDatingSelfieUpload(userId: string, mimeType: string, sizeBytes: number): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
+    const ext = DATING_PHOTO_MIME[mimeType];
+    if (!ext) throw new BadRequestException('A selfie must be a JPEG, PNG, WebP or HEIC image.');
+    if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) throw new BadRequestException('Say how large the selfie is.');
+    if (sizeBytes > DATING_PHOTO_MAX_BYTES) throw new BadRequestException(`A selfie must be under ${Math.round(DATING_PHOTO_MAX_BYTES / 1024 / 1024)} MB.`);
+    return this.storage.presignDatingSelfieUpload(userId, mimeType, ext);
+  }
+
   /** Presign a PUT into the PRIVATE health vault (no public URL is returned). */
   async requestPrivateUpload(userId: string, mimeType: string, sizeBytes: number): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
     const max = this.config.get<number>('policy.maxUploadBytes') ?? 52428800;

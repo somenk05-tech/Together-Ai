@@ -108,6 +108,20 @@ export const mediaApi = {
     return res.key;
   },
 
+  /**
+   * Upload a VERIFICATION SELFIE. Its own route, because it writes into its own
+   * storage namespace — the selfie is never displayed, and the one way to be
+   * sure of that is for a photo list to be unable to accept the key at all.
+   * Owner, 27 Aug: "that should be only for verification."
+   */
+  async uploadDatingSelfie(file: File): Promise<string> {
+    const { file: safe } = await scrubImage(file, 'private');
+    const res = await apiPost('/dating/selfie/presign', { mimeType: safe.type, sizeBytes: safe.size },
+      z.object({ uploadUrl: z.string(), key: z.string(), expiresInSec: z.number().optional() }));
+    await axios.put(res.uploadUrl, safe, { headers: { 'Content-Type': safe.type } });
+    return res.key;
+  },
+
   /** Upload to the PRIVATE health vault — returns the key only (no public URL).
    *  The file is viewable later solely via a short-lived signed link.
    *  A scan we cannot take apart still goes: nobody should be unable to file

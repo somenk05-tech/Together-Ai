@@ -254,6 +254,39 @@ export class StorageProvider implements OnModuleInit {
   }
 
   /**
+   * Presign a PUT for a VERIFICATION SELFIE — and its own prefix is the point.
+   *
+   * Owner, 27 Aug: "the selfie should not become the part of the profile
+   * pictures displayed, that should be only for verification."
+   *
+   * It shipped under `dating/<userId>/` — the same namespace as the photos
+   * people choose to show. Nothing displayed it, but nothing STOPPED it being
+   * displayed either: `ownPhotosOnly` admits any key in that namespace, so one
+   * line placing the selfie in `extras.photos` would have put a frame nobody
+   * chose to show onto a profile, and no check anywhere could have told the
+   * two apart afterwards. This module already carries the rule, written for
+   * the daybook two weeks earlier: ONE PREFIX PER THING THAT CAN BE OWNED.
+   *
+   * So a selfie lives at `dating-selfie/<userId>/`, `isOwnDatingKey` does not
+   * match it, and "not a profile photo" stops being a convention and becomes
+   * something the type of the key says. Same private bucket, same short signed
+   * GETs — it is a stricter thing than a photo, not a laxer one.
+   */
+  async presignDatingSelfieUpload(userId: string, mimeType: string, ext: string): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
+    const safeExt = (ext || 'bin').replace(/[^a-zA-Z0-9]/g, '').slice(0, 10) || 'bin';
+    const key = `dating-selfie/${userId}/${randomUUID()}.${safeExt}`;
+    if (!this.s3) {
+      return { uploadUrl: `${this.publicBase}/__presigned__/${key}`, key, expiresInSec: this.expiresInSec };
+    }
+    const uploadUrl = await getSignedUrl(
+      this.s3,
+      new PutObjectCommand({ Bucket: this.healthBucket, Key: key, ContentType: mimeType }),
+      { expiresIn: this.expiresInSec },
+    );
+    return { uploadUrl, key, expiresInSec: this.expiresInSec };
+  }
+
+  /**
    * Presign a PUT for a DAYBOOK PHOTOGRAPH — a picture somebody put in their
    * diary. (15 Aug.)
    *
@@ -330,6 +363,19 @@ export class StorageProvider implements OnModuleInit {
    */
   static isOwnDatingKey(userId: string, key: string): boolean {
     return typeof key === 'string' && key.startsWith(`dating/${userId}/`);
+  }
+
+  /**
+   * True when this key is the given user's VERIFICATION SELFIE.
+   *
+   * A separate namespace, so this is a separate check — and deliberately not a
+   * widening of `isOwnDatingKey`. The selfie is the one dating object that is
+   * never displayed to anybody, and the two questions a caller can ask ("may
+   * this be shown on their profile" / "is this their selfie") must have
+   * different answers for the same string. See presignDatingSelfieUpload.
+   */
+  static isOwnDatingSelfieKey(userId: string, key: string): boolean {
+    return typeof key === 'string' && key.startsWith(`dating-selfie/${userId}/`);
   }
 
   /** True when this key belongs to the given user's private drive namespace. */

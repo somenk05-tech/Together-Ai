@@ -5,7 +5,7 @@ import { carrySelfie, selfieOnFile, selfieTakenAt, SELFIE_KEY, SELFIE_AT } from 
  * is the seam between them: a save may not claim a selfie, and may not lose one.
  */
 describe('a selfie mark only the server may write', () => {
-  const stored = { [SELFIE_KEY]: 'dating/u1/selfie.jpg', [SELFIE_AT]: '2026-08-27T10:00:00.000Z' };
+  const stored = { [SELFIE_KEY]: 'dating-selfie/u1/selfie.jpg', [SELFIE_AT]: '2026-08-27T10:00:00.000Z' };
 
   it('carries the stored mark through a profile save', () => {
     const out = carrySelfie({ city: 'Mumbai' }, stored);
@@ -18,7 +18,7 @@ describe('a selfie mark only the server may write', () => {
       selfieVerified: true,
       selfiePhoto: 'data:image/jpeg;base64,AAAA',
       selfieVerifiedAt: '2020-01-01T00:00:00.000Z',
-      [SELFIE_KEY]: 'dating/someone-else/face.jpg',
+      [SELFIE_KEY]: 'dating-selfie/someone-else/face.jpg',
       [SELFIE_AT]: '2020-01-01T00:00:00.000Z',
     }, null);
     expect(out).toEqual({ city: 'Mumbai' });
@@ -35,7 +35,7 @@ describe('a selfie mark only the server may write', () => {
     expect(selfieOnFile({ [SELFIE_KEY]: '' })).toBe(false);
     expect(selfieOnFile(null)).toBe(false);
     expect(selfieTakenAt(stored)).toBe('2026-08-27T10:00:00.000Z');
-    expect(selfieTakenAt({ [SELFIE_KEY]: 'dating/u1/s.jpg' })).toBeNull();
+    expect(selfieTakenAt({ [SELFIE_KEY]: 'dating-selfie/u1/s.jpg' })).toBeNull();
     expect(selfieTakenAt({ [SELFIE_AT]: '2026-08-27T10:00:00.000Z' })).toBeNull();
   });
 });

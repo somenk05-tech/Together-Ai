@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { DatingService } from './dating.service';
 import { StorageProvider } from '../media/storage.provider';
 
@@ -101,5 +103,62 @@ describe('whose photo you may file against your own profile', () => {
     expect(own(['', null, 7, {}, 'dating/u1/ok.jpg'])).toEqual(['dating/u1/ok.jpg']);
     expect(own('not an array')).toEqual([]);
     expect(own(undefined)).toEqual([]);
+  });
+});
+
+/**
+ * ── THE SELFIE IS NOT ONE OF THE PICTURES ───────────────────────────────────
+ *
+ * Owner, 27 Aug: "the selfie should not become the part of the profile
+ * pictures displayed, that should be only for verification."
+ *
+ * It shipped under `dating/<userId>/` — the same namespace as the photos
+ * people choose to show. Nothing displayed it, but nothing could have STOPPED
+ * it being displayed: `ownPhotosOnly` admits any key in that namespace, so one
+ * line putting the selfie into `extras.photos` would have put an unchosen
+ * frame on a profile, and afterwards no check anywhere could have told the two
+ * apart. The fix is a prefix, because a prefix is a fact about the string
+ * rather than a promise about the code around it.
+ *
+ * These four are the ways it comes back: the photo gate widening, the selfie
+ * gate widening, the two prefixes colliding, and the display path learning to
+ * read the mark.
+ */
+describe('the selfie is not one of the pictures', () => {
+  const SELFIE = 'dating-selfie/u1/face.jpg';
+  const PHOTO = 'dating/u1/beach.jpg';
+
+  it('a photo list will not accept a selfie key', () => {
+    const s: any = Object.create(DatingService.prototype);
+    // Not "is dropped later" — never admitted. The filter is the same one that
+    // keeps somebody else's face off your profile.
+    expect(s.ownPhotosOnly('u1', [PHOTO, SELFIE])).toEqual([PHOTO]);
+    expect(StorageProvider.isOwnDatingKey('u1', SELFIE)).toBe(false);
+  });
+
+  it('and the selfie gate will not accept a photo key', () => {
+    // The inverse matters just as much: if a profile photo satisfied this, the
+    // camera-only capture could be bypassed by filing a picture already on the
+    // profile, which is the forgeable badge again wearing the new endpoint.
+    expect(StorageProvider.isOwnDatingSelfieKey('u1', PHOTO)).toBe(false);
+    expect(StorageProvider.isOwnDatingSelfieKey('u1', SELFIE)).toBe(true);
+    expect(StorageProvider.isOwnDatingSelfieKey('u2', SELFIE)).toBe(false);
+  });
+
+  it('keeps the two prefixes from being prefixes of each other', () => {
+    // `dating-selfie/` must not start with `dating/`, or every selfie would be
+    // a filable photo again by accident, which is exactly today's bug.
+    expect(SELFIE.startsWith('dating/')).toBe(false);
+    expect(PHOTO.startsWith('dating-selfie/')).toBe(false);
+  });
+
+  it('never signs the selfie for anybody, because nothing ever draws it', async () => {
+    // The mark travels as a BOOLEAN. The day this returns a URL is the day the
+    // selfie becomes a picture somebody can be shown.
+    const src = readFileSync(join(__dirname, 'dating.service.ts'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
+    expect(src).not.toMatch(/presignPrivateDownload\([^)]*[sS]elfie/);
+    expect(src).toMatch(/selfieOnFile: selfieOnFile\(/);
+    expect(src).not.toMatch(/selfieUrl/);
   });
 });

@@ -265,6 +265,16 @@ export class DatingController {
    * and the server writes the mark itself. A profile save can no longer set it
    * or clear it — see selfie.ts for why that is the whole point.
    */
+  /** The selfie's own presigned PUT. A separate route because it writes into a
+   *  separate namespace, which is what stops a selfie ever being filed as a
+   *  photo somebody chose to show. */
+  @Post('selfie/presign')
+  @Throttle(UPLOAD_LIMIT)
+  presignSelfie(@CurrentUser() user: JwtUser, @Body() body: unknown) {
+    const b = (body ?? {}) as { mimeType?: string; sizeBytes?: number };
+    return this.dating.presignSelfie(user.sub, String(b.mimeType ?? ''), Number(b.sizeBytes));
+  }
+
   @Post('selfie')
   @Throttle(UPLOAD_LIMIT)
   saveSelfie(@CurrentUser() user: JwtUser, @Body() body: unknown) {
