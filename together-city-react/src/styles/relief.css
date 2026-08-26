@@ -3299,6 +3299,22 @@ textarea.g-field { resize: none; line-height: 1.55; }
    is the full-width card above now, so the tile family left with the markup
    that wore it rather than a release later. */
 
+/* ── THE PROFILE PREVIEW'S HERO (27 Aug) ─────────────────────────────────
+   The same shape the city draws people in everywhere since the redesign:
+   full width to the match card's own 440, the photograph 4/5, the identity
+   anchored in the scrim at the foot. The width lives HERE and not inline
+   because one-layout-system is right: five authors picking five numbers is
+   the page-width problem one scale down. */
+.dprev {
+  position: relative; overflow: hidden; border-radius: var(--r-3);
+  background: var(--paper); aspect-ratio: 4 / 5;
+  max-width: 440px; margin-inline: auto;
+}
+.dprev-row {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px; max-width: 440px; margin: 10px auto 0;
+}
+
 /* ── THE RAIL ────────────────────────────────────────────────────────────
    Three panels, and nothing in them is computed for the occasion: the copy
    is the hub's, the counts are the two the server actually sends, and the

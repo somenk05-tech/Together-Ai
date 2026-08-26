@@ -546,7 +546,11 @@ export function DatingProfilePage() {
   ) : null;
 
   if (collapsed && saved) {
-    const displayName = dx.firstName || 'Your profile';
+    // The first letter stands up — "somen, 41" leading a dating card reads as
+    // a typo, and the server now says the name the same way (shownName). Only
+    // the first character is touched: the rest of the name is theirs.
+    const rawName = (dx.firstName || 'Your profile').trim();
+    const displayName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
     // "Is a selfie stored" — the only part of this the server can actually see.
     // Not identity: nothing compares it to the photos. See components/SelfieOnFile.
     const verified = Boolean(dx.selfieVerified && dx.selfiePhoto);
@@ -559,8 +563,12 @@ export function DatingProfilePage() {
       ? Math.floor((Date.now() - new Date(form.birthDate).getTime()) / (365.25 * 86_400_000)) : null;
 
     // The SAME fields a match sees on your profile detail (nothing private).
+    // "Other" and "Prefer not to say" are answers to a FORM, not facts about a
+    // person — on the card they read as noise between two real facts, so the
+    // line simply skips them.
+    const said = (v?: string | null) => (v && v !== 'Other' && v !== 'Prefer not to say' ? v : null);
     const facts = [
-      dx.profession, dx.education, dx.heightCm ? `${dx.heightCm} cm` : null,
+      said(dx.profession), said(dx.education), dx.heightCm ? `${dx.heightCm} cm` : null,
       [dx.city, dx.state].filter(Boolean).join(', ') || null,
       (dx.languages ?? []).length ? (dx.languages ?? []).join(', ') : null,
       sign !== '—' ? sign : null,
@@ -627,40 +635,45 @@ export function DatingProfilePage() {
             </button>
           </div>
 
-          {/* Photo collage + identity overlay */}
-          <div style={{ display: 'grid', gridTemplateColumns: rightPhotos.length ? '1.5fr 1fr' : '1fr', gap: 10 }}>
-            <div style={{ ...photoBox, aspectRatio: rightPhotos.length ? '3 / 4' : '16 / 10' }}>
-              {hero
-                ? <img src={hero} alt={displayName} style={cover} />
-                : <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', fontSize: 64, color: 'var(--accent-ink)', background: 'var(--accent-soft)', fontFamily: 'var(--serif)' }}>{displayName.slice(0, 1)}</div>}
-              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, var(--scrim-deep) 0%, var(--scrim-top) 46%, var(--scrim-clear) 72%)' }} />
-              <div style={{ position: 'absolute', left: 18, right: 18, bottom: 16, color: 'var(--on-accent)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontFamily: 'var(--serif)', fontSize: 30, fontWeight: 700, lineHeight: 1.05, textShadow: '0 2px 14px rgba(0,0,0,.5)' }}>
-                  <span>{displayName}{age ? `, ${age}` : ''}</span>
-                  <SelfieOnFile on={verified} />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 15, marginTop: 4, textShadow: '0 1px 8px rgba(0,0,0,.6)' }}>
-                  Looking for <strong style={{ color: 'var(--danger-line)', fontWeight: 700 }}>{goal}</strong>
-                  <span aria-hidden style={{ color: 'var(--danger-line)' }}>♥</span>
-                </div>
-                {location && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13.5, fontWeight: 600, marginTop: 7, textShadow: '0 1px 8px rgba(0,0,0,.6)' }}>
-                    <span aria-hidden>📍</span>{location}
-                  </div>
-                )}
+          {/* ── THE HERO, SET LIKE THE BROWSE CARD (owner, 27 Aug: "fix the
+              users dating profile design"). The old collage put the hero in a
+              1.5fr column, which on a phone is ~200px wide — a 30px serif name
+              wrapped onto the face, "Looking for" broke mid-phrase, and the
+              overlay read as clutter on the one photograph that matters. Now
+              the hero is the same shape the city draws people in everywhere
+              since the redesign: full width, capped like the match card, the
+              type clamped to the box, everything anchored in the scrim at the
+              foot. The other photos sit in a quiet row beneath. */}
+          <div className="dprev">
+            {hero
+              ? <img src={hero} alt={displayName} style={cover} />
+              : <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', fontSize: 64, color: 'var(--accent-ink)', background: 'var(--accent-soft)', fontFamily: 'var(--serif)' }}>{displayName.slice(0, 1)}</div>}
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, var(--scrim-deep) 0%, var(--scrim-top) 32%, var(--scrim-clear) 56%)' }} />
+            <div style={{ position: 'absolute', left: 18, right: 18, bottom: 16, color: 'var(--on-scrim)', textShadow: '0 1px 2px var(--scrim-top), 0 2px 14px var(--scrim-deep)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontFamily: 'var(--serif)', fontSize: 'clamp(22px, 6vw, 30px)', fontWeight: 700, lineHeight: 1.1 }}>
+                <span>{displayName}{age ? `, ${age}` : ''}</span>
+                <SelfieOnFile on={verified} />
               </div>
+              <div style={{ fontSize: 13.5, marginTop: 5 }}>
+                Looking for <strong>{goal}</strong> <span aria-hidden>♡</span>
+              </div>
+              {location && (
+                <div style={{ fontSize: 12.5, fontWeight: 600, marginTop: 5, opacity: 0.92 }}>
+                  <span aria-hidden>📍</span> {location}
+                </div>
+              )}
             </div>
-
-            {rightPhotos.length > 0 && (
-              <div style={{ display: 'grid', gridTemplateRows: rightPhotos.length > 1 ? '1fr 1fr' : '1fr', gap: 10 }}>
-                {rightPhotos.map((p, i) => (
-                  <div key={i} style={{ ...photoBox, minHeight: 120 }}>
-                    <img src={p} alt="" style={cover} />
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
+
+          {rightPhotos.length > 0 && (
+            <div className="dprev-row">
+              {rightPhotos.map((p, i) => (
+                <div key={i} style={{ ...photoBox, aspectRatio: '1 / 1' }}>
+                  <img src={p} alt="" style={cover} />
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Verification status line (mirrors what a match sees on the tick) */}
           <div style={{ marginTop: 12, fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 7 }}>

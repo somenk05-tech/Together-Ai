@@ -906,7 +906,10 @@ export function seeks(column: string, dx: { seekingList?: unknown } | null | und
  */
 export function shownName(dx: { firstName?: unknown } | null | undefined, fallback: string): string {
   const raw = dx?.firstName;
-  if (typeof raw !== 'string') return fallback;
-  const name = raw.replace(/\s+/g, ' ').trim().slice(0, 40).trim();
-  return name || fallback;
+  const name = typeof raw === 'string' ? raw.replace(/\s+/g, ' ').trim().slice(0, 40).trim() : '';
+  const out = name || fallback;
+  // The first letter stands up (owner, 27 Aug: a card leading with "somen"
+  // reads as a typo). ONLY the first character — the rest of the name is
+  // theirs, so "aditya McKenna" keeps its capitals and its choices.
+  return out ? out.charAt(0).toUpperCase() + out.slice(1) : out;
 }

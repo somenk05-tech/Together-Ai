@@ -21,4 +21,11 @@ describe('the name a person chose to be seen under', () => {
   it('caps a name that would not fit on a card', () => {
     expect(shownName({ firstName: 'x'.repeat(120) }, 'A')).toHaveLength(40);
   });
+
+  it('stands the first letter up, and touches nothing else (27 Aug)', () => {
+    expect(shownName({ firstName: 'somen' }, 'x')).toBe('Somen');
+    expect(shownName({ firstName: 'aditya mcKenna' }, 'x')).toBe('Aditya mcKenna');
+    // The fallback stands up too — the card leads with it just the same.
+    expect(shownName({}, 'somen')).toBe('Somen');
+  });
 });
