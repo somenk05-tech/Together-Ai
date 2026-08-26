@@ -75,6 +75,8 @@ interface DX {
    *  than found later. */
   prefHeight?: string; prefHeightMinCm?: number | null; prefHeightMaxCm?: number | null;
   prefDiet?: string; prefSmoking?: string; prefDrinking?: string; wantsChildren?: string; religion?: string;
+  /** Who they seek, precisely — see the Looking for control (P3, 26 Aug). */
+  seekingList?: string[];
   /** When the citizen agreed to religion and who-they-seek being used for matching (26 Aug). */
   sensitiveConsentAt?: string;
   partnerLocationMode?: 'any' | 'specific';
@@ -735,9 +737,33 @@ export function DatingProfilePage() {
               <FieldError msg={v.errors.gender} />
             </div>
             <div><span style={label}>Looking for</span>
-              <select aria-label="Looking for" value={form.seeking} onChange={(e) => setForm({ ...form, seeking: e.target.value as UpsertProfileInput['seeking'] })} style={field}>
-                <option value="any">Anyone</option><option value="male">Men</option><option value="female">Women</option><option value="nonbinary">Non-binary people</option>
-              </select>
+              {/* PRECISELY, NOT COARSELY (P3). The old control offered one
+                  gender or "Anyone", so bisexual could only be said as
+                  "Anyone", which it is not. Three toggles; any combination.
+                  The coarse column the server narrows on is derived: one
+                  selection is itself, anything else is 'any', and the exact
+                  list rides in extras.seekingList for the engine. */}
+              <div role="group" aria-label="Looking for" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {([['male', 'Men'], ['female', 'Women'], ['nonbinary', 'Non-binary people']] as const).map(([val, lab]) => {
+                  const list = dx.seekingList ?? (form.seeking === 'any' ? ['male', 'female', 'nonbinary'] : [form.seeking]);
+                  const on = list.includes(val);
+                  return (
+                    <button key={val} type="button" aria-pressed={on}
+                      onClick={() => {
+                        const next = on ? list.filter((x) => x !== val) : [...list, val];
+                        if (!next.length) return; // seeking nobody is not a profile
+                        setD({ seekingList: next });
+                        setForm({ ...form, seeking: (next.length === 1 ? next[0] : 'any') as UpsertProfileInput['seeking'] });
+                      }}
+                      style={{ padding: '9px 14px', borderRadius: 'var(--r-full)', fontSize: 13, fontFamily: 'inherit', cursor: 'pointer',
+                        border: on ? '1px solid var(--accent)' : '1px solid var(--line)',
+                        background: on ? 'var(--accent-soft)' : 'var(--card)', color: on ? 'var(--accent-ink)' : 'inherit', fontWeight: on ? 700 : 400 }}>
+                      {lab}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="muted" style={{ fontSize: 11, margin: '4px 0 0' }}>Pick every one that's true for you.</p>
             </div>
             <div ref={v.reg('birthDate')}><span style={label}>Date of birth</span><input type="date" aria-label="Date of birth" value={form.birthDate} disabled={dobLocked} title={dobLocked ? 'Set in your Master Profile' : undefined} onChange={(e) => { setForm({ ...form, birthDate: e.target.value }); v.clear('birthDate'); }} style={{ ...field, ...v.errStyle('birthDate'), ...(dobLocked ? masterLockedStyle : {}) }} />{dobLocked ? <MasterLockedNote label="Date of birth" /> : <FieldError msg={v.errors.birthDate} />}</div>
             <div><span style={label}>Time of birth <span style={{ textTransform: 'none' }}>(optional)</span></span><input type="time" aria-label="Time of birth" step={60} value={form.birthTime ?? ''} onChange={(e) => setForm({ ...form, birthTime: e.target.value })} style={field} /><p className="muted" style={{ fontSize: 11, margin: '4px 0 0' }}>Type or pick your exact time.</p></div>

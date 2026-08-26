@@ -26,6 +26,13 @@
 import { distanceBetween } from '../shared/geo';
 
 export interface DXProfile {
+  /**
+   * Who they seek, said precisely (P3, 26 Aug). The `seeking` COLUMN stays
+   * the coarse value SQL can narrow on — a single gender, or 'any' — and
+   * this optional list refines it in JS: ['male','female'] is bisexual said
+   * exactly, without pretending 'any' means it. Absent = the column speaks.
+   */
+  seekingList?: string[];
   personalityTraits?: string[]; values?: string[]; relationshipGoal?: string;
   diet?: string; smoking?: string; drinking?: string; fitnessLevel?: string;
   /** What they said they'd prefer in someone else. Empty = "Any", which is not
@@ -859,4 +866,20 @@ export function matchAlertBody(reason: MatchAlertReason): string {
   return reason === 'new-to-you'
     ? 'They’re new to your matches.'
     : 'They updated their profile, and the two of you are a match now.';
+}
+
+/** The three genders a seekingList may name; anything else is dropped unread. */
+const SEEKABLE = ['male', 'female', 'nonbinary'];
+
+/**
+ * Does this person seek `targetGender`? The column carries the coarse answer
+ * ('any', or one gender); a `seekingList` in the extras overrides it with the
+ * precise one. Pure, and used on BOTH sides of every reachability check, so
+ * "I seek men and women" and "they seek women" stay one vocabulary.
+ */
+export function seeks(column: string, dx: { seekingList?: unknown } | null | undefined, targetGender: string): boolean {
+  const raw = dx?.seekingList;
+  const list = Array.isArray(raw) ? raw.filter((x): x is string => typeof x === 'string' && SEEKABLE.includes(x)) : [];
+  if (list.length) return list.includes(targetGender);
+  return column === 'any' || column === targetGender;
 }

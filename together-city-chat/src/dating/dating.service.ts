@@ -19,7 +19,7 @@ import { RedisService } from '../shared/redis/redis.service';
 import { QueueService } from '../shared/queue/queue.service';
 import { compatibilityScore, zodiacSign } from './astrology';
 import {
-  canonicalGoal, confidenceFor, coverage, curatedBar, distanceNote, explain, factorScores, frictions, matchAlertBody, matchAlertReason, overallScore, preferenceNotes, sharedItems, type DXProfile, type FactorBreakdown, unreachableReason,
+  canonicalGoal, confidenceFor, coverage, curatedBar, distanceNote, explain, factorScores, frictions, matchAlertBody, matchAlertReason, overallScore, preferenceNotes, sharedItems, seeks, type DXProfile, type FactorBreakdown, unreachableReason,
 } from './matching';
 import { LEARNING_WINDOW, learnWeights, overallScoreWith, type Decision } from './learned-weights';
 import { profileCompletion } from './completion';
@@ -594,7 +594,11 @@ export class DatingService implements OnModuleInit {
       where: {
         userId: { not: userId }, visible: true, moderation: 'approved',
         // I want them, and they want me.
-        ...(mine.seeking === 'any' ? {} : { gender: mine.seeking }),
+        // The precise list narrows harder than the column when it exists;
+        // their side stays coarse in SQL and precise in the JS check below.
+        ...(Array.isArray(myD.seekingList) && myD.seekingList.length
+          ? { gender: { in: myD.seekingList } }
+          : mine.seeking === 'any' ? {} : { gender: mine.seeking }),
         seeking: { in: ['any', mine.gender] },
         // My own age range. ageOf() is (now - birthDate) / 365.25 days floored,
         // which inverts exactly: age >= min is birthDate <= now - min years, and
@@ -619,10 +623,9 @@ export class DatingService implements OnModuleInit {
     for (const cand of candidates) {
       if (excluded.has(cand.userId)) continue;
       const candD = this.parseDX((cand as { extras?: string | null }).extras) as DXProfile & DXVisibility;
-      // Romantic reachability both ways (mirrors matches()).
-      const iWant = mine.seeking === 'any' || mine.seeking === cand.gender;
-      const theyWant = cand.seeking === 'any' || cand.seeking === mine.gender;
-      if (!iWant || !theyWant) continue;
+      // Romantic reachability both ways (mirrors matches()). `seeks` reads
+      // the precise list when one was given — bisexual said exactly (P3).
+      if (!seeks(mine.seeking, myD, cand.gender) || !seeks(cand.seeking, candD, mine.gender)) continue;
       const theirAge = this.ageOf(cand.birthDate);
       // This site always checked both ways — it is what the lists disagreed with.
       if (unreachableReason(myD, candD, this.ageOf(mine.birthDate), theirAge)) continue;
@@ -842,11 +845,9 @@ export class DatingService implements OnModuleInit {
 
       // Hard filters. Romantic respects seeking/gender both ways; friendships don't.
       if (kind === 'romantic') {
-        const iWant = mine.seeking === 'any' || mine.seeking === cand.gender;
-        const theyWant = cand.seeking === 'any' || cand.seeking === mine.gender;
-        if (!iWant || !theyWant) continue;
-        const theirAge = this.ageOf(cand.birthDate);
         const theirD = this.parseDX((cand as { extras?: string | null }).extras);
+        if (!seeks(mine.seeking, myD, cand.gender) || !seeks(cand.seeking, theirD, mine.gender)) continue;
+        const theirAge = this.ageOf(cand.birthDate);
         // Both directions. Showing somebody whose own filters exclude you is
         // offering a door that is locked from the other side.
         if (unreachableReason(myD, theirD, this.ageOf(mine.birthDate), theirAge)) continue;
@@ -1001,11 +1002,9 @@ export class DatingService implements OnModuleInit {
       if (state?.status === 'matched') continue;
 
       if (kind === 'romantic') {
-        const iWant = mine.seeking === 'any' || mine.seeking === cand.gender;
-        const theyWant = cand.seeking === 'any' || cand.seeking === mine.gender;
-        if (!iWant || !theyWant) continue;
-        const theirAge = this.ageOf(cand.birthDate);
         const theirD = this.parseDX((cand as { extras?: string | null }).extras);
+        if (!seeks(mine.seeking, myD, cand.gender) || !seeks(cand.seeking, theirD, mine.gender)) continue;
+        const theirAge = this.ageOf(cand.birthDate);
         // Both directions. Showing somebody whose own filters exclude you is
         // offering a door that is locked from the other side.
         if (unreachableReason(myD, theirD, this.ageOf(mine.birthDate), theirAge)) continue;
@@ -1068,7 +1067,10 @@ export class DatingService implements OnModuleInit {
     // The page: the best `limit` of everybody, ranked, before the bands are
     // drawn — so a page never shows a 40% while hiding a 70%. The sparse-city
     // pools below still read the whole scored set; they take eight each.
-    const ranked = [...scored].sort((a, b) => b.card.score - a.card.score);
+    // Same score, same city first (P3, cold start): in a young market most
+    // pairs tie on sparse profiles, and the person a bus ride away is the
+    // better first page than the one three time zones off. Score still rules.
+    const ranked = [...scored].sort((a, b) => (b.card.score - a.card.score) || ((Number(myCity !== '' && b.city === myCity)) - (Number(myCity !== '' && a.city === myCity))));
     const page = limit ? ranked.slice(0, limit) : ranked;
     const ideal = page.filter((s) => s.card.score >= MATCH_THRESHOLD);
     const recommended = page.filter((s) => s.card.score >= 55 && s.card.score < MATCH_THRESHOLD);
@@ -1284,11 +1286,9 @@ export class DatingService implements OnModuleInit {
       // someone you already chose: a preference edit after matching would
       // otherwise silently delete an existing match from the page.
       if (kind === 'romantic' && !isMatched) {
-        const iWant = mine.seeking === 'any' || mine.seeking === cand.gender;
-        const theyWant = cand.seeking === 'any' || cand.seeking === mine.gender;
-        if (!iWant || !theyWant) continue;
-        const theirAge = this.ageOf(cand.birthDate);
         const theirD = this.parseDX((cand as { extras?: string | null }).extras);
+        if (!seeks(mine.seeking, myD, cand.gender) || !seeks(cand.seeking, theirD, mine.gender)) continue;
+        const theirAge = this.ageOf(cand.birthDate);
         // Both directions. Showing somebody whose own filters exclude you is
         // offering a door that is locked from the other side.
         if (unreachableReason(myD, theirD, this.ageOf(mine.birthDate), theirAge)) continue;
@@ -1439,9 +1439,7 @@ export class DatingService implements OnModuleInit {
 
     // Romantic requires mutual seeking + passing both sides' hard filters.
     if (kind === 'romantic') {
-      const iWant = mine.seeking === 'any' || mine.seeking === cand.gender;
-      const theyWant = cand.seeking === 'any' || cand.seeking === mine.gender;
-      if (!iWant || !theyWant) throw new NotFoundException('This profile is not available.');
+      if (!seeks(mine.seeking, myD, cand.gender) || !seeks(cand.seeking, candD, mine.gender)) throw new NotFoundException('This profile is not available.');
       // The comment above has said "both sides" since this was written; only one
       // side was ever checked. Now it is both, and the message stays deliberately
       // identical either way — "they filtered you out" is not ours to disclose.
@@ -2363,7 +2361,9 @@ export class DatingService implements OnModuleInit {
   private poolWhere(userId: string, mine: { gender: string; seeking: string }, myD: DXProfile) {
     return {
       userId: { not: userId }, visible: true, moderation: 'approved',
-      ...(mine.seeking === 'any' ? {} : { gender: mine.seeking }),
+      ...(Array.isArray(myD.seekingList) && myD.seekingList.length
+        ? { gender: { in: myD.seekingList } }
+        : mine.seeking === 'any' ? {} : { gender: mine.seeking }),
       seeking: { in: ['any', mine.gender] },
       ...this.birthDateRangeFor(myD),
     };
@@ -2417,9 +2417,7 @@ export class DatingService implements OnModuleInit {
     const scored: { userId: string; overall: number }[] = [];
     for (const c of cands) {
       if (excluded.has(c.userId)) continue;
-      const iWant = host.seeking === 'any' || host.seeking === c.gender;
-      const theyWant = c.seeking === 'any' || c.seeking === host.gender;
-      if (!iWant || !theyWant) continue;
+      if (!seeks(host.seeking, hostD, c.gender) || !seeks(c.seeking, this.parseDX((c as { extras?: string | null }).extras), host.gender)) continue;
       const { score: astro } = compatibilityScore(
         { userId: hostId, birthDate: host.birthDate, interests: hostInterests },
         { userId: c.userId, birthDate: c.birthDate, interests: this.splitInterests(c.interests) },

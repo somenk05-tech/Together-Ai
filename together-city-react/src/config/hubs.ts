@@ -225,8 +225,10 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // by scoring well, only by being chosen back.
       { path: '/dating/browse', index: '02', label: 'Potential Matches', sub: 'Everyone, with your %' },
       { path: '/dating/matches', index: '03', label: 'Curated Matches', sub: 'You both liked each other' },
-      // ACTIVITY DATING IS OFF THE MENU (12 Aug), at the owner's word and
-      // explicitly "for now" — which is the reason nothing else moved. The
+      // ACTIVITY DATING IS OFF THE MENU (12 Aug, RECONFIRMED 26 Aug — the
+      // door was reopened for part of an afternoon and taken back off at the
+      // owner's word), still explicitly "for now" — which is the reason
+      // nothing else moved. The
       // page, the invitation engine and every /dating/activity endpoint are
       // untouched, and the path still resolves. Same treatment the Makeup
       // Studio got: deleting a working surface in order to hide it is how a

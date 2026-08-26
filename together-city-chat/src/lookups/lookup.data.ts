@@ -92,7 +92,11 @@ const SIMPLE: Record<string, string[]> = {
   zodiac: ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo', 'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'],
   pets: ['Dog', 'Cat', 'Both', 'Other pets', 'No pets', 'Want pets'],
   political: ['Apolitical', 'Moderate', 'Liberal', 'Conservative', 'Prefer not to say'],
-  income: ['Below ₹3 LPA', '₹3–6 LPA', '₹6–10 LPA', '₹10–15 LPA', '₹15–25 LPA', '₹25–50 LPA', '₹50 LPA – ₹1 Cr', 'Above ₹1 Cr', 'Prefer not to say'],
+  // CURRENCY-NEUTRAL (P3, 26 Aug). The ladder was rupee bands, which read as
+  // noise everywhere the app is not India and as a salary interview where it
+  // is. Self-description travels; profiles that stored the old rupee labels
+  // keep them as text and still render.
+  income: ['Studying / starting out', 'Getting established', 'Comfortable', 'Well established', 'Affluent', 'Prefer not to say'],
 };
 
 /** Build the full, flat seed list with generated codes + sort order. */
