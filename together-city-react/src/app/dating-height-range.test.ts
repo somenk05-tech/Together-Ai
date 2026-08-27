@@ -70,8 +70,11 @@ describe('the dating height preference', () => {
   it('leaves the distance preference alone — it never hid anybody', () => {
     // The neighbour in the same card, and the reason "hides" meant anything:
     // distance ranks people lower, it does not remove them. The control is a
-    // slider now (label reads "Distance — N km"), but the promise is the same.
-    expect(form).toMatch(/Distance \u2014 \{distanceKm/);
+    // slider, and since 27 Aug its label names the point it measures FROM —
+    // "Distance from Bandra — 100 km" — so the assertion is on the reading and
+    // the promise rather than on one spelling of the label.
+    expect(form).toMatch(/Distance from \$\{originName\}/);
+    expect(form).toMatch(/\{distanceKm >= 500/);
     expect(form).toMatch(/type="range"/);
     expect(form).toMatch(/scored lower/);
   });

@@ -23,6 +23,9 @@ export interface AppConfig {
     bucket: string;
     privateBucket: string;
     publicBaseUrl: string;
+    /** Where this API answers, as the public reaches it. Empty = dating photos
+     *  keep the presigned-S3 path they had before the proxy route existed. */
+    apiPublicBaseUrl: string;
     region: string;
     endpoint: string;
     accessKeyId: string;
@@ -160,6 +163,7 @@ export default (): AppConfig => {
     bucket: process.env.MEDIA_BUCKET ?? '',
     privateBucket: process.env.MEDIA_PRIVATE_BUCKET ?? '',
     publicBaseUrl: process.env.MEDIA_PUBLIC_BASE_URL ?? '',
+    apiPublicBaseUrl: (process.env.PUBLIC_API_URL ?? '').replace(/\/+$/, ''),
     region: process.env.S3_REGION ?? 'auto',
     endpoint: process.env.S3_ENDPOINT ?? '',
     accessKeyId: process.env.S3_ACCESS_KEY_ID ?? '',

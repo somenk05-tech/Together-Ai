@@ -42,6 +42,16 @@ const PUBLIC_ALLOWLIST = [
   // before the handler runs. It is on this list because it is JWT-public; the
   // mutation guard below is what holds it to naming its own protection.
   'mail POST inbound',
+  // The signed-out header's list of doors this site is not currently drawing.
+  // Public deliberately: the header renders before anybody signs in, and an
+  // authed-only read would show a hidden door to strangers and hide it from
+  // citizens, which is the wrong way round. See visibility.controller.ts.
+  'visibility GET',
+  // One dating photograph, to the viewer its link names. Public because an
+  // <img> tag cannot send an Authorization header — the signed token in the
+  // path stands in for the session. It is the ONLY id-taking public route in
+  // the API, and the exception is written down below rather than waved through.
+  'dating GET photo/:token',
 ].sort();
 
 /**
@@ -102,11 +112,25 @@ describe('API surface — structural security guards', () => {
     expect(offenders).toEqual(UNSCOPED_CATALOGUE_READS);
   });
 
+  /**
+   * A route that is both unauthenticated and id-addressable is an enumeration
+   * surface. The rule stands; this is the one thing it is allowed to be.
+   *
+   * `dating GET photo/:token` takes a CAPABILITY, not a resource id. The
+   * parameter is a base64url payload signed with an HMAC over a secret derived
+   * from the access secret, so it cannot be guessed, incremented or walked —
+   * and the handler does not trust it either: it re-reads the live rows and
+   * refuses if the viewer has since been blocked, or the photo taken out of
+   * review, or either profile hidden. Guessing a valid token is forging a
+   * signature; holding a real one gets you what its named viewer may still see.
+   *
+   * Anything else appearing here is the enumeration surface the rule is about.
+   */
+  const ID_TAKING_PUBLIC_ROUTES = ['dating GET photo/:token'];
+
   it('never lets a public route also take a resource id', () => {
-    // A route that is both unauthenticated and id-addressable is an
-    // enumeration surface. There should be none, ever.
-    const both = routes.filter((r) => r.isPublic && r.takesRouteParam).map((r) => r.id);
-    expect(both).toEqual([]);
+    const both = routes.filter((r) => r.isPublic && r.takesRouteParam).map((r) => r.id).sort();
+    expect(both).toEqual(ID_TAKING_PUBLIC_ROUTES);
   });
 
   it('keeps every mutation authenticated', () => {

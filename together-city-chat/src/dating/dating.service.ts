@@ -1,4 +1,5 @@
 import { swallow } from '../shared/swallow';
+import type { Readable } from 'stream';
 import { BadRequestException, Injectable, NotFoundException, type OnModuleInit, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ClockService, DEFAULT_TIMEZONE } from '../shared/clock/clock.service';
@@ -284,13 +285,13 @@ export class DatingService implements OnModuleInit {
    * has no such relationship and is better off one photo shorter than showing
    * a gap.
    */
-  private async photoUrlsAligned(entries: readonly string[]): Promise<string[]> {
+  private async photoUrlsAligned(viewerId: string, entries: readonly string[]): Promise<string[]> {
     const out: string[] = [];
     for (const e of entries) {
       if (!e) { out.push(''); continue; }
       if (e.startsWith('data:')) { out.push(e); continue; }
       if (e.startsWith('http')) { out.push(''); continue; }  // legacy account-photo entry — never emitted now
-      out.push((await this.storage.presignPrivateDownload(e)) ?? '');
+      out.push((await this.storage.datingPhotoUrl(viewerId, e)) ?? '');
     }
     return out;
   }
@@ -302,7 +303,7 @@ export class DatingService implements OnModuleInit {
    * emitting it would defeat the review gate and leak the viewer's IP to
    * whoever hosts it (27 Aug, blocker 04).
    */
-  private async photoUrls(entries: readonly string[]): Promise<string[]> {
+  private async photoUrls(viewerId: string, entries: readonly string[]): Promise<string[]> {
     const approved = await this.photoMod.approvedOf(entries);
     const out: string[] = [];
     for (const e of entries) {
@@ -310,7 +311,7 @@ export class DatingService implements OnModuleInit {
       if (e.startsWith('http')) continue;
       if (!approved.has(e)) continue;
       if (e.startsWith('data:')) { out.push(e); continue; }
-      const signed = await this.storage.presignPrivateDownload(e);
+      const signed = await this.storage.datingPhotoUrl(viewerId, e);
       if (signed) out.push(signed);
     }
     return out;
@@ -324,7 +325,56 @@ export class DatingService implements OnModuleInit {
    * key the page needs in one bounded-concurrency pass, each key once, and
    * fills the card's own array in place so the cards themselves are unchanged.
    */
-  private async fillPhotos(jobs: Array<{ keys: readonly string[]; into: string[] }>): Promise<void> {
+  /**
+   * MAY THIS VIEWER STILL SEE THIS PHOTOGRAPH — asked at fetch, not at mint.
+   *
+   * The whole point of the proxy route. A presigned link answered this question
+   * once, inside the card request that produced it, and never again; blocking
+   * somebody, or a moderator taking their profile down, or the photo being
+   * rejected in review left every link already handed out working until it
+   * expired. This is the answer computed from live rows.
+   *
+   * Every clause is one somebody could change after the link was minted, which
+   * is why they are all here and not folded into the mint.
+   */
+  private async mayViewPhoto(viewerId: string, key: string): Promise<boolean> {
+    const ownerId = StorageProvider.datingKeyOwner(key);
+    if (!ownerId) return false;
+    // Your own photographs, including the ones still in review — this is the
+    // path your own profile editor loads them by.
+    if (ownerId === viewerId) return true;
+    const approved = await this.photoMod.approvedOf([key]);
+    if (!approved.has(key)) return false;
+    const [viewer, owner] = await Promise.all([
+      this.prisma.datingProfile.findFirst({
+        where: { userId: viewerId, moderation: 'approved', user: DatingService.STILL_HERE },
+        select: { userId: true },
+      }),
+      this.prisma.datingProfile.findFirst({
+        where: { userId: ownerId, visible: true, moderation: 'approved', user: DatingService.STILL_HERE },
+        select: { userId: true },
+      }),
+    ]);
+    if (!viewer || !owner) return false;
+    const blocked = await this.blocking.blockedWith(viewerId);
+    return !blocked.has(ownerId);
+  }
+
+  /**
+   * Serve one dating photograph, to the viewer its link names.
+   *
+   * Null for every refusal alike — a bad signature, an expired link, a photo
+   * taken down, a person blocked. The route turns that into one 404, because a
+   * caller that can tell those apart is an oracle for whoever holds the string.
+   */
+  async openPhoto(token: string): Promise<{ body: Readable; contentType: string; contentLength?: number } | null> {
+    const claim = this.storage.readDatingPhotoToken(token);
+    if (!claim) return null;
+    if (!(await this.mayViewPhoto(claim.viewerId, claim.key))) return null;
+    return this.storage.readPrivateObject(claim.key);
+  }
+
+  private async fillPhotos(viewerId: string, jobs: Array<{ keys: readonly string[]; into: string[] }>): Promise<void> {
     const need = new Set<string>();
     for (const j of jobs) for (const k of j.keys) if (k && !k.startsWith('http')) need.add(k);
     // Fail-closed, same as photoUrls: only reviewed-and-approved entries show.
@@ -335,7 +385,7 @@ export class DatingService implements OnModuleInit {
     const worker = async () => {
       while (next < keys.length) {
         const k = keys[next++];
-        try { signed.set(k, await this.storage.presignPrivateDownload(k)); } catch { signed.set(k, null); }
+        try { signed.set(k, await this.storage.datingPhotoUrl(viewerId, k)); } catch { signed.set(k, null); }
       }
     };
     await Promise.all(Array.from({ length: Math.min(PRESIGN_CONCURRENCY, keys.length) }, worker));
@@ -367,7 +417,7 @@ export class DatingService implements OnModuleInit {
     // rather than the expiring URLs it was shown. Two fields, on purpose:
     // one is the record, the other is this minute's way to look at it.
     const stored = this.storedPhotos(profile.extras);
-    return { ...shaped, photoUrls: await this.photoUrlsAligned(stored), photoReview: await this.photoMod.statusOf(stored) };
+    return { ...shaped, photoUrls: await this.photoUrlsAligned(userId, stored), photoReview: await this.photoMod.statusOf(stored) };
   }
 
   /** A prefill object (no saved profile yet) built from the Master Profile —
@@ -633,7 +683,7 @@ export class DatingService implements OnModuleInit {
     void this.jobs.add(JOB_PHOTOS, { userId, entries: stored }, { jobId: `photos:${userId}:${Date.now()}` }).then((queued) => {
       if (!queued) void swallow(this.photoMod.fileAndReview(userId, stored), 'dating: photo review', { userId });
     });
-    const photoUrls = await this.photoUrlsAligned(stored);
+    const photoUrls = await this.photoUrlsAligned(userId, stored);
     return { ...shaped, photoUrls, photoReview: await this.photoMod.statusOf(stored), notice: this.noticeFor(result) };
   }
 
@@ -1211,7 +1261,7 @@ export class DatingService implements OnModuleInit {
     results.sort((a, b) => b.score - a.score);
     const page = limit ? results.slice(0, limit) : results;
     const shown = new Set(page.map((r) => r.photos));
-    await this.fillPhotos(photoJobs.filter((j) => shown.has(j.into)));
+    await this.fillPhotos(userId, photoJobs.filter((j) => shown.has(j.into)));
     this.analytics.track('dating.matches.viewed', userId, { kind, shown: page.length, pool: candidates.length });
     return page;
   }
@@ -1409,7 +1459,7 @@ export class DatingService implements OnModuleInit {
 
     // Photos for the cards that are actually going out, and only those.
     const going = new Set(sections.flatMap((sec) => sec.matches.map((m) => m.photos)));
-    await this.fillPhotos(photoJobs.filter((j) => going.has(j.into)));
+    await this.fillPhotos(userId, photoJobs.filter((j) => going.has(j.into)));
 
     return {
       sections,
@@ -1662,7 +1712,7 @@ export class DatingService implements OnModuleInit {
     // Newest match first, so the person you just matched with leads the page.
     const matched = matchedCards.sort((a, b) => b.score - a.score);
     const going = new Set([...shownCards, ...matched].map((c) => c.photos));
-    await this.fillPhotos(photoJobs.filter((j) => going.has(j.into)));
+    await this.fillPhotos(userId, photoJobs.filter((j) => going.has(j.into)));
 
     // `candidates` is the whole ranked list, not a page of it. `top` stays
     // because the page leads with it, but it is now the first element of
@@ -1747,7 +1797,7 @@ export class DatingService implements OnModuleInit {
     const state = await this.prisma.datingMatch.findFirst({
       where: { OR: [{ userOneId: userId, userTwoId: targetUserId }, { userOneId: targetUserId, userTwoId: userId }], kind },
     });
-    const photos = await this.photoUrls((candD.photos ?? []).slice(0, 10));
+    const photos = await this.photoUrls(userId, (candD.photos ?? []).slice(0, 10));
 
     return {
       // THE CHOSEN NAME, HERE TOO (27 Aug). This spread the raw User row, so
@@ -2904,7 +2954,7 @@ export class DatingService implements OnModuleInit {
         unread: summary.unread,
       });
     }
-    await this.fillPhotos(photoJobs);
+    await this.fillPhotos(userId, photoJobs);
     // The card wants one photo or none; the job filled an array.
     // Gallery or nothing here too. A match is mutual, a REVEAL is a separate
     // mutual step — and this row is drawn before it. The account-photo

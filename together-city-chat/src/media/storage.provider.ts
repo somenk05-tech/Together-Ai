@@ -1,6 +1,8 @@
 import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
+import type { Readable } from 'stream';
+import { mintPhotoToken, readPhotoToken } from '../dating/photo-link';
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand, PutBucketCorsCommand, GetBucketCorsCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
@@ -37,6 +39,8 @@ export class StorageProvider implements OnModuleInit {
   private readonly bucket: string;
   private readonly healthBucket: string;
   private readonly publicBase: string;
+  private readonly apiBase: string;
+  private readonly linkSecret: string;
   private readonly endpoint: string;
   private readonly corsOrigins: string[];
   private readonly expiresInSec = 900;
@@ -79,6 +83,8 @@ export class StorageProvider implements OnModuleInit {
      */
     this.healthBucket = this.config.get<string>('media.privateBucket') || this.bucket;
     this.publicBase = this.config.get<string>('media.publicBaseUrl') ?? '';
+    this.apiBase = this.config.get<string>('media.apiPublicBaseUrl') ?? '';
+    this.linkSecret = this.config.get<string>('jwt.accessSecret') ?? '';
     const endpoint = this.config.get<string>('media.endpoint') ?? '';
     this.endpoint = endpoint;
     const accessKeyId = this.config.get<string>('media.accessKeyId') ?? '';
@@ -376,6 +382,13 @@ export class StorageProvider implements OnModuleInit {
    * key arrives from the client when a profile is saved, and without this a
    * citizen could file somebody else's object as their own photo.
    */
+  /** The citizen a `dating/<userId>/<uuid>.<ext>` key belongs to, or null for a
+   *  key of any other shape — a selfie, a health object, or a mangled string. */
+  static datingKeyOwner(key: string): string | null {
+    const m = /^dating\/([^/]+)\/[^/]+$/.exec(typeof key === 'string' ? key : '');
+    return m ? m[1] : null;
+  }
+
   static isOwnDatingKey(userId: string, key: string): boolean {
     return typeof key === 'string' && key.startsWith(`dating/${userId}/`);
   }
@@ -452,6 +465,49 @@ export class StorageProvider implements OnModuleInit {
 
   /** Short-lived signed GET URL for a private DATING object — a card photo.
    *  Same bucket as health, a fifth of the window; see datingPhotoTtlSec. */
+  /**
+   * A DATING PHOTO URL FOR ONE NAMED VIEWER.
+   *
+   * The proxy link when this API knows where it answers from, and the presigned
+   * S3 link — exactly what shipped before — when it does not. The fallback is
+   * the point: setting PUBLIC_API_URL turns the authenticated channel on, and
+   * not setting it changes nothing, so a missing environment variable cannot
+   * take every photograph in the hub off the screen on a launch morning.
+   */
+  async datingPhotoUrl(viewerId: string, key: string): Promise<string | null> {
+    if (!this.apiBase || !viewerId || !key) return this.presignPrivateDownload(key);
+    return `${this.apiBase}/dating/photo/${mintPhotoToken(this.linkSecret, viewerId, key, this.datingPhotoTtlSec, Date.now())}`;
+  }
+
+  /** The viewer and key a photo token names, or null for every kind of failure. */
+  readDatingPhotoToken(token: string): { viewerId: string; key: string } | null {
+    return readPhotoToken(this.linkSecret, token, Date.now());
+  }
+
+  /**
+   * The bytes themselves, for the one caller that serves them through the API
+   * rather than handing out a link to S3 (`GET /dating/photo/:token`).
+   *
+   * Null when there is no S3 or the object is gone — the route turns that into
+   * a 404 rather than an error page, because a missing photo is a missing
+   * photo whichever layer noticed.
+   */
+  async readPrivateObject(key: string): Promise<{ body: Readable; contentType: string; contentLength?: number } | null> {
+    if (!this.s3 || !key) return null;
+    try {
+      const out = await this.s3.send(new GetObjectCommand({ Bucket: this.healthBucket, Key: key }));
+      if (!out.Body) return null;
+      return {
+        body: out.Body as unknown as Readable,
+        contentType: out.ContentType ?? 'application/octet-stream',
+        contentLength: out.ContentLength,
+      };
+    } catch (e) {
+      this.logger.warn(`readPrivateObject failed for ${key}: ${(e as Error).message}`);
+      return null;
+    }
+  }
+
   async presignPrivateDownload(key: string): Promise<string | null> {
     if (!this.s3 || !key) return null;
     try {

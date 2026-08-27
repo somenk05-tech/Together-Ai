@@ -31,17 +31,17 @@ describe('an arbitrary URL is never a dating photo (blocker 04)', () => {
   it('photoUrls never emits an http entry, even one already stored', async () => {
     const s: any = Object.create(DatingService.prototype);
     s.photoMod = { approvedOf: async () => new Set<string>() };  // nothing approved
-    s.storage = { presignPrivateDownload: async () => 'signed://never' };
-    const out = await (s.photoUrls as any).call(s, ['https://attacker.tld/x.jpg', 'data:image/png;base64,AAAA']);
+    s.storage = { datingPhotoUrl: async () => 'signed://never' };
+    const out = await (s.photoUrls as any).call(s, 'viewer', ['https://attacker.tld/x.jpg', 'data:image/png;base64,AAAA']);
     expect(out).not.toContain('https://attacker.tld/x.jpg');
   });
 
   it('fillPhotos never serves an http entry', async () => {
     const s: any = Object.create(DatingService.prototype);
     s.photoMod = { approvedOf: async () => new Set<string>() };
-    s.storage = { presignPrivateDownload: async () => 'signed://never' };
+    s.storage = { datingPhotoUrl: async () => 'signed://never' };
     const into: string[] = [];
-    await (s.fillPhotos as any).call(s, [{ keys: ['https://attacker.tld/x.jpg'], into }]);
+    await (s.fillPhotos as any).call(s, 'viewer', [{ keys: ['https://attacker.tld/x.jpg'], into }]);
     expect(into).toHaveLength(0);
   });
 });

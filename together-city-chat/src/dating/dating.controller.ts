@@ -1,4 +1,6 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, NotFoundException, Param, Post, Query, Res, StreamableFile, UseGuards, UsePipes } from '@nestjs/common';
+import type { Response } from 'express';
+import { Public } from '../shared/public.decorator';
 import { z } from 'zod';
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -157,6 +159,37 @@ export class DatingController {
     // only { kind } keeps revealing exactly as it did.
     const show = parseOrThrow(z.boolean().optional().default(true), (body as { show?: boolean } | null)?.show);
     return this.dating.reveal(user.sub, targetUserId, kind, show);
+  }
+
+  /**
+   * ONE PHOTOGRAPH, TO THE VIEWER ITS LINK NAMES.
+   *
+   * `@Public` because an `<img>` tag cannot send an Authorization header — the
+   * token in the path is what stands in for the session, and it names a viewer
+   * and a key and is signed by this API. That is not the same as knowing who is
+   * holding it, and the point is not authentication: it is that the permission
+   * question is asked AGAIN, here, on every fetch. A presigned S3 link answered
+   * it once at mint and could not be revoked; a block, a takedown or a rejected
+   * photo now kills the link on the next request.
+   *
+   * One 404 for every refusal — bad signature, expired, taken down, blocked —
+   * because a route that distinguishes them tells whoever holds the string
+   * something about the person in the photograph.
+   */
+  @Public()
+  @Throttle(LIST_LIMIT)
+  @Get('photo/:token')
+  async photo(@Param('token') token: string, @Res({ passthrough: true }) res: Response): Promise<StreamableFile> {
+    const found = await this.dating.openPhoto(token);
+    if (!found) throw new NotFoundException('That photo is not available.');
+    res.set({
+      'Content-Type': found.contentType,
+      // Private and short-lived: a shared cache holding this would hand it to
+      // somebody the check above would have refused.
+      'Cache-Control': 'private, max-age=50',
+      ...(found.contentLength ? { 'Content-Length': String(found.contentLength) } : {}),
+    });
+    return new StreamableFile(found.body);
   }
 
   @Throttle(LIST_LIMIT)

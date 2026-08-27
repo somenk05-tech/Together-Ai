@@ -19,8 +19,11 @@ import { StorageProvider } from '../media/storage.provider';
 function build() {
   const s: any = Object.create(DatingService.prototype);
   const signed: string[] = [];
+  // Since 27 Aug the read path asks for a per-viewer link rather than a bare
+  // presigned one; the stub keeps the same shape so these cases still describe
+  // what a stored entry becomes.
   s.storage = {
-    presignPrivateDownload: async (key: string) => {
+    datingPhotoUrl: async (_viewerId: string, key: string) => {
       signed.push(key);
       return key.includes('unsignable') ? null : `https://signed.example/${key}?exp=300`;
     },
@@ -33,7 +36,7 @@ function build() {
 describe('what a stored entry becomes', () => {
   it('a key is signed, briefly, per viewer', async () => {
     const { s, signed } = build();
-    const out = await s.photoUrls(['dating/u1/abc.jpg']);
+    const out = await s.photoUrls('viewer', ['dating/u1/abc.jpg']);
     expect(out[0]).toContain('https://signed.example/dating/u1/abc.jpg');
     expect(signed).toEqual(['dating/u1/abc.jpg']);
   });
@@ -41,7 +44,7 @@ describe('what a stored entry becomes', () => {
   it('a legacy base64 photo still renders — there is no migration', async () => {
     const { s, signed } = build();
     const data = 'data:image/jpeg;base64,/9j/4AAQSkZJRg==';
-    expect(await s.photoUrls([data])).toEqual([data]);
+    expect(await s.photoUrls('viewer', [data])).toEqual([data]);
     expect(signed).toEqual([]);          // nothing was asked of storage
   });
 
@@ -49,14 +52,14 @@ describe('what a stored entry becomes', () => {
     // The account-photo URL used to pass through here. It is an unreviewed
     // remote image and an IP tracker; it is dropped now, at read and at write.
     const { s } = build();
-    expect(await s.photoUrls(['https://cdn.example/me.jpg'])).toEqual([]);
+    expect(await s.photoUrls('viewer', ['https://cdn.example/me.jpg'])).toEqual([]);
   });
 
   it('a key that will not sign is DROPPED, not emitted raw', async () => {
     // A key is not a URL. Passing it through puts a broken image on a profile
     // card, which is worse than one photo fewer.
     const { s } = build();
-    const out = await s.photoUrls(['dating/u1/unsignable.jpg', 'dating/u1/ok.jpg']);
+    const out = await s.photoUrls('viewer', ['dating/u1/unsignable.jpg', 'dating/u1/ok.jpg']);
     expect(out).toHaveLength(1);
     expect(out[0]).toContain('ok.jpg');
   });
@@ -65,7 +68,7 @@ describe('what a stored entry becomes', () => {
     // Fail-closed (26 Aug): no verdict reads as "not yet", for a vault key and
     // a legacy inline photo alike. The storage layer is never asked.
     const { s, signed } = build();
-    const out = await s.photoUrls(['dating/u1/unreviewed.jpg', 'data:image/png;base64,unreviewed', 'dating/u1/ok.jpg']);
+    const out = await s.photoUrls('viewer', ['dating/u1/unreviewed.jpg', 'data:image/png;base64,unreviewed', 'dating/u1/ok.jpg']);
     expect(out).toHaveLength(1);
     expect(signed).toEqual(['dating/u1/ok.jpg']);
   });
@@ -74,7 +77,7 @@ describe('what a stored entry becomes', () => {
     // Two shapes now, not three: an approved vault key (signed) and a legacy
     // data: blob. The http shape is gone — see the drop above.
     const { s } = build();
-    const out = await s.photoUrls(['dating/u1/a.jpg', 'data:image/png;base64,AAA', 'https://cdn.example/b.jpg']);
+    const out = await s.photoUrls('viewer', ['dating/u1/a.jpg', 'data:image/png;base64,AAA', 'https://cdn.example/b.jpg']);
     expect(out).toHaveLength(2);
     expect(out.some((u: string) => u.startsWith('http') && u.includes('cdn.example'))).toBe(false);
   });
