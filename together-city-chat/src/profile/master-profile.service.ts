@@ -6,6 +6,7 @@ import { canonicaliseDeclared } from '../shared/allergens';
 import { ACTIVITY_FACTORS, nearestActivityLevel } from '../shared/energy';
 import { dietKeyFrom } from '../shared/diet';
 import { diffProfile, versionConflict } from './profile-change';
+import { MIN_DATING_AGE, UNDER_AGE_MESSAGE, isAdult } from '../shared/age';
 import { answeredNow } from '../shared/prisma/answered-at';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { optimalHealthGate, type OptimalHealthGate } from './health-gate';
@@ -195,12 +196,39 @@ export class MasterProfileService {
   private datingAgeAllows(plan: Record<string, unknown>): boolean {
     const dob = plan.birthDate;
     if (dob === undefined || dob === null) return true;
-    const d = dob instanceof Date ? dob : new Date(String(dob));
-    if (Number.isNaN(d.getTime())) return false;
-    const years = (Date.now() - d.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
-    if (years >= 18) return true;
-    this.logger.warn(`dating propagation blocked: propagated date of birth is under 18`);
+    if (isAdult(dob as string | Date)) return true;
+    this.logger.warn('dating propagation blocked: propagated date of birth is under 18');
     return false;
+  }
+
+  /**
+   * BLOCKING THE COPY WAS NOT ENOUGH (27 Aug, launch audit).
+   *
+   * The guard above stops an under-18 date of birth reaching the dating row.
+   * It did nothing about the dating row that was ALREADY there — which kept
+   * its stale adult date, kept saying `approved`, and stayed in everybody's
+   * pool showing an age we now had direct evidence was false. The system knew
+   * the citizen was a minor and let their dating profile carry on.
+   *
+   * So the declaration acts on it. The profile is taken out of the pool and
+   * marked rejected, with the reason recorded where the citizen can read it
+   * and appeal — the same shape `moderateProfile` writes, because a rejection
+   * that looks different from every other rejection is one the appeal screen
+   * cannot explain.
+   *
+   * Swallowed, not thrown: a failure here must not take down a master-profile
+   * save, and the propagation is blocked either way. It is logged at error
+   * because a minor left visible is the one outcome somebody has to chase.
+   */
+  private async closeDatingForMinor(userId: string): Promise<void> {
+    const reason = { decision: 'rejected', checks: [{ name: 'age-18-plus', pass: false, severity: 'hard', detail: UNDER_AGE_MESSAGE }], reasons: [UNDER_AGE_MESSAGE] };
+    const p = this.prisma as unknown as Record<string, { updateMany: (a: unknown) => Promise<unknown> }>;
+    const done = await swallow(p.datingProfile.updateMany({
+      where: { userId },
+      data: { visible: false, moderation: 'rejected', moderationJson: JSON.stringify(reason) },
+    }), 'close dating profile for declared minor', { userId });
+    if (done) this.logger.warn(`dating profile closed: citizen declared a date of birth under ${MIN_DATING_AGE}`);
+    else this.logger.error(`COULD NOT close dating profile for a citizen who declared they are under ${MIN_DATING_AGE}`);
   }
 
   /**
@@ -467,8 +495,12 @@ export class MasterProfileService {
       // A propagation that fails silently is a hub quietly diverging from the
       // master — the exact disagreement §3 exists to end.
       Object.keys(plan.astro).length ? swallow(p.astroProfile.updateMany({ where: { userId }, data: plan.astro }), 'propagate shared fields to astro', { userId }) : null,
-      Object.keys(plan.dating).length && this.datingAgeAllows(plan.dating)
-        ? swallow(p.datingProfile.updateMany({ where: { userId }, data: plan.dating }), 'propagate shared fields to dating', { userId })
+      Object.keys(plan.dating).length
+        ? (this.datingAgeAllows(plan.dating)
+          ? swallow(p.datingProfile.updateMany({ where: { userId }, data: plan.dating }), 'propagate shared fields to dating', { userId })
+          // Not merely "do not copy" — the row that is already there has to go
+          // out of the pool. See closeDatingForMinor.
+          : this.closeDatingForMinor(userId))
         : null,
       Object.keys(plan.food).length ? swallow(p.foodPref.updateMany({ where: { userId }, data: answeredNow(plan.food) }), 'propagate shared fields to food-pref', { userId }) : null,
       Object.keys(plan.fitness).length ? swallow(p.fitnessProfile.updateMany({ where: { userId }, data: answeredNow(plan.fitness) }), 'propagate shared fields to fitness', { userId }) : null,

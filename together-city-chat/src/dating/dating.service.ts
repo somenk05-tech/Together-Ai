@@ -1,5 +1,5 @@
 import { swallow } from '../shared/swallow';
-import { BadRequestException, Injectable, NotFoundException, type OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, type OnModuleInit, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ClockService, DEFAULT_TIMEZONE } from '../shared/clock/clock.service';
 import { AdminService } from '../auth/admin';
@@ -22,6 +22,7 @@ import {
   canonicalGoal, confidenceFor, coverage, curatedBar, distanceNote, explain, factorScores, frictions, matchAlertBody, matchAlertReason, overallScore, preferenceNotes, sharedItems, seeks, shownName, type DXProfile, type FactorBreakdown, unreachableReason,
 } from './matching';
 import { carrySelfie, selfieOnFile, selfieTakenAt, SELFIE_KEY, SELFIE_AT } from './selfie';
+import { MIN_DATING_AGE, UNDER_AGE_MESSAGE, ageOn, floorAgePreferences, isAdult } from '../shared/age';
 import { LEARNING_WINDOW, learnWeights, overallScoreWith, type Decision } from './learned-weights';
 import { profileCompletion } from './completion';
 import { DAILY_LIKES, DAILY_SUPER_LIKES, likeLimitMessage, superLimitMessage } from './limits';
@@ -528,6 +529,7 @@ export class DatingService implements OnModuleInit {
       }
       const carried = carrySelfie(parsed, priorDX);
       if ('photos' in carried) carried.photos = this.ownPhotosOnly(userId, carried.photos);
+      floorAgePreferences(carried);
       return JSON.stringify(carried);
     })();
     const data = {
@@ -540,6 +542,22 @@ export class DatingService implements OnModuleInit {
       interests: (dto.interests ?? []).join(','),
       extras: cleanedExtras,
       visible: inPool,
+      /**
+       * OUT OF THE POOL WHILE WE LOOK AT IT (owner, 27 Aug, after the audit).
+       *
+       * This write used to leave `moderation` alone, which meant two things at
+       * once: a NEW row took the column default — `approved` — and an EDITED
+       * row kept whatever it had. Either way the profile was live in every
+       * other citizen's list for the whole of `moderateProfile` below, which
+       * makes a live AI call. A save was a window, and the window was as long
+       * as somebody else's API.
+       *
+       * Writing `pending` here closes it. `poolWhere` demands `approved`, so
+       * for the duration of the check the profile is nobody's to see; the
+       * decision lands a few lines down and it goes back. The citizen's own
+       * `visible` choice is untouched — that is theirs, and this is ours.
+       */
+      moderation: 'pending',
     };
     const existed = prior !== null;
     const profile = await this.prisma.datingProfile.upsert({
@@ -796,10 +814,14 @@ export class DatingService implements OnModuleInit {
           : `${photos.length} photo${photos.length === 1 ? '' : 's'} — 3 or more is recommended for better matches.`,
     });
 
-    // Age ≥ 18.
-    const dob = new Date(dto.birthDate + 'T00:00:00Z');
-    const age = Math.floor((Date.now() - dob.getTime()) / (365.25 * 86_400_000));
-    checks.push({ name: 'age-18-plus', pass: age >= 18, severity: 'hard', detail: age >= 18 ? `Age ${age}.` : 'You must be 18 or older to use dating.' });
+    // Age >= 18. The DTO refuses this at the door now (see dating.dto.ts) so
+    // this is the second line rather than the only one — it is what catches a
+    // date of birth that arrived by some other path, and it uses the SAME
+    // calendar arithmetic, because two formulas disagreeing by a day at this
+    // boundary is a minor in an adult pool.
+    const adult = isAdult(dto.birthDate);
+    const yrs = ageOn(dto.birthDate);
+    checks.push({ name: 'age-18-plus', pass: adult, severity: 'hard', detail: adult ? `Age ${yrs}.` : UNDER_AGE_MESSAGE });
 
     // Bio: contact info / banned / scam.
     const scan = scanText(`${bio}`);
@@ -867,9 +889,39 @@ export class DatingService implements OnModuleInit {
     return this.cachedList(userId, 'matches', kind, limit, () => this.matchesUncached(userId, kind, limit));
   }
 
-  private async matchesUncached(userId: string, kind: MatchKind, limit?: number) {
+  /**
+   * THE CALLER'S OWN PROFILE, AND IT HAS TO BE APPROVED (27 Aug, launch audit).
+   *
+   * Five entrypoints used to ask only whether a row EXISTED — matches,
+   * discover, the stack, match detail and hosting an activity. So a profile
+   * REJECTED for being under 18 kept every capability that mattered: it could
+   * browse every adult in the city, open detail pages with the full photo
+   * gallery, send likes, and host an activity that auto-invites six approved
+   * adults and opens a private conversation with one of them.
+   *
+   * Rejection produced a notice and nothing else. Now it produces a closed
+   * door, and the two things a rejected citizen may still do — read their own
+   * profile and appeal the decision — are the two paths that deliberately do
+   * NOT come through here (see getProfile and requestAppeal, which checks
+   * moderation itself and needs a non-approved profile to work at all).
+   *
+   * 403, not 404: they know their profile exists, they are looking at it. A
+   * 404 here would be a lie told to somebody who can see the truth.
+   */
+  private async myApprovedProfile(userId: string) {
     const mine = await this.prisma.datingProfile.findUnique({ where: { userId } });
     if (!mine) throw new NotFoundException('create your dating profile first');
+    const state = (mine as { moderation?: string }).moderation ?? 'pending';
+    if (state !== 'approved') {
+      throw new ForbiddenException(state === 'rejected'
+        ? 'Your dating profile has not been approved, so you cannot browse yet. You can appeal in the Safety Centre.'
+        : 'Your dating profile is still being reviewed. This usually takes a moment — try again shortly.');
+    }
+    return mine;
+  }
+
+  private async matchesUncached(userId: string, kind: MatchKind, limit?: number) {
+    const mine = await this.myApprovedProfile(userId);
 
     // Narrowed in SQL, capped, ordered — see POOL_CEILING. Every JS check below
     // still runs, so this can only be narrower than the filter, never looser.
@@ -1047,8 +1099,7 @@ export class DatingService implements OnModuleInit {
   }
 
   private async discoverUncached(userId: string, kind: MatchKind, limit?: number) {
-    const mine = await this.prisma.datingProfile.findUnique({ where: { userId } });
-    if (!mine) throw new NotFoundException('create your dating profile first');
+    const mine = await this.myApprovedProfile(userId);
 
     // Narrowed, capped and ordered — see POOL_CEILING.
     const myDForQuery = this.parseDX((mine as { extras?: string | null }).extras);
@@ -1307,8 +1358,7 @@ export class DatingService implements OnModuleInit {
   }
 
   private async stackUncached(userId: string, kind: MatchKind, limit?: number) {
-    const mine = await this.prisma.datingProfile.findUnique({ where: { userId } });
-    if (!mine) throw new NotFoundException('create your dating profile first');
+    const mine = await this.myApprovedProfile(userId);
 
     // What this citizen's own choices have earned. Below the evidence bar this
     // comes back as the standard weights and says so, and the page says so too.
@@ -1465,8 +1515,7 @@ export class DatingService implements OnModuleInit {
    * occupation, lifestyle, personality, values, the whole photo gallery).
    */
   async matchDetail(userId: string, targetUserId: string, kind: MatchKind = 'romantic') {
-    const mine = await this.prisma.datingProfile.findUnique({ where: { userId } });
-    if (!mine) throw new NotFoundException('create your dating profile first');
+    const mine = await this.myApprovedProfile(userId);
     const cand = await this.prisma.datingProfile.findUnique({
       where: { userId: targetUserId },
       include: { user: { select: { id: true, handle: true, name: true, profileImage: true, emailVerified: true } } },
@@ -2377,6 +2426,17 @@ export class DatingService implements OnModuleInit {
   }
   /** Milliseconds in the year ageOf() uses. Written once so the query and the
    *  check cannot drift apart. */
+  /**
+   * The one place a 365.25-day year survives, and deliberately.
+   *
+   * Every AGE decision now goes through age.ts, which counts calendar years —
+   * because a formula that disagrees by a day at the 18 boundary is a minor in
+   * an adult pool. This constant is not an age decision: it turns the viewer's
+   * stated PREFERENCE range into a birthDate range for SQL to narrow on, and
+   * the JS filter re-checks every survivor afterwards. Being a day loose at
+   * the edge of "25 to 40" costs a candidate an approximate ranking; doing
+   * calendar arithmetic per row in the database costs the index.
+   */
   private static readonly AGE_YEAR_MS = 365.25 * 86_400_000;
 
   /**
@@ -2407,7 +2467,10 @@ export class DatingService implements OnModuleInit {
     return Object.keys(range).length ? { birthDate: range } : {};
   }
 
-  private ageOf(birthDate: Date): number { return Math.floor((Date.now() - new Date(birthDate).getTime()) / (365.25 * 86_400_000)); }
+  /** The age shown on a card. Same arithmetic as the gate, on purpose: a
+   *  profile that reads 18 to a stranger and 17 to the check is the bug this
+   *  whole pass exists to remove. */
+  private ageOf(birthDate: Date): number { return ageOn(birthDate) ?? 0; }
 
   /** Anonymised view of a party; identity revealed only at trust level ≥2. */
   private async anonParty(userId: string, trustLevel: number) {
@@ -2426,8 +2489,10 @@ export class DatingService implements OnModuleInit {
   }
 
   async createActivity(hostId: string, dto: { text: string; category: string; date: string; time?: string; groupSize: string; description?: string }) {
-    const host = await this.prisma.datingProfile.findUnique({ where: { userId: hostId } });
-    if (!host) throw new NotFoundException('create your dating profile first');
+    // The host is checked exactly as a browser is. An activity auto-invites
+    // approved adults and accepting opens a direct conversation — hosting is
+    // the single most consequential thing a non-approved profile could do.
+    const host = await this.myApprovedProfile(hostId);
     const activity = await this.activities.create({
       data: { hostId, text: dto.text, category: dto.category, date: dto.date, time: dto.time ?? null, groupSize: dto.groupSize, description: dto.description ?? null },
     });

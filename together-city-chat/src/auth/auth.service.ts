@@ -101,6 +101,18 @@ export class AuthService {
       },
     });
     await this.initializeAccount(user.id);            // fully-initialised account
+    // The age claim goes ON THE RECORD, not just past a validator. Before this,
+    // the server kept no evidence that anybody had ever asserted they were an
+    // adult — which is the first thing anyone would ask for afterwards.
+    // `?.` and not a bare access: reaching for a delegate that is not there
+    // throws SYNCHRONOUSLY, before there is a promise for swallow to catch —
+    // the same trap dating.service.ts carries a comment about. A registration
+    // must not fail because a write beside it could not be attempted.
+    const mp = (this.prisma as unknown as Record<string, { updateMany?: (a: unknown) => Promise<unknown> } | undefined>).masterProfile;
+    await swallow(mp?.updateMany?.({
+      where: { userId: user.id },
+      data: { dateOfBirth: new Date(`${dto.dateOfBirth}T00:00:00.000Z`) },
+    }) ?? Promise.resolve(null), 'record date of birth at sign-up', { userId: user.id });
     // No verification email is sent here any more. Sign-up now finishes on a
     // six-digit code screen (VerifyChannel), which asks for the code the person
     // is about to receive rather than mailing a link they have to go and find.

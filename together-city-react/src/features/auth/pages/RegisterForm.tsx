@@ -32,6 +32,36 @@ const field: React.CSSProperties = { width: '100%', padding: '13px 14px', border
 const errStyle: React.CSSProperties = { color: '#c0392b', fontSize: 12, margin: '5px 2px 0' };
 const emailOk = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 
+/** Whole calendar years, matching the server's shared/age.ts exactly — a form
+ *  that disagrees with the API about somebody's age on their birthday is a
+ *  form that refuses an adult, or accepts a child for one round trip. */
+function ageFrom(iso: string): number {
+  const d = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return -1;
+  const now = new Date();
+  let y = now.getUTCFullYear() - d.getUTCFullYear();
+  const m = now.getUTCMonth() - d.getUTCMonth();
+  if (m < 0 || (m === 0 && now.getUTCDate() < d.getUTCDate())) y -= 1;
+  return y;
+}
+/** The latest date of birth that is already 18, for the picker's own ceiling. */
+function eighteenYearsAgo(): string {
+  const d = new Date();
+  d.setUTCFullYear(d.getUTCFullYear() - 18);
+  return d.toISOString().slice(0, 10);
+}
+const dobLabel: React.CSSProperties = {
+  display: 'block', fontSize: 12, fontWeight: 600, letterSpacing: '.05em',
+  textTransform: 'uppercase', color: 'var(--muted)', margin: '12px 0 0',
+};
+const dobNote: React.CSSProperties = { fontSize: 11.5, margin: '5px 0 0', lineHeight: 1.5 };
+/** The one thing about this field that changes: whether it is showing a
+ *  refusal. Everything else is fixed, so it is declared once rather than
+ *  rebuilt inline — see scripts/size-system-ceiling.mjs for why that matters. */
+const dobField = (bad: boolean): React.CSSProperties => ({
+  ...field, margin: '4px 0 0', borderColor: bad ? 'var(--danger-ink)' : 'var(--line)',
+});
+
 /** Redesigned "Join the City" sign-up — low-friction, live-validated. */
 export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => void; from: string }) {
   const { register } = useAuth();
@@ -42,6 +72,7 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
+  const [dob, setDob] = useState('');
   const [agreed, setAgreed] = useState(false);
   const [showPhone, setShowPhone] = useState(false);
   const [showPw, setShowPw] = useState(false);
@@ -74,21 +105,27 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
   }, [handle]);
 
   const emailErr = email && !emailOk(email) ? 'Enter a valid email address.' : null;
+  // 18+ IS THE CITY RULE (owner, 27 Aug), and the server enforces it — this is
+  // the courtesy half, so somebody learns it before filling in a password
+  // rather than after. The refusal that matters is in RegisterSchema.
+  const adult = dob !== '' && ageFrom(dob) >= 18;
+  const dobErr = dob && !adult ? 'You must be 18 or older to join Together City.' : null;
   const pwChecks = PW_RULES.map((r) => ({ ...r, ok: r.test(password) }));
   const pwScore = pwChecks.filter((c) => c.ok).length;
   const pwStrong = pwScore === PW_RULES.length;
 
   const acceptTos = usePrivacyStore((s) => s.acceptTos);
-  const canSubmit = hStatus === 'ok' && name.trim() && emailOk(email) && pwStrong && agreed && !busy;
+  const canSubmit = hStatus === 'ok' && name.trim() && emailOk(email) && pwStrong && adult && agreed && !busy;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     if (!agreed) { setError('Accept the Terms and Privacy Policy to continue.'); return; }
+    if (!adult) { setError('You must be 18 or older to join Together City.'); return; }
     if (!canSubmit) { setError('Please complete the highlighted fields.'); return; }
     setBusy(true);
     try {
-      await register(handle.trim().toLowerCase(), name.trim(), password, { email: email.trim().toLowerCase(), phone: showPhone ? phone.trim() : undefined });
+      await register(handle.trim().toLowerCase(), name.trim(), password, { email: email.trim().toLowerCase(), phone: showPhone ? phone.trim() : undefined, dateOfBirth: dob });
       acceptTos(); pushTos(); // record consent to ToS + Privacy at account creation
       setDone(true);   // auto-logged-in on success
     } catch (err) {
@@ -167,6 +204,22 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
           onChange={(e) => setEmail(e.target.value)} className="tc-field"
           style={{ ...field, marginTop: 10, borderColor: emailErr ? '#c0392b' : 'var(--line)' }} />
         {emailErr && <p style={errStyle}>{emailErr}</p>}
+
+        {/* Together City is 18+. Asked here rather than at the dating hub,
+            because the rule is the city's and the honest place to say so is
+            before somebody has invested a password in it. `max` stops the
+            date picker offering a birthday that is not old enough at all. */}
+        <label htmlFor="reg-dob" style={dobLabel}>Date of birth</label>
+        <input required id="reg-dob" type="date" value={dob} name="bday" autoComplete="bday"
+          max={eighteenYearsAgo()} aria-label="Date of birth"
+          aria-describedby="dob-note" onChange={(e) => setDob(e.target.value)}
+          style={dobField(Boolean(dobErr))} />
+        {dobErr
+          ? <p style={errStyle}>{dobErr}</p>
+          : <p id="dob-note" className="muted" style={dobNote}>
+              Together City is for people aged 18 and over. This is kept on your profile and
+              is not shown to anyone.
+            </p>}
 
         {/* Password */}
         <div className="tc-field" style={{ display: 'flex', alignItems: 'center', border: '1.5px solid var(--line)', borderRadius: 12, padding: '0 12px', marginTop: 10, background: 'var(--card)' }}>

@@ -1,9 +1,29 @@
 import { z } from 'zod';
+import { UNDER_AGE_MESSAGE, isAdult } from '../../shared/age';
 
 export const MatchKindSchema = z.enum(['romantic', 'platonic']);
 export type MatchKind = z.infer<typeof MatchKindSchema>;
 
-/** Create/update the dating profile. Birth details power the astrology-first scoring. */
+/**
+ * Create/update the dating profile. Birth details power the astrology-first
+ * scoring — and gate the whole hub.
+ *
+ * THE 18+ RULE LIVES HERE NOW, and where it lives is the fix (owner, 27 Aug,
+ * after the launch audit). It used to be a `severity: 'hard'` check inside
+ * `moderateProfile`, which runs THIRTY-FIVE LINES AFTER the row is written —
+ * and the row is written `visible`, with `moderation` defaulting to approved.
+ * For the length of one AI moderation call, a child's profile was in every
+ * adult's pool with their photographs on it.
+ *
+ * A refinement on the DTO throws a 400 before anything is written at all. No
+ * row, no window, no rejected-but-still-readable state to clean up afterwards.
+ * The special-category consent check already worked this way and was the model:
+ * the thing you must not get wrong is the thing you refuse at the door.
+ *
+ * The moderation check STAYS as well, deliberately — it is what catches a date
+ * of birth that arrived by some other path, and a rule enforced in one place
+ * is a rule with one place to forget it.
+ */
 export const UpsertDatingProfileSchema = z.object({
   gender: z.enum(['male', 'female', 'nonbinary']),
   seeking: z.enum(['male', 'female', 'nonbinary', 'any']),
@@ -14,6 +34,9 @@ export const UpsertDatingProfileSchema = z.object({
   interests: z.array(z.string().min(1).max(40)).max(20).optional(),
   extras: z.string().max(2_000_000).optional(), // JSON blob (incl. photos as data URLs)
   visible: z.boolean().optional(),
+}).refine((v) => isAdult(v.birthDate), {
+  message: UNDER_AGE_MESSAGE,
+  path: ['birthDate'],
 });
 export type UpsertDatingProfileDto = z.infer<typeof UpsertDatingProfileSchema>;
 

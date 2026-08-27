@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Put, Query, UseGuards, UsePipes } from '@nestjs/common';
 import { z } from 'zod';
+import { UNDER_AGE_MESSAGE, isAdult } from '../shared/age';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
@@ -82,7 +83,13 @@ export class ProfileController {
      *  services write shared fields without ever having read the profile, and
      *  refusing them would break saving from Nutrition, Fitness and the rest. */
     expectedVersion: z.number().int().nonnegative().optional(),
-    dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+    // 18+ HERE TOO, or the city rule is one save away from being undone: this
+    // endpoint took any date at all, wrote it to the master record, and fanned
+    // it out to every hub. An account created at 18 could become 13 on the next
+    // PATCH. Null stays allowed — clearing a date is not claiming an age.
+    dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+      .refine((d) => isAdult(d), { message: UNDER_AGE_MESSAGE })
+      .nullable().optional(),
     timeOfBirth: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable().optional(),
     birthCountry: z.string().max(60).nullable().optional(),
     birthState: z.string().max(60).nullable().optional(),

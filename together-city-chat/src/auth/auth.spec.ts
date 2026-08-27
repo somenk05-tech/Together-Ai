@@ -56,7 +56,7 @@ describe('registration', () => {
 
   it('creates a fully-initialised, verification-pending account', async () => {
     const { f, svc } = build();
-    const res = await svc.register({ handle: 'John', name: 'John', email: 'John@Mail.com', password: STRONG } as never);
+    const res = await svc.register({ handle: 'John', name: 'John', email: 'John@Mail.com', password: STRONG, dateOfBirth: '1995-06-15' } as never);
     expect(res.userId).toBeTruthy();
     const u = f.prisma.user.rows[0];
     expect(u.handle).toBe('john');           // lowercased
@@ -71,17 +71,17 @@ describe('registration', () => {
   });
   it('rejects a weak password', async () => {
     const { svc } = build();
-    await expect(svc.register({ handle: 'jane', name: 'Jane', email: 'j@e.com', password: 'weak' } as never)).rejects.toThrow();
+    await expect(svc.register({ handle: 'jane', name: 'Jane', email: 'j@e.com', password: 'weak', dateOfBirth: '1995-06-15' } as never)).rejects.toThrow();
   });
   it('rejects a duplicate handle', async () => {
     const { svc } = build();
-    await svc.register({ handle: 'dup', name: 'A', email: 'a@e.com', password: STRONG } as never);
-    await expect(svc.register({ handle: 'dup', name: 'B', email: 'b@e.com', password: STRONG } as never)).rejects.toThrow(/handle/i);
+    await svc.register({ handle: 'dup', name: 'A', email: 'a@e.com', password: STRONG, dateOfBirth: '1995-06-15' } as never);
+    await expect(svc.register({ handle: 'dup', name: 'B', email: 'b@e.com', password: STRONG, dateOfBirth: '1995-06-15' } as never)).rejects.toThrow(/handle/i);
   });
   it('rejects a duplicate email', async () => {
     const { svc } = build();
-    await svc.register({ handle: 'a1', name: 'A', email: 'same@e.com', password: STRONG } as never);
-    await expect(svc.register({ handle: 'a2', name: 'B', email: 'same@e.com', password: STRONG } as never)).rejects.toThrow(/email/i);
+    await svc.register({ handle: 'a1', name: 'A', email: 'same@e.com', password: STRONG, dateOfBirth: '1995-06-15' } as never);
+    await expect(svc.register({ handle: 'a2', name: 'B', email: 'same@e.com', password: STRONG, dateOfBirth: '1995-06-15' } as never)).rejects.toThrow(/email/i);
   });
   it('reports handle availability + suggestions', async () => {
     const { f, svc } = build();

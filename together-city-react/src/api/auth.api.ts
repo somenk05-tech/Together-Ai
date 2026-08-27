@@ -6,6 +6,8 @@ import { AuthResultSchema, TokenPairSchema, UserSchema, type AuthResult, type To
 export const RegisterInput = z.object({
   handle: z.string().min(3), name: z.string().min(1), password: z.string().min(12),
   email: z.string().email(), phone: z.string().optional(),
+  /** Required. The city is 18+ and the server refuses anything younger. */
+  dateOfBirth: z.string(),
   /** Cloudflare Turnstile, when the site key is set. Absent otherwise. */
   turnstileToken: z.string().optional(),
 });
