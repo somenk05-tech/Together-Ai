@@ -1,5 +1,6 @@
 import { swallowed } from '../shared/swallow';
 import { Injectable, Logger } from '@nestjs/common';
+import { shownName } from '../dating/matching';
 import { datingContext } from '../shared/dating-conversations';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { RedisService } from '../shared/redis/redis.service';
@@ -179,13 +180,25 @@ export class NotificationsService {
     });
     if (!sender) return null;
     const ctx = await datingContext(this.prisma, conversationId, senderId);
-    // One identity: dating no longer masks the sender's name — the profile
-    // the recipient matched with carries the same name everywhere. `dating`
-    // still decides the href, so these chats keep opening in the Dating Hub.
+    // A DATING CHAT NEVER PUSHES THE CITY IDENTITY (27 Aug, second audit,
+    // blocker 06). This used to send `sender.name` (the ACCOUNT name) and
+    // `sender.profileImage` (the city photo the dating card refuses to show) to
+    // the match's lock screen — defeating the pseudonym with the first message.
+    // Now a dating notification carries exactly what the card carries: the
+    // sender's chosen dating name (shownName), and NO photo. Everything else
+    // (real city chats) is unchanged.
+    if (ctx.dating) {
+      const dp = await this.prisma.datingProfile
+        .findUnique({ where: { userId: senderId }, select: { extras: true } })
+        .catch(() => null);
+      let firstName: unknown;
+      try { firstName = dp?.extras ? (JSON.parse(dp.extras) as { firstName?: unknown }).firstName : undefined; } catch { firstName = undefined; }
+      return { displayName: shownName({ firstName }, sender.name), displayPhoto: undefined, dating: true };
+    }
     return {
       displayName: sender.name,
       displayPhoto: sender.profileImage ?? undefined,
-      dating: ctx.dating,
+      dating: false,
     };
   }
 

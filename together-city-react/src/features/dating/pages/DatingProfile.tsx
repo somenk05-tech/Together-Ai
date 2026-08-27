@@ -471,8 +471,12 @@ export function DatingProfilePage() {
         // The diet the citizen already gave Nutrition, as this form's label.
         // One question, asked once, in whichever hub they opened first.
         diet: prev.diet || d.diet || undefined,
-        // Reuse the Master Profile photo as the first dating photo (spec §4).
-        photos: prev.photos && prev.photos.length ? prev.photos : (d.photo ? [d.photo] : prev.photos),
+        // NO LONGER SEEDED FROM THE ACCOUNT PHOTO (27 Aug, second audit,
+        // blocker 04). The master photo is an http URL — an unreviewed remote
+        // image that skipped the safety pipeline and, shown on the card,
+        // leaked every viewer's IP. Dating photos are uploaded to the private
+        // bucket and reviewed; the citizen adds at least one deliberately.
+        photos: prev.photos,
       }));
     }
     /* The dependency is the DATUM, not the query object that carries it.

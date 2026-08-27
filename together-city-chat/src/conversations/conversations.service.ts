@@ -4,6 +4,7 @@ import { PrismaService } from '../shared/prisma/prisma.service';
 import { ConnectionPermissionService } from '../connections/connection-permission.service';
 import { directKeyOf } from './conversation.util';
 import { datingConversationIds } from '../shared/dating-conversations';
+import { nickname } from '../shared/nickname';
 import { CreateGroupDto } from './dto/conversations.dto';
 
 @Injectable()
@@ -415,19 +416,34 @@ export class ConversationsService {
   /** Who is in this group, and what they are. Any member may ask. */
   async members(userId: string, conversationId: string) {
     await this.assertParticipant(userId, conversationId);
+    // AN ANONYMOUS DATING CHAT LEAKS NOTHING HERE EITHER (27 Aug, second audit,
+    // blocker 03). This endpoint returned the real handle, name and city photo
+    // to any member — so a match who had deliberately NOT revealed was unmasked
+    // by one GET, and roster() masking the same photo forty lines up meant
+    // nothing. A DIRECT conversation still marked anonymous (anonymousTrust set
+    // and below the reveal threshold) gets the pseudonym and nulls for everyone
+    // but the caller; groups and revealed chats are unchanged.
+    const convo = await this.prisma.conversation.findUnique({
+      where: { id: conversationId }, select: { type: true, anonymousTrust: true },
+    });
+    const at = (convo as { anonymousTrust?: number | null } | null)?.anonymousTrust;
+    const anonymous = convo?.type === 'DIRECT' && at != null && at < 2;
     // unbounded: one conversation's members — group-sized
     const rows = await this.prisma.conversationMember.findMany({
       where: { conversationId },
       include: { user: { select: { id: true, name: true, handle: true, profileImage: true } } },
       orderBy: { joinedAt: 'asc' },
     });
-    return rows.map((r) => ({
-      userId: r.userId,
-      name: r.user?.name ?? 'Someone',
-      handle: r.user?.handle ?? null,
-      profileImage: r.user?.profileImage ?? null,
-      role: r.role,
-    }));
+    return rows.map((r) => {
+      const masked = anonymous && r.userId !== userId;
+      return {
+        userId: r.userId,
+        name: masked ? nickname(r.userId) : (r.user?.name ?? 'Someone'),
+        handle: masked ? null : (r.user?.handle ?? null),
+        profileImage: masked ? null : (r.user?.profileImage ?? null),
+        role: r.role,
+      };
+    });
   }
 
   /**

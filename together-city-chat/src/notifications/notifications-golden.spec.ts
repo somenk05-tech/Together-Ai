@@ -62,6 +62,9 @@ function build(opts: {
       findMany: async () => (opts.datingMatch ? [opts.datingMatch] : []),
       findFirst: async (a: any) => (opts.datingMatch && opts.datingMatch.conversationId === a.where.conversationId ? opts.datingMatch : null),
     },
+    // identityIn now reads the sender's dating display name for a dating push;
+    // no firstName here, so shownName falls back to the account name.
+    datingProfile: { findUnique: async () => ({ extras: null }) },
     deviceToken: {
       findMany: async (a: any) => [
         { token: `fcm-${a.where.userId}`, platform: 'android' },
@@ -143,7 +146,8 @@ describe('what the notifications engine decides today', () => {
     await svc.notifyNewMessage({ conversationId: 'c9', senderId: 'sender1', recipientIds: ['u1'], preview: 'hi' });
     const revealed = build({ datingMatch: { ...dm, revealByOne: true } });
     await revealed.svc.notifyNewMessage({ conversationId: 'c9', senderId: 'sender1', recipientIds: ['u1'], preview: 'hi again' });
-    // Reveal flags no longer change the name; the href still says which hub.
+    // A dating push carries the profile name (shownName) and NO city photo
+    // (blocker 06); reveal flags do not change the name; the href says the hub.
     expect({
       titleBeforeReveal: table[0]?.title,
       titleAfterReveal: revealed.table[0]?.title,

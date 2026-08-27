@@ -45,9 +45,11 @@ describe('what a stored entry becomes', () => {
     expect(signed).toEqual([]);          // nothing was asked of storage
   });
 
-  it('the account-photo fallback passes through untouched', async () => {
+  it('an http entry is DROPPED, never emitted (blocker 04, 27 Aug)', async () => {
+    // The account-photo URL used to pass through here. It is an unreviewed
+    // remote image and an IP tracker; it is dropped now, at read and at write.
     const { s } = build();
-    expect(await s.photoUrls(['https://cdn.example/me.jpg'])).toEqual(['https://cdn.example/me.jpg']);
+    expect(await s.photoUrls(['https://cdn.example/me.jpg'])).toEqual([]);
   });
 
   it('a key that will not sign is DROPPED, not emitted raw', async () => {
@@ -68,10 +70,13 @@ describe('what a stored entry becomes', () => {
     expect(signed).toEqual(['dating/u1/ok.jpg']);
   });
 
-  it('the three shapes mix, because for a long time they will', async () => {
+  it('a key and a legacy blob show; an http entry does not', async () => {
+    // Two shapes now, not three: an approved vault key (signed) and a legacy
+    // data: blob. The http shape is gone — see the drop above.
     const { s } = build();
     const out = await s.photoUrls(['dating/u1/a.jpg', 'data:image/png;base64,AAA', 'https://cdn.example/b.jpg']);
-    expect(out).toHaveLength(3);
+    expect(out).toHaveLength(2);
+    expect(out.some((u: string) => u.startsWith('http') && u.includes('cdn.example'))).toBe(false);
   });
 });
 
@@ -94,8 +99,10 @@ describe('whose photo you may file against your own profile', () => {
     expect(StorageProvider.isOwnDatingKey('u1', 'dating/u1/yes.jpg')).toBe(true);
   });
 
-  it('lets legacy blobs and account photos through — they are not keys', () => {
-    expect(own(['data:image/png;base64,AAA', 'https://cdn.example/x.jpg'])).toHaveLength(2);
+  it('lets a legacy blob through but NOT an http URL (blocker 04)', () => {
+    // data: is a legacy inline photo the citizen already has; an http URL is an
+    // arbitrary remote image and is refused at the write, not just the read.
+    expect(own(['data:image/png;base64,AAA', 'https://cdn.example/x.jpg'])).toEqual(['data:image/png;base64,AAA']);
   });
 
   it('caps the gallery and survives rubbish', () => {

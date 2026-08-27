@@ -288,7 +288,8 @@ export class DatingService implements OnModuleInit {
     const out: string[] = [];
     for (const e of entries) {
       if (!e) { out.push(''); continue; }
-      if (e.startsWith('data:') || e.startsWith('http')) { out.push(e); continue; }
+      if (e.startsWith('data:')) { out.push(e); continue; }
+      if (e.startsWith('http')) { out.push(''); continue; }  // legacy account-photo entry — never emitted now
       out.push((await this.storage.presignPrivateDownload(e)) ?? '');
     }
     return out;
@@ -297,15 +298,16 @@ export class DatingService implements OnModuleInit {
   /**
    * Another citizen's photos, as a viewer may see them: only entries a review
    * has APPROVED are shown — vault keys signed, legacy inline photos passed
-   * through. The account photo (`http`) passes unreviewed; it is already
-   * public across the whole city.
+   * through. An http entry is dropped: it is an unreviewed remote URL, and
+   * emitting it would defeat the review gate and leak the viewer's IP to
+   * whoever hosts it (27 Aug, blocker 04).
    */
   private async photoUrls(entries: readonly string[]): Promise<string[]> {
     const approved = await this.photoMod.approvedOf(entries);
     const out: string[] = [];
     for (const e of entries) {
       if (!e) continue;
-      if (e.startsWith('http')) { out.push(e); continue; }
+      if (e.startsWith('http')) continue;
       if (!approved.has(e)) continue;
       if (e.startsWith('data:')) { out.push(e); continue; }
       const signed = await this.storage.presignPrivateDownload(e);
@@ -340,7 +342,7 @@ export class DatingService implements OnModuleInit {
     for (const j of jobs) {
       for (const k of j.keys) {
         if (!k) continue;
-        if (k.startsWith('http')) { j.into.push(k); continue; }
+        if (k.startsWith('http')) continue;   // unreviewed remote URL — never served (blocker 04)
         if (!approved.has(k)) continue;
         if (k.startsWith('data:')) { j.into.push(k); continue; }
         const url = signed.get(k);
@@ -503,7 +505,12 @@ export class DatingService implements OnModuleInit {
     if (!Array.isArray(entries)) return [];
     return entries
       .filter((e): e is string => typeof e === 'string' && !!e)
-      .filter((e) => e.startsWith('data:') || e.startsWith('http') || StorageProvider.isOwnDatingKey(userId, e))
+      // NO http (27 Aug, second audit, blocker 04). An http entry is an
+      // arbitrary remote URL: unreviewed by Rekognition, swappable after the
+      // fact, and a tracker that logs every viewer's IP. The only source that
+      // ever wrote one was the account-photo seed, which is exactly the leak.
+      // data: (legacy inline) and this citizen's own dating keys only.
+      .filter((e) => e.startsWith('data:') || StorageProvider.isOwnDatingKey(userId, e))
       .slice(0, 10);
   }
 
@@ -2489,9 +2496,21 @@ export class DatingService implements OnModuleInit {
     });
     if (!state) return { ok: true as const };
     if (state.conversationId) await swallow(this.conversations.archiveForAll(state.conversationId), 'dating unmatch: archive conversation', { userId });
+    // CLEAR THE LIKES, NOT JUST SET PASSED (27 Aug, second audit, blocker 01).
+    // Leaving likedBy* true meant a single ♡ tap by the OTHER person walked
+    // straight through like()'s `alreadyLiked` short-circuit and flipped the
+    // row back to `matched` — re-opening the chat with a notification, and no
+    // consent from whoever ended it. Clearing the likes makes a re-match what
+    // it should be: two people both choosing again, each spending a like,
+    // rather than one tap undoing the other's decision.
     await this.prisma.datingMatch.update({
       where: { id: state.id },
-      data: { status: 'passed', passedByOne: true, passedByTwo: true, revealByOne: false, revealByTwo: false },
+      data: {
+        status: 'passed', passedByOne: true, passedByTwo: true,
+        revealByOne: false, revealByTwo: false,
+        likedByOne: false, likedByTwo: false, likedAtOne: null, likedAtTwo: null,
+        superByOne: false, superByTwo: false,
+      },
     });
     return { ok: true as const };
   }
@@ -2525,7 +2544,13 @@ export class DatingService implements OnModuleInit {
     const both = Boolean(flags.revealByOne && flags.revealByTwo);
     // anonymousTrust drops only when NEITHER side is hidden any more — it marks
     // the conversation as no longer anonymous at all.
-    await this.conversations.setAnonymousTrust(state.conversationId, both ? null : 1);
+    // 2, NOT null (27 Aug, second audit, blocker 05). null told every reader
+    // "this is an ordinary city chat" — and the chat-media guard skips those,
+    // so mutual reveal silently switched OFF image screening between two people
+    // an engine introduced. 2 means "revealed, names shown, still a dating
+    // conversation" (the value the activity reveal step already used), so
+    // screening, the match gate and the no-phone-number rule all keep holding.
+    await this.conversations.setAnonymousTrust(state.conversationId, both ? 2 : 1);
     if (show && !both) {
       void this.notifications.create({
         userId: targetUserId, actorId: userId, kind: 'dating_like',
