@@ -4,7 +4,7 @@ import { AdminAccessService } from '../admin/admin-access.service';
 import { swallow } from '../shared/swallow';
 import { reportEnv } from './env-manifest';
 import { usingDefaultPassword } from './dev-password.guard';
-import { FLAGS, isFlagKey } from './feature-flags';
+import { FLAGS, isFlagKey, UNFLAGGABLE_HUBS } from './feature-flags';
 import { FeatureFlagGuard } from './feature-flag.guard';
 
 /**
@@ -94,6 +94,10 @@ export class DevService {
     }), 'dev flag detail');
     const meta = new Map((rows ?? []).map((r) => [r.key, r]));
     return {
+      // Sent alongside the switches so the grid can draw a card for a hub that
+      // has NO switch and say why. A hub simply missing from the grid reads as
+      // "always on", which is the one thing it does not mean.
+      unflaggable: UNFLAGGABLE_HUBS,
       items: FLAGS.map((f) => {
         const m = meta.get(f.key);
         return {

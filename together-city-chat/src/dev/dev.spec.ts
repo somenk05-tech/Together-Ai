@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { join } from 'path';
 import { ENV_MANIFEST, presence, reportEnv } from './env-manifest';
-import { FLAGS, FLAG_KEYS, NEVER_FLAGGABLE, flagForPath, isFlagKey } from './feature-flags';
+import { FLAGS, FLAG_KEYS, NEVER_FLAGGABLE, UNFLAGGABLE_HUBS, flagForPath, isFlagKey } from './feature-flags';
 import { devPassword, usingDefaultPassword } from './dev-password.guard';
 
 const SRC = join(__dirname, '..');
@@ -192,6 +192,76 @@ describe('the kill switches', () => {
     for (const forbidden of NEVER_FLAGGABLE) {
       expect(gated).not.toContain(forbidden);
     }
+  });
+
+  /**
+   * EVERY HUB ON THE CITIZEN'S GRID IS ACCOUNTED FOR (owner, 27 Aug: a
+   * developer dashboard that "overrides all the controls of the website at
+   * will").
+   *
+   * The dashboard draws one card per hub. A hub that is neither flaggable nor
+   * declared un-flaggable simply would not appear — and an absent card reads
+   * as "this one is always on", which is the most expensive kind of quiet.
+   * So the fourteen hubs the citizen can switch off for themselves must each
+   * be one or the other here, and this fails the build if a fifteenth is added
+   * without deciding which.
+   *
+   * The list is duplicated rather than imported because it lives in the web
+   * app and this is the API. That duplication is the point: the day they
+   * disagree, this test says so, which is what a copy is FOR when the two
+   * sides cannot share a module.
+   */
+  it('accounts for every hub the citizen can switch, as a switch or a reason', () => {
+    const DESIGNABLE = ['astrology', 'beauty', 'dating', 'ecommerce', 'entertainment',
+      'financial', 'fitness', 'jobs', 'medical', 'nutrition', 'pets', 'realestate',
+      'services', 'social'];
+    const covered = new Set([...FLAG_KEYS, ...UNFLAGGABLE_HUBS.map((h) => h.key)]);
+    const orphans = DESIGNABLE.filter((k) => !covered.has(k));
+    expect({ orphans }).toEqual({ orphans: [] });
+  });
+
+  /**
+   * AND THE UN-FLAGGABLE LIST IS NOT A BACK DOOR INTO THE GATE.
+   *
+   * FLAGS is the single input to the guard. An entry in UNFLAGGABLE_HUBS that
+   * also named prefixes — or a FLAGS entry with none — would be a flag that
+   * gates nothing, which is the link-hider rule 1 of feature-flags.ts exists
+   * to refuse. Neither shape can exist while this passes.
+   */
+  it('keeps the reasons out of the gate, and gives every switch something to switch', () => {
+    for (const f of FLAGS) {
+      expect({ key: f.key, prefixes: f.prefixes.length > 0 }).toEqual({ key: f.key, prefixes: true });
+    }
+    const flagged = new Set(FLAG_KEYS);
+    for (const h of UNFLAGGABLE_HUBS) {
+      expect({ key: h.key, alsoAFlag: flagged.has(h.key) }).toEqual({ key: h.key, alsoAFlag: false });
+      // A locked card with no reason on it is just a missing switch.
+      expect(h.why.length).toBeGreaterThan(40);
+    }
+    // Nothing at runtime may consult it: the guard reads FLAGS and only FLAGS.
+    expect(stripComments(read('dev/feature-flag.guard.ts'))).not.toContain('UNFLAGGABLE_HUBS');
+  });
+
+  /**
+   * MEDICAL IS FLAGGABLE NOW, AND HEALTH STILL IS NOT.
+   *
+   * Moved off NEVER_FLAGGABLE on 27 Aug at the owner's explicit instruction,
+   * asked and answered in those terms. This pins the two halves of that
+   * decision so neither drifts: the hub CAN be switched off, and the check
+   * endpoint that tells us the site is up cannot — nor can the four routes
+   * without which nobody could switch it back on.
+   */
+  it('can reach the medical hub, and still cannot reach the way back in', () => {
+    const medical = FLAGS.find((f) => f.key === 'medical');
+    expect(medical?.prefixes).toEqual(['medical', 'medicines', 'prescriptions']);
+    // The whole cost, spelled out — this string is the only thing between a
+    // bad afternoon and somebody unable to read their own prescription.
+    expect(medical?.turnsOff).toMatch(/prescriptions/);
+    expect(medical?.turnsOff).toMatch(/every citizen/);
+    for (const locked of ['auth', 'health', 'admin', 'dev', 'users']) {
+      expect(NEVER_FLAGGABLE).toContain(locked);
+    }
+    expect(NEVER_FLAGGABLE).not.toContain('medical');
   });
 
   it('matches whole path segments, never a prefix of a word', () => {

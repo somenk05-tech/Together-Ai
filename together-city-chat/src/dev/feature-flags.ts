@@ -54,6 +54,23 @@ export const FLAGS: FlagDef[] = [
   { key: 'fitness', label: 'Fitness', turnsOff: 'Workouts, body goals and sleep.', prefixes: ['fitness'], hubPath: '/fitness' },
   { key: 'financial', label: 'Financial', turnsOff: 'The wallet and everything in the financial hub.', prefixes: ['financial', 'wallet'], hubPath: '/financial' },
   { key: 'social', label: 'Social Life', turnsOff: 'The feed, posting, and social profiles. Chat and Mail are NOT affected.', prefixes: ['social'], hubPath: '/social' },
+  { key: 'nutrition', label: 'Nutrition', turnsOff: 'Meal plans, the food journal, grocery lists and the nutrition profile. Family Nutrition goes with it.', prefixes: ['nutrition'], hubPath: '/nutrition' },
+  { key: 'pets', label: 'Pet Care', turnsOff: 'Pet profiles, the pet shelf and everything in the pet district.', prefixes: ['pets'], hubPath: '/pets' },
+  /**
+   * MEDICAL, AND WHY IT READS DIFFERENTLY FROM THE ELEVEN ABOVE.
+   *
+   * This hub was on NEVER_FLAGGABLE until 27 Aug and was moved here at the
+   * owner's explicit instruction, asked and answered. It is not an oversight
+   * and it is not a widening of a rule nobody noticed — see the note on
+   * NEVER_FLAGGABLE below, which records the change rather than hiding it.
+   *
+   * What that costs is written into `turnsOff` in full, because this is the
+   * one switch on the page whose confirm text is the only thing standing
+   * between a bad afternoon and somebody unable to read their own
+   * prescription. The health CHECK endpoint stays un-flaggable and always
+   * was: it is how we find out the site is up, not a room anybody visits.
+   */
+  { key: 'medical', label: 'Medical', turnsOff: 'Health records, blood results, prescriptions and medicine reminders — for every citizen, including anyone mid-treatment who is relying on them right now. Nothing is deleted, but nobody can reach any of it until this is switched back.', prefixes: ['medical', 'medicines', 'prescriptions'], hubPath: '/medical' },
   { key: 'ai', label: 'AI features', turnsOff: 'Every AI call across the app — meal planning, blood reading, beauty analysis, CV parsing. The hubs stay open; the AI parts of them stop.', prefixes: ['ai'], hubPath: '/hubs' },
 ];
 
@@ -68,7 +85,58 @@ export const isFlagKey = (k: string): boolean => FLAG_KEYS.includes(k);
  * is here for the test, which asserts no entry above names any of them. A
  * switch that can lock out the person holding it is not a safety feature.
  */
-export const NEVER_FLAGGABLE = ['auth', 'health', 'admin', 'dev', 'users', 'chat', 'messages', 'mail', 'medical'];
+export const NEVER_FLAGGABLE = ['auth', 'health', 'admin', 'dev', 'users', 'chat', 'messages', 'mail'];
+
+/**
+ * MEDICAL LEFT THIS LIST ON 27 AUG, and the departure is written down because
+ * a rule that quietly loses a member is a rule nobody can trust the rest of.
+ *
+ * It was here for a good reason: a switch that cuts somebody off from their own
+ * prescriptions is not the same class of thing as one that closes the dating
+ * hub. The owner was asked that question directly, in those terms, and chose to
+ * make it flaggable — the dashboard was asked for as one that "overrides all
+ * the controls of the website at will", and a hub the switch cannot reach is
+ * not that.
+ *
+ * What did NOT move: `health`, the check endpoint that tells us the site is up,
+ * and `auth`, `admin`, `dev` and `users`, without which nobody could switch it
+ * back. The friction that remains is real and deliberate — the dev password,
+ * the `ops.flags` grant, a written reason of at least eight characters, and an
+ * audit row naming who did it.
+ */
+
+/**
+ * HUBS THAT CANNOT HONESTLY CARRY A SWITCH, and are shown saying so.
+ *
+ * The dashboard draws one card per hub, and a hub silently missing from that
+ * grid reads as "this one is always on" — which is the opposite of the truth
+ * here. So the ones that cannot be flagged are declared, with the reason, and
+ * drawn as a locked card.
+ *
+ * This is NOT part of FLAGS and must never become part of it. FLAGS is the
+ * single input to the gate; an entry there with no prefixes would be a flag
+ * that gates nothing — a link-hider, which rule 1 at the top of this file
+ * exists to refuse. Nothing at runtime reads the list below except the page
+ * that draws it.
+ */
+export interface UnflaggableHub {
+  key: string;
+  label: string;
+  /** Said to whoever is looking for the switch and not finding one. */
+  why: string;
+  hubPath: string;
+}
+
+export const UNFLAGGABLE_HUBS: UnflaggableHub[] = [
+  {
+    key: 'ecommerce',
+    label: 'E-Commerce',
+    why: 'It has no API of its own — it is a shopfront over the Beauty, Nutrition, '
+      + 'Astrology and Pet endpoints. A switch here would either refuse nothing at all, '
+      + 'or take those three hubs down with it. Turn off the hub whose shop you mean.',
+    hubPath: '/ecommerce',
+  },
+];
 
 /**
  * Which flag, if any, gates this request path.

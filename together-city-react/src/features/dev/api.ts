@@ -27,12 +27,17 @@ export interface FlagRow {
   key: string; label: string; turnsOff: string; hubPath: string;
   enabled: boolean; note: string; updatedAt: string | null; updatedBy: string;
 }
+/** A hub that has NO switch, and the reason. Drawn as a locked card rather
+ *  than left out: a hub missing from the grid reads as "always on", which is
+ *  the one thing it does not mean. */
+export interface UnflaggableHub { key: string; label: string; why: string; hubPath: string }
+export interface FlagsPayload { items: FlagRow[]; unflaggable: UnflaggableHub[] }
 
 export const devApi = {
   diagnostics: (password: string) =>
     api.get<Diagnostics>('/dev/diagnostics', withPassword(password)).then((r) => r.data),
   flags: (password: string) =>
-    api.get<{ items: FlagRow[] }>('/dev/flags', withPassword(password)).then((r) => r.data),
+    api.get<FlagsPayload>('/dev/flags', withPassword(password)).then((r) => r.data),
   setFlag: (password: string, key: string, enabled: boolean, reason: string) =>
     api.post<{ key: string; enabled: boolean }>('/dev/flags', { key, enabled, reason }, withPassword(password))
       .then((r) => r.data),
