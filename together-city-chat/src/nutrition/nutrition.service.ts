@@ -3857,14 +3857,27 @@ export class NutritionService implements OnModuleInit {
   // A Household Connection is PRIVATE to the Nutrition Hub and never touches the
   // social graph. Members are real Together City users who accept an invite.
 
-  /** Find a citizen to invite — by exact Together City user ID or @username.
-   *  Deliberately private (no directory / fuzzy browsing), matching the platform. */
+  /**
+   * Find a citizen to invite — by @username. Deliberately private (no
+   * directory / fuzzy browsing), matching the platform.
+   *
+   * BY USERNAME ONLY, since the second dating audit (finding 02). This used to
+   * take `OR: [{ id: q }, { handle }]` and hand back `{ id, handle, name,
+   * profileImage }` in the same response — which made it the sharpest
+   * deanonymiser in the city: paste the raw `User.id` off an anonymous Dating
+   * card into one GET and read the person's account name, handle and photo
+   * straight out of the reply. No follow, no readback, no second call.
+   *
+   * The id branch cost nothing to remove: no screen in the web app has ever
+   * called this endpoint, and the handle branch is the one the copy always
+   * described. `inviteHousehold` resolves through here, so it is closed too.
+   */
   async searchHouseholdUser(ownerId: string, queryRaw: string) {
     const q = (queryRaw ?? '').trim();
     if (!q) return { found: false as const };
     const handle = q.replace(/^@/, '').toLowerCase();
     const user = await this.prisma.user.findFirst({
-      where: { OR: [{ id: q }, { handle }] },
+      where: { handle },
       select: { id: true, handle: true, name: true, profileImage: true },
     }).catch(swallowed('nutrition.searchHouseholdUser', null));
     if (!user) return { found: false as const };
@@ -3883,7 +3896,7 @@ export class NutritionService implements OnModuleInit {
    *  Connection + surfaces an in-app invitation the invitee can accept/decline. */
   async inviteHousehold(ownerId: string, ref: string, roleRaw?: string) {
     const res = await this.searchHouseholdUser(ownerId, ref);
-    if (!res.found) throw new NotFoundException('No Together City user with that ID or username.');
+    if (!res.found) throw new NotFoundException('No Together City user with that username.');
     if (res.relationship === 'self') throw new BadRequestException("You're already the head of your household.");
     const role = (HOUSEHOLD_ROLES as readonly string[]).includes(String(roleRaw)) && roleRaw !== 'owner' ? String(roleRaw) : 'adult';
     const memberUserId = res.user.id;

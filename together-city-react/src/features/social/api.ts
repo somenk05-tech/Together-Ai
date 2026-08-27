@@ -3,6 +3,12 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 
 /** Social domain types — mirror the NestJS social module DTOs. */
 export interface PostAuthor { id: string; handle: string; name: string; profileImage: string | null }
+/**
+ * A person on the blocked list. `handle` and `profileImage` are null, and the
+ * name is the one Dating showed, for somebody this citizen can only have met
+ * there — blocking a match must not be a way of learning who they are.
+ */
+export interface BlockedPerson { id: string; handle: string | null; name: string; profileImage: string | null }
 /** A follower/following row with the viewer's follow-state for Follow / Following / Follow back. */
 export interface FollowPerson extends PostAuthor { iFollow: boolean; followsMe: boolean }
 export interface PostMedia { id: string; url: string; kind: 'image' | 'video'; thumbUrl: string | null }
@@ -53,7 +59,9 @@ export const socialApi = {
   map: () => api.get<Post[]>('/social/map').then((r) => r.data),
   followers: () => api.get<FollowPerson[]>('/social/followers').then((r) => r.data),
   following: () => api.get<FollowPerson[]>('/social/following').then((r) => r.data),
-  follow: (person: { handle?: string; userId?: string }) =>
+  // BY HANDLE. The API stopped accepting a raw user id here (and on block) —
+  // an id off an anonymous Dating card must not resolve to a city identity.
+  follow: (person: { handle: string }) =>
     api.post<{ following: boolean; userId: string }>('/social/follow', person).then((r) => r.data),
   unfollow: (userId: string) =>
     api.delete<{ following: boolean; userId: string }>(`/social/follow/${userId}`).then((r) => r.data),
@@ -70,8 +78,8 @@ export const socialApi = {
   comment: (postId: string, text: string) =>
     api.post<PostComment>(`/social/posts/${postId}/comments`, { text }).then((r) => r.data),
   // Safety
-  blocks: () => api.get<PostAuthor[]>('/social/blocks').then((r) => r.data),
-  block: (person: { handle?: string; userId?: string }) =>
+  blocks: () => api.get<BlockedPerson[]>('/social/blocks').then((r) => r.data),
+  block: (person: { handle: string }) =>
     api.post<{ blocked: boolean; userId: string }>('/social/block', person).then((r) => r.data),
   unblock: (userId: string) =>
     api.delete<{ blocked: boolean; userId: string }>(`/social/block/${userId}`).then((r) => r.data),
@@ -113,7 +121,7 @@ export function useFollowers() {
 export function useFollow() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (person: { handle?: string; userId?: string }) => socialApi.follow(person),
+    mutationFn: (person: { handle: string }) => socialApi.follow(person),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['social', 'followers'] });
       void qc.invalidateQueries({ queryKey: ['social', 'following'] });
@@ -234,7 +242,7 @@ export function useBlocks() {
 export function useBlock() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (person: { handle?: string; userId?: string }) => socialApi.block(person),
+    mutationFn: (person: { handle: string }) => socialApi.block(person),
     onSuccess: () => {
       // A block hides their content — drop everything and refetch the world.
       void qc.invalidateQueries({ queryKey: ['social'] });

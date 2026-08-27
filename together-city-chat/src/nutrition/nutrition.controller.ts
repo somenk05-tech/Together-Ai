@@ -355,7 +355,7 @@ export class NutritionController {
     return this.nutrition.familyMembers(user.sub);
   }
 
-  // Find a citizen to invite, by Together City user ID or @username.
+  // Find a citizen to invite, by @username. Username only — see the service.
   @Get('family/search')
   searchHouseholdUser(@CurrentUser() user: JwtUser, @Query('q') q: string) {
     return this.nutrition.searchHouseholdUser(user.sub, q ?? '');

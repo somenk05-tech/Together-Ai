@@ -43,10 +43,10 @@ export class SocialController {
     return this.social.following(user.sub);
   }
 
-  // Follow a citizen by handle or id (idempotent).
+  // Follow a citizen by handle (idempotent). Handle only — see SocialService.follow.
   @Post('follow')
-  follow(@CurrentUser() user: JwtUser, @Body() dto: { handle?: string; userId?: string }) {
-    return this.social.follow(user.sub, dto?.userId ?? dto?.handle ?? '');
+  follow(@CurrentUser() user: JwtUser, @Body() dto: { handle?: string }) {
+    return this.social.follow(user.sub, dto?.handle ?? '');
   }
 
   // Stop following someone.
@@ -121,13 +121,12 @@ export class SocialController {
     return this.social.listBlocks(user.sub);
   }
 
+  // Handle only, like follow — the Dating hub has its own block, which takes an
+  // id because it is handed one. See SocialService.follow for why.
   @Post('block')
   block(@CurrentUser() user: JwtUser, @Body() body: unknown) {
-    const { handle, userId } = parseOrThrow(
-      z.object({ handle: z.string().optional(), userId: z.string().optional() }),
-      body,
-    );
-    return this.social.block(user.sub, userId ?? handle ?? '');
+    const { handle } = parseOrThrow(z.object({ handle: z.string().optional() }), body);
+    return this.social.block(user.sub, handle ?? '');
   }
 
   @Delete('block/:userId')

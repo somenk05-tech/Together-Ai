@@ -10,6 +10,7 @@ import { RECORD_CAP } from '../shared/paging';
 import { SocialGateway } from './social.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
 import { StorageProvider } from '../media/storage.provider';
+import { shownName } from '../dating/matching';
 import type { CreateCommentDto, CreatePostDto, FeedQueryDto } from './dto/social.dto';
 
 const AUTHOR_SELECT = { id: true, handle: true, name: true, profileImage: true } as const;
@@ -180,11 +181,36 @@ export class SocialService {
     return users.map((u) => ({ ...u, iFollow: true, followsMe: followsMe.has(u.id) }));
   }
 
-  /** Follow another citizen (idempotent). You can't follow yourself. */
+  /**
+   * Follow another citizen (idempotent). You can't follow yourself.
+   *
+   * BY HANDLE, AND ONLY BY HANDLE — the second dating audit, finding 02.
+   *
+   * A Dating card carries the other person's raw `User.id`, because every
+   * action on that card — like, pass, reveal, block, open the chat — is keyed
+   * by it. An anonymous card shows a first name and nothing else: no handle,
+   * no account photo. That holds only while the id is inert.
+   *
+   * It was not inert. This lookup used to accept `OR: [{ id }, { handle }]`,
+   * so anyone could POST the id off an anonymous card, then read it back from
+   * GET /social/following, which returns `name`, `handle` and `profileImage`.
+   * Two calls and no consent: the whole anonymity promise, undone by a lookup
+   * key. `block()` below had the identical hole and the identical readback in
+   * GET /social/blocks.
+   *
+   * So the rule the rest of the city already follows applies here too: a
+   * handle is a thing a person publishes, an id is a thing the system hands
+   * out. `connections.request`, `chat.start` and `mail.sendOne` have always
+   * been handle-only; these two were the outliers. Nothing legitimate is lost —
+   * both React call sites already had the handle in hand.
+   *
+   * The Dating hub keeps its own block (`dating.blockMatch`), which takes an
+   * id because it is handed one and returns no identity at all.
+   */
   async follow(userId: string, targetRef: string) {
     const ref = (targetRef ?? '').trim().replace(/^@/, '').toLowerCase();
     if (!ref) throw new NotFoundException('No citizen specified.');
-    const target = await this.prisma.user.findFirst({ where: { OR: [{ id: targetRef }, { handle: ref }] }, select: { id: true } });
+    const target = await this.prisma.user.findFirst({ where: { handle: ref }, select: { id: true } });
     if (!target) throw new NotFoundException('No citizen with that handle.');
     if (target.id === userId) throw new ForbiddenException("You can't follow yourself.");
     const before = await this.prisma.follow.findUnique({ where: { followerId_followeeId: { followerId: userId, followeeId: target.id } } }).catch(swallowed('social.follow', null));
@@ -568,11 +594,12 @@ export class SocialService {
   }
 
   // ─────────────── blocking & reporting (safety) ───────────────
-  /** Block a citizen — hides both users from each other and drops any follow edges. */
+  /** Block a citizen — hides both users from each other and drops any follow
+   *  edges. By handle only, for the reason written out over `follow` above. */
   async block(userId: string, targetRef: string) {
     const ref = (targetRef ?? '').trim().replace(/^@/, '').toLowerCase();
     const target = await this.prisma.user.findFirst({
-      where: { OR: [{ id: targetRef }, { handle: ref }] },
+      where: { handle: ref },
       select: { id: true },
     });
     if (!target) throw new NotFoundException('No citizen with that handle.');
@@ -585,13 +612,94 @@ export class SocialService {
     return this.blocking.unblock(userId, targetId);
   }
 
+  /**
+   * The people this citizen has blocked.
+   *
+   * WHY THIS IS NOT SIMPLY THE ROWS — the second dating audit, finding 02, the
+   * fifth door and the worst of them.
+   *
+   * Blocking is reachable from a Dating card, and it should be: safety that is
+   * not reachable from where the harm happens is not safety. But Dating and
+   * the city share one Block table, so a block made against an ANONYMOUS match
+   * landed in the same list as the ones made in the People hub — and this
+   * screen drew every row with its account name, its @handle and its photo.
+   *
+   * Which turned a block into a way of asking who somebody was. One tap on a
+   * card that had only ever shown a first name, then Settings → Blocked
+   * citizens, and there they are. The id-shaped doors closed above each cost
+   * an attacker two calls and a pasted uuid; this one was a button, in the
+   * product, on the safety screen.
+   *
+   * So anybody here who keeps a dating profile and is not a connection is
+   * drawn the way Dating drew them: the first name they chose, no handle, no
+   * photograph. Unblocking is unaffected — it goes by id, which this keeps.
+   *
+   * It over-masks in two places, both deliberately. A city acquaintance who
+   * happens to date and never became a connection is shown by their dating
+   * name; so is a match who already revealed themselves, because the reveal
+   * flags are cleared by the block itself and cannot be asked afterwards. Both
+   * cost a name you already know, spelled differently. The other direction
+   * costs somebody their anonymity, and there is no version of that which is
+   * only a little bit wrong.
+   */
   async listBlocks(userId: string) {
     // unbounded: their block list — safety UI, must be complete
     const rows = await this.prisma.block.findMany({
       where: { blockerId: userId },
       include: { blocked: { select: AUTHOR_SELECT } },
     });
-    return rows.map((r) => r.blocked);
+    const people = rows.map((r) => r.blocked);
+    const masked = await this.datingOnly(userId, people.map((p) => p.id));
+    return people.map((p) => {
+      const shown = masked.get(p.id);
+      return shown === undefined ? p : { id: p.id, name: shown, handle: null, profileImage: null };
+    });
+  }
+
+  /**
+   * Of the citizens given, the ones this citizen can only have met in Dating —
+   * mapped to the name Dating showed them under. See listBlocks for why.
+   *
+   * Bounded by the block list, which is small, and every read is swallowed:
+   * a safety screen that fails to load because the Dating tables hiccuped is a
+   * worse outcome than one, and if a read does fail the citizen is masked
+   * rather than named — `profiles` empty means nobody is masked, so the ORDER
+   * matters and the profile read is the one that decides.
+   */
+  private async datingOnly(userId: string, ids: string[]): Promise<Map<string, string>> {
+    const out = new Map<string, string>();
+    if (!ids.length) return out;
+
+    // unbounded: bounded by the block list this is called with
+    const profiles = await this.prisma.datingProfile.findMany({
+      where: { userId: { in: ids } },
+      select: { userId: true, extras: true },
+    }).catch(swallowed('social.listBlocks: dating profiles', [] as { userId: string; extras: unknown }[]));
+    if (!profiles.length) return out;
+
+    const daters = profiles.map((p) => p.userId);
+    // unbounded: bounded by the block list this is called with
+    const links = await this.prisma.connection.findMany({
+      where: {
+        OR: [
+          { userOneId: userId, userTwoId: { in: daters } },
+          { userOneId: { in: daters }, userTwoId: userId },
+        ],
+      },
+      select: { userOneId: true, userTwoId: true },
+    }).catch(swallowed('social.listBlocks: connections', [] as { userOneId: string; userTwoId: string }[]));
+    const connected = new Set(links.flatMap((l) => [l.userOneId, l.userTwoId]));
+
+    for (const p of profiles) {
+      if (connected.has(p.userId)) continue;
+      let firstName: unknown = null;
+      try { firstName = (JSON.parse(String(p.extras ?? '{}')) as Record<string, unknown>).firstName; } catch { /* an unreadable blob names nobody */ }
+      // NEVER the account name as the fallback — that is the thing being kept
+      // back. shownName falls back to whatever it is handed, so it is handed a
+      // sentence rather than a person.
+      out.set(p.userId, shownName({ firstName }, 'Someone you blocked'));
+    }
+    return out;
   }
 
   /** File a report against a user, post or comment (feeds a moderation queue). */

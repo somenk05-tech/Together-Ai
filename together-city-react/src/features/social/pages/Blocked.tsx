@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { Button } from '@/components/ui';
-import { useBlocks, useUnblock, type PostAuthor } from '../api';
+import { useBlocks, useUnblock, type BlockedPerson } from '../api';
 
 /**
  * The people you have blocked, and the way back (FE-13.5).
@@ -20,7 +20,7 @@ import { useBlocks, useUnblock, type PostAuthor } from '../api';
  * in anger, block the wrong account, block a sibling during an argument. This
  * is the list, and this is the way back.
  */
-function Person({ person }: { person: PostAuthor }) {
+function Person({ person }: { person: BlockedPerson }) {
   const unblock = useUnblock();
   const [done, setDone] = useState(false);
 

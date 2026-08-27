@@ -510,7 +510,7 @@ function SafetyActions({ id, handle, onBlocked }: { id: string; handle: string; 
 
   const doBlock = () => {
     if (!window.confirm(`Block @${handle}? They won't be able to see your posts or interact with you, and you won't see theirs.`)) return;
-    block.mutate({ userId: id }, { onSuccess: onBlocked });
+    block.mutate({ handle }, { onSuccess: onBlocked });
   };
   const doReport = () => {
     const reason = window.prompt(`Report @${handle}? Optionally tell us what's wrong (spam, harassment, etc.):`, '');
@@ -590,7 +590,7 @@ function FollowButton({ userId, handle, iFollow }: { userId: string; handle: str
   const toggle = () => {
     if (busy) return;
     if (following) { setFollowing(false); unfollow.mutate(userId, { onSuccess: bump, onError: () => setFollowing(true) }); }
-    else { setFollowing(true); follow.mutate({ userId }, { onSuccess: bump, onError: () => setFollowing(false) }); }
+    else { setFollowing(true); follow.mutate({ handle }, { onSuccess: bump, onError: () => setFollowing(false) }); }
   };
   return (
     <Button variant={following ? 'line' : 'accent'} size="sm" onClick={toggle} disabled={busy}>
@@ -942,7 +942,7 @@ function FollowRow({ person, onView }: { person: FollowPerson; onView: () => voi
   const act = () => {
     if (busy) return;
     if (person.iFollow) unfollow.mutate(person.id);
-    else follow.mutate({ userId: person.id });
+    else follow.mutate({ handle: person.handle });
   };
   return (
     <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px' }}>
