@@ -8,6 +8,7 @@ import type { LookupOption } from '@/api/lookups.api';
 import { useDatingProfile, useUpsertDatingProfile, useDeleteDatingProfile, useSaveSelfie, useClearSelfie, type UpsertProfileInput, type Visibility, type ProfileCompletion } from '../api';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
 import { useMasterProfile } from '@/features/profile/hooks';
+import { useAuth } from '@/hooks/useAuth';
 import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLockedField';
 import { SelfieOnFile } from '../components/SelfieOnFile';
 
@@ -383,7 +384,35 @@ async function uploadPhoto(file: File): Promise<string | null> {
  * carries the answer. See §15.1.
  */
 
+const nameOption: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', gap: '8px', fontSize: 13.5, margin: '6px 0 0', cursor: 'pointer',
+};
+/** The form's own field, plus the gap above it. Hand-copying the shape here
+ *  is what the size ratchet exists to catch: my first version wrote
+ *  `borderRadius: 8` where `field` uses `var(--r-1)`, which is one more raw
+ *  radius and one more way for this input to drift away from every other. */
+const aliasField: React.CSSProperties = { ...field, margin: '8px 0 0' };
+const nameNote: React.CSSProperties = { fontSize: 11.5, margin: '8px 0 0', lineHeight: 1.55 };
+
+/**
+ * What the server will actually show, computed here so the form can say it.
+ *
+ * MIRRORS `shownName` in dating/matching.ts — trim, collapse the spaces, cap
+ * at 40, fall back to the account name, stand the first letter up. Duplicated
+ * deliberately: the alternative is a preview that disagrees with the product,
+ * which is worse than a copy somebody has to keep in step. `a-name-of-your-own
+ * .test.ts` fails if the two drift.
+ */
+function shownAsPreview(alias: string | undefined, cityName: string): string {
+  const trimmed = typeof alias === 'string' ? alias.replace(/\s+/g, ' ').trim().slice(0, 40).trim() : '';
+  const out = trimmed || cityName;
+  return out ? out.charAt(0).toUpperCase() + out.slice(1) : out;
+}
+
 export function DatingProfilePage() {
+  // The account name is what the SERVER falls back to (cand.user.name), so it
+  // is the one the preview must quote — not the Master Profile's copy of it.
+  const { user: authUser } = useAuth();
   const existing = useDatingProfile();
   const upsert = useUpsertDatingProfile();
   const del = useDeleteDatingProfile();
@@ -429,7 +458,12 @@ export function DatingProfilePage() {
       // the Master Profile prefill (spec: auto-populate, never ask twice).
       setDx((prev) => ({
         ...prev,
-        firstName: prev.firstName || d.name || undefined,
+        // NOT firstName. It used to be seeded from the Master Profile name,
+        // which meant a citizen opened this form with their real city name
+        // already sitting in the box, having chosen nothing. Leaving it unset
+        // shows the same name (the server falls back to the account name) —
+        // the difference is that the choice is now VISIBLE and theirs.
+
         country: prev.country || d.country || undefined,
         state: prev.state || d.state || undefined,
         city: prev.city || d.city || undefined,
@@ -497,6 +531,15 @@ export function DatingProfilePage() {
   }
 
   const setD = (patch: Partial<DX>) => setDx((prev) => ({ ...prev, ...patch }));
+
+  // THE NAME QUESTION (owner, 27 Aug: the dating name can differ from the city
+  // one — let the citizen decide). `undefined` means "use my city name" and is
+  // what the server falls back on; a string, even an empty one, means they
+  // chose to type their own. The distinction has to survive an empty box, or
+  // clearing the field would silently switch them back.
+  const cityName = (authUser?.name ?? '').trim();
+  const usingAlias = typeof dx.firstName === 'string';
+  const shownAs = shownAsPreview(dx.firstName, cityName);
   const num = (v: string) => (v ? parseInt(v, 10) : null);
   const capToggle = (list: string[] | undefined, v: string, cap: number): string[] => {
     const arr = list ?? [];
@@ -757,10 +800,34 @@ export function DatingProfilePage() {
                 cards ignored it until today. Now the server draws this name
                 everywhere a match sees you — card, profile, chat — so the
                 label says exactly that. Empty falls back to the account name. */}
-            <label style={{ display: 'block' }}><span style={label}>Display name</span>
-              <input value={dx.firstName ?? ''} maxLength={40} onChange={(e) => setD({ firstName: e.target.value })} style={field} />
-              <p className="muted" style={{ fontSize: 11, margin: '4px 0 0' }}>How matches see you — on your card, your profile and in chat.</p>
-            </label>
+            <div>
+              <span style={label}>Name shown to matches</span>
+              <label style={nameOption}>
+                <input type="radio" name="dating-name" checked={!usingAlias}
+                  onChange={() => setD({ firstName: undefined })} />
+                <span>My city name{cityName ? ` — ${cityName}` : ''}</span>
+              </label>
+              <label style={nameOption}>
+                <input type="radio" name="dating-name" checked={usingAlias}
+                  onChange={() => setD({ firstName: '' })} />
+                <span>A different name</span>
+              </label>
+              {usingAlias && (
+                <input value={dx.firstName ?? ''} maxLength={40} autoFocus
+                  aria-label="The name matches see"
+                  placeholder="What should they call you?"
+                  onChange={(e) => setD({ firstName: e.target.value })} style={aliasField} />
+              )}
+              {/* WHAT WILL ACTUALLY BE SHOWN, rather than what was typed. An
+                  empty "different name" falls back to the city name on the
+                  server, so a form that did not say so would let somebody
+                  believe they were anonymous while their real name went out. */}
+              <p className="muted" style={nameNote}>
+                Matches will see <strong>{shownAs}</strong> — on your card, your profile
+                and in chat. Nothing else of your city identity travels with it: not your
+                @handle, not your city photo, not your real name.
+              </p>
+            </div>
             <div ref={v.reg('gender')}><span style={label}>Gender</span>
               <select aria-label="Gender" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value as UpsertProfileInput['gender'] })} style={field}>
                 <option value="">Select…</option>

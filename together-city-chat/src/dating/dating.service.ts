@@ -1661,7 +1661,14 @@ export class DatingService implements OnModuleInit {
     const photos = await this.photoUrls((candD.photos ?? []).slice(0, 10));
 
     return {
-      user: cand.user,
+      // THE CHOSEN NAME, HERE TOO (27 Aug). This spread the raw User row, so
+      // `user.name` was the account name — shipped to every match who opened a
+      // profile, alongside the chosen `name` beside it. The page happened to
+      // render only the chosen one, which made it invisible rather than
+      // harmless: it sat in the JSON, and a display name somebody picked so
+      // strangers would not learn their real one was defeated at the exact
+      // surface that matters most. Same shaping function as every card now.
+      user: this.cardIdentity(cand.user, candD),
       name: shownName(candD, cand.user.name),
       age: theirAge,
       gender: cand.gender,
