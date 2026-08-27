@@ -99,15 +99,22 @@ export class AccountPurgeService {
           // failing here would leave a half-deleted account, which is worse
           // than one stubborn object we log and move past.
           if (rule.storageKeysJson) {
-            const field = rule.storageKeysJson.field;
-            let keys: unknown[] = [];
-            try { keys = (JSON.parse(value) as Record<string, unknown[]>)[field] ?? []; } catch { keys = []; }
-            for (const k of keys) {
-              // Only OUR keys. A legacy base64 blob or an account-photo URL is
-              // not an object in the vault and must not be handed to a delete.
-              if (typeof k !== 'string' || !k || k.startsWith('data:') || k.startsWith('http')) continue;
-              await this.storage.deleteHealthObject(k).catch(swallowed('privacy.purgeObjects', undefined));
-              removed++;
+            // FIELDS, PLURAL — the selfie key lives beside the photo array in
+            // the same blob and the singular version of this loop left it in
+            // the bucket forever. A field may hold one key or an array of
+            // them; both shapes are read.
+            let parsed: Record<string, unknown> = {};
+            try { parsed = JSON.parse(value) as Record<string, unknown>; } catch { parsed = {}; }
+            for (const field of rule.storageKeysJson.fields) {
+              const raw = parsed[field];
+              const keys: unknown[] = Array.isArray(raw) ? raw : raw ? [raw] : [];
+              for (const k of keys) {
+                // Only OUR keys. A legacy base64 blob or an account-photo URL is
+                // not an object in the vault and must not be handed to a delete.
+                if (typeof k !== 'string' || !k || k.startsWith('data:') || k.startsWith('http')) continue;
+                await this.storage.deleteHealthObject(k).catch(swallowed('privacy.purgeObjects', undefined));
+                removed++;
+              }
             }
             continue;
           }

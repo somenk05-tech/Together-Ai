@@ -88,13 +88,21 @@ describe('dating chats include matches that have not been connected yet', () => 
     const { svc } = serviceWith([match()]);
     const out = await svc.datingChats('me') as unknown as Array<{ name: string; photo: string | null }>;
     expect(out[0].name).toBe('Rhea');
-    expect(out[0].photo).toBe('photo.jpg');
+    // NULL, NOT THE ACCOUNT PHOTO (27 Aug, audit finding 11). This row used to
+    // fall back to `user.profileImage` when the dating gallery was empty — the
+    // face the whole city knows somebody by, on a row drawn for a match who has
+    // not revealed. A match is mutual; a REVEAL is a separate mutual step, and
+    // this row comes before it. Gallery or nothing, everywhere.
+    // Pinned in dating/nothing-links-the-card-to-the-city.spec.ts.
+    expect(out[0].photo).toBeNull();
   });
 
   it('the name does not depend on reveal flags in either direction', async () => {
     const { svc } = serviceWith([match({ revealByTwo: true })]);
     const out = await svc.datingChats('me') as unknown as Array<{ name: string; photo: string | null }>;
     expect(out[0].name).toBe('Rhea');
-    expect(out[0].photo).toBe('photo.jpg');
+    // …and neither does the photo, which is now null in both directions
+    // rather than the account photo in both. See the note above.
+    expect(out[0].photo).toBeNull();
   });
 });

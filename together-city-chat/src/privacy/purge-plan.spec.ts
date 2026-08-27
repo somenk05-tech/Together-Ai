@@ -23,7 +23,12 @@ const SCHEMA = readFileSync(join(__dirname, '..', '..', 'prisma', 'schema.prisma
 // a citizen just as userId does; leaving them out let three dating tables pass
 // this guard green while surviving every account deletion. Found 26 Aug.
 const LINK_COLUMNS = ['userId', 'ownerId', 'authorId', 'senderId', 'createdById', 'hostId', 'postedById',
-  'userOneId', 'userTwoId', 'userA', 'userB'];
+  'userOneId', 'userTwoId', 'userA', 'userB',
+  // Added 27 Aug: ActivityInvite links a citizen by this and by nothing else,
+  // so it sat OUTSIDE this scanner — the "every model must be classified"
+  // guard never fired for it, and a departed citizen's invites outlived the
+  // purge entirely. A guard is only proven where the data has reached.
+  'invitedUserId'];
 
 /** Models whose rows belong to, or were written by, one citizen. */
 function citizenLinkedModels(): Array<{ model: string; columns: string[] }> {

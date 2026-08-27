@@ -41,6 +41,21 @@ export class StorageProvider implements OnModuleInit {
   private readonly corsOrigins: string[];
   private readonly expiresInSec = 900;
   private readonly downloadTtlSec = 300; // signed GET links for private health docs
+  /**
+   * Dating photos get a WINDOW OF THEIR OWN, and a fifth of the health one
+   * (audit finding 19). A presigned URL is a bearer link: anyone holding the
+   * string fetches the image with no session, because S3 checks the signature
+   * and nothing else — access is decided when the URL is MINTED, inside an
+   * authenticated card request, and never again. That class of problem does
+   * not shrink to zero without serving images through an authenticated
+   * channel, which is its own project. What CAN shrink is the window: a
+   * dating photo URL that leaks — a screenshot, a proxy log, a shared link —
+   * is now dead in sixty seconds instead of five minutes, and sixty is still
+   * three times what a card needs to load its pictures. Health documents
+   * keep 300: their URLs are handed to their OWNER, who may legitimately
+   * take minutes over a lab report.
+   */
+  private readonly datingPhotoTtlSec = 60;
 
   constructor(private readonly config: ConfigService) {
     const originsCsv = this.config.get<string>('media.corsOrigins') ?? '';
@@ -435,10 +450,16 @@ export class StorageProvider implements OnModuleInit {
     }
   }
 
-  /** Short-lived signed GET URL for a private health document (owner-only, handed
-   *  out by the authenticated backend). Returns null when storage isn't configured. */
+  /** Short-lived signed GET URL for a private DATING object — a card photo.
+   *  Same bucket as health, a fifth of the window; see datingPhotoTtlSec. */
   async presignPrivateDownload(key: string): Promise<string | null> {
-    return this.presignHealthDownload(key);
+    if (!this.s3 || !key) return null;
+    try {
+      return await getSignedUrl(this.s3, new GetObjectCommand({ Bucket: this.healthBucket, Key: key }), { expiresIn: this.datingPhotoTtlSec });
+    } catch (e) {
+      this.logger.warn(`presignPrivateDownload failed for ${key}: ${(e as Error).message}`);
+      return null;
+    }
   }
 
   async presignHealthDownload(key: string): Promise<string | null> {

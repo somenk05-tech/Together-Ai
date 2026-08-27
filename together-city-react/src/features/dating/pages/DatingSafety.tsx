@@ -12,6 +12,14 @@ import { useAppeal, useDatingProfile, useMyAppeals } from '../api';
  * refused, and the page a stranger reads before meeting somebody; both of
  * them are owed the limits of what was checked, not reassurance.
  */
+/** The emergency section's pieces, hoisted — scripts/size-system-ceiling.mjs
+ *  counts inline style objects, and a new section must not raise the count. */
+const helpCard: React.CSSProperties = { padding: '16px', marginTop: '12px' };
+const helpH2: React.CSSProperties = { fontSize: 16, margin: '0' };
+const helpIntro: React.CSSProperties = { fontSize: 13.5, lineHeight: 1.65, margin: '8px 0 10px' };
+const helpList: React.CSSProperties = { margin: '0', padding: '0 0 0 18px', fontSize: 13.5, lineHeight: 1.9 };
+const helpFoot: React.CSSProperties = { fontSize: 12.5, lineHeight: 1.6, margin: '10px 0 0' };
+
 export function DatingSafety() {
   const profile = useDatingProfile();
   const appeals = useMyAppeals();
@@ -51,6 +59,27 @@ export function DatingSafety() {
           Chat here first; you appear under your own name and photos, and the conversation stays in this hub.
           Meet in a public place and tell someone where you are going. Money never belongs in a conversation with someone you have not met — anyone who asks for it, report them.
           Report or block from any profile or chat; a report is read by a moderator, and the person you report is never told who reported them.
+        </p>
+      </section>
+
+      <section className="card" style={helpCard}>
+        <h2 style={helpH2}>If something has gone wrong</h2>
+        <p className="muted" style={helpIntro}>
+          If you are in danger right now, contact the emergency services first — before
+          anything on this page. Reports here reach a moderator; they do not reach the police.
+        </p>
+        {/* Real numbers, plainly, for India — where Together City operates.
+            tel: links, because somebody reading this on a phone should be one
+            tap from the call, not copying digits in a bad moment. */}
+        <ul style={helpList}>
+          <li><a href="tel:112"><strong>112</strong></a> — national emergency number (police, fire, ambulance), all of India</li>
+          <li><a href="tel:1091"><strong>1091</strong></a> — women&rsquo;s helpline</li>
+          <li><a href="tel:1930"><strong>1930</strong></a> — cybercrime helpline, for financial fraud and online abuse (or <a href="https://cybercrime.gov.in" target="_blank" rel="noreferrer">cybercrime.gov.in</a>)</li>
+          <li><a href="tel:18005990019"><strong>1800-599-0019</strong></a> — Kiran, the national mental-health helpline, 24×7</li>
+        </ul>
+        <p className="muted" style={helpFoot}>
+          These are national services, not part of Together City. If you are outside India,
+          your local emergency number is the one to use.
         </p>
       </section>
 

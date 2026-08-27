@@ -66,10 +66,12 @@ const SEEKING: Record<DatingProfile['seeking'], string> = {
   male: 'Men', female: 'Women', nonbinary: 'Non-binary people', any: 'Everyone',
 };
 
-/** A photograph if they uploaded one, the account picture if they did not.
- *  Null when there is neither, which the card answers with their initial
- *  rather than with an empty frame. */
-const portraitOf = (m: CuratedMatch) => m.photos?.[0] ?? m.user.profileImage ?? null;
+/** A photograph from their DATING gallery, or null — answered with their
+ *  initial rather than an empty frame. The account picture is no longer the
+ *  fallback: it is the face the whole city knows somebody by, and putting it
+ *  on a card shown to strangers linked the two identities the moment a
+ *  gallery was empty. The server no longer sends it at all. */
+const portraitOf = (m: CuratedMatch) => m.photos?.[0] ?? null;
 
 /** `Architect · Pune`, `Architect`, `Pune`, or nothing at all. Built by
  *  filtering rather than by ternaries so a missing half never leaves the

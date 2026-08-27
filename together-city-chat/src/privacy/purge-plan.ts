@@ -46,7 +46,7 @@ export interface PurgeRule {
   model: string;
   /** The column that ties a row to a citizen. */
   by: 'userId' | 'ownerId' | 'authorId' | 'senderId' | 'createdById' | 'memberUserId' | 'hostId' | 'postedById'
-    | 'listingId' | 'either';
+    | 'listingId' | 'invitedUserId' | 'either';
   /**
    * For `by: 'either'` — a PAIR table, where the citizen may sit in one of two
    * columns. Dating's tables are all of this shape (userOneId/userTwoId,
@@ -71,8 +71,15 @@ export interface PurgeRule {
    * the face still stored, which is the exact failure the purge exists to
    * prevent. There was no way to express that here, so a rule could be complete
    * and still leak.
+   *
+   * FIELDS, PLURAL, AS OF 27 AUG — because singular already leaked once. The
+   * verification selfie's key sits in the SAME blob under `selfieKey`, and the
+   * rule named only `photos`: the row went and the photograph of the person's
+   * face — collected on the promise it was only ever for verification — stayed
+   * in the bucket indefinitely. A field may hold an array of keys or one key;
+   * the purge reads both.
    */
-  storageKeysJson?: { column: string; field: string };
+  storageKeysJson?: { column: string; fields: string[] };
 }
 
 export const PURGE_RULES: PurgeRule[] = [
@@ -218,7 +225,7 @@ export const PURGE_RULES: PurgeRule[] = [
   { model: 'BeautyOrder', by: 'userId', action: 'purge', reason: 'What they bought from the beauty shelf.' },
   { model: 'LookAnalysis', by: 'userId', action: 'purge', storageKey: 'fileKey', reason: 'Reference photos of a face, and what was read from them.' },
   { model: 'Avatar', by: 'userId', action: 'purge', storageKey: 'assetKey', reason: 'Generated avatars and their stored images.' },
-  { model: 'DatingProfile', by: 'userId', action: 'purge', storageKeysJson: { column: 'extras', field: 'photos' }, reason: 'Dating preferences and intent — and the photos, whose keys live in the extras JSON.' },
+  { model: 'DatingProfile', by: 'userId', action: 'purge', storageKeysJson: { column: 'extras', fields: ['photos', 'selfieKey'] }, reason: 'Dating preferences and intent — the photos, AND the verification selfie, both of whose keys live in the extras JSON. The selfie is the one the first version of this rule missed.' },
   // The three dating tables the plan could not see, because their columns are
   // not called userId. The User row stays as a tombstone, so the cascades on
   // these never fired; the plan has to name them.
@@ -275,7 +282,8 @@ export const PURGE_RULES: PurgeRule[] = [
   { model: 'Post', by: 'authorId', action: 'keep', reason: 'Already deleted at soft-delete time, so nothing is left. Listed so the model is classified rather than missed.' },
   { model: 'CallSession', by: 'createdById', action: 'keep', reason: 'The other person\'s call history too. Timestamps only — no content.' },
   { model: 'CallParticipant', by: 'userId', action: 'keep', reason: 'Their seat in that shared history.' },
-  { model: 'DatingActivity', by: 'hostId', action: 'keep', reason: 'An activity other people joined.' },
+  { model: 'DatingActivity', by: 'hostId', action: 'purge', reason: 'Reclassified 27 Aug. "An activity other people joined" was the keep reason, but the row is the departed citizen\'s own words — what they proposed, described, and when — and with the host gone the activity cannot be joined, chatted about, or drawn (anonParty returns null for a departed host and every caller drops the card). What other people keep is their own conversations, which are classified on their own rows.' },
+  { model: 'ActivityInvite', by: 'invitedUserId', action: 'purge', reason: 'Invitations naming the departed citizen as the invitee — who the engine matched them with and at what score. Rows inviting OTHER citizens to the departed host\'s activities survive this rule but point at an activity the line above has deleted, and every reader already skips an invite whose activity is gone.' },
   { model: 'Job', by: 'postedById', action: 'keep', reason: 'A posting other citizens have applied to.' },
 
   // ── Service providers. These carry a userId because a booking opens a chat,

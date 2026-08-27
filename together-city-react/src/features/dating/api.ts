@@ -49,7 +49,10 @@ export interface FactorBreakdown {
 }
 export interface CuratedMatch {
   matchId: string | null;
-  user: { id: string; handle: string; name: string; profileImage: string | null };
+  /** The card's WHOLE identity. The handle and the city profile photo used to
+   *  ride along here — one lookup from a dating card to somebody's entire city
+   *  life. The server no longer sends either. */
+  user: { id: string; name: string };
   bio: string | null;
   interests: string[];
   photos?: string[];
@@ -92,7 +95,10 @@ export interface CuratedMatch {
 }
 
 export interface MatchDetail {
-  user: { id: string; handle: string; name: string; profileImage: string | null };
+  /** The card's WHOLE identity. The handle and the city profile photo used to
+   *  ride along here — one lookup from a dating card to somebody's entire city
+   *  life. The server no longer sends either. */
+  user: { id: string; name: string };
   name: string;
   age: number;
   gender: string;

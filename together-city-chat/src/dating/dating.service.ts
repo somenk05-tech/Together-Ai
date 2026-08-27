@@ -808,6 +808,31 @@ export class DatingService implements OnModuleInit {
     // Deleting a dating profile is a privacy promise. Any of these three
     // failing silently meant match state, cached compatibility, or THE
     // PROFILE ITSELF could survive its own deletion with no trace.
+    //
+    // THE OBJECTS GO FIRST, AND BEFORE THE ROW (audit finding 13). This used
+    // to delete three sets of rows and not one stored file — and the keys to
+    // the photos and the verification selfie live INSIDE the row it deleted,
+    // so the files did not merely survive: they became unrecoverable orphans,
+    // a face in a bucket with nothing left pointing at it. The read has to
+    // happen while the row still exists; a failed object delete is logged and
+    // does not stop the rest, because refusing to delete the profile over one
+    // stubborn object would break a bigger promise to keep a smaller one.
+    const row = await swallow(this.prisma.datingProfile.findUnique({ where: { userId }, select: { extras: true } }), 'dating delete: read keys before the row goes', { userId });
+    if (row?.extras) {
+      let dx: { photos?: unknown; selfieKey?: unknown } = {};
+      try { dx = JSON.parse(String(row.extras)) as typeof dx; } catch { dx = {}; }
+      const photoKeys = Array.isArray(dx.photos) ? dx.photos : [];
+      const keys = [...photoKeys, dx.selfieKey].filter(
+        (k): k is string => typeof k === 'string' && !!k && !k.startsWith('data:') && !k.startsWith('http') && !k.startsWith('inline/'),
+      );
+      for (const k of keys) {
+        await swallow(this.storage.deleteHealthObject(k), 'dating delete: stored object', { userId, key: k });
+      }
+      // The review verdicts point at keys that no longer resolve; carried away
+      // with them rather than left as rows about nothing.
+      await swallow((this.prisma as unknown as { datingPhotoReview: { deleteMany(a: unknown): Promise<unknown> } }).datingPhotoReview
+        .deleteMany({ where: { userId } }), 'dating delete: photo reviews', { userId });
+    }
     await swallow(this.prisma.datingMatch.deleteMany({ where: { OR: [{ userOneId: userId }, { userTwoId: userId }] } }), 'dating delete: match state', { userId });
     await swallow((this.prisma as unknown as { compatibilityScore: { deleteMany(a: unknown): Promise<unknown> } }).compatibilityScore
       .deleteMany({ where: { OR: [{ userA: userId }, { userB: userId }] } }), 'dating delete: compatibility cache', { userId });
@@ -870,8 +895,29 @@ export class DatingService implements OnModuleInit {
     fraud += Math.min(30, rejected * 10);
     checks.push({ name: 'fraud-score', pass: fraud < 50, severity: 'soft', detail: `Account risk ${fraud}/100.` });
 
-    // AI bio check (graceful fallback when the key is off).
-    const ai = bio.length >= 15 ? await this.aiBioModeration(bio) : null;
+    // AI bio check — and a failure to CHECK is not a pass (27 Aug, S1).
+    //
+    // aiBioModeration returns null in three cases that are one case: the
+    // client is unconfigured, the call threw, or the answer was malformed.
+    // `decide(checks, fraud, undefined)` then skips both AI branches, and a
+    // bio passing the regexes landed on `approved` — so the AI gate was OPEN
+    // exactly when the AI was broken. The photo pipeline fails closed on the
+    // same day for the same class of failure; a product where photos fail
+    // closed and bios fail open has chosen its words less carefully than its
+    // pictures.
+    //
+    // A failed check is a REVIEW, not a rejection: nothing is known to be
+    // wrong with the bio, there is just nobody who has looked. Short bios
+    // (under 15 chars — too short to solicit or scam in) stay regex-only,
+    // as they always were.
+    const wantsAi = bio.length >= 15;
+    const ai = wantsAi ? await this.aiBioModeration(bio) : null;
+    if (wantsAi && ai === null) {
+      checks.push({
+        name: 'bio-ai-unavailable', pass: false, severity: 'soft',
+        detail: 'The automated bio check could not run — held for a human look.',
+      });
+    }
 
     const result = decide(checks, fraud, ai ?? undefined);
     result.decidedAt = new Date().toISOString();
@@ -957,7 +1003,7 @@ export class DatingService implements OnModuleInit {
     const myDForQuery = this.parseDX((mine as { extras?: string | null }).extras);
     const candidates = await this.prisma.datingProfile.findMany({
       where: this.poolWhere(userId, mine, myDForQuery),
-      include: { user: { select: { id: true, handle: true, name: true, profileImage: true, emailVerified: true } } },
+      include: { user: { select: { id: true, name: true, emailVerified: true } } },
       orderBy: { updatedAt: 'desc' },
       take: POOL_CEILING,
     });
@@ -1057,13 +1103,18 @@ export class DatingService implements OnModuleInit {
       // photo so a card is never empty. Only eligible viewers reach this point.
       const candPhotos = (candDX as { photos?: string[] }).photos ?? [];
       const photos: string[] = [];
-      photoJobs.push({ keys: (candPhotos.length ? candPhotos : (cand.user.profileImage ? [cand.user.profileImage] : [])).slice(0, LIST_PHOTOS), into: photos });
+      // Gallery or nothing. The account photo was the fallback here, which
+      // put the face the whole city knows somebody by on a card shown to
+      // strangers the moment their gallery was empty — and an approved
+      // profile is required to have a photo, so the fallback mostly served
+      // profiles that should not have been on a card at all.
+      photoJobs.push({ keys: candPhotos.slice(0, LIST_PHOTOS), into: photos });
       results.push({
         matchId: state?.id ?? null,
         // The name they chose to date under, everywhere they are drawn —
         // the detail page and the chats already preferred it; a card that
         // said the account name instead was the same person twice.
-        user: { ...cand.user, name: shownName(candDX, cand.user.name) },
+        user: this.cardIdentity(cand.user, candDX),
         bio: cand.bio,
         interests: theirInterests,
         photos,
@@ -1134,7 +1185,7 @@ export class DatingService implements OnModuleInit {
     const myDForQuery = this.parseDX((mine as { extras?: string | null }).extras);
     const candidates = await this.prisma.datingProfile.findMany({
       where: this.poolWhere(userId, mine, myDForQuery),
-      include: { user: { select: { id: true, handle: true, name: true, profileImage: true, createdAt: true, lastSeen: true, onlineStatus: true, emailVerified: true } } },
+      include: { user: { select: { id: true, name: true, createdAt: true, lastSeen: true, onlineStatus: true, emailVerified: true } } },
       orderBy: { updatedAt: 'desc' },
       take: POOL_CEILING,
     });
@@ -1151,7 +1202,7 @@ export class DatingService implements OnModuleInit {
 
     interface Scored {
       card: Record<string, unknown> & {
-        user: { id: string; handle: string; name: string; profileImage: string | null };
+        user: { id: string; name: string };
         score: number;
       };
       createdAt: number; lastSeen: number; online: boolean; city: string;
@@ -1187,11 +1238,16 @@ export class DatingService implements OnModuleInit {
 
       const candPhotos = candDX.photos ?? [];
       const photos: string[] = [];
-      photoJobs.push({ keys: (candPhotos.length ? candPhotos : (cand.user.profileImage ? [cand.user.profileImage] : [])).slice(0, LIST_PHOTOS), into: photos });
+      // Gallery or nothing. The account photo was the fallback here, which
+      // put the face the whole city knows somebody by on a card shown to
+      // strangers the moment their gallery was empty — and an approved
+      // profile is required to have a photo, so the fallback mostly served
+      // profiles that should not have been on a card at all.
+      photoJobs.push({ keys: candPhotos.slice(0, LIST_PHOTOS), into: photos });
       scored.push({
         card: {
           matchId: state?.id ?? null,
-          user: { id: cand.user.id, handle: cand.user.handle, name: shownName(candDX, cand.user.name), profileImage: cand.user.profileImage },
+          user: this.cardIdentity(cand.user, candDX),
           bio: cand.bio,
           interests: theirInterests,
           photos,
@@ -1405,7 +1461,7 @@ export class DatingService implements OnModuleInit {
     const myDForQuery = this.parseDX((mine as { extras?: string | null }).extras);
     const candidates = await this.prisma.datingProfile.findMany({
       where: this.poolWhere(userId, mine, myDForQuery),
-      include: { user: { select: { id: true, handle: true, name: true, profileImage: true, emailVerified: true } } },
+      include: { user: { select: { id: true, name: true, emailVerified: true } } },
       orderBy: { updatedAt: 'desc' },
       take: POOL_CEILING,
     });
@@ -1462,11 +1518,16 @@ export class DatingService implements OnModuleInit {
 
       const candPhotos = candDX.photos ?? [];
       const photos: string[] = [];
-      photoJobs.push({ keys: (candPhotos.length ? candPhotos : (cand.user.profileImage ? [cand.user.profileImage] : [])).slice(0, LIST_PHOTOS), into: photos });
+      // Gallery or nothing. The account photo was the fallback here, which
+      // put the face the whole city knows somebody by on a card shown to
+      // strangers the moment their gallery was empty — and an approved
+      // profile is required to have a photo, so the fallback mostly served
+      // profiles that should not have been on a card at all.
+      photoJobs.push({ keys: candPhotos.slice(0, LIST_PHOTOS), into: photos });
       (isMatched ? matchedCards : cards).push({
         matchId: state?.id ?? null,
         // Same rule as matches(): the chosen name or nothing bespoke at all.
-        user: { ...cand.user, name: shownName(candDX, cand.user.name) },
+        user: this.cardIdentity(cand.user, candDX),
         bio: cand.bio,
         interests: theirInterests,
         photos,
@@ -1547,7 +1608,7 @@ export class DatingService implements OnModuleInit {
     const mine = await this.myApprovedProfile(userId);
     const cand = await this.prisma.datingProfile.findUnique({
       where: { userId: targetUserId },
-      include: { user: { select: { id: true, handle: true, name: true, profileImage: true, emailVerified: true, deletedAt: true } } },
+      include: { user: { select: { id: true, name: true, emailVerified: true, deletedAt: true } } },
     });
     /**
      * `deletedAt` HERE TOO, and this is the half the first fix missed.
@@ -1597,7 +1658,7 @@ export class DatingService implements OnModuleInit {
     const state = await this.prisma.datingMatch.findFirst({
       where: { OR: [{ userOneId: userId, userTwoId: targetUserId }, { userOneId: targetUserId, userTwoId: userId }], kind },
     });
-    const photos = await this.photoUrls((candD.photos?.length ? candD.photos : (cand.user.profileImage ? [cand.user.profileImage] : [])).slice(0, 10));
+    const photos = await this.photoUrls((candD.photos ?? []).slice(0, 10));
 
     return {
       user: cand.user,
@@ -1921,6 +1982,30 @@ export class DatingService implements OnModuleInit {
   /** The same refusal the read paths give, so a caller learns nothing extra. */
   private async assertStillHere(userId: string): Promise<void> {
     if (!(await this.stillHere(userId))) throw new NotFoundException('This profile is not available.');
+  }
+
+  /**
+   * ── THE ONLY IDENTITY A DATING CARD MAY CARRY (audit finding 11) ─────────
+   *
+   * Every candidate query selected `handle` and `profileImage` off the User
+   * row, and every card shape spread them through unfiltered. `shownName()`
+   * anonymised the NAME and nothing else — so a dating profile was one handle
+   * lookup away from somebody's whole city identity (their posts, their
+   * connections, their public face), and when the gallery was empty the card
+   * literally showed their account photo.
+   *
+   * A dating profile is a deliberate, separate presentation of yourself. The
+   * handle is the city's primary key for a person; it has no business on a
+   * card shown to strangers, and neither does the photo the whole city knows
+   * them by. `id` stays — it is how the client opens matchDetail and it is
+   * opaque — and the name is the profile's chosen one.
+   *
+   * `nothing-links-the-card-to-the-city.spec.ts` fails if handle or
+   * profileImage appear anywhere in this module again. The orientation sweep
+   * exists for the same reason with sharper stakes; this is the general case.
+   */
+  private cardIdentity(user: { id: string; name: string }, dx: { firstName?: string }): { id: string; name: string } {
+    return { id: user.id, name: shownName(dx, user.name) };
   }
 
   private async assertWritable(userId: string, targetUserId: string): Promise<void> {
@@ -2486,7 +2571,7 @@ export class DatingService implements OnModuleInit {
     // `pairKeys[matches.indexOf(m)]` below is positional.
     const users = await this.prisma.user.findMany({
       where: { id: { in: allMatches.map(other) }, deletedAt: null },
-      select: { id: true, name: true, profileImage: true },
+      select: { id: true, name: true },
     });
     const userOf = new Map(users.map((u) => [u.id, u]));
     const matches = allMatches.filter((m) => userOf.has(other(m)));
@@ -2554,7 +2639,11 @@ export class DatingService implements OnModuleInit {
     }
     await this.fillPhotos(photoJobs);
     // The card wants one photo or none; the job filled an array.
-    const shaped = out.map((row) => ({ ...row, photo: (row.photo as unknown as string[])[0] ?? userOf.get(row.otherUserId)?.profileImage ?? null }));
+    // Gallery or nothing here too. A match is mutual, a REVEAL is a separate
+    // mutual step — and this row is drawn before it. The account-photo
+    // fallback linked the dating identity to the city one for everybody a
+    // person had merely matched with.
+    const shaped = out.map((row) => ({ ...row, photo: (row.photo as unknown as string[])[0] ?? null }));
     return shaped.sort((a, b) => (a.lastMessageAt < b.lastMessageAt ? 1 : -1));
   }
 

@@ -498,7 +498,16 @@ export function frictions(f: FactorBreakdown, aD: DXProfile, bD: DXProfile): str
   if (mine && theirs && mine !== theirs) out.push(`You said ${aD.relationshipGoal}; they said ${bD.relationshipGoal}.`);
   else if (mine && !theirs) out.push('They have not said what they are looking for yet.');
   if (childrenConflict(aD.wantsChildren, bD.wantsChildren)) {
-    out.push(`Different answers on children — ${aD.wantsChildren} and ${bD.wantsChildren}.`);
+    // THEIR ANSWER IS NOT QUOTED (audit finding 17). `wantsChildren` is the
+    // one factor here that appears NOWHERE on a profile — matchDetail shows
+    // goal, diet, smoking, drinking, height, education; it has never shown
+    // this. So the old line, "Different answers on children — X and Y",
+    // narrated a stranger's most private form answer onto every card, to
+    // every viewer, at every score. The module already has the precedent:
+    // the height filter refuses to say it fired "because saying so would
+    // leak a stranger's settings". Same rule. The viewer gets their OWN
+    // answer and the fact of a conflict — which is what the friction is.
+    out.push(`Different answers on children — you said ${aD.wantsChildren}.`);
   }
   if (f.location <= 50) out.push('You are a long way apart.');
   if (f.lifestyle < 50) out.push('Your day-to-day habits look quite different.');

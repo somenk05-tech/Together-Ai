@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useBlockMatch, useReportMatch, type MatchKind } from '../api';
 
 /**
@@ -19,6 +20,13 @@ import { useBlockMatch, useReportMatch, type MatchKind } from '../api';
  *  · Report takes their words and does not require them. "This person" is often
  *    the whole report, and a mandatory box is a reason not to file.
  */
+/** Hoisted for the size ceiling; linkStyle is per-render (it reads `compact`),
+ *  so these take it as an argument rather than duplicating it. */
+const centreDoor = (base: React.CSSProperties): React.CSSProperties =>
+  ({ ...base, marginTop: '14px', display: 'inline-block', textDecoration: 'underline' });
+const menuCancel = (base: React.CSSProperties): React.CSSProperties =>
+  ({ ...base, marginTop: '8px', display: 'block' });
+
 export function SafetyMenu({ userId, kind, compact = false }: {
   userId: string; kind: MatchKind; compact?: boolean;
 }) {
@@ -83,7 +91,16 @@ export function SafetyMenu({ userId, kind, compact = false }: {
                     </span>
                   </button>
                 </div>
-                <button type="button" onClick={close} style={{ ...linkStyle, marginTop: 14 }}>Cancel</button>
+                {/* THE DOOR TO THE SAFETY CENTRE, from the one menu that is
+                    on every card, chat and profile. The page existed and was
+                    reachable from exactly one place — inside the block shown
+                    to somebody whose profile was refused — which meant the
+                    citizens most likely to need it had never seen it. */}
+                <Link to="/dating/safety" onClick={close}
+                  style={centreDoor(linkStyle)}>
+                  Safety Centre — what we check, staying safe, and who to call
+                </Link>
+                <button type="button" onClick={close} style={menuCancel(linkStyle)}>Cancel</button>
               </>
             )}
 
