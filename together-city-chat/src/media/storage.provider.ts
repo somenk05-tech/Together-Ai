@@ -455,6 +455,18 @@ export class StorageProvider implements OnModuleInit {
     return this.getObjectBase64(key, this.healthBucket);
   }
 
+  /**
+   * The same, from the PUBLIC bucket — where chat attachments live.
+   *
+   * Reading a public object server-side looks redundant when anybody can fetch
+   * the URL, and is not: the point is to look at the bytes BEFORE deciding to
+   * deliver the message that names them, and a URL fetch would take the round
+   * trip out through the internet and back for a file we already hold.
+   */
+  async getPublicObjectBase64(key: string): Promise<{ base64: string; contentType: string } | null> {
+    return this.getObjectBase64(key, this.bucket);
+  }
+
   /** Confirm a just-uploaded health object actually landed in the vault, so we
    *  never file a record that points at a file the browser failed to PUT. When
    *  storage isn't configured (dev/demo) we can't check, so we don't block. */

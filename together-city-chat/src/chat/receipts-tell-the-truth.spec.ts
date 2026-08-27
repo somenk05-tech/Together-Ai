@@ -30,6 +30,10 @@ function build(statuses: Array<{ messageId: string }>) {
     { assertCanPostToConversation: async () => undefined } as any,
     { publish: (e: unknown) => published.push(e) } as any,
     { get: () => undefined } as any,
+    // ChatMediaGuard. This file is about read/delivered receipts, which never
+    // reach the send path and never consult it — a stub that approves keeps
+    // the file about the thing it is about.
+    { screen: async () => ({ ok: true }) } as any,
   );
   return { svc, prisma, published };
 }

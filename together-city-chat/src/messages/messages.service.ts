@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -8,6 +9,7 @@ import { DeliveryStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { datingConversationIds } from '../shared/dating-conversations';
 import { ConnectionPermissionService } from '../connections/connection-permission.service';
+import { ChatMediaGuard } from './chat-media-guard';
 import { ChatEventBus } from '../shared/events/chat-events';
 import {
   DeleteMessageDto,
@@ -33,6 +35,7 @@ export class MessagesService {
     private readonly permission: ConnectionPermissionService,
     private readonly bus: ChatEventBus,
     private readonly config: ConfigService,
+    private readonly media: ChatMediaGuard,
   ) {}
 
   /** Send a message. Enforces the connection gate + membership before persisting. */
@@ -41,6 +44,8 @@ export class MessagesService {
     await this.permission.assertCanPostToConversation(senderId, dto.conversationId);
     // 1b) attachment gate — see assertAttachmentsAreYoursToSend below.
     if (dto.attachments?.length) await this.assertAttachmentsAreYoursToSend(senderId, dto.attachments);
+    // 1c) and WHAT IS IN THEM, if this is a chat between strangers.
+    if (dto.attachments?.length) await this.screenAttachments(senderId, dto.conversationId, dto.attachments);
 
     const recipientIds = await this.recipientIds(dto.conversationId, senderId);
 
@@ -628,6 +633,40 @@ export class MessagesService {
    * base is configured the URL must live under it too; without one (dev, no
    * cloud creds) the path rule still holds.
    */
+  /**
+   * SCREEN WHAT A STRANGER IS SENDING (27 Aug, launch audit).
+   *
+   * Ownership was checked and content never was: a photo sent into a dating
+   * chat had no scan, no hold, no recipient consent, while a photo on a dating
+   * PROFILE went through a full fail-closed pipeline before anybody saw it.
+   *
+   * Only dating conversations, which are the ones `anonymousTrust` marks — two
+   * strangers a matching engine introduced, rather than two people who accepted
+   * a connection. Extending this to the whole city is a bigger decision with a
+   * much larger blast radius; see chat-media-guard.ts for the rest of the
+   * reasoning, including why voice notes cannot be screened at all.
+   *
+   * A refusal is a 400 the SENDER sees. Nothing is held and nothing is
+   * delivered-then-withdrawn: the person who can do something about it is told
+   * at the moment they can still do it.
+   */
+  private async screenAttachments(
+    senderId: string,
+    conversationId: string,
+    attachments: Array<{ url: string; mimeType?: string }>,
+  ): Promise<void> {
+    const convo = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { anonymousTrust: true },
+    });
+    if ((convo as { anonymousTrust?: number | null } | null)?.anonymousTrust == null) return;
+    const base = (this.config.get<string>('media.publicBaseUrl') ?? '').replace(/\/+$/, '');
+    for (const a of attachments) {
+      const verdict = await this.media.screen(a.url, a.mimeType ?? '', senderId, base);
+      if (!verdict.ok) throw new BadRequestException(verdict.reason);
+    }
+  }
+
   private async assertAttachmentsAreYoursToSend(
     senderId: string,
     attachments: Array<{ url: string; thumbnail?: string }>,

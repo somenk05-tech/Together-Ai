@@ -22,6 +22,10 @@ function build(seenUrls: string[]) {
     {} as any,
     { publish: () => undefined } as any,
     { get: () => 'https://cdn.example' } as any,
+    // ChatMediaGuard. These four assertions are about the OWNERSHIP gate,
+    // which runs before any screening and does not consult it — a stub that
+    // approves everything keeps this file about the thing it is about.
+    { screen: async () => ({ ok: true }) } as any,
   );
   const check = (attachments: unknown) =>
     (svc as any).assertAttachmentsAreYoursToSend('me', attachments);
