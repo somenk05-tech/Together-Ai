@@ -4,7 +4,7 @@ import { spawn } from 'child_process';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { BlockingService } from '../connections/blocking.service';
 import { VISIBLE_ONLY } from './post-visibility';
-import { AdminService } from '../auth/admin';
+import { AdminAccessService } from '../admin/admin-access.service';
 import { ConnectionsService } from '../connections/connections.service';
 import { RECORD_CAP } from '../shared/paging';
 import { SocialGateway } from './social.gateway';
@@ -50,6 +50,8 @@ function datingSummary(dp: Record<string, unknown>) {
   };
 }
 
+type ReportDecision = 'remove' | 'dismiss' | 'warn' | 'suspend';
+
 @Injectable()
 export class SocialService {
   constructor(
@@ -59,7 +61,7 @@ export class SocialService {
     private readonly storage: StorageProvider,
     private readonly connections: ConnectionsService,
     private readonly blocking: BlockingService,
-    private readonly admin: AdminService,
+    private readonly access: AdminAccessService,
   ) {}
 
   /** Set a video post's cover: extract the frame at `timeSec` with ffmpeg from
@@ -730,7 +732,13 @@ export class SocialService {
    * one leak away from being the reason nobody reports anything.
    */
   async reportQueue(adminId: string) {
-    await this.admin.assertAdmin(adminId);
+    // ONE PERMISSION SYSTEM (third audit, finding 11). The report queue used to
+    // gate on User.role === 'admin' (seeded from MODERATION_ADMINS), while the
+    // dating console gated on AdminGrant rows and a permission map (seeded from
+    // CONSOLE_FOUNDERS). Two env vars, never cross-referenced — so tellModerators
+    // could ring an inbox the queue then 403'd at the door. Both are the
+    // AdminGrant/permission system now: reading the queue needs `moderation.read`.
+    await this.access.assert(adminId, 'moderation.read');
     const rows = await this.prisma.report.findMany({
       where: { status: 'open' },
       orderBy: { createdAt: 'asc' },
@@ -835,31 +843,96 @@ export class SocialService {
    */
   async reportDecide(
     adminId: string,
-    dto: { targetType: string; targetId: string; decision: 'remove' | 'dismiss'; note?: string },
+    dto: { targetType: string; targetId: string; decision: ReportDecision; note?: string },
   ) {
-    await this.admin.assertAdmin(adminId);
+    // ONE PERMISSION SYSTEM, AND A REAL ACTION ON A PERSON (third audit, 11 & 04).
+    //
+    // 11 · This gated on User.role, the OTHER moderator system; now it is the
+    //      AdminGrant/permission one, `moderation.act`, the same permission
+    //      tellModerators derives its recipients from — so the doorbell and the
+    //      door finally agree.
+    //
+    // 04 · A report about a PERSON could only be dismissed: `remove` was refused
+    //      for anything but a post, and suspension lived behind a different
+    //      permission in a different console a moderator could not reach.
+    //      Detection was good and the response was empty. A moderator can now
+    //      WARN (a message the person reads) or SUSPEND (the account is closed
+    //      until an admin restores it) straight from the queue they already
+    //      read.
+    //
+    //      SUSPENSION NEEDS `users.suspend` ON TOP (launch audit, 27 Aug). It
+    //      was written under `moderation.act` alone, which handed the
+    //      `moderator` role an account action the console refuses it — and,
+    //      because restoring is behind `users.suspend`, one it could not undo.
+    //      permissions.ts:23 says no permission grants another; this is that
+    //      rule, enforced rather than asserted. Warn stays on `moderation.act`:
+    //      it writes a message, not an account state.
+    await this.access.assert(adminId, 'moderation.act');
     const { targetType, targetId, decision } = dto;
     if (!['user', 'post', 'comment'].includes(targetType)) throw new ForbiddenException('invalid report target');
     if (decision === 'remove' && targetType !== 'post') {
-      throw new ForbiddenException('Only a post can be removed from here. An account action is not this endpoint.');
+      throw new ForbiddenException('Only a post can be removed from here.');
     }
+    if ((decision === 'warn' || decision === 'suspend') && targetType !== 'user') {
+      throw new ForbiddenException('Warn and suspend act on an account, not a post or comment.');
+    }
+    // The second permission, asked for before anything is written, so a
+    // moderator without it is refused rather than told half a story.
+    if (decision === 'suspend') await this.access.assert(adminId, 'users.suspend');
+    const reason = this.clean(dto.note);
 
     if (decision === 'remove') {
-      const updated = await this.prisma.post.updateMany({
-        where: { id: targetId },
-        data: { moderation: 'removed' },
-      });
+      const updated = await this.prisma.post.updateMany({ where: { id: targetId }, data: { moderation: 'removed' } });
       if (!updated.count) throw new NotFoundException('That post no longer exists.');
+    }
+
+    if (decision === 'suspend') {
+      // A real account action, so it is audited like every other one, with the
+      // moderator's note as the reason. JwtStrategy reads suspendedAt on the
+      // next request, so the account is closed within the token's lifetime.
+      await this.access.act({
+        actorId: adminId, need: 'users.suspend', action: 'report.user.suspend',
+        entity: 'user', entityId: targetId, reason: reason ?? 'Suspended following a report',
+        before: { suspended: false }, after: { suspended: true },
+      }, async () => {
+        const done = await this.prisma.user.updateMany({
+          where: { id: targetId, deletedAt: null },
+          data: { suspendedAt: new Date(), suspendedReason: (reason ?? 'Suspended following a report').slice(0, 1000) },
+        });
+        if (!done.count) throw new NotFoundException('That account no longer exists.');
+      });
+    }
+
+    if (decision === 'warn') {
+      // The one report decision the person is told about — that is the point of
+      // a warning. It carries the moderator's words, and nothing about who
+      // reported them.
+      //
+      // Through `act` rather than beside it: `moderation.act` is in MUST_AUDIT,
+      // and a warning is a moderator's decision about a named citizen. The
+      // comment above this block used to claim it was audited while the call
+      // went straight to the notifier — an audit trail that says a moderator
+      // dismissed everything and warned nobody.
+      await this.access.act({
+        actorId: adminId, need: 'moderation.act', action: 'report.user.warn',
+        entity: 'user', entityId: targetId, reason: reason ?? 'Warned following a report',
+        before: { warned: false }, after: { warned: true },
+      }, async () => {
+        await this.notifications.create({
+          userId: targetId, kind: 'system',
+          title: 'A moderator has reviewed a report about you',
+          body: reason ?? 'Please review the community guidelines. Continued reports may lead to your account being suspended.',
+          href: '/',
+        }).catch(swallowed('social.reportDecide: warn notification', null));
+      });
     }
 
     const now = new Date();
     const closed = await this.prisma.report.updateMany({
       where: { targetType, targetId, status: 'open' },
       data: {
-        status: decision === 'remove' ? 'actioned' : 'dismissed',
-        reviewedById: adminId,
-        reviewedAt: now,
-        decision: this.clean(dto.note) ?? null,
+        status: decision === 'dismiss' ? 'dismissed' : 'actioned',
+        reviewedById: adminId, reviewedAt: now, decision: reason,
       },
     });
     return { decided: decision, reportsClosed: closed.count };

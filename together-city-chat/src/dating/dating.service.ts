@@ -854,18 +854,9 @@ export class DatingService implements OnModuleInit {
     // enforce" branch is left alone on purpose: it exists for the real-estate
     // enquiry chats, which have anonymousTrust set but no match row, and this
     // change means a dating chat's row is never absent while the chat lives.
-    const myMatches = ((await swallow(this.prisma.datingMatch.findMany({
-      where: { OR: [{ userOneId: userId }, { userTwoId: userId }] },
-      select: { id: true, conversationId: true },
-    }), 'dating delete: read matches before ending them', { userId })) ?? []) as Array<{ id: string; conversationId: string | null }>;
+    const myMatches = await this.endMyChats(userId, 'dating delete');
     for (const m of myMatches) {
-      if (m.conversationId) {
-        await swallow(this.conversations.archiveForAll(m.conversationId), 'dating delete: archive chat', { userId });
-        await swallow(this.prisma.datingMatch.update({
-          where: { id: m.id },
-          data: { status: 'passed', passedByOne: true, passedByTwo: true, revealByOne: false, revealByTwo: false, likedByOne: false, likedByTwo: false },
-        }), 'dating delete: end match', { userId });
-      } else {
+      if (!m.conversationId) {
         await swallow(this.prisma.datingMatch.delete({ where: { id: m.id } }), 'dating delete: drop pending match', { userId });
       }
     }
@@ -873,6 +864,38 @@ export class DatingService implements OnModuleInit {
       .deleteMany({ where: { OR: [{ userA: userId }, { userB: userId }] } }), 'dating delete: compatibility cache', { userId });
     await swallow(this.prisma.datingProfile.delete({ where: { userId } }), 'dating delete: profile row', { userId });
     return { ok: true as const, deleted: true as const };
+  }
+
+  /**
+   * END EVERY CHAT THIS CITIZEN IS IN, and hand back the rows so the caller can
+   * decide what else to do with them.
+   *
+   * Two callers need exactly this and would otherwise each write it: deleting
+   * your own profile, and a moderator rejecting it. The teardown is four things
+   * done together — archive the thread, flip the row off `matched`, clear the
+   * likes and the reveals, and leave the row in place so the gate and the
+   * conversation classifier can still read it. A second copy would look correct
+   * while missing the archive, which is the duplication CLAUDE.md's Fold note
+   * describes: it fails silently.
+   *
+   * A row with no conversation is returned untouched. There is nothing to leak
+   * in it, and the two callers disagree about it — deletion drops it, rejection
+   * leaves it, because a rejection can be appealed and reinstated.
+   */
+  private async endMyChats(userId: string, why: string): Promise<Array<{ id: string; conversationId: string | null }>> {
+    const rows = ((await swallow(this.prisma.datingMatch.findMany({
+      where: { OR: [{ userOneId: userId }, { userTwoId: userId }] },
+      select: { id: true, conversationId: true },
+    }), `${why}: read matches before ending them`, { userId })) ?? []) as Array<{ id: string; conversationId: string | null }>;
+    for (const m of rows) {
+      if (!m.conversationId) continue;
+      await swallow(this.conversations.archiveForAll(m.conversationId), `${why}: archive chat`, { userId });
+      await swallow(this.prisma.datingMatch.update({
+        where: { id: m.id },
+        data: { status: 'passed', passedByOne: true, passedByTwo: true, revealByOne: false, revealByTwo: false, likedByOne: false, likedByTwo: false },
+      }), `${why}: end match`, { userId });
+    }
+    return rows;
   }
 
   private noticeFor(r: ModerationResult): string {
@@ -2415,6 +2438,16 @@ export class DatingService implements OnModuleInit {
     // other moderator action in the city already has.
     const before = await this.prisma.datingProfile.findUnique({ where: { userId: targetUserId }, select: { moderation: true, visible: true } });
     if (!before) throw new NotFoundException('That person has no dating profile.');
+    // THE SAME REFUSAL THE APPEAL PATH MAKES. `decideAppeal` re-reads the stored
+    // date of birth before it can reinstate anybody, and this — its sibling, and
+    // the other way a profile reaches `approved` — did not. Both doors, or the
+    // one that is left is the one that gets used.
+    if (decision === 'approved') {
+      const prof = await this.prisma.datingProfile.findUnique({ where: { userId: targetUserId }, select: { birthDate: true } });
+      if (!prof || !isAdult((prof as { birthDate: Date }).birthDate)) {
+        throw new ForbiddenException('This profile cannot be approved: it does not meet the minimum age.');
+      }
+    }
     await this.access.act({
       actorId: adminId, need: 'moderation.act', action: `dating.profile.${decision}`, entity: 'user', entityId: targetUserId,
       before, after: { moderation: decision, visible: decision === 'approved' }, reason,
@@ -2424,6 +2457,14 @@ export class DatingService implements OnModuleInit {
         data: { moderation: decision, visible: decision === 'approved' },
       });
       await this.logModeration(targetUserId, adminId, decision, reason);
+      // A REJECTION HAS TO REACH THE CONVERSATIONS (27 Aug, launch audit).
+      // This wrote two columns and stopped. The caller gate added the same day
+      // means a rejected profile can no longer like, connect or reveal — and
+      // the send gate reads `DatingMatch.status`, never `DatingProfile`, so
+      // every chat they were already in stayed open. The moderator who rejects
+      // a profile for being under age takes them out of the pool and leaves
+      // them talking to the adults they already matched with.
+      if (decision === 'rejected') await this.endMyChats(targetUserId, 'dating rejection');
     });
     return { userId: targetUserId, moderation: decision };
   }

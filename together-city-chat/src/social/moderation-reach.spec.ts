@@ -65,14 +65,15 @@ describe('moderation reaches every list read of Post', () => {
     expect(at).toBeGreaterThan(-1);
     const body = src.slice(at, src.indexOf('\n  }', at));
     expect(body).toContain("decision === 'remove' && targetType !== 'post'");
-    expect(body).toContain('this.admin.assertAdmin(');
+    // On the AdminGrant/permission system now (finding 11), not User.role.
+    expect(body).toContain("this.access.assert(adminId, 'moderation.act')");
   });
 
   it('the queue counts reporters and never returns them', () => {
     const src = read('social/social.service.ts');
     const at = src.indexOf('async reportQueue(');
     const body = src.slice(at, src.indexOf('\n  }', at));
-    expect(body).toContain('this.admin.assertAdmin(');
+    expect(body).toContain("this.access.assert(adminId, 'moderation.read')");
     expect(body).toContain('distinctReporters: g.reporters.size');
     // The set of ids must not leave the method.
     expect(body).not.toMatch(/reporters:\s*\[\.\.\.g\.reporters\]/);

@@ -163,7 +163,7 @@ export class SocialController {
       z.object({
         targetType: z.enum(['user', 'post', 'comment']),
         targetId: z.string().min(1),
-        decision: z.enum(['remove', 'dismiss']),
+        decision: z.enum(['remove', 'dismiss', 'warn', 'suspend']),
         note: z.string().max(500).optional(),
       }),
       body,

@@ -128,11 +128,15 @@ export class ConnectionPermissionService {
    * A DATING conversation with a match row must have a LIVE match behind it.
    *
    * NOT EVERY ANONYMOUS CONVERSATION HAS ONE, and that is why this looks up the
-   * match rather than demanding it. Accepting an activity invitation opens a
-   * direct conversation between two people who never matched — there is no
-   * DatingMatch row, there is nothing to unmatch, and requiring one here would
-   * have silently killed every activity chat in the city. Absent means "not a
-   * match conversation": the block check above already ran, and it stands.
+   * match rather than demanding it. A real-estate enquiry opens a conversation
+   * with `anonymousTrust` set and no match row behind it, so an absent row here
+   * means "not a dating conversation" and the block check above stands on its
+   * own. THAT ONLY HOLDS BECAUSE NOTHING DELETES A ROW THAT CARRIES A
+   * CONVERSATION — it was not true until 27 Aug, when declining a People
+   * request still deleted the match and turned this early return into a way to
+   * unlock a dating chat permanently by destroying its row. The rule is pinned
+   * by `a-row-that-carries-a-chat-is-never-deleted.spec.ts`; if that test ever
+   * goes red, this branch is a hole again.
    *
    * Fail-CLOSED where a match does exist. If the row says anything other than
    * `matched`, the line is shut. This is a contact gate rather than an
@@ -144,8 +148,7 @@ export class ConnectionPermissionService {
     const match = await (this.prisma as unknown as {
       datingMatch?: { findFirst(a: unknown): Promise<{ status: string } | null> };
     }).datingMatch?.findFirst({ where: { conversationId }, select: { status: true } });
-    // No row: an activity chat, or a conversation older than the match table.
-    // Nothing to enforce, and inventing a refusal here would break both.
+    // No row: not a dating match conversation (a real-estate enquiry). See above.
     if (!match) return;
     if (match.status !== 'matched') {
       throw new ForbiddenException('This conversation has ended.');

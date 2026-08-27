@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { Button, Spinner } from '@/components/ui';
 import { useAppeals, useDatingDecision, useDecideAppeal, useDecideReport, useHeldPhotos, usePhotoBackfill, usePhotoDecision, useReportQueue, type Appeal, type HeldPhoto, type ReportGroup } from '../api';
+import { useAdminMe } from '@/features/admin/api';
 
 /** The reported citizen's dating profile, set apart from the handle above it
  *  so a moderator can see at a glance where the allegation is pointing. */
@@ -98,15 +99,17 @@ function Subject({ group }: { group: ReportGroup }) {
   );
 }
 
+const suspendBtn: CSSProperties = { color: 'var(--danger-ink)', borderColor: 'var(--danger-line)' };
 function Group({ group }: { group: ReportGroup }) {
   const decide = useDecideReport();
   const dating = useDatingDecision();
   const [note, setNote] = useState('');
-  const [done, setDone] = useState<'remove' | 'dismiss' | 'dating' | null>(null);
+  const [done, setDone] = useState<'remove' | 'dismiss' | 'dating' | 'warn' | 'suspend' | null>(null);
 
   const canRemove = group.targetType === 'post' && !group.subject.gone;
   // A reported person can be taken out of Dating — their profile, not their
   // account — and the reports are then closed under the same note.
+  const me = useAdminMe();
   const canUnlist = group.targetType === 'user' && !group.subject.gone;
   const unlist = () =>
     dating.mutate(
@@ -118,7 +121,17 @@ function Group({ group }: { group: ReportGroup }) {
         ),
       },
     );
-  const act = (decision: 'remove' | 'dismiss') =>
+  // A reported PERSON now has real outcomes from this queue (third audit, 04):
+  // a warning they read, or a suspension that closes the account until an admin
+  // restores it. Both go through the same moderation.act permission as dismiss.
+  const canActOnUser = group.targetType === 'user' && !group.subject.gone;
+  // SUSPENSION IS A SECOND PERMISSION (launch audit, 27 Aug). Closing an account
+  // needs `users.suspend`, which the `moderator` role does not hold — and which
+  // is also what RESTORING one needs, so a moderator offered the button could
+  // shut a door they could not open. The server refuses it either way; this is
+  // so the refusal is not delivered as a button.
+  const canSuspend = canActOnUser && (me.data?.permissions ?? []).some((p) => p.key === 'users.suspend');
+  const act = (decision: 'remove' | 'dismiss' | 'warn' | 'suspend') =>
     decide.mutate(
       { targetType: group.targetType, targetId: group.targetId, decision, note: note.trim() || undefined },
       { onSuccess: () => setDone(decision) },
@@ -128,7 +141,7 @@ function Group({ group }: { group: ReportGroup }) {
     return (
       <div className="card" style={{ marginTop: 12, padding: 14 }}>
         <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-          {done === 'remove' ? 'Removed. ' : done === 'dating' ? 'Taken out of Dating. ' : 'Dismissed. '}
+          {done === 'remove' ? 'Removed. ' : done === 'dating' ? 'Taken out of Dating. ' : done === 'suspend' ? 'Account suspended. ' : done === 'warn' ? 'Warning sent. ' : 'Dismissed. '}
           {group.reportCount} {group.reportCount === 1 ? 'report' : 'reports'} closed.
         </p>
       </div>
@@ -184,6 +197,18 @@ function Group({ group }: { group: ReportGroup }) {
             {dating.isPending ? 'Working…' : 'Take out of Dating'}
           </Button>
         )}
+        {canActOnUser && (
+          <Button variant="line" size="sm" disabled={decide.isPending} onClick={() => act('warn')}>
+            Warn
+          </Button>
+        )}
+        {canSuspend && (
+          <Button variant="line" size="sm" disabled={decide.isPending || note.trim().length < 3} onClick={() => act('suspend')}
+            title={note.trim().length < 3 ? 'Write the reason in the note first.' : undefined}
+            style={suspendBtn}>
+            {decide.isPending ? 'Working…' : 'Suspend account'}
+          </Button>
+        )}
         <Button variant="line" size="sm" disabled={decide.isPending} onClick={() => act('dismiss')}>
           Dismiss
         </Button>
@@ -194,9 +219,9 @@ function Group({ group }: { group: ReportGroup }) {
           Taking someone out of Dating hides their dating profile from everyone. It does not touch their account. It needs a reason in the note — it is written to the audit.
         </p>
       )}
-      {!canRemove && !canUnlist && group.targetType !== 'post' && (
+      {canActOnUser && (
         <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>
-          Only a post can be removed from here. An account action is not something this screen does.
+          Warn sends the person a message{canSuspend ? '; Suspend closes their account until an admin restores it' : ''}. {canSuspend ? 'Both are' : 'It is'} written to the audit, and neither tells them who reported.{canSuspend ? ' Suspend needs a reason in the note.' : ''}
         </p>
       )}
       {(decide.isError || dating.isError) && (

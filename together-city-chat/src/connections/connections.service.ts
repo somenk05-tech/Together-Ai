@@ -434,13 +434,36 @@ export class ConnectionsService {
   }
 
   /** End any household link between the two users (both directions). */
-  /** Remove a pair from each other's Dating Hub: delete any dating-match state
-   *  and cached compatibility between them (privacy rule — connections are never
-   *  dating candidates). The dating conversation, if any, stays as their normal
-   *  People chat (archive policy). */
+  /**
+   * Remove a pair from each other's Dating Hub: end any dating-match state and
+   * drop the cached compatibility between them (privacy rule — connections are
+   * never dating candidates).
+   *
+   * A ROW THAT CARRIES A CONVERSATION IS ENDED, NOT DELETED (27 Aug, third
+   * audit). This deleted every row, and the comment claimed the dating
+   * conversation then "stays as their normal People chat". It did — under both
+   * people's real names, out of the Dating Hub, and writable forever, because
+   * the send gate reads the match row and an absent row used to mean yes. The
+   * path was one tap: match, chat, send a People request, and let the other
+   * person DECLINE it (`respond` maps decline to BLOCKED, which lands here).
+   *
+   * So: rows with no conversation are deleted, which is the whole of the
+   * discovery-state teardown this exists for. Rows with a conversation are
+   * flipped to the same ended shape `unmatch` and `deleteProfile` write, which
+   * keeps the thread pseudonymous, keeps it inside the Dating Hub, and shuts
+   * the line.
+   */
   private async purgeDatingBetween(a: string, b: string): Promise<void> {
+    const pair = { OR: [{ userOneId: a, userTwoId: b }, { userOneId: b, userTwoId: a }] };
+    await swallow(this.prisma.datingMatch.updateMany({
+      where: { ...pair, NOT: { conversationId: null } },
+      data: {
+        status: 'passed', passedByOne: true, passedByTwo: true,
+        revealByOne: false, revealByTwo: false, likedByOne: false, likedByTwo: false,
+      },
+    }), 'end dating matches that carry a chat', { a, b });
     await swallow(this.prisma.datingMatch.deleteMany({
-      where: { OR: [{ userOneId: a, userTwoId: b }, { userOneId: b, userTwoId: a }] },
+      where: { ...pair, conversationId: null },
     }), 'purge dating matches', { a, b });
     await swallow((this.prisma as unknown as { compatibilityScore: { deleteMany(x: unknown): Promise<unknown> } }).compatibilityScore
       .deleteMany({ where: { OR: [{ userA: a, userB: b }, { userA: b, userB: a }] } }), 'purge compatibility scores', { a, b });

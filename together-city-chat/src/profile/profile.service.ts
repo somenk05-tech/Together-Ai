@@ -3,7 +3,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { BlockingService } from '../connections/blocking.service';
 import { VISIBLE_ONLY } from '../social/post-visibility';
-import { AdminService } from '../auth/admin';
+import { AdminAccessService } from '../admin/admin-access.service';
 import { ConnectionsService } from '../connections/connections.service';
 import { isReservedAdminHandle } from '../auth/admin';
 import { orderPair } from '../connections/connection.util';
@@ -57,7 +57,7 @@ export class ProfileService {
     private readonly masterProfile: MasterProfileService,
     private readonly connections: ConnectionsService,
     private readonly blocking: BlockingService,
-    private readonly admin: AdminService,
+    private readonly access: AdminAccessService,
   ) {}
 
   /** DESIGN YOUR SERVICES — read which hubs this citizen keeps off the street.
@@ -290,7 +290,16 @@ export class ProfileService {
   async me(userId: string): Promise<MyProfile> {
     const u = (await this.prisma.user.findUnique({ where: { id: userId }, select: this.userSelect })) as unknown as UserRow | null;
     if (!u) throw new NotFoundException('Account not found');
-    const [stats, isModerator] = await Promise.all([this.statsFor(userId), this.admin.isAdmin(userId)]);
+    // THE DOOR SIGN READS THE SAME SYSTEM AS THE DOOR (launch audit, 27 Aug).
+    // This asked `User.role === 'admin'` — the MODERATION_ADMINS system — while
+    // the moderation queue itself is gated on the AdminGrant permission map. So
+    // the settings link appeared for people the queue would 403, and did not
+    // appear for the moderators who could actually open it, who then had to
+    // know the URL. `moderation.read` is exactly what the queue asks for.
+    const [stats, isModerator] = await Promise.all([
+      this.statsFor(userId),
+      this.access.holds(userId, 'moderation.read'),
+    ]);
     return {
       id: u.id, handle: u.handle, name: u.name, profileImage: u.profileImage,
       bio: u.bio, city: u.city, website: u.website, email: u.email,

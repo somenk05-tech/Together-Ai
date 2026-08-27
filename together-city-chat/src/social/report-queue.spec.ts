@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { SocialService } from './social.service';
 
@@ -43,8 +44,16 @@ function stub(reports: Report[], posts: Array<{ id: string; authorId: string; mo
   return prisma;
 }
 
-const admin = { assertAdmin: jest.fn(async () => undefined) };
-const notAdmin = { assertAdmin: jest.fn(async () => { throw new ForbiddenException('Moderator access required.'); }) };
+// The report queue is on the AdminGrant/permission system now (finding 11), so
+// the gate is access.assert(need), not admin.assertAdmin.
+const admin = {
+  assert: jest.fn(async () => ['moderator']),
+  act: jest.fn(async (_i: unknown, run: () => Promise<unknown>) => run()),
+};
+const notAdmin = {
+  assert: jest.fn(async () => { throw new ForbiddenException('This needs the "moderation.act" permission.'); }),
+  act: jest.fn(async (_i: unknown, run: () => Promise<unknown>) => run()),
+};
 
 const svc = (prisma: any, a: unknown = admin) =>
   new SocialService(prisma, {} as never, {} as never, {} as never, {} as never, {} as never, a as never);

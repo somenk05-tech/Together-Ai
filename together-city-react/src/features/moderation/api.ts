@@ -32,7 +32,7 @@ export interface ReportQueue { items: ReportGroup[]; openTotal: number }
 
 export const moderationApi = {
   queue: () => api.get<ReportQueue>('/social/reports/queue').then((r) => r.data),
-  decide: (dto: { targetType: string; targetId: string; decision: 'remove' | 'dismiss'; note?: string }) =>
+  decide: (dto: { targetType: string; targetId: string; decision: 'remove' | 'dismiss' | 'warn' | 'suspend'; note?: string }) =>
     api.post<{ decided: string; reportsClosed: number }>('/social/reports/decide', dto).then((r) => r.data),
   /**
    * The one thing this screen can do about a reported PERSON, and it is not an
