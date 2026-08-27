@@ -835,7 +835,40 @@ export class DatingService implements OnModuleInit {
       await swallow((this.prisma as unknown as { datingPhotoReview: { deleteMany(a: unknown): Promise<unknown> } }).datingPhotoReview
         .deleteMany({ where: { userId } }), 'dating delete: photo reviews', { userId });
     }
-    await swallow(this.prisma.datingMatch.deleteMany({ where: { OR: [{ userOneId: userId }, { userTwoId: userId }] } }), 'dating delete: match state', { userId });
+    // END THE MATCHES, DO NOT ORPHAN THEIR CHATS (third audit, blocker 02).
+    //
+    // This used to deleteMany every match row — including the ones that had a
+    // conversation. That row is the ONLY thing keeping an anonymous dating chat
+    // out of the main Chats list (datingConversationIds reads it) and the ONLY
+    // thing the message gate consults (assertMatchStillStands reads its
+    // status). Deleting it moved the thread into BOTH people's ordinary Chats
+    // and left it writable forever — so "delete my dating profile", the control
+    // a person reaches for to end contact, did the opposite.
+    //
+    // A match WITH a conversation is ended, not deleted: the thread is archived
+    // for everyone, and the row stays as 'passed' with its likes and reveals
+    // cleared — the gate now refuses it, the other person's chats tab drops it
+    // (status filter), and the classifier still knows the conversation is a
+    // dating one. A match with no conversation has nothing to leak and is
+    // deleted cleanly. The assertMatchStillStands "no row means nothing to
+    // enforce" branch is left alone on purpose: it exists for the real-estate
+    // enquiry chats, which have anonymousTrust set but no match row, and this
+    // change means a dating chat's row is never absent while the chat lives.
+    const myMatches = ((await swallow(this.prisma.datingMatch.findMany({
+      where: { OR: [{ userOneId: userId }, { userTwoId: userId }] },
+      select: { id: true, conversationId: true },
+    }), 'dating delete: read matches before ending them', { userId })) ?? []) as Array<{ id: string; conversationId: string | null }>;
+    for (const m of myMatches) {
+      if (m.conversationId) {
+        await swallow(this.conversations.archiveForAll(m.conversationId), 'dating delete: archive chat', { userId });
+        await swallow(this.prisma.datingMatch.update({
+          where: { id: m.id },
+          data: { status: 'passed', passedByOne: true, passedByTwo: true, revealByOne: false, revealByTwo: false, likedByOne: false, likedByTwo: false },
+        }), 'dating delete: end match', { userId });
+      } else {
+        await swallow(this.prisma.datingMatch.delete({ where: { id: m.id } }), 'dating delete: drop pending match', { userId });
+      }
+    }
     await swallow((this.prisma as unknown as { compatibilityScore: { deleteMany(a: unknown): Promise<unknown> } }).compatibilityScore
       .deleteMany({ where: { OR: [{ userA: userId }, { userB: userId }] } }), 'dating delete: compatibility cache', { userId });
     await swallow(this.prisma.datingProfile.delete({ where: { userId } }), 'dating delete: profile row', { userId });
