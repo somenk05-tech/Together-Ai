@@ -2015,6 +2015,29 @@ export class DatingService implements OnModuleInit {
     return { id: user.id, name: shownName(dx, user.name) };
   }
 
+  /**
+   * You cannot reach another citizen from outside the pool.
+   *
+   * Third audit, blocker 01. like/connect/reveal checked only the TARGET,
+   * through assertWritable, and never the caller — so an account with NO dating
+   * profile, on which the 18+ gate had therefore never run, could like real
+   * members, and a profile rejected for being under-age could keep using a
+   * match it already had. The age gate lives on profile creation
+   * (dating.dto.ts); these three methods are the doors that let somebody act
+   * without ever passing it.
+   *
+   * `myApprovedProfile` already throws for no profile, a pending one and a
+   * rejected one, in the caller's own voice — so this is the same standing
+   * check the browse paths use, applied to the act of reaching out.
+   *
+   * NOT on unmatch or blockMatch: those are the way OUT, and a citizen whose
+   * profile was just rejected must still be able to leave a match and to block
+   * somebody. Safety exits do not require good standing.
+   */
+  private async assertMayReach(userId: string): Promise<void> {
+    await this.myApprovedProfile(userId);
+  }
+
   private async assertWritable(userId: string, targetUserId: string): Promise<void> {
     if (userId === targetUserId) throw new BadRequestException('That is you.');
     const cand = await this.prisma.datingProfile.findUnique({
@@ -2050,6 +2073,7 @@ export class DatingService implements OnModuleInit {
   }
 
   async like(userId: string, targetUserId: string, kind: MatchKind, opts: { superLike?: boolean } = {}) {
+    await this.assertMayReach(userId); // blocker 01: no profile, no like
     await this.assertWritable(userId, targetUserId);
     await this.bumpListVersion(userId);
     void swallow(this.cachePairScore(userId, targetUserId), 'dating: score cache on like', { userId, targetUserId });
@@ -2225,6 +2249,7 @@ export class DatingService implements OnModuleInit {
    *  • No People connection is created (dating chats stay private to the hub).
    */
   async connect(userId: string, targetUserId: string, kind: MatchKind) {
+    await this.assertMayReach(userId); // blocker 01
     await this.assertWritable(userId, targetUserId);
     await this.bumpListVersion(userId);
     const state = await this.upsertState(userId, targetUserId, kind);
@@ -2328,7 +2353,31 @@ export class DatingService implements OnModuleInit {
   /** Open appeals, oldest first, for the console. */
   async appealQueue(adminId: string) {
     await this.access.assert(adminId, 'moderation.read');
-    return this.prisma.appeal.findMany({ where: { status: 'open' }, orderBy: { createdAt: 'asc' }, take: 100 });
+    const rows = await this.prisma.appeal.findMany({ where: { status: 'open' }, orderBy: { createdAt: 'asc' }, take: 100 });
+    // Blocker 06, the other half. The queue used to hand a moderator the
+    // appellant's free text and nothing else — no age, no current state, no
+    // reason the profile was rejected — so an "it's my birthday that's wrong"
+    // appeal was decided blind. Attach, for every profile appeal, exactly the
+    // three facts the decision turns on. Batched: bounded by the 100 above.
+    const userIds = [...new Set(rows.filter((r) => r.kind === 'dating_profile').map((r) => r.userId))];
+    const profiles = userIds.length
+      // unbounded: bounded by the appeal page above
+      ? await this.prisma.datingProfile.findMany({ where: { userId: { in: userIds } }, select: { userId: true, birthDate: true, moderation: true, moderationJson: true } })
+      : [];
+    const byUser = new Map(profiles.map((pr) => [pr.userId, pr]));
+    const reasonsOf = (json: string | null): string[] => {
+      try { return json ? (JSON.parse(json) as { reasons?: string[] }).reasons ?? [] : []; } catch { return []; }
+    };
+    return rows.map((r) => {
+      if (r.kind !== 'dating_profile') return r;
+      const pr = byUser.get(r.userId);
+      return {
+        ...r,
+        age: pr ? this.ageOf((pr as { birthDate: Date }).birthDate) : null,
+        profileModeration: (pr as { moderation?: string } | undefined)?.moderation ?? null,
+        rejectionReasons: reasonsOf((pr as { moderationJson?: string | null } | undefined)?.moderationJson ?? null),
+      };
+    });
   }
 
   /**
@@ -2340,6 +2389,17 @@ export class DatingService implements OnModuleInit {
     const row = await this.prisma.appeal.findUnique({ where: { id: appealId } });
     if (!row) throw new NotFoundException('No such appeal.');
     if (row.status !== 'open') throw new BadRequestException('This appeal has already been decided.');
+    // Blocker 06. Overturning a profile rejection writes approved+visible; the
+    // DTO refuses an under-18 at the door, and an overturn must not be the way
+    // back in around it. Re-run the SAME age check on the STORED date, before
+    // any audit row or notification is written, so a refused overturn leaves
+    // nothing behind and never tells the appellant they are live.
+    if (decision === 'overturned' && row.kind === 'dating_profile') {
+      const prof = await this.prisma.datingProfile.findUnique({ where: { userId: row.userId }, select: { birthDate: true } });
+      if (!prof || !isAdult((prof as { birthDate: Date }).birthDate)) {
+        throw new ForbiddenException('This profile cannot be reinstated: it does not meet the minimum age.');
+      }
+    }
     await this.access.act({
       actorId: adminId, need: 'moderation.act', action: `dating.appeal.${decision}`, entity: 'appeal', entityId: appealId,
       before: { status: row.status }, after: { status: decision }, reason,
@@ -2531,6 +2591,7 @@ export class DatingService implements OnModuleInit {
    * so before letting anyone flip it.
    */
   async reveal(userId: string, targetUserId: string, kind: MatchKind, show = true) {
+    await this.assertMayReach(userId); // blocker 01
     await this.assertWritable(userId, targetUserId);
     const [userOneId, userTwoId] = [userId, targetUserId].sort();
     const state = await this.prisma.datingMatch.findFirst({ where: { OR: [{ userOneId, userTwoId }], kind } });

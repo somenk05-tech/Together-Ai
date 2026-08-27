@@ -316,6 +316,8 @@ function Appeals() {
   );
 }
 
+const appealFacts: CSSProperties = { fontSize: 12, color: 'var(--muted)', marginTop: '6px', display: 'flex', gap: '8px', flexWrap: 'wrap' };
+const appealFactUnder: CSSProperties = { color: 'var(--danger-ink)', fontWeight: 600 };
 function AppealCard({ appeal }: { appeal: Appeal }) {
   const decide = useDecideAppeal();
   const [reason, setReason] = useState('');
@@ -326,6 +328,21 @@ function AppealCard({ appeal }: { appeal: Appeal }) {
       <div className="muted" style={{ fontSize: 12 }}>
         {appeal.kind === 'dating_profile' ? 'Profile' : 'Photo'} · {when(appeal.createdAt)}
       </div>
+      {appeal.kind === 'dating_profile' && (
+        // Blocker 06: the facts an overturn turns on, in front of the moderator
+        // rather than in a database they can't see. An under-18 reads loudest,
+        // because an overturn on that profile is exactly the mistake this row
+        // exists to stop — and the server refuses it regardless.
+        <div style={appealFacts}>
+          {typeof appeal.age === 'number' && (
+            <span style={appeal.age < 18 ? appealFactUnder : undefined}>
+              Age {appeal.age}{appeal.age < 18 ? ' — under 18, cannot be reinstated' : ''}
+            </span>
+          )}
+          {appeal.profileModeration && <span>· {appeal.profileModeration}</span>}
+          {(appeal.rejectionReasons ?? []).length > 0 && <span>· rejected: {(appeal.rejectionReasons ?? []).join('; ')}</span>}
+        </div>
+      )}
       <p style={{ fontSize: 13.5, margin: '8px 0 0', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{appeal.text}</p>
       <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
         <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Your reason — the person reads this" maxLength={500} style={reasonInput} />

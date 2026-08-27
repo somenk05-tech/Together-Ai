@@ -65,7 +65,13 @@ export interface DatingSubject {
 }
 
 export interface HeldPhoto { key: string; userId: string; status: string; labels: string; reason: string; createdAt: string; url: string | null }
-export interface Appeal { id: string; userId: string; kind: 'dating_profile' | 'dating_photo'; targetId: string; text: string; status: string; createdAt: string }
+export interface Appeal {
+  id: string; userId: string; kind: 'dating_profile' | 'dating_photo'; targetId: string;
+  text: string; status: string; createdAt: string;
+  /** Present on profile appeals (blocker 06): the three facts the decision
+   *  turns on, so a moderator is not overturning a rejection blind. */
+  age?: number | null; profileModeration?: string | null; rejectionReasons?: string[];
+}
 
 export function useHeldPhotos() {
   return useQuery({ queryKey: ['moderation', 'photos'], queryFn: () => moderationApi.heldPhotos(), retry: false });
