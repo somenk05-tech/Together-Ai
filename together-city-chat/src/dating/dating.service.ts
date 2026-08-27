@@ -2660,7 +2660,16 @@ export class DatingService implements OnModuleInit {
       select: { id: true, name: true },
     });
     const userOf = new Map(users.map((u) => [u.id, u]));
-    const matches = allMatches.filter((m) => userOf.has(other(m)));
+    // AND NOBODY YOU BLOCKED, OR WHO BLOCKED YOU (third audit, blocker 10).
+    //
+    // This tab was the one dating surface that never asked. Block a match from
+    // the People hub and they were gone everywhere except here — still on the
+    // safety screen with their photograph, first name, age and last message, on
+    // a thread that refuses to send. `blockedWith` reads the Block table and
+    // blocked connections, both directions; NOT the full connectionExclusions,
+    // because becoming ordinary city friends should not delete a dating chat.
+    const blocked = await this.blocking.blockedWith(userId);
+    const matches = allMatches.filter((m) => userOf.has(other(m)) && !blocked.has(other(m)));
     const otherIds = matches.map(other);
     // unbounded: their matched partners — the product caps how many can exist
     const profiles = await this.prisma.datingProfile.findMany({ where: { userId: { in: otherIds } } });

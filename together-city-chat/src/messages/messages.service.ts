@@ -208,6 +208,12 @@ export class MessagesService {
    */
   async setReaction(userId: string, messageId: string, emoji: string | null) {
     const msg = await this.assertCanSeeMessage(userId, messageId);
+    // Third audit, blocker 05. Seeing a message is not licence to broadcast on
+    // its thread. A reaction fans out to the room and persists on the row, so a
+    // blocked (or unmatched, or departed) party could keep reacting to every
+    // message you ever wrote. The same gate the send path uses closes it — and
+    // closes it for all three of those, not only block.
+    await this.permission.assertCanPostToConversation(userId, msg.conversationId);
     for (let attempt = 0; attempt < 3; attempt++) {
       const fresh = await this.prisma.message.findUnique({
         where: { id: messageId }, select: { reactionsJson: true },
@@ -256,6 +262,9 @@ export class MessagesService {
    */
   async setPinned(userId: string, messageId: string, on: boolean) {
     const msg = await this.assertCanSeeMessage(userId, messageId);
+    // Blocker 05: a pin puts a message back at the top of the thread as a
+    // banner, with no time window at all. Same gate as send.
+    await this.permission.assertCanPostToConversation(userId, msg.conversationId);
     if (!on) {
       await this.prisma.message.updateMany({
         where: { id: messageId, pinnedAt: { not: null } },
@@ -310,6 +319,10 @@ export class MessagesService {
     if (!msg) throw new NotFoundException('Message not found');
     if (msg.senderId !== userId) throw new ForbiddenException('Not your message');
     if (msg.deleted) throw new ForbiddenException('Message deleted');
+    // Blocker 05: an edit rewrites a message and re-broadcasts it. Without this,
+    // send something innocuous, get blocked, then edit it to anything — the new
+    // text reaches the person who blocked you. Same gate as send.
+    await this.permission.assertCanPostToConversation(userId, msg.conversationId);
     const windowSec = this.config.get<number>('policy.editWindowSec') ?? 900;
     if (Date.now() - msg.createdAt.getTime() > windowSec * 1000) {
       throw new ForbiddenException('Edit window has passed');

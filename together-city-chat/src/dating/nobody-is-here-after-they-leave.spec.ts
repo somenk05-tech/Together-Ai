@@ -47,9 +47,11 @@ describe('nobody is here after they leave', () => {
 
   it('1 · the chats tab drops matches with somebody who has gone', () => {
     // The account read does the filtering, and `matches` is narrowed from
-    // `allMatches` before the positional pairKeys are built.
+    // `allMatches` before the positional pairKeys are built. The narrowing now
+    // also drops blocked matches (blocker 10) — this pins the still-here half
+    // without pinning the exact closing paren, so the two can share one line.
     expect(svc).toMatch(/id: \{ in: allMatches\.map\(other\) \}, deletedAt: null/);
-    expect(svc).toMatch(/const matches = allMatches\.filter\(\(m\) => userOf\.has\(other\(m\)\)\)/);
+    expect(svc).toMatch(/const matches = allMatches\.filter\(\(m\) => userOf\.has\(other\(m\)\)/);
   });
 
   it('2 · the message gate refuses a direct line to somebody who has gone', () => {
