@@ -79,6 +79,27 @@ export class ConnectionPermissionService {
     if (convo.type === 'DIRECT') {
       const other = memberIds.find((id) => id !== userId);
       if (!other) throw new ForbiddenException('Invalid direct conversation.');
+      // AND THE OTHER PERSON MUST STILL BE HERE (27 Aug, third pass).
+      //
+      // Deletion is a tombstone for thirty days and never touches a match row,
+      // so `assertMatchStillStands` below read `matched` and opened the line to
+      // somebody who had gone. An ACTIVITY chat is worse: it has no match row
+      // at all, so that method returns early by design and nothing else asked.
+      // A citizen could type into a departed person's thread for a month.
+      //
+      // Placed HERE rather than in the dating branch because it is true of
+      // every direct line. It happens to be redundant for ordinary city chats
+      // — `deleteAccount` deletes a departing citizen's connections, so
+      // `assertCanCommunicate` already refuses — and a guard that only holds
+      // where somebody remembered to put it is exactly what produced three
+      // passes over this finding. The same wording as an ended match: what
+      // the sender needs to know is that the line is shut.
+      const stillThere = await this.prisma.user.findUnique({
+        where: { id: other }, select: { deletedAt: true },
+      });
+      if (!stillThere || (stillThere as { deletedAt?: Date | null }).deletedAt != null) {
+        throw new ForbiddenException('This conversation has ended.');
+      }
       // Dating-match chats (anonymousTrust set) are authorised by the match
       // itself — the two people aren't a connection until they become friends —
       // but a block still holds. This branch used to return before any check at

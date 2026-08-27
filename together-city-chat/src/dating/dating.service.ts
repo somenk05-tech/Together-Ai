@@ -715,6 +715,13 @@ export class DatingService implements OnModuleInit {
     const candidates = await this.prisma.datingProfile.findMany({
       where: {
         userId: { not: userId }, visible: true, moderation: 'approved',
+        // AND THEY MUST STILL BE HERE. `poolWhere` said it "mirrors this query
+        // exactly" and, for one release, did not: the deletedAt clause went in
+        // there and not here, so every time a live citizen saved their profile
+        // this notifier scored departed accounts and pushed "you have a new
+        // match" at a phone whose owner had left. DeviceToken is not purged
+        // until day thirty, so the notification actually arrived.
+        user: DatingService.STILL_HERE,
         // I want them, and they want me.
         // The precise list narrows harder than the column when it exists;
         // their side stays coarse in SQL and precise in the JS check below.
@@ -1885,6 +1892,37 @@ export class DatingService implements OnModuleInit {
    * refusal is the same NotFound the read paths use, so a blocked caller learns
    * nothing they did not already know.
    */
+  /**
+   * ── IS THIS PERSON STILL HERE ───────────────────────────────────────────
+   *
+   * THREE PASSES AND THIS IS THE THIRD, so it stops being a clause people
+   * remember to type. Account deletion is a tombstone first and a purge thirty
+   * days later; `visible` and `moderation` are untouched by it, so every query
+   * that does not name `deletedAt` still hands back somebody who has gone.
+   *
+   * Pass one put the clause in `poolWhere` and closed every LIST. Pass two
+   * found `matchDetail` and `assertWritable`, reached by a URL somebody
+   * already holds. Pass three — this one — found SEVEN more, including the
+   * chats tab, the activity cards, and a notifier that was still pushing
+   * "you have a new match" to a departed citizen's phone.
+   *
+   * Everything below reads from these three, and
+   * `nobody-is-here-after-they-leave.spec.ts` fails if a dating read that can
+   * surface another citizen stops naming one of them.
+   */
+  private static readonly STILL_HERE = { is: { deletedAt: null } } as const;
+
+  /** True when the account exists and has not been deleted. */
+  private async stillHere(userId: string): Promise<boolean> {
+    const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { deletedAt: true } });
+    return Boolean(u) && (u as { deletedAt?: Date | null }).deletedAt == null;
+  }
+
+  /** The same refusal the read paths give, so a caller learns nothing extra. */
+  private async assertStillHere(userId: string): Promise<void> {
+    if (!(await this.stillHere(userId))) throw new NotFoundException('This profile is not available.');
+  }
+
   private async assertWritable(userId: string, targetUserId: string): Promise<void> {
     if (userId === targetUserId) throw new BadRequestException('That is you.');
     const cand = await this.prisma.datingProfile.findUnique({
@@ -2062,6 +2100,16 @@ export class DatingService implements OnModuleInit {
 
     const theyLiked = meIsOne ? row.likedByTwo : row.likedByOne;
     const iLiked = meIsOne ? row.likedByOne : row.likedByTwo;
+    // AND THEY MUST STILL BE HERE. Undo puts the row back to what it was —
+    // which is `matched` when they had liked you. If they have since deleted
+    // their account, that one button re-created a live match with a departed
+    // citizen, which then put them back in the chats tab and re-opened the
+    // message gate. The pass stays undone-able only while there is somebody
+    // to undo it towards.
+    const targetId = meIsOne ? row.userTwoId : row.userOneId;
+    if (!(await this.stillHere(targetId))) {
+      return { undone: false as const, reason: 'That person is no longer on Together City, so there is nothing to undo.' };
+    }
     await this.prisma.datingMatch.update({
       where: { id: row.id },
       data: {
@@ -2071,7 +2119,7 @@ export class DatingService implements OnModuleInit {
     });
     return {
       undone: true as const,
-      targetUserId: meIsOne ? row.userTwoId : row.userOneId,
+      targetUserId: targetId,
       theyLiked,
     };
   }
@@ -2415,7 +2463,7 @@ export class DatingService implements OnModuleInit {
     // with their match nowhere on it. The one screen named after their matches
     // was the one screen that denied having any.
     // unbounded: their matches — the product caps how many can exist
-    const matches = await this.prisma.datingMatch.findMany({
+    const allMatches = await this.prisma.datingMatch.findMany({
       where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: 'matched' },
       orderBy: { updatedAt: 'desc' },
     });
@@ -2424,11 +2472,27 @@ export class DatingService implements OnModuleInit {
     // launch audit's P2 list named. The other person's ids are known up
     // front, so each table is asked once with an IN. `summaryFor` stays
     // per-conversation: the chat cap means at most three rows have one.
-    const otherIds = matches.map((m) => (m.userOneId === userId ? m.userTwoId : m.userOneId));
+    const other = (m: { userOneId: string; userTwoId: string }) => (m.userOneId === userId ? m.userTwoId : m.userOneId);
+    // AND THEY MUST STILL BE HERE. Deletion never touches a match row, so
+    // every match formed before somebody left was still listed here — with
+    // their first name, their signed gallery photograph, their age, their star
+    // sign and the compatibility figure. The tombstone name is only a fallback
+    // and was never reached. The lists were fixed twice and this tab, which is
+    // reached by tapping a tab, was neither time.
+    //
+    // The account read does the filtering, because it is the read that already
+    // had to happen: ask it for the living, and whoever it does not return is
+    // gone. `matches` is narrowed BEFORE otherIds and pairKeys are built —
+    // `pairKeys[matches.indexOf(m)]` below is positional.
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: allMatches.map(other) }, deletedAt: null },
+      select: { id: true, name: true, profileImage: true },
+    });
+    const userOf = new Map(users.map((u) => [u.id, u]));
+    const matches = allMatches.filter((m) => userOf.has(other(m)));
+    const otherIds = matches.map(other);
     // unbounded: their matched partners — the product caps how many can exist
     const profiles = await this.prisma.datingProfile.findMany({ where: { userId: { in: otherIds } } });
-    // unbounded: the same partners' accounts — same bound as above
-    const users = await this.prisma.user.findMany({ where: { id: { in: otherIds } }, select: { id: true, name: true, profileImage: true } });
     const pairKeys = otherIds.map((o) => [userId, o].sort());
     let scoreRows: Array<{ userA: string; userB: string; overall: number }> = [];
     try {
@@ -2437,13 +2501,12 @@ export class DatingService implements OnModuleInit {
         .compatibilityScore.findMany({ where: { OR: pairKeys.map(([a, b]) => ({ userA: a, userB: b })) }, select: { userA: true, userB: true, overall: true } });
     } catch { /* no cache is "no score", same as readPairScore */ }
     const profileOf = new Map(profiles.map((p) => [p.userId, p]));
-    const userOf = new Map(users.map((u) => [u.id, u]));
     const scoreOf = new Map(scoreRows.map((r) => [`${r.userA}:${r.userB}`, r.overall]));
 
     const out = [];
     const photoJobs: Array<{ keys: readonly string[]; into: string[] }> = [];
     for (const m of matches) {
-      const otherId = m.userOneId === userId ? m.userTwoId : m.userOneId;
+      const otherId = other(m);
       const meIsOne = m.userOneId === userId;
       const r = m as { revealByOne?: boolean; revealByTwo?: boolean };
       const myReveal = Boolean(meIsOne ? r.revealByOne : r.revealByTwo);
@@ -2616,7 +2679,15 @@ export class DatingService implements OnModuleInit {
   /** Anonymised view of a party; identity revealed only at trust level ≥2. */
   private async anonParty(userId: string, trustLevel: number) {
     const prof = await this.prisma.datingProfile.findUnique({ where: { userId } });
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true, profileImage: true } });
+    // NULL MEANS GONE, and every caller drops the row rather than drawing it.
+    // `deleteAccount` nulls the name and the photo, so a departed host or
+    // guest still appeared here as a card with their age, their star sign, a
+    // verified tick and — at trust level 2 — their interests. An activity
+    // invite is not a match, so neither of the earlier passes touched it.
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId }, select: { name: true, profileImage: true, deletedAt: true },
+    });
+    if (!user || (user as { deletedAt?: Date | null }).deletedAt != null) return null;
     const revealed = trustLevel >= 2;
     return {
       nickname: nickname(userId),
@@ -2676,11 +2747,14 @@ export class DatingService implements OnModuleInit {
       // unbounded: their own invites — a handful by nature
       const invs = await this.invites.findMany({ where: { activityId: a.id } });
       const connected = invs.filter((i) => i.status === 'connected');
-      const connections = await Promise.all(connected.map(async (i) => ({
+      const connections = (await Promise.all(connected.map(async (i) => ({
         inviteId: i.id, compatibility: i.compatibility, trustLevel: i.trustLevel, conversationId: i.conversationId,
         myReveal: i.hostReveal, otherReveal: i.invitedReveal, myFriends: i.hostFriends, otherFriends: i.invitedFriends,
         party: await this.anonParty(i.invitedUserId, i.trustLevel),
-      })));
+      }))))
+        // A guest who has deleted their account is not a guest. anonParty
+        // returns null for them and the card goes with it.
+        .filter((c) => c.party !== null);
       out.push({ ...this.shapeActivity(a), invited: invs.length, connectedCount: connected.length, connections });
     }
     return out;
@@ -2693,10 +2767,15 @@ export class DatingService implements OnModuleInit {
     for (const inv of invs) {
       const activity = await this.activities.findUnique({ where: { id: inv.activityId } });
       if (!activity) continue;
+      // An invitation from somebody who has left is not an invitation. Dropped
+      // rather than drawn, which also removes the tap that `respondInvite`
+      // refuses below — the refusal is the wall, this is not having to hit it.
+      const host = await this.anonParty(activity.hostId, inv.trustLevel);
+      if (!host) continue;
       out.push({
         id: inv.id, status: inv.status, trustLevel: inv.trustLevel, compatibility: inv.compatibility, conversationId: inv.conversationId,
         activity: this.shapeActivity(activity),
-        host: await this.anonParty(activity.hostId, inv.trustLevel),
+        host,
         myReveal: inv.invitedReveal, otherReveal: inv.hostReveal, myFriends: inv.invitedFriends, otherFriends: inv.hostFriends,
       });
     }
@@ -2712,6 +2791,12 @@ export class DatingService implements OnModuleInit {
     }
     // Connect → open an anonymous chat between host and invitee (trust level 1).
     const activity = await this.activities.findUnique({ where: { id: inv.activityId } });
+    // AND THE HOST MUST STILL BE HERE. This was the sharpest of the seven:
+    // accepting an old invite CREATED a direct conversation with a deleted
+    // account — and because an activity chat has no match row,
+    // `assertMatchStillStands` returns early on it, so the line stayed open
+    // permanently. A stale invite could open a door that nothing would close.
+    if (activity) await this.assertStillHere(activity.hostId);
     let conversationId = inv.conversationId;
     if (activity && !conversationId) {
       conversationId = await this.conversations.getOrCreateDirectByIds(activity.hostId, userId, 1);
@@ -2728,6 +2813,12 @@ export class DatingService implements OnModuleInit {
     const isHost = activity.hostId === userId;
     const isInvited = inv.invitedUserId === userId;
     if (!isHost && !isInvited) throw new NotFoundException('not your invite');
+    // AND THE OTHER PARTY MUST STILL BE HERE. At the `friends` step this
+    // writes an ACCEPTED Connection — and `deleteAccount` deletes all of a
+    // departing citizen's connections on purpose. Escalating with a tombstone
+    // put a brand-new one back, which then unlocked the ordinary city message
+    // gate and listed the departed account in the other person's People.
+    await this.assertStillHere(isHost ? inv.invitedUserId : activity.hostId);
     if (inv.status !== 'connected') return { trustLevel: inv.trustLevel };
 
     if (step === 'reveal') {

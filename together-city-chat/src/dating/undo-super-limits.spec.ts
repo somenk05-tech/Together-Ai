@@ -78,6 +78,13 @@ function build(rows: Row[] = []) {
     datingMatch: t,
     datingProfile: { findUnique: async () => ({ visible: true, moderation: 'approved', birthDate: new Date('1995-01-01T00:00:00Z'), interests: '', extras: null }) },
     connection: { findMany: async () => [] },
+    // AND THE TARGET MUST STILL BE HERE (27 Aug). `undoLastPass` restores a
+    // match to `matched` when they had liked you, which is wrong if they have
+    // since deleted their account — one button put a departed citizen back in
+    // the chats tab and re-opened the message gate. Every target in this file
+    // is somebody who is still here; the case where they are not has its own
+    // assertion at the end.
+    user: { findUnique: async () => ({ deletedAt: null }) },
   };
   s.blocking = { blockedWith: async () => [] };
   s.cacheScore = async () => undefined;
@@ -227,5 +234,27 @@ describe('undo the last pass', () => {
     expect(t.rows[0].passedByOne).toBe(false);
     expect(t.rows[0].passedAtOne).toBeNull();
     expect(t.rows[0].likedByOne).toBe(true);
+  });
+  it('refuses when they have since deleted their account', async () => {
+    // The write this undo performs sets `status` back to `matched` when they
+    // had liked you. Doing that to somebody who has left re-created a live
+    // match with a departed citizen — which then put them back in the chats
+    // tab and re-opened the message gate. The refusal is a reason, not an
+    // error: there is nothing wrong with the request, there is just nobody
+    // to undo it towards.
+    const { s, t } = build([
+      blank({
+        id: 'gone', userOneId: ME, userTwoId: 'zz1',
+        passedByOne: true, passedAtOne: new Date('2026-08-01T09:00:00Z'),
+        likedByTwo: true, likedAtTwo: new Date('2026-08-01T08:00:00Z'),
+      }),
+    ]);
+    s.prisma.user = { findUnique: async () => ({ deletedAt: new Date('2026-08-02T00:00:00Z') }) };
+    const out = await s.undoLastPass(ME, 'romantic');
+    expect(out.undone).toBe(false);
+    expect(out.reason).toMatch(/no longer on Together City/);
+    // And the row is untouched — a refused undo must not half-apply.
+    expect(t.rows[0].passedByOne).toBe(true);
+    expect(t.rows[0].status).toBe('pending');
   });
 });

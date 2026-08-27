@@ -15,7 +15,7 @@ interface Blk { blockerId: string; blockedId: string }
  */
 interface Convo { id: string; type: 'DIRECT' | 'GROUP'; anonymousTrust?: number | null; members: { userId: string }[] }
 
-function prismaStub(connections: Conn[], blocks: Blk[] = [], convos: Convo[] = []) {
+function prismaStub(connections: Conn[], blocks: Blk[] = [], convos: Convo[] = [], gone: string[] = []) {
   const involves = (where: any, one: string, two: string) =>
     (where.OR ?? []).some((c: any) => c[one] !== undefined ? c[one] === where.__me : c[two] === where.__me);
   void involves;
@@ -41,11 +41,21 @@ function prismaStub(connections: Conn[], blocks: Blk[] = [], convos: Convo[] = [
     conversation: {
       findUnique: async ({ where }: any) => convos.find((c) => c.id === where.id) ?? null,
     },
+    // THE OTHER PERSON MUST STILL BE HERE (27 Aug). Deletion is a tombstone
+    // for thirty days and never touches a match row, so the gate below read
+    // `matched` and opened the line to somebody who had gone — and an ACTIVITY
+    // chat, which has no match row at all, was never checked by anything.
+    // `gone` names the members who have deleted, so the case is TESTED rather
+    // than stubbed away.
+    user: {
+      findUnique: async ({ where }: any) =>
+        ({ deletedAt: gone.includes(where.id) ? new Date('2026-08-27T00:00:00Z') : null }),
+    },
   } as any;
 }
 
-const gate = (connections: Conn[], blocks: Blk[] = [], convos: Convo[] = []) => {
-  const prisma = prismaStub(connections, blocks, convos);
+const gate = (connections: Conn[], blocks: Blk[] = [], convos: Convo[] = [], gone: string[] = []) => {
+  const prisma = prismaStub(connections, blocks, convos, gone);
   return new ConnectionPermissionService(prisma, new BlockingService(prisma));
 };
 
@@ -136,6 +146,29 @@ describe('ConnectionPermissionService', () => {
       await expect(
         gate([accepted], [{ blockerId: 'b', blockedId: 'a' }], [direct]).assertCanPostToConversation('a', 'c-dm'),
       ).rejects.toThrow(/not accepting messages/);
+    });
+
+    it('closes the line when the other person has deleted their account', async () => {
+      // Deletion is a tombstone for thirty days and never touches a match row,
+      // so this gate read `matched` and let somebody type at a person who had
+      // gone, for a month. The wording is the same as an ended match on
+      // purpose: what the sender needs to know is that the line is shut.
+      const left = gate([], [], [match], ['b']);
+      await expect(left.assertCanPostToConversation('a', 'c-match')).rejects.toThrow(/This conversation has ended/);
+    });
+
+    it('closes an ACTIVITY chat too, which has no match row to read', async () => {
+      // THE SHARPEST CASE. An activity chat is opened by accepting an
+      // invitation, so there is no DatingMatch behind it and
+      // assertMatchStillStands returns early by design — nothing else asked.
+      // That is why the check sits in assertCanPostToConversation rather than
+      // inside the dating branch.
+      const activity: Convo = {
+        id: 'c-act', type: 'DIRECT', anonymousTrust: 1,
+        members: [{ userId: 'a' }, { userId: 'b' }],
+      };
+      const left = gate([], [], [activity], ['b']);
+      await expect(left.assertCanPostToConversation('a', 'c-act')).rejects.toThrow(/This conversation has ended/);
     });
 
     it('leaves a group alone — removing someone would announce the block to the room', async () => {
