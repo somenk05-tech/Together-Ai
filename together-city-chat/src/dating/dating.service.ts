@@ -1838,18 +1838,40 @@ export class DatingService implements OnModuleInit {
     // One report per reporter per target — the unique index added 26 Aug.
     // A second tap on Report is the same report, not a way to flood the queue
     // or bury somebody under a hundred rows from one account.
+    const cleanReason = (reason ?? '').trim().slice(0, 500) || null;
     try {
       await this.prisma.report.create({
-        data: {
-          reporterId: userId,
-          targetType: 'user',
-          targetId: targetUserId,
-          reason: (reason ?? '').trim().slice(0, 500) || null,
-        },
+        data: { reporterId: userId, targetType: 'user', targetId: targetUserId, reason: cleanReason },
       });
     } catch (e) {
-      if ((e as { code?: string }).code === 'P2002') return { reported: true as const, duplicate: true as const };
-      throw e;
+      if ((e as { code?: string }).code !== 'P2002') throw e;
+      // A REPORT THAT WAS DISMISSED CAN BE FILED AGAIN (third audit, blocker 03).
+      //
+      // The unique index is (reporterId, targetType, targetId), NOT scoped to
+      // status — its own comment said "one OPEN report per target" but the
+      // constraint did not know the word open. So once a moderator dismissed a
+      // report, the reporter could never file another: the second create hit
+      // P2002 and this returned `duplicate: true`, and the UI told them "a
+      // moderator will look at this" — while nothing was written and nobody was
+      // woken. Escalation after a wrong dismissal was invisible, which is the
+      // exact moment re-filing matters most.
+      //
+      // Rather than a partial index (a migration Prisma cannot express cleanly),
+      // the row is REOPENED: a resolved report goes back to 'open', the moderator
+      // fields clear, the new words replace the old, and the moderators are told
+      // again. A report that is still open is a genuine repeat tap and stays one.
+      const existing = await this.prisma.report.findFirst({
+        where: { reporterId: userId, targetType: 'user', targetId: targetUserId },
+        select: { id: true, status: true },
+      });
+      if (!existing || existing.status === 'open') return { reported: true as const, duplicate: true as const };
+      await this.prisma.report.update({
+        where: { id: existing.id },
+        data: { status: 'open', reviewedById: null, reviewedAt: null, decision: null, reason: cleanReason, createdAt: new Date() },
+      });
+      this.analytics.track('dating.report', userId);
+      void swallow(this.tellModerators(targetUserId), 'dating: report re-notification', { targetUserId });
+      return { reported: true as const, reopened: true as const };
     }
     this.analytics.track('dating.report', userId);
     // Off the request path and swallowed: a report that reached the table has
