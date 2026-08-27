@@ -7,6 +7,7 @@ import { MultiSelect } from '@/components/MultiSelect';
 import type { LookupOption } from '@/api/lookups.api';
 import { useDatingProfile, useUpsertDatingProfile, useDeleteDatingProfile, useSaveSelfie, useClearSelfie, type UpsertProfileInput, type Visibility, type ProfileCompletion } from '../api';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
+import { geoApi } from '@/api/geo.api';
 import { useMasterProfile } from '@/features/profile/hooks';
 import { useAuth } from '@/hooks/useAuth';
 import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLockedField';
@@ -22,6 +23,9 @@ const field: React.CSSProperties = {
  *  was opened to fix. */
 const errBox: React.CSSProperties = { background: 'var(--danger-soft)', color: 'var(--danger-ink)', borderRadius: 12, padding: '12px 14px', fontSize: 13 };
 const label: React.CSSProperties = { fontSize: 12, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', margin: '14px 0 6px' };
+/** The sentence under a control that says what the control did. Same shape as
+ *  the note under the distance slider, which is the one it sits beside. */
+const locHint: React.CSSProperties = { fontSize: 11.5, lineHeight: 1.5, display: 'block', marginTop: 4 };
 
 const INTERESTS = ['Travel', 'Movies', 'Music', 'Reading', 'Cooking', 'Fitness', 'Sports', 'Photography', 'Gaming', 'Art', 'Pets', 'Technology', 'Fashion', 'Nature'];
 const TRAITS = ['Funny', 'Calm', 'Ambitious', 'Romantic', 'Adventurous', 'Introvert', 'Extrovert', 'Creative', 'Family-Oriented', 'Spiritual'];
@@ -85,8 +89,11 @@ interface DX {
   seekingList?: string[];
   /** When the citizen agreed to religion and who-they-seek being used for matching (26 Aug). */
   sensitiveConsentAt?: string;
-  partnerLocationMode?: 'any' | 'specific';
-  partnerCountry?: string; partnerCountryCode?: string; partnerState?: string; partnerStateCode?: string; partnerCity?: string;
+  /** Anywhere, or the citizen's current location — which is the default. The
+   *  country/state/city trio that used to sit here wrote three keys no server
+   *  code ever read; it was a control that did nothing, and it is gone. */
+  partnerLocationMode?: 'any' | 'around';
+  searchLat?: number | null; searchLng?: number | null; searchPlace?: string;
   dealBreakers?: string[];
   visibility?: Visibility; minMatchScore?: number;
 }
@@ -463,6 +470,8 @@ export function DatingProfilePage() {
   const [form, setForm] = useState<UpsertProfileInput>({ gender: '', seeking: 'any', bio: '', birthDate: '', birthTime: '', birthPlace: '', interests: [] });
   const [dx, setDx] = useState<DX>({});
   const [collapsed, setCollapsed] = useState(false);
+  const [locBusy, setLocBusy] = useState(false);
+  const [locErr, setLocErr] = useState<string | null>(null);
 
   const existingData = existing.data;
   useEffect(() => {
@@ -570,6 +579,30 @@ export function DatingProfilePage() {
   // The thumb needs a position even before the citizen touches it; 100 km is a
   // sensible city radius. The stored value stays whatever they last saved.
   const distanceKm = typeof dx.prefDistanceKm === 'number' && dx.prefDistanceKm > 0 ? dx.prefDistanceKm : 100;
+
+  // CURRENT LOCATION IS THE DEFAULT (owner, 27 Aug). Only an explicit 'any'
+  // means Anywhere — which also lands the profiles that saved the retired
+  // 'specific' mode on the setting that survived, rather than on neither.
+  const locationMode = dx.partnerLocationMode === 'any' ? 'any' : 'around';
+  const useMyLocation = () => {
+    setD({ partnerLocationMode: 'around' });
+    if (!navigator.geolocation) { setLocErr('This browser cannot share a location — the city on your profile is used instead.'); return; }
+    setLocErr(null); setLocBusy(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        setD({ searchLat: lat, searchLng: lng });
+        /* Best effort, and only to name the spot back to them. The distance is
+           measured from the coordinates whether or not this answers. */
+        geoApi.reverse(lat, lng)
+          .then((place) => { if (place) setD({ searchPlace: place.short || place.label }); })
+          .catch(() => undefined)
+          .finally(() => setLocBusy(false));
+      },
+      () => { setLocErr('We could not read your location — the city on your profile is used instead.'); setLocBusy(false); },
+      { timeout: 10_000 },
+    );
+  };
 
   // THE NAME QUESTION (owner, 27 Aug: the dating name can differ from the city
   // one — let the citizen decide). `undefined` means "use my city name" and is
@@ -1049,28 +1082,23 @@ export function DatingProfilePage() {
             <div><span style={label}>Religion <span style={{ textTransform: 'none' }}>(optional)</span></span><SearchSelect category="religion" value={dx.religion ?? ''} clearable clearLabel="Any" placeholder="Any" onChange={(o) => setD({ religion: o?.label })} /></div>
           </div>
 
+          {/* TWO SETTINGS, AND DISTANCE IS MEASURED FROM ONE OF THEM. Tapping
+              "Current location" asks the browser again, so a citizen who moved
+              — or who refused the prompt the first time — has one way back. */}
           <span style={label}>Where to find your partner</span>
           <div style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
-            <Chip on={(dx.partnerLocationMode ?? 'any') === 'any'} onClick={() => setD({ partnerLocationMode: 'any' })}>🌍 Anywhere</Chip>
-            <Chip on={dx.partnerLocationMode === 'specific'} onClick={() => setD({ partnerLocationMode: 'specific' })}>📍 Specific location</Chip>
+            <Chip on={locationMode === 'around'} onClick={useMyLocation}>📍 Current location</Chip>
+            <Chip on={locationMode === 'any'} onClick={() => setD({ partnerLocationMode: 'any' })}>🌍 Anywhere</Chip>
           </div>
-          {dx.partnerLocationMode === 'specific' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px', marginTop: 8 }}>
-              <div><span style={label}>Country</span>
-                <SearchSelect category="country" value={dx.partnerCountry ?? ''} clearable clearLabel="Any" placeholder="Any country"
-                  onChange={(o) => setD({ partnerCountry: o?.label, partnerCountryCode: o?.code, partnerState: undefined, partnerStateCode: undefined, partnerCity: undefined })} />
-              </div>
-              <div><span style={label}>State</span>
-                <SearchSelect category="state" parent={dx.partnerCountryCode} value={dx.partnerState ?? ''} clearable clearLabel="Any" placeholder="Any state"
-                  onChange={(o) => setD({ partnerState: o?.label, partnerStateCode: o?.code, partnerCity: undefined })} />
-              </div>
-              <div><span style={label}>City</span>
-                <SearchSelect category="city" parent={dx.partnerStateCode} value={dx.partnerCity ?? ''} disabled={!dx.partnerStateCode} clearable clearLabel="Any"
-                  placeholder={dx.partnerStateCode ? 'Any city' : 'Pick a state first'}
-                  onChange={(o) => setD({ partnerCity: o?.label })} />
-              </div>
-            </div>
-          )}
+          <span className="muted" style={locHint}>
+            {locationMode === 'any'
+              ? 'Distance still orders your matches — it just never rules anybody out.'
+              : locBusy ? 'Asking your browser where you are…'
+                : locErr ? locErr
+                  : dx.searchPlace ? `Distance is measured from ${dx.searchPlace}.`
+                    : typeof dx.searchLat === 'number' ? 'Distance is measured from your current location.'
+                      : 'Distance is measured from the city on your profile. Tap “Current location” to use where you actually are.'}
+          </span>
 
           <span style={label}>Deal breakers (optional)</span>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{DEAL_BREAKERS.map((v) => <Chip key={v} on={(dx.dealBreakers ?? []).includes(v)} onClick={() => setD({ dealBreakers: capToggle(dx.dealBreakers, v, 5) })}>{v}</Chip>)}</div>

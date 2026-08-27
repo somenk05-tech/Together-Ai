@@ -23,7 +23,7 @@
  */
 
 
-import { distanceBetween } from '../shared/geo';
+import { cityCoords, haversineKm, type Coords } from '../shared/geo';
 
 export interface DXProfile {
   /**
@@ -48,6 +48,16 @@ export interface DXProfile {
   prefDiet?: string; prefSmoking?: string; prefDrinking?: string;
   city?: string; state?: string; country?: string;
   prefAgeMin?: number | null; prefAgeMax?: number | null; prefDistanceKm?: number | null;
+  /**
+   * WHERE THE DISTANCE IS MEASURED FROM (owner, 27 Aug). Two settings and no
+   * third: 'any' is Anywhere, where distance still orders the deck but never
+   * excludes anybody; anything else is the citizen's current location, which is
+   * the default. `searchLat/Lng` is the point their browser gave us when they
+   * asked for that — absent, the city on their profile stands in, which is
+   * exactly what this file measured before there was a mode at all.
+   */
+  partnerLocationMode?: 'any' | 'around';
+  searchLat?: number | null; searchLng?: number | null;
   /** Their own height, and the range they asked for in somebody else. Both in
    *  centimetres. The height read here is the same number the card displays, so
    *  a candidate is filtered on exactly the figure they are shown by. */
@@ -290,6 +300,26 @@ function bandFor(km: number): number {
 }
 
 /**
+ * Where somebody stands.
+ *
+ * The point their browser handed us when they chose "current location", and
+ * otherwise the centroid of the city they typed — so a profile that has never
+ * shared a location keeps precisely the behaviour it had before this existed.
+ */
+export function standCoords(d: DXProfile): Coords | null {
+  const { searchLat: lat, searchLng: lng } = d;
+  if (typeof lat === 'number' && typeof lng === 'number') return { lat, lng };
+  return cityCoords(d.city, d.state, d.country);
+}
+
+/** Kilometres between where these two stand, or null when either cannot be
+ *  placed. Unmeasured distance ranks nobody and excludes nobody. */
+export function searchDistanceKm(a: DXProfile, b: DXProfile): number | null {
+  const pa = standCoords(a), pb = standCoords(b);
+  return pa && pb ? haversineKm(pa, pb) : null;
+}
+
+/**
  * How close they are, measured where we can measure it.
  *
  * This was exact city-string equality, which is why M7 recorded that
@@ -304,7 +334,7 @@ function bandFor(km: number): number {
  * stated bound rather than a silent one.
  */
 function locationScore(a: DXProfile, b: DXProfile): number {
-  const km = distanceBetween(a, b);
+  const km = searchDistanceKm(a, b);
   if (km === null) {
     if (a.city && b.city && lc(a.city) === lc(b.city)) return 100;
     if (a.state && b.state && lc(a.state) === lc(b.state)) return 70;
@@ -321,7 +351,12 @@ function locationScore(a: DXProfile, b: DXProfile): number {
   // A stated distance preference, honoured in both directions — the same rule
   // as every other preference here. Beyond what somebody asked for costs them,
   // and it costs the same whether they are 10 km over or 10,000: they said no.
-  const limits = [a.prefDistanceKm, b.prefDistanceKm].filter((n): n is number => typeof n === 'number' && n > 0);
+  // Anywhere is a stated absence of a limit, so the radius they left on the
+  // slider is not one. Only somebody searching from a place is held to it.
+  const limits = [a, b]
+    .filter((p) => p.partnerLocationMode !== 'any')
+    .map((p) => p.prefDistanceKm)
+    .filter((n): n is number => typeof n === 'number' && n > 0);
   const beyond = limits.some((limit) => km > limit);
   return beyond ? Math.min(base, 30) : base;
 }
@@ -352,7 +387,7 @@ export function languageBarrier(a: DXProfile, b: DXProfile): boolean {
 
 /** The distance, in the words a card can print, or null when unmeasured. */
 export function distanceNote(a: DXProfile, b: DXProfile): string | null {
-  const km = distanceBetween(a, b);
+  const km = searchDistanceKm(a, b);
   if (km === null) return null;
   if (km <= 30) return 'In your city.';
   if (km <= 150) return `About ${km} km away — an easy day out.`;
@@ -422,7 +457,7 @@ export function coverage(aD: DXProfile, bD: DXProfile, aInterests: string[] = []
     some(aD.values) && some(bD.values),
     lifestyleKeys.some((k) => !!aD[k]) && lifestyleKeys.some((k) => !!bD[k]),
     some(aInterests) && some(bInterests),
-    distanceBetween(aD, bD) !== null || (!!aD.city && !!bD.city),
+    searchDistanceKm(aD, bD) !== null || (!!aD.city && !!bD.city),
   ];
   return answered.filter(Boolean).length / answered.length;
 }
@@ -770,10 +805,12 @@ export function hardFilterReason(myD: DXProfile, theirD: DXProfile, theirAge: nu
   }
 
   // Distance — the limit they already stated, now honoured as the boundary they
-  // wrote it as. Unmeasurable distance filters nobody: `distanceBetween` returns
+  // wrote it as. Unmeasurable distance filters nobody: `searchDistanceKm` returns
   // null outside the coordinate table, and a filter must not fire on a guess.
-  if (db.includes('Distance') && typeof myD.prefDistanceKm === 'number' && myD.prefDistanceKm > 0) {
-    const km = distanceBetween(myD, theirD);
+  // Anywhere never excludes on geography, whatever the slider was left at.
+  if (db.includes('Distance') && myD.partnerLocationMode !== 'any'
+      && typeof myD.prefDistanceKm === 'number' && myD.prefDistanceKm > 0) {
+    const km = searchDistanceKm(myD, theirD);
     if (km !== null && km > myD.prefDistanceKm) return 'distance';
   }
 
