@@ -3,7 +3,7 @@ import { join } from 'path';
 import { ENV_MANIFEST, presence, reportEnv } from './env-manifest';
 import { FLAGS, FLAG_KEYS, NEVER_FLAGGABLE, VISIBILITY_FLAGS, VISIBILITY_KEYS, VISIBILITY_PREFIX,
   flagForPath, isFlagKey, isVisibilityKey } from './feature-flags';
-import { devPassword, usingDefaultPassword } from './dev-password.guard';
+import { devAccounts, devPassword, usingDefaultPassword } from './dev-password.guard';
 
 const SRC = join(__dirname, '..');
 const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
@@ -149,6 +149,53 @@ describe('the password', () => {
     const guard = stripComments(read('dev/dev-password.guard.ts'));
     expect(guard).toMatch(/timingSafeEqualStr\(presented, devPassword\(\)\)/);
     expect(guard).not.toMatch(/presented\s*===/);
+  });
+
+  /**
+   * ── AND THE THIRD LOCK: WHICH ACCOUNT (owner, 27 Aug) ──────────────────────
+   *
+   * "Let this dev page be reachable only through my account login and nobody
+   * else." A shared password cannot answer WHO; an allowlist can, and it is
+   * checked BEFORE the password so an account that may never open this page
+   * does not get to spend the shared throttle making attempts.
+   *
+   * It fails CLOSED, which is the trade: with the variable unset nobody opens
+   * the page at all, including whoever needed it to find out why. The
+   * alternative — falling back to the old behaviour when unset — would mean one
+   * forgotten variable silently reopens the page to every account that can
+   * guess a password that lives in this repository. A recoverable lockout beats
+   * a silent hole.
+   */
+  it('names the accounts that may open the page, and closes when none are named', () => {
+    expect(devAccounts({ DEV_PAGE_ACCOUNTS: 'somen' })).toEqual(['somen']);
+    // Trimmed, lower-cased, blanks dropped: a stray space after a comma is not
+    // a lockout, and neither is a capital letter.
+    expect(devAccounts({ DEV_PAGE_ACCOUNTS: ' Somen , usr_123 ,, ' })).toEqual(['somen', 'usr_123']);
+    expect(devAccounts({})).toEqual([]);
+    expect(devAccounts({ DEV_PAGE_ACCOUNTS: '   ' })).toEqual([]);
+
+    const guard = stripComments(read('dev/dev-password.guard.ts'));
+    // Empty list refuses. This is the fail-closed decision, in one line.
+    expect(guard).toMatch(/if \(allowed\.length === 0\)[\s\S]{0,400}throw new ForbiddenException/);
+    // Identity is compared before the password is even read.
+    expect(guard.indexOf('allowed.includes')).toBeLessThan(guard.indexOf("x-dev-password"));
+    // Handle OR id — the two fail differently and neither suits everyone.
+    expect(guard).toMatch(/!allowed\.includes\(id\) && !allowed\.includes\(handle\)/);
+  });
+
+  /**
+   * AND THE RESPONSE NEVER SAYS WHICH LOCK CLOSED. "Your password was right
+   * but you are not on the list" hands an attacker half the answer. All three
+   * refusals are one sentence; the LOG separates them, because whoever is
+   * reading the log has already proved who they are.
+   */
+  it('refuses all three ways in the same words', () => {
+    const guard = stripComments(read('dev/dev-password.guard.ts'));
+    expect((guard.match(/throw new ForbiddenException\(REFUSAL\)/g) ?? []).length).toBe(3);
+    expect(guard).not.toMatch(/ForbiddenException\('(?!.*REFUSAL)/);
+    // The log, by contrast, is specific — including the variable to set.
+    expect(guard).toMatch(/DEV_PAGE_ACCOUNTS is unset/);
+    expect(guard).toMatch(/is not on DEV_PAGE_ACCOUNTS/);
   });
 
   it('is the SECOND lock — these routes are not public', () => {

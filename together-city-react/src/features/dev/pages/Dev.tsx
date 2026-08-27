@@ -27,6 +27,13 @@ import { DevCitizens } from '../Citizens';
  * The page is also honest about its own weakness: while DEV_PAGE_PASSWORD is
  * unset, the diagnostics list says so, because the fallback is in the source
  * and the source is in the repository.
+ *
+ * SINCE 27 AUG THE PASSWORD IS NOT ENOUGH. The owner asked for the page to open
+ * for their account and nobody else, so DEV_PAGE_ACCOUNTS names who may — and
+ * with it unset, nobody may. The prompt says all three locks out loud because
+ * the REFUSAL deliberately does not: an operator who is sure of the password
+ * needs to be told to check which account they are signed in as, and an
+ * attacker must not be told they hold half of it.
  */
 
 const G = (n: number) => (n === 1 ? '1 second' : `${n} seconds`);
@@ -63,8 +70,10 @@ function Prompt({ onUnlock, error, busy }: { onUnlock: (p: string) => void; erro
         </form>
         {error && <p style={{ color: 'var(--danger-ink)', fontSize: 13, margin: 0 }} role="alert">{error}</p>}
         <p className="muted" style={{ fontSize: 11.5, margin: 0, lineHeight: 1.55 }}>
-          Checked on the server, and you also have to be signed in — the password on its own
-          opens nothing.
+          Three locks: a signed-in account, an account named in{' '}
+          <code>DEV_PAGE_ACCOUNTS</code>, and this password. The password on its own opens
+          nothing, and a refusal never says which of the three closed — if you are certain
+          the password is right, check which account you are signed in as.
         </p>
       </Card>
     </div>

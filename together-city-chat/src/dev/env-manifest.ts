@@ -131,6 +131,7 @@ export const ENV_MANIFEST: EnvEntry[] = [
   { name: 'CONSOLE_FOUNDERS', group: 'Operations', purpose: 'Handles granted the founder role at boot — the only way to open the admin console for the first time.', whenMissing: 'The console cannot be opened by anybody, and it says "not open to this account" with nothing in the logs.' },
   { name: 'MODERATION_ADMINS', group: 'Operations', purpose: 'Handles granted the moderator role at boot.', whenMissing: 'Nobody can reach the moderation surfaces outside the console.' },
   { name: 'DEV_PAGE_PASSWORD', group: 'Operations', purpose: 'The password on this page.', whenMissing: 'This page falls back to its shipped default, which is in the source and therefore public. Set it.', secret: true },
+  { name: 'DEV_PAGE_ACCOUNTS', group: 'Operations', purpose: 'Handles or user ids allowed to open the developer page, comma-separated. The third lock: an account, the password, AND being on this list.', whenMissing: 'NOBODY can open the developer page — it fails closed on purpose, so one forgotten variable cannot silently reopen it to every account that can guess a password living in the repository. Set it and redeploy.', required: true },
   { name: 'SEED_DEMO', group: 'Operations', purpose: 'Development-only: write demo rows at boot.', whenMissing: 'Correct for a real deployment.' },
   // ── Dating engine switches ──────────────────────────────────────────────
   // Every one of these is a reversal, not a feature. The defaults are what
