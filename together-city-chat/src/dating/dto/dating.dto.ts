@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { UNDER_AGE_MESSAGE, isAdult } from '../../shared/age';
+import { HANDLE_MESSAGE, handleProblem, normaliseHandle } from '../dating-handle';
 
 export const MatchKindSchema = z.enum(['romantic', 'platonic']);
 export type MatchKind = z.infer<typeof MatchKindSchema>;
@@ -25,6 +26,17 @@ export type MatchKind = z.infer<typeof MatchKindSchema>;
  * is a rule with one place to forget it.
  */
 export const UpsertDatingProfileSchema = z.object({
+  /**
+   * THE NAME THEY DATE UNDER, refused at the door like the age is.
+   *
+   * Shape only — whether somebody already holds it, and whether the city holds
+   * it, are database questions and live in the service. What is settled here
+   * is that a save without a usable handle never becomes a row.
+   */
+  handle: z.string().transform(normaliseHandle).superRefine((h, ctx) => {
+    const problem = handleProblem(h);
+    if (problem) ctx.addIssue({ code: z.ZodIssueCode.custom, message: HANDLE_MESSAGE[problem] });
+  }),
   gender: z.enum(['male', 'female', 'nonbinary']),
   seeking: z.enum(['male', 'female', 'nonbinary', 'any']),
   bio: z.string().max(600).optional(),

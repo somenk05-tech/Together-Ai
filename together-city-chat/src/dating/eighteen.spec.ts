@@ -32,6 +32,10 @@ const code = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:]
  */
 describe('the age gate refuses at the door', () => {
   const base = {
+    // The dating name is required now — a save without one never becomes a
+    // row either. Present here so the assertions below are about the AGE and
+    // not about whichever refusal happens to come first.
+    handle: 'a_dating_name' as const,
     gender: 'female' as const, seeking: 'any' as const,
     birthDate: '1995-06-15', interests: ['Travel'],
   };

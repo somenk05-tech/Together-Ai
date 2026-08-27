@@ -21,6 +21,7 @@ import { compatibilityScore, zodiacSign } from './astrology';
 import {
   canonicalGoal, confidenceFor, coverage, curatedBar, distanceNote, explain, factorScores, frictions, matchAlertBody, matchAlertReason, overallScore, preferenceNotes, sharedItems, seeks, shownName, type DXProfile, type FactorBreakdown, unreachableReason,
 } from './matching';
+import { HANDLE_MESSAGE, datingHandleOf, handleProblem, normaliseHandle } from './dating-handle';
 import { carrySelfie, selfieOnFile, selfieTakenAt, SELFIE_KEY, SELFIE_AT } from './selfie';
 import { MIN_DATING_AGE, UNDER_AGE_MESSAGE, ageOn, floorAgePreferences, isAdult } from '../shared/age';
 import { ROLES } from '../admin/permissions';
@@ -28,7 +29,6 @@ import { LEARNING_WINDOW, learnWeights, overallScoreWith, type Decision } from '
 import { profileCompletion } from './completion';
 import { DAILY_LIKES, DAILY_SUPER_LIKES, likeLimitMessage, superLimitMessage } from './limits';
 import { decide, scanText, type Check, type ModerationResult } from '../realestate/moderation';
-import { nickname } from '../shared/nickname';
 import type { MatchKind, UpsertDatingProfileDto } from './dto/dating.dto';
 
 const MATCH_THRESHOLD = 75; // only curated matches ≥75% are ever shown (spec)
@@ -514,6 +514,48 @@ export class DatingService implements OnModuleInit {
       .slice(0, 10);
   }
 
+  /**
+   * Settle the handle this save is claiming, or refuse the save.
+   *
+   * Three questions, and the order is the point. The shape was answered at the
+   * door by the DTO, so what is left is the two that need the database — and
+   * the city one goes FIRST, because its failure is not an inconvenience.
+   *
+   *   1. Does an ACCOUNT hold this name? Then no. A dating handle matching a
+   *      city @handle either points at somebody else's account — a stranger
+   *      reads `@maya` in a chat and finds the wrong Maya in the People hub —
+   *      or at the citizen's own, which is them handing over the link this
+   *      whole hub exists to withhold. Neither is theirs to choose, so neither
+   *      is offered. (City handles are already public, so answering "taken"
+   *      here reveals nothing a profile page did not.)
+   *   2. Does another DATING PROFILE hold it? Then no. The unique index would
+   *      refuse it anyway; this is so they get a sentence instead of a 500.
+   *   3. Is it the one they already had? Then nothing has happened, and the
+   *      other two questions do not apply to their own row.
+   *
+   * Changing it later is allowed. An identifier a person cannot change is a
+   * problem exactly when somebody is being harassed under it, which is the
+   * worst possible moment to have made it permanent for tidiness.
+   */
+  private async claimDatingHandle(userId: string, raw: string, current: string | null): Promise<string> {
+    const want = normaliseHandle(raw);
+    const problem = handleProblem(want);
+    if (problem) throw new BadRequestException(HANDLE_MESSAGE[problem]);
+    if (want === current) return want;
+
+    const cityHolder = await this.prisma.user.findFirst({ where: { handle: want }, select: { id: true } });
+    if (cityHolder) {
+      throw new BadRequestException('That name belongs to a Together City account. Your dating name has to be its own.');
+    }
+    const datingHolder = await this.prisma.datingProfile.findFirst({
+      where: { handle: want }, select: { userId: true },
+    });
+    if (datingHolder && datingHolder.userId !== userId) {
+      throw new BadRequestException('Somebody is already dating under that name. Try another.');
+    }
+    return want;
+  }
+
   async upsertProfile(userId: string, dto: UpsertDatingProfileDto) {
     // Visibility mode lives in the extras JSON. paused/hidden take the profile
     // out of everyone's matching pool (visible=false); everyone keeps it in.
@@ -528,7 +570,8 @@ export class DatingService implements OnModuleInit {
     }
     // Read before the write: the selfie mark lives on the stored record and a
     // save must carry it across rather than take the client's word for it.
-    const prior = await this.prisma.datingProfile.findUnique({ where: { userId }, select: { extras: true } });
+    const prior = await this.prisma.datingProfile.findUnique({ where: { userId }, select: { extras: true, handle: true } });
+    const handle = await this.claimDatingHandle(userId, dto.handle, (prior as { handle?: string | null } | null)?.handle ?? null);
     const priorDX = this.parseDX(prior?.extras) as Record<string, unknown>;
     const visibility: Visibility = dx.visibility ?? (dto.visible === false ? 'hidden' : 'everyone');
     const inPool = visibility === 'everyone' || visibility === 'threshold';
@@ -557,6 +600,7 @@ export class DatingService implements OnModuleInit {
       return JSON.stringify(carried);
     })();
     const data = {
+      handle,
       gender: dto.gender,
       seeking: dto.seeking,
       bio: dto.bio ?? null,
@@ -1114,7 +1158,7 @@ export class DatingService implements OnModuleInit {
         // The name they chose to date under, everywhere they are drawn —
         // the detail page and the chats already preferred it; a card that
         // said the account name instead was the same person twice.
-        user: this.cardIdentity(cand.user, candDX),
+        user: this.cardIdentity(cand.user, candDX, cand.handle),
         bio: cand.bio,
         interests: theirInterests,
         photos,
@@ -1247,7 +1291,7 @@ export class DatingService implements OnModuleInit {
       scored.push({
         card: {
           matchId: state?.id ?? null,
-          user: this.cardIdentity(cand.user, candDX),
+          user: this.cardIdentity(cand.user, candDX, cand.handle),
           bio: cand.bio,
           interests: theirInterests,
           photos,
@@ -1527,7 +1571,7 @@ export class DatingService implements OnModuleInit {
       (isMatched ? matchedCards : cards).push({
         matchId: state?.id ?? null,
         // Same rule as matches(): the chosen name or nothing bespoke at all.
-        user: this.cardIdentity(cand.user, candDX),
+        user: this.cardIdentity(cand.user, candDX, cand.handle),
         bio: cand.bio,
         interests: theirInterests,
         photos,
@@ -1668,7 +1712,7 @@ export class DatingService implements OnModuleInit {
       // harmless: it sat in the JSON, and a display name somebody picked so
       // strangers would not learn their real one was defeated at the exact
       // surface that matters most. Same shaping function as every card now.
-      user: this.cardIdentity(cand.user, candD),
+      user: this.cardIdentity(cand.user, candD, cand.handle),
       name: shownName(candD, cand.user.name),
       age: theirAge,
       gender: cand.gender,
@@ -2011,8 +2055,19 @@ export class DatingService implements OnModuleInit {
    * profileImage appear anywhere in this module again. The orientation sweep
    * exists for the same reason with sharper stakes; this is the general case.
    */
-  private cardIdentity(user: { id: string; name: string }, dx: { firstName?: string }): { id: string; name: string } {
-    return { id: user.id, name: shownName(dx, user.name) };
+  private cardIdentity(
+    user: { id: string; name: string },
+    dx: { firstName?: string },
+    handle: string | null | undefined,
+  ): { id: string; name: string; handle: string } {
+    return {
+      id: user.id,
+      name: shownName(dx, user.name),
+      // The dating handle, never the city one. It cannot be looked up — by
+      // design, and see dating-handle.ts for why that is the whole point —
+      // so it is safe on a card the way an @handle never was.
+      handle: datingHandleOf({ userId: user.id, handle }),
+    };
   }
 
   private async assertWritable(userId: string, targetUserId: string): Promise<void> {
@@ -2601,8 +2656,10 @@ export class DatingService implements OnModuleInit {
     const userOf = new Map(users.map((u) => [u.id, u]));
     const matches = allMatches.filter((m) => userOf.has(other(m)));
     const otherIds = matches.map(other);
-    // unbounded: their matched partners — the product caps how many can exist
-    const profiles = await this.prisma.datingProfile.findMany({ where: { userId: { in: otherIds } } });
+    // unbounded: their matched partners — the product caps how many can exist.
+    // The caller's OWN row rides along in the same read, for the handle they
+    // are chatting under: one query, not two.
+    const profiles = await this.prisma.datingProfile.findMany({ where: { userId: { in: [userId, ...otherIds] } } });
     const pairKeys = otherIds.map((o) => [userId, o].sort());
     let scoreRows: Array<{ userA: string; userB: string; overall: number }> = [];
     try {
@@ -2611,6 +2668,7 @@ export class DatingService implements OnModuleInit {
         .compatibilityScore.findMany({ where: { OR: pairKeys.map(([a, b]) => ({ userA: a, userB: b })) }, select: { userA: true, userB: true, overall: true } });
     } catch { /* no cache is "no score", same as readPairScore */ }
     const profileOf = new Map(profiles.map((p) => [p.userId, p]));
+    const mineRow = profileOf.get(userId) ?? null;
     const scoreOf = new Map(scoreRows.map((r) => [`${r.userA}:${r.userB}`, r.overall]));
 
     const out = [];
@@ -2643,6 +2701,8 @@ export class DatingService implements OnModuleInit {
         // AFTER two people matched protected nothing, and read as the person
         // changing names between screens. Same expression the match card uses.
         name: shownName(candD, otherUser?.name || 'Member'),
+        /** The name they date under. Dating's own, never the city @handle. */
+        handle: datingHandleOf({ userId: otherId, handle: (otherProfile as { handle?: string | null } | null)?.handle }),
         // SIGNED AND REVIEWED, like every other card. This used to hand the
         // client the raw storage key — unloadable as an image, and outside
         // the review gate. The gallery photo goes through the same batched
@@ -2651,7 +2711,14 @@ export class DatingService implements OnModuleInit {
         photo: (() => { const arr: string[] = []; if (candD.photos?.length) photoJobs.push({ keys: [candD.photos[0]], into: arr }); return arr; })(),
         /** Which name YOU are chatting under, so the UI can offer the switch. */
         myIdentity: (myReveal ? 'real' : 'anonymous') as 'real' | 'anonymous',
-        myNickname: nickname(userId),
+        /**
+         * MINE, AND IT IS THE ONE I CHOSE. This was `nickname(userId)` — a
+         * pseudonym out of a hash, which meant a citizen had a name on their
+         * profile, a different name in the chat, and no say in the second one.
+         * The dating handle is the answer to "who am I here", so it is the
+         * answer this row gives.
+         */
+        myHandle: datingHandleOf({ userId, handle: (mineRow as { handle?: string | null } | null)?.handle }),
         sign: otherProfile ? zodiacSign(otherProfile.birthDate).name : null,
         age: otherProfile ? this.ageOf(otherProfile.birthDate) : null,
         revealed, myReveal, otherReveal,
@@ -2791,7 +2858,7 @@ export class DatingService implements OnModuleInit {
     userId: string; gender: string; seeking: string; bio: string | null;
     birthDate: Date; birthTime: string | null; birthPlace: string | null;
     interests: string; visible: boolean; extras?: string | null;
-    moderation?: string; moderationJson?: string | null;
+    moderation?: string; moderationJson?: string | null; handle?: string | null;
   }) {
     let reasons: string[] = [];
     try { reasons = p.moderationJson ? (JSON.parse(p.moderationJson) as ModerationResult).reasons : []; } catch { reasons = []; }
@@ -2805,6 +2872,15 @@ export class DatingService implements OnModuleInit {
     });
     return {
       userId: p.userId,
+      /**
+       * The name they date under, and whether it is theirs yet.
+       *
+       * `handle` is always a usable value so every screen can just draw it;
+       * `handleChosen` is how the form knows to say "pick one" rather than
+       * present a generated name as though the citizen had settled on it.
+       */
+      handle: datingHandleOf(p),
+      handleChosen: Boolean(p.handle),
       gender: p.gender,
       seeking: p.seeking,
       bio: p.bio,

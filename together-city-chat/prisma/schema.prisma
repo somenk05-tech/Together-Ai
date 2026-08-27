@@ -1082,6 +1082,15 @@ model Appeal {
 model DatingProfile {
   id         String   @id @default(uuid())
   userId     String   @unique
+  /// THE NAME THEY DATE UNDER. Chosen when the dating profile is created, and
+  /// unrelated to User.handle by rule as well as by column: dating-handle.ts
+  /// refuses any value an account already holds, so a handle seen in Dating
+  /// never names a city account. Nullable because this column arrived after
+  /// the profiles did — a row without one is shown under a deterministic
+  /// generated name until its owner picks one, and NOTHING resolves either
+  /// back to a person: there is no lookup by dating handle anywhere, on
+  /// purpose. See the second dating audit, blocker 02.
+  handle     String?  @unique
   gender     String // male | female | nonbinary
   seeking    String // male | female | nonbinary | any
   bio        String?

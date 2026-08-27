@@ -11,6 +11,18 @@ export interface ProfileCompletion { percent: number; suggestions: CompletionSug
 
 export interface DatingProfile {
   userId: string;
+  /**
+   * THE NAME THEY DATE UNDER. Always a usable value, so every screen can just
+   * draw it; `handleChosen` is false while that value is the one the server
+   * generated, which is how this form knows to ask rather than present a
+   * made-up name as a settled choice.
+   *
+   * It is not the city @handle and it never can be — the API refuses any
+   * dating name an account already holds — and nothing anywhere looks a person
+   * up by it. That is deliberate: see dating-handle.ts.
+   */
+  handle?: string;
+  handleChosen?: boolean;
   gender: 'male' | 'female' | 'nonbinary';
   seeking: 'male' | 'female' | 'nonbinary' | 'any';
   bio: string | null;
@@ -52,7 +64,8 @@ export interface CuratedMatch {
   /** The card's WHOLE identity. The handle and the city profile photo used to
    *  ride along here — one lookup from a dating card to somebody's entire city
    *  life. The server no longer sends either. */
-  user: { id: string; name: string };
+  /** `handle` is the name they date under — Dating's own, never the city one. */
+  user: { id: string; name: string; handle: string };
   bio: string | null;
   interests: string[];
   photos?: string[];
@@ -98,7 +111,8 @@ export interface MatchDetail {
   /** The card's WHOLE identity. The handle and the city profile photo used to
    *  ride along here — one lookup from a dating card to somebody's entire city
    *  life. The server no longer sends either. */
-  user: { id: string; name: string };
+  /** `handle` is the name they date under — Dating's own, never the city one. */
+  user: { id: string; name: string; handle: string };
   name: string;
   age: number;
   gender: string;
@@ -158,6 +172,8 @@ export interface DiscoverResult {
 }
 
 export interface UpsertProfileInput {
+  /** The name they date under. Required — the server refuses a save without it. */
+  handle: string;
   /**
    * Empty until the citizen chooses (p1, FE-15.1: "no fake or sample values
    * anywhere"). The form used to open with 'male' preselected, so anyone who
@@ -276,6 +292,9 @@ export interface DatingChatSummary {
   pending: boolean;
   otherUserId: string;
   name: string;
+  /** The name they date under. Dating's own — never the city @handle, and
+   *  nothing in the city can look a person up by it. */
+  handle: string;
   photo: string | null;
   sign: string | null;
   age: number | null;
@@ -285,7 +304,8 @@ export interface DatingChatSummary {
   /** Whether THEY are. Their choice alone — you can never flip this. */
   otherReveal: boolean;
   myIdentity: 'real' | 'anonymous';
-  myNickname: string;
+  /** The name YOU date under — chosen on your profile, not generated. */
+  myHandle: string;
   score: number | null;
   lastMessageAt: string;
   lastText: string | null;

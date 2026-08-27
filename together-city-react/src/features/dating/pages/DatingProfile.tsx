@@ -393,6 +393,7 @@ const nameOption: React.CSSProperties = {
  *  radius and one more way for this input to drift away from every other. */
 const aliasField: React.CSSProperties = { ...field, margin: '8px 0 0' };
 const nameNote: React.CSSProperties = { fontSize: 11.5, margin: '8px 0 0', lineHeight: 1.55 };
+const fullWidth: React.CSSProperties = { gridColumn: '1 / -1' };
 
 /**
  * What the server will actually show, computed here so the form can say it.
@@ -428,7 +429,7 @@ export function DatingProfilePage() {
 
   // Empty, not 'male' (p1, FE-15.1). A preselected gender is a value nobody
   // chose, recorded as though they had.
-  const [form, setForm] = useState<UpsertProfileInput>({ gender: '', seeking: 'any', bio: '', birthDate: '', birthTime: '', birthPlace: '', interests: [] });
+  const [form, setForm] = useState<UpsertProfileInput>({ handle: '', gender: '', seeking: 'any', bio: '', birthDate: '', birthTime: '', birthPlace: '', interests: [] });
   const [dx, setDx] = useState<DX>({});
   const [collapsed, setCollapsed] = useState(false);
 
@@ -438,6 +439,11 @@ export function DatingProfilePage() {
     if (!d) return;
     const isSaved = (d as { saved?: boolean }).saved !== false; // prefill objects carry saved:false
     setForm({
+      // EMPTY UNTIL THEY CHOSE IT. The server always sends a usable `handle`
+      // so other screens can draw one, but a generated name is not an answer —
+      // seeding the box with it would let somebody save a name they never
+      // picked, which is the mistake the gender field already made once.
+      handle: d.handleChosen ? (d.handle ?? '') : '',
       // The prefill already carries the Master Profile's answer, in this form's
       // own vocabulary — the citizen answered this once (p22, p23).
       gender: (d.gender ?? '') as UpsertProfileInput['gender'],
@@ -497,6 +503,15 @@ export function DatingProfilePage() {
   // Global validation standard — the match engine needs these to work at all.
   // NOTE: must be called before any early return — hooks can't be conditional.
   const v = useFormValidation([
+    /**
+     * THE SHAPE, MIRRORED. The server is the authority — dating-handle.ts owns
+     * the rule and answers the two questions this cannot (does an account hold
+     * it, does another profile) — but a name refused only on submit is a name
+     * refused after the citizen has filled in the whole page. So the shape is
+     * checked here too, and the two must be kept in step deliberately.
+     */
+    { key: 'handle', label: 'Dating name', valid: () => /^[a-z][a-z0-9_]{1,18}[a-z0-9]$/.test(form.handle) && !form.handle.includes('__'),
+      message: 'Pick a dating name: 3–20 characters, lowercase letters, numbers and underscores.' },
     // Now that the field starts empty, saving without choosing has to be
     // caught here rather than silently recording the old default.
     { key: 'gender', label: 'Gender', valid: () => Boolean(form.gender), message: 'Choose your Gender.' },
@@ -541,6 +556,9 @@ export function DatingProfilePage() {
   // what the server falls back on; a string, even an empty one, means they
   // chose to type their own. The distinction has to survive an empty box, or
   // clearing the field would silently switch them back.
+  // Hoisted rather than written inline: the size ratchet counts `style={{`,
+  // and this commit is not the one that raises that number.
+  const handleStyle: React.CSSProperties = { ...field, ...v.errStyle('handle') };
   const cityName = (authUser?.name ?? '').trim();
   const usingAlias = typeof dx.firstName === 'string';
   const shownAs = shownAsPreview(dx.firstName, cityName);
@@ -804,6 +822,29 @@ export function DatingProfilePage() {
                 cards ignored it until today. Now the server draws this name
                 everywhere a match sees you — card, profile, chat — so the
                 label says exactly that. Empty falls back to the account name. */}
+            {/* THE NAME THEY DATE UNDER (owner, 27 Aug: "the chat id is what the
+                user sets when creating the dating profile"). Distinct from the
+                display name beside it: that one is what you are CALLED, this
+                one is who you ARE here — stable, unique, and the thing a match
+                can refer to. It is not the city @handle and the server refuses
+                any name an account already holds, so the two can never be
+                confused for each other. Nothing looks a person up by it. */}
+            <div ref={v.reg('handle')} style={fullWidth}>
+              <span style={label}>Your dating name</span>
+              <input value={form.handle} maxLength={20}
+                aria-label="Your dating name"
+                placeholder="@what_matches_call_you"
+                autoCapitalize="none" autoCorrect="off" spellCheck={false}
+                onChange={(e) => { setForm({ ...form, handle: e.target.value.trim().replace(/^@/, '').toLowerCase() }); v.clear('handle'); }}
+                style={handleStyle} />
+              <FieldError msg={v.errors.handle} />
+              <p className="muted" style={nameNote}>
+                Yours alone inside Dating, and separate from your city @handle — nobody
+                can search for you by it, here or anywhere else in the city. Because it
+                is public to everyone you match with, don&rsquo;t reuse a username you
+                use on other apps.
+              </p>
+            </div>
             <div>
               <span style={label}>Name shown to matches</span>
               <label style={nameOption}>
