@@ -29,7 +29,7 @@ interface AuthState {
   ready: boolean;
   isAuthenticated: () => boolean;
   login: (handle: string, password: string) => Promise<void>;
-  register: (handle: string, name: string, password: string, contact: { email: string; phone?: string; dateOfBirth: string }) => Promise<void>;
+  register: (handle: string, name: string, password: string, contact: { email: string; phone?: string; dateOfBirth: string; gender: 'male' | 'female' | 'nonBinary' | 'other'; genderOther?: string }) => Promise<void>;
   refresh: () => Promise<string | null>;
   signOut: () => void;
   hydrate: () => Promise<void>;
@@ -59,7 +59,7 @@ export const useAuthStore = create<AuthState>()(
       register: async (handle, name, password, contact) => {
         resetClientState();
         try { sessionStorage.removeItem('tc:signed-out'); } catch { /* noop */ }
-        const { accessToken, refreshToken } = await authApi.register({ handle, name, password, email: contact.email, phone: contact.phone || undefined, dateOfBirth: contact.dateOfBirth, turnstileToken: await getTurnstileToken() });
+        const { accessToken, refreshToken } = await authApi.register({ handle, name, password, email: contact.email, phone: contact.phone || undefined, dateOfBirth: contact.dateOfBirth, gender: contact.gender, genderOther: contact.genderOther || undefined, turnstileToken: await getTurnstileToken() });
         set({ tokens: { accessToken, refreshToken } });
         set({ user: await authApi.me() });
       },

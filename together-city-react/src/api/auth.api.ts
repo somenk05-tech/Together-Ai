@@ -8,6 +8,12 @@ export const RegisterInput = z.object({
   email: z.string().email(), phone: z.string().optional(),
   /** Required. The city is 18+ and the server refuses anything younger. */
   dateOfBirth: z.string(),
+  /** Required, asked once. The SOCIAL answer — the city's one vocabulary,
+   *  matching GENDER_IDENTITY on the server. Clinical sex is a separate
+   *  question and is not asked at the door. */
+  gender: z.enum(['male', 'female', 'nonBinary', 'other']),
+  /** Only meaningful alongside 'other'. Optional either way. */
+  genderOther: z.string().optional(),
   /** Cloudflare Turnstile, when the site key is set. Absent otherwise. */
   turnstileToken: z.string().optional(),
 });

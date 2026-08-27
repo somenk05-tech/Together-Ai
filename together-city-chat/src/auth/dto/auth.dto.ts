@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { MIN_DATING_AGE, UNDER_AGE_MESSAGE, isAdult } from '../../shared/age';
+import { GENDER_IDENTITY } from '../../profile/sex-and-gender';
 
 /**
  * ── 18+ IS THE RULE FOR THE WHOLE CITY (owner, 27 Aug) ──────────────────────
@@ -32,6 +33,27 @@ export const RegisterSchema = z.object({
   turnstileToken: z.string().max(4096).optional(),
   /** Required. The city is 18+, and this is where that is established. */
   dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD'),
+  /**
+   * ── ASKED ONCE, AT THE FRONT DOOR (owner, 27 Aug) ─────────────────────────
+   *
+   * Four hubs used to ask this question separately — dating, beauty, nutrition,
+   * fitness — and sex-and-gender.ts exists because they disagreed about what
+   * they were asking. Asking at registration puts one answer on the Master
+   * Profile before any hub has an opinion, and prefillFromMaster hands it to
+   * the dating form rather than asking a second time.
+   *
+   * `GENDER_IDENTITY`, not a new list. This is the SOCIAL question — how the
+   * app refers to somebody and what dating shows. The CLINICAL one
+   * (`sexAtBirth`, which feeds Mifflin-St Jeor) is deliberately not asked here:
+   * it belongs to the hub that needs a coefficient, and collapsing the two back
+   * into one field is the exact bug sex-and-gender.ts was written to undo.
+   *
+   * ASKED ONCE IS NOT LOCKED. It stays editable on the Master Profile page, so
+   * a citizen who transitions is not held to an answer they gave at sign-up.
+   */
+  gender: z.enum(GENDER_IDENTITY),
+  /** Free text, only meaningful when gender is 'other'. Optional either way. */
+  genderOther: z.string().trim().max(40).optional(),
 }).refine((v) => isAdult(v.dateOfBirth), {
   message: `You must be ${MIN_DATING_AGE} or older to join Together City.`,
   path: ['dateOfBirth'],

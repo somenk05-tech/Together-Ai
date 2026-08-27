@@ -31,7 +31,10 @@ describe('the city is eighteen plus', () => {
     expect(form).toMatch(/const adult = dob !== '' && ageFrom\(dob\) >= 18/);
     // Both gates: the button, and the submit handler — a disabled button is a
     // suggestion, and Enter is not a click.
-    expect(form).toMatch(/pwStrong && adult && agreed/);
+    // Structural, not order-literal: `gender !== ''` joined this chain on
+    // 27 Aug and the point of the assertion is that `adult` gates the button,
+    // not which clause sits next to it.
+    expect(form).toMatch(/canSubmit\s*=[^;]*\badult\b/);
     expect(form).toMatch(/if \(!adult\)/);
   });
 

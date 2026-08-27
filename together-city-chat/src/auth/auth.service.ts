@@ -108,11 +108,32 @@ export class AuthService {
     // throws SYNCHRONOUSLY, before there is a promise for swallow to catch —
     // the same trap dating.service.ts carries a comment about. A registration
     // must not fail because a write beside it could not be attempted.
-    const mp = (this.prisma as unknown as Record<string, { updateMany?: (a: unknown) => Promise<unknown> } | undefined>).masterProfile;
-    await swallow(mp?.updateMany?.({
+    const mp = (this.prisma as unknown as Record<string, { upsert?: (a: unknown) => Promise<unknown> } | undefined>).masterProfile;
+    // Gender rides the SAME write. It is the social answer (genderIdentity),
+    // never the clinical one — sexAtBirth stays unasked here and is collected
+    // by the hub that actually needs a coefficient. From this row,
+    // prefillFromMaster hands it to the dating form, so the question is asked
+    // once in the city rather than once per hub. Editable afterwards on the
+    // Master Profile page: asked once is not locked.
+    //
+    // UPSERT, NOT updateMany — and this is a correction, not a preference.
+    // `initializeAccount` seeds FoodPref, BeautyProfile and FitnessProfile and
+    // NOT MasterProfile; nothing creates that row until a hub write or the
+    // gap-consolidation inside MasterProfileService.get() does. So the
+    // updateMany this replaces matched ZERO rows for every brand-new account,
+    // wrote nothing, and — being wrapped in swallow — said nothing about it.
+    // The evidence-on-record the 18+ commit was written to leave was never
+    // being left. A guard is only proven where the data has reached.
+    const master = {
+      dateOfBirth: new Date(`${dto.dateOfBirth}T00:00:00.000Z`),
+      genderIdentity: dto.gender,
+      genderIdentityOther: dto.gender === 'other' ? (dto.genderOther?.trim() || null) : null,
+    };
+    await swallow(mp?.upsert?.({
       where: { userId: user.id },
-      data: { dateOfBirth: new Date(`${dto.dateOfBirth}T00:00:00.000Z`) },
-    }) ?? Promise.resolve(null), 'record date of birth at sign-up', { userId: user.id });
+      create: { userId: user.id, ...master },
+      update: master,
+    }) ?? Promise.resolve(null), 'record date of birth and gender at sign-up', { userId: user.id });
     // No verification email is sent here any more. Sign-up now finishes on a
     // six-digit code screen (VerifyChannel), which asks for the code the person
     // is about to receive rather than mailing a link they have to go and find.

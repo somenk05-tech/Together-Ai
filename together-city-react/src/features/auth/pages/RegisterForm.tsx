@@ -61,6 +61,21 @@ const dobNote: React.CSSProperties = { fontSize: 11.5, margin: '5px 0 0', lineHe
 const dobField = (bad: boolean): React.CSSProperties => ({
   ...field, margin: '4px 0 0', borderColor: bad ? 'var(--danger-ink)' : 'var(--line)',
 });
+/** Gender uses the DOB label and note styles unchanged — they are a label and a
+ *  note, named after the field that needed them first. */
+const genderField: React.CSSProperties = { ...field, margin: '4px 0 0' };
+const genderOtherField: React.CSSProperties = { ...field, margin: '8px 0 0' };
+/** The city's one gender vocabulary, mirroring GENDER_IDENTITY on the server.
+ *  A fifth option here would have to be threaded through sex-and-gender.ts, the
+ *  dating engine's exact male|female|nonbinary comparisons and the passport's
+ *  sexMark — this list is not a place to improvise. */
+const GENDERS = [
+  { value: 'male', label: 'Male' },
+  { value: 'female', label: 'Female' },
+  { value: 'nonBinary', label: 'Non-binary' },
+  { value: 'other', label: 'Other' },
+] as const;
+type Gender = (typeof GENDERS)[number]['value'];
 
 /** Redesigned "Join the City" sign-up — low-friction, live-validated. */
 export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => void; from: string }) {
@@ -73,6 +88,8 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
   const [dob, setDob] = useState('');
+  const [gender, setGender] = useState<Gender | ''>('');
+  const [genderOther, setGenderOther] = useState('');
   const [agreed, setAgreed] = useState(false);
   const [showPhone, setShowPhone] = useState(false);
   const [showPw, setShowPw] = useState(false);
@@ -115,7 +132,7 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
   const pwStrong = pwScore === PW_RULES.length;
 
   const acceptTos = usePrivacyStore((s) => s.acceptTos);
-  const canSubmit = hStatus === 'ok' && name.trim() && emailOk(email) && pwStrong && adult && agreed && !busy;
+  const canSubmit = hStatus === 'ok' && name.trim() && emailOk(email) && pwStrong && adult && gender !== '' && agreed && !busy;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -125,7 +142,7 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
     if (!canSubmit) { setError('Please complete the highlighted fields.'); return; }
     setBusy(true);
     try {
-      await register(handle.trim().toLowerCase(), name.trim(), password, { email: email.trim().toLowerCase(), phone: showPhone ? phone.trim() : undefined, dateOfBirth: dob });
+      await register(handle.trim().toLowerCase(), name.trim(), password, { email: email.trim().toLowerCase(), phone: showPhone ? phone.trim() : undefined, dateOfBirth: dob, gender, genderOther: gender === 'other' ? genderOther.trim() : undefined });
       acceptTos(); pushTos(); // record consent to ToS + Privacy at account creation
       setDone(true);   // auto-logged-in on success
     } catch (err) {
@@ -220,6 +237,27 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
               Together City is for people aged 18 and over. This is kept on your profile and
               is not shown to anyone.
             </p>}
+
+        {/* ASKED ONCE, HERE, RATHER THAN ONCE PER HUB. Four hubs used to ask
+            this separately and disagreed about what they were asking. One
+            answer goes on the Master Profile and the dating form prefills from
+            it. Asked once is not locked — it stays editable on the profile. */}
+        <label htmlFor="reg-gender" style={dobLabel}>Gender</label>
+        <select required id="reg-gender" value={gender} name="sex" autoComplete="sex"
+          aria-describedby="gender-note" onChange={(e) => setGender(e.target.value as Gender | '')}
+          style={genderField}>
+          <option value="" disabled>Select</option>
+          {GENDERS.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
+        </select>
+        {gender === 'other' && (
+          <input id="reg-gender-other" value={genderOther} maxLength={40}
+            placeholder="How you'd like to be described (optional)" aria-label="How you'd like to be described"
+            onChange={(e) => setGenderOther(e.target.value)} style={genderOtherField} />
+        )}
+        <p id="gender-note" className="muted" style={dobNote}>
+          Asked once so the rest of the city doesn't have to. You can change it any
+          time on your profile.
+        </p>
 
         {/* Password */}
         <div className="tc-field" style={{ display: 'flex', alignItems: 'center', border: '1.5px solid var(--line)', borderRadius: 12, padding: '0 12px', marginTop: 10, background: 'var(--card)' }}>
