@@ -2171,11 +2171,20 @@ export class DatingService implements OnModuleInit {
     // Already liked → not a second like, and it must not cost a second one
     // against the allowance. Re-tapping like on a card you already liked is a
     // thing people do; charging for it would be a limit that punishes the UI.
+    //
+    // BUT A SUPER-LIKE IS ITS OWN SCARCE ACT (third audit, blocker 09). The
+    // super check and the super write both used to sit inside `!alreadyLiked`,
+    // so liking somebody ordinarily and THEN super-liking them skipped the
+    // limit entirely while still setting the flag — one a day became twenty.
+    // A NEW super is gated whether or not an ordinary like already exists.
     const alreadyLiked = meIsOne ? state.likedByOne : state.likedByTwo;
-    if (!alreadyLiked) {
+    const alreadySuper = meIsOne ? state.superByOne : state.superByTwo;
+    const newLike = !alreadyLiked;
+    const newSuper = Boolean(opts.superLike) && !alreadySuper;
+    if (newLike || newSuper) {
       const left = await this.likeAllowance(userId);
-      if (left.likesLeft < 1) throw new BadRequestException(likeLimitMessage(left.resetsAtLocal));
-      if (opts.superLike && left.supersLeft < 1) throw new BadRequestException(superLimitMessage(left.resetsAtLocal));
+      if (newLike && left.likesLeft < 1) throw new BadRequestException(likeLimitMessage(left.resetsAtLocal));
+      if (newSuper && left.supersLeft < 1) throw new BadRequestException(superLimitMessage(left.resetsAtLocal));
     }
 
     const now = new Date();
@@ -2190,17 +2199,20 @@ export class DatingService implements OnModuleInit {
     // the write and undoing this one when the day is over the line makes the
     // limit hold under a burst without a lock: the worst case is one like
     // fewer than allowed, never one more.
-    if (!alreadyLiked) {
+    if (newLike || newSuper) {
       const after = await this.likeAllowance(userId);
-      const over = after.likesUsed > DAILY_LIKES || (opts.superLike && after.supersUsed > DAILY_SUPER_LIKES);
-      if (over) {
+      const overLike = newLike && after.likesUsed > DAILY_LIKES;
+      const overSuper = newSuper && after.supersUsed > DAILY_SUPER_LIKES;
+      if (overLike || overSuper) {
+        // Undo exactly what this call added: the whole like if the like was
+        // new, otherwise only the super flag it set on an existing like.
         await this.prisma.datingMatch.update({
           where: { id: state.id },
-          data: meIsOne
-            ? { likedByOne: false, likedAtOne: null, superByOne: false }
-            : { likedByTwo: false, likedAtTwo: null, superByTwo: false },
+          data: newLike
+            ? (meIsOne ? { likedByOne: false, likedAtOne: null, superByOne: false } : { likedByTwo: false, likedAtTwo: null, superByTwo: false })
+            : (meIsOne ? { superByOne: false } : { superByTwo: false }),
         });
-        throw new BadRequestException(opts.superLike && after.supersUsed > DAILY_SUPER_LIKES ? superLimitMessage(after.resetsAtLocal) : likeLimitMessage(after.resetsAtLocal));
+        throw new BadRequestException(overSuper ? superLimitMessage(after.resetsAtLocal) : likeLimitMessage(after.resetsAtLocal));
       }
     }
 
@@ -2228,24 +2240,29 @@ export class DatingService implements OnModuleInit {
       });
       return { matched: true, conversationId: null, chatLocked: true, matchId: matched.id };
     }
-    this.analytics.track(opts.superLike ? 'dating.super_like' : 'dating.like', userId, { kind });
-    // A one-way like/request — nudge the other person to check their matches.
-    //
-    // A super-like SAYS SO to the person receiving it. That is the whole point:
-    // scarcity nobody can see is not scarcity, it is a counter. It does not
-    // bypass anything and it does not open a chat — it changes one sentence and
-    // the order of one queue.
-    void this.notifications.create({
-      userId: targetUserId, actorId: userId, kind: 'dating_like',
-      push: { deepLink: 'togethercity://dating/matches' },
-      title: opts.superLike
-        ? (kind === 'romantic' ? 'Someone super-liked you ⭐' : 'Someone really wants to connect ⭐')
-        : (kind === 'romantic' ? 'You have a new like 💛' : 'Someone wants to connect'),
-      body: opts.superLike
-        ? 'They get one of these a day, and they used it on you — see who in your matches.'
-        : 'A member likes your profile — see who in your matches.',
-      href: '/dating/matches',
-    });
+    // ONLY A GENUINELY NEW LIKE (OR NEW SUPER) NOTIFIES (third audit, blocker
+    // 08). The allowance was correctly skipped for a re-tap, but the push was
+    // not — so POSTing like on the same person in a loop sent one "You have a
+    // new like 💛" per call, free, sixty a minute, at a stranger whose phone
+    // the victim cannot silence because the notification names nobody. Nothing
+    // new happened on a re-tap, so nothing is sent.
+    if (newLike || newSuper) {
+      this.analytics.track(opts.superLike ? 'dating.super_like' : 'dating.like', userId, { kind });
+      // A super-like SAYS SO to the person receiving it — scarcity nobody can
+      // see is a counter, not scarcity. It opens no chat; it changes one
+      // sentence and the order of one queue.
+      void this.notifications.create({
+        userId: targetUserId, actorId: userId, kind: 'dating_like',
+        push: { deepLink: 'togethercity://dating/matches' },
+        title: newSuper
+          ? (kind === 'romantic' ? 'Someone super-liked you ⭐' : 'Someone really wants to connect ⭐')
+          : (kind === 'romantic' ? 'You have a new like 💛' : 'Someone wants to connect'),
+        body: newSuper
+          ? 'They get one of these a day, and they used it on you — see who in your matches.'
+          : 'A member likes your profile — see who in your matches.',
+        href: '/dating/matches',
+      });
+    }
     return { matched: false, conversationId: null, chatLocked: false, matchId: updated.id, superLike: !!opts.superLike };
   }
 
