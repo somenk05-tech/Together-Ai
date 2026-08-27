@@ -3,6 +3,9 @@ import { Button, Spinner, EmptyState } from '@/components/ui';
 import { useState } from 'react';
 import { useDatingAdminStats, useDatingFunnel } from '../api';
 
+/** The one line on this page that means something is broken rather than busy. */
+const pendingWarn: React.CSSProperties = { fontSize: 12.5, margin: '8px 0 0', color: 'var(--danger-ink)' };
+
 function Stat({ label, value, hint }: { label: string; value: number | string; hint?: string }) {
   return (
     <div className="card" style={{ padding: '16px 18px' }}>
@@ -118,8 +121,20 @@ function Funnel() {
             </table>
           </div>
           <p className="muted" style={{ fontSize: 12.5, margin: '10px 0 0' }}>
-            {q.data.counts['dating.report'] ?? 0} reports · {q.data.photosHeld} photos held · {q.data.appealsOpen} appeals open · {q.data.counts['dating.pass'] ?? 0} passes
+            {q.data.reportsOpen} reports open · {q.data.photosHeld} photos held · {q.data.appealsOpen} appeals open · {q.data.counts['dating.pass'] ?? 0} passes
           </p>
+          {q.data.photosPending > 0 && (
+            /* PENDING IS NOT A QUEUE A HUMAN EMPTIES — it is what an
+               unconfigured or failing Rekognition produces, and a pending photo
+               is invisible to everyone but its owner. A number growing here
+               means photo review is not running, which used to look from every
+               screen exactly like "nobody has uploaded lately". */
+            <p style={pendingWarn}>
+              {q.data.photosPending} photo{q.data.photosPending === 1 ? '' : 's'} waiting on automated review
+              {' '}— nobody but their owner can see {q.data.photosPending === 1 ? 'it' : 'them'}. If this only
+              grows, photo review is not running: check the Rekognition variables, then run the backfill.
+            </p>
+          )}
 
           <h2 style={{ fontSize: 16, margin: '22px 0 10px' }}>Where the numbers sit</h2>
           <p className="muted" style={{ fontSize: 12.5, margin: '0 0 10px' }}>

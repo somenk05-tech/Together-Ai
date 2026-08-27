@@ -232,6 +232,11 @@ export interface DatingFunnel {
   counts: Record<string, number>;
   distribution: Array<{ label: string; count: number }>;
   scoredPairs: number; photosHeld: number; appealsOpen: number;
+  /** Waiting on Rekognition, not on a human — the state an unconfigured or
+   *  broken photo review produces, and the number nothing used to compute. */
+  photosPending: number;
+  /** The open-report BACKLOG, not the event count over the window beside it. */
+  reportsOpen: number;
 }
 export interface MyAppeal { id: string; kind: 'dating_profile' | 'dating_photo'; targetId: string; text: string; status: 'open' | 'upheld' | 'overturned'; decision: string; createdAt: string; decidedAt: string | null }
 

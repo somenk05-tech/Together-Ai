@@ -4,6 +4,16 @@ import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { Button, Spinner } from '@/components/ui';
 import { useAppeals, useDatingDecision, useDecideAppeal, useDecideReport, useHeldPhotos, usePhotoBackfill, usePhotoDecision, useReportQueue, type Appeal, type HeldPhoto, type ReportGroup } from '../api';
 
+/** The reported citizen's dating profile, set apart from the handle above it
+ *  so a moderator can see at a glance where the allegation is pointing. */
+const subjectBox: React.CSSProperties = {
+  border: '1px solid var(--line)', borderRadius: 'var(--r-1)',
+  padding: '8px 10px', margin: '6px 0 0', background: 'var(--paper)',
+};
+const subjectMeta: React.CSSProperties = { fontSize: 11.5 };
+const subjectBio: React.CSSProperties = { margin: '5px 0 0', fontSize: 13, lineHeight: 1.5 };
+const subjectNone: React.CSSProperties = { fontSize: 11.5, margin: '4px 0 0' };
+
 /**
  * The moderation queue (FE-13.7).
  *
@@ -48,10 +58,31 @@ function Subject({ group }: { group: ReportGroup }) {
   }
 
   if (s.kind === 'user') {
+    const d = s.dating;
     return (
       <div style={{ fontSize: 13, marginTop: 4 }}>
         <Link to={`/social/u/${s.user.handle}`} style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>@{s.user.handle}</Link>
         <span className="muted"> · {s.user.name}</span>
+        {/* A reported citizen used to arrive here as a handle and a name, which
+            is not enough to judge a dating report: the allegation is usually
+            about what is ON the profile. This is the same view any match gets —
+            a faster route to it, not a deeper one. The conversation is
+            deliberately not here. */}
+        {d && (
+          <div style={subjectBox}>
+            <div className="muted" style={subjectMeta}>
+              Dating profile
+              {d.shownName ? ` · appears as ${d.shownName}` : ''}
+              {d.age != null ? ` · ${d.age}` : ''}
+              {d.city ? ` · ${d.city}` : ''}
+              {` · ${d.photos} photo${d.photos === 1 ? '' : 's'}`}
+              {d.moderation ? ` · ${d.moderation}` : ''}
+              {d.visible === false ? ' · not in the pool' : ''}
+            </div>
+            {d.bio && <p style={subjectBio}>{d.bio}</p>}
+          </div>
+        )}
+        {!d && <div className="muted" style={subjectNone}>No dating profile.</div>}
       </div>
     );
   }

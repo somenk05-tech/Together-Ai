@@ -14,6 +14,41 @@ import type { CreateCommentDto, CreatePostDto, FeedQueryDto } from './dto/social
 
 const AUTHOR_SELECT = { id: true, handle: true, name: true, profileImage: true } as const;
 
+/**
+ * The dating profile a moderator is shown alongside a report about a citizen.
+ *
+ * Reduced here rather than selected in the query, because the interesting
+ * fields live inside the free-form `extras` blob and the blob itself must not
+ * reach this screen: it carries the citizen's preferences, their religion and
+ * their storage keys, none of which is any of a moderator's business and none
+ * of which any other citizen can see.
+ *
+ * Photo COUNT rather than photos. The keys are private-bucket keys that mean
+ * nothing without signing, signing them here would hand a moderator a bearer
+ * link to somebody's pictures on a screen that needed no such power, and the
+ * held-photo queue is where photographs are actually reviewed.
+ */
+function datingSummary(dp: Record<string, unknown>) {
+  let city: unknown = null, photos = 0, firstName: unknown = null;
+  try {
+    const dx = JSON.parse(String(dp.extras ?? '{}')) as Record<string, unknown>;
+    city = dx.city ?? null;
+    firstName = dx.firstName ?? null;
+    photos = Array.isArray(dx.photos) ? dx.photos.length : 0;
+  } catch { /* an unreadable blob tells the moderator nothing, and says so by staying null */ }
+  const dob = dp.birthDate instanceof Date ? dp.birthDate : null;
+  return {
+    bio: dp.bio ?? null,
+    shownName: firstName,
+    city,
+    photos,
+    age: dob ? Math.max(0, new Date().getUTCFullYear() - dob.getUTCFullYear()) : null,
+    moderation: dp.moderation ?? null,
+    visible: dp.visible ?? null,
+    updatedAt: dp.updatedAt ?? null,
+  };
+}
+
 @Injectable()
 export class SocialService {
   constructor(
@@ -642,7 +677,34 @@ export class SocialService {
     }
     if (targetType === 'user') {
       const u = await this.prisma.user.findUnique({ where: { id: targetId }, select: AUTHOR_SELECT }).catch(swallowed('social.reportSubject', null));
-      return u ? { kind: 'user' as const, gone: false, user: u } : { kind: 'user' as const, gone: true };
+      if (!u) return { kind: 'user' as const, gone: true };
+      /**
+       * ENOUGH TO JUDGE IT (27 Aug, launch audit).
+       *
+       * A reported citizen arrived here as a handle and a name. For a dating
+       * report that is not enough to decide anything: the allegation is
+       * usually about what is ON the profile — the bio, the photographs, the
+       * age — and a moderator was being asked to act on somebody they could
+       * not see. So the dating profile comes with the report, when there is
+       * one.
+       *
+       * WHAT IS DELIBERATELY NOT HERE: the conversation. Reading two people's
+       * private messages is a bigger power than anything else on this screen,
+       * it is not needed to judge a profile, and it should be a decision the
+       * owner takes knowingly rather than something that arrives inside a
+       * refactor. If reports about MESSAGES need it, that is its own feature
+       * with its own audit row.
+       *
+       * Only what another citizen could already see: the same fields any match
+       * is shown. A moderator gets a faster route to it, not a deeper one.
+       */
+      const dp = await (this.prisma as unknown as {
+        datingProfile?: { findUnique(a: unknown): Promise<Record<string, unknown> | null> };
+      }).datingProfile?.findUnique({
+        where: { userId: targetId },
+        select: { bio: true, birthDate: true, moderation: true, visible: true, extras: true, updatedAt: true },
+      }).catch(swallowed('social.reportSubject.dating', null));
+      return { kind: 'user' as const, gone: false, user: u, dating: dp ? datingSummary(dp) : null };
     }
     const c = await this.prisma.comment.findUnique({
       where: { id: targetId },

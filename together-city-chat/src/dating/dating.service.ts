@@ -23,6 +23,7 @@ import {
 } from './matching';
 import { carrySelfie, selfieOnFile, selfieTakenAt, SELFIE_KEY, SELFIE_AT } from './selfie';
 import { MIN_DATING_AGE, UNDER_AGE_MESSAGE, ageOn, floorAgePreferences, isAdult } from '../shared/age';
+import { ROLES } from '../admin/permissions';
 import { LEARNING_WINDOW, learnWeights, overallScoreWith, type Decision } from './learned-weights';
 import { profileCompletion } from './completion';
 import { DAILY_LIKES, DAILY_SUPER_LIKES, likeLimitMessage, superLimitMessage } from './limits';
@@ -203,7 +204,28 @@ export class DatingService implements OnModuleInit {
       if (w.users < 20 || d.ofPrevious == null || w.ofPrevious == null) continue; // too few to mean anything
       if (d.ofPrevious < w.ofPrevious / 2) alarms.push(`${d.name}: ${d.ofPrevious}% of previous, was ${w.ofPrevious}% over the week`);
     }
-    const line = day.steps.map((st) => `${st.name.replace('dating.', '')} ${st.users}`).join(' · ');
+    /**
+     * AND THE DIGEST LOOKS AT MORE THAN THE FUNNEL (27 Aug, launch audit).
+     *
+     * It alarmed only on funnel steps DROPPING BY HALF, skipped any step with
+     * fewer than twenty weekly users, and never looked at reports, held photos
+     * or appeals at all. So a ten-fold spike in reports was invisible by
+     * construction, and in launch week — every step under twenty users —
+     * nothing could alarm about anything.
+     *
+     * These three are counts of a BACKLOG rather than a rate, so they need no
+     * week to compare against and no minimum to be meaningful. One pending
+     * photo means review is running; a pile of them means it is not.
+     */
+    const queues = await this.adminQueueDepths();
+    if (queues.photosPending > 0) {
+      alarms.push(`${queues.photosPending} photo${queues.photosPending === 1 ? '' : 's'} waiting on review — if this only grows, photo review is not running`);
+    }
+    if (queues.reportsOpen > 0) {
+      alarms.push(`${queues.reportsOpen} report${queues.reportsOpen === 1 ? '' : 's'} open`);
+    }
+    const line = day.steps.map((st) => `${st.name.replace('dating.', '')} ${st.users}`).join(' · ')
+      + ` · queues: ${queues.reportsOpen} reports, ${queues.photosPending} photos pending, ${queues.photosHeld} held, ${queues.appealsOpen} appeals`;
     const grants = await this.prisma.adminGrant.findMany({ where: { revokedAt: null }, select: { userId: true }, distinct: ['userId'], take: 50 });
     for (const g of grants) {
       await this.notifications.create({
@@ -1678,7 +1700,69 @@ export class DatingService implements OnModuleInit {
       throw e;
     }
     this.analytics.track('dating.report', userId);
+    // Off the request path and swallowed: a report that reached the table has
+    // been taken, and a notification that could not be sent must not turn that
+    // into an error the reporter sees and retries.
+    void swallow(this.tellModerators(targetUserId), 'dating: report notification', { targetUserId });
     return { reported: true as const };
+  }
+
+  /** What is waiting for a human, right now. Read by the admin screen and by
+   *  the daily digest, so the two cannot disagree about the backlog. */
+  private async adminQueueDepths(): Promise<{ photosPending: number; photosHeld: number; appealsOpen: number; reportsOpen: number }> {
+    const [photosPending, photosHeld, appealsOpen, reportsOpen] = await Promise.all([
+      this.prisma.datingPhotoReview.count({ where: { status: 'pending' } }),
+      this.prisma.datingPhotoReview.count({ where: { status: 'held' } }),
+      this.prisma.appeal.count({ where: { status: 'open' } }),
+      this.prisma.report.count({ where: { targetType: 'user', status: 'open' } }),
+    ]);
+    return { photosPending, photosHeld, appealsOpen, reportsOpen };
+  }
+
+  /**
+   * WAKE SOMEBODY (27 Aug, launch audit).
+   *
+   * A report wrote a database row and fired an analytics event. No email, no
+   * push, no cron, no escalation — the queue was read only if a moderator
+   * happened to open Settings and click through. Meanwhile the published
+   * Grievance policy promises acknowledgement within twenty-four hours, and
+   * nothing anywhere measured that or told anyone the clock had started.
+   *
+   * WHO: holders of a live grant in a role that actually carries
+   * `moderation.act`, rather than every admin. A finance or support account
+   * being told about each dating report is noise, and noise is how a queue
+   * stops being read. The roles are derived from the permission rather than
+   * listed, so a role that gains the permission gains the notification.
+   *
+   * WHAT IT DOES NOT SAY: who reported, and what they said. The moderator
+   * opens the queue for that. A notification is a doorbell, and a doorbell that
+   * carries an allegation to fifty inboxes is a way of publishing one.
+   *
+   * IN-APP, like the funnel digest beside it, because that is the channel this
+   * application actually has. Email would be better for a queue nobody is
+   * watching and is a bigger change than this: it needs a template, a
+   * preference, and an unsubscribe.
+   */
+  private async tellModerators(targetUserId: string): Promise<void> {
+    const roles = Object.entries(ROLES)
+      .filter(([, perms]) => (perms as readonly string[]).includes('moderation.act'))
+      .map(([role]) => role);
+    const grants = await this.prisma.adminGrant.findMany({
+      where: { revokedAt: null, role: { in: roles } },
+      select: { userId: true }, distinct: ['userId'], take: 50,
+    });
+    // How many people have now reported this person. One report is a
+    // disagreement; five is a pattern, and the difference belongs in the line
+    // a moderator reads before deciding what to open first.
+    const total = await this.prisma.report.count({ where: { targetType: 'user', targetId: targetUserId } });
+    for (const g of grants) {
+      await swallow(this.notifications.create({
+        userId: g.userId, kind: 'system',
+        title: total > 1 ? `Dating: a member has been reported ${total} times` : 'Dating: a member has been reported',
+        body: 'Open the moderation queue to read the report and decide.',
+        href: '/moderation',
+      }), 'dating: report notification row', { moderator: g.userId });
+    }
   }
 
   private async connectionExclusions(userId: string): Promise<Set<string>> {
@@ -2173,8 +2257,31 @@ export class DatingService implements OnModuleInit {
       label: `${lo}–${hi === 101 ? 100 : hi}`, count: scores.filter((r) => r.overall >= lo && r.overall < hi).length,
     }));
     const held = await this.prisma.datingPhotoReview.count({ where: { status: 'held' } });
+    /**
+     * THE NUMBER NOTHING COMPUTED (27 Aug, launch audit).
+     *
+     * `pending` is precisely the state a Rekognition misconfiguration or
+     * outage produces — an unconfigured client, a thrown call and an
+     * unreadable object all return it — and a pending photo is invisible to
+     * everyone but its owner. So "photo review has been dead since the deploy"
+     * looked, from every screen in this application, exactly like "nobody has
+     * uploaded a photo lately".
+     *
+     * Beware the near-miss this sits beside: `adminStats.pendingReview` counts
+     * DatingProfile.moderation, which is the profile TEXT pipeline on a
+     * different table. An operator reading that tile would reasonably conclude
+     * photos were covered. They were not.
+     */
+    const pendingPhotos = await this.prisma.datingPhotoReview.count({ where: { status: 'pending' } });
     const appeals = await this.prisma.appeal.count({ where: { status: 'open' } });
-    return { ...funnel, distribution, scoredPairs: scores.length, photosHeld: held, appealsOpen: appeals };
+    // The open-report BACKLOG, not the event count over the window that sits
+    // next to it on the same screen. A spike in reports is the thing this hub
+    // most needs somebody to see, and it had no number at all.
+    const reportsOpen = await this.prisma.report.count({ where: { targetType: 'user', status: 'open' } });
+    return {
+      ...funnel, distribution, scoredPairs: scores.length,
+      photosHeld: held, photosPending: pendingPhotos, appealsOpen: appeals, reportsOpen,
+    };
   }
 
   async adminStats(userId?: string) {

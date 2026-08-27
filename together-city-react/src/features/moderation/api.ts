@@ -13,7 +13,7 @@ export type ReportSubject =
   | { kind: 'post'; gone: true }
   | { kind: 'post'; gone: false; text: string | null; createdAt: string; moderation: string; author: PostAuthor }
   | { kind: 'user'; gone: true }
-  | { kind: 'user'; gone: false; user: PostAuthor }
+  | { kind: 'user'; gone: false; user: PostAuthor; dating: DatingSubject | null }
   | { kind: 'comment'; gone: true }
   | { kind: 'comment'; gone: false; comment: { id: string; text: string; createdAt: string; author: PostAuthor } };
 
@@ -53,6 +53,16 @@ export const moderationApi = {
   decideAppeal: (id: string, dto: { decision: 'upheld' | 'overturned'; reason: string }) =>
     api.post<{ id: string; status: string }>(`/dating/admin/appeals/${encodeURIComponent(id)}/decide`, dto).then((r) => r.data),
 };
+
+/** The reported citizen's dating profile, as a moderator is shown it: only
+ *  what another citizen could already see, and a photo COUNT rather than the
+ *  photographs — those are reviewed in the held-photo queue, which is the
+ *  screen that has a reason to show them. */
+export interface DatingSubject {
+  bio: string | null; shownName: string | null; city: string | null;
+  photos: number; age: number | null;
+  moderation: string | null; visible: boolean | null; updatedAt: string | null;
+}
 
 export interface HeldPhoto { key: string; userId: string; status: string; labels: string; reason: string; createdAt: string; url: string | null }
 export interface Appeal { id: string; userId: string; kind: 'dating_profile' | 'dating_photo'; targetId: string; text: string; status: string; createdAt: string }
