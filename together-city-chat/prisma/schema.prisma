@@ -1181,6 +1181,10 @@ model DatingMatch {
   userTwo User @relation("DatingUserTwo", fields: [userTwoId], references: [id], onDelete: Cascade)
 
   @@unique([userOneId, userTwoId, kind])
+  // The message gate looks a match up BY CONVERSATION on every dating send
+  // (see connection-permission.service.ts). Without this that is a scan of the
+  // whole match table, on the hot path, forever.
+  @@index([conversationId])
   @@index([userOneId, status])
   @@index([userTwoId, status])
   @@index([userOneId, likedAtOne])

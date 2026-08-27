@@ -86,8 +86,48 @@ export class ConnectionPermissionService {
       // and left the chat you already had with them wide open: the one line
       // where they were still certain to be able to reach you.
       await this.blocking.assertNotBlocked(userId, other);
-      if ((convo as { anonymousTrust?: number | null }).anonymousTrust != null) return;
+      if ((convo as { anonymousTrust?: number | null }).anonymousTrust != null) {
+        await this.assertMatchStillStands(userId, conversationId);
+        return;
+      }
       await this.assertCanCommunicate(userId, other);
+    }
+  }
+
+  /**
+   * UNMATCHING HAS TO ACTUALLY END CONTACT (27 Aug, launch audit).
+   *
+   * Unmatch archives the conversation for both members and flips the match to
+   * `passed`. This gate read membership and blocks and NEVER read match status
+   * — and archiving is a per-member flag the member can reverse themselves, in
+   * one tap, from their own archive. So an unmatched person could unarchive the
+   * thread and carry on messaging. Only Block actually stopped anybody, while
+   * the interface offered Unmatch as the gentler option and meant it.
+   *
+   * A DATING conversation with a match row must have a LIVE match behind it.
+   *
+   * NOT EVERY ANONYMOUS CONVERSATION HAS ONE, and that is why this looks up the
+   * match rather than demanding it. Accepting an activity invitation opens a
+   * direct conversation between two people who never matched — there is no
+   * DatingMatch row, there is nothing to unmatch, and requiring one here would
+   * have silently killed every activity chat in the city. Absent means "not a
+   * match conversation": the block check above already ran, and it stands.
+   *
+   * Fail-CLOSED where a match does exist. If the row says anything other than
+   * `matched`, the line is shut. This is a contact gate rather than an
+   * availability gate: the cost of wrongly refusing a message is an error the
+   * sender sees and retries, and the cost of wrongly allowing one is a person
+   * who thought they had ended something being messaged anyway.
+   */
+  private async assertMatchStillStands(userId: string, conversationId: string): Promise<void> {
+    const match = await (this.prisma as unknown as {
+      datingMatch?: { findFirst(a: unknown): Promise<{ status: string } | null> };
+    }).datingMatch?.findFirst({ where: { conversationId }, select: { status: true } });
+    // No row: an activity chat, or a conversation older than the match table.
+    // Nothing to enforce, and inventing a refusal here would break both.
+    if (!match) return;
+    if (match.status !== 'matched') {
+      throw new ForbiddenException('This conversation has ended.');
     }
   }
 }

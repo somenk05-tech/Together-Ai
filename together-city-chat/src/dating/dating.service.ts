@@ -2451,6 +2451,22 @@ export class DatingService implements OnModuleInit {
   private poolWhere(userId: string, mine: { gender: string; seeking: string }, myD: DXProfile) {
     return {
       userId: { not: userId }, visible: true, moderation: 'approved',
+      /**
+       * AND THEY MUST STILL BE HERE (27 Aug, launch audit).
+       *
+       * Account deletion is a tombstone first and a purge thirty days later.
+       * This module contained NO reference to `deletedAt` at all, and this
+       * query asks only about `visible` and `moderation` — neither of which
+       * deletion touches. So a citizen who deleted their account stayed
+       * browsable for a month, with their bio, their city and their
+       * photographs, which for somebody who left because they felt unsafe is
+       * the worst possible month.
+       *
+       * One clause, on the relation rather than on the profile, because the
+       * tombstone lives on User and copying it onto DatingProfile would be a
+       * second thing to keep in step.
+       */
+      user: { is: { deletedAt: null } },
       ...(Array.isArray(myD.seekingList) && myD.seekingList.length
         ? { gender: { in: myD.seekingList } }
         : mine.seeking === 'any' ? {} : { gender: mine.seeking }),
