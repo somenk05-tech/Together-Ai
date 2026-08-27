@@ -32,6 +32,8 @@ export interface SharedFields {
   sexAtBirth?: string | null;
   genderIdentity?: string | null;
   genderIdentityOther?: string | null;
+  orientation?: string | null;
+  orientationOther?: string | null;
   dateOfBirth?: Date | null;
   timeOfBirth?: string | null;
   birthCountry?: string | null;
@@ -81,6 +83,11 @@ export interface SharedFields {
 
 const SHARED_KEYS: Array<keyof SharedFields> = [
   'gender', 'sexAtBirth', 'genderIdentity', 'genderIdentityOther',
+  // Consolidated like any other shared field so a citizen's own profile page
+  // can read it back. It has no hub SOURCE and no propagation target — nothing
+  // else in the city asks this question, and propagationPlan must never learn
+  // to answer it.
+  'orientation', 'orientationOther',
   'dateOfBirth', 'timeOfBirth', 'birthCountry', 'birthState', 'birthCity',
   'country', 'state', 'city', 'timeZone', 'languages', 'heightCm', 'weightKg', 'occupation', 'phone', 'address',
   'foodAllergens', 'activityLevel', 'dietaryPreference', 'bloodGroup', 'relationshipStatus',

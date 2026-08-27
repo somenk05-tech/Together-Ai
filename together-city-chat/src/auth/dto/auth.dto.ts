@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { MIN_DATING_AGE, UNDER_AGE_MESSAGE, isAdult } from '../../shared/age';
-import { GENDER_IDENTITY } from '../../profile/sex-and-gender';
+import { GENDER_IDENTITY, ORIENTATION } from '../../profile/sex-and-gender';
 
 /**
  * ── 18+ IS THE RULE FOR THE WHOLE CITY (owner, 27 Aug) ──────────────────────
@@ -54,6 +54,26 @@ export const RegisterSchema = z.object({
   gender: z.enum(GENDER_IDENTITY),
   /** Free text, only meaningful when gender is 'other'. Optional either way. */
   genderOther: z.string().trim().max(40).optional(),
+  /**
+   * ── SEXUAL ORIENTATION, REQUIRED AT THE DOOR (owner, 27 Aug) ──────────────
+   *
+   * The owner's decision, taken with the objection in front of them and
+   * recorded in the commit: this is SPECIAL-CATEGORY DATA under GDPR Article 9,
+   * and asking it here means holding it about every citizen — including
+   * everyone who only ever opens Jobs, Nutrition or Cars.
+   *
+   * What the code does about that, since the collection is settled:
+   *   · It never appears in a cross-citizen response. See
+   *     `nothing-about-who-you-love.spec.ts`.
+   *   · It drives nothing. The dating engine reads `gender` and `seeking`,
+   *     which are stated separately in the hub and mean something precise.
+   *   · `preferNotToSay` is one of the answers. Required means a citizen must
+   *     answer; it does not mean they must disclose. sex-and-gender.ts already
+   *     made this argument for `SEX_AT_BIRTH` and it holds harder here.
+   */
+  orientation: z.enum(ORIENTATION),
+  /** Free text, only meaningful when orientation is 'other'. */
+  orientationOther: z.string().trim().max(40).optional(),
 }).refine((v) => isAdult(v.dateOfBirth), {
   message: `You must be ${MIN_DATING_AGE} or older to join Together City.`,
   path: ['dateOfBirth'],

@@ -128,6 +128,11 @@ export class AuthService {
       dateOfBirth: new Date(`${dto.dateOfBirth}T00:00:00.000Z`),
       genderIdentity: dto.gender,
       genderIdentityOther: dto.gender === 'other' ? (dto.genderOther?.trim() || null) : null,
+      // Special-category data, on the same row and the same write. It is
+      // stored and nothing reads it but the citizen's own profile — see the
+      // DTO for why that sentence is the whole design.
+      orientation: dto.orientation,
+      orientationOther: dto.orientation === 'other' ? (dto.orientationOther?.trim() || null) : null,
     };
     await swallow(mp?.upsert?.({
       where: { userId: user.id },

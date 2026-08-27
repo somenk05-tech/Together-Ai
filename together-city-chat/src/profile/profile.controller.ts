@@ -79,6 +79,10 @@ export class ProfileController {
     sexAtBirth: z.enum(['male', 'female', 'intersex', 'preferNotToSay']).nullable().optional(),
     genderIdentity: z.enum(['male', 'female', 'nonBinary', 'other']).nullable().optional(),
     genderIdentityOther: z.string().trim().max(40).nullable().optional(),
+    // Editable by its owner, like every other field on this page. Asked once at
+    // the door is not the same as fixed forever.
+    orientation: z.enum(['straight', 'gay', 'lesbian', 'bisexual', 'pansexual', 'asexual', 'queer', 'other', 'preferNotToSay']).nullable().optional(),
+    orientationOther: z.string().trim().max(40).nullable().optional(),
     /** The version the client believes it is editing. Optional — the hub
      *  services write shared fields without ever having read the profile, and
      *  refusing them would break saving from Nutrition, Fitness and the rest. */

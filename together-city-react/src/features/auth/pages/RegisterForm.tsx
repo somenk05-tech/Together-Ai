@@ -76,6 +76,21 @@ const GENDERS = [
   { value: 'other', label: 'Other' },
 ] as const;
 type Gender = (typeof GENDERS)[number]['value'];
+/** Required at the door by the owner's decision, 27 Aug. `preferNotToSay` is
+ *  one of the answers, not an omission: required means somebody must answer,
+ *  not that they must disclose. The server holds the whole argument. */
+const ORIENTATIONS = [
+  { value: 'straight', label: 'Straight' },
+  { value: 'gay', label: 'Gay' },
+  { value: 'lesbian', label: 'Lesbian' },
+  { value: 'bisexual', label: 'Bisexual' },
+  { value: 'pansexual', label: 'Pansexual' },
+  { value: 'asexual', label: 'Asexual' },
+  { value: 'queer', label: 'Queer' },
+  { value: 'other', label: 'Other' },
+  { value: 'preferNotToSay', label: 'Prefer not to say' },
+] as const;
+type Orientation = (typeof ORIENTATIONS)[number]['value'];
 
 /** Redesigned "Join the City" sign-up — low-friction, live-validated. */
 export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => void; from: string }) {
@@ -90,6 +105,8 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
   const [dob, setDob] = useState('');
   const [gender, setGender] = useState<Gender | ''>('');
   const [genderOther, setGenderOther] = useState('');
+  const [orientation, setOrientation] = useState<Orientation | ''>('');
+  const [orientationOther, setOrientationOther] = useState('');
   const [agreed, setAgreed] = useState(false);
   const [showPhone, setShowPhone] = useState(false);
   const [showPw, setShowPw] = useState(false);
@@ -132,7 +149,7 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
   const pwStrong = pwScore === PW_RULES.length;
 
   const acceptTos = usePrivacyStore((s) => s.acceptTos);
-  const canSubmit = hStatus === 'ok' && name.trim() && emailOk(email) && pwStrong && adult && gender !== '' && agreed && !busy;
+  const canSubmit = hStatus === 'ok' && name.trim() && emailOk(email) && pwStrong && adult && gender !== '' && orientation !== '' && agreed && !busy;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -142,7 +159,7 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
     if (!canSubmit) { setError('Please complete the highlighted fields.'); return; }
     setBusy(true);
     try {
-      await register(handle.trim().toLowerCase(), name.trim(), password, { email: email.trim().toLowerCase(), phone: showPhone ? phone.trim() : undefined, dateOfBirth: dob, gender, genderOther: gender === 'other' ? genderOther.trim() : undefined });
+      await register(handle.trim().toLowerCase(), name.trim(), password, { email: email.trim().toLowerCase(), phone: showPhone ? phone.trim() : undefined, dateOfBirth: dob, gender, genderOther: gender === 'other' ? genderOther.trim() : undefined, orientation, orientationOther: orientation === 'other' ? orientationOther.trim() : undefined });
       acceptTos(); pushTos(); // record consent to ToS + Privacy at account creation
       setDone(true);   // auto-logged-in on success
     } catch (err) {
@@ -257,6 +274,27 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
         <p id="gender-note" className="muted" style={dobNote}>
           Asked once so the rest of the city doesn't have to. You can change it any
           time on your profile.
+        </p>
+
+        {/* Required, and "Prefer not to say" is one of the answers — a required
+            question is not the same as a forced disclosure. The note says
+            plainly what happens to it, because this is the most sensitive
+            thing the form asks and a vague promise here is worse than none. */}
+        <label htmlFor="reg-orientation" style={dobLabel}>Sexual orientation</label>
+        <select required id="reg-orientation" value={orientation}
+          aria-describedby="orientation-note" onChange={(e) => setOrientation(e.target.value as Orientation | '')}
+          style={genderField}>
+          <option value="" disabled>Select</option>
+          {ORIENTATIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+        {orientation === 'other' && (
+          <input id="reg-orientation-other" value={orientationOther} maxLength={40}
+            placeholder="How you'd like to describe it (optional)" aria-label="How you'd like to describe it"
+            onChange={(e) => setOrientationOther(e.target.value)} style={genderOtherField} />
+        )}
+        <p id="orientation-note" className="muted" style={dobNote}>
+          Kept on your profile and shown to nobody. It is not used for matching, and
+          you can change it any time. Prefer not to say is an answer.
         </p>
 
         {/* Password */}

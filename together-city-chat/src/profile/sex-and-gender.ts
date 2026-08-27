@@ -37,6 +37,56 @@ export type SexAtBirth = (typeof SEX_AT_BIRTH)[number];
 export const GENDER_IDENTITY = ['male', 'female', 'nonBinary', 'other'] as const;
 export type GenderIdentity = (typeof GENDER_IDENTITY)[number];
 
+/**
+ * ── SEXUAL ORIENTATION (owner, 27 Aug) ──────────────────────────────────────
+ *
+ * A THIRD QUESTION, and it is not a variant of the other two. `sexAtBirth`
+ * feeds formulas, `genderIdentity` is how the app addresses somebody, and this
+ * is neither: it is who they are drawn to. Keeping it in its own type is the
+ * same discipline that split the first two — a single string would let one be
+ * passed where another belongs.
+ *
+ * IT IS SPECIAL-CATEGORY DATA. GDPR Article 9 and its equivalents put it in a
+ * different legal class from the other two, and the owner has chosen to ask it
+ * at registration from every citizen, including everyone who only ever opens
+ * Jobs or Nutrition. That decision is recorded in the commit that added this;
+ * what is recorded HERE is what follows from it in code:
+ *
+ *   · IT NEVER LEAVES THE CITIZEN'S OWN RESPONSES. No card, no candidate
+ *     shape, no activity party, no chat header. `nothing-about-who-you-love.
+ *     spec.ts` fails if it appears in a cross-citizen path.
+ *   · IT DRIVES NOTHING. The dating engine matches on `gender` and `seeking`,
+ *     which are stated separately and mean something precise. Inferring
+ *     `seeking` from this would be guessing at somebody's preferences from a
+ *     label — bisexual does not mean "show me everyone", and asexual does not
+ *     mean "show me nobody".
+ *
+ * `preferNotToSay` is in the list on purpose, and the reason is the one
+ * `SEX_AT_BIRTH` already gives: offering an answer and quietly picking one for
+ * somebody is worse than not asking. The field is required — a citizen must
+ * answer — and declining is one of the answers.
+ */
+export const ORIENTATION = [
+  'straight', 'gay', 'lesbian', 'bisexual', 'pansexual', 'asexual', 'queer',
+  'other', 'preferNotToSay',
+] as const;
+export type Orientation = (typeof ORIENTATION)[number];
+
+export const isOrientation = (v: unknown): v is Orientation =>
+  typeof v === 'string' && (ORIENTATION as readonly string[]).includes(v);
+
+/** How the profile page writes it. `other` carries free text; the rest stand alone. */
+export function displayOrientation(p: { orientation?: string | null; orientationOther?: string | null } | null): string | null {
+  if (!p?.orientation) return null;
+  if (p.orientation === 'other') return p.orientationOther?.trim() || 'Other';
+  if (p.orientation === 'preferNotToSay') return null;
+  const labels: Record<string, string> = {
+    straight: 'Straight', gay: 'Gay', lesbian: 'Lesbian', bisexual: 'Bisexual',
+    pansexual: 'Pansexual', asexual: 'Asexual', queer: 'Queer',
+  };
+  return labels[p.orientation] ?? null;
+}
+
 export const isSexAtBirth = (v: unknown): v is SexAtBirth =>
   typeof v === 'string' && (SEX_AT_BIRTH as readonly string[]).includes(v);
 

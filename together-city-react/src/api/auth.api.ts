@@ -14,6 +14,10 @@ export const RegisterInput = z.object({
   gender: z.enum(['male', 'female', 'nonBinary', 'other']),
   /** Only meaningful alongside 'other'. Optional either way. */
   genderOther: z.string().optional(),
+  /** Required. Special-category data — see the server DTO for the whole
+   *  argument. It is stored, it is editable, and nothing else reads it. */
+  orientation: z.enum(['straight', 'gay', 'lesbian', 'bisexual', 'pansexual', 'asexual', 'queer', 'other', 'preferNotToSay']),
+  orientationOther: z.string().optional(),
   /** Cloudflare Turnstile, when the site key is set. Absent otherwise. */
   turnstileToken: z.string().optional(),
 });

@@ -36,6 +36,8 @@ describe('gender is asked once, at the door', () => {
   const base = {
     handle: 'someone', name: 'Someone', password: 'Str0ng!Passw0rd!',
     email: 'someone@example.com', dateOfBirth: '1995-06-15',
+    // Required since 27 Aug; this file is about gender, so it declines here.
+    orientation: 'preferNotToSay' as const,
   };
 
   it('refuses a registration with no gender at all', () => {

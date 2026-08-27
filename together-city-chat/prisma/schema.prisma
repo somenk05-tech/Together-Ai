@@ -2614,6 +2614,15 @@ model MasterProfile {
   genderIdentity      String?
   /// Free text, used when genderIdentity is "other".
   genderIdentityOther String?
+  /// SPECIAL-CATEGORY DATA (GDPR Art. 9). Asked at registration by the owner's
+  /// decision, 27 Aug. Never returned in any cross-citizen response — no card,
+  /// no candidate shape, no chat header — and it drives no matching: the engine
+  /// reads DatingProfile.gender and .seeking, which are stated separately.
+  /// straight | gay | lesbian | bisexual | pansexual | asexual | queer | other
+  /// | preferNotToSay
+  orientation      String?
+  /// Free text, used when orientation is "other".
+  orientationOther String?
   /// Bumped on every write. A client may send its expected version and be told
   /// the profile moved under it, instead of silently overwriting.
   version      Int       @default(0)

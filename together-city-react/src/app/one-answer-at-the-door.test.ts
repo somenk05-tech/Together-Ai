@@ -51,3 +51,35 @@ describe('the sign-up form asks gender once', () => {
     expect(form).not.toMatch(/sexAtBirth|Sex at birth/);
   });
 });
+
+describe('and orientation, which is asked and then kept quiet', () => {
+  const form = code('features/auth/pages/RegisterForm.tsx');
+  const api = code('api/auth.api.ts');
+
+  it('asks, and will not submit until it is answered', () => {
+    expect(form).toMatch(/id="reg-orientation"/);
+    expect(form).toMatch(/canSubmit\s*=[^;]*orientation !== ''/);
+  });
+
+  it('offers declining as an answer, not as an omission', () => {
+    // Required means somebody must answer. It does not mean they must
+    // disclose. Removing this option turns the field into a forced
+    // disclosure of special-category data.
+    expect(form).toMatch(/value: 'preferNotToSay', label: 'Prefer not to say'/);
+    expect(api).toMatch(/'preferNotToSay'/);
+  });
+
+  it('says plainly what happens to it', () => {
+    // The most sensitive thing this form asks. A vague promise here would be
+    // worse than none, and the copy has to match what the server actually does.
+    expect(form).toMatch(/shown to nobody/);
+    expect(form).toMatch(/not used for matching/);
+    expect(form).toMatch(/change it any time/);
+  });
+
+  it('validates the same nine values on the way out', () => {
+    for (const v of ['straight', 'gay', 'lesbian', 'bisexual', 'pansexual', 'asexual', 'queer', 'other', 'preferNotToSay']) {
+      expect(api).toContain(`'${v}'`);
+    }
+  });
+});
