@@ -53,6 +53,7 @@ function harness() {
 
   const messages: any = {
     conversationIdsFor: () => Promise.resolve(['c1', 'c2']),
+    membersOf: () => Promise.resolve(new Map()),
     deliverBacklog: (uid: string) => { delivered.push(uid); return Promise.resolve(2); },
     pendingForUser: () => Promise.resolve([]),
   };
@@ -62,7 +63,7 @@ function harness() {
     { markOnline: () => Promise.resolve(true), markOffline: () => Promise.resolve(true) } as any,
     messages,
     { notifyNewMessage: () => Promise.resolve(), markConversationRead: () => Promise.resolve() } as any,
-    { assertCanPostToConversation: () => Promise.resolve() } as any,
+    { assertCanPostToConversation: () => Promise.resolve(), blockedWith: () => Promise.resolve(new Set<string>()) } as any,
     {} as any,
     { setOpenConversation: () => Promise.resolve() } as any,
     { subscribe: () => undefined, publish: () => undefined } as any,

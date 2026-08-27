@@ -343,6 +343,11 @@ export class MessagesService {
 
     if (dto.scope === 'EVERYONE') {
       if (msg.senderId !== userId) throw new ForbiddenException('Not your message');
+      // Through the same gate as sending, editing, reacting and pinning: this
+      // reaches into the other person's window and changes what is on it, which
+      // is a thing a blocked person may not do. It was the one write in this
+      // file that only checked authorship and the clock.
+      await this.permission.assertCanPostToConversation(userId, msg.conversationId);
       const windowSec = this.config.get<number>('policy.deleteEveryoneWindowSec') ?? 900; // 15 min default
       if (Date.now() - msg.createdAt.getTime() > windowSec * 1000) {
         throw new ForbiddenException('Delete-for-everyone window has passed');
@@ -475,6 +480,20 @@ export class MessagesService {
       take,
     });
     return rows.map((r) => r.conversationId);
+  }
+
+  /** Who is in each of these conversations. One query, because the socket layer
+   *  asks about a whole room list at once. */
+  async membersOf(conversationIds: string[]): Promise<Map<string, string[]>> {
+    const out = new Map<string, string[]>();
+    if (!conversationIds.length) return out;
+    // unbounded: the members of a bounded list of conversations
+    const rows = await this.prisma.conversationMember.findMany({
+      where: { conversationId: { in: conversationIds } },
+      select: { conversationId: true, userId: true },
+    });
+    for (const r of rows) out.set(r.conversationId, [...(out.get(r.conversationId) ?? []), r.userId]);
+    return out;
   }
 
   /**

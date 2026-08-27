@@ -22,8 +22,12 @@ const SCHEMA = readFileSync(join(__dirname, '..', '..', 'prisma', 'schema.prisma
 // PAIR COLUMNS ARE LINKS TOO. userOneId/userTwoId and userA/userB tie a row to
 // a citizen just as userId does; leaving them out let three dating tables pass
 // this guard green while surviving every account deletion. Found 26 Aug.
+// `reporterId` joined them on 27 Aug. Report was the one model in the schema
+// carrying a citizen's id under a name this list did not know, so it was never
+// classified and the completeness check could not say so — a guard blind in
+// exactly one direction reads the same as a guard that passed.
 const LINK_COLUMNS = ['userId', 'ownerId', 'authorId', 'senderId', 'createdById', 'postedById',
-  'userOneId', 'userTwoId', 'userA', 'userB'];
+  'reporterId', 'userOneId', 'userTwoId', 'userA', 'userB'];
 
 /** Models whose rows belong to, or were written by, one citizen. */
 function citizenLinkedModels(): Array<{ model: string; columns: string[] }> {

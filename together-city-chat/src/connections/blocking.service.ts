@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { ChatEventBus } from '../shared/events/chat-events';
 import {
   BLOCKED_STATUS, blockDirection, blockedMessage, blockedWith,
   type BlockDirection, type BlockRow, type ConnectionBlockRow,
@@ -22,7 +23,9 @@ import {
  */
 @Injectable()
 export class BlockingService {
-  constructor(private readonly prisma: PrismaService) {}
+  /** The bus is optional so the many places that construct this service
+   *  directly keep working; a block with no bus is still a block. */
+  constructor(private readonly prisma: PrismaService, private readonly bus?: ChatEventBus) {}
 
   /**
    * Block someone. Idempotent, silent, and never notifies the blocked citizen —
@@ -46,6 +49,11 @@ export class BlockingService {
         ],
       },
     });
+    // AND EMPTY THE ROOMS THEY SHARE (launch audit, 27 Aug). Room membership is
+    // what carries typing, presence and read receipts, and it was only recomputed
+    // when a socket reconnected — so for the rest of a live session the person
+    // just blocked still watched the blocker type and come online.
+    this.bus?.publish({ kind: 'connection.blocked', userIds: [me, them] });
     return { blocked: true, userId: them };
   }
 

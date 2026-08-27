@@ -704,18 +704,42 @@ export class SocialService {
     return out;
   }
 
-  /** File a report against a user, post or comment (feeds a moderation queue). */
+  /**
+   * File a report against a user, post or comment (feeds a moderation queue).
+   *
+   * THE SAME UNIQUE INDEX THE DATING PATH LEARNED ABOUT (launch audit, 27 Aug).
+   * `(reporterId, targetType, targetId)` is not scoped to status, so a second
+   * report of the same thing by the same person throws P2002 — which, with no
+   * catch here, left the exception filter to turn it into a 500 and tell the
+   * citizen "Internal server error". Reporting the same account twice is not an
+   * error; the second one usually means the first was dismissed and the problem
+   * did not stop.
+   *
+   * So the row is REOPENED, exactly as `reportMatch` does it: a resolved report
+   * goes back to open with the new words and the moderator fields cleared, and
+   * a report that is still open is a genuine repeat tap and stays one.
+   */
   async report(userId: string, dto: { targetType: string; targetId: string; reason?: string }) {
     const type = dto.targetType;
     if (!['user', 'post', 'comment'].includes(type)) throw new ForbiddenException('invalid report target');
-    await this.prisma.report.create({
-      data: {
-        reporterId: userId,
-        targetType: type,
-        targetId: dto.targetId,
-        reason: this.clean(dto.reason) ?? null,
-      },
-    });
+    const reason = this.clean(dto.reason) ?? null;
+    try {
+      await this.prisma.report.create({
+        data: { reporterId: userId, targetType: type, targetId: dto.targetId, reason },
+      });
+    } catch (e) {
+      if ((e as { code?: string }).code !== 'P2002') throw e;
+      const existing = await this.prisma.report.findFirst({
+        where: { reporterId: userId, targetType: type, targetId: dto.targetId },
+        select: { id: true, status: true },
+      });
+      if (!existing || existing.status === 'open') return { reported: true, duplicate: true };
+      await this.prisma.report.update({
+        where: { id: existing.id },
+        data: { status: 'open', reviewedById: null, reviewedAt: null, decision: null, reason, createdAt: new Date() },
+      });
+      return { reported: true, reopened: true };
+    }
     return { reported: true };
   }
 

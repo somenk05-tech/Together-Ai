@@ -21,10 +21,12 @@ function serviceWith(matches: Array<Record<string, unknown>>) {
     user: { findMany: jest.fn(async () => [{ id: 'them', name: 'Rhea', profileImage: 'photo.jpg' }]) },
     compatibilityScore: { findMany: jest.fn(async () => []), findUnique: jest.fn(async () => null), findFirst: jest.fn(async () => null) },
   };
+  // Batched since 27 Aug: one call for the whole list rather than three queries
+  // per row, which is what the dashboard was paying four times a minute.
   const conversations = {
-    summaryFor: jest.fn(async () => ({
+    summariesFor: jest.fn(async (ids: string[]) => new Map(ids.map((id) => [id, {
       lastMessageAt: '2026-07-29T13:00:00.000Z', lastText: 'hi', lastSenderId: 'them', unread: 2,
-    })),
+    }]))),
   };
   const svc = new DatingService(
     prisma as never, {} as never, conversations as never, {} as never,
@@ -60,7 +62,7 @@ describe('dating chats include matches that have not been connected yet', () => 
   it('does not try to summarise a conversation that does not exist', async () => {
     const { svc, conversations } = serviceWith([match()]);
     await svc.datingChats('me');
-    expect(conversations.summaryFor).not.toHaveBeenCalled();
+    expect(conversations.summariesFor).toHaveBeenCalledWith([], 'me');
   });
 
   it('sorts a pending match by when the match happened', async () => {
@@ -78,7 +80,7 @@ describe('dating chats include matches that have not been connected yet', () => 
     expect(out[0].pending).toBe(false);
     expect(out[0].conversationId).toBe('conv-1');
     expect(out[0].unread).toBe(2);
-    expect(conversations.summaryFor).toHaveBeenCalledWith('conv-1', 'me');
+    expect(conversations.summariesFor).toHaveBeenCalledWith(['conv-1'], 'me');
   });
 
   it('uses the profile name from the first moment — the same name the match card showed', async () => {

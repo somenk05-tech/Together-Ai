@@ -27,7 +27,10 @@ function serviceWith(blockedIds: string[]) {
     compatibilityScore: { findMany: jest.fn(async () => []) },
   };
   const blocking = { blockedWith: jest.fn(async () => new Set(blockedIds)) };
-  const conversations = { summaryFor: jest.fn(async () => ({ lastMessageAt: UPDATED.toISOString(), lastText: null, lastSenderId: null, unread: 0 })) };
+  const conversations = {
+    summariesFor: jest.fn(async (ids: string[]) => new Map(ids.map((id) => [id,
+      { lastMessageAt: UPDATED.toISOString(), lastText: null, lastSenderId: null, unread: 0 }]))),
+  };
   const svc = new DatingService(
     prisma as never, {} as never, conversations as never, {} as never,
     {} as never, {} as never, {} as never, blocking as never,

@@ -46,7 +46,7 @@ export interface PurgeRule {
   model: string;
   /** The column that ties a row to a citizen. */
   by: 'userId' | 'ownerId' | 'authorId' | 'senderId' | 'createdById' | 'memberUserId' | 'hostId' | 'postedById'
-    | 'listingId' | 'invitedUserId' | 'either';
+    | 'reporterId' | 'listingId' | 'invitedUserId' | 'either';
   /**
    * For `by: 'either'` — a PAIR table, where the citizen may sit in one of two
    * columns. Dating's tables are all of this shape (userOneId/userTwoId,
@@ -275,6 +275,14 @@ export const PURGE_RULES: PurgeRule[] = [
   // ── Things other people can see. Kept and attributed, per the retention
   //    decision recorded in docs/decisions.md.
   { model: 'ConversationMember', by: 'userId', action: 'keep', reason: 'Membership of conversations other people are still reading. Removing it would break those threads.' },
+  // Unclassified until the 27 Aug launch audit, and invisible to the spec beside
+  // this file because that guard looked for `userId`-shaped columns and this one
+  // is `reporterId` — the exact silent-miss this plan exists to prevent, one
+  // column name away. Classified rather than purged: a report is a record ABOUT
+  // SOMEBODY ELSE, and deleting your account should not delete the safety
+  // history of the person you reported. The reporter is already a tombstone by
+  // the time this runs, so the row names nobody.
+  { model: 'Report', by: 'reporterId', action: 'keep', reason: 'A moderation record about a THIRD party. Purging it would let anyone erase the evidence against someone by closing their own account.' },
   { model: 'Message', by: 'senderId', action: 'keep', reason: 'What they said to other people. A group thread full of holes is worse for the people left in it than one attributed to a deleted citizen.' },
   { model: 'MessageStatus', by: 'userId', action: 'keep', reason: 'Delivery and read receipts belonging to messages that stay.' },
   { model: 'Comment', by: 'authorId', action: 'keep', reason: 'Replies on other people\'s posts, which those conversations still read as.' },

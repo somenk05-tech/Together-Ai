@@ -144,6 +144,13 @@ export class ConnectionPermissionService {
    * sender sees and retries, and the cost of wrongly allowing one is a person
    * who thought they had ended something being messaged anyway.
    */
+  /** Everyone this citizen has blocked, or who has blocked them — the same read
+   *  the gate makes, exposed so the socket layer can ask it about rooms rather
+   *  than growing a second idea of who is blocked. */
+  async blockedWith(userId: string): Promise<Set<string>> {
+    return this.blocking.blockedWith(userId);
+  }
+
   private async assertMatchStillStands(userId: string, conversationId: string): Promise<void> {
     const match = await (this.prisma as unknown as {
       datingMatch?: { findFirst(a: unknown): Promise<{ status: string } | null> };

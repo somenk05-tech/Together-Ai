@@ -143,6 +143,9 @@ export class DatingController {
     return this.dating.unmatch(user.sub, targetUserId, kind);
   }
 
+  // Metered like every other decision on a match: revealing writes a row and,
+  // the first time, sends a push. Untethered it was the global 120/min.
+  @Throttle(DECISION_LIMIT)
   @Post('matches/:targetUserId/reveal')
   reveal(
     @CurrentUser() user: JwtUser,
@@ -156,6 +159,7 @@ export class DatingController {
     return this.dating.reveal(user.sub, targetUserId, kind, show);
   }
 
+  @Throttle(LIST_LIMIT)
   @Get('chats')
   chats(@CurrentUser() user: JwtUser) {
     return this.dating.datingChats(user.sub);

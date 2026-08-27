@@ -18,6 +18,7 @@ exports[`chat gateway golden master a good token joins the personal room, flips 
 {
   "calls": [
     "rooms-for:["u1"]",
+    "blocked-with:["u1"]",
     "bus:{"kind":"presence.changed","userId":"u1","online":true}",
     "backlog-delivered:["u1"]",
   ],

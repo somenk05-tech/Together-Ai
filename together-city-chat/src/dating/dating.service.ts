@@ -1839,6 +1839,14 @@ export class DatingService implements OnModuleInit {
         },
       }), 'dating pass: record pass', { userId });
     }
+    // BOTH LISTS, NOW (launch audit, 27 Aug). Every other write in this file
+    // bumps the cache version; block was the one that did not, and the cache is
+    // 60 seconds. So the card and the signed photographs of somebody a citizen
+    // had just blocked could stay on their screen for the next minute — after
+    // the one control in the product that is used when a person is frightened.
+    // Both sides, because the block removes each from the other's lists.
+    await this.bumpListVersion(userId);
+    await this.bumpListVersion(targetUserId);
     return { blocked: true as const };
   }
 
@@ -2758,7 +2766,14 @@ export class DatingService implements OnModuleInit {
     // conversation" (the value the activity reveal step already used), so
     // screening, the match gate and the no-phone-number rule all keep holding.
     await this.conversations.setAnonymousTrust(state.conversationId, both ? 2 : 1);
-    if (show && !both) {
+    // ONLY WHEN IT CHANGED (launch audit, 27 Aug). The push sat outside any
+    // comparison with the flag's previous value, so re-POSTing { show: true }
+    // re-sent "Your match shared their name" every time — and this route
+    // carries no throttle of its own and costs no daily allowance, which made
+    // it a free notification channel pointed at somebody you had matched with.
+    // The same fix `like` took the same day.
+    const wasMine = Boolean(meIsOne ? state.revealByOne : state.revealByTwo);
+    if (show && !wasMine && !both) {
       void this.notifications.create({
         userId: targetUserId, actorId: userId, kind: 'dating_like',
         title: 'Your match shared their name 👀',
@@ -2784,11 +2799,19 @@ export class DatingService implements OnModuleInit {
       where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: 'matched' },
       orderBy: { updatedAt: 'desc' },
     });
+    // ONE QUERY FOR THE CITY THAT IS NOT DATING (launch audit, 27 Aug). The
+    // dashboard polls this endpoint for every signed-in citizen, four times a
+    // minute, whether or not they have ever opened the hub — and the six reads
+    // below ran regardless, each one an `IN ()` over an empty list. Somebody
+    // with no matches has no chats, and that answer costs one query.
+    if (!allMatches.length) return [];
     // FOUR READS PER ROW, BATCHED TO FOUR READS. Profile, account, and the
     // pair score used to be fetched inside the loop — the datingChats N+1 the
     // launch audit's P2 list named. The other person's ids are known up
-    // front, so each table is asked once with an IN. `summaryFor` stays
-    // per-conversation: the chat cap means at most three rows have one.
+    // front, so each table is asked once with an IN. The summaries are batched
+    // the same way: `summaryFor` in a loop was three queries per row, on the
+    // reasoning that a chat cap held it to three rows — a cap that was removed
+    // on 27 Aug and took the argument with it.
     const other = (m: { userOneId: string; userTwoId: string }) => (m.userOneId === userId ? m.userTwoId : m.userOneId);
     // AND THEY MUST STILL BE HERE. Deletion never touches a match row, so
     // every match formed before somebody left was still listed here — with
@@ -2829,6 +2852,10 @@ export class DatingService implements OnModuleInit {
     const profileOf = new Map(profiles.map((p) => [p.userId, p]));
     const scoreOf = new Map(scoreRows.map((r) => [`${r.userA}:${r.userB}`, r.overall]));
 
+    const summaries = await this.conversations.summariesFor(
+      matches.map((m) => m.conversationId).filter((c): c is string => Boolean(c)), userId,
+    );
+
     const out = [];
     const photoJobs: Array<{ keys: readonly string[]; into: string[] }> = [];
     for (const m of matches) {
@@ -2841,9 +2868,8 @@ export class DatingService implements OnModuleInit {
 
       // No conversation yet → nothing to summarise. Sorted by when the match
       // happened so a fresh match still lands at the top of the list.
-      const summary = m.conversationId
-        ? await this.conversations.summaryFor(m.conversationId, userId)
-        : { lastMessageAt: m.updatedAt.toISOString(), lastText: null, lastSenderId: null, unread: 0 };
+      const summary = (m.conversationId ? summaries.get(m.conversationId) : undefined)
+        ?? { lastMessageAt: m.updatedAt.toISOString(), lastText: null, lastSenderId: null, unread: 0 };
       const otherProfile = profileOf.get(otherId) ?? null;
       const otherUser = userOf.get(otherId);
       const candD = this.parseDX((otherProfile as { extras?: string | null } | null)?.extras) as DXProfile & { firstName?: string; photos?: string[] };

@@ -42,7 +42,10 @@ function build() {
     markConversationRead: async (...a: unknown[]) => calls.push('bell-cleared:' + JSON.stringify(a)),
     notifyNewMessage: async (a: unknown) => calls.push('notify:' + JSON.stringify(a)),
   };
-  (g as any).permission = { assertCanPostToConversation: async (...a: unknown[]) => calls.push('gate:' + JSON.stringify(a)) };
+  (g as any).permission = {
+    assertCanPostToConversation: async (...a: unknown[]) => calls.push('gate:' + JSON.stringify(a)),
+    blockedWith: async (...a: unknown[]) => { calls.push('blocked-with:' + JSON.stringify(a)); return new Set<string>(); },
+  };
   (g as any).calls = { assertMaySignal: async (...a: unknown[]) => calls.push('may-signal:' + JSON.stringify(a)) };
   (g as any).redis = { setOpenConversation: async (...a: unknown[]) => calls.push('open:' + JSON.stringify(a)) };
   (g as any).bus = { publish: (e: unknown) => calls.push('bus:' + JSON.stringify(e)), subscribe: () => undefined };

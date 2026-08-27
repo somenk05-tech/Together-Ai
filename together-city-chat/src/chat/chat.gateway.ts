@@ -167,10 +167,41 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     if (transitioned) this.bus.publish({ kind: 'presence.changed', userId: client.userId, online: false });
   }
 
+  /**
+   * The rooms a citizen may be in — their conversations, minus the ones shared
+   * with somebody they blocked (launch audit, 27 Aug).
+   *
+   * Sending was gated and everything else was not, because everything else is
+   * gated by the ROOM: typing indicators, presence, read receipts and reaction
+   * frames all go to `room.conversation(id)` and ask nothing further. So after
+   * a block the two people could not write to each other and could still watch
+   * each other type, come online and read — while the block screen says it
+   * "hides you from each other everywhere".
+   *
+   * Filtering the room list is what makes that sentence true, because it is the
+   * one place all of those channels agree on.
+   */
+  private async roomsFor(userId: string): Promise<string[]> {
+    const ids = await this.messages.conversationIdsFor(userId);
+    if (!ids.length) return ids;
+    let blocked: Set<string>;
+    try {
+      blocked = await this.permission.blockedWith(userId);
+    } catch (e) {
+      // Loud. Failing open here puts a blocked pair back in a shared room, so
+      // the one thing this must not do is go quiet about it.
+      this.logger.error(`Could not read blocks for ${userId}: ${(e as Error).message}`);
+      return ids;
+    }
+    if (!blocked.size) return ids;
+    const members = await this.messages.membersOf(ids);
+    return ids.filter((id) => !(members.get(id) ?? []).some((u) => u !== userId && blocked.has(u)));
+  }
+
   /** Put a freshly-connected socket into every conversation room it belongs in. */
   private async joinOwnConversations(client: AuthedSocket): Promise<void> {
     try {
-      const ids = await this.messages.conversationIdsFor(client.userId);
+      const ids = await this.roomsFor(client.userId);
       if (ids.length) await client.join(ids.map((id) => room.conversation(id)));
     } catch (e) {
       // A socket that cannot join its rooms still gets `chat_notification` on
@@ -375,6 +406,25 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
             message: event.message,
           });
         break;
+      case 'connection.blocked': {
+        /* Both directions, immediately. Leaving the room is what actually stops
+           the transient signals — they are broadcast to `room.conversation(id)`
+           and ask nothing else — and the room list is only rebuilt on connect,
+           so without this the block waited for a reconnection nobody makes. */
+        const [a, b] = event.userIds;
+        try {
+          const ids = await this.messages.conversationIdsFor(a);
+          const members = await this.messages.membersOf(ids);
+          const shared = ids.filter((id) => (members.get(id) ?? []).includes(b));
+          for (const id of shared) {
+            await this.server.in(room.user(a)).socketsLeave(room.conversation(id));
+            await this.server.in(room.user(b)).socketsLeave(room.conversation(id));
+          }
+        } catch (e) {
+          this.logger.error(`Could not empty the rooms ${a} and ${b} share: ${(e as Error).message}`);
+        }
+        break;
+      }
       case 'presence.changed': {
         /* This told the subject they had come online and told nobody else.
            `room.user(event.userId)` is their OWN room — the one place the news
@@ -383,7 +433,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
            stays on the list so a second tab of theirs still agrees. */
         const rooms = [room.user(event.userId)];
         try {
-          for (const id of await this.messages.conversationIdsFor(event.userId)) {
+          for (const id of await this.roomsFor(event.userId)) {
             rooms.push(room.conversation(id));
           }
         } catch (e) {

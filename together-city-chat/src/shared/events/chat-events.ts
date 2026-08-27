@@ -27,6 +27,10 @@ export type ChatEvent =
      newly pinned one so a banner can render without a fetch. */
   | { kind: 'message.pinned'; conversationId: string; messageId: string | null; message: unknown }
   | { kind: 'presence.changed'; userId: string; online: boolean }
+  /** Somebody blocked somebody. The socket layer uses it to empty the rooms the
+   *  two of them share, so typing, presence and receipts stop at the block
+   *  rather than at their next reconnection. */
+  | { kind: 'connection.blocked'; userIds: [string, string] }
   // Calls. The gateway fans these to per-user rooms rather than the
   // conversation room: a call has to reach someone who is not looking at the
   // chat, which is the entire point of a phone ringing.

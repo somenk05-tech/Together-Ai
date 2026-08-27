@@ -44,7 +44,7 @@ export function Dashboard() {
   const completion = useProfileCompletion();
   const plan = useComposedPlan();
   const panel = useLatestPanel();
-  const datingChats = useDatingChats();
+  const datingChats = useDatingChats(60_000);
   const notifications = useUnreadNotificationCount();
   const unreadChats = useUnreadChatCount();
 

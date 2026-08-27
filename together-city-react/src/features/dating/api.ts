@@ -442,8 +442,11 @@ export function useUnmatch(kind: MatchKind) {
     },
   });
 }
-export function useDatingChats() {
-  return useQuery({ queryKey: ['dating', 'chats'], queryFn: () => datingApi.chats(), refetchInterval: 15_000 });
+/** Fifteen seconds is the rate a chat list open in front of somebody needs. The
+ *  dashboard, which only wants two counts and is where most citizens sit, asks
+ *  for a slower one — it was polling at the chat-window rate for the whole city. */
+export function useDatingChats(refetchInterval = 15_000) {
+  return useQuery({ queryKey: ['dating', 'chats'], queryFn: () => datingApi.chats(), refetchInterval });
 }
 export function useDatingStack(kind: MatchKind, enabled = true, limit?: number) {
   return useQuery({ queryKey: ['dating', 'stack', kind, limit ?? 'all'], queryFn: () => datingApi.stack(kind, limit), enabled, refetchInterval: 30_000 });

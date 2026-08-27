@@ -7,6 +7,8 @@ import { datingConversationIds } from '../shared/dating-conversations';
 import { nickname } from '../shared/nickname';
 import { CreateGroupDto } from './dto/conversations.dto';
 
+export interface Summary { lastMessageAt: string; lastText: string | null; lastSenderId: string | null; unread: number }
+
 @Injectable()
 export class ConversationsService {
   constructor(
@@ -301,9 +303,74 @@ export class ConversationsService {
     return conv.id;
   }
 
+  /**
+   * The same summary for MANY conversations, in three queries rather than three
+   * per conversation.
+   *
+   * `summaryFor` was called in a loop by the Dating Hub chat list, which the
+   * front end polls every fifteen seconds. The comment justifying that loop
+   * said "the chat cap means at most three rows have one" — the cap was
+   * removed on 27 Aug, and nothing went back to the loop it was the whole
+   * argument for.
+   *
+   * The unread count is the only part that resists a plain `groupBy`, because
+   * each conversation is unread SINCE ITS OWN `lastReadAt`. One `OR` of
+   * per-conversation conditions expresses exactly that in a single query.
+   */
+  async summariesFor(conversationIds: string[], userId: string): Promise<Map<string, Summary>> {
+    const out = new Map<string, Summary>();
+    if (!conversationIds.length) return out;
+    const ids = [...new Set(conversationIds)];
+
+    // unbounded: one row per conversation asked for, and the caller bounds those
+    const members = await this.prisma.conversationMember.findMany({
+      where: { conversationId: { in: ids }, userId }, select: { conversationId: true, lastReadAt: true },
+    }).catch(swallowed('conversations.summariesFor members', [] as Array<{ conversationId: string; lastReadAt: Date | null }>));
+    const readAt = new Map(members.map((m) => [m.conversationId, m.lastReadAt]));
+
+    // `distinct` after `orderBy` keeps the first row per conversation, which is
+    // the newest — the same row `findFirst` returned one at a time.
+    // unbounded: one row per conversation asked for
+    const lasts = await this.prisma.message.findMany({
+      where: { conversationId: { in: ids }, deleted: false },
+      orderBy: { createdAt: 'desc' },
+      distinct: ['conversationId'],
+      select: { conversationId: true, createdAt: true, text: true, senderId: true },
+    }).catch(swallowed('conversations.summariesFor last', [] as Array<{ conversationId: string; createdAt: Date; text: string | null; senderId: string | null }>));
+    const lastOf = new Map(lasts.map((l) => [l.conversationId, l]));
+
+    let counts: Array<{ conversationId: string; _count: { _all: number } }> = [];
+    try {
+      counts = await (this.prisma as unknown as { message: { groupBy(a: unknown): Promise<Array<{ conversationId: string; _count: { _all: number } }>> } })
+        .message.groupBy({
+          by: ['conversationId'],
+          where: {
+            deleted: false, senderId: { not: userId },
+            OR: ids.map((id) => {
+              const at = readAt.get(id);
+              return at ? { conversationId: id, createdAt: { gt: at } } : { conversationId: id };
+            }),
+          },
+          _count: { _all: true },
+        });
+    } catch { /* no count is zero unread, the same answer summaryFor gave on error */ }
+    const unreadOf = new Map(counts.map((c) => [c.conversationId, c._count._all]));
+
+    for (const id of ids) {
+      const last = lastOf.get(id);
+      out.set(id, {
+        lastMessageAt: (last?.createdAt ?? new Date(0)).toISOString(),
+        lastText: last?.text ?? null,
+        lastSenderId: last?.senderId ?? null,
+        unread: unreadOf.get(id) ?? 0,
+      });
+    }
+    return out;
+  }
+
   /** Last-message + unread summary for one conversation (used by the Dating Hub
    *  chat list, which surfaces dating conversations outside the main chat list). */
-  async summaryFor(conversationId: string, userId: string): Promise<{ lastMessageAt: string; lastText: string | null; lastSenderId: string | null; unread: number }> {
+  async summaryFor(conversationId: string, userId: string): Promise<Summary> {
     const member = await this.prisma.conversationMember.findUnique({
       where: { conversationId_userId: { conversationId, userId } },
     }).catch(swallowed('conversations.summaryFor', null));
