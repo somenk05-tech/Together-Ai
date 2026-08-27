@@ -1540,9 +1540,20 @@ export class DatingService implements OnModuleInit {
     const mine = await this.myApprovedProfile(userId);
     const cand = await this.prisma.datingProfile.findUnique({
       where: { userId: targetUserId },
-      include: { user: { select: { id: true, handle: true, name: true, profileImage: true, emailVerified: true } } },
+      include: { user: { select: { id: true, handle: true, name: true, profileImage: true, emailVerified: true, deletedAt: true } } },
     });
-    if (!cand || !cand.visible || (cand as { moderation?: string }).moderation !== 'approved') {
+    /**
+     * `deletedAt` HERE TOO, and this is the half the first fix missed.
+     *
+     * Taking the departed out of `poolWhere` closed every LIST — matches,
+     * discover, the stack, and the curated matched cards, which are built from
+     * the same candidates. It did nothing for this page, which is reached by a
+     * URL somebody already has: a bookmarked profile, a link in a chat, a
+     * notification from before they left. The guard was only proven where the
+     * data had reached.
+     */
+    if (!cand || !cand.visible || (cand as { moderation?: string }).moderation !== 'approved'
+      || (cand.user as { deletedAt?: Date | null }).deletedAt != null) {
       throw new NotFoundException('This profile is not available.');
     }
     // Privacy: a connection or blocked user's dating profile is never exposed.
@@ -1877,9 +1888,16 @@ export class DatingService implements OnModuleInit {
   private async assertWritable(userId: string, targetUserId: string): Promise<void> {
     if (userId === targetUserId) throw new BadRequestException('That is you.');
     const cand = await this.prisma.datingProfile.findUnique({
-      where: { userId: targetUserId }, select: { visible: true, moderation: true, extras: true },
+      where: { userId: targetUserId },
+      select: { visible: true, moderation: true, extras: true, user: { select: { deletedAt: true } } },
     });
     if (!cand || cand.moderation !== 'approved') throw new NotFoundException('This profile is not available.');
+    // Nobody writes to somebody who has gone: no new like, no connect, no
+    // reveal, no opening a chat. The pause exception below is about a citizen
+    // who chose to step back and can step forward again; this is not that.
+    if ((cand.user as { deletedAt?: Date | null } | null)?.deletedAt != null) {
+      throw new NotFoundException('This profile is not available.');
+    }
     if (!cand.visible) {
       // PAUSED IS NOT HIDDEN. The pause control promises "temporarily hidden
       // from matching — nothing is deleted", and until now both modes were

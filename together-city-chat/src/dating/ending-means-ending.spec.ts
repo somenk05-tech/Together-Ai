@@ -62,6 +62,27 @@ describe('when somebody ends it, it ends', () => {
     expect(sql).toMatch(/CREATE INDEX IF NOT EXISTS "DatingMatch_conversationId_idx"/);
   });
 
+  /**
+   * AND OUT OF EVERY PATH, NOT JUST THE LISTS.
+   *
+   * The first pass put the clause in `poolWhere`, which closed matches,
+   * discover, the stack and the curated cards — all built from those same
+   * candidates. It did NOT close the profile page, which is reached by a URL
+   * somebody already holds: a bookmark, a link in a chat, a notification from
+   * before they left. Nor `assertWritable`, so they could still be liked.
+   *
+   * The scar this repeats is written in CLAUDE.md: a guard is only proven
+   * where the data has reached.
+   */
+  it('closes the direct profile URL, and every write, to somebody who left', () => {
+    const detail = dating.slice(dating.indexOf('async matchDetail'), dating.indexOf('async matchDetail') + 2600);
+    expect(detail).toMatch(/deletedAt: true/);
+    expect(detail).toMatch(/\.deletedAt != null/);
+    const write = dating.slice(dating.indexOf('private async assertWritable'), dating.indexOf('private async assertWritable') + 1400);
+    expect(write).toMatch(/user: \{ select: \{ deletedAt: true \} \}/);
+    expect(write).toMatch(/\?\.deletedAt != null/);
+  });
+
   it('takes a deleted citizen out of everybody’s pool immediately', () => {
     // On the relation, not copied onto the profile: the tombstone lives on
     // User and a second copy is a second thing to keep in step.
