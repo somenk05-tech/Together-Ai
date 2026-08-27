@@ -4,7 +4,7 @@ import { AdminAccessService } from '../admin/admin-access.service';
 import { swallow } from '../shared/swallow';
 import { reportEnv } from './env-manifest';
 import { usingDefaultPassword } from './dev-password.guard';
-import { FLAGS, isFlagKey, UNFLAGGABLE_HUBS } from './feature-flags';
+import { FLAGS, isFlagKey, VISIBILITY_FLAGS, isVisibilityKey, visibilityFlag } from './feature-flags';
 import { FeatureFlagGuard } from './feature-flag.guard';
 
 /**
@@ -93,11 +93,20 @@ export class DevService {
       select: { key: true, note: true, updatedAt: true, updatedBy: true },
     }), 'dev flag detail');
     const meta = new Map((rows ?? []).map((r) => [r.key, r]));
+    const vis = new Map((await this.flagGuard.visibilitySnapshot()).map((v) => [v.key, v.visible]));
     return {
-      // Sent alongside the switches so the grid can draw a card for a hub that
-      // has NO switch and say why. A hub simply missing from the grid reads as
-      // "always on", which is the one thing it does not mean.
-      unflaggable: UNFLAGGABLE_HUBS,
+      // The OTHER kind of switch, sent alongside and never mixed in. These
+      // hide a door and refuse nothing; the page draws them in their own
+      // section saying exactly that.
+      visibility: VISIBILITY_FLAGS.map((f) => {
+        const m2 = meta.get(f.storeKey);
+        return {
+          key: f.key, label: f.label, hides: f.hides,
+          visible: vis.get(f.key) ?? true,
+          note: m2?.note ?? '',
+          updatedAt: m2?.updatedAt?.toISOString() ?? null,
+        };
+      }),
       items: FLAGS.map((f) => {
         const m = meta.get(f.key);
         return {
@@ -120,7 +129,26 @@ export class DevService {
    * reason, an audit row. A shared password can say who typed it to nobody, and
    * "Dating has been off since Tuesday" needs an answer.
    */
-  async setFlag(userId: string, key: string, enabled: boolean, reason: string, ip?: string | null) {
+  /**
+   * Flip a switch — either kind.
+   *
+   * The two live in one method because the CEREMONY is identical and must stay
+   * identical: `ops.flags`, a written reason, an audit row, an immediate cache
+   * invalidation. What differs is only the row it writes and the words the
+   * audit uses, so that "who hid Mira's door" and "who took Dating off the
+   * air" never read as the same event in the log.
+   */
+  async setFlag(userId: string, key: string, enabled: boolean, reason: string, ip?: string | null,
+                kind: 'kill' | 'visibility' = 'kill') {
+    // WHICH KIND IS ASKED FOR, NEVER INFERRED FROM THE KEY. A sector now has
+    // both — 'astrology' names a kill switch AND a visibility switch — so
+    // guessing from the name would have silently sent every sector's door
+    // switch to the gate writer, closing hubs somebody only meant to hide.
+    if (kind === 'visibility') {
+      const vis = visibilityFlag(key);
+      if (!vis) throw new BadRequestException('no such visibility switch');
+      return this.setVisibility(userId, vis.key, vis.storeKey, vis.label, enabled, reason, ip);
+    }
     if (!isFlagKey(key)) throw new BadRequestException('no such flag');
     const before = await swallow(this.prisma.featureFlag.findUnique({
       where: { key }, select: { enabled: true },
@@ -145,6 +173,43 @@ export class DevService {
       // whether it worked.
       this.flagGuard.invalidate();
       return { key, enabled };
+    });
+  }
+
+  /**
+   * The door-hider's own write. Same door in, different row, different verb.
+   *
+   * `visible: false` is stored as `enabled: false` on a `show:`-prefixed key.
+   * That row can never gate a request — `flagForPath` is built from FLAGS and
+   * FLAGS holds no key with this prefix — so the worst a mistake here can do is
+   * hide a link, which is the whole contract of this kind of switch.
+   */
+  private async setVisibility(
+    userId: string, key: string, storeKey: string, label: string,
+    visible: boolean, reason: string, ip?: string | null,
+  ) {
+    const before = await swallow(this.prisma.featureFlag.findUnique({
+      where: { key: storeKey }, select: { enabled: true },
+    }), 'dev visibility before', { key: storeKey });
+
+    return this.access.act({
+      actorId: userId, need: 'ops.flags',
+      // Named apart from flag.on/flag.off on purpose: an audit log where
+      // hiding a door and closing a hub read the same is a log that cannot
+      // answer the question anybody actually asks it afterwards.
+      action: visible ? 'visibility.shown' : 'visibility.hidden',
+      entity: 'visibility', entityId: key,
+      before: { visible: before?.enabled ?? true },
+      after: { visible },
+      reason, ip,
+    }, async () => {
+      await this.prisma.featureFlag.upsert({
+        where: { key: storeKey },
+        create: { key: storeKey, enabled: visible, note: reason.trim().slice(0, 500), updatedBy: userId },
+        update: { enabled: visible, note: reason.trim().slice(0, 500), updatedBy: userId },
+      });
+      this.flagGuard.invalidate();
+      return { key, enabled: visible, label };
     });
   }
 }

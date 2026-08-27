@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { swallow } from '../shared/swallow';
-import { FLAGS, flagForPath } from './feature-flags';
+import { FLAGS, VISIBILITY_FLAGS, flagForPath } from './feature-flags';
 
 /**
  * THE PART THAT MAKES A KILL SWITCH A KILL SWITCH.
@@ -101,5 +101,21 @@ export class FeatureFlagGuard implements CanActivate {
   async snapshot(): Promise<Array<{ key: string; enabled: boolean }>> {
     await this.refresh();
     return FLAGS.map((f) => ({ key: f.key, enabled: this.cache.get(f.key) ?? true }));
+  }
+
+  /**
+   * The same for the VISIBILITY switches, which this guard reads and never
+   * acts on.
+   *
+   * One cache, two readers, and the asymmetry is the point: `canActivate`
+   * above consults `flagForPath`, which is built from FLAGS alone, so a
+   * `show:` row can sit in this map forever without any request being refused
+   * because of it. That is what keeps a door-hider from quietly becoming a
+   * kill switch — not a comment, but the fact that nothing on the request path
+   * ever reads these keys.
+   */
+  async visibilitySnapshot(): Promise<Array<{ key: string; visible: boolean }>> {
+    await this.refresh();
+    return VISIBILITY_FLAGS.map((f) => ({ key: f.key, visible: this.cache.get(f.storeKey) ?? true }));
   }
 }

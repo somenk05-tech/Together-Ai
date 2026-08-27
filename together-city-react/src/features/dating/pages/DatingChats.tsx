@@ -10,6 +10,7 @@ import { useDatingChats, useMatchDetail, useUnmatch, type DatingChatSummary } fr
 import { CallButtons } from '@/features/calls/CallButtons';
 import { SafetyMenu } from '../components/SafetyMenu';
 import { MiraMark } from '@/features/chat/mira/MiraMark';
+import { useMiraShown } from '@/hooks/useCityDesign';
 import { MiraConfidant } from '@/features/chat/mira/MiraConfidant';
 import { Composer } from '@/features/chat/components/Composer';
 import { MessageBody } from '@/features/chat/components/MessageBody';
@@ -235,6 +236,7 @@ function Thread({ chat, meId, mePhoto, onBack }: { chat: OpenChat; meId: string;
      also the one where a stranger's words are least their own to keep — so
      the rule that she stores nothing matters more here, not less. */
   const [confide, setConfide] = useState(false);
+  const miraShown = useMiraShown();
   /* THE SAME ROOM AS THE CITY CHAT, not merely the same paint. This panel
      already borrowed the stage; on a phone it was still a card sitting in a
      page, under the city's header, above 'Your other chats', with the whole
@@ -364,11 +366,13 @@ function Thread({ chat, meId, mePhoto, onBack }: { chat: OpenChat; meId: string;
         {/* Her whole lockup, as in every other conversation in the city —
             hovering says what she is for. A press invites her into THIS
             thread and nothing else. */}
-        <button type="button" className="mira-door" aria-label="Ask Mira about this conversation"
-          title="Mira can analyse this chat for you" onClick={() => setConfide(true)}
-          style={{ flex: 'none' }}>
-          <MiraMark size={48} state="waiting" />
-        </button>
+        {miraShown && (
+          <button type="button" className="mira-door" aria-label="Ask Mira about this conversation"
+            title="Mira can analyse this chat for you" onClick={() => setConfide(true)}
+            style={{ flex: 'none' }}>
+            <MiraMark size={48} state="waiting" />
+          </button>
+        )}
         {/* A call here carries no more identity than the chat does: the avatar
             and name above are already whatever each person chose to show. */}
         <CallButtons conversationId={chat.conversationId} compact />

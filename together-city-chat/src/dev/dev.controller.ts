@@ -13,6 +13,10 @@ const FlagSchema = z.object({
   // Same rule as every other console action: long enough to be a sentence.
   // "Dating has been off since Tuesday" needs an answer, and the answer is here.
   reason: z.string().trim().min(8).max(500),
+  // Which switch is meant. Required in spirit, defaulted for the older client:
+  // a sector has a kill switch and a visibility switch under the same key, and
+  // the safer of the two to land on by accident is NOT the one that closes it.
+  kind: z.enum(['kill', 'visibility']).default('kill'),
 });
 type FlagDto = z.infer<typeof FlagSchema>;
 
@@ -47,6 +51,6 @@ export class DevController {
   @Post('flags')
   @UsePipes(new ZodValidationPipe(FlagSchema))
   setFlag(@CurrentUser() user: JwtUser, @Body() dto: FlagDto, @Req() req: { ip?: string }) {
-    return this.dev.setFlag(user.sub, dto.key, dto.enabled, dto.reason, req.ip ?? null);
+    return this.dev.setFlag(user.sub, dto.key, dto.enabled, dto.reason, req.ip ?? null, dto.kind);
   }
 }

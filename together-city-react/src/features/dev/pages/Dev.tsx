@@ -4,7 +4,7 @@ import { Button, Card, EmptyState, Spinner, Switch } from '@/components/ui';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { tabIcon } from '@/nav/registry';
 import type { TabKey } from '@/config/hubs';
-import { useDiagnostics, useFlags, useSetFlag, type EnvRow, type FlagRow, type UnflaggableHub } from '../api';
+import { useDiagnostics, useFlags, useSetFlag, type EnvRow, type FlagRow, type VisibilityRow } from '../api';
 import { routeIndex } from '../routeIndex';
 import { DevCitizens } from '../Citizens';
 
@@ -118,7 +118,6 @@ function EnvGroupBlock({ group, rows }: { group: string; rows: EnvRow[] }) {
    size ratchet counts every literal that appears. */
 const grid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 12, alignItems: 'start' };
 const cardTop: CSSProperties = { display: 'flex', alignItems: 'center', gap: 10 };
-const cardTopStart: CSSProperties = { ...cardTop, alignItems: 'flex-start' };
 const body: CSSProperties = { flex: 1, minWidth: 0 };
 const nameLine: CSSProperties = { display: 'block', fontWeight: 700, fontSize: 13.5, lineHeight: 1.25 };
 const subLine: CSSProperties = { display: 'block', fontSize: 11, marginTop: 2, lineHeight: 1.45 };
@@ -129,9 +128,14 @@ const reasonBox: CSSProperties = { width: '100%', boxSizing: 'border-box', minHe
 const lede: CSSProperties = { fontSize: 13, margin: '0 0 6px', maxWidth: '64ch', lineHeight: 1.6 };
 const aside: CSSProperties = { fontSize: 12.5, margin: '0 0 6px', maxWidth: '64ch', lineHeight: 1.6 };
 const asideLast: CSSProperties = { ...aside, margin: '0 0 14px' };
+const sectionH: CSSProperties = { fontSize: 13, margin: '0 0 8px', letterSpacing: '.06em', textTransform: 'uppercase' };
+const sectionH2: CSSProperties = { ...sectionH, margin: '34px 0 8px' };
+/* Two lines while idle, the whole sentence once armed. Both card kinds wear
+   it, and a second copy is a second thing to keep in step. */
+const clamp2 = (open: boolean): CSSProperties => ({ ...subLine,
+  display: open ? 'block' : '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' });
+const noteLine: CSSProperties = { fontSize: 11.5, margin: 0, lineHeight: 1.5, color: 'var(--ink-soft)' };
 const footLine: CSSProperties = { fontSize: 11.5, margin: '10px 0 0', lineHeight: 1.55 };
-const smallCaps: CSSProperties = { flex: 'none', fontSize: 10.5, fontWeight: 700, letterSpacing: '.07em',
-  textTransform: 'uppercase', color: 'var(--muted)', paddingTop: 3 };
 const iconWrap = (color: string): CSSProperties => ({ color, display: 'grid', placeItems: 'center' });
 const cardShell = (on: boolean, wide: boolean): CSSProperties => ({
   display: 'grid', gap: 10, opacity: on ? 1 : 0.72,
@@ -174,7 +178,7 @@ function FlagCard({ flag, password }: { flag: FlagRow; password: string }) {
 
   const flip = () => {
     setErr(null);
-    setFlag.mutate({ key: flag.key, enabled: !flag.enabled, reason: reason.trim() }, {
+    setFlag.mutate({ key: flag.key, enabled: !flag.enabled, reason: reason.trim(), kind: 'kill' }, {
       onSuccess: () => { setArming(false); setReason(''); },
       onError: (e: unknown) => {
         const m = e as { response?: { data?: { message?: string | string[] } } };
@@ -195,8 +199,7 @@ function FlagCard({ flag, password }: { flag: FlagRow; password: string }) {
           {/* Clamped while idle, shown WHOLE once armed — the sentence that
               matters is the one you read at the moment you decide. */}
           <span className="muted" title={flag.turnsOff}
-            style={{ ...subLine, display: arming ? 'block' : '-webkit-box',
-              WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+            style={clamp2(arming)}>
             {flag.turnsOff}
           </span>
         </span>
@@ -208,7 +211,7 @@ function FlagCard({ flag, password }: { flag: FlagRow; password: string }) {
       {/* Why it is off, and since when. The question this answers is
           "Dating has been off since Tuesday — who, and what for?" */}
       {!flag.enabled && flag.note && !arming && (
-        <p style={{ fontSize: 11.5, margin: 0, lineHeight: 1.5, color: 'var(--ink-soft)' }}>
+        <p style={noteLine}>
           Off{flag.updatedAt ? ` since ${new Date(flag.updatedAt).toLocaleString()}` : ''}: {flag.note}
         </p>
       )}
@@ -236,31 +239,89 @@ function FlagCard({ flag, password }: { flag: FlagRow; password: string }) {
 }
 
 /**
- * A hub with no switch, drawn as a card that says why.
+ * A VISIBILITY SWITCH — the control the owner actually asked for.
  *
- * Leaving it out of the grid would be the quiet lie: fourteen hubs on the
- * citizen's page, thirteen here, and the missing one reads as permanent.
+ * "Visibility switches for the entire global website, so I can control turning
+ * off or on a sector." One per sector, and it does exactly one thing: the
+ * sector's doors leave the header, the drawer, the home page and the city grid
+ * for EVERYBODY. Nothing is refused. Nothing is deleted. A saved link still
+ * opens, and the hub keeps answering every request it always did.
+ *
+ * It is drawn in its own section, above the kill switches, in its own shape,
+ * and its arming copy says what it does NOT do — because the one genuinely
+ * dangerous outcome here is an operator hiding a sector during an incident
+ * while believing they closed it.
  */
-function LockedCard({ hub }: { hub: UnflaggableHub }) {
+function VisibilityCard({ row, password }: { row: VisibilityRow; password: string }) {
+  const setFlag = useSetFlag(password);
+  const [arming, setArming] = useState(false);
+  const [reason, setReason] = useState('');
+  const [err, setErr] = useState<string | null>(null);
+  const ready = reason.trim().length >= 8;
+  const cancel = () => { setArming(false); setReason(''); setErr(null); };
+
+  const flip = () => {
+    setErr(null);
+    setFlag.mutate({ key: row.key, enabled: !row.visible, reason: reason.trim(), kind: 'visibility' }, {
+      onSuccess: () => { setArming(false); setReason(''); },
+      onError: (e: unknown) => {
+        const m = e as { response?: { data?: { message?: string | string[] } } };
+        const raw = m?.response?.data?.message;
+        setErr(Array.isArray(raw) ? raw.join(', ') : raw ?? 'That could not be recorded.');
+      },
+    });
+  };
+
   return (
-    <div data-locked={hub.key} className="card" style={cardTopStart}>
-      <span aria-hidden style={iconWrap('var(--muted)')}>
-        <Icon name={flagIcon(hub.key)} size={18} />
-      </span>
-      <span style={body}>
-        <span style={nameLine}>{hub.label}</span>
-        <span className="muted" style={subLine}>{hub.why}</span>
-      </span>
-      <span aria-label="No switch" title="No switch" style={smallCaps}>
-        no switch
-      </span>
+    <div data-visibility={row.key} className="card" style={cardShell(row.visible, arming)}>
+      <div style={cardTop}>
+        <span aria-hidden style={iconWrap(row.visible ? 'var(--accent-ink)' : 'var(--muted)')}>
+          <Icon name={flagIcon(row.key)} size={18} />
+        </span>
+        <span style={body}>
+          <span style={nameLine}>{row.label}</span>
+          <span className="muted" title={row.hides}
+            style={clamp2(arming)}>
+            {row.hides}
+          </span>
+        </span>
+        <Switch checked={arming ? !row.visible : row.visible}
+          onChange={() => (arming ? cancel() : setArming(true))}
+          label={`${row.label} ${row.visible ? 'shown' : 'hidden'}`} hideLabel />
+      </div>
+
+      {!row.visible && row.note && !arming && (
+        <p style={noteLine}>
+          Hidden{row.updatedAt ? ` since ${new Date(row.updatedAt).toLocaleString()}` : ''}: {row.note}
+        </p>
+      )}
+
+      {arming && (
+        <div style={armBox}>
+          <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500}
+            aria-label={`Reason for ${row.visible ? 'hiding' : 'showing'} ${row.label}`}
+            placeholder={row.visible
+              ? 'Why is this sector being hidden? It shows here until somebody puts it back.'
+              : 'Why is this coming back?'}
+            style={reasonBox} />
+          <div style={armRow}>
+            <Button variant="accent" size="sm" disabled={!ready || setFlag.isPending} onClick={flip}>
+              {setFlag.isPending ? 'Recording…' : row.visible ? `Hide ${row.label} everywhere` : `Show ${row.label} again`}
+            </Button>
+            <Button variant="line" size="sm" onClick={cancel}>Cancel</Button>
+            {!ready && <span className="muted" style={{ fontSize: 12 }}>A reason is required.</span>}
+          </div>
+          {err && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, margin: 0 }} role="alert">{err}</p>}
+        </div>
+      )}
     </div>
   );
 }
 
 /** Flag keys are hub keys, bar one. `tabIcon` already falls back to a generic
  *  mark, so this only has to name the exception. */
-const flagIcon = (key: string): IconName => (key === 'ai' ? 'star' : tabIcon(key as TabKey));
+const flagIcon = (key: string): IconName =>
+  key === 'ai' ? 'star' : key === 'mira' ? 'chat' : tabIcon(key as TabKey);
 
 /* ─────────────────────────── the page ─────────────────────────── */
 
@@ -386,50 +447,67 @@ export function DevPage() {
 
       {tab === 'flags' && (
         <>
-          {/* The citizen's page says "nothing is deleted, its rooms still
-              answer". This is the same grid and the opposite promise, so it
-              says the opposite thing first and in the same breath. */}
-          <p style={lede}>
-            <strong>These switches are the whole city, not your copy of it.</strong> Turning one off
-            refuses that hub&rsquo;s API for every citizen — not the menu link, the rooms. Nothing is
-            deleted and one press here puts it back, but between those two presses the hub is
-            gone for everybody, and they find out before you do.
-          </p>
-          <p className="muted" style={aside}>
-            Missing or unreadable means ON, deliberately — a switch that turned a database hiccup
-            into a site-wide outage would cause a worse one by accident than the one it exists to
-            cause on purpose.
-          </p>
-          <p className="muted" style={asideLast}>
-            The password opens this page. Flipping a switch needs the <code>ops.flags</code>{' '}
-            permission — the same grant the admin console reads — and a written reason, so it is
-            recorded like every other change. (The console is named and not linked on purpose:
-            it is absent from every link in this app, and a link from here would be the first.)
-          </p>
           {flags.isLoading && <Spinner label="Reading the switches…" />}
           {flags.isError && <EmptyState title="Couldn't read the switches" hint="Try again in a moment." />}
           {flags.data && (
             <>
+              {/* ── VISIBILITY, FIRST, because it is the one that gets used ── */}
+              <h3 style={sectionH}>Visibility — what the site shows</h3>
+              <p style={lede}>
+                <strong>One switch per sector, for the whole site.</strong> Off, that sector&rsquo;s
+                doors leave the header, the drawer, the home page and the city grid for every
+                citizen — the same four places their own switch on /profile controls, decided once
+                for everybody.
+              </p>
+              <p className="muted" style={asideLast}>
+                <strong>It hides; it does not close.</strong> The hub keeps answering every request
+                it always did, saved links still open, and nothing anybody stored is touched. If
+                you need a sector to actually stop responding, that is a kill switch below — and
+                they are deliberately not the same control.
+              </p>
+              <div style={grid}>
+                {flags.data.visibility.map((v) => <VisibilityCard key={v.key} row={v} password={password} />)}
+              </div>
+              <p className="muted" style={footLine}>
+                {(() => {
+                  const hidden = flags.data.visibility.filter((v) => !v.visible);
+                  if (hidden.length === 0) return `All ${flags.data.visibility.length} sectors are on the site.`;
+                  return `${flags.data.visibility.length - hidden.length} of ${flags.data.visibility.length} sectors shown. `
+                    + `${hidden.length === 1 ? 'One is' : `${hidden.length} are`} hidden from everybody: `
+                    + `${hidden.map((v) => v.label).join(', ')} — still answering, just not on the menu.`;
+                })()}
+              </p>
+
+              {/* ── KILL SWITCHES, SECOND, and louder ── */}
+              <h3 style={sectionH2}>Kill switches — what the API answers</h3>
+              <p style={lede}>
+                <strong>These are the whole city, not your copy of it.</strong> Turning one off
+                refuses that hub&rsquo;s API for every citizen — not the menu link, the rooms.
+                Nothing is deleted and one press here puts it back, but between those two presses
+                the hub is gone for everybody, and they find out before you do.
+              </p>
+              <p className="muted" style={aside}>
+                Missing or unreadable means ON, deliberately — a switch that turned a database
+                hiccup into a site-wide outage would cause a worse one by accident than the one it
+                exists to cause on purpose.
+              </p>
+              <p className="muted" style={asideLast}>
+                The password opens this page. Flipping either kind needs the <code>ops.flags</code>{' '}
+                permission — the same grant the admin console reads — and a written reason, so it is
+                recorded like every other change. (The console is named and not linked on purpose:
+                it is absent from every link in this app, and a link from here would be the first.)
+              </p>
               <div style={grid}>
                 {flags.data.items.map((f) => <FlagCard key={f.key} flag={f} password={password} />)}
-                {flags.data.unflaggable.map((h) => <LockedCard key={h.key} hub={h} />)}
               </div>
-              {/* The citizen's page counts what THEY switched off. This counts
-                  what is off for everybody, which is the only number on this
-                  screen anybody needs at a glance. */}
               <p className="muted" style={footLine}>
                 {(() => {
                   const total = flags.data.items.length;
                   const off = flags.data.items.filter((f) => !f.enabled);
-                  const locked = flags.data.unflaggable.length;
-                  const tail = locked === 1 ? ' One hub has no switch at all — its card says why.'
-                    : locked > 1 ? ` ${locked} hubs have no switch at all — their cards say why.` : '';
-                  if (off.length === 0) {
-                    return `All ${total} switches are on. The whole city is answering.${tail}`;
-                  }
+                  if (off.length === 0) return `All ${total} switches are on. The whole city is answering.`;
                   return `${total - off.length} of ${total} switches on. `
                     + `${off.length === 1 ? 'One hub is' : `${off.length} hubs are`} refusing for every citizen right now: `
-                    + `${off.map((f) => f.label).join(', ')}.${tail}`;
+                    + `${off.map((f) => f.label).join(', ')}.`;
                 })()}
               </p>
             </>

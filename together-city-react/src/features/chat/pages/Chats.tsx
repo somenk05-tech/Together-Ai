@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useConversations, useMessages, useChatRealtime, useClearConversation, useMessageSearch, useOnlineContacts, usePinnedMessage, chatApi, socketClient, WS, type OutgoingAttachment, useChatRoster, useSetChatPhoto } from '@/api';
 import { ConversationList } from '../components/ConversationList';
+import { useMiraShown } from '@/hooks/useCityDesign';
 import { MiraRow } from '../mira/MiraRow';
 import { MiraThread } from '../mira/MiraThread';
 import { MiraConfidant } from '../mira/MiraConfidant';
@@ -143,6 +144,7 @@ export function Chats() {
   // Mira is not a conversation, so nothing that expects one may fire for her:
   // joining a socket room named after a row that does not exist, and fetching
   // its messages, would be a bogus join and a 404 on every keystroke.
+  const miraShown = useMiraShown();
   const isMira = activeId === MIRA_ID;
   const convId = isMira ? undefined : activeId;
 
@@ -585,7 +587,7 @@ export function Chats() {
             </div>
           </div>
           <ChatStarter onOpened={onOpened} />
-          <MiraRow active={activeId === MIRA_ID} onSelect={() => setActiveId(MIRA_ID)} />
+          {miraShown && <MiraRow active={activeId === MIRA_ID} onSelect={() => setActiveId(MIRA_ID)} />}
           {list.length === 0
             ? <p style={{ fontSize: 13, padding: '4px 18px 18px', color: 'var(--on-stage-faint)', lineHeight: 1.55 }}>
                 No conversations yet — start one above.
@@ -713,11 +715,13 @@ export function Chats() {
                     owner's call, at 48 because the word stops being legible
                     below that. No chrome around it; hovering says what she is
                     for (the .mira-door tooltip in mira.css). */}
-                <button type="button" className="mira-door" aria-label="Ask Mira about this conversation"
-                  title="Mira can analyse this chat for you" onClick={() => setConfide(true)}
-                  style={{ flex: 'none' }}>
-                  <MiraMark size={48} state="waiting" />
-                </button>
+                {miraShown && (
+                  <button type="button" className="mira-door" aria-label="Ask Mira about this conversation"
+                    title="Mira can analyse this chat for you" onClick={() => setConfide(true)}
+                    style={{ flex: 'none' }}>
+                    <MiraMark size={48} state="waiting" />
+                  </button>
+                )}
                 <CallButtons conversationId={activeId} compact />
                 {/* end of the ordinary header — the bulk bar above takes this
                     whole row when anything is picked. */}

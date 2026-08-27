@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { MiraDock } from './MiraDock';
+import { useMiraShown } from '@/hooks/useCityDesign';
 import { useUiStore } from '@/store/ui.store';
 
 /**
@@ -45,6 +46,7 @@ export function RootChrome() {
      change. */
   const { pathname } = useLocation();
   const toggle = useUiStore((s) => s.toggleSidebar);
+  const miraShown = useMiraShown();
   useEffect(() => { toggle(false); }, [pathname, toggle]);
   return (
     <>
@@ -52,7 +54,8 @@ export function RootChrome() {
       {/* Her mark, on every page in the city. The component decides where she
           is unwelcome — the rooms that are already a conversation — and that
           list lives with her rather than here. */}
-      <MiraDock />
+      {/* Hidden when the operator's Mira switch is off. Her door, not her voice: /api/mira is untouched and an open conversation keeps working. */}
+      {miraShown && <MiraDock />}
     </>
   );
 }

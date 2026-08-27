@@ -106,37 +106,107 @@ export const NEVER_FLAGGABLE = ['auth', 'health', 'admin', 'dev', 'users', 'chat
  */
 
 /**
- * HUBS THAT CANNOT HONESTLY CARRY A SWITCH, and are shown saying so.
+ * ── VISIBILITY SWITCHES: A DIFFERENT ANIMAL, KEPT IN A DIFFERENT CAGE ───────
  *
- * The dashboard draws one card per hub, and a hub silently missing from that
- * grid reads as "this one is always on" — which is the opposite of the truth
- * here. So the ones that cannot be flagged are declared, with the reason, and
- * drawn as a locked card.
+ * Owner, 27 Aug: "add a kill switch for e-commerce visibility and also add a
+ * kill switch for Mira — these should just turn off visibility from the user
+ * app or site."
  *
- * This is NOT part of FLAGS and must never become part of it. FLAGS is the
- * single input to the gate; an entry there with no prefixes would be a flag
- * that gates nothing — a link-hider, which rule 1 at the top of this file
- * exists to refuse. Nothing at runtime reads the list below except the page
- * that draws it.
+ * Everything above this line REFUSES AN API. What follows HIDES A DOOR, and
+ * conflating the two is the single most dangerous thing this file could do.
+ * Rule 1 at the top says a flag that only hides a link is not a switch — that
+ * rule stands, and it is why these are not in FLAGS: an operator reaching for
+ * a switch in an incident must never get a door-hider by mistake, believing
+ * the hub is off while every endpoint keeps answering.
+ *
+ * So they are a separate list, stored under a separate key namespace, drawn in
+ * a separate section of the page, and described by what they DO NOT do.
+ *
+ * WHY EACH ONE IS THIS SHAPE AND NOT THE OTHER:
+ *
+ *  · E-COMMERCE has no API of its own. It is a shopfront over the Beauty,
+ *    Nutrition, Astrology and Pet endpoints, so there is nothing to refuse
+ *    that would not take three other hubs down. Hiding the front door is the
+ *    only honest thing a switch here can do, and now it says so.
+ *  · MIRA could have been a real kill switch — `mira` is a live prefix and
+ *    gating it would work. Visibility was asked for instead, so visibility is
+ *    what this is; the prefix is deliberately NOT listed above. If she should
+ *    stop answering as well as stop appearing, that is a second switch and a
+ *    considered decision, not a widening of this one.
  */
-export interface UnflaggableHub {
+export interface VisibilityFlag {
   key: string;
   label: string;
-  /** Said to whoever is looking for the switch and not finding one. */
-  why: string;
-  hubPath: string;
+  /** What disappears — and, just as important, what does not. */
+  hides: string;
+  /** Where the state lives. Namespaced so `isFlagKey` cannot match it and the
+   *  request gate cannot read it, whatever anybody does to FLAGS later. */
+  storeKey: string;
 }
 
-export const UNFLAGGABLE_HUBS: UnflaggableHub[] = [
+/** The one prefix that separates a door-hider from a kill switch, in storage. */
+export const VISIBILITY_PREFIX = 'show:';
+
+/**
+ * ONE PER SECTOR (owner, 27 Aug: "visibility switches for the entire global
+ * website, so I can control turning off or on a sector").
+ *
+ * Every sector the citizen can switch off for THEMSELVES on /profile can now
+ * be switched off for EVERYBODY here — same doors, same four places, one
+ * decision instead of fourteen thousand. Mira is on the list too; she is not a
+ * hub, but she is a thing with doors, which is what this list is about.
+ *
+ * The standard sentence is deliberately repetitive: the same four places, the
+ * same "keeps answering", every time. Three entries add a clause because
+ * something about them is genuinely different, and the repetition is what
+ * makes those three stand out instead of blending in.
+ */
+const DOORS = 'the header tab, the drawer, the home page and the city grid';
+const STILL_OPEN = 'The hub keeps answering — a direct link still works, saved pages still open, '
+  + 'and nothing anybody has stored there is touched.';
+const sector = (key: string, label: string, extra?: string): VisibilityFlag => ({
+  key,
+  label,
+  hides: `The ${label} doors: ${DOORS}. ${extra ?? STILL_OPEN}`,
+  storeKey: `${VISIBILITY_PREFIX}${key}`,
+});
+
+export const VISIBILITY_FLAGS: VisibilityFlag[] = [
+  sector('astrology', 'Astrology'),
+  sector('beauty', 'Beauty'),
+  sector('dating', 'Dating'),
+  sector('ecommerce', 'E-Commerce',
+    'Every shop stays open — each one also lives inside its own hub, and a direct link still '
+    + 'works. E-Commerce has no API of its own to close, so hiding the front door is the whole '
+    + 'of what a switch here can honestly do.'),
+  sector('entertainment', 'Entertainment'),
+  sector('financial', 'Financial'),
+  sector('fitness', 'Fitness'),
+  sector('jobs', 'Jobs'),
+  sector('medical', 'Medical',
+    'Health records, prescriptions and medicine reminders KEEP ANSWERING and anyone who has '
+    + 'saved a link still reaches them. This hides the way in for people who navigate by the '
+    + 'menu, which during treatment is most of them — hiding is not closing, but it is not '
+    + 'nothing either.'),
+  sector('nutrition', 'Nutrition'),
+  sector('pets', 'Pet Care'),
+  sector('realestate', 'Real Estate'),
+  sector('services', 'Local Services'),
+  sector('social', 'Social Life'),
   {
-    key: 'ecommerce',
-    label: 'E-Commerce',
-    why: 'It has no API of its own — it is a shopfront over the Beauty, Nutrition, '
-      + 'Astrology and Pet endpoints. A switch here would either refuse nothing at all, '
-      + 'or take those three hubs down with it. Turn off the hub whose shop you mean.',
-    hubPath: '/ecommerce',
+    key: 'mira',
+    label: 'Mira',
+    hides: 'Her door on every page, in both chat rooms and in the daybook. She keeps answering: '
+      + '/api/mira is untouched, so a conversation already open still works and nothing she has '
+      + 'been told is deleted. This is the door, not the assistant.',
+    storeKey: `${VISIBILITY_PREFIX}mira`,
   },
 ];
+
+export const VISIBILITY_KEYS = VISIBILITY_FLAGS.map((f) => f.key);
+export const isVisibilityKey = (k: string): boolean => VISIBILITY_KEYS.includes(k);
+export const visibilityFlag = (k: string): VisibilityFlag | undefined =>
+  VISIBILITY_FLAGS.find((f) => f.key === k);
 
 /**
  * Which flag, if any, gates this request path.

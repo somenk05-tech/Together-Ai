@@ -1,7 +1,8 @@
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { join } from 'path';
 import { ENV_MANIFEST, presence, reportEnv } from './env-manifest';
-import { FLAGS, FLAG_KEYS, NEVER_FLAGGABLE, UNFLAGGABLE_HUBS, flagForPath, isFlagKey } from './feature-flags';
+import { FLAGS, FLAG_KEYS, NEVER_FLAGGABLE, VISIBILITY_FLAGS, VISIBILITY_KEYS, VISIBILITY_PREFIX,
+  flagForPath, isFlagKey, isVisibilityKey } from './feature-flags';
 import { devPassword, usingDefaultPassword } from './dev-password.guard';
 
 const SRC = join(__dirname, '..');
@@ -203,43 +204,111 @@ describe('the kill switches', () => {
    * declared un-flaggable simply would not appear — and an absent card reads
    * as "this one is always on", which is the most expensive kind of quiet.
    * So the fourteen hubs the citizen can switch off for themselves must each
-   * be one or the other here, and this fails the build if a fifteenth is added
-   * without deciding which.
+   * be a KILL switch or a VISIBILITY switch here, and this fails the build if a
+   * fifteenth is added without somebody deciding which kind it gets.
    *
    * The list is duplicated rather than imported because it lives in the web
    * app and this is the API. That duplication is the point: the day they
    * disagree, this test says so, which is what a copy is FOR when the two
    * sides cannot share a module.
    */
-  it('accounts for every hub the citizen can switch, as a switch or a reason', () => {
+  it('accounts for every hub the citizen can switch, as one kind of switch or the other', () => {
     const DESIGNABLE = ['astrology', 'beauty', 'dating', 'ecommerce', 'entertainment',
       'financial', 'fitness', 'jobs', 'medical', 'nutrition', 'pets', 'realestate',
       'services', 'social'];
-    const covered = new Set([...FLAG_KEYS, ...UNFLAGGABLE_HUBS.map((h) => h.key)]);
-    const orphans = DESIGNABLE.filter((k) => !covered.has(k));
+    // A sector needs a VISIBILITY switch — that is the control the owner asked
+    // for, and it is the one that exists for every one of them. A kill switch
+    // on top is a stronger, separate thing that not every sector can carry.
+    const seen = new Set(VISIBILITY_KEYS);
+    const orphans = DESIGNABLE.filter((k) => !seen.has(k));
     expect({ orphans }).toEqual({ orphans: [] });
+    // And the kill switches remain a SUBSET, never the other way round: every
+    // hub that can be closed can also be hidden.
+    const hideable = new Set(VISIBILITY_KEYS);
+    const closableHubs = FLAG_KEYS.filter((k) => DESIGNABLE.includes(k));
+    expect(closableHubs.filter((k) => !hideable.has(k))).toEqual([]);
   });
 
   /**
-   * AND THE UN-FLAGGABLE LIST IS NOT A BACK DOOR INTO THE GATE.
+   * ── A DOOR-HIDER MUST NEVER BE MISTAKEN FOR A KILL SWITCH ──────────────────
    *
-   * FLAGS is the single input to the guard. An entry in UNFLAGGABLE_HUBS that
-   * also named prefixes — or a FLAGS entry with none — would be a flag that
-   * gates nothing, which is the link-hider rule 1 of feature-flags.ts exists
-   * to refuse. Neither shape can exist while this passes.
+   * Owner, 27 Aug: switches for E-Commerce visibility and for Mira that "just
+   * turn off visibility from the user app or site".
+   *
+   * That is a different animal from everything in FLAGS, and rule 1 at the top
+   * of feature-flags.ts is the reason it gets its own cage: a flag that only
+   * hides a link is not a switch. The danger is not the feature, it is the
+   * confusion — an operator reaching for a switch during an incident must never
+   * get a door-hider while believing the hub is off.
+   *
+   * Four things keep them apart, and all four are asserted: separate list,
+   * separate storage namespace, unreachable from the request gate, and never
+   * accepted by the kill-switch key check.
    */
-  it('keeps the reasons out of the gate, and gives every switch something to switch', () => {
+  it('keeps visibility switches out of the gate, in every direction', () => {
+    // A sector now has BOTH kinds under one key — 'astrology' is a kill switch
+    // and a visibility switch — so the key name is no longer what separates
+    // them. The STORAGE key is, and that is what this asserts.
+    for (const v of VISIBILITY_FLAGS) {
+      expect(v.storeKey).toBe(`${VISIBILITY_PREFIX}${v.key}`);
+      // Namespaced, so a row cannot be read as a kill switch under any name...
+      expect(isFlagKey(v.storeKey)).toBe(false);
+      // ...and no request path can ever route to it.
+      expect(flagForPath(`/api/${v.storeKey}`)).toBeNull();
+      expect(flagForPath(v.storeKey)).toBeNull();
+      // It says what it does NOT do, which is the whole safety of it.
+      expect(v.hides).toMatch(/keeps? answering|still works|still open|still reaches/i);
+      expect(v.hides.length).toBeGreaterThan(60);
+    }
+    expect(VISIBILITY_KEYS).toContain('mira');
+    expect(isVisibilityKey('dating')).toBe(true);
+    expect(isVisibilityKey('nonsense')).toBe(false);
+  });
+
+  /**
+   * AND THE WRITER IS TOLD WHICH KIND, NEVER LEFT TO GUESS.
+   *
+   * This is the sharp edge of sharing a key between the two. An earlier draft
+   * routed on the key alone, which meant every sector's DOOR switch would have
+   * been sent to the gate writer — closing hubs somebody only meant to hide,
+   * silently, with an audit row saying the wrong thing.
+   */
+  it('routes a flip by the kind asked for, not by the shape of the key', () => {
+    const svc = stripComments(read('dev/dev.service.ts'));
+    expect(svc).toMatch(/kind: 'kill' \| 'visibility' = 'kill'/);
+    expect(svc).toMatch(/if \(kind === 'visibility'\)/);
+    // The default is the safer one to land on by accident: a sector left
+    // answering is recoverable, a sector closed by a typo is an outage.
+    const ctl = stripComments(read('dev/dev.controller.ts'));
+    expect(ctl).toMatch(/kind: z\.enum\(\['kill', 'visibility'\]\)\.default\('kill'\)/);
+    expect(ctl).toMatch(/dto\.kind\)/);
+  });
+
+  /**
+   * MIRA IS A DOOR, NOT A MUZZLE, and that was a decision rather than a
+   * limitation. `mira` is a live API prefix and gating it would work — the
+   * owner asked for visibility, so `mira` is deliberately absent from FLAGS.
+   * If she should ever stop ANSWERING as well as stop appearing, that is a
+   * second switch and a considered choice; this fails if somebody makes it by
+   * accident.
+   */
+  it('leaves Mira answering, because only her door was switched', () => {
+    expect(FLAGS.flatMap((f) => f.prefixes)).not.toContain('mira');
+    expect(flagForPath('/api/mira/say')).toBeNull();
+    const mira = VISIBILITY_FLAGS.find((f) => f.key === 'mira');
+    expect(mira?.hides).toMatch(/keeps answering/);
+  });
+
+  it('gives every switch something to switch, and every hider a reason', () => {
     for (const f of FLAGS) {
       expect({ key: f.key, prefixes: f.prefixes.length > 0 }).toEqual({ key: f.key, prefixes: true });
     }
-    const flagged = new Set(FLAG_KEYS);
-    for (const h of UNFLAGGABLE_HUBS) {
-      expect({ key: h.key, alsoAFlag: flagged.has(h.key) }).toEqual({ key: h.key, alsoAFlag: false });
-      // A locked card with no reason on it is just a missing switch.
-      expect(h.why.length).toBeGreaterThan(40);
-    }
-    // Nothing at runtime may consult it: the guard reads FLAGS and only FLAGS.
-    expect(stripComments(read('dev/feature-flag.guard.ts'))).not.toContain('UNFLAGGABLE_HUBS');
+    // Nothing on the request path may read the visibility list. The guard's
+    // cache holds the rows; `canActivate` must never consult them.
+    const guard = stripComments(read('dev/feature-flag.guard.ts'));
+    const act = guard.slice(guard.indexOf('async canActivate'), guard.indexOf('invalidate()'));
+    expect(act).not.toContain('VISIBILITY');
+    expect(act).not.toContain('visibilitySnapshot');
   });
 
   /**

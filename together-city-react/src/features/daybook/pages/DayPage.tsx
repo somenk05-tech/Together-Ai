@@ -4,6 +4,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Fold, Spinner } from '@/components/ui';
 import { MiraMark } from '@/features/chat/mira/MiraMark';
 import { MiraDay } from '@/features/daybook/MiraDay';
+import { useMiraShown } from '@/hooks/useCityDesign';
 import { uploadErrorMessage } from '@/api/media.api';
 import {
   useDay, useSaveDay, useAddDayItem, usePatchDayItem, useRemoveDayItem,
@@ -165,6 +166,7 @@ export function DayPage() {
      clearing it adds the line without an hour, which most lines want. */
   const [at, setAt] = useState(nowHHMM);
   const [askMira, setAskMira] = useState(false);
+  const miraShown = useMiraShown();
   const [timeErr, setTimeErr] = useState('');
   const [photoErr, setPhotoErr] = useState('');
   const timeRef = useRef<HTMLInputElement>(null);
@@ -522,15 +524,18 @@ export function DayPage() {
             </p>
           </Sec>
 
-          {/* ── 06 · MIRA ────────────────────────────────────────────────── */}
-          <section className="dayb-mira">
+          {/* ── 06 · MIRA ──────────────────────────────────────────────────
+              The whole section goes when the operator's Mira switch is off —
+              a heading over a missing door is worse than no heading. She keeps
+              answering; this is the way in, not the assistant. */}
+          {miraShown && <section className="dayb-mira">
             <button type="button" className="mira-door" onClick={() => setAskMira(true)}
               aria-label="Ask Mira about this day" title="Mira can read this day back to you">
               <MiraMark size={48} state="waiting" />
             </button>
             <span className="muted">Ask Mira about this day</span>
-          </section>
-          {askMira && <MiraDay date={date} onClose={() => setAskMira(false)} />}
+          </section>}
+          {miraShown && askMira && <MiraDay date={date} onClose={() => setAskMira(false)} />}
 
           <nav className="dayb-nav" aria-label="Other days">
             <Link to={`/daybook/${shift(date, -1)}`}>← The day before</Link>
