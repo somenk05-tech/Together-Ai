@@ -188,9 +188,11 @@ export class NotificationsService {
     // sender's chosen dating name (shownName), and NO photo. Everything else
     // (real city chats) is unchanged.
     if (ctx.dating) {
+      // A failure here falls through to shownName's fallback — the ACCOUNT name,
+      // on the lock screen, which is the leak the note above closed. Say so.
       const dp = await this.prisma.datingProfile
         .findUnique({ where: { userId: senderId }, select: { extras: true } })
-        .catch(() => null);
+        .catch(swallowed('notifications: read the dating name for a push', null, { senderId }));
       let firstName: unknown;
       try { firstName = dp?.extras ? (JSON.parse(dp.extras) as { firstName?: unknown }).firstName : undefined; } catch { firstName = undefined; }
       return { displayName: shownName({ firstName }, sender.name), displayPhoto: undefined, dating: true };

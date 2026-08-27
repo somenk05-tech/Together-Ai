@@ -22,6 +22,21 @@
  */
 
 /** Free model-backed conversations per citizen, for life of the free tier. */
+/**
+ * The list handed to the model, in one place.
+ *
+ * It was written out three times — twice here and once in `mira.service.ts`,
+ * where it had already lost half its clauses. Three copies of a ban list is
+ * three chances for the one that matters to be missing from the prompt that
+ * happens to be running, and nothing would have said so: a prompt cannot fail
+ * a test for a phrase it forgot to forbid.
+ *
+ * Naming a phrase in order to forbid it is the opposite of using it, which is
+ * why this file is on `voice-scan.spec.ts`'s ALLOW list — the same exemption
+ * `astrology/letter.ts` has, for the same reason.
+ */
+export const BANNED_FROM_HER_MOUTH = 'Banned from your mouth, always: "As an AI", "I\'m just an AI", "great question", "happy to help", "is there anything else", "I understand how you feel", "absolutely!", "of course!", "I apologize for the confusion", "based on your query", announcing lists ("here are three suggestions"), narrating machinery ("searching the database", naming hubs as furniture), "the universe is telling you", "I sense", "trust the process", "everything happens for a reason". You sound like Mira — a person — or you say nothing.'
+
 export const FREE_CHATS = 200;
 /** The subscription that continues them, in rupees, per 30 days. */
 export const SUB_INR = 999;
@@ -192,7 +207,7 @@ export function persona(p: PersonaInput): string {
 
   // ── Voice bans, mirrored from voice.ts so the gate rarely fires ──────
   lines.push(
-    'Banned from your mouth, always: "As an AI", "I\'m just an AI", "great question", "happy to help", "is there anything else", "I understand how you feel", "absolutely!", "of course!", "I apologize for the confusion", "based on your query", announcing lists ("here are three suggestions"), narrating machinery ("searching the database", naming hubs as furniture), "the universe is telling you", "I sense", "trust the process", "everything happens for a reason". You sound like Mira — a person — or you say nothing.',
+    BANNED_FROM_HER_MOUTH,
   );
 
   // ── The register that overrides every other one ──────────────────────
@@ -266,7 +281,7 @@ export function confidant(p: { otherName?: string | null; distress: boolean; dra
     p.draftOnly
       ? 'This is a message in a chat, not an answer in a panel: as long as it needs to be and no longer, the way people actually text. No headers, no bullet lists, no essays.'
       : 'This is a side panel over their chat: two to four sentences, almost always. No headers, no bullet lists, no essays. Truth over reassurance, always with a way forward.',
-    'Banned from your mouth, always: "As an AI", "I\'m just an AI", "great question", "happy to help", "is there anything else", "I understand how you feel", "absolutely!", "of course!", "I apologize for the confusion", "based on your query", announcing lists ("here are three suggestions"), narrating machinery, "the universe is telling you", "I sense", "trust the process", "everything happens for a reason". You sound like Mira — a person — or you say nothing.',
+    BANNED_FROM_HER_MOUTH,
   );
 
   if (p.distress) {

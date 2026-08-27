@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { join, relative } from 'path';
 import { violations } from './voice';
+import { violations as miraViolations } from '../mira/voice';
 
 /**
  * The written prose obeys the voice too, not just the AI's.
@@ -41,7 +42,38 @@ const SRC = join(__dirname, '..');
  * hands a consultation writer the list of phrases the last one wore out, and
  * naming a phrase to forbid it is the opposite of using it.
  */
-const ALLOW = ['shared/voice.ts', 'astrology/voice.ts', 'astrology/letter.ts', 'astrology/consultation.ts'];
+const ALLOW = ['shared/voice.ts', 'astrology/voice.ts', 'astrology/letter.ts', 'astrology/consultation.ts',
+  // The fifth, and the same reason: `mira/voice.ts` is the table of what Mira
+  // may not say, and it cannot forbid "great question" without containing it.
+  'mira/voice.ts',
+  // And the sixth: `mira/persona.ts` holds BANNED_FROM_HER_MOUTH, the list of
+  // phrases handed to the model itself. It used to be written out three times,
+  // twice there and once in mira.service.ts with half its clauses missing —
+  // this scan is what found that, and one copy is what makes one exemption
+  // enough.
+  'mira/persona.ts'];
+
+/**
+ * MIRA IS JUDGED BY MIRA'S RULES.
+ *
+ * This scanned every file by the CITY's rules, and the city's rules ban the
+ * assistant as a subject — "I can't", "let me", "as an AI" — because a blood
+ * report has no speaker and an app that narrates itself there is intruding on a
+ * document. Mira is the one surface where there IS a speaker, which is the
+ * whole reason `mira/voice.ts` exists: it keeps every honesty rule verbatim and
+ * relaxes exactly the speaker family.
+ *
+ * The scan predates that module, so it was holding her lines to a rule her own
+ * runtime filter does not apply, and the two guards had become mutually
+ * exclusive: `she-can-actually-talk.spec.ts` requires her prompt to ban the
+ * generic-AI register BY NAME, which this then read as her using it. No prose
+ * can satisfy both, and the one that was failing was the one nobody could fix.
+ *
+ * So her files are checked against her rules — which are stricter, not laxer,
+ * everywhere except the speaker: service-desk enthusiasm, flattery, narrated
+ * machinery and apology loops are all fatal for her and invisible to the city.
+ */
+const miraRules = (rel: string) => rel.startsWith('mira/');
 
 function sourceFiles(): string[] {
   const out: string[] = [];
@@ -106,8 +138,9 @@ describe('the prose engineers write obeys the voice', () => {
     for (const file of sourceFiles()) {
       const rel = relative(SRC, file);
       if (ALLOW.includes(rel)) continue;
+      const check = miraRules(rel) ? miraViolations : violations;
       for (const text of stringLiterals(readFileSync(file, 'utf8'))) {
-        for (const v of violations(text)) {
+        for (const v of check(text)) {
           offenders.push(`${rel}: ${v.why} — "${v.phrase}"`);
         }
       }

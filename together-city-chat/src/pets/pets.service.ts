@@ -167,6 +167,8 @@ export class PetsService {
 
   /** Every pet this citizen keeps, oldest first, each with its photographs. */
   async list(userId: string): Promise<PetRecord[]> {
+    // unbounded: their own animals — citizen-scale, and the hub shows the
+    // household whole rather than a page of it.
     const rows = await this.prisma.pet.findMany({
       where: { userId },
       orderBy: { createdAt: 'asc' },
@@ -310,6 +312,9 @@ export class PetsService {
   async makeMainPhoto(userId: string, photoId: string): Promise<PetRecord> {
     const chosen = await this.prisma.petPhoto.findFirst({ where: { id: photoId, userId } });
     if (!chosen) throw new NotFoundException('No such photo.');
+    // A short read here leaves duplicate positions behind — this method's bug.
+    // unbounded: one pet's WHOLE gallery, which MAX_PET_PHOTOS caps at five and
+    // which is renumbered row by row below.
     const all = await this.prisma.petPhoto.findMany({
       where: { petId: chosen.petId, userId },
       orderBy: { position: 'asc' },

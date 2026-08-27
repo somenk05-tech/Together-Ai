@@ -108,6 +108,7 @@ export const ENV_MANIFEST: EnvEntry[] = [
   { name: 'MEDIA_BUCKET', group: 'Media', purpose: 'The public bucket.', whenMissing: 'Photo uploads fail.' },
   { name: 'MEDIA_PRIVATE_BUCKET', group: 'Media', purpose: 'The private bucket — blood reports, CVs, documents.', whenMissing: 'Private uploads fail, or worse, fall back to the public bucket.' },
   { name: 'MEDIA_PUBLIC_BASE_URL', group: 'Media', purpose: 'The base URL public media is served from.', whenMissing: 'Images upload and then render as broken.' },
+  { name: 'PUBLIC_API_URL', group: 'Media', purpose: 'The public origin of this API. Dating photo links are minted from it — /dating/photo/:token, one link naming one viewer, re-checked on every fetch.', whenMissing: 'Dating photos are served as presigned S3 links instead, which cannot be revoked before they expire: a block, a takedown or a deleted photo leaves the old link loading until it times out.' },
   { name: 'MEDIA_CORS_ORIGINS', group: 'Media', purpose: 'Origins allowed to fetch media directly.', whenMissing: 'Cross-origin media loads fail silently in the browser.' },
   { name: 'S3_ENDPOINT', group: 'Media', purpose: 'The S3-compatible endpoint uploads are written to.', whenMissing: 'Every photo, CV and report upload fails at the point the citizen presses save.' },
   { name: 'S3_REGION', group: 'Media', purpose: 'The region the buckets live in.', whenMissing: 'Uploads fail, usually with a signature error that reads as a credential problem.' },
@@ -126,6 +127,10 @@ export const ENV_MANIFEST: EnvEntry[] = [
   { name: 'MAPS_API_KEY', group: 'Third-party data', purpose: 'Alternate name read by the maps path.', whenMissing: 'Fine if GOOGLE_MAPS_API_KEY is set.', secret: true },
   { name: 'TMDB_API_KEY', group: 'Third-party data', purpose: 'Film and television data for Entertainment.', whenMissing: 'Entertainment has no catalogue.', secret: true },
   { name: 'WATCHMODE_API_KEY', group: 'Third-party data', purpose: 'Where-to-watch availability.', whenMissing: 'Streaming availability is missing from Entertainment.', secret: true },
+
+  { name: 'ADZUNA_APP_ID', group: 'Third-party data', purpose: 'The Adzuna application id. Widens the jobs shelf past the ATS boards, through their licensed API rather than scraping.', whenMissing: 'Adzuna is skipped on every sweep, so the shelf carries only jobs from companies that run a Greenhouse, Lever or Ashby board. The log says so once a sweep; the page says nothing at all.', secret: true },
+  { name: 'ADZUNA_APP_KEY', group: 'Third-party data', purpose: 'The key half of the Adzuna pair. Both are needed or the source is not used.', whenMissing: 'Same as a missing app id: the source is skipped whole, and a thinner shelf looks exactly like a quiet job market.', secret: true },
+  { name: 'JOOBLE_API_KEY', group: 'Third-party data', purpose: 'The Jooble key — the second aggregator behind the jobs shelf.', whenMissing: 'Jooble contributes no postings. With Adzuna also unset the shelf is company boards only, which is a narrower city than the hub promises.', secret: true },
 
   // ── Operations ──────────────────────────────────────────────────────────
   { name: 'CONSOLE_FOUNDERS', group: 'Operations', purpose: 'Handles granted the founder role at boot — the only way to open the admin console for the first time.', whenMissing: 'The console cannot be opened by anybody, and it says "not open to this account" with nothing in the logs.' },
@@ -158,6 +163,26 @@ export const ENV_MANIFEST: EnvEntry[] = [
   { name: 'WALLET_SELF_TOPUP', group: 'Operations', purpose: '"on" lets a citizen credit their own wallet through the API. Off in production until a payment processor confirms the money.', whenMissing: 'Correct: in production, self top-up is refused.' },
   { name: 'CORS_PREVIEW_PROJECT', group: 'Operations', purpose: 'The Vercel project slug whose preview URLs may call the API with credentials.', whenMissing: 'No preview URL is allowed. Only CORS_ORIGIN and the site itself.' },
   { name: 'CORS_PREVIEW_TEAM', group: 'Operations', purpose: 'The Vercel team slug, so preview URLs are matched to this team and not to every *.vercel.app.', whenMissing: 'Preview URLs are matched by project alone.' },
+
+  // ── Background work and the scanners ────────────────────────────────────
+  { name: 'EXTERNAL_JOBS_SCAN', group: 'Operations', purpose: '"off" stops the external jobs scanner — the first-boot fill and the six-hourly sweep both.', whenMissing: 'Correct. The scanner runs, and a fresh deployment fills an empty shelf on first boot instead of showing nobody any jobs.' },
+  { name: 'JOBS', group: 'Operations', purpose: '"off" turns the durable job queue off; deferred work runs in-process, as it did before BullMQ.', whenMissing: 'Correct. The reindex after a profile save and the review after a photo upload go to Redis, so a restart between the save and the scan no longer loses it.' },
+  { name: 'JOBS_CONCURRENCY', group: 'Operations', purpose: 'How many queued jobs one instance runs at once. Default 4.', whenMissing: 'Uses the built-in four per instance.' },
+
+  // ── Mira's ask log ──────────────────────────────────────────────────────
+  { name: 'MIRA_LOG_DIR', group: 'Operations', purpose: 'Where Mira\'s daily ask log is written. Point it at a mounted volume to keep it.', whenMissing: 'The log lives inside the container, so a redeploy takes the day\'s questions with it — genuinely useful for watching a launch, useless as an archive.' },
+  { name: 'MIRA_LOG_SALT', group: 'Safety', purpose: 'Salts the twelve-hex hash that stands in for who asked, in Mira\'s ask log.', whenMissing: 'Every question is recorded WITHOUT its text: the lanes, latencies and counts survive and nobody can read what citizens actually asked. The boot log says so once, loudly.', secret: true },
+
+  // ── What the metal costs ────────────────────────────────────────────────
+  // The three rates are read as process.env[name] rather than process.env.NAME,
+  // so the guard in dev.spec.ts cannot see them and will never ask for them.
+  // They are listed by hand for the reason that guard exists: an unset rate is a
+  // price quoted off a dated fallback, and nothing on the invoice says so.
+  { name: 'GOLD_22K_INR_PER_G', group: 'Operations', purpose: 'Rupees per gram of 22 carat gold, making charge included, behind every ring and pendant quote.', whenMissing: 'The counter quotes the indicative fallback of ₹9,000/g dated 1 Aug 2026 — last quarter\'s gold, priced with total confidence, on an invoice a citizen pays.' },
+  { name: 'SILVER_INR_PER_G', group: 'Operations', purpose: 'Rupees per gram of silver, for the same quotes.', whenMissing: 'The counter quotes the ₹110/g fallback dated 1 Aug 2026.' },
+  { name: 'PANCHDHATU_INR_PER_G', group: 'Operations', purpose: 'Rupees per gram of panchdhatu, for the same quotes.', whenMissing: 'The counter quotes the ₹900/g fallback dated 1 Aug 2026.' },
+  { name: 'METAL_RATES_AS_OF', group: 'Operations', purpose: 'The date the three rates above are good for, carried with them so staleness is visible to us.', whenMissing: 'Corrected rates are still recorded as good for 1 Aug 2026, so nothing tells a rate refreshed this morning from the one that shipped.' },
+
   { name: 'TEST_DATABASE_URL', group: 'Operations', purpose: 'A throwaway database for the cross-user isolation tests.', whenMissing: 'Those tests SKIP rather than fail — the static guards still run, but nothing is proven against a live database.', secret: true },
 ];
 

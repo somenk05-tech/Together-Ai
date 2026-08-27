@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AiService } from '../ai/ai.service';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { swallow, swallowed } from '../shared/swallow';
 import { FinancialService } from '../financial/financial.service';
 import { DriveService } from '../drive/drive.service';
 import { AstrologyService } from '../astrology/astrology.service';
@@ -26,7 +27,7 @@ import { keepable, knownBlock, EXTRACT_SYSTEM, type Fact } from './fact';
 import { MiraRegistry } from './mira.registry';
 import { MiraLedger, mentions, type Outcome } from './ledger';
 import { acceptOrFallback, violations } from './voice';
-import { persona, confidant, lifePathOf, FREE_CHATS, SUB_INR, PAYWALL_LINE } from './persona';
+import { persona, confidant, lifePathOf, BANNED_FROM_HER_MOUTH, FREE_CHATS, SUB_INR, PAYWALL_LINE } from './persona';
 import { findInCity, whyWeAsk } from './city';
 import { readSituation, type Read } from './relate';
 import { readForget, readForgetConfirm } from './forget';
@@ -1106,7 +1107,10 @@ export class MiraService {
 
   /** Where the meter stands. A missing row is a citizen who has never chatted. */
   private async passOf(userId: string): Promise<{ paid: boolean; used: number; freeLeft: number }> {
-    const row = await this.prisma.miraPass.findUnique({ where: { userId } }).catch(() => null);
+    // A read that fails reads as "never chatted", which hands out free chats
+    // that were already spent — worth a line in the log.
+    const row = await this.prisma.miraPass.findUnique({ where: { userId } })
+      .catch(swallowed('mira.pass: read the meter', null, { userId }));
     const used = row?.chatUsed ?? 0;
     const paid = Boolean(row?.paidUntil && row.paidUntil.getTime() > Date.now());
     return { paid, used, freeLeft: Math.max(0, FREE_CHATS - used) };
@@ -1119,11 +1123,11 @@ export class MiraService {
    */
   private async spendChat(userId: string, pass: { paid: boolean; used: number }): Promise<number | null> {
     if (pass.paid) return null;
-    await this.prisma.miraPass.upsert({
+    await swallow(this.prisma.miraPass.upsert({
       where: { userId },
       update: { chatUsed: { increment: 1 } },
       create: { userId, chatUsed: 1 },
-    }).catch(() => undefined);
+    }), 'mira.pass: spend a free chat', { userId });
     return Math.max(0, FREE_CHATS - pass.used - 1);
   }
 
@@ -1138,7 +1142,10 @@ export class MiraService {
    * early must never eat the days already bought.
    */
   async subscribe(userId: string): Promise<{ paidUntil: string; freeLeft: null }> {
-    const row = await this.prisma.miraPass.findUnique({ where: { userId } }).catch(() => null);
+    // If this read fails the stacking below starts from today, which is the one
+    // thing the docblock above says must never happen — so it says so out loud.
+    const row = await this.prisma.miraPass.findUnique({ where: { userId } })
+      .catch(swallowed('mira.pass: read the pass before extending it', null, { userId }));
     const now = Date.now();
     const from = row?.paidUntil && row.paidUntil.getTime() > now ? row.paidUntil.getTime() : now;
     const until = new Date(from + 30 * 24 * 60 * 60 * 1000);
@@ -1286,7 +1293,10 @@ export class MiraService {
     text: string; pass?: { freeLeft: number | null; inr: number; freeTotal: number }; paywall?: boolean;
   }> {
     const record = () => this.ledger.record({ userId, text: ask, lane: 'RETRIEVE', confidence: 1, outcome: 'confide', levity: 0 });
-    const day = await this.daybook.day(userId, date).catch(() => null);
+    // A failed read is indistinguishable from an empty page below, and telling
+    // somebody their day was blank when it was not is this method's worst bug.
+    const day = await this.daybook.day(userId, date)
+      .catch(swallowed('mira.readDay: read the daybook page', null, { userId, date }));
     // A day holding nothing but a photograph is NOT an empty day. It was, for
     // one commit: the check listed the fields that existed when it was written,
     // so somebody who kept a picture and no words would have been told there
@@ -1346,7 +1356,7 @@ export class MiraService {
       'THE 1-10 IS HOW THE DAY FELT TO THEM, NOT A MARK. Never call it a score, never compare it to another day, never congratulate or commiserate about the number. If they wrote 4, the useful thing is what they said around it.',
       'You are reading, not grading. No productivity scoring, no "you only completed 2 of 5", no advice they did not ask for. If they ask what it looked like, tell them warmly and briefly, in their own terms.',
       'Two to four sentences, almost always. A chat bubble, not a report. Contractions. No headers, no bullet lists unless they ask for a list.',
-      'Banned from your mouth, always: "As an AI", "great question", "happy to help", "is there anything else", "I understand how you feel", "absolutely!", "of course!", "based on your query", announcing lists, narrating machinery. You sound like Mira — a person — or you say nothing.',
+      BANNED_FROM_HER_MOUTH,
       'Reply with the message only — no preamble, no signature, no quotation marks around it.',
     ].join('\n\n');
 
@@ -1625,7 +1635,7 @@ export class MiraService {
           { userId, room: ROW_KEY, who: 'you', text: asked.slice(0, 4000), createdAt: new Date(at) },
           { userId, room: ROW_KEY, who: 'mira', text: said.slice(0, 4000), createdAt: new Date(at + 1) },
         ],
-      }).then(() => this.trim(userId)).catch(() => undefined);
+      }).then(() => this.trim(userId)).catch(swallowed('mira.remember: write the turn pair', undefined, { userId }));
     } catch { /* memory is best-effort, never load-bearing */ }
   }
 
@@ -1803,7 +1813,8 @@ export class MiraService {
 
   /** Their name, for the persona. Best-effort — she talks fine without it. */
   private async nameOf(userId: string): Promise<string | null> {
-    const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } }).catch(() => null);
+    const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } })
+      .catch(swallowed('mira.nameOf: read their name', null, { userId }));
     return u?.name ?? null;
   }
 
@@ -2105,7 +2116,8 @@ export class MiraService {
         if (!plan.meals.length) {
           // She has targets even when she has no plan. Say the true thing she
           // does hold rather than only the thing she does not.
-          const t = await this.nutrition.targets(userId).catch(() => null);
+          const t = await this.nutrition.targets(userId)
+            .catch(swallowed('mira.plan: read nutrition targets', null, { userId }));
           const kcal = num(pick(t, 'calories')) ?? num(pick(t, 'kcal'));
           return {
             text: kcal === undefined
@@ -2277,7 +2289,7 @@ export class MiraService {
         }
         const petNames = petsList.map((x) => str(pick(x, 'name'))).filter((n): n is string => Boolean(n));
         return {
-          text: petNames.length ? `${list(petNames)}. Their care lives in the Pets hub.` : `${petsList.length} on file.`,
+          text: petNames.length ? `${list(petNames)}. Their care is all on file.` : `${petsList.length} on file.`,
           payload: petsList.slice(0, 4),
           goto: { label: 'Pets', path: '/pets' },
         };

@@ -1412,6 +1412,9 @@ export class MailService {
    * going quiet.
    */
   async emptyTrash(userId: string) {
+    // The deleteMany below empties all of them regardless of what this read saw.
+    // unbounded: every trashed message is SUMMED to say how much was freed — a
+    // cap would report a smaller number than the mailbox actually got back.
     const rows = await this.prisma.mailMessage.findMany({
       where: { ownerId: userId, folder: 'trash' }, select: { sizeBytes: true },
     });

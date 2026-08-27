@@ -933,6 +933,9 @@ export class DatingService implements OnModuleInit {
    * leaves it, because a rejection can be appealed and reinstated.
    */
   private async endMyChats(userId: string, why: string): Promise<Array<{ id: string; conversationId: string | null }>> {
+    // A cap here leaves the matches past it matched and their chats live.
+    // unbounded: EVERY match this citizen is in has to be ended — that is the
+    // whole of this teardown, and a short read is a leak it was written to close.
     const rows = ((await swallow(this.prisma.datingMatch.findMany({
       where: { OR: [{ userOneId: userId }, { userTwoId: userId }] },
       select: { id: true, conversationId: true },
@@ -2874,6 +2877,7 @@ export class DatingService implements OnModuleInit {
     // had to happen: ask it for the living, and whoever it does not return is
     // gone. `matches` is narrowed BEFORE otherIds and pairKeys are built —
     // `pairKeys[matches.indexOf(m)]` below is positional.
+    // unbounded: `in:` of the matches read above, which that read's own bound covers.
     const users = await this.prisma.user.findMany({
       where: { id: { in: allMatches.map(other) }, deletedAt: null },
       select: { id: true, name: true },

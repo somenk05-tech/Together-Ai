@@ -173,10 +173,10 @@ export class ConversationsService {
    * somebody who has put a picture on a row should not find it gone.
    */
   async roster(userId: string) {
+    // unbounded: one row per conversation this citizen is in — a truncated
+    // roster is a list where some faces silently fall back to initials.
     const memberships = await this.prisma.conversationMember.findMany({
       where: { userId, archived: false },
-      // unbounded: one row per conversation this citizen is in — a truncated
-      // roster is a list where some faces silently fall back to initials.
       include: {
         conversation: {
           select: {

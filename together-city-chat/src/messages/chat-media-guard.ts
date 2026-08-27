@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RekognitionClient, DetectModerationLabelsCommand } from '@aws-sdk/client-rekognition';
 import { StorageProvider } from '../media/storage.provider';
+import { swallowed } from '../shared/swallow';
 import { verdictFor } from '../dating/photo-moderation.service';
 
 /**
@@ -156,7 +157,8 @@ export class ChatMediaGuard {
     }
     // THE BYTES DECIDE, NOT THE LABEL. `mimeType` is the sender's word for
     // what this is; sniffImage's docblock says what that was worth.
-    const head = await this.storage.getPublicObjectPrefix(key, SNIFF_BYTES).catch(() => null);
+    const head = await this.storage.getPublicObjectPrefix(key, SNIFF_BYTES)
+      .catch(swallowed('chat media: read the first bytes of an attachment', null, { senderId }));
     if (!head) {
       return { ok: false, retryable: true, reason: 'We could not read that file just now, so it has not been sent. Try again in a moment.' };
     }
@@ -183,7 +185,8 @@ export class ChatMediaGuard {
       // URL again once Rekognition is configured.
       return { ok: false, retryable: true, reason: 'We could not check that image just now, so it has not been sent. Try again in a moment.' };
     }
-    const obj = await this.storage.getPublicObjectBase64(key).catch(() => null);
+    const obj = await this.storage.getPublicObjectBase64(key)
+      .catch(swallowed('chat media: read the image for screening', null, { senderId }));
     if (!obj) {
       return { ok: false, retryable: true, reason: 'We could not read that image just now, so it has not been sent. Try again in a moment.' };
     }

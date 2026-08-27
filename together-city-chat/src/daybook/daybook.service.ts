@@ -118,10 +118,13 @@ export class DaybookService {
   async day(userId: string, date: string): Promise<DayRecord> {
     const [page, items, photos] = await Promise.all([
       this.prisma.dayPage.findUnique({ where: { userId_date: { userId, date } } }),
+      // unbounded: ONE day's entries, and the day page has no next page. A cap
+      // would drop entries off the end of a day with no way to ask for them.
       this.prisma.dayItem.findMany({
         where: { userId, date },
         orderBy: [{ at: 'asc' }, { createdAt: 'asc' }],
       }),
+      // unbounded: one day's photographs, for the same reason as the items above.
       this.prisma.dayPhoto.findMany({ where: { userId, date }, orderBy: { createdAt: 'asc' } }),
     ]);
     /* THE LINK IS MADE HERE, PER READ, AND IT EXPIRES. A diary photograph lives
@@ -303,8 +306,13 @@ export class DaybookService {
     const from = `${ym}-00`;
     const to = `${ym}-99`;
     const [pages, items, photos] = await Promise.all([
+      // unbounded: a COUNT per day across one month — these rows are tallied
+      // below, not listed, so a cap would silently under-count the busiest days.
       this.prisma.dayPage.findMany({ where: { userId, date: { gte: from, lte: to } } }),
+      // unbounded: counted, not listed — see above.
       this.prisma.dayItem.findMany({ where: { userId, date: { gte: from, lte: to } }, select: { date: true } }),
+      // unbounded: counted, and the FIRST photograph of each day is picked out
+      // below — a cap would change the tally and which picture the grid shows.
       this.prisma.dayPhoto.findMany({
         where: { userId, date: { gte: from, lte: to } },
         select: { date: true, fileKey: true },

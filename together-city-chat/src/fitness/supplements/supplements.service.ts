@@ -54,6 +54,9 @@ export class SupplementsService {
       this.masterProfile.get(userId).catch(swallowed('supplements.master', null)),
       this.medical.sharedBiomarkers(userId, 'fitness').catch(swallowed('supplements.biomarkers', null)),
       this.nutrition.targets(userId).catch(swallowed('supplements.targets', null)),
+      // A dropped medicine is a plan that recommends something clashing with it.
+      // unbounded: every medicine they take, because the engine checks each one
+      // for interactions — this is arithmetic on the whole list, not a page of it.
       this.prisma.medicine.findMany({ where: { userId }, select: { name: true } })
         .catch(swallowed('supplements.medicines', [] as Array<{ name: string }>)),
       this.prisma.foodPref.findUnique({ where: { userId } }).catch(swallowed('supplements.pref', null)),

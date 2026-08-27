@@ -548,6 +548,8 @@ export class ServiceOrdersService {
     const rows = await this.prisma.serviceOrder.findMany({
       where: { userId }, orderBy: { createdAt: 'desc' }, take: 100,
     }) as unknown as OrderRow[];
+    // unbounded: `in:` of the distinct listings on the page of orders above,
+    // which its take: 100 already bounds.
     const listings = await this.prisma.serviceListing.findMany({
       where: { id: { in: [...new Set(rows.map((r) => r.listingId))] } },
       select: { id: true, businessName: true },

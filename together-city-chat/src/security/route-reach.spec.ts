@@ -57,6 +57,21 @@ const ALLOW: Array<{ id: string; why: string }> = [
       + 'will ever ask for it.',
   },
   {
+    id: 'dating/dating.controller.ts  GET /dating/photo/*',
+    why: 'CALLED, and never as a string in this repository: the browser fetches it '
+      + 'as an <img> src from a URL this API minted. storage.provider.datingPhotoUrl '
+      + 'mints /dating/photo/<token> and the link travels in the card payload, so the '
+      + 'web app builds nothing — it renders what it was handed. Checked 27 Aug.',
+  },
+  {
+    id: 'nutrition/nutrition.controller.ts  GET /nutrition/plan/today',
+    why: 'MIRA\'S ROUTE, not a page\'s. The @Mira decorator on this handler is what '
+      + 'makes "what am I eating" an intent, and mira.service dispatches on the route\'s '
+      + 'own identity — case \'nutrition GET plan/today\' — then answers by calling '
+      + 'nutrition.planToday directly. No screen asks for it; deleting the route deletes '
+      + 'the capability, which is a different question from deleting dead code. Checked 27 Aug.',
+  },
+  {
     id: 'media/media-status.controller.ts  GET /media/cors-status',
     why: 'A diagnostic for a human with curl, added when cross-origin media was '
       + 'failing silently. It answers a question you ask by hand.',
@@ -102,6 +117,21 @@ const ALLOW: Array<{ id: string; why: string }> = [
 // left panel now has one. Its two siblings, archive and unarchive, are still
 // waiting for the same treatment and stay on the list.
 const KNOWN_UNREACHED: string[] = [
+  // ── THE VERIFICATION QUEUE NOBODY CAN OPEN (investigated 27 Aug) ──────────
+  // Not dead, and not a matcher blind spot: NO web file calls either of these,
+  // and the console has exactly three tabs — queue, citizens, audit
+  // (features/admin/pages/Console.tsx, `type Tab`). The reviewer screen was
+  // never built.
+  //
+  // What makes it worth naming rather than parking: the OTHER half shipped. A
+  // business owner can send a registration document and a video from the web
+  // app today (services/verification.controller.ts, called by
+  // features/services/api.ts), and trust.ts answers them "Your document is
+  // with us. We will write to you either way." Nothing in the product can read
+  // that queue, so the sentence is not true. These two routes are the only
+  // path to making it true; they are the build, not the cleanup.
+  "admin/admin.controller.ts  GET /admin/verification",
+  "admin/admin.controller.ts  POST /admin/verification/*/decision",
   "beauty/beauty.controller.ts  DELETE /beauty/looks/*",
   "beauty/beauty.controller.ts  GET /beauty/looks",
   "beauty/beauty.controller.ts  GET /beauty/looks/*",
@@ -123,6 +153,15 @@ const KNOWN_UNREACHED: string[] = [
   // about me" screen is a build that was explicitly deferred, and this is the
   // thing it will call. Until then the promise is checkable with curl.
   "mira/mira.controller.ts  GET /mira/memory",
+  // GET /mira/knows and DELETE /mira/knows/:id are the same deferred screen,
+  // checked 27 Aug: no caller anywhere in the web app and no features/mira
+  // folder to hold one. /mira/memory is what was SAID; these two are what she
+  // concluded from it, one row per subject, with the delete beside each line.
+  // Same argument as the entry above — a record a citizen cannot read is a file
+  // on them, and one they cannot delete is worse — so the read and the delete
+  // exist and are checkable with curl until "what Mira knows about me" is built.
+  "mira/mira.controller.ts  GET /mira/knows",
+  "mira/mira.controller.ts  DELETE /mira/knows/*",
   // GET /messages/search came off 1 Aug: the command palette searches messages.
   // Came ON 2 Aug: the family cart endpoint. Its only web caller was
   // useBuildFamilyCart(), which built a cart from the older STORED family

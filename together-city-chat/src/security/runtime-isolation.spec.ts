@@ -26,6 +26,7 @@
  * a hub with a `:id` route fails this until somebody decides which it is.
  */
 import { allRoutes } from './route-inventory';
+import { swallow } from '../shared/swallow';
 
 const TEST_DB = process.env.TEST_DATABASE_URL;
 const LIVE = Boolean(TEST_DB);
@@ -273,7 +274,7 @@ describeLive('one citizen cannot touch another citizen’s rows', () => {
   afterAll(async () => {
     // Best-effort: leave the test database as we found it.
     for (const who of [alice, mallory]) {
-      if (who?.token) await call(who.token, 'POST', '/api/auth/delete-account', {}).catch(() => undefined);
+      if (who?.token) await swallow(call(who.token, 'POST', '/api/auth/delete-account', {}), 'runtime-isolation: teardown delete-account');
     }
     await app?.close();
   });
