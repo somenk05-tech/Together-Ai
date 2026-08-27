@@ -195,3 +195,61 @@ describe('curated stack keeps mutually-liked people', () => {
     });
   });
 });
+
+/**
+ * ── AND A MATCH DOES NOT FALL OFF WHEN THEY PAUSE (third audit, blocker 07) ──
+ *
+ * Curated Matches was built by FILTERING the discovery pool, so a person you
+ * had already matched dropped off the page the moment they paused or hid their
+ * profile, edited who they seek, you changed your own age range, or their
+ * profile fell past POOL_CEILING — while the chats tab still listed them. Two
+ * screens, two answers. Matched partners are fetched by their match rows now,
+ * bypassing poolWhere. This proves the pool can return NOTHING and the match
+ * still shows.
+ */
+describe('a match survives its partner leaving the pool', () => {
+  function servicePausedPartner() {
+    const partner = profile('paused', { visible: false });   // out of every pool
+    const prisma = {
+      datingProfile: {
+        findUnique: jest.fn(async () => profile('me', { gender: 'male', seeking: 'any' })),
+        // The pool query (poolWhere: visible=true) finds nobody; the by-id
+        // matched-partner query finds the paused partner.
+        findMany: jest.fn(async ({ where }: { where: { userId?: { in?: string[] } } }) =>
+          where?.userId?.in ? [partner] : []),
+      },
+      datingMatch: {
+        findFirst: jest.fn(async () => null),
+        findMany: jest.fn(async () => [matchedState('paused')]),
+        count: jest.fn(async () => 0),
+      },
+      compatibilityScore: { findUnique: jest.fn(async () => null) },
+      connection: { findMany: jest.fn(async () => []) },
+      block: { findMany: jest.fn(async () => []) },
+      follow: { findMany: jest.fn(async () => []) },
+    };
+    const svc = new DatingService(
+      prisma as never, {} as never, {} as never, {} as never,
+      {} as never, {} as never, {} as never,
+      new BlockingService(prisma as never),
+      {} as never, {} as never,
+      { approvedOf: async () => new Set<string>(), statusOf: async () => ({}) } as never,
+      { track: () => undefined } as never,
+      {} as never, { up: false } as never,
+      { add: async () => false, handle: () => undefined, schedule: async () => false } as never,
+    );
+    return { svc };
+  }
+
+  it('shows a matched partner whose profile is paused and in no pool', async () => {
+    const { svc } = servicePausedPartner();
+    const res = await svc.stack('me', 'romantic') as unknown as {
+      matched: Array<{ user: { id: string }; matched: boolean }>;
+      candidates: unknown[];
+    };
+    expect(res.matched.map((m) => m.user.id)).toEqual(['paused']);
+    expect(res.matched[0].matched).toBe(true);
+    // …and it did NOT come from the pool, which returned nobody.
+    expect(res.candidates).toHaveLength(0);
+  });
+});

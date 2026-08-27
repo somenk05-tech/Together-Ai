@@ -1490,19 +1490,52 @@ export class DatingService implements OnModuleInit {
     // The count of open conversations was read here to say "two of three".
     // With no cap there is no denominator, and nothing renders the numerator.
 
+    // Their own match states, read FIRST now — a matched partner's profile is
+    // fetched by id below whether or not the pool would return them.
+    // unbounded: their own match states — the product caps how many can exist
+    const states = await this.prisma.datingMatch.findMany({
+      where: { OR: [{ userOneId: userId }, { userTwoId: userId }], kind },
+    });
+
     // Narrowed, capped and ordered — see POOL_CEILING.
     const myDForQuery = this.parseDX((mine as { extras?: string | null }).extras);
-    const candidates = await this.prisma.datingProfile.findMany({
+    const poolCandidates = await this.prisma.datingProfile.findMany({
       where: this.poolWhere(userId, mine, myDForQuery),
       include: { user: { select: { id: true, name: true, emailVerified: true } } },
       orderBy: { updatedAt: 'desc' },
       take: POOL_CEILING,
     });
+
+    // A MATCH IS NOT A POOL MEMBER (third audit, blocker 07).
+    //
+    // Curated Matches was built by filtering THIS pool, so a person you had
+    // already matched fell off /dating/matches the moment they paused or hid
+    // their profile, edited who they seek, YOU changed your own age preference,
+    // or their profile dropped past the 2000 most-recently-edited — while the
+    // chats tab, which reads DatingMatch directly, still listed them. Two
+    // screens, two answers, and the empty state ("Nobody has matched you back
+    // yet") was the lie.
+    //
+    // So matched partners are fetched by their match rows, bypassing poolWhere
+    // entirely, and merged in front of the pool so POOL_CEILING can never
+    // truncate them. `deletedAt` is still honoured — somebody who LEFT is gone
+    // from here as everywhere. The card loop's discovery filters already skip
+    // anyone matched, so a merged match is scored and shown, never re-filtered.
+    const matchedPartnerIds = states
+      .filter((st) => st.status === 'matched')
+      .map((st) => (st.userOneId === userId ? st.userTwoId : st.userOneId));
+    const matchedProfiles = matchedPartnerIds.length
+      // unbounded: the caller's own matched partners — the product caps matches
+      ? await this.prisma.datingProfile.findMany({
+        where: { userId: { in: matchedPartnerIds }, user: DatingService.STILL_HERE },
+        include: { user: { select: { id: true, name: true, emailVerified: true } } },
+      })
+      : [];
+    const seenCand = new Set<string>();
+    const candidates = [...matchedProfiles, ...poolCandidates].filter(
+      (c) => !seenCand.has(c.userId) && (seenCand.add(c.userId), true),
+    );
     const photoJobs: Array<{ keys: readonly string[]; into: string[] }> = [];
-    // unbounded: their own match states — bounded by the pool above
-    const states = await this.prisma.datingMatch.findMany({
-      where: { OR: [{ userOneId: userId }, { userTwoId: userId }], kind },
-    });
     const stateFor = (otherId: string) => states.find((s) => s.userOneId === otherId || s.userTwoId === otherId);
     const myD = this.parseDX((mine as { extras?: string | null }).extras);
     const excluded = await this.connectionExclusions(userId);
