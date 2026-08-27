@@ -64,6 +64,50 @@ import { verdictFor } from '../dating/photo-moderation.service';
  *  claiming to be an image and arriving as something else is not a case to be
  *  clever about. */
 const SCREENABLE = new Set(['image/jpeg', 'image/png', 'image/webp']);
+/** Enough for every container below. WebP and the ISO-BMFF family need 12. */
+const SNIFF_BYTES = 16;
+
+/**
+ * ── WHAT THIS FILE ACTUALLY IS, READ FROM THE FILE ─────────────────────────
+ *
+ * THE HOLE THIS CLOSES, and it was mine. The first version of this guard
+ * opened with `if (!mimeType.startsWith('image/')) return { ok: true }` — and
+ * `mimeType` arrives in the request body, from the sender, validated as
+ * `z.string().min(1)` and never against the bytes. Labelling a JPEG
+ * `application/octet-stream` skipped the Rekognition call entirely; the
+ * message was delivered and the recipient opened a public URL to an
+ * unscreened image. One string defeated the whole fail-closed pipeline.
+ *
+ * It is the repo's own scar in a new place: a guard is only proven where the
+ * DATA has reached, and that guard was placed where the CLAIM reached.
+ *
+ * So the label is no longer consulted for the decision. Every attachment is
+ * sniffed and the bytes decide. Returns the concrete type when it is one
+ * Rekognition takes, `'image'` for an image container it does not, and null
+ * for anything we do not recognise as a raster image at all.
+ *
+ * THE HONEST LIMIT: null means "not one of these containers", not "definitely
+ * not an image". An exotic format nobody's chat client can display would read
+ * as null and pass through as out-of-scope. Every format a phone or browser
+ * actually produces is below.
+ */
+export function sniffImage(b: Buffer): 'image/jpeg' | 'image/png' | 'image/webp' | 'image' | null {
+  if (b.length < 12) return null;
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg';
+  if (b[0] === 0x89 && b.toString('latin1', 1, 4) === 'PNG' && b[4] === 0x0d && b[5] === 0x0a) return 'image/png';
+  if (b.toString('latin1', 0, 4) === 'RIFF' && b.toString('latin1', 8, 12) === 'WEBP') return 'image/webp';
+  // Images Rekognition cannot take. Refused rather than waved through: an
+  // animated GIF or a HEIC burst is exactly as capable of being the thing
+  // this guard exists to stop.
+  if (b.toString('latin1', 0, 3) === 'GIF') return 'image';
+  if (b.toString('latin1', 0, 2) === 'BM') return 'image';
+  if (b.toString('latin1', 0, 4) === 'II*\u0000' || b.toString('latin1', 0, 4) === 'MM\u0000*') return 'image';
+  if (b.toString('latin1', 4, 8) === 'ftyp') {
+    const brand = b.toString('latin1', 8, 12);
+    if (['heic', 'heix', 'hevc', 'mif1', 'avif', 'avis'].includes(brand)) return 'image';
+  }
+  return null;
+}
 /** Above this we do not fetch the bytes at all. The upload path caps size; this
  *  is the second wall, and it refuses rather than skipping the check. */
 const MAX_SCREEN_BYTES = 8 * 1024 * 1024;
@@ -103,17 +147,41 @@ export class ChatMediaGuard {
    * docblock above says which is which.
    */
   async screen(url: string, mimeType: string, senderId: string, publicBase: string): Promise<Screening> {
-    if (!mimeType.startsWith('image/')) return { ok: true };
-    if (!SCREENABLE.has(mimeType)) {
-      return { ok: false, retryable: false, reason: `We can only send JPEG, PNG or WebP images here — not ${mimeType}.` };
-    }
-    if (!this.client) {
-      return { ok: false, retryable: true, reason: 'We could not check that image just now, so it has not been sent. Try again in a moment.' };
-    }
     const key = keyFromUrl(url, publicBase);
     if (!key) {
+      // No key means no bytes, and no bytes means no decision. A URL we cannot
+      // resolve to an object we hold is refused rather than assumed harmless.
       this.logger.warn(`chat media: could not derive a storage key from an attachment url (sender ${senderId})`);
-      return { ok: false, retryable: false, reason: 'That image could not be read, so it has not been sent.' };
+      return { ok: false, retryable: false, reason: 'That file could not be read, so it has not been sent.' };
+    }
+    // THE BYTES DECIDE, NOT THE LABEL. `mimeType` is the sender's word for
+    // what this is; sniffImage's docblock says what that was worth.
+    const head = await this.storage.getPublicObjectPrefix(key, SNIFF_BYTES).catch(() => null);
+    if (!head) {
+      return { ok: false, retryable: true, reason: 'We could not read that file just now, so it has not been sent. Try again in a moment.' };
+    }
+    const actual = sniffImage(head);
+    // Not an image → out of scope, and that is a statement about scope rather
+    // than a pass. Voice notes come through here; nothing in this stack can
+    // classify audio and pretending otherwise would be theatre.
+    if (actual === null) {
+      if (mimeType.startsWith('image/')) {
+        // Claims to be an image, is not one we can read. Corrupt or disguised;
+        // either way there is nothing to screen and it fails closed.
+        return await this.refuse(key, senderId, `We could not read that image, so it has not been sent.`);
+      }
+      return { ok: true };
+    }
+    if (actual === 'image') {
+      return await this.refuse(key, senderId, 'We can only send JPEG, PNG or WebP images here.');
+    }
+    if (!SCREENABLE.has(actual)) {
+      return await this.refuse(key, senderId, `We can only send JPEG, PNG or WebP images here — not ${actual}.`);
+    }
+    if (!this.client) {
+      // Retryable, so the object is NOT deleted: the sender will send the same
+      // URL again once Rekognition is configured.
+      return { ok: false, retryable: true, reason: 'We could not check that image just now, so it has not been sent. Try again in a moment.' };
     }
     const obj = await this.storage.getPublicObjectBase64(key).catch(() => null);
     if (!obj) {
@@ -121,7 +189,7 @@ export class ChatMediaGuard {
     }
     const bytes = Buffer.from(obj.base64, 'base64');
     if (bytes.length > MAX_SCREEN_BYTES) {
-      return { ok: false, retryable: false, reason: 'That image is too large to send here.' };
+      return await this.refuse(key, senderId, 'That image is too large to send here.');
     }
     let labels: Array<{ Name?: string; ParentName?: string; Confidence?: number }>;
     try {
@@ -138,10 +206,35 @@ export class ChatMediaGuard {
     const verdict = verdictFor(labels, this.rejectAt);
     if (verdict.status === 'approved') return { ok: true };
     this.logger.warn(`chat media refused (${verdict.status}) from ${senderId}: ${verdict.reason}`);
-    return {
-      ok: false, retryable: false,
-      reason: 'That image did not pass our automated check, so it has not been sent.',
-    };
+    return await this.refuse(key, senderId, 'That image did not pass our automated check, so it has not been sent.');
+  }
+
+  /**
+   * A refusal that is final, and takes the file with it.
+   *
+   * REFUSING THE SEND DID NOT UN-PUBLISH ANYTHING. Attachments are PUT into
+   * the public bucket by the browser before the message is attempted, so
+   * every image this guard turned away stayed permanently addressable to
+   * anyone holding its URL — and the sender holds it. The guard stopped
+   * delivery and left the thing itself sitting there, which for the image
+   * this exists to stop is most of the harm still done.
+   *
+   * Only on a FINAL refusal. A retryable one — Rekognition unreachable,
+   * storage momentarily unreadable — leaves the object alone, because the
+   * sender is about to send that same URL again.
+   *
+   * The delete is best-effort and never changes the answer: an object we
+   * could not remove is a tidiness problem, and refusing the send is the
+   * safety one. Ownership was already established by
+   * `assertAttachmentsAreYoursToSend`, which runs before any of this.
+   */
+  private async refuse(key: string, senderId: string, reason: string): Promise<Screening> {
+    try {
+      await this.storage.deleteObject(key);
+    } catch (e) {
+      this.logger.warn(`chat media: refused ${key} from ${senderId} but could not delete it (${(e as Error).message})`);
+    }
+    return { ok: false, retryable: false, reason };
   }
 }
 

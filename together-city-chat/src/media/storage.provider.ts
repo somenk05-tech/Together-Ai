@@ -515,6 +515,32 @@ export class StorageProvider implements OnModuleInit {
     }
   }
 
+  /**
+   * The FIRST N BYTES of a public object, for deciding what a file actually is.
+   *
+   * A ranged GET rather than the whole object, because the caller asks this of
+   * EVERY attachment — voice notes and documents included — and the upload cap
+   * is 50MB. Sixteen bytes is enough for every container we recognise; pulling
+   * fifty megabytes to read twelve of them is the reason this is not
+   * `getPublicObjectBase64`.
+   *
+   * HeadObject would be cheaper still and is no use: its ContentType is the
+   * one the uploader declared, which is precisely the claim we are checking.
+   */
+  async getPublicObjectPrefix(key: string, n: number): Promise<Buffer | null> {
+    if (!this.s3 || !key) return null;
+    try {
+      const res = await this.s3.send(new GetObjectCommand({
+        Bucket: this.bucket, Key: key, Range: `bytes=0-${Math.max(0, n - 1)}`,
+      }));
+      const bytes = await res.Body?.transformToByteArray();
+      return bytes ? Buffer.from(bytes) : null;
+    } catch (e) {
+      this.logger.warn(`getPublicObjectPrefix failed for ${key}: ${(e as Error).message}`);
+      return null;
+    }
+  }
+
   /** Delete an object (frees the citizen's vault quota). No-op if unconfigured. */
   async deleteObject(key: string, bucket?: string): Promise<void> {
     if (!this.s3 || !key) return;

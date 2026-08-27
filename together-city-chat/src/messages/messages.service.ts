@@ -653,7 +653,7 @@ export class MessagesService {
   private async screenAttachments(
     senderId: string,
     conversationId: string,
-    attachments: Array<{ url: string; mimeType?: string }>,
+    attachments: Array<{ url: string; thumbnail?: string; mimeType?: string }>,
   ): Promise<void> {
     const convo = await this.prisma.conversation.findUnique({
       where: { id: conversationId },
@@ -662,8 +662,18 @@ export class MessagesService {
     if ((convo as { anonymousTrust?: number | null } | null)?.anonymousTrust == null) return;
     const base = (this.config.get<string>('media.publicBaseUrl') ?? '').replace(/\/+$/, '');
     for (const a of attachments) {
-      const verdict = await this.media.screen(a.url, a.mimeType ?? '', senderId, base);
-      if (!verdict.ok) throw new BadRequestException(verdict.reason);
+      // BOTH, and the asymmetry was the bug. `assertAttachmentsAreYoursToSend`
+      // twenty lines below checks url AND thumbnail — it has to, or you could
+      // put somebody else's file in the second field. This checked only the
+      // first, and the serializer hands `thumbnail` to the recipient as
+      // `thumbUrl` and their chat renders it. So the thumbnail was proven to
+      // be yours and never looked at: put the payload there and it arrived
+      // unscanned. The ownership gate had the shape right; screening did not.
+      for (const target of [a.url, a.thumbnail]) {
+        if (!target) continue;
+        const verdict = await this.media.screen(target, a.mimeType ?? '', senderId, base);
+        if (!verdict.ok) throw new BadRequestException(verdict.reason);
+      }
     }
   }
 
