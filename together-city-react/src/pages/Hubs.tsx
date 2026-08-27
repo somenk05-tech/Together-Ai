@@ -121,12 +121,15 @@ export function Hubs() {
       <div className="eyebrow" style={{ margin: '26px 0 10px' }}>Your city, your people</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
         {[
-          { to: '/personal', label: 'Personal', sub: 'Thoughts, album & more', icon: 'personal' as const },
+          { to: '/personal', label: 'Personal', sub: 'Thoughts, album & more', icon: 'personal' as const, key: 'personal' },
           { to: '/connections', label: 'People', sub: 'Friends & requests', icon: 'people' as const },
-          { to: '/mail', label: 'Mail', sub: 'Your city inbox', icon: 'mention' as const },
+          { to: '/mail', label: 'Mail', sub: 'Your city inbox', icon: 'mention' as const, key: 'mail' },
           { to: '/calendar', label: 'Calendar', sub: 'Everything booked', icon: 'star' as const },
           { to: '/drive', label: 'Drive', sub: 'Your documents', icon: 'share' as const },
-        ].map((d) => (
+        /* Two of these five now answer to a switch. The other three have no
+           key and are always drawn — a door with nothing to hide it by is not
+           a door somebody forgot, it is one nobody asked to hide. */
+        ].filter((d) => !('key' in d) || hubOn(d.key as string)).map((d) => (
           <Link key={d.to} to={d.to} className="card lift" style={{ display: 'flex', gap: 10, alignItems: 'center', minHeight: 64 }}>
             <span aria-hidden style={{ color: 'var(--accent-ink)' }}><Icon name={d.icon} size={20} /></span>
             <span style={{ minWidth: 0 }}>

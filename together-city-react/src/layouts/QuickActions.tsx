@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useUnreadChatCount } from '@/api';
+import { useCityDesign } from '@/hooks/useCityDesign';
 import { Icon } from '@/components/ui/Icon';
 
 /** Small red count bubble (shared with the header). */
@@ -48,6 +49,7 @@ const pill: React.CSSProperties = {
  */
 export function QuickActions({ show = 'all' }: { show?: 'all' | 'search' | 'links' }) {
   const unreadChats = useUnreadChatCount();
+  const { hubOn } = useCityDesign();
   const searchOn = show === 'all' || show === 'search';
   const linksOn = show === 'all' || show === 'links';
   return (
@@ -74,19 +76,30 @@ export function QuickActions({ show = 'all' }: { show?: 'all' | 'search' | 'link
               The folder is one click IN from there; the mailbox was not one
               click out. The header was the only thing in the app not using the
               hub's own path. */}
-          <Link to="/mail" aria-label="Mail" title="Mail" style={pill}>
-            <Icon name="mail" size={17} /> <span className="lab">Mail</span>
-          </Link>
-          <Link to="/chats" aria-label="Chat" title="Chat" style={pill}>
-            <Icon name="chat" size={17} /> <span className="lab">Chat</span>
-            <Badge count={unreadChats} />
-          </Link>
+          {/* Each pill answers the same `hubOn` the header tabs and the drawer
+              do, so the operator's site-wide switch reaches the three doors
+              that were never on the citizen's own design page. Mail and Chat
+              keep arriving and keep sending either way — this is the way in,
+              not the service. */}
+          {hubOn('mail') && (
+            <Link to="/mail" aria-label="Mail" title="Mail" style={pill}>
+              <Icon name="mail" size={17} /> <span className="lab">Mail</span>
+            </Link>
+          )}
+          {hubOn('chat') && (
+            <Link to="/chats" aria-label="Chat" title="Chat" style={pill}>
+              <Icon name="chat" size={17} /> <span className="lab">Chat</span>
+              <Badge count={unreadChats} />
+            </Link>
+          )}
           {/* The drawer of one's own — Thoughts, the daybook, Drive, the album.
               `/personal` is the path `hubs.ts` declares for it, so the pill and
               the burger drawer cannot drift apart. */}
-          <Link to="/personal" aria-label="Personal" title="Personal" style={pill}>
-            <Icon name="personal" size={17} /> <span className="lab">Personal</span>
-          </Link>
+          {hubOn('personal') && (
+            <Link to="/personal" aria-label="Personal" title="Personal" style={pill}>
+              <Icon name="personal" size={17} /> <span className="lab">Personal</span>
+            </Link>
+          )}
         </>
       )}
     </div>

@@ -292,6 +292,29 @@ describe('the kill switches', () => {
    * second switch and a considered choice; this fails if somebody makes it by
    * accident.
    */
+  /**
+   * MAIL AND CHAT GOT A DOOR SWITCH AND STAY UN-KILLABLE.
+   *
+   * The owner asked for them by name. They are the two sectors on the list
+   * that carry correspondence between people, so the asymmetry is deliberate
+   * and this pins both halves: hideable, never closeable.
+   */
+  it('can hide the inbox door, and can never close the inbox', () => {
+    for (const key of ['mail', 'chat', 'personal']) {
+      expect({ key, hideable: isVisibilityKey(key) }).toEqual({ key, hideable: true });
+    }
+    // Still un-killable, and the never-list still says so.
+    for (const key of ['mail', 'chat', 'messages']) {
+      expect(NEVER_FLAGGABLE).toContain(key);
+      expect(FLAGS.flatMap((f) => f.prefixes)).not.toContain(key);
+    }
+    // The copy carries the warning that matters: a hidden inbox reads as
+    // silence to the person waiting on a reply.
+    const mail = VISIBILITY_FLAGS.find((f) => f.key === 'mail');
+    expect(mail?.hides).toMatch(/keeps arriving and keeps sending/);
+    expect(mail?.hides).toMatch(/silence/);
+  });
+
   it('leaves Mira answering, because only her door was switched', () => {
     expect(FLAGS.flatMap((f) => f.prefixes)).not.toContain('mira');
     expect(flagForPath('/api/mira/say')).toBeNull();

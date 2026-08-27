@@ -193,6 +193,32 @@ export const VISIBILITY_FLAGS: VisibilityFlag[] = [
   sector('realestate', 'Real Estate'),
   sector('services', 'Local Services'),
   sector('social', 'Social Life'),
+  /**
+   * ── THE THREE THAT ARE NOT DISTRICTS (owner, 27 Aug: "add email chat and
+   * personal services too") ────────────────────────────────────────────────
+   *
+   * Mail, Chat and Personal were never on the citizen's own design page —
+   * "the citizen's own doors, never designable" — because nobody should be
+   * able to lose their own inbox by tidying their menu. The operator's switch
+   * is a different question, so they get one; but two of them hold
+   * CORRESPONDENCE BETWEEN PEOPLE, and that is not the same as hiding tarot.
+   *
+   * Nothing stops arriving and nothing stops sending — these are still
+   * `NEVER_FLAGGABLE`, so no kill switch can ever reach them. What goes is the
+   * way IN, and the copy says so plainly, because the person who suffers a
+   * hidden inbox is not the operator: it is somebody waiting on a reply who
+   * navigates by the menu, finds nothing, and concludes the message never came.
+   */
+  sector('mail', 'Mail',
+    'Mail keeps arriving and keeps sending, and a saved link still opens the inbox — but '
+    + 'somebody waiting on a reply has no way to it from the menu, and will read that as '
+    + 'silence rather than as a hidden door.'),
+  sector('chat', 'Chat',
+    'Messages keep arriving, keep sending, and every notification still works. What goes is '
+    + 'the way in — anyone mid-conversation who navigates by the menu will not find it.'),
+  sector('personal', 'Personal',
+    'Their thoughts, album and everything filed there stay exactly where they are and keep '
+    + 'answering. This is the door only.'),
   {
     key: 'mira',
     label: 'Mira',

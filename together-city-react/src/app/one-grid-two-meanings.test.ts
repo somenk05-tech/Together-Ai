@@ -159,6 +159,32 @@ describe('one grid, two meanings', () => {
    * there; if a fifteenth hub is added, the API's guard fails until somebody
    * decides whether it gets a switch or a reason.
    */
+  /**
+   * ── AND THE THREE THAT WERE NEVER DISTRICTS (owner, 27 Aug) ───────────────
+   *
+   * "Add email chat and personal services too." Mail, Chat and Personal were
+   * deliberately absent from the citizen's design page — nobody should lose
+   * their own inbox by tidying a menu — so their doors live in the header's
+   * pill row and the All-hubs people tiles rather than in NAV alone.
+   *
+   * Two of them hold correspondence between people, which is why the pins
+   * below are about the DOOR and the pins in dev.spec are about the service:
+   * mail and chat stay NEVER_FLAGGABLE, so no kill switch can ever reach them,
+   * and nothing here stops a message arriving or sending.
+   */
+  it('reaches the three doors that were never on the citizen’s page', () => {
+    const pills = code('layouts/QuickActions.tsx');
+    for (const key of ['mail', 'chat', 'personal']) {
+      expect({ key, gated: pills.includes(`hubOn('${key}')`) }).toEqual({ key, gated: true });
+    }
+    // The All-hubs people row hides only the two that have a switch; People,
+    // Calendar and Drive carry no key and are always drawn.
+    const hubs = code('pages/Hubs.tsx');
+    expect(hubs).toMatch(/\.filter\(\(d\) => !\('key' in d\) \|\| hubOn\(d\.key as string\)\)/);
+    expect(hubs).toMatch(/key: 'personal'/);
+    expect(hubs).toMatch(/key: 'mail'/);
+  });
+
   it('still has the fourteen hubs the API guard was written against', () => {
     expect([...DESIGNABLE_HUBS].sort()).toEqual([
       'astrology', 'beauty', 'dating', 'ecommerce', 'entertainment', 'financial',
