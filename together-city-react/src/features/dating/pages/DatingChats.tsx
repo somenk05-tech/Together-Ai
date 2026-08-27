@@ -7,7 +7,6 @@ import { chatApi, useMessages, useChatRealtime, type OutgoingAttachment } from '
 import type { Message } from '@/api/schemas';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDatingChats, useMatchDetail, useUnmatch, type DatingChatSummary } from '../api';
-import { CallButtons } from '@/features/calls/CallButtons';
 import { SafetyMenu } from '../components/SafetyMenu';
 import { MiraMark } from '@/features/chat/mira/MiraMark';
 import { useMiraShown } from '@/hooks/useCityDesign';
@@ -375,7 +374,6 @@ function Thread({ chat, meId, mePhoto, onBack }: { chat: OpenChat; meId: string;
         )}
         {/* A call here carries no more identity than the chat does: the avatar
             and name above are already whatever each person chose to show. */}
-        <CallButtons conversationId={chat.conversationId} compact />
         <button type="button" className="cstool" aria-label="More options" aria-expanded={menu}
           style={{ flex: 'none' }} onClick={() => setMenu((v) => !v)}>⋯</button>
         {menu && (

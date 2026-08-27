@@ -66,7 +66,6 @@ import { ChatStarter } from '../components/ChatStarter';
 import { GroupPanel } from '../components/GroupPanel';
 import { ForwardPanel } from '../components/ForwardPanel';
 import { Spinner, EmptyState } from '@/components/ui';
-import { CallButtons } from '@/features/calls/CallButtons';
 import { useAuth } from '@/hooks/useAuth';
 import { useChatRoom } from '@/hooks/useChatRoom';
 import { useScaleLock } from '@/hooks/useScaleLock';
@@ -722,7 +721,6 @@ export function Chats() {
                     <MiraMark size={48} state="waiting" />
                   </button>
                 )}
-                <CallButtons conversationId={activeId} compact />
                 {/* end of the ordinary header — the bulk bar above takes this
                     whole row when anything is picked. */}
                 </>
