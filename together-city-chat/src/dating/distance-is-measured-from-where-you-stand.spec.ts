@@ -98,4 +98,17 @@ describe('the form and the engine agree on the vocabulary', () => {
   it('defaults to current location rather than to Anywhere', () => {
     expect(form).toContain("dx.partnerLocationMode === 'any' ? 'any' : 'around'");
   });
+
+  /* The radius and the point it is drawn around are one answer, and the form
+     has to read like one: the slider sits UNDER the setting and prints the
+     origin in its own label. Both pins fail if the slider drifts back up into
+     the grid of unrelated preferences it came out of. */
+  it('puts the radius below the setting it is measured from', () => {
+    expect(form.indexOf('Where to find your partner'))
+      .toBeLessThan(form.indexOf('Maximum distance in kilometres'));
+  });
+
+  it('names that origin in the slider label, not just above it', () => {
+    expect(form).toContain('`Distance from ${originName} — `');
+  });
 });

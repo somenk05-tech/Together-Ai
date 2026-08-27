@@ -584,6 +584,11 @@ export function DatingProfilePage() {
   // means Anywhere — which also lands the profiles that saved the retired
   // 'specific' mode on the setting that survived, rather than on neither.
   const locationMode = dx.partnerLocationMode === 'any' ? 'any' : 'around';
+  // THE TWO CONTROLS ARE ONE ANSWER (owner, 27 Aug). The radius is meaningless
+  // without the point it is drawn around, so the origin is named once here and
+  // printed on both the setting and the slider that measures from it.
+  const originName = locationMode === 'any' ? null
+    : dx.searchPlace || (typeof dx.searchLat === 'number' ? 'your current location' : 'the city on your profile');
   const useMyLocation = () => {
     setD({ partnerLocationMode: 'around' });
     if (!navigator.geolocation) { setLocErr('This browser cannot share a location — the city on your profile is used instead.'); return; }
@@ -595,7 +600,7 @@ export function DatingProfilePage() {
         /* Best effort, and only to name the spot back to them. The distance is
            measured from the coordinates whether or not this answers. */
         geoApi.reverse(lat, lng)
-          .then((place) => { if (place) setD({ searchPlace: place.short || place.label }); })
+          .then((place) => { if (place) setD({ searchPlace: place.short.trim() || place.label.split(',')[0].trim() }); })
           .catch(() => undefined)
           .finally(() => setLocBusy(false));
       },
@@ -1057,24 +1062,6 @@ export function DatingProfilePage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
             <label style={{ display: 'block' }}><span style={label}>Age from</span><input type="number" min={18} max={99} value={dx.prefAgeMin ?? ''} onChange={(e) => setD({ prefAgeMin: num(e.target.value) })} style={field} /></label>
             <label style={{ display: 'block' }}><span style={label}>Age to</span><input type="number" min={18} max={99} value={dx.prefAgeMax ?? ''} onChange={(e) => setD({ prefAgeMax: num(e.target.value) })} style={field} /></label>
-            <label style={{ display: 'block' }}>
-              {/* A SLIDER, NOT A STEPPER (owner, 27 Aug). A radius is a feel, not
-                  a figure typed to the kilometre — the slider says that, and the
-                  live readout keeps the exact number a stepper gave. 500 is the
-                  top of the track and reads as "500 km or further", so the whole
-                  useful range is one thumb-drag rather than fifty taps. */}
-              <span style={label}>Distance — {distanceKm >= 500 ? '500+ km' : `${distanceKm} km`}</span>
-              <input type="range" min={5} max={500} step={5} value={Math.min(distanceKm, 500)}
-                aria-label="Maximum distance in kilometres"
-                onChange={(e) => setD({ prefDistanceKm: Number(e.target.value) })} style={distanceSlider} />
-              {/* shared/geo.ts resolves ~140 cities to coordinates, so the
-                  distance is measured, not guessed; a city outside that list
-                  falls back to place names, with the preference left out rather
-                  than applied to a distance nobody measured. */}
-              <span className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, display: 'block', marginTop: 4 }}>
-                Shapes scores rather than hiding people — someone further away still appears, scored lower.
-              </span>
-            </label>
             <div><span style={label}>Diet</span><SearchSelect category="diet" value={dx.prefDiet ?? ''} clearable clearLabel="Any" placeholder="Any" onChange={(o) => setD({ prefDiet: o?.label })} /></div>
             <div><span style={label}>Wants children</span><SearchSelect category="wantsChildren" value={dx.wantsChildren ?? ''} clearable clearLabel="Any" placeholder="Any" onChange={(o) => setD({ wantsChildren: o?.label })} /></div>
             <div><span style={label}>Smoking</span><SearchSelect category="smoking" value={dx.prefSmoking ?? ''} clearable clearLabel="Any" placeholder="Any" onChange={(o) => setD({ prefSmoking: o?.label })} /></div>
@@ -1092,13 +1079,35 @@ export function DatingProfilePage() {
           </div>
           <span className="muted" style={locHint}>
             {locationMode === 'any'
-              ? 'Distance still orders your matches — it just never rules anybody out.'
+              ? 'Everybody is in range. Distance still orders your matches — it just never rules anybody out.'
               : locBusy ? 'Asking your browser where you are…'
                 : locErr ? locErr
-                  : dx.searchPlace ? `Distance is measured from ${dx.searchPlace}.`
-                    : typeof dx.searchLat === 'number' ? 'Distance is measured from your current location.'
-                      : 'Distance is measured from the city on your profile. Tap “Current location” to use where you actually are.'}
+                  : dx.searchPlace ? `Searching around ${dx.searchPlace}.`
+                    : typeof dx.searchLat === 'number' ? 'Searching around your current location.'
+                      : 'Searching around the city on your profile. Tap “Current location” to use where you actually are.'}
           </span>
+
+          {/* A RADIUS BELONGS UNDER ITS ORIGIN (owner, 27 Aug). The slider sat
+              in the grid above, three fields away from the thing it measures
+              from — "100 km" reads as a distance from nowhere until the origin
+              is the line directly above it. A SLIDER, NOT A STEPPER: a radius is
+              a feel, not a figure typed to the kilometre, and the live readout
+              keeps the exact number a stepper gave. 500 is the top of the track
+              and reads as "500 km or further". */}
+          <label style={{ display: 'block' }}>
+            <span style={label}>
+              {originName ? `Distance from ${originName} — ` : 'Distance — '}
+              {distanceKm >= 500 ? '500+ km' : `${distanceKm} km`}
+            </span>
+            <input type="range" min={5} max={500} step={5} value={Math.min(distanceKm, 500)}
+              aria-label={originName ? `Maximum distance in kilometres from ${originName}` : 'Maximum distance in kilometres'}
+              onChange={(e) => setD({ prefDistanceKm: Number(e.target.value) })} style={distanceSlider} />
+            <span className="muted" style={locHint}>
+              {locationMode === 'any'
+                ? 'Shapes scores rather than hiding people — someone further away still appears, scored lower.'
+                : 'Shapes scores rather than hiding people — someone further away still appears, scored lower. Tick the Distance deal breaker below to make it a boundary.'}
+            </span>
+          </label>
 
           <span style={label}>Deal breakers (optional)</span>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{DEAL_BREAKERS.map((v) => <Chip key={v} on={(dx.dealBreakers ?? []).includes(v)} onClick={() => setD({ dealBreakers: capToggle(dx.dealBreakers, v, 5) })}>{v}</Chip>)}</div>
