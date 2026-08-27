@@ -16,3 +16,42 @@ _to_delete/
 _claude_scratch/
 pet-district/
 *.patch
+
+# Delivery scripts and their payloads (see CLAUDE.md § Delivery).
+#
+# One per commit, each carrying a base64 copy of a patch that is ALREADY in
+# this history — written to be run once on the Mac, not to be kept. `*.patch`
+# above is the same class of thing and was ignored for the same reason; these
+# were simply never added to the rule.
+#
+# The cost of not having this: `git status` at the repo root answers with
+# eighty-odd `??` lines, which is enough noise that a landing script's own
+# "is the tree clean" precondition read them as a dirty tree and refused to
+# run. A status nobody can read is a check nobody performs.
+#
+# HONEST CAVEAT: 289 of these were committed before this rule and STAY
+# tracked — .gitignore governs untracked files only. So the repo root is
+# half-committed scripts, half-ignored ones until somebody finishes the job:
+#     git rm -r --cached --ignore-unmatch 'land-*.sh' 'push-*.sh' 'resume-*.sh' 'amend-*.sh'
+# That is a ~290-file deletion commit and it is deliberately NOT part of this
+# change; the scripts are redundant with the commits they carry, but removing
+# them is a decision, not a tidy-up.
+/land-*.sh
+/land-*.sh.b64
+/push-*.sh
+/resume-*.sh
+/amend-*.sh
+
+# Session artefacts written to the repo root — reports, audits, exported
+# sheets and dashboards. They belong to the project docs; the copy here is a
+# working file. Named one by one, ON PURPOSE: a pattern like `/*.md` would
+# silently swallow the next document that DOES belong in the repo, and a
+# .gitignore that hides work is worse than one that shows noise.
+/Beauty-1M-Stress-Test-Second-Run-26-Aug.md
+/Two-Rooms-One-Mira-21-Aug.md
+/Two-Rooms-One-Mira-Landed-21-Aug.md
+/beauty-audit-dashboard-26-aug.html
+/beauty-brand-backlog.xlsx
+/beauty-claims-to-fill.xlsx
+/beauty-core-database.json
+/beauty-core-database.xlsx
