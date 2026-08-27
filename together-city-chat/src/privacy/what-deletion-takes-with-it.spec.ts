@@ -19,7 +19,6 @@ const code = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:]
  *   2. Deleting a dating PROFILE deleted three sets of rows and not one stored
  *      file — and the keys live inside the deleted row, so the photos became
  *      unrecoverable orphans: a face in a bucket with nothing pointing at it.
- *   3. `ActivityInvite` links a citizen by `invitedUserId` and nothing else —
  *      a column the classification scanner did not know — so the "every model
  *      must be classified" guard never fired and the invites outlived the
  *      purge entirely.
@@ -34,22 +33,6 @@ describe('what deletion takes with it', () => {
     const svc = code(read('privacy/account-purge.service.ts'));
     expect(svc).toMatch(/for \(const field of rule\.storageKeysJson\.fields\)/);
     expect(svc).toMatch(/Array\.isArray\(raw\) \? raw : raw \? \[raw\] : \[\]/);
-  });
-
-  it('ActivityInvite is classified, and by the column it actually has', () => {
-    const rule = PURGE_RULES.find((r) => r.model === 'ActivityInvite');
-    expect(rule?.action).toBe('purge');
-    expect(rule?.by).toBe('invitedUserId');
-    expect(whereFor(rule!, 'u1')).toEqual({ invitedUserId: 'u1' });
-    // And the scanner that guards classification knows the column, so the
-    // NEXT model linked this way cannot slip past the way this one did.
-    expect(read('privacy/purge-plan.spec.ts')).toMatch(/'invitedUserId'\]/);
-  });
-
-  it('a departed host’s activities go too — they are their words', () => {
-    const rule = PURGE_RULES.find((r) => r.model === 'DatingActivity');
-    expect(rule?.action).toBe('purge');
-    expect(rule?.by).toBe('hostId');
   });
 
   it('deleting the profile deletes the objects, and reads the keys first', () => {

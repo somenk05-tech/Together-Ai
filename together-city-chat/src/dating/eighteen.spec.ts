@@ -95,8 +95,8 @@ describe('the age gate refuses at the door', () => {
     expect(svc).toMatch(/private async myApprovedProfile\(userId: string\)/);
     expect(svc).toMatch(/if \(state !== 'approved'\)/);
     // Named rather than counted: a count cannot see a NEW ungated entrypoint,
-    // and these five are the ones that show a citizen somebody else.
-    for (const fn of ['matchesUncached', 'discoverUncached', 'stackUncached', 'matchDetail', 'createActivity']) {
+    // and these four are the ones that show a citizen somebody else.
+    for (const fn of ['matchesUncached', 'discoverUncached', 'stackUncached', 'matchDetail']) {
       const at = svc.indexOf(`${fn}(`);
       const body = svc.slice(at, at + 400);
       expect({ fn, gated: /myApprovedProfile\(/.test(body) }).toEqual({ fn, gated: true });

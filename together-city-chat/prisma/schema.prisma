@@ -1021,41 +1021,6 @@ model CompatibilityScore {
   @@index([userB])
 }
 
-// Activity Dating — a host posts a plan; the AI invites the most compatible
-// people; invitees connect or pass; mutual connect opens an anonymous chat that
-// can progress through trust levels.
-model DatingActivity {
-  id          String   @id @default(uuid())
-  hostId      String
-  text        String // "Watch the new Superman movie."
-  category    String // restaurant | theatre | cafe | park | city | any
-  date        String // YYYY-MM-DD
-  time        String? // HH:MM
-  groupSize   String   @default("1") // 1 | 2-4 | group
-  description String?
-  createdAt   DateTime @default(now())
-
-  @@index([hostId])
-}
-
-model ActivityInvite {
-  id             String   @id @default(uuid())
-  activityId     String
-  invitedUserId  String
-  compatibility  Int
-  status         String   @default("pending") // pending | connected | passed
-  trustLevel     Int      @default(1) // 1 anonymous · 2 revealed · 3 friends
-  invitedReveal  Boolean  @default(false)
-  hostReveal     Boolean  @default(false)
-  invitedFriends Boolean  @default(false)
-  hostFriends    Boolean  @default(false)
-  conversationId String?
-  createdAt      DateTime @default(now())
-
-  @@index([invitedUserId, status])
-  @@index([activityId])
-}
-
 /**
  * One row per dating photo the bucket holds, written when the key is filed
  * against a profile and decided by Rekognition (or a moderator). A key with

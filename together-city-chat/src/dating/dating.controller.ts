@@ -13,7 +13,6 @@ import {
   ReportMatchSchema,
   type ReportMatchDto,
   UpsertDatingProfileSchema, type UpsertDatingProfileDto,
-  CreateActivitySchema, type CreateActivityDto, RespondInviteSchema, TrustSchema,
   ModerationDecisionSchema, PhotoDecisionSchema, AppealSchema, AppealDecisionSchema, FunnelQuerySchema,
 } from './dto/dating.dto';
 
@@ -335,33 +334,4 @@ export class DatingController {
     return this.dating.reportMatch(user.sub, targetUserId, dto.reason);
   }
 
-  // ─── Activity Dating ───
-  @Post('activities')
-  @Throttle(UPLOAD_LIMIT)
-  @UsePipes(new ZodValidationPipe(CreateActivitySchema))
-  createActivity(@CurrentUser() user: JwtUser, @Body() dto: CreateActivityDto) {
-    return this.dating.createActivity(user.sub, dto);
-  }
-
-  @Get('activities/mine')
-  myActivities(@CurrentUser() user: JwtUser) {
-    return this.dating.myActivities(user.sub);
-  }
-
-  @Get('activities/invites')
-  activityInvites(@CurrentUser() user: JwtUser) {
-    return this.dating.receivedInvites(user.sub);
-  }
-
-  @Post('activities/invites/:id/respond')
-  respondInvite(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() body: unknown) {
-    const { action } = parseOrThrow(RespondInviteSchema, body);
-    return this.dating.respondInvite(user.sub, id, action);
-  }
-
-  @Post('activities/invites/:id/trust')
-  trust(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() body: unknown) {
-    const { step } = parseOrThrow(TrustSchema, body);
-    return this.dating.advanceTrust(user.sub, id, step);
-  }
 }

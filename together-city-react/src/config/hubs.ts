@@ -225,26 +225,13 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // by scoring well, only by being chosen back.
       { path: '/dating/browse', index: '02', label: 'Potential Matches', sub: 'Everyone, with your %' },
       { path: '/dating/matches', index: '03', label: 'Curated Matches', sub: 'You both liked each other' },
-      // ACTIVITY DATING IS OFF THE MENU (12 Aug, RECONFIRMED 26 Aug — the
-      // door was reopened for part of an afternoon and taken back off at the
-      // owner's word), still explicitly "for now" — which is the reason
-      // nothing else moved. The
-      // page, the invitation engine and every /dating/activity endpoint are
-      // untouched, and the path still resolves. Same treatment the Makeup
-      // Studio got: deleting a working surface in order to hide it is how a
-      // feature comes back as a rewrite, and taking the door away is one line
-      // to put back.
-      //
-      // AND UNLIKE THE MAKEUP STUDIO, IT IS DECLARED UNREACHABLE. Hiding a
-      // surface has two halves — off the menu here, and named in
-      // scripts/nav-audit.mjs so the audit knows the silence is deliberate.
-      // Only the first half was done in August, and nav-audit has been failing
-      // on /beauty/makeup ever since, which is a gate nobody could land past
-      // without explaining themselves. Both entries are there now.
-      //
-      // The numbering closes up behind it rather than leaving a gap at 04: a
-      // menu that counts 01-02-04 is a menu advertising the thing it is trying
-      // not to advertise.
+      // ACTIVITY DATING WAS REMOVED ENTIRELY (27 Aug, launch audit). It had
+      // been hidden from this menu since 12 Aug; the audit found its anonymous
+      // chats surfacing in the main Chats list under the other person's real
+      // name, and its invitations ignoring passes with no way to decline short
+      // of a block. Hiding it was not enough, so the page, the invitation
+      // engine, both database tables and every /dating/activity endpoint are
+      // gone. The numbering below closes up as it already did.
       { path: '/dating/chats', index: '04', label: 'Dating Chats', sub: 'Your conversations' },
     ],
   },

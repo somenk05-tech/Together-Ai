@@ -112,7 +112,6 @@ const MedConnections = lazy(() => import('@/features/medical/pages/Connections')
 const MedTimeline = lazy(() => import('@/features/medical/pages/Timeline').then((m) => ({ default: m.Timeline })));
 const MedFamily = lazy(() => import('@/features/medical/pages/Family').then((m) => ({ default: m.Family })));
 // Dating sub-pages
-const DatingActivity = lazy(() => import('@/features/dating/pages/DatingActivity').then((m) => ({ default: m.DatingActivity })));
 const DatingChats = lazy(() => import('@/features/dating/pages/DatingChats').then((m) => ({ default: m.DatingChats })));
 const Thoughts = lazy(() => import('@/features/thoughts/pages/Thoughts').then((m) => ({ default: m.Thoughts })));
 const PersonalHome = lazy(() => import('@/features/personal/pages/PersonalHome').then((m) => ({ default: m.PersonalHome })));
@@ -335,7 +334,6 @@ const ROUTE_BLOCKS: RouteObject[] = [
       { path: '/dating/profile', element: <RequireAuth>{wrap(<DatingProfilePage />)}</RequireAuth> },
       { path: '/dating/browse', element: <RequireAuth>{wrap(<DatingBrowse />)}</RequireAuth> },
       { path: '/dating/matches', element: <RequireAuth>{wrap(<DatingMatches />)}</RequireAuth> },
-      { path: '/dating/activity', element: <RequireAuth>{wrap(<DatingActivity />)}</RequireAuth> },
       { path: '/dating/chats', element: <RequireAuth>{wrap(<DatingChats />)}</RequireAuth> },
       { path: '/dating/admin', element: <RequireAuth>{wrap(<DatingAdminStats />)}</RequireAuth> },
       { path: '/dating/safety', element: <RequireAuth>{wrap(<DatingSafety />)}</RequireAuth> },

@@ -148,11 +148,6 @@ interface DXVisibility { visibility?: Visibility; minMatchScore?: number }
  */
 interface DXCard { profession?: string; languages?: string[] }
 
-type ActivityRow = { id: string; hostId: string; text: string; category: string; date: string; time: string | null; groupSize: string; description: string | null; createdAt: Date };
-type InviteRow = { id: string; activityId: string; invitedUserId: string; compatibility: number; status: string; trustLevel: number; invitedReveal: boolean; hostReveal: boolean; invitedFriends: boolean; hostFriends: boolean; conversationId: string | null; createdAt: Date };
-interface ActivityDelegate { create(a: unknown): Promise<ActivityRow>; findMany(a: unknown): Promise<ActivityRow[]>; findUnique(a: unknown): Promise<ActivityRow | null>; }
-interface InviteDelegate { createMany(a: unknown): Promise<{ count: number }>; findMany(a: unknown): Promise<InviteRow[]>; findUnique(a: unknown): Promise<InviteRow | null>; update(a: unknown): Promise<InviteRow>; }
-
 @Injectable()
 export class DatingService implements OnModuleInit {
   constructor(
@@ -967,12 +962,10 @@ export class DatingService implements OnModuleInit {
   /**
    * THE CALLER'S OWN PROFILE, AND IT HAS TO BE APPROVED (27 Aug, launch audit).
    *
-   * Five entrypoints used to ask only whether a row EXISTED — matches,
-   * discover, the stack, match detail and hosting an activity. So a profile
-   * REJECTED for being under 18 kept every capability that mattered: it could
-   * browse every adult in the city, open detail pages with the full photo
-   * gallery, send likes, and host an activity that auto-invites six approved
-   * adults and opens a private conversation with one of them.
+   * The entrypoints used to ask only whether a row EXISTED — matches,
+   * discover, the stack, match detail. So a profile REJECTED for being under
+   * 18 kept every capability that mattered: it could browse every adult in the
+   * city, open detail pages with the full photo gallery, and send likes.
    *
    * Rejection produced a notice and nothing else. Now it produces a closed
    * door, and the two things a rejected citizen may still do — read their own
@@ -2699,15 +2692,6 @@ export class DatingService implements OnModuleInit {
     return csv ? csv.split(',').filter(Boolean) : [];
   }
 
-  // ─────────────── activity dating ───────────────
-  private get activities(): ActivityDelegate { return (this.prisma as unknown as { datingActivity: ActivityDelegate }).datingActivity; }
-  private get invites(): InviteDelegate { return (this.prisma as unknown as { activityInvite: InviteDelegate }).activityInvite; }
-
-  /** `tz` is the viewer's zone — see shapeCard in the property hub for why this
-   *  defaults to the city's zone rather than UTC. */
-  private shapeActivity(a: ActivityRow, tz: string = DEFAULT_TIMEZONE) {
-    return { id: a.id, text: a.text, category: a.category, date: a.date, time: a.time, groupSize: a.groupSize, description: a.description, createdOn: this.clock.dayIn(tz, a.createdAt) };
-  }
   /** Milliseconds in the year ageOf() uses. Written once so the query and the
    *  check cannot drift apart. */
   /**
@@ -2771,175 +2755,6 @@ export class DatingService implements OnModuleInit {
    *  profile that reads 18 to a stranger and 17 to the check is the bug this
    *  whole pass exists to remove. */
   private ageOf(birthDate: Date): number { return ageOn(birthDate) ?? 0; }
-
-  /** Anonymised view of a party; identity revealed only at trust level ≥2. */
-  private async anonParty(userId: string, trustLevel: number) {
-    const prof = await this.prisma.datingProfile.findUnique({ where: { userId } });
-    // NULL MEANS GONE, and every caller drops the row rather than drawing it.
-    // `deleteAccount` nulls the name and the photo, so a departed host or
-    // guest still appeared here as a card with their age, their star sign, a
-    // verified tick and — at trust level 2 — their interests. An activity
-    // invite is not a match, so neither of the earlier passes touched it.
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId }, select: { name: true, profileImage: true, deletedAt: true },
-    });
-    if (!user || (user as { deletedAt?: Date | null }).deletedAt != null) return null;
-    const revealed = trustLevel >= 2;
-    return {
-      nickname: nickname(userId),
-      age: prof ? this.ageOf(prof.birthDate) : null,
-      sign: prof ? zodiacSign(prof.birthDate).name : null,
-      verified: (prof as { moderation?: string } | null)?.moderation === 'approved',
-      name: revealed ? user?.name ?? null : null,
-      photo: revealed ? user?.profileImage ?? null : null,
-      interests: revealed && prof ? this.splitInterests(prof.interests) : [],
-    };
-  }
-
-  async createActivity(hostId: string, dto: { text: string; category: string; date: string; time?: string; groupSize: string; description?: string }) {
-    // The host is checked exactly as a browser is. An activity auto-invites
-    // approved adults and accepting opens a direct conversation — hosting is
-    // the single most consequential thing a non-approved profile could do.
-    const host = await this.myApprovedProfile(hostId);
-    const activity = await this.activities.create({
-      data: { hostId, text: dto.text, category: dto.category, date: dto.date, time: dto.time ?? null, groupSize: dto.groupSize, description: dto.description ?? null },
-    });
-
-    // AI invites the most compatible people (weighted score, mutual seeking).
-    // The same narrowed, capped, ordered pool the lists read — "the whole hub"
-    // was a full-table scan per activity at one million profiles.
-    const hostD = this.parseDX((host as { extras?: string | null }).extras);
-    const cands = await this.prisma.datingProfile.findMany({
-      where: this.poolWhere(hostId, host, hostD),
-      orderBy: { updatedAt: 'desc' },
-      take: POOL_CEILING,
-    });
-    const hostInterests = this.splitInterests(host.interests);
-    // Never invite a family member, friend, existing connection or blocked user.
-    const excluded = await this.connectionExclusions(hostId);
-    const scored: { userId: string; overall: number }[] = [];
-    for (const c of cands) {
-      if (excluded.has(c.userId)) continue;
-      if (!seeks(host.seeking, hostD, c.gender) || !seeks(c.seeking, this.parseDX((c as { extras?: string | null }).extras), host.gender)) continue;
-      const { score: astro } = compatibilityScore(
-        { userId: hostId, birthDate: host.birthDate, interests: hostInterests },
-        { userId: c.userId, birthDate: c.birthDate, interests: this.splitInterests(c.interests) },
-      );
-      const f = factorScores(astro, hostInterests, this.splitInterests(c.interests), hostD, this.parseDX((c as { extras?: string | null }).extras));
-      scored.push({ userId: c.userId, overall: overallScore(f) });
-    }
-    const top = scored.sort((a, b) => b.overall - a.overall).filter((s) => s.overall >= 60).slice(0, 6);
-    if (top.length) {
-      await this.invites.createMany({ data: top.map((t) => ({ activityId: activity.id, invitedUserId: t.userId, compatibility: t.overall })) });
-    }
-    return { activity: this.shapeActivity(activity), invited: top.length };
-  }
-
-  async myActivities(hostId: string) {
-    // unbounded: their own activities — a handful by nature
-    const acts = await this.activities.findMany({ where: { hostId }, orderBy: { createdAt: 'desc' } });
-    const out = [];
-    for (const a of acts) {
-      // unbounded: their own invites — a handful by nature
-      const invs = await this.invites.findMany({ where: { activityId: a.id } });
-      const connected = invs.filter((i) => i.status === 'connected');
-      const connections = (await Promise.all(connected.map(async (i) => ({
-        inviteId: i.id, compatibility: i.compatibility, trustLevel: i.trustLevel, conversationId: i.conversationId,
-        myReveal: i.hostReveal, otherReveal: i.invitedReveal, myFriends: i.hostFriends, otherFriends: i.invitedFriends,
-        party: await this.anonParty(i.invitedUserId, i.trustLevel),
-      }))))
-        // A guest who has deleted their account is not a guest. anonParty
-        // returns null for them and the card goes with it.
-        .filter((c) => c.party !== null);
-      out.push({ ...this.shapeActivity(a), invited: invs.length, connectedCount: connected.length, connections });
-    }
-    return out;
-  }
-
-  async receivedInvites(userId: string) {
-    // unbounded: their own invites — a handful by nature
-    const invs = await this.invites.findMany({ where: { invitedUserId: userId, status: { in: ['pending', 'connected'] } }, orderBy: { createdAt: 'desc' } });
-    const out = [];
-    for (const inv of invs) {
-      const activity = await this.activities.findUnique({ where: { id: inv.activityId } });
-      if (!activity) continue;
-      // An invitation from somebody who has left is not an invitation. Dropped
-      // rather than drawn, which also removes the tap that `respondInvite`
-      // refuses below — the refusal is the wall, this is not having to hit it.
-      const host = await this.anonParty(activity.hostId, inv.trustLevel);
-      if (!host) continue;
-      out.push({
-        id: inv.id, status: inv.status, trustLevel: inv.trustLevel, compatibility: inv.compatibility, conversationId: inv.conversationId,
-        activity: this.shapeActivity(activity),
-        host,
-        myReveal: inv.invitedReveal, otherReveal: inv.hostReveal, myFriends: inv.invitedFriends, otherFriends: inv.hostFriends,
-      });
-    }
-    return out;
-  }
-
-  async respondInvite(userId: string, inviteId: string, action: 'connect' | 'pass') {
-    const inv = await this.invites.findUnique({ where: { id: inviteId } });
-    if (!inv || inv.invitedUserId !== userId) throw new NotFoundException('invite not found');
-    if (action === 'pass') {
-      await this.invites.update({ where: { id: inviteId }, data: { status: 'passed' } });
-      return { status: 'passed', conversationId: null };
-    }
-    // Connect → open an anonymous chat between host and invitee (trust level 1).
-    const activity = await this.activities.findUnique({ where: { id: inv.activityId } });
-    // AND THE HOST MUST STILL BE HERE. This was the sharpest of the seven:
-    // accepting an old invite CREATED a direct conversation with a deleted
-    // account — and because an activity chat has no match row,
-    // `assertMatchStillStands` returns early on it, so the line stayed open
-    // permanently. A stale invite could open a door that nothing would close.
-    if (activity) await this.assertStillHere(activity.hostId);
-    let conversationId = inv.conversationId;
-    if (activity && !conversationId) {
-      conversationId = await this.conversations.getOrCreateDirectByIds(activity.hostId, userId, 1);
-    }
-    await this.invites.update({ where: { id: inviteId }, data: { status: 'connected', conversationId } });
-    return { status: 'connected', conversationId };
-  }
-
-  async advanceTrust(userId: string, inviteId: string, step: 'reveal' | 'friends') {
-    const inv = await this.invites.findUnique({ where: { id: inviteId } });
-    if (!inv) throw new NotFoundException('invite not found');
-    const activity = await this.activities.findUnique({ where: { id: inv.activityId } });
-    if (!activity) throw new NotFoundException('activity not found');
-    const isHost = activity.hostId === userId;
-    const isInvited = inv.invitedUserId === userId;
-    if (!isHost && !isInvited) throw new NotFoundException('not your invite');
-    // AND THE OTHER PARTY MUST STILL BE HERE. At the `friends` step this
-    // writes an ACCEPTED Connection — and `deleteAccount` deletes all of a
-    // departing citizen's connections on purpose. Escalating with a tombstone
-    // put a brand-new one back, which then unlocked the ordinary city message
-    // gate and listed the departed account in the other person's People.
-    await this.assertStillHere(isHost ? inv.invitedUserId : activity.hostId);
-    if (inv.status !== 'connected') return { trustLevel: inv.trustLevel };
-
-    if (step === 'reveal') {
-      const u = await this.invites.update({ where: { id: inviteId }, data: isHost ? { hostReveal: true } : { invitedReveal: true } });
-      if (u.hostReveal && u.invitedReveal && u.trustLevel < 2) {
-        await this.invites.update({ where: { id: inviteId }, data: { trustLevel: 2 } });
-        if (inv.conversationId) await this.conversations.setAnonymousTrust(inv.conversationId, 2); // reveal names in chat
-        return { trustLevel: 2 };
-      }
-      return { trustLevel: u.trustLevel };
-    }
-    const u = await this.invites.update({ where: { id: inviteId }, data: isHost ? { hostFriends: true } : { invitedFriends: true } });
-    if (u.hostFriends && u.invitedFriends && u.trustLevel < 3) {
-      await this.invites.update({ where: { id: inviteId }, data: { trustLevel: 3 } });
-      if (inv.conversationId) await this.conversations.setAnonymousTrust(inv.conversationId, null); // fully normal chat
-      const [userOneId, userTwoId] = [activity.hostId, inv.invitedUserId].sort();
-      await this.prisma.connection.upsert({
-        where: { userOneId_userTwoId_connectionType: { userOneId, userTwoId, connectionType: 'FRIEND' } },
-        update: { status: 'ACCEPTED' },
-        create: { userOneId, userTwoId, connectionType: 'FRIEND', status: 'ACCEPTED', requestedById: userId },
-      });
-      return { trustLevel: 3 };
-    }
-    return { trustLevel: u.trustLevel };
-  }
 
   /** The photo entries as STORED, straight out of the extras blob. */
   private storedPhotos(extras: string | null | undefined): string[] {

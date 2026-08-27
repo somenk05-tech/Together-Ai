@@ -44,15 +44,6 @@ describe('nothing links the card to the city', () => {
     expect(svc).not.toMatch(/userOf\.get\(row\.otherUserId\)\?\.profileImage/);
   });
 
-  it('the reveal keeps it — both people chose it, twice', () => {
-    // anonParty at trustLevel >= 2 is the feature this rule protects, not an
-    // exception smuggled past it. If this assertion fails because reveal was
-    // removed, delete it with the feature; if it fails because profileImage
-    // grew a THIRD site, that is the leak this file exists to stop.
-    const anon = svc.slice(svc.indexOf('private async anonParty'), svc.indexOf('async createActivity'));
-    expect(anon).toMatch(/photo: revealed \? user\?\.profileImage \?\? null : null/);
-    expect((svc.match(/profileImage/g) ?? []).length).toBe(2); // anonParty's select + reveal, and none anywhere else
-  });
 });
 
 /**

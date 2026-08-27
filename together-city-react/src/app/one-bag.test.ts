@@ -127,9 +127,13 @@ describe('a hidden surface is declared hidden', () => {
   const router = code('app/router.tsx');
   const navAudit = code('../scripts/nav-audit.mjs');
 
-  it('takes Activity Dating off the menu and leaves the room standing', () => {
+  it('removes Activity Dating ENTIRELY — off the menu and out of the router', () => {
+    // Removed 27 Aug (launch audit). Unlike Makeup and My Plan below, this one
+    // was not hidden but deleted: its anonymous chats surfaced in main Chats
+    // under the other person's real name, and its invitations could not be
+    // declined short of a block. So the room does NOT stand — the route is gone.
     expect(hubs).not.toMatch(/label: 'Activity Dating'/);
-    expect(router).toMatch(/path: '\/dating\/activity'/);
+    expect(router).not.toMatch(/path: '\/dating\/activity'/);
   });
 
   it('takes My Plan off the Fitness menu and leaves that room standing too', () => {
@@ -149,7 +153,7 @@ describe('a hidden surface is declared hidden', () => {
   it('declares both hidden surfaces to nav-audit, with a reason', () => {
     // The reason string is not decoration: nav-audit prints it, and it is what
     // tells the next person whether a route is hidden on purpose or stranded.
-    for (const path of ['/beauty/makeup', '/dating/activity', '/fitness/plan']) {
+    for (const path of ['/beauty/makeup', '/fitness/plan']) {
       const entry = navAudit.match(new RegExp(`\\['${path}', '([^']*(?:\\\\'[^']*)*)'\\]`));
       expect({ path, declared: Boolean(entry) }).toEqual({ path, declared: true });
       expect(entry![1].length).toBeGreaterThan(40);

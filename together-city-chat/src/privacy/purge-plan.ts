@@ -282,8 +282,6 @@ export const PURGE_RULES: PurgeRule[] = [
   { model: 'Post', by: 'authorId', action: 'keep', reason: 'Already deleted at soft-delete time, so nothing is left. Listed so the model is classified rather than missed.' },
   { model: 'CallSession', by: 'createdById', action: 'keep', reason: 'The other person\'s call history too. Timestamps only — no content.' },
   { model: 'CallParticipant', by: 'userId', action: 'keep', reason: 'Their seat in that shared history.' },
-  { model: 'DatingActivity', by: 'hostId', action: 'purge', reason: 'Reclassified 27 Aug. "An activity other people joined" was the keep reason, but the row is the departed citizen\'s own words — what they proposed, described, and when — and with the host gone the activity cannot be joined, chatted about, or drawn (anonParty returns null for a departed host and every caller drops the card). What other people keep is their own conversations, which are classified on their own rows.' },
-  { model: 'ActivityInvite', by: 'invitedUserId', action: 'purge', reason: 'Invitations naming the departed citizen as the invitee — who the engine matched them with and at what score. Rows inviting OTHER citizens to the departed host\'s activities survive this rule but point at an activity the line above has deleted, and every reader already skips an invite whose activity is gone.' },
   { model: 'Job', by: 'postedById', action: 'keep', reason: 'A posting other citizens have applied to.' },
 
   // ── Service providers. These carry a userId because a booking opens a chat,
