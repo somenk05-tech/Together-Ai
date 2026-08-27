@@ -309,17 +309,7 @@ function Thread({ chat, meId, mePhoto, onBack }: { chat: OpenChat; meId: string;
   }), [chat.name, d]);
   const profileHref = `/dating/match?u=${chat.otherUserId}&kind=romantic`;
   const city = d?.city?.trim() || null;
-  /**
-   * THE NAME THEY DATE UNDER, ON THE ROOM THEY ARE IN.
-   *
-   * `name` is what they are called and two matches can share it; `handle` is
-   * who they are here, and nobody else has it. It leads the subline because a
-   * chat wants an identifier at a glance — and because until this landed the
-   * only identifier a dating chat had was a generated pseudonym the citizen
-   * never chose and never saw on their own profile.
-   */
   const subline = [
-    `@${chat.handle}`,
     chat.score != null ? `${chat.score}% compatible` : null,
     city ?? (chat.sign || null),
   ].filter(Boolean).join(' · ');

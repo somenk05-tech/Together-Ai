@@ -151,10 +151,10 @@ const VIS_OPTIONS: { key: Visibility; label: string; hint: string }[] = [
   { key: 'hidden', label: 'Hide my profile', hint: 'Fully hidden from the matching pool.' },
 ];
 
-/** Profile visibility controls + delete. */
-function VisibilityCard({ visibility, onChange, onDelete, deleting }: {
+/** Profile visibility controls. Leaving is its own card, below. */
+function VisibilityCard({ visibility, onChange }: {
   visibility: Visibility;
-  onChange: (v: Visibility) => void; onDelete: () => void; deleting: boolean;
+  onChange: (v: Visibility) => void;
 }) {
   return (
     <div className="card" style={{ marginTop: 16 }}>
@@ -175,13 +175,44 @@ function VisibilityCard({ visibility, onChange, onDelete, deleting }: {
           );
         })}
       </div>
-      <div style={{ marginTop: 14, borderTop: '1px solid var(--line)', paddingTop: 12 }}>
-        <Button variant="line" size="sm" disabled={deleting}
-          onClick={() => { if (window.confirm('Delete your dating profile? This removes you from all matches and cannot be undone.')) onDelete(); }}
-          style={{ color: 'var(--danger-ink)', borderColor: 'var(--danger-line)' }}>
-          {deleting ? 'Deleting…' : 'Delete dating profile'}
-        </Button>
-      </div>
+    </div>
+  );
+}
+
+/**
+ * Leaving Dating — its own card, not a link at the foot of another one
+ * (owner, 27 Aug: "add delete dating profile section").
+ *
+ * It used to sit under the visibility radios, one line below "temporarily
+ * hidden, nothing is deleted". Two different decisions under one heading. This
+ * is the destructive one, given its own room and a plain sentence about what
+ * actually goes — and a pointer to Pause for the person who only wants a break.
+ */
+// Hoisted, and the spacing quoted, so this card adds nothing to the inline-style
+// or raw-spacing ceilings that scripts/size-system-ceiling.mjs holds.
+const delCard: React.CSSProperties = { marginTop: '16px' };
+const delHead: React.CSSProperties = { margin: '0', fontSize: 16 };
+const delBody: React.CSSProperties = { fontSize: 12.5, margin: '6px 0 4px', lineHeight: 1.6 };
+const delBodyLast: React.CSSProperties = { fontSize: 12.5, margin: '0 0 12px', lineHeight: 1.6 };
+const delBtn: React.CSSProperties = { color: 'var(--danger-ink)', borderColor: 'var(--danger-line)' };
+function DeleteProfileCard({ onDelete, deleting }: { onDelete: () => void; deleting: boolean }) {
+  return (
+    <div className="card" style={delCard}>
+      <h3 style={delHead}>Delete your dating profile</h3>
+      <p className="muted" style={delBody}>
+        Your dating profile, your dating photos and your verification selfie are
+        deleted, and every match ends. Your Together City account is untouched —
+        this is the Dating Hub only, and you can start a new profile later.
+      </p>
+      <p className="muted" style={delBodyLast}>
+        Only want a break? Use <strong>Pause my profile</strong> above instead — it keeps
+        everything and just takes you out of matching.
+      </p>
+      <Button variant="line" size="sm" disabled={deleting}
+        onClick={() => { if (window.confirm('Delete your dating profile? Your photos and matches go with it, and it cannot be undone.')) onDelete(); }}
+        style={delBtn}>
+        {deleting ? 'Deleting…' : 'Delete dating profile'}
+      </Button>
     </div>
   );
 }
@@ -393,7 +424,7 @@ const nameOption: React.CSSProperties = {
  *  radius and one more way for this input to drift away from every other. */
 const aliasField: React.CSSProperties = { ...field, margin: '8px 0 0' };
 const nameNote: React.CSSProperties = { fontSize: 11.5, margin: '8px 0 0', lineHeight: 1.55 };
-const fullWidth: React.CSSProperties = { gridColumn: '1 / -1' };
+const distanceSlider: React.CSSProperties = { width: '100%', accentColor: 'var(--accent)', marginTop: '6px' };
 
 /**
  * What the server will actually show, computed here so the form can say it.
@@ -429,7 +460,7 @@ export function DatingProfilePage() {
 
   // Empty, not 'male' (p1, FE-15.1). A preselected gender is a value nobody
   // chose, recorded as though they had.
-  const [form, setForm] = useState<UpsertProfileInput>({ handle: '', gender: '', seeking: 'any', bio: '', birthDate: '', birthTime: '', birthPlace: '', interests: [] });
+  const [form, setForm] = useState<UpsertProfileInput>({ gender: '', seeking: 'any', bio: '', birthDate: '', birthTime: '', birthPlace: '', interests: [] });
   const [dx, setDx] = useState<DX>({});
   const [collapsed, setCollapsed] = useState(false);
 
@@ -439,11 +470,6 @@ export function DatingProfilePage() {
     if (!d) return;
     const isSaved = (d as { saved?: boolean }).saved !== false; // prefill objects carry saved:false
     setForm({
-      // EMPTY UNTIL THEY CHOSE IT. The server always sends a usable `handle`
-      // so other screens can draw one, but a generated name is not an answer —
-      // seeding the box with it would let somebody save a name they never
-      // picked, which is the mistake the gender field already made once.
-      handle: d.handleChosen ? (d.handle ?? '') : '',
       // The prefill already carries the Master Profile's answer, in this form's
       // own vocabulary — the citizen answered this once (p22, p23).
       gender: (d.gender ?? '') as UpsertProfileInput['gender'],
@@ -503,15 +529,6 @@ export function DatingProfilePage() {
   // Global validation standard — the match engine needs these to work at all.
   // NOTE: must be called before any early return — hooks can't be conditional.
   const v = useFormValidation([
-    /**
-     * THE SHAPE, MIRRORED. The server is the authority — dating-handle.ts owns
-     * the rule and answers the two questions this cannot (does an account hold
-     * it, does another profile) — but a name refused only on submit is a name
-     * refused after the citizen has filled in the whole page. So the shape is
-     * checked here too, and the two must be kept in step deliberately.
-     */
-    { key: 'handle', label: 'Dating name', valid: () => /^[a-z][a-z0-9_]{1,18}[a-z0-9]$/.test(form.handle) && !form.handle.includes('__'),
-      message: 'Pick a dating name: 3–20 characters, lowercase letters, numbers and underscores.' },
     // Now that the field starts empty, saving without choosing has to be
     // caught here rather than silently recording the old default.
     { key: 'gender', label: 'Gender', valid: () => Boolean(form.gender), message: 'Choose your Gender.' },
@@ -550,15 +567,15 @@ export function DatingProfilePage() {
   }
 
   const setD = (patch: Partial<DX>) => setDx((prev) => ({ ...prev, ...patch }));
+  // The thumb needs a position even before the citizen touches it; 100 km is a
+  // sensible city radius. The stored value stays whatever they last saved.
+  const distanceKm = typeof dx.prefDistanceKm === 'number' && dx.prefDistanceKm > 0 ? dx.prefDistanceKm : 100;
 
   // THE NAME QUESTION (owner, 27 Aug: the dating name can differ from the city
   // one — let the citizen decide). `undefined` means "use my city name" and is
   // what the server falls back on; a string, even an empty one, means they
   // chose to type their own. The distinction has to survive an empty box, or
   // clearing the field would silently switch them back.
-  // Hoisted rather than written inline: the size ratchet counts `style={{`,
-  // and this commit is not the one that raises that number.
-  const handleStyle: React.CSSProperties = { ...field, ...v.errStyle('handle') };
   const cityName = (authUser?.name ?? '').trim();
   const usingAlias = typeof dx.firstName === 'string';
   const shownAs = shownAsPreview(dx.firstName, cityName);
@@ -822,29 +839,6 @@ export function DatingProfilePage() {
                 cards ignored it until today. Now the server draws this name
                 everywhere a match sees you — card, profile, chat — so the
                 label says exactly that. Empty falls back to the account name. */}
-            {/* THE NAME THEY DATE UNDER (owner, 27 Aug: "the chat id is what the
-                user sets when creating the dating profile"). Distinct from the
-                display name beside it: that one is what you are CALLED, this
-                one is who you ARE here — stable, unique, and the thing a match
-                can refer to. It is not the city @handle and the server refuses
-                any name an account already holds, so the two can never be
-                confused for each other. Nothing looks a person up by it. */}
-            <div ref={v.reg('handle')} style={fullWidth}>
-              <span style={label}>Your dating name</span>
-              <input value={form.handle} maxLength={20}
-                aria-label="Your dating name"
-                placeholder="@what_matches_call_you"
-                autoCapitalize="none" autoCorrect="off" spellCheck={false}
-                onChange={(e) => { setForm({ ...form, handle: e.target.value.trim().replace(/^@/, '').toLowerCase() }); v.clear('handle'); }}
-                style={handleStyle} />
-              <FieldError msg={v.errors.handle} />
-              <p className="muted" style={nameNote}>
-                Yours alone inside Dating, and separate from your city @handle — nobody
-                can search for you by it, here or anywhere else in the city. Because it
-                is public to everyone you match with, don&rsquo;t reuse a username you
-                use on other apps.
-              </p>
-            </div>
             <div>
               <span style={label}>Name shown to matches</span>
               <label style={nameOption}>
@@ -858,7 +852,14 @@ export function DatingProfilePage() {
                 <span>A different name</span>
               </label>
               {usingAlias && (
-                <input value={dx.firstName ?? ''} maxLength={40} autoFocus
+                // autoComplete="off" and a non-name field id are deliberate:
+                // Safari was offering the citizen's ADDRESS BOOK here — real
+                // contacts, by name (owner, 27 Aug: "remove the drop down menu")
+                // — on the one field in the product whose whole job is to NOT
+                // be a real name.
+                <input value={dx.firstName ?? ''} maxLength={40} autoFocus type="text"
+                  name="dating-shown-name" id="dating-shown-name"
+                  autoComplete="off" autoCapitalize="words" autoCorrect="off" spellCheck={false}
                   aria-label="The name matches see"
                   placeholder="What should they call you?"
                   onChange={(e) => setD({ firstName: e.target.value })} style={aliasField} />
@@ -1024,13 +1025,19 @@ export function DatingProfilePage() {
             <label style={{ display: 'block' }}><span style={label}>Age from</span><input type="number" min={18} max={99} value={dx.prefAgeMin ?? ''} onChange={(e) => setD({ prefAgeMin: num(e.target.value) })} style={field} /></label>
             <label style={{ display: 'block' }}><span style={label}>Age to</span><input type="number" min={18} max={99} value={dx.prefAgeMax ?? ''} onChange={(e) => setD({ prefAgeMax: num(e.target.value) })} style={field} /></label>
             <label style={{ display: 'block' }}>
-              <span style={label}>Distance (km)</span>
-              <input type="number" min={1} max={5000} value={dx.prefDistanceKm ?? ''} onChange={(e) => setD({ prefDistanceKm: num(e.target.value) })} style={field} />
-              {/* This does something now. shared/geo.ts resolves ~140 cities to
-                  coordinates, so the distance is measured rather than guessed —
-                  and a city outside that list falls back to comparing place
-                  names, with the preference left out rather than applied to a
-                  distance nobody measured. */}
+              {/* A SLIDER, NOT A STEPPER (owner, 27 Aug). A radius is a feel, not
+                  a figure typed to the kilometre — the slider says that, and the
+                  live readout keeps the exact number a stepper gave. 500 is the
+                  top of the track and reads as "500 km or further", so the whole
+                  useful range is one thumb-drag rather than fifty taps. */}
+              <span style={label}>Distance — {distanceKm >= 500 ? '500+ km' : `${distanceKm} km`}</span>
+              <input type="range" min={5} max={500} step={5} value={Math.min(distanceKm, 500)}
+                aria-label="Maximum distance in kilometres"
+                onChange={(e) => setD({ prefDistanceKm: Number(e.target.value) })} style={distanceSlider} />
+              {/* shared/geo.ts resolves ~140 cities to coordinates, so the
+                  distance is measured, not guessed; a city outside that list
+                  falls back to place names, with the preference left out rather
+                  than applied to a distance nobody measured. */}
               <span className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, display: 'block', marginTop: 4 }}>
                 Shapes scores rather than hiding people — someone further away still appears, scored lower.
               </span>
@@ -1085,8 +1092,9 @@ export function DatingProfilePage() {
         {/* Visibility + delete — only meaningful once a profile exists, but the
             controls are always available so the user can set them up-front. */}
         <VisibilityCard visibility={visibility}
-          onChange={(vv) => setD({ visibility: vv })}
-          onDelete={onDelete} deleting={del.isPending} />
+          onChange={(vv) => setD({ visibility: vv })} />
+
+        <DeleteProfileCard onDelete={onDelete} deleting={del.isPending} />
 
         {/* CONSENT, SAID ONCE, WHERE IT IS TRUE. Who somebody seeks and their
             religion are special-category data; both are read by the matching

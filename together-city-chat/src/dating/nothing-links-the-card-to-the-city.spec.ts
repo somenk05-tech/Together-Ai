@@ -24,28 +24,16 @@ const code = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:]
 describe('nothing links the card to the city', () => {
   const svc = code(read('dating/dating.service.ts'));
 
-  it('no candidate query selects the CITY handle, and no shape sends one', () => {
+  it('no candidate query selects the handle, and no shape sends one', () => {
     // `jobs.handle(...)` is the queue API; the WORD is fine, the COLUMN is not.
-    //
-    // AND THE COLUMN IS NO LONGER ONE COLUMN. DatingProfile carries a `handle`
-    // of its own since 27 Aug — the name a citizen dates under — which is on
-    // every card on purpose and can never be a city @handle, because
-    // dating-handle.ts refuses any name an account already holds. So the rule
-    // this test always meant is stated directly: the USER row is never asked
-    // for a handle, and no shape reads one off it.
-    for (const q of svc.match(/user: \{ select: \{[^}]*\}/g) ?? []) expect(q).not.toMatch(/handle/);
-    for (const q of svc.match(/prisma\.user\.find\w+\(\{[\s\S]*?select: \{[^}]*\}/g) ?? []) {
-      expect(q).not.toMatch(/handle:\s*true/);
-    }
+    expect(svc).not.toMatch(/handle: true/);
+    expect(svc).not.toMatch(/handle: cand/);
     expect(svc).not.toMatch(/user\.handle/);
   });
 
-  it('one function owns the identity a card carries: id, chosen name, dating handle', () => {
-    expect(svc).toMatch(/private cardIdentity\(/);
-    expect(svc).toMatch(/name: shownName\(dx, user\.name\),/);
-    // The handle a card carries comes from the DATING profile, through the
-    // helper that falls back to a generated name — never off the User row.
-    expect(svc).toMatch(/handle: datingHandleOf\(\{ userId: user\.id, handle \}\),/);
+  it('one function owns the identity a card carries: id and chosen name', () => {
+    expect(svc).toMatch(/private cardIdentity\(user: \{ id: string; name: string \}/);
+    expect(svc).toMatch(/return \{ id: user\.id, name: shownName\(dx, user\.name\) \};/);
     // and every card shape goes through it rather than spreading cand.user
     expect(svc).not.toMatch(/user: \{ \.\.\.cand\.user/);
   });

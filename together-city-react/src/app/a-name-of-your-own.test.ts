@@ -70,17 +70,11 @@ describe('a name of your own', () => {
     // Whitespace-tolerant: the sentence wraps across JSX lines, and a regex
     // that only matches one particular line break is a test about formatting.
     expect(form.replace(/\s+/g, ' ')).toMatch(/not your @handle, not your city photo, not your real name/);
-    // `handle: true` was forbidden outright here, and cannot be any more:
-    // DatingProfile carries a handle of its own now — the name a citizen dates
-    // under, which by rule can never be a city @handle, because dating-handle.ts
-    // refuses any name an account already holds. So the rule is written the way
-    // it was always meant. The USER table is never asked for a handle.
-    for (const q of svc.match(/user: \{ select: \{[^}]*\}/g) ?? []) expect(q).not.toMatch(/handle/);
-    for (const q of svc.match(/prisma\.user\.find\w+\(\{[\s\S]*?select: \{[^}]*\}/g) ?? []) expect(q).not.toMatch(/handle:\s*true/);
+    expect(svc).not.toMatch(/handle: true/);
     expect(svc).not.toMatch(/cand\.user\.profileImage/);
     // THE ONE THIS TEST EXISTS FOR: matchDetail shapes its user like every
     // other card, rather than spreading the row.
     expect(svc).not.toMatch(/user: cand\.user,/);
-    expect(svc).toMatch(/user: this\.cardIdentity\(cand\.user, candD, cand\.handle\)/);
+    expect(svc).toMatch(/user: this\.cardIdentity\(cand\.user, candD\)/);
   });
 });
