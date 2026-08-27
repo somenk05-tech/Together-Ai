@@ -52,6 +52,15 @@ function harness(opts: {
 
   const cmp = (where: any, r: any): boolean => {
     for (const [k, v] of Object.entries(where ?? {})) {
+      // The two shapes the order WHEREs now use: either-side ownership, and
+      // "at a listing this person owns". A fake that ignored them would pass a
+      // service that had lost its scope.
+      if (k === 'OR') { if (!(v as any[]).some((w) => cmp(w, r))) return false; continue; }
+      if (k === 'listing') {
+        const l = listings.find((x) => x.id === r.listingId);
+        if (!l || !cmp(v, l)) return false;
+        continue;
+      }
       if (k === 'listingId_seekerId') { const c = v as any; if (r.listingId !== c.listingId || r.seekerId !== c.seekerId) return false; continue; }
       if (v && typeof v === 'object' && 'in' in (v as any)) { if (!(v as any).in.includes(r[k])) return false; }
       else if (v && typeof v === 'object' && 'notIn' in (v as any)) { if ((v as any).notIn.includes(r[k])) return false; }
@@ -106,6 +115,7 @@ function harness(opts: {
       count: async ({ where }: any = {}) =>
         (where ? orders.filter((o) => cmp(where, o)).length : orders.length),
       findUnique: async ({ where }: any) => orders.find((o) => cmp(where, o)) ?? null,
+      findFirst: async ({ where }: any) => orders.find((o) => cmp(where, o)) ?? null,
       findMany: async ({ where }: any) => orders.filter((o) => cmp(where, o)),
       create: async ({ data }: any) => {
         if (orders.some((o) => o.number === data.number)) { const e: any = new Error('unique'); e.code = 'P2002'; throw e; }

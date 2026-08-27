@@ -70,10 +70,10 @@ function bare(over: Record<string, any> = {}): any {
         rows.forEach((r) => Object.assign(r, strip(data)));
         return Promise.resolve({ count: rows.length });
       },
-      delete: ({ where }: any) => {
-        const at = pets.findIndex((p) => p.id === where.id);
-        if (at >= 0) pets.splice(at, 1);
-        return Promise.resolve({});
+      deleteMany: ({ where }: any) => {
+        const gone = pets.filter((p) => hit(p, where));
+        for (const row of gone) pets.splice(pets.indexOf(row), 1);
+        return Promise.resolve({ count: gone.length });
       },
     },
     petPhoto: {
@@ -84,15 +84,15 @@ function bare(over: Record<string, any> = {}): any {
       },
       findFirst: ({ where }: any) => Promise.resolve(photos.find((f) => hit(f, where)) ?? null),
       findMany: ({ where }: any) => Promise.resolve(photos.filter((f) => hit(f, where)).sort((a, b) => a.position - b.position)),
-      delete: ({ where }: any) => {
-        const at = photos.findIndex((f) => f.id === where.id);
-        if (at >= 0) photos.splice(at, 1);
-        return Promise.resolve({});
+      deleteMany: ({ where }: any) => {
+        const gone = photos.filter((f) => hit(f, where));
+        for (const row of gone) photos.splice(photos.indexOf(row), 1);
+        return Promise.resolve({ count: gone.length });
       },
-      update: ({ where, data }: any) => {
-        const row = photos.find((f) => f.id === where.id);
-        Object.assign(row, data);
-        return Promise.resolve(row);
+      updateMany: ({ where, data }: any) => {
+        const rows = photos.filter((f) => hit(f, where));
+        rows.forEach((r) => Object.assign(r, data));
+        return Promise.resolve({ count: rows.length });
       },
     },
     $transaction: (ops: Promise<unknown>[]) => Promise.all(ops),

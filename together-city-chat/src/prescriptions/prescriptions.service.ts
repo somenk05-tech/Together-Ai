@@ -84,8 +84,8 @@ export class PrescriptionsService {
       raw = out.raw;
     } catch (e) {
       // A provider failure is a state the citizen can act on, not a 500.
-      await this.prisma.prescription.update({
-        where: { id: created.id },
+      await this.prisma.prescription.updateMany({
+        where: { id: created.id, userId },
         data: { status: 'failed', error: (e as Error).message.slice(0, 300) },
       });
       this.logger.warn(`extraction failed for prescription ${created.id}`);
@@ -106,8 +106,8 @@ export class PrescriptionsService {
       })),
     });
 
-    await this.prisma.prescription.update({
-      where: { id: created.id },
+    await this.prisma.prescription.updateMany({
+      where: { id: created.id, userId },
       data: {
         status: 'review_required', // never 'confirmed' without the citizen saying so
         providerJobId: providerJobId ?? null,
@@ -256,7 +256,7 @@ export class PrescriptionsService {
     // An upload that failed to read becomes reviewable again once a human adds
     // a line to it.
     if (owned.status === 'failed') {
-      await this.prisma.prescription.update({ where: { id: prescriptionId }, data: { status: 'review_required', error: null } });
+      await this.prisma.prescription.updateMany({ where: { id: prescriptionId, userId }, data: { status: 'review_required', error: null } });
     }
     return this.get(userId, prescriptionId);
   }
@@ -370,8 +370,8 @@ export class PrescriptionsService {
       await this.expandReminders(schedule.id);
     }
 
-    await this.prisma.prescription.update({
-      where: { id: p.id },
+    await this.prisma.prescription.updateMany({
+      where: { id: p.id, userId },
       data: { status: 'confirmed', confirmedAt: new Date() },
     });
 

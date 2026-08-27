@@ -103,6 +103,31 @@ const PROBES: Probe[] = [
     ],
   },
   {
+    /**
+     * The pets book is probeable for the same reason Local Services is: a bare
+     * account can put an animal in it in one call, with no upload, no second
+     * party and no provider key. So it gets a real probe rather than a line on
+     * the UNPROBED list.
+     *
+     * The two photo routes (POST /pets/photos/:photoId/first, DELETE
+     * /pets/photos/:photoId) are NOT attempted — a photo id cannot exist until
+     * something has been PUT into the vault, which this harness cannot do. They
+     * are scoped by findFirst({ id: photoId, userId }) in pets.service.ts:296
+     * and :313 and covered by a-pet-is-a-citizens-record.spec.ts.
+     */
+    hub: 'pets',
+    create: { path: '/api/pets', body: { name: 'Bruno', species: 'dog' } },
+    list: '/api/pets',
+    attempts: (id) => [
+      { method: 'GET', path: `/api/pets/${id}` },
+      { method: 'PATCH', path: `/api/pets/${id}`, body: { name: 'mine now' } },
+      { method: 'DELETE', path: `/api/pets/${id}` },
+      // The pet is looked up before the key is, so a stranger never reaches
+      // the vault check at all — which is the refusal being asserted.
+      { method: 'POST', path: `/api/pets/${id}/photos`, body: { fileKey: 'pets/somebody-else/x.jpg' } },
+    ],
+  },
+  {
     hub: 'drive',
     create: { path: '/api/drive/folders', body: { name: 'Private papers' } },
     list: '/api/drive',
@@ -129,9 +154,30 @@ const UNPROBED = [
   'connections', 'conversations', 'messages', 'chat', 'dating', 'social', 'calls',
   // Need an uploaded file, an external key, or a paid provider to create.
   'medical', 'prescriptions', 'media', 'mail', 'beauty', 'nutrition',
+  // Mira's only id-taking route is DELETE /mira/knows/:id, and a fact cannot
+  // be created from a bare account: facts are written by a SECOND model call
+  // made after a conversation turn (mira.service.ts:1594 onward), so there is
+  // nothing to delete without a provider key. The delete itself is a
+  // deleteMany({ id, userId }) (mira.service.ts:1589) — and note that the
+  // static guard next door CANNOT see it, because MiraFact is reached through
+  // a cast rather than a named delegate (mira.service.ts:1545). This line is
+  // the only place that says so.
+  'mira',
   // The food journal reads and writes the caller's own entries only; there is
   // no other citizen's id to pass it. Landed 4 Aug and never listed here.
   'nutrition/journal',
+  // The daybook DOES take another citizen's id — PATCH and DELETE
+  // /daybook/items/:id and DELETE /daybook/photos/:id — so it is here for a
+  // narrower reason than the rest: this harness cannot drive it. Every daybook
+  // write answers with the whole day page rather than the row it just made, so
+  // `create` yields no id for the second citizen to try, and a probe that
+  // cannot create proves nothing. The refusal is proven instead in
+  // the-daybook.spec.ts:172 ("another citizen cannot tick, edit or delete your
+  // line — the id is not a key"), and all three writes now name the owner in
+  // the WHERE rather than only in the findFirst above them
+  // (daybook.service.ts:207, 284, 292). Giving those routes a create that
+  // returns an id would make this hub probeable, and is worth doing.
+  'daybook',
   // Operate on the caller's own record only — there is no other citizen's id to pass.
   'auth', 'users', 'profile', 'privacy', 'notifications', 'push', 'health', 'hub',
   'astrology', 'financial', 'fitness', 'ai', 'admin', '',

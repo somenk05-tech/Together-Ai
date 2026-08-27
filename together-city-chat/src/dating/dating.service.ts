@@ -2593,6 +2593,14 @@ export class DatingService implements OnModuleInit {
    * the console with a reason, and the citizen is told either way.
    */
   async decideAppeal(adminId: string, appealId: string, decision: 'upheld' | 'overturned', reason: string) {
+    // THE PERMISSION FIRST, THEN THE ROW (27 Aug). `access.act` asserts
+    // moderation.act — but only further down, and this read, the "already
+    // decided" refusal and the age check below it all spoke before it did. A
+    // signed-in citizen who guessed an appeal id therefore learned whether it
+    // existed, whether it was still open, and, on an overturn, whether the
+    // appellant is an adult. The same check, moved in front of the first row
+    // it can speak about; `act` still makes it, and still writes the audit.
+    await this.access.assert(adminId, 'moderation.act');
     const row = await this.prisma.appeal.findUnique({ where: { id: appealId } });
     if (!row) throw new NotFoundException('No such appeal.');
     if (row.status !== 'open') throw new BadRequestException('This appeal has already been decided.');
@@ -2681,8 +2689,14 @@ export class DatingService implements OnModuleInit {
     const distribution = bands.map(([lo, hi]) => ({
       label: `${lo}–${hi === 101 ? 100 : hi}`, count: scores.filter((r) => r.overall >= lo && r.overall < hi).length,
     }));
-    const held = await this.prisma.datingPhotoReview.count({ where: { status: 'held' } });
     /**
+     * THE SAME FOUR NUMBERS THE DIGEST READS (27 Aug).
+     *
+     * These four were counted again, inline, a few lines from the method whose
+     * whole reason for existing is that "the two cannot disagree about the
+     * backlog" — so the console and the digest were two answers to one
+     * question. They are now one call.
+     *
      * THE NUMBER NOTHING COMPUTED (27 Aug, launch audit).
      *
      * `pending` is precisely the state a Rekognition misconfiguration or
@@ -2696,13 +2710,13 @@ export class DatingService implements OnModuleInit {
      * DatingProfile.moderation, which is the profile TEXT pipeline on a
      * different table. An operator reading that tile would reasonably conclude
      * photos were covered. They were not.
+     *
+     * And the open-report BACKLOG, not the event count over the window that
+     * sits next to it on the same screen. A spike in reports is the thing this
+     * hub most needs somebody to see, and it had no number at all.
      */
-    const pendingPhotos = await this.prisma.datingPhotoReview.count({ where: { status: 'pending' } });
-    const appeals = await this.prisma.appeal.count({ where: { status: 'open' } });
-    // The open-report BACKLOG, not the event count over the window that sits
-    // next to it on the same screen. A spike in reports is the thing this hub
-    // most needs somebody to see, and it had no number at all.
-    const reportsOpen = await this.prisma.report.count({ where: { targetType: 'user', status: 'open' } });
+    const { photosHeld: held, photosPending: pendingPhotos, appealsOpen: appeals, reportsOpen } =
+      await this.adminQueueDepths();
     return {
       ...funnel, distribution, scoredPairs: scores.length,
       photosHeld: held, photosPending: pendingPhotos, appealsOpen: appeals, reportsOpen,

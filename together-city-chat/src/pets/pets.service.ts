@@ -232,7 +232,7 @@ export class PetsService {
     for (const photo of pet.photos) {
       await this.storage.deletePrivateObject(photo.fileKey);
     }
-    await this.prisma.pet.delete({ where: { id } });
+    await this.prisma.pet.deleteMany({ where: { id, userId } });
     return { removed: id };
   }
 
@@ -295,7 +295,7 @@ export class PetsService {
   async removePhoto(userId: string, photoId: string): Promise<PetRecord> {
     const row = await this.prisma.petPhoto.findFirst({ where: { id: photoId, userId } });
     if (!row) throw new NotFoundException('No such photo.');
-    await this.prisma.petPhoto.delete({ where: { id: photoId } });
+    await this.prisma.petPhoto.deleteMany({ where: { id: photoId, userId } });
     await this.storage.deletePrivateObject(row.fileKey);
     return this.one(userId, row.petId);
   }
@@ -321,7 +321,7 @@ export class PetsService {
     });
     const order = [chosen.id, ...all.map((p) => p.id).filter((id) => id !== chosen.id)];
     await this.prisma.$transaction(
-      order.map((id, position) => this.prisma.petPhoto.update({ where: { id }, data: { position } })),
+      order.map((id, position) => this.prisma.petPhoto.updateMany({ where: { id, userId }, data: { position } })),
     );
     return this.one(userId, chosen.petId);
   }

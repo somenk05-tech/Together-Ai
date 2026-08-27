@@ -189,12 +189,19 @@ describe('the decision', () => {
     for (let i = 0; i < 9; i++) await g.arrive(new Date(T0.getTime() + i * 60_000));
     expect(await g.svc.waiting('L1')).toBe(4);
 
-    await g.svc.decide('ADMIN', 'L1', 'verified', 'Udyam certificate matches the listing.');
+    // ON THE SAME DAY AS THE ARRIVALS. `decide` defaults `now` to the real
+    // clock, and this scenario's day is T0 — so on every day but the one this
+    // was written, `openedToday` counted nothing, the allowance read as
+    // untouched, and the whole held queue came out. The test has been red since
+    // 16 Aug for that reason and the product was never wrong. A fixed clock
+    // needs handing all the way down or it is not a fixed clock.
+    await g.svc.decide('ADMIN', 'L1', 'verified', 'Udyam certificate matches the listing.', 'doc', T0);
     // Still basic — the person behind it has not proved who they are — so the
-    // gate has NOT lifted, and only the day's room was released.
+    // gate has NOT lifted, and only the day's room was released: none of it,
+    // because five neighbours have already been let in today.
     expect(await g.svc.waiting('L1')).toBe(4);
 
-    await h.svc.decide('ADMIN', 'L1', 'verified', 'Udyam certificate matches the listing.');
+    await h.svc.decide('ADMIN', 'L1', 'verified', 'Udyam certificate matches the listing.', 'doc', T0);
     expect(h.notes.at(-1)!.title).toContain('is verified');
   });
 

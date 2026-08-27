@@ -45,6 +45,9 @@ function bare(over: Partial<Record<string, any>> = {}) {
     if (d.lte !== undefined && row.date > d.lte) return false;
     return true;
   };
+  /* id + owner, the way the WHERE now reads: a fake that ignored the userId
+     would pass a service that had lost it. */
+  const own = (row: any, where: any) => row.id === where.id && row.userId === where.userId;
   svc.prisma = {
     dayPage: {
       findUnique: async ({ where }: any) => svc.__pages.get(`${where.userId_date.userId}:${where.userId_date.date}`) ?? null,
@@ -59,17 +62,28 @@ function bare(over: Partial<Record<string, any>> = {}) {
       findMany: async ({ where }: any) => svc.__items.filter((i: any) => matches(i, where)),
       findFirst: async ({ where }: any) => svc.__items.find((i: any) => i.id === where.id && i.userId === where.userId) ?? null,
       create: async ({ data }: any) => { svc.__items.push({ id: `i${svc.__items.length + 1}`, done: false, ...data }); },
-      update: async ({ where, data }: any) => {
-        const row = svc.__items.find((i: any) => i.id === where.id);
-        Object.assign(row, data);
+      updateMany: async ({ where, data }: any) => {
+        const rows = svc.__items.filter((i: any) => own(i, where));
+        rows.forEach((r: any) => Object.assign(r, data));
+        return { count: rows.length };
       },
-      delete: async ({ where }: any) => { svc.__items = svc.__items.filter((i: any) => i.id !== where.id); },
+      deleteMany: async ({ where }: any) => {
+        const kept = svc.__items.filter((i: any) => !own(i, where));
+        const count = svc.__items.length - kept.length;
+        svc.__items = kept;
+        return { count };
+      },
     },
     dayPhoto: {
       findMany: async ({ where }: any) => svc.__photos.filter((p: any) => matches(p, where)),
       findFirst: async ({ where }: any) => svc.__photos.find((p: any) => p.id === where.id && p.userId === where.userId) ?? null,
       create: async ({ data }: any) => { svc.__photos.push({ id: `p${svc.__photos.length + 1}`, createdAt: new Date(0), ...data }); },
-      delete: async ({ where }: any) => { svc.__photos = svc.__photos.filter((p: any) => p.id !== where.id); },
+      deleteMany: async ({ where }: any) => {
+        const kept = svc.__photos.filter((p: any) => !own(p, where));
+        const count = svc.__photos.length - kept.length;
+        svc.__photos = kept;
+        return { count };
+      },
     },
   };
   /* The vault, as far as this service is concerned: a place a key either is or

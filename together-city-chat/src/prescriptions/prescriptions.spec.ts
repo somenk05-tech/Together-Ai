@@ -72,7 +72,7 @@ describe('confirming a prescription', () => {
     const prisma = {
       prescription: {
         findFirst: jest.fn(async () => ({ id: 'p1', userId: 'me', items })),
-        update: jest.fn(async () => ({})),
+        updateMany: jest.fn(async () => ({ count: 1 })),
       },
       medicine: { create: jest.fn(async () => ({ id: 'med1' })) },
       medicineSchedule: { create: jest.fn(async () => ({ id: 's1' })), findUnique: jest.fn(async () => null) },
@@ -115,7 +115,7 @@ describe('adding a line by hand', () => {
     const prisma = {
       prescription: {
         findFirst: jest.fn(async () => prescription),
-        update: jest.fn(async () => ({})),
+        updateMany: jest.fn(async () => ({ count: 1 })),
       },
       prescriptionItem: {
         create: jest.fn(async ({ data }: any) => { created.push(data); return data; }),
@@ -149,8 +149,12 @@ describe('adding a line by hand', () => {
   it('reopens a failed upload once a human adds a line to it', async () => {
     const { svc, prisma } = serviceWith({ id: 'p1', status: 'failed' });
     await svc.addItem('me', 'p1', { medicineName: 'X', dosage: '1 tab', frequency: 'daily' });
-    expect(prisma.prescription.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { status: 'review_required', error: null } }),
+    expect(prisma.prescription.updateMany).toHaveBeenCalledWith(
+      // The owner is in the WHERE, not merely checked a few lines above it.
+      expect.objectContaining({
+        where: { id: 'p1', userId: 'me' },
+        data: { status: 'review_required', error: null },
+      }),
     );
   });
 

@@ -204,7 +204,7 @@ export class DaybookService {
   async removePhoto(userId: string, id: string): Promise<DayRecord | null> {
     const row = await this.prisma.dayPhoto.findFirst({ where: { id, userId } });
     if (!row) return null;
-    await this.prisma.dayPhoto.delete({ where: { id } });
+    await this.prisma.dayPhoto.deleteMany({ where: { id, userId } });
     await this.storage.deletePrivateObject(row.fileKey);
     return this.day(userId, row.date);
   }
@@ -281,7 +281,7 @@ export class DaybookService {
     if (patch.title !== undefined) data.title = patch.title.trim();
     if (patch.at !== undefined) data.at = patch.at || null;
     if (patch.kind !== undefined) data.kind = patch.kind;
-    await this.prisma.dayItem.update({ where: { id }, data });
+    await this.prisma.dayItem.updateMany({ where: { id, userId }, data });
     return this.day(userId, row.date);
   }
 
@@ -289,7 +289,7 @@ export class DaybookService {
   async remove(userId: string, id: string): Promise<DayRecord | null> {
     const row = await this.prisma.dayItem.findFirst({ where: { id, userId } });
     if (!row) return null;
-    await this.prisma.dayItem.delete({ where: { id } });
+    await this.prisma.dayItem.deleteMany({ where: { id, userId } });
     return this.day(userId, row.date);
   }
 

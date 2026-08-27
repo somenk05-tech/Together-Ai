@@ -335,7 +335,7 @@ export class ServiceOrdersService {
     }
 
     // ── the order — created once, healed by retry if a crash split the pair ──
-    let order = await this.prisma.serviceOrder.findUnique({ where: { invoiceId: paidInvoiceId } }) as OrderRow | null;
+    let order = await this.prisma.serviceOrder.findFirst({ where: { invoiceId: paidInvoiceId, userId } }) as OrderRow | null;
     if (!order) {
       order = await this.mintOrder({
         listing: l, userId, enquiryId: enquiry.id, invoiceId: paidInvoiceId,
@@ -486,7 +486,13 @@ export class ServiceOrdersService {
   // ───────────────────────── reading ─────────────────────────
 
   private async sided(userId: string, orderId: string): Promise<{ o: OrderRow; l: ListingRow; side: 'seeker' | 'owner' }> {
-    const o = await this.prisma.serviceOrder.findUnique({ where: { id: orderId } }) as OrderRow | null;
+    // An order has exactly two legitimate readers — the citizen who placed it
+    // and the owner of the listing it was placed at — and the WHERE now says
+    // so, rather than reading any row by id and deciding afterwards. A
+    // stranger's id matches neither arm and no row comes back at all.
+    const o = await this.prisma.serviceOrder.findFirst({
+      where: { id: orderId, OR: [{ userId }, { listing: { ownerId: userId } }] },
+    }) as OrderRow | null;
     if (!o) throw new NotFoundException('order not found');
     const l = await this.prisma.serviceListing.findUnique({ where: { id: o.listingId } }) as ListingRow | null;
     if (!l) throw new NotFoundException('order not found');
@@ -562,7 +568,7 @@ export class ServiceOrdersService {
     const l = await this.prisma.serviceListing.findUnique({ where: { id: listingId } }) as ListingRow | null;
     if (!l || l.ownerId !== ownerId) throw new NotFoundException('listing not found');
     const rows = await this.prisma.serviceOrder.findMany({
-      where: { listingId }, orderBy: { createdAt: 'desc' }, take: 200,
+      where: { listingId, listing: { ownerId } }, orderBy: { createdAt: 'desc' }, take: 200,
     }) as unknown as OrderRow[];
     const open = rows.filter((o) => ['submitted', 'accepted', 'preparing', 'ready'].includes(o.status));
     const done = rows.filter((o) => !['submitted', 'accepted', 'preparing', 'ready'].includes(o.status));
@@ -602,8 +608,10 @@ export class ServiceOrdersService {
     const now = this.clock.now();
     const touched = await this.prisma.serviceOrder.updateMany({
       // status in the WHERE: a compare-and-set, so two taps or two devices
-      // cannot accept twice or revive a cancellation that landed first.
-      where: { id: o.id, status: 'submitted' },
+      // cannot accept twice or revive a cancellation that landed first. The
+      // listing's owner is in it too, so the write can only ever land on an
+      // order taken at a business this caller owns.
+      where: { id: o.id, status: 'submitted', listing: { ownerId } },
       data: {
         status: 'accepted', acceptedAt: now,
         prepMinutes: dto.prepMinutes ?? null,
@@ -644,7 +652,7 @@ export class ServiceOrdersService {
     this.mustAllow(o, 'rejected');
 
     const touched = await this.prisma.serviceOrder.updateMany({
-      where: { id: o.id, status: 'submitted' },
+      where: { id: o.id, status: 'submitted', listing: { ownerId } },
       data: { status: 'rejected', rejectedAt: this.clock.now(), rejectReason: dto.reason.trim() },
     });
     if (touched.count !== 1) throw new BadRequestException('This order has already moved on.');
@@ -671,7 +679,7 @@ export class ServiceOrdersService {
       : to === 'ready' ? { readyAt: this.clock.now() }
         : { completedAt: this.clock.now() };
     const touched = await this.prisma.serviceOrder.updateMany({
-      where: { id: o.id, status: o.status },
+      where: { id: o.id, status: o.status, listing: { ownerId } },
       data: { status: to, ...stamp },
     });
     if (touched.count !== 1) throw new BadRequestException('This order has already moved on.');
@@ -697,7 +705,7 @@ export class ServiceOrdersService {
     }
 
     const touched = await this.prisma.serviceOrder.updateMany({
-      where: { id: o.id, status: 'submitted' },
+      where: { id: o.id, status: 'submitted', userId },
       data: { status: 'cancelled', cancelledAt: this.clock.now(), cancelReason: dto.reason?.trim() || null },
     });
     if (touched.count !== 1) throw new BadRequestException('This order has already moved on.');

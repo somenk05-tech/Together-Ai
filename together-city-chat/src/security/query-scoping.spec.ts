@@ -118,11 +118,112 @@ import { stats, unscopedSignatures } from './query-inventory';
  *      accounts or the limit is trivially bypassed by signing up again. It
  *      selects a timestamp column and nothing else.
  *
+ * Changed 2026-08-27, when the moderation console, the daybook, the pets book
+ * and the services till were all read for the first time against this list.
+ *
+ * TEN QUERIES WERE SCOPED RATHER THAN LISTED. Every one of them already knew
+ * the owner and simply was not saying so in the WHERE:
+ *
+ *   - daybook: DayItem.update/delete and DayPhoto.delete each followed a
+ *     findFirst({ id, userId }) by two lines; all three are now
+ *     updateMany/deleteMany({ id, userId }).
+ *   - pets: Pet.delete, PetPhoto.delete and the PetPhoto.update inside
+ *     makeMainPhoto's transaction, the same way.
+ *   - local-services/orders: the healed-order lookup now carries the userId of
+ *     the citizen whose invoice was just paid; the citizen's cancel carries
+ *     theirs; and the three owner verbs (accept, reject, advance) plus
+ *     forBusiness now say `listing: { ownerId }`, so a write can only land on
+ *     an order taken at a business the caller owns — the check sided() makes,
+ *     said in the query as well.
+ *   - sided() itself is now a findFirst whose WHERE names BOTH people an order
+ *     can belong to: `OR: [{ userId }, { listing: { ownerId: userId } }]`. It
+ *     used to read any order by id and decide afterwards.
+ *
+ * AND FOUR MORE, to stay inside the budget rather than raise it — which is the
+ * rule this file has followed twice before. Prescription.update x4 left the
+ * list the way the three medical deletes did in July: upload(), addItem() and
+ * confirm() all knew the userId already, and now put it in the WHERE.
+ *
+ * WHAT WAS ADDED IS ALMOST ALL ONE THING: the moderation console. Appeal and
+ * DatingPhotoReview both carry a userId, but a moderator is never the owner of
+ * the row they are deciding, so "scope it to the caller" has no meaning there.
+ * What stands in for the owner filter is the permission, and each entry below
+ * names the assert that makes it. A sixth shape, then:
+ *
+ *   6. A console read whose scope is a PERMISSION. `access.assert(actorId,
+ *      'moderation.read')` or the `access.act` wrapper, which asserts before it
+ *      runs anything and writes an audit row naming the actor and the reason.
+ *      These are worth more suspicion than the other five, because the control
+ *      is one line above the query rather than inside it, and moving the query
+ *      moves it out of the control's reach.
+ *
+ * That last sentence was not hypothetical. decideAppeal() read the appeal row,
+ * refused an already-decided one, and re-ran the minimum-age check on the
+ * stored birth date — all THREE before `access.act` asserted anything. Any
+ * signed-in citizen who guessed an appeal id learned whether it existed,
+ * whether it was still open, and whether the appellant is an adult. The assert
+ * is now the first line of the method. No row was returned to them and no
+ * appeal could be decided, so this was an oracle rather than an IDOR, but it
+ * is exactly the drift shape 6 invites.
+ *
+ * Two console duplications went with it: adminFunnel() counted the four queue
+ * depths again, inline, a few lines from adminQueueDepths() — whose stated
+ * reason for existing is that the console and the digest cannot disagree about
+ * the backlog. It calls it now, which is also why DatingPhotoReview.count is
+ * x2 and Appeal.count is x1 rather than x4 and x2.
+ *
  * Adding to this list means a reviewer decided a query needs no owner. That is
  * sometimes right. It should never be accidental.
  */
 const REVIEWED_UNSCOPED = [
   'auth/auth.service.ts  PasswordReset.update x3',
+  // funnel() — event names and their counts over a window. City-wide by
+  // definition: a funnel of one citizen is not a funnel. groupBy on `name`
+  // with `_count`, so it returns names and numbers and no userId at all. Its
+  // two callers both hold moderation.read (dating.service.ts:2683) or are the
+  // daily digest, which has no current user to be scoped to.
+  'analytics/analytics.service.ts  AppEvent.groupBy x1',
+  // adminQueueDepths() (dating.service.ts:1970) — how many photos and appeals
+  // are waiting for a human. A queue depth that counted only your own rows is
+  // not a queue depth; these span citizens for the same reason the reports
+  // count beside them does. Numbers, no rows: shape 4.
+  'dating/dating.service.ts  Appeal.count x1',
+  'dating/dating.service.ts  DatingPhotoReview.count x2',
+  // appealQueue() — the moderator's queue. Scoped by PERMISSION rather than by
+  // owner, and the permission is asserted on the line above the read:
+  // `access.assert(adminId, 'moderation.read')` at dating.service.ts:2562.
+  'dating/dating.service.ts  Appeal.findMany x1',
+  // decideAppeal() — a moderator deciding somebody else's appeal, so there is
+  // no owner to scope to; the appellant is in the row, not in the caller. Both
+  // are behind moderation.act: the read by the assert now moved above it
+  // (dating.service.ts:2603 — see the note in the header), the write by the
+  // `access.act` that wraps it (dating.service.ts:2613).
+  'dating/dating.service.ts  Appeal.findUnique x1',
+  'dating/dating.service.ts  Appeal.update x1',
+  // Two different queries, one entry. reviewRows() (:121) is keyed by the
+  // photo's own review id — shape 2 — and MUST read other citizens' rows:
+  // approvedOf() is what decides whether a stranger's photo may be shown to
+  // you at all (dating.service.ts:307, 346, 381), and it selects key+status
+  // and nothing else. queue() (:160) is the held list for the console, behind
+  // `access.assert(adminId, 'moderation.read')` at dating.service.ts:2644.
+  'dating/photo-moderation.service.ts  DatingPhotoReview.findMany x2',
+  // decide() — the moderator's verdict on a photo that is by definition not
+  // theirs, addressed by the vault key. Both callers assert moderation.act
+  // first: photoDecision's `access.act` (dating.service.ts:2654) and
+  // decideAppeal's (dating.service.ts:2613).
+  'dating/photo-moderation.service.ts  DatingPhotoReview.update x1',
+  // Minting a number, twice over — the invoice's (:393) and the order's
+  // (:424). The same shape, and the same reason, as the Invoice.count in
+  // commerce above: a per-owner counter would publish how many customers a
+  // business has had. Uniqueness comes from the unique index and the retry
+  // loop around the insert, not from this read.
+  //
+  // The third (:221) is the pre-verification order cap, and it counts one
+  // LISTING's orders across every customer on purpose: a cap that only counted
+  // your own orders would be lifted by asking a friend to place the sixth.
+  // All three return a number and no row.
+  'local-services/orders.service.ts  Invoice.count x1',
+  'local-services/orders.service.ts  ServiceOrder.count x2',
   // Minting an invoice number. `count()` over every invoice in the city,
   // returning a number and no row — shape 4 above. It CANNOT be scoped and be
   // correct: a per-owner counter would tell anybody holding two invoices how
@@ -184,10 +285,6 @@ const REVIEWED_UNSCOPED = [
   // a current user to scope to, because the answer is needed before anybody
   // asks. Both return a number: no row, no field, nothing to leak.
   'nutrition/nutrition.service.ts  NutritionOrder.count x2',
-  // upload(), addItem() and confirm() write by an id either created in the same
-  // call or read a line earlier via findFirst({ id, userId }). Request-path, so
-  // it counts against the size budget below — unlike the cron queries.
-  'prescriptions/prescriptions.service.ts  Prescription.update x4',
   'social/social.service.ts  Like.count x1',
   'social/social.service.ts  Like.delete x1',
 ].sort();
