@@ -17,15 +17,30 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
  * (see vitest.config.ts), and the two DOM calls this module makes are a div and
  * a body to hang it on.
  */
-type RenderOpts = { sitekey: string; action?: string; callback(t: string): void };
+type RenderOpts = {
+  sitekey: string; action?: string; callback(t: string): void;
+  'before-interactive-callback'?(): void; 'after-interactive-callback'?(): void;
+};
 
 let lastOpts: RenderOpts | null = null;
 let attached = 0;
+/** The overlay host is the first element the module creates per call. */
+let hosts: { style: Record<string, string> }[] = [];
 
 function installDom() {
   attached = 0;
+  hosts = [];
   const doc = {
-    createElement: () => ({ style: {} as Record<string, string>, remove: () => { attached -= 1; } }),
+    createElement: () => {
+      const el = {
+        style: {} as Record<string, string>,
+        textContent: '',
+        remove: () => { attached -= 1; },
+        appendChild: () => {},
+      };
+      hosts.push(el);
+      return el;
+    },
     body: { appendChild: () => { attached += 1; } },
     head: { appendChild: () => {} },
   };
@@ -78,6 +93,44 @@ describe('the token a widget never delivers', () => {
     installApi((o) => { setTimeout(() => o.callback('tok-late'), 20_000); });
     const { getTurnstileToken } = await load();
     const pending = getTurnstileToken('login');
+    await vi.advanceTimersByTimeAsync(25_000);
+    await expect(pending).resolves.toBeUndefined();
+  });
+
+  /**
+   * THE MOBILE SIGN-UP BUG, PINNED. (28 Aug.) Cloudflare asked a phone for
+   * interaction; the widget was invisible and in a corner; the 15s clock gave
+   * up mid-challenge and every mobile registration died at the "are you human"
+   * refusal. Interaction announced must mean: overlay shown, deadline
+   * stretched past the silent 15s — and a visitor who completes the click at
+   * their own pace still gets their token.
+   */
+  it('shows the overlay and stretches the clock when Cloudflare asks a person to click', async () => {
+    installApi((o) => {
+      setTimeout(() => o['before-interactive-callback']?.(), 1_000);
+      setTimeout(() => o.callback('tok-slow-human'), 60_000);
+    });
+    const { getTurnstileToken } = await load();
+    const pending = getTurnstileToken('register');
+    let settled = false;
+    void pending.then(() => { settled = true; });
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(hosts[0]?.style.display).toBe('flex'); // the challenge is on screen
+    await vi.advanceTimersByTimeAsync(28_000);    // 30s in — old clock would have killed it
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(31_000);    // the human clicks at 60s
+    await expect(pending).resolves.toBe('tok-slow-human');
+    expect(attached).toBe(0);
+  });
+
+  it('still gives up, eventually, on an interactive challenge nobody finishes', async () => {
+    installApi((o) => { setTimeout(() => o['before-interactive-callback']?.(), 1_000); });
+    const { getTurnstileToken } = await load();
+    const pending = getTurnstileToken('login');
+    let settled = false;
+    void pending.then(() => { settled = true; });
+    await vi.advanceTimersByTimeAsync(100_000);
+    expect(settled).toBe(false);
     await vi.advanceTimersByTimeAsync(25_000);
     await expect(pending).resolves.toBeUndefined();
   });

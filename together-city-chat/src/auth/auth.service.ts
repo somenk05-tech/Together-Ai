@@ -131,7 +131,9 @@ export class AuthService {
       // Special-category data, on the same row and the same write. It is
       // stored and nothing reads it but the citizen's own profile — see the
       // DTO for why that sentence is the whole design.
-      orientation: dto.orientation,
+      // Optional since 28 Aug — the door no longer asks. Null means "never
+      // said", which is not the same answer as preferNotToSay.
+      orientation: dto.orientation ?? null,
       orientationOther: dto.orientation === 'other' ? (dto.orientationOther?.trim() || null) : null,
     };
     await swallow(mp?.upsert?.({

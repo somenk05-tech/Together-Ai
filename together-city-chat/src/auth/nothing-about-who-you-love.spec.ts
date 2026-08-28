@@ -37,8 +37,10 @@ describe('nothing about who you love leaves your own profile', () => {
     email: 'someone@example.com', dateOfBirth: '1995-06-15', gender: 'female' as const,
   };
 
-  it('is required, and refuses a registration without it', () => {
-    expect(RegisterSchema.safeParse(base).success).toBe(false);
+  it('is optional at the door (owner, 28 Aug) — a registration without it is whole', () => {
+    // Reverses 27 Aug. Not asking is the strongest privacy stance available
+    // for special-category data; the profile is where a citizen states it.
+    expect(RegisterSchema.safeParse(base).success).toBe(true);
     expect(RegisterSchema.safeParse({ ...base, orientation: 'gay' }).success).toBe(true);
   });
 

@@ -29,7 +29,7 @@ interface AuthState {
   ready: boolean;
   isAuthenticated: () => boolean;
   login: (handle: string, password: string) => Promise<void>;
-  register: (handle: string, name: string, password: string, contact: { email: string; phone?: string; dateOfBirth: string; gender: 'male' | 'female' | 'nonBinary' | 'other'; genderOther?: string; orientation: 'straight' | 'gay' | 'lesbian' | 'bisexual' | 'pansexual' | 'asexual' | 'queer' | 'other' | 'preferNotToSay'; orientationOther?: string }) => Promise<void>;
+  register: (handle: string, name: string, password: string, contact: { email: string; phone?: string; dateOfBirth: string; gender: 'male' | 'female' | 'nonBinary' | 'other'; genderOther?: string; orientation?: 'straight' | 'gay' | 'lesbian' | 'bisexual' | 'pansexual' | 'asexual' | 'queer' | 'other' | 'preferNotToSay'; orientationOther?: string }) => Promise<void>;
   refresh: () => Promise<string | null>;
   signOut: () => void;
   hydrate: () => Promise<void>;

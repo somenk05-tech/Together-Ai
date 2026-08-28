@@ -55,23 +55,23 @@ export const RegisterSchema = z.object({
   /** Free text, only meaningful when gender is 'other'. Optional either way. */
   genderOther: z.string().trim().max(40).optional(),
   /**
-   * ── SEXUAL ORIENTATION, REQUIRED AT THE DOOR (owner, 27 Aug) ──────────────
+   * ── SEXUAL ORIENTATION, NO LONGER ASKED AT THE DOOR (owner, 28 Aug) ───────
    *
-   * The owner's decision, taken with the objection in front of them and
-   * recorded in the commit: this is SPECIAL-CATEGORY DATA under GDPR Article 9,
-   * and asking it here means holding it about every citizen — including
-   * everyone who only ever opens Jobs, Nutrition or Cars.
+   * Reverses the 27 Aug decision. This is SPECIAL-CATEGORY DATA under GDPR
+   * Article 9, and requiring it here meant holding it about every citizen —
+   * including everyone who only ever opens Jobs, Nutrition or Cars. The
+   * sign-up form no longer sends it; the field stays OPTIONAL on the wire so
+   * an older client that still offers it is not refused, and the profile is
+   * where a citizen states or edits it.
    *
-   * What the code does about that, since the collection is settled:
+   * What still holds, unchanged, wherever a value does exist:
    *   · It never appears in a cross-citizen response. See
    *     `nothing-about-who-you-love.spec.ts`.
    *   · It drives nothing. The dating engine reads `gender` and `seeking`,
    *     which are stated separately in the hub and mean something precise.
-   *   · `preferNotToSay` is one of the answers. Required means a citizen must
-   *     answer; it does not mean they must disclose. sex-and-gender.ts already
-   *     made this argument for `SEX_AT_BIRTH` and it holds harder here.
+   *   · `preferNotToSay` is one of the answers, distinct from not answering.
    */
-  orientation: z.enum(ORIENTATION),
+  orientation: z.enum(ORIENTATION).optional(),
   /** Free text, only meaningful when orientation is 'other'. */
   orientationOther: z.string().trim().max(40).optional(),
 }).refine((v) => isAdult(v.dateOfBirth), {
