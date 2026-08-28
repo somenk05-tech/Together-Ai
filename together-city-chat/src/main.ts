@@ -8,6 +8,7 @@ import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './shared/filters/all-exceptions.filter';
 import { initSentry, report } from './shared/errors/sentry';
 import { RedisIoAdapter } from './shared/redis/redis-io.adapter';
+import { BootLogger, BOOT_LOG_LEVELS } from './shared/boot-logger';
 
 async function bootstrap(): Promise<void> {
   // Before anything else can fail. No DSN, no-op — but say so, once, in the
@@ -20,7 +21,16 @@ async function bootstrap(): Promise<void> {
   // bodyParser off so we can raise the JSON limit — photo/report uploads
   // (beauty analysis, blood-test ingest) send base64 images well past the
   // 100 kb Express default.
-  const app = await NestFactory.create(AppModule, { bufferLogs: false, bodyParser: false });
+  // BootLogger drops RouterExplorer's ~600 route lines and keeps everything
+  // else — see shared/boot-logger.ts. Without it the boot burst exceeds
+  // Railway's 500 logs/sec and the platform drops whichever lines are in
+  // flight, which on 28 Aug was 92 of them, at the one moment the log carries
+  // every configuration warning this process knows how to give.
+  const app = await NestFactory.create(AppModule, {
+    bufferLogs: false,
+    bodyParser: false,
+    logger: new BootLogger('Nest', { logLevels: BOOT_LOG_LEVELS }),
+  });
   const config = app.get(ConfigService);
 
   /**
