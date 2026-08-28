@@ -62,6 +62,37 @@ export class StorageProvider implements OnModuleInit {
    */
   private readonly datingPhotoTtlSec = 60;
 
+  /**
+   * SIXTY SECONDS WAS REVOCATION. IT IS NOT REVOCATION ANY MORE, AND IT WAS
+   * STILL TAKING THE PICTURES OFF THE SCREEN. (28 Aug.)
+   *
+   * The paragraph above is about a PRESIGNED link, where the expiry is the
+   * only thing that ever ends access: S3 checks a signature and asks nobody
+   * anything, so a short window was the entire defence and sixty seconds was
+   * the right answer.
+   *
+   * The proxy route changed what a short window buys. `GET /dating/photo/:token`
+   * runs mayViewPhoto on EVERY fetch — approval, visibility, blocking, the
+   * profile still being here — so a photo is revoked the instant the rows say
+   * so, whatever the token's expiry says. The sixty seconds now protects only
+   * against a token copied out of a page and replayed by somebody the live
+   * rows would still allow. Ten minutes is the same protection an hour later.
+   *
+   * What sixty seconds cost: the web app caches for five minutes
+   * (queryClient gcTime) and every photograph is `loading="lazy"`. So a render
+   * from cache more than a minute old, or a scroll that reaches a card a
+   * minute after the list was signed, asks for a link that died — and the
+   * route answers 404 for every refusal alike, which is right for an oracle
+   * and useless for a diagnosis. The link has to outlive the cache that holds
+   * it; PHOTO_LINK_TTL_SEC is that number and it is deliberately larger than
+   * the client's own window rather than equal to it.
+   *
+   * The PRESIGNED fallback above keeps 60. There the expiry really is the
+   * whole of the revocation, and that path exists only when PUBLIC_API_URL is
+   * unset — a deployment with no authenticated channel to be lenient about.
+   */
+  private readonly proxyPhotoTtlSec = 600;
+
   constructor(private readonly config: ConfigService) {
     const originsCsv = this.config.get<string>('media.corsOrigins') ?? '';
     this.corsOrigins = originsCsv.split(',').map((s) => s.trim()).filter(Boolean);
@@ -477,7 +508,7 @@ export class StorageProvider implements OnModuleInit {
    */
   async datingPhotoUrl(viewerId: string, key: string): Promise<string | null> {
     if (!this.apiBase || !viewerId || !key) return this.presignPrivateDownload(key);
-    return apiUrl(this.apiBase, `dating/photo/${mintPhotoToken(this.linkSecret, viewerId, key, this.datingPhotoTtlSec, Date.now())}`);
+    return apiUrl(this.apiBase, `dating/photo/${mintPhotoToken(this.linkSecret, viewerId, key, this.proxyPhotoTtlSec, Date.now())}`);
   }
 
   /** The viewer and key a photo token names, or null for every kind of failure. */
