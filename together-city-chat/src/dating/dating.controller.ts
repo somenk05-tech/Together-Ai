@@ -275,6 +275,17 @@ export class DatingController {
   }
 
   /** Photos Rekognition held for a person to look at, oldest first. */
+  /**
+   * The profiles waiting for a person. There has never been a screen for these:
+   * `moderation: 'review'` took a citizen out of the pool and out of anybody's
+   * reach at the same time. (Fourth audit, 28 Aug.)
+   */
+  @Throttle(LIST_LIMIT)
+  @Get('admin/profiles')
+  profileQueue(@CurrentUser() user: JwtUser) {
+    return this.dating.profileQueue(user.sub);
+  }
+
   @Get('admin/photos')
   photoQueue(@CurrentUser() user: JwtUser) {
     return this.dating.photoQueue(user.sub);

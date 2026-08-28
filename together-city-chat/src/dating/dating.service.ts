@@ -2817,6 +2817,68 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
   }
 
   /** Photos Rekognition held for a person to look at. */
+  /**
+   * PROFILES THE MACHINE COULD NOT CLEAR, AND NOBODY COULD REACH. (Fourth
+   * audit, 28 Aug.)
+   *
+   * `moderation: 'review'` is what upsertProfile writes when the bio checks
+   * come back soft — an AI that returned nothing, a check that could not run.
+   * The profile is out of the pool the moment it is written: `poolWhere`
+   * demands `approved`. And nothing in this product ever LISTED those rows.
+   * adminStats counted them; the moderation console had reports, held photos
+   * and appeals; `moderateDecision` needs a targetUserId a moderator could only
+   * get from a report. So a citizen whose bio tripped a soft failure was
+   * invisible to the city and invisible to the people who could fix it, and the
+   * only way out was to find the Safety Centre unprompted and appeal a decision
+   * nobody had told them about.
+   *
+   * `pending` is here too, and for the same reason it is on the photo queue: it
+   * is not a verdict, it is the absence of one, and a pile of them means the
+   * profile pipeline itself has stopped. Only rows older than an hour — a
+   * profile saved thirty seconds ago is mid-flight, not stuck.
+   *
+   * The three facts a decision turns on come with the row, as they do for
+   * appeals: the age the DOB gives, the bio that was judged, and whatever the
+   * checks actually said. Photos are deliberately NOT here — they have their
+   * own queue, their own verdicts and their own delete-on-reject.
+   */
+  async profileQueue(adminId: string) {
+    await this.access.assert(adminId, 'moderation.read');
+    const stale = new Date(Date.now() - 60 * 60_000);
+    const rows = await this.prisma.datingProfile.findMany({
+      where: {
+        OR: [{ moderation: 'review' }, { moderation: 'pending', updatedAt: { lt: stale } }],
+        user: DatingService.STILL_HERE,
+      },
+      orderBy: { updatedAt: 'asc' },
+      take: 100,
+      // NO HANDLE, and the guard that stopped me is right. `a-name-of-your-own`
+      // forbids `handle: true` anywhere in this file, because the handle is the
+      // city's primary key for a person and this is the module that leaked it
+      // onto cards once already. A moderator does not need it: the name, the
+      // age, the bio and what the checks said are what the decision turns on,
+      // and the userId is here for anything else. A blanket guard is worth more
+      // than the convenience of one column on one screen.
+      include: { user: { select: { id: true, name: true } } },
+    });
+    return rows.map((r) => {
+      let reasons: string[] = [];
+      try {
+        const j = JSON.parse((r as { moderationJson?: string | null }).moderationJson ?? '{}') as { reasons?: unknown };
+        if (Array.isArray(j.reasons)) reasons = j.reasons.map(String).slice(0, 6);
+      } catch { /* a row with no verdict yet has nothing to say */ }
+      return {
+        userId: r.userId,
+        name: r.user.name,
+        status: r.moderation,
+        age: this.ageOf(r.birthDate),
+        bio: (r.bio ?? '').slice(0, 600),
+        reasons,
+        waitingSince: r.updatedAt.toISOString(),
+      };
+    });
+  }
+
   async photoQueue(adminId: string) {
     await this.access.assert(adminId, 'moderation.read');
     const held = await this.photoMod.queue();

@@ -45,6 +45,9 @@ export const moderationApi = {
     api.post<{ userId: string; moderation: string }>(`/dating/admin/moderation/${encodeURIComponent(userId)}`, dto).then((r) => r.data),
   /** Photos the machine held for a person, oldest first, each with a short-lived URL. */
   heldPhotos: () => api.get<HeldPhoto[]>('/dating/admin/photos').then((r) => r.data),
+  heldProfiles: () => api.get<HeldProfile[]>('/dating/admin/profiles').then((r) => r.data),
+  profileDecision: (targetUserId: string, dto: { decision: 'approved' | 'rejected'; reason: string }) =>
+    api.post<{ userId: string; moderation: string }>(`/dating/admin/moderation/${targetUserId}`, dto).then((r) => r.data),
   /** One-off: queue a review for every photo that predates photo review. */
   photoBackfill: () => api.post<{ queued: number }>('/dating/admin/photos/backfill').then((r) => r.data),
   photoDecision: (dto: { key: string; decision: 'approved' | 'rejected'; reason: string }) =>
@@ -65,6 +68,11 @@ export interface DatingSubject {
 }
 
 export interface HeldPhoto { key: string; userId: string; status: string; labels: string; reason: string; createdAt: string; url: string | null }
+/** A dating profile waiting for a person: held by a soft check, or stuck. */
+export interface HeldProfile {
+  userId: string; name: string; status: string;
+  age: number | null; bio: string; reasons: string[]; waitingSince: string;
+}
 export interface Appeal {
   id: string; userId: string; kind: 'dating_profile' | 'dating_photo'; targetId: string;
   text: string; status: string; createdAt: string;
@@ -90,6 +98,26 @@ export function usePhotoDecision() {
   return useMutation({
     mutationFn: moderationApi.photoDecision,
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['moderation', 'photos'] }); },
+  });
+}
+
+export function useHeldProfiles() {
+  return useQuery({ queryKey: ['moderation', 'profiles'], queryFn: () => moderationApi.heldProfiles(), retry: false });
+}
+
+/**
+ * The same route the console's other profile decisions use. Invalidates the
+ * dating keys too: a decision here changes who is in the pool.
+ */
+export function useProfileDecision() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, ...dto }: { userId: string; decision: 'approved' | 'rejected'; reason: string }) =>
+      moderationApi.profileDecision(userId, dto),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['moderation', 'profiles'] });
+      void qc.invalidateQueries({ queryKey: ['dating'] });
+    },
   });
 }
 

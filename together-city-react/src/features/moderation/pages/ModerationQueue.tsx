@@ -2,7 +2,7 @@ import { useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { Button, Spinner } from '@/components/ui';
-import { useAppeals, useDatingDecision, useDecideAppeal, useDecideReport, useHeldPhotos, usePhotoBackfill, usePhotoDecision, useReportQueue, type Appeal, type HeldPhoto, type ReportGroup } from '../api';
+import { useAppeals, useDatingDecision, useDecideAppeal, useDecideReport, useHeldPhotos, useHeldProfiles, usePhotoBackfill, useProfileDecision, usePhotoDecision, useReportQueue, type Appeal, type HeldPhoto, type ReportGroup } from '../api';
 import { useAdminMe } from '@/features/admin/api';
 
 /** The reported citizen's dating profile, set apart from the handle above it
@@ -259,6 +259,7 @@ export function ModerationQueue() {
               : `${queue.data.openTotal} open ${queue.data.openTotal === 1 ? 'report' : 'reports'} across ${queue.data.items.length} ${queue.data.items.length === 1 ? 'thing' : 'things'}, most-reported first. Who reported something is deliberately not shown.`}
           </p>
           {queue.data.items.map((g) => <Group key={`${g.targetType}:${g.targetId}`} group={g} />)}
+          <HeldProfiles />
           <HeldPhotos />
           <Appeals />
         </>
@@ -271,6 +272,76 @@ const reasonInput: CSSProperties = {
   flex: 1, minWidth: 200, fontSize: 13, fontFamily: 'inherit', padding: '9px 11px',
   border: '1px solid var(--line)', borderRadius: 9, background: 'var(--card)', color: 'inherit',
 };
+
+/**
+ * PROFILES THE MACHINE COULD NOT CLEAR — a screen that has never existed.
+ *
+ * `moderation: 'review'` is what a soft failure in the bio checks writes: an AI
+ * that returned nothing, a check that could not run. It takes the citizen out
+ * of the pool immediately, because poolWhere demands `approved`. Nothing in the
+ * product ever listed those rows: adminStats counted them, this console had
+ * reports, photos and appeals, and the decision route needs a userId a
+ * moderator could only get from a report. So somebody whose bio tripped a soft
+ * check was invisible to the city and invisible to the people who could fix it,
+ * and their only way out was to find the Safety Centre unprompted and appeal a
+ * decision nobody had told them about. (Fourth audit, 28 Aug.)
+ *
+ * `pending` older than an hour is here for the same reason it is on the photo
+ * queue: it is not a verdict, it is the absence of one, and a pile of them
+ * means the pipeline itself has stopped.
+ */
+function HeldProfiles() {
+  const q = useHeldProfiles();
+  const decide = useProfileDecision();
+  const [reason, setReason] = useState<Record<string, string>>({});
+  if (!q.data) return null;
+  const stuck = q.data.filter((p) => p.status === 'pending').length;
+  return (
+    <section style={{ marginTop: 28 }}>
+      <h2 style={{ fontSize: 18, margin: 0 }}>Profiles held for a look</h2>
+      <p className="muted" style={{ fontSize: 13, margin: '6px 0 12px', lineHeight: 1.6 }}>
+        {q.data.length === 0
+          ? 'Nothing waiting. A profile lands here when a check could not clear it — it is out of the pool until somebody decides.'
+          : `${q.data.length} waiting, longest first. Each is out of the pool right now.${stuck ? ` ${stuck} of them are still \u2018pending\u2019 after an hour, which usually means the checks themselves have stopped.` : ''}`}
+      </p>
+      {q.data.map((p) => (
+        <article key={p.userId} className="card" style={{ marginTop: 10 }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
+            <strong style={{ fontSize: 15 }}>{p.name}</strong>
+            {/* No handle: a-name-of-your-own forbids the dating module from
+                selecting it at all, and a decision here turns on the age, the
+                bio and what the checks said — not on who they are in the rest
+                of the city. */}
+            {p.age != null && <span className="muted" style={{ fontSize: 12.5 }}>{p.age}</span>}
+            <span className="tag">{p.status}</span>
+            <span className="muted" style={{ fontSize: 12 }}>waiting since {new Date(p.waitingSince).toLocaleDateString()}</span>
+          </div>
+          {p.bio && <p style={{ fontSize: 13.5, lineHeight: 1.6, margin: '8px 0 0' }}>{p.bio}</p>}
+          {p.reasons.length > 0 && (
+            <p className="muted" style={{ fontSize: 12.5, margin: '8px 0 0', lineHeight: 1.55 }}>
+              What the checks said: {p.reasons.join(' \u00b7 ')}
+            </p>
+          )}
+          {/* A written reason, like every other moderator action in this
+              console. It goes to the audit log, not to the citizen — they get a
+              plain sentence and the Safety Centre. */}
+          <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+            <input style={reasonInput} placeholder="Why (goes to the audit log)"
+              value={reason[p.userId] ?? ''} onChange={(e) => setReason({ ...reason, [p.userId]: e.target.value })} />
+            <Button variant="line" size="sm" disabled={decide.isPending || !(reason[p.userId] ?? '').trim()}
+              onClick={() => decide.mutate({ userId: p.userId, decision: 'approved', reason: (reason[p.userId] ?? '').trim() })}>
+              Let it through
+            </Button>
+            <Button variant="line" size="sm" disabled={decide.isPending || !(reason[p.userId] ?? '').trim()}
+              onClick={() => decide.mutate({ userId: p.userId, decision: 'rejected', reason: (reason[p.userId] ?? '').trim() })}>
+              Take it down
+            </Button>
+          </div>
+        </article>
+      ))}
+    </section>
+  );
+}
 
 /**
  * Photos the machine was not sure about. Every dating photo is reviewed
