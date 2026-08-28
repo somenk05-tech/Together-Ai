@@ -47,6 +47,18 @@ export class RedisService implements OnModuleDestroy {
       this.healthy = false;
       this.logger.warn(`Redis unavailable: ${e.message}`);
     });
+    /* A DELIBERATE CLOSE IS ALSO NOT HEALTHY (28 Aug — the first thing Sentry
+       ever reported, four hours after its DSN went in).
+       `Connection is closed.` — unhandled, in `removeSocket`. On shutdown
+       `onModuleDestroy` disconnects this client and THEN every socket hangs
+       up, so `handleDisconnect` runs against a closed connection. `healthy`
+       was still true because only `error` cleared it, and a deliberate
+       disconnect emits `end`, not `error`. Socket.IO does not await
+       `handleDisconnect`, so the throw had nowhere to go but the process.
+       Every redeploy produced these, which on launch morning is the noise a
+       real alert would have been lost in. */
+    this.client.on('end', () => (this.healthy = false));
+    this.client.on('close', () => (this.healthy = false));
     void this.client.connect().catch(swallowed('shared.constructor', undefined));
   }
 
@@ -64,14 +76,44 @@ export class RedisService implements OnModuleDestroy {
     return this.healthy;
   }
 
+  /**
+   * THE HEALTH FLAG IS A SNAPSHOT, AND A CONNECTION CAN GO BETWEEN THE READING
+   * AND THE COMMAND.
+   *
+   * `end`/`close` above close the common case — a shutdown, where the flag is
+   * false before the first socket hangs up. This closes the rest: a drop
+   * mid-command. Both land in the same place, which is the in-process mirror
+   * described at the top of this file, so the answer a caller gets is the one
+   * they would have got had Redis been down when they asked. That is the
+   * point — it is the honest fallback, not a fabricated value, and the
+   * paragraph above about what it can and cannot know applies unchanged.
+   *
+   * Logged at most once per demotion, because a redeploy hangs up every socket
+   * at once and a line each is a log nobody reads.
+   */
+  private demote(where: string, e: unknown): void {
+    if (this.healthy) {
+      this.healthy = false;
+      this.logger.warn(`Redis went away during ${where}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
   /** Register a live socket for a user; returns the new socket count. */
   async addSocket(userId: string, socketId: string): Promise<number> {
-    if (!this.healthy) {
-      const set = this.localSockets.get(userId) ?? new Set<string>();
-      set.add(socketId);
-      this.localSockets.set(userId, set);
-      return set.size;
+    if (this.healthy) {
+      try {
+        return await this.addSocketLive(userId, socketId);
+      } catch (e) {
+        this.demote('addSocket', e);
+      }
     }
+    const set = this.localSockets.get(userId) ?? new Set<string>();
+    set.add(socketId);
+    this.localSockets.set(userId, set);
+    return set.size;
+  }
+
+  private async addSocketLive(userId: string, socketId: string): Promise<number> {
     await this.client.sadd(SOCKETS_KEY(userId), socketId);
     /* Both keys expire. `presence:` used to be written here with NO TTL, so a
        disconnect this process never saw (a crashed instance, a killed deploy)
@@ -85,28 +127,42 @@ export class RedisService implements OnModuleDestroy {
 
   /** Remove a socket; returns remaining socket count (0 = user went offline). */
   async removeSocket(userId: string, socketId: string): Promise<number> {
-    if (!this.healthy) {
-      const set = this.localSockets.get(userId);
-      if (!set) return 0;
-      set.delete(socketId);
-      if (!set.size) this.localSockets.delete(userId);
-      return set.size;
+    if (this.healthy) {
+      try {
+        await this.client.srem(SOCKETS_KEY(userId), socketId);
+        const remaining = await this.client.scard(SOCKETS_KEY(userId));
+        if (remaining === 0) await this.client.del(PRESENCE_KEY(userId));
+        return remaining;
+      } catch (e) {
+        this.demote('removeSocket', e);
+      }
     }
-    await this.client.srem(SOCKETS_KEY(userId), socketId);
-    const remaining = await this.client.scard(SOCKETS_KEY(userId));
-    if (remaining === 0) await this.client.del(PRESENCE_KEY(userId));
-    return remaining;
+    const set = this.localSockets.get(userId);
+    if (!set) return 0;
+    set.delete(socketId);
+    if (!set.size) this.localSockets.delete(userId);
+    return set.size;
   }
 
   async isOnline(userId: string): Promise<boolean> {
-    if (!this.healthy) return (this.localSockets.get(userId)?.size ?? 0) > 0;
-    return (await this.client.exists(PRESENCE_KEY(userId))) === 1;
+    if (this.healthy) {
+      try {
+        return (await this.client.exists(PRESENCE_KEY(userId))) === 1;
+      } catch (e) {
+        this.demote('isOnline', e);
+      }
+    }
+    return (this.localSockets.get(userId)?.size ?? 0) > 0;
   }
 
   async heartbeat(userId: string): Promise<void> {
     if (!this.healthy) return;
-    await this.client.set(PRESENCE_KEY(userId), Date.now().toString(), 'EX', 90);
-    await this.client.expire(SOCKETS_KEY(userId), 90);
+    try {
+      await this.client.set(PRESENCE_KEY(userId), Date.now().toString(), 'EX', 90);
+      await this.client.expire(SOCKETS_KEY(userId), 90);
+    } catch (e) {
+      this.demote('heartbeat', e);
+    }
   }
 
   /** Track which conversation each SOCKET has open (suppresses push).
@@ -117,14 +173,22 @@ export class RedisService implements OnModuleDestroy {
    *  on their own screen. A hash of socketId → conversationId means each
    *  connection speaks only for itself. */
   async setOpenConversation(userId: string, conversationId: string | null, socketId: string): Promise<void> {
-    if (!this.healthy) {
-      const per = this.localOpenConv.get(userId) ?? new Map<string, string>();
-      if (conversationId) per.set(socketId, conversationId);
-      else per.delete(socketId);
-      if (per.size) this.localOpenConv.set(userId, per);
-      else this.localOpenConv.delete(userId);
-      return;
+    if (this.healthy) {
+      try {
+        await this.setOpenConversationLive(userId, conversationId, socketId);
+        return;
+      } catch (e) {
+        this.demote('setOpenConversation', e);
+      }
     }
+    const per = this.localOpenConv.get(userId) ?? new Map<string, string>();
+    if (conversationId) per.set(socketId, conversationId);
+    else per.delete(socketId);
+    if (per.size) this.localOpenConv.set(userId, per);
+    else this.localOpenConv.delete(userId);
+  }
+
+  private async setOpenConversationLive(userId: string, conversationId: string | null, socketId: string): Promise<void> {
     if (conversationId) {
       try {
         await this.client.hset(OPEN_CONV_KEY(userId), socketId, conversationId);
@@ -142,7 +206,13 @@ export class RedisService implements OnModuleDestroy {
 
   /** Every conversation any of this user's live sockets has open. */
   async openConversationsOf(userId: string): Promise<string[]> {
-    if (!this.healthy) return [...(this.localOpenConv.get(userId)?.values() ?? [])];
-    return this.client.hvals(OPEN_CONV_KEY(userId)).catch(swallowed('redis.openConversationsOf', [] as string[]));
+    if (this.healthy) {
+      try {
+        return await this.client.hvals(OPEN_CONV_KEY(userId));
+      } catch (e) {
+        this.demote('openConversationsOf', e);
+      }
+    }
+    return [...(this.localOpenConv.get(userId)?.values() ?? [])];
   }
 }

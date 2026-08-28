@@ -570,22 +570,31 @@ export class SocialService {
   async toggleLike(userId: string, postId: string) {
     const post = await this.assertPost(postId);
     await this.assertCanView(userId, post);
-    const existing = await this.prisma.like.findUnique({
-      where: { postId_userId: { postId, userId } },
-    });
-    if (existing) {
-      await this.prisma.like.delete({ where: { id: existing.id } });
-    } else {
+    /* THE DELETE NAMES THE OWNER (28 Aug). It read the row by
+       [postId, userId], then deleted BY ID — deciding whose row it was and
+       then addressing it as if that no longer mattered, which is the shape
+       `sided()` was rewritten out of in 06bc2192 and the one this file's own
+       guard exists to find. `deleteMany` on the pair says it in the WHERE.
+
+       It also drops a read: the delete's own count answers "was it liked",
+       which is the only thing `existing` was ever used for, and it answers it
+       from the write rather than from a row that could have changed between
+       the two. Idempotent under a concurrent double-tap in both directions
+       now — the unlike deletes nothing twice, and `createMany({skipDuplicates})`
+       was already idempotent for the reason written beside it. */
+    const removed = await this.prisma.like.deleteMany({ where: { postId, userId } });
+    const wasLiked = removed.count > 0;
+    if (!wasLiked) {
       // createMany({skipDuplicates}) is idempotent under a concurrent double-tap
       // (the unique [postId,userId] index would otherwise 500 on the 2nd write).
       await this.prisma.like.createMany({ data: [{ postId, userId }], skipDuplicates: true });
     }
     const likes = await this.prisma.like.count({ where: { postId } });
-    const result = { postId, liked: !existing, likes };
+    const result = { postId, liked: !wasLiked, likes };
     const recipients = await this.postRecipients(post.authorId, post.audience);
     this.gateway.likeChanged(result, recipients);
     // Notify the author when a NEW like lands (not on unlike).
-    if (!existing) {
+    if (!wasLiked) {
       void this.actorName(userId).then((name) =>
         this.notifications.create({
           userId: post.authorId, actorId: userId, kind: 'like',

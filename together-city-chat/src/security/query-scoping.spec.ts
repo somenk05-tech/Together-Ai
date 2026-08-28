@@ -189,6 +189,14 @@ const REVIEWED_UNSCOPED = [
   // count beside them does. Numbers, no rows: shape 4.
   'dating/dating.service.ts  Appeal.count x1',
   'dating/dating.service.ts  DatingPhotoReview.count x2',
+  // The same method, and the same reason, for the queue nobody was counting
+  // (launch audit, 28 Aug): profiles held in `review` — or in `pending` past
+  // the one-hour grace — are people who cannot open Browse until a human
+  // looks. Photos, appeals and reports were all watched and the step every
+  // citizen passes through FIRST was not. Same predicate as `profileQueue`,
+  // which is what stops the console and the digest disagreeing. A number, no
+  // rows: shape 4, exactly as its three neighbours.
+  'dating/dating.service.ts  DatingProfile.count x1',
   // appealQueue() — the moderator's queue. Scoped by PERMISSION rather than by
   // owner, and the permission is asserted on the line above the read:
   // `access.assert(adminId, 'moderation.read')` at dating.service.ts:2562.
@@ -286,7 +294,6 @@ const REVIEWED_UNSCOPED = [
   // asks. Both return a number: no row, no field, nothing to leak.
   'nutrition/nutrition.service.ts  NutritionOrder.count x2',
   'social/social.service.ts  Like.count x1',
-  'social/social.service.ts  Like.delete x1',
 ].sort();
 
 /**
