@@ -204,6 +204,58 @@ const KNOWN_UNREACHED: string[] = [
   "financial/financial.controller.ts  POST /financial/log",
   "financial/financial.controller.ts  DELETE /financial/log/*",
   // GET /privacy/export came off 1 Aug: Settings' Download button calls it.
+
+  // ── ORPHANED ON PURPOSE, 28 AUG, AND THAT IS THE WHOLE NOTE ──────────────
+  //
+  // These twenty-one were reached yesterday. Their callers were `api.ts`
+  // members in the web package that nothing called — no screen, no hook, not
+  // even a line in their own file — found by a new guard,
+  // `every-api-member-has-a-caller.test.ts`, which asks the question this file
+  // cannot: not "does a URL shape exist somewhere" but "does anything call the
+  // function that builds it".
+  //
+  // Thirty-three such members were removed. The decision was explicitly to
+  // remove the CLIENT half only and leave every route standing, because
+  // several of these are nutrition and medical paths handling health data, and
+  // whether those features are unfinished or abandoned is not a judgement to
+  // make while deleting a line in api.ts.
+  //
+  // So unlike the entries above, these ARE investigated, and the finding is
+  // simply: the far end of the chain was dead, the near end is now honest
+  // about it. They come off this list when somebody either builds the screen
+  // or removes the route.
+  //
+  // ONE OF THEM DESERVES READING BEFORE IT IS REWIRED. `POST /financial/pay`
+  // is a public HTTP door onto `FinancialService.charge`, which debits the
+  // wallet. The service is very much alive — every checkout in the city calls
+  // it — but the ROUTE now has no client, carries no throttle, and takes NO
+  // idempotency key, while `POST /financial/top-up` eight lines above it does,
+  // under a comment reading "the standard header, so a client retrying a
+  // request it is not sure landed says so the way every payment API expects to
+  // be told". Money in is idempotent; money out is not. Nothing can reach it
+  // today, which is exactly why it will be rewired by somebody who assumes the
+  // sibling's care applies here too.
+  "calls/calls.controller.ts  GET /calls/*",
+  "calls/calls.controller.ts  GET /calls/reach/*",
+  "calls/calls.controller.ts  POST /calls/*/end",
+  "financial/financial.controller.ts  POST /financial/pay",
+  "local-services/local-services.controller.ts  POST /services/threads/*/close",
+  "medical/medical.controller.ts  GET /medical/doctors",
+  "medical/medical.controller.ts  POST /medical/blood-tests/extract",
+  "nutrition/nutrition.controller.ts  DELETE /nutrition/health/log/*",
+  "nutrition/nutrition.controller.ts  GET /nutrition/advice",
+  "nutrition/nutrition.controller.ts  GET /nutrition/dietitians",
+  "nutrition/nutrition.controller.ts  GET /nutrition/family/search",
+  "nutrition/nutrition.controller.ts  GET /nutrition/health/log",
+  "nutrition/nutrition.controller.ts  GET /nutrition/history/*",
+  "nutrition/nutrition.controller.ts  GET /nutrition/prep-alerts",
+  "nutrition/nutrition.controller.ts  PATCH /nutrition/delivery-time",
+  "nutrition/nutrition.controller.ts  POST /nutrition/dietitians/*/book",
+  "nutrition/nutrition.controller.ts  POST /nutrition/family/invite",
+  "nutrition/nutrition.controller.ts  POST /nutrition/grocery/clear-checked",
+  "nutrition/nutrition.controller.ts  POST /nutrition/grocery/item",
+  "nutrition/nutrition.controller.ts  POST /nutrition/health/log",
+  "profile/profile.controller.ts  PATCH /profile/section",
 ];
 
 /** A declared route path, reduced to its shape: a :param becomes a star. */
