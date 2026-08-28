@@ -121,16 +121,6 @@ export class DatingController {
     return this.dating.like(user.sub, targetUserId, kind);
   }
 
-  @Post('matches/:targetUserId/unlock-chat')
-  unlockChat(
-    @CurrentUser() user: JwtUser,
-    @Param('targetUserId') targetUserId: string,
-    @Body() body: unknown,
-  ) {
-    const kind = parseOrThrow(MatchKindSchema.optional().default('romantic'), (body as { kind?: string } | null)?.kind);
-    return this.dating.connect(user.sub, targetUserId, kind);
-  }
-
   /**
    * Opening a chat with somebody who has already matched you.
    *

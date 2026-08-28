@@ -2554,10 +2554,6 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
   }
 
   /** Backward-compatible alias for the old paid "unlock chat" route. */
-  async unlockChat(userId: string, targetUserId: string, kind: MatchKind) {
-    return this.connect(userId, targetUserId, kind);
-  }
-
   /** Admin-only Dating Hub stats — registered profiles, the live matching pool,
    *  moderation queue, gender split, and chat activity. Gated to MODERATION_ADMINS. */
   /**

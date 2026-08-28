@@ -200,8 +200,6 @@ export const datingApi = {
   matchDetail: (targetUserId: string, kind: MatchKind) => api.get<MatchDetail>(`/dating/matches/${targetUserId}`, { params: { kind } }).then((r) => r.data),
   like: (targetUserId: string, kind: MatchKind) =>
     api.post<{ matched: boolean; conversationId: string | null; chatLocked: boolean; matchId: string }>(`/dating/matches/${targetUserId}/like`, { kind }).then((r) => r.data),
-  unlockChat: (targetUserId: string, kind: MatchKind) =>
-    api.post<{ conversationId: string; alreadyOpen: boolean; chargedInr?: number }>(`/dating/matches/${targetUserId}/unlock-chat`, { kind }).then((r) => r.data),
   // Free since 26 Aug; `chargedInr` is always 0 and stays for the shape.
   connect: (targetUserId: string, kind: MatchKind) =>
     api.post<{ conversationId: string; alreadyOpen: boolean; chargedInr: number }>(`/dating/matches/${targetUserId}/connect`, { kind }).then((r) => r.data),
