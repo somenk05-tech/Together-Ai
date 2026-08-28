@@ -11,6 +11,7 @@ import { SafetyMenu } from './SafetyMenu';
 // and three pages read these without rendering a single card. (The coverage
 // sentence moved to the profile with the breakdown it explains — 26 Aug.)
 import { bandFor, coverageShort } from '../bands';
+import { Portrait } from './Portrait';
 
 /**
  * ── HOW A PERSON IS DRAWN IN THE DATING HUB ─────────────────────────────────
@@ -82,15 +83,13 @@ export function MatchStack({ people, kind }: { people: CuratedMatch[]; kind: Mat
             {/* THE PICTURE IS THE LINK. A whole card that navigates would make
                 the foot's own button a button inside a link. */}
             <Link to={href} aria-label={`Open ${m.user.name}'s profile`} style={{ display: 'block' }}>
-              {photo
-                ? <img className="mshot" src={photo} alt="" loading="lazy" />
-                : <span className="mshot" style={{ display: 'grid', placeItems: 'center', background: 'var(--accent-soft)',
-                    color: 'var(--accent-ink)', fontSize: 54, fontFamily: 'var(--serif)' }}>{m.user.name.slice(0, 1)}</span>}
+              <Portrait className="mshot" src={photo}
+                fallback={<span className="mshot" style={{ display: 'grid', placeItems: 'center', background: 'var(--accent-soft)',
+                  color: 'var(--accent-ink)', fontSize: 54, fontFamily: 'var(--serif)' }}>{m.user.name.slice(0, 1)}</span>} />
             </Link>
             <div className="mfoot">
-              {photo
-                ? <img className="mav" src={photo} alt="" loading="lazy" />
-                : <span className="tc-avatar mav" aria-hidden>{m.user.name.slice(0, 1)}</span>}
+              <Portrait className="mav" src={photo}
+                fallback={<span className="tc-avatar mav" aria-hidden>{m.user.name.slice(0, 1)}</span>} />
               <span className="mname">
                 <b>{label}</b>
                 <i>{m.theirSign} · {m.score}% match</i>
@@ -179,9 +178,8 @@ export function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKin
     <article className="pmatch">
       <div className="pm-stage" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
         style={{ viewTransitionName: `pm-${match.user.id}` } as React.CSSProperties}>
-        {photos[active]
-          ? <img className="pm-shot" src={photos[active]} alt={label} loading="lazy" draggable={false} />
-          : <span className="pm-letter" aria-hidden>{match.user.name.slice(0, 1)}</span>}
+        <Portrait className="pm-shot" src={photos[active]} alt={label} draggable={false}
+          fallback={<span className="pm-letter" aria-hidden>{match.user.name.slice(0, 1)}</span>} />
         <div className="pm-scrim" aria-hidden />
         {n > 1 && (
           <div className="pm-segs" aria-hidden>

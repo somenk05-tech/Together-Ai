@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useDatingProfile, useDatingStack, type CuratedMatch, type DatingProfile, type MatchKind } from '../api';
 import { coverageShort } from '../bands';
+import { Portrait } from '../components/Portrait';
 
 /**
  * ── CURATED MATCHES: THE PEOPLE WHO CHOSE YOU BACK ──────────────────────────
@@ -96,9 +97,8 @@ function CuratedCard({ match, kind }: { match: CuratedMatch; kind: MatchKind }) 
     <Link className="dt-lead dt-door" to={`/dating/match?u=${match.user.id}&kind=${kind}`}
       aria-label={`Open ${match.user.name}’s profile`}>
       <span className="dt-shot">
-        {photo
-          ? <img src={photo} alt="" loading="lazy" />
-          : <span className="dt-shot-none" aria-hidden>{match.user.name.slice(0, 1)}</span>}
+        <Portrait src={photo}
+          fallback={<span className="dt-shot-none" aria-hidden>{match.user.name.slice(0, 1)}</span>} />
         <span className="dt-pct">{match.score}% match</span>
       </span>
       <span className="dt-lead-body">
