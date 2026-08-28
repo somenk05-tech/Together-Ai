@@ -37,7 +37,6 @@ const RECHECK_MS = 60_000;
 
 interface AuthedSocket extends Socket {
   userId: string;
-  handle: string;
   typingTimers: Map<string, NodeJS.Timeout>;
   tokenIat?: number;
   recheck?: ReturnType<typeof setInterval>;
@@ -105,7 +104,6 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       // the hole a signature-only check left open here.
       const user = await this.tokens.verifyAccessAndAccount(token);
       client.userId = user.sub;
-      client.handle = user.handle;
       client.typingTimers = new Map();
       client.tokenIat = user.iat;
       // A connection is re-checked for as long as it lives. Suspension,
@@ -265,10 +263,16 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
        socket could broadcast a typing indicator into any conversation it could
        name — before its own authentication had even finished. */
     if (!client.userId || !client.rooms.has(room.conversation(conversationId))) return;
+    /* NO HANDLE. It rode along here for every conversation in the city,
+       including the dating ones, where it is the one field the whole hub is
+       built to withhold until somebody chooses to give it — and a match typing
+       is exactly when it was sent. Nothing has ever read it: the client's
+       TYPING_START listener takes `userId` and stops (chat.api.ts). So it goes
+       rather than being masked, and the leak closes everywhere at once.
+       (Fourth audit, 28 Aug.) */
     client.to(room.conversation(conversationId)).emit(WS.TYPING_START, {
       conversationId,
       userId: client.userId,
-      handle: client.handle,
     });
     // Auto-stop after N ms of inactivity.
     const timeout = this.config.get<number>('policy.typingTimeoutMs') ?? 3000;

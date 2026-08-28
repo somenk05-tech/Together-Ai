@@ -19,7 +19,18 @@ import {
   SendMessageDto,
 } from './dto/messages.dto';
 
+/**
+ * THE CONVERSATION TRAVELS WITH THE MESSAGE SO THE SERIALIZER CAN ASK IT ONE
+ * QUESTION: is this a dating chat nobody has revealed themselves in yet.
+ *
+ * `serialize` has seven call sites and the masking below must hold at all
+ * seven. A flag threaded through seven callers is a flag somebody forgets at
+ * the eighth, and the fact would then be true in six places and false in one —
+ * which is the duplication this codebase keeps paying for. One join, one
+ * question, one place that answers it.
+ */
 const messageInclude = {
+  conversation: { select: { anonymousTrust: true } },
   sender: { select: { id: true, name: true, handle: true, profileImage: true } },
   attachments: true,
   replyTo: {
@@ -776,7 +787,36 @@ export class MessagesService {
     starredForJson?: string | null;
     reactionsJson?: string | null;
     pinnedAt?: Date | null;
+    conversation?: { anonymousTrust?: number | null } | null;
   }, viewerId?: string) {
+    /**
+     * A DATING CHAT DOES NOT HAND OVER THE CITY IDENTITY. (Fourth audit, 28 Aug.)
+     *
+     * `messageInclude` selects the sender's handle and profile photo, and this
+     * returned them verbatim on the REST read and on every socket broadcast.
+     * In a dating conversation that is the exact disclosure `cardIdentity`
+     * exists to prevent, in the words written above it: the handle is the
+     * city's primary key for a person — their posts, their connections, their
+     * public face — and the profile photo is the face the whole city already
+     * knows them by. `nothing-links-the-card-to-the-city.spec.ts` forbids both
+     * from appearing in the dating module; the message serializer lives here,
+     * outside its reach, and was handing over both on every message.
+     *
+     * The NAME stays, deliberately. conversations.service.ts retired the
+     * dating pseudonym on purpose — "the Matches page always showed the
+     * profile's real name, so a different name here read as the person
+     * changing names between screens" — and this must not quietly reopen that
+     * decision. What is masked is what the citizen has not chosen to give.
+     *
+     * anonymousTrust 2 is the choice, and `reveal` is how it is made: both
+     * sides say yes, the conversation moves to 2, and the sender block is
+     * whole. Before that it carries an id and a name and nothing that reaches
+     * out of the Dating Hub into the rest of somebody's life.
+     */
+    const anonymous = m.conversation?.anonymousTrust != null && m.conversation.anonymousTrust < 2;
+    const sender = anonymous && m.sender && typeof m.sender === 'object'
+      ? (({ id, name }) => ({ id, name }))(m.sender as { id: string; name: string })
+      : m.sender;
     /* A DELETED MESSAGE IS DELETED ALL THE WAY DOWN. The tombstone used to
        zero only the text: `media` URLs and the share card still travelled to
        every member on a row whose whole point is that its content is gone.
@@ -860,7 +900,7 @@ export class MessagesService {
       deleted: m.deleted,
       editedAt: m.edited ? (m.updatedAt ?? m.createdAt) : null,
       createdAt: m.createdAt,
-      sender: m.sender,
+      sender,
     };
   }
 }

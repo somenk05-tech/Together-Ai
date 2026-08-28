@@ -2533,7 +2533,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     void this.notifications.create({
       userId: targetUserId, actorId: userId, kind: 'dating_match',
       push: { deepLink: `togethercity://dating/chat/${conversationId}` },
-      title: 'Someone connected to chat 💬', body: 'You have a new anonymous chat in the Dating Hub.', href: '/dating/chats',
+      title: 'Someone connected to chat 💬', body: 'You have a new chat in the Dating Hub.', href: '/dating/chats',
     });
     this.analytics.track('dating.connect', userId, { kind });
     return { conversationId, alreadyOpen: false, chargedInr: 0 };
@@ -2904,8 +2904,14 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     if (show && !wasMine && !both) {
       void this.notifications.create({
         userId: targetUserId, actorId: userId, kind: 'dating_like',
-        title: 'Your match shared their name 👀',
-        body: 'They’re chatting as themselves now. Share yours back whenever you’re ready.',
+        title: 'Your match shared their city profile 👀',
+        // WHAT IT ACTUALLY SHARES, now that it is reachable (28 Aug). The old
+        // pair said "shared their name", from a design where the dating chat
+        // used a pseudonym — retired long ago, so the name was already on the
+        // screen and the sentence described nothing. What crosses at trust 2 is
+        // the @handle and the picture the whole city knows them by, which is
+        // the thing worth being asked about.
+        body: 'Their @handle and city photo are visible to you now. Share yours back whenever you’re ready.',
         href: '/dating/chats',
       });
     }

@@ -490,6 +490,35 @@ export function useBlockMatch() {
   });
 }
 
+/**
+ * SHARE THE CITY IDENTITY, OR TAKE IT BACK.
+ *
+ * The route and the service have existed since the hub was built and nothing
+ * ever called them, so the whole contract `connect()` documents — names hidden
+ * until both choose otherwise — was neither implemented nor reachable. Worse,
+ * while it was unreachable the message serializer was handing over the handle
+ * and the account photo on every message anyway, so the disclosure happened
+ * without anybody choosing it. The serializer now withholds them below trust 2
+ * and this is how a citizen chooses.
+ *
+ * Both sides must say yes: one reveal is a willingness, two is a conversation
+ * that is no longer anonymous. The chats list is invalidated because the
+ * banner and this button are both read off it, and `conversations` because the
+ * trust level is what nulls the other person's photo there.
+ */
+export function useDatingReveal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, kind, show }: { userId: string; kind: MatchKind; show: boolean }) =>
+      datingApi.reveal(userId, kind, show),
+    onSuccess: () => {
+      for (const key of [['dating', 'chats'], ['conversations']]) {
+        void qc.invalidateQueries({ queryKey: key });
+      }
+    },
+  });
+}
+
 /** Report. Nothing is invalidated — reporting deliberately changes nothing the
  *  reporter can see, so they are not signalling to anybody that they filed it. */
 export function useReportMatch() {

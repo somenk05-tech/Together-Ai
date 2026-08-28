@@ -6,7 +6,7 @@ import { useMe } from '@/api';
 import { chatApi, useMessages, useChatRealtime, type OutgoingAttachment } from '@/api';
 import type { Message } from '@/api/schemas';
 import { useQueryClient } from '@tanstack/react-query';
-import { useDatingChats, useMatchDetail, useUnmatch, type DatingChatSummary } from '../api';
+import { useDatingChats, useDatingReveal, useMatchDetail, useUnmatch, type DatingChatSummary } from '../api';
 import { SafetyMenu } from '../components/SafetyMenu';
 import { MiraMark } from '@/features/chat/mira/MiraMark';
 import { useMiraShown } from '@/hooks/useCityDesign';
@@ -221,6 +221,7 @@ function Thread({ chat, meId, mePhoto, onBack }: { chat: OpenChat; meId: string;
   const [seed, setSeed] = useState<{ text: string; n: number } | null>(null);
   const pick = useCallback((q: string) => setSeed((s) => ({ text: q, n: (s?.n ?? 0) + 1 })), []);
   const [menu, setMenu] = useState(false);
+  const reveal = useDatingReveal();
   const [sheet, setSheet] = useState(false);
   const [peerTyping, setPeerTyping] = useState(false);
   const typingClear = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -382,6 +383,17 @@ function Thread({ chat, meId, mePhoto, onBack }: { chat: OpenChat; meId: string;
               </button>
               <button type="button" role="menuitem" onClick={() => { setMenu(false); setSheet(true); }}>
                 Your compatibility{chat.score != null ? ` · ${chat.score}%` : ''}
+              </button>
+              {/* ── WHAT THIS CHAT KNOWS ABOUT YOU IS YOURS TO DECIDE (owner, 28 Aug).
+                  Your dating name and your dating photographs are already here —
+                  you chose those for this hub. Your @handle and the picture the
+                  whole city knows you by are not, and the API withholds them
+                  from every message until BOTH people have chosen otherwise.
+                  This is that choice, and it is reversible: taking it back
+                  drops the conversation out of revealed again. */}
+              <button type="button" role="menuitem" disabled={reveal.isPending}
+                onClick={() => { setMenu(false); reveal.mutate({ userId: chat.otherUserId, kind: 'romantic', show: !chat.myReveal }); }}>
+                {chat.myReveal ? 'Stop sharing my city profile' : 'Share my city profile'}
               </button>
               {/* Unmatch and block are not the same thing, and the open chat is
                   where that difference matters most. Unmatch frees you to
