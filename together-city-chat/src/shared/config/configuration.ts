@@ -61,7 +61,7 @@ const DEV_REFRESH_SECRET = 'dev-refresh';
  * cause an outage. Set STRICT_PROD_CONFIG=true to upgrade these warnings to a
  * hard boot failure once the env vars are in place.
  */
-function assertProductionConfig(): void {
+export function assertProductionConfig(): void {
   if ((process.env.NODE_ENV ?? 'development') !== 'production') return;
   // JWT secrets are ALWAYS fatal in production: booting with forgeable tokens is
   // strictly worse than downtime. (Everything else below warns unless strict.)
@@ -120,7 +120,35 @@ function assertProductionConfig(): void {
     problems.push('Object storage is not configured (S3_ENDPOINT / S3 keys / MEDIA_BUCKET) — every upload '
       + 'returns an unsigned placeholder URL and no file is actually stored.');
   }
-  const emailProvider = (process.env.EMAIL_PROVIDER ?? process.env.MESSAGING_PROVIDER ?? 'stub').toLowerCase();
+  /**
+   * THE SCREENING POSTURE HAS TO BE A DECISION, NOT AN INHERITANCE.
+   *
+   * `PHOTO_MODERATION` unset means `rekognition`, which is the right mode — so
+   * nothing is wrong today, and that is exactly what makes it worth a line. The
+   * variable that decides whether strangers' photographs are looked at before
+   * other strangers see them is the last one that should be answered by a
+   * default nobody chose, and an operator reading the panel cannot tell
+   * screening is on by looking: there is no row.
+   *
+   * A warning rather than a fatal, deliberately, and the difference matters.
+   * The three checks above refuse an UNSAFE state — a public bucket, a
+   * forgeable token, `PHOTO_MODERATION=off`. This one refuses an UNSTATED one,
+   * and taking a city down over a safe configuration is not proportionate.
+   * `STRICT_PROD_CONFIG=true` upgrades it, along with everything else here,
+   * which is what that switch is for.
+   */
+  if (!(process.env.PHOTO_MODERATION ?? '').trim()) {
+    problems.push('PHOTO_MODERATION is unset — dating photo screening is ON by default, which is right, '
+      + 'but nothing records that anybody decided it. Set PHOTO_MODERATION=rekognition.');
+  }
+  // `??` treats an EMPTY string as a value, so EMAIL_PROVIDER="" — which is what
+  // a variable cleared in a dashboard leaves behind, and what a trailing newline
+  // amounts to — walked past this check and took the "somebody chose a provider"
+  // branch. Every reader elsewhere trims to unset; so does this now. Found by
+  // writing the first test this function has ever had.
+  const emailProvider = ((process.env.EMAIL_PROVIDER ?? '').trim()
+    || (process.env.MESSAGING_PROVIDER ?? '').trim()
+    || 'stub').toLowerCase();
   if (emailProvider === 'stub' && process.env.ALLOW_STUB_MESSAGING !== 'true') {
     problems.push('EMAIL_PROVIDER is unset (stub) — verification & OTP emails will NOT send. Set EMAIL_PROVIDER=resend + RESEND_API_KEY (or ALLOW_STUB_MESSAGING=true to acknowledge).');
   }
