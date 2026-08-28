@@ -184,6 +184,25 @@ export class DatingController {
     if (!found) throw new NotFoundException('That photo is not available.');
     res.set({
       'Content-Type': found.contentType,
+      /**
+       * THE ONLY IMAGE THIS API SERVES ITSELF, AND HELMET WAS THROWING IT AWAY
+       * AT THE BROWSER. (28 Aug.)
+       *
+       * helmet() sets `Cross-Origin-Resource-Policy: same-origin` by default,
+       * which is the right default for an API that answers XHR from its own
+       * origin. This route does not: the web app is togethercity.app and this
+       * is api.togethercity.app, so every dating photograph was a cross-origin
+       * <img>, and the browser DISCARDED a perfectly good 200 — bytes served,
+       * nothing logged, a broken frame on the page. Every other image in the
+       * city is a presigned link straight to the bucket and never passes
+       * through helmet, which is why this was the only hub with holes in it.
+       *
+       * Scoped to this response rather than relaxed globally. The header says
+       * a public image may be embedded anywhere; it says nothing about who may
+       * FETCH it, and who may fetch it is still the whole of mayViewPhoto,
+       * asked again on every request.
+       */
+      'Cross-Origin-Resource-Policy': 'cross-origin',
       // Private and short-lived: a shared cache holding this would hand it to
       // somebody the check above would have refused.
       'Cache-Control': 'private, max-age=50',
