@@ -98,10 +98,19 @@ export const ENV_MANIFEST: EnvEntry[] = [
   { name: 'VAPID_PUBLIC_KEY', group: 'Push', purpose: 'Web push, browser side.', whenMissing: 'No web push notifications. The app never says so — subscriptions simply fail.', },
   { name: 'VAPID_PRIVATE_KEY', group: 'Push', purpose: 'Web push, server side.', whenMissing: 'No web push notifications.', secret: true },
   { name: 'VAPID_SUBJECT', group: 'Push', purpose: 'The mailto: contact push services require.', whenMissing: 'Some push services reject the payload.' },
-  { name: 'FCM_ENABLED', group: 'Push', purpose: 'Turns Firebase push on.', whenMissing: 'No native push on the mobile shell.' },
-  { name: 'FCM_PROJECT_ID', group: 'Push', purpose: 'The Firebase project native push is sent through.', whenMissing: 'The mobile shell registers for push and then never receives any, silently.' },
-  { name: 'FCM_CLIENT_EMAIL', group: 'Push', purpose: 'The Firebase service account that signs push requests.', whenMissing: 'Native push fails at send time; the app never learns and shows nothing.' },
-  { name: 'FCM_PRIVATE_KEY', group: 'Push', purpose: 'The key for that Firebase service account.', whenMissing: 'Native push fails at send time. Watch for a key pasted without its newlines — that reads as SET here and still fails.', secret: true },
+  // NOTHING REGISTERS A NATIVE TOKEN YET (checked 28 Aug). `/push/subscribe` is
+  // the only route that writes a DeviceToken and it always writes
+  // platform: 'webpush'; the Capacitor shell carries no push plugin. So the FCM
+  // branch of pushToDevices always sends to an empty array and these four are
+  // inert — setting them today changes nothing. The old wording here said the
+  // mobile shell "registers for push and then never receives any", which read
+  // as a live failure and is what made the 28 Aug audit call this a gap.
+  // Pinned by push-reaches-a-browser.spec.ts, which goes red the day a native
+  // token can be stored — at which point these become required.
+  { name: 'FCM_ENABLED', group: 'Push', purpose: 'Turns Firebase push on. Only meaningful once the mobile shell registers a native token — it does not today.', whenMissing: 'Nothing. Browser push (VAPID) is the whole of push right now and is unaffected.' },
+  { name: 'FCM_PROJECT_ID', group: 'Push', purpose: 'The Firebase project native push would be sent through.', whenMissing: 'Nothing yet — no native token is ever stored, so the FCM send is always to an empty list.' },
+  { name: 'FCM_CLIENT_EMAIL', group: 'Push', purpose: 'The Firebase service account that signs push requests.', whenMissing: 'Nothing yet — see FCM_PROJECT_ID.' },
+  { name: 'FCM_PRIVATE_KEY', group: 'Push', purpose: 'The key for that Firebase service account.', whenMissing: 'Nothing yet. When native push does arrive: watch for a key pasted without its newlines — that reads as SET here and still fails.', secret: true },
 
   // ── Media ───────────────────────────────────────────────────────────────
   { name: 'MEDIA_PROVIDER', group: 'Media', purpose: 's3 | local. Where uploads go.', whenMissing: 'Uploads land on the container\'s disk and vanish on the next deploy.' },
