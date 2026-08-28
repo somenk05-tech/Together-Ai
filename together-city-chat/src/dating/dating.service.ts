@@ -114,6 +114,10 @@ const JOB_PHOTO_RETRY = 'dating.photo-retry';
  *  enough that fixing the credentials heals the city's photographs while the
  *  operator is still watching. */
 const PHOTO_RETRY_MS = 10 * 60_000;
+/** How often the in-process digest fallback asks whether the day has turned.
+ *  Hourly, not daily: a restart cannot skip a day, and the date guard means two
+ *  restarts in one day cannot send twice. */
+const DIGEST_CHECK_MS = 60 * 60_000;
 
 /**
  * A candidate cannot be CURATED without having said what they are looking for.
@@ -188,8 +192,33 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     this.jobs.handle(JOB_PHOTOS, async (d) => { await this.photoMod.fileAndReview(String(d.userId), (d.entries as string[]) ?? []); });
     this.jobs.handle(JOB_DIGEST, async () => { await this.funnelDigest(); });
     this.jobs.handle(JOB_PHOTO_RETRY, async () => { await this.photoMod.retryPending(); });
-    // 09:00 IST, every day. Upserted, so a redeploy is not a second schedule.
-    void this.jobs.schedule(JOB_DIGEST, '30 3 * * *');
+    /**
+     * 09:00 IST, every day. Upserted, so a redeploy is not a second schedule.
+     *
+     * AND A FALLBACK, BECAUSE THIS IS THE ONLY THING THAT COMES TO THE
+     * OPERATOR. (Fourth audit, 28 Aug.) Every other job here degrades to an
+     * in-process run when the queue is off — reindex, photo review, the retry
+     * sweep. The digest did not, and it is the one piece of work whose whole
+     * purpose is to reach somebody who is not looking: a stopped photo
+     * pipeline, a report backlog, the day's 5xx count. With no REDIS_URL, or
+     * JOBS=off, or a connect that throws, it simply never ran and said nothing
+     * about not running.
+     *
+     * A day is a long interval for setInterval to be the mechanism, so this
+     * checks hourly and sends when the local date changes — a restart cannot
+     * skip a day, and two restarts in one day cannot send twice.
+     */
+    void this.jobs.schedule(JOB_DIGEST, '30 3 * * *').then((queued) => {
+      if (queued) return;
+      const t = setInterval(() => {
+        const today = this.clock.now().toISOString().slice(0, 10);
+        if (today === this.lastDigestDay) return;
+        this.lastDigestDay = today;
+        void swallow(this.funnelDigest(), 'dating: funnel digest (in-process)');
+      }, DIGEST_CHECK_MS);
+      t.unref?.();
+      this.digestTimer = t;
+    });
     /**
      * AND THE SWEEP, WITH A FALLBACK THE DIGEST DOES NOT HAVE.
      *
@@ -211,6 +240,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
 
   onModuleDestroy(): void {
     if (this.photoRetryTimer) clearInterval(this.photoRetryTimer);
+    if (this.digestTimer) clearInterval(this.digestTimer);
   }
 
   /**
@@ -764,6 +794,9 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
    * app does not have, and a lost run costs one "new match" alert, not data.
    */
   private photoRetryTimer: NodeJS.Timeout | null = null;
+  private digestTimer: NodeJS.Timeout | null = null;
+  /** The local date the in-process digest last ran for. */
+  private lastDigestDay: string | null = null;
   private readonly reindexPending = new Map<string, NodeJS.Timeout>();
   private readonly reindexWaiting: string[] = [];
   private reindexRunning = false;
@@ -1770,6 +1803,20 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
         // to offer "Open chat" versus "Connect to Chat".
         conversationId: state?.conversationId ?? null,
         chatLocked: isMatched && !state?.conversationId,
+        /**
+         * WHAT THE NUMBER RESTS ON, ON THE SCREEN WHERE IT IS READ LAST.
+         *
+         * `coverage` is sent by discover and by matchDetail and was never sent
+         * here — and Curated Matches reads THIS endpoint. So the one page a
+         * citizen reaches after somebody chose them back showed a bare "55%
+         * match", with `coverageShort()` on the other side of the wire
+         * returning null for a number it never received. Two profiles that have
+         * answered two of six questions get a percentage that is nine tenths
+         * two birth dates, presented as a fact about them. Same function, same
+         * four arguments as the confidence factor above, no new read.
+         * (Fourth audit, 28 Aug.)
+         */
+        coverage: coverage(myD, candDX, myInterests, theirInterests),
         // The same six matches() sends, for the same reason and off the same
         // parsed extras — see the note there. Curated Matches reads THIS
         // endpoint, so a field that only existed on the other list would be a
@@ -2724,7 +2771,15 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       userId: row.userId, kind: 'system',
       title: decision === 'overturned' ? 'Your appeal was accepted' : 'Your appeal was reviewed',
       body: decision === 'overturned'
-        ? (row.kind === 'dating_profile' ? 'Your dating profile is live again.' : 'Your photo is showing again.')
+        // THE PHOTOGRAPH IS NOT COMING BACK, AND SAYING IT IS WAS THE ONE
+        // THING THAT COULD NOT BE FIXED LATER. (Fourth audit, 28 Aug.)
+        // A rejection DELETES the object — photo-moderation.service.ts calls
+        // deleteHealthObject on both the machine verdict and the moderator's.
+        // Overturning flips a status row, so the key signs a link to nothing and
+        // the proxy 404s. The decision really is overturned, which is what the
+        // appeal was for and what matters for the record; the file has to be
+        // uploaded again, and the person is the only one who has it.
+        ? (row.kind === 'dating_profile' ? 'Your dating profile is live again.' : 'That decision was overturned. The photo itself was deleted when it was refused — upload it again and it will go straight through.')
         : 'A moderator looked again and the decision stands. The reason is in your Safety Centre.',
       href: '/dating/safety',
     });

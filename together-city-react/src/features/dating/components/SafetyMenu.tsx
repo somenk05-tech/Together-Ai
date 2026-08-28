@@ -138,8 +138,14 @@ export function SafetyMenu({ userId, kind, compact = false }: {
                   the feed, not in messages. Any chat between you closes.
                 </p>
                 <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.55, margin: '0 0 14px' }}>
+                  {/* THE SIGNPOST POINTED AT THE WRONG ROOM, in the one menu
+                      people reach when they are frightened. The blocked list is
+                      at /settings/blocked and is reachable only from Settings.
+                      The People hub has no such screen at all. The unblock
+                      itself works and dating blocks do appear there, so this
+                      was purely a wrong direction. (Fourth audit, 28 Aug.) */}
                   They are not told. To them it looks like nothing happened. You can undo this from
-                  your blocked list in People.
+                  your blocked list in Settings.
                 </p>
                 {block.isError && (
                   <p style={{ color: 'var(--danger-ink)', fontSize: 12.5 }}>That didn’t go through. Try again.</p>

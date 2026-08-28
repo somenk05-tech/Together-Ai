@@ -47,7 +47,22 @@ const LIST_LIMIT = { default: { ttl: 60_000, limit: 20 } };
  */
 const PHOTO_LIMIT = { default: { ttl: 60_000, limit: 400 } };
 const DECISION_LIMIT = { default: { ttl: 60_000, limit: 60 } };
-const UPLOAD_LIMIT = { default: { ttl: 60_000, limit: 10 } };
+/**
+ * TEN A MINUTE WAS EXACTLY THE NUMBER OF PHOTOGRAPHS THE FORM LETS YOU PICK.
+ * (Fourth audit, 28 Aug.)
+ *
+ * One presign per photo, ten photos allowed, and the editor lets somebody
+ * select the whole remaining room at once. So a first-time citizen choosing ten
+ * spent the entire minute's budget on their first attempt — and the failure
+ * message says "try those again", which inside that minute is guaranteed to
+ * 429. Any partial failure was unrecoverable for sixty seconds while the copy
+ * invited an immediate retry.
+ *
+ * Thirty: a full set, a retry of a full set, and room for one more thought.
+ * Still bounded, and the real ceilings are elsewhere and unchanged — the MIME
+ * allowlist, the byte cap, and a review that looks at the object afterwards.
+ */
+const UPLOAD_LIMIT = { default: { ttl: 60_000, limit: 30 } };
 const REPORT_LIMIT = { default: { ttl: 60_000, limit: 5 } };
 
 @Controller('dating')

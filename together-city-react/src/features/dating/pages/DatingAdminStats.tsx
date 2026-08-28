@@ -25,7 +25,15 @@ export function DatingAdminStats() {
   if (q.isError || !q.data) {
     return (
       <div className="page-note">
-        <EmptyState icon="🔒" title="Admin access required" hint="This page is limited to Dating Hub admins. Add your handle to the MODERATION_ADMINS environment variable on the API, then reload." />
+        {/* TWO VARIABLES, TWO SYSTEMS, AND THIS NAMED ONE OF THEM AND THE
+            WRONG REMEDY. (Fourth audit, 28 Aug.) MODERATION_ADMINS seeds the
+            `admin` role, which is what THIS page checks. The queues — held
+            photos, appeals, the funnel, every moderation decision — check
+            AdminGrant rows, which are seeded from CONSOLE_FOUNDERS. Somebody
+            who followed this sentence got the stats page and no way to review
+            anything. And both are read at BOOT, so reloading the page does
+            nothing; the API has to restart. */}
+        <EmptyState icon="🔒" title="Admin access required" hint="This page is limited to Dating Hub admins: add your handle to MODERATION_ADMINS on the API. Reviewing held photos and appeals is a separate grant — CONSOLE_FOUNDERS. Both are read when the API starts, so restart it rather than reloading this page." />
         <div style={{ textAlign: 'center', marginTop: 14 }}><Link to="/dating"><Button variant="line">Back to Dating Hub</Button></Link></div>
       </div>
     );

@@ -626,6 +626,27 @@ export function DatingProfilePage() {
     if (arr.includes(v)) return arr.filter((x) => x !== v);
     return arr.length >= cap ? arr : [...arr, v];
   };
+  /**
+   * TICKING DISTANCE HAD TO ALSO MEAN A DISTANCE. (Fourth audit, 28 Aug.)
+   *
+   * The slider shows 100 km before anybody touches it — a thumb needs a
+   * position — but `prefDistanceKm` is written only by its onChange, and the
+   * engine's hard filter requires a real number greater than zero. So a citizen
+   * who did exactly what the hint above tells them — tick the Distance deal
+   * breaker, trust the 100 km already on the screen — got no boundary at all.
+   * A control that lit up and saved and was never read is the same shape this
+   * form's own comment says it closed once already.
+   *
+   * Ticking it now writes the number that was on the screen when they ticked
+   * it, which is the number they believed they were choosing. Fails open either
+   * way, so nothing is hidden by this — it stops a stated boundary being
+   * silently discarded.
+   */
+  const tickDealBreaker = (v: string) => {
+    const next = capToggle(dx.dealBreakers, v, 5);
+    const turningOnDistance = v === 'Distance' && next.includes(v) && typeof dx.prefDistanceKm !== 'number';
+    setD(turningOnDistance ? { dealBreakers: next, prefDistanceKm: distanceKm } : { dealBreakers: next });
+  };
   // Country defaults to India so State/City work without an extra tap.
   const countryCode = dx.countryCode ?? 'IN';
 
@@ -1148,7 +1169,7 @@ export function DatingProfilePage() {
             return (
               <Chip key={v} on={core ? true : (dx.dealBreakers ?? []).includes(v)}
                 locked={Boolean(core)} title={core}
-                onClick={() => setD({ dealBreakers: capToggle(dx.dealBreakers, v, 5) })}>{v}</Chip>
+                onClick={() => tickDealBreaker(v)}>{v}</Chip>
             );
           })}</div>
           {Object.keys(coreFilterOn).length > 0 && (
