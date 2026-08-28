@@ -10,8 +10,12 @@ import { initSentry, report } from './shared/errors/sentry';
 import { RedisIoAdapter } from './shared/redis/redis-io.adapter';
 
 async function bootstrap(): Promise<void> {
-  // Before anything else can fail. No DSN, no-op.
-  initSentry();
+  // Before anything else can fail. No DSN, no-op — but say so, once, in the
+  // words of what is lost: with reporting off, a 500 reaches a log stream and
+  // nothing else. The /dev page keeps a local tally either way.
+  if (!initSentry()) {
+    new Logger('Sentry').warn('SENTRY_DSN is not set — server errors are logged and counted on /dev, and reported nowhere.');
+  }
   process.on('unhandledRejection', (reason) => report(reason, { source: 'unhandledRejection' }));
   // bodyParser off so we can raise the JSON limit — photo/report uploads
   // (beauty analysis, blood-test ingest) send base64 images well past the

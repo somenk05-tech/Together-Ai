@@ -1,4 +1,5 @@
 import { swallow } from '../shared/swallow';
+import { errorSnapshot } from '../shared/errors/error-log';
 import type { Readable } from 'stream';
 import { BadRequestException, Injectable, NotFoundException, type OnModuleInit, ForbiddenException, type OnModuleDestroy } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
@@ -246,6 +247,20 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     }
     if (queues.reportsOpen > 0) {
       alarms.push(`${queues.reportsOpen} report${queues.reportsOpen === 1 ? '' : 's'} open`);
+    }
+    /**
+     * AND THE SERVER'S OWN ERRORS, because this is the only thing in the city
+     * that tells an operator anything without being opened.
+     *
+     * Not a dating number, and it rides here anyway: SENTRY_DSN is unset, so a
+     * 500 is a line in a log stream, and the digest is the one message a
+     * console holder receives rather than visits. When the DSN is set this
+     * stays useful as the summary beside the alerts.
+     */
+    const errs = errorSnapshot();
+    if (errs.total > 0) {
+      alarms.push(`${errs.total} server error${errs.total === 1 ? '' : 's'} since the last restart`
+        + (errs.worstRoute ? `, most on ${errs.worstRoute.route} (${errs.worstRoute.count})` : ''));
     }
     const line = day.steps.map((st) => `${st.name.replace('dating.', '')} ${st.users}`).join(' · ')
       + ` · queues: ${queues.reportsOpen} reports, ${queues.photosPending} photos pending, ${queues.photosHeld} held, ${queues.appealsOpen} appeals`;

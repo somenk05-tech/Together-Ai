@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { errorSnapshot } from '../shared/errors/error-log';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { AdminAccessService } from '../admin/admin-access.service';
 import { swallow } from '../shared/swallow';
@@ -79,6 +80,9 @@ export class DevService {
       },
       counts: { citizens, suspended, listings, pendingListings: pending },
       env: reportEnv(),
+      /** Every 5xx since boot. Not a Sentry replacement — see error-log.ts —
+       *  but the difference between an unread log stream and a number. */
+      errors: errorSnapshot(),
       /** The page nagging about itself. */
       usingDefaultPassword: usingDefaultPassword(),
     };
