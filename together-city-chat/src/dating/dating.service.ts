@@ -1503,8 +1503,36 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     // better first page than the one three time zones off. Score still rules.
     const ranked = [...scored].sort((a, b) => (b.card.score - a.card.score) || ((Number(myCity !== '' && b.city === myCity)) - (Number(myCity !== '' && a.city === myCity))));
     const page = limit ? ranked.slice(0, limit) : ranked;
-    const ideal = page.filter((s) => s.card.score >= MATCH_THRESHOLD);
-    const recommended = page.filter((s) => s.card.score >= 55 && s.card.score < MATCH_THRESHOLD);
+    /**
+     * THE BAR THAT WAS MEASURED, FINALLY ON THE SCREEN THAT DRAWS IT.
+     * (Fourth audit, 28 Aug.)
+     *
+     * `curatedBar` has existed since 26 Aug with its findings written above it:
+     * a fixed 75 is unreachable for anyone who has not finished their profile —
+     * "not one of 45,115 partial or near-empty profiles clears it with anybody,
+     * ever" — and it is calibrated to whatever the weight table inflates to,
+     * which is why it could not survive astrology moving to 0.90. The p90
+     * takes empty decks from 25%/100%/100% by completeness cohort to
+     * 1.3%/0.8%/0.1%.
+     *
+     * And it was wired to `matches()`, which no screen calls. So the mechanism
+     * built for the launch condition was not in the launch, and Browse used the
+     * fixed 75 — the exact number the 1M run says nobody reaches on day one.
+     * That is why the curated section never appears and the low-density banner
+     * exists to apologise for it.
+     *
+     * `DATING_BAR=fixed` restores the old behaviour, which is the author's own
+     * escape hatch and the reason this is safe to turn on.
+     *
+     * The bands have to stay disjoint at any bar. `mid` is the boundary between
+     * "worth a look" and "the rest", and it cannot sit above the curated bar —
+     * at 75 it is 55 and nothing changes; at 48 there is no room between them
+     * and Recommended is simply empty rather than inverted.
+     */
+    const bar = curatedBar(page.map((s) => s.card.score), MATCH_THRESHOLD);
+    const mid = Math.min(bar, 55);
+    const ideal = page.filter((s) => s.card.score >= bar);
+    const recommended = page.filter((s) => s.card.score >= mid && s.card.score < bar);
 
     // Everyone, in bands, with their percentage on every card (§15.2).
     //
@@ -1515,18 +1543,22 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     // had never asked for that filter. Both are gone. The bands stay, because
     // ranking is useful; the truncation goes, because deciding who is worth
     // talking to is the citizen's call and 68% is a number they can read.
-    const rest = page.filter((s) => s.card.score < 55);
+    const rest = page.filter((s) => s.card.score < mid);
     const all = (arr: Scored[]) => take(arr, arr.length);
 
     if (ideal.length) {
-      sections.push({ key: 'curated', label: 'Curated Matches', note: 'Your strongest matches \u2014 75%+ compatibility.', tier: 'ideal', matches: all(ideal) });
+      // The note says the bar it actually drew. It used to say "75%+" while the
+      // number was a constant; now it is the top of this citizen's own list and
+      // saying 75 would be the same class of untrue sentence this audit spent
+      // the day removing.
+      sections.push({ key: 'curated', label: 'Curated Matches', note: `Your strongest matches \u2014 ${bar}% and above in your city.`, tier: 'ideal', matches: all(ideal) });
     }
 
     if (recommended.length) {
       sections.push({
         key: 'recommended', label: 'Recommended Matches', tier: 'recommended',
         note: ideal.length
-          ? 'Good matches just below the curated bar (55\u201374%). Worth a look \u2014 compatibility is a starting point, not a verdict.'
+          ? `Good matches just below the curated bar (${mid}\u2013${bar - 1}%). Worth a look \u2014 compatibility is a starting point, not a verdict.`
           : 'Early days in your city \u2014 these are your closest matches so far. As more residents join, stronger matches will appear.',
         matches: all(recommended),
       });
@@ -1535,7 +1567,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     if (rest.length) {
       sections.push({
         key: 'everyone', label: 'Everyone Else', tier: 'discovery',
-        note: 'Below 55% on our scoring. Shown because the score is our opinion and the choice is yours.',
+        note: `Below ${mid}% on our scoring. Shown because the score is our opinion and the choice is yours.`,
         matches: all(rest),
       });
     }
@@ -1576,8 +1608,11 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
 
     return {
       sections,
-      idealCount: ranked.filter((s) => s.card.score >= MATCH_THRESHOLD).length,
-      lowDensity: ranked.filter((s) => s.card.score >= MATCH_THRESHOLD).length < 6,
+      // Both read the SAME bar the curated section was drawn with. Counting
+      // against a constant while the section used a percentile would put a
+      // banner on the screen that disagrees with the list beneath it.
+      idealCount: ranked.filter((s) => s.card.score >= bar).length,
+      lowDensity: ranked.filter((s) => s.card.score >= bar).length < 6,
       totalDiscoverable: scored.length,
       shown: page.length,
       hasMore: ranked.length > page.length,
@@ -2744,7 +2779,31 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     const reasonsOf = (json: string | null): string[] => {
       try { return json ? (JSON.parse(json) as { reasons?: string[] }).reasons ?? [] : []; } catch { return []; }
     };
+    /**
+     * AND A PHOTO APPEAL SHOWS THE PHOTOGRAPH, OR SAYS WHY IT CANNOT.
+     * (Fourth audit, 28 Aug.)
+     *
+     * The profile half of this method got its three facts on 27 Aug, for the
+     * reason written above: a moderator handed free text and nothing else
+     * decides blind. The photo half was left deciding blind about an IMAGE,
+     * which is worse — the whole question is what is in it.
+     *
+     * A `held` photo still exists and can be signed like any other. A
+     * `rejected` one cannot: the object is deleted at refusal, by the machine
+     * verdict and the moderator's alike. So the row carries `url` when there is
+     * something to look at and `photoGone: true` when there is not, and the
+     * console says which. Overturning is still meaningful with the file gone —
+     * it clears the record and lets them upload it again — but a moderator is
+     * entitled to know they are ruling on a description rather than a picture.
+     */
+    const photoKeys = rows.filter((r) => r.kind === 'dating_photo' && !r.targetId.startsWith('inline/')).map((r) => r.targetId);
+    const photoUrl = new Map<string, string | null>();
+    for (const k of photoKeys) photoUrl.set(k, await this.storage.presignPrivateDownload(k));
     return rows.map((r) => {
+      if (r.kind === 'dating_photo') {
+        const url = photoUrl.get(r.targetId) ?? null;
+        return { ...r, url, photoGone: url === null };
+      }
       if (r.kind !== 'dating_profile') return r;
       const pr = byUser.get(r.userId);
       return {

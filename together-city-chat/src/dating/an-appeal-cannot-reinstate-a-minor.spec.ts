@@ -19,7 +19,7 @@ const CHILD = new Date(`${new Date().getUTCFullYear() - 15}-03-03T00:00:00Z`);
 const ADULT = new Date('1994-03-03T00:00:00Z');
 
 function svcWith(prisma: any, access: any) {
-  return new DatingService(
+  const svc = new DatingService(
     prisma as never, {} as never, {} as never, {} as never,
     {} as never, {} as never, {} as never, {} as never,
     {} as never, {} as never, {} as never,
@@ -27,6 +27,11 @@ function svcWith(prisma: any, access: any) {
     access as never, { up: false } as never,
     { add: async () => false, handle: () => undefined, schedule: async () => false } as never,
   );
+  // The appeal queue signs a photo appeal's image so it is not decided blind
+  // (fourth audit). Null here stands for the case the fix exists to name: a
+  // rejected photo's object is deleted at refusal, so there is nothing to show.
+  (svc as unknown as { storage: unknown }).storage = { presignPrivateDownload: async () => null };
+  return svc;
 }
 
 const okAccess = () => ({

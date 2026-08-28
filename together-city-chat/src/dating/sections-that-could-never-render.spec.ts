@@ -41,7 +41,9 @@ describe('sections that could never render', () => {
    * counts who clears the bar and the banner says so in the citizen's own city.
    */
   it('keeps the thin-market signal that is actually computed', () => {
-    expect(svc).toMatch(/lowDensity: ranked\.filter\(\(s\) => s\.card\.score >= MATCH_THRESHOLD\)\.length < 6/);
+    // Counted against `bar` since the curated bar became the measured p90
+    // rather than a constant — the banner has to agree with the list under it.
+    expect(svc).toMatch(/lowDensity: ranked\.filter\(\(s\) => s\.card\.score >= bar\)\.length < 6/);
     expect(svc).toMatch(/idealCount: ranked\.filter/);
   });
 

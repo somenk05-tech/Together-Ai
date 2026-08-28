@@ -437,6 +437,23 @@ function AppealCard({ appeal }: { appeal: Appeal }) {
       <div className="muted" style={{ fontSize: 12 }}>
         {appeal.kind === 'dating_profile' ? 'Profile' : 'Photo'} · {when(appeal.createdAt)}
       </div>
+      {/* THE PHOTOGRAPH, OR WHY THERE ISN'T ONE. (Fourth audit, 28 Aug.)
+          A photo appeal was decided on the appellant's sentence alone, which
+          is worse than the profile case this row already fixed: the whole
+          question is what is in the image. A `held` photo still exists and is
+          signed like any other. A `rejected` one was deleted at refusal, so
+          there is nothing to show — and saying so is the point, because an
+          overturn is then a ruling on a description. It still means something:
+          it clears the record and lets them upload it again. */}
+      {appeal.kind === 'dating_photo' && (
+        appeal.url
+          ? <img src={appeal.url} alt="" style={{ display: 'block', maxWidth: 220, maxHeight: 220, objectFit: 'cover', borderRadius: 10, margin: '10px 0' }} />
+          : <p className="muted" style={{ fontSize: 12.5, margin: '10px 0', lineHeight: 1.55 }}>
+              {appeal.photoGone
+                ? 'The photograph was deleted when it was refused — there is nothing left to look at. Overturning still clears the record and lets them upload it again.'
+                : 'No image available for this appeal.'}
+            </p>
+      )}
       {appeal.kind === 'dating_profile' && (
         // Blocker 06: the facts an overturn turns on, in front of the moderator
         // rather than in a database they can't see. An under-18 reads loudest,

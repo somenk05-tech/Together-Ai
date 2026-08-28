@@ -79,6 +79,10 @@ export interface Appeal {
   /** Present on profile appeals (blocker 06): the three facts the decision
    *  turns on, so a moderator is not overturning a rejection blind. */
   age?: number | null; profileModeration?: string | null; rejectionReasons?: string[];
+  /** Present on photo appeals (fourth audit): the photograph itself where one
+   *  still exists, and an honest flag where it does not — a rejection deletes
+   *  the object, so an overturn is sometimes a ruling on a description. */
+  url?: string | null; photoGone?: boolean;
 }
 
 export function useHeldPhotos() {
