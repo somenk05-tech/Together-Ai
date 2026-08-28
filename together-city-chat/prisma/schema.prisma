@@ -2611,13 +2611,22 @@ model MasterProfile {
   weightKg     Int?
   occupation   String?
   phone        String?
-  /// Where deliveries go. B.18 removed this column's only writer — the grocery
-  /// checkout collected it for a delivery that never happened — and recorded
-  /// that "the hub that starts delivering is the one that earns the right to
-  /// ask again." Local Services ordering (24 Aug) is that hub: the checkout
-  /// asks for an address only on a delivery order, and writes it here ONLY
-  /// when the citizen ticks "save this as my address" — an unticked box shares
-  /// it with that one business and stores nothing.
+  /// LEGACY, AND STILL NO WRITER TODAY (B.18, corrected 28 Aug).
+  ///
+  /// B.18 removed this column's only writer — the grocery checkout collected it
+  /// for a delivery that never happened — and recorded that "the hub that
+  /// starts delivering is the one that earns the right to ask again."
+  ///
+  /// Local Services ordering (24 Aug) became that hub, and this comment then
+  /// said the tick writes the address "here". It does not, and has not since
+  /// the address book landed: "save this as my address" writes a SavedAddress
+  /// row. This column is read as the "home" entry when the book is empty, so
+  /// nobody's one saved address vanished the day the book arrived, and it is
+  /// set to null by forgetAddress('home'). Nothing puts a value into it.
+  ///
+  /// The claim is checked rather than asserted — see
+  /// src/nutrition/grocery-orders-removed.spec.ts, which went red for a month
+  /// against the wording above rather than against the code.
   address      String?
   /// Declared food allergens, csv, as the citizen wrote them (canonicalised by
   /// declaredTerm() — "nut allergy" is stored as "nut").
