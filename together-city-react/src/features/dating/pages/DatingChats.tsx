@@ -396,13 +396,22 @@ function Thread({ chat, meId, mePhoto, onBack }: { chat: OpenChat; meId: string;
                 {chat.myReveal ? 'Stop sharing my city profile' : 'Share my city profile'}
               </button>
               {/* Unmatch and block are not the same thing, and the open chat is
-                  where that difference matters most. Unmatch frees you to
-                  connect with somebody else; block ends it and hides you from
-                  each other. Both ask before they act. */}
+                  where that difference matters most. Unmatch ends this
+                  conversation and takes them out of your matches; block does
+                  that and also hides the two of you from each other. Both ask
+                  before they act.
+
+                  "Unmatch frees you to connect with someone new" is what this
+                  said, and it was arguing for an irreversible act with a
+                  benefit that stopped existing on 27 Aug, when the owner
+                  removed the cap on how many chats a citizen may have open —
+                  see the note where DATING_CHAT_CAP used to be declared.
+                  Nothing is freed. Ending a conversation is a decision with
+                  somebody else in it and it does not need a sweetener. */}
               <button type="button" role="menuitem" disabled={unmatch.isPending}
                 onClick={() => {
                   setMenu(false);
-                  if (window.confirm('Unmatch and end this chat? This frees you to connect with someone new.')) {
+                  if (window.confirm('Unmatch and end this chat? They move out of your matches and the conversation is archived for both of you. This cannot be undone.')) {
                     unmatch.mutate(chat.otherUserId, { onSuccess: onBack });
                   }
                 }}>

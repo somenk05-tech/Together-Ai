@@ -29,7 +29,8 @@ import { ROLES } from '../admin/permissions';
 import { LEARNING_WINDOW, learnWeights, overallScoreWith, type Decision } from './learned-weights';
 import { profileCompletion } from './completion';
 import { DAILY_LIKES, DAILY_SUPER_LIKES, likeLimitMessage, superLimitMessage } from './limits';
-import { decide, scanText, type Check, type ModerationResult } from '../realestate/moderation';
+import { decide, type Check, type ModerationResult } from '../realestate/moderation';
+import { scanBio } from './bio-scan';
 import { nickname } from '../shared/nickname';
 import type { MatchKind, UpsertDatingProfileDto } from './dto/dating.dto';
 
@@ -278,6 +279,9 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     if (queues.reportsOpen > 0) {
       alarms.push(`${queues.reportsOpen} report${queues.reportsOpen === 1 ? '' : 's'} open`);
     }
+    if (queues.profilesInReview > 0) {
+      alarms.push(`${queues.profilesInReview} profile${queues.profilesInReview === 1 ? '' : 's'} held in review — each one is locked out of Browse until somebody looks; if this is most of yesterday's sign-ups, check the AI bio check is answering`);
+    }
     /**
      * AND THE SERVER'S OWN ERRORS, because this is the only thing in the city
      * that tells an operator anything without being opened.
@@ -293,7 +297,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
         + (errs.worstRoute ? `, most on ${errs.worstRoute.route} (${errs.worstRoute.count})` : ''));
     }
     const line = day.steps.map((st) => `${st.name.replace('dating.', '')} ${st.users}`).join(' · ')
-      + ` · queues: ${queues.reportsOpen} reports, ${queues.photosPending} photos pending, ${queues.photosHeld} held, ${queues.appealsOpen} appeals`;
+      + ` · queues: ${queues.reportsOpen} reports, ${queues.photosPending} photos pending, ${queues.photosHeld} held, ${queues.appealsOpen} appeals, ${queues.profilesInReview} profiles in review`;
     const grants = await this.prisma.adminGrant.findMany({ where: { revokedAt: null }, select: { userId: true }, distinct: ['userId'], take: 50 });
     for (const g of grants) {
       await this.notifications.create({
@@ -325,6 +329,20 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     const out = await compute();
     await swallow(this.redis.raw.set(key, JSON.stringify(out), 'EX', LIST_CACHE_SEC), 'dating: list cache write');
     return out;
+  }
+
+  /**
+   * The later of two nullable timestamps, or null if neither is set.
+   *
+   * A default `.sort()` on Dates compares their STRING form — "Fri Aug 28
+   * 2026…" — which is alphabetical, not chronological, and would have put
+   * April above August. Small enough to get wrong quietly, which is why it is
+   * a named function with a test rather than an expression inside a card.
+   */
+  private static laterOf(a: Date | null, b: Date | null): Date | null {
+    if (!a) return b ?? null;
+    if (!b) return a;
+    return a.getTime() >= b.getTime() ? a : b;
   }
 
   /** Everything this viewer has cached is stale now. */
@@ -1085,10 +1103,25 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     const yrs = ageOn(dto.birthDate);
     checks.push({ name: 'age-18-plus', pass: adult, severity: 'hard', detail: adult ? `Age ${yrs}.` : UNDER_AGE_MESSAGE });
 
-    // Bio: contact info / banned / scam.
-    const scan = scanText(`${bio}`);
+    /**
+     * Bio: contact routing / prohibited phrases / scam wording.
+     *
+     * `scanBio` REPLACES `scanText` from the property pipeline, which rejected
+     * "Attracted to the same sex.", "I don't smoke weed." and "Lived in Mumbai
+     * 2010 - 2015, Delhi 2015 - 2020." — the last of those as a phone number.
+     * The reasoning, and the corpus that pins it, are in `bio-scan.ts`.
+     *
+     * Both hard checks stay hard, and that is a decision rather than an
+     * oversight: `upsertProfile` has no moderation guard, so a rejected
+     * citizen can edit the sentence and save again, and the moderation runs
+     * afresh. A reject is only a lockout when the citizen cannot tell what to
+     * change — which is why the detail names the thing found, and why Browse
+     * and Curated Matches now render the server's sentence instead of a
+     * network error.
+     */
+    const scan = scanBio(bio);
     checks.push({ name: 'bio-no-contact', pass: scan.contacts.length === 0, severity: 'hard', detail: scan.contacts.length ? `Remove ${scan.contacts.join(', ')} from your bio — keep chat on Together City.` : 'Bio has no off-platform contact.' });
-    checks.push({ name: 'bio-safe', pass: !scan.banned, severity: 'hard', detail: scan.banned ? 'Bio contains prohibited content.' : 'Bio content is clean.' });
+    checks.push({ name: 'bio-safe', pass: !scan.prohibited, severity: 'hard', detail: scan.prohibited ? `Your bio reads as ${scan.prohibited}. Please reword it — you can save again straight away.` : 'Bio content is clean.' });
     checks.push({ name: 'bio-no-scam', pass: !scan.scam, severity: 'soft', detail: scan.scam ? 'Bio has scam-like phrasing — needs a look.' : 'No scam phrasing.' });
 
     // Account fraud score (deeper signals — device/IP/selfie — need infra; TODO).
@@ -1716,6 +1749,18 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
         frictions: frictions(breakdown, myD, candDX),
         likedByMe: state ? this.likedBy(state, userId) : false,
         matched: isMatched,
+        /**
+         * WHEN THE MATCH HAPPENED — the second like, not the first.
+         *
+         * The list below claimed "newest match first" in a comment and in the
+         * page's own comment, and sorted by score, so the person a citizen had
+         * matched with thirty seconds earlier could land ninth. The moment two
+         * people become a match is the LATER of the two likes; `updatedAt`
+         * cannot answer it because a reveal or an unmatch moves it too, which
+         * is the reasoning already written above `likedAt*` in the schema.
+         * Null for a row that pre-dates those columns, which sorts last.
+         */
+        matchedAt: isMatched && state ? DatingService.laterOf(state.likedAtOne, state.likedAtTwo) : null,
         // Null until Connect to Chat opens the conversation — the card reads it
         // to offer "Open chat" versus "Connect to Chat".
         conversationId: state?.conversationId ?? null,
@@ -1760,8 +1805,23 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     // The histogram above counts everybody; the cards sent are the page.
     const shownCards = limit ? cards.slice(0, limit) : cards;
 
-    // Newest match first, so the person you just matched with leads the page.
-    const matched = matchedCards.sort((a, b) => b.score - a.score);
+    /**
+     * Newest match first, so the person you just matched with leads the page —
+     * which is what this comment has said since it was written and what the
+     * code underneath it did not do (launch audit, 28 Aug). It sorted by score
+     * descending, so "It's a match! 💫" could open a page where the new match
+     * was ninth, under eight people who had matched weeks earlier.
+     *
+     * Score is the tie-break, not the key. A row with no `matchedAt` — matched
+     * before those columns existed — keeps its old behaviour and sorts after
+     * everyone the timestamp can place, rather than jumping to the top on a
+     * missing value.
+     */
+    const matchedWhen = (c: Record<string, unknown>) => {
+      const at = c.matchedAt;
+      return at instanceof Date ? at.getTime() : typeof at === 'string' ? Date.parse(at) : 0;
+    };
+    const matched = matchedCards.sort((a, b) => (matchedWhen(b) - matchedWhen(a)) || (b.score - a.score));
     const going = new Set([...shownCards, ...matched].map((c) => c.photos));
     await this.fillPhotos(userId, photoJobs.filter((j) => going.has(j.into)));
 
@@ -2034,14 +2094,38 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
 
   /** What is waiting for a human, right now. Read by the admin screen and by
    *  the daily digest, so the two cannot disagree about the backlog. */
-  private async adminQueueDepths(): Promise<{ photosPending: number; photosHeld: number; appealsOpen: number; reportsOpen: number }> {
-    const [photosPending, photosHeld, appealsOpen, reportsOpen] = await Promise.all([
+  private async adminQueueDepths(): Promise<{ photosPending: number; photosHeld: number; appealsOpen: number; reportsOpen: number; profilesInReview: number }> {
+    /**
+     * PROFILES HELD IN REVIEW ARE A QUEUE TOO, and until the launch audit
+     * (28 Aug) they were the one queue nothing counted.
+     *
+     * Every soft check routes here — scam phrasing, a fraud score, and, most
+     * of the time, `bio-ai-unavailable`, which fires whenever the model call
+     * is unconfigured, throws or answers badly. Failing closed is the right
+     * choice and it has a consequence: a rate-limited key on launch morning
+     * sends EVERY new profile into this queue, where each one is 403'd out of
+     * Browse until a human clears it. Photos, appeals and reports were all
+     * watched; the step every citizen passes through first was not.
+     *
+     * Same predicate as `profileQueue` — including the one-hour grace on
+     * `pending`, because a profile saved thirty seconds ago is mid-flight
+     * rather than stuck — so the console and the digest cannot disagree about
+     * the backlog, which is the rule the note above `profileQueue` sets.
+     */
+    const stale = new Date(Date.now() - 60 * 60_000);
+    const [photosPending, photosHeld, appealsOpen, reportsOpen, profilesInReview] = await Promise.all([
       this.prisma.datingPhotoReview.count({ where: { status: 'pending' } }),
       this.prisma.datingPhotoReview.count({ where: { status: 'held' } }),
       this.prisma.appeal.count({ where: { status: 'open' } }),
       this.prisma.report.count({ where: { targetType: 'user', status: 'open' } }),
+      this.prisma.datingProfile.count({
+        where: {
+          OR: [{ moderation: 'review' }, { moderation: 'pending', updatedAt: { lt: stale } }],
+          user: DatingService.STILL_HERE,
+        },
+      }),
     ]);
-    return { photosPending, photosHeld, appealsOpen, reportsOpen };
+    return { photosPending, photosHeld, appealsOpen, reportsOpen, profilesInReview };
   }
 
   /**
@@ -2381,6 +2465,27 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       const matched = { id: updated.id };
       if (!flipped.count) return { matched: true, conversationId: null, chatLocked: true, matchId: matched.id };
       this.analytics.track('dating.match', userId, { kind, other: targetUserId });
+      /**
+       * THE OTHER SIDE'S LISTS, BEFORE THE OTHER SIDE IS TOLD (launch audit,
+       * 28 Aug).
+       *
+       * `like()` bumps the ACTOR's list version at the top of the method, and
+       * for the first four fifths of this method that is right — nothing the
+       * actor did changes what the target sees. A flip to `matched` does. The
+       * target's cached `stack` was computed before this row existed and still
+       * answers `matched: []`, for up to DATING_LIST_CACHE_SEC.
+       *
+       * So "It's a match! 💫" opened a page that said "Nobody has matched you
+       * back yet". Sixty seconds is nothing at a million users and is the whole
+       * of the event on launch morning — it is the one notification in this hub
+       * somebody stops what they are doing for.
+       *
+       * Bumped BEFORE the notification is created, not after: the push is the
+       * thing that sends them to the page, so the cache must already be stale
+       * by the time it lands. `block()` bumps both sides for the same reason
+       * and says so in the same words.
+       */
+      await this.bumpListVersion(targetUserId);
       // Tell the other person it's now a mutual match.
       void this.notifications.create({
         userId: targetUserId, actorId: userId, kind: 'dating_match',
@@ -2544,6 +2649,11 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     // longer decides anything.
     await swallow(this.prisma.datingProfile.update({ where: { userId }, data: { connectCount: { increment: 1 } } }), 'dating: connect-count increment', { userId });
 
+    // The chat is now open for BOTH, so the target's cached stack — which is
+    // where the card's locked/unlocked state is read from — is stale. Same
+    // one-line omission as the match flip above, same fix, same reason it is
+    // done before the push rather than after it.
+    await this.bumpListVersion(targetUserId);
     void this.notifications.create({
       userId: targetUserId, actorId: userId, kind: 'dating_match',
       push: { deepLink: `togethercity://dating/chat/${conversationId}` },
@@ -2982,6 +3092,12 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
         superByOne: false, superByTwo: false,
       },
     });
+    // BOTH SIDES. An unmatch removes the pair from the OTHER person's Curated
+    // Matches too, and they are told nothing — so without this their screen
+    // keeps a card, a percentage and a way into a conversation that has just
+    // been archived under them, until the minute is up. The write is symmetric;
+    // the invalidation has to be.
+    await this.bumpListVersion(targetUserId);
     return { ok: true as const };
   }
 

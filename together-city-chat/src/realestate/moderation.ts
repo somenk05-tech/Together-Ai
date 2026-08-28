@@ -152,9 +152,9 @@ export function decide(checks: Check[], risk: number, ai?: { flagged: boolean; c
 export const normalizeDesc = norm;
 export const MIN_PHOTOS_REQUIRED = MIN_PHOTOS;
 
-/** Generic text scan reused by dating bio / listing moderation. */
-export function scanText(text: string): { contacts: string[]; banned: boolean; scam: boolean; emojis: number } {
-  const hits: string[] = [];
-  for (const [label, re] of CONTACT_PATTERNS) if (re.test(text)) hits.push(label);
-  return { contacts: hits, banned: BANNED.test(text), scam: SCAM.test(text), emojis: emojiCount(text) };
-}
+/* `scanText` lived here and was called by exactly one caller, which was Dating
+ * (28 Aug). A property list judging dating bios rejected "Attracted to the same
+ * sex."; Dating now owns `dating/bio-scan.ts` and this export went with the
+ * caller rather than staying behind as a second, wrong answer to the same
+ * question. `BANNED`, `SCAM` and `CONTACT_PATTERNS` below remain the listing
+ * pipeline's own, where every word on them belongs. */

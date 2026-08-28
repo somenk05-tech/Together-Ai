@@ -3,6 +3,7 @@ import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useDatingProfile, useDatingStack, type CuratedMatch, type DatingProfile, type MatchKind } from '../api';
 import { coverageShort } from '../bands';
 import { Portrait } from '../components/Portrait';
+import { ReadFailure } from '../components/ReadFailure';
 
 /**
  * ── CURATED MATCHES: THE PEOPLE WHO CHOSE YOU BACK ──────────────────────────
@@ -174,15 +175,21 @@ export function DatingMatches() {
           ) : stack.isError ? (
             // The branch this precedes says nobody has matched you back. Said to
             // somebody whose read simply failed, that is a small, plausible,
-            // disheartening lie.
-            <EmptyState
-              icon="⚠️"
+            // disheartening lie — and said to somebody held in review, "try
+            // again in a moment" is advice that can be followed for a week.
+            <ReadFailure
+              error={stack.error}
               title="We couldn’t open your matches"
               hint="This didn’t reach us — it isn’t a verdict on who’s out there. Try again in a moment."
             />
           ) : matched.length > 0 ? (
-            /* Every match, the same card, best first (the server sends them
-               newest-match-first; each card is the door to the full profile). */
+            /* Every match, the same card, in the order the server sends them:
+               newest match first, score as the tie-break. That claim used to
+               be in this comment and in the server's, and was true in neither
+               — `stack` sorted by score alone, so the match a citizen had just
+               been notified about could be ninth. Fixed on the server, where
+               the order is decided; this page has never re-sorted and still
+               doesn't. Each card is the door to the full profile. */
             <>{matched.map((m) => <CuratedCard key={m.user.id} match={m} kind={kind} />)}</>
           ) : (
             <>

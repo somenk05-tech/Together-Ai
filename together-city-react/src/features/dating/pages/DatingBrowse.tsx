@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useDatingProfile, useDiscover, type CuratedMatch, type DiscoverSection, type MatchKind } from '../api';
 import { MatchCard, Distribution, UndoAndAllowance } from '../components/MatchCards';
+import { ReadFailure } from '../components/ReadFailure';
 import { bandsOf, byCategory } from '../bands';
 
 /** Cards per page of the ranked pool.
@@ -173,9 +174,12 @@ export function DatingBrowse() {
         <Spinner label="Scoring compatibility…" />
       ) : discover.isError ? (
         // Said to somebody whose read simply failed, "no one to show" is a
-        // small, plausible, disheartening lie about their whole city.
-        <EmptyState
-          icon="⚠️"
+        // small, plausible, disheartening lie about their whole city — and
+        // said to somebody whose profile is in review or rejected, "this
+        // didn't reach us" is a different lie with no end to it. `ReadFailure`
+        // renders the server's own sentence when the server sent one.
+        <ReadFailure
+          error={discover.error}
           title="We couldn’t score your matches"
           hint="This didn’t reach us — it isn’t a verdict on who’s out there. Try again in a moment."
         />

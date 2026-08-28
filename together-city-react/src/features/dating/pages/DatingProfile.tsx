@@ -7,6 +7,7 @@ import { MultiSelect } from '@/components/MultiSelect';
 import type { LookupOption } from '@/api/lookups.api';
 import { useDatingProfile, useUpsertDatingProfile, useDeleteDatingProfile, useSaveSelfie, useClearSelfie, type UpsertProfileInput, type Visibility, type ProfileCompletion } from '../api';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
+import { serverMessage } from '../server-sentence';
 import { geoApi } from '@/api/geo.api';
 import { useMasterProfile } from '@/features/profile/hooks';
 import { useAuth } from '@/hooks/useAuth';
@@ -205,7 +206,7 @@ const delHead: React.CSSProperties = { margin: '0', fontSize: 16 };
 const delBody: React.CSSProperties = { fontSize: 12.5, margin: '6px 0 4px', lineHeight: 1.6 };
 const delBodyLast: React.CSSProperties = { fontSize: 12.5, margin: '0 0 12px', lineHeight: 1.6 };
 const delBtn: React.CSSProperties = { color: 'var(--danger-ink)', borderColor: 'var(--danger-line)' };
-function DeleteProfileCard({ onDelete, deleting }: { onDelete: () => void; deleting: boolean }) {
+function DeleteProfileCard({ onDelete, deleting, failed }: { onDelete: () => void; deleting: boolean; failed: string | null }) {
   return (
     <div className="card" style={delCard}>
       <h3 style={delHead}>Delete your dating profile</h3>
@@ -223,6 +224,9 @@ function DeleteProfileCard({ onDelete, deleting }: { onDelete: () => void; delet
         style={delBtn}>
         {deleting ? 'Deleting…' : 'Delete dating profile'}
       </Button>
+      {/* Same omission as the save button, and worse here: a delete that
+          silently failed leaves somebody believing their photos are gone. */}
+      {failed && <p role="alert" style={{ margin: '10px 0 0', fontSize: 12.5, lineHeight: 1.5, color: 'var(--danger-ink)' }}>{failed}</p>}
     </div>
   );
 }
@@ -1197,7 +1201,11 @@ export function DatingProfilePage() {
         <VisibilityCard visibility={visibility}
           onChange={(vv) => setD({ visibility: vv })} />
 
-        <DeleteProfileCard onDelete={onDelete} deleting={del.isPending} />
+        <DeleteProfileCard
+          onDelete={onDelete}
+          deleting={del.isPending}
+          failed={del.isError ? serverMessage(del.error) ?? 'Your profile wasn’t deleted — it didn’t reach us. Nothing has been removed; try again in a moment.' : null}
+        />
 
         {/* CONSENT, SAID ONCE, WHERE IT IS TRUE. Who somebody seeks and their
             religion are special-category data; both are read by the matching
@@ -1209,6 +1217,28 @@ export function DatingProfilePage() {
             style={{ marginTop: 3 }} />
           <span>I agree that who I&rsquo;m seeking and, if I give it, my religion are used to filter and score my matches. Neither is shown to other people; I can delete my dating profile at any time.</span>
         </label>
+
+        {/* A SAVE THAT FAILED USED TO LOOK EXACTLY LIKE A SAVE NOBODY MADE
+            (launch audit, 28 Aug). `upsert.mutate` was passed an `onSuccess`
+            and nothing else, and this app has no global mutation error
+            handler — so the 403 from `VerifiedGuard`, the 400 for a field the
+            server rejects, and any 500 all ended the same way: the button
+            said "Saving…", then went back to "Create profile", and not one
+            other pixel changed. The citizen's only reading of that is that
+            they pressed it wrong.
+
+            The server's own sentence when there is one, because it is always
+            more specific than ours — "your account is not verified" is an
+            instruction; "something went wrong" is not. The fallback says the
+            two things somebody who has just typed out a profile needs to
+            hear: it is ours, and nothing is lost. Same file already refuses to
+            render the form at all when the PREFILL read fails, for the same
+            reason. */}
+        {upsert.isError && (
+          <p role="alert" style={{ margin: '18px 0 0', fontSize: 12.5, lineHeight: 1.5, color: 'var(--danger-ink)' }}>
+            {serverMessage(upsert.error) ?? 'Your profile didn’t save — it didn’t reach us. Nothing you’ve entered has been lost; press Save again in a moment.'}
+          </p>
+        )}
 
         <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <Button type="submit" variant="accent" disabled={upsert.isPending || !dx.sensitiveConsentAt}>{upsert.isPending ? 'Saving…' : saved ? 'Save profile' : 'Create profile'}</Button>
