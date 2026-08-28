@@ -4,6 +4,8 @@ import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { FoodJournalService } from './food-journal.service';
+import { Throttle } from '@nestjs/throttler';
+import { MODEL_LIMIT } from '../shared/throttles';
 import {
   AnalyzeMealSchema, type AnalyzeMealDto,
   LogMealSchema, type LogMealDto,
@@ -18,6 +20,7 @@ export class FoodJournalController {
 
   /** Identify + estimate. Writes nothing — the citizen reviews first. */
   @Post('analyze')
+  @Throttle(MODEL_LIMIT)
   @UsePipes(new ZodValidationPipe(AnalyzeMealSchema))
   analyze(@CurrentUser() user: JwtUser, @Body() dto: AnalyzeMealDto) {
     return this.journal.analyze(user.sub, dto);

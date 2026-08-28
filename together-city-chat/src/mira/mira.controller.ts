@@ -7,6 +7,7 @@ import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { MiraService, SEED_MAX } from './mira.service';
 import { MiraRegistry } from './mira.registry';
+import { MODEL_LIMIT } from '../shared/throttles';
 
 /**
  * The largest seed either route will accept, and there is exactly one of it.
@@ -38,7 +39,12 @@ export { SEED_MAX };
  * needs a handful. Same mechanism as `geo.controller.ts` — `ThrottlerGuard` is
  * already the app-wide guard, so the decorator is the whole of the change.
  */
-const MODEL_LIMIT = { default: { ttl: 60_000, limit: 20 } };
+/**
+ * Moved to `shared/throttles.ts` on 28 Aug — unchanged in value, and no longer
+ * the only place in the city that has it. The reasoning written above it here
+ * turned out to apply to ten other routes; the constant went to where they
+ * could all reach it rather than being copied five times.
+ */
 
 export const AskSchema = z.object({
   text: z.string().min(1).max(2000),

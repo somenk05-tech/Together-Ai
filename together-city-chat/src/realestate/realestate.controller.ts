@@ -6,6 +6,8 @@ import { z } from 'zod';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { RealEstateService } from './realestate.service';
 import { PostPropertySchema, type PostPropertyDto, ListingQuerySchema, type ListingQueryDto } from './dto/realestate.dto';
+import { Throttle } from '@nestjs/throttler';
+import { MODEL_LIMIT } from '../shared/throttles';
 
 @Controller('realestate')
 @UseGuards(JwtAuthGuard)
@@ -35,6 +37,7 @@ export class RealEstateController {
 
   // Publishing a property listing is public-facing → requires a confirmed email.
   @Post('properties')
+  @Throttle(MODEL_LIMIT)
   @UsePipes(new ZodValidationPipe(PostPropertySchema))
   post(@CurrentUser() user: JwtUser, @Body() dto: PostPropertyDto) {
     return this.realestate.post(user.sub, dto);
@@ -43,6 +46,7 @@ export class RealEstateController {
   // Edit a listing (owner only). The edited content re-runs moderation, so a
   // clean edit is live again immediately and a dirty one reads its reasons.
   @Put('properties/:id')
+  @Throttle(MODEL_LIMIT)
   @UsePipes(new ZodValidationPipe(PostPropertySchema))
   update(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: PostPropertyDto) {
     return this.realestate.update(user.sub, id, dto);

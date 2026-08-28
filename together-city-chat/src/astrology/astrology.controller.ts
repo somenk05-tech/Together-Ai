@@ -8,6 +8,8 @@ import { AstrologyService, AskDto, SaveAstroProfileDto } from './astrology.servi
 import { TarotService, type DrawSpreadDto } from './tarot.service';
 
 import { Mira } from '../mira/mira.decorator';
+import { Throttle } from '@nestjs/throttler';
+import { MODEL_LIMIT } from '../shared/throttles';
 const SaveProfileSchema = z.object({
   birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD'),
   birthTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM (24h)').nullable().optional(),
@@ -70,6 +72,7 @@ export class AstrologyController {
     risk: 'R0',
   })
   @Get('daily')
+  @Throttle(MODEL_LIMIT)
   daily(@CurrentUser() user: JwtUser) {
     return this.astrology.daily(user.sub);
   }
@@ -82,6 +85,7 @@ export class AstrologyController {
 
   /** Tab 02 — Monthly Horoscope (premium long-form). */
   @Get('monthly')
+  @Throttle(MODEL_LIMIT)
   monthly(@CurrentUser() user: JwtUser) {
     return this.astrology.monthly(user.sub);
   }
@@ -107,6 +111,7 @@ export class AstrologyController {
 
   /** Tab 03 — Ask the Astrologer. Five free, then ₹100 for the next five. */
   @Post('ask')
+  @Throttle(MODEL_LIMIT)
   @UsePipes(new ZodValidationPipe(AskSchema))
   ask(@CurrentUser() user: JwtUser, @Body() dto: AskDto) {
     return this.astrology.ask(user.sub, dto);

@@ -5,6 +5,7 @@ import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { LocalServicesService } from './local-services.service';
 import { ServiceOrdersService } from './orders.service';
+import { Throttle } from '@nestjs/throttler';
 import {
   AcceptOrderSchema, type AcceptOrderDto,
   AdvanceOrderSchema, type AdvanceOrderDto,
@@ -15,6 +16,7 @@ import {
   RecommendSchema, type RecommendDto,
   RejectOrderSchema, type RejectOrderDto,
 } from './dto/orders.dto';
+import { MODEL_LIMIT } from '../shared/throttles';
 
 /**
  * ORDERING, UNDER THE SAME ROOF AS THE MENU IT ORDERS FROM.
@@ -100,6 +102,7 @@ export class ServiceOrdersController {
 
   /** "Veg, not too spicy, ₹800 for two" → picks from the LIVE menu only. */
   @Post(':id/menu/recommend')
+  @Throttle(MODEL_LIMIT)
   @UsePipes(new ZodValidationPipe(RecommendSchema))
   recommend(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: RecommendDto) {
     return this.orders.recommend(user.sub, id, dto);

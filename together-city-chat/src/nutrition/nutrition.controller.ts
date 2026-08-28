@@ -18,6 +18,8 @@ import {
 import { OwnRecipeSchema, type OwnRecipeDto } from './dto/own-recipe.dto';
 
 import { Mira } from '../mira/mira.decorator';
+import { Throttle } from '@nestjs/throttler';
+import { MODEL_LIMIT } from '../shared/throttles';
 /**
  * Household PHI-sharing switches — exactly the four the service stores
  * (HouseholdSharing in nutrition.service.ts). This endpoint decides which of a
@@ -634,6 +636,7 @@ export class NutritionController {
   }
 
   @Get('recipes/:id')
+  @Throttle(MODEL_LIMIT)
   recipe(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.nutrition.recipe(id, user.sub);
   }

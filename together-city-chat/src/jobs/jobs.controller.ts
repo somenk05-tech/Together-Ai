@@ -4,6 +4,7 @@ import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { JobsService } from './jobs.service';
+import { Throttle } from '@nestjs/throttler';
 import {
   UploadResumeSchema, type UploadResumeDto,
   SaveJobProfileSchema, type SaveJobProfileDto,
@@ -16,6 +17,7 @@ import {
   CareerPreferencesSchema, type CareerPreferencesDto,
   VisibilitySchema, type VisibilityDto,
 } from './dto/jobs.dto';
+import { MODEL_LIMIT } from '../shared/throttles';
 
 @Controller('jobs')
 @UseGuards(JwtAuthGuard)
@@ -28,6 +30,7 @@ export class JobsController {
   }
 
   @Post('resume')
+  @Throttle(MODEL_LIMIT)
   @UsePipes(new ZodValidationPipe(UploadResumeSchema))
   uploadResume(@CurrentUser() user: JwtUser, @Body() dto: UploadResumeDto) {
     return this.jobs.uploadResume(user.sub, dto);

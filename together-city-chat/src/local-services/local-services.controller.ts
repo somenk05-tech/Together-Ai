@@ -7,6 +7,7 @@ import { LocalServicesService } from './local-services.service';
 import { categoriesByGroup } from './categories';
 import { BUSINESS_TYPES } from './business-types';
 import { PLACES } from './places';
+import { Throttle } from '@nestjs/throttler';
 import {
   BrowseSchema, type BrowseDto,
   CreateListingSchema, type CreateListingDto,
@@ -22,6 +23,7 @@ import {
   SaveMenuSchema, type SaveMenuDto,
   SendMenuItemsSchema, type SendMenuItemsDto,
 } from './dto/local-services.dto';
+import { MODEL_LIMIT } from '../shared/throttles';
 
 @Controller('services')
 @UseGuards(JwtAuthGuard)
@@ -168,6 +170,7 @@ export class LocalServicesController {
 
   /** Proposes a draft. Nothing is stored — see the note on scanMenu. */
   @Post(':id/menu/scan')
+  @Throttle(MODEL_LIMIT)
   @UsePipes(new ZodValidationPipe(ScanMenuSchema))
   scanMenu(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: ScanMenuDto) {
     return this.services.scanMenu(user.sub, id, dto.image);

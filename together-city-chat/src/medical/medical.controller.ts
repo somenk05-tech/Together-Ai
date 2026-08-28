@@ -6,6 +6,7 @@ import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { MedicalService } from './medical.service';
 import { SaveBloodTestSchema, type SaveBloodTestDto } from './dto/medical.dto';
 import { Mira } from '../mira/mira.decorator';
+import { Throttle } from '@nestjs/throttler';
 import {
   AddRecordSchema, type AddRecordDto,
   UploadDocSchema, type UploadDocDto,
@@ -14,6 +15,7 @@ import {
   BookConsultSchema, type BookConsultDto,
   ConsentSchema, type ConsentDto,
 } from './dto/records.dto';
+import { MODEL_LIMIT } from '../shared/throttles';
 
 @Controller('medical')
 @UseGuards(JwtAuthGuard)
@@ -21,6 +23,7 @@ export class MedicalController {
   constructor(private readonly medical: MedicalService) {}
 
   @Post('blood-tests')
+  @Throttle(MODEL_LIMIT)
   @UsePipes(new ZodValidationPipe(SaveBloodTestSchema))
   save(@CurrentUser() user: JwtUser, @Body() dto: SaveBloodTestDto) {
     return this.medical.saveBloodTest(user.sub, dto);
@@ -28,6 +31,7 @@ export class MedicalController {
 
   // AI reads an uploaded report → marker values for review (must precede :id).
   @Post('blood-tests/extract')
+  @Throttle(MODEL_LIMIT)
   @UsePipes(new ZodValidationPipe(ExtractBloodSchema))
   extract(@CurrentUser() user: JwtUser, @Body() dto: ExtractBloodDto) {
     return this.medical.extractBloodReport(user.sub, dto);
@@ -37,6 +41,7 @@ export class MedicalController {
   // run the analysis in one step (must precede :id). Shared by Health Records +
   // Blood Test Analysis so a report uploaded on either surfaces on both.
   @Post('blood-tests/ingest')
+  @Throttle(MODEL_LIMIT)
   @UsePipes(new ZodValidationPipe(IngestBloodSchema))
   ingest(@CurrentUser() user: JwtUser, @Body() dto: IngestBloodDto) {
     return this.medical.ingestBloodReport(user.sub, dto);
@@ -97,6 +102,7 @@ export class MedicalController {
     risk: 'R0',
   })
   @Get('summary')
+  @Throttle(MODEL_LIMIT)
   summary(@CurrentUser() user: JwtUser) {
     return this.medical.healthSummary(user.sub);
   }
