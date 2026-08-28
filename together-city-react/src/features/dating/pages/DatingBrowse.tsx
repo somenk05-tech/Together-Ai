@@ -181,14 +181,40 @@ export function DatingBrowse() {
         />
       ) : everyone.length === 0 ? (
         <>
-          <EmptyState
-            icon="🌙"
-            title="No one to show just yet"
-            hint="New residents appear here the day they join — everyone, not only the strong matches."
-          />
-          <div style={{ textAlign: 'center', marginTop: 14 }}>
-            <Link to="/dating/profile"><Button variant="line">Check who can find you</Button></Link>
-          </div>
+          {/* AN EMPTY ROOM HAS TWO CAUSES AND THEY ARE NOT THE SAME SENTENCE.
+              (Fourth audit, 28 Aug.)
+              This state said "no one to show just yet" whatever emptied it, and
+              the server has always sent the discriminator — "reported, never
+              silent", says the comment above POOL_CEILING. `poolSize` is who the
+              SQL found: right age, right seeking, visible, approved. Anyone lost
+              after that was lost to a filter of this citizen's own — height,
+              distance, diet, religion, children, intent, language — or to the
+              other person's pointing back. In a city of eight one setting clears
+              the room, and telling somebody their city is empty when it is their
+              own boundary is both false and the one thing they cannot act on. */}
+          {(discover.data?.poolSize ?? 0) > 0 ? (
+            <>
+              <EmptyState
+                icon="🎚"
+                title="Your settings are hiding everyone"
+                hint={`${discover.data?.poolSize} ${discover.data?.poolSize === 1 ? 'person is' : 'people are'} looking for someone like you, and your filters rule ${discover.data?.poolSize === 1 ? 'them' : 'all of them'} out. Distance and the deal breakers are the two that empty a small city fastest.`}
+              />
+              <div style={{ textAlign: 'center', marginTop: 14 }}>
+                <Link to="/dating/profile"><Button variant="accent">Open my preferences</Button></Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <EmptyState
+                icon="🌙"
+                title="No one to show just yet"
+                hint="New residents appear here the day they join — everyone, not only the strong matches."
+              />
+              <div style={{ textAlign: 'center', marginTop: 14 }}>
+                <Link to="/dating/profile"><Button variant="line">Check who can find you</Button></Link>
+              </div>
+            </>
+          )}
         </>
       ) : (
         <>

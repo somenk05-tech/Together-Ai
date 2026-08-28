@@ -155,6 +155,21 @@ export interface DiscoverResult {
   /** The page (26 Aug): how many of `totalDiscoverable` came, and whether more would. */
   shown: number;
   hasMore: boolean;
+  /**
+   * WHO WAS THERE BEFORE YOUR SETTINGS SPOKE. (Fourth audit, 28 Aug.)
+   *
+   * The server has always sent these two — "reported, never silent", says the
+   * comment above POOL_CEILING — and this interface never declared them, so
+   * nothing in the app could read them and the only empty state said "no one to
+   * show just yet". `poolSize` counts the people the SQL found: right age, right
+   * seeking, visible, approved, not blocked. `totalDiscoverable` counts who
+   * survived the filters applied afterwards in JS — height, distance, diet,
+   * religion, children, intent, language, and the other person's filters
+   * pointing back at you. A poolSize of twelve and nothing discoverable is not a
+   * quiet city; it is a setting, and the citizen is the only one who can undo it.
+   */
+  poolSize: number;
+  poolCapped: boolean;
 }
 
 export interface UpsertProfileInput {

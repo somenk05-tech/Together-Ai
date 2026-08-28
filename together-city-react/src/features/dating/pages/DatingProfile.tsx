@@ -98,12 +98,15 @@ interface DX {
   visibility?: Visibility; minMatchScore?: number;
 }
 
-function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
+function Chip({ on, onClick, children, locked, title }: {
+  on: boolean; onClick: () => void; children: React.ReactNode; locked?: boolean; title?: string;
+}) {
   return (
-    <button type="button" onClick={onClick} style={{
-      cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '7px 14px', fontSize: 12.5, fontFamily: 'inherit', fontWeight: 600,
+    <button type="button" onClick={locked ? undefined : onClick} disabled={locked} title={title} aria-disabled={locked} style={{
+      cursor: locked ? 'default' : 'pointer', borderRadius: 'var(--r-full)', padding: '7px 14px', fontSize: 12.5, fontFamily: 'inherit', fontWeight: 600,
       border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-soft)',
-    }}>{children}</button>
+      opacity: locked ? 0.85 : 1,
+    }}>{children}{locked ? ' ·' : ''}</button>
   );
 }
 
@@ -675,6 +678,16 @@ export function DatingProfilePage() {
   const completion = upsert.data?.completion ?? (existing.data as { completion?: ProfileCompletion } | null)?.completion;
   // 'threshold' no longer exists as a choice; a profile that stored it is
   // simply visible now, and the next save writes 'everyone'.
+  /**
+   * The three the engine turns on for you, and the answer that turned each on.
+   * Mirrors DATING_CORE_FILTERS in the API's matching.ts — an answered field
+   * becomes a boundary; an unanswered one filters nobody, flag or no flag.
+   */
+  const coreFilterOn: Record<string, string> = {
+    ...(dx.relationshipGoal ? { 'Marriage Intentions': 'You said what you are looking for, so intent is filtering.' } : {}),
+    ...(dx.wantsChildren ? { 'Wants Children': 'You answered about children, so that is filtering.' } : {}),
+    ...(dx.prefDiet ? { Diet: 'You stated a diet preference, so diet is filtering.' } : {}),
+  };
   const visRaw: Visibility = dx.visibility ?? 'everyone';
   const visibility: Visibility = visRaw === 'threshold' ? 'everyone' : visRaw;
   const onDelete = () => del.mutate(undefined, { onSuccess: () => { setCollapsed(false); setDx({}); successToast('Dating profile deleted.'); } });
@@ -1109,8 +1122,40 @@ export function DatingProfilePage() {
             </span>
           </label>
 
+          {/* THREE OF THESE ARE ALREADY ON, AND THE FORM DREW THEM OFF.
+              (Fourth audit, 28 Aug.)
+
+              matching.ts turns Marriage Intentions, Wants Children and Diet into
+              hard filters the moment the citizen ANSWERS the matching field —
+              deliberately, and the reasoning above DATING_CORE_FILTERS is sound:
+              at astrology 0.90 they are the only mechanism left that can stop a
+              good chart introducing a marriage-seeker to somebody looking for a
+              fortnight. The rule is not the defect.
+
+              The defect was here. These three rendered unticked, beside a hint
+              teaching the opposite rule — "shapes scores rather than hiding
+              people… tick the deal breaker to make it a boundary" — so a citizen
+              who answered "wants children: no" hid everyone who said yes through
+              a control the form was simultaneously drawing as off. In a city of
+              eight that is the whole room.
+
+              So they show as on, and they do not pretend to be a switch, because
+              they are not one: the answer is the switch. The line below says
+              which answer, and clearing it is how you stop it filtering. */}
           <span style={label}>Deal breakers (optional)</span>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{DEAL_BREAKERS.map((v) => <Chip key={v} on={(dx.dealBreakers ?? []).includes(v)} onClick={() => setD({ dealBreakers: capToggle(dx.dealBreakers, v, 5) })}>{v}</Chip>)}</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{DEAL_BREAKERS.map((v) => {
+            const core = coreFilterOn[v];
+            return (
+              <Chip key={v} on={core ? true : (dx.dealBreakers ?? []).includes(v)}
+                locked={Boolean(core)} title={core}
+                onClick={() => setD({ dealBreakers: capToggle(dx.dealBreakers, v, 5) })}>{v}</Chip>
+            );
+          })}</div>
+          {Object.keys(coreFilterOn).length > 0 && (
+            <span className="muted" style={locHint}>
+              {Object.values(coreFilterOn).join(' ')} Those are boundaries, not preferences — clear the answer above to stop it hiding people.
+            </span>
+          )}
         </div>
 
         {/* AI auto-calculated — no user input */}
