@@ -64,6 +64,21 @@ const DECISION_LIMIT = { default: { ttl: 60_000, limit: 60 } };
  */
 const UPLOAD_LIMIT = { default: { ttl: 60_000, limit: 30 } };
 const REPORT_LIMIT = { default: { ttl: 60_000, limit: 5 } };
+/**
+ * SAVING A PROFILE SPENDS SOMEBODY ELSE'S MONEY. (28 Aug.)
+ *
+ * `upsertProfile` runs `moderateProfile`, which calls `aiBioModeration` — a
+ * live model request, on every save. The route carried no throttle at all, so
+ * it sat at the global default of 120 a minute: one authenticated citizen
+ * re-saving a bio could bill 120 model calls a minute, indefinitely, and the
+ * only signal would be the Anthropic invoice.
+ *
+ * 12 is far past any human editing their own profile and ten times tighter
+ * than what was there. It is deliberately not DECISION_LIMIT: a like costs a
+ * database row, this costs a model call, and giving them one number would say
+ * they are the same kind of action.
+ */
+const PROFILE_LIMIT = { default: { ttl: 60_000, limit: 12 } };
 
 @Controller('dating')
 @UseGuards(JwtAuthGuard)
@@ -76,6 +91,7 @@ export class DatingController {
   }
 
   @Post('profile')
+  @Throttle(PROFILE_LIMIT)
   // A dating profile is created by somebody whose email is theirs. The guard
   // existed and nothing used it; a throwaway address could stand up a profile
   // and start liking within a minute of signing up.
@@ -105,6 +121,10 @@ export class DatingController {
   }
 
   @Get('matches/:targetUserId')
+  // One person's full detail and their photographs. Every other read in this
+  // controller carries LIST_LIMIT; this one — the only read that enumerates
+  // individuals rather than a page — was six times looser than all of them.
+  @Throttle(LIST_LIMIT)
   matchDetail(@CurrentUser() user: JwtUser, @Param('targetUserId') targetUserId: string, @Query() query: Record<string, unknown>) {
     const { kind } = parseOrThrow(MatchesQuerySchema, query);
     return this.dating.matchDetail(user.sub, targetUserId, kind);
@@ -154,6 +174,7 @@ export class DatingController {
   }
 
   @Post('matches/:targetUserId/unmatch')
+  @Throttle(DECISION_LIMIT)
   unmatch(
     @CurrentUser() user: JwtUser,
     @Param('targetUserId') targetUserId: string,
@@ -236,6 +257,7 @@ export class DatingController {
   }
 
   @Get('admin/stats')
+  @Throttle(LIST_LIMIT)
   adminStats(@CurrentUser() user: JwtUser) {
     return this.dating.adminStats(user.sub);
   }
@@ -270,6 +292,7 @@ export class DatingController {
   }
 
   @Get('admin/photos')
+  @Throttle(LIST_LIMIT)
   photoQueue(@CurrentUser() user: JwtUser) {
     return this.dating.photoQueue(user.sub);
   }
@@ -288,6 +311,7 @@ export class DatingController {
 
   /** Where people stop, and where the numbers sit. */
   @Get('admin/funnel')
+  @Throttle(LIST_LIMIT)
   funnel(@CurrentUser() user: JwtUser, @Query() query: Record<string, unknown>) {
     const { days } = parseOrThrow(FunnelQuerySchema, query);
     return this.dating.adminFunnel(user.sub, days);
@@ -303,11 +327,13 @@ export class DatingController {
   }
 
   @Get('appeals/mine')
+  @Throttle(LIST_LIMIT)
   myAppeals(@CurrentUser() user: JwtUser) {
     return this.dating.myAppeals(user.sub);
   }
 
   @Get('admin/appeals')
+  @Throttle(LIST_LIMIT)
   appealQueue(@CurrentUser() user: JwtUser) {
     return this.dating.appealQueue(user.sub);
   }
@@ -367,6 +393,7 @@ export class DatingController {
   }
 
   @Delete('selfie')
+  @Throttle(UPLOAD_LIMIT)
   clearSelfie(@CurrentUser() user: JwtUser) {
     return this.dating.clearSelfie(user.sub);
   }
@@ -392,6 +419,7 @@ export class DatingController {
 
   /** Give back the most recent pass. Never an unmatch — see undoLastPass. */
   @Post('undo-pass')
+  @Throttle(DECISION_LIMIT)
   undoPass(@CurrentUser() user: JwtUser, @Body() body: unknown) {
     const kind = parseOrThrow(MatchKindSchema.optional().default('romantic'), (body as { kind?: string } | null)?.kind);
     return this.dating.undoLastPass(user.sub, kind);
@@ -399,6 +427,7 @@ export class DatingController {
 
   // ─── Safety. Reachable from the match, the profile and the chat (H6). ───
   @Post('matches/:targetUserId/block')
+  @Throttle(DECISION_LIMIT)
   blockMatch(
     @CurrentUser() user: JwtUser,
     @Param('targetUserId') targetUserId: string,
