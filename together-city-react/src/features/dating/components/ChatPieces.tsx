@@ -7,17 +7,19 @@ import { startersFor, type Starter } from '../starters';
  * ── THE PIECES THE DATING THREAD IS FURNISHED WITH (owner, 26 Aug) ──────────
  *
  * The chat redesign brief: a conversation that opens with a reason to talk
- * rather than an empty room. Three pieces, all of them fed by data the engine
+ * rather than an empty room. Two pieces, both of them fed by data the engine
  * already computes — nothing here invents a fact about a person:
  *
  *   EmptyIntro         — the room before the first message: both faces, the
  *                        number, and four tappable ways in.
- *   ConversationIdeas  — the quiet popover for a stalled conversation: the
- *                        same profile-read starters, and the one door to Mira,
- *                        who reads a thread only when invited.
  *   CompatibilitySheet — the number, opened: all seven factors as the same
  *                        indicators the profile page draws, then the engine's
  *                        reasons. The percentage stays useful after the match.
+ *
+ * ConversationIdeas was the third — a pill above the composer offering the
+ * same starters to a conversation already under way. Removed 28 Aug (owner).
+ * The starters live on the introduction card, where they answer a question
+ * somebody actually has, and Mira stays one tap away in the header.
  *
  * All of it renders on the thread's stage and speaks in stage tokens — except
  * the sheet, which is a dialog, and a dialog is the app interrupting the
@@ -63,34 +65,6 @@ export function EmptyIntro({ name, score, myPhoto, theirPhoto, d, onPick }: {
       })} onPick={onPick} />
       <small>You appear as the name and photos on your dating profile — nothing else is shown.</small>
     </div>
-  );
-}
-
-/**
- * The quiet help for a stalled conversation. NOT a chatbot in the thread: the
- * starters are read off their profile, and the one line that involves Mira
- * only opens the same invited, stores-nothing panel every chat already has.
- */
-export function ConversationIdeas({ starters, onPick, onMira, onClose }: {
-  starters: Starter[]; onPick: (question: string) => void; onMira: () => void; onClose: () => void;
-}) {
-  return (
-    <>
-      <button type="button" className="cshead-more-scrim" aria-label="Close conversation ideas" onClick={onClose} />
-      <div className="csideas" role="menu" aria-label="Conversation ideas">
-        <b>Conversation ideas</b>
-        {starters.map((s) => (
-          <button key={s.label} type="button" className="csstart" role="menuitem"
-            onClick={() => { onPick(s.question); onClose(); }}>
-            {s.label}
-          </button>
-        ))}
-        <button type="button" className="csstart" role="menuitem"
-          onClick={() => { onMira(); onClose(); }}>
-          Help me reply — ask Mira <span className="csideas-note">reads this chat only when you ask</span>
-        </button>
-      </div>
-    </>
   );
 }
 

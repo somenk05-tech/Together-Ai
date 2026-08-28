@@ -4086,18 +4086,6 @@ textarea.g-field { resize: none; line-height: 1.55; }
 /* The ideas popover rides above the composer the way the header's menu rides
    under the header: opaque stage ground, an edge rather than a shadow,
    full-screen scrim underneath so a press anywhere dismisses it. */
-.csideas {
-  position: absolute; bottom: calc(100% + 10px); right: 0; left: auto; z-index: 41;
-  width: min(340px, 100%); padding: 10px; display: grid; gap: 6px;
-  border-radius: var(--r-3); background: var(--stage-solid);
-  outline: 1px solid var(--stage-line); outline-offset: -1px;
-}
-.csideas > b {
-  font-size: var(--fs-1); font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
-  color: var(--on-stage-faint); padding: 2px 4px;
-}
-.csideas-note { display: block; font-size: var(--fs-1); font-weight: 400; color: var(--on-stage-faint); margin-top: 2px; }
-.csideas-row { position: relative; flex: none; display: flex; justify-content: flex-end; padding: 0 20px 8px; }
 /* The compatibility sheet is a DIALOG, and a dialog is the app interrupting
    the stage — so it wears the city's white, the same call ChatStarter's
    modal made, and rises from the foot of the screen where a thumb is. */

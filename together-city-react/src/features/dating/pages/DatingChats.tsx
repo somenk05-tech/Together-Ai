@@ -13,8 +13,7 @@ import { useMiraShown } from '@/hooks/useCityDesign';
 import { MiraConfidant } from '@/features/chat/mira/MiraConfidant';
 import { Composer } from '@/features/chat/components/Composer';
 import { MessageBody } from '@/features/chat/components/MessageBody';
-import { ConversationIdeas, CompatibilitySheet, EmptyIntro } from '../components/ChatPieces';
-import { startersFor } from '../starters';
+import { CompatibilitySheet, EmptyIntro } from '../components/ChatPieces';
 import { useChatRoom } from '@/hooks/useChatRoom';
 import { useScaleLock } from '@/hooks/useScaleLock';
 
@@ -223,7 +222,6 @@ function Thread({ chat, meId, mePhoto, onBack }: { chat: OpenChat; meId: string;
   const pick = useCallback((q: string) => setSeed((s) => ({ text: q, n: (s?.n ?? 0) + 1 })), []);
   const [menu, setMenu] = useState(false);
   const [sheet, setSheet] = useState(false);
-  const [ideas, setIdeas] = useState(false);
   const [peerTyping, setPeerTyping] = useState(false);
   const typingClear = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -304,9 +302,6 @@ function Thread({ chat, meId, mePhoto, onBack }: { chat: OpenChat; meId: string;
     if (t) typingTimer.current = setTimeout(() => setTyping(false), 2500);
   }, [setTyping]);
 
-  const starters = useMemo(() => startersFor({
-    name: chat.name, interests: d?.interests, city: d?.city, occupation: d?.occupation,
-  }), [chat.name, d]);
   const profileHref = `/dating/match?u=${chat.otherUserId}&kind=romantic`;
   const city = d?.city?.trim() || null;
   const subline = [
@@ -451,22 +446,11 @@ function Thread({ chat, meId, mePhoto, onBack }: { chat: OpenChat; meId: string;
         )}
       </div>
 
-      {/* ── CONVERSATION IDEAS (§5): one quiet pill, only once there is a
-          conversation to stall. The popover offers the same profile-read
-          starters and the one door to Mira — no chatbot in the thread. */}
-      {messages.length > 0 && (
-        <div className="csideas-row">
-          {ideas && (
-            <ConversationIdeas starters={starters} onPick={pick}
-              onMira={() => setConfide(true)} onClose={() => setIdeas(false)} />
-          )}
-          <button type="button" className="cstab" aria-expanded={ideas}
-            onClick={() => setIdeas((v) => !v)}>
-            ✨ Conversation ideas
-          </button>
-        </div>
-      )}
-
+      {/* CONVERSATION IDEAS WAS HERE, AND IS NOT (owner, 28 Aug). The pill sat
+          above the composer for the whole life of every thread. The starters it
+          offered are still on the introduction card, where a conversation that
+          has not started is the only place they answer a question anybody has,
+          and Mira is still one tap away in the header. */}
       {/* ── THE COMPOSER (§6): the city chat's own capsule — photo and voice
           on the left, one filled send key, typing wired through the socket,
           and the keyboard handled by the same visual-viewport machinery every
