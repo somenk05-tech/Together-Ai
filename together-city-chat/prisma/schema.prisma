@@ -1033,6 +1033,12 @@ model DatingPhotoReview {
   status    String   @default("pending") // pending | approved | held | rejected
   labels    String   @default("") // top Rekognition labels, "Name:confidence" joined by " · "
   reason    String   @default("")
+  /// THE VERDICT IS ABOUT THE BYTES, NOT ABOUT THE NAME. A presigned PUT is
+  /// reusable until it expires and a key is reviewed once, so without this the
+  /// approval survived the photograph being replaced. Null on rows reviewed
+  /// before 28 Aug: their upload URLs expired long ago, so there is nothing
+  /// left to swap, and the next review records one.
+  etag      String?
   checkedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

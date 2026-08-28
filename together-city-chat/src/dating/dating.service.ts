@@ -413,7 +413,25 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     const claim = this.storage.readDatingPhotoToken(token);
     if (!claim) return null;
     if (!(await this.mayViewPhoto(claim.viewerId, claim.key))) return null;
-    return this.storage.readPrivateObject(claim.key);
+    const found = await this.storage.readPrivateObject(claim.key);
+    if (!found) return null;
+    /**
+     * AND ARE THESE THE BYTES SOMEBODY LOOKED AT. (Fourth audit, 28 Aug.)
+     *
+     * mayViewPhoto asks whether this viewer may see this KEY, live, on every
+     * fetch — which was the whole point of the proxy route. It could not ask
+     * whether the key still holds the photograph the review approved, and a
+     * presigned PUT is reusable until it expires: upload something ordinary,
+     * save the profile, let it pass, then PUT anything you like to the same URL
+     * inside the window. The verdict was recorded against a name.
+     *
+     * The GET above already carries the object's ETag, so the comparison costs
+     * nothing. A mismatch sends the row back to `pending` — off every card at
+     * once, in front of the machine again — and refuses this request into the
+     * same single 404 every other refusal gets.
+     */
+    if (!(await this.photoMod.bytesStillReviewed(claim.key, found.etag))) return null;
+    return found;
   }
 
   private async fillPhotos(viewerId: string, jobs: Array<{ keys: readonly string[]; into: string[] }>): Promise<void> {
@@ -1650,13 +1668,26 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     // truncate them. `deletedAt` is still honoured — somebody who LEFT is gone
     // from here as everywhere. The card loop's discovery filters already skip
     // anyone matched, so a merged match is scored and shown, never re-filtered.
+    //
+    // AND `rejected` IS HONOURED TOO (fourth audit, 28 Aug). The list above is
+    // states a citizen CHOSE — paused, hidden, edited their preferences, or
+    // simply aged past the ceiling — and staying visible to somebody they
+    // already matched is right for every one of them. A moderator's rejection
+    // is not on that list and was being swept up with it: a profile taken down
+    // for being sixteen kept its name, age, bio, city and traits on the screens
+    // of every adult it had matched, indefinitely, because endMyChats only
+    // reaches rows that carry a conversationId and a match nobody has opened
+    // has none. Only `rejected` is excluded — `pending` and `review` are what a
+    // profile says while it is being looked at again, often after its own owner
+    // edited it, and disappearing mid-review is the over-correction this
+    // paragraph exists to avoid.
     const matchedPartnerIds = states
       .filter((st) => st.status === 'matched')
       .map((st) => (st.userOneId === userId ? st.userTwoId : st.userOneId));
     const matchedProfiles = matchedPartnerIds.length
       // unbounded: the caller's own matched partners — the product caps matches
       ? await this.prisma.datingProfile.findMany({
-        where: { userId: { in: matchedPartnerIds }, user: DatingService.STILL_HERE },
+        where: { userId: { in: matchedPartnerIds }, moderation: { not: 'rejected' }, user: DatingService.STILL_HERE },
         include: { user: { select: { id: true, name: true, emailVerified: true } } },
       })
       : [];
@@ -2973,10 +3004,30 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     // blocked connections, both directions; NOT the full connectionExclusions,
     // because becoming ordinary city friends should not delete a dating chat.
     const blocked = await this.blocking.blockedWith(userId);
-    const matches = allMatches.filter((m) => userOf.has(other(m)) && !blocked.has(other(m)));
-    const otherIds = matches.map(other);
+    /**
+     * A MODERATOR'S TAKEDOWN REACHES THIS TAB TOO. (Fourth audit, 28 Aug.)
+     *
+     * This list reads DatingMatch directly and had no moderation filter of any
+     * kind, and `endMyChats` — which a rejection does call — only touches rows
+     * carrying a conversationId. A match nobody has opened yet has none, so a
+     * profile taken down for being sixteen stayed on its matches' Chats tab as
+     * a pending row, indefinitely.
+     *
+     * The MATCH is dropped, not merely its profile: without a profile the row
+     * still renders, from the account name, which is a worse answer than the
+     * row not being there. Only `rejected` — `pending` and `review` are what a
+     * profile says while somebody is looking at it again, and vanishing from a
+     * conversation mid-review is not a thing a moderator asked for.
+     */
     // unbounded: their matched partners — the product caps how many can exist
-    const profiles = await this.prisma.datingProfile.findMany({ where: { userId: { in: otherIds } } });
+    const profiles = await this.prisma.datingProfile.findMany({ where: { userId: { in: allMatches.map(other) } } });
+    const profileOf = new Map(profiles.map((p) => [p.userId, p]));
+    const matches = allMatches.filter((m) => {
+      const id = other(m);
+      return userOf.has(id) && !blocked.has(id)
+        && (profileOf.get(id) as { moderation?: string } | undefined)?.moderation !== 'rejected';
+    });
+    const otherIds = matches.map(other);
     const pairKeys = otherIds.map((o) => [userId, o].sort());
     let scoreRows: Array<{ userA: string; userB: string; overall: number }> = [];
     try {
@@ -2984,7 +3035,6 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       scoreRows = await (this.prisma as unknown as { compatibilityScore: { findMany(x: unknown): Promise<Array<{ userA: string; userB: string; overall: number }>> } })
         .compatibilityScore.findMany({ where: { OR: pairKeys.map(([a, b]) => ({ userA: a, userB: b })) }, select: { userA: true, userB: true, overall: true } });
     } catch { /* no cache is "no score", same as readPairScore */ }
-    const profileOf = new Map(profiles.map((p) => [p.userId, p]));
     const scoreOf = new Map(scoreRows.map((r) => [`${r.userA}:${r.userB}`, r.overall]));
 
     const summaries = await this.conversations.summariesFor(

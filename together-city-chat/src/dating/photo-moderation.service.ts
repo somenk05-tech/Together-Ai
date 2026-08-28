@@ -150,6 +150,28 @@ export class PhotoModerationService implements OnModuleInit {
     return out;
   }
 
+  /**
+   * THE REVIEW TABLE, INCLUDING THE COLUMN THIS CHECKOUT'S CLIENT HAS NOT SEEN.
+   *
+   * `etag` is in schema.prisma and in a migration; the generated client in this
+   * working tree predates both, because `prisma generate` needs to reach
+   * binaries.prisma.sh and this machine could not. Every deployment regenerates
+   * before it builds, so the types are right where it matters and wrong only
+   * here — and three dating suites will not compile while they are wrong.
+   *
+   * The same escape hatch dating.service.ts already uses for compatibilityScore,
+   * kept to one accessor so there is one thing to delete. DELETE IT after any
+   * `npx prisma generate`: put `this.prisma.datingPhotoReview` back at the four
+   * call sites and this comment with it. It is a stale toolchain, not a design.
+   */
+  private get reviews() {
+    return this.prisma.datingPhotoReview as unknown as {
+      findUnique(a: { where: { key: string }; select: { etag: true } }): Promise<{ etag: string | null } | null>;
+      update(a: { where: { key: string }; data: Record<string, unknown> }): Promise<unknown>;
+      upsert(a: { where: { key: string }; update: Record<string, unknown>; create: Record<string, unknown> }): Promise<unknown>;
+    };
+  }
+
   /** Keyed by review id — the vault key, or the digest of an inline photo. */
   private async reviewRows(entries: readonly string[]): Promise<Map<string, PhotoStatus>> {
     const ids = entries.filter((e) => e && !e.startsWith('http')).map(reviewId);
@@ -166,8 +188,11 @@ export class PhotoModerationService implements OnModuleInit {
     if (!this.client) return 'pending';
     const obj = await this.bytesOf(entry);
     if (obj === 'unreadable') return 'pending';
-    if (obj.bytes.length > PHOTO_MAX_BYTES) return this.record(key, userId, 'rejected', '', `Larger than ${PHOTO_MAX_BYTES} bytes.`);
-    if (!PHOTO_MIME[obj.contentType]) return this.record(key, userId, 'rejected', '', `Not a photo (${obj.contentType}).`);
+    // The identity of the bytes this verdict is about. Inline photos have no
+    // object and therefore nothing that can be swapped underneath them.
+    const etag = entry.startsWith('data:') ? null : await this.storage.healthObjectETag(entry);
+    if (obj.bytes.length > PHOTO_MAX_BYTES) return this.record(key, userId, 'rejected', '', `Larger than ${PHOTO_MAX_BYTES} bytes.`, etag);
+    if (!PHOTO_MIME[obj.contentType]) return this.record(key, userId, 'rejected', '', `Not a photo (${obj.contentType}).`, etag);
     let labels: Array<{ Name?: string; ParentName?: string; Confidence?: number }>;
     try {
       const res = await this.client.send(new DetectModerationLabelsCommand({
@@ -183,7 +208,36 @@ export class PhotoModerationService implements OnModuleInit {
     const summary = labels.slice(0, 5).map((l) => `${l.Name ?? '?'}:${Math.round(l.Confidence ?? 0)}`).join(' · ');
     if (verdict.status === 'held') this.analytics.track('dating.photo.held', userId);
     if (verdict.status === 'rejected') this.analytics.track('dating.photo.rejected', userId);
-    return this.record(key, userId, verdict.status, summary, verdict.reason);
+    return this.record(key, userId, verdict.status, summary, verdict.reason, etag);
+  }
+
+  /**
+   * THE BYTES BEHIND AN APPROVAL, AND WHAT TO DO WHEN THEY ARE NOT THE ONES.
+   *
+   * Called on the serve path with the ETag of the object actually being read.
+   * A recorded etag that does not match means the photograph was replaced after
+   * it was looked at — the one thing a per-key verdict could never notice. The
+   * row goes back to `pending`, which takes it off every card immediately (only
+   * `approved` is shown) and puts it in front of the machine again, and the
+   * caller refuses this request.
+   *
+   * A NULL recorded etag is allowed through. Those rows were reviewed before
+   * the column existed; their upload windows expired long ago, so there is
+   * nothing left to swap, and refusing them would take every photograph in the
+   * hub off the screen to close a door that is already shut.
+   */
+  async bytesStillReviewed(key: string, servedETag: string | null | undefined): Promise<boolean> {
+    if (key.startsWith('inline/')) return true;
+    const row = await this.reviews.findUnique({ where: { key }, select: { etag: true } });
+    const recorded = row?.etag ?? null;
+    if (!recorded || !servedETag) return true;
+    if (recorded === servedETag) return true;
+    this.logger.warn(`photo bytes changed after review: ${key} — back to pending`);
+    await swallow(this.reviews.update({
+      where: { key },
+      data: { status: 'pending', reason: 'The photograph changed after it was reviewed.', etag: null },
+    }), 'dating: photo re-review after swap', { key });
+    return false;
   }
 
   /** A moderator's decision on a held photo. */
@@ -266,11 +320,19 @@ export class PhotoModerationService implements OnModuleInit {
     return { bytes: Buffer.from(obj.base64, 'base64'), contentType: obj.contentType };
   }
 
-  private async record(key: string, userId: string, status: PhotoStatus, labels: string, reason: string): Promise<PhotoStatus> {
-    await this.prisma.datingPhotoReview.upsert({
+  /**
+   * `etag` is what makes the verdict about the PHOTOGRAPH rather than about the
+   * key. Recorded on every verdict; compared when the image is served. Null for
+   * an inline photo (there is no object to swap) and null when the head failed,
+   * which grandfathers rather than refuses — see openPhoto for why that is the
+   * right way round. (Fourth audit, 28 Aug.)
+   */
+  private async record(key: string, userId: string, status: PhotoStatus, labels: string, reason: string, etag?: string | null): Promise<PhotoStatus> {
+    const bytes = etag ?? null;
+    await this.reviews.upsert({
       where: { key },
-      update: { status, labels, reason, checkedAt: new Date() },
-      create: { key, userId, status, labels, reason, checkedAt: new Date() },
+      update: { status, labels, reason, checkedAt: new Date(), ...(bytes ? { etag: bytes } : {}) },
+      create: { key, userId, status, labels, reason, checkedAt: new Date(), etag: bytes },
     });
     if (status === 'rejected' && !key.startsWith('inline/')) await swallow(this.storage.deleteHealthObject(key), 'dating: delete rejected photo', { key });
     return status;

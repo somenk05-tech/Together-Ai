@@ -45,6 +45,24 @@ export class StorageProvider implements OnModuleInit {
   private readonly endpoint: string;
   private readonly corsOrigins: string[];
   private readonly expiresInSec = 900;
+
+  /**
+   * A DATING PHOTO'S UPLOAD WINDOW IS NOT A HEALTH DOCUMENT'S. (Fourth audit,
+   * 28 Aug.)
+   *
+   * A presigned PUT is reusable until it expires, and the review that decides
+   * whether strangers may see a dating photograph runs ONCE per key. Fifteen
+   * minutes therefore meant: upload something ordinary, save the profile, let
+   * it be approved, and then PUT whatever you like to the same URL with a
+   * verdict already recorded against it.
+   *
+   * Two minutes is enough for a phone on a bad connection to finish a 12 MB
+   * photograph and short enough to be a poor attack window. It is not the fix
+   * on its own — the fix is that the verdict is bound to the BYTES (see the
+   * etag on DatingPhotoReview) — it is the part that shrinks the opportunity
+   * rather than catching it afterwards.
+   */
+  private readonly datingUploadExpiresInSec = 120;
   private readonly downloadTtlSec = 300; // signed GET links for private health docs
   /**
    * Dating photos get a WINDOW OF THEIR OWN, and a fifth of the health one
@@ -318,9 +336,9 @@ export class StorageProvider implements OnModuleInit {
     const uploadUrl = await getSignedUrl(
       this.s3,
       new PutObjectCommand({ Bucket: this.healthBucket, Key: key, ContentType: mimeType }),
-      { expiresIn: this.expiresInSec },
+      { expiresIn: this.datingUploadExpiresInSec },
     );
-    return { uploadUrl, key, expiresInSec: this.expiresInSec };
+    return { uploadUrl, key, expiresInSec: this.datingUploadExpiresInSec };
   }
 
   /**
@@ -351,9 +369,9 @@ export class StorageProvider implements OnModuleInit {
     const uploadUrl = await getSignedUrl(
       this.s3,
       new PutObjectCommand({ Bucket: this.healthBucket, Key: key, ContentType: mimeType }),
-      { expiresIn: this.expiresInSec },
+      { expiresIn: this.datingUploadExpiresInSec },
     );
-    return { uploadUrl, key, expiresInSec: this.expiresInSec };
+    return { uploadUrl, key, expiresInSec: this.datingUploadExpiresInSec };
   }
 
   /**
@@ -541,7 +559,7 @@ export class StorageProvider implements OnModuleInit {
    * a 404 rather than an error page, because a missing photo is a missing
    * photo whichever layer noticed.
    */
-  async readPrivateObject(key: string): Promise<{ body: Readable; contentType: string; contentLength?: number } | null> {
+  async readPrivateObject(key: string): Promise<{ body: Readable; contentType: string; contentLength?: number; etag?: string | null } | null> {
     if (!this.s3 || !key) return null;
     try {
       const out = await this.s3.send(new GetObjectCommand({ Bucket: this.healthBucket, Key: key }));
@@ -550,6 +568,8 @@ export class StorageProvider implements OnModuleInit {
         body: out.Body as unknown as Readable,
         contentType: out.ContentType ?? 'application/octet-stream',
         contentLength: out.ContentLength,
+        // Free: the GET that serves the bytes already carries it.
+        etag: out.ETag ?? null,
       };
     } catch (e) {
       this.logger.warn(`readPrivateObject failed for ${key}: ${(e as Error).message}`);
@@ -608,6 +628,24 @@ export class StorageProvider implements OnModuleInit {
   }
 
   /** The stored size of a vault object, or null when it cannot be read. */
+  /**
+   * The object's ETag — S3's identifier for the BYTES, not for the name.
+   *
+   * This is what lets a review verdict be about a photograph rather than about
+   * a key: record it when the machine looks, compare it when the image is
+   * served, and a swap on a still-valid upload URL stops being invisible.
+   */
+  async healthObjectETag(key: string): Promise<string | null> {
+    if (!this.s3 || !key) return null;
+    try {
+      const head = await this.s3.send(new HeadObjectCommand({ Bucket: this.healthBucket, Key: key }));
+      return head.ETag ?? null;
+    } catch (e) {
+      this.logger.warn(`healthObjectETag: ${key} (${(e as Error).message})`);
+      return null;
+    }
+  }
+
   async healthObjectSize(key: string): Promise<number | null> {
     if (!this.s3 || !key) return null;
     try {

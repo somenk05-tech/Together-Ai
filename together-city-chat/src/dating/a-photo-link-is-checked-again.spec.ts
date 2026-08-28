@@ -75,7 +75,13 @@ function build(over: Partial<{ approved: boolean; viewerOk: boolean; ownerOk: bo
     readDatingPhotoToken: (t: string) => readPhotoToken(SECRET, t, NOW),
     readPrivateObject: read,
   };
-  s.photoMod = { approvedOf: async (keys: string[]) => new Set(o.approved ? keys : []) };
+  s.photoMod = {
+    approvedOf: async (keys: string[]) => new Set(o.approved ? keys : []),
+    // The verdict is about the bytes as well as the key (28 Aug). This suite is
+    // about the PERMISSION question, so the bytes always match here; the
+    // comparison itself has its own suite, a-verdict-about-the-bytes.
+    bytesStillReviewed: async () => true,
+  };
   s.blocking = { blockedWith: async () => new Set(o.blocked) };
   s.prisma = {
     datingProfile: {
