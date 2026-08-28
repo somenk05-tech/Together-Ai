@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { AllExceptionsFilter } from '../filters/all-exceptions.filter';
 import { errorSnapshot, recordError, resetErrorLog } from './error-log';
 
@@ -47,7 +48,6 @@ describe('the tally under the missing DSN', () => {
   });
 
   it('does not count what is not the server’s fault', () => {
-    const { BadRequestException, NotFoundException } = require('@nestjs/common');
     fire(new BadRequestException('nope'), { method: 'POST', route: { path: '/dating/like' } });
     fire(new NotFoundException('gone'), { method: 'GET', route: { path: '/dating/x' } });
     expect(errorSnapshot().total).toBe(0);

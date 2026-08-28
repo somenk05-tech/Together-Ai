@@ -75,7 +75,16 @@ describe('the friction list takes a class', () => {
     // menu paper landed its components in classes, and once more the same day
     // when the business card's verbs and the gallery's hero took classes too —
     // a ratchet below its ceiling is slack.
-    expect(s).toMatch(/inlineStyleBlocks: 6732,/);
-    expect(s).toMatch(/rawSpacing: 3646,/);
+    //
+    // And again 28 Aug, when `distinctFontSizes` was brought back under after
+    // reading OVER on every run. All four lines came down to that day's
+    // readings at once, which is what the script asks for on every green run
+    // and what nobody had done while one metric kept the whole thing red.
+    expect(s).toMatch(/inlineStyleBlocks: 6691,/);
+    expect(s).toMatch(/rawSpacing: 3627,/);
+    // The two the script prints beside them, pinned for the same reason: a
+    // number nothing reads is a number that drifts back up.
+    expect(s).toMatch(/distinctFontSizes: 35,/);
+    expect(s).toMatch(/rawRadii: 323,/);
   });
 });

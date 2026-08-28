@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { MIN_DATING_AGE, UNDER_AGE_MESSAGE, isAdult } from '../../shared/age';
+import { MIN_DATING_AGE, isAdult } from '../../shared/age';
 import { GENDER_IDENTITY, ORIENTATION } from '../../profile/sex-and-gender';
 
 /**

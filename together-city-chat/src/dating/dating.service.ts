@@ -24,7 +24,7 @@ import {
   canonicalGoal, confidenceFor, coverage, curatedBar, distanceNote, explain, factorScores, frictions, matchAlertBody, matchAlertReason, overallScore, preferenceNotes, sharedItems, seeks, shownName, type DXProfile, type FactorBreakdown, unreachableReason,
 } from './matching';
 import { carrySelfie, selfieOnFile, selfieTakenAt, SELFIE_KEY, SELFIE_AT } from './selfie';
-import { MIN_DATING_AGE, UNDER_AGE_MESSAGE, ageOn, floorAgePreferences, isAdult } from '../shared/age';
+import { UNDER_AGE_MESSAGE, ageOn, floorAgePreferences, isAdult } from '../shared/age';
 import { ROLES } from '../admin/permissions';
 import { LEARNING_WINDOW, learnWeights, overallScoreWith, type Decision } from './learned-weights';
 import { profileCompletion } from './completion';

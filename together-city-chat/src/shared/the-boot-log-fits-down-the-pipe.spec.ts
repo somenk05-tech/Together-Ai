@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import { BootLogger, BOOT_LOG_LEVELS } from './boot-logger';
 
 /**
@@ -52,7 +54,7 @@ describe('the boot log fits down the pipe', () => {
   it('is wired into bootstrap, or it filters nothing at all', () => {
     // The class can be perfect and unused. This is the assertion that would
     // have caught that.
-    const main = require('fs').readFileSync(require('path').join(__dirname, '..', 'main.ts'), 'utf8');
+    const main = fs.readFileSync(path.join(__dirname, '..', 'main.ts'), 'utf8');
     expect(main).toMatch(/logger:\s*new BootLogger\(/);
   });
 });

@@ -16,8 +16,6 @@ import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { MessagesService } from './messages.service';
 import {
-  AckDto,
-  AckSchema,
   DeleteMessageDto,
   DeleteMessageSchema,
   EditMessageDto,

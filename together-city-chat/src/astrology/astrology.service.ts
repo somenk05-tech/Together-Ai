@@ -17,7 +17,7 @@ import { computeNumerology, vimshottariDasha } from './personal-factors';
 import { GEM_DISCLAIMER, buildGemGuidance, buildRemedies } from './gem-remedy-content';
 import { designBrief, recommendGems } from './gems/gem-recommend';
 import { PENDANT_STYLES, RING_SETTINGS, RING_SIZES, STONE_SHAPES, adviseSetting } from './gems/ring-studio';
-import { METAL_NAME, KNOWN_DESIGNS, metalQuotes, type MetalKey } from './gems/metal-pricing';
+import { METAL_NAME, KNOWN_DESIGNS, metalQuotes } from './gems/metal-pricing';
 import { parseGemCart, priceGemCart, type GemCartLine } from './gems/gem-cart';
 import { gemCounter } from './gems/gem-counter';
 import { healthFlagsFor } from './health-flags';

@@ -1,5 +1,5 @@
 import { swallowed } from '../shared/swallow';
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ClockService, DEFAULT_TIMEZONE } from '../shared/clock/clock.service';
 import { AdminService } from '../auth/admin';

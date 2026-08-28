@@ -323,7 +323,7 @@ export class MiraController {
    */
   @Get('thread')
   @UsePipes(new ZodValidationPipe(ThreadSchema))
-  thread(@CurrentUser() user: JwtUser, @Query() q: ThreadDto) {
+  thread(@CurrentUser() user: JwtUser, @Query() _q: ThreadDto) {
     return this.mira.thread(user.sub);
   }
 

@@ -10,38 +10,22 @@ import * as NEW from './matching';
 
 type DX = DXProfile;
 
-/** Deterministic PRNG — no Math.random, so the numbers are reproducible. */
-let seed = 20260731;
-const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
-const pick = <T,>(xs: T[]): T => xs[Math.floor(rnd() * xs.length)];
-const some = <T,>(xs: T[], n: number): T[] => xs.filter(() => rnd() < n / xs.length);
-
-const DIETS = ['Vegetarian', 'Vegan', 'Non-vegetarian', 'Jain', 'Eggetarian'];
-const SMOKE = ['Never', 'Socially', 'Regularly'];
-const DRINK = ['Never', 'Socially', 'Regularly'];
-const GOALS = ['Friendship First', 'Casual Dating', 'Serious Dating', 'Long-term Relationship', 'Marriage'];
-const TRAITS = ['Funny', 'Calm', 'Ambitious', 'Romantic', 'Adventurous', 'Introvert', 'Extrovert', 'Creative', 'Family-Oriented', 'Spiritual'];
-const VALUES = ['Family', 'Honesty', 'Loyalty', 'Kindness', 'Career', 'Adventure', 'Personal Growth', 'Financial Stability'];
-const CITIES = ['Mumbai', 'Pune', 'Bengaluru', 'Delhi', 'London', 'Dubai'];
-
-/** A citizen who filled the form in. */
-function full(): DX & { interests: string[] } {
-  return {
-    personalityTraits: some(TRAITS, 4), values: some(VALUES, 3), relationshipGoal: pick(GOALS),
-    diet: pick(DIETS), smoking: pick(SMOKE), drinking: pick(DRINK), fitnessLevel: pick(['Low', 'Moderate', 'High']),
-    prefDiet: rnd() < 0.5 ? pick(DIETS) : undefined,
-    prefSmoking: rnd() < 0.5 ? pick(SMOKE) : undefined,
-    prefDrinking: rnd() < 0.4 ? pick(DRINK) : undefined,
-    city: pick(CITIES), state: 'X',
-    interests: some(['Travel', 'Music', 'Reading', 'Cooking', 'Fitness', 'Art', 'Pets', 'Gaming'], 3),
-  };
-}
-/** A citizen who answered almost nothing — M4's "thin profile". */
-function thin(): DX & { interests: string[] } {
-  return { city: pick(CITIES), interests: [] };
-}
-
-const ASTRO = [58, 62, 64, 86, 88, 92, 99];   // the real AFFINITY values
+/*
+ * THE RANDOM-PAIR HARNESS CAME OUT, 28 AUG.
+ *
+ * A deterministic PRNG, seven vocabularies, two profile generators and a
+ * 4,000-pair runner with `spread` and `over` to read the distribution it
+ * produced. Every one of them was dead: the assertions in this file moved to
+ * NAMED pairs — two people with stated diets and a stated goal, where a failure
+ * says which rule broke — and the harness that made anonymous ones was left
+ * behind. `vocabulary.spec.ts`, written the same week, is the version of the
+ * distribution claim that survived, and it reads the SEED the form actually
+ * serves rather than a list retyped here, which is the whole reason it caught
+ * the largest bug in the hub.
+ *
+ * Removed rather than commented out: an unrunnable harness is not a spare tyre,
+ * and this file's own history is in git.
+ */
 
 function scores(mod: typeof NEW, a: DX & { interests: string[] }, b: DX & { interests: string[] }, astro: number) {
   const f = mod.factorScores(astro, a.interests, b.interests, a, b);
@@ -63,15 +47,6 @@ function shown(mod: typeof NEW, a: DX & { interests: string[] }, b: DX & { inter
   return mod.overallScore(f, mod.confidenceFor(a, b, a.interests, b.interests));
 }
 
-const PAIRS = 4000;
-function run(mod: typeof NEW, make: () => DX & { interests: string[] }) {
-  seed = 20260731;
-  const out: number[] = [];
-  for (let i = 0; i < PAIRS; i++) out.push(scores(mod, make(), make(), pick(ASTRO)).overall);
-  return out;
-}
-const spread = (xs: number[]) => Math.max(...xs) - Math.min(...xs);
-const over = (xs: number[], n: number) => xs.filter((x) => x >= n).length / xs.length;
 
 describe('a stated preference now counts', () => {
   const base: DX & { interests: string[] } = {

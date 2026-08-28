@@ -24,7 +24,11 @@ import { join } from 'node:path';
 
 const FLOOR = 11;
 /** Today's number. Lower it when work lands; never raise it. */
-const CEILING = 200;
+/* Lowered 200 → 194 on 28 Aug. The script had been printing its own
+ * instruction to do this on every green run and nobody had; a ratchet six
+ * notches above where the work actually is is six notches of slack, which is
+ * the difference between a check and a decoration. */
+const CEILING = 194;
 
 const walk = (dir) => readdirSync(dir).flatMap((n) => {
   const p = join(dir, n);

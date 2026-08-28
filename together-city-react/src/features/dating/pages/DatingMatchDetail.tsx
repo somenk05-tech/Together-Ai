@@ -80,7 +80,7 @@ function Collage({ d }: { d: MatchDetail }) {
           <span aria-hidden>✦</span> Intentional Dating
         </span>
         <div style={{ position: 'absolute', left: 18, right: 18, bottom: 16, color: 'var(--on-accent)', pointerEvents: 'none' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontFamily: 'var(--serif)', fontSize: 29, fontWeight: 700, lineHeight: 1.05, textShadow: '0 2px 14px rgba(0,0,0,.5)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontFamily: 'var(--serif)', fontSize: 30, fontWeight: 700, lineHeight: 1.05, textShadow: '0 2px 14px rgba(0,0,0,.5)' }}>
             <span>{d.name}{d.age ? `, ${d.age}` : ''}</span>
             <EmailConfirmed on={d.verified} />
             <SelfieOnFile on={Boolean(d.selfieOnFile)} />

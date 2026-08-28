@@ -35,7 +35,6 @@ function walk(dir: string, out: string[] = []): string[] {
   }
   return out;
 }
-const stripComments = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
 /** Comments blanked to spaces — same length, so offsets keep working. */
 const blankComments = (s: string) =>
   s.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))

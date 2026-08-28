@@ -16,6 +16,8 @@
  * The rule this file pins: coordinates win over the city string, and Anywhere
  * never rules anybody out on geography.
  */
+import * as fs from 'fs';
+import * as path from 'path';
 import { hardFilterReason, searchDistanceKm, standCoords, type DXProfile } from './matching';
 
 /** Mumbai and London, from the same table `cityCoords` reads. */
@@ -78,10 +80,10 @@ describe('the Distance deal-breaker', () => {
 });
 
 describe('the form and the engine agree on the vocabulary', () => {
-  const form = require('fs').readFileSync(
-    require('path').join(__dirname, '../../../together-city-react/src/features/dating/pages/DatingProfile.tsx'),
+  const form = fs.readFileSync(
+    path.join(__dirname, '../../../together-city-react/src/features/dating/pages/DatingProfile.tsx'),
     'utf8',
-  ) as string;
+  );
 
   it('offers two settings and no third', () => {
     expect(form).toContain("partnerLocationMode: 'around'");

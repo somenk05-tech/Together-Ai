@@ -86,7 +86,7 @@ export function PayInvoiceSheet({ invoice, open, onClose, onPaid }: {
         }}
       >
         <div className="eyebrow">Pay {invoice.businessName ?? 'this business'}</div>
-        <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.02em', margin: '2px 0 0' }}>{inr(due)}</div>
+        <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: '-0.02em', margin: '2px 0 0' }}>{inr(due)}</div>
         <div className="muted" style={{ fontSize: 13, marginBottom: 16 }}>Invoice {invoice.number}</div>
 
         {quote.isLoading && <Spinner label="Working out your split…" />}

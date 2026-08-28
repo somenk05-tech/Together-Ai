@@ -5,7 +5,7 @@ import { AdminAccessService } from '../admin/admin-access.service';
 import { swallow } from '../shared/swallow';
 import { reportEnv } from './env-manifest';
 import { usingDefaultPassword } from './dev-password.guard';
-import { FLAGS, isFlagKey, VISIBILITY_FLAGS, isVisibilityKey, visibilityFlag } from './feature-flags';
+import { FLAGS, isFlagKey, VISIBILITY_FLAGS, visibilityFlag } from './feature-flags';
 import { FeatureFlagGuard } from './feature-flag.guard';
 
 /**

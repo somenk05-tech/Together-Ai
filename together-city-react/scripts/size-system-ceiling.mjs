@@ -29,11 +29,37 @@ import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 /** Today's numbers. Lower them as work lands; never raise one to make a build pass. */
+/*
+ * LOWERED 28 AUG, AND THE FONT-SIZE LINE IS WHY.
+ *
+ * `distinctFontSizes` had been reading 37 against a ceiling of 36 — over, on
+ * every run, for long enough that red had become the normal colour of this
+ * script. That is the same pathology `dead-token-audit` was rescued from
+ * earlier the same day: a check that always fails teaches whoever runs it to
+ * skim past the next real failure.
+ *
+ * Two singletons closed the gap, both of them a rounding away from a step that
+ * already existed: the name on the dating match detail (29 → 30) and the
+ * amount due on the pay sheet (32 → 30). Nothing was resized to make a number
+ * move — they were the same size to the eye and a different size to the
+ * ladder, which is exactly the drift this file was written to find.
+ *
+ * The three remaining one-offs were left alone deliberately, because they are
+ * not steps on a type ladder and pretending otherwise would be worse than
+ * counting them: `.42em` is a relative size inside a carat label, and `6px`
+ * and `2.9px` are SVG user units in a press-day graphic drawn to a fixed
+ * viewBox. The regex cannot tell those from UI type — the header of this file
+ * already says it is not an AST — so they stay in the count, and the count
+ * stays honest about including them.
+ *
+ * The other three ceilings come down to today's readings at the same time,
+ * which is what the script's own closing line asks for on every green run.
+ */
 const CEILING = {
-  rawRadii: 328,
-  inlineStyleBlocks: 6732,
-  distinctFontSizes: 36,
-  rawSpacing: 3646,
+  rawRadii: 323,
+  inlineStyleBlocks: 6691,
+  distinctFontSizes: 35,
+  rawSpacing: 3627,
 };
 
 const walk = (d, ext) => readdirSync(d).flatMap((n) => {

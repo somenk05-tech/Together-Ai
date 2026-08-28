@@ -1,5 +1,5 @@
 import { categorizeRecipe, FASTING_PROTOCOLS, SLOTS, resolveSchedule } from './meal-engine';
-import { composeWeek, type PoolRecipe, type ComposerPrefs, type DayTargets } from './meal-composer';
+import { composeWeek, type ComposerPrefs, type DayTargets } from './meal-composer';
 
 /** Spec §1–§5: categorizeRecipe places recipes the way Indian families eat. */
 describe('Indian meal classification (categorizeRecipe)', () => {

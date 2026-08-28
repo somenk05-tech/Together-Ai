@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import { API_PREFIX, apiUrl } from './api-prefix';
 
 /**
@@ -29,7 +31,7 @@ describe('apiUrl', () => {
   });
 
   it('is the prefix main.ts actually mounts', () => {
-    const main = require('fs').readFileSync(require('path').join(__dirname, '..', 'main.ts'), 'utf8') as string;
+    const main = fs.readFileSync(path.join(__dirname, '..', 'main.ts'), 'utf8');
     expect(main).toContain('setGlobalPrefix(API_PREFIX)');
     expect(API_PREFIX).toBe('api');
   });

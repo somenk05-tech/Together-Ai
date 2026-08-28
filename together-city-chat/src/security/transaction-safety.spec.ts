@@ -78,7 +78,7 @@ function sourceFiles(dir = SRC, out: string[] = []): string[] {
 function transactionBlocks(src: string): Array<{ body: string; line: number }> {
   const out: Array<{ body: string; line: number }> = [];
   for (const m of src.matchAll(/\$transaction\(/g)) {
-    let i = src.indexOf('(', (m.index ?? 0) + '$transaction'.length);
+    const i = src.indexOf('(', (m.index ?? 0) + '$transaction'.length);
     let depth = 0;
     let j = i;
     for (; j < src.length; j++) {

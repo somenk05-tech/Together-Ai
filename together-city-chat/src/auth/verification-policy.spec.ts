@@ -3,8 +3,6 @@ import {
   decideAttempt, decideSend, formatCode, isPlausibleEmail, normaliseEmail, parseE164, targetChanged,
 } from './verification-policy';
 
-const at = (msAgo: number, from = Date.now()) => new Date(from - msAgo);
-
 describe('normaliseEmail / isPlausibleEmail', () => {
   it('lowercases and trims', () => {
     expect(normaliseEmail('  Shruti@GBCAPL.com ')).toBe('shruti@gbcapl.com');

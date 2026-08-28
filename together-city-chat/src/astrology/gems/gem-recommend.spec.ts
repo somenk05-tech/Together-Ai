@@ -1,5 +1,5 @@
 import { GEMS, GEM_BY_ID, PRIMARY_BY_PLANET } from './gem-catalog';
-import { recommendGems, houseFrom, lordOf } from './gem-recommend';
+import { recommendGems, houseFrom } from './gem-recommend';
 import { WEARING, TRIAL_REQUIRED } from './wearing';
 import { GEM_CATALOG } from '../gem-remedy-content';
 import type { SignName } from '../astro-engine';

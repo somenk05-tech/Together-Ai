@@ -1,4 +1,4 @@
-import { PURGE_RULES, whereFor } from './purge-plan';
+import { PURGE_RULES } from './purge-plan';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 

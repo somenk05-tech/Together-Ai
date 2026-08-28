@@ -51,7 +51,6 @@ const oily = shelfFor(OILY, 'oily');
 const mature = shelfFor(MATURE, 'dry');
 
 const at = (s: typeof oily, budget: number) => planCategory(s.products, 'face', budget, s.needs);
-const idsAt = (s: typeof oily, budget: number) => at(s, budget).picks.map((x) => x.product.id);
 const roleMap = (s: typeof oily, budget: number) =>
   new Map(at(s, budget).picks.map((x) => [x.role, x.product.id]));
 

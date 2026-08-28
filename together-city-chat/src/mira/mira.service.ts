@@ -98,8 +98,6 @@ function asList(v: unknown, ...keys: string[]): unknown[] {
  */
 const ROW_KEY = 'city';
 
-const SLOT: Record<string, string> = { b: 'Breakfast', l: 'Lunch', s: 'Snack', d: 'Dinner' };
-
 const rupees = (n: number): string => `₹${Math.round(n).toLocaleString('en-IN')}`;
 
 /**

@@ -183,7 +183,6 @@ describe('Nutrition Hub — Round-2 large matrix (real 11k pool)', () => {
             const ladder: Record<Diet, Diet[]> = { vegan: ['vegan'], vegetarian: ['vegan', 'vegetarian'], eggetarian: ['vegan', 'vegetarian', 'eggetarian'], nonveg: ['vegan', 'vegetarian', 'eggetarian', 'nonveg'] };
             if (pr && !ladder[p.diet].includes(pr.diet)) { m.dietViolations++; if (dietExamples.length < 6) dietExamples.push(`${p.name}: ${pr.diet} "${c.name}"`); }
             if (p.excluded?.length) {
-              const hay = `${c.name} ${c.ingredients.map((i) => i.name).join(' ')}`.toLowerCase();
               // MEASURED WITH THE MATCHER, which is a narrower claim than this
               // line used to make. It was a substring test — the very substring
               // test the filter performed — so "leaks: 0" was one function
