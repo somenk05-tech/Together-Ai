@@ -157,9 +157,26 @@ export class StorageProvider implements OnModuleInit {
         await this.s3.send(new PutBucketCorsCommand({ Bucket, CORSConfiguration: { CORSRules: [rule] } }));
         this.logger.log(`R2/S3 CORS applied to bucket "${Bucket}" for: ${this.corsOrigins.join(', ')}`);
       } catch (e) {
+        /**
+         * A WRITE THAT FAILED IS NOT A POLICY THAT IS MISSING. (28 Aug.)
+         *
+         * PutBucketCors needs a token with bucket-CONFIGURATION rights. Ours
+         * does not have them, so this throws on every boot — and the old
+         * wording, "add this rule to the bucket", asserted something it had
+         * never checked. Both buckets have had the correct policy all along,
+         * set by hand. Checked in the dashboard on 28 Aug while chasing a
+         * different fault, where this line cost real time by pointing at a
+         * configuration that was already right.
+         *
+         * The distinction is the whole of it: what failed is our attempt to
+         * WRITE the policy, and whether one is already there is a question
+         * this code has not asked. Say that, and print the rule as the one we
+         * would have written rather than as a repair somebody owes.
+         */
         this.logger.warn(
-          `Could not auto-apply CORS to bucket "${Bucket}" (${(e as Error).message}). ` +
-          `Add this rule to the bucket in Cloudflare R2 → Settings → CORS Policy: ` +
+          `Could not WRITE the CORS policy on bucket "${Bucket}" (${(e as Error).message}) — the R2 token ` +
+          `lacks bucket-configuration rights. This says nothing about the policy already on the bucket: ` +
+          `check Cloudflare R2 → Settings → CORS Policy, and set this only if it is missing or narrower: ` +
           JSON.stringify([{ AllowedOrigins: this.corsOrigins, AllowedMethods: ['PUT', 'GET', 'HEAD'], AllowedHeaders: ['*'], ExposeHeaders: ['ETag'], MaxAgeSeconds: 3600 }]),
         );
       }
