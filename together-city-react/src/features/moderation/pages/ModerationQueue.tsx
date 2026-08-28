@@ -280,6 +280,7 @@ const reasonInput: CSSProperties = {
 function HeldPhotos() {
   const q = useHeldPhotos();
   const backfill = usePhotoBackfill();
+  const stalled = (q.data ?? []).filter((p) => p.status === 'pending').length;
   if (!q.data) return null;
   return (
     <section style={{ marginTop: 28 }}>
@@ -292,11 +293,21 @@ function HeldPhotos() {
           {backfill.isPending ? 'Queuing…' : backfill.isSuccess ? `Queued ${backfill.data.queued} profiles` : 'Review older photos'}
         </Button>
       </h2>
+      {/* Two kinds of row since 28 Aug. `held` is a verdict asking for a person.
+          `pending` is the absence of a verdict, and a pile of them means photo
+          review itself has stopped — which is why they are here rather than
+          only in a log line nobody reads. */}
       <p className="muted" style={{ fontSize: 13, margin: '6px 0 12px', lineHeight: 1.6 }}>
         {q.data.length === 0
           ? 'None waiting. A held photo is one the machine could not clear on its own; nobody else sees it until you decide.'
-          : `${q.data.length} waiting, oldest first. Nobody else sees a held photo until you decide.`}
+          : `${q.data.length} waiting, oldest first. Nobody else sees any of these until you decide.`}
       </p>
+      {stalled > 0 && (
+        <p style={{ fontSize: 13, margin: '0 0 12px', lineHeight: 1.6, color: 'var(--danger-ink)' }}>
+          {stalled === 1 ? 'One photo has' : `${stalled} photos have`} been waiting without ever being looked at.
+          That is what a stopped photo pipeline looks like — check that the review service is configured before deciding these by hand.
+        </p>
+      )}
       {q.data.map((p) => <HeldPhotoCard key={p.key} photo={p} />)}
     </section>
   );
@@ -314,7 +325,9 @@ function HeldPhotoCard({ photo }: { photo: HeldPhoto }) {
         ? <img src={photo.url} alt="Held dating photo" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: 10 }} />
         : <div className="muted" style={{ fontSize: 12 }}>Could not load the photo.</div>}
       <div>
-        <div className="muted" style={{ fontSize: 12 }}>{photo.labels || 'No labels'} · {when(photo.createdAt)}</div>
+        <div className="muted" style={{ fontSize: 12 }}>
+          {photo.status === 'pending' ? 'Never looked at' : (photo.labels || 'No labels')} · {when(photo.createdAt)}
+        </div>
         {photo.reason && <div style={{ fontSize: 12.5, marginTop: 4 }}>{photo.reason}</div>}
         <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (written to the audit)" maxLength={500} style={reasonInput} />

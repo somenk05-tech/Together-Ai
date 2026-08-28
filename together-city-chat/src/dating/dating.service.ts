@@ -1,6 +1,6 @@
 import { swallow } from '../shared/swallow';
 import type { Readable } from 'stream';
-import { BadRequestException, Injectable, NotFoundException, type OnModuleInit, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, type OnModuleInit, ForbiddenException, type OnModuleDestroy } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ClockService, DEFAULT_TIMEZONE } from '../shared/clock/clock.service';
 import { AdminService } from '../auth/admin';
@@ -108,6 +108,11 @@ const REINDEX_DEBOUNCE_MS = Number(process.env.DATING_REINDEX_DEBOUNCE_MS ?? 500
 const JOB_REINDEX = 'dating.reindex';
 const JOB_PHOTOS = 'dating.photo-review';
 const JOB_DIGEST = 'dating.funnel-digest';
+const JOB_PHOTO_RETRY = 'dating.photo-retry';
+/** Ten minutes. Slow enough that a broken dependency costs almost nothing, fast
+ *  enough that fixing the credentials heals the city's photographs while the
+ *  operator is still watching. */
+const PHOTO_RETRY_MS = 10 * 60_000;
 
 /**
  * A candidate cannot be CURATED without having said what they are looking for.
@@ -150,7 +155,7 @@ interface DXVisibility { visibility?: Visibility; minMatchScore?: number }
 interface DXCard { profession?: string; languages?: string[] }
 
 @Injectable()
-export class DatingService implements OnModuleInit {
+export class DatingService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly masterProfile: MasterProfileService,
@@ -181,8 +186,30 @@ export class DatingService implements OnModuleInit {
     this.jobs.handle(JOB_REINDEX, async (d) => { await this.reindexAfterChange(String(d.userId)); });
     this.jobs.handle(JOB_PHOTOS, async (d) => { await this.photoMod.fileAndReview(String(d.userId), (d.entries as string[]) ?? []); });
     this.jobs.handle(JOB_DIGEST, async () => { await this.funnelDigest(); });
+    this.jobs.handle(JOB_PHOTO_RETRY, async () => { await this.photoMod.retryPending(); });
     // 09:00 IST, every day. Upserted, so a redeploy is not a second schedule.
     void this.jobs.schedule(JOB_DIGEST, '30 3 * * *');
+    /**
+     * AND THE SWEEP, WITH A FALLBACK THE DIGEST DOES NOT HAVE.
+     *
+     * A photo reaches `pending` through three failures that may not repeat — no
+     * client yet, an unreadable object, a Rekognition throw — and nothing ever
+     * looked again. Reindex and photo review both fall back in-process when the
+     * queue is off; this is the third piece of deferred work and it needs the
+     * same, because the state it repairs is invisible to a citizen (their own
+     * editor shows their photos either way) and the operator has no reason to
+     * suspect it.
+     */
+    void this.jobs.schedule(JOB_PHOTO_RETRY, '*/10 * * * *').then((queued) => {
+      if (queued) return;
+      const t = setInterval(() => { void swallow(this.photoMod.retryPending(), 'dating: photo retry sweep'); }, PHOTO_RETRY_MS);
+      t.unref?.();
+      this.photoRetryTimer = t;
+    });
+  }
+
+  onModuleDestroy(): void {
+    if (this.photoRetryTimer) clearInterval(this.photoRetryTimer);
   }
 
   /**
@@ -703,6 +730,7 @@ export class DatingService implements OnModuleInit {
    * at a time. In-process on purpose — a queue service is a dependency this
    * app does not have, and a lost run costs one "new match" alert, not data.
    */
+  private photoRetryTimer: NodeJS.Timeout | null = null;
   private readonly reindexPending = new Map<string, NodeJS.Timeout>();
   private readonly reindexWaiting: string[] = [];
   private reindexRunning = false;

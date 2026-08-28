@@ -207,11 +207,17 @@ them; they're quick, isolated fixes. Verify chat connects (WSS) and a message ro
 | `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, `EMAIL_FROM` | email | `EMAIL_FROM` must be a Resend-verified sender. Used for SYSTEM mail only — a citizen's own message now leaves as `<handle>@togethercity.app` |
 | `RESEND_INBOUND_SECRET` | inbound mail | Long random string, shared with the Resend Inbound webhook. `POST /api/mail/inbound` writes into a citizen's mailbox and cannot carry a user JWT, so this is the only thing authenticating it. Unset → inbound is refused everywhere (the feature is off, not open). Point Resend at `https://api.togethercity.app/api/mail/inbound` with `Authorization: Bearer <secret>` — preferred over `?secret=`, which ends up in access logs |
 | `FCM_ENABLED=true`, `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_KEY` | push | From your Firebase service-account JSON (keep the key's `\n`s) |
+| `PHOTO_MODERATION=rekognition`, `REKOGNITION_REGION`, `REKOGNITION_ACCESS_KEY_ID`, `REKOGNITION_SECRET_ACCESS_KEY` | ✅ **if the Dating hub is on** | Every dating photograph is looked at before another citizen sees it, and a photo with no verdict shows to nobody. Leave these blank and every card in the hub is a coloured letter of the alphabet — permanently, while each citizen's own editor shows their pictures perfectly, so nobody reports it. **The API refuses to boot** rather than serve that, and the error names the variable that is missing |
 | `SMS_PROVIDER=twilio`, `TWILIO_*` | ⛔ optional | Only if you add the Twilio SMS adapter for phone-OTP recovery |
 
-Each provider degrades gracefully: leave its vars unset for a first core deploy (media returns
+Most providers degrade gracefully: leave their vars unset for a first core deploy (media returns
 unsigned URLs, push/email no-op) and add them when you turn that feature on — no redeploy of code,
 just env vars.
+
+**Three do not, and the API says so at boot rather than at 11am.** `MEDIA_PRIVATE_BUCKET` unset puts
+health records in a public bucket; `PHOTO_MODERATION=off` serves unreviewed photographs of strangers
+to strangers; and the `REKOGNITION_*` trio unset is that second one wearing a different hat — nothing
+is served, so nothing is unsafe, and the hub is silently empty instead. All three refuse to start.
 
 ---
 

@@ -33,6 +33,14 @@ const HOLD_FAMILIES = ['Explicit', 'Explicit Nudity', 'Non-Explicit Nudity of In
 const REJECT_FAMILIES = ['Explicit', 'Explicit Nudity', 'Violence', 'Visually Disturbing', 'Hate Symbols'];
 
 
+/** How long a photo may sit unreviewed before a person is shown it. Longer than
+ *  any review takes, short enough that a stopped pipeline surfaces the same
+ *  morning it stops. */
+const STALE_PENDING_MS = 15 * 60_000;
+/** How old a pending row must be before the sweep looks at it again — past the
+ *  window in which it is simply still in flight. */
+const RETRY_PENDING_MS = 5 * 60_000;
+
 @Injectable()
 export class PhotoModerationService implements OnModuleInit {
   private readonly logger = new Logger(PhotoModerationService.name);
@@ -56,16 +64,45 @@ export class PhotoModerationService implements OnModuleInit {
     const region = this.config.get<string>('photoModeration.region') ?? '';
     const accessKeyId = this.config.get<string>('photoModeration.accessKeyId') ?? '';
     const secretAccessKey = this.config.get<string>('photoModeration.secretAccessKey') ?? '';
+    if (this.mode === 'rekognition' && region && accessKeyId && secretAccessKey) {
+      this.client = new RekognitionClient({ region, credentials: { accessKeyId, secretAccessKey } });
+    }
     if (process.env.NODE_ENV === 'production' && this.mode === 'off') {
       // Not a warning. A production process serving unreviewed strangers'
       // photos to strangers is the launch-blocking finding this service exists
       // to close, and a log line nobody reads would reopen it.
       throw new Error('PHOTO_MODERATION=off is not allowed in production.');
     }
-    if (this.mode === 'rekognition' && region && accessKeyId && secretAccessKey) {
-      this.client = new RekognitionClient({ region, credentials: { accessKeyId, secretAccessKey } });
-    } else if (this.mode === 'rekognition') {
-      this.logger.warn('Rekognition is not configured — every dating photo stays pending until it is.');
+    /**
+     * OFF BY OMISSION IS STILL OFF (28 Aug, launch audit).
+     *
+     * The line above refuses the mode somebody CHOOSES. Three env vars away sat
+     * the same state reached by forgetting, and it answered with one
+     * `logger.warn`: no client, so `review()` returns `pending` on its second
+     * line, `approvedOf` admits only `approved`, and every card in the hub is a
+     * coloured letter. Forever — nothing retried, and `queue()` reads `held`,
+     * so the backlog could not be seen from the console either. Meanwhile each
+     * citizen's own editor shows their photos perfectly, so everybody believes
+     * their pictures are up.
+     *
+     * That is not a degraded hub, it is a different product, and it is exactly
+     * what an operator gets by following a runbook that never names these
+     * variables. So it is fatal for the same reason `off` is: the failure has
+     * to reach somebody who can fix it, and a log line does not.
+     *
+     * Development keeps the warning: a laptop with no AWS account should still
+     * boot, and the sentence says plainly what will not work.
+     */
+    if (!this.configured) {
+      const missing = [
+        !region && 'REKOGNITION_REGION',
+        !accessKeyId && 'REKOGNITION_ACCESS_KEY_ID',
+        !secretAccessKey && 'REKOGNITION_SECRET_ACCESS_KEY',
+      ].filter(Boolean).join(', ');
+      const said = `Photo review is not configured (${missing || `PHOTO_MODERATION=${this.mode}`}). `
+        + 'No dating photo can be shown to anybody until it is.';
+      if (process.env.NODE_ENV === 'production') throw new Error(said);
+      this.logger.warn(said);
     }
   }
 
@@ -155,9 +192,59 @@ export class PhotoModerationService implements OnModuleInit {
     if (status === 'rejected' && !key.startsWith('inline/')) await swallow(this.storage.deleteHealthObject(key), 'dating: delete rejected photo', { key });
   }
 
-  /** The photos a person needs to look at, oldest first. */
-  async queue(limit = 50) {
-    return this.prisma.datingPhotoReview.findMany({ where: { status: 'held' }, orderBy: { createdAt: 'asc' }, take: limit });
+  /**
+   * The photos a person needs to look at, oldest first.
+   *
+   * `held` is the verdict that asks for a human. `pending` is not a verdict at
+   * all — it is what a photo says while the machine has not spoken, and it is
+   * the state EVERY photo is in when the machine cannot speak. That made the
+   * one screen a moderator would open to check on photo review the one screen
+   * that could not show photo review had stopped.
+   *
+   * So a pending row that has been waiting longer than any review takes joins
+   * the queue. The grace period is what keeps ordinary in-flight work out of a
+   * human's list: `fileAndReview` is best-effort and off the request path, so a
+   * photo is legitimately pending for seconds after a save.
+   */
+  async queue(limit = 50, staleAfterMs = STALE_PENDING_MS) {
+    const stale = new Date(Date.now() - staleAfterMs);
+    return this.prisma.datingPhotoReview.findMany({
+      where: { OR: [{ status: 'held' }, { status: 'pending', createdAt: { lt: stale } }] },
+      orderBy: { createdAt: 'asc' },
+      take: limit,
+    });
+  }
+
+  /**
+   * LOOK AGAIN AT WHAT NOBODY LOOKED AT.
+   *
+   * Every path to `pending` is a failure that might not repeat: no client yet,
+   * an unreadable object, a Rekognition throw. None of them was ever retried —
+   * the only cure was a moderator finding the manual backfill button, on a
+   * console they could not reach without a second undocumented env var. So a
+   * transient error at upload time made that photograph invisible for good.
+   *
+   * Bounded and oldest-first, so a genuinely broken dependency costs a fixed
+   * handful of calls every sweep rather than a storm. Inline photos are skipped:
+   * their review id is a digest of bytes that are no longer addressable.
+   */
+  async retryPending(limit = 25, olderThanMs = RETRY_PENDING_MS): Promise<number> {
+    if (!this.client) return 0;
+    const stale = new Date(Date.now() - olderThanMs);
+    // unbounded: `take` is the limit argument — a fixed handful per sweep
+    const rows = await this.prisma.datingPhotoReview.findMany({
+      where: { status: 'pending', createdAt: { lt: stale }, NOT: { key: { startsWith: 'inline/' } } },
+      orderBy: { createdAt: 'asc' },
+      take: limit,
+      select: { key: true, userId: true },
+    });
+    let looked = 0;
+    for (const row of rows) {
+      await swallow(this.review(row.key, row.userId), 'dating: retry photo review', { key: row.key });
+      looked += 1;
+    }
+    if (looked) this.logger.log(`Re-reviewed ${looked} photo(s) that had been waiting.`);
+    return looked;
   }
 
   /**
