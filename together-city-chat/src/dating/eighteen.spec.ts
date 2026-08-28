@@ -96,7 +96,11 @@ describe('the age gate refuses at the door', () => {
     expect(svc).toMatch(/if \(state !== 'approved'\)/);
     // Named rather than counted: a count cannot see a NEW ungated entrypoint,
     // and these four are the ones that show a citizen somebody else.
-    for (const fn of ['matchesUncached', 'discoverUncached', 'stackUncached', 'matchDetail']) {
+    // `matchesUncached` was the fourth until 28 Aug, when it was deleted: the
+    // curated shelf's rules moved onto the stack and the dead route went with
+    // them. Removing it from this list is the only edit that change needed
+    // here, which is the point — the gate is per-entrypoint, not a count.
+    for (const fn of ['discoverUncached', 'stackUncached', 'matchDetail']) {
       const at = svc.indexOf(`${fn}(`);
       const body = svc.slice(at, at + 400);
       expect({ fn, gated: /myApprovedProfile\(/.test(body) }).toEqual({ fn, gated: true });

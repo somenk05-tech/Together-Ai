@@ -90,13 +90,6 @@ export class DatingController {
     return this.dating.deleteProfile(user.sub);
   }
 
-  @Get('matches')
-  @Throttle(LIST_LIMIT)
-  matches(@CurrentUser() user: JwtUser, @Query() query: Record<string, unknown>) {
-    const { kind, limit } = parseOrThrow(MatchesQuerySchema, query);
-    return this.dating.matches(user.sub, kind, limit);
-  }
-
   @Get('discover')
   @Throttle(LIST_LIMIT)
   discover(@CurrentUser() user: JwtUser, @Query() query: Record<string, unknown>) {

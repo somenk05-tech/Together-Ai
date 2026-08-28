@@ -1,9 +1,13 @@
 import { DatingService } from './dating.service';
 
 /**
- * The three list reads are kept for a minute per viewer, and thrown away the
- * moment that viewer does anything that changes them. A stub Redis is enough
- * to show both halves; the arithmetic underneath is not exercised here.
+ * The list reads are kept for a minute per viewer, and thrown away the moment
+ * that viewer does anything that changes them. A stub Redis is enough to show
+ * both halves; the arithmetic underneath is not exercised here.
+ *
+ * Driven through `stack` since 28 Aug. It used to be driven through `matches`,
+ * which was deleted when the curated shelf's rules moved onto the stack — the
+ * cache wrapper is shared, so the vehicle changed and the assertions did not.
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function build(up = true) {
@@ -15,36 +19,36 @@ function build(up = true) {
     incr: async (k: string) => { const n = Number(store.get(k) ?? 0) + 1; store.set(k, String(n)); return n; },
   } };
   let computed = 0;
-  s.matchesUncached = async () => { computed += 1; return [{ score: 90, n: computed }]; };
+  s.stackUncached = async () => { computed += 1; return [{ score: 90, n: computed }]; };
   return { s, computed: () => computed, store };
 }
 
 describe('the list cache', () => {
   it('scores once and answers from the cache until the viewer acts', async () => {
     const { s, computed } = build();
-    await s.matches('me', 'romantic', 48);
-    await s.matches('me', 'romantic', 48);
+    await s.stack('me', 'romantic', 48);
+    await s.stack('me', 'romantic', 48);
     expect(computed()).toBe(1);
     // A different page is a different answer.
-    await s.matches('me', 'romantic', 96);
+    await s.stack('me', 'romantic', 96);
     expect(computed()).toBe(2);
     // The viewer liked somebody: everything they had cached is stale.
     await s.bumpListVersion('me');
-    await s.matches('me', 'romantic', 48);
+    await s.stack('me', 'romantic', 48);
     expect(computed()).toBe(3);
   });
 
   it('is one viewer’s cache, never another’s', async () => {
     const { s, computed } = build();
-    await s.matches('me', 'romantic', 48);
-    await s.matches('you', 'romantic', 48);
+    await s.stack('me', 'romantic', 48);
+    await s.stack('you', 'romantic', 48);
     expect(computed()).toBe(2);
   });
 
   it('is simply absent when Redis is down', async () => {
     const { s, computed } = build(false);
-    await s.matches('me', 'romantic', 48);
-    await s.matches('me', 'romantic', 48);
+    await s.stack('me', 'romantic', 48);
+    await s.stack('me', 'romantic', 48);
     expect(computed()).toBe(2);
   });
 });

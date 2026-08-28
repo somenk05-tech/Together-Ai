@@ -23,6 +23,32 @@ function profile(userId: string, over: Record<string, unknown> = {}) {
   };
 }
 
+/**
+ * A candidate who clears the curated shelf's own rules (28 Aug).
+ *
+ * `profile()` above is deliberately bare — the "says nothing rather than
+ * something empty" test needs it that way, and a MATCHED person is exempt from
+ * discovery filters, so it stays valid there. An UNMATCHED candidate now has
+ * to clear a 40% completion floor and have said what they are looking for
+ * before the shelf will show them. Tests about paging and histograms need
+ * candidates that get as far as being counted, so they use this.
+ *
+ * 60% complete: bio, three interests, three traits, a goal, languages, a city.
+ */
+const SHELF_READY = JSON.stringify({
+  city: 'Pune', languages: ['English', 'Marathi'], relationshipGoal: 'Long-term',
+  personalityTraits: ['Calm', 'Creative', 'Curious'],
+});
+
+function candidate(userId: string, over: Record<string, unknown> = {}) {
+  return profile(userId, {
+    bio: 'Long enough a bio to count as one, which is twenty characters or more.',
+    interests: 'Fitness,Movies,Cooking',
+    extras: SHELF_READY,
+    ...over,
+  });
+}
+
 function serviceWith(candidates: Array<Record<string, unknown>>, states: Array<Record<string, unknown>>) {
   const prisma = {
     datingProfile: {
@@ -108,7 +134,7 @@ describe('curated stack keeps mutually-liked people', () => {
   it('keeps matches out of the discovery pool and its histogram', async () => {
     // They are already chosen — they should not still read as a candidate.
     const { svc } = serviceWith(
-      [profile('rhea'), profile('anita')],
+      [profile('rhea'), candidate('anita')],
       [matchedState('rhea')],
     );
     const res = await svc.stack('me', 'romantic') as unknown as {
@@ -126,7 +152,7 @@ describe('curated stack keeps mutually-liked people', () => {
   it('sends the page the caller asked for, ranked, and says the list goes on', async () => {
     // `limit` cuts AFTER ranking; the histogram still counts everybody, and
     // the page says whether there is more. No limit is the whole list.
-    const { svc } = serviceWith([profile('a'), profile('b'), profile('c')], []);
+    const { svc } = serviceWith([candidate('a'), candidate('b'), candidate('c')], []);
     const page = await svc.stack('me', 'romantic', 2) as unknown as {
       candidates: Array<{ score: number }>; totalCandidates: number; hasMore: boolean; distribution: Array<{ count: number }>;
     };
@@ -170,6 +196,58 @@ describe('curated stack keeps mutually-liked people', () => {
     profession: 'Architect', city: 'Pune', heightCm: 168,
     languages: ['English', 'Marathi'], relationshipGoal: 'Long-term',
     personalityTraits: ['Calm', 'Creative'],
+  });
+
+  /**
+   * ── THE SHELF'S OWN RULES, ON THE SHELF THAT RENDERS (28 Aug) ─────────────
+   *
+   * The 40% completion floor and the stated-intent rule were written on 1 Aug
+   * into `matchesUncached` — a method this page had stopped calling on 26 Jul.
+   * For the month between, a stub reached Curated Matches while the comment
+   * above the rule said it could not. These four assertions are the coverage
+   * that would have caught it, from the side that matters: behaviour, not the
+   * presence of a line of source.
+   */
+  it('keeps a stub off the shelf', async () => {
+    const { svc } = serviceWith([profile('stub')], []);
+    const res = await svc.stack('me', 'romantic') as unknown as { candidates: unknown[]; totalCandidates: number };
+    expect(res.candidates).toHaveLength(0);
+    expect(res.totalCandidates).toBe(0);
+  });
+
+  it('keeps somebody who has not said what they want off the ROMANTIC shelf', async () => {
+    // Complete enough, but no relationshipGoal. This is the half of the rule
+    // that is not about effort — it is about whether the two people are here
+    // for the same thing.
+    const noGoal = JSON.stringify({
+      city: 'Pune', languages: ['English', 'Marathi'],
+      personalityTraits: ['Calm', 'Creative', 'Curious'],
+    });
+    const { svc } = serviceWith([candidate('quiet', { extras: noGoal })], []);
+    const res = await svc.stack('me', 'romantic') as unknown as { candidates: unknown[] };
+    expect(res.candidates).toHaveLength(0);
+  });
+
+  it('still shows that person on the PLATONIC shelf', async () => {
+    // `relationshipGoal` is a romantic field. Applying the rule to platonic
+    // — which is what the dead code did — empties that tab completely.
+    const noGoal = JSON.stringify({
+      city: 'Pune', languages: ['English', 'Marathi'],
+      personalityTraits: ['Calm', 'Creative', 'Curious'],
+    });
+    const { svc } = serviceWith([candidate('quiet', { extras: noGoal })], []);
+    const res = await svc.stack('me', 'platonic') as unknown as { candidates: unknown[] };
+    expect(res.candidates).toHaveLength(1);
+  });
+
+  it('never applies either rule to somebody you already matched', async () => {
+    // The whole point of the `!isMatched` placement. `profile()` is a stub and
+    // has no goal, so both rules would drop it — and dropping it would delete
+    // an existing match from the page, which is the defect the third audit
+    // already had to fix once.
+    const { svc } = serviceWith([profile('rhea')], [matchedState('rhea')]);
+    const res = await svc.stack('me', 'romantic') as unknown as { matched: Array<{ user: { id: string } }> };
+    expect(res.matched.map((m) => m.user.id)).toEqual(['rhea']);
   });
 
   it('carries the six fields the curated card is written from', async () => {

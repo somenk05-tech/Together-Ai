@@ -1168,10 +1168,6 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
    * No limit — the old behaviour, whole list — for any caller that never
    * learned the parameter.
    */
-  async matches(userId: string, kind: MatchKind, limit?: number) {
-    return this.cachedList(userId, 'matches', kind, limit, () => this.matchesUncached(userId, kind, limit));
-  }
-
   /**
    * THE CALLER'S OWN PROFILE, AND IT HAS TO BE APPROVED (27 Aug, launch audit).
    *
@@ -1199,171 +1195,6 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
         : 'Your dating profile is still being reviewed. This usually takes a moment — try again shortly.');
     }
     return mine;
-  }
-
-  private async matchesUncached(userId: string, kind: MatchKind, limit?: number) {
-    const mine = await this.myApprovedProfile(userId);
-
-    // Narrowed in SQL, capped, ordered — see POOL_CEILING. Every JS check below
-    // still runs, so this can only be narrower than the filter, never looser.
-    const myDForQuery = this.parseDX((mine as { extras?: string | null }).extras);
-    const candidates = await this.prisma.datingProfile.findMany({
-      where: this.poolWhere(userId, mine, myDForQuery),
-      include: { user: { select: { id: true, name: true, emailVerified: true } } },
-      orderBy: { updatedAt: 'desc' },
-      take: POOL_CEILING,
-    });
-
-    // unbounded: their own match states — bounded by the pool above
-    const states = await this.prisma.datingMatch.findMany({
-      where: { OR: [{ userOneId: userId }, { userTwoId: userId }], kind },
-    });
-    const stateFor = (otherId: string) =>
-      states.find((s) => s.userOneId === otherId || s.userTwoId === otherId);
-
-    const myD = this.parseDX((mine as { extras?: string | null }).extras);
-    // Privacy: connections (family/friend/any) and blocked users NEVER enter the
-    // dating pool — enforced before any scoring (spec: Connection Exclusion).
-    const excluded = await this.connectionExclusions(userId);
-    const results = [];
-    const photoJobs: Array<{ keys: readonly string[]; into: string[] }> = [];
-    /**
-     * Two passes, because the curated bar can be drawn against this viewer's own
-     * candidate distribution now (`curatedBar`, DATING_BAR=p90) and a
-     * distribution cannot be known halfway through building it.
-     *
-     * The first pass is arithmetic only — no photos, no signed URLs, no further
-     * queries — so scoring twice is not paying twice for anything that costs.
-     * Under the default fixed bar the two passes produce exactly what the single
-     * pass produced, which is what `stack-matched.spec.ts` and the pool fixture
-     * are checking when they pass unchanged.
-     */
-    const rows: {
-      cand: (typeof candidates)[number];
-      state: ReturnType<typeof stateFor>;
-      score: number;
-      breakdown: FactorBreakdown;
-      signA: string; signB: string;
-      candDX: DXProfile & DXVisibility & DXCard;
-      myInterests: string[]; theirInterests: string[];
-      /** How much of the reading is an answer rather than arithmetic (0..1). */
-      cov: number;
-    }[] = [];
-    for (const cand of candidates) {
-      if (excluded.has(cand.userId)) continue;
-      const state = stateFor(cand.userId);
-      // Quality rules: skip passed (cooldown = forever here) and existing matches.
-      if (state && this.passedBy(state, userId)) continue;
-      if (state?.status === 'matched') continue;
-
-      // Hard filters. Romantic respects seeking/gender both ways; friendships don't.
-      if (kind === 'romantic') {
-        const theirD = this.parseDX((cand as { extras?: string | null }).extras);
-        if (!seeks(mine.seeking, myD, cand.gender) || !seeks(cand.seeking, theirD, mine.gender)) continue;
-        const theirAge = this.ageOf(cand.birthDate);
-        // Both directions. Showing somebody whose own filters exclude you is
-        // offering a door that is locked from the other side.
-        if (unreachableReason(myD, theirD, this.ageOf(mine.birthDate), theirAge)) continue;
-      }
-
-      // Weighted compatibility (astrology-led) with a per-factor breakdown.
-      const { score: astro, signA, signB } = compatibilityScore(
-        { userId, birthDate: mine.birthDate, interests: this.splitInterests(mine.interests) },
-        { userId: cand.userId, birthDate: cand.birthDate, interests: this.splitInterests(cand.interests) },
-      );
-      const myInterests = this.splitInterests(mine.interests);
-      const theirInterests = this.splitInterests(cand.interests);
-      const candDX = this.parseDX((cand as { extras?: string | null }).extras) as DXProfile & DXVisibility & DXCard;
-      // M4: near-empty profiles do not reach the curated shelf, however well
-      // the stars align — a strong score over a stub oversells a stranger.
-      const candCompletion = profileCompletion({
-        ...(candDX as Record<string, unknown>),
-        bio: cand.bio, interests: this.splitInterests(cand.interests),
-      });
-      if (candCompletion.percent < CURATED_MIN_COMPLETION) continue;
-      // See POOL_CEILING's second note: a stated intent is the price of being on
-      // somebody's curated shelf. Discover still shows them.
-      if (!canonicalGoal(candDX.relationshipGoal)) continue;
-      const breakdown = factorScores(astro, myInterests, theirInterests, myD, candDX);
-      const cov = coverage(myD, candDX, myInterests, theirInterests);
-      const score = overallScore(breakdown, confidenceFor(myD, candDX, myInterests, theirInterests));
-      rows.push({ cand, state, score, breakdown, signA, signB, candDX, myInterests, theirInterests, cov });
-    }
-
-    // Where the shelf starts for this viewer. Fixed 75 unless DATING_BAR=p90.
-    const bar = curatedBar(rows.map((r) => r.score), MATCH_THRESHOLD);
-    for (const row of rows) {
-      const { cand, state, score, breakdown, signA, signB, candDX, myInterests, theirInterests, cov } = row;
-      if (score < bar) continue;
-      // THE THRESHOLD-VISIBILITY GATE STOOD HERE AND IS GONE (owner, 27 Aug:
-      // "remove this filter all together and show the profile to everyone
-      // from 100 percent to 1 percent matches"). A stored
-      // visibility:'threshold' now means simply visible; paused and hidden
-      // are unchanged, and they are the only invisibilities left.
-
-      // The pair's score is no longer written here. A read that wrote
-      // POOL_CEILING rows was the write amplification the launch audit named;
-      // the learner's evidence is the DECISION, so the cache is written where
-      // one is made — like, pass, and the detail page (cachePairScore).
-      // Their uploaded gallery (first is primary). Falls back to the account
-      // photo so a card is never empty. Only eligible viewers reach this point.
-      const candPhotos = (candDX as { photos?: string[] }).photos ?? [];
-      const photos: string[] = [];
-      // Gallery or nothing. The account photo was the fallback here, which
-      // put the face the whole city knows somebody by on a card shown to
-      // strangers the moment their gallery was empty — and an approved
-      // profile is required to have a photo, so the fallback mostly served
-      // profiles that should not have been on a card at all.
-      photoJobs.push({ keys: candPhotos.slice(0, LIST_PHOTOS), into: photos });
-      results.push({
-        matchId: state?.id ?? null,
-        // The name they chose to date under, everywhere they are drawn —
-        // the detail page and the chats already preferred it; a card that
-        // said the account name instead was the same person twice.
-        user: this.cardIdentity(cand.user, candDX),
-        bio: cand.bio,
-        interests: theirInterests,
-        photos,
-        age: this.ageOf(cand.birthDate),
-        yourSign: signA,
-        theirSign: signB,
-        score,
-        breakdown,
-        // WHAT THE NUMBER IS STANDING ON. `confidence` was computed, folded into
-        // the integer and never sent — so a citizen could not tell "51% because
-        // you are incompatible" from "51% because we know almost nothing about
-        // either of you". Both go on the card now; the arithmetic is unchanged.
-        coverage: cov,
-        confidence: confidenceFor(myD, candDX, myInterests, theirInterests),
-        reasons: explain(breakdown, sharedItems(myInterests, theirInterests), preferenceNotes(myD, candDX), distanceNote(myD, candDX)),
-        frictions: frictions(breakdown, myD, candDX),
-        likedByMe: state ? this.likedBy(state, userId) : false,
-        matched: false,
-        conversationId: state?.conversationId ?? null,
-        // ── THE SIX THE CARD READS ──────────────────────────────────────
-        // Off the extras this method has already parsed and scored with, so
-        // this is six more keys in the response and not one more query, one
-        // more filter or one more rule about who is shown. They are the same
-        // six matchDetail returns: a list card that shows a person as a
-        // person, rather than as a percentage with a face, would otherwise
-        // have to fetch the whole profile per row to say what they do.
-        occupation: candDX.profession ?? null,
-        city: candDX.city ?? null,
-        heightCm: candDX.heightCm ?? null,
-        languages: candDX.languages ?? [],
-        relationshipGoal: candDX.relationshipGoal ?? null,
-        personalityTraits: candDX.personalityTraits ?? [],
-      });
-    }
-    // Everyone who passes the filters, best first. The only cut is the one
-    // the caller asked for by name: choosing who is worth talking to is the
-    // citizen's decision, and a silent cut at 24 once made it for them.
-    results.sort((a, b) => b.score - a.score);
-    const page = limit ? results.slice(0, limit) : results;
-    const shown = new Set(page.map((r) => r.photos));
-    await this.fillPhotos(userId, photoJobs.filter((j) => shown.has(j.into)));
-    this.analytics.track('dating.matches.viewed', userId, { kind, shown: page.length, pool: candidates.length });
-    return page;
   }
 
   /**
@@ -1807,6 +1638,51 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       );
       const theirInterests = this.splitInterests(cand.interests);
       const candDX = this.parseDX((cand as { extras?: string | null }).extras) as DXProfile & DXVisibility & DXCard & { photos?: string[] };
+
+      /**
+       * THE TWO RULES THE CURATED SHELF CLAIMED AND DID NOT HAVE. (28 Aug.)
+       *
+       * Both of these were written on 1 Aug into `matchesUncached` — six days
+       * AFTER this page stopped calling it. `DatingMatches.tsx` has rendered
+       * the stack since 26 Jul, so from the day they were written until today
+       * a near-empty profile and a profile that had never said what it wanted
+       * both reached the curated shelf, while the comment three lines above
+       * them said they could not. Nothing was red: the route still answered
+       * 200, and no spec asked either question. That is the shape of failure
+       * this file's guards exist to catch, and it went a month uncaught
+       * because the rule and the screen were in different methods.
+       *
+       * They live here now, and `matches()` is gone rather than left as a
+       * second place where the shelf's rules could be edited without effect.
+       *
+       * INSIDE `!isMatched`, WHICH IS NOT WHERE THEY SAT BEFORE. `matches()`
+       * dropped every match outright, so the question never arose there. This
+       * list deliberately merges matched partners in, and a discovery filter
+       * that un-shows one is the exact defect the block above this warns
+       * about and the 28 Aug takedown fix already had to repair once: someone
+       * who trims their bio after you match must not vanish out of your list.
+       * These decide who you are OFFERED, never who you have already chosen.
+       */
+      if (!isMatched) {
+        // A strong score over a stub oversells a stranger.
+        const candCompletion = profileCompletion({
+          ...(candDX as Record<string, unknown>),
+          bio: cand.bio, interests: theirInterests,
+        });
+        if (candCompletion.percent < CURATED_MIN_COMPLETION) continue;
+        /**
+         * A stated intent is the price of being on somebody's curated shelf —
+         * for ROMANTIC only, which is a deliberate change from the dead code
+         * rather than a copy of it. `matchesUncached` applied this to both
+         * kinds, which would have emptied the PLATONIC shelf completely:
+         * `relationshipGoal` is a romantic field and a platonic candidate has
+         * no reason to carry one. That the rule could sit there for a month
+         * without anyone noticing it deleted an entire tab is the clearest
+         * evidence available that the method was never once run.
+         */
+        if (kind === 'romantic' && !canonicalGoal(candDX.relationshipGoal)) continue;
+      }
+
       const breakdown = factorScores(astro, myInterests, theirInterests, myD, candDX);
       const conf = confidenceFor(myD, candDX, myInterests, theirInterests);
       const score = overallScoreWith(breakdown, ranking.weights, conf);
@@ -1888,6 +1764,25 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     const matched = matchedCards.sort((a, b) => b.score - a.score);
     const going = new Set([...shownCards, ...matched].map((c) => c.photos));
     await this.fillPhotos(userId, photoJobs.filter((j) => going.has(j.into)));
+
+    /**
+     * THE FUNNEL'S THIRD STEP, WHICH HAS BEEN READING ZERO SINCE 26 JUL.
+     *
+     * `dating.matches.viewed` is step three of six in FUNNEL, and the only
+     * place that emitted it was `matchesUncached` — dead from the day this
+     * page switched to the stack. So the digest has been comparing every
+     * approved profile against a step nobody could reach, reporting a 0%
+     * conversion from `dating.profile.approved` and alarming on a drop that
+     * was never a drop. The number was wrong in the direction that looks like
+     * a product problem, which is the worst direction for a launch metric.
+     *
+     * Emitted here because this IS the matches view now. `shown` counts the
+     * cards actually sent and `pool` the profiles read, so the two keep the
+     * meanings the digest already assumes.
+     */
+    this.analytics.track('dating.matches.viewed', userId, {
+      kind, shown: shownCards.length, pool: candidates.length,
+    });
 
     // `candidates` is the whole ranked list, not a page of it. `top` stays
     // because the page leads with it, but it is now the first element of

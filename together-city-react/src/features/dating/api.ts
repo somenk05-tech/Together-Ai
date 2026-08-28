@@ -196,7 +196,6 @@ export const datingApi = {
    *  server writes the mark. See the API's selfie.ts. */
   saveSelfie: (key: string) => api.post<{ selfieOnFile: true; selfieAt: string }>('/dating/selfie', { key }).then((r) => r.data),
   clearSelfie: () => api.delete<{ selfieOnFile: false; selfieAt: null }>('/dating/selfie').then((r) => r.data),
-  matches: (kind: MatchKind) => api.get<CuratedMatch[]>('/dating/matches', { params: { kind } }).then((r) => r.data),
   discover: (kind: MatchKind, limit?: number) => api.get<DiscoverResult>('/dating/discover', { params: { kind, limit } }).then((r) => r.data),
   matchDetail: (targetUserId: string, kind: MatchKind) => api.get<MatchDetail>(`/dating/matches/${targetUserId}`, { params: { kind } }).then((r) => r.data),
   like: (targetUserId: string, kind: MatchKind) =>
