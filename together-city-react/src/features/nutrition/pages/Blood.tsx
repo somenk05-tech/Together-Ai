@@ -35,6 +35,21 @@ export function Blood() {
    * can be read from its source.
    */
   const consentUnknown = consents.isError || !consents.data;
+  /**
+   * A DEFAULT IS NOT AN ANSWER, AND THE SCREEN USED TO PRESENT IT AS ONE.
+   *
+   * This card drew the switch already on and said "When on, your recipes and
+   * meal plans are designed around your latest blood panel" — the sentence a
+   * person reads as a description of a choice they made. Most people arriving
+   * here have made no choice: same-app hubs read biomarkers by default until
+   * revoked, and until 28 Aug the server wrote that default into the database
+   * as a granted consent, so nothing could tell the two apart.
+   *
+   * `answered` now says which it is, and where it is the default the card says
+   * so in the sentence with the switch rather than in a policy page. The
+   * default itself is unchanged; being told about it is the fix.
+   */
+  const unanswered = !!nutrition && !nutrition.answered;
   const hasPanel = (latest.data?.markers?.length ?? 0) > 0;
   const toggle = () => setConsent.mutate({ hub: 'nutrition', granted: !on });
 
@@ -76,6 +91,7 @@ export function Blood() {
             <strong style={{ fontSize: 15 }}>Connect to Medical Hub</strong>
             <p className="muted" style={{ fontSize: 13, margin: '4px 0 0', lineHeight: 1.55 }}>
               When on, your recipes and meal plans are designed around your latest blood panel.
+              {unanswered && ' This is on unless you turn it off — you have not been asked before now.'}
             </p>
           </div>
           <button

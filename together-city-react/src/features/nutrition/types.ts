@@ -153,6 +153,12 @@ export interface WeekNutritionSummary {
 /** Medical Nutrition Recommendation card (condition guidelines vs preferences). */
 export interface MedRecCard {
   condition: string; icon: string; title: string; intro: string;
+  /** What actually fired the card — a marker from the panel, or a chip from the
+   *  health profile. Computed server-side so the screen cannot imply a test
+   *  that was never read: three of the five cards read no marker at all. */
+  basis: string;
+  /** "not a diagnosis", single-sourced on the card so no screen can drop it. */
+  caveat: string;
   recs: Array<{ key: string; label: string; reason: string; applyable: boolean }>;
   scoreBefore: number; scoreAfter: number;
 }

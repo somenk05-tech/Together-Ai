@@ -89,6 +89,15 @@ export function classifyTrend(
 }
 
 /** Hubs that may read Medical biomarkers, and what each uses them for. */
+/**
+ * Whether a same-app hub may read biomarkers when the citizen has never
+ * answered. One constant, read by `consents()` and by `sharedBiomarkers()`,
+ * because a default written in two places is a default that will disagree with
+ * itself the day somebody changes one of them. Changing this to `false` is the
+ * whole of switching the product to ask-first.
+ */
+export const DEFAULT_HUB_ACCESS = true;
+
 export const CONSENT_HUBS = [
   { hub: 'nutrition', label: 'Nutrition', reads: 'Personalises meal plans, targets and supplements from your markers.' },
   { hub: 'beauty', label: 'Beauty', reads: 'Tailors skin/hair advice (e.g. vitamin D, ferritin, B12).' },
@@ -1353,18 +1362,46 @@ export class MedicalService implements OnModuleInit {
   }
 
   // ─────────────── consent core ───────────────
-  /** Consent per hub (defaults created granted=true the first time). */
+  /**
+   * READING THE LIST NO LONGER WRITES A CONSENT NOBODY GAVE (28 Aug audit).
+   *
+   * This method used to CREATE a `granted: true` row for every hub the first
+   * time anything read it. Nobody was asked. Two things followed, and the
+   * second is the one that mattered:
+   *
+   *  · the citizen's blood panel became readable by Nutrition, Beauty and
+   *    Fitness by default — which is the product's standing behaviour and is
+   *    not changed here;
+   *  · the database gained an affirmative record of a permission that was
+   *    never granted, indistinguishable from one that was. An audit of that
+   *    table could not tell the two apart, which is the difference between a
+   *    consent record and a decoration.
+   *
+   * The default still applies — `DEFAULT_HUB_ACCESS` below is the one place it
+   * is written down, and `sharedBiomarkers` reads the same constant — but it
+   * is now computed at read time rather than persisted as an answer. A row
+   * exists only where the citizen actually moved the switch, and `answered`
+   * says which is which, so a screen can tell them the truth about a
+   * connection they have never been asked about.
+   *
+   * Flipping the default itself to ask-first is a product decision, not this
+   * one: it would take blood-personalised plans away from everybody currently
+   * getting them until they opted back in.
+   */
   async consents(userId: string) {
     // unbounded: one row per hub — CONSENT_HUBS bounds this, not the citizen
     const existing = await this.prisma.medicalConsent.findMany({ where: { userId } });
     const byHub = new Map(existing.map((c) => [c.hub, c]));
-    const out = [];
-    for (const h of CONSENT_HUBS) {
-      let row = byHub.get(h.hub);
-      if (!row) row = await this.prisma.medicalConsent.create({ data: { userId, hub: h.hub, granted: true } });
-      out.push({ hub: h.hub, label: h.label, reads: h.reads, granted: row.granted, updatedAt: row.updatedAt.toISOString() });
-    }
-    return out;
+    return CONSENT_HUBS.map((h) => {
+      const row = byHub.get(h.hub);
+      return {
+        hub: h.hub, label: h.label, reads: h.reads,
+        granted: row ? row.granted : DEFAULT_HUB_ACCESS,
+        /** false = never asked, and the value above is the default speaking. */
+        answered: Boolean(row),
+        updatedAt: row ? row.updatedAt.toISOString() : null,
+      };
+    });
   }
 
   async setConsent(userId: string, hub: string, granted: boolean) {
@@ -1379,7 +1416,7 @@ export class MedicalService implements OnModuleInit {
   /** The consent gate other hubs call: returns biomarkers only if the hub is permitted. */
   async sharedBiomarkers(userId: string, hub: string) {
     const consent = await this.prisma.medicalConsent.findUnique({ where: { userId_hub: { userId, hub } } });
-    const granted = consent ? consent.granted : true; // default-allow same-app hubs until revoked
+    const granted = consent ? consent.granted : DEFAULT_HUB_ACCESS;
     if (!granted) throw new ForbiddenException(`${hub} does not have consent to read your medical biomarkers`);
     const latest = await this.prisma.medicalBloodTest.findFirst({
       where: { userId }, orderBy: { takenOn: 'desc' }, include: { biomarkers: true },

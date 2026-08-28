@@ -39,12 +39,48 @@ export interface MedRecCard {
   condition: string;                  // stable key: ckd | cholesterol | diabetes | fattyLiver | uricAcid
   icon: string;
   title: string;
+  /**
+   * WHAT ACTUALLY FIRED THIS CARD, in the citizen's words (28 Aug audit).
+   *
+   * Three of the five cards read no marker at all — kidney, fatty liver and
+   * uric acid fire on a health-profile CHIP and nothing else — and they said
+   * "Your profile and blood tests suggest your kidneys need extra nutritional
+   * support", "Your profile indicates fatty liver" and, worst of the three,
+   * "Your uric acid is elevated". That last sentence asserts a lab value this
+   * app has never seen, on the strength of a checkbox.
+   *
+   * The other two can fire either way, and said "Elevated cholesterol
+   * detected" and "Your blood sugar is above the recommended range" whichever
+   * it was. `detected` is a clinical verb and the app is not the thing that
+   * detected anything.
+   *
+   * So the basis is computed rather than written: a marker says a marker, a
+   * chip says a chip, and neither says a diagnosis.
+   */
+  basis: string;
+  /** Single-sourced so no screen can render a card without it. */
+  caveat: string;
   intro: string;
   recs: MedRec[];
   scoreBefore: number;
   scoreAfter: number;
   patch: MedRecPatch;
 }
+
+/**
+ * The sentence `clinical-engine.ts` has carried in its header since it was
+ * written — "educational guidance and flags — NOT a diagnosis, and not a
+ * substitute for a clinician" — said where a citizen reads it rather than
+ * where a developer does. It was in no Nutrition screen at all; every other
+ * health surface in the city has its own version ON the screen.
+ */
+export const MED_REC_CAVEAT =
+  'This is guidance for your meal plan, not a diagnosis. Talk to your doctor or a registered dietitian about what your results mean.';
+
+/** "You have listed X in your health profile." — a chip is not a finding. */
+const fromProfile = (what: string) => `You have listed ${what} in your health profile.`;
+/** "Your latest blood test shows X above the reference range." — a number, attributed. */
+const fromPanel = (what: string) => `Your latest blood test shows ${what} above the reference range.`;
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const vegDayCount = (weekly: Record<string, 'veg' | 'nonveg'>): number =>
@@ -161,8 +197,10 @@ export function buildMedicalRecs(
     const after = kidneyScore(applyPatch(prefs, patch));
     out.push({
       condition: 'ckd', icon: '🩺',
-      title: 'Your kidneys need extra nutritional support',
-      intro: 'Your profile and blood tests suggest your kidneys need extra nutritional support. Your current food preferences can still be used — a few adjustments would allow a more kidney-friendly meal plan.',
+      title: 'Kidney-friendly changes to your meal plan',
+      basis: fromProfile('kidney disease'),
+      caveat: MED_REC_CAVEAT,
+      intro: 'Your current food preferences can still be used — a few adjustments would make the plan more kidney-friendly.',
       recs, scoreBefore: before, scoreAfter: Math.max(after, before), patch,
     });
   }
@@ -171,6 +209,8 @@ export function buildMedicalRecs(
   if (flags.ldl === 'high' || flags.trig === 'high' || has('cholesterol')) {
     const recs: MedRec[] = [];
     const patch: MedRecPatch = {};
+    // Named individually, because "your cholesterol" is not what the report said.
+    const lipidsHigh = [flags.ldl === 'high' ? 'LDL' : null, flags.trig === 'high' ? 'triglycerides' : null].filter(Boolean) as string[];
     recs.push({ key: 'veg-servings', label: 'Increase vegetables to 5+ servings/day', reason: 'Soluble fibre binds cholesterol — the planner will emphasise it.', applyable: false });
     if (!hasP(prefs, 'Lentils & Dal') && !hasP(prefs, 'Beans & Legumes') && !hasP(prefs, 'Legumes')) {
       recs.push({ key: 'add-legumes', label: 'Add legumes ~3 times/week', reason: 'Legume protein and fibre improve LDL — added as a protein option.', applyable: true });
@@ -191,8 +231,10 @@ export function buildMedicalRecs(
     const after = cholesterolScore(applyPatch(prefs, patch));
     out.push({
       condition: 'cholesterol', icon: '🫀',
-      title: 'Elevated cholesterol detected',
-      intro: 'Your blood test indicates elevated cholesterol. The following preference changes could improve your meal plan.',
+      title: 'Cholesterol-friendly changes to your meal plan',
+      basis: lipidsHigh.length ? fromPanel(lipidsHigh.join(' and ')) : fromProfile('high cholesterol'),
+      caveat: MED_REC_CAVEAT,
+      intro: 'These preference changes would make the plan more cholesterol-friendly.',
       recs, scoreBefore: before, scoreAfter: Math.max(after, before), patch,
     });
   }
@@ -214,8 +256,10 @@ export function buildMedicalRecs(
     const after = diabetesScore(applyPatch(prefs, patch));
     out.push({
       condition: 'diabetes', icon: '🩸',
-      title: 'Blood sugar above the recommended range',
-      intro: 'Your blood sugar is above the recommended range. To improve glucose control:',
+      title: 'Blood-sugar-friendly changes to your meal plan',
+      basis: flags.hba1c === 'high' ? fromPanel('HbA1c') : fromProfile('diabetes'),
+      caveat: MED_REC_CAVEAT,
+      intro: 'These preference changes would steady the plan\u2019s glucose load.',
       recs, scoreBefore: before, scoreAfter: Math.max(after, before), patch,
     });
   }
@@ -236,8 +280,10 @@ export function buildMedicalRecs(
     const after = liverScore(applyPatch(prefs, patch));
     out.push({
       condition: 'fattyLiver', icon: '🫁',
-      title: 'Your liver would benefit from a few changes',
-      intro: 'Your profile indicates fatty liver. These adjustments help reduce liver fat:',
+      title: 'Liver-friendly changes to your meal plan',
+      basis: fromProfile('fatty liver'),
+      caveat: MED_REC_CAVEAT,
+      intro: 'These adjustments are the ones the guidance associates with reducing liver fat:',
       recs, scoreBefore: before, scoreAfter: Math.max(after, before), patch,
     });
   }
@@ -263,8 +309,10 @@ export function buildMedicalRecs(
     const after = uricScore(applyPatch(prefs, patch));
     out.push({
       condition: 'uricAcid', icon: '🦴',
-      title: 'Elevated uric acid',
-      intro: 'Your uric acid is elevated. Recommended adjustments:',
+      title: 'Uric-acid-friendly changes to your meal plan',
+      basis: fromProfile('high uric acid or gout'),
+      caveat: MED_REC_CAVEAT,
+      intro: 'These are the adjustments the guidance associates with a lower purine load:',
       recs, scoreBefore: before, scoreAfter: Math.max(after, before), patch,
     });
   }

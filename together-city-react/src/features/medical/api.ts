@@ -102,7 +102,14 @@ export interface IngestResult {
 }
 export interface DoctorCard { id: string; name: string; handle: string; specialty: string; hospital: string | null; languages: string[]; rating: number; priceInr: number }
 export interface ConsultSummary { id: string; doctorName: string; specialty: string; reason: string | null; status: string; conversationId: string | null; scheduledAt: string | null; createdAt: string }
-export interface ConsentRow { hub: string; label: string; reads: string; granted: boolean; updatedAt: string }
+export interface ConsentRow {
+  hub: string; label: string; reads: string; granted: boolean;
+  /** false = the citizen has never answered, and `granted` is the default
+   *  speaking. Reading the list no longer writes a row, so absence is now
+   *  visible rather than being backfilled as an affirmative consent. */
+  answered: boolean;
+  updatedAt: string | null;
+}
 
 export const medicalApi = {
   records: () => api.get<MedicalRecord[]>('/medical/records').then((r) => r.data),

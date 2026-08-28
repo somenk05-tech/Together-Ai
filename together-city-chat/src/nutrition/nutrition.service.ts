@@ -46,6 +46,7 @@ import { recipeImageUrl } from './recipe-image-set';
 import { resolveSchedule, fastingSafety, categorizeRecipe, type MealCategory } from './meal-engine';
 import { computeNutrients, computeMicros, ingredientBatchServings, isSalt, perServingIngredients } from './ingredient-nutrients';
 import { dietKeyFrom } from '../shared/diet';
+import { DEFAULT_HUB_ACCESS } from '../medical/medical.service';
 // Nothing is imported from './quick-commerce' any more. Quoting and ordering
 // came out with the quick-commerce flow (B.12), and the reader that turned a
 // charged order's stored qcJson back into a story went out with the grocery
@@ -5046,7 +5047,9 @@ export class NutritionService implements OnModuleInit {
    */
   private async bloodValues(userId: string): Promise<Record<string, number>> {
     const consent = await this.prisma.medicalConsent.findFirst({ where: { userId, hub: 'nutrition' } });
-    if (consent && !consent.granted) return {}; // user turned the connection off
+    // The same default, from the same constant the Medical Hub reads, rather
+    // than a third copy of `true` written as an absence — see DEFAULT_HUB_ACCESS.
+    if (!(consent ? consent.granted : DEFAULT_HUB_ACCESS)) return {};
 
     const test = await this.prisma.medicalBloodTest.findFirst({
       where: { userId }, orderBy: { takenOn: 'desc' }, include: { biomarkers: true },

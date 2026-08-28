@@ -768,6 +768,17 @@
    reason the inline object existed. */
 .dt-note strong { font-weight: 600; }
 
+/* ── MEDICAL NUTRITION CARDS ────────────────────────────────────────────────
+   Three lines the 28 Aug audit added to every recommendation card — what fired
+   it, what the score measures, and that none of it is a diagnosis. Classes
+   rather than inline objects for the reason `size-system-ceiling.mjs` gives in
+   its header and the friction list above learned first: a pattern with three
+   wearers and no name is a pattern somebody re-inlines when they add a fourth,
+   and the ceiling is not a number to raise. */
+.mn-basis { font-size: 12.5px; line-height: 1.5; margin: 6px 0 0; }
+.mn-caveat { font-size: 11.5px; line-height: 1.45; margin: 12px 0 0; }
+.mn-scope { font-size: 11.5px; line-height: 1.45; margin-top: 4px; }
+
 /* THE STATIONERY MASTHEAD IS GONE (owner, 27 Aug: remove this content
    from the dating section). It headed Potential Matches, Curated Matches
    and My Dating Profile with a wordmark, a claim, a tick and a caption;
