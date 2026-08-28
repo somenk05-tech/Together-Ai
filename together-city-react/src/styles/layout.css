@@ -779,6 +779,15 @@
 .mn-caveat { font-size: 11.5px; line-height: 1.45; margin: 12px 0 0; }
 .mn-scope { font-size: 11.5px; line-height: 1.45; margin-top: 4px; }
 
+/* The one-time "who may read this panel" ask on Blood Test Analysis. Classes
+   for the same reason as the block above: the ceiling is not a number to
+   raise. */
+.mh-ask { margin-top: 16px; border-left: 4px solid var(--accent); }
+.mh-ask-h { margin: 0; font-size: 17px; }
+.mh-ask-b { margin: 6px 0 0; font-size: 13px; line-height: 1.55; }
+.mh-ask-row { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
+.mh-ask-link { font-size: 12.5px; font-weight: 600; color: var(--accent-ink); }
+
 /* THE STATIONERY MASTHEAD IS GONE (owner, 27 Aug: remove this content
    from the dating section). It headed Potential Matches, Curated Matches
    and My Dating Profile with a wordmark, a claim, a tick and a caption;

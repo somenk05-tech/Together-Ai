@@ -111,3 +111,48 @@ describe('the screen says which it is', () => {
     expect(blood).toMatch(/you have not been asked before now/);
   });
 });
+
+/**
+ * ── AND IT IS ASKED, AT THE DOOR THE DATA COMES THROUGH (owner, 28 Aug) ──
+ *
+ * The owner kept the default and asked for the question to be put. Not at
+ * sign-up: there is no panel then, and agreeing to share markers you do not
+ * have is a click rather than a decision. The moment a report is on file the
+ * question is concrete, so the ask lives on Blood Test Analysis.
+ *
+ * The trap this guards is the one every "we'll ask later" banner falls into —
+ * a dismiss button that leaves the default in place under a different name, so
+ * the citizen has still never answered and the card comes back forever. Both
+ * buttons here write a row.
+ */
+describe('the ask on Blood Test Analysis', () => {
+  const read = (...p: string[]) => fs.readFileSync(
+    path.join(__dirname, '..', '..', '..', 'together-city-react', 'src', 'features', 'medical', ...p), 'utf8',
+  ).replace(/\/\*[\s\S]*?\*\//g, ' ').split('\n').map((l) => (/^\s*\/\//.test(l) ? '' : l)).join('\n');
+  const card = read('components', 'ShareWithHubs.tsx');
+  const page = read('pages', 'BloodAnalysis.tsx');
+
+  it('is on the page, and only once there is a panel', () => {
+    expect(page).toMatch(/<ShareWithHubs hasPanel=\{hasPanel\} \/>/);
+    expect(card).toMatch(/if \(!hasPanel \|\| consents\.isLoading \|\| consents\.isError \|\| unanswered\.length === 0\) return null;/);
+  });
+
+  it('asks only about hubs nobody has answered for', () => {
+    expect(card).toMatch(/\.filter\(\(c\) => !c\.answered\)/);
+  });
+
+  it('says the thing that makes it worth asking — it is already on', () => {
+    expect(card).toMatch(/switched\s*\n?\s*on now, and you have not been asked before/);
+  });
+
+  /**
+   * Both answers write. If a dismissal ever appears here that does not call
+   * `answer`, this fails — and it should, because a banner you can wave away
+   * leaves the citizen exactly as unasked as before.
+   */
+  it('has no way out that is not an answer', () => {
+    expect(card).toMatch(/onClick=\{\(\) => answer\(true\)\}/);
+    expect(card).toMatch(/onClick=\{\(\) => answer\(false\)\}/);
+    expect(card).not.toMatch(/Not now|Dismiss|Maybe later|onClick=\{\(\) => setHidden/);
+  });
+});

@@ -5,6 +5,7 @@ import { mediaApi, uploadErrorMessage } from '@/api/media.api';
 import { useBloodHistory, useLatestPanel, useSaveBloodTest, useIngestBlood, useHealthSummary, useBloodTrends, useBiomarkerCatalog, useDeleteBloodTest, type BloodTestSummary, type Citation, type TrendKind, type TrendPick, type BiomarkerSection, type UnitChoice } from '../api';
 import { PrivacyNote } from '@/features/privacy/PrivacyNote';
 import { TrendSparkline } from '../components/TrendSparkline';
+import { ShareWithHubs } from '../components/ShareWithHubs';
 
 /** Deterministic 0–100 wellness score ring. */
 function ScoreRing({ score, band }: { score: number; band: string }) {
@@ -326,6 +327,9 @@ export function BloodAnalysis() {
       </p>
 
       <PrivacyNote hub="medical" style={{ margin: '16px 0 0' }} />
+
+      {/* Asked once, when there is finally something to ask about. */}
+      <ShareWithHubs hasPanel={hasPanel} />
 
       {data && data.alerts.length > 0 && (
         <div style={{ marginTop: 16 }}>
