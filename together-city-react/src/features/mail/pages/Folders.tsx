@@ -4,7 +4,7 @@ import { Link, NavLink, useNavigate, useParams } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { Icon } from '@/components/ui/Icon';
 import {
-  useMailAccount, useMailList, useFlagMail, useRemoveMail, useSetPrimary, useOutbox,
+  useMailAccount, useMailList, useFlagMail, useRemoveMail, useSetPrimary, useOutbox, useEmptyTrash,
   useMailProjects, useUpdateProject, useDeleteProject,
   humanBytes, mailTime, initials, avatarHue, useRetryMail, useDiscardDraft, mailError,
   type Folder, type MailProject,
@@ -367,6 +367,15 @@ function FolderView({ folder, project }: { folder: Folder; project?: MailProject
           <div className="eyebrow">{project ? `${project.name} · ${meta.title}` : meta.eyebrow}</div>
           <h1 style={{ fontSize: 24, margin: 0 }}>{meta.icon} {meta.title}</h1>
         </div>
+        {/* THE ONLY WAY THE METER GOES DOWN.
+            Everything else in this hub moves mail TO Trash, and Trash still
+            counts against the quota — so without this a citizen who fills
+            their mailbox has no way back under it. The API route for this was
+            parked in a comment for weeks after its service method landed; the
+            button is the other half.
+            Trash only, and only when there is something in it: an Empty button
+            on an empty folder is a control that can only disappoint. */}
+        {folder === 'trash' && !project && rows.length > 0 && <EmptyTrashButton count={rows.length} />}
       </div>
       <MailSearch value={typed} onChange={setTyped} scope={project?.name} />
       {q.isLoading ? <Spinner label="Loading mail…" />
@@ -398,6 +407,50 @@ function FolderView({ folder, project }: { folder: Folder; project?: MailProject
       <Link to={composeTo} className="mail-fab" aria-label="Compose">
         <span aria-hidden>✍️</span><span>Compose</span>
       </Link>
+    </div>
+  );
+}
+
+/**
+ * Empty the Trash — two presses, and the second one says what it will cost.
+ *
+ * Deleting outright is what emptying a trash MEANS, so there is no undo to
+ * offer and pretending otherwise would be the lie. What can be offered is an
+ * honest count before the fact and the freed bytes after it, which is why the
+ * server returns both.
+ *
+ * Not a browser `confirm()`: this hub renders its own surfaces everywhere else
+ * and a native dialog is a different application appearing on top of yours.
+ */
+function EmptyTrashButton({ count }: { count: number }) {
+  const [armed, setArmed] = useState(false);
+  const empty = useEmptyTrash();
+
+  if (empty.isSuccess && empty.data) {
+    return (
+      <div className="muted" style={{ fontSize: 13, marginLeft: 'auto' }} role="status">
+        Emptied — {empty.data.deleted} {empty.data.deleted === 1 ? 'message' : 'messages'} deleted,{' '}
+        {humanBytes(empty.data.freedBytes)} freed.
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+      {empty.isError && <span className="muted" style={{ fontSize: 13 }}>{mailError(empty.error, 'The Trash could not be emptied.')}</span>}
+      {armed ? (
+        <>
+          <span className="muted" style={{ fontSize: 13 }}>
+            Delete {count} {count === 1 ? 'message' : 'messages'} for good?
+          </span>
+          <Button variant="ghost" onClick={() => setArmed(false)} disabled={empty.isPending}>Keep</Button>
+          <Button onClick={() => empty.mutate()} disabled={empty.isPending}>
+            {empty.isPending ? 'Emptying…' : 'Delete for good'}
+          </Button>
+        </>
+      ) : (
+        <Button variant="ghost" onClick={() => setArmed(true)}>Empty Trash</Button>
+      )}
     </div>
   );
 }

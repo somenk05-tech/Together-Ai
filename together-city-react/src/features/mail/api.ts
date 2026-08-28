@@ -112,6 +112,9 @@ export const mailApi = {
   attachmentUrl: (threadId: string, fileId: string) =>
     api.get<{ url: string; name: string }>(`/mail/thread/${threadId}/attachments/${fileId}/url`).then((r) => r.data),
   flag: (id: string, input: { starred?: boolean; read?: boolean }) => api.post<{ ok: boolean }>(`/mail/${id}/flag`, input).then((r) => r.data),
+  /** Empty the Trash. The only way to get bytes back: everything else moves
+   *  mail to Trash, and Trash still counts against the quota. */
+  emptyTrash: () => api.delete<{ ok: boolean; deleted: number; freedBytes: number }>('/mail/trash').then((r) => r.data),
   remove: (id: string) => api.delete<{ ok: boolean }>(`/mail/${id}`).then((r) => r.data),
   outbox: () => api.get<OutboxEntry[]>('/mail/outbox').then((r) => r.data),
   setPrimary: (input: { email?: string; phone?: string }) => api.post<MailAccount>('/mail/primary', input).then((r) => r.data),
@@ -282,6 +285,18 @@ export function useFlagMail() {
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['mail'] }); },
   });
 }
+/**
+ * Emptying the Trash changes the quota, so the account bar is stale the moment
+ * it succeeds — `['mail']` covers the list and the account read both.
+ */
+export function useEmptyTrash() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => mailApi.emptyTrash(),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['mail'] }); },
+  });
+}
+
 export function useRemoveMail() {
   const qc = useQueryClient();
   return useMutation({
