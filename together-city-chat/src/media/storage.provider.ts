@@ -156,10 +156,48 @@ export class StorageProvider implements OnModuleInit {
     }
   }
 
-  /** On boot, apply the browser-upload CORS rule to the media + health buckets so
-   *  presigned PUTs from the site aren't blocked. Best-effort: requires the R2/S3
-   *  token to permit bucket configuration — if it doesn't (403), we log the exact
-   *  rule to add manually and uploads still work once it's set in the dashboard. */
+  /**
+   * On boot: make sure a browser can actually upload, and say so only when it
+   * cannot.
+   *
+   * ── THE WARNING THAT FIRED EVERY BOOT AND MEANT NOTHING (28 Aug) ─────────
+   *
+   * This used to attempt `PutBucketCors` and warn when it failed. It failed
+   * every single time, because the R2 token has no bucket-CONFIGURATION
+   * rights, and both buckets have had a correct policy all along — set by
+   * hand. So a WARN naming two buckets printed on every boot, for a state that
+   * was fine.
+   *
+   * An earlier pass fixed the WORDING — stopped it claiming the policy was
+   * missing, since a failed write says nothing about what is already there.
+   * That was honest and it was not enough. A warning nobody can act on is
+   * still a warning nobody acts on, and it sits in the boot log next to the
+   * ones that matter (`Photo review is not configured`, `MIRA_LOG_SALT is not
+   * set`), teaching whoever reads it that yellow at boot is normal here.
+   *
+   * ── SO ASK THE QUESTION INSTEAD OF INFERRING IT ──────────────────────────
+   *
+   * `corsStatus()` twenty lines below has always known how to answer this
+   * properly: it fires a REAL preflight — OPTIONS with an Origin and
+   * `Access-Control-Request-Method: PUT` — which is exactly what the browser
+   * does, and needs no token rights at all. The check existed; boot just never
+   * used it.
+   *
+   * Now boot uses it, and the log says one of three true things per bucket:
+   *
+   *   uploads work                → LOG. Nothing is owed. This is the case
+   *                                 that used to print a warning.
+   *   uploads are refused         → WARN, with the rule to set, because now it
+   *                                 IS a repair somebody owes and the browser
+   *                                 has said so rather than a failed write.
+   *   the probe could not run     → LOG, naming the reason. Not knowing is not
+   *                                 the same as being broken, and a network
+   *                                 blip at boot is not an operator's problem.
+   *
+   * The write is still attempted first, but only quietly: if the token ever
+   * gains the rights, the policy gets applied and the preflight confirms it in
+   * the same breath. A failed write is no longer an event.
+   */
   async onModuleInit(): Promise<void> {
     if (!this.s3) return;
     const rule = {
@@ -171,33 +209,53 @@ export class StorageProvider implements OnModuleInit {
     };
     const buckets = Array.from(new Set([this.bucket, this.healthBucket].filter(Boolean)));
     for (const Bucket of buckets) {
+      // Quietly. Success is worth a line; failure is the normal case and the
+      // preflight below is what decides whether anything is actually wrong.
+      let applied = false;
       try {
         await this.s3.send(new PutBucketCorsCommand({ Bucket, CORSConfiguration: { CORSRules: [rule] } }));
-        this.logger.log(`R2/S3 CORS applied to bucket "${Bucket}" for: ${this.corsOrigins.join(', ')}`);
-      } catch (e) {
-        /**
-         * A WRITE THAT FAILED IS NOT A POLICY THAT IS MISSING. (28 Aug.)
-         *
-         * PutBucketCors needs a token with bucket-CONFIGURATION rights. Ours
-         * does not have them, so this throws on every boot — and the old
-         * wording, "add this rule to the bucket", asserted something it had
-         * never checked. Both buckets have had the correct policy all along,
-         * set by hand. Checked in the dashboard on 28 Aug while chasing a
-         * different fault, where this line cost real time by pointing at a
-         * configuration that was already right.
-         *
-         * The distinction is the whole of it: what failed is our attempt to
-         * WRITE the policy, and whether one is already there is a question
-         * this code has not asked. Say that, and print the rule as the one we
-         * would have written rather than as a repair somebody owes.
-         */
+        applied = true;
+      } catch { /* no bucket-configuration rights: expected, and not a verdict */ }
+
+      const probe = await this.preflightAllows(Bucket);
+      if (probe.allowed) {
+        this.logger.log(
+          `R2/S3 CORS on "${Bucket}": browser uploads allowed${applied ? ' (policy applied this boot)' : ''}.`,
+        );
+      } else if (probe.reason === 'refused') {
         this.logger.warn(
-          `Could not WRITE the CORS policy on bucket "${Bucket}" (${(e as Error).message}) — the R2 token ` +
-          `lacks bucket-configuration rights. This says nothing about the policy already on the bucket: ` +
-          `check Cloudflare R2 → Settings → CORS Policy, and set this only if it is missing or narrower: ` +
-          JSON.stringify([{ AllowedOrigins: this.corsOrigins, AllowedMethods: ['PUT', 'GET', 'HEAD'], AllowedHeaders: ['*'], ExposeHeaders: ['ETag'], MaxAgeSeconds: 3600 }]),
+          `Browser uploads are REFUSED by bucket "${Bucket}" — a real preflight (OPTIONS + Origin + PUT) came ` +
+          `back with Access-Control-Allow-Origin: ${probe.allowOrigin ?? 'none'}. Set this in ` +
+          `Cloudflare R2 → Settings → CORS Policy: ` +
+          JSON.stringify([rule]),
+        );
+      } else {
+        this.logger.log(
+          `R2/S3 CORS on "${Bucket}": could not check (${probe.detail}). Uploads may be fine; this is the probe ` +
+          `failing, not the bucket.`,
         );
       }
+    }
+  }
+
+  /**
+   * A browser-style preflight against one bucket. No token rights needed — this
+   * is the same request the browser makes before a presigned PUT, so its answer
+   * is the one that decides whether an upload works.
+   */
+  private async preflightAllows(bucket: string): Promise<{ allowed: boolean; reason: 'ok' | 'refused' | 'unknown'; allowOrigin?: string | null; detail?: string }> {
+    const site = this.corsOrigins.find((o) => o.includes('togethercity.app')) ?? this.corsOrigins[0];
+    if (!site) return { allowed: false, reason: 'unknown', detail: 'no CORS origin configured to probe with' };
+    try {
+      const res = await fetch(`${this.endpoint}/${bucket}/cors-preflight-probe`, {
+        method: 'OPTIONS',
+        headers: { Origin: site, 'Access-Control-Request-Method': 'PUT', 'Access-Control-Request-Headers': 'content-type' },
+      });
+      const allowOrigin = res.headers.get('access-control-allow-origin');
+      const allowed = allowOrigin === '*' || allowOrigin === site;
+      return allowed ? { allowed: true, reason: 'ok', allowOrigin } : { allowed: false, reason: 'refused', allowOrigin };
+    } catch (e) {
+      return { allowed: false, reason: 'unknown', detail: (e as Error).message };
     }
   }
 
