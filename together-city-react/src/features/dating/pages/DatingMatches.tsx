@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useDatingProfile, useDatingStack, type CuratedMatch, type DatingProfile, type MatchKind } from '../api';
+import { coverageShort } from '../bands';
 
 /**
  * ── CURATED MATCHES: THE PEOPLE WHO CHOSE YOU BACK ──────────────────────────
@@ -105,6 +106,10 @@ function CuratedCard({ match, kind }: { match: CuratedMatch; kind: MatchKind }) 
           {match.user.name}{match.age ? `, ${match.age}` : ''}
         </h2>
         {place && <p className="dt-place">{place}</p>}
+        {/* The badge over the photograph says "69% match" and said only that.
+            This is the same disclosure the detail screen carries as a sentence:
+            the percentage is read on this row first. */}
+        {coverageShort(match.coverage) && <p className="dt-cov">{coverageShort(match.coverage)}</p>}
         {match.bio && match.bio.trim() && (
           <blockquote className="dt-quote">{match.bio}</blockquote>
         )}

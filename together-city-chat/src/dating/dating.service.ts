@@ -1411,6 +1411,13 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
           theirSign: signB,
           score,
           breakdown,
+          // WHAT THE NUMBER IS STANDING ON, on the screen where it is read
+          // FIRST (launch audit, 28 Aug). `discover` and `matchDetail` sent
+          // this; the deck did not, so the one sentence that makes the
+          // percentage honest could not be shown on the card carrying the
+          // percentage. Same value, same function, no new read: `conf` two
+          // lines up is computed from the same four arguments.
+          coverage: coverage(myD, candDX, myInterests, theirInterests),
           reasons: explain(breakdown, sharedItems(myInterests, theirInterests), preferenceNotes(myD, candDX), distanceNote(myD, candDX)),
           frictions: frictions(breakdown, myD, candDX),
           likedByMe: state ? this.likedBy(state, userId) : false,

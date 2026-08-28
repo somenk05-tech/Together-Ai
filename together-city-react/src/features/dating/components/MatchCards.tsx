@@ -10,7 +10,7 @@ import { SafetyMenu } from './SafetyMenu';
 // cannot hot-reload a file that exports both components and plain functions,
 // and three pages read these without rendering a single card. (The coverage
 // sentence moved to the profile with the breakdown it explains — 26 Aug.)
-import { bandFor } from '../bands';
+import { bandFor, coverageShort } from '../bands';
 
 /**
  * ── HOW A PERSON IS DRAWN IN THE DATING HUB ─────────────────────────────────
@@ -160,6 +160,7 @@ export function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKin
   const go = (delta: number) => setShot((x) => (n ? (x + delta + n) % n : 0));
   const detailHref = `/dating/match?u=${match.user.id}&kind=${kind}`;
   const band = bandFor(match.score);
+  const cov = coverageShort(match.coverage);
   const label = `${match.user.name}${match.age ? `, ${match.age}` : ''}`;
   const conversationId = result?.conversationId ?? match.conversationId;
 
@@ -197,6 +198,11 @@ export function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKin
           <h3 className="dating-display pm-name">{label} <span className="pm-go" aria-hidden>›</span></h3>
           {match.city && <p className="pm-where"><span aria-hidden>📍</span> {match.city}</p>}
           <p className="pm-compat"><b>{match.score}%</b> Compatible · {band.name}</p>
+          {/* The number is read HERE before it is read anywhere else, and the
+              sentence saying what it rests on lived only on the detail screen.
+              Its own line rather than a third item in the flex row above, so
+              the figure and the band still read as one phrase. */}
+          {cov && <p className="pm-cov">{cov}</p>}
         </Link>
         {matched ? (
           <div className="pm-hit">

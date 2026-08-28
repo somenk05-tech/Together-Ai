@@ -3075,6 +3075,10 @@ textarea.g-field { resize: none; line-height: 1.55; }
   display: flex; align-items: baseline; gap: 8px; font-size: var(--fs-3); font-weight: 500;
 }
 .pm-compat b { font-size: var(--fs-7); font-weight: 600; letter-spacing: -.01em; }
+/* What the figure above is standing on. Quiet by design — it is a caveat, not
+   a claim — and present by requirement: this is the screen the number is read
+   on first, and it used to carry the figure with nothing beside it. */
+.pm-cov { margin: 3px 0 0; font-size: var(--fs-2); font-weight: 500; opacity: .8; }
 .pm-acts {
   position: absolute; left: 16px; right: 16px; bottom: 16px; z-index: 4;
   display: flex; gap: 10px; align-items: center;
@@ -3255,6 +3259,9 @@ textarea.g-field { resize: none; line-height: 1.55; }
   margin: var(--s-1) 0 0; font-size: 13px; font-weight: 600;
   letter-spacing: .04em; color: var(--muted);
 }
+/* What the percentage on the badge is standing on. Same caveat as .pm-cov on
+   the deck card, same reason: this row shows the figure first. */
+.dt-cov { margin: var(--s-1) 0 0; font-size: var(--fs-2); font-weight: 500; color: var(--muted); }
 /* Their own words, set as a quotation rather than as a paragraph of body
    copy: on a page about one person, the one thing they wrote should not
    look like the interface talking. */

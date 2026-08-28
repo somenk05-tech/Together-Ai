@@ -53,6 +53,26 @@ export function bandFor(score: number): { label: string; name: string; ink: stri
  * counts questions. At coverage 1 there is nothing to say, and an absent field
  * says nothing rather than drawing an empty line.
  */
+/**
+ * THE SAME DISCLOSURE, SHORT ENOUGH FOR A CARD.
+ *
+ * `coverageNote` is a sentence, and it belongs where there is room for one — a
+ * match detail, a compatibility sheet. It was rendered in exactly those two
+ * places, and nowhere on the deck card or the matches list, which are the two
+ * screens where a citizen READS THE NUMBER FIRST. "69% Compatible · Good match"
+ * with nothing beside it is the whole finding.
+ *
+ * So: the same fact, in four words, in the line under the score. It counts
+ * questions rather than showing a percentage of a percentage, for the reason
+ * written above the sentence version — a citizen can go and answer a question,
+ * and cannot do anything with a confidence multiplier.
+ */
+export function coverageShort(coverage?: number): string | null {
+  if (typeof coverage !== 'number' || !Number.isFinite(coverage) || coverage >= 1) return null;
+  const answered = Math.max(0, Math.min(6, Math.round(coverage * 6)));
+  return answered === 0 ? 'From your birth dates alone' : `From ${answered} of 6 answers`;
+}
+
 export function coverageNote(coverage?: number): string | null {
   if (typeof coverage !== 'number' || !Number.isFinite(coverage) || coverage >= 1) return null;
   const answered = Math.max(0, Math.min(6, Math.round(coverage * 6)));
