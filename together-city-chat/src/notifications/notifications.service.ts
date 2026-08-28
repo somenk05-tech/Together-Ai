@@ -24,11 +24,31 @@ export interface CreateNotificationInput {
   actorId?: string | null;  // who triggered it (never notify yourself of your own action)
   entityId?: string | null;
   /**
-   * Reach the phone as well as the bell. Opt-in per call, because the bell
-   * is the right place for most of the city and a push is an interruption:
-   * a mutual match and a like are the two things worth one. (26 Aug.)
+   * Where a NATIVE app should open, if the deep link is not simply the href.
+   *
+   * No longer the switch that decides whether anything is sent — see `create`.
+   * Left in because two of the dating pushes route somewhere the href cannot
+   * express (a specific chat), and derived from the href everywhere else.
    */
   push?: { deepLink: string };
+  /**
+   * Do not interrupt anybody with this one. The bell still gets it.
+   *
+   * Deliberately unused today and deliberately here: the default below is ON,
+   * and the next person who adds a notification that should NOT buzz a phone
+   * needs somewhere to say so that is not "leave a field out and hope".
+   */
+  silent?: boolean;
+}
+
+/**
+ * `/dating/matches` → `togethercity://dating/matches`.
+ *
+ * The convention the three hand-written deep links already used, applied to
+ * the rest rather than copied a fourth time.
+ */
+export function deepLinkFrom(href: string | null | undefined): string {
+  return `togethercity://${(href ?? '/').replace(/^\/+/, '')}`;
 }
 
 /**
@@ -85,10 +105,31 @@ export class NotificationsService {
       });
       const count = await this.unreadCount(input.userId);
       this.gateway.emitNew(input.userId, this.shape(row), count);
-      // Only when they are not here to see the bell: a push on top of a live
-      // toast is the same news twice.
-      if (input.push && !(await this.presence.isOnline(input.userId))) {
-        await this.pushToDevices(input.userId, input.title, input.body ?? '', input.push.deepLink, input.href ?? '/');
+      /**
+       * PUSH IS THE DEFAULT NOW (owner, 28 Aug).
+       *
+       * It was opt-in, and three of roughly forty notifications opted in. So
+       * the alert that exists to bring somebody back — "you have a new 91%
+       * compatible match" — reached the bell of a person who was not looking
+       * at the bell, and the report doorbell reached a moderator only while
+       * they had the console open. A notification worth writing to the
+       * database is worth telling somebody about; the ones that are not should
+       * not be rows either.
+       *
+       * The interruption rule that made opt-in defensible is kept, and it is
+       * the one that matters: nothing is sent to somebody who is HERE. A push
+       * on top of a live toast is the same news twice.
+       *
+       * `silent` is the way out for a notification that genuinely should not
+       * buzz. Chat messages are unaffected — they never came through here;
+       * they upsert one row per conversation, by a 9 Aug decision, and giving
+       * that path a push is a separate question about a different rhythm.
+       */
+      if (!input.silent && !(await this.presence.isOnline(input.userId))) {
+        await this.pushToDevices(
+          input.userId, input.title, input.body ?? '',
+          input.push?.deepLink ?? deepLinkFrom(input.href), input.href ?? '/',
+        );
       }
     } catch (e) {
       this.log.warn(`notification create failed (${input.kind}): ${(e as Error).message}`);
@@ -236,6 +277,13 @@ export class NotificationsService {
       for (const recipientId of params.recipientIds) {
         // Muting a chat mutes its messages. It does not mute a ringing phone —
         // that is a different promise, and one nobody made.
+        //
+        // `silent` because THIS method pushes for itself, a few lines down, and
+        // by its own rules: a ringing phone reaches you whether or not you are
+        // online and whether or not the chat is muted, which the default gate
+        // below `create` would not do. Without it the call arrives twice on
+        // every offline device — which is what the golden master caught the day
+        // push became the default.
         await this.create({
           userId: recipientId,
           kind: 'call_incoming',
@@ -244,6 +292,7 @@ export class NotificationsService {
           href,
           actorId: params.callerId,
           entityId: params.callId,
+          silent: true,
         });
 
         // unbounded: one citizen's device tokens — a handful

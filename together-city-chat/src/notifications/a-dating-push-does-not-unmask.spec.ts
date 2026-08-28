@@ -38,3 +38,46 @@ describe('a dating push does not unmask the sender (blocker 06)', () => {
     expect(id.displayPhoto).toBe('https://cdn/city.jpg');
   });
 });
+
+/**
+ * ── AND NOW EVERY NOTIFICATION PUSHES (28 Aug) ──
+ *
+ * Push was opt-in and three callers opted in. Since it became the default, a
+ * notification's TITLE AND BODY are what a stranger's lock screen shows —
+ * including the dating ones that were only ever read inside the app, behind a
+ * login, next to a card that had already decided what to reveal.
+ *
+ * The pseudonym rule was enforced where the pushes were. This walks the dating
+ * hub's notification sites in source and requires that none of them puts a
+ * person's name into a title or body — the one that does, the message push,
+ * has its own two tests above and titles with the DATING name, which is the
+ * decided identity rather than the account's.
+ */
+import * as fs from 'fs';
+import * as path from 'path';
+
+describe('what a dating notification may say on a lock screen', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'dating', 'dating.service.ts'), 'utf8');
+
+  /** Every `notifications.create({...})` call in the dating hub. */
+  const calls = (() => {
+    const out: string[] = [];
+    const re = /notifications\.create\(\{/g;
+    for (let m = re.exec(src); m; m = re.exec(src)) {
+      // To the matching close: far enough to hold title, body and href.
+      out.push(src.slice(m.index, m.index + 600).split('}), ')[0].split('});')[0]);
+    }
+    return out;
+  })();
+
+  it('finds the notification sites at all — a check over nothing passes vacuously', () => {
+    expect(calls.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it.each(calls.map((c, i) => [`site #${i}`, c]))('%s names nobody', (_label, call) => {
+    // The interpolations a name would arrive through. Scores, counts and
+    // reasons are fine; `shownName`, `firstName` and `.name` are not.
+    const namesSomebody = /shownName|firstName|\.name\b|displayName/.test(call);
+    expect({ namesSomebody }).toEqual({ namesSomebody: false });
+  });
+});

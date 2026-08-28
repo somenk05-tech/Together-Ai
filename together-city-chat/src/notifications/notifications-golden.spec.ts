@@ -99,11 +99,13 @@ describe('what the notifications engine decides today', () => {
     expect({ table, emitted }).toMatchSnapshot();
   });
 
-  it('a notification that opts in reaches the phone — only when the person is not here', async () => {
-    // The bell is the default; a push is an interruption a caller asks for by
-    // name (dating match, like). Online, the live toast is the news and no
-    // push follows; offline, every registered device is told, with the place
-    // a tap should land. (26 Aug.)
+  it('every notification reaches the phone — only when the person is not here', async () => {
+    // PUSH IS THE DEFAULT (owner, 28 Aug). It was opt-in and three of roughly
+    // forty callers opted in, so the alert written to bring somebody back
+    // reached the bell of a person who was not looking at the bell. The rule
+    // that made opt-in defensible is the one kept: nothing is sent to somebody
+    // who is HERE, because a push on top of a live toast is the same news
+    // twice.
     const away = build();
     await away.svc.create({ userId: 'u1', actorId: 'u2', kind: 'dating_match', title: 'It’s a match', href: '/dating/matches', push: { deepLink: 'togethercity://dating/matches' } });
     expect(away.pushes.map((p) => p.via).sort()).toEqual(['fcm', 'webpush']);
@@ -114,9 +116,18 @@ describe('what the notifications engine decides today', () => {
     await here.svc.create({ userId: 'u1', actorId: 'u2', kind: 'dating_match', title: 'It’s a match', href: '/dating/matches', push: { deepLink: 'togethercity://dating/matches' } });
     expect(here.pushes).toEqual([]);
 
+    // The case this test used to assert the opposite of: a caller that says
+    // nothing about push. It goes out, and the deep link is derived from the
+    // href rather than left empty.
     const plain = build();
-    await plain.svc.create({ userId: 'u1', actorId: 'u2', kind: 'connection_request', title: 'A request' });
-    expect(plain.pushes).toEqual([]);
+    await plain.svc.create({ userId: 'u1', actorId: 'u2', kind: 'connection_request', title: 'A request', href: '/connections' });
+    expect(plain.pushes.map((p) => p.via).sort()).toEqual(['fcm', 'webpush']);
+    expect((plain.pushes.find((p) => p.via === 'fcm')!.payload as { deepLink: string }).deepLink).toBe('togethercity://connections');
+
+    // And the way out, for a notification that should not interrupt anybody.
+    const quiet = build();
+    await quiet.svc.create({ userId: 'u1', actorId: 'u2', kind: 'system', title: 'A digest', href: '/moderation', silent: true });
+    expect(quiet.pushes).toEqual([]);
   });
 
   it('messages group per conversation, updating in place; a second chat gets its own row', async () => {
