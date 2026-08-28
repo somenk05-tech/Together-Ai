@@ -882,7 +882,10 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
         // Not "just joined" — see matchAlertReason in matching.ts. This runs on
         // every profile save, and a save is almost always somebody editing.
         body: matchAlertBody(matchAlertReason(prev)),
-        href: '/dating/matches',
+        // Browse, not Curated Matches: this person is a high-scoring STRANGER
+        // and Curated Matches holds only people who chose you back, so the
+        // alert named a page that structurally could not contain its subject.
+        href: '/dating/browse',
         actorId: userId,
       }), 'dating: match alert', { userId: cand.userId });
     }
@@ -2380,14 +2383,22 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       // sentence and the order of one queue.
       void this.notifications.create({
         userId: targetUserId, actorId: userId, kind: 'dating_like',
-        push: { deepLink: 'togethercity://dating/matches' },
+        // "SEE WHO IN YOUR MATCHES" WAS TWO PROMISES THIS PRODUCT DOES NOT KEEP
+        // (launch audit, 28 Aug). There is no likes-received surface anywhere in
+        // the API — Curated Matches renders mutual matches only — so the
+        // instruction sent somebody to a page that would say "Nobody has matched
+        // you back yet". And it contradicted the card they were liked from,
+        // which promises they will never learn who. The anonymity is the
+        // product decision; the sentence now agrees with it, and the link goes
+        // where the action it describes actually happens.
+        push: { deepLink: 'togethercity://dating/browse' },
         title: newSuper
           ? (kind === 'romantic' ? 'Someone super-liked you ⭐' : 'Someone really wants to connect ⭐')
           : (kind === 'romantic' ? 'You have a new like 💛' : 'Someone wants to connect'),
         body: newSuper
-          ? 'They get one of these a day, and they used it on you — see who in your matches.'
-          : 'A member likes your profile — see who in your matches.',
-        href: '/dating/matches',
+          ? 'They get one of these a day and they used it on you. You’ll find out who if you like them back.'
+          : 'You’ll find out who if you like them back.',
+        href: '/dating/browse',
       });
     }
     return { matched: false, conversationId: null, chatLocked: false, matchId: updated.id, superLike: !!opts.superLike };

@@ -251,11 +251,17 @@ export function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKin
           <SafetyMenu userId={match.user.id} kind={kind} compact />
         </div>
       )}
+      {/* WHAT ACTUALLY HAPPENS WHEN YOU TAP IT (launch audit, 28 Aug).
+          This said "they're notified only if you both choose each other", and
+          a like sends "You have a new like 💛" to that person straight away.
+          The notification names nobody — that part was true and is the part
+          worth saying — but the sentence claimed no notification at all, at
+          the moment of the decision, about what a stranger learns. */}
       {!matched && (
         <p className="pm-fine">
           {chosen
-            ? 'You’ve chosen them. They’ll only know if they choose you back — then chat opens in Curated Matches.'
-            : 'They’re notified only if you both choose each other. That moves them to Curated Matches, and chat opens there.'}
+            ? 'They know someone liked them — never who. Your name reaches them only if they choose you back, and chat opens in Curated Matches.'
+            : 'They’ll be told someone liked them, never who. Choose each other and you both move to Curated Matches, where chat opens.'}
         </p>
       )}
     </article>

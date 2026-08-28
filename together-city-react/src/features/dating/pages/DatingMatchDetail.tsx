@@ -318,7 +318,8 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
           )}
         </div>
         <p className="muted" style={{ fontSize: 11.5, marginTop: 4, textAlign: 'center' }}>
-          {matched ? 'Chat opens in the Dating Hub.' : 'They’re notified only if you both choose each other.'}
+          {/* The same correction as the card: told, never told WHO. */}
+          {matched ? 'Chat opens in the Dating Hub.' : 'They’ll be told someone liked them, never who.'}
         </p>
         <div style={{ marginTop: 14, textAlign: 'center' }}>
           <SafetyMenu userId={targetUserId} kind={kind} />
