@@ -19,7 +19,6 @@ export interface AppConfig {
     maxUploadBytes: number;
   };
   media: {
-    provider: 'r2' | 's3';
     bucket: string;
     privateBucket: string;
     publicBaseUrl: string;
@@ -187,7 +186,6 @@ export default (): AppConfig => {
     maxUploadBytes: int(process.env.MAX_UPLOAD_BYTES, 52428800),
   },
   media: {
-    provider: (process.env.MEDIA_PROVIDER as 'r2' | 's3') ?? 'r2',
     bucket: process.env.MEDIA_BUCKET ?? '',
     privateBucket: process.env.MEDIA_PRIVATE_BUCKET ?? '',
     publicBaseUrl: process.env.MEDIA_PUBLIC_BASE_URL ?? '',

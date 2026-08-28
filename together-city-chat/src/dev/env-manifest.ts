@@ -113,7 +113,6 @@ export const ENV_MANIFEST: EnvEntry[] = [
   { name: 'FCM_PRIVATE_KEY', group: 'Push', purpose: 'The key for that Firebase service account.', whenMissing: 'Nothing yet. When native push does arrive: watch for a key pasted without its newlines — that reads as SET here and still fails.', secret: true },
 
   // ── Media ───────────────────────────────────────────────────────────────
-  { name: 'MEDIA_PROVIDER', group: 'Media', purpose: 's3 | local. Where uploads go.', whenMissing: 'Uploads land on the container\'s disk and vanish on the next deploy.' },
   { name: 'MEDIA_BUCKET', group: 'Media', purpose: 'The public bucket.', whenMissing: 'Photo uploads fail.' },
   { name: 'MEDIA_PRIVATE_BUCKET', group: 'Media', purpose: 'The private bucket — blood reports, CVs, documents.', whenMissing: 'Private uploads fail, or worse, fall back to the public bucket.' },
   { name: 'MEDIA_PUBLIC_BASE_URL', group: 'Media', purpose: 'The base URL public media is served from.', whenMissing: 'Images upload and then render as broken.' },
@@ -132,8 +131,12 @@ export const ENV_MANIFEST: EnvEntry[] = [
   { name: 'ANTHROPIC_BLOOD_MODEL', group: 'AI', purpose: 'The model used to read blood reports.', whenMissing: 'Uses the built-in default.' },
 
   // ── Third-party data ────────────────────────────────────────────────────
-  { name: 'GOOGLE_MAPS_API_KEY', group: 'Third-party data', purpose: 'Maps and geocoding.', whenMissing: 'Maps do not render and address lookup fails.', secret: true },
-  { name: 'MAPS_API_KEY', group: 'Third-party data', purpose: 'Alternate name read by the maps path.', whenMissing: 'Fine if GOOGLE_MAPS_API_KEY is set.', secret: true },
+  // GOOGLE_MAPS_API_KEY and MAPS_API_KEY are gone from this list (28 Aug): no
+  // code in either package reads either name, and the row said "maps do not
+  // render and address lookup fails", which is not what happens — geocoding
+  // goes through this API's own /geo endpoints to Nominatim, and there is no
+  // Google Maps anywhere. One of the two is set in production, which is a key
+  // somebody created, pays for, and has never been used by anything.
   { name: 'TMDB_API_KEY', group: 'Third-party data', purpose: 'Film and television data for Entertainment.', whenMissing: 'Entertainment has no catalogue.', secret: true },
   { name: 'WATCHMODE_API_KEY', group: 'Third-party data', purpose: 'Where-to-watch availability.', whenMissing: 'Streaming availability is missing from Entertainment.', secret: true },
 

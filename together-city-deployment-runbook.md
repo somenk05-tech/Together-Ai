@@ -201,7 +201,7 @@ them; they're quick, isolated fixes. Verify chat connects (WSS) and a message ro
 | `JWT_ACCESS_TTL` / `JWT_REFRESH_TTL` | ✅ | Seconds (900 / 1209600) |
 | `CORS_ORIGIN` | ✅ | Exact frontend origin |
 | `PORT` / `NODE_ENV` | ✅ | `4000` / `production` |
-| `MEDIA_PROVIDER=r2`, `MEDIA_BUCKET`, `MEDIA_PUBLIC_BASE_URL` | media | Your R2 bucket + public base URL (custom domain or r2.dev) |
+| `MEDIA_BUCKET`, `MEDIA_PUBLIC_BASE_URL` | media | Your R2 bucket + public base URL (custom domain or r2.dev). There is no provider switch: R2 and S3 speak the same API, and `S3_ENDPOINT` is what decides which one you are talking to |
 | `MEDIA_PRIVATE_BUCKET` | ✅ **if media is on** | A SEPARATE bucket with **no public access**. Blood tests, prescriptions, Drive files and dating photos are written here and served only through short-lived signed links. Leave it unset, or point it at `MEDIA_BUCKET`, and all three land in the bucket published at `MEDIA_PUBLIC_BASE_URL` — so **the API refuses to boot** rather than let that happen quietly |
 | `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_REGION=auto` | media | R2 endpoint `https://<accountid>.r2.cloudflarestorage.com` + R2 API token |
 | `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, `EMAIL_FROM` | email | `EMAIL_FROM` must be a Resend-verified sender. Used for SYSTEM mail only — a citizen's own message now leaves as `<handle>@togethercity.app` |
