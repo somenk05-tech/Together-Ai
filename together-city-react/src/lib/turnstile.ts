@@ -55,7 +55,30 @@ export async function getTurnstileToken(action: TurnstileAction): Promise<string
   document.body.appendChild(host);
   return new Promise<string | undefined>((resolve) => {
     let id = '';
-    const done = (token?: string) => { try { api.remove(id); } catch { /* gone */ } host.remove(); resolve(token); };
+    let settled = false;
+    /**
+     * A CHALLENGE NOBODY ANSWERS MUST NOT BE A BUTTON THAT NEVER RETURNS.
+     *
+     * Cloudflare settles this promise through `callback`, `error-callback` or
+     * `expired-callback`, and there are ordinary ways for none of the three to
+     * fire: an interactive challenge the visitor never notices (this widget
+     * renders into a corner), a script an extension or a strict network blocks
+     * after it has been appended, a tab backgrounded mid-verify. Without a
+     * clock the sign-in button then spins for as long as the visitor is
+     * willing to watch it, and nothing anywhere says why.
+     *
+     * Resolving undefined is not a bypass: the server refuses a missing token
+     * whenever a secret is configured, so the visitor gets "Complete the are
+     * you human check and try again" — a sentence they can act on — instead of
+     * a spinner they cannot. (28 Aug.)
+     */
+    const done = (token?: string) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(clock);
+      try { api.remove(id); } catch { /* gone */ } host.remove(); resolve(token);
+    };
+    const clock = setTimeout(() => done(undefined), 15000);
     id = api.render(host, {
       sitekey: SITE_KEY,
       action,
