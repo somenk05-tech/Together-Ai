@@ -236,7 +236,17 @@ export function preferenceNotes(a: DXProfile, b: DXProfile): string[] {
   return out;
 }
 
-function lifestyleScore(a: DXProfile, b: DXProfile): number {
+/**
+ * The lifestyle comparison, and HOW MANY THINGS IT ACTUALLY COMPARED.
+ *
+ * The count is not bookkeeping: 45 is what this returns when it compared
+ * nothing at all, and 45 is below the threshold at which a card tells two
+ * people their habits look different. Without the count, "we could not look"
+ * and "we looked and they differ" are the same number, and `frictions` printed
+ * a sentence about the first as though it were the second. One function knows
+ * the answer, so one function reports it.
+ */
+function lifestyleParts(a: DXProfile, b: DXProfile): { score: number; measured: number } {
   let s = 0, n = 0;
   // Alignment: do our own habits look alike.
   const attrs: (keyof DXProfile)[] = ['diet', 'smoking', 'drinking', 'fitnessLevel'];
@@ -255,7 +265,11 @@ function lifestyleScore(a: DXProfile, b: DXProfile): number {
       n++; s += want === got ? 100 : 25;
     }
   }
-  return n ? Math.round(s / n) : 45;
+  return { score: n ? Math.round(s / n) : 45, measured: n };
+}
+
+function lifestyleScore(a: DXProfile, b: DXProfile): number {
+  return lifestyleParts(a, b).score;
 }
 /**
  * ANTI-GAMING, from the 1M run's §13.
@@ -544,10 +558,35 @@ export function frictions(f: FactorBreakdown, aD: DXProfile, bD: DXProfile): str
     // answer and the fact of a conflict — which is what the friction is.
     out.push(`Different answers on children — you said ${aD.wantsChildren}.`);
   }
-  if (f.location <= 50) out.push('You are a long way apart.');
-  if (f.lifestyle < 50) out.push('Your day-to-day habits look quite different.');
-  if (f.values < 45) out.push('Not much overlap in what you each said you value.');
-  if (f.personality < 45) out.push('Very different temperaments.');
+  /**
+   * A FRICTION IS A DIFFERENCE, NOT A SILENCE (launch audit, 28 Aug).
+   *
+   * All four of these read a SCORE, and all four of the scores have a default
+   * that sits inside the band being tested: an unplaceable pair scores 20 for
+   * location, a pair with nothing comparable scores 45 for lifestyle, empty
+   * values are 20 and empty traits are 35. Every one of those defaults is below
+   * its own threshold, so the sentences fired hardest on the pairs the engine
+   * knew least about — and on launch day that is every pair.
+   *
+   * Measured, on two profiles that had entered no location and no lifestyle at
+   * all: "You are a long way apart." and "Your day-to-day habits look quite
+   * different." Both are assertions of fact about two strangers, generated from
+   * the absence of an answer.
+   *
+   * `distanceNote`, one function below, already gets this right and returns
+   * null when nothing could be measured, with the comment "Omitted rather than
+   * hedged". Same rule, applied to the four that did not have it: each says
+   * what was answered before it says what it means.
+   */
+  const answered = (v?: string[] | null) => Array.isArray(v) && v.length > 0;
+  // Stricter than `coverage`'s idea of an answered location, deliberately.
+  // Coverage asks "did they tell us where they are", which two unrecognised
+  // city names satisfy. A sentence about the distance BETWEEN them needs the
+  // distance, and outside the coordinate table there is not one.
+  if (searchDistanceKm(aD, bD) !== null && f.location <= 50) out.push('You are a long way apart.');
+  if (lifestyleParts(aD, bD).measured > 0 && f.lifestyle < 50) out.push('Your day-to-day habits look quite different.');
+  if (answered(aD.values) && answered(bD.values) && f.values < 45) out.push('Not much overlap in what you each said you value.');
+  if (answered(aD.personalityTraits) && answered(bD.personalityTraits) && f.personality < 45) out.push('Very different temperaments.');
   return out.slice(0, 2);
 }
 
