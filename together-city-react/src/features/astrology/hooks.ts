@@ -198,14 +198,20 @@ export function useGemCheckout() {
   });
 }
 
-/** Commissioning spends from the city wallet, so the financial views go stale. */
-export function useGemCommission() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: astrologyApi.commissionGem,
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['financial'] }); },
-  });
-}
+/**
+ * `useGemCommission` stood here and nothing imported it.
+ *
+ * It was a SECOND way to buy a gemstone, beside `useGemCheckout` above — and
+ * it spent from the city wallet. Its `astrologyApi.commissionGem` posted to
+ * `POST /astrology/gemstones/:gemId/commission`, which has no controller route
+ * and no service method: wiring that hook to a button would have produced a
+ * pay action that 404s.
+ *
+ * This is the exact case `scripts/dead-export-audit.mjs` was written after —
+ * two ways to do one thing, one of them unreachable, and nothing in the build
+ * able to say which. Deleted rather than repaired, because the reachable path
+ * is `checkoutGemCart` and a payment flow should have one door.
+ */
 export function useAstroRemedies() {
   return useQuery({ queryKey: ['astrology', 'remedies'], queryFn: () => astrologyApi.remedies() });
 }

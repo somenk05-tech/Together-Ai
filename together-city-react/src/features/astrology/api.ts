@@ -401,12 +401,5 @@ export const astrologyApi = {
       .then((r) => r.data),
   /** The choices, never the price — the server prices them from the same
    *  catalogue and weight rule the studio was rendered from. */
-  commissionGem: (v: {
-    gemId: string; grade: number; worn: 'ring' | 'pendant' | 'loose'; shape: string;
-    setting?: string; style?: string; size?: number; metal?: MetalKey; method: 'wallet' | 'card';
-  }) => api.post<{ paid: true; spec: string; amountInr: number; stoneInr: number }>(
-    `/astrology/gemstones/${v.gemId}/commission`,
-    { grade: v.grade, worn: v.worn, shape: v.shape, setting: v.setting, style: v.style, size: v.size, metal: v.metal, method: v.method },
-  ).then((r) => r.data),
   remedies: () => api.get<RemedyResponse>('/astrology/remedies').then((r) => r.data),
 };

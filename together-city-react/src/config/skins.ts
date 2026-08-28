@@ -27,8 +27,11 @@ export interface Skin {
  * all — the room is exactly the city's, byte for byte, with no rule of this
  * feature's touching it. An entry called "white" that re-declared the root
  * values would be a second copy of the default and would drift from it.
+ *
+ * This was `export const NO_SKIN = null`, imported by nothing since it was
+ * written. The rule is the paragraph; the constant was a name for `null` that
+ * no caller needed, and an exported one is a road with no traffic.
  */
-export const NO_SKIN = null;
 
 export const SKINS: readonly Skin[] = [
   { key: 'burgundy', label: 'Deep burgundy',           chip: ['#681d2c', '#f0d3d9'], dark: true },

@@ -22,9 +22,12 @@ const NUTRITION = join(dirname(fileURLToPath(import.meta.url)), '..', 'features'
  *  · VegMark's green/amber/red are the Indian veg / egg / non-veg marks. That
  *    is a regulated symbol, not a style choice, and theming it would be wrong
  *    in a way no dark mode justifies.
- *  · MedicalAdvisories' severity scale is a ramp where the hue IS the datum.
- *    (The A-E grade ramp that used to sit beside it belonged to the
- *    pre-composer meal card, deleted on 2 Aug.)
+ *  · (MedicalAdvisories' severity ramp was the third entry here — a scale
+ *    where the hue IS the datum. The component was deleted on 28 Aug: nothing
+ *    imported it, and the api members that fetched what it rendered had gone
+ *    the same day. PlanGuidanceBanner went with it, for the same reason. The
+ *    exemption is recorded rather than dropped, so a future advisories screen
+ *    knows the argument was already had.)
  *  · CookMode is a full-screen cooking overlay with its own dark surface on
  *    purpose — a phone propped against a chopping board, not a page in the hub.
  * Status washes are NOT in that list: --warn-soft / --danger-soft / --ok-soft

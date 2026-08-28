@@ -17,7 +17,16 @@ interface TurnstileApi {
   remove(id: string): void;
 }
 
-export const turnstileEnabled = Boolean(SITE_KEY);
+/**
+ * `turnstileEnabled` was exported here on 26 Aug and never imported once.
+ *
+ * It cannot have a consumer, by this module's own design: "the server decides
+ * whether to require it (TURNSTILE_SECRET); this side only ever offers it."
+ * There is no client-side branch to take — with a sitekey the widget renders,
+ * without one `getTurnstileToken` resolves undefined and sign-in proceeds
+ * exactly as before. A flag answering a question nothing is allowed to ask is
+ * an invitation to build the branch that the paragraph above forbids.
+ */
 
 /** The doors Turnstile guards. Must match the action the API asserts. */
 export type TurnstileAction = 'register' | 'login';
