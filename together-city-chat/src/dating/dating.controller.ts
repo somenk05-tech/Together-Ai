@@ -26,6 +26,26 @@ import {
  * Same mechanism as mira.controller.ts — ThrottlerGuard is already global.
  */
 const LIST_LIMIT = { default: { ttl: 60_000, limit: 20 } };
+/**
+ * ONE IMAGE IS NOT ONE LIST SCAN. (Fourth audit, 28 Aug.)
+ *
+ * `GET /dating/photo/:token` wore LIST_LIMIT — twenty a minute — because it
+ * sits among the list routes in this file and the decorator was pasted with
+ * them. But the ceiling above is argued for a request that "scans up to
+ * POOL_CEILING rows and signs every card's photos", and this route reads one
+ * object. Browse asks for two hundred cards in a page, so the first paint of
+ * the hub issued two hundred of these: twenty photographs and a hundred and
+ * eighty 429s, every other card falling back to a coloured letter. The
+ * throttler keys per handler per IP, not per user, so an office or a phone
+ * network behind one address shared the twenty between strangers.
+ *
+ * 400 is two full pages plus the re-fetches a scroll causes, and it is still a
+ * ceiling: the route is public by necessity (an <img> cannot carry a bearer
+ * token), so it cannot be left unbounded. What actually protects the objects
+ * is the signed token and mayViewPhoto on every fetch; this number is only
+ * here to stop somebody making the API fetch bytes in a loop.
+ */
+const PHOTO_LIMIT = { default: { ttl: 60_000, limit: 400 } };
 const DECISION_LIMIT = { default: { ttl: 60_000, limit: 60 } };
 const UPLOAD_LIMIT = { default: { ttl: 60_000, limit: 10 } };
 const REPORT_LIMIT = { default: { ttl: 60_000, limit: 5 } };
@@ -177,7 +197,7 @@ export class DatingController {
    * something about the person in the photograph.
    */
   @Public()
-  @Throttle(LIST_LIMIT)
+  @Throttle(PHOTO_LIMIT)
   @Get('photo/:token')
   async photo(@Param('token') token: string, @Res({ passthrough: true }) res: Response): Promise<StreamableFile> {
     const found = await this.dating.openPhoto(token);
