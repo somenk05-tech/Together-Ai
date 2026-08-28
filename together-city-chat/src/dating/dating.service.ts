@@ -1391,7 +1391,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     const myDForQuery = this.parseDX((mine as { extras?: string | null }).extras);
     const candidates = await this.prisma.datingProfile.findMany({
       where: this.poolWhere(userId, mine, myDForQuery),
-      include: { user: { select: { id: true, name: true, createdAt: true, lastSeen: true, onlineStatus: true, emailVerified: true } } },
+      include: { user: { select: { id: true, name: true, emailVerified: true } } },
       orderBy: { updatedAt: 'desc' },
       take: POOL_CEILING,
     });
@@ -1411,7 +1411,9 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
         user: { id: string; name: string };
         score: number;
       };
-      createdAt: number; lastSeen: number; online: boolean; city: string;
+      /** Ranking's tiebreak reads `city`; the other three went with the
+       *  sparse-city sections that could never render. */
+      city: string;
     }
     const scored: Scored[] = [];
 
@@ -1475,9 +1477,6 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
           matched: false,
           conversationId: state?.conversationId ?? null,
         },
-        createdAt: new Date(cand.createdAt).getTime(),
-        lastSeen: new Date(cand.user.lastSeen).getTime(),
-        online: cand.user.onlineStatus,
         city: (candDX.city ?? '').trim().toLowerCase(),
       });
     }
@@ -1541,28 +1540,35 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       });
     }
 
-    // Discovery pools fill in only while things are still sparse, so dense
-    // markets keep a purely compatibility-ranked list.
-    const sparse = used.size < 8;
-    if (sparse) {
-      const newMembers = [...scored].sort((a, b) => b.createdAt - a.createdAt);
-      const nm = take(newMembers, 8);
-      if (nm.length) sections.push({ key: 'new', label: 'New Members', note: 'Just joined the city — say hello early.', tier: 'discovery', matches: nm });
-
-      const active = [...scored].sort((a, b) => (Number(b.online) - Number(a.online)) || (b.lastSeen - a.lastSeen));
-      const ac = take(active, 8);
-      if (ac.length) sections.push({ key: 'active', label: 'Recently Active', note: 'Online now or active recently.', tier: 'discovery', matches: ac });
-
-      if (myCity) {
-        const nearby = scored.filter((s) => s.city && s.city === myCity).sort((a, b) => b.card.score - a.card.score);
-        const nb = take(nearby, 8);
-        if (nb.length) sections.push({ key: 'nearby', label: 'People Nearby', note: `New faces in ${myD.city}.`, tier: 'discovery', matches: nb });
-      }
-
-      const growing = [...scored].sort((a, b) => b.card.score - a.card.score);
-      const gp = take(growing, 8);
-      if (gp.length) sections.push({ key: 'growing', label: 'Growing Community Picks', note: 'More residents to meet as your city grows.', tier: 'discovery', matches: gp });
-    }
+    /**
+     * THE FOUR SPARSE-CITY SECTIONS ARE GONE, AND COULD NEVER HAVE RENDERED.
+     * (Fourth audit, 28 Aug.)
+     *
+     * New Members, Recently Active, People Nearby and Growing Community Picks
+     * were gated on `sparse = used.size < 8`. But `used` is filled by the three
+     * bands above, and those three partition the page exactly — >=75, 55–74,
+     * <55 — so `used.size === page.length`. With the only caller asking for 200
+     * the page IS everybody, which means `sparse` was true only when the whole
+     * city held fewer than eight people, and in that case `take()` skipped
+     * every one of them for being in `used` already. Both directions empty.
+     *
+     * They stopped being reachable when the band truncation was removed. The
+     * comment above `rest` records that: `take(_, 24)` used to cut each band at
+     * twenty-four, and Recommended only appeared when the curated pool held
+     * fewer than six. While the bands hid people, a second pass over the same
+     * set under different headings surfaced them. Once the bands showed
+     * everybody, these four could only ever re-show the same faces — and `take`
+     * deduplicates, which is why they went quietly empty instead of doubling
+     * the page.
+     *
+     * Deleted rather than repaired, because repairing them means choosing to
+     * show the same person twice, under two headings that assert things nothing
+     * checks: "Just joined the city" and "Online now or active recently" are
+     * SORTS, not windows — there is no recency threshold anywhere in either.
+     * The thin-market case is already handled honestly one screen up, by
+     * `lowDensity` and the banner that reads "None of the N people here clear
+     * the curated bar yet".
+     */
 
     // Photos for the cards that are actually going out, and only those.
     const going = new Set(sections.flatMap((sec) => sec.matches.map((m) => m.photos)));
