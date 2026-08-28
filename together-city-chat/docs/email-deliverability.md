@@ -154,9 +154,8 @@ variable change, and nothing is read until it does.
 | `EMAIL_PROVIDER` | `resend` |
 | `RESEND_API_KEY` | from Resend → API Keys |
 | `EMAIL_FROM` | `Together City <no-reply@togethercity.app>` |
-| `WEB_APP_URL` | `https://togethercity.app` |
 
-Two of those are easy to get subtly wrong.
+One of those is easy to get subtly wrong.
 
 **`EMAIL_FROM` must sit on the domain Resend shows as Verified.** That is
 `togethercity.app` — the apex, verified 2026-07-23. Resend rejects an
@@ -168,10 +167,19 @@ anyway: a default that happens to be correct is indistinguishable from a
 configuration that was thought about, right up until someone changes the
 default.
 
-**`WEB_APP_URL` is not cosmetic.** Unset, it falls back to the raw
-`together-ai-five.vercel.app` hostname, and links in your email point at a
-domain that does not match the brand, the sender or the site. Recipients read
-that as phishing and so do spam filters.
+**`WEB_APP_URL` was here and is gone (28 Aug).** The paragraph that stood here
+warned that leaving it unset would point email links at a raw Vercel hostname
+and read like phishing. That was true of a verification-LINK flow which no
+longer exists: the email carries a six-digit code and contains no links at all,
+so there is no origin to get wrong. Nothing in `src` has read the variable for
+some time, and `env-manifest.ts` — the list the `/dev` page renders and the one
+that is actually checked at boot — has never listed it.
+
+It is recorded here rather than quietly deleted because a document that tells
+you to set a variable nothing reads costs more than one that says nothing: it
+gets set, it looks configured, and the next person treats the whole table as
+verified. When an email does carry a link, the variable comes back through
+`env-manifest.ts` first.
 
 Leave `SMS_PROVIDER` unset for now. Unset means the stub, phone verification
 says "no SMS provider is configured on this environment" rather than pretending,
@@ -186,7 +194,6 @@ and nothing else is affected.
 | `EMAIL_PROVIDER` | `resend` |
 | `EMAIL_FROM` | `Together City <no-reply@togethercity.app>` |
 | `RESEND_API_KEY` | from the Resend dashboard |
-| `WEB_APP_URL` | `https://togethercity.app` |
 | `SMS_PROVIDER` | unset for now — see §2's open items |
 | `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` | from the Twilio console, when SMS is turned on |
 | `TWILIO_MESSAGING_SERVICE_SID` | preferred over `TWILIO_FROM` in India |
