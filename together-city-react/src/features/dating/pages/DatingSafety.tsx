@@ -30,7 +30,24 @@ export function DatingSafety() {
 
   const p = profile.data;
   const review = p?.photoReview ?? {};
-  const refusedPhotos = Object.entries(review).filter(([, s]) => s === 'rejected' || s === 'held').map(([k]) => k);
+  /**
+   * AN APPEAL YOU CANNOT WIN IS WORSE THAN NO APPEAL. (Fourth audit, 28 Aug.)
+   *
+   * `statusOf` keys a legacy inline photograph as `inline/<sha>`, and appeal()
+   * on the API requires a vault key — `isOwnDatingKey`, which means
+   * `dating/<userId>/…`. So an inline key was offered here as something to
+   * appeal and 404ed every time, under the one error sentence this page has:
+   * "That did not send. Try again in a moment." Which is a loop, and a lie
+   * about which of the two of you is failing.
+   *
+   * Only affects photographs uploaded before the vault (M3); new ones are all
+   * vault keys. They are dropped from the list rather than shown-and-refused,
+   * because there is no appeal to make: the base64 is in the profile row, not
+   * in a bucket, and the reviewer screen has nothing to fetch.
+   */
+  const refusedPhotos = Object.entries(review)
+    .filter(([k, s]) => (s === 'rejected' || s === 'held') && !k.startsWith('inline/'))
+    .map(([k]) => k);
   const profileRefused = p?.moderation === 'rejected' || p?.moderation === 'review';
   const canAppeal = kind === 'dating_profile' ? profileRefused : Boolean(photoKey);
 

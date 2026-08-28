@@ -55,7 +55,12 @@ function build(birthDate: Date) {
   );
   (svc as any).access = access;
   (svc as any).logModeration = jest.fn(async () => undefined);
-  return { svc, prisma, archived, updated, profileWrites, access };
+  // A rejection now also tells the person it happened to (fourth audit): their
+  // matches and chats disappear at once, and this used to be the only decision
+  // in the file that said nothing. Captured so the suite can assert it.
+  const told: any[] = [];
+  (svc as any).notifications = { create: jest.fn(async (n: any) => { told.push(n); }) };
+  return { svc, prisma, archived, updated, profileWrites, access, told };
 }
 
 const ADULT = new Date('1995-01-01');
@@ -108,5 +113,26 @@ describe('approving a dating profile', () => {
     const { svc, profileWrites } = build(MINOR);
     await svc.moderateDecision('mod', 'them', 'rejected', 'under age');
     expect(profileWrites).toEqual([{ moderation: 'rejected', visible: false }]);
+  });
+});
+
+/**
+ * The decision that costs somebody something was the one that arrived in
+ * silence. decideAppeal, the same file, has always notified.
+ */
+describe('and the citizen is told', () => {
+  it('says what happened and where it can be argued', async () => {
+    const h = build(ADULT);
+    await h.svc.moderateDecision('mod', 'them', 'rejected', 'under age');
+    expect(h.told).toHaveLength(1);
+    expect(h.told[0]).toMatchObject({ userId: 'them', kind: 'system', href: '/dating/safety' });
+    expect(String(h.told[0].title)).toMatch(/taken down/i);
+    expect(String(h.told[0].body)).not.toMatch(/under age/);
+  });
+
+  it('says nothing on an approval', async () => {
+    const h = build(ADULT);
+    await h.svc.moderateDecision('mod', 'them', 'approved', 'looks fine');
+    expect(h.told).toEqual([]);
   });
 });

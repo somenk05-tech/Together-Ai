@@ -2666,6 +2666,30 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       // them talking to the adults they already matched with.
       if (decision === 'rejected') await this.endMyChats(targetUserId, 'dating rejection');
     });
+    /**
+     * AND IT HAS TO REACH THE PERSON IT HAPPENED TO. (Fourth audit, 28 Aug.)
+     *
+     * This wrote columns, wrote a log, and ended their chats without a word.
+     * Every match and every conversation disappeared at once and the only way
+     * to find out why was to open the dating profile page and read a banner
+     * nobody had been told to go and look at. `decideAppeal` — the same file,
+     * the same kind of decision — has always notified. This is that, on the
+     * decision that actually costs somebody something.
+     *
+     * It names the Safety Centre because an appeal is the one thing they can do
+     * next, and the banner on the profile page already links there. No reason
+     * is included: the moderation reason is written for the log and for the
+     * moderator, and a machine-worded refusal delivered as a push is not the
+     * same object as a sentence written to be read by the person refused.
+     */
+    if (decision === 'rejected') {
+      void this.notifications.create({
+        userId: targetUserId, kind: 'system',
+        title: 'Your dating profile was taken down',
+        body: 'It is no longer shown and your dating chats have ended. You can ask for this to be looked at again in the Safety Centre.',
+        href: '/dating/safety',
+      });
+    }
     return { userId: targetUserId, moderation: decision };
   }
 
@@ -3042,8 +3066,11 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     //
     // The account read does the filtering, because it is the read that already
     // had to happen: ask it for the living, and whoever it does not return is
-    // gone. `matches` is narrowed BEFORE otherIds and pairKeys are built —
-    // `pairKeys[matches.indexOf(m)]` below is positional.
+    // gone. `matches` is narrowed BEFORE otherIds and pairKeys are built.
+    // (That used to matter because the score lookup below was positional into
+    // pairKeys; it now derives its own key from the row, so the ordering is no
+    // longer load-bearing — but the narrowing still has to happen first, or the
+    // reads below fetch rows for people who are not on this list.)
     // unbounded: `in:` of the matches read above, which that read's own bound covers.
     const users = await this.prisma.user.findMany({
       where: { id: { in: allMatches.map(other) }, deletedAt: null },
@@ -3113,7 +3140,12 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       const otherProfile = profileOf.get(otherId) ?? null;
       const otherUser = userOf.get(otherId);
       const candD = this.parseDX((otherProfile as { extras?: string | null } | null)?.extras) as DXProfile & { firstName?: string; photos?: string[] };
-      const score = scoreOf.get(pairKeys[matches.indexOf(m)].join(':')) ?? null;
+      // WAS `pairKeys[matches.indexOf(m)]`, inside the loop over `matches` —
+      // a linear scan per row, so the one genuinely quadratic thing in the hub,
+      // on a list whose length stopped being capped when the conversation cap
+      // was removed on 27 Aug. The key is derivable from the row itself, so
+      // nothing has to be looked up positionally at all. (Fourth audit.)
+      const score = scoreOf.get([userId, otherId].sort().join(':')) ?? null;
 
       out.push({
         conversationId: m.conversationId,
