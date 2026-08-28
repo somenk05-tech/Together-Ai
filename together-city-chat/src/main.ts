@@ -1,4 +1,5 @@
 import { ValidationPipe, Logger } from '@nestjs/common';
+import { API_PREFIX } from './shared/api-prefix';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
@@ -84,7 +85,7 @@ async function bootstrap(): Promise<void> {
     },
     credentials: true,
   });
-  app.setGlobalPrefix('api');
+  app.setGlobalPrefix(API_PREFIX);
   app.useGlobalFilters(new AllExceptionsFilter());
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.enableShutdownHooks();

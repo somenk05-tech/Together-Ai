@@ -2,6 +2,7 @@ import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import type { Readable } from 'stream';
+import { apiUrl } from '../shared/api-prefix';
 import { mintPhotoToken, readPhotoToken } from '../dating/photo-link';
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand, PutBucketCorsCommand, GetBucketCorsCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -476,7 +477,7 @@ export class StorageProvider implements OnModuleInit {
    */
   async datingPhotoUrl(viewerId: string, key: string): Promise<string | null> {
     if (!this.apiBase || !viewerId || !key) return this.presignPrivateDownload(key);
-    return `${this.apiBase}/dating/photo/${mintPhotoToken(this.linkSecret, viewerId, key, this.datingPhotoTtlSec, Date.now())}`;
+    return apiUrl(this.apiBase, `dating/photo/${mintPhotoToken(this.linkSecret, viewerId, key, this.datingPhotoTtlSec, Date.now())}`);
   }
 
   /** The viewer and key a photo token names, or null for every kind of failure. */
