@@ -55,7 +55,7 @@ interface Siteverify {
 @Injectable()
 export class TurnstileService {
   private readonly logger = new Logger(TurnstileService.name);
-  private readonly secret = process.env.TURNSTILE_SECRET ?? '';
+  private readonly secret = (process.env.TURNSTILE_SECRET ?? '').trim();
   private readonly hosts = hostList(process.env.TURNSTILE_HOSTNAMES);
 
   get enabled(): boolean { return this.secret.length > 0; }
@@ -79,7 +79,22 @@ export class TurnstileService {
       const res = await fetch(VERIFY, { method: 'POST', body, signal: ctl.signal });
       const out = (await res.json()) as Siteverify;
       if (!out.success) {
-        this.logger.warn(`turnstile refused: ${(out['error-codes'] ?? []).join(',') || 'no reason given'}`);
+        const codes = out['error-codes'] ?? [];
+        /**
+         * `invalid-input-secret` is an OPERATOR error wearing a visitor's
+         * error's clothes, and it costs an afternoon to read as anything else:
+         * every sign-in and every sign-up fails, the visitor is told to reload,
+         * reloading cannot help, and the log line names a Cloudflare error code
+         * rather than the thing that is actually wrong. It happened here on the
+         * first attempt — the site key and the secret key sit in one box in the
+         * dashboard, both open `0x4AAAAAAE`, and the site key went into
+         * TURNSTILE_SECRET. So the log says which field to look at. (28 Aug.)
+         */
+        if (codes.includes('invalid-input-secret')) {
+          this.logger.error('TURNSTILE_SECRET is not a valid secret for this widget — check you copied the Secret key '
+            + '(the lower, longer field, behind "Show") and not the Site key. Every sign-in and sign-up is refused until it is right.');
+        }
+        this.logger.warn(`turnstile refused: ${codes.join(',') || 'no reason given'}`);
         throw new ForbiddenException('The "are you human" check did not pass. Reload and try again.');
       }
       const host = (out.hostname ?? '').toLowerCase();

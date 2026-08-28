@@ -80,6 +80,36 @@ describe('Turnstile', () => {
   });
 
   /**
+   * The failure that actually happened, 28 Aug: the site key was pasted into
+   * TURNSTILE_SECRET. Both fields live in one box in the dashboard and both
+   * open `0x4AAAAAAE`. The visitor is told to reload, which cannot help, so
+   * the log has to name the field rather than repeat Cloudflare's code.
+   */
+  it('names the field when the secret is not a secret', async () => {
+    const svc = withEnv('0x4AAAAAAEcylMxjooSOdcPv', 'togethercity.app',
+      replies({ success: false, 'error-codes': ['invalid-input-secret'] }));
+    const said: string[] = [];
+    const log = (svc as unknown as { logger: { error(m: string): void } }).logger;
+    const prior = log.error.bind(log);
+    log.error = (m: string) => { said.push(m); };
+    await expect(svc.assert('t', 'login')).rejects.toThrow(/did not pass/);
+    log.error = prior;
+    expect(said.join(' ')).toMatch(/Secret key/);
+    expect(said.join(' ')).toMatch(/not the Site key/);
+  });
+
+  it('sends the secret trimmed, because a dashboard paste carries a newline', async () => {
+    let sent = '';
+    const spy = (async (_u: string, init: { body: URLSearchParams }) => {
+      sent = init.body.get('secret') ?? '';
+      return { json: async () => ({ success: true, hostname: 'togethercity.app', action: 'login' }) };
+    }) as unknown as typeof fetch;
+    const svc = withEnv('  s3cret\n', 'togethercity.app', spy);
+    await expect(svc.assert('t', 'login')).resolves.toBeUndefined();
+    expect(sent).toBe('s3cret');
+  });
+
+  /**
    * A secret with no allowlist cannot compare anything, so it refuses rather
    * than waving the comparison through. Production never gets here —
    * assertProductionConfig makes it fatal at boot.
