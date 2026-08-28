@@ -678,13 +678,15 @@
      nothing under the cursor reads as one you cannot press. The glass clears —
      it does not light; lighting is what the press is for. */
   --calm-face-hover: linear-gradient(145deg, #ffffff 0%, #f6f8fc 100%);
-  /* THE SECONDARY'S REST, AND IT IS THE SAME GLASS. It kept its own pair of
-     names for one afternoon, while the primary rested in a warm shell and this
-     one did not. They are the same object now — see --calm-case — and the
-     names stay separate so that the day the two are asked to differ again it
-     is one value rather than a search. */
-  --quiet-case: var(--calm-case);
-  --quiet-face: var(--calm-face);
+  /* THE SECONDARY'S REST, AND IT IS THE SAME GLASS — so it has no names of its
+     own any more. --quiet-case and --quiet-face were aliases of --calm-case
+     and --calm-face, kept on the stated argument that "the day the two are
+     asked to differ again it is one value rather than a search".
+     Removed 28 Aug, because nothing ever read them and that defeats the
+     argument: the callers say --calm-case directly, so changing --quiet-case
+     on the day they must differ would have changed nothing at all. The seam
+     it promised did not exist. When the secondary needs its own rest, it needs
+     a name AND a caller, and both arrive together or neither is real. */
 
   --lamp-face: var(--loud-face);
   /* The specular a ROOM's key wears — softer than the sun's, because the
@@ -823,13 +825,16 @@
      to red at the lower left, and a button is a wide shape rather than a tall
      one, so the axis that shows the sweep is the diagonal. */
   --loud-face:        linear-gradient(135deg, #f2aa3e 0%, #f7882e 52%, #ea6a3e 100%);
-  --loud-face-hover:  linear-gradient(135deg, #f5b64a 0%, #f7882e 52%, #ea6a3e 100%);
-  --loud-face-active: linear-gradient(135deg, #ea6a3e 0%, #f7882e 52%, #f2aa3e 100%);
+  /* --loud-face-hover and --loud-face-active left on 28 Aug, read by nothing.
+     They were a scheme where the sun brightened on hover and inverted on
+     press; the one that shipped instead CLEARS to glass on hover
+     (--calm-face-hover) and lights to --loud-face on press, which is the
+     opposite motion and the better one — a control that dims toward you and
+     lights under you. Two gradients describing a button nobody built.
+     --btn-line-edge, --btn-line-ring and --btn-line-ring-hover left with them:
+     a hairline-and-ring outline for a button that never wore one. */
   --on-loud: #2a2a2a;   /* 7.24:1 on the amber stop · 4.53:1 on the coral */
   --frost: rgba(255,255,255,.72);
-  --btn-line-edge:       #ffffff;
-  --btn-line-ring:       rgba(0,0,0,.16);
-  --btn-line-ring-hover: rgba(0,0,0,.32);
 
   /* The lit key in the hub rail — its type and the wash behind its number. */
   /* THE LABEL FOLLOWS THE BUTTON'S, for the same arithmetic: white is 1.98:1
@@ -931,11 +936,13 @@
 
   --pane-blur: none;
 
-  --chrome: var(--card);
-  --chrome-blur: none;
   /* --pane, --pane-rim, --on-pane and --on-pane-soft left with them: four
      pre-Relief names aliasing four Relief ones, read by nothing. --pane-blur
-     stays — it has two callers in relief.css. */
+     stays — it has two callers in relief.css.
+     --chrome and --chrome-blur followed on 28 Aug, from this very block: the
+     same two shapes (an alias of --card, and a blur set to none), sitting
+     directly under the paragraph describing their own removal, missed because
+     the sentence was written about their siblings. */
 
   /* ── AND A HUB MAY GRADE ITS PHOTOGRAPHS ─────────────────────────────────
      Inert here for the same reason the sky is: no grade, no grain. A hub that

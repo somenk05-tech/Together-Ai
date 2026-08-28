@@ -151,13 +151,15 @@ describe('Relief stays a system', () => {
     // its lower lip, and nothing stands on it. They are per-sheet because the
     // light on Thursday's blue is white and the light on Sunday's linen is not,
     // which is the whole reason a scored line reads as a crease on both.
-    const NAMED = /var\(--(e1|e2|e3|e1-key|e2-key|carve|carve-deep|press|shadow|shadow-deep|edge-up|edge-in|pip|pip-ok|case-rim|case-rim-soft|lens|lens-key|lamp|lamp-badge|key-lit|key-lit-pip|rail-well-shadow|glass|glass-key|glass-in|glass-tray-shadow|glass-bubble-shadow|prism|focus-ring|soft-in|soft-tile|atmos-lip|press-stamp|press-stamp-warm|press-recto-lift|press-verso-lift|loud-case|loud-case-sm|calm-case|calm-case-sm|quiet-case)\)/;
+    const NAMED = /var\(--(e1|e2|e3|e1-key|e2-key|carve|carve-deep|press|shadow|shadow-deep|edge-up|edge-in|pip|pip-ok|case-rim|case-rim-soft|lens|lens-key|lamp|lamp-badge|key-lit|key-lit-pip|rail-well-shadow|glass|glass-key|glass-in|glass-tray-shadow|glass-bubble-shadow|prism|focus-ring|soft-in|soft-tile|atmos-lip|press-stamp|press-stamp-warm|press-recto-lift|press-verso-lift|loud-case|loud-case-sm|calm-case|calm-case-sm)\)/;
     // --calm-case joins them the same afternoon: the primary rests in a clear
     // casing and lights only under a finger, so the moulding it wears at rest
     // is a fourth name rather than a fourth height.
-    // --loud-case and --quiet-case join for the moulded button (23 Aug): the
-    // casing a primary action is set into, and the same casing empty for a
-    // secondary. A MATERIAL, in the company of --glass and --lens — it is what
+    // --loud-case joins for the moulded button (23 Aug): the casing a primary
+    // action is set into. --quiet-case was named here beside it, for "the same
+    // casing empty for a secondary", and left this list on 28 Aug with the
+    // token — an alias of --calm-case that no box-shadow ever referenced, so
+    // permitting it permitted nothing. A MATERIAL, in the company of --glass and --lens — it is what
     // the control is made of rather than a sixth height, and the whole reason
     // it is a token is that the last version of this button was six shadow
     // layers written by hand, which is exactly how it survived every commit
