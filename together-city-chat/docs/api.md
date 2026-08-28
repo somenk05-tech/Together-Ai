@@ -4,8 +4,8 @@
 removing a route. It is produced from the same parse the security guards in
 `src/security/` use, so it cannot describe a route that does not exist.
 
-Every path below is prefixed with `/api`. **387 routes** across
-**34 controllers**; **9** are reachable without a token.
+Every path below is prefixed with `/api`. **568 routes** across
+**44 controllers**; **12** are reachable without a token.
 
 ## Conventions
 
@@ -25,10 +25,34 @@ _messages/messages.controller.ts_
 | Method | Path | Auth |
 |---|---|---|
 | GET | `/api/chat/:id/messages` | 🔒 |
+| GET | `/api/chat/:id/pinned` | 🔒 |
+| GET | `/api/messages/:id/info` | 🔒 |
+| POST | `/api/messages/:id/pin` | 🔒 |
+| POST | `/api/messages/:id/react` | 🔒 |
+| POST | `/api/messages/:id/star` | 🔒 |
 | DELETE | `/api/messages/:id` | 🔒 |
 | PUT | `/api/messages/:id` | 🔒 |
 | GET | `/api/messages/search` | 🔒 |
 | POST | `/api/messages` | 🔒 |
+
+## /admin
+
+_admin/admin.controller.ts_
+
+| Method | Path | Auth |
+|---|---|---|
+| GET | `/api/admin/audit` | 🔒 |
+| GET | `/api/admin/businesses/:id` | 🔒 |
+| GET | `/api/admin/citizens/:id/activity` | 🔒 |
+| POST | `/api/admin/citizens/:id/suspension` | 🔒 |
+| GET | `/api/admin/citizens/:id` | 🔒 |
+| GET | `/api/admin/citizens/export` | 🔒 |
+| GET | `/api/admin/citizens` | 🔒 |
+| GET | `/api/admin/me` | 🔒 |
+| POST | `/api/admin/queue/:id/decision` | 🔒 |
+| GET | `/api/admin/queue` | 🔒 |
+| POST | `/api/admin/verification/:listingId/decision` | 🔒 |
+| GET | `/api/admin/verification` | 🔒 |
 
 ## /ai
 
@@ -51,7 +75,16 @@ _astrology/astrology.controller.ts_
 | POST | `/api/astrology/ask` | 🔒 |
 | GET | `/api/astrology/daily/history` | 🔒 |
 | GET | `/api/astrology/daily` | 🔒 |
+| DELETE | `/api/astrology/gem-cart/:gemId` | 🔒 |
+| POST | `/api/astrology/gem-cart/checkout` | 🔒 |
+| GET | `/api/astrology/gem-cart` | 🔒 |
+| PUT | `/api/astrology/gem-cart` | 🔒 |
+| GET | `/api/astrology/gem-catalog` | token |
 | GET | `/api/astrology/gems` | 🔒 |
+| GET | `/api/astrology/gemstones/:id/design` | 🔒 |
+| GET | `/api/astrology/gemstones/:id/metals` | 🔒 |
+| GET | `/api/astrology/gemstones` | 🔒 |
+| GET | `/api/astrology/monthly/history` | 🔒 |
 | GET | `/api/astrology/monthly` | 🔒 |
 | GET | `/api/astrology/profile` | 🔒 |
 | PUT | `/api/astrology/profile` | 🔒 |
@@ -111,6 +144,10 @@ _beauty/beauty.controller.ts_
 | Method | Path | Auth |
 |---|---|---|
 | DELETE | `/api/beauty/assessments/latest` | 🔒 |
+| GET | `/api/beauty/bag` | 🔒 |
+| PUT | `/api/beauty/bag` | 🔒 |
+| GET | `/api/beauty/budget` | 🔒 |
+| PUT | `/api/beauty/budget` | token |
 | GET | `/api/beauty/history` | 🔒 |
 | GET | `/api/beauty/insights` | 🔒 |
 | DELETE | `/api/beauty/looks/:id` | 🔒 |
@@ -139,6 +176,8 @@ _calls/calls.controller.ts_
 | GET | `/api/calls` | 🔒 |
 | GET | `/api/calls/ice` | token |
 | POST | `/api/calls` | 🔒 |
+| GET | `/api/calls/reach/:conversationId` | 🔒 |
+| GET | `/api/calls/ringing` | 🔒 |
 
 ## /chat
 
@@ -147,12 +186,21 @@ _conversations/conversations.controller.ts_
 | Method | Path | Auth |
 |---|---|---|
 | POST | `/api/chat/:id/archive` | 🔒 |
+| POST | `/api/chat/:id/leave` | 🔒 |
+| POST | `/api/chat/:id/members/:userId/role` | 🔒 |
+| DELETE | `/api/chat/:id/members/:userId` | 🔒 |
+| GET | `/api/chat/:id/members` | 🔒 |
+| POST | `/api/chat/:id/members` | 🔒 |
+| PUT | `/api/chat/:id/photo` | 🔒 |
 | POST | `/api/chat/:id/read` | 🔒 |
+| POST | `/api/chat/:id/rename` | 🔒 |
 | POST | `/api/chat/:id/unarchive` | 🔒 |
+| POST | `/api/chat/:id/unread` | 🔒 |
 | DELETE | `/api/chat/:id` | 🔒 |
 | GET | `/api/chat/contacts` | 🔒 |
 | GET | `/api/chat/conversations` | 🔒 |
 | POST | `/api/chat/group` | 🔒 |
+| GET | `/api/chat/roster` | 🔒 |
 | POST | `/api/chat/start` | 🔒 |
 
 ## /city
@@ -185,13 +233,18 @@ _dating/dating.controller.ts_
 
 | Method | Path | Auth |
 |---|---|---|
-| POST | `/api/dating/activities/invites/:id/respond` | 🔒 |
-| POST | `/api/dating/activities/invites/:id/trust` | 🔒 |
-| GET | `/api/dating/activities/invites` | 🔒 |
-| GET | `/api/dating/activities/mine` | 🔒 |
-| POST | `/api/dating/activities` | 🔒 |
+| POST | `/api/dating/admin/appeals/:id/decide` | 🔒 |
+| GET | `/api/dating/admin/appeals` | 🔒 |
+| GET | `/api/dating/admin/funnel` | 🔒 |
+| POST | `/api/dating/admin/moderation/:targetUserId` | 🔒 |
+| POST | `/api/dating/admin/photos/backfill` | 🔒 |
+| POST | `/api/dating/admin/photos/decide` | 🔒 |
+| GET | `/api/dating/admin/photos` | 🔒 |
+| GET | `/api/dating/admin/profiles` | 🔒 |
 | GET | `/api/dating/admin/stats` | 🔒 |
 | GET | `/api/dating/allowance` | 🔒 |
+| GET | `/api/dating/appeals/mine` | 🔒 |
+| POST | `/api/dating/appeals` | 🔒 |
 | GET | `/api/dating/chats` | 🔒 |
 | GET | `/api/dating/discover` | 🔒 |
 | POST | `/api/dating/matches/:targetUserId/block` | 🔒 |
@@ -201,16 +254,44 @@ _dating/dating.controller.ts_
 | POST | `/api/dating/matches/:targetUserId/report` | 🔒 |
 | POST | `/api/dating/matches/:targetUserId/reveal` | 🔒 |
 | POST | `/api/dating/matches/:targetUserId/super-like` | 🔒 |
-| POST | `/api/dating/matches/:targetUserId/unlock-chat` | 🔒 |
 | POST | `/api/dating/matches/:targetUserId/unmatch` | 🔒 |
 | GET | `/api/dating/matches/:targetUserId` | 🔒 |
-| GET | `/api/dating/matches` | 🔒 |
+| GET | `/api/dating/photo/:token` | **public** |
 | POST | `/api/dating/photos/presign` | 🔒 |
 | DELETE | `/api/dating/profile` | 🔒 |
 | GET | `/api/dating/profile` | 🔒 |
 | POST | `/api/dating/profile` | 🔒 |
+| POST | `/api/dating/selfie/presign` | 🔒 |
+| DELETE | `/api/dating/selfie` | 🔒 |
+| POST | `/api/dating/selfie` | 🔒 |
 | GET | `/api/dating/stack` | 🔒 |
 | POST | `/api/dating/undo-pass` | 🔒 |
+
+## /daybook
+
+_daybook/daybook.controller.ts_
+
+| Method | Path | Auth |
+|---|---|---|
+| POST | `/api/daybook/:date/items` | 🔒 |
+| POST | `/api/daybook/:date/photos` | 🔒 |
+| GET | `/api/daybook/:date` | 🔒 |
+| PUT | `/api/daybook/:date` | 🔒 |
+| DELETE | `/api/daybook/items/:id` | 🔒 |
+| PATCH | `/api/daybook/items/:id` | 🔒 |
+| GET | `/api/daybook/month/:ym` | 🔒 |
+| DELETE | `/api/daybook/photos/:id` | 🔒 |
+| POST | `/api/daybook/photos/presign` | 🔒 |
+
+## /dev
+
+_dev/dev.controller.ts_
+
+| Method | Path | Auth |
+|---|---|---|
+| GET | `/api/dev/diagnostics` | token |
+| GET | `/api/dev/flags` | token |
+| POST | `/api/dev/flags` | 🔒 |
 
 ## /drive
 
@@ -264,6 +345,9 @@ _financial/financial.controller.ts_
 | DELETE | `/api/financial/card` | 🔒 |
 | GET | `/api/financial/card` | 🔒 |
 | POST | `/api/financial/card` | 🔒 |
+| DELETE | `/api/financial/log/:id` | 🔒 |
+| GET | `/api/financial/log` | 🔒 |
+| POST | `/api/financial/log` | 🔒 |
 | POST | `/api/financial/pay` | 🔒 |
 | GET | `/api/financial/services` | token |
 | GET | `/api/financial/spending` | 🔒 |
@@ -278,12 +362,30 @@ _fitness/fitness.controller.ts_
 | Method | Path | Auth |
 |---|---|---|
 | GET | `/api/fitness/body-goal` | 🔒 |
+| DELETE | `/api/fitness/log/:id` | 🔒 |
+| PATCH | `/api/fitness/log/:id` | 🔒 |
 | GET | `/api/fitness/log` | 🔒 |
 | POST | `/api/fitness/log` | 🔒 |
 | GET | `/api/fitness/plan` | 🔒 |
 | GET | `/api/fitness/profile` | 🔒 |
 | PUT | `/api/fitness/profile` | 🔒 |
+| GET | `/api/fitness/session` | 🔒 |
+| GET | `/api/fitness/store/bag` | 🔒 |
+| PUT | `/api/fitness/store/bag` | 🔒 |
+| GET | `/api/fitness/store/orders` | 🔒 |
+| POST | `/api/fitness/store/orders` | 🔒 |
+| GET | `/api/fitness/store` | 🔒 |
+| GET | `/api/fitness/supplements` | 🔒 |
 | POST | `/api/fitness/sync-nutrition` | 🔒 |
+
+## /geo
+
+_geo/geo.controller.ts_
+
+| Method | Path | Auth |
+|---|---|---|
+| GET | `/api/geo/reverse` | token |
+| GET | `/api/geo/search` | token |
 
 ## /health
 
@@ -312,15 +414,24 @@ _jobs/jobs.controller.ts_
 | DELETE | `/api/jobs/applications/:id` | 🔒 |
 | GET | `/api/jobs/applications` | 🔒 |
 | POST | `/api/jobs/applications` | 🔒 |
+| GET | `/api/jobs/completion` | 🔒 |
+| PATCH | `/api/jobs/entries/:id/hidden` | 🔒 |
+| DELETE | `/api/jobs/entries/:id` | 🔒 |
+| PUT | `/api/jobs/entries/:id` | 🔒 |
+| POST | `/api/jobs/entries/reorder` | 🔒 |
+| POST | `/api/jobs/entries` | 🔒 |
 | GET | `/api/jobs/matches` | 🔒 |
 | GET | `/api/jobs/postings/:id/applicants` | 🔒 |
 | DELETE | `/api/jobs/postings/:id` | 🔒 |
 | PUT | `/api/jobs/postings/:id` | 🔒 |
 | GET | `/api/jobs/postings` | 🔒 |
 | POST | `/api/jobs/postings` | 🔒 |
+| PUT | `/api/jobs/preferences` | 🔒 |
 | GET | `/api/jobs/profile` | 🔒 |
 | PUT | `/api/jobs/profile` | 🔒 |
+| DELETE | `/api/jobs/resume` | 🔒 |
 | POST | `/api/jobs/resume` | 🔒 |
+| PUT | `/api/jobs/visibility` | 🔒 |
 
 ## /lookups
 
@@ -332,7 +443,7 @@ _lookups/lookups.controller.ts_
 
 ## /mail
 
-_mail/mail.controller.ts_
+_mail/mail-inbound.controller.ts_
 
 | Method | Path | Auth |
 |---|---|---|
@@ -342,13 +453,22 @@ _mail/mail.controller.ts_
 | GET | `/api/mail/:id` | 🔒 |
 | GET | `/api/mail/account` | 🔒 |
 | GET | `/api/mail/directory` | 🔒 |
+| DELETE | `/api/mail/draft/:id` | 🔒 |
+| POST | `/api/mail/draft` | 🔒 |
+| POST | `/api/mail/file` | 🔒 |
 | GET | `/api/mail` | 🔒 |
+| POST | `/api/mail/inbound` | **public** |
 | GET | `/api/mail/outbox` | 🔒 |
 | POST | `/api/mail/primary` | 🔒 |
+| DELETE | `/api/mail/projects/:id` | 🔒 |
+| POST | `/api/mail/projects/:id` | 🔒 |
+| GET | `/api/mail/projects` | 🔒 |
+| POST | `/api/mail/projects` | 🔒 |
 | POST | `/api/mail/send` | 🔒 |
 | GET | `/api/mail/thread/:threadId/attachments/:fileId/url` | 🔒 |
 | GET | `/api/mail/thread/:threadId/attachments` | 🔒 |
 | GET | `/api/mail/thread/:threadId` | 🔒 |
+| DELETE | `/api/mail/trash` | 🔒 |
 
 ## /media
 
@@ -390,6 +510,34 @@ _medical/medical.controller.ts_
 | GET | `/api/medical/storage` | 🔒 |
 | GET | `/api/medical/summary` | 🔒 |
 | GET | `/api/medical/supplement-plan` | 🔒 |
+
+## /medicines
+
+_prescriptions/prescriptions.controller.ts_
+
+| Method | Path | Auth |
+|---|---|---|
+| POST | `/api/medicines/doses` | 🔒 |
+| GET | `/api/medicines` | 🔒 |
+| GET | `/api/medicines/logs` | 🔒 |
+| GET | `/api/medicines/today` | 🔒 |
+
+## /mira
+
+_mira/mira.controller.ts_
+
+| Method | Path | Auth |
+|---|---|---|
+| POST | `/api/mira/ask` | 🔒 |
+| GET | `/api/mira/capabilities` | token |
+| POST | `/api/mira/confide` | 🔒 |
+| POST | `/api/mira/day` | 🔒 |
+| GET | `/api/mira/greeting` | 🔒 |
+| DELETE | `/api/mira/knows/:id` | 🔒 |
+| GET | `/api/mira/knows` | 🔒 |
+| GET | `/api/mira/memory` | 🔒 |
+| POST | `/api/mira/subscribe` | 🔒 |
+| GET | `/api/mira/thread` | 🔒 |
 
 ## /notifications
 
@@ -465,6 +613,12 @@ _nutrition/nutrition.controller.ts_
 | POST | `/api/nutrition/plan/composed/unlock` | 🔒 |
 | POST | `/api/nutrition/plan/composed/unpin` | 🔒 |
 | GET | `/api/nutrition/plan/composed` | 🔒 |
+| POST | `/api/nutrition/plan/own/add` | 🔒 |
+| POST | `/api/nutrition/plan/own/lock` | 🔒 |
+| POST | `/api/nutrition/plan/own/remove` | 🔒 |
+| POST | `/api/nutrition/plan/own/unlock` | 🔒 |
+| GET | `/api/nutrition/plan/own` | 🔒 |
+| GET | `/api/nutrition/plan/today` | 🔒 |
 | GET | `/api/nutrition/preferences` | 🔒 |
 | PATCH | `/api/nutrition/preferences` | 🔒 |
 | GET | `/api/nutrition/prep-alerts` | 🔒 |
@@ -485,6 +639,58 @@ _nutrition/nutrition.controller.ts_
 | GET | `/api/nutrition/targets` | 🔒 |
 | GET | `/api/nutrition/wallet` | 🔒 |
 
+## /nutrition/journal
+
+_nutrition/food-journal.controller.ts_
+
+| Method | Path | Auth |
+|---|---|---|
+| DELETE | `/api/nutrition/journal/:id` | 🔒 |
+| PATCH | `/api/nutrition/journal/:id` | 🔒 |
+| POST | `/api/nutrition/journal/analyze` | 🔒 |
+| GET | `/api/nutrition/journal` | 🔒 |
+| POST | `/api/nutrition/journal` | 🔒 |
+| GET | `/api/nutrition/journal/week` | 🔒 |
+
+## /pay
+
+_commerce/commerce.controller.ts_
+
+| Method | Path | Auth |
+|---|---|---|
+| GET | `/api/pay/business/:listingId/account` | 🔒 |
+| POST | `/api/pay/business/:listingId/account` | 🔒 |
+| GET | `/api/pay/business/:listingId/customers` | 🔒 |
+| GET | `/api/pay/business/:listingId/invoices` | 🔒 |
+| POST | `/api/pay/business/:listingId/invoices` | 🔒 |
+| GET | `/api/pay/business/:listingId/payments` | 🔒 |
+| POST | `/api/pay/business/invoices/:id/cancel` | 🔒 |
+| POST | `/api/pay/business/invoices/:id/refund` | 🔒 |
+| POST | `/api/pay/business/invoices/:id/send` | 🔒 |
+| DELETE | `/api/pay/business/invoices/:id` | 🔒 |
+| PATCH | `/api/pay/business/invoices/:id` | 🔒 |
+| GET | `/api/pay/business/payouts/:id` | 🔒 |
+| POST | `/api/pay/invoices/:id/pay` | 🔒 |
+| GET | `/api/pay/invoices/:id/quote` | 🔒 |
+| GET | `/api/pay/invoices/:id` | 🔒 |
+| GET | `/api/pay/invoices` | 🔒 |
+
+## /pets
+
+_pets/pets.controller.ts_
+
+| Method | Path | Auth |
+|---|---|---|
+| POST | `/api/pets/:id/photos` | 🔒 |
+| DELETE | `/api/pets/:id` | 🔒 |
+| GET | `/api/pets/:id` | 🔒 |
+| PATCH | `/api/pets/:id` | 🔒 |
+| GET | `/api/pets` | 🔒 |
+| POST | `/api/pets/photos/:photoId/first` | 🔒 |
+| DELETE | `/api/pets/photos/:photoId` | 🔒 |
+| POST | `/api/pets/photos/presign` | 🔒 |
+| POST | `/api/pets` | 🔒 |
+
 ## /prescriptions
 
 _prescriptions/prescriptions.controller.ts_
@@ -496,12 +702,8 @@ _prescriptions/prescriptions.controller.ts_
 | PATCH | `/api/prescriptions/:id/items/:itemId` | 🔒 |
 | POST | `/api/prescriptions/:id/items` | 🔒 |
 | GET | `/api/prescriptions/:id` | 🔒 |
-| POST | `/api/prescriptions/doses` | 🔒 |
 | GET | `/api/prescriptions` | 🔒 |
-| GET | `/api/prescriptions` | 🔒 |
-| GET | `/api/prescriptions/logs` | 🔒 |
 | POST | `/api/prescriptions` | 🔒 |
-| GET | `/api/prescriptions/today` | 🔒 |
 
 ## /privacy
 
@@ -519,6 +721,8 @@ _profile/profile.controller.ts_
 
 | Method | Path | Auth |
 |---|---|---|
+| DELETE | `/api/profile/addresses/:label` | 🔒 |
+| GET | `/api/profile/addresses` | 🔒 |
 | GET | `/api/profile/completion` | 🔒 |
 | GET | `/api/profile/health-score` | 🔒 |
 | GET | `/api/profile/master` | 🔒 |
@@ -529,6 +733,8 @@ _profile/profile.controller.ts_
 | PATCH | `/api/profile/posts/order` | 🔒 |
 | GET | `/api/profile/posts` | 🔒 |
 | PATCH | `/api/profile/section` | 🔒 |
+| GET | `/api/profile/services` | 🔒 |
+| PUT | `/api/profile/services` | 🔒 |
 | GET | `/api/profile/summary` | 🔒 |
 | GET | `/api/profile/user/:handle/posts` | 🔒 |
 | GET | `/api/profile/user/:handle` | 🔒 |
@@ -553,29 +759,66 @@ _realestate/realestate.controller.ts_
 | POST | `/api/realestate/moderation/:id/decision` | 🔒 |
 | GET | `/api/realestate/moderation/queue` | 🔒 |
 | GET | `/api/realestate/my-listings` | 🔒 |
+| POST | `/api/realestate/properties/:id/enquire` | 🔒 |
+| DELETE | `/api/realestate/properties/:id` | 🔒 |
 | GET | `/api/realestate/properties/:id` | 🔒 |
+| PUT | `/api/realestate/properties/:id` | 🔒 |
 | POST | `/api/realestate/properties` | 🔒 |
 | GET | `/api/realestate/under-construction` | 🔒 |
 
-## /restaurants
+## /services
 
-_restaurants/restaurants.controller.ts_
+_local-services/local-services.controller.ts_
 
 | Method | Path | Auth |
 |---|---|---|
-| POST | `/api/restaurants/:id/order` | 🔒 |
-| GET | `/api/restaurants/:id/overview` | 🔒 |
-| POST | `/api/restaurants/:id/reserve` | 🔒 |
-| GET | `/api/restaurants/:id` | 🔒 |
-| GET | `/api/restaurants/collections` | 🔒 |
-| GET | `/api/restaurants/cuisines` | token |
-| GET | `/api/restaurants/discover` | 🔒 |
-| GET | `/api/restaurants` | 🔒 |
-| GET | `/api/restaurants/meal-match` | 🔒 |
-| GET | `/api/restaurants/orders` | 🔒 |
-| GET | `/api/restaurants/reservations` | 🔒 |
-| GET | `/api/restaurants/search` | 🔒 |
-| GET | `/api/restaurants/top` | 🔒 |
+| POST | `/api/services/:id/enquire` | 🔒 |
+| DELETE | `/api/services/:id/forever` | 🔒 |
+| PATCH | `/api/services/:id/menu/:itemId` | 🔒 |
+| POST | `/api/services/:id/menu/ask` | 🔒 |
+| POST | `/api/services/:id/menu/recommend` | 🔒 |
+| POST | `/api/services/:id/menu/scan` | 🔒 |
+| GET | `/api/services/:id/menu` | 🔒 |
+| POST | `/api/services/:id/menu` | 🔒 |
+| POST | `/api/services/:id/offers` | 🔒 |
+| POST | `/api/services/:id/order/quote` | 🔒 |
+| POST | `/api/services/:id/order` | 🔒 |
+| DELETE | `/api/services/:id/regular` | 🔒 |
+| POST | `/api/services/:id/regular` | 🔒 |
+| DELETE | `/api/services/:id/reviews` | 🔒 |
+| GET | `/api/services/:id/reviews` | 🔒 |
+| POST | `/api/services/:id/reviews` | 🔒 |
+| POST | `/api/services/:id/verification/video` | 🔒 |
+| GET | `/api/services/:id/verification` | 🔒 |
+| POST | `/api/services/:id/verification` | 🔒 |
+| DELETE | `/api/services/:id` | 🔒 |
+| GET | `/api/services/:id` | 🔒 |
+| PATCH | `/api/services/:id` | 🔒 |
+| GET | `/api/services/business-types` | token |
+| GET | `/api/services/categories` | token |
+| GET | `/api/services/facets` | token |
+| GET | `/api/services` | 🔒 |
+| GET | `/api/services/inbox` | 🔒 |
+| GET | `/api/services/mine` | 🔒 |
+| DELETE | `/api/services/offers/:offerId` | 🔒 |
+| GET | `/api/services/offers/mine/:listingId` | 🔒 |
+| GET | `/api/services/offers/today` | token |
+| POST | `/api/services/orders/:orderId/accept` | 🔒 |
+| POST | `/api/services/orders/:orderId/advance` | 🔒 |
+| POST | `/api/services/orders/:orderId/cancel` | 🔒 |
+| POST | `/api/services/orders/:orderId/reject` | 🔒 |
+| GET | `/api/services/orders/:orderId` | 🔒 |
+| GET | `/api/services/orders/business/:listingId` | 🔒 |
+| GET | `/api/services/orders/mine` | 🔒 |
+| GET | `/api/services/places` | token |
+| POST | `/api/services` | 🔒 |
+| GET | `/api/services/regulars` | 🔒 |
+| POST | `/api/services/reviews/:reviewId/reply` | 🔒 |
+| GET | `/api/services/slug/available` | 🔒 |
+| POST | `/api/services/threads/:id/close` | 🔒 |
+| POST | `/api/services/threads/:id/messages` | 🔒 |
+| POST | `/api/services/threads/:id/reveal` | 🔒 |
+| GET | `/api/services/threads/:id` | 🔒 |
 
 ## /social
 
@@ -642,6 +885,14 @@ _users/users.controller.ts_
 | GET | `/api/users/lookup` | 🔒 |
 | GET | `/api/users/me` | 🔒 |
 | GET | `/api/users/online` | 🔒 |
+
+## /visibility
+
+_dev/visibility.controller.ts_
+
+| Method | Path | Auth |
+|---|---|---|
+| GET | `/api/visibility` | **public** |
 
 ## Errors
 
