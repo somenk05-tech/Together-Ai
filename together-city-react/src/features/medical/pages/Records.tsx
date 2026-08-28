@@ -229,10 +229,10 @@ export function Records() {
       <p className="muted" style={{ fontSize: 12.5, margin: '10px 0 0' }}>
         <strong>Blood group</strong>{' · '}
         {master.data?.bloodGroup === 'unknown'
-          ? <>You told us you don’t know it. <Link to="/profile/master#medical" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Update</Link></>
+          ? <>You told us you don’t know it. <Link to="/profile#medical" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Update</Link></>
           : master.data?.bloodGroup
             ? bloodGroupLabel(master.data.bloodGroup)
-            : <>Not recorded. <Link to="/profile/master#medical" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Add it</Link></>}
+            : <>Not recorded. <Link to="/profile#medical" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Add it</Link></>}
       </p>
 
       {/* Health conditions. Asked once on the Master Profile and read here, for
@@ -246,9 +246,9 @@ export function Records() {
           ? <>
               {declaredSummary(master.data?.healthConditions, master.data?.pregnancyTrimester, master.data?.kidneyStage)}
               {'. '}
-              <Link to="/profile/master#medical" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Update</Link>
+              <Link to="/profile#medical" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Update</Link>
             </>
-          : <>Not recorded. <Link to="/profile/master#medical" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Add them</Link></>}
+          : <>Not recorded. <Link to="/profile#medical" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Add them</Link></>}
       </p>
 
       {/* Health highlights — analysis across your reports/panels */}

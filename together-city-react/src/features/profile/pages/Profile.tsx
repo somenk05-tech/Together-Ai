@@ -12,8 +12,8 @@ import { useWebPush } from '@/hooks/useWebPush';
 import { useConnections, useRespondConnection, useUnreadChatCount, useIncomingRequestCount } from '@/api';
 import { useMailAccount } from '@/features/mail/api';
 import { VerificationCard } from '@/features/auth/components/VerificationCard';
-import { SexAndGenderCard } from '../components/SexAndGenderCard';
 import { DeleteAccountCard } from '@/features/settings/components/DeleteAccountCard';
+import { MasterProfileSections } from './MasterProfile';
 import { useMasterProfile } from '../hooks';
 import { Field, Visa } from '../components/Passport';
 import { CitizenCard } from '../components/CitizenCard';
@@ -221,9 +221,14 @@ export function Profile() {
 
   return (
     <div className="page">
-      <div className="pbook">
+      <div className="pbook" id="top">
         <div className="eyebrow">Together City</div>
-        <h1 style={{ margin: '0 0 16px' }}>Your passport</h1>
+        {/* ONE NAME FOR THE ONE RECORD (owner, 28 Aug). This page was "Your
+            passport" and the fields that fill it were a second page called
+            "Master Profile" — so the city had two names for one thing, and the
+            document was the half a citizen actually landed on. The record is
+            what this page is; the passport is how it is drawn. */}
+        <h1 style={{ margin: '0 0 16px' }}>Master Profile</h1>
 
         {/* ── THE DATA PAGE ─────────────────────────────────────────────── */}
         {/* No hand-typed crest: the artwork prints the mark, the tagline, the
@@ -247,21 +252,24 @@ export function Profile() {
               <Field label="City code" value="TC" />
 
               <Field span="half" label="Citizen no." value={user?.handle ? `@${user.handle}` : null} />
-              <Field span="half" label="Surname / Nom (1)" value={surname} fill="/profile/master" big />
-              <Field span="half" label="Given names (2)" value={given} fill="/profile/master" big />
+              {/* A BLANK LINE IS A LINK TO ITS OWN BOX, and that box is now on
+                  this page — so these are anchors down the page rather than a
+                  navigation to a second screen that showed the same fields. */}
+              <Field span="half" label="Surname / Nom (1)" value={surname} fill="#identity" big />
+              <Field span="half" label="Given names (2)" value={given} fill="#identity" big />
 
               <Field label="Nationality (3)" value="Together City" />
               <Field label="Sex (5)" value={mark === 'declined' ? null : mark}
-                fill={mark === null ? '/profile/master' : undefined} />
+                fill={mark === null ? '#identity' : undefined} />
 
-              <Field label="Date of birth (4)" value={asDate(m?.dateOfBirth)} fill="/profile/master" />
-              <Field label="Place of birth (6)" value={place} fill="/profile/master" />
+              <Field label="Date of birth (4)" value={asDate(m?.dateOfBirth)} fill="#identity" />
+              <Field label="Place of birth (6)" value={place} fill="#birth" />
 
               <Field label="Date of issue (7)" value={asDate(issued)} />
               <Field label="Authority (8)" value="Together City" />
 
-              <Field label="Residence (9)" value={residence} fill="/profile/master" />
-              <Field label="Languages (11)" value={m?.languages ?? null} fill="/profile/master" />
+              <Field label="Residence (9)" value={residence} fill="#contact" />
+              <Field label="Languages (11)" value={m?.languages ?? null} fill="#identity" />
 
               <Field span="half" label="Correspondence (10)" value={user?.handle ? `${user.handle}@togethercity.app` : null} />
 
@@ -289,7 +297,10 @@ export function Profile() {
             asked for twice.
           </p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 26 }}>
-            <Link to="/profile/master"><Button variant="accent" size="sm">Edit the data page</Button></Link>
+            {/* The boxes are on this page now, so this scrolls rather than
+                navigates. A plain anchor, because the browser already knows how
+                to reach a heading on the page it is showing. */}
+            <a href="#your-details"><Button variant="accent" size="sm">Edit your details</Button></a>
             <Link to="/profile/avatar"><Button variant="line" size="sm">Use a drawn face</Button></Link>
             <Button variant="line" size="sm" onClick={signOut}>Sign out</Button>
           </div>
@@ -308,6 +319,17 @@ export function Profile() {
           )}
         </div>
         </div>
+
+        <div style={{ height: 30 }} />
+
+        {/* ── THE RECORD ITSELF ──────────────────────────────────────────
+            The document above is a drawing of these boxes. They were a second
+            page at /profile/master until 28 Aug, which meant the line reading
+            DATE OF BIRTH and the field that sets it were one click and one
+            page title apart — and the title a citizen landed on named the
+            drawing rather than the record. Directly beneath it now, on the
+            page that shares its name. */}
+        <MasterProfileSections />
 
         <div style={{ height: 30 }} />
 
@@ -363,11 +385,18 @@ export function Profile() {
 
         {tab === 'overview' && (
           <>
-            {/* The two cards that can CHANGE something come first. The rows
-                below restate the same values read-only; here is where they
-                get fixed. */}
+            {/* The card that can CHANGE something comes first. The rows below
+                restate values read-only; here is where they get fixed.
+
+                SexAndGenderCard IS GONE FROM THIS TAB (28 Aug). It edited
+                sexAtBirth and genderIdentity, and the Identity section further
+                up this page now edits the same two columns — two editors for
+                one field, on one screen, is the exact defect the Master
+                Profile exists to undo, and last-blur-wins is not a merge
+                strategy. The two questions are still asked separately, with
+                the same "why we ask" beside each, where the rest of the
+                record is. */}
             <VerificationCard />
-            <SexAndGenderCard />
 
             {/* OFFICIAL OBSERVATIONS — the reference passport's page 3, and
                 the honest name for a list of read-only rows. */}

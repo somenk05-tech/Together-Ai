@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Spinner } from '@/components/ui';
 import { profileApi, type DeclaredHealthDraft, type MasterProfileView } from '../api';
@@ -14,7 +14,7 @@ import { Button } from '@/components/ui';
 import { splitPlace } from '../placeParts';
 
 /**
- * The Master Profile screen (FE-3.1).
+ * The Master Profile's fields (FE-3.1), as a block rather than a page.
  *
  * §3's diagnosis is that identity and body data live in whichever hub happened
  * to need them first, so several screens keep their own copy and a missing copy
@@ -25,8 +25,18 @@ import { splitPlace } from '../placeParts';
  * /nutrition/preferences, which is how a nutrition page came to own somebody's
  * sex and date of birth.
  *
- * This is that screen. Five sections, as the ticket asks, and one rule that
- * decides the shape of all of them: A FIELD IS OWNED BY EXACTLY ONE PLACE.
+ * ONE PAGE, NOT TWO (owner, 28 Aug). These fields used to be a page of their
+ * own at /profile/master, one click away from the passport that displays them —
+ * so the document said DATE OF BIRTH and the box that sets it was somewhere
+ * else, and the page a citizen actually landed on was titled after the
+ * document rather than after the record. The passport page is now the Master
+ * Profile, this block sits directly beneath the document it fills in, and
+ * /profile/master redirects to it. The section ids are unchanged, so every
+ * deep link a hub had written — /profile#medical and the rest — still lands on
+ * the right heading.
+ *
+ * Five sections, as the ticket asks, and one rule that decides the shape of
+ * all of them: A FIELD IS OWNED BY EXACTLY ONE PLACE.
  *
  * So Identity, Body and Contact are edited here, because MasterProfile is where
  * they live. Diet and Medical are SHOWN here and edited where they are stored —
@@ -60,8 +70,7 @@ const WHY_WE_ASK = {
     + 'health calculation.',
 };
 
-export function MasterProfile() {
-  const navigate = useNavigate();
+export function MasterProfileSections() {
   const master = useMasterProfile();
   const completion = useProfileCompletion();
   const qc = useQueryClient();
@@ -175,22 +184,40 @@ export function MasterProfile() {
   };
 
   /**
-   * SAVE AND CLOSE.
+   * SAVE EVERYTHING STILL IN HAND.
    *
    * Every field already autosaves on blur, which is right for a long form and
-   * wrong as the ONLY way out: a citizen who edits the last box and presses
-   * the browser's back button loses it, because blur never fired. This flushes
-   * whatever is still in the draft in one PATCH and returns to the passport.
+   * wrong as the ONLY way out: a citizen who edits the last box and closes the
+   * tab loses it, because blur never fired. This flushes whatever is still in
+   * the draft in one PATCH.
+   *
+   * It used to navigate back to the passport afterwards, because this block was
+   * a page of its own. The passport is now the page above it, so there is
+   * nowhere to return to — the button saves and says so, and the citizen stays
+   * looking at the document their answer just changed.
    */
   const [closing, setClosing] = useState(false);
-  const saveAndClose = () => {
+  const saveAll = () => {
+    if (Object.keys(draft).length === 0) return;
     setClosing(true);
-    if (Object.keys(draft).length === 0) { navigate('/profile'); return; }
     save.mutate(draft, {
-      onSuccess: () => navigate('/profile'),
-      onError: () => setClosing(false),
+      onSettled: () => setClosing(false),
     });
   };
+
+  /**
+   * A DEEP LINK MUST LAND ON ITS HEADING.
+   *
+   * Medical links here as /profile#medical. The browser resolves a hash before
+   * React has drawn the section it names, so without this the citizen arrives
+   * at the top of a long page with no idea which of six sections was meant.
+   */
+  useEffect(() => {
+    const id = window.location.hash.slice(1);
+    if (!id || master.isLoading) return;
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [master.isLoading]);
 
   const v = useMemo(() => ({ ...(master.data ?? {}), ...draft }) as MasterProfileView, [master.data, draft]);
   const dirty = Object.keys(draft).length > 0;
@@ -259,12 +286,11 @@ export function MasterProfile() {
   const pct = completion.data?.percent ?? null;
 
   return (
-    <div className="page">
-      <div className="eyebrow">Your profile</div>
-      <h1 style={{ fontSize: 26 }}>Master Profile</h1>
-      <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 0', lineHeight: 1.6 }}>
-        Every hub reads from here. Change something once and Nutrition, Medical, Fitness, Beauty and
-        Dating all follow — you never enter it twice.
+    <div id="your-details" style={{ scrollMarginTop: 80 }}>
+      <div className="eyebrow">Your details</div>
+      <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 0', lineHeight: 1.6, maxWidth: '58ch' }}>
+        Everything the document above prints, and everything the hubs read. Change something once and
+        Nutrition, Medical, Fitness, Beauty and Dating all follow — you never enter it twice.
       </p>
 
       {/* Completeness, from the server's own count rather than a second one
@@ -336,6 +362,16 @@ export function MasterProfile() {
 
         {v.genderIdentity === 'other' && textField('genderIdentityOther', 'In your words')}
         {textField('occupation', 'Occupation')}
+
+        {/* LANGUAGES (11) HAD NOWHERE TO BE TYPED. (28 Aug.)
+            The column exists, the passport prints it as field 11, and the
+            server counts it as one of the seven things that make a profile
+            complete — so a citizen who filled in every box the app offered was
+            capped below 100% by a field no box existed for, and the document
+            carried a permanently blank line. Merging the two profile pages is
+            what made that visible: the ruled line and the form it links to are
+            now the same screen. */}
+        {textField('languages', 'Languages', 'Comma-separated — the ones you would happily be spoken to in. Prints on your passport as field 11.')}
 
         {field('relationshipStatus', 'Relationship status',
           <select aria-label="Relationship status" value={v.relationshipStatus ?? ''}
@@ -575,13 +611,13 @@ export function MasterProfile() {
         {textField('country', 'Country')}
       </Section>
 
-      {/* Every field autosaves on blur; this is the way OUT, and it flushes
-          anything blur has not seen yet. */}
+      {/* Every field autosaves on blur; this flushes anything blur has not seen
+          yet, and is disabled when there is nothing left to flush. */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '26px 0 8px' }}>
-        <Button variant="accent" disabled={closing || save.isPending} onClick={saveAndClose}>
-          {closing || save.isPending ? 'Saving…' : 'Save and close'}
+        <Button variant="accent" disabled={!dirty || closing || save.isPending} onClick={saveAll}>
+          {closing || save.isPending ? 'Saving…' : 'Save changes'}
         </Button>
-        <Link to="/profile" style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent-ink)' }}>Back to your passport</Link>
+        <a href="#top" style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent-ink)' }}>Back to the document</a>
         <span className="muted" style={{ fontSize: 11.5, flex: 1, minWidth: 200, lineHeight: 1.5 }}>
           {dirty ? 'You have changes that have not been saved yet.' : 'Everything here is saved.'}
         </span>

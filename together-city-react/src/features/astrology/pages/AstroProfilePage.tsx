@@ -7,6 +7,8 @@ import { useLookups } from '@/api/lookups.api';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/store/auth.store';
 import { profileApi, type MasterProfileView } from '@/features/profile/api';
+import { useMasterProfile } from '@/features/profile/hooks';
+import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLockedField';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useAstroProfile, useSaveAstroProfile } from '../hooks';
 import { allKnownZones, isKnownZone, zoneCity, zoneForBirthPlace, zonesForCountry } from '../birthZone';
@@ -261,6 +263,23 @@ export function AstroProfilePage() {
   const save = useSaveAstroProfile();
   const today = new Date().toISOString().slice(0, 10);
 
+  /**
+   * ONE DATE OF BIRTH, AND THE MASTER PROFILE HOLDS IT. (owner, 28 Aug.)
+   *
+   * This form kept its own birth date, so a citizen could be born on one day
+   * here and another on their passport — and every hub that locks the field
+   * (Dating, Beauty, Fitness, Nutrition) was already deferring to the record
+   * while the page that draws a birth chart quietly did not. It reads the
+   * Master Profile now, exactly as they do.
+   *
+   * The TIME and PLACE of birth stay editable here: the record has no box for
+   * a birth time, and it is this form that needs one to the minute — an hour
+   * is a sign and a half of ascendant.
+   */
+  const master = useMasterProfile();
+  const masterDob = master.data?.dateOfBirth ? master.data.dateOfBirth.slice(0, 10) : '';
+  const dobLocked = Boolean(masterDob);
+
   const [birthDate, setBirthDate] = useState('');
   const [birthTime, setBirthTime] = useState('');        // 24h HH:MM
   const [timeUnknown, setTimeUnknown] = useState(false);
@@ -318,7 +337,9 @@ export function AstroProfilePage() {
     if (!d || !countries.data) return;
     const src = d.profile ?? d.prefill;
     if (!src) return;
-    setBirthDate(src.birthDate || '');
+    // The record wins over whatever this hub last stored: they are the same
+    // fact, and only one of them is the one every other hub reads.
+    setBirthDate(masterDob || src.birthDate || '');
     setBirthTime(src.birthTime || '');
     if (d.profile && !d.profile.timeKnown) setTimeUnknown(true);
     const c = countries.data.find((o) => o.label.toLowerCase() === (src.birthCountry || 'India').toLowerCase());
@@ -327,7 +348,14 @@ export function AstroProfilePage() {
     setCity(src.birthCity || '');
     if (d.profile?.timeZone) { setTimeZone(d.profile.timeZone); setTzFrom('saved'); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view.data, countries.data]);
+  }, [view.data, countries.data, masterDob]);
+
+  /* The record can arrive after this form has drawn — it is a separate
+     request — so the locked box takes the date whenever it lands, rather than
+     only when the two happen to resolve in the right order. */
+  useEffect(() => {
+    if (masterDob) setBirthDate(masterDob);
+  }, [masterDob]);
 
   // Resolve a prefilled state label to its code once the state list loads.
   useEffect(() => {
@@ -427,8 +455,12 @@ export function AstroProfilePage() {
               <label style={{ display: 'block' }}>
                 <span style={label}>Date of Birth</span>
                 <input type="date" value={birthDate} min="1900-01-01" max={today}
-                  onChange={(e) => setBirthDate(e.target.value)} style={field} />
+                  disabled={dobLocked}
+                  title={dobLocked ? 'Set in your Master Profile' : undefined}
+                  onChange={(e) => setBirthDate(e.target.value)}
+                  style={{ ...field, ...(dobLocked ? masterLockedStyle : {}) }} />
               </label>
+              {dobLocked && <MasterLockedNote label="Date of birth" />}
             </div>
             <div>
               <label style={label}>Time of Birth</label>

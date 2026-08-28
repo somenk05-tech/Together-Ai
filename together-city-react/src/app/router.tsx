@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { createBrowserRouter, Navigate, type RouteObject } from 'react-router-dom';
+import { createBrowserRouter, Navigate, useLocation, type RouteObject } from 'react-router-dom';
 import { AppShell } from '@/layouts/AppShell';
 import { RootChrome } from '@/layouts/RootChrome';
 import { HubLayout } from '@/layouts/HubLayout';
@@ -40,7 +40,19 @@ const MealPlan = lazy(() =>
   import('@/features/nutrition/pages/MealPlan').then((m) => ({ default: m.MealPlan })),
 );
 const Profile = lazy(() => import('@/features/profile/pages/Profile').then((m) => ({ default: m.Profile })));
-const MasterProfile = lazy(() => import('@/features/profile/pages/MasterProfile').then((m) => ({ default: m.MasterProfile })));
+/**
+ * /profile/master WAS THE SECOND HALF OF ONE PAGE. (28 Aug.)
+ *
+ * The fields it showed now sit on /profile beneath the passport that prints
+ * them, under the same heading. This keeps every link already written — the
+ * hubs' `/profile/master#medical`, a bookmark, a mail — landing on the right
+ * heading rather than on a 404, and it carries the hash across, which
+ * `<Navigate to="/profile">` on its own would drop.
+ */
+function MasterProfileMoved() {
+  const { hash } = useLocation();
+  return <Navigate to={`/profile${hash || '#your-details'}`} replace />;
+}
 const DrivePage = lazy(() => import('@/features/drive/pages/Drive').then((m) => ({ default: m.Drive })));
 const SocialFeed = lazy(() => import('@/features/social/pages/SocialFeed').then((m) => ({ default: m.SocialFeed })));
 const RecipeLibrary = lazy(() => import('@/features/nutrition/pages/RecipeLibrary').then((m) => ({ default: m.RecipeLibrary })));
@@ -255,7 +267,7 @@ const ROUTE_BLOCKS: RouteObject[] = [
       // carry the password regardless of what this app renders.
       { path: '/dev', element: <RequireAuth>{wrap(<DevPage />)}</RequireAuth> },
       { path: '/profile', element: <RequireAuth>{wrap(<Profile />)}</RequireAuth> },
-      { path: '/profile/master', element: <RequireAuth>{wrap(<MasterProfile />)}</RequireAuth> },
+      { path: '/profile/master', element: <MasterProfileMoved /> },
       { path: '/profile/avatar', element: <RequireAuth>{wrap(<Avatars />)}</RequireAuth> },
       { path: '/settings', element: <RequireAuth>{wrap(<Settings />)}</RequireAuth> },
       { path: '/drive', element: <RequireAuth>{wrap(<DrivePage />)}</RequireAuth> },

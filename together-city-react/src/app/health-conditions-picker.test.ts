@@ -122,6 +122,6 @@ describe('the health-condition picker', () => {
     expect(records).toMatch(/declaredSummary/);
     expect(records).toMatch(/Not recorded\./);
     // Read-only: one asker, one owner, and the record is not it.
-    expect(records).toMatch(/\/profile\/master#medical/);
+    expect(records).toMatch(/\/profile#medical/);
   });
 });

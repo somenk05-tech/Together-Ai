@@ -81,6 +81,6 @@ describe('the blood group field', () => {
     expect(records).toMatch(/You told us you don’t know it/);
     expect(records).toMatch(/Not recorded\./);
     // And the record does not offer to edit it in place: one asker, one owner.
-    expect(records).toMatch(/\/profile\/master#medical/);
+    expect(records).toMatch(/\/profile#medical/);
   });
 });

@@ -335,10 +335,14 @@ const NAV_REF = /(?:to=|navigate\(|path:\s*|href:\s*|deepLink:\s*)["'`](\/[A-Za-
 
 /** Routes with no way in, on purpose. Each needs a reason, not just a line. */
 const UNREACHABLE_ON_PURPOSE = new Map([
-  // /profile/master came OFF this list on 2 Aug: the Medical hub's record page
-  // now links to it (#medical) to add or change a blood group, so there IS a
-  // client-side way in. It was here because the only reference was an href the
-  // API handed over in profile-completion nextUp.
+  // /profile/master came OFF this list on 2 Aug because the Medical record page
+  // linked to it, and it is BACK on 28 Aug for the opposite reason: the fields
+  // it served now live on /profile beneath the passport that prints them, and
+  // the path survives only as a redirect that carries the section hash across.
+  // Nothing links to it any more BY DESIGN — every caller was repointed at
+  // /profile — and it is kept because a bookmark, a mail, or anything written
+  // before the merge should land on the right heading rather than on a 404.
+  ['/profile/master', 'the Master Profile\'s old address. Its fields moved onto /profile on 28 Aug — one page, under the name the record actually has — and this path is now a redirect that preserves the section hash. Deliberately unlinked: every caller in the app points at /profile, and this exists only for links written before the merge.'],
   ['/console', 'the admin console. Staff-only, and absent from every menu ON PURPOSE — a link in a citizen\'s navigation is an invitation to a door that will not open. The server checks the permission per request; the route existing is not access.'],
   ['/dev', 'the developer page. Absent from every menu for the same reason as the console, and with one more lock on top: the API refuses every /dev request that does not carry the password, checked on the server in constant time. The route existing is not access.'],
   ['/dating/admin', 'operator page, deliberately absent from every menu'],

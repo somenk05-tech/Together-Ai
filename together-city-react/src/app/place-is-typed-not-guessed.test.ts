@@ -36,7 +36,7 @@ describe('Where you were born is typed; where you live may be asked for', () => 
    */
   it('never writes a birth field from the location lookup', () => {
     const src = strip(read('src/features/profile/pages/MasterProfile.tsx'));
-    const lookup = src.slice(src.indexOf('useMyLocation'), src.indexOf('saveAndClose'));
+    const lookup = src.slice(src.indexOf('useMyLocation'), src.indexOf('saveAll'));
     expect(lookup).not.toMatch(/birthCity|birthState|birthCountry/);
     const parser = strip(read('src/features/profile/placeParts.ts'));
     expect(parser).not.toMatch(/birthCity|birthState|birthCountry/);
@@ -90,15 +90,63 @@ describe('Where you were born is typed; where you live may be asked for', () => 
   });
 
   /**
-   * THERE IS A WAY OUT THAT SAVES.
+   * THERE IS A BUTTON THAT SAVES WHAT BLUR HAS NOT SEEN.
    *
    * Every field autosaves on blur, which is right for a long form and wrong as
-   * the only exit: edit the last box, press the browser's back button, and the
-   * change is gone because blur never fired.
+   * the only way: edit the last box, close the tab, and the change is gone
+   * because blur never fired.
+   *
+   * It used to be "Save and close" and it navigated to /profile afterwards,
+   * because these fields were a page of their own. They are a block on
+   * /profile now (28 Aug), so there is nowhere to go — the flush is the whole
+   * of the job, and it is what this pins.
    */
-  it('flushes the draft and returns to the passport', () => {
+  it('flushes the draft in one request', () => {
     const src = strip(read('src/features/profile/pages/MasterProfile.tsx'));
-    expect(src).toContain('saveAndClose');
-    expect(src).toMatch(/save\.mutate\(draft,[\s\S]{0,120}navigate\('\/profile'\)/);
+    expect(src).toContain('saveAll');
+    expect(src).toMatch(/const saveAll = \(\) => \{[\s\S]{0,220}save\.mutate\(draft,/);
+    expect(src).toContain('onClick={saveAll}');
+    // And it does not navigate anywhere: the citizen stays on the document
+    // their answer just changed.
+    expect(src).not.toMatch(/navigate\(/);
+  });
+
+  /**
+   * ONE PAGE, AND THE DEEP LINKS STILL LAND. (28 Aug.)
+   *
+   * The fields moved under the passport and /profile/master became a redirect.
+   * Every link a hub had already written points at the old path with a section
+   * hash on it, so the redirect must carry the hash and the block must scroll
+   * to what it names — otherwise "Add it" from the medical record drops
+   * somebody at the top of a long page with six sections and no clue which.
+   */
+  it('keeps the section anchors reachable from another page', () => {
+    const src = strip(read('src/features/profile/pages/MasterProfile.tsx'));
+    expect(src).toMatch(/window\.location\.hash/);
+    expect(src).toMatch(/scrollIntoView/);
+    const router = strip(read('src/app/router.tsx'));
+    expect(router).toMatch(/path: '\/profile\/master', element: <MasterProfileMoved \/>/);
+    expect(router).toMatch(/to=\{`\/profile\$\{hash \|\| '#your-details'\}`\}/);
+    // The hubs link straight at the merged page rather than through the hop.
+    expect(strip(read('src/features/medical/pages/Records.tsx'))).not.toMatch(/\/profile\/master/);
+  });
+
+  /**
+   * AND THE PAGE IS CALLED WHAT THE RECORD IS CALLED.
+   *
+   * "Your passport" was the name of the drawing. The city has one record and
+   * the hubs all name it in their locked-field notes; the page a citizen lands
+   * on says the same word now.
+   */
+  it('names the profile page after the record, not the document', () => {
+    const page = strip(read('src/features/profile/pages/Profile.tsx'));
+    expect(page).toMatch(/<h1[^>]*>Master Profile<\/h1>/);
+    expect(page).not.toMatch(/>Your passport</);
+    expect(page).toMatch(/<MasterProfileSections \/>/);
+    // Two editors for one column on one screen is the defect the record
+    // exists to undo — the Identity section owns sex and gender now.
+    expect(page).not.toMatch(/<SexAndGenderCard \/>/);
+    // The locked-field note points at the record, not at the horoscope form.
+    expect(strip(read('src/features/profile/MasterLockedField.tsx'))).toMatch(/to="\/profile#identity"/);
   });
 });
