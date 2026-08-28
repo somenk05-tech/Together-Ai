@@ -443,9 +443,6 @@ export const servicesApi = {
     api.get<{ thread: ServiceThread; business: { id: string; businessName: string; categoryLabel: string; city: string }; messages: ServiceMessage[] }>(`/services/threads/${id}`).then((r) => r.data),
   send: (id: string, body: string) =>
     api.post<ServiceMessage>(`/services/threads/${id}/messages`, { body }).then((r) => r.data),
-  closeThread: (id: string) =>
-    api.post<{ ok: true }>(`/services/threads/${id}/close`, {}).then((r) => r.data),
-
   saveRegular: (id: string, note?: string) =>
     api.post<{ saved: boolean }>(`/services/${id}/regular`, { note }).then((r) => r.data),
   forgetRegular: (id: string) =>

@@ -78,20 +78,12 @@ export function isCall(value: unknown): value is Call {
 
 export const callsApi = {
   ice: () => api.get<IceConfig>('/calls/ice').then((r) => r.data),
-  /** The number this conversation may be carried on, or null with a reason. */
-  reach: (conversationId: string) =>
-    api.get<Reach>(`/calls/reach/${conversationId}`).then((r) => r.data),
-  /** The call ringing for you right now, or null — ring recovery for tabs
-   *  that were not alive when the CALL_RINGING frame was emitted. */
   ringing: () => api.get<Call | null>('/calls/ringing').then((r) => r.data),
-  get: (id: string) => api.get<Call>(`/calls/${id}`).then((r) => r.data),
-  history: (conversationId?: string) =>
-    api.get<Call[]>('/calls', { params: conversationId ? { conversationId } : undefined }).then((r) => r.data),
   start: (conversationId: string, type: CallType, avatarId?: string) =>
     api.post<Call>('/calls', { conversationId, type, ...(avatarId ? { avatarId } : {}) }).then((r) => r.data),
   join: (id: string) => api.post<Call>(`/calls/${id}/join`, {}).then((r) => r.data),
   leave: (id: string) => api.post<Call>(`/calls/${id}/leave`, {}).then((r) => r.data),
-  end: (id: string) => api.post<Call>(`/calls/${id}/end`, {}).then((r) => r.data),
+
 };
 
 /*

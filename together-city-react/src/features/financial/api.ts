@@ -31,8 +31,7 @@ export const financialApi = {
   services: () => api.get<Service[]>('/financial/services').then((r) => r.data),
   linkCard: (input: { brand?: string; last4?: string; name?: string }) => api.post<Card>('/financial/card', input).then((r) => r.data),
   removeCard: () => api.delete<{ ok: boolean }>('/financial/card').then((r) => r.data),
-  pay: (input: { hub?: string; category?: string; label: string; amountInr: number; method?: PayMethod }) =>
-    api.post<{ paid: boolean; balanceInr: number }>('/financial/pay', input).then((r) => r.data),
+
 };
 
 export function useWallet() {

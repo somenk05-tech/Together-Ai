@@ -48,8 +48,6 @@ export const journalApi = {
   day: (date?: string) =>
     api.get<JournalDay>('/nutrition/journal', { params: date ? { date } : {} }).then((r) => r.data),
   week: () => api.get<JournalWeek>('/nutrition/journal/week').then((r) => r.data),
-  update: (id: string, items: JournalItem[]) =>
-    api.patch<JournalEntry>(`/nutrition/journal/${id}`, { items }).then((r) => r.data),
   remove: (id: string) => api.delete<{ ok: boolean }>(`/nutrition/journal/${id}`).then((r) => r.data),
 };
 

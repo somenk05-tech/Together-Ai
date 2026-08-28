@@ -56,7 +56,6 @@ export interface CreatePostInput {
 export const socialApi = {
   feed: (cursor?: string, filter?: string) =>
     api.get<FeedPage>('/social/feed', { params: { cursor, limit: 20, ...(filter ? { filter } : {}) } }).then((r) => r.data),
-  map: () => api.get<Post[]>('/social/map').then((r) => r.data),
   followers: () => api.get<FollowPerson[]>('/social/followers').then((r) => r.data),
   following: () => api.get<FollowPerson[]>('/social/following').then((r) => r.data),
   // BY HANDLE. The API stopped accepting a raw user id here (and on block) —

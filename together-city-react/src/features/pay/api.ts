@@ -130,8 +130,6 @@ export const payApi = {
     api.post<Onboarding>(`/pay/business/${listingId}/account`, body).then((r) => r.data),
   payout: (id: string) => api.get<Settlement>(`/pay/business/payouts/${id}`).then((r) => r.data),
 
-  updateInvoice: (id: string, body: Record<string, unknown>) =>
-    api.patch<Invoice>(`/pay/business/invoices/${id}`, body).then((r) => r.data),
   sendInvoice: (id: string) => api.post<Invoice>(`/pay/business/invoices/${id}/send`, {}).then((r) => r.data),
   cancelInvoice: (id: string, reason: string) =>
     api.post<Invoice>(`/pay/business/invoices/${id}/cancel`, { reason }).then((r) => r.data),

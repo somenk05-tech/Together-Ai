@@ -107,22 +107,6 @@ export interface WeekSummary {
   weekNumber: number; isCurrent: boolean; meals: number; createdAt: string;
 }
 
-/** Stored nutrition-history week summary (spec §19/§20). */
-export interface NutritionHistoryWeek {
-  id: string;
-  mode: string;
-  weekNumber: number;
-  weekLabel: string;
-  startDate: string;
-  endDate: string;
-  createdAt: string;
-  cost: number;
-  totals: { kcal?: number; protein?: number; carbs?: number; fat?: number; fiber?: number; cost?: number };
-  variety: { recipeVarietyPct?: number; distinctRecipes?: number; mealsServed?: number; cuisineVariety?: number; proteinVariety?: number };
-  diet?: string | null;
-  cuisineMix?: Record<string, number>;
-}
-
 export interface NutritionTargets {
   kcal: number; protein: number; carb: number; fat: number; fiber: number; waterMl: number;
   /** BE-7.4. The server has always sent this; nothing here had declared it, so
@@ -147,9 +131,6 @@ export interface MicroIntake {
   marker?: string; markerStatus?: string | null;
   foods: string[]; topSources: string[];
 }
-
-/** Personalized Nutrition Advice item (dietary balance advisory). */
-export interface NutritionAdvisory { key: string; title: string; body: string }
 
 /** Weekly Nutrition Progress payload (cumulative budgeting). */
 export interface WeekNutritionSummary {

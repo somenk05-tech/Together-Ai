@@ -108,10 +108,7 @@ export const medicalApi = {
   records: () => api.get<MedicalRecord[]>('/medical/records').then((r) => r.data),
   addRecord: (input: { kind: string; title: string; detail?: string; recordedOn?: string }) =>
     api.post<MedicalRecord[]>('/medical/records', input).then((r) => r.data),
-  doctors: () => api.get<DoctorCard[]>('/medical/doctors').then((r) => r.data),
   consults: () => api.get<ConsultSummary[]>('/medical/consults').then((r) => r.data),
-  bookConsult: (input: { doctorId: string; reason?: string; method?: 'wallet' | 'card' }) =>
-    api.post<{ consultId: string; conversationId: string }>('/medical/consults', input).then((r) => r.data),
   consents: () => api.get<ConsentRow[]>('/medical/consents').then((r) => r.data),
   setConsent: (hub: string, granted: boolean) =>
     api.patch<ConsentRow[]>('/medical/consents', { hub, granted }).then((r) => r.data),
@@ -139,7 +136,6 @@ export const medicalApi = {
       : r.data)),
   latest: () => api.get<BloodAnalysis>('/medical/blood-tests/latest').then((r) => r.data),
   trends: () => api.get<BloodTrends>('/medical/blood-tests/trends').then((r) => r.data),
-  analyze: (id: string) => api.get<BloodAnalysis>(`/medical/blood-tests/${id}`).then((r) => r.data),
   supplementPlan: () => api.get<SupplementPlan>('/medical/supplement-plan').then((r) => r.data),
   biomarkerCatalog: () => api.get<BiomarkerCatalog>('/medical/biomarkers/catalog').then((r) => r.data),
   // First summary after a new panel is AI-generated server-side and can exceed
@@ -149,8 +145,6 @@ export const medicalApi = {
   deleteRecord: (id: string) => api.delete<MedicalRecord[]>(`/medical/records/${id}`).then((r) => r.data),
   uploadDocument: (input: { kind: string; title: string; detail?: string; fileKey: string; mimeType?: string; sizeBytes: number }) =>
     api.post<MedicalRecord[]>('/medical/documents', input).then((r) => r.data),
-  extractBlood: (input: { fileKey: string; mimeType: string; sizeBytes: number; title?: string }) =>
-    api.post<ExtractResult>('/medical/blood-tests/extract', input, { timeout: 180000 }).then((r) => r.data),
   recordFile: (id: string) => api.get<{ url: string | null; expiresInSec: number }>(`/medical/records/${id}/file`).then((r) => r.data),
   deleteBloodTest: (id: string) => api.delete<{ ok: true }>(`/medical/blood-tests/${id}`).then((r) => r.data),
 };

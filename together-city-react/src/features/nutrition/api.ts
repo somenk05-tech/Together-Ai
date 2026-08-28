@@ -1,16 +1,9 @@
 import { http as api } from '@/api/client';
-import type { NutritionTargets, NutritionAdvisory, MedRecCard, Recipe, NutritionHistoryWeek } from './types';
+import type { NutritionTargets, MedRecCard, Recipe } from './types';
 
 /** Nutrition endpoints on the NestJS backend (no engine logic duplicated client-side). */
 export const nutritionApi = {
-  history: (mode?: 'individual' | 'family') =>
-    api.get<NutritionHistoryWeek[]>('/nutrition/history', { params: mode ? { mode } : undefined }).then((r) => r.data),
-  historyDetail: (id: string) =>
-    api.get<Record<string, unknown>>(`/nutrition/history/${id}`).then((r) => r.data),
   familyMembers: () => api.get<FamilyMemberProfile[]>('/nutrition/family/members').then((r) => r.data),
-  searchHouseholdUser: (q: string) => api.get<HouseholdSearchResult>('/nutrition/family/search', { params: { q } }).then((r) => r.data),
-  inviteHousehold: (userRef: string, role: HouseholdRole) =>
-    api.post<{ invited: HouseholdUserCard & { role: HouseholdRole }; message: string; household: FamilyMemberProfile[] }>('/nutrition/family/invite', { userRef, role }).then((r) => r.data),
   householdInvites: () => api.get<HouseholdInvite[]>('/nutrition/family/invites').then((r) => r.data),
   respondHouseholdInvite: (id: string, accept: boolean) =>
     api.post<{ ok: boolean; status: string; invites: HouseholdInvite[] }>(`/nutrition/family/invites/${id}/respond`, { accept }).then((r) => r.data),
@@ -33,19 +26,10 @@ export const nutritionApi = {
   removeFamilyMember: (id: string) => api.delete<FamilyMemberProfile[]>(`/nutrition/family/members/${id}`).then((r) => r.data),
   familyPortions: (dayIndex: number) => api.get<FamilyPortions>(`/nutrition/family/portions/${dayIndex}`).then((r) => r.data),
   familyDashboard: () => api.get<FamilyDashboard>('/nutrition/family/dashboard').then((r) => r.data),
-  repairDay: (planKey: string, dayIndex: number) =>
-    api.post<{ repaired: boolean; valid: boolean }>(`/nutrition/plan/${planKey}/day/${dayIndex}/rebalance`, {}).then((r) => r.data),
   targets: () => api.get<NutritionTargets>('/nutrition/targets').then((r) => r.data),
-  advice: () => api.get<NutritionAdvisory[]>('/nutrition/advice').then((r) => r.data),
   medicalRecs: () => api.get<{ cards: MedRecCard[] }>('/nutrition/medical-recs').then((r) => r.data),
   decideMedicalRec: (condition: string, choice: 'apply' | 'keep') =>
     api.post<{ ok: boolean; choice: string; message: string }>('/nutrition/medical-recs/decide', { condition, choice }).then((r) => r.data),
-  healthLog: (dates: string[]) =>
-    api.get<{ entries: CalorieEntry[] }>('/nutrition/health/log', { params: { dates: dates.join(',') } }).then((r) => r.data),
-  addCalorie: (e: { date: string; name: string; kcal: number; type: CalorieType }) =>
-    api.post<{ entries: CalorieEntry[] }>('/nutrition/health/log', e).then((r) => r.data),
-  removeCalorie: (id: string) =>
-    api.delete<{ ok: boolean }>(`/nutrition/health/log/${id}`).then((r) => r.data),
   recipes: (diet?: string) =>
     api.get<Recipe[]>('/nutrition/recipes', { params: diet && diet !== 'everything' ? { diet } : undefined }).then((r) => r.data),
   searchRecipes: (ingredients: string[], diet?: string) =>
@@ -62,31 +46,11 @@ export const nutritionApi = {
     api.get<{ type: string; label: string; note: string; items: Recipe[] }>(`/nutrition/recipes/${id}/variants`, { params: { type } }).then((r) => r.data),
   groceryCheck: (key: string, checked: boolean) =>
     api.post<{ ok: true; key: string; checked: boolean }>('/nutrition/grocery/check', { key, checked }).then((r) => r.data),
-  groceryAddItem: (label: string) =>
-    api.post<{ ok: true; key: string }>('/nutrition/grocery/item', { label }).then((r) => r.data),
-  groceryClearChecked: () =>
-    api.post<{ ok: true; cleared: number }>('/nutrition/grocery/clear-checked', {}).then((r) => r.data),
-  // No days/startDate: the server builds the basket from the locked plan days.
-  /** `days` and `startDate` have been on this endpoint since it was written —
-   *  groceryPlan(userId, mode, days = 7, startDate?), clamped 1–28 — and the web
-   *  app sent neither, so the citizen had no say in how far ahead they shop. */
   groceryPlan: (mode: 'individual' | 'family' = 'individual', days?: number, startDate?: string, people?: number) =>
     api.get<GroceryPlan>('/nutrition/grocery/plan', { params: { mode, days, startDate, people } }).then((r) => r.data),
   cart: () => api.get<GroceryCart>('/nutrition/cart').then((r) => r.data),
-  prepAlerts: (mode: 'individual' | 'family' = 'individual') =>
-    api.get<{ alerts: Array<{ mealKey: string; title: string; what: string; startBy: string; notified: boolean }> }>(
-      '/nutrition/prep-alerts', { params: { mode } }).then((r) => r.data),
-  setDeliveryTime: (time: string) =>
-    api.patch<{ ok: boolean; deliveryTime: string }>('/nutrition/delivery-time', { time }).then((r) => r.data),
   buildCart: (opts?: { planKey?: string; recipeIds?: string[]; people?: number; mode?: 'individual' | 'family' }) =>
     api.post<GroceryCart>('/nutrition/cart', opts ?? {}).then((r) => r.data),
-  blood: () => api.get<BloodPanel>('/nutrition/blood').then((r) => r.data),
-  saveBlood: (input: Record<string, number>) =>
-    api.post<BloodPanel>('/nutrition/blood', input).then((r) => r.data),
-  supplements: () => api.get<SupplementPlan>('/nutrition/supplements').then((r) => r.data),
-  dietitians: () => api.get<DietitianCard[]>('/nutrition/dietitians').then((r) => r.data),
-  bookDietitian: (id: string) =>
-    api.post<{ bookingId: string; conversationId: string }>(`/nutrition/dietitians/${id}/book`, {}).then((r) => r.data),
   preferences: () => api.get<FoodPref>('/nutrition/preferences').then((r) => r.data),
   updatePreferences: (input: Partial<FoodPref>) =>
     api.patch<FoodPref>('/nutrition/preferences', input).then((r) => r.data),

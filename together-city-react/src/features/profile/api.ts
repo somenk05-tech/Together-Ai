@@ -122,8 +122,6 @@ export const profileApi = {
     }).then((r) => r.data),
   summary: () => api.get<ProfileSummary>('/profile/summary').then((r) => r.data),
   healthScore: () => api.get<HealthScoreView>('/profile/health-score').then((r) => r.data),
-  updateSection: (key: string, value: string) =>
-    api.patch<ProfileSummary>('/profile/section', { key, value }).then((r) => r.data),
   setAvatar: (image: string) =>
     api.post<{ profileImage: string }>('/users/avatar', { image }).then((r) => r.data),
 };

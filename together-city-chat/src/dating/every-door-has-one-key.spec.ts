@@ -55,21 +55,17 @@ describe('every door into the dating hub has one key', () => {
     expect(decl).toMatch(/@Throttle\(DECISION_LIMIT\)/);
   });
 
-  it('leaves no datingApi member that nothing calls', () => {
-    // THE GENERAL CHECK. A member declared here and called by nothing — not
-    // even a hook in this same file — is a chain whose far end is dead, and
-    // that is where both of 28 August's findings were hiding.
-    const start = webApi.indexOf('export const datingApi = {');
-    expect(start).toBeGreaterThan(-1);
-    const body = webApi.slice(start + 'export const datingApi = {'.length, webApi.indexOf('\n};', start));
-    const members = [...body.matchAll(/^ {2}(\w+)\s*[:(]/gm)].map((m) => m[1]);
-    expect(members.length).toBeGreaterThan(15);
-
-    const orphans = members.filter((m) => {
-      const uses = webApi.match(new RegExp(`\\bdatingApi\\.${m}\\b`, 'g')) ?? [];
-      return uses.length === 0;
-    });
-    // Named, so the failure says which member rather than a bare count.
-    expect(orphans).toEqual([]);
-  });
+  /**
+   * THE GENERAL FORM OF THIS QUESTION LIVES IN THE WEB APP.
+   *
+   * A draft of this file also asserted that no `datingApi` member lacks a
+   * caller. That check now runs for all 26 hubs in
+   * `together-city-react/src/app/every-api-member-has-a-caller.test.ts`, and
+   * keeping a Dating-only copy here would be the Fold rule's exact case:
+   * duplication that can fail silently, because a future edit to one is not an
+   * edit to the other and only the weaker one would be consulted.
+   *
+   * This file keeps what is specific to this door — that the duplicate route
+   * is gone, and that the survivor is the throttled one.
+   */
 });
