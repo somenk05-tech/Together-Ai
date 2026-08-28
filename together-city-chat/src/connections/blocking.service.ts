@@ -108,10 +108,11 @@ export class BlockingService {
     return blockedWith(userId, blocks, connections);
   }
 
-  /** Same, as an array, for handing straight to a Prisma `notIn`. */
-  async blockedIds(userId: string): Promise<string[]> {
-    return [...(await this.blockedWith(userId))];
-  }
+  /**
+   * `blockedIds` stood here — `blockedWith` as an array, "for handing straight
+   * to a Prisma notIn". Nothing ever handed it anywhere. A convenience with no
+   * caller is a shape somebody has to keep correct for nobody.
+   */
 
   /**
    * Refuse the interaction if either of them has blocked the other. The message

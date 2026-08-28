@@ -75,30 +75,32 @@ export class MailController {
     return this.mail.deleteProject(user.sub, id);
   }
 
-  /* ── DELETE /mail/trash IS PARKED, AND IT IS NOT GONE ─────────────────────
-     Empty the Trash. Declared above the `:id` routes, or "trash" reads as a
-     message id. It is the only way to get bytes back: everything else moves
-     mail to Trash, and Trash still counts against the quota.
-
-     IT WAS COMMITTED WITHOUT ITS SERVICE METHOD. `MailService.emptyTrash` is
-     still uncommitted work in another session's tree, so `main` has not
-     compiled since 5392f63 — a Mira commit that staged this controller for an
-     unrelated decorator and took four lines of somebody else's in-progress
-     feature with it. Every API build since has failed, and the host has been
-     serving the previous container, which is why deploying appeared to do
-     nothing for a day.
-
-     Restoring this is four lines, and it belongs in the commit that lands
-     `MailService.emptyTrash` — not before it:
-
-         @Delete('trash')
-         emptyTrash(@CurrentUser() user: JwtUser) {
-           return this.mail.emptyTrash(user.sub);
-         }
-
-     Removed rather than completed because completing it means committing 473
-     lines of that session's unfinished service, and the whole reason this
-     happened was committing somebody's work in progress. */
+  /**
+   * Empty the Trash. Declared above the `:id` routes, or "trash" reads as a
+   * message id — which is why it sits here and not beside the other deletes.
+   *
+   * It is the only way to get bytes back: everything else moves mail to Trash,
+   * and Trash still counts against the quota.
+   *
+   * RESTORED 28 AUG, ON THE CONDITION ITS OWN NOTE SET. This route was parked
+   * with the four lines written out in a comment and one instruction — that it
+   * "belongs in the commit that lands `MailService.emptyTrash`, not before it",
+   * because completing it early would have meant committing 473 lines of
+   * somebody else's unfinished work, which is what caused the outage it was
+   * parked during.
+   *
+   * `MailService.emptyTrash` landed in 25d3fc16 with eight passing tests in
+   * `the-meter-has-a-way-down.spec.ts`. Nobody came back. So the meter has had
+   * a tested way down and no door to it, and a citizen who filled their quota
+   * had no way to get bytes back at all.
+   *
+   * The web app has a Trash page and no control that calls this; that half is
+   * still to build. The API is no longer the thing blocking it.
+   */
+  @Delete('trash')
+  emptyTrash(@CurrentUser() user: JwtUser) {
+    return this.mail.emptyTrash(user.sub);
+  }
 
   /** Move a whole conversation into a project, or out of one. */
   @Post('file')

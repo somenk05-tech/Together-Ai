@@ -433,11 +433,12 @@ export class FinancialService {
     return Object.entries(SERVICE_RATES).map(([key, v]) => ({ key, ...v }));
   }
 
-  /** Look up a service's current price (used by hubs that charge a fixed fee). */
-  rate(key: string): number {
-    return SERVICE_RATES[key]?.amountInr ?? 0;
-  }
-
+  /**
+   * `rate(key)` stood here — "used by hubs that charge a fixed fee". No hub
+   * used it; `services()` above hands back the whole table and the callers
+   * that charge read what they need from there. A lookup written for callers
+   * that never arrived is one more place the price could disagree with itself.
+   */
   async setBudget(userId: string, dto: SetBudgetDto) {
     await this.prisma.budget.upsert({
       where: { userId_category: { userId, category: dto.category } },

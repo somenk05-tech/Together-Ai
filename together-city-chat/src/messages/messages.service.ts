@@ -542,16 +542,16 @@ export class MessagesService {
     return ids.length;
   }
 
-  /** Unread/undelivered messages to sync when a user reconnects. */
-  async pendingForUser(userId: string) {
-    const statuses = await this.prisma.messageStatus.findMany({
-      where: { userId, status: { in: [DeliveryStatus.SENT, DeliveryStatus.DELIVERED] } },
-      include: { message: { include: messageInclude } },
-      orderBy: { message: { createdAt: 'asc' } },
-      take: 500,
-    });
-    return statuses.map((s) => this.serialize(s.message));
-  }
+  /**
+   * `pendingForUser` stood here — up to 500 fully-hydrated messages, the query
+   * behind the `sync_pending` socket event.
+   *
+   * chat.gateway.ts removed that emit on purpose and says why: "no client has
+   * ever listened for it, and the query behind it ran inside every handshake
+   * for an audience of nobody." The emit went and this stayed, which left the
+   * argument in one file and the temptation in another. Deleted so the two
+   * agree.
+   */
 
   /**
    * WHO HAS SEEN THIS, AND WHEN — for one message, for the person who sent it.

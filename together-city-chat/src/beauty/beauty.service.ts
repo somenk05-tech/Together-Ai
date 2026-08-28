@@ -692,12 +692,12 @@ export class BeautyService {
     return log.filter((t) => new Date(t).getTime() > weekAgo);
   }
 
-  /** How many photo analyses remain this rolling week (max 5). */
-  async uploadAllowance(userId: string) {
-    const row = await swallow(this.beauty.findUnique({ where: { userId } }), 'beauty: profile read', { userId });
-    const used = this.analysisLog(row ?? null).length;
-    return { limit: 5, used, remaining: Math.max(0, 5 - used) };
-  }
+  /**
+   * `uploadAllowance` stood here and nothing called it. It was a THIRD copy of
+   * the rolling-week arithmetic: `getProfile` already returns the same
+   * `{ limit, used, remaining }` as `uploads`, and `analyzePhotos` enforces the
+   * cap itself. Three expressions of one rule is how two of them drift.
+   */
 
   /** Delete the latest photo check-in. The current assessment is CLEARED to a
    *  neutral "waiting" state — nothing is shown again until the user uploads a

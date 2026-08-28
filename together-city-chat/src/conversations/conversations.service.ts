@@ -368,31 +368,15 @@ export class ConversationsService {
     return out;
   }
 
-  /** Last-message + unread summary for one conversation (used by the Dating Hub
-   *  chat list, which surfaces dating conversations outside the main chat list). */
-  async summaryFor(conversationId: string, userId: string): Promise<Summary> {
-    const member = await this.prisma.conversationMember.findUnique({
-      where: { conversationId_userId: { conversationId, userId } },
-    }).catch(swallowed('conversations.summaryFor', null));
-    const last = await this.prisma.message.findFirst({
-      where: { conversationId, deleted: false },
-      orderBy: { createdAt: 'desc' },
-    }).catch(swallowed('conversations.summaryFor', null));
-    const unread = await this.prisma.message.count({
-      where: {
-        conversationId, deleted: false, senderId: { not: userId },
-        ...(member?.lastReadAt ? { createdAt: { gt: member.lastReadAt } } : {}),
-      },
-    }).catch(() => 0);
-    return {
-      lastMessageAt: (last?.createdAt ?? new Date(0)).toISOString(),
-      // The column is `text`; `body` only exists after serialize. Reading
-      // `.body` off the raw row meant the Dating Hub list never had a preview.
-      lastText: (last as { text?: string | null } | null)?.text ?? null,
-      lastSenderId: (last as { senderId?: string | null } | null)?.senderId ?? null,
-      unread,
-    };
-  }
+  /**
+   * `summaryFor` — the one-conversation version — stood here, and its own
+   * comment said it was "used by the Dating Hub chat list".
+   *
+   * It had not been, since `summariesFor` above replaced the fifteen-second
+   * polling loop that called it. The loop went; the method and the sentence
+   * claiming it stayed, so anyone reading it would have believed the singular
+   * version was live and might reasonably have fixed a bug in it.
+   */
 
   /** Archive a conversation for every member (used when a dating match is
    *  unmatched — the chat leaves both people's lists). */
