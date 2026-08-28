@@ -83,7 +83,7 @@ export class AuthController {
   @Post('register')
   @UsePipes(new ZodValidationPipe(RegisterSchema))
   async register(@Body() dto: RegisterDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    await this.turnstile.assert(dto.turnstileToken, metaFrom(req).ip);
+    await this.turnstile.assert(dto.turnstileToken, 'register', metaFrom(req).ip);
     const result = await this.auth.register(dto, metaFrom(req));
     setRefreshCookie(res, result.refreshToken);
     return result;
@@ -94,7 +94,7 @@ export class AuthController {
   @Post('login')
   @UsePipes(new ZodValidationPipe(LoginSchema))
   async login(@Body() dto: LoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    await this.turnstile.assert(dto.turnstileToken, metaFrom(req).ip);
+    await this.turnstile.assert(dto.turnstileToken, 'login', metaFrom(req).ip);
     const result = await this.auth.login(dto, metaFrom(req));
     setRefreshCookie(res, result.refreshToken);
     return result;

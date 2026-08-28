@@ -52,6 +52,24 @@ describe('what refuses to start', () => {
     });
   });
 
+  /**
+   * A bot check that accepts a token from anywhere is believed and does
+   * nothing. The service refuses every request in this state anyway, so the
+   * boot refusal is not the difference between running and not — it is the
+   * difference between a loud deploy log and a silent locked door. (28 Aug.)
+   */
+  it('a Turnstile secret with no hostname allowlist', () => {
+    withEnv({ TURNSTILE_SECRET: 'k' }, () => {
+      expect(() => assertProductionConfig()).toThrow(/TURNSTILE_HOSTNAMES/);
+    });
+    withEnv({ TURNSTILE_SECRET: 'k', TURNSTILE_HOSTNAMES: '  ,  ' }, () => {
+      expect(() => assertProductionConfig()).toThrow(/TURNSTILE_HOSTNAMES/);
+    });
+    withEnv({ TURNSTILE_SECRET: 'k', TURNSTILE_HOSTNAMES: 'togethercity.app' }, () => {
+      expect(() => assertProductionConfig()).not.toThrow();
+    });
+  });
+
   it('nothing at all, when the configuration is sound', () => {
     const said = withEnv({}, () => { expect(() => assertProductionConfig()).not.toThrow(); });
     expect(said.join(' ')).not.toMatch(/INSECURE/);

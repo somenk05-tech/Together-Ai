@@ -51,7 +51,7 @@ export const useAuthStore = create<AuthState>()(
         // new session, so this login can't inherit the previous user's data.
         resetClientState();
         try { sessionStorage.removeItem('tc:signed-out'); } catch { /* noop */ }
-        const { accessToken, refreshToken } = await authApi.login({ handle, password, turnstileToken: await getTurnstileToken() });
+        const { accessToken, refreshToken } = await authApi.login({ handle, password, turnstileToken: await getTurnstileToken('login') });
         set({ tokens: { accessToken, refreshToken } });
         set({ user: await authApi.me() });
       },
@@ -59,7 +59,7 @@ export const useAuthStore = create<AuthState>()(
       register: async (handle, name, password, contact) => {
         resetClientState();
         try { sessionStorage.removeItem('tc:signed-out'); } catch { /* noop */ }
-        const { accessToken, refreshToken } = await authApi.register({ handle, name, password, email: contact.email, phone: contact.phone || undefined, dateOfBirth: contact.dateOfBirth, gender: contact.gender, genderOther: contact.genderOther || undefined, orientation: contact.orientation, orientationOther: contact.orientationOther || undefined, turnstileToken: await getTurnstileToken() });
+        const { accessToken, refreshToken } = await authApi.register({ handle, name, password, email: contact.email, phone: contact.phone || undefined, dateOfBirth: contact.dateOfBirth, gender: contact.gender, genderOther: contact.genderOther || undefined, orientation: contact.orientation, orientationOther: contact.orientationOther || undefined, turnstileToken: await getTurnstileToken('register') });
         set({ tokens: { accessToken, refreshToken } });
         set({ user: await authApi.me() });
       },

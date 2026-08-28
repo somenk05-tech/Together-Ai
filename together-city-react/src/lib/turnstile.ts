@@ -12,12 +12,15 @@ const SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY ?? '';
 const SCRIPT = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
 
 interface TurnstileApi {
-  render(el: HTMLElement, opts: { sitekey: string; size?: string; callback(token: string): void; 'error-callback'?(): void; 'expired-callback'?(): void }): string;
+  render(el: HTMLElement, opts: { sitekey: string; action?: string; size?: string; callback(token: string): void; 'error-callback'?(): void; 'expired-callback'?(): void }): string;
   reset(id: string): void;
   remove(id: string): void;
 }
 
 export const turnstileEnabled = Boolean(SITE_KEY);
+
+/** The doors Turnstile guards. Must match the action the API asserts. */
+export type TurnstileAction = 'register' | 'login';
 
 let loading: Promise<TurnstileApi> | null = null;
 function load(): Promise<TurnstileApi> {
@@ -38,8 +41,13 @@ function load(): Promise<TurnstileApi> {
  * One fresh token, or undefined when Turnstile is off. A token is single-use
  * and short-lived, so this renders a new widget per call and removes it
  * after — a form that is submitted twice gets two tokens.
+ *
+ * `action` names the door this token is for and comes back in the server's
+ * siteverify response, where it is compared against the surface that was
+ * actually called. Both halves ship together: a widget rendered without an
+ * action reports none, and the server refuses none. (28 Aug.)
  */
-export async function getTurnstileToken(): Promise<string | undefined> {
+export async function getTurnstileToken(action: TurnstileAction): Promise<string | undefined> {
   if (!SITE_KEY) return undefined;
   const api = await load();
   const host = document.createElement('div');
@@ -50,6 +58,7 @@ export async function getTurnstileToken(): Promise<string | undefined> {
     const done = (token?: string) => { try { api.remove(id); } catch { /* gone */ } host.remove(); resolve(token); };
     id = api.render(host, {
       sitekey: SITE_KEY,
+      action,
       size: 'normal',
       callback: (token) => done(token),
       'error-callback': () => done(undefined),

@@ -60,6 +60,11 @@ const DEV_REFRESH_SECRET = 'dev-refresh';
  * cause an outage. Set STRICT_PROD_CONFIG=true to upgrade these warnings to a
  * hard boot failure once the env vars are in place.
  */
+/** Comma-separated hostname allowlist, trimmed and lowercased; empty entries dropped. */
+function hostList(raw: string | undefined): Set<string> {
+  return new Set((raw ?? '').split(',').map((h) => h.trim().toLowerCase()).filter(Boolean));
+}
+
 export function assertProductionConfig(): void {
   if ((process.env.NODE_ENV ?? 'development') !== 'production') return;
   // JWT secrets are ALWAYS fatal in production: booting with forgeable tokens is
@@ -104,6 +109,26 @@ export function assertProductionConfig(): void {
       fatal.push('MEDIA_PRIVATE_BUCKET is the same bucket as MEDIA_BUCKET — the private vault must be '
         + 'a SEPARATE bucket with no public access, or signed links protect nothing.');
     }
+  }
+
+  /**
+   * A BOT CHECK WITH AN OPEN SIDE DOOR IS WORSE THAN NO BOT CHECK, BECAUSE
+   * IT IS BELIEVED. (28 Aug.)
+   *
+   * TurnstileService compares siteverify's `hostname` against
+   * TURNSTILE_HOSTNAMES. A sitekey is public and valid on every domain its
+   * widget lists, so with no list to compare against a token minted on any
+   * of them — a laptop running localhost, if the widget was created with
+   * localhost on it — spends here exactly like one minted on togethercity.app.
+   *
+   * Fatal rather than a warning: the service already refuses every request in
+   * this state, so the choice is not between running safely and not running.
+   * It is between a boot that fails loudly in the deploy log and a city where
+   * nobody can sign in and nothing says why.
+   */
+  if ((process.env.TURNSTILE_SECRET ?? '').trim() && hostList(process.env.TURNSTILE_HOSTNAMES).size === 0) {
+    fatal.push('TURNSTILE_SECRET is set but TURNSTILE_HOSTNAMES is empty — a token minted on any domain the '
+      + 'widget lists would be accepted. Set TURNSTILE_HOSTNAMES=togethercity.app (never localhost in production).');
   }
 
   if (fatal.length) {
