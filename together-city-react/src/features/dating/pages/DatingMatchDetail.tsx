@@ -278,8 +278,17 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
           </section>
         )}
 
-        {(connect.isError || unmatch.isError) && (
-          <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, marginTop: 10 }}>{payError(connect.error ?? unmatch.error)}</p>
+        {/* LIKE AND SKIP CAN BE REFUSED TOO, AND THIS PAGE SAID NOTHING.
+            (Fourth audit, 28 Aug.) Only connect and unmatch were rendered here,
+            so the daily-limit sentence, a 429 and a NotFound from assertWritable
+            all arrived as the button doing nothing at all — on the screen a
+            citizen reaches by tapping somebody's face. The card view has said
+            it since the first audit; this is the same sentence, from the same
+            server, in the other place the same decision is made. */}
+        {(connect.isError || unmatch.isError || like.isError || pass.isError) && (
+          <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, marginTop: 10 }}>
+            {payError(connect.error ?? unmatch.error ?? like.error ?? pass.error)}
+          </p>
         )}
 
         {/* ── THE DECISION, RIDING THE FOOT OF THE SCREEN ──────────────────

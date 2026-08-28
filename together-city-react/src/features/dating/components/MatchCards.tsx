@@ -218,7 +218,14 @@ export function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKin
           </div>
         ) : (
           <div className="pm-acts">
-            <button type="button" className="pm-skip" disabled={pass.isPending || outOfLikes}
+            {/* SKIP IS NOT A LIKE AND NEVER SPENT THE ALLOWANCE. (Fourth audit,
+                28 Aug.) `outOfLikes` sat on this button too, so twenty likes
+                froze the whole deck: the cards you had not decided about stayed
+                where they were and there was no way past them until midnight.
+                `pass()` on the server has no allowance check at all — only
+                `like()` does — so the button was disabled by a rule that does
+                not exist, in the one direction that costs nothing. */}
+            <button type="button" className="pm-skip" disabled={pass.isPending}
               onClick={() => pass.mutate(match.user.id)}>
               <span aria-hidden>✕</span> Skip
             </button>
