@@ -8,6 +8,7 @@ import { isServerUnreachable, SERVER_UNREACHABLE_MSG } from '@/api/client';
 import { Button } from '@/components/ui';
 import { usePrivacyStore } from '@/features/privacy/store';
 import { pushTos } from '@/features/privacy/api';
+import { MIN_AGE, ageFrom, latestAdultDob } from '@/lib/age';
 
 /** Prefer the backend's actual error message over a canned guess. */
 function serverMessage(err: unknown): string | null {
@@ -32,24 +33,8 @@ const field: React.CSSProperties = { width: '100%', padding: '13px 14px', border
 const errStyle: React.CSSProperties = { color: '#c0392b', fontSize: 12, margin: '5px 2px 0' };
 const emailOk = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 
-/** Whole calendar years, matching the server's shared/age.ts exactly — a form
- *  that disagrees with the API about somebody's age on their birthday is a
- *  form that refuses an adult, or accepts a child for one round trip. */
-function ageFrom(iso: string): number {
-  const d = new Date(`${iso}T00:00:00Z`);
-  if (Number.isNaN(d.getTime())) return -1;
-  const now = new Date();
-  let y = now.getUTCFullYear() - d.getUTCFullYear();
-  const m = now.getUTCMonth() - d.getUTCMonth();
-  if (m < 0 || (m === 0 && now.getUTCDate() < d.getUTCDate())) y -= 1;
-  return y;
-}
-/** The latest date of birth that is already 18, for the picker's own ceiling. */
-function eighteenYearsAgo(): string {
-  const d = new Date();
-  d.setUTCFullYear(d.getUTCFullYear() - 18);
-  return d.toISOString().slice(0, 10);
-}
+/* The age rule moved to `lib/age.ts` on 29 Aug — it was living in this file
+   while three other screens took a date of birth with rules of their own. */
 const dobLabel: React.CSSProperties = {
   display: 'block', fontSize: 12, fontWeight: 600, letterSpacing: '.05em',
   textTransform: 'uppercase', color: 'var(--muted)', margin: '12px 0 0',
@@ -129,7 +114,7 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
   // 18+ IS THE CITY RULE (owner, 27 Aug), and the server enforces it — this is
   // the courtesy half, so somebody learns it before filling in a password
   // rather than after. The refusal that matters is in RegisterSchema.
-  const adult = dob !== '' && ageFrom(dob) >= 18;
+  const adult = dob !== '' && ageFrom(dob) >= MIN_AGE;
   const dobErr = dob && !adult ? 'You must be 18 or older to join Together City.' : null;
   const pwChecks = PW_RULES.map((r) => ({ ...r, ok: r.test(password) }));
   const pwScore = pwChecks.filter((c) => c.ok).length;
@@ -232,7 +217,7 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
             date picker offering a birthday that is not old enough at all. */}
         <label htmlFor="reg-dob" style={dobLabel}>Date of birth</label>
         <input required id="reg-dob" type="date" value={dob} name="bday" autoComplete="bday"
-          max={eighteenYearsAgo()} aria-label="Date of birth"
+          max={latestAdultDob()} aria-label="Date of birth"
           aria-describedby="dob-note" onChange={(e) => setDob(e.target.value)}
           style={dobField(Boolean(dobErr))} />
         {dobErr

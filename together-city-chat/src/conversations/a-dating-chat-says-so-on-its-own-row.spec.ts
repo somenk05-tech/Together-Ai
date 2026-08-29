@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs';
+import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import { ConversationsService } from './conversations.service';
 
@@ -181,5 +181,81 @@ describe('the ratchet', () => {
   it('the fail-open lookup it replaced is gone and stays gone', () => {
     expect(src('shared/dating-conversations.ts')).not.toMatch(/export async function datingConversationIds/);
     for (const f of FILES) expect(src(f)).not.toContain('datingConversationIds(');
+  });
+});
+
+describe('and no query reaches a dating MESSAGE without saying so', () => {
+  /*
+   * The residue after the column: dating messages live in the same `Message`
+   * table as everybody else's, so a query written for city chat could read
+   * them. Today none does — every call either names a conversation (which the
+   * permission gate has already decided about), or scopes by message id joined
+   * to the caller's membership, or, in the one cross-conversation reader,
+   * filters `conversation: { kind: 'city' }`.
+   *
+   * "Today none does" is the part worth pinning. The defect this whole day has
+   * been about is not that somebody wrote a bad query; it is that nothing
+   * stopped the NEXT one. So a read of `Message` that could span conversations
+   * has to say which hub it means, and a reviewer can see the answer without
+   * knowing the history.
+   *
+   * Reads only. `update`/`updateMany` here are compare-and-set writes on a
+   * message id whose permission was decided above them, and a `create` writes
+   * one row into a conversation that was just gated.
+   */
+  const READS = ['findMany', 'findFirst', 'groupBy', 'aggregate', 'count'];
+
+  /** The balanced argument text of a call starting at `open` (index of '('). */
+  function callText(text: string, open: number): string {
+    let depth = 0;
+    for (let i = open; i < text.length; i++) {
+      const c = text[i];
+      if ('([{'.includes(c)) depth++;
+      else if (')]}'.includes(c)) { depth--; if (depth === 0) return text.slice(open, i + 1); }
+    }
+    return text.slice(open);
+  }
+
+  const walk = (dir: string, out: string[] = []): string[] => {
+    for (const name of readdirSync(dir)) {
+      if (name === 'node_modules') continue;
+      const p = join(dir, name);
+      if (statSync(p).isDirectory()) walk(p, out);
+      else if (name.endsWith('.ts') && !name.endsWith('.spec.ts') && !name.endsWith('.d.ts')) out.push(p);
+    }
+    return out;
+  };
+
+  it('every cross-conversation read of Message decides which hub it is for', () => {
+    const offenders: string[] = [];
+    for (const f of walk(join(__dirname, '..'))) {
+      const text = readFileSync(f, 'utf8');
+      for (const method of READS) {
+        const needle = `.message.${method}(`;
+        for (let i = text.indexOf(needle); i >= 0; i = text.indexOf(needle, i + 1)) {
+          const call = callText(text, i + needle.length - 1);
+          // Named conversation — the permission gate has already decided.
+          if (/\bconversationId\b/.test(call)) continue;
+          // A message id joined to the caller's own membership.
+          if (/members\s*:\s*\{\s*some\s*:/.test(call)) continue;
+          // Or it says which hub outright.
+          if (/kind\s*:/.test(call)) continue;
+          const lineNo = text.slice(0, i).split('\n').length;
+          const above = text.split('\n').slice(Math.max(0, lineNo - 9), lineNo).join('\n');
+          if (above.includes('kind-spans:')) continue;
+          offenders.push(`${f.split('/src/').pop() ?? f}:${lineNo}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('the one reader that spans conversations is the search, and it is city-only', () => {
+    // Proven by the query it builds, not by the word in the source: `search`
+    // takes its scope from the citizen's memberships, and that read is where
+    // the hub is decided.
+    const src = readFileSync(join(__dirname, '..', 'messages', 'messages.service.ts'), 'utf8');
+    const fn = src.slice(src.indexOf('async search('), src.indexOf('async search(') + 1400);
+    expect(fn).toMatch(/conversationMember\.findMany\(\{[\s\S]{0,120}kind: 'city'/);
   });
 });

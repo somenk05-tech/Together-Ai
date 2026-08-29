@@ -12,6 +12,7 @@ import { useMasterProfile, useProfileCompletion } from '../hooks';
 import { geoApi } from '@/api/geo.api';
 import { Button } from '@/components/ui';
 import { splitPlace } from '../placeParts';
+import { latestAdultDob } from '@/lib/age';
 
 /**
  * The Master Profile's fields (FE-3.1), as a block rather than a page.
@@ -330,8 +331,11 @@ export function MasterProfileSections() {
       {/* ── Identity ─────────────────────────────────────────────── */}
       <Section id="identity" title="Identity">
         {textField('name', 'Name')}
+        {/* The picker's ceiling is 18 years ago, not today — the API refuses an
+            under-18 date on this endpoint, and a form that offers one is a form
+            that fails after the citizen has filled it in. */}
         {field('dateOfBirth', 'Date of birth',
-          <input type="date" aria-label="Date of birth" max={new Date().toISOString().slice(0, 10)}
+          <input type="date" aria-label="Date of birth" max={latestAdultDob()}
             value={(v.dateOfBirth ?? '').slice(0, 10)}
             onChange={(e) => set('dateOfBirth', e.target.value || null)}
             onBlur={() => commit('dateOfBirth')} style={inputStyle} />,

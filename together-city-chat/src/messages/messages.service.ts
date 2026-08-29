@@ -728,6 +728,11 @@ export class MessagesService {
       // it from here, because this endpoint is the main Chats search.
       throw new ForbiddenException('Not a member of this conversation');
     }
+    /* kind-spans: `where` is built above from `allowed`, and `allowed` comes
+       from a membership read scoped to `kind: 'city'` — so the hub is decided
+       there rather than here. Declared because this call cannot show it: the
+       filter is in a variable, which is exactly the shape that hides a missing
+       scope from a reviewer. */
     const messages = await this.prisma.message.findMany({
       where,
       include: messageInclude,

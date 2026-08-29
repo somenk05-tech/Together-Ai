@@ -13,6 +13,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useAstroProfile, useSaveAstroProfile } from '../hooks';
 import { allKnownZones, isKnownZone, zoneCity, zoneForBirthPlace, zonesForCountry } from '../birthZone';
 import { PrivacyNote } from '@/features/privacy/PrivacyNote';
+import { latestAdultDob } from '@/lib/age';
 
 /** Downscale to a small square data-URL (same approach as the profile Photo tab). */
 function resizeToDataUrl(file: File, size = 200): Promise<string> {
@@ -261,7 +262,6 @@ function SummaryCard({ profile, justSaved, onEdit }: {
 export function AstroProfilePage() {
   const view = useAstroProfile();
   const save = useSaveAstroProfile();
-  const today = new Date().toISOString().slice(0, 10);
 
   /**
    * ONE DATE OF BIRTH, AND THE MASTER PROFILE HOLDS IT. (owner, 28 Aug.)
@@ -454,7 +454,13 @@ export function AstroProfilePage() {
             <div>
               <label style={{ display: 'block' }}>
                 <span style={label}>Date of Birth</span>
-                <input type="date" value={birthDate} min="1900-01-01" max={today}
+                {/* THE CEILING IS 18 YEARS AGO, NOT TODAY (29 Aug). A birth
+                    chart is a way of writing a date of birth: it is saved here
+                    and synced to the Master Profile, from where it reaches
+                    every hub that reads a birthday. The server refuses an
+                    under-18 date at this door now; the picker should not offer
+                    one in the first place. */}
+                <input type="date" value={birthDate} min="1900-01-01" max={latestAdultDob()}
                   disabled={dobLocked}
                   title={dobLocked ? 'Set in your Master Profile' : undefined}
                   onChange={(e) => setBirthDate(e.target.value)}

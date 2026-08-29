@@ -2,6 +2,7 @@ import { swallow } from '../shared/swallow';
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { MasterProfileService } from '../profile/master-profile.service';
+import { refuseDateOfBirth } from '../shared/age';
 import { FinancialService, type PayMethod } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
 import {
@@ -287,6 +288,24 @@ export class AstrologyService {
     const birthDate = new Date(`${dto.birthDate}T00:00:00.000Z`);
     if (isNaN(birthDate.getTime())) throw new BadRequestException('Invalid birth date.');
     if (birthDate.getTime() > Date.now()) throw new BadRequestException('Birth date cannot be in the future.');
+    /**
+     * AND 18+, BECAUSE THIS DATE DOES NOT STAY IN ASTROLOGY.
+     *
+     * Sixty lines below, `saveProfile` syncs this date to the master profile,
+     * which fans it out to every hub that reads a birthday. Registration and
+     * the profile page both refused an under-18 date; this door did not, so the
+     * city's minimum age could be undone by filling in a birth chart. It also
+     * accepted `0001-01-01`, which is a valid JavaScript date and reads as an
+     * age of two thousand — `refuseDateOfBirth` calls that unreadable rather
+     * than very old, which is the only safe reading of a date nobody could have
+     * been born on.
+     *
+     * Refused here, before the AstroProfile row is written, because the sync
+     * below is wrapped in `swallow` — a throw down there would leave a saved
+     * chart for a birthday the city does not accept.
+     */
+    const refusal = refuseDateOfBirth(birthDate);
+    if (refusal) throw new BadRequestException(refusal);
     // Validate the zone (falls back inside the engine, but reject junk here).
     try { new Intl.DateTimeFormat('en-US', { timeZone: dto.timeZone }); }
     catch { throw new BadRequestException('Unknown time zone.'); }

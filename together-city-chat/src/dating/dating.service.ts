@@ -898,6 +898,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
           ? { gender: { in: myD.seekingList } }
           : mine.seeking === 'any' ? {} : { gender: mine.seeking }),
         seeking: { in: ['any', mine.gender] },
+        // not-an-age: the SQL narrowing described at AGE_YEAR_MS below.
         // My own age range. ageOf() is (now - birthDate) / 365.25 days floored,
         // which inverts exactly: age >= min is birthDate <= now - min years, and
         // age <= max is birthDate > now - (max+1) years. A backwards range
@@ -3405,9 +3406,10 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     return csv ? csv.split(',').filter(Boolean) : [];
   }
 
-  /** Milliseconds in the year ageOf() uses. Written once so the query and the
-   *  check cannot drift apart. */
   /**
+   * not-an-age: Milliseconds in the year the SQL prefilter uses. Written once
+   * so the query and the check cannot drift apart.
+   *
    * The one place a 365.25-day year survives, and deliberately.
    *
    * Every AGE decision now goes through age.ts, which counts calendar years —
@@ -3417,6 +3419,9 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
    * the JS filter re-checks every survivor afterwards. Being a day loose at
    * the edge of "25 to 40" costs a candidate an approximate ranking; doing
    * calendar arithmetic per row in the database costs the index.
+   *
+   * not-an-age: it converts a stated PREFERENCE range into a SQL birthDate
+   * range; every survivor is re-checked in JS by the calendar rule.
    */
   private static readonly AGE_YEAR_MS = 365.25 * 86_400_000;
 

@@ -71,6 +71,44 @@ export const UNDER_AGE_MESSAGE =
   `You must be ${MIN_DATING_AGE} or older to use the dating hub.`;
 
 /**
+ * The same refusal, for the doors that are not the dating hub.
+ *
+ * Registration has always said this — the whole city is 18+, because an
+ * under-18 is a "child" under the DPDP Act and nothing here is built to hold a
+ * child's data lawfully. What was missing is that the OTHER doors a date of
+ * birth can be written through did not say it: Astrology took any date at all
+ * and synced it to the master record, and `syncShared` — the one function every
+ * hub writes shared fields through — took whatever it was handed. So the rule
+ * was true at the front door and optional at the side ones.
+ *
+ * A citizen who mistyped a year should be told which field and why, in the same
+ * words wherever they are standing.
+ */
+export const UNDER_AGE_CITY_MESSAGE =
+  `You must be ${MIN_DATING_AGE} or older to use Together City. Check the year in your date of birth.`;
+
+/**
+ * A date of birth that may be written, or the reason it may not.
+ *
+ * Returns null when the date is acceptable, and the sentence to refuse with
+ * otherwise. A separate function from `isAdult` because the callers that need
+ * this need to tell the difference between "you are too young" and "that date
+ * cannot be read" — and because a guard that returns a REASON is one a caller
+ * cannot accidentally use as a boolean and get backwards.
+ */
+export function refuseDateOfBirth(
+  value: Date | string | null | undefined,
+  now: Date = new Date(),
+): string | null {
+  // Absent is not a claim about age. Clearing a date, or never setting one, is
+  // allowed everywhere — the doors that REQUIRE a date say so in their schema.
+  if (value === null || value === undefined || value === '') return null;
+  const age = ageOn(value, now);
+  if (age === null) return 'That date of birth cannot be read. Use YYYY-MM-DD, and a date in the past.';
+  return age >= MIN_DATING_AGE ? null : UNDER_AGE_CITY_MESSAGE;
+}
+
+/**
  * ── AND WHAT AGE YOU MAY ASK FOR ────────────────────────────────────────────
  *
  * `prefAgeMin` and `prefAgeMax` live in the free-form `extras` blob, whose only

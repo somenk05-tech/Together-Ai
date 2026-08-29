@@ -154,6 +154,8 @@ export function bodyLongitude(planet: PlanetName, jd: number): number {
 
 /** Lahiri (Chitrapaksha) ayanamsa in degrees — standard for Jyotish. */
 export function ayanamsaDeg(jd: number): number {
+  // not-an-age: Julian centuries for the obliquity of the ecliptic. The 365.25
+  // here is an astronomical year, not a person's — see shared/age.ts.
   return 23.85675 + (50.2888 / 3600) * ((jd - 2451545.0) / 365.25);
 }
 /** Tropical → sidereal longitude at a given instant. */

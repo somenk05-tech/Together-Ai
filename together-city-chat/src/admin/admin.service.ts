@@ -434,6 +434,10 @@ export class AdminService {
       c.comment.count({ where: { authorId: targetId } }),
       c.connection.count({ where: { OR: [{ userOneId: targetId }, { userTwoId: targetId }] } }),
       c.conversationMember.count({ where: { userId: targetId } }),
+      // kind-spans: a COUNT of everything one person has sent, dating included,
+      // on the console's "what does this account hold" screen. A number, never a
+      // row — the moderator queue is where a message's contents are read, and it
+      // has its own rules about which ones.
       c.message.count({ where: { senderId: targetId } }),
       c.recipe.count({ where: { authorId: targetId } }),
       c.foodJournalEntry.count({ where: { userId: targetId } }),

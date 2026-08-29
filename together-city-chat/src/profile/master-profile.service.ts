@@ -1,12 +1,12 @@
 import { swallow } from '../shared/swallow';
-import { Injectable, Logger, ConflictException } from '@nestjs/common';
+import { Injectable, Logger, ConflictException, BadRequestException } from '@nestjs/common';
 import { clinicalSex, datingGender, displayGender, genderIdentityFromBeauty } from './sex-and-gender';
 import { salutation } from '../shared/salutation';
 import { canonicaliseDeclared } from '../shared/allergens';
 import { ACTIVITY_FACTORS, nearestActivityLevel } from '../shared/energy';
 import { dietKeyFrom } from '../shared/diet';
 import { diffProfile, versionConflict } from './profile-change';
-import { MIN_DATING_AGE, UNDER_AGE_MESSAGE, isAdult } from '../shared/age';
+import { MIN_DATING_AGE, UNDER_AGE_MESSAGE, isAdult, refuseDateOfBirth } from '../shared/age';
 import { answeredNow } from '../shared/prisma/answered-at';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { optimalHealthGate, type OptimalHealthGate } from './health-gate';
@@ -458,6 +458,30 @@ export class MasterProfileService {
       Object.entries(patch).filter(([k, v]) => SHARED_KEYS.includes(k as keyof SharedFields) && v !== undefined),
     ) as SharedFields;
     if (!Object.keys(clean).length) return { synced: false };
+
+    /**
+     * ── 18+ AT THE ONE DOOR EVERY HUB WRITES THROUGH ──────────────────────
+     *
+     * Owner, 29 Aug: "don't accept any date of birth and age below 18."
+     *
+     * The rule was enforced at registration and on the master-profile PATCH,
+     * and those are two of ELEVEN callers. `syncShared` is what Astrology,
+     * Dating, Beauty, Fitness, Nutrition, Jobs and the social profile all write
+     * shared fields through — and it took whatever date it was handed. So the
+     * city's minimum age was a property of which screen you happened to use.
+     *
+     * It THROWS rather than dropping the field. A silent drop tells a citizen
+     * who mistyped their year that their profile saved, and leaves the old date
+     * in place; and for the caller who meant it, a refusal is the answer.
+     *
+     * Several callers wrap this in `swallow`, which would turn the throw into a
+     * warning and let their own row stand — so the doors that accept a date
+     * from a person (registration, the profile page, Astrology, Dating) each
+     * refuse it in their own schema too, BEFORE they write anything. This is
+     * the floor under all of them, not a substitute for any of them.
+     */
+    const refusal = refuseDateOfBirth(clean.dateOfBirth as Date | string | null | undefined);
+    if (refusal) throw new BadRequestException(refusal);
 
     // Read before writing, for two reasons: the audit trail needs the old
     // values, and a caller that stated which version it was editing needs to be

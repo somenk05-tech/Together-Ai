@@ -8,10 +8,16 @@ import { AstrologyService, AskDto, SaveAstroProfileDto } from './astrology.servi
 import { TarotService, type DrawSpreadDto } from './tarot.service';
 
 import { Mira } from '../mira/mira.decorator';
+import { UNDER_AGE_CITY_MESSAGE, refuseDateOfBirth } from '../shared/age';
 import { Throttle } from '@nestjs/throttler';
 import { MODEL_LIMIT } from '../shared/throttles';
 const SaveProfileSchema = z.object({
-  birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD'),
+  // 18+ HERE TOO. This date is synced to the master profile and fans out to
+  // every hub that reads a birthday, so a chart is a way to write one. In the
+  // schema as well as in the service: the schema names the FIELD, which is what
+  // puts the error under the input the citizen typed into.
+  birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD')
+    .refine((d) => refuseDateOfBirth(d) === null, { message: UNDER_AGE_CITY_MESSAGE }),
   birthTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM (24h)').nullable().optional(),
   birthCountry: z.string().min(2).max(60),
   birthState: z.string().max(60).optional().nullable(),
