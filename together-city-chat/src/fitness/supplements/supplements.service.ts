@@ -5,6 +5,9 @@ import { MedicalService } from '../../medical/medical.service';
 import { NutritionService } from '../../nutrition/nutrition.service';
 import { swallowed } from '../../shared/swallow';
 import { recommend, type Citizen } from './supplements.engine';
+import { assessMultivitamins } from './multivitamin.engine';
+import { CATEGORY_FINDINGS } from './formulations';
+import { TRIAL_LENGTH } from './regimen';
 import { BadRequestException } from '@nestjs/common';
 import { FinancialService } from '../../financial/financial.service';
 import { SOURCE, SUPPLEMENTS } from './knowledge';
@@ -49,7 +52,17 @@ export class SupplementsService {
     private readonly financial: FinancialService,
   ) {}
 
-  async plan(userId: string) {
+  /**
+   * THE CITIZEN, BUILT ONCE.
+   *
+   * Extracted so the supplement plan and the multivitamin assessment read the
+   * same person through the same consent gate. Two builders would eventually
+   * disagree about whether a ferritin result exists, and the two screens would
+   * then say different things about iron to the same citizen on the same
+   * afternoon — which is the failure mode the store already avoids by reusing
+   * `plan()` rather than re-deriving its own opinion.
+   */
+  private async citizenFor(userId: string): Promise<{ citizen: Citizen; shared: unknown }> {
     const [master, shared, targets, meds, pref, fitness] = await Promise.all([
       this.masterProfile.get(userId).catch(swallowed('supplements.master', null)),
       this.medical.sharedBiomarkers(userId, 'fitness').catch(swallowed('supplements.biomarkers', null)),
@@ -88,6 +101,11 @@ export class SupplementsService {
       labs: labsFrom(shared),
     };
 
+    return { citizen, shared };
+  }
+
+  async plan(userId: string) {
+    const { citizen, shared } = await this.citizenFor(userId);
     const out = recommend(citizen);
     return {
       ...out,
@@ -99,6 +117,47 @@ export class SupplementsService {
         medicines: (citizen.medicines ?? []).length,
         diet: citizen.vegan ? 'vegan' : citizen.vegetarian ? 'vegetarian' : null,
         goal: citizen.goal ?? null,
+      },
+    };
+  }
+
+  /**
+   * THE MULTIVITAMIN ASSESSMENT.
+   *
+   * A different question from `plan()`, asked of a different object. The plan
+   * asks "what, if anything, should this citizen take"; this asks "of the
+   * multivitamins actually sold in India, does any of them have enough
+   * evidence, an appropriate dose, acceptable safety and enough personal fit
+   * to be worth considering" — and the answer is very often none.
+   *
+   * IT READS THE SAME CITIZEN THROUGH THE SAME GATE. Same consent check, same
+   * labs, same medicines. And the same absolute rule: no blood work, no
+   * assessment. What comes back behind the gate is the list of markers a test
+   * would settle and the biotin interlock, because those are the gate's own
+   * content rather than a consolation prize for an empty page.
+   *
+   * NOTHING HERE IS PURCHASABLE, and that is structural rather than an
+   * oversight. The plan page may sell what it recommends precisely because it
+   * can never sell what it refuses — the asymmetry is what keeps a refusal
+   * from getting quieter when it costs money. This screen is almost entirely
+   * refusals, so it carries no till at all.
+   */
+  async multivitamins(userId: string) {
+    const { citizen, shared } = await this.citizenFor(userId);
+    const out = assessMultivitamins(citizen);
+    return {
+      ...out,
+      /* WHAT THE SURVEY FOUND ABOUT THE CATEGORY, rather than about the
+         citizen — kept separate from the assessments so a reader can tell a
+         fact about the Indian market from a fact about themselves. */
+      category: CATEGORY_FINDINGS,
+      trialLength: TRIAL_LENGTH,
+      basis: {
+        bloodWork: shared ? { takenOn: (shared as { takenOn?: string }).takenOn ?? null, granted: true } : null,
+        medicines: (citizen.medicines ?? []).length,
+        diet: citizen.vegan ? 'vegan' : citizen.vegetarian ? 'vegetarian' : null,
+        smoker: citizen.smoker ?? null,
+        pregnant: citizen.pregnant ?? null,
       },
     };
   }

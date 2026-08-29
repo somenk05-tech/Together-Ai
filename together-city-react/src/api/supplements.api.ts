@@ -88,3 +88,119 @@ export function useSupplementPlan() {
     queryFn: () => apiGet('/fitness/supplements', PlanSchema),
   });
 }
+
+/* ── THE MULTIVITAMIN ASSESSMENT ────────────────────────────────────────────
+   A different question from the plan, on its own wire.
+
+   THE SAME SCHEMA DISCIPLINE, and one addition. `state` is required for the
+   same reason `bucket` is: a state that failed to parse would render a
+   clinician-review card as an ordinary one, and that is the single direction
+   this screen may never fail in. Everything else is optional, because web and
+   API deploy independently and a browser on the new build must still render
+   something honest against an older server.
+
+   THERE IS NO MUTATION HERE EITHER, and on this screen there is no purchase
+   either — no bag, no price that leads anywhere, no add. The plan page may
+   sell what it recommends precisely because it can never sell what it refuses;
+   this screen is mostly refusals, so it sells nothing at all. */
+
+const ScoreSchema = z.object({
+  value: z.number(),
+  parts: z.array(z.object({ label: z.string(), note: z.string(), delta: z.number().optional() })).optional(),
+});
+
+export const MvFlagSchema = z.object({
+  kind: z.enum(['interaction', 'condition', 'upper-limit', 'harm', 'duplicate', 'unknown-composition', 'regulatory']),
+  text: z.string(),
+  source: z.string().nullable().optional(),
+  hard: z.boolean().optional(),
+});
+
+export const AssessmentSchema = z.object({
+  formulationId: z.string(),
+  brand: z.string(),
+  productName: z.string(),
+  /** REQUIRED. See the note above. */
+  state: z.enum(['appropriate', 'may-be-considered', 'test-first', 'no-clear-benefit', 'clinician-review']),
+  evidence: ScoreSchema,
+  personalFit: ScoreSchema,
+  safety: ScoreSchema,
+  regulatory: z.object({
+    implied: z.enum(['health-supplement', 'above-the-food-ceiling', 'indeterminate']),
+    channel: z.enum(['food-otc', 'drug-otc', 'drug-rx', 'UNKNOWN']),
+    mismatch: z.boolean(),
+    text: z.string(),
+    basis: z.string().optional(),
+    exceedances: z.array(z.object({
+      nutrientId: z.string(), name: z.string(), amount: z.number(),
+      unit: z.string(), times: z.number(), harmCapable: z.boolean().optional(),
+    })).optional(),
+  }).optional(),
+  why: z.array(z.string()).optional(),
+  whyNot: z.array(z.string()).optional(),
+  missing: z.array(z.string()).optional(),
+  wouldSettle: z.array(z.string()).optional(),
+  flags: z.array(MvFlagSchema).optional(),
+  doses: z.array(z.object({
+    nutrientId: z.string(), name: z.string(), amount: z.number(), unit: z.string(),
+    band: z.object({
+      band: z.enum(['token', 'nutritional', 'above-indian-ceiling', 'above-upper-limit', 'unknown']),
+      pctOfRequirement: z.number().nullable(),
+      text: z.string(),
+    }),
+  })).optional(),
+  monitoring: z.array(z.object({
+    nutrientId: z.string(), name: z.string(),
+    baselineTest: z.string().nullable(),
+    alongside: z.string().optional(),
+    markerLimitation: z.string().optional(),
+    monitor: z.enum(['none', 'consider', 'retest', 'medical']),
+    initialWeeks: z.tuple([z.number(), z.number()]).nullable(),
+    initialWhy: z.string().optional(),
+    retestSource: z.string().optional(),
+    insteadWatch: z.string().optional(),
+    afterRetest: z.array(z.object({ outcome: z.string(), then: z.string() })).optional(),
+    stopRules: z.array(z.string()).optional(),
+  })).optional(),
+});
+
+export const MultivitaminSchema = z.object({
+  /** Same safe direction as the plan's: default to the ungated read, because
+   *  the assessment list is empty when gated and a wrong guess costs a heading
+   *  rather than a recommendation. */
+  gated: z.boolean().optional(),
+  gateText: z.string().optional(),
+  verdict: z.string(),
+  assessments: z.array(AssessmentSchema).optional(),
+  watching: z.array(z.object({ marker: z.string(), why: z.string() })).optional(),
+  interlock: z.object({
+    blocked: z.boolean(),
+    biotinMcgPerDay: z.number(),
+    from: z.array(z.string()).optional(),
+    text: z.string(),
+    source: z.string().optional(),
+  }).optional(),
+  category: z.array(z.object({ finding: z.string(), detail: z.string() })).optional(),
+  trialLength: z.array(z.object({
+    outcome: z.string(), weeks: z.tuple([z.number(), z.number()]),
+    note: z.string(), source: z.string(),
+  })).optional(),
+  basis: z.object({
+    bloodWork: z.object({ takenOn: z.string().nullable(), granted: z.boolean() }).nullable(),
+    medicines: z.number().optional(),
+    diet: z.string().nullable().optional(),
+    smoker: z.boolean().nullable().optional(),
+    pregnant: z.boolean().nullable().optional(),
+  }).optional(),
+});
+
+export type MultivitaminAnswer = z.infer<typeof MultivitaminSchema>;
+export type Assessment = z.infer<typeof AssessmentSchema>;
+export type AssessmentState = Assessment['state'];
+
+export function useMultivitaminAssessment() {
+  return useQuery({
+    queryKey: ['fitness', 'multivitamins'],
+    queryFn: () => apiGet('/fitness/multivitamins', MultivitaminSchema),
+  });
+}

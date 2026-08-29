@@ -373,9 +373,15 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/fitness/workout', index: '03', label: 'Workout', sub: 'Guided live-timer plan' },
       { path: '/fitness/log', index: '04', label: 'Activity Log', sub: 'What you actually did' },
       { path: '/fitness/supplements', index: '05', label: 'Supplements', sub: 'Read from your blood work' },
-      { path: '/fitness/sleep', index: '06', label: 'Sleep Cycle', sub: 'Duration, quality & schedule' },
-      { path: '/fitness/store', index: '07', label: 'The Store', sub: 'Verified in India · we take no cut' },
-      { path: '/fitness/orders', index: '08', label: 'My Orders', sub: 'Your bag & what you bought' },
+      // DIRECTLY UNDER THE PLAN, and not down beside the store, because it is
+      // an advising screen rather than a selling one — it carries no bag, no
+      // price that leads anywhere and no Add. Numbered into the rail rather
+      // than hidden behind the plan page, because the most useful thing on it
+      // is a refusal and a refusal nobody can find is a refusal nobody reads.
+      { path: '/fitness/multivitamins', index: '06', label: 'Multivitamins', sub: 'Thirty-two labels, assessed' },
+      { path: '/fitness/sleep', index: '07', label: 'Sleep Cycle', sub: 'Duration, quality & schedule' },
+      { path: '/fitness/store', index: '08', label: 'The Store', sub: 'Verified in India · we take no cut' },
+      { path: '/fitness/orders', index: '09', label: 'My Orders', sub: 'Your bag & what you bought' },
     ],
   },
   mail: {

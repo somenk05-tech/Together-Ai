@@ -144,6 +144,22 @@ export class FitnessController {
     return this.supplements.store(user.sub);
   }
 
+  /**
+   * THE MULTIVITAMIN ASSESSMENT. A GET, and not a Mira reader, for the same
+   * reason as the other two — but with one of its own on top. Almost every
+   * answer this route produces is a refusal with a citation attached, and a
+   * refusal read aloud in a friendly voice is the easiest thing in this
+   * codebase to turn accidentally into permission.
+   *
+   * No till, no bag, no product link that takes money. The plan page can sell
+   * what it recommends because it can never sell what it refuses; this page is
+   * mostly refusals, so it sells nothing at all.
+   */
+  @Get('multivitamins')
+  multivitaminAssessment(@CurrentUser() user: JwtUser) {
+    return this.supplements.multivitamins(user.sub);
+  }
+
   /* ── THE TILL ────────────────────────────────────────────────────────────
      Four routes, and the pair of them that matter are GET store/bag and GET
      store/orders. Nutrition once shipped a checkout with neither: it charged
