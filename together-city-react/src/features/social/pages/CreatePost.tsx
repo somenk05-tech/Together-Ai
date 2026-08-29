@@ -4,6 +4,7 @@ import { useConnections } from '@/api';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { useAuth } from '@/hooks/useAuth';
+import { useDialog } from '@/hooks/useDialog';
 import { Avatar } from '../PostCard';
 import { useCreatePost } from '../api';
 import { MUSIC_LIBRARY, type Track } from '../musicLibrary';
@@ -98,6 +99,8 @@ function ImageEditor({ src, onClose, onApply }: { src: string; onClose: () => vo
     img.src = src;
   };
 
+  const sheet = useDialog(onClose);
+
   const slider = (label: string, val: number, set: (n: number) => void, min: number, max: number) => (
     <label className="sl-ed-row">
       <span className="sl-ed-lab">
@@ -109,8 +112,9 @@ function ImageEditor({ src, onClose, onApply }: { src: string; onClose: () => vo
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 90, display: 'grid', placeItems: 'center', padding: 16 }}>
-      <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: 'min(560px,96vw)', maxHeight: '92vh', overflow: 'auto' }}>
-        <h3 style={{ margin: '0 0 10px', fontSize: 17 }}>Edit photo</h3>
+      <div ref={sheet} role="dialog" aria-modal="true" aria-labelledby="tc-edit-photo-title" tabIndex={-1}
+        onClick={(e) => e.stopPropagation()} className="card" style={{ width: 'min(560px,96vw)', maxHeight: '92vh', overflow: 'auto' }}>
+        <h3 id="tc-edit-photo-title" style={{ margin: '0 0 10px', fontSize: 17 }}>Edit photo</h3>
         <div className="sl-ed-stage">
           <img src={src} alt="" style={{ width: '100%', maxHeight: '46vh', objectFit: 'contain', display: 'block', filter }} />
         </div>
@@ -153,6 +157,7 @@ function ImageEditor({ src, onClose, onApply }: { src: string; onClose: () => vo
  *  issues. Returns a JPEG File used as the post's permanent poster (thumbUrl). */
 function CoverPicker({ item, onClose, onPick }: { item: MediaItem; onClose: () => void; onPick: (poster: File) => void }) {
   const vref = useRef<HTMLVideoElement>(null);
+  const sheet = useDialog(onClose);
   const capture = () => {
     const v = vref.current;
     if (!v || !v.videoWidth || !v.videoHeight) return;
@@ -165,8 +170,9 @@ function CoverPicker({ item, onClose, onPick }: { item: MediaItem; onClose: () =
   };
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 90, display: 'grid', placeItems: 'center', padding: 16 }}>
-      <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: 'min(560px,96vw)', maxHeight: '92vh', overflow: 'auto' }}>
-        <h3 style={{ margin: '0 0 8px', fontSize: 17 }}>Choose cover frame</h3>
+      <div ref={sheet} role="dialog" aria-modal="true" aria-labelledby="tc-cover-title" tabIndex={-1}
+        onClick={(e) => e.stopPropagation()} className="card" style={{ width: 'min(560px,96vw)', maxHeight: '92vh', overflow: 'auto' }}>
+        <h3 id="tc-cover-title" style={{ margin: '0 0 8px', fontSize: 17 }}>Choose cover frame</h3>
         <video ref={vref} src={item.src} controls playsInline muted
           style={{ width: '100%', borderRadius: 'var(--r-1)', background: 'var(--media-bg)', maxHeight: '60vh', display: 'block' }} />
         <p className="sl-said sl-said-mid">Scrub to the frame you want, pause, then set it as the cover.</p>

@@ -409,10 +409,19 @@ textarea.sl-field { resize: vertical; line-height: 1.6; min-height: 132px; }
   margin: 0; max-width: 40ch; text-align: center;
   font-family: var(--press-serif); font-size: clamp(20px, 2.6vw, 30px); line-height: 1.35; color: var(--ink);
 }
+/* The tap target is the picture; the glyph is only what it looks like when the
+   reel is stopped. Transparent and borderless, so the poster still has nothing
+   on it while the video runs — but focusable, which is the whole point. */
+.sl-reel-tap {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  background: none; border: 0; padding: 0; cursor: pointer;
+  display: grid; place-items: center; color: inherit;
+}
+.sl-reel-tap:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; }
 .sl-reel-play {
-  position: absolute; inset: 0; margin: auto; width: 64px; height: 64px;
+  width: 64px; height: 64px; font-size: 26px; line-height: 1;
   border-radius: var(--r-full); background: var(--scrim-deep); color: var(--on-accent);
-  display: grid; place-items: center; cursor: pointer;
+  display: grid; place-items: center;
 }
 /* THE ONE CONTROL THE REFERENCE DOES NOT HAVE, AND WHERE IT WENT.
    A poster has nothing on its picture, so the mute toggle is not on the

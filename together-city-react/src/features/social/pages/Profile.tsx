@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useScrollLock } from '@/hooks/useScrollLock';
 import { useBackToClose } from '@/hooks/useBackToClose';
+import { useDialog } from '@/hooks/useDialog';
 import { Icon } from '@/components/ui/Icon';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -168,12 +169,13 @@ function PostReader({
   }, [startId]);
 
   // Escape closes, because a full-height scroller with a button at the bottom
-  // has no reachable Close once you are three posts down.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  // has no reachable Close once you are three posts down. The shared hook does
+  // that AND the three things the hand-rolled listener never did: move focus
+  // in, keep Tab inside the reader, and hand focus back to the thumbnail that
+  // opened it. The ref goes on the OVERLAY, not the column, because the Close
+  // button is fixed to the overlay — trapping to the column would put the one
+  // way out on the wrong side of the trap.
+  const reader = useDialog(onClose);
 
   // ONE SCROLL CONTEXT. The page behind the reader is locked while it is
   // open, so a flick at the reader's end cannot hand the gesture to the wall
@@ -202,7 +204,8 @@ function PostReader({
        the single most expensive thing an iPhone can be asked to composite.
        `overflow: hidden` because the COLUMN is the one scroller here; the
        overlay's own `overflow: auto` was a second scroll surface fighting it. */
-    <div className="sheet-ov is-top is-reader" onClick={onClose} style={{ overflow: 'hidden' }}>
+    <div ref={reader} role="dialog" aria-modal="true" aria-label="Posts" tabIndex={-1}
+      className="sheet-ov is-top is-reader" onClick={onClose} style={{ overflow: 'hidden' }}>
       {/* Close is FIXED to the overlay, not placed after the list. Three posts
           down, a button at the end of the column is not a way out. */}
       <button type="button" onClick={onClose} className="btn btn-line btn-sm"
@@ -578,9 +581,11 @@ function SafetyActions({ id, handle, onBlocked }: { id: string; handle: string; 
 export function PublicProfileModal({ handle, onClose }: { handle: string; onClose: () => void }) {
   const q = usePublicProfile(handle);
   const p = q.data as PublicProfile | undefined;
+  const sheet = useDialog(onClose);
   return (
     <div onClick={onClose} className="sheet-ov is-centred">
-      <div onClick={(e) => e.stopPropagation()} className="sheet" style={{ width: 'min(460px,94vw)', maxHeight: '86vh', overflow: 'auto' }}>
+      <div ref={sheet} role="dialog" aria-modal="true" aria-label={p ? `${p.name}'s profile` : 'Profile'} tabIndex={-1}
+        onClick={(e) => e.stopPropagation()} className="sheet" style={{ width: 'min(460px,94vw)', maxHeight: '86vh', overflow: 'auto' }}>
         {q.isLoading && <Spinner label="Loading profile…" />}
         {q.isError && <p className="muted" style={{ fontSize: 13 }}>Couldn't load that profile.</p>}
         {p && (
@@ -848,6 +853,7 @@ function EditProfileModal({ me, onClose }: { me: MyProfile; onClose: () => void 
   const [website, setWebsite] = useState(me.website ?? '');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const sheet = useDialog(onClose);
 
   const onFile = async (file?: File) => {
     if (!file) return;
@@ -880,8 +886,9 @@ function EditProfileModal({ me, onClose }: { me: MyProfile; onClose: () => void 
 
   return (
     <div onClick={onClose} className="sheet-ov is-centred">
-      <div onClick={(e) => e.stopPropagation()} className="sheet" style={{ width: 'min(500px,94vw)', maxHeight: '88vh', overflow: 'auto' }}>
-        <div className="blk-head"><h3>Edit profile</h3></div>
+      <div ref={sheet} role="dialog" aria-modal="true" aria-labelledby="tc-edit-profile-title" tabIndex={-1}
+        onClick={(e) => e.stopPropagation()} className="sheet" style={{ width: 'min(500px,94vw)', maxHeight: '88vh', overflow: 'auto' }}>
+        <div className="blk-head"><h3 id="tc-edit-profile-title">Edit profile</h3></div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 8 }}>
           <Avatar src={photo} name={name} size={64} />

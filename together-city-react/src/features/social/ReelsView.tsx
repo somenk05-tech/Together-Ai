@@ -6,6 +6,7 @@ import { isMuted, setMuted, subscribeMuted, claimPlayback, releasePlayback } fro
 import { CommentRow, savedIds, setSavedOwner, toggleSaved } from './PostCard';
 import { ReportMenu } from './report';
 import { useAuth } from '@/hooks/useAuth';
+import { useDialog } from '@/hooks/useDialog';
 import { HeartIcon, CommentIcon, SendIcon, SaveIcon, ShareIcon } from './marks';
 import {
   useAddComment, useComments, useToggleLike, useRepost, type Post,
@@ -276,18 +277,33 @@ const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute, eager
               for the bytes yet.
             */
             <video ref={vref} className="sl-reel-media" src={near ? video.url : undefined} poster={video.thumbUrl ?? undefined}
-              muted={hasMusic ? true : muted} loop playsInline preload={near ? 'auto' : 'none'}
-              onClick={togglePlay} />
+              muted={hasMusic ? true : muted} loop playsInline preload={near ? 'auto' : 'none'} />
           )}
-          {photo && <img className="sl-reel-media" src={photo.url} alt="" loading="lazy" />}
+          {/* `alt=""` said this picture carries nothing, on a screen where the
+              picture IS the post. There is no per-image description in the
+              schema to read out, so the honest alt is who it is from — the
+              same wording the feed card uses. */}
+          {photo && <img className="sl-reel-media" src={photo.url} alt={`Photo shared by ${post.author.name}`} loading="lazy" />}
           {!video && !photo && <p className="sl-reel-said">{post.text}</p>}
           {/* Gated on `near` like the video beside it. Rendered unconditionally,
             forty reels with music opened forty audio connections at once —
             precisely the problem the note on the video's src describes. */}
         {hasMusic && <audio ref={aref} src={near ? (post.musicUrl ?? undefined) : undefined} loop muted={muted} preload={near ? 'auto' : 'none'} />}
 
-          {paused && video && (
-            <span aria-hidden onClick={togglePlay} className="sl-reel-play">▶</span>
+          {/* PLAY/PAUSE IS A BUTTON, AND IT IS THERE EVEN WHILE PLAYING.
+              It used to be a `<span aria-hidden onClick>` shown only when
+              paused, over a `<video>` with no `controls` and its own onClick —
+              which is to say the only way to pause a reel was to click the
+              picture, and a keyboard or screen-reader user had no way at all
+              (30 Aug audit). The control now covers the picture, carries the
+              click the video used to carry, and names its state; the glyph
+              inside it is still only drawn when the reel is stopped, so
+              nothing sits on the picture while it plays. */}
+          {video && (
+            <button type="button" onClick={togglePlay} className="sl-reel-tap"
+              aria-label={paused ? 'Play video' : 'Pause video'} aria-pressed={!paused}>
+              {paused && <span aria-hidden className="sl-reel-play">▶</span>}
+            </button>
           )}
         </div>
 
@@ -314,6 +330,7 @@ function ReelComments({ postId, canModerate, onClose }: { postId: string; canMod
   const myId = user?.id;
   const [text, setText] = useState('');
   const [sendErr, setSendErr] = useState<string | null>(null);
+  const sheet = useDialog(onClose);
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (!text.trim()) return;
@@ -327,9 +344,10 @@ function ReelComments({ postId, canModerate, onClose }: { postId: string; canMod
   };
   return (
     <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 5, display: 'flex', alignItems: 'flex-end' }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxHeight: '70%', background: 'var(--card,#fff)', borderRadius: '16px 16px 0 0', padding: '14px 16px', overflow: 'auto' }}>
+      <div ref={sheet} role="dialog" aria-modal="true" aria-labelledby="tc-reel-comments-title" tabIndex={-1}
+        onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxHeight: '70%', background: 'var(--card,#fff)', borderRadius: '16px 16px 0 0', padding: '14px 16px', overflow: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-          <strong style={{ fontSize: 14 }}>Comments</strong>
+          <strong id="tc-reel-comments-title" style={{ fontSize: 14 }}>Comments</strong>
           <button type="button" onClick={onClose} aria-label="Close comments" style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--ink-soft)' }}>×</button>
         </div>
         {comments.isLoading && <Spinner />}

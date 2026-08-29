@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Button, Spinner } from '@/components/ui';
 import { successToast } from '@/components/form-validation';
 import { chatApi, useConversations, useChatContacts } from '@/api';
+import { useDialog } from '@/hooks/useDialog';
 import type { ShareCard } from '@/types';
 
 const KIND_META: Record<string, { icon: string; label: string }> = {
@@ -96,6 +97,7 @@ export function ShareModal({ item, onClose }: { item: ShareCard; onClose: () => 
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const sheet = useDialog(onClose);
 
   const contactList = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -122,23 +124,34 @@ export function ShareModal({ item, onClose }: { item: ShareCard; onClose: () => 
     }
   };
 
-  const row = (active: boolean): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', borderRadius: 'var(--r-1)', cursor: 'pointer', border: `1.5px solid ${active ? 'var(--accent)' : 'transparent'}`, background: active ? 'var(--accent-soft)' : 'transparent' });
+  /* Recipient rows are BUTTONS, not divs with onClick. The 30 Aug audit found
+     that a keyboard user could never reach a recipient here, so `target` stayed
+     null, so the Send button below stayed `disabled` forever — the share sheet
+     opened and could not be used at all without a mouse. The style therefore
+     also has to undo the browser's button chrome (font, alignment, full width)
+     so the row still LOOKS like a row. */
+  const row = (active: boolean): React.CSSProperties => ({
+    display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', borderRadius: 'var(--r-1)', cursor: 'pointer',
+    border: `1.5px solid ${active ? 'var(--accent)' : 'transparent'}`, background: active ? 'var(--accent-soft)' : 'transparent',
+    width: '100%', textAlign: 'left', font: 'inherit', color: 'inherit',
+  });
 
   /* Portalled to the body for the same reason as Modal: a feed card carries
      `content-visibility: auto`, and a fixed overlay rendered INSIDE the card
      would be measured against the card, not the screen. */
   return createPortal(
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 100, display: 'grid', placeItems: 'center', padding: 16 }}>
-      <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: 'min(460px, 96vw)', maxHeight: '88vh', overflow: 'auto' }}>
+      <div ref={sheet} role="dialog" aria-modal="true" aria-labelledby="share-sheet-title" tabIndex={-1}
+        onClick={(e) => e.stopPropagation()} className="card" style={{ width: 'min(460px, 96vw)', maxHeight: '88vh', overflow: 'auto' }}>
         {done ? (
-          <div style={{ textAlign: 'center', padding: '22px 8px' }}>
-            <div style={{ fontSize: 30, color: 'var(--ok-ink)', fontWeight: 800, lineHeight: 1 }}>✓</div>
+          <div role="status" style={{ textAlign: 'center', padding: '22px 8px' }}>
+            <div aria-hidden style={{ fontSize: 30, color: 'var(--ok-ink)', fontWeight: 800, lineHeight: 1 }}>✓</div>
             <div style={{ fontWeight: 700, fontSize: 15, marginTop: 6 }}>Sent</div>
           </div>
         ) : (
           <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <h2 style={{ fontSize: 17, margin: 0 }}>Share to a chat</h2>
+              <h2 id="share-sheet-title" style={{ fontSize: 17, margin: 0 }}>Share to a chat</h2>
               <button type="button" onClick={onClose} aria-label="Close" style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--ink-soft)' }}>×</button>
             </div>
             <div style={{ margin: '12px 0' }}><ShareCardView card={item} compact /></div>
@@ -154,11 +167,12 @@ export function ShareModal({ item, onClose }: { item: ShareCard; onClose: () => 
             ) : (
               <div style={{ display: 'grid', gap: 2, marginTop: 4 }}>
                 {(convos.data ?? []).slice(0, 4).map((c) => (
-                  <div key={c.id} onClick={() => setTarget({ type: 'conversation', id: c.id, label: c.title ?? 'Chat' })} style={row(target?.type === 'conversation' && target.id === c.id)}>
+                  <button type="button" key={c.id} aria-pressed={target?.type === 'conversation' && target.id === c.id}
+                    onClick={() => setTarget({ type: 'conversation', id: c.id, label: c.title ?? 'Chat' })} style={row(target?.type === 'conversation' && target.id === c.id)}>
                     <div className="tc-avatar" style={{ background: 'var(--accent-soft)', color: 'var(--accent-ink)', width: 30, height: 30, fontSize: 12 }}>{c.isGroup ? '👥' : (c.title ?? 'C').slice(0, 2).toUpperCase()}</div>
                     <span style={{ fontWeight: 600, fontSize: 13.5 }}>{c.title ?? 'Conversation'}</span>
                     {c.isGroup && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 'var(--r-full)', padding: '1px 7px' }}>GROUP</span>}
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
@@ -173,11 +187,12 @@ export function ShareModal({ item, onClose }: { item: ShareCard; onClose: () => 
             )}
             <div style={{ display: 'grid', gap: 2, maxHeight: 180, overflow: 'auto' }}>
               {contactList.slice(0, 20).map((c) => (
-                <div key={c.id} onClick={() => setTarget({ type: 'contact', id: c.id, handle: c.handle, label: c.name })} style={row(target?.type === 'contact' && target.id === c.id)}>
+                <button type="button" key={c.id} aria-pressed={target?.type === 'contact' && target.id === c.id}
+                  onClick={() => setTarget({ type: 'contact', id: c.id, handle: c.handle, label: c.name })} style={row(target?.type === 'contact' && target.id === c.id)}>
                   <div className="tc-avatar" style={{ background: 'var(--accent-soft)', color: 'var(--accent-ink)', width: 30, height: 30, fontSize: 12 }}>{c.name.slice(0, 2).toUpperCase()}</div>
                   <span style={{ fontWeight: 600, fontSize: 13.5 }}>{c.name}</span>
                   <span className="muted" style={{ fontSize: 12 }}>@{c.handle}</span>
-                </div>
+                </button>
               ))}
             </div>
 
