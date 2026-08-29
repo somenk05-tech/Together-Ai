@@ -23,6 +23,10 @@ export interface ParsedReport {
    *  found and could be trusted. The lab applied their sex, their age and their
    *  assay to produce it, which is three things our catalogue cannot do. */
   ranges?: Record<string, PrintedRange>;
+  /** Markers whose row was found but whose unit the report did not print, in a
+   *  range where guessing it would be a coin toss. Values omitted on purpose;
+   *  the caller tells the citizen to type these two or three in themselves. */
+  needsUnit?: string[];
   lab?: string;
   takenOn?: string; // YYYY-MM-DD
 }
@@ -39,6 +43,42 @@ interface MarkerSpec {
    *  common alternate unit and converted with `autoConvert`. */
   autoThreshold?: number;
   autoConvert?: (v: number) => number;
+  /**
+   * THE BAND WHERE A BARE NUMBER COULD HONESTLY BE EITHER UNIT — and where,
+   * therefore, we do not guess (28 Aug audit).
+   *
+   * `autoThreshold` converts a bare value ABOVE a cut and leaves everything
+   * below it as canonical. For haemoglobin that is safe: g/L never overlaps
+   * g/dL, because 30 g/dL is not a value a person has. For vitamin D it is not.
+   * The app reasons in ng/mL and the alternate unit is nmol/L, 2.5x bigger, so
+   * a bare `30` is 30 ng/mL (normal) or 12 ng/mL (deficient) with nothing in
+   * the number to say which — and the threshold, 150, sits above the whole of
+   * deficiency and most of normal. Measured:
+   *
+   *     25-OH Vitamin D  30  nmol/L   →  12 ng/mL   deficient    ✓
+   *     25-OH Vitamin D  30           →  30 ng/mL   normal       ✗
+   *
+   * Same citizen, same result, two labs whose PDFs differ only in whether the
+   * unit column survived the export.
+   *
+   * `units.ts`, one file away, uses this exact case as the worked example of
+   * the failure it exists to prevent, and sets the rule the manual-entry path
+   * follows: "a unit we do not recognise is REFUSED, never assumed. The
+   * expensive mistake in this file would be a default." The header of THIS
+   * file says the same thing in its own words — "anything ambiguous is simply
+   * omitted — the user types that one in manually" — and `autoThreshold` was
+   * the one path that did not.
+   *
+   * So: inside the band, no value. The marker is reported in `needsUnit`
+   * instead, because a number quietly missing from a form is its own way of
+   * being wrong.
+   */
+  ambiguousBare?: [number, number];
+  /** The app's OWN unit, as the lab prints it. A row that names it is not bare,
+   *  so `ambiguousBare` must not fire on it — the first draft of that guard had
+   *  no way to tell "38 ng/mL" from "38" and refused both. `convert` only lists
+   *  the ALTERNATE units, which is why this cannot be derived from it. */
+  canonicalUnit?: RegExp;
   /** Plausible physiological bounds AFTER conversion (generous). */
   lo: number;
   hi: number;
@@ -64,6 +104,10 @@ const MARKERS: MarkerSpec[] = [
     exclude: /d2\b(?!.*total)|1,\s*25|dihydroxy/i,
     convert: [{ unit: /nmol\s*\/\s*l/i, factor: (v) => v / 2.5 }],
     autoThreshold: 150, autoConvert: (v) => v / 2.5,
+    // 7.5–150 bare is 3–60 ng/mL read as nmol/L, or 7.5–150 ng/mL read as
+    // itself. Both are values a real report prints, so neither can be assumed.
+    ambiguousBare: [7.5, 150],
+    canonicalUnit: /ng\s*\/\s*m\s*l/i,
     lo: 3, hi: 200, // ng/mL
   },
   {
@@ -86,6 +130,10 @@ const MARKERS: MarkerSpec[] = [
     exclude: /estimated\s+average|eag|mean\s+(?:blood\s+)?glucose/i,
     convert: [{ unit: /mmol\s*\/\s*mol/i, factor: (v) => 0.0915 * v + 2.15 }],
     autoThreshold: 25, autoConvert: (v) => 0.0915 * v + 2.15,
+    // A narrow overlap: 15–20 is 3.5–4.0% read as mmol/mol, or a % nobody
+    // survives read as itself. Narrow, and still not ours to pick.
+    ambiguousBare: [15, 25],
+    canonicalUnit: /%/,
     lo: 3.5, hi: 20, // %
   },
   {
@@ -183,7 +231,10 @@ export function printedRange(line: string): PrintedRange | null {
   return null;
 }
 
-function pickValue(spec: MarkerSpec, lines: string[], idx: number): { value: number; range: PrintedRange | null } | null {
+/** `'needs-unit'` = we found this marker's row and refused to guess its unit. */
+type Picked = { value: number; range: PrintedRange | null } | 'needs-unit' | null;
+
+function pickValue(spec: MarkerSpec, lines: string[], idx: number): Picked {
   // Candidates: numbers on the marker's own line after the name, else the next line
   // (text extracted from PDF columns often wraps the value onto its own line).
   const candidateLines = [lines[idx], lines[idx + 1] ?? ''];
@@ -199,6 +250,12 @@ function pickValue(spec: MarkerSpec, lines: string[], idx: number): { value: num
     for (const raw of nums) {
       let v = raw;
       const unitConv = spec.convert?.find((c) => c.unit.test(line));
+      // No unit printed, and the number is inside the band both units can
+      // occupy: refuse it rather than pick one. See `ambiguousBare`.
+      const unitNamed = Boolean(unitConv) || Boolean(spec.canonicalUnit?.test(line));
+      if (!unitNamed && spec.ambiguousBare && raw >= spec.ambiguousBare[0] && raw <= spec.ambiguousBare[1]) {
+        return 'needs-unit';
+      }
       // Whether the printed range can be trusted alongside this value.
       //
       // A range is only useful in the SAME units as the value beside it. An
@@ -276,6 +333,7 @@ function findDate(text: string): string | undefined {
 export function parseReportText(text: string): ParsedReport {
   const values: Record<string, number> = {};
   const ranges: Record<string, PrintedRange> = {};
+  const needsUnit: string[] = [];
   try {
     const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
     for (const spec of MARKERS) {
@@ -284,17 +342,25 @@ export function parseReportText(text: string): ParsedReport {
         if (!spec.name.test(lines[i])) continue;
         if (spec.exclude?.test(lines[i])) continue;
         const hit = pickValue(spec, lines, i);
-        if (hit !== null) {
-          values[spec.key] = hit.value;
-          if (hit.range) ranges[spec.key] = hit.range;
-          break;
+        if (hit === null) continue;
+        if (hit === 'needs-unit') {
+          // Keep looking: a later row for the same marker may print the unit —
+          // reports repeat markers across a summary and a detail table. Only
+          // if none of them does is it reported as needing one.
+          if (!needsUnit.includes(spec.key)) needsUnit.push(spec.key);
+          continue;
         }
+        values[spec.key] = hit.value;
+        if (hit.range) ranges[spec.key] = hit.range;
+        break;
       }
     }
     const labMatch = text.match(KNOWN_LABS);
+    const unresolved = needsUnit.filter((k) => values[k] === undefined);
     return {
       values,
       ranges: Object.keys(ranges).length ? ranges : undefined,
+      needsUnit: unresolved.length ? unresolved : undefined,
       lab: labMatch ? labMatch[1].replace(/\s+/g, ' ').trim() : undefined,
       takenOn: findDate(text),
     };

@@ -141,9 +141,12 @@ export class MedicalService implements OnModuleInit {
    */
   private async readReportFromVault(fileKey: string, mimeType: string): Promise<{
     values: Record<string, number>; ranges?: Record<string, PrintedRange>; lab?: string; takenOn?: string;
+    /** Markers found with no unit printed, in a range where guessing it would
+     *  be a coin toss — carried out so the citizen is told to type those in. */
+    needsUnit?: string[];
     via: 'ai-text' | 'ai-vision' | 'parser' | 'none'; locked: boolean;
   }> {
-    let extracted: { values: Record<string, number>; ranges?: Record<string, PrintedRange>; lab?: string; takenOn?: string } = { values: {} };
+    let extracted: { values: Record<string, number>; ranges?: Record<string, PrintedRange>; lab?: string; takenOn?: string; needsUnit?: string[] } = { values: {} };
     let via: 'ai-text' | 'ai-vision' | 'parser' | 'none' = 'none';
     let locked = false;
     try {
@@ -168,6 +171,10 @@ export class MedicalService implements OnModuleInit {
           // AI off / out of credits / failed → deterministic parse of the text.
           const parsed = parseReportText(text);
           if (Object.keys(parsed.values).length) { extracted = parsed; via = 'parser'; }
+          // A report whose ONLY readable marker was one we refused to guess the
+          // unit of reads as "nothing found" otherwise, and the citizen is told
+          // the file was unreadable when in fact we read it and declined.
+          else if (parsed.needsUnit?.length) extracted = { ...extracted, needsUnit: parsed.needsUnit };
         } else if (text && !extracted.ranges) {
           // VALUES from whichever extractor read them best; REFERENCE RANGES
           // from the parser, always, whenever there is text to parse.
@@ -180,6 +187,11 @@ export class MedicalService implements OnModuleInit {
           // confuse one with a value. So it runs anyway and contributes only
           // the intervals, and only for markers the values already cover.
           const parsed = parseReportText(text);
+          // And the same for the units it refused to guess: the AI may have
+          // filled a marker the parser would not, so only the ones still
+          // MISSING are worth telling the citizen about.
+          const stillMissing = (parsed.needsUnit ?? []).filter((k) => extracted.values[k] === undefined);
+          if (stillMissing.length) extracted = { ...extracted, needsUnit: stillMissing };
           if (parsed.ranges) {
             const forFound: Record<string, PrintedRange> = {};
             for (const [k, r] of Object.entries(parsed.ranges)) {
@@ -339,10 +351,25 @@ export class MedicalService implements OnModuleInit {
       markerCount,
       lab: read.lab ?? null,
       takenOn: read.takenOn ?? null,
-      note: markerCount
+      note: (markerCount
         ? 'Values read from your report — please review each before saving.'
-        : this.unreadableNote(read.locked),
+        : this.unreadableNote(read.locked)) + this.needsUnitNote(read.needsUnit),
     };
+  }
+
+  /**
+   * THE MARKERS WE FOUND AND REFUSED TO GUESS THE UNIT OF (28 Aug audit).
+   *
+   * A value quietly missing from a pre-filled form is its own way of being
+   * wrong: the citizen sees eight fields filled, assumes the ninth was not on
+   * the report, and saves. So the parser reports them and this says so —
+   * naming the marker, and why, in the sentence the upload already prints.
+   */
+  private needsUnitNote(keys?: string[]): string {
+    if (!keys?.length) return '';
+    const labels = keys.map((k) => biomarkerDef(k)?.label ?? k);
+    const list = labels.length > 1 ? `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}` : labels[0];
+    return ` Your report shows ${list} without the unit${labels.length > 1 ? 's' : ''} printed, and the number could be read two ways — please enter ${labels.length > 1 ? 'those' : 'that one'} from the report yourself.`;
   }
 
   /** Delete a health record + its stored object, freeing vault space. */
@@ -629,7 +656,8 @@ export class MedicalService implements OnModuleInit {
       recordId: rec.id, bloodTestId: testId, aiEnabled: this.ai.enabled,
       extracted: values, markerCount, lab: extracted.lab ?? null, takenOn: extracted.takenOn ?? null,
       analysis, summary: null as Awaited<ReturnType<MedicalService['healthSummary']>> | null,
-      note: `Read ${markerCount} marker${markerCount === 1 ? '' : 's'} from your report and analysed it automatically.`,
+      note: `Read ${markerCount} marker${markerCount === 1 ? '' : 's'} from your report and analysed it automatically.`
+        + this.needsUnitNote(extracted.needsUnit),
     };
   }
 

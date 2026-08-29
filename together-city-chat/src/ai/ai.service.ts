@@ -194,7 +194,13 @@ export class AiService {
       '{"values":{"hb":number,"ferritin":number,"vitd":number,"b12":number,"folate":number,"hba1c":number,"ldl":number,"trig":number,"crp":number},"lab":string,"takenOn":"YYYY-MM-DD"}. ' +
       'Include a marker ONLY if it clearly appears on the report, using the report\'s numeric value in these units: ' +
       'hb g/dL, ferritin ng/mL, vitd (25-OH vitamin D) ng/mL, b12 pg/mL, folate ng/mL, hba1c %, ldl mg/dL, trig mg/dL, crp mg/L. ' +
-      'Convert if the report uses different units. Omit any marker not present. Never invent values.';
+      'Convert if the report uses different units. Omit any marker not present. Never invent values. ' +
+      // The same rule the deterministic parser follows and `units.ts` states:
+      // a unit we cannot read is refused, never assumed. Vitamin D of 30 with
+      // no unit printed is 30 ng/mL (normal) or 12 ng/mL (deficient), and
+      // nothing in the number says which.
+      'If a marker\'s unit is NOT printed on the report and its value could plausibly be either the unit above or a common alternate '
+      + '(vitamin D ng/mL vs nmol/L, HbA1c % vs mmol/mol, LDL mg/dL vs mmol/L), OMIT that marker rather than assuming a unit.';
     try {
       const source = isPdf
         ? ({ type: 'base64', media_type: 'application/pdf', data: base64 } as const)
