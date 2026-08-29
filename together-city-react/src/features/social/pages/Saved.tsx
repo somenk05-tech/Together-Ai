@@ -3,13 +3,18 @@ import { Icon } from '@/components/ui/Icon';
 import { Link } from 'react-router-dom';
 
 import type { Post } from '../api';
+import { savedStoreKeys, setSavedOwner } from '../PostCard';
+import { useAuth } from '@/hooks/useAuth';
 
 /** Social Life · Saved — bookmarked posts kept on this device.
  *  Reads the same localStorage the feed's 🔖 Save button writes to
  *  (`tc-saved-posts` = ids, `tc-saved-posts-data` = full post snapshots).
  *  Previously this page always rendered an empty state, so saved posts never
  *  appeared anywhere. */
-const SAVED_KEY = 'tc-saved-posts';
+/* The store is per-account now — see PostCard, where the key and the one-time
+   migration off the old device-wide one live. This page asks for the key
+   rather than knowing it, so there is one definition of where bookmarks are. */
+const savedKeys = () => savedStoreKeys();
 
 /**
  * "NOTHING SAVED YET" IS A CLAIM, AND IT NEEDS THE READ TO HAVE WORKED.
@@ -22,8 +27,8 @@ const SAVED_KEY = 'tc-saved-posts';
  */
 function readSaved(): { posts: Post[]; unreadable: boolean; missing: number } {
   try {
-    const ids = JSON.parse(localStorage.getItem(SAVED_KEY) ?? '[]') as string[];
-    const snaps = JSON.parse(localStorage.getItem(SAVED_KEY + '-data') ?? '{}') as Record<string, Post>;
+    const ids = JSON.parse(localStorage.getItem(savedKeys().ids) ?? '[]') as string[];
+    const snaps = JSON.parse(localStorage.getItem(savedKeys().data) ?? '{}') as Record<string, Post>;
     // Newest saves first (ids are appended in save order).
     const posts = ids.map((id) => snaps[id]).filter(Boolean).reverse();
     return { posts, unreadable: false, missing: ids.length - posts.length };
@@ -34,11 +39,11 @@ function readSaved(): { posts: Post[]; unreadable: boolean; missing: number } {
 
 function removeSaved(id: string) {
   try {
-    const ids = (JSON.parse(localStorage.getItem(SAVED_KEY) ?? '[]') as string[]).filter((x) => x !== id);
-    localStorage.setItem(SAVED_KEY, JSON.stringify(ids));
-    const snaps = JSON.parse(localStorage.getItem(SAVED_KEY + '-data') ?? '{}') as Record<string, unknown>;
+    const ids = (JSON.parse(localStorage.getItem(savedKeys().ids) ?? '[]') as string[]).filter((x) => x !== id);
+    localStorage.setItem(savedKeys().ids, JSON.stringify(ids));
+    const snaps = JSON.parse(localStorage.getItem(savedKeys().data) ?? '{}') as Record<string, unknown>;
     delete snaps[id];
-    localStorage.setItem(SAVED_KEY + '-data', JSON.stringify(snaps));
+    localStorage.setItem(savedKeys().data, JSON.stringify(snaps));
   } catch { /* ignore */ }
 }
 
@@ -75,6 +80,8 @@ function SavedCard({ post, onRemove }: { post: Post; onRemove: () => void }) {
 }
 
 export function SocialSaved() {
+  const { user } = useAuth();
+  setSavedOwner(user?.id);
   const [store, setStore] = useState(() => readSaved());
   const { posts, unreadable, missing } = store;
 

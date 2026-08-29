@@ -99,8 +99,8 @@ function ImageEditor({ src, onClose, onApply }: { src: string; onClose: () => vo
   };
 
   const slider = (label: string, val: number, set: (n: number) => void, min: number, max: number) => (
-    <label style={{ display: 'block', marginBottom: 12 }}>
-      <span style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, marginBottom: 4 }}>
+    <label className="sl-ed-row">
+      <span className="sl-ed-lab">
         <span>{label}</span><span className="muted">{Math.round(val * 100)}%</span>
       </span>
       <input type="range" min={min} max={max} step={0.01} value={val} onChange={(e) => set(Number(e.target.value))} style={{ width: '100%' }} />
@@ -111,10 +111,10 @@ function ImageEditor({ src, onClose, onApply }: { src: string; onClose: () => vo
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 90, display: 'grid', placeItems: 'center', padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: 'min(560px,96vw)', maxHeight: '92vh', overflow: 'auto' }}>
         <h3 style={{ margin: '0 0 10px', fontSize: 17 }}>Edit photo</h3>
-        <div style={{ borderRadius: 12, overflow: 'hidden', background: 'var(--media-bg)', marginBottom: 12 }}>
+        <div className="sl-ed-stage">
           <img src={src} alt="" style={{ width: '100%', maxHeight: '46vh', objectFit: 'contain', display: 'block', filter }} />
         </div>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        <div className="sl-ed-btns">
           <button type="button" className={`pill ${pane === 'filters' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setPane('filters')}>Filters</button>
           <button type="button" className={`pill ${pane === 'adjust' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setPane('adjust')}>Adjust</button>
         </div>
@@ -169,7 +169,7 @@ function CoverPicker({ item, onClose, onPick }: { item: MediaItem; onClose: () =
         <h3 style={{ margin: '0 0 8px', fontSize: 17 }}>Choose cover frame</h3>
         <video ref={vref} src={item.src} controls playsInline muted
           style={{ width: '100%', borderRadius: 'var(--r-1)', background: 'var(--media-bg)', maxHeight: '60vh', display: 'block' }} />
-        <p className="muted" style={{ fontSize: 12.5, margin: '10px 0' }}>Scrub to the frame you want, pause, then set it as the cover.</p>
+        <p className="sl-said sl-said-mid">Scrub to the frame you want, pause, then set it as the cover.</p>
         <div style={{ display: 'flex', gap: 10 }}>
           <button type="button" className="btn btn-accent btn-sm" onClick={capture}>Use this frame</button>
           <button type="button" className="btn btn-line btn-sm" onClick={onClose}>Cancel</button>
@@ -202,6 +202,29 @@ const fileFmt = (f?: File): string => {
   return (f?.name.split('.').pop() || 'VIDEO').toUpperCase();
 };
 const VIDEO_FORMATS = 'MP4, WebM or MOV';
+
+/** The half of a composer that can be written down: the words, not the files. */
+interface Draft {
+  text?: string; feeling?: string | null; placeName?: string;
+  hashtags?: string[]; tagged?: Array<{ id: string; name: string; handle: string }>;
+  audience?: string; category?: string;
+}
+const DRAFT_KEY = 'tc-post-draft';
+function savedDraft(): Draft | null {
+  try { return JSON.parse(sessionStorage.getItem(DRAFT_KEY) ?? 'null') as Draft | null; } catch { return null; }
+}
+function writeDraft(d: Draft): void {
+  try {
+    // An empty composer has no draft — writing one would resurrect a blank
+    // "you had something here" the next time the page opens.
+    const empty = !d.text?.trim() && !d.placeName?.trim() && !d.hashtags?.length && !d.tagged?.length && !d.feeling;
+    if (empty) sessionStorage.removeItem(DRAFT_KEY);
+    else sessionStorage.setItem(DRAFT_KEY, JSON.stringify(d));
+  } catch { /* private mode, or full — the draft is a courtesy, not a promise */ }
+}
+function clearDraft(): void {
+  try { sessionStorage.removeItem(DRAFT_KEY); } catch { /* nothing to clear */ }
+}
 /* `dataUrlBytes` lived here and went with the data URLs: nothing in a post
    is base64 any more, so there is no decoded size to guess at. */
 /**
@@ -324,7 +347,7 @@ function MusicPicker({ selected, onSelect, stopSignal }: { selected: Track | nul
   return (
     <div style={{ marginTop: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-        <span className="muted" style={{ fontSize: 12.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="music" size={14} />Music</span>
+        <span className="sl-hint-row"><Icon name="music" size={14} />Music</span>
         <span title="Every track is royalty-free and cleared for use. Uploading your own (possibly copyrighted) audio is not allowed."
           style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 8px', borderRadius: 'var(--r-full)', background: 'rgba(34,197,94,.14)', color: 'var(--ok-ink)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
           <Icon name="shield" size={13} /> Copyright-safe · Royalty-free
@@ -359,7 +382,7 @@ function MusicPicker({ selected, onSelect, stopSignal }: { selected: Track | nul
           );
         })}
         {tracks.length === 0 && (
-          <span className="muted" style={{ fontSize: 12 }}>No tracks available yet — add MP3s to public/music/.</span>
+          <span className="sl-hint">No tracks available yet — add MP3s to public/music/.</span>
         )}
       </div>
     </div>
@@ -395,8 +418,27 @@ export function CreatePost() {
   const photoPicker = useRef<HTMLInputElement>(null);
   const videoPicker = useRef<HTMLInputElement>(null);
 
-  const [text, setText] = useState('');
+  /**
+   * ── THE DRAFT SURVIVES LEAVING THE PAGE (30 Aug audit) ────────────────────
+   *
+   * Every field here was plain `useState` with nothing behind it: no storage,
+   * no `beforeunload`, no route guard, and a Cancel link that was a bare
+   * `<Link>`. Two thousand characters and a check-in went on a stray Back tap,
+   * on a mis-tapped nav item, and whenever a phone browser killed the tab to
+   * reclaim memory — which, until this commit, the composer was doing its best
+   * to provoke by holding a 75 MB video in a JavaScript string.
+   *
+   * WHAT IS KEPT IS THE WRITING, NOT THE FILES. A File cannot be serialised and
+   * an object URL does not survive a reload, so the photographs cannot come
+   * back and the draft says so rather than pretending. sessionStorage and not
+   * localStorage: a draft belongs to this tab and this sitting, and a stale one
+   * resurfacing next week on a shared computer is its own small betrayal.
+   */
+  const [text, setText] = useState(() => savedDraft()?.text ?? '');
   const [media, setMedia] = useState<MediaItem[]>([]);
+  /* Whether there WAS one when this page opened — so the notice can say so
+     once, and say plainly that the pictures did not come back with it. */
+  const [restored, setRestored] = useState(() => Boolean(savedDraft()?.text?.trim()));
   /**
    * Object URLs are handles on decoded bytes, and the browser holds them until
    * they are revoked. A composer that is opened, filled with four photographs
@@ -407,17 +449,25 @@ export function CreatePost() {
   const mediaRef = useRef<MediaItem[]>([]);
   mediaRef.current = media;
   useEffect(() => () => { for (const m of mediaRef.current) URL.revokeObjectURL(m.src); }, []);
-  const [feeling, setFeeling] = useState<string | null>(null);
-  const [placeName, setPlaceName] = useState('');
+  const [feeling, setFeeling] = useState<string | null>(() => savedDraft()?.feeling ?? null);
+  const [placeName, setPlaceName] = useState(() => savedDraft()?.placeName ?? '');
   const [geo, setGeo] = useState<{ lat: number; lng: number } | null>(null);
   const [geoStat, setGeoStat] = useState('');
-  const [hashtags, setHashtags] = useState<string[]>([]);
+  const [hashtags, setHashtags] = useState<string[]>(() => savedDraft()?.hashtags ?? []);
   const [tagInput, setTagInput] = useState('');
-  const [tagged, setTagged] = useState<Array<{ id: string; name: string; handle: string }>>([]);
-  const [audience, setAudience] = useState<AudienceKey>('public');
-  const [category, setCategory] = useState<'' | 'work' | 'personal'>('');
+  const [tagged, setTagged] = useState<Array<{ id: string; name: string; handle: string }>>(() => savedDraft()?.tagged ?? []);
+  const [audience, setAudience] = useState<AudienceKey>(() => (savedDraft()?.audience as AudienceKey) ?? 'public');
+  const [category, setCategory] = useState<'' | 'work' | 'personal'>(() => (savedDraft()?.category as '' | 'work' | 'personal') ?? '');
   const [music, setMusic] = useState<Track | null>(null);
   const [open, setOpen] = useState<string | null>(null);
+  const navTimer = useRef<number | null>(null);
+  useEffect(() => () => { if (navTimer.current) window.clearTimeout(navTimer.current); }, []);
+  // Written on every change rather than on a timer: the tab can be killed
+  // between two keystrokes and a debounce is exactly the window that loses the
+  // sentence somebody was in the middle of.
+  useEffect(() => {
+    writeDraft({ text, feeling, placeName, hashtags, tagged, audience, category });
+  }, [text, feeling, placeName, hashtags, tagged, audience, category]);
   // Share lifecycle: idle → sharing → success (→ navigate) | error
   const [phase, setPhase] = useState<'idle' | 'sharing' | 'success' | 'error'>('idle');
   const [errMsg, setErrMsg] = useState<string | null>(null);
@@ -518,7 +568,9 @@ export function CreatePost() {
   }, [text, hashtags, feeling, placeName]);
   const hasSuggestions = suggestions.tags.length > 0 || suggestions.mood || suggestions.place;
 
-  const canShare = Boolean(text.trim()) || media.length > 0 || Boolean(placeName.trim());
+  // `hashtags` goes into the post body a few lines down but was missing here,
+  // so a post of nothing but tags could be composed and never shared.
+  const canShare = Boolean(text.trim()) || media.length > 0 || Boolean(placeName.trim()) || hashtags.length > 0;
 
   const share = async () => {
     if (busy || !canShare) return; // prevent duplicate submissions
@@ -570,15 +622,23 @@ export function CreatePost() {
         ...(geo ? { lat: geo.lat, lng: geo.lng } : {}),
         audience,
         ...(category ? { category } : {}),
-        ...(music ? { musicUrl: music.url, musicTitle: music.title } : {}),
+        /* The picker only appears when a video is attached, so a track that
+           outlives its video was posted silently onto a photo — the citizen
+           chose it for a clip they then deleted, and never saw it again until
+           the reel played music over nothing. */
+        ...(music && media.some((m) => m.type === 'video') ? { musicUrl: music.url, musicTitle: music.title } : {}),
         tagged: tagged.length ? tagged : undefined,
       },
       {
         onSuccess: (post) => {
+          clearDraft(); // it is published; there is nothing left to recover
           // Brief success confirmation, then auto-return to the City Feed with
           // the new post highlighted at the top (Instagram/X-style flow).
           setPhase('success');
-          window.setTimeout(() => {
+          // The timer is CLEARED on unmount. It used to be a bare setTimeout,
+          // so tapping Back during the 550 ms confirmation yanked the citizen
+          // forward to the feed they had just chosen to leave.
+          navTimer.current = window.setTimeout(() => {
             nav('/social/feed', { state: { newPostId: post.id, justShared: true } });
           }, 550);
         },
@@ -588,8 +648,13 @@ export function CreatePost() {
           const ax = e as { response?: { status?: number; data?: { message?: string } }; message?: string };
           const status = ax?.response?.status;
           setErrMsg(
+            // 413 used to blame "that video" unconditionally, so a citizen
+            // posting ten photographs and no video was told to try a shorter
+            // clip.
             status === 413
-              ? 'That video is too large to post right now. Try a shorter clip.'
+              ? (media.some((m) => m.type === 'video')
+                ? 'That video is too large to post right now. Try a shorter clip.'
+                : 'Those files are too large to post together. Remove one and try again.')
               : ax?.response?.data?.message || ax?.message || 'Something went wrong publishing your post. Please try again.',
           );
           setPhase('error'); // stay on page, restore the button
@@ -644,6 +709,24 @@ export function CreatePost() {
         </div>
       </div>
 
+      {/* Said once, and said honestly: the words came back and the pictures
+          did not, because a File cannot be written to sessionStorage and an
+          object URL does not survive a reload. Silently restoring the text and
+          leaving somebody to notice the photographs are missing would be the
+          worse half of a good feature. */}
+      {restored && (
+        <div className="card sl-note">
+          <div className="sl-note-t">Your draft is back</div>
+          <p className="sl-note-p">
+            The words you had written were kept. Photos and video were not — they will need attaching again.{' '}
+            <button type="button" className="sl-fail-again"
+              onClick={() => { clearDraft(); setText(''); setFeeling(null); setPlaceName(''); setHashtags([]); setTagged([]); setRestored(false); }}>
+              Start over instead
+            </button>
+          </p>
+        </div>
+      )}
+
       <div className="card rise" style={{ padding: '16px 18px', opacity: busy ? 0.55 : 1, pointerEvents: busy ? 'none' : 'auto', transition: 'opacity .2s' }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
           <Avatar name={user?.name ?? 'You'} src={user?.profileImage} />
@@ -659,7 +742,7 @@ export function CreatePost() {
         </div>
 
         {(feeling || placeName || tagged.length > 0) && (
-          <p className="muted" style={{ fontSize: 12.5, margin: '8px 0 0' }}>
+          <p className="sl-said">
             {feeling && <>feeling {feeling}&nbsp;&nbsp;</>}
             {placeName && <><Icon name="place" size={13} /> {placeName}&nbsp;&nbsp;</>}
             {tagged.length > 0 && <>with {tagged.map((t) => t.name.split(' ')[0]).join(', ')}</>}
@@ -721,7 +804,7 @@ export function CreatePost() {
         {hashtags.length > 0 && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
             {hashtags.map((h) => (
-              <span key={h} style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-ink)', background: 'var(--accent-soft)', padding: '3px 10px', borderRadius: 'var(--r-full)' }}>
+              <span key={h} className="sl-chipv">
                 {h} <button type="button" onClick={() => setHashtags((x) => x.filter((y) => y !== h))} aria-label={`Remove ${h}`} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'inherit', padding: 0, marginLeft: 2, display: 'inline-flex', verticalAlign: '-.15em' }}><Icon name="close" size={12} /></button>
               </span>
             ))}
@@ -777,7 +860,7 @@ export function CreatePost() {
 
         {open === 'location' && (
           <div style={{ marginTop: 12, padding: 14, borderRadius: 12, background: 'var(--wash)' }}>
-            <label style={{ fontSize: 12.5, fontWeight: 700, display: 'block', marginBottom: 6 }}>Check in — where are you?</label>
+            <label className="sl-field-l">Check in — where are you?</label>
             <input value={placeName} onChange={(e) => setPlaceName(e.target.value)}
               placeholder="e.g. Blue Tokai Coffee · Marine Drive · Paris" style={inputStyle} />
             <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -812,12 +895,19 @@ export function CreatePost() {
                   + {c.user.name}
                 </button>
               ))}
-              {connectionOptions.length === 0 && <span className="muted" style={{ fontSize: 12 }}>No more connections to tag.</span>}
+              {/* The seventh screen from the audit's list: this said "no more
+                  connections to tag" whether the read had succeeded or not, so
+                  a citizen with forty connections and a dropped request was
+                  told they had none. */}
+              {connections.isLoading && <span className="sl-hint">Loading your connections…</span>}
+              {connections.isError && <span className="sl-note-p">Couldn’t load your connections just now — this is a connection problem, not an empty list.</span>}
+              {!connections.isLoading && !connections.isError && connectionOptions.length === 0
+                && <span className="sl-hint">No more connections to tag.</span>}
             </div>
             {tagged.length > 0 && (
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
                 {tagged.map((t) => (
-                  <span key={t.id} style={{ fontSize: 12, fontWeight: 600, background: 'var(--accent-soft)', color: 'var(--accent-ink)', padding: '3px 10px', borderRadius: 'var(--r-full)' }}>
+                  <span key={t.id} className="sl-chipv">
                     {t.name} <button type="button" onClick={() => setTagged((x) => x.filter((y) => y.id !== t.id))} aria-label={`Remove ${t.name}`} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'inherit', padding: 0, display: 'inline-flex', verticalAlign: '-.15em' }}><Icon name="close" size={12} /></button>
                   </span>
                 ))}
@@ -919,8 +1009,16 @@ export function CreatePost() {
       )}
 
       <div style={{ display: 'flex', gap: 10, justifyContent: busy ? 'center' : 'stretch' }}>
+        {/* Cancel was a bare <Link>: a half-written post with ten photographs
+            went with one tap and no question asked. It asks now, and it says
+            the draft is kept — which it is, minus the files. */}
         {!busy && (
-          <Link className="btn btn-line" to="/social/feed" style={{ flex: 1, justifyContent: 'center' }}>Cancel</Link>
+          <button type="button" className="btn btn-line sl-half"
+            onClick={() => {
+              const written = Boolean(text.trim() || media.length || placeName.trim() || hashtags.length || tagged.length);
+              if (written && !window.confirm('Leave this post? Your words are kept as a draft, but the photos and video are not.')) return;
+              nav('/social/feed');
+            }}>Cancel</button>
         )}
         <button type="button" onClick={() => void share()} disabled={busy || !canShare}
           className="btn btn-accent"

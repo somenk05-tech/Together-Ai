@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useScrollLock } from '@/hooks/useScrollLock';
+import { useBackToClose } from '@/hooks/useBackToClose';
 import { Icon } from '@/components/ui/Icon';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -57,6 +58,9 @@ function StatCell({ n, label }: { n: number; label: string }) {
 
 function tileDate(iso: string): string {
   const d = new Date(iso);
+  // Printed on every tile of the grid, so an unparseable date was "Invalid
+  // Date" repeated down the page.
+  if (Number.isNaN(d.getTime())) return '';
   return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
 
@@ -178,6 +182,9 @@ function PostReader({
   // The shared counted lock — see useScrollLock. This reader can sit OVER the
   // reels player, and the two ad-hoc body locks used to clobber each other.
   useScrollLock(true);
+  // Escape already closed this; a phone has no Escape key, and Back was
+  // leaving the profile instead of the reader (30 Aug audit).
+  useBackToClose(true, onClose);
 
   const chip = (postId: string, cur: string, key: '' | 'personal' | 'work', label: string) => (
     <button key={key || 'none'} type="button" disabled={setCategory.isPending}
@@ -728,7 +735,9 @@ export function PublicProfilePage() {
       </div>
     );
   }
-  const joined = new Date(p.memberSince).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+  // "Joined Invalid Date" is what a null memberSince printed here.
+  const joinedAt = new Date(p.memberSince);
+  const joined = Number.isNaN(joinedAt.getTime()) ? '' : joinedAt.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 
   return (
     <div>
@@ -743,7 +752,7 @@ export function PublicProfilePage() {
             <ConnectButton id={p.id} handle={p.handle} relationship={p.relationship} />
           </div>
           <p className="muted" style={{ fontSize: 13, marginTop: 2 }}>
-            <span style={{ fontFamily: 'monospace' }}>@{p.handle}</span> · Joined {joined}
+            <span style={{ fontFamily: 'monospace' }}>@{p.handle}</span>{joined && <> · Joined {joined}</>}
           </p>
           {p.city && <p className="muted" style={{ fontSize: 12.5, marginTop: 3, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="place" size={14} />{p.city}</p>}
           {p.bio && <p style={{ fontSize: 13.5, lineHeight: 1.5, margin: '8px 0 0', maxWidth: 560 }}>{p.bio}</p>}
@@ -1056,7 +1065,9 @@ export function SocialProfile() {
     return <div><p className="muted">Couldn't load your profile. Reload to try again.</p></div>;
   }
   const p = me.data;
-  const joined = new Date(p.memberSince).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+  // "Joined Invalid Date" is what a null memberSince printed here.
+  const joinedAt = new Date(p.memberSince);
+  const joined = Number.isNaN(joinedAt.getTime()) ? '' : joinedAt.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 
   return (
     <div>
@@ -1084,7 +1095,7 @@ export function SocialProfile() {
             </button>
           </div>
           <p className="muted" style={{ fontSize: 13, marginTop: 2 }}>
-            <span style={{ fontFamily: 'monospace' }}>@{p.handle}</span> · Joined {joined}
+            <span style={{ fontFamily: 'monospace' }}>@{p.handle}</span>{joined && <> · Joined {joined}</>}
           </p>
           {p.city && <p className="muted" style={{ fontSize: 12.5, marginTop: 3, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="place" size={14} />{p.city}</p>}
           {p.bio && <p style={{ fontSize: 13.5, lineHeight: 1.5, margin: '8px 0 0', maxWidth: 560 }}>{p.bio}</p>}

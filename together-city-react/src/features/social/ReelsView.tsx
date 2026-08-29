@@ -3,7 +3,7 @@ import { Button, Spinner } from '@/components/ui';
 import { ShareModal } from '@/features/chat/share';
 import type { ShareCard } from '@/types';
 import { isMuted, setMuted, subscribeMuted, claimPlayback, releasePlayback } from '@/lib/mediaState';
-import { CommentRow, savedIds, toggleSaved } from './PostCard';
+import { CommentRow, savedIds, setSavedOwner, toggleSaved } from './PostCard';
 import { ReportMenu } from './report';
 import { useAuth } from '@/hooks/useAuth';
 import { HeartIcon, CommentIcon, SendIcon, SaveIcon, ShareIcon } from './marks';
@@ -116,6 +116,7 @@ const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute, eager
   const [reposted, setReposted] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
+  setSavedOwner(user?.id);
   const [saved, setSaved] = useState(() => savedIds().has(post.id));
   const toggleSave = () => setSaved(toggleSaved(post));
   // Preload the video BEFORE it reaches the screen so playback starts instantly
@@ -289,10 +290,17 @@ function ReelComments({ postId, canModerate, onClose }: { postId: string; canMod
   const { user } = useAuth();
   const myId = user?.id;
   const [text, setText] = useState('');
+  const [sendErr, setSendErr] = useState<string | null>(null);
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (!text.trim()) return;
-    add.mutate({ postId, text: text.trim() }, { onSuccess: () => setText('') });
+    setSendErr(null);
+    add.mutate({ postId, text: text.trim() }, {
+      onSuccess: () => setText(''),
+      // The reply used to stay in the box with nothing said, which reads as
+      // "the button is broken" rather than "try that again".
+      onError: () => setSendErr('That reply didn’t send — try again.'),
+    });
   };
   return (
     <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 5, display: 'flex', alignItems: 'flex-end' }}>
@@ -316,6 +324,7 @@ function ReelComments({ postId, canModerate, onClose }: { postId: string; canMod
             style={{ flex: 1, border: '1.5px solid var(--line)', borderRadius: 'var(--r-full)', padding: '9px 14px', fontSize: 13, fontFamily: 'inherit', outline: 'none', background: 'var(--card)', color: 'var(--ink)' }} />
           <Button type="submit" variant="line" size="sm" disabled={add.isPending || !text.trim()}>Reply</Button>
         </form>
+        {sendErr && <p role="alert" className="sl-fail-alert">{sendErr}</p>}
       </div>
     </div>
   );

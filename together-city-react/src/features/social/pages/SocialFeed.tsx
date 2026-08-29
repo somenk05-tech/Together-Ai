@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useScrollLock } from '@/hooks/useScrollLock';
+import { useBackToClose } from '@/hooks/useBackToClose';
 import { informalName } from '@/lib/salutation';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -122,6 +123,11 @@ export function SocialFeed() {
   // does not stop touch scroll), it restores the scroll position, and it
   // survives the post reader opening on top.
   useScrollLock(filter === 'videos' || reelAt != null);
+  // Back closes the full-screen player rather than leaving Social Life. Two
+  // calls, because the two surfaces close to different places: scroll mode
+  // returns to the wall, the Videos tab returns to For You.
+  useBackToClose(reelAt != null, () => setReelAt(null));
+  useBackToClose(filter === 'videos', () => setFilter('foryou'));
 
   // Videos = full-screen immersive reels: nothing else on the page. A single
   // back button returns to the City Feed (For You).

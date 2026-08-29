@@ -552,3 +552,25 @@ textarea.sl-field { resize: vertical; line-height: 1.6; min-height: 132px; }
 .sl-c-name { font-size: var(--fs-3); font-weight: 600; }
 .sl-c-when { margin-left: 8px; font-size: var(--fs-2); color: var(--muted); }
 .sl-c-text { margin-top: 2px; font-size: var(--fs-4); }
+/* Small type the composer repeats — a hint under a control, the line that
+   says what is already attached, a field label, and the pill a hashtag or a
+   tagged name is shown in. Written once, because the size ratchet counts each
+   copy and because six spellings of "the quiet line" is six chances to drift. */
+.sl-hint { font-size: var(--fs-3); color: var(--muted); }
+.sl-said { margin: 8px 0 0; font-size: var(--fs-3); color: var(--muted); }
+.sl-said-mid { margin: 10px 0; }
+.sl-field-l { display: block; margin-bottom: 6px; font-size: var(--fs-3); font-weight: 700; }
+.sl-chipv {
+  padding: 3px 10px; border-radius: var(--r-full);
+  background: var(--accent-soft); color: var(--accent-ink);
+  font-size: var(--fs-2); font-weight: 700;
+}
+.sl-half { flex: 1; justify-content: center; }
+.sl-hint-row { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-3); font-weight: 600; color: var(--muted); }
+/* The photo editor's own furniture — a labelled slider, the preview stage and
+   its button row. Four more copies of "flex, a gap, a margin" that the size
+   ratchet was counting one by one. */
+.sl-ed-row { display: block; margin-bottom: 12px; }
+.sl-ed-lab { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: var(--fs-3); }
+.sl-ed-stage { margin-bottom: 12px; border-radius: var(--r-2); overflow: hidden; background: var(--media-bg); }
+.sl-ed-btns { display: flex; gap: 8px; margin-bottom: 12px; }

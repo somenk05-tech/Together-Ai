@@ -24,7 +24,10 @@ const ICON_FOR: Record<string, IconName> = {
   payout_settled: 'wallet', payout_failed: 'wallet',
 };
 function timeAgo(iso: string): string {
-  const s = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  // An unparseable date rendered "NaN s ago" here, next to a real notification.
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return '';
+  const s = Math.max(1, Math.round((Date.now() - t) / 1000));
   if (s < 60) return `${s}s`;
   const m = Math.round(s / 60); if (m < 60) return `${m}m`;
   const h = Math.round(m / 60); if (h < 24) return `${h}h`;
@@ -93,7 +96,7 @@ export function SocialNotifications() {
             <span style={{ flex: 1, minWidth: 0 }}>
               <span style={{ display: 'block', fontSize: 14, fontWeight: n.read ? 500 : 700 }}>{n.title}</span>
               {n.body && <span className="muted" style={{ display: 'block', fontSize: 12.5, marginTop: 2 }}>{n.body}</span>}
-              <span className="muted" style={{ fontSize: 11.5 }}>{timeAgo(n.createdAt)} ago</span>
+              {timeAgo(n.createdAt) && <span className="muted" style={{ fontSize: 11.5 }}>{timeAgo(n.createdAt)} ago</span>}
             </span>
             {!n.read && <span style={{ flex: 'none', width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', marginTop: 6 }} />}
           </button>

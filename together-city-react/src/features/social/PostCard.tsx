@@ -26,7 +26,12 @@ function postDate(iso: string): string {
 }
 
 export function timeAgo(iso: string): string {
-  const mins = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  // `postDate` six lines up guards this and this did not, so an unparseable
+  // date rendered as "NaN min" — on every comment, on every tile of the desktop
+  // wall, and in the notification list (30 Aug audit).
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return '';
+  const mins = Math.max(1, Math.round((Date.now() - t) / 60000));
   if (mins < 60) return `${mins} min`;
   const hrs = Math.round(mins / 60);
   return hrs < 24 ? `${hrs}h` : `${Math.round(hrs / 24)}d`;
@@ -49,10 +54,51 @@ export function Avatar({ name, src }: { name: string; src?: string | null }) {
  * and a globe beside every post in a public feed says nothing. */
 const AUD_ICON: Record<string, IconName> = { friends: 'people', family: 'connection', private: 'shield' };
 
-/** 🔖 Saved posts — lightweight local bookmarks (persisted on this device). */
-const SAVED_KEY = 'tc-saved-posts';
+/**
+ * 🔖 Saved posts — local bookmarks, and they belong to an ACCOUNT.
+ *
+ * The key was `tc-saved-posts` for the whole device (30 Aug audit). Two people
+ * sharing a tablet shared their bookmarks: one saves a friends-only post with a
+ * check-in on it, the other logs in and reads it — text, author, place,
+ * coordinates — because the store was keyed to the browser rather than to
+ * whoever was signed in. It is per-account now, and `SAVED_ROOT` is what a
+ * sign-out can clear without touching anybody else's.
+ *
+ * The old device-wide key is read ONCE and migrated into the current account's
+ * store, so nobody loses the bookmarks they already had. That is a deliberate
+ * one-way door: after it runs, the shared key is gone and the leak with it.
+ */
+const SAVED_ROOT = 'tc-saved-posts';
+let savedOwner = '';
+/** Called by the card and the Saved page; the id comes from the auth store. */
+export function setSavedOwner(userId: string | undefined): void {
+  savedOwner = userId ?? '';
+  migrateDeviceSaves();
+}
+const savedKey = () => (savedOwner ? `${SAVED_ROOT}:${savedOwner}` : SAVED_ROOT);
+const dataKey = () => `${savedKey()}-data`;
+/** Where the bookmarks live, for the Saved page — one definition, not two. */
+export function savedStoreKeys(): { ids: string; data: string } {
+  return { ids: savedKey(), data: dataKey() };
+}
+function migrateDeviceSaves(): void {
+  if (!savedOwner) return;
+  try {
+    const ids = localStorage.getItem(SAVED_ROOT);
+    if (ids === null) return;
+    // Only if this account has nothing yet — otherwise a second person's
+    // bookmarks would be merged into the first's, which is the bug again.
+    if (localStorage.getItem(savedKey()) === null) {
+      localStorage.setItem(savedKey(), ids);
+      const data = localStorage.getItem(`${SAVED_ROOT}-data`);
+      if (data !== null) localStorage.setItem(dataKey(), data);
+    }
+    localStorage.removeItem(SAVED_ROOT);
+    localStorage.removeItem(`${SAVED_ROOT}-data`);
+  } catch { /* private mode — nothing to migrate and nothing to lose */ }
+}
 export function savedIds(): Set<string> {
-  try { return new Set(JSON.parse(localStorage.getItem(SAVED_KEY) ?? '[]') as string[]); } catch { return new Set(); }
+  try { return new Set(JSON.parse(localStorage.getItem(savedKey()) ?? '[]') as string[]); } catch { return new Set(); }
 }
 /**
  * THE BUTTON SAID "SAVED" WHEN NOTHING HAD BEEN SAVED (30 Aug audit).
@@ -73,20 +119,20 @@ export function toggleSaved(post: Post): boolean {
   const on = !ids.has(post.id);
   if (on) ids.add(post.id); else ids.delete(post.id);
   try {
-    localStorage.setItem(SAVED_KEY, JSON.stringify([...ids]));
+    localStorage.setItem(savedKey(), JSON.stringify([...ids]));
   } catch {
     return !on; // the list itself would not write — nothing changed
   }
   try {
-    const snaps = JSON.parse(localStorage.getItem(SAVED_KEY + '-data') ?? '{}') as Record<string, unknown>;
+    const snaps = JSON.parse(localStorage.getItem(dataKey()) ?? '{}') as Record<string, unknown>;
     if (on) snaps[post.id] = post; else delete snaps[post.id];
-    localStorage.setItem(SAVED_KEY + '-data', JSON.stringify(snaps));
+    localStorage.setItem(dataKey(), JSON.stringify(snaps));
   } catch {
     // The body did not fit. Undo the id so the two halves agree, and report the
     // state the store is really in.
     if (on) {
       ids.delete(post.id);
-      try { localStorage.setItem(SAVED_KEY, JSON.stringify([...ids])); } catch { /* nothing more to try */ }
+      try { localStorage.setItem(savedKey(), JSON.stringify([...ids])); } catch { /* nothing more to try */ }
       return false;
     }
   }
@@ -135,10 +181,17 @@ function CommentsPanel({ postId, canModerate }: { postId: string; canModerate: b
   const { user } = useAuth();
   const myId = user?.id;
   const [text, setText] = useState('');
+  const [sendErr, setSendErr] = useState<string | null>(null);
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (!text.trim()) return;
-    add.mutate({ postId, text: text.trim() }, { onSuccess: () => setText('') });
+    setSendErr(null);
+    add.mutate({ postId, text: text.trim() }, {
+      onSuccess: () => setText(''),
+      // The reply used to stay in the box with nothing said, which reads as
+      // "the button is broken" rather than "try that again".
+      onError: () => setSendErr('That reply didn’t send — try again.'),
+    });
   };
   return (
     <div style={{ borderTop: '1px solid var(--line)', marginTop: 12, paddingTop: 12 }}>
@@ -155,6 +208,7 @@ function CommentsPanel({ postId, canModerate }: { postId: string; canModerate: b
           style={{ flex: 1, border: '1.5px solid var(--line)', borderRadius: 'var(--r-full)', padding: '9px 14px', fontSize: 13, fontFamily: 'inherit', outline: 'none', background: 'var(--card)', color: 'var(--ink)' }} />
         <Button type="submit" variant="line" size="sm" disabled={add.isPending || !text.trim()}>Reply</Button>
       </form>
+      {sendErr && <p role="alert" className="sl-fail-alert">{sendErr}</p>}
     </div>
   );
 }
@@ -366,6 +420,19 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(post.text ?? '');
   const [showComments, setShowComments] = useState(false);
+  /**
+   * WHAT WENT WRONG, ON THE CARD IT WENT WRONG ON (30 Aug audit).
+   *
+   * Thirteen mutations in api.ts and not one `onError` between them, so every
+   * failure on this card was a silence: delete did nothing, an edit stayed
+   * open, a repost never appeared, and a comment sat in the box. One line
+   * under the row is enough — the citizen's next move is to try again, and
+   * they cannot decide to do that if nothing told them.
+   */
+  const [actionErr, setActionErr] = useState<string | null>(null);
+  // The store is keyed to whoever is signed in; this is where the card learns
+  // that. Cheap and idempotent, and it runs before the first read below.
+  setSavedOwner(user?.id);
   const [saved, setSaved] = useState(() => savedIds().has(post.id));
   const [shareOpen, setShareOpen] = useState(false);
 
@@ -436,7 +503,7 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
                   style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit', resize: 'vertical' }} />
                 <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                   <button type="button" disabled={upd.isPending}
-                    onClick={() => upd.mutate({ postId: post.id, text: draft }, { onSuccess: () => setEditing(false) })}
+                    onClick={() => { setActionErr(null); upd.mutate({ postId: post.id, text: draft }, { onSuccess: () => setEditing(false), onError: () => setActionErr('That edit wasn’t saved — try again.') }); }}
                     className="btn btn-accent btn-sm">{upd.isPending ? 'Saving…' : 'Save'}</button>
                   <button type="button" onClick={() => { setEditing(false); setDraft(post.text ?? ''); }} className="btn btn-line btn-sm">Cancel</button>
                 </div>
@@ -481,7 +548,12 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
                     <button type="button" onClick={() => { setDraft(post.text ?? ''); setEditing(true); setMenuOpen(false); }}
                       style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', color: 'var(--ink)' }}><Icon name="edit" size={14} /> Edit post</button>
                     <button type="button" disabled={del.isPending}
-                      onClick={() => { setMenuOpen(false); if (window.confirm('Delete this post? This cannot be undone.')) del.mutate(post.id); }}
+                      onClick={() => {
+                      setMenuOpen(false); setActionErr(null);
+                      if (window.confirm('Delete this post? This cannot be undone.')) {
+                        del.mutate(post.id, { onError: () => setActionErr('That post wasn’t deleted — it is still here. Try again.') });
+                      }
+                    }}
                       style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', borderTop: '1px solid var(--line)', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', color: 'var(--danger-ink)' }}><Icon name="close" size={14} /> Delete post</button>
                   </div>
                 )}
@@ -507,7 +579,7 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
       <div className="sl-acts">
         <button type="button" className="sl-act sl-mk-like"
           aria-pressed={post.likedByMe} aria-label={`${post.likes} ${post.likes === 1 ? 'like' : 'likes'}`}
-          onClick={() => like.mutate(post.id)}>
+          onClick={() => { setActionErr(null); like.mutate(post.id, { onError: () => setActionErr('That like didn’t register — try again.') }); }}>
           <span className="sl-mark"><HeartIcon filled={post.likedByMe} /></span>
           <span>{post.likedByMe ? 'Liked' : 'Like'}{post.likes ? <span className="sl-n"> {post.likes}</span> : null}</span>
         </button>
@@ -526,10 +598,12 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
           <span className="sl-mark"><SaveIcon filled={saved} /></span><span>{saved ? 'Saved' : 'Save'}</span>
         </button>
         <button type="button" className="sl-act sl-mk-share" disabled={repost.isPending || reposted}
-          onClick={() => repost.mutate(post.id, { onSuccess: () => setReposted(true) })}>
+          onClick={() => { setActionErr(null); repost.mutate(post.id, { onSuccess: () => setReposted(true), onError: () => setActionErr('That share didn’t go through — try again.') }); }}>
           <span className="sl-mark"><ShareIcon /></span><span>{reposted ? 'Shared' : 'Share'}</span>
         </button>
       </div>
+
+      {actionErr && <p role="alert" className="sl-fail-alert">{actionErr}</p>}
 
       {showComments && <CommentsPanel postId={post.id} canModerate={isMine} />}
       {shareOpen && <ShareModal item={shareCard} onClose={() => setShareOpen(false)} />}
