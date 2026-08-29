@@ -98,8 +98,6 @@ exports[`chat gateway golden master message.created fans out: the room hears the
       "payload": {
         "conversationId": "c1",
         "messageId": "m1",
-        "preview": "chai at four?",
-        "senderId": "u1",
       },
       "room": "user:u2",
     },
@@ -108,8 +106,6 @@ exports[`chat gateway golden master message.created fans out: the room hears the
       "payload": {
         "conversationId": "c1",
         "messageId": "m1",
-        "preview": "chai at four?",
-        "senderId": "u1",
       },
       "room": "user:u3",
     },

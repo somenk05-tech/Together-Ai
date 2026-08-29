@@ -379,14 +379,31 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         const preview = this.previewOf(event.message);
         const sender = (event.message as { senderId: string }).senderId;
         const messageId = (event.message as { id: string }).id;
-        // Instant per-user push: reaches recipients even when they're not viewing
-        // this conversation (drives the unread badge + a delivered receipt).
+        /* Instant per-user push: reaches recipients even when they're not
+           viewing this conversation (drives the unread badge + a delivered
+           receipt).
+           ─────────────────────────────────────────────────────────────────
+           IT CARRIES NO IDENTITY AND NO CONTENT, AND THAT IS THE POINT.
+
+           This frame used to carry `senderId` and the raw `preview` — for
+           DATING conversations too, where the whole product promise is that the
+           other person is a pseudonym until both choose otherwise. It was safe
+           only by accident: the one listener (`useChatNotifications`) reads
+           `conversationId` and `messageId` and throws the rest away. The first
+           person to render a toast off this event would have put a real name
+           and the text of an anonymous message on screen, bypassing
+           `identityIn()` — which is the ONLY place that decides how somebody
+           may be named in a dating chat — without touching a line of dating
+           code.
+
+           So the frame is now exactly what its reader uses: which conversation,
+           which message. Anything that wants to say WHO or WHAT must go through
+           the notification path, where the masking lives. Do not add fields
+           here; add them to the bell. */
         for (const rid of event.recipientIds) {
           this.server.to(room.user(rid)).emit(WS.CHAT_NOTIFICATION, {
             conversationId: event.conversationId,
             messageId,
-            senderId: sender,
-            preview,
           });
         }
         await this.notifications.notifyNewMessage({

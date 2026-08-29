@@ -233,6 +233,14 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // engine, both database tables and every /dating/activity endpoint are
       // gone. The numbering below closes up as it already did.
       { path: '/dating/chats', index: '04', label: 'Dating Chats', sub: 'Your conversations' },
+      // THE SAFETY CENTRE IS ON THE RAIL, not only behind the report menu.
+      // It was reachable from two places, and both of them assume something
+      // has already gone wrong: the ⋯ menu on a card, and a block shown to
+      // somebody whose own profile was refused. The page carries what we
+      // check, what we do not, and four numbers to call — which is reading
+      // somebody should be able to do BEFORE they need it, from the same list
+      // as everything else in the hub.
+      { path: '/dating/safety', index: '05', label: 'Safety Centre', sub: 'What we check, and who to call' },
     ],
   },
   entertainment: {

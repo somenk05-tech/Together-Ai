@@ -3,11 +3,19 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ConnectionPermissionService } from '../connections/connection-permission.service';
 import { directKeyOf } from './conversation.util';
-import { datingConversationIds } from '../shared/dating-conversations';
 import { nickname } from '../shared/nickname';
 import { CreateGroupDto } from './dto/conversations.dto';
 
 export interface Summary { lastMessageAt: string; lastText: string | null; lastSenderId: string | null; unread: number }
+
+/**
+ * Which hub a conversation belongs to.
+ *
+ * Required at every creation site rather than defaulted, because the default is
+ * the answer that leaks: a conversation nobody classified shows up in the main
+ * Chats list. A new caller that has not thought about it does not compile.
+ */
+export type ConversationKind = 'city' | 'dating';
 
 @Injectable()
 export class ConversationsService {
@@ -80,19 +88,24 @@ export class ConversationsService {
     return this.toDto(created.id, userId);
   }
 
-  /** Conversation ids that belong to the Dating Hub (anonymous match chats).
-   *  These live ONLY in the Dating Hub's own chat tab and are hidden from the
-   *  main Chats list. Shared with messages + notifications so all three agree. */
-  private datingConversationIds(userId: string): Promise<Set<string>> {
-    return datingConversationIds(this.prisma, userId);
-  }
-
-  /** Conversation list — newest first, each as the flat DTO the frontend consumes.
-   *  Dating Hub match chats are excluded — they surface only in the Dating Hub. */
+  /**
+   * Conversation list — newest first, each as the flat DTO the frontend consumes.
+   *
+   * Dating Hub match chats are excluded, and the exclusion is `kind: 'city'` in
+   * the WHERE clause rather than a set of ids subtracted afterwards. The set was
+   * built by `datingConversationIds`, which swallows a database error and
+   * returns an empty set — so a Postgres hiccup put every anonymous dating
+   * thread in this list under both people's real names. Scoped on the row, a
+   * broken read throws and this list does not render; the failure a citizen
+   * sees is "we could not load your chats", which is the honest one.
+   *
+   * It also removes a query from an endpoint every open client polls.
+   */
   async listForUser(userId: string) {
-    const datingIds = await this.datingConversationIds(userId);
+    // unbounded: a citizen's own conversation list — truncating it hides a chat
+    // they are in, and the panel gives no sign that anything was left out.
     const memberships = await this.prisma.conversationMember.findMany({
-      where: { userId, archived: false },
+      where: { userId, archived: false, conversation: { kind: 'city' } },
       include: {
         conversation: {
           include: {
@@ -105,7 +118,6 @@ export class ConversationsService {
     });
 
     const visible = memberships.filter((m) => {
-      if (datingIds.has(m.conversationId)) return false;
       // A conversation this citizen deleted stays gone until someone writes to
       // it again. `messages` is the single newest message (take: 1, desc), so
       // "nothing since I cleared it" is exactly what keeps it out of the panel.
@@ -173,6 +185,10 @@ export class ConversationsService {
    * somebody who has put a picture on a row should not find it gone.
    */
   async roster(userId: string) {
+    // kind-spans: the Dating Hub's own chat list draws its faces from this
+    // roster too, so it covers both hubs deliberately. What protects the
+    // anonymous ones is the masking below — a dating chat under trust 2
+    // returns nobody's picture but the reader's own — not their absence.
     // unbounded: one row per conversation this citizen is in — a truncated
     // roster is a list where some faces silently fall back to initials.
     const memberships = await this.prisma.conversationMember.findMany({
@@ -286,19 +302,36 @@ export class ConversationsService {
     };
   }
 
-  /** Get-or-create a DIRECT conversation between two ids (used by dating matches,
-   *  which authorise the chat without a prior connection). */
-  async getOrCreateDirectByIds(aId: string, bId: string, anonymousTrust?: number): Promise<string> {
+  /**
+   * Get-or-create a DIRECT conversation between two ids — used by the hubs that
+   * authorise a chat without a prior connection: a dating match, and a
+   * real-estate enquiry.
+   *
+   * `kind` is REQUIRED and comes third, ahead of the optional trust level,
+   * because it is the parameter a new caller must not be able to forget. The
+   * two are not the same question and were briefly conflated while this was
+   * written: a real-estate enquiry sets `anonymousTrust` 2 and is a CITY
+   * conversation — it belongs in the main Chats list, which is where the person
+   * enquiring goes looking for it.
+   *
+   * The existing-row branch upgrades `kind` as well as the trust level. Two
+   * citizens who already had an ordinary chat and later matched get one
+   * conversation, and it moves into the Dating Hub with them; the reverse never
+   * happens, because nothing turns a dating chat back into a city one.
+   */
+  async getOrCreateDirectByIds(aId: string, bId: string, kind: ConversationKind, anonymousTrust?: number): Promise<string> {
     const directKey = directKeyOf(aId, bId);
     const existing = await this.prisma.conversation.findUnique({ where: { directKey } });
     if (existing) {
-      if (anonymousTrust != null && (existing as { anonymousTrust?: number | null }).anonymousTrust == null) {
-        await this.prisma.conversation.update({ where: { id: existing.id }, data: { anonymousTrust } });
-      }
+      const row = existing as { anonymousTrust?: number | null; kind?: string };
+      const data: { anonymousTrust?: number; kind?: string } = {};
+      if (anonymousTrust != null && row.anonymousTrust == null) data.anonymousTrust = anonymousTrust;
+      if (kind === 'dating' && row.kind !== 'dating') data.kind = kind;
+      if (Object.keys(data).length) await this.prisma.conversation.update({ where: { id: existing.id }, data });
       return existing.id;
     }
     const conv = await this.prisma.conversation.create({
-      data: { type: 'DIRECT', directKey, anonymousTrust: anonymousTrust ?? null, members: { create: [{ userId: aId }, { userId: bId }] } },
+      data: { type: 'DIRECT', directKey, kind, anonymousTrust: anonymousTrust ?? null, members: { create: [{ userId: aId }, { userId: bId }] } },
     });
     return conv.id;
   }

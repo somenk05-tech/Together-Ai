@@ -2652,7 +2652,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     // link is written only where none exists yet, so two concurrent connects
     // produce one chat and one notification, and the loser is told it is
     // already open rather than opening a second one.
-    const conversationId = await this.conversations.getOrCreateDirectByIds(userId, targetUserId, 1);
+    const conversationId = await this.conversations.getOrCreateDirectByIds(userId, targetUserId, 'dating', 1);
     const linked = await this.prisma.datingMatch.updateMany({ where: { id: state.id, conversationId: null }, data: { conversationId } });
     if (!linked.count) {
       const fresh = await this.prisma.datingMatch.findFirst({ where: { id: state.id }, select: { conversationId: true } });

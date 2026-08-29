@@ -32,9 +32,14 @@ domain services (messages, conversations, connections, notifications, media)
       │  depends on
 data (Prisma) + presence (Redis)
 ```
-The domain layer **never imports** the transport layer. Services publish to an in-process
+The domain layer **never imports** the transport layer. Services publish to a
 `ChatEventBus`; the gateway subscribes and fans events to Socket.IO rooms. This is why a
 REST-sent message and a socket-sent message reach recipients through the identical path.
+The bus emits in-process AND publishes over Redis (channel `chat:events`, each frame tagged
+with the publishing process so it ignores its own), so the work the gateway does off the bus
+— the badge frame, the bell, the push, joining a recipient to a new room — happens on every
+node rather than only on the one that handled the request. With no Redis it is a correct
+single-instance bus, which is what it was until 29 Aug.
 
 ## 3. Data model
 `User · RefreshToken · DeviceToken · Connection · Conversation · ConversationMember ·
@@ -89,9 +94,13 @@ message+status+attachments · `include` shaping to avoid N+1. Target <100ms deli
 gateway does O(1) room emits; all DB work is awaited in services before broadcast.
 
 ### Scaling to millions
-Swap the in-process `ChatEventBus` for a Redis pub/sub (or the Socket.IO Redis adapter) so
-events fan out across nodes; run the gateway stateless behind a sticky-session LB; move media
-processing + push to a queue (BullMQ). The schema and module boundaries do not change.
+Both halves of the fan-out now cross nodes: Socket.IO's Redis adapter for room broadcasts,
+and `ChatEventBus` over Redis pub/sub for the gateway's own work (`the-bus-crosses-the-node.spec.ts`
+builds two buses over one Redis and proves an event is handled once on each). They were added
+a fortnight apart, and in between the room crossed instances while the bus did not — which
+would have silenced push and the unread badge for roughly half the city the day anybody set
+the replica count to two. Still to do: run the gateway stateless behind a sticky-session LB;
+move media processing + push to a queue (BullMQ). The schema and module boundaries do not change.
 
 ## 9. Roadmap (phased)
 1. **Foundation (done this session):** gate, auth, conversations, messages, gateway, presence,

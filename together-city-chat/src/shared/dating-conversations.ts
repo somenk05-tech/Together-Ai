@@ -29,19 +29,18 @@ function datingMatch(prisma: PrismaService) {
   }).datingMatch;
 }
 
-/** Every conversation id that belongs to the Dating Hub for this citizen. */
-export async function datingConversationIds(prisma: PrismaService, userId: string): Promise<Set<string>> {
-  // unbounded: isolation safety — the dating id set must be complete or a dating chat leaks into main Chats
-  const rows = await datingMatch(prisma)
-    .findMany({
-      where: { OR: [{ userOneId: userId }, { userTwoId: userId }], conversationId: { not: null } },
-      select: { conversationId: true },
-    })
-    .catch(swallowed('shared.datingConversationIds', [] as MatchRow[]));
-  const out = new Set<string>();
-  for (const r of rows) if (r.conversationId) out.add(r.conversationId);
-  return out;
-}
+/*
+ * `datingConversationIds` was here, and it is deliberately gone.
+ *
+ * It answered "which of this citizen's conversations belong to the Dating Hub"
+ * by reading `DatingMatch` — and it swallowed a database error and returned an
+ * EMPTY set, i.e. "none of them", which is the answer that puts every anonymous
+ * dating thread in the main Chats list under both people's real names. The main
+ * Chats list and the message search were its only two callers, and both now
+ * filter on `Conversation.kind`, where a broken read throws instead of leaking.
+ *
+ * Do not bring it back. A conversation's hub is a column on the conversation.
+ */
 
 /**
  * Of these conversations, the dating ones whose match is OVER.

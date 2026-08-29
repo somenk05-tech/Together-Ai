@@ -81,9 +81,19 @@ export const PERMISSIONS: PermissionDef[] = [
   { key: 'location', label: 'Location', desc: 'Use your location for nearby places, city map posts and local recommendations.' },
   { key: 'health_integrations', label: 'Health integrations', desc: 'Let hubs like Nutrition, Fitness and Beauty read your Medical biomarkers to personalize advice.' },
   { key: 'notifications', label: 'Notifications', desc: 'Send alerts for messages, requests, matches and important updates.' },
+  /* THE ONE THAT IS OFF UNLESS YOU ASK. A dating push carries the sender's
+     chosen dating name and, by default, no words — a lock screen is read by
+     whoever is standing behind you, and this is the hub where the other person
+     is deliberately not yet part of your life in the city. The setting belongs
+     to the person RECEIVING the push, which is why it is here and not on the
+     dating profile. The server default matches: see
+     `notifications.service.ts` → `datingPreviewAllowed`. */
+  { key: 'dating-push-preview', label: 'Message previews from Dating', desc: 'Show what a dating message says on your lock screen. Off by default — a dating notification names who it is from and nothing more.' },
 ];
 
 /** Sensible defaults — personalization and notifications on; sharing off until chosen. */
 export const PERMISSION_DEFAULTS: Record<string, boolean> = {
   ai_personalization: true, family_sharing: false, location: false, health_integrations: true, notifications: true,
+  // Off, and the server agrees without being told: an absent row means no.
+  'dating-push-preview': false,
 };

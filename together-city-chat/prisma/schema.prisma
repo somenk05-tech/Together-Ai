@@ -308,6 +308,24 @@ model Conversation {
   // Dating-match anonymity: null = normal chat. 1 = anonymous (show pseudonym),
   // 2 = identities revealed, 3 = friends. Only set on dating-originated chats.
   anonymousTrust Int?
+  /// WHICH HUB THIS CONVERSATION BELONGS TO. "city" or "dating".
+  ///
+  /// Until 29 Aug a conversation was a dating one only because a `DatingMatch`
+  /// row pointed at its id, and the lookup that asked (`datingConversationIds`)
+  /// swallows a database error and returns an EMPTY set — so during a Postgres
+  /// hiccup every anonymous dating thread appeared in the main Chats list under
+  /// both people's real names. A fail-open answer to "may this be shown here"
+  /// is the wrong shape of answer whatever the trade-off note beside it says.
+  ///
+  /// On the row, the filter cannot fail open: a broken read throws and the list
+  /// is not rendered at all. It is also what makes the boundary checkable —
+  /// `a-dating-chat-says-so-on-its-own-row.spec.ts` holds every citizen-facing
+  /// list of conversations to scoping this column, so the seventh reader is
+  /// caught by the build rather than by an audit.
+  ///
+  /// NOT an enum: a Prisma enum needs a migration to add a value, and the next
+  /// hub with its own chat surface should cost one line here.
+  kind      String           @default("city")
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 
@@ -316,6 +334,9 @@ model Conversation {
   calls    CallSession[]
 
   @@index([type])
+  /// Every citizen-facing conversation list filters on `kind`, so the filter
+  /// that decides whether a dating chat is visible should not be a scan.
+  @@index([kind])
   /// The socket layer orders a citizen's room list by
   /// `conversation.updatedAt desc` on every connect, and there was nothing
   /// behind it (fifth audit, 29 Aug) — so the first thing every reconnecting

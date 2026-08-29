@@ -81,3 +81,88 @@ describe('what a dating notification may say on a lock screen', () => {
     expect({ namesSomebody }).toEqual({ namesSomebody: false });
   });
 });
+
+
+/**
+ * ── AND WHAT IT MAY SAY, WHICH IS NOTHING UNLESS YOU ASKED ──
+ *
+ * The name was decided in August; the WORDS were not. A dating push carried
+ * `params.preview` — the message text — to a lock screen, which is the one
+ * surface in this hub that a person who is not the recipient can read, and the
+ * one notification with no control over it anywhere in the product.
+ *
+ * So: the sender's chosen dating name, and "New message". The recipient can
+ * turn the words back on in Privacy & Permissions, and it is the RECIPIENT's
+ * setting because it is the recipient's phone.
+ *
+ * These call `notifyNewMessage` and read what reached the transports, rather
+ * than reading the source for the string — a preview that stops travelling in
+ * one of the two push paths and not the other is exactly the shape of bug this
+ * file exists for.
+ */
+function pushBuild(opts: { dating: boolean; optIn?: boolean }) {
+  const pushes: Array<{ via: string; payload: { title: string; body: string } }> = [];
+  const belled: Array<{ title: string; body: string }> = [];
+  const s: any = Object.create(NotificationsService.prototype);
+  s.log = { warn: () => undefined };
+  s.prisma = {
+    user: { findUnique: async () => ({ name: 'Real Cityname', profileImage: null }) },
+    datingMatch: { findFirst: async () => opts.dating
+      ? { revealByOne: false, revealByTwo: false, conversationId: 'c1', userOneId: 'S', userTwoId: 'R' }
+      : null },
+    datingProfile: { findUnique: async () => ({ extras: JSON.stringify({ firstName: 'Sky' }) }) },
+    conversationMember: { findUnique: async () => ({ muted: false }) },
+    deviceToken: { findMany: async () => [{ token: 't-fcm', platform: 'android' }, { token: 't-web', platform: 'webpush' }] },
+    privacySetting: { findUnique: async () => (opts.optIn ? { value: 'true' } : null) },
+    notification: {
+      findFirst: async () => null,
+      create: async (a: any) => { belled.push({ title: a.data.title, body: a.data.body }); return { id: 'n1', ...a.data }; },
+      count: async () => 1,
+    },
+  };
+  s.presence = { isOnline: async () => false };
+  s.redis = { openConversationsOf: async () => [] };
+  s.gateway = { emitNew: () => undefined, emitCount: () => undefined };
+  s.fcm = { send: async (t: string[], payload: any) => { if (t.length) pushes.push({ via: 'fcm', payload }); } };
+  s.webpush = { send: async (t: string[], payload: any) => { if (t.length) pushes.push({ via: 'webpush', payload }); } };
+  return { s, pushes, belled };
+}
+
+const send = async (b: ReturnType<typeof pushBuild>) =>
+  b.s.notifyNewMessage({ conversationId: 'c1', senderId: 'S', recipientIds: ['R'], preview: 'meet me at the pier at nine' });
+
+describe('what a dating push may QUOTE', () => {
+  it('says who, and does not say what — on both transports', async () => {
+    const b = pushBuild({ dating: true });
+    await send(b);
+    expect(b.pushes).toHaveLength(2);
+    for (const p of b.pushes) {
+      expect(p.payload.body).toBe('New message');
+      expect(p.payload.body).not.toContain('pier');
+      expect(p.payload.title).toBe(shownName({ firstName: 'Sky' }, 'Real Cityname'));
+    }
+  });
+
+  it('quotes the message when the RECIPIENT has asked for it', async () => {
+    const b = pushBuild({ dating: true, optIn: true });
+    await send(b);
+    expect(b.pushes.map((p) => p.payload.body)).toEqual(['meet me at the pier at nine', 'meet me at the pier at nine']);
+  });
+
+  it('leaves city chats exactly as they were', async () => {
+    // The setting asks nothing of an ordinary conversation. A city push that
+    // stopped quoting would be a regression dressed as a privacy improvement.
+    const b = pushBuild({ dating: false });
+    await send(b);
+    for (const p of b.pushes) expect(p.payload.body).toBe('meet me at the pier at nine');
+  });
+
+  it('keeps the preview in the BELL, which is inside the app', async () => {
+    // A notification list that says "New message" four times is not a
+    // notification list, and the bell is behind a session. The line drawn is
+    // the lock screen, not the whole product.
+    const b = pushBuild({ dating: true });
+    await send(b);
+    expect(b.belled[0].body).toBe('meet me at the pier at nine');
+  });
+});

@@ -7,7 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { DeliveryStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../shared/prisma/prisma.service';
-import { datingConversationIds, endedDatingConversationIds } from '../shared/dating-conversations';
+import { endedDatingConversationIds } from '../shared/dating-conversations';
 import { ConnectionPermissionService } from '../connections/connection-permission.service';
 import { ChatMediaGuard } from './chat-media-guard';
 import { ChatEventBus } from '../shared/events/chat-events';
@@ -535,6 +535,11 @@ export class MessagesService {
    * it is opened.
    */
   async conversationIdsFor(userId: string, take = 200): Promise<string[]> {
+    // kind-spans: the socket room list is BOTH hubs on purpose. Dating chats
+    // are realtime through this same gateway — typing, presence and receipts
+    // all ride the room — so filtering to 'city' here would silently take the
+    // Dating Hub's chat offline. What keeps a dating conversation out of the
+    // main Chats surface is the list and the search, not the room.
     const rows = await this.prisma.conversationMember.findMany({
       where: { userId },
       select: { conversationId: true },
@@ -690,18 +695,22 @@ export class MessagesService {
 
   /** Multi-criteria search (keyword / sender / type / date / conversation). */
   async search(userId: string, dto: SearchMessagesDto) {
-    // unbounded: their own memberships — the search scope, socially bounded
-    const memberships = await this.prisma.conversationMember.findMany({
-      where: { userId },
-      select: { conversationId: true },
-    });
     // Dating chats live only in the Dating Hub. Search ran over every
     // membership, so a search in the main Chats screen returned messages from
     // an anonymous dating thread — the one place they were never meant to
-    // surface. Excluded here rather than filtered afterwards, so the rows are
-    // never read at all.
-    const datingIds = await datingConversationIds(this.prisma, userId);
-    const allowed = memberships.map((m) => m.conversationId).filter((id) => !datingIds.has(id));
+    // surface.
+    //
+    // The exclusion is `kind: 'city'` on the conversation, not a set of dating
+    // ids subtracted afterwards: that set came from a lookup that swallows a
+    // database error and answers "none", which would have turned one broken
+    // read into a search across everybody's anonymous threads. On the row, a
+    // broken read throws and the search returns nothing.
+    // unbounded: their own city memberships — the search scope, socially bounded
+    const memberships = await this.prisma.conversationMember.findMany({
+      where: { userId, conversation: { kind: 'city' } },
+      select: { conversationId: true },
+    });
+    const allowed = memberships.map((m) => m.conversationId);
     const where: Prisma.MessageWhereInput = {
       conversationId: dto.conversationId
         ? dto.conversationId // membership re-checked below

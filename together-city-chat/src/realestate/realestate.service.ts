@@ -169,7 +169,7 @@ export class RealEstateService implements OnModuleInit {
     if (!p.sellerId) throw new BadRequestException('This is a platform listing — there is no seller to chat with.');
     if (p.sellerId === userId) throw new BadRequestException('This is your own listing.');
 
-    const conversationId = await this.conversations.getOrCreateDirectByIds(userId, p.sellerId, 2);
+    const conversationId = await this.conversations.getOrCreateDirectByIds(userId, p.sellerId, 'city', 2);
 
     // Send the listing card once per enquirer per listing — pressing Connect
     // twice must not paste the same card into the chat again.

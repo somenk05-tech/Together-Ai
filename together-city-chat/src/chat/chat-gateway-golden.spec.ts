@@ -106,7 +106,10 @@ describe('chat gateway golden master', () => {
   });
 
   it('previews: text is quoted, media is named, the unknown stays generic', async () => {
-    const { g, out } = build();
+    // The preview is read off the BELL call, not off the socket frame. It used
+    // to be asserted on the frame, which is where it no longer travels — see
+    // the test below.
+    const { g, calls } = build();
     for (const message of [
       { id: 'm', senderId: 'u1', body: '  ', messageType: 'IMAGE' },
       { id: 'm', senderId: 'u1', messageType: 'VOICE' },
@@ -114,7 +117,30 @@ describe('chat gateway golden master', () => {
     ]) {
       await (g as any).handleBusEvent({ kind: 'message.created', conversationId: 'c1', recipientIds: ['u2'], message });
     }
-    expect(out.filter((e) => e.event === WS.CHAT_NOTIFICATION).map((e) => (e.payload as { preview: string }).preview)).toMatchSnapshot();
+    expect(calls.filter((c) => c.startsWith('notify:')).map((c) => (JSON.parse(c.slice('notify:'.length)) as { preview: string }).preview))
+      .toMatchSnapshot();
+  });
+
+  it('the badge frame names nobody and quotes nothing', async () => {
+    /* The frame that reaches EVERY recipient's personal socket room carried
+       `senderId` and the message text — in dating conversations too, where the
+       sender is supposed to be a pseudonym until both people choose otherwise.
+       Nothing rendered it, so nothing was visibly wrong; the first toast built
+       on this event would have put a real name and an anonymous message on a
+       screen without touching dating code.
+
+       Asserted as an exact payload rather than a snapshot, because a snapshot
+       records whatever is there and this test exists to say what may not be. */
+    const { g, out } = build();
+    await (g as any).handleBusEvent({
+      kind: 'message.created', conversationId: 'c1', recipientIds: ['u2'],
+      message: { id: 'm1', senderId: 'u1', body: 'meet me at the pier' },
+    });
+    const frames = out.filter((e) => e.event === WS.CHAT_NOTIFICATION);
+    expect(frames).toHaveLength(1);
+    expect(frames[0].payload).toEqual({ conversationId: 'c1', messageId: 'm1' });
+    expect(JSON.stringify(frames[0].payload)).not.toContain('u1');
+    expect(JSON.stringify(frames[0].payload)).not.toContain('pier');
   });
 
   it('call signalling re-authorises EVERY frame before relaying, and relays opaque', async () => {

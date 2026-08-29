@@ -31,7 +31,12 @@ function build(over: Partial<typeof LISTING> | null = {}, opts: { priorCard?: bo
     property: { findUnique: async () => (over === null ? null : { ...LISTING, ...over }) },
     message: { findFirst: async () => (opts.priorCard ? { id: 'msg-1' } : null) },
   };
-  s.conversations = { getOrCreateDirectByIds: async (a: string, b: string, trust?: number) => `conv:${a}:${b}:${trust}` };
+  /* The third argument is which HUB the conversation belongs to, and the
+     fourth is the anonymity level — they were briefly the same argument, and an
+     enquiry is the case that proves they are not: it sets trust 2 and belongs
+     in the main Chats list, which is where the person who made it goes looking
+     for it. The id below records both so a swap shows up here. */
+  s.conversations = { getOrCreateDirectByIds: async (a: string, b: string, kind: string, trust?: number) => `conv:${a}:${b}:${kind}:${trust}` };
   s.messages = { send: async (senderId: string, dto: any) => { sent.push({ senderId, dto }); return dto; } };
   s.notifications = { create: async (n: any) => { notified.push(n); } };
   return { s, sent, notified };
@@ -41,13 +46,13 @@ describe('enquire — connect with the seller', () => {
   it('opens the conversation, sends the listing card, notifies the seller', async () => {
     const { s, sent, notified } = build();
     const out = await s.enquire('buyer-1', 'prop-1');
-    expect(out).toEqual({ conversationId: 'conv:buyer-1:seller-1:2', alreadyOpen: false });
+    expect(out).toEqual({ conversationId: 'conv:buyer-1:seller-1:city:2', alreadyOpen: false });
     expect(sent).toHaveLength(1);
     expect(sent[0].senderId).toBe('buyer-1');
     expect(sent[0].dto.share).toMatchObject({ kind: 'property', deepLink: '/realestate/property/prop-1' });
     expect(sent[0].dto.body).toContain('2BHK in Indiranagar');
     expect(notified).toHaveLength(1);
-    expect(notified[0]).toMatchObject({ userId: 'seller-1', kind: 'realestate_enquiry', href: '/chats?c=conv:buyer-1:seller-1:2' });
+    expect(notified[0]).toMatchObject({ userId: 'seller-1', kind: 'realestate_enquiry', href: '/chats?c=conv:buyer-1:seller-1:city:2' });
   });
 
   it('carries the buyer’s own message when they typed one', async () => {

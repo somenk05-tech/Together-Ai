@@ -9,6 +9,12 @@ import { FcmProvider } from './fcm.provider';
 import { WebPushProvider } from './web-push.provider';
 import { NotificationsGateway } from './notifications.gateway';
 
+/** The recipient's own answer to "may a dating message's words reach my lock
+ *  screen". Absent means no. Written through PATCH /api/privacy like every
+ *  other `pref:` key, so it lives with the rest of what a citizen has chosen
+ *  rather than in a table of its own. */
+const DATING_PREVIEW_KEY = 'pref:dating-push-preview';
+
 export interface NotificationRow {
   id: string; userId: string; kind: string; title: string;
   body: string | null; href: string | null; actorId: string | null;
@@ -244,6 +250,37 @@ export class NotificationsService {
   }
 
   /**
+   * MAY A DATING MESSAGE'S WORDS GO TO A LOCK SCREEN?
+   *
+   * By default, no. A dating push says who it is from — the sender's chosen
+   * dating name, which `identityIn` already decides — and nothing about what it
+   * says. Everything else in this hub is built on the idea that the person on
+   * the other end is not yet part of your life in the city; the one surface
+   * that ignored it was the one nobody has to unlock a phone to read.
+   *
+   * It is the RECIPIENT's setting, because it is the recipient's lock screen.
+   * The sender has no say in it, which is the opposite of the reveal ladder and
+   * deliberately so: a reveal is about who you are, this is about who is
+   * standing behind somebody else on a train.
+   *
+   * Default off rather than on, and the failure direction is also off: a read
+   * that throws returns false, so a database problem costs a preview and never
+   * spends one. City chats are untouched — this asks nothing of them.
+   */
+  private async datingPreviewAllowed(recipientId: string): Promise<boolean> {
+    const store = (this.prisma as unknown as {
+      privacySetting?: { findUnique(a: unknown): Promise<{ value: string } | null> };
+    }).privacySetting;
+    // No store, no preview. An explicit branch rather than a bare catch, and it
+    // falls the same way every other failure here does: towards saying less.
+    if (!store) return false;
+    const row = await store
+      .findUnique({ where: { userId_key: { userId: recipientId, key: DATING_PREVIEW_KEY } } })
+      .catch(swallowed('notifications: dating preview preference', null, { recipientId }));
+    return row?.value === 'true';
+  }
+
+  /**
    * How one citizen may be named to another, in this conversation.
    *
    * A dating chat is anonymous until each person chooses otherwise, and it
@@ -410,6 +447,16 @@ export class NotificationsService {
         });
         if (member?.muted) continue;
 
+        /* WHAT MAY LEAVE THE APP, for this recipient.
+           The bell keeps the preview: it is inside the app, behind a session,
+           and a notification list that says "New message" four times is not a
+           notification list. The PUSH is the surface a stranger can read over
+           somebody's shoulder, and for a dating chat it carries the sender's
+           chosen name and nothing else unless this recipient asked otherwise. */
+        const pushBody = dating && !(await this.datingPreviewAllowed(recipientId))
+          ? 'New message'
+          : params.preview;
+
         // In-app bell notification (grouped per chat) + live toast, titled with
         // the sender's name.
         await this.upsertMessageNotification(recipientId, params.conversationId, displayName, params.preview, href);
@@ -424,7 +471,7 @@ export class NotificationsService {
 
         await this.fcm.send(fcmTokens, {
           title: displayName,
-          body: params.preview,
+          body: pushBody,
           imageUrl: displayPhoto,
           deepLink,
           data: { conversationId: params.conversationId },
@@ -433,7 +480,7 @@ export class NotificationsService {
         // Browser / PWA push — reaches the recipient even with the app fully closed.
         await this.webpush.send(webTokens, {
           title: displayName,
-          body: params.preview,
+          body: pushBody,
           conversationId: params.conversationId,
           icon: displayPhoto,
           /* THE HREF THIS METHOD ALREADY COMPUTED, twenty lines up, and then

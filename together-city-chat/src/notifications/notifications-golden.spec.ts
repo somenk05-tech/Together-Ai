@@ -27,6 +27,7 @@ const FIXED = new Date('2026-08-01T10:00:00Z');
 function build(opts: {
   datingMatch?: { conversationId: string; userOneId: string; userTwoId: string; revealByOne: boolean; revealByTwo: boolean } | null;
   online?: string[]; openConvo?: Record<string, string | null>; muted?: string[];
+  previewOptIn?: string[];
 } = {}) {
   const table: NotificationRow[] = [];
   let seq = 0;
@@ -73,6 +74,12 @@ function build(opts: {
     },
     conversationMember: {
       findUnique: async (a: any) => ({ muted: (opts.muted ?? []).includes(a.where.conversationId_userId.userId) }),
+    },
+    // The recipient's answer to "may a dating message's words reach my lock
+    // screen". Absent row = no, which is the default and what these goldens
+    // record; `a-dating-push-does-not-unmask.spec.ts` owns the other branch.
+    privacySetting: {
+      findUnique: async (a: any) => ((opts.previewOptIn ?? []).includes(a.where.userId_key.userId) ? { value: 'true' } : null),
     },
   };
   svc.presence = { isOnline: async (u: string) => (opts.online ?? []).includes(u) };

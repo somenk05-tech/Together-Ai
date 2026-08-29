@@ -1,11 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, Optional } from '@nestjs/common';
 import { EventEmitter } from 'events';
+import { randomUUID } from 'crypto';
+import { swallowed } from '../swallow';
+import { RedisService } from '../redis/redis.service';
 
 /**
- * In-process event bus decoupling domain services (messages, connections) from
- * the transport layer (ChatGateway). Services emit; the gateway broadcasts.
- * In a multi-node deployment, replace/augment with a Redis pub/sub adapter so
- * events fan out across instances (see ARCHITECTURE.md → Scaling).
+ * Event bus decoupling domain services (messages, connections) from the
+ * transport layer (ChatGateway). Services emit; the gateway broadcasts.
  */
 export type ChatEvent =
   | { kind: 'message.created'; conversationId: string; message: unknown; recipientIds: string[] }
@@ -51,20 +52,104 @@ export type ChatEvent =
       call: unknown;
     };
 
-@Injectable()
-export class ChatEventBus {
-  private readonly emitter = new EventEmitter();
+/** One channel for every chat event. The payload names its own `kind`. */
+const CHANNEL = 'chat:events';
 
-  constructor() {
+/**
+ * ── THE BUS CROSSES THE NODE BOUNDARY ─────────────────────────────────────
+ *
+ * This was an `EventEmitter` and nothing else, with a comment saying a
+ * multi-node deployment should "replace/augment with a Redis pub/sub adapter".
+ * Socket.IO's own Redis adapter was added and that comment was left standing,
+ * which made the situation worse than it looked: ROOM broadcasts crossed
+ * instances and BUS events did not. So on a second replica, a message sent
+ * through node A reached the room everywhere — and the work the gateway does
+ * off the bus (the badge frame, the bell, the push, joining recipients to a
+ * room they were not in yet) happened only on A. Push and the unread badge
+ * would have gone quiet for roughly half the city, intermittently, with nothing
+ * in any log to say so, on the day somebody scaled the service to two.
+ *
+ * The fix keeps the local emitter as the delivery path — same synchronous
+ * behaviour, same ordering, and a Redis outage costs nothing on the node that
+ * is handling the request — and adds a publish alongside it. Every message
+ * carries the id of the process that sent it, and a subscriber drops its own,
+ * so the origin node handles each event exactly once.
+ *
+ * WHAT CROSSES IS JSON. `message` and `call` are DTOs that are about to be
+ * serialised onto a socket anyway, so this costs nothing real — but a `Date`
+ * arrives at the other node as an ISO string. Nothing downstream does date
+ * arithmetic on a bus payload; if that ever changes, it changes here.
+ *
+ * Redis is OPTIONAL, deliberately. With no `RedisService` (unit tests) or a
+ * connection that is down, this degrades to exactly what it was: a correct
+ * single-instance bus. Trading a partial outage for a total one is not a fix.
+ */
+@Injectable()
+export class ChatEventBus implements OnModuleDestroy {
+  private readonly emitter = new EventEmitter();
+  private readonly log = new Logger(ChatEventBus.name);
+  /** This process. Not persisted anywhere — its only job is "was this mine". */
+  private readonly nodeId = randomUUID();
+  private publisher?: { publish(channel: string, message: string): Promise<unknown> };
+  private subscriber?: { subscribe(channel: string): Promise<unknown>; on(ev: string, cb: (...a: never[]) => void): unknown; quit(): Promise<unknown>; connect(): Promise<unknown> };
+
+  constructor(@Optional() private readonly redis?: RedisService) {
     this.emitter.setMaxListeners(0);
+    if (redis) this.attach(redis);
+  }
+
+  private attach(redis: RedisService): void {
+    /* A SEPARATE CONNECTION TO LISTEN ON. A Redis client in subscriber mode
+       refuses every other command, so the shared client cannot be the one that
+       subscribes — it is also holding presence, open-conversation keys and the
+       recovery cooldown. `duplicate()` copies the options, including
+       lazyConnect, so it has to be connected explicitly. */
+    try {
+      const sub = redis.raw.duplicate() as unknown as NonNullable<ChatEventBus['subscriber']>;
+      this.subscriber = sub;
+      this.publisher = redis.raw as unknown as NonNullable<ChatEventBus['publisher']>;
+      sub.on('error', ((e: Error) => this.log.warn(`chat bus subscriber: ${e.message}`)) as never);
+      sub.on('message', ((channel: string, payload: string) => this.receive(channel, payload)) as never);
+      void Promise.resolve(sub.connect())
+        .then(() => sub.subscribe(CHANNEL))
+        .then(() => this.log.log('Chat event bus fans out across instances.'))
+        .catch(swallowed('events.chatBus.subscribe', undefined));
+    } catch (e) {
+      // A bus that cannot reach Redis is the bus this class used to be, which
+      // is correct on one node. Loud, because on two nodes it is not.
+      this.log.warn(`chat bus is in-process only: ${(e as Error).message}`);
+    }
+  }
+
+  private receive(channel: string, payload: string): void {
+    if (channel !== CHANNEL) return;
+    let parsed: { origin?: string; event?: ChatEvent } | null = null;
+    try { parsed = JSON.parse(payload) as { origin?: string; event?: ChatEvent }; } catch {
+      this.log.warn('chat bus: undecodable frame dropped');
+      return;
+    }
+    // Mine. I already emitted it locally, and handling it twice would send two
+    // pushes and file two bell rows for one message.
+    if (!parsed?.event || parsed.origin === this.nodeId) return;
+    this.emitter.emit('chat', parsed.event);
   }
 
   publish(event: ChatEvent): void {
+    /* LOCAL FIRST, AND UNCONDITIONALLY. The node handling the request does the
+       work whether or not Redis answers, which is the property that lets this
+       be an addition rather than a rewrite. */
     this.emitter.emit('chat', event);
+    if (!this.publisher) return;
+    void Promise.resolve(this.publisher.publish(CHANNEL, JSON.stringify({ origin: this.nodeId, event })))
+      .catch(swallowed('events.chatBus.publish', undefined));
   }
 
   subscribe(handler: (event: ChatEvent) => void): () => void {
     this.emitter.on('chat', handler);
     return () => this.emitter.off('chat', handler);
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    if (this.subscriber) await Promise.resolve(this.subscriber.quit()).catch(swallowed('events.chatBus.quit', undefined));
   }
 }

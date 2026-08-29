@@ -49,14 +49,21 @@ describe('a room to look in, and a room to keep', () => {
   const bands = code('features/dating/bands.ts');
   const router = code('app/router.tsx');
 
-  it('gives the dating hub four rooms, in the order the journey runs', () => {
+  it('gives the dating hub its rooms, in the order the journey runs, and the safety one last', () => {
     const items = HUBS.dating.items;
     expect(items.map((i) => i.path)).toEqual([
-      '/dating/profile', '/dating/browse', '/dating/matches', '/dating/chats',
+      '/dating/profile', '/dating/browse', '/dating/matches', '/dating/chats', '/dating/safety',
     ]);
     // one-bag pins contiguity across every hub; this pins THIS hub's numbering
     // so a later reshuffle cannot put the browse room after the keep room.
-    expect(items.map((i) => i.index)).toEqual(['01', '02', '03', '04']);
+    expect(items.map((i) => i.index)).toEqual(['01', '02', '03', '04', '05']);
+    /* THE SAFETY CENTRE IS ON THE RAIL (29 Aug). It was reachable from the ⋯
+       report menu and from a block shown to somebody whose profile had been
+       refused — both of which assume something has already gone wrong. It
+       carries what is checked, what is not, and four numbers to call, which is
+       reading somebody should be able to do before they need it. Last in the
+       list deliberately: the journey is still introduce, look, keep, talk. */
+    expect(items[4].label).toBe('Safety Centre');
     expect(items[1].label).toBe('Potential Matches');
     // Curated no longer advertises a percentage: nobody arrives there by
     // scoring well, only by being chosen back.

@@ -2,11 +2,19 @@ import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { socketClient, WS } from '@/api';
 
+/**
+ * WHAT THE SERVER ACTUALLY SENDS — which conversation, which message.
+ *
+ * It used to declare `senderId` and `preview` as well, and the server used to
+ * send them, for dating conversations included. Neither was ever read here.
+ * Both are gone from the wire now, because a field on a frame is an invitation:
+ * a toast built on this event would have shown a real name and the text of an
+ * anonymous dating message without going near the code that masks them. If you
+ * need to say WHO or WHAT, ask the notifications endpoint, which decides that.
+ */
 interface ChatNotification {
   conversationId: string;
   messageId: string;
-  senderId: string;
-  preview?: string;
 }
 
 /**
