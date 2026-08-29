@@ -1115,8 +1115,14 @@ describe('Relief stays a system', () => {
     //    family — so the editorial title is the only thing it had left to set
     //    the page's own voice apart from the interface's. Lent by name, and
     //    the name is written here.
+    //    `.sl-reel-name` is the sixth, added 29 Aug with the video sheet. The
+    //    reference the owner gave for it is a poster — a name set large in a
+    //    display serif against a small paragraph of sans, one picture, and
+    //    five marks at the foot — so the face IS the composition rather than a
+    //    decoration on it. Granted for the name alone: every other word on
+    //    that sheet is --sans, and this list is where that is checkable.
     expect(borrowed, 'the display serif is lent by name, and this is the list')
-      .toEqual(['.letter-title,\n.letter-archive-day .t,\n.beauty-display,\n.gem-display,\n.dating-display']);
+      .toEqual(['.letter-title,\n.letter-archive-day .t,\n.beauty-display,\n.gem-display,\n.dating-display,\n.sl-reel-name']);
   });
 
   /**

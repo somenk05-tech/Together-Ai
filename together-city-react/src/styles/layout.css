@@ -1277,12 +1277,23 @@
    three sizes of the same editorial title. Dating's ground is a sky rather
    than paper and its only other distinction is a monochrome grade — a room
    with no colour and no second typeface had nothing left to say "this line
-   is the page" with. It says it in the serif, by name, in this list. */
+   is the page" with. It says it in the serif, by name, in this list.
+
+   `.sl-reel-name` is the sixth, and the narrowest of the six: it sets ONE
+   line — the name of whoever made the video you are looking at — on the video
+   sheet the owner's editorial reference asked for on 29 Aug. That sheet is a
+   poster: black type on white, one picture, five marks at the foot. Its whole
+   composition is a NAME set large against a small paragraph of sans, and the
+   application owns exactly one face that can set a name large. Granted for
+   the name and nothing else on the sheet: the caption, the handle and the
+   five labels are all --sans, which is why this is a line in a list rather
+   than a stylesheet of its own. */
 .letter-title,
 .letter-archive-day .t,
 .beauty-display,
 .gem-display,
-.dating-display { font-family: var(--press-serif); font-weight: 400; }
+.dating-display,
+.sl-reel-name { font-family: var(--press-serif); font-weight: 400; }
 
 /* ══ THE BEAUTY PLATE ═══════════════════════════════════════════════════════
    The owner's poster reference, made into the page's furniture.

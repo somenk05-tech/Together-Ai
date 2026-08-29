@@ -8,40 +8,73 @@ import {
   useAddComment, useComments, useToggleLike, useRepost, type Post,
 } from './api';
 
-// Instagram-web style dark outline icons drawn on the white page beside the video.
+/*
+ * ── THE FIVE MARKS ──────────────────────────────────────────────────────────
+ *
+ * The owner's reference sets them outlined, at one weight, in five hues, with
+ * their words beside them. They draw at 24 in a 24 box and take their colour
+ * from `currentColor`, which social.css sets per action — so the hue lives in
+ * tokens.css where every other colour in the application lives, instead of
+ * being typed into a stroke attribute here. That is a change of address for
+ * `#ed4956` and `#22c55e`, which were the last two colours in this file.
+ *
+ * `fill` still varies: a like and a save are STATES, and the reference draws
+ * its heart solid. Filling the mark is how this row says "you already did
+ * this" without a second colour or a second word.
+ */
+const Ico = ({ children, fill = 'none' }: { children: ReactNode; fill?: string }) => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill={fill} stroke="currentColor"
+    strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{children}</svg>
+);
 const HeartIcon = ({ filled }: { filled: boolean }) => (
-  <svg width="26" height="26" viewBox="0 0 24 24" fill={filled ? '#ed4956' : 'none'} stroke={filled ? '#ed4956' : 'currentColor'} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+  <Ico fill={filled ? 'currentColor' : 'none'}>
     <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 1 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z" />
-  </svg>
+  </Ico>
 );
+/* A circle with a tail, which is the reference's bubble — not the squared
+   speech balloon the tab bars of five other apps use. */
 const CommentIcon = () => (
-  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 11.5a8.5 8.5 0 0 1-12.3 7.6L3 21l1.9-5.7A8.5 8.5 0 1 1 21 11.5z" />
-  </svg>
+  <Ico><circle cx="12.4" cy="10.9" r="8.1" /><path d="M7.2 17.4L4 21l4.6-1.3" /></Ico>
 );
-const RepostIcon = ({ on }: { on: boolean }) => (
-  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={on ? '#22c55e' : 'currentColor'} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M17 1l4 4-4 4" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><path d="M7 23l-4-4 4-4" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
-  </svg>
+const SendIcon = () => (
+  <Ico><path d="M21.5 2.5L10.8 13.2" /><path d="M21.5 2.5l-6.8 19-3.9-8.3-8.3-3.9 19-6.8z" /></Ico>
 );
+const SaveIcon = ({ filled }: { filled: boolean }) => (
+  <Ico fill={filled ? 'currentColor' : 'none'}>
+    <path d="M18.5 21L12 16.3 5.5 21V4.8a1.8 1.8 0 0 1 1.8-1.8h9.4a1.8 1.8 0 0 1 1.8 1.8z" />
+  </Ico>
+);
+/* Share is three points joined, not a second paper plane: sending a video to
+   one person and putting it back into the city are different verbs, and the
+   row has one mark for each. */
 const ShareIcon = () => (
-  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" />
-  </svg>
+  <Ico>
+    <circle cx="18" cy="5.2" r="2.8" /><circle cx="6" cy="12" r="2.8" /><circle cx="18" cy="18.8" r="2.8" />
+    <path d="M8.5 10.6l7-3.9" /><path d="M8.5 13.4l7 3.9" />
+  </Ico>
 );
-const BookmarkIcon = ({ filled }: { filled: boolean }) => (
-  <svg width="26" height="26" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-  </svg>
+const ChevronIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M18 15l-6-6-6 6" /></svg>
 );
 
-// The sound preference lives in mediaState now — ONE state for reels, the
-// feed's autoplaying cards and the profile reader, so moving between surfaces
-// never flips the citizen's choice. It still starts UNMUTED and still
-// survives remounts; it just stopped being private to this file.
+// The sound preference lives in mediaState — ONE state for reels, the feed's
+// autoplaying cards and the profile reader, so moving between surfaces never
+// flips the citizen's choice. It still starts UNMUTED and still survives
+// remounts; it just stopped being private to this file.
 
-/** Instagram-Reels-style vertical player for the Videos tab: one video per
- *  screen, snap-scroll up/down, autoplay in view, side action rail. */
+/**
+ * THE VIDEO SHEET.
+ *
+ * One post per screen, snap-scrolled, as before. What changed on 29 Aug is
+ * what a screen holds: the owner's reference is an editorial poster — the
+ * author's name set large in the display serif, the caption in small sans
+ * across from it, the picture under both, and five outlined marks with their
+ * words along the foot. The rail of white glyphs stuck to the right edge of a
+ * black rectangle is gone, and with it the phone/desktop fork this component
+ * used to make in JavaScript: the sheet is one layout, and the phone reads it
+ * through a media query in social.css like every other block in the city.
+ */
 export function ReelsView({ items, onOpenAuthor, hasNextPage, fetchNextPage, isFetchingNextPage, fullScreen, startAt }: {
   items: Post[];
   onOpenAuthor?: (handle: string) => void;
@@ -84,24 +117,16 @@ export function ReelsView({ items, onOpenAuthor, hasNextPage, fetchNextPage, isF
     if (el) el.scrollBy({ top: dir * el.clientHeight, behavior: 'smooth' });
   };
   return (
-    <div style={{ position: 'relative', height: fullScreen ? '100dvh' : 'calc(100dvh - 120px)', background: 'var(--card)' }}>
-      <div ref={scroller} onScroll={onScroll} className="tc-hscroll"
-        /* `overscroll-behavior: contain` keeps the rubber-band at either end of
-           the reels inside the reels instead of handing the gesture to the page
-           behind the portal; the -webkit property keeps iOS momentum native. */
-        style={{ height: '100%', overflowY: 'auto', scrollSnapType: 'y mandatory', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
+    <div className="sl-reel-root" style={{ height: fullScreen ? '100dvh' : 'calc(100dvh - 120px)' }}>
+      <div ref={scroller} onScroll={onScroll} className="sl-reel-scroll tc-hscroll">
         {items.map((p, i) => <Reel key={p.key ?? p.id} post={p} onOpenAuthor={onOpenAuthor} muted={muted} onToggleMute={toggleMute} eager={Math.abs(i - (startAt ?? 0)) <= 1} />)}
-        {isFetchingNextPage && <div style={{ height: 60, display: 'grid', placeItems: 'center' }}><Spinner /></div>}
+        {isFetchingNextPage && <div className="sl-reel" aria-busy><Spinner /></div>}
       </div>
-      {/* Instagram-web up/down navigation on the far right */}
-      <div style={{ position: 'absolute', right: 22, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* stepping between sheets, on a pointer that has no thumb */}
+      <div className="sl-reel-nav">
         {([['up', -1], ['down', 1]] as const).map(([dir, d]) => (
           <button key={dir} type="button" onClick={() => go(d)} aria-label={dir === 'up' ? 'Previous' : 'Next'}
-            style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--card)', border: '1px solid var(--line)', cursor: 'pointer',
-              display: 'grid', placeItems: 'center', boxShadow: '0 2px 10px rgba(0,0,0,.08)', color: 'var(--ink)' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-              style={{ transform: dir === 'down' ? 'rotate(180deg)' : 'none' }}><path d="M18 15l-6-6-6 6" /></svg>
-          </button>
+            className={`sl-reel-navbtn ${dir}`}><ChevronIcon /></button>
         ))}
       </div>
     </div>
@@ -112,11 +137,6 @@ export function ReelsView({ items, onOpenAuthor, hasNextPage, fetchNextPage, isF
  * mounted have identical props and skip their render entirely — a scroll
  * that fetches page 3 does not re-run pages 1 and 2. */
 const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute, eager }: { post: Post; onOpenAuthor?: (handle: string) => void; muted: boolean; onToggleMute: () => void; eager?: boolean }) {
-  // Phone: the reel IS the screen — 9:16 full-bleed like every reels player.
-  // The action rail and caption move ONTO the video in white; desktop keeps
-  // the white-page card with the rail beside it. Mount-time matchMedia, the
-  // same pattern the sign-in backdrop and the poster walk use.
-  const phone = typeof window !== 'undefined' && window.matchMedia('(max-width: 899px)').matches;
   const video = post.media.find((m) => m.kind === 'video');
   /**
    * Scroll mode is no longer only for videos, so it has to render what a post
@@ -218,94 +238,77 @@ const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute, eager
     deepLink: '/social/feed',
   };
 
-  const railBtn = (icon: ReactNode, label: string | undefined, onClick: () => void, key: string) => (
-    <button key={key} type="button" onClick={onClick}
-      style={{ background: 'none', border: 'none', cursor: 'pointer', color: phone ? '#fff' : 'var(--ink)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-      <span style={{ display: 'grid', placeItems: 'center', width: 28, height: 28 }}>{icon}</span>
-      {label !== undefined && <span style={{ fontSize: 12, fontWeight: 600 }}>{label}</span>}
+  /** One mark, one word, and the count only where there is one to say. */
+  const act = (key: string, icon: ReactNode, label: string, onClick: () => void, count?: number) => (
+    <button key={key} type="button" onClick={onClick} className={`sl-reel-act sl-reel-${key}`}>
+      <span className="sl-reel-ic">{icon}</span>
+      <span>{label}{count ? <span className="sl-reel-n"> {count}</span> : null}</span>
     </button>
   );
 
   return (
-    <div style={{ height: '100%', scrollSnapAlign: 'start', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-      {/* video card — sizes to the video's OWN aspect ratio (no letterboxing);
-          capped by max height/width so it always fits the screen with room for
-          the side rail and nav arrows. */}
-      <div style={phone
-        ? { position: 'relative', width: '100%', height: '100%', background: '#000', overflow: 'hidden', lineHeight: 0, display: 'grid', placeItems: 'center' }
-        : { position: 'relative', width: 'fit-content', height: 'fit-content', maxHeight: '82dvh', maxWidth: 'min(760px, 58vw)', background: '#000', borderRadius: 'var(--r-2)', overflow: 'hidden', lineHeight: 0 }}>
-        {video && (
-          /*
-            THE SRC IS NOT SET UNTIL THE REEL IS NEAR.
-            
-            A `src` on every reel is a network request on every reel: forty
-            posts in the feed opened forty connections the moment the viewer
-            did, and the one video the citizen is actually looking at queued
-            behind them. The poster still paints immediately, so a distant
-            reel looks finished rather than empty — it simply has not asked
-            for the bytes yet.
-          */
-          <video ref={vref} src={near ? video.url : undefined} poster={video.thumbUrl ?? undefined}
-            muted={hasMusic ? true : muted} loop playsInline preload={near ? 'auto' : 'none'}
-            onClick={togglePlay}
-            style={phone
-              ? { display: 'block', width: '100%', height: '100%', objectFit: 'contain', background: '#000' }
-              : { display: 'block', width: 'auto', height: 'auto', maxHeight: '82dvh', maxWidth: 'min(760px, 58vw)', minWidth: 260, minHeight: 200, background: 'var(--media-bg)' }} />
-        )}
-        {photo && (
-          <img src={photo.url} alt="" loading="lazy"
-            style={phone
-              ? { display: 'block', width: '100%', height: '100%', objectFit: 'contain', background: '#000' }
-              : { display: 'block', width: 'auto', height: 'auto', maxHeight: '82dvh', maxWidth: 'min(760px, 58vw)' }} />
-        )}
-        {!video && !photo && (
-          /* A text post still deserves a screen of its own rather than being
-             skipped, or scroll mode would silently drop posts from the feed
-             it was opened out of. */
-          <div style={{ display: 'grid', placeItems: 'center', width: 'min(560px, 80vw)', minHeight: 320, padding: 28, background: 'var(--card)' }}>
-            <p style={{ fontSize: 20, lineHeight: 1.45, textAlign: 'center', margin: 0, color: 'var(--ink)' }}>{post.text}</p>
+    <div className="sl-reel">
+      <div className="sl-reel-sheet">
+        <div className="sl-reel-head">
+          <button type="button" className="sl-reel-who" onClick={() => onOpenAuthor?.(post.author.handle)}>
+            {/* The full stop is the reference's, and it is the only colour
+                above the picture. */}
+            <span className="sl-reel-name">{post.author.name}<span className="sl-reel-dot">.</span></span>
+            <span className="sl-reel-handle">@{post.author.handle}</span>
+          </button>
+          <div>
+            {post.text && <p className="sl-reel-note">{post.text}</p>}
+            {post.repostedBy && <div className="sl-reel-meta">Shared by {post.repostedBy.name}</div>}
+            {/* The track and the sound toggle share one line at the caption's
+                right edge. The toggle is HERE and not on the picture because
+                the reference puts nothing on the picture — and because a
+                control anchored to the stage floats in white space beside a
+                portrait video, the stage being the full column and the video
+                not. */}
+            {(hasMusic || video) && (
+              <div className="sl-reel-meta">
+                {hasMusic && <span aria-hidden>♪</span>}
+                {hasMusic && <span className="sl-reel-track">{post.musicTitle ?? 'Original audio'}</span>}
+                <button type="button" onClick={onToggleMute} className="sl-reel-sound"
+                  aria-label={muted ? 'Turn the sound on' : 'Turn the sound off'}>
+                  {muted ? '🔇' : '🔊'}
+                </button>
+              </div>
+            )}
           </div>
-        )}
-        {hasMusic && <audio ref={aref} src={post.musicUrl ?? undefined} loop muted={muted} preload="auto" />}
-
-        {paused && (
-          <span aria-hidden onClick={togglePlay} style={{ position: 'absolute', inset: 0, margin: 'auto', width: 64, height: 64, borderRadius: '50%', background: 'rgba(0,0,0,.45)', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 26, cursor: 'pointer' }}>▶</span>
-        )}
-
-        {/* mute toggle (bottom-right of the video) — one control for ALL reels */}
-        <button type="button" onClick={onToggleMute}
-          style={{ minWidth: 44, minHeight: 44, position: 'absolute', bottom: 12, right: 12, width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,.5)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 15 }}>
-          {muted ? '🔇' : '🔊'}
-        </button>
-
-        {/* action rail — OUTSIDE the video, to its right (Instagram web) */}
-        <div style={phone
-          ? { position: 'absolute', right: 10, bottom: 96, display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }
-          : { position: 'absolute', left: '100%', bottom: 4, marginLeft: 16, display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }}>
-          {railBtn(<HeartIcon filled={post.likedByMe} />, String(post.likes), () => like.mutate(post.id), 'like')}
-          {railBtn(<CommentIcon />, String(post.comments), () => setCommentsOpen(true), 'comment')}
-          {railBtn(<RepostIcon on={reposted} />, reposted ? 'Shared' : 'Repost', () => { if (!reposted) repost.mutate(post.id, { onSuccess: () => setReposted(true) }); }, 'repost')}
-          {railBtn(<ShareIcon />, 'Share', () => setShareOpen(true), 'share')}
-          {railBtn(<BookmarkIcon filled={saved} />, undefined, toggleSave, 'save')}
         </div>
 
-        {/* author + caption — BELOW the video, left aligned (Instagram web) */}
-        <div style={phone
-          ? { position: 'absolute', left: 12, right: 64, bottom: 14, color: '#fff' }
-          : { position: 'absolute', top: '100%', left: 0, marginTop: 12, width: '100%', color: 'var(--ink)' }}>
-          <button type="button" onClick={() => onOpenAuthor?.(post.author.handle)}
-            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: phone ? '#fff' : 'var(--ink)', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Avatar name={post.author.name} src={post.author.profileImage} />
-            <span style={{ fontWeight: 700, fontSize: 14 }}>{post.author.handle}</span>
-          </button>
-          {post.repostedBy && <div className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>🔁 Shared by {post.repostedBy.name}</div>}
-          {post.text && <p style={{ fontSize: 13.5, lineHeight: 1.4, margin: '6px 0 0', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{post.text}</p>}
-          {hasMusic && (
-            <div className="muted" style={{ fontSize: 12, marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ display: 'inline-block', animation: 'spin 4s linear infinite' }}>🎵</span>
-              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220 }}>{post.musicTitle ?? 'Original audio'}</span>
-            </div>
+        <div className="sl-reel-stage">
+          {video && (
+            /*
+              THE SRC IS NOT SET UNTIL THE REEL IS NEAR.
+
+              A `src` on every reel is a network request on every reel: forty
+              posts in the feed opened forty connections the moment the viewer
+              did, and the one video the citizen is actually looking at queued
+              behind them. The poster still paints immediately, so a distant
+              reel looks finished rather than empty — it simply has not asked
+              for the bytes yet.
+            */
+            <video ref={vref} className="sl-reel-media" src={near ? video.url : undefined} poster={video.thumbUrl ?? undefined}
+              muted={hasMusic ? true : muted} loop playsInline preload={near ? 'auto' : 'none'}
+              onClick={togglePlay} />
           )}
+          {photo && <img className="sl-reel-media" src={photo.url} alt="" loading="lazy" />}
+          {!video && !photo && <p className="sl-reel-said">{post.text}</p>}
+          {hasMusic && <audio ref={aref} src={post.musicUrl ?? undefined} loop muted={muted} preload="auto" />}
+
+          {paused && video && (
+            <span aria-hidden onClick={togglePlay} className="sl-reel-play">▶</span>
+          )}
+        </div>
+
+        <div className="sl-reel-acts">
+          {act('like', <HeartIcon filled={post.likedByMe} />, post.likedByMe ? 'Liked' : 'Like', () => like.mutate(post.id), post.likes)}
+          {act('comment', <CommentIcon />, 'Comment', () => setCommentsOpen(true), post.comments)}
+          {act('send', <SendIcon />, 'Send', () => setShareOpen(true))}
+          {act('save', <SaveIcon filled={saved} />, saved ? 'Saved' : 'Save', toggleSave)}
+          {act('share', <ShareIcon />, reposted ? 'Shared' : 'Share', () => { if (!reposted) repost.mutate(post.id, { onSuccess: () => setReposted(true) }); })}
         </div>
       </div>
 

@@ -254,3 +254,166 @@ textarea.sl-field { resize: vertical; line-height: 1.6; min-height: 132px; }
 .sl-priv-t b { display: block; font-size: 13px; font-weight: 700; }
 .sl-priv-t span { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
 
+
+/* ══ THE VIDEO SHEET ═══════════════════════════════════════════════════════
+   The owner's reference, 29 Aug: two prints of the same object — a name set
+   large in the display serif with a small paragraph of sans across from it, a
+   single picture under both, and five outlined marks along the foot with
+   their words beside them.
+
+   WHAT IT REPLACES, AND WHY THAT MATTERS. The Videos tab was a phone player
+   wearing a desktop's clothes: a black rectangle floating in the middle of a
+   white page, a column of five white glyphs stuck to its right edge, and the
+   author's handle in 14px underneath. Every one of those decisions came from
+   somebody else's app, and on a 1400px window the result was a small dark
+   card with nothing around it — which is what the owner's screenshot shows.
+
+   THE SHEET IS A COLUMN, NOT A SCREEN. `min(1080px, 92vw)` centred, so the
+   picture has margins on a desktop and the type has a measure. One reel still
+   fills one screen and the snap is untouched — the reference is a poster, and
+   a poster is one thing at a time.
+
+   THREE ROWS, AND THE MIDDLE ONE IS THE ONLY ELASTIC ONE. `auto minmax(0,1fr)
+   auto`: the head takes what its two lines need, the foot takes what five
+   labels need, and the picture takes the rest and never more. `minmax(0,1fr)`
+   rather than `1fr` because a video is a replaced element with its own
+   intrinsic size — with a bare `1fr` a tall reel pushes the action row off
+   the bottom of the screen, which is the one thing a row of actions may not
+   do.
+
+   NOTHING HERE IS ROUNDED. The picture's corners are square and its rim comes
+   from relief's `video:not(.no-case)` outline, like every other photograph in
+   the city. A radius would have been a sixth opinion on a sheet that already
+   has one.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.sl-reel-root { position: relative; background: var(--card); }
+.sl-reel-scroll {
+  height: 100%; overflow-y: auto; scroll-snap-type: y mandatory;
+  /* the rubber-band at either end belongs to the reels, not to the page the
+     portal is drawn over */
+  overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+}
+.sl-reel { height: 100%; scroll-snap-align: start; display: flex; justify-content: center; overflow: hidden; }
+.sl-reel-sheet {
+  width: min(1080px, 92vw); height: 100%;
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: clamp(10px, 1.8vh, 20px);
+  /* the top pad clears the one button on this screen — "City Feed", fixed at
+     14px by the page that opens the reels. Every value here was bought back
+     from somewhere: at 1440x900 a 16:9 video reaches the column's full width
+     only if the head, the gaps and the pads leave it 608px, and the reference's
+     whole alignment is the picture touching the same two margins the name and
+     the five marks do. */
+  padding: clamp(48px, 6.5vh, 76px) 0 clamp(16px, 3.2vh, 32px);
+}
+
+/* ── the head: a name, and the caption across from it ──────────────────── */
+.sl-reel-head { display: grid; grid-template-columns: 1fr minmax(0, 40%); align-items: end; gap: 24px; }
+.sl-reel-who { background: none; border: 0; padding: 0; text-align: left; cursor: pointer; color: var(--ink); }
+.sl-reel-name {
+  display: block; color: var(--ink);
+  font-size: clamp(30px, 5vw, 58px); line-height: 1.02; letter-spacing: -.015em;
+}
+/* The one mark of colour above the fold. The reference ends the name with a
+   blue full stop — it is punctuation, so it is drawn as punctuation. */
+.sl-reel-dot { color: var(--reel-blue); }
+.sl-reel-handle {
+  display: block; margin-top: 9px;
+  font-family: var(--sans); font-size: var(--fs-2); font-weight: 600;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--faint);
+}
+.sl-reel-note {
+  margin: 0; font-family: var(--sans); font-size: var(--fs-3); line-height: 1.62; color: var(--muted);
+  display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden;
+}
+.sl-reel-meta {
+  margin-top: 9px; display: flex; align-items: center; gap: 7px; min-height: 44px;
+  font-size: var(--fs-2); color: var(--faint);
+}
+.sl-reel-track { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── the picture ───────────────────────────────────────────────────────── */
+/* FLEX, NOT GRID, AND THE DIFFERENCE IS THE WHOLE LAYOUT. A grid item's
+   percentage max-height resolves against its TRACK, and a single auto track
+   is indefinite — so `max-height: 100%` on the video was silently dropped and
+   a 9:16 reel pushed the five marks off the bottom of the screen. A flex
+   container's height here is definite, so the percentage resolves. Measured
+   in a browser at 1440x900: 1080x1920 became 350x622, not 1080x1600. */
+.sl-reel-stage { position: relative; min-height: 0; display: flex; align-items: center; justify-content: center; }
+.sl-reel-media {
+  display: block; width: auto; height: auto; max-width: 100%; max-height: 100%;
+  background: var(--media-bg);
+}
+/* A post with no media still gets a sheet of its own rather than being
+   skipped, or scroll mode would silently drop posts from the feed it was
+   opened out of. */
+.sl-reel-said {
+  margin: 0; max-width: 40ch; text-align: center;
+  font-family: var(--press-serif); font-size: clamp(20px, 2.6vw, 30px); line-height: 1.35; color: var(--ink);
+}
+.sl-reel-play {
+  position: absolute; inset: 0; margin: auto; width: 64px; height: 64px;
+  border-radius: var(--r-full); background: var(--scrim-deep); color: var(--on-accent);
+  display: grid; place-items: center; cursor: pointer;
+}
+/* THE ONE CONTROL THE REFERENCE DOES NOT HAVE, AND WHERE IT WENT.
+   A poster has nothing on its picture, so the mute toggle is not on the
+   picture: it sits at the right edge of the caption block, on the margin the
+   picture and the five marks share. That is also the only place it can be —
+   anchored to the stage it floats in white space beside a portrait video,
+   because the stage is the full column and the video is not. */
+.sl-reel-sound {
+  flex: 0 0 auto; margin-left: auto; width: 44px; height: 44px; display: grid; place-items: center;
+  border: 1px solid var(--line); border-radius: var(--r-full);
+  background: var(--card); color: var(--ink-soft); cursor: pointer;
+}
+
+/* ── the foot: five marks and five words ───────────────────────────────── */
+/* space-between, so the first mark starts on the left margin and the last
+   ends on the right one — the row is the picture's width, measured. */
+.sl-reel-acts { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.sl-reel-act {
+  display: flex; align-items: center; gap: 10px;
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font-family: var(--sans); font-size: var(--fs-4); font-weight: 600; color: var(--ink);
+}
+.sl-reel-ic { display: grid; place-items: center; width: 26px; height: 26px; }
+/* The colour is on the MARK and never on the word. Five hues under five
+   labels would read as five competing buttons; five hues over one ink reads
+   as one row. */
+.sl-reel-like  .sl-reel-ic { color: var(--reel-red); }
+.sl-reel-comment .sl-reel-ic { color: var(--reel-blue); }
+.sl-reel-send  .sl-reel-ic { color: var(--reel-violet); }
+.sl-reel-save  .sl-reel-ic { color: var(--reel-amber); }
+.sl-reel-share .sl-reel-ic { color: var(--reel-green); }
+.sl-reel-n { font-weight: 500; color: var(--faint); }
+
+/* ── stepping between sheets ───────────────────────────────────────────── */
+.sl-reel-nav {
+  position: absolute; right: 22px; top: 50%; transform: translateY(-50%);
+  display: flex; flex-direction: column; gap: 14px;
+}
+.sl-reel-navbtn {
+  width: 44px; height: 44px; border-radius: var(--r-full);
+  background: var(--card); border: 1px solid var(--line); color: var(--ink);
+  display: grid; place-items: center; cursor: pointer; box-shadow: var(--e1);
+}
+.sl-reel-navbtn.down svg { transform: rotate(180deg); }
+@media (max-width: 1099px) { .sl-reel-nav { display: none; } }
+
+/* ── a phone holds the same sheet, not a different design ──────────────── */
+@media (max-width: 899px) {
+  .sl-reel-sheet {
+    width: 100%; padding: clamp(50px, 6.5vh, 64px) 16px clamp(12px, 2.6vh, 20px); gap: 10px;
+  }
+  .sl-reel-head { grid-template-columns: minmax(0, 1fr); align-items: start; gap: 8px; }
+  .sl-reel-note { -webkit-line-clamp: 3; }
+  /* Five words across 360px only fit stacked under their marks. The words
+     stay — they are the half of the reference that says what the marks do. */
+  .sl-reel-acts { gap: 4px; }
+  /* equal columns, or the widest word ("Comment") pushes the last one off the
+     right margin the row is supposed to end on */
+  .sl-reel-act { flex: 1 1 0; flex-direction: column; gap: 5px; font-size: var(--fs-2); }
+  .sl-reel-n { display: none; }
+}
