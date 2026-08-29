@@ -3,7 +3,7 @@ import { ForbiddenException, Injectable, InternalServerErrorException, NotFoundE
 import { spawn } from 'child_process';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { BlockingService } from '../connections/blocking.service';
-import { VISIBLE, VISIBLE_ONLY } from './post-visibility';
+import { VISIBLE, VISIBLE_ONLY, removedNotice } from './post-visibility';
 import { AdminAccessService } from '../admin/admin-access.service';
 import { ConnectionsService } from '../connections/connections.service';
 import { RECORD_CAP } from '../shared/paging';
@@ -196,7 +196,14 @@ export class SocialService {
       const u = c.userOneId === userId ? c.userTwo : c.userOne;
       byId.set(u.id, u);
     }
-    return [...byId.values()].map((u) => ({ ...u, followsMe: true, iFollow: iFollow.has(u.id) }));
+    // Somebody you blocked is not one of your followers. The block dropped the
+    // edge, but a connection row or a re-follow put them back on this list with
+    // their name and their photograph — which is the one place a blocked person
+    // must never turn up.
+    const blocked = await this.blockedWith(userId);
+    return [...byId.values()]
+      .filter((u) => !blocked.has(u.id))
+      .map((u) => ({ ...u, followsMe: true, iFollow: iFollow.has(u.id) }));
   }
 
   /** Following = people you follow OR are connected to (connections are mutual).
@@ -451,7 +458,17 @@ export class SocialService {
      *
      * Friends and Following stay bounded, because that is what they are for.
      */
-    const cityWide = filter === 'videos' || filter === 'foryou' || filter === 'trending' || filter === 'nearby';
+    /**
+     * PHOTOS AND THOUGHTS JOIN THE CITY-WIDE LENSES (owner, 30 Aug).
+     *
+     * They were bounded to `network`, so a citizen who followed nobody saw the
+     * city's photographs on For You, tapped Photos, and got an empty tab —
+     * three of five tabs empty on day one, from one screen, with Videos
+     * city-wide one pixel away. The bounded view is what Friends and Following
+     * are FOR; these two are lenses on the same city For You shows.
+     */
+    const cityWide = filter === 'videos' || filter === 'foryou' || filter === 'trending'
+      || filter === 'nearby' || filter === 'photos' || filter === 'thoughts';
     const blockedSet = [...(await this.blockedWith(userId))];
     /**
      * FRIENDS MEANS THE CIRCLE, ON BOTH BRANCHES (30 Aug audit, blocker 1).
@@ -732,8 +749,19 @@ export class SocialService {
   async comments(userId: string, postId: string) {
     const post = await this.assertPost(postId);
     await this.assertCanView(userId, post);
+    /**
+     * A BLOCK REACHES THE COMMENTS TOO (30 Aug audit).
+     *
+     * This read had no block filter, so on any mutual friend's post the person
+     * you blocked went on speaking to you in full, with their name and their
+     * photograph — the block held on the feed, held on assertCanView, and did
+     * nothing here. `_count.comments` on the card still counts them; making the
+     * number agree with the list means a filtered count on every feed row, and
+     * that belongs with the query work rather than smuggled in here.
+     */
+    const blocked = [...(await this.blockedWith(userId))];
     const rows = await this.prisma.comment.findMany({
-      where: { postId },
+      where: { postId, ...(blocked.length ? { authorId: { notIn: blocked } } : {}) },
       orderBy: { createdAt: 'asc' },
       take: RECORD_CAP,
       include: { author: { select: AUTHOR_SELECT } },
@@ -745,6 +773,46 @@ export class SocialService {
       author: c.author,
       createdAt: c.createdAt.toISOString(),
     }));
+  }
+
+  /**
+   * DELETE A COMMENT — ITS AUTHOR, OR THE OWNER OF THE POST IT IS ON.
+   *
+   * There was no route at all, for anybody. A citizen who found abuse or their
+   * own address in the comments under their photograph had exactly one remedy:
+   * delete the photograph. The post's owner is included deliberately — it is
+   * their wall, and waiting for a moderator to read a queue is not a remedy
+   * that arrives on the evening it is needed.
+   *
+   * A DELETE AND NOT A HIDDEN FLAG, and the reason is worth writing down. The
+   * post-visibility argument — leave it visible to its author so they know
+   * what happened — needs a `moderation` column on Comment, which is a
+   * migration. The author is told instead: a comment removed by the owner of
+   * the post is a notification, not a silence. That is the same promise
+   * `removedNotice` makes for posts, delivered by a different route.
+   */
+  async deleteComment(userId: string, postId: string, commentId: string) {
+    const comment = await this.prisma.comment.findUnique({
+      where: { id: commentId },
+      select: { id: true, postId: true, authorId: true, text: true },
+    });
+    if (!comment || comment.postId !== postId) throw new NotFoundException('comment not found');
+    const post = await this.assertPost(postId);
+    const mine = comment.authorId === userId;
+    const myPost = post.authorId === userId;
+    if (!mine && !myPost) throw new ForbiddenException('Only the person who wrote a comment, or whoever owns the post, can remove it.');
+    await this.prisma.comment.delete({ where: { id: commentId } });
+    // Somebody else took your words down: say so, and say whose post it was on.
+    if (!mine) {
+      void this.actorName(userId).then((name) =>
+        this.notifications.create({
+          userId: comment.authorId, actorId: userId, kind: 'comment_removed',
+          title: 'Your comment was removed',
+          body: `${name} removed your comment from their post.`,
+          href: '/social/feed', entityId: postId,
+        })).catch(swallowed('social.notify.commentRemoved', undefined));
+    }
+    return { ok: true, id: commentId };
   }
 
   // ─────────────── likes ───────────────
@@ -1052,9 +1120,11 @@ export class SocialService {
    * reports and changes nothing. Both are recorded against every report in the
    * group, so a second moderator sees that somebody already looked.
    *
-   * Only a post can be removed here. Removing a USER is an account action with
-   * consequences this endpoint has no business having — it is out of scope
-   * deliberately rather than half-built.
+   * 'remove' works on a post and on a comment; an ACCOUNT is suspended rather
+   * than removed, which is a different verb with different consequences and its
+   * own permission. A post is flagged and stays visible to its author; a
+   * comment is deleted and its author is notified — the difference is a
+   * migration, and the reason is written above deleteComment.
    */
   async reportDecide(
     adminId: string,
@@ -1085,8 +1155,8 @@ export class SocialService {
     await this.access.assert(adminId, 'moderation.act');
     const { targetType, targetId, decision } = dto;
     if (!['user', 'post', 'comment'].includes(targetType)) throw new ForbiddenException('invalid report target');
-    if (decision === 'remove' && targetType !== 'post') {
-      throw new ForbiddenException('Only a post can be removed from here.');
+    if (decision === 'remove' && targetType === 'user') {
+      throw new ForbiddenException('An account is suspended, not removed. Use suspend.');
     }
     if ((decision === 'warn' || decision === 'suspend') && targetType !== 'user') {
       throw new ForbiddenException('Warn and suspend act on an account, not a post or comment.');
@@ -1096,9 +1166,38 @@ export class SocialService {
     if (decision === 'suspend') await this.access.assert(adminId, 'users.suspend');
     const reason = this.clean(dto.note);
 
-    if (decision === 'remove') {
+    if (decision === 'remove' && targetType === 'post') {
       const updated = await this.prisma.post.updateMany({ where: { id: targetId }, data: { moderation: 'removed' } });
       if (!updated.count) throw new NotFoundException('That post no longer exists.');
+      // AND THE AUTHOR IS TOLD (30 Aug audit). `removedNotice()` has existed in
+      // post-visibility.ts since the file was written, with a docstring
+      // explaining that silent removal "is how people conclude the app is
+      // broken and post it again" — and it was called by nothing but its own
+      // unit test. A moderator's decision that reaches everybody except the one
+      // person it is about is not a decision, it is a disappearance.
+      const author = await this.prisma.post.findUnique({ where: { id: targetId }, select: { authorId: true } })
+        .catch(swallowed('social.reportDecide.author', null));
+      if (author) {
+        void this.notifications.create({
+          userId: author.authorId, kind: 'post_removed',
+          title: 'A post of yours was removed', body: removedNotice(),
+          href: '/social/profile', entityId: targetId,
+        }).catch(swallowed('social.notify.postRemoved', undefined));
+      }
+    }
+
+    if (decision === 'remove' && targetType === 'comment') {
+      // A comment is deleted rather than flagged — see deleteComment for why —
+      // and its author is told by the same rule the post branch above follows.
+      const c = await this.prisma.comment.findUnique({ where: { id: targetId }, select: { authorId: true } });
+      if (!c) throw new NotFoundException('That comment no longer exists.');
+      await this.prisma.comment.delete({ where: { id: targetId } });
+      void this.notifications.create({
+        userId: c.authorId, kind: 'comment_removed',
+        title: 'A comment of yours was removed',
+        body: 'It was removed by a moderator after it was reported.',
+        href: '/social/feed', entityId: targetId,
+      }).catch(swallowed('social.notify.commentRemoved', undefined));
     }
 
     if (decision === 'suspend') {

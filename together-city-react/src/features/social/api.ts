@@ -76,6 +76,8 @@ export const socialApi = {
     api.get<PostComment[]>(`/social/posts/${postId}/comments`).then((r) => r.data),
   comment: (postId: string, text: string) =>
     api.post<PostComment>(`/social/posts/${postId}/comments`, { text }).then((r) => r.data),
+  deleteComment: (postId: string, commentId: string) =>
+    api.delete<{ ok: boolean; id: string }>(`/social/posts/${postId}/comments/${commentId}`).then((r) => r.data),
   // Safety
   blocks: () => api.get<BlockedPerson[]>('/social/blocks').then((r) => r.data),
   block: (person: { handle: string }) =>
@@ -230,6 +232,27 @@ export function useAddComment() {
       // (which reloaded/reordered the feed and lost the reader's scroll).
       qc.setQueriesData<FeedInfinite>({ queryKey: FEED_KEY }, (data) =>
         mapFeedPosts(data, (items) => items.map((p) => (p.id === v.postId ? { ...p, comments: p.comments + 1 } : p))));
+      void qc.invalidateQueries({ queryKey: ['profile', 'posts'] });
+    },
+  });
+}
+
+/**
+ * Remove a comment — yours, or one on your own post.
+ *
+ * Until 30 Aug there was no route for this at all: the only remedy for abuse in
+ * your comments was deleting your own post. The count on the card comes down
+ * in place, the same way `useAddComment` puts it up, so the number and the list
+ * agree without refetching the feed under the reader's thumb.
+ */
+export function useDeleteComment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { postId: string; commentId: string }) => socialApi.deleteComment(v.postId, v.commentId),
+    onSuccess: (_r, v) => {
+      void qc.invalidateQueries({ queryKey: ['social', 'comments', v.postId] });
+      qc.setQueriesData<FeedInfinite>({ queryKey: FEED_KEY }, (data) =>
+        mapFeedPosts(data, (items) => items.map((p) => (p.id === v.postId ? { ...p, comments: Math.max(0, p.comments - 1) } : p))));
       void qc.invalidateQueries({ queryKey: ['profile', 'posts'] });
     },
   });

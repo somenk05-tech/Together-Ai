@@ -87,6 +87,12 @@ export class SocialController {
     return this.social.comments(user.sub, id);
   }
 
+  /** Remove a comment — its author, or whoever owns the post it sits on. */
+  @Delete('posts/:id/comments/:commentId')
+  deleteComment(@CurrentUser() user: JwtUser, @Param('id') id: string, @Param('commentId') commentId: string) {
+    return this.social.deleteComment(user.sub, id, commentId);
+  }
+
   @Post('posts/:id/comments')
   comment(
     @CurrentUser() user: JwtUser,

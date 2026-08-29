@@ -13,8 +13,9 @@ import {
   useMyProfile, useMyPosts, usePeopleSearch, usePublicProfile, usePublicPosts, useUpdateProfile, useReorderMyPosts,
   type MyProfile, type ProfilePost, type PersonResult, type PublicProfile, type Relationship,
 } from '../myProfile.api';
-import { useFollowers, useFollowing, useFollow, useUnfollow, useBlock, useReport, useSetCover, useSetPostCategory, type FollowPerson, type Post } from '../api';
+import { useFollowers, useFollowing, useFollow, useUnfollow, useBlock, useSetCover, useSetPostCategory, type FollowPerson, type Post } from '../api';
 import { PostCard } from '../PostCard';
+import { ReportMenu } from '../report';
 
 
 /** Resize a chosen image to a small square JPEG data URL (no external storage needed). */
@@ -524,8 +525,6 @@ function ConnectButton({ id, handle, relationship }: { id: string; handle: strin
 /** Block / Report safety actions for a person, shown in their profile modal. */
 function SafetyActions({ id, handle, onBlocked }: { id: string; handle: string; onBlocked: () => void }) {
   const block = useBlock();
-  const report = useReport();
-  const [reported, setReported] = useState(false);
   /**
    * A SAFETY ACTION THAT FAILS SILENTLY IS THE WORST FAILURE HERE (30 Aug audit).
    *
@@ -535,20 +534,14 @@ function SafetyActions({ id, handle, onBlocked }: { id: string; handle: string; 
    * they were protected. Every other silent mutation in this hub costs somebody
    * a retry; this one costs them the thing they came here for.
    */
-  const [failed, setFailed] = useState<'block' | 'report' | null>(null);
+  const [failed, setFailed] = useState<'block' | null>(null);
 
   const doBlock = () => {
     if (!window.confirm(`Block @${handle}? They won't be able to see your posts or interact with you, and you won't see theirs.`)) return;
     setFailed(null);
     block.mutate({ handle }, { onSuccess: onBlocked, onError: () => setFailed('block') });
   };
-  const doReport = () => {
-    const reason = window.prompt(`Report @${handle}? Optionally tell us what's wrong (spam, harassment, etc.):`, '');
-    if (reason === null) return; // cancelled
-    setFailed(null);
-    report.mutate({ targetType: 'user', targetId: id, reason: reason || undefined },
-      { onSuccess: () => setReported(true), onError: () => setFailed('report') });
-  };
+
 
   return (
     <div className="sl-safety">
@@ -557,16 +550,15 @@ function SafetyActions({ id, handle, onBlocked }: { id: string; handle: string; 
           style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontFamily: 'inherit', color: 'var(--danger-ink)', padding: 0 }}>
           {block.isPending ? 'Blocking…' : <><Icon name="block" size={14} /> Block</>}
         </button>
-        <button type="button" onClick={doReport} disabled={report.isPending || reported}
-          style={{ background: 'none', border: 'none', cursor: reported ? 'default' : 'pointer', fontSize: 12.5, fontFamily: 'inherit', color: 'var(--muted)', padding: 0 }}>
-          {reported ? <><Icon name="accepted" size={14} /> Reported</> : <><Icon name="flag" size={14} /> Report</>}
-        </button>
+        {/* `window.prompt` was the whole reporting flow for a person: no
+            categories, no cancel on some mobile browsers, and nothing at all
+            wherever popups are blocked. Same picker the posts and comments
+            use. */}
+        <ReportMenu targetType="user" targetId={id} />
       </div>
-      {failed && (
+      {failed === 'block' && (
         <p role="alert" className="sl-fail-alert">
-          {failed === 'block'
-            ? 'That block didn’t go through — you are NOT blocking them yet. Try again in a moment.'
-            : 'That report didn’t go through. Try again in a moment.'}
+          That block didn’t go through — you are NOT blocking them yet. Try again in a moment.
         </p>
       )}
     </div>

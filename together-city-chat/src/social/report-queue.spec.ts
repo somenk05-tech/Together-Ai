@@ -15,7 +15,11 @@ type Report = {
   reviewedById?: string | null; reviewedAt?: Date | null; decision?: string | null;
 };
 
-function stub(reports: Report[], posts: Array<{ id: string; authorId: string; moderation: string }> = []) {
+function stub(
+  reports: Report[],
+  posts: Array<{ id: string; authorId: string; moderation: string }> = [],
+  comments: Array<{ id: string; authorId: string }> = [],
+) {
   const match = (r: Report, where: any) =>
     (where.status === undefined || r.status === where.status)
     && (where.targetType === undefined || r.targetType === where.targetType)
@@ -39,7 +43,16 @@ function stub(reports: Report[], posts: Array<{ id: string; authorId: string; mo
       },
     },
     user: { findUnique: async () => null },
-    comment: { findUnique: async () => null },
+    // A comment can be removed from the queue now (30 Aug audit), so the stub
+    // has to be able to hold one and lose it.
+    comment: {
+      findUnique: async ({ where }: any) => comments.find((c) => c.id === where.id) ?? null,
+      delete: async ({ where }: any) => {
+        const i = comments.findIndex((c) => c.id === where.id);
+        if (i < 0) throw new Error('no such comment');
+        return comments.splice(i, 1)[0];
+      },
+    },
   } as any;
   return prisma;
 }
@@ -55,8 +68,11 @@ const notAdmin = {
   act: jest.fn(async (_i: unknown, run: () => Promise<unknown>) => run()),
 };
 
+// The author of a removed post or comment is TOLD now, so the service needs a
+// notifications double — the whole point of the change is that this fires.
+const notifications = { create: jest.fn(async () => undefined) };
 const svc = (prisma: any, a: unknown = admin) =>
-  new SocialService(prisma, {} as never, {} as never, {} as never, {} as never, {} as never, a as never);
+  new SocialService(prisma, {} as never, notifications as never, {} as never, {} as never, {} as never, a as never);
 
 const at = (iso: string) => new Date(iso);
 const rep = (over: Partial<Report>): Report => ({
@@ -154,12 +170,28 @@ describe('reportDecide', () => {
     expect(reports[0].status).toBe('dismissed');
   });
 
-  it('will not remove an account from here, however it is asked', async () => {
-    for (const targetType of ['user', 'comment'] as const) {
-      await expect(
-        svc(stub([], posts())).reportDecide('mod', { targetType, targetId: 'x', decision: 'remove' }),
-      ).rejects.toBeInstanceOf(ForbiddenException);
-    }
+  it('will not remove an ACCOUNT from here — that is suspend, and it is a different verb', async () => {
+    await expect(
+      svc(stub([], posts())).reportDecide('mod', { targetType: 'user', targetId: 'x', decision: 'remove' }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('removes a reported comment, and tells whoever wrote it', async () => {
+    // Until 30 Aug this threw: `remove` was refused for anything but a post, so
+    // the only verdict a moderator could record on reported abuse in somebody's
+    // comments was `dismiss`. It stayed on the post for good.
+    notifications.create.mockClear();
+    const comments = [{ id: 'c1', authorId: 'rude' }];
+    const prisma = stub([rep({ targetType: 'comment', targetId: 'c1' })], posts(), comments);
+    await svc(prisma).reportDecide('mod', { targetType: 'comment', targetId: 'c1', decision: 'remove' });
+    expect(comments).toHaveLength(0);
+    expect(notifications.create).toHaveBeenCalledWith(expect.objectContaining({ userId: 'rude', kind: 'comment_removed' }));
+  });
+
+  it('says so when the comment has already gone', async () => {
+    await expect(
+      svc(stub([], posts(), [])).reportDecide('mod', { targetType: 'comment', targetId: 'c1', decision: 'remove' }),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('says so when the post has already been deleted', async () => {

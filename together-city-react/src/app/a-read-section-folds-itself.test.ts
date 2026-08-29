@@ -226,6 +226,15 @@ describe('the fold itself', () => {
     //                      precisely so this list stays readable — a menu and
     //                      a fold both use aria-expanded, and the attribute
     //                      that tells them apart is the one they now have.
+    //   social/report      the flag key on a post, a comment or a person, and
+    //                      the reasons it offers. `aria-haspopup="menu"` like
+    //                      the two mail keys above, and on this list for the
+    //                      same reason they are: a menu and a fold both carry
+    //                      aria-expanded, and the list is where the difference
+    //                      gets said out loud. It replaced a `window.prompt`
+    //                      (30 Aug audit) — which had no categories, no cancel
+    //                      on some phones, and did not exist at all where
+    //                      popups are blocked.
     //   TargetsDisclosure  A GENUINE FOURTH FOLD, and the one thing on this
     //                      list that should probably become a Fold. Left alone
     //                      deliberately — it is in another hub, it was not what
@@ -251,6 +260,7 @@ describe('the fold itself', () => {
       'features/mail/pages/MessageView.tsx',
       'features/mail/pages/Projects.tsx',
       'features/nutrition/components/TargetsDisclosure.tsx',
+      'features/social/report.tsx',
     ]);
   });
 

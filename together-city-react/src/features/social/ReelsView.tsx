@@ -3,7 +3,9 @@ import { Button, Spinner } from '@/components/ui';
 import { ShareModal } from '@/features/chat/share';
 import type { ShareCard } from '@/types';
 import { isMuted, setMuted, subscribeMuted, claimPlayback, releasePlayback } from '@/lib/mediaState';
-import { Avatar, savedIds, toggleSaved } from './PostCard';
+import { CommentRow, savedIds, toggleSaved } from './PostCard';
+import { ReportMenu } from './report';
+import { useAuth } from '@/hooks/useAuth';
 import { HeartIcon, CommentIcon, SendIcon, SaveIcon, ShareIcon } from './marks';
 import {
   useAddComment, useComments, useToggleLike, useRepost, type Post,
@@ -101,6 +103,8 @@ const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute, eager
    * than not opening at all.
    */
   const photo = !video ? post.media.find((m) => m.kind === 'image') : undefined;
+  const { user } = useAuth();
+  const mine = Boolean(user && (user.id === post.author.id || user.handle === post.author.handle));
   const vref = useRef<HTMLVideoElement>(null);
   const aref = useRef<HTMLAudioElement>(null);
   const hasMusic = Boolean(post.musicUrl);
@@ -223,6 +227,10 @@ const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute, eager
                 not. */}
             {(hasMusic || video) && (
               <div className="sl-reel-meta">
+                {/* The sheet had no report control either — the audit's point
+                    was that the gesture belongs on the thing, and a reel is a
+                    thing. */}
+                {!mine && <ReportMenu targetType="post" targetId={post.id} />}
                 {hasMusic && <span aria-hidden>♪</span>}
                 {hasMusic && <span className="sl-reel-track">{post.musicTitle ?? 'Original audio'}</span>}
                 <button type="button" onClick={onToggleMute} className="sl-reel-sound"
@@ -269,15 +277,17 @@ const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute, eager
       </div>
 
       {shareOpen && <ShareModal item={shareCard} onClose={() => setShareOpen(false)} />}
-      {commentsOpen && <ReelComments postId={post.id} onClose={() => setCommentsOpen(false)} />}
+      {commentsOpen && <ReelComments postId={post.id} canModerate={mine} onClose={() => setCommentsOpen(false)} />}
     </div>
   );
 });
 
 /** Bottom-sheet comments for a reel. */
-function ReelComments({ postId, onClose }: { postId: string; onClose: () => void }) {
+function ReelComments({ postId, canModerate, onClose }: { postId: string; canModerate: boolean; onClose: () => void }) {
   const comments = useComments(postId);
   const add = useAddComment();
+  const { user } = useAuth();
+  const myId = user?.id;
   const [text, setText] = useState('');
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -296,13 +306,7 @@ function ReelComments({ postId, onClose }: { postId: string; onClose: () => void
           <p className="muted" style={{ fontSize: 13 }}>Comments didn’t load — they’re still there. Try again in a moment.</p>
         )}
         {(comments.data ?? []).map((c) => (
-          <div key={c.id} style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-            <Avatar name={c.author.name} src={c.author.profileImage} />
-            <div style={{ background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 12, padding: '8px 12px', flex: 1 }}>
-              <span style={{ fontWeight: 600, fontSize: 12.5 }}>{c.author.name}</span>
-              <div style={{ fontSize: 13.5, marginTop: 2 }}>{c.text}</div>
-            </div>
-          </div>
+          <CommentRow key={c.id} comment={c} postId={postId} canRemove={canModerate || c.author.id === myId} />
         ))}
         {/* "Be the first to comment" on a failed read invited somebody to
             reply to a conversation that already exists. */}

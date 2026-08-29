@@ -207,6 +207,11 @@
   .sl-post-when, .sl-post-place { justify-content: flex-start; }
   .sl-acts { gap: 4px; }
   .sl-act { flex: 1 1 0; flex-direction: column; gap: 5px; font-size: var(--fs-2); }
+  /* The count goes, the word stays. With five marks across 390px "Comment 4"
+     wraps onto a second line and the row goes ragged — and the word is the
+     half of the reference that says what the mark does. The number is still on
+     the card wherever there is room for it. */
+  .sl-act .sl-n { display: none; }
 }
 
 /* ── the attach grid on Create Post ───────────────────────────────────── */
@@ -512,3 +517,38 @@ textarea.sl-field { resize: vertical; line-height: 1.6; min-height: 132px; }
    them did not go through. */
 .sl-safety { margin-right: auto; }
 .sl-safety-row { display: flex; align-items: center; gap: 14px; }
+
+/* ══ REPORTING, AND REMOVING A COMMENT ════════════════════════════════════
+   The 30 Aug audit: the only report control in the hub was on a profile and
+   hard-coded to a person, so an abusive photograph could only be reported as
+   its author. These are the controls that put the gesture on the thing. */
+.sl-report { position: relative; display: inline-flex; align-items: center; }
+.sl-report-b {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font-family: var(--sans); font-size: var(--fs-3); color: var(--muted);
+}
+.sl-report-menu {
+  position: absolute; top: 100%; right: 0; z-index: 22; min-width: 200px;
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--r-1);
+  box-shadow: var(--e2); overflow: hidden; text-align: left;
+}
+.sl-report-h { padding: 10px 13px 6px; font-size: var(--fs-2); color: var(--muted); }
+.sl-report-r {
+  display: block; width: 100%; text-align: left; padding: 9px 13px;
+  background: none; border: 0; border-top: 1px solid var(--line); cursor: pointer;
+  font-family: var(--sans); font-size: var(--fs-4); color: var(--ink);
+}
+.sl-report-fail { margin-left: 8px; font-size: var(--fs-2); color: var(--danger-ink); }
+.sl-reported { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-3); color: var(--muted); }
+/* The row of quiet controls under one comment. */
+.sl-c-acts { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
+.sl-c-del {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font-family: var(--sans); font-size: var(--fs-3); color: var(--muted);
+}
+.sl-c-row { display: flex; gap: 10px; margin-bottom: 10px; }
+.sl-c-body { flex: 1; padding: 8px 12px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-1); }
+.sl-c-name { font-size: var(--fs-3); font-weight: 600; }
+.sl-c-when { margin-left: 8px; font-size: var(--fs-2); color: var(--muted); }
+.sl-c-text { margin-top: 2px; font-size: var(--fs-4); }

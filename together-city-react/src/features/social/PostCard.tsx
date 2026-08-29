@@ -5,9 +5,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { ShareModal } from '@/features/chat/share';
 import type { ShareCard } from '@/types';
 import { setMuted, playWithSharedSound, releasePlayback, knownRatio, rememberRatio } from '@/lib/mediaState';
-import { CommentIcon, SendIcon, SaveIcon, ShareIcon, PlaceIcon } from './marks';
+import { HeartIcon, CommentIcon, SendIcon, SaveIcon, ShareIcon, PlaceIcon } from './marks';
+import { ReportMenu } from './report';
 import {
-  useAddComment, useComments, useDeletePost, useUpdatePost, useRepost, type Post, type PostMedia,
+  useAddComment, useComments, useDeleteComment, useDeletePost, useUpdatePost, useRepost, useToggleLike,
+  type Post, type PostComment, type PostMedia,
 } from './api';
 
 /**
@@ -91,9 +93,47 @@ export function toggleSaved(post: Post): boolean {
   return on;
 }
 
-function CommentsPanel({ postId }: { postId: string }) {
+/**
+ * ONE COMMENT, AND THE TWO THINGS YOU CAN DO ABOUT IT.
+ *
+ * Shared with the reels player, because until 30 Aug neither surface had
+ * either control and the fix was worth writing once. `canRemove` is true for
+ * the person who wrote it and for whoever owns the post it is sitting on — it
+ * is their wall, and "wait for a moderator to read a queue" is not a remedy
+ * that arrives on the evening it is needed.
+ */
+export function CommentRow({ comment, postId, canRemove }: {
+  comment: PostComment; postId: string; canRemove: boolean;
+}) {
+  const del = useDeleteComment();
+  const [failed, setFailed] = useState(false);
+  return (
+    <div className="sl-c-row">
+      <Avatar name={comment.author.name} src={comment.author.profileImage} />
+      <div className="sl-c-body">
+        <span className="sl-c-name">{comment.author.name}</span>
+        <span className="sl-c-when">{timeAgo(comment.createdAt)}</span>
+        <div className="sl-c-text">{comment.text}</div>
+        <div className="sl-c-acts">
+          {canRemove && (
+            <button type="button" className="sl-c-del" disabled={del.isPending}
+              onClick={() => { setFailed(false); del.mutate({ postId, commentId: comment.id }, { onError: () => setFailed(true) }); }}>
+              {del.isPending ? 'Removing…' : 'Remove'}
+            </button>
+          )}
+          <ReportMenu targetType="comment" targetId={comment.id} compact />
+          {failed && <span className="sl-report-fail" role="alert">Couldn’t remove that — try again.</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CommentsPanel({ postId, canModerate }: { postId: string; canModerate: boolean }) {
   const comments = useComments(postId);
   const add = useAddComment();
+  const { user } = useAuth();
+  const myId = user?.id;
   const [text, setText] = useState('');
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -107,14 +147,8 @@ function CommentsPanel({ postId }: { postId: string }) {
         <p className="muted" style={{ fontSize: 12.5 }}>Comments didn’t load — they’re still there. Try again in a moment.</p>
       )}
       {(comments.data ?? []).map((c) => (
-        <div key={c.id} style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-          <Avatar name={c.author.name} src={c.author.profileImage} />
-          <div style={{ background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 12, padding: '8px 12px', flex: 1 }}>
-            <span style={{ fontWeight: 600, fontSize: 12.5 }}>{c.author.name}</span>
-            <span className="muted" style={{ fontSize: 11, marginLeft: 8 }}>{timeAgo(c.createdAt)}</span>
-            <div style={{ fontSize: 13.5, marginTop: 2 }}>{c.text}</div>
-          </div>
-        </div>
+        <CommentRow key={c.id} comment={c} postId={postId}
+          canRemove={canModerate || c.author.id === myId} />
       ))}
       <form onSubmit={submit} style={{ display: 'flex', gap: 8 }}>
         <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Add a comment…"
@@ -308,6 +342,7 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
   post: Post; isNew?: boolean; manage?: boolean; onOpenAuthor?: (handle: string) => void;
   onSetCover?: (timeSec: number) => void; coverBusy?: boolean; autoplayVideo?: boolean;
 }) {
+  const like = useToggleLike();
   const del = useDeletePost();
   const upd = useUpdatePost();
   const repost = useRepost();
@@ -426,7 +461,16 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
         <div className="sl-post-where">
           <div className="sl-post-when">
             <span>{isNew ? 'just now' : postDate(post.createdAt)}</span>
-            {manage && isMine && (
+            {/* NOT `manage && isMine` ANY MORE (30 Aug audit). `manage` was passed
+                only by the profile reader, so the post a citizen had just made
+                had no options button in the feed they were looking at it in —
+                to delete it they had to navigate to their profile and find the
+                tile. And somebody ELSE's post had no control at all, which is
+                why the only report button in the hub was on a profile. Now:
+                your own post carries Edit and Delete wherever it is shown, and
+                anybody else's carries Report. */}
+            {!isMine && <ReportMenu targetType="post" targetId={post.id} />}
+            {isMine && (
               <span ref={menuRef} style={{ position: 'relative', display: 'inline-flex' }}>
                 <button type="button" aria-label="Post options" onClick={() => setMenuOpen((o) => !o)}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', lineHeight: 0, color: 'var(--muted)', padding: '4px 2px', minHeight: 44 }}>
@@ -452,10 +496,21 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
         </div>
       </div>
 
-      {/* Four marks, and the reference draws no fifth: the heart is not here.
-          Send is this moment into somebody's chat; Share is it back into the
-          city. Different verbs, different marks. */}
+      {/* FIVE MARKS, AND THE FIFTH CAME BACK (30 Aug audit, owner's call).
+          The reference draws four and the card shipped four — which left
+          `useToggleLike` with exactly one caller in the whole application, so a
+          citizen on a phone could not like anything except a video opened
+          through the Videos tab, while the desktop wall went on showing them a
+          like count. A count with no path to it is the product implying a
+          gesture it does not have. Send is this moment into somebody's chat;
+          Share is it back into the city; the heart is the heart. */}
       <div className="sl-acts">
+        <button type="button" className="sl-act sl-mk-like"
+          aria-pressed={post.likedByMe} aria-label={`${post.likes} ${post.likes === 1 ? 'like' : 'likes'}`}
+          onClick={() => like.mutate(post.id)}>
+          <span className="sl-mark"><HeartIcon filled={post.likedByMe} /></span>
+          <span>{post.likedByMe ? 'Liked' : 'Like'}{post.likes ? <span className="sl-n"> {post.likes}</span> : null}</span>
+        </button>
         <button type="button" className="sl-act sl-mk-comment"
           aria-expanded={showComments} aria-label={`${post.comments} ${post.comments === 1 ? 'comment' : 'comments'}`}
           onClick={() => setShowComments((s) => !s)}>
@@ -476,7 +531,7 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
         </button>
       </div>
 
-      {showComments && <CommentsPanel postId={post.id} />}
+      {showComments && <CommentsPanel postId={post.id} canModerate={isMine} />}
       {shareOpen && <ShareModal item={shareCard} onClose={() => setShareOpen(false)} />}
     </article>
   );
