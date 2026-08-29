@@ -34,16 +34,20 @@ export class UsersController {
   setAvatar(@CurrentUser() user: JwtUser, @Body() body: { image: string }) {
     return this.users.setAvatar(user.sub, body?.image ?? '');
   }
-
-  @Post('device-token')
-  @UsePipes(new ZodValidationPipe(z.object({
-    token: z.string().min(8).max(4096),
-    platform: z.string().min(2).max(24).regex(/^[a-z0-9_-]+$/i),
-  })))
-  registerDevice(
-    @CurrentUser() user: JwtUser,
-    @Body() body: { token: string; platform: string },
-  ) {
-    return this.users.registerDeviceToken(user.sub, body.token, body.platform);
-  }
 }
+
+/* POST /users/device-token IS GONE (fifth audit, 29 Aug), and this note is
+   here so that the next person who needs a native push token adds it in the
+   right place rather than re-adding this one.
+   `DeviceToken.token` is globally unique, and that route upserted on the token
+   ALONE — `update: { userId, platform }` — so anybody holding another
+   citizen's subscription string could re-point it at their own account: the
+   victim's notifications, dating message previews included, rendering on the
+   attacker's device while the victim stopped receiving their own. Forty lines
+   away, `push.controller.ts` guards exactly this and writes down why ("Claim
+   it only when it is unclaimed or already ours"); this route was the same
+   upsert with the check missing, and `platform` was client-supplied so a
+   browser could also file itself under the FCM branch.
+   Nothing called it. `usersApi.registerDevice` had no callers in the web app,
+   and there is no native client yet. When there is one, its token registration
+   goes through `push.controller`'s claim check. */

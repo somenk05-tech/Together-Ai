@@ -6,6 +6,9 @@ import { AccountPurgeService } from '../privacy/account-purge.service';
 
 /** How long a spent or expired credential is kept before it is swept. */
 const GRACE_DAYS = 7;
+/** How long a READ notification is kept. See the sweep for why it is its own
+ *  number and why unread ones are never swept. */
+const NOTIFICATION_DAYS = 90;
 
 /**
  * The first scheduled job in this codebase.
@@ -84,6 +87,41 @@ export class RetentionService {
       ['passwordReset', this.sweep(db.passwordReset, {
         OR: [{ expiresAt: { lt: cutoff } }, { usedAt: { lt: cutoff } }],
       })],
+      /**
+       * AND THE BELL, WHICH GREW FOR EVER (fifth audit, 29 Aug).
+       *
+       * `Notification` had no retention anywhere: `purge-plan.ts` covers
+       * account DELETION and this sweep covered four credential tables, so a
+       * live account's rows accumulated indefinitely — one per like, per
+       * match, per moderation verdict, for the life of the city.
+       *
+       * ITS OWN, MUCH LONGER CUTOFF. A stale refresh token is worthless after
+       * a week; a notification is somebody's record of what happened to them,
+       * and the bell only ever shows the newest anyway. Ninety days is well
+       * past anything anybody scrolls back to and well short of for ever.
+       * READ ONES ONLY — an unread notification is a thing the citizen has
+       * not seen yet, and age is not a reason to decide for them that they
+       * never will.
+       */
+      ['notification', this.sweep(db.notification, {
+        read: true,
+        createdAt: { lt: new Date(Date.now() - NOTIFICATION_DAYS * 24 * 60 * 60 * 1000) },
+      })],
+      /**
+       * THE OUTBOUND AUDIT TRAIL, WHICH KEPT WHOLE BODIES FOR EVER.
+       *
+       * `EmailDelivery.body` holds the full text of every receipt and every
+       * citizen-composed message that left the city — `deliverTo` redacts the
+       * verification codes, `deliverSystem` does not redact anything — and
+       * nothing has ever swept the table. It is a second copy of somebody's
+       * correspondence, outliving the mailbox copy the citizen can delete.
+       *
+       * The ROW is what an audit trail needs: who, when, which provider, what
+       * status. The body is what makes it a copy. The same 90 days as the bell,
+       * and the row survives — see the `redact` companion below, which is why
+       * this is not a delete.
+       */
+      ['emailDelivery.body', this.redactOldDeliveryBodies()],
     ];
 
     const swept: string[] = [];
@@ -93,6 +131,27 @@ export class RetentionService {
       if (res.count) swept.push(`${name}: ${res.count}`);
     }
     if (swept.length) this.logger.log(`Swept expired credentials — ${swept.join(', ')}.`);
+  }
+
+  /**
+   * Blank the stored body of an old delivery record, keeping the record.
+   *
+   * Deleting the row would take the audit trail with it — "did we send this
+   * person their code, and did the provider take it" is a question asked
+   * months later. Deleting the BODY takes only the copy.
+   */
+  private redactOldDeliveryBodies(): Promise<{ count: number } | null> {
+    const cutoff = new Date(Date.now() - NOTIFICATION_DAYS * 24 * 60 * 60 * 1000);
+    const db = this.prisma as unknown as {
+      emailDelivery?: { updateMany(a: unknown): Promise<{ count: number }> };
+    };
+    if (!db.emailDelivery) return Promise.resolve({ count: 0 });
+    return db.emailDelivery
+      .updateMany({
+        where: { createdAt: { lt: cutoff }, NOT: { body: '' } },
+        data: { body: '' },
+      })
+      .catch(swallowed('tasks.redactOldDeliveryBodies', null));
   }
 
   private sweep(

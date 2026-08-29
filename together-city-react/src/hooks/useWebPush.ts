@@ -20,7 +20,17 @@ const supported =
 
 async function getRegistration(): Promise<ServiceWorkerRegistration> {
   const existing = await navigator.serviceWorker.getRegistration('/sw.js');
-  return existing ?? navigator.serviceWorker.register('/sw.js');
+  if (!existing) return navigator.serviceWorker.register('/sw.js');
+  /* ASK WHETHER THERE IS A NEWER ONE (re-audit, 29 Aug). Returning the
+     existing registration is right — re-registering the same script is a
+     no-op — but nothing ever went looking for a new script, and the browser's
+     own 24-hour update check is the only other thing that would. Paired with
+     `skipWaiting`/`clients.claim` in sw.js, this is what makes a change to the
+     worker reach a citizen on the next load rather than on the next day they
+     happen to close every tab. Best-effort: a failed update check must not
+     stop us subscribing with the worker we have. */
+  void existing.update().catch(() => undefined);
+  return existing;
 }
 
 async function subscribeNow(): Promise<boolean> {
@@ -28,15 +38,29 @@ async function subscribeNow(): Promise<boolean> {
   await navigator.serviceWorker.ready;
   const { key } = await pushApi.vapidKey();
   if (!key) return false;
+  const subscribe = () => reg.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(key) as unknown as BufferSource,
+  });
   const existing = await reg.pushManager.getSubscription();
-  const sub =
-    existing ??
-    (await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(key) as unknown as BufferSource,
-    }));
-  await pushApi.subscribe(sub.toJSON());
-  return true;
+  const sub = existing ?? (await subscribe());
+  const claimed = await pushApi.subscribe(sub.toJSON());
+  if (claimed.ok) return true;
+
+  /* `{ ok: false }` MEANS SOMEBODY ELSE HOLDS THIS SUBSCRIPTION, and this
+     line used to ignore the answer and report success. It happens on a shared
+     browser: the previous account signed out without revoking, so the
+     endpoint in the push service is still theirs, and `push.controller`
+     refuses to re-point it — correctly, because an unscoped upsert there is
+     how you take over somebody's notifications. The account that just signed
+     in then had no push on that browser, forever, and was told nothing.
+     Sign-out now revokes (see api/session-reset.ts), so this is the repair
+     path for a browser that signed out before that shipped: drop the
+     inherited subscription and make one of our own. */
+  await sub.unsubscribe().catch(() => undefined);
+  const fresh = await subscribe();
+  const second = await pushApi.subscribe(fresh.toJSON());
+  return second.ok;
 }
 
 /**

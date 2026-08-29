@@ -32,6 +32,7 @@ import { DAILY_LIKES, DAILY_SUPER_LIKES, likeLimitMessage, superLimitMessage } f
 import { decide, type Check, type ModerationResult } from '../realestate/moderation';
 import { scanBio } from './bio-scan';
 import { nickname } from '../shared/nickname';
+import { ChatEventBus } from '../shared/events/chat-events';
 import type { MatchKind, UpsertDatingProfileDto } from './dto/dating.dto';
 
 const MATCH_THRESHOLD = 75; // only curated matches ≥75% are ever shown (spec)
@@ -181,6 +182,10 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     private readonly access: AdminAccessService,
     private readonly redis: RedisService,
     private readonly jobs: QueueService,
+    /* Optional for the same reason BlockingService's is: this service is
+       constructed by hand in a dozen specs, and a bus that is not there must
+       cost a socket frame rather than a test suite. */
+    private readonly bus?: ChatEventBus,
   ) {}
 
   /**
@@ -1053,8 +1058,10 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     // whole of this teardown, and a short read is a leak it was written to close.
     const rows = ((await swallow(this.prisma.datingMatch.findMany({
       where: { OR: [{ userOneId: userId }, { userTwoId: userId }] },
-      select: { id: true, conversationId: true },
-    }), `${why}: read matches before ending them`, { userId })) ?? []) as Array<{ id: string; conversationId: string | null }>;
+      // userOneId/userTwoId so the socket rooms can be emptied too: the other
+      // person is the one still sitting in them.
+      select: { id: true, conversationId: true, userOneId: true, userTwoId: true },
+    }), `${why}: read matches before ending them`, { userId })) ?? []) as Array<{ id: string; conversationId: string | null; userOneId: string; userTwoId: string }>;
     for (const m of rows) {
       if (!m.conversationId) continue;
       await swallow(this.conversations.archiveForAll(m.conversationId), `${why}: archive chat`, { userId });
@@ -1062,6 +1069,12 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
         where: { id: m.id },
         data: { status: 'passed', passedByOne: true, passedByTwo: true, revealByOne: false, revealByTwo: false, likedByOne: false, likedByTwo: false },
       }), `${why}: end match`, { userId });
+      // Leaving means leaving the room as well — see unmatch() above.
+      this.bus?.publish({
+        kind: 'connection.unmatched',
+        userIds: [m.userOneId, m.userTwoId],
+        conversationId: m.conversationId,
+      });
     }
     return rows;
   }
@@ -3098,6 +3111,19 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     // been archived under them, until the minute is up. The write is symmetric;
     // the invalidation has to be.
     await this.bumpListVersion(targetUserId);
+    /* AND SO IS THE ROOM (fifth audit, 29 Aug). Archiving the thread took the
+       chat off both lists and left both sockets in `room.conversation(id)`,
+       which is what typing, presence and read receipts are actually gated by:
+       the other person went on watching you type into a chat you had ended.
+       Published after the write, so a socket that leaves cannot be re-joined
+       by a frame from a match the database still calls live. */
+    if (state.conversationId) {
+      this.bus?.publish({
+        kind: 'connection.unmatched',
+        userIds: [userId, targetUserId],
+        conversationId: state.conversationId,
+      });
+    }
     return { ok: true as const };
   }
 
@@ -3338,6 +3364,20 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
         status: 'passed',
       },
     });
+    /* A PASS ON A MATCHED ROW ENDS CONTACT TOO (re-audit, 29 Aug). `unmatch`
+       and `endMyChats` publish this; `pass` did not, and the comment above
+       shows a pass on a live match is anticipated rather than impossible. The
+       gate refuses the next message either way and `endedDatingIds` drops the
+       room on the next connect — but until then the two went on watching each
+       other type and come online in a conversation neither could post to,
+       which is the exact half-enforcement the event was added to end. */
+    if (state.conversationId && state.status === 'matched') {
+      this.bus?.publish({
+        kind: 'connection.unmatched',
+        userIds: [state.userOneId, state.userTwoId],
+        conversationId: state.conversationId,
+      });
+    }
     this.analytics.track('dating.pass', userId, { kind });
     return { ok: true, undoable: true };
   }

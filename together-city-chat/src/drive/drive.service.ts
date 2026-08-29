@@ -220,11 +220,16 @@ export class DriveService {
     return this.shapeFile(row);
   }
 
-  /** Short-lived signed URL to download/view one of YOUR files. */
+  /** Short-lived signed URL to download one of YOUR files. */
   async downloadUrl(userId: string, id: string) {
     const row = await this.files.findFirst({ where: { id, ownerId: userId } });
     if (!row) throw new NotFoundException('File not found.');
-    const url = await this.storage.presignHealthDownload(row.storageKey);
+    /* AS A DOWNLOAD (re-audit, 29 Aug). `presignHealthDownload`'s own docblock
+       names the two callers that hand over a file somebody CHOSE — a mail
+       attachment and a Drive file — and only mail was passing the flag. A
+       Drive file can arrive by being attached to mail, so the two doors serve
+       the same bytes and must serve them the same way. */
+    const url = await this.storage.presignHealthDownload(row.storageKey, { asAttachment: true, filename: row.name });
     if (!url) throw new NotFoundException('File storage is not available right now.');
     return { url, name: row.name, mimeType: row.mimeType, sizeBytes: row.sizeBytes };
   }

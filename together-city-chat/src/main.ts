@@ -9,6 +9,7 @@ import { AllExceptionsFilter } from './shared/filters/all-exceptions.filter';
 import { initSentry, report } from './shared/errors/sentry';
 import { RedisIoAdapter } from './shared/redis/redis-io.adapter';
 import { BootLogger, BOOT_LOG_LEVELS } from './shared/boot-logger';
+import { originPolicy } from './shared/cors-policy';
 
 async function bootstrap(): Promise<void> {
   // Before anything else can fail. No DSN, no-op — but say so, once, in the
@@ -52,51 +53,34 @@ async function bootstrap(): Promise<void> {
   // Raised to fit a 75 MB video posted inline as base64 (~100 MB encoded) until
   // object storage (R2/S3) credentials are configured and direct-to-bucket
   // uploads take over. Photo/report base64 uploads sit comfortably under this.
-  app.use(json({ limit: '120mb' }));
-  app.use(urlencoded({ limit: '120mb', extended: true }));
+  /**
+   * 120mb WAS FOUR TIMES WHAT ANYTHING SENDS (re-audit, 29 Aug).
+   *
+   * Express buffers the whole body before a route's Zod schema ever sees it,
+   * so this number is the amount of memory an unauthenticated request can make
+   * this process hold. The largest body any route actually accepts is the
+   * Beauty analyzer's photo array — six slots at 4 MB of base64 — plus a
+   * social post at ~15 MB; 32 MB clears both with room, and files that are
+   * genuinely large do not come through here at all: they are presigned
+   * straight to the bucket.
+   */
+  app.use(json({ limit: '32mb' }));
+  app.use(urlencoded({ limit: '32mb', extended: true }));
   // 2-year HSTS with preload — HTTPS only, everywhere (TLS terminates at the
   // platform edge; HTTP never reaches the app).
   app.use(helmet({ hsts: { maxAge: 63072000, includeSubDomains: true, preload: true } }));
-  // CORS.
-  //
-  // THE PREMISE THE OLD COMMENT RESTED ON WAS FALSE. It said auth was
-  // "Bearer-token + localStorage (no ambient session cookie)" and on that basis
-  // reflected ANY *.vercel.app origin with credentials. But auth.controller.ts
-  // sets `tc_refresh` as a SameSite=None; Secure cookie, and POST /auth/refresh
-  // is public and returned both tokens in the body. So: deploy anything to a
-  // free Vercel subdomain, get a signed-in citizen to visit it,
-  // fetch('/api/auth/refresh', {credentials:'include'}), read a 60-day refresh
-  // token. One request, full account takeover. Found in the 26 Aug audit.
-  //
-  // Now: the explicit CORS_ORIGIN allowlist, our own domain and subdomains, and
-  // — only when CORS_PREVIEW_PROJECT names it — that ONE Vercel project's
-  // aliases. Preview URLs of the form <project>-<hash>-<team>.vercel.app and
-  // <project>-git-<branch>-<team>.vercel.app match; arbitrary subdomains do
-  // not. '*' remains the development sentinel and is refused in production.
+  // CORS. What is allowed, why it was narrowed on 26 Aug, and why the socket
+  // gateway now reads the same function rather than its own stale copy of it:
+  // all of it is in shared/cors-policy.ts, which is the only place the
+  // matching happens. This file keeps the one decision it can make alone —
+  // refusing the development wildcard in production, at boot, loudly.
   const corsOrigin = config.get<string>('corsOrigin') ?? '';
-  const allowlist = corsOrigin.split(',').map((s) => s.trim().replace(/\/+$/, '')).filter(Boolean);
   const prod = process.env.NODE_ENV === 'production';
-  const allowAll = corsOrigin === '*' && !prod;
   if (corsOrigin === '*' && prod) throw new Error('CORS_ORIGIN=* is not allowed in production');
-  const previewProject = (process.env.CORS_PREVIEW_PROJECT ?? '').trim().toLowerCase();
-  const previewTeam = (process.env.CORS_PREVIEW_TEAM ?? '').trim().toLowerCase();
-  const isOurPreview = (o: string): boolean => {
-    if (!previewProject || !previewTeam) return false;
-    const m = /^https:\/\/([a-z0-9-]+)\.vercel\.app$/i.exec(o);
-    if (!m) return false;
-    const host = m[1].toLowerCase();
-    return host === `${previewProject}-${previewTeam}`
-      || host.startsWith(`${previewProject}-git-`) && host.endsWith(`-${previewTeam}`)
-      || new RegExp(`^${previewProject}-[a-z0-9]{6,12}-${previewTeam}$`).test(host);
-  };
-  const isOwnDomain = (o: string) => /^https:\/\/([a-z0-9-]+\.)?togethercity\.app$/i.test(o);
+  const policy = originPolicy(corsOrigin, prod);
   app.enableCors({
-    origin: (origin, cb) => {
-      if (!origin) return cb(null, true);                       // no Origin header (curl, same-origin, S2S)
-      const o = origin.replace(/\/+$/, '');
-      if (allowAll || allowlist.includes(o) || isOwnDomain(o) || isOurPreview(o)) return cb(null, true);
-      return cb(null, false);                                   // disallowed → browser blocks (no server crash)
-    },
+    // Disallowed → `false`, so the browser blocks it and the server does not crash.
+    origin: (origin, cb) => cb(null, policy.allows(origin)),
     credentials: true,
   });
   app.setGlobalPrefix(API_PREFIX);

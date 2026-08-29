@@ -175,8 +175,21 @@ export function useConversations() {
     queryKey: ['chat', 'conversations'],
     queryFn: () => chatApi.conversations(),
     enabled: authed,
-    // Poll so new messages / unread counts surface as a badge without a reload.
-    refetchInterval: 15_000,
+    /**
+     * A BELT, NOT THE MECHANISM (re-audit, 29 Aug).
+     *
+     * The socket is what makes a new message appear: `message.created`
+     * invalidates this query the moment it lands. This poll exists for the
+     * case where the socket is down — and at fifteen seconds it was running an
+     * unbounded read of every conversation, with a nested member join and a
+     * count per row, four times a minute for every open tab in the city,
+     * almost always to learn nothing.
+     *
+     * A minute, plus a refetch whenever the window is focused, which is when a
+     * stale badge is actually noticed. The cost of the change is up to 45
+     * seconds more lag on a badge, and only while real-time is broken.
+     */
+    refetchInterval: 60_000,
     refetchOnWindowFocus: true,
   });
 }

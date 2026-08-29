@@ -230,7 +230,21 @@ export const PURGE_RULES: PurgeRule[] = [
   // not called userId. The User row stays as a tombstone, so the cascades on
   // these never fired; the plan has to name them.
   { model: 'Connection', by: 'either', pair: ['userOneId', 'userTwoId'], action: 'purge', reason: 'Their connections — friend, family, blocked. A link to a tombstone is a name in somebody else\'s people list that leads nowhere; the other person\'s side of any thread they shared is classified on its own rows.' },
-  { model: 'DatingMatch', by: 'either', pair: ['userOneId', 'userTwoId'], action: 'purge', reason: 'Every like, pass, super-like and reveal between them and another citizen. Who somebody chose, and who chose them, is theirs — and the other person keeps nothing they could read from it once the profile is gone.' },
+  /* TWO RULES, AND THE SPLIT IS THE ONE `a-row-that-carries-a-chat-is-never-deleted`
+     already states (fifth audit, 29 Aug). This was one unfiltered `purge`, and
+     the invariant spec could not see it: that spec reads SOURCE for literal
+     deletes against the match table, and the purge deletes through a generic
+     delegate — `table.deleteMany({ where: whereFor(rule, userId) })` — so the
+     one call site that ignored the rule was the one call site the rule's test
+     was blind to. It passed vacuously. The spec now reads this plan too.
+     The consequence, thirty days after a deletion: the row that
+     `datingConversationIds` reads is gone, so the anonymous dating thread it
+     was classifying stops being a dating thread — and surfaces in the
+     survivor's ordinary Chats list, searchable, under whatever name the
+     tombstone carries. The control that ends contact opens it, which is the
+     same sentence that spec was written about. */
+  { model: 'DatingMatch', by: 'either', pair: ['userOneId', 'userTwoId'], action: 'purge', filter: { conversationId: null }, reason: 'Every like, pass, super-like and reveal that never became a conversation — which is nearly all of them. Who somebody chose, and who chose them, is theirs, and the other person keeps nothing they could read from it once the profile is gone.' },
+  { model: 'DatingMatch', by: 'either', pair: ['userOneId', 'userTwoId'], action: 'keep', filter: { NOT: { conversationId: null } }, reason: 'A row that carries a chat is the ONLY thing authorising that chat and marking it as the Dating Hub\'s. Deleting it does not delete the conversation — it declassifies it, and an anonymous thread that stops being anonymous reappears in the other person\'s ordinary Chats under a real name. The row keeps two ids and a status; the alternative hands somebody\'s dating history to the main Chats list.' },
   { model: 'CompatibilityScore', by: 'either', pair: ['userA', 'userB'], action: 'purge', reason: 'Seven per-pair intimacy scores against every candidate they were ever scored with. Derived entirely from their profile, and meaningless without it.' },
   { model: 'Appeal', by: 'userId', action: 'purge', reason: 'What they wrote arguing with a moderation decision on their own profile or photo. Theirs, and about a profile that no longer exists.' },
   { model: 'AppEvent', by: 'userId', action: 'purge', reason: 'Funnel steps recorded against their id — which page they opened, whom they liked. The aggregate counts the dashboard shows are recomputed from what remains; a deleted person is not a data point.' },

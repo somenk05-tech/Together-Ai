@@ -29,7 +29,7 @@ interface TurnstileApi {
  */
 
 /** The doors Turnstile guards. Must match the action the API asserts. */
-export type TurnstileAction = 'register' | 'login';
+export type TurnstileAction = 'register' | 'login' | 'forgot';
 
 let loading: Promise<TurnstileApi> | null = null;
 function load(): Promise<TurnstileApi> {

@@ -121,12 +121,4 @@ export class UsersService {
     await this.prisma.user.update({ where: { id: userId }, data: { profileImage: image } });
     return { profileImage: image };
   }
-
-  async registerDeviceToken(userId: string, token: string, platform: string): Promise<void> {
-    await this.prisma.deviceToken.upsert({
-      where: { token },
-      create: { userId, token, platform },
-      update: { userId, platform },
-    });
-  }
 }

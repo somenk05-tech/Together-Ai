@@ -14,12 +14,39 @@ import { PrismaService } from '../shared/prisma/prisma.service';
  * DeviceToken rows (platform='webpush', token = JSON.stringify(subscription)),
  * so no schema change is required.
  */
+/**
+ * Are the VAPID keys set AND usable?
+ *
+ * The first version of this asked only whether the two variables were
+ * non-empty, and the docblock claimed it asked "the same question this class
+ * asks itself" — which was not true (re-audit, 29 Aug). The class's real gate
+ * is `ready`, and that additionally requires `setVapidDetails` to accept the
+ * pair: a malformed or swapped key logs a warning at boot, leaves `ready`
+ * false, and every send returns early. Reporting `pushConfigured: true` for
+ * that state is the precise "healthy while nothing arrives" answer the health
+ * endpoint was extended to stop giving.
+ *
+ * Validated rather than counted, and cheaply: the same call the constructor
+ * makes, in a try, against a library that parses the keys.
+ */
+export function pushConfigured(): boolean {
+  const pub = (process.env.VAPID_PUBLIC_KEY ?? '').trim();
+  const priv = (process.env.VAPID_PRIVATE_KEY ?? '').trim();
+  if (!pub || !priv) return false;
+  try {
+    webpush.setVapidDetails(process.env.VAPID_SUBJECT || 'mailto:connect@togethercity.app', pub, priv);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 @Injectable()
 export class WebPushProvider {
   private readonly logger = new Logger('WebPushProvider');
   readonly publicKey = process.env.VAPID_PUBLIC_KEY ?? '';
   private readonly privateKey = process.env.VAPID_PRIVATE_KEY ?? '';
-  private readonly subject = process.env.VAPID_SUBJECT || 'mailto:connect@togethercity.tech';
+  private readonly subject = process.env.VAPID_SUBJECT || 'mailto:connect@togethercity.app';
   private ready = false;
 
   constructor(private readonly prisma: PrismaService) {
@@ -38,7 +65,7 @@ export class WebPushProvider {
   /** Push to a set of stored web-push subscriptions (each `token` is JSON). */
   async send(
     tokens: string[],
-    payload: { title: string; body: string; conversationId: string; icon?: string; url?: string },
+    payload: { title: string; body: string; conversationId: string; icon?: string; url?: string; tag?: string },
   ): Promise<void> {
     if (!this.ready || !tokens.length) return;
     const data = JSON.stringify({
@@ -46,8 +73,16 @@ export class WebPushProvider {
       body: payload.body,
       conversationId: payload.conversationId,
       icon: payload.icon,
-      // Where a tap lands when it is not a chat (a dating match, a like).
+      // Where a tap lands. ALWAYS sent now, chats included: the service worker
+      // used to prefer the conversation id and send a dating message to the
+      // city Chats route, which deliberately does not list dating threads.
       url: payload.url,
+      /* WHAT THIS NOTIFICATION REPLACES ON THE DEVICE. Everything that is not
+         a chat message was pushed with an empty conversationId, and the worker
+         turned that into the single shared tag 'chat' — so a match alert and a
+         like alert arriving together left one of them. Named here, where the
+         caller knows what the notification is about. */
+      tag: payload.tag,
     });
     await Promise.all(
       tokens.map(async (token) => {

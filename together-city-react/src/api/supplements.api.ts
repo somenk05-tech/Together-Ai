@@ -54,6 +54,17 @@ export const RecommendationSchema = z.object({
 });
 export const PlanSchema = z.object({
   plan: z.array(RecommendationSchema),
+  /**
+   * NO BLOOD WORK, NO PLAN — owner's call, 29 Aug. `true` means the server
+   * built nothing and the screen renders the gate.
+   *
+   * OPTIONAL, AND THE DEFAULT IS THE UNGATED ONE, which is the safe direction
+   * here and only here: web and API deploy independently, so a browser on the
+   * new build talking to the old server must not gate a plan that server
+   * actually built. The list is empty when it is gated, so the wrong guess
+   * costs a heading, never a recommendation.
+   */
+  gated: z.boolean().optional(),
   watching: z.array(ReasonSchema).optional(),
   source: z.object({
     title: z.string(), edition: z.string().optional(),

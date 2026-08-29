@@ -4,6 +4,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { authApi } from '@/api/auth.api';
 import { isServerUnreachable, SERVER_UNREACHABLE_MSG } from '@/api/client';
+import { getTurnstileToken } from '@/lib/turnstile';
 import { RegisterForm } from './RegisterForm';
 
 interface LocationState { from?: string }
@@ -56,7 +57,11 @@ export function SignIn({ initialMode = 'login' }: { initialMode?: Mode } = {}) {
     try {
       if (mode === 'login') { await login(handle.trim(), password); navigate(from, { replace: true }); }
       else if (mode === 'forgot') {
-        const res = await authApi.forgot(identifier.trim(), channel);
+        // The same challenge sign-in and sign-up carry: this door sends mail
+        // from our domain and needs neither a password nor an account.
+        // Resolves undefined when Turnstile is off, and the server then asks
+        // for nothing.
+        const res = await authApi.forgot(identifier.trim(), channel, await getTurnstileToken('forgot'));
         if (res.delivery === 'unconfigured') {
           setNotice(channel === 'sms'
             ? `SMS delivery isn't set up on this server yet, so no text can be sent. Ask the Together City team to enable SMS, then try again.`

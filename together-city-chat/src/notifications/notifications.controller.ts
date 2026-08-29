@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
@@ -10,9 +10,21 @@ import { Mira } from '../mira/mira.decorator';
 export class NotificationsController {
   constructor(private readonly notifications: NotificationsService) {}
 
+  /**
+   * `?cursor=` + `?cursorId=` are the `createdAt` and `id` of the last item you
+   * already hold; absent means the newest. BOTH, because two notifications can
+   * share a millisecond and a cursor that carries only the timestamp skips the
+   * second of them permanently.
+   */
   @Get()
-  list(@CurrentUser() user: JwtUser) {
-    return this.notifications.listFor(user.sub);
+  list(
+    @CurrentUser() user: JwtUser,
+    @Query('cursor') cursor?: string,
+    @Query('cursorId') cursorId?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const n = Number(limit);
+    return this.notifications.listFor(user.sub, Number.isFinite(n) && n > 0 ? n : 50, cursor, cursorId);
   }
 
   @Mira({

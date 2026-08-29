@@ -42,6 +42,13 @@ const PUBLIC_ALLOWLIST = [
   // before the handler runs. It is on this list because it is JWT-public; the
   // mutation guard below is what holds it to naming its own protection.
   'mail POST inbound',
+  // One-click unsubscribe. List-Unsubscribe-Post is pressed by a mail client
+  // with nobody signed in — that is the entire point of the header — so there
+  // is no session to require. Like the webhook above it is JWT-public and NOT
+  // unauthenticated: UnsubscribeTokenGuard reads an HMAC over the address and
+  // an expiry off the query string, and the mutation rule below is what holds
+  // it to naming that.
+  'mail POST unsubscribe',
   // The signed-out header's list of doors this site is not currently drawing.
   // Public deliberately: the header renders before anybody signs in, and an
   // authed-only read would show a hidden door to strangers and hide it from
@@ -66,6 +73,7 @@ const PUBLIC_ALLOWLIST = [
  */
 const GUARDED_PUBLIC_MUTATIONS: Record<string, string> = {
   'mail POST inbound': 'InboundSecretGuard',
+  'mail POST unsubscribe': 'UnsubscribeTokenGuard',
 };
 
 /**

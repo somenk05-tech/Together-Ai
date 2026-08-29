@@ -175,8 +175,15 @@ export class SupplementsService {
       source: SOURCE,
       /* Whether the badges mean anything on this response. False is the state
          where the plan could not be built at all, and the shelf must not
-         render an absent refusal as a silent yes. */
-      personalised: Boolean(built),
+         render an absent refusal as a silent yes.
+
+         A GATED PLAN IS THE SAME KIND OF FALSE — owner's call, 29 Aug. With
+         no blood work the engine returns no recommendations, so every `yours`
+         below is already null; saying `personalised: true` beside them would
+         make the shelf draw an absent opinion as no-objection on 103 bottles.
+         The catalogue stays open to everybody, badgeless, which is exactly
+         what this city knows about an untested citizen. */
+      personalised: built !== null && !built.gated,
       basis: built?.basis ?? null,
     };
   }

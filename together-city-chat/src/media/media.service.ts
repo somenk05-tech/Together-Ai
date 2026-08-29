@@ -34,6 +34,31 @@ const EXT: Record<string, string> = {
 export const DATING_PHOTO_MIME: Record<string, string> = {
   'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/heic': 'heic',
 };
+/**
+ * The types a browser executes when it is handed them from a bucket origin.
+ * An SVG is the one that surprises people: it is an image everywhere else in
+ * the product and a script document here.
+ */
+export const EXECUTABLE_IN_A_BROWSER = new Set([
+  'image/svg+xml', 'text/html', 'application/xhtml+xml',
+  'text/javascript', 'application/javascript', 'application/x-javascript',
+]);
+
+/**
+ * The type, without its parameters and without the whitespace either side of
+ * them.
+ *
+ * THE FIRST VERSION TRIMMED AND THEN SPLIT, and that is one space away from
+ * useless (re-audit, 29 Aug): `media-type = type "/" subtype *( OWS ";" OWS
+ * parameter )`, so `image/svg+xml ; charset=utf-8` is a legal way to write it,
+ * and trimming BEFORE the split leaves the trailing space attached to the
+ * subtype — `'image/svg+xml '`, which is in no set. Browsers parse it as
+ * `image/svg+xml` and run it. Split first, trim after.
+ */
+export function bareMimeType(mimeType: string): string {
+  return (mimeType ?? '').split(';')[0].trim().toLowerCase();
+}
+
 /** Rekognition reads bytes up to 5 MB; that is the ceiling for a dating photo. */
 export const DATING_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
 
@@ -63,6 +88,28 @@ export class MediaService {
     const max = this.config.get<number>('policy.maxUploadBytes') ?? 52428800;
     if (sizeBytes > max) throw new BadRequestException(`File exceeds ${max} bytes`);
     if (!mimeType) throw new BadRequestException('Missing file type');
+    /**
+     * A DENYLIST HERE, AN ALLOWLIST BELOW, AND THE DIFFERENCE IS THE DOOR
+     * (fifth audit, 29 Aug).
+     *
+     * `requestDatingUpload` twenty lines down takes photographs and nothing
+     * else, so it names the four it accepts and says why: "an SVG is an image
+     * that runs script". THIS door takes whatever a citizen attaches to a
+     * message — photos, voice notes, documents, video — so an allowlist would
+     * refuse real files, and there was no check at all: the Content-Type is
+     * signed into the PUT, so an SVG landed in the PUBLIC bucket served at
+     * `MEDIA_PUBLIC_BASE_URL` typed as an image the browser will execute.
+     *
+     * Dating chats were covered by `screenAttachments`, which sniffs the bytes
+     * and refuses anything that is not a JPEG, PNG or WebP. City chats were
+     * not covered by anything.
+     *
+     * So: the four things a browser will RUN from a bucket origin, refused by
+     * name. Everything else is unchanged.
+     */
+    if (EXECUTABLE_IN_A_BROWSER.has(bareMimeType(mimeType))) {
+      throw new BadRequestException('That kind of file cannot be uploaded here — it is a document a browser would run.');
+    }
     // Virus-scan hook: enqueue key for scanning before it is served (stub).
     return this.storage.presignUpload(userId, mimeType, extFor(mimeType));
   }
@@ -100,6 +147,16 @@ export class MediaService {
     const max = this.config.get<number>('policy.maxUploadBytes') ?? 52428800;
     if (sizeBytes > max) throw new BadRequestException(`File exceeds ${max} bytes`);
     if (!mimeType) throw new BadRequestException('Missing file type');
+    /* THE PRIVATE DOOR NEEDS THE SAME RULE (re-audit, 29 Aug). The first
+       version guarded the public bucket only, reasoning that the public one is
+       what MEDIA_PUBLIC_BASE_URL serves. But the private bucket is served
+       through signed links from a city origin, and Drive fills it from here:
+       upload `text/html`, register it as a Drive file, ask for its download
+       URL, and it renders on that origin — which `cors-policy.ts` reflects
+       with credentials. */
+    if (EXECUTABLE_IN_A_BROWSER.has(bareMimeType(mimeType))) {
+      throw new BadRequestException('That kind of file cannot be uploaded here — it is a document a browser would run.');
+    }
     return this.storage.presignHealthUpload(userId, mimeType, extFor(mimeType));
   }
 }

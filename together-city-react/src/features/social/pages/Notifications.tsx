@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead } from '@/api';
+import { useNotificationPages, useMarkNotificationRead, useMarkAllNotificationsRead } from '@/api';
 import { Spinner } from '@/components/ui';
 import { Icon, type IconName } from '@/components/ui/Icon';
 
@@ -9,7 +9,6 @@ import { Icon, type IconName } from '@/components/ui/Icon';
  *  on it recomputes every render and the memo is decoration. One frozen empty
  *  array, shared, makes the dependency stable and the memo real. Behaviour is
  *  identical — this is the same nothing, just the same nothing each time. */
-const NONE: never[] = [];
 
 const FILTERS = ['All', 'Unread'] as const;
 
@@ -35,12 +34,12 @@ function timeAgo(iso: string): string {
 /** Social Life · Notifications — real likes, comments, follows & connection events. */
 export function SocialNotifications() {
   const nav = useNavigate();
-  const q = useNotifications();
+  const q = useNotificationPages();
   const markRead = useMarkNotificationRead();
   const markAll = useMarkAllNotificationsRead();
   const [filter, setFilter] = useState(0);
 
-  const items = q.data ?? NONE;
+  const items = useMemo(() => (q.data?.pages ?? []).flat(), [q.data]);
   const shown = useMemo(() => (filter === 1 ? items.filter((n) => !n.read) : items), [items, filter]);
   const hasUnread = items.some((n) => !n.read);
 
@@ -100,6 +99,17 @@ export function SocialNotifications() {
           </button>
         ))}
       </div>
+
+      {/* Fifty at a time. Before this there was no fifty-first: the bell read
+          one page and the route had no way to ask for another. */}
+      {q.hasNextPage && (
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 14 }}>
+          <button type="button" className="btn btn-line btn-sm" disabled={q.isFetchingNextPage}
+            onClick={() => void q.fetchNextPage()}>
+            {q.isFetchingNextPage ? 'Loading…' : 'Show more'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

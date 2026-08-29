@@ -337,7 +337,34 @@ export class TwilioSmsProvider implements MessagingProvider {
  * reveals nothing about any specific account.
  */
 export function messagingConfigured(channel: Channel): boolean {
-  return createMessagingProvider(channel).name !== 'stub';
+  /**
+   * READS THE ANSWER; DOES NOT BUILD A SENDER (re-audit, 29 Aug).
+   *
+   * This used to be `createMessagingProvider(channel).name !== 'stub'`, which
+   * constructs a provider — and the Resend constructor THROWS on an empty key,
+   * and re-runs `describeFromAddress` and its "REFUSING TO START CLEANLY"
+   * banner every time. That was harmless while the only callers were a
+   * password-recovery response and a verification status; it stopped being
+   * harmless the moment `/api/health` asked, because a probe that throws is a
+   * 500, an instance that never gets routed, and a deploy that never
+   * completes — from a MISSING MAIL KEY. Configuration is a question about
+   * env, so it is answered from env.
+   */
+  const name = channel === 'email'
+    ? (process.env.EMAIL_PROVIDER ?? process.env.MESSAGING_PROVIDER ?? 'stub')
+    : (process.env.SMS_PROVIDER ?? process.env.MESSAGING_PROVIDER ?? 'stub');
+  const chosen = name.trim().toLowerCase();
+  if (chosen === '' || chosen === 'stub') return false;
+  /* A provider NAMED and not usable is not configured. The Resend client
+     refuses to exist without a key and Twilio without its credentials, so the
+     honest answer for "EMAIL_PROVIDER=resend, RESEND_API_KEY empty" is false —
+     which is also what stops the health endpoint reporting a mail outage as
+     healthy. */
+  if (chosen === 'resend') return Boolean((process.env.RESEND_API_KEY ?? '').trim());
+  if (chosen === 'twilio') {
+    return Boolean((process.env.TWILIO_ACCOUNT_SID ?? '').trim() && (process.env.TWILIO_AUTH_TOKEN ?? '').trim());
+  }
+  return true;
 }
 
 export function createMessagingProvider(channel: Channel): MessagingProvider {

@@ -645,10 +645,47 @@ export class StorageProvider implements OnModuleInit {
     }
   }
 
-  async presignHealthDownload(key: string): Promise<string | null> {
+  /**
+   * A DOWNLOAD IS A DOWNLOAD, NOT A PAGE (fifth audit, 29 Aug).
+   *
+   * This signed a bare GET, so the browser did whatever the object's own
+   * Content-Type told it to — and a mail attachment is a file a stranger chose
+   * and sent. Drive has no MIME allowlist and the mail client opens this URL in
+   * a tab, so an emailed `.html` or `.svg` RENDERED, with script, on the
+   * storage origin. `main.ts` reflects any `*.togethercity.app` origin, so on a
+   * bucket served from a city subdomain that is same-site.
+   *
+   * `ResponseContentDisposition` is the fix and it is one header: the object is
+   * offered as a file to save, whatever it claims to be. `filename` is the
+   * caller's, quoted and stripped of anything that could close the quote or
+   * split the header — a name is chosen by whoever sent the mail.
+   */
+  async presignHealthDownload(
+    key: string,
+    /* OPT-IN, AND THE DEFAULT IS UNCHANGED ON PURPOSE. Four callers share this
+       signer and they do not want the same thing: an avatar and a scanned
+       medical report are meant to be LOOKED at, and forcing a download on
+       those would break two working screens to fix a third. The two that hand
+       over a file somebody else chose — a mail attachment, a Drive file — ask
+       for it explicitly. */
+    opts: { asAttachment?: boolean; filename?: string } = {},
+  ): Promise<string | null> {
     if (!this.s3 || !key) return null;
     try {
-      return await getSignedUrl(this.s3, new GetObjectCommand({ Bucket: this.healthBucket, Key: key }), { expiresIn: this.downloadTtlSec });
+      const safe = (opts.filename ?? '').replace(/[^A-Za-z0-9._ -]/g, '_').slice(0, 120).trim();
+      return await getSignedUrl(this.s3, new GetObjectCommand({
+        Bucket: this.healthBucket,
+        Key: key,
+        ...(opts.asAttachment
+          ? {
+              ResponseContentDisposition: safe ? `attachment; filename="${safe}"` : 'attachment',
+              // Belt and braces: offered as a download AND typed as bytes, so
+              // that a proxy stripping the disposition header still cannot
+              // leave a browser willing to execute what it got.
+              ResponseContentType: 'application/octet-stream',
+            }
+          : {}),
+      }), { expiresIn: this.downloadTtlSec });
     } catch (e) {
       this.logger.warn(`presignHealthDownload failed for ${key}: ${(e as Error).message}`);
       return null;

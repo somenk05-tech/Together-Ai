@@ -173,8 +173,31 @@ export function assertProductionConfig(): void {
   const emailProvider = ((process.env.EMAIL_PROVIDER ?? '').trim()
     || (process.env.MESSAGING_PROVIDER ?? '').trim()
     || 'stub').toLowerCase();
+  /* PUSH IS OFF UNLESS SOMEBODY SET THESE, and it was off in the shipped
+     deploy config — VAPID appeared nowhere in render.yaml, .env.example or
+     this function until 29 Aug. Web push is the whole of push on this
+     deployment (the FCM list is always empty), so the failure is total and
+     completely silent: WebPushProvider logs one line at boot, every send()
+     returns early, and the browser is handed an empty key and stops asking. */
+  /* Read here rather than imported from web-push.provider.ts: this file is a
+     leaf on purpose — it has no imports at all, because it runs at
+     ConfigModule load, before the injector exists. */
+  if (!(process.env.VAPID_PUBLIC_KEY ?? '').trim() || !(process.env.VAPID_PRIVATE_KEY ?? '').trim()) {
+    problems.push('VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY are unset — NO push notification will be delivered to anybody. Generate a pair with `npx web-push generate-vapid-keys`.');
+  }
   if (emailProvider === 'stub' && process.env.ALLOW_STUB_MESSAGING !== 'true') {
     problems.push('EMAIL_PROVIDER is unset (stub) — verification & OTP emails will NOT send. Set EMAIL_PROVIDER=resend + RESEND_API_KEY (or ALLOW_STUB_MESSAGING=true to acknowledge).');
+  }
+  /* NAMED BUT UNUSABLE IS THE STATE THIS FILE MISSED (re-audit, 29 Aug).
+     `EMAIL_PROVIDER=resend` with an empty `RESEND_API_KEY` passed every check
+     here — the provider is not 'stub', so nothing objected — and then the
+     Resend client throws the moment anything constructs it. The render
+     blueprint encodes exactly that shape: the provider name is a literal and
+     the key is a blank the operator fills. Named without its credential is not
+     configured, and saying so at boot is cheaper than finding out from a
+     citizen who never got their code. */
+  if (emailProvider === 'resend' && !(process.env.RESEND_API_KEY ?? '').trim()) {
+    problems.push('EMAIL_PROVIDER=resend but RESEND_API_KEY is empty — the client cannot be constructed, so no email sends at all.');
   }
   if (!problems.length) return;
   const banner = `\n${'='.repeat(66)}\n INSECURE / INCOMPLETE PRODUCTION CONFIG:\n  - ${problems.join('\n  - ')}\n${'='.repeat(66)}`;

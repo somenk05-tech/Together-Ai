@@ -83,6 +83,13 @@ export type RegisterDto = z.infer<typeof RegisterSchema>;
 export const ForgotSchema = z.object({
   identifier: z.string().min(1),                      // primary email, phone, or handle
   channel: z.enum(['email', 'sms']).default('email'), // where to send the code
+  /* THE THIRD DOOR. Register and login have carried a Turnstile token since
+     26 Aug and this one did not — and it is the cheapest door of the three to
+     abuse, because it needs no password and no account of your own: type
+     somebody's address, press the button, and an email leaves our domain.
+     Optional here for the same reason it is optional there: with
+     TURNSTILE_SECRET unset the server asks for nothing. */
+  turnstileToken: z.string().max(4096).optional(),
 });
 export type ForgotDto = z.infer<typeof ForgotSchema>;
 

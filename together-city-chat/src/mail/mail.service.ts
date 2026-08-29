@@ -7,6 +7,9 @@ import { FEED_CAP } from '../shared/paging';
 import { StorageProvider } from '../media/storage.provider';
 import type { OutboundAttachment } from './messaging-provider';
 import { greetHtml, greetSms, greetText } from './greet';
+import { parseE164 } from '../auth/verification-policy';
+import { normalizeDeliveryEvent, unsubscribeToken, type DeliveryEvent } from './mail-inbound';
+import { report } from '../shared/errors/sentry';
 
 /**
  * Outbound attachment sizing.
@@ -20,6 +23,62 @@ import { greetHtml, greetSms, greetText } from './greet';
  *    link in the message body (the same hand-off Gmail does to Drive).
  * The citizen just picks files; which path each takes is decided here.
  */
+/**
+ * HOW MANY TIMES A SYSTEM MESSAGE IS OFFERED TO THE PROVIDER (fifth audit,
+ * 29 Aug).
+ *
+ * There was one attempt and no second. A Resend timeout or 5xx during a
+ * password reset was a permanently lost code — and the citizen could not be
+ * told, because the forgot response has to read identically whether or not the
+ * account exists, so "delivery failed" is a sentence this route is not allowed
+ * to say. With nothing retrying, the only recovery was for them to guess that
+ * nothing was coming and ask again.
+ *
+ * INLINE AND BOUNDED, rather than a durable queue, and the reason is what
+ * these messages carry. A queued job holds its rendered body in Redis until it
+ * completes or is reaped, and the body of the message this most needs to save
+ * IS the six-digit code — a second copy of the secret, unhashed, outliving the
+ * request that made it. Three attempts a second and a half apart cover the
+ * transient failure, which is nearly all of them, and keep the code in memory
+ * only. A failure that survives a process restart is a code already too old to
+ * use: they expire in thirty minutes and a resend is one tap.
+ *
+ * A permanent refusal — a malformed address — is retried too, because the
+ * provider does not tell us which kind it is in any shape we can rely on.
+ * Resend rejects those immediately, so the cost is two fast round trips.
+ */
+const SEND_ATTEMPTS = 3;
+const SEND_RETRY_MS = 500;
+
+/**
+ * ── SUPPRESSION: WHICH SILENCE MEANS WHICH (fifth audit, 29 Aug) ───────────
+ *
+ * A HARD BOUNCE is the address saying it does not exist. Nothing may go to it
+ * again — not a receipt, not a recovery code — because there is nobody there
+ * to read one and every attempt is a mark against the domain that carries
+ * every OTP this city sends.
+ *
+ * A COMPLAINT or an UNSUBSCRIBE is a person saying they do not want to hear
+ * from us. That is an answer about the mail they were being sent, not about
+ * their account: somebody who marked a receipt as spam and later forgets their
+ * password must still be able to get back in. So those two silence the
+ * discretionary kinds and leave the two a citizen has just asked for.
+ *
+ * Getting this backwards in either direction is a real failure. Suppressing
+ * recovery on a complaint locks people out of their own accounts; NOT
+ * suppressing receipts after a complaint is how the next complaint arrives.
+ */
+const ESSENTIAL_KINDS = new Set(['recovery', 'security']);
+
+/** How long a one-click unsubscribe link stays good. Long, because it lives in
+ *  a mail client and mail clients are read late. */
+const UNSUBSCRIBE_TTL_MS = 180 * 24 * 3600 * 1000;
+
+/** The refusal `send()` throws when nothing was delivered, carrying whether the
+ *  attempt nevertheless filed a row of its own. Only `retry()` reads it, and
+ *  only to decide whether the row it started from has been superseded. */
+type FiledFailure = Error & { filedARow?: boolean };
+
 const MIME_BUDGET_BYTES = 20 * 1024 * 1024;          // safely under provider caps
 const MAX_OUTBOUND_TOTAL_BYTES = 1024 * 1024 * 1024; // 1 GB across attachments
 const SHARE_LINK_TTL_SEC = 7 * 24 * 3600;            // 7 days (S3/R2 maximum)
@@ -101,6 +160,21 @@ const threadFromRefs = (refs: string[]): string | null => {
 
 const EXTERNAL_RECIPIENTS_PER_MESSAGE = 10;
 const EXTERNAL_SENDS_PER_DAY = 200;
+/**
+ * AND A CEILING ON CITY MAIL, WHICH HAD NONE (fifth audit, 29 Aug).
+ *
+ * `sendOne` writes an inbox row per internal recipient with no per-sender
+ * limit, and the row is charged against the RECIPIENT'S quota — so a connected
+ * citizen running a script could fill somebody's ten gigabytes in about a day
+ * and a half, and a full mailbox then silently drops that person's inbound
+ * external mail too.
+ *
+ * PER SENDER PER DAY, rather than per pair, because it is the simple control
+ * that bounds the whole harm: a script cannot do it to one person and cannot
+ * do it to a hundred either. Five hundred is far above anybody writing letters
+ * and far below anybody filling a mailbox.
+ */
+const INTERNAL_SENDS_PER_DAY = 500;
 const DAY_MS = 24 * 3600 * 1000;
 import {
   MAIL_DOMAIN, CITY_DOMAINS, QUOTA_BYTES, addressFor, handleFromAddress, cityRecipient, subAddressed, snippetOf, sizeOf, welcomeMail, humanBytes, isCityAddress,
@@ -333,7 +407,10 @@ export class MailService {
       where: { ownerId: f.ownerId, threadId }, select: { id: true },
     });
     if (!attacherInThread) throw new NotFoundException('Attachment not found.');
-    const url = await this.storage.presignHealthDownload(f.storageKey);
+    /* AS A DOWNLOAD, NOT AS A PAGE. This is a file a stranger chose, sent by
+       email, and the client opens the URL in a tab — so an .html or an .svg
+       used to render, with script, on the storage origin. */
+    const url = await this.storage.presignHealthDownload(f.storageKey, { asAttachment: true, filename: f.name });
     if (!url) throw new NotFoundException('File storage is not available right now.');
     return { url, name: f.name, mimeType: f.mimeType };
   }
@@ -452,12 +529,92 @@ export class MailService {
     };
   }
 
-  /** Set/update the primary (external) email + phone — used by existing citizens to add theirs. */
+  /**
+   * Set/update the primary (external) email + phone.
+   *
+   * ── WHAT THIS USED TO DO (fifth audit, 29 Aug) ─────────────────────────
+   *
+   * `data.email = input.email.trim()` and an update, and that was the whole
+   * method. It is the only writer of `User.email` outside
+   * `verification-code.service.ts`, and it left `emailVerified`,
+   * `emailVerifiedAt`, `phoneVerifiedAt` and `phoneE164` exactly as they were.
+   * Three things followed, and none of them needed anything but this route:
+   *
+   *  · THE VERIFIED BADGE MOVED WITH NO PROOF. `verified.guard.ts` grants on
+   *    `user.emailVerified` alone, and that guard is what gates the Dating
+   *    hub. One call and a citizen held "verified" on an address they had
+   *    never opened. `writePendingTarget` forty files away does the opposite
+   *    and says why: "Anything else would leave a verified flag attached to an
+   *    address the account no longer claims."
+   *  · A STRANGER'S ADDRESS COULD BE SQUATTED. Recovery resolves by
+   *    `user.findFirst({ where: { email } })`, and registration's uniqueness
+   *    check was bypassed here — so pointing your primary at somebody else's
+   *    address stopped them registering with it and made recovery for that
+   *    address an unordered choice between two rows.
+   *  · AND A COLLISION WAS A 500. The partial unique index
+   *    `User_email_verified_key` turned two verified users on one address into
+   *    a raw P2002 out of Prisma.
+   *
+   * ── WHAT IT DOES NOW ───────────────────────────────────────────────────
+   *
+   * The same thing `writePendingTarget` does: records the address as CLAIMED,
+   * never as proved. The citizen then verifies it through the ordinary code
+   * flow, which is the only thing that may set `emailVerified`. Adding your
+   * address here still works and still takes one tap; what it no longer does
+   * is award the badge that decides whether you can open Dating.
+   */
   async setPrimary(userId: string, input: { email?: string; phone?: string }) {
-    const data: { email?: string; phone?: string } = {};
-    if (input.email !== undefined) data.email = input.email.trim() || undefined;
-    if (input.phone !== undefined) data.phone = input.phone.trim() || undefined;
-    await this.prisma.user.update({ where: { id: userId }, data });
+    const data: Record<string, unknown> = {};
+
+    if (input.email !== undefined) {
+      // Lowercased, because every reader of this column compares lowercased —
+      // registration, recovery, and the partial unique index itself.
+      const email = input.email.trim().toLowerCase() || null;
+      if (email) {
+        /* Somebody who has PROVED this address keeps it. An unproved claim by
+           another account is not a reason to refuse — two people may type the
+           same address and only one of them can ever verify it. */
+        const held = await this.prisma.user.findFirst({
+          where: { email, emailVerified: true, NOT: { id: userId } },
+          select: { id: true },
+        });
+        if (held) throw new BadRequestException('That address already belongs to a verified account.');
+      }
+      // Claimed, not proved. The verification flow is the only thing that may
+      // set emailVerified, and changing the address drops any earlier proof.
+      data.email = email;
+      data.emailVerified = false;
+      data.emailVerifiedAt = null;
+    }
+
+    if (input.phone !== undefined) {
+      const raw = input.phone.trim();
+      if (!raw) {
+        data.phone = null;
+        data.phoneE164 = null;
+        data.phoneVerifiedAt = null;
+      } else {
+        /* `phoneE164` is the column the schema calls "the one to compare
+           against", and this method wrote only the legacy `phone` — so a
+           number added here was invisible to everything that matches on it. */
+        const parsed = parseE164(raw);
+        if (!parsed.ok || !parsed.e164) throw new BadRequestException(parsed.reason ?? 'Enter a valid phone number.');
+        data.phone = parsed.e164;
+        data.phoneE164 = parsed.e164;
+        data.phoneVerifiedAt = null;
+      }
+    }
+
+    try {
+      await this.prisma.user.update({ where: { id: userId }, data });
+    } catch (e) {
+      // The partial unique index refused it — a verified row appeared between
+      // the check above and this write. Same sentence, not a 500.
+      if (String((e as { code?: string }).code) === 'P2002') {
+        throw new BadRequestException('That address already belongs to a verified account.');
+      }
+      throw e;
+    }
     return this.account(userId);
   }
 
@@ -526,21 +683,29 @@ export class MailService {
     const cc = split(m.ccAddrs);
     const bcc = split(m.bccAddrs);
     /**
-     * THE ATTEMPT'S OWN ROW SUPERSEDES THE SOURCE, WHETHER IT WORKED OR NOT.
+     * THE ATTEMPT'S OWN ROW SUPERSEDES THE SOURCE — WHEN THERE IS ONE.
      *
-     * The old rule removed the failed row only when the retry ADDED one to
-     * Sent. Reasonable-looking, and it meant a retry that failed AGAIN left the
-     * original in place while sendExternal wrote a second row with the same
-     * body: three retries on a dead address gave four identical rows in Failed
-     * and four copies of the message against the quota.
+     * The rule is right and the old implementation of it was not. It removed
+     * the source in a `finally`, on the strength of a sentence written above
+     * it: "Every path through send() writes a row for this attempt." That is
+     * false, and the false cases are the ones a citizen actually meets. send()
+     * throws BEFORE anything is written when the mailbox is full, when the
+     * recipient is no longer connected, when the message names more external
+     * addresses than one message may carry, when the day's external budget is
+     * spent, and when the body is empty. The `finally` ran on all of them.
      *
-     * Every path through send() writes a row for this attempt — Sent if the
-     * provider took it, Failed with the new reason if it did not — so the
-     * source is always superseded. The `finally` is what makes that true when
-     * send() throws, which it does when every recipient is refused. Scoped to
-     * this id, this owner and this folder, so it can only remove the one row
-     * the retry was for.
+     * So: press Retry on a full mailbox — which is exactly what a citizen does
+     * to clear space — and the message was deleted outright with nothing
+     * written in its place. The one copy of what they had written, gone, by
+     * pressing the button offered for saving it.
+     *
+     * `filedARow` is fanOut's own ledger, the same flag that decides which
+     * recipient carries the Sent copy: it says whether this attempt wrote a
+     * row. Superseded → remove the source. Nothing written → keep it, because
+     * the failure was about the send and not about the message, and the
+     * message is the part that cannot be recovered.
      */
+    let filed = true; // a success always files the Sent copy
     try {
       await this.send(userId, {
         to: m.toAddr, subject: m.subject, body: m.body,
@@ -549,9 +714,16 @@ export class MailService {
         ...(m.threadId ? { threadId: m.threadId } : {}),
         ...(attachmentFileIds.length ? { attachmentFileIds } : {}),
       });
-    } finally {
-      await this.prisma.mailMessage.deleteMany({ where: { id, ownerId: userId, folder: 'failed' } });
+    } catch (e) {
+      filed = Boolean((e as FiledFailure).filedARow);
+      if (filed) {
+        // Scoped to this id, this owner and this folder, so it can only remove
+        // the one row the retry was for.
+        await this.prisma.mailMessage.deleteMany({ where: { id, ownerId: userId, folder: 'failed' } });
+      }
+      throw e;
     }
+    await this.prisma.mailMessage.deleteMany({ where: { id, ownerId: userId, folder: 'failed' } });
     return this.list(userId, { folder: 'failed' });
   }
 
@@ -776,7 +948,7 @@ export class MailService {
    * check, the same quota accounting and the same both-copies-or-neither
    * transaction. A send to five people that half-works reports which halves.
    */
-  private async fanOut(userId: string, dto: SendMailDto): Promise<{ sent: string[]; failed: Array<{ to: string; reason: string }> }> {
+  private async fanOut(userId: string, dto: SendMailDto): Promise<{ sent: string[]; failed: Array<{ to: string; reason: string }>; filed: boolean }> {
     const seen = new Set<string>();
     const norm = (a: string) => a.trim().toLowerCase();
     const queue: Array<{ addr: string; blind: boolean }> = [];
@@ -828,11 +1000,52 @@ export class MailService {
      * count query inside the loop.
      */
     const external = queue.filter((r) => !handleFromAddress(r.addr));
+    /**
+     * AN UNVERIFIED ACCOUNT DOES NOT GET TO USE THE CITY'S DOMAIN (fifth
+     * audit, 29 Aug).
+     *
+     * `POST /mail/send` carried JwtAuthGuard and nothing else — `VerifiedGuard`
+     * existed and was used in exactly one place, the Dating hub. Registration
+     * is open, so an account created a minute ago could send
+     * EXTERNAL_SENDS_PER_DAY emails out of a DKIM-aligned
+     * <handle>@togethercity.app: the same domain that carries every OTP, and
+     * the caps scale linearly with free accounts. `the-city-is-not-a-megaphone`
+     * names the consequence in its own words.
+     *
+     * INTERNAL MAIL IS UNAFFECTED, which is why this is here and not on the
+     * route. Writing to a citizen you are connected with reaches nobody's spam
+     * filter and costs the domain nothing; it is the outside world that is
+     * being protected, so it is the outside world that is gated.
+     */
+    if (external.length) {
+      const sender = await this.prisma.user.findUnique({ where: { id: userId }, select: { emailVerified: true } });
+      if (!sender?.emailVerified) {
+        throw new ForbiddenException(
+          'Confirm your own email address before writing to addresses outside the city. '
+          + 'Mail to citizens you are connected with is unaffected.',
+        );
+      }
+    }
     if (external.length > EXTERNAL_RECIPIENTS_PER_MESSAGE) {
       throw new BadRequestException(
         `One message can go to ${EXTERNAL_RECIPIENTS_PER_MESSAGE} addresses outside the city at a time. `
         + `This one names ${external.length}. Citizens you're connected with don't count towards it.`,
       );
+    }
+    const internal = queue.length - external.length;
+    if (internal > 0) {
+      // The sender's own Sent rows are one per message rather than one per
+      // recipient, so this counts messages and the ceiling is in messages.
+      // Indexed on [ownerId, folder, createdAt].
+      const spent = await this.prisma.mailMessage.count({
+        where: { ownerId: userId, folder: 'sent', createdAt: { gte: new Date(Date.now() - DAY_MS) } },
+      });
+      if (spent >= INTERNAL_SENDS_PER_DAY) {
+        throw new BadRequestException(
+          `You've sent ${spent} messages in the last 24 hours, which is this city's daily limit. `
+          + 'It resets as the oldest of them ages out.',
+        );
+      }
     }
     if (external.length) {
       // EmailDelivery writes one row per external recipient, so the count and
@@ -896,7 +1109,10 @@ export class MailService {
         failed.push({ to: r.addr, reason: (e as Error).message });
       }
     }
-    return { sent, failed };
+    /* `filed` is the ledger the retry path needs: it says whether THIS attempt
+       wrote a row of its own — Sent or Failed — and therefore whether the row
+       it was retrying has been superseded. See retry(). */
+    return { sent, failed, filed: ownCopy.written };
   }
 
   /**
@@ -920,11 +1136,15 @@ export class MailService {
     if (!(dto.body ?? '').trim() && !dto.attachmentFileIds?.length) {
       throw new BadRequestException('A message needs something in it — a few words, or a file.');
     }
-    const { sent, failed } = await this.fanOut(userId, dto);
+    const { sent, failed, filed } = await this.fanOut(userId, dto);
     if (sent.length === 0) {
-      throw new BadRequestException(
+      const refusal: FiledFailure = new BadRequestException(
         failed[0]?.reason ?? 'That message could not be sent.',
       );
+      // Whether the attempt nevertheless left a row behind. Only retry() reads
+      // it, and only to decide whether it may remove the row it started from.
+      refusal.filedARow = filed;
+      throw refusal;
     }
     await this.clearDraft(userId, dto.draftId);
     /**
@@ -1442,6 +1662,15 @@ export class MailService {
    * moved out of this function.
    */
   async ingestInbound(payload: unknown) {
+    /* DELIVERY FEEDBACK COMES THROUGH THE SAME DOOR. Resend posts delivered,
+       bounced, complained and delayed to the same webhook as a received email,
+       and this method understood only the last of those — so the others were
+       parsed as mail, matched nothing, and were answered 200 and forgotten.
+       Checked first, because a delivery event has no `to` mailbox of ours to
+       file into and would otherwise fall through the whole method. */
+    const event = normalizeDeliveryEvent(payload);
+    if (event) return this.ingestDeliveryEvent(event);
+
     const mail = normalizeInbound(payload);
     if (!mail) {
       this.logger.warn('inbound mail: unrecognised payload shape');
@@ -1559,7 +1788,7 @@ export class MailService {
         continue;
       }
 
-      const threadId = await this.resolveInboundThread(user.id, mail.from.addr, subject, mail.inReplyTo);
+      const threadId = await this.resolveInboundThread(user.id, mail.from.addr, subject, mail.inReplyTo, mail.authenticated);
       /**
        * WHERE AN ARRIVING MESSAGE IS FILED, in the order the design fixed:
        *
@@ -1617,8 +1846,41 @@ export class MailService {
    * settles it: file the message, say the body could not be retrieved, and log
    * an error a human can act on.
    */
+  /**
+   * HTML TO SOMETHING A PERSON CAN READ.
+   *
+   * `html.replace(/<[^>]*>/g, ' ')` removes the TAGS and keeps everything
+   * between them — so a real marketing email, which opens with a `<style>`
+   * block and usually carries a `<script>`, arrived as a wall of CSS followed
+   * by the actual words, with every `&nbsp;` and `&amp;` still spelled out.
+   * Not a security hole: nothing renders this as HTML, the client draws it as
+   * escaped text. A product one, and it made HTML mail effectively unreadable.
+   *
+   * Script and style go WITH their contents; block-level tags become line
+   * breaks so paragraphs survive; entities are decoded; runs of blank space
+   * collapse. Deliberately not a parser — this is a preview of a message whose
+   * canonical form is the sender's, and a dependency is a lot to carry for
+   * that.
+   */
+  private htmlToText(html: string): string {
+    return html
+      .replace(/<(script|style|head)\b[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+      .replace(/<!--[\s\S]*?-->/g, ' ')
+      .replace(/<\/?(p|div|br|tr|li|h[1-6]|table|blockquote)\b[^>]*>/gi, '\n')
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"').replace(/&#0?39;|&apos;/gi, "'")
+      .replace(/&#(\d{1,6});/g, (_m, d: string) => String.fromCodePoint(Number(d)))
+      .replace(/&#x([0-9a-f]{1,6});/gi, (_m, h: string) => String.fromCodePoint(parseInt(h, 16)))
+      .replace(/[ \t\u00a0]+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .split('\n').map((l) => l.trim()).join('\n')
+      .trim();
+  }
+
   private async inboundBody(mail: InboundMail): Promise<string> {
-    const inline = mail.text || (mail.html ? mail.html.replace(/<[^>]*>/g, ' ') : '');
+    const inline = mail.text || (mail.html ? this.htmlToText(mail.html) : '');
     if (inline.trim()) return inline;
 
     // NO BODY AND NO ID IS STILL A BLANK MESSAGE. Both of the next two branches
@@ -1636,7 +1898,7 @@ export class MailService {
     }
     const fetched = await provider.fetchReceived(mail.emailId);
     if (fetched) {
-      const text = fetched.text || (fetched.html ? fetched.html.replace(/<[^>]*>/g, ' ') : '');
+      const text = fetched.text || (fetched.html ? this.htmlToText(fetched.html) : '');
       if (text.trim()) return text;
     }
     this.logger.error(`inbound mail: could not retrieve the body of ${mail.emailId} — filing the message without it`);
@@ -1649,6 +1911,7 @@ export class MailService {
    *  echo the id we sent. */
   private async resolveInboundThread(
     userId: string, fromAddr: string, subject: string, refs: string[] = [],
+    authenticated: boolean | null = null,
   ): Promise<string> {
     /**
      * THE HEADERS FIRST, BECAUSE THEY ARE THE ANSWER THE PROTOCOL CARRIES.
@@ -1679,6 +1942,28 @@ export class MailService {
      * is why the headers above exist. It is kept because losing the thread is
      * worse than occasionally starting a new one.
      */
+    /**
+     * AND ONLY FOR A SENDER WHO PROVED THEY ARE THE SENDER (fifth audit,
+     * 29 Aug).
+     *
+     * The header path above is safe on its own: a claimed thread id is checked
+     * against a row this citizen already holds, so it is a claim that has to
+     * survive a lookup. This heuristic has no such check — it asks only "who
+     * was the last correspondent at this address, and does the subject match"
+     * — and the From header is free to write. So any host on the internet
+     * could forge `From: <a correspondent>` with a matching subject and have
+     * the message spliced into that live conversation, inheriting its history
+     * and its filing. The guard on the route authenticates the PROVIDER; it
+     * has never said anything about the message.
+     *
+     * `null` — no verdict available — is treated like a failure HERE and only
+     * here. The mail is still delivered: dropping real correspondence because
+     * a provider did not annotate it would be the worse mistake, and a message
+     * in its own thread is a message the citizen can read. What it does not
+     * get is somebody else's conversation to sit inside.
+     */
+    if (authenticated !== true) return randomUUID();
+
     const strip = (t: string) => t.replace(/^\s*(re|fwd?)\s*:\s*/i, '').trim().toLowerCase();
     const norm = strip(subject);
     const prior = await this.prisma.mailMessage.findFirst({
@@ -1699,6 +1984,168 @@ export class MailService {
   /** Is real external delivery wired for this channel? (stub → false) */
   deliveryConfigured(channel: Channel = 'email'): boolean {
     return messagingConfigured(channel);
+  }
+
+  /**
+   * ONE DISPATCH PATH FOR EVERY SYSTEM MESSAGE — with a retry, and with an
+   * alarm when it finally does not go.
+   *
+   * `deliverSystem` and `deliverTo` each called `provider.send(...).catch(...)`
+   * once and wrote the outcome to a row. So a failure was a `logger.error` and
+   * an `EmailDelivery` with `status: 'failed'` that nothing reads — `outbox()`
+   * is per-citizen, there is no admin view, and Sentry was wired to the
+   * exception filter and to unhandled rejections and to nothing here. Delivery
+   * could stop entirely and the first anybody would know is a support message
+   * about a code that never arrived.
+   *
+   * `report()` is the alarm, and it carries the flow and the provider and NOT
+   * the recipient: the PII discipline the Resend and Twilio adapters already
+   * keep (domain only, never the number) does not get relaxed by the file that
+   * calls them.
+   */
+  /**
+   * Is this address on the list, for a message of this kind?
+   *
+   * Fails OPEN, loudly: a read that throws must not stop a password reset. The
+   * cost of the wrong answer here is one message to an address that did not
+   * want it; the cost of refusing every message because a query failed is the
+   * city's whole recovery path.
+   */
+  private async suppressedFor(channel: Channel, to: string, kind: string): Promise<string | null> {
+    if (channel !== 'email') return null;
+    try {
+      const row = await this.prisma.suppressedAddress.findUnique({
+        where: { address: to.trim().toLowerCase() }, select: { reason: true },
+      });
+      if (!row) return null;
+      if (row.reason === 'hard-bounce') return row.reason;
+      return ESSENTIAL_KINDS.has(kind) ? null : row.reason;
+    } catch (e) {
+      this.logger.warn(`suppression list unreadable: ${(e as Error).message}`);
+      return null;
+    }
+  }
+
+  /**
+   * List-Unsubscribe, on the mail a person may reasonably not want.
+   *
+   * The header seam has existed since threading landed and its own comment
+   * says "and later List-Unsubscribe"; later is now. Everything this city
+   * sends is transactional in the strict sense, so this is not a compliance
+   * failure today — but citizen-composed mail runs at 200 a day per account on
+   * this domain, which is bulk-SHAPED traffic, and Gmail and Yahoo's
+   * bulk-sender rules are about shape. A domain that offers the header before
+   * it is asked for it is a domain that keeps its reputation.
+   *
+   * NOT ON RECOVERY OR SECURITY. There is no unsubscribing from a password
+   * reset, and offering to would be an invitation to lock yourself out.
+   *
+   * Silent when PUBLIC_API_URL is unset — a List-Unsubscribe pointing at a URL
+   * that does not resolve is worse than none, because a client that presses it
+   * and fails may treat the whole message as broken.
+   */
+  private unsubscribeHeaders(channel: Channel, to: string, kind: string): { headers?: Record<string, string> } {
+    if (channel !== 'email' || ESSENTIAL_KINDS.has(kind)) return {};
+    const base = (process.env.PUBLIC_API_URL ?? '').replace(/\/+$/, '');
+    if (!base) return {};
+    const token = unsubscribeToken(to, Date.now() + UNSUBSCRIBE_TTL_MS);
+    return {
+      headers: {
+        'List-Unsubscribe': `<${base}/mail/unsubscribe?t=${encodeURIComponent(token)}>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      },
+    };
+  }
+
+  /**
+   * Stop writing to this address, for anything discretionary.
+   *
+   * The address arrives ALREADY PROVEN: UnsubscribeTokenGuard reads the signed
+   * token off the route and refuses anything that is not ours, which is where
+   * the check belongs — see that file, and route-exposure.spec.ts for the rule
+   * it satisfies.
+   */
+  async unsubscribe(address: string): Promise<{ ok: boolean }> {
+    if (!address) return { ok: false };
+    await swallow(this.prisma.suppressedAddress.upsert({
+      where: { address },
+      create: { address, reason: 'unsubscribed', detail: 'one-click unsubscribe' },
+      update: { reason: 'unsubscribed', detail: 'one-click unsubscribe' },
+    }), 'mail: unsubscribe', {});
+    return { ok: true };
+  }
+
+  /**
+   * WHAT THE PROVIDER SAID AFTERWARDS.
+   *
+   * `EmailDelivery.status` was written at create and never touched again —
+   * grep the tree and only `.create`, `.count` and `.findMany` exist against
+   * that table — so every Resend send read `queued` for ever, however it
+   * actually ended. This is the other half of the send: the row learns what
+   * happened, and an address that cannot or does not want to receive is
+   * written down so the next send does not repeat the mistake.
+   */
+  private async ingestDeliveryEvent(ev: DeliveryEvent) {
+    const status = ev.type === 'delivered' ? 'delivered'
+      : ev.type === 'bounced' ? 'bounced'
+      : ev.type === 'complained' ? 'complained'
+      : 'delayed';
+    await swallow(this.prisma.emailDelivery.updateMany({
+      where: { providerMessageId: ev.emailId }, data: { status },
+    }), 'mail: delivery event', { emailId: ev.emailId });
+
+    const reason = ev.type === 'complained' ? 'complaint'
+      : ev.type === 'bounced' && ev.permanent ? 'hard-bounce'
+      : null;
+    /* A SOFT BOUNCE IS RECORDED AND NOT SUPPRESSED. A full mailbox or a
+       greylist says nothing about whether the address exists, and suppressing
+       on one would quietly lock somebody out of their own recovery the week
+       their inbox was full. */
+    if (!reason || !ev.address) return { ok: true, status };
+    await swallow(this.prisma.suppressedAddress.upsert({
+      where: { address: ev.address },
+      create: { address: ev.address, reason, detail: ev.detail ?? null },
+      update: { reason, detail: ev.detail ?? null },
+    }), 'mail: suppress address', { reason });
+    // The domain only: a warn line is not a place to put people's addresses.
+    this.logger.warn(`suppressing an address after ${ev.type} (${reason}) — domain ${ev.address.split('@').pop()}`);
+    return { ok: true, status };
+  }
+
+  private async dispatch(
+    channel: Channel,
+    payload: Parameters<ReturnType<typeof createMessagingProvider>['send']>[0],
+    meta: { userId: string; kind: string },
+  ): Promise<{ provider: string; providerMessageId: string | null; status: string; error?: string }> {
+    const provider = createMessagingProvider(channel);
+    /* THE LIST IS CHECKED HERE, once, for every system message — rather than
+       at the eight call sites, which is how the fourteenth one forgets. */
+    const suppressed = await this.suppressedFor(channel, payload.to, meta.kind);
+    if (suppressed) {
+      this.logger.log(`not sending ${meta.kind} — address suppressed (${suppressed})`);
+      return { provider: provider.name, providerMessageId: null, status: 'suppressed' };
+    }
+    let last: { provider: string; providerMessageId: string | null; status: string; error?: string } = {
+      provider: provider.name, providerMessageId: null, status: 'failed',
+    };
+    for (let attempt = 1; attempt <= SEND_ATTEMPTS; attempt += 1) {
+      last = await provider.send(payload).catch((e: Error) => ({
+        provider: provider.name, providerMessageId: null as string | null, status: 'failed', error: e.message,
+      }));
+      if (last.status !== 'failed') return last;
+      if (attempt < SEND_ATTEMPTS) {
+        await new Promise((r) => setTimeout(r, SEND_RETRY_MS * attempt));
+      }
+    }
+    // Loud, and at the point of dispatch. The provider logs its own reason;
+    // this says which flow lost a message, which is what tells you a citizen
+    // is sitting on a verification screen waiting for a code that is not
+    // coming.
+    this.logger.error(`delivery FAILED after ${SEND_ATTEMPTS} attempts user=${meta.userId} channel=${channel} kind=${meta.kind} — ${last.error ?? 'no reason reported'}`);
+    report(new Error(`mail dispatch failed: ${channel}/${meta.kind}`), {
+      channel, kind: meta.kind, provider: last.provider, reason: last.error,
+    });
+    return last;
   }
 
   async deliverSystem(
@@ -1733,8 +2180,16 @@ export class MailService {
     });
     // External dispatch through the messaging provider (stub by default).
     if (target) {
-      const provider = createMessagingProvider(channel);
-      const res = await provider.send({ channel, to: target, subject, body: greeted.body, ...(channel === 'email' && greeted.html ? { html: greeted.html } : {}), kind }).catch(() => ({ provider: provider.name, providerMessageId: null as string | null, status: 'failed' as const }));
+      const res = await this.dispatch(
+        channel,
+        {
+          channel, to: target, subject, body: greeted.body,
+          ...(channel === 'email' && greeted.html ? { html: greeted.html } : {}),
+          kind,
+          ...this.unsubscribeHeaders(channel, target, kind),
+        },
+        { userId, kind },
+      );
       await swallow(this.prisma.emailDelivery.create({
         data: {
           userId, channel, toEmail: channel === 'email' ? target : null, toPhone: channel === 'sms' ? target : null,
@@ -1763,22 +2218,16 @@ export class MailService {
     r: { subject: string; body: string; html?: string },
     kind: 'receipt' | 'recovery' | 'security' | 'welcome' = 'security',
   ): Promise<{ ok: boolean; provider: string; status: string }> {
-    const provider = createMessagingProvider(channel);
     // Same rule as deliverSystem. A verification code that opens "Dear Somen,"
     // reads as a message from somebody rather than from a system.
     const who = await swallow(this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } }), 'mail: recipient name read', { userId });
     const body = (channel === 'sms' ? greetSms : greetText)(r.body, who?.name);
     const html = r.html ? greetHtml(r.html, who?.name) : undefined;
-    const res = await provider
-      .send({ channel, to: target, subject: r.subject, body, ...(channel === 'email' && html ? { html } : {}), kind })
-      .catch((e: Error) => ({ provider: provider.name, providerMessageId: null as string | null, status: 'failed' as const, error: e.message }));
-    if (res.status === 'failed') {
-      // Loud, and at the point of dispatch. The provider logs its own reason;
-      // this says which flow lost a message, which is what tells you a citizen
-      // is sitting on a verification screen waiting for a code that is not
-      // coming.
-      this.logger.error(`delivery FAILED user=${userId} channel=${channel} kind=${kind} — ${'error' in res ? res.error : 'no reason reported'}`);
-    }
+    const res = await this.dispatch(
+      channel,
+      { channel, to: target, subject: r.subject, body, ...(channel === 'email' && html ? { html } : {}), kind },
+      { userId, kind },
+    );
     await swallow(this.prisma.emailDelivery.create({
       data: {
         userId, channel,
@@ -1792,7 +2241,10 @@ export class MailService {
         provider: res.provider, providerMessageId: res.providerMessageId ?? undefined, status: res.status,
       },
     }), 'mail: delivery audit write', { userId, kind });
-    return { ok: res.status !== 'failed', provider: res.provider, status: res.status };
+    // `suppressed` is not a success: the caller is telling somebody a code is
+    // coming, and to a bounced address it is not. It is not a provider failure
+    // either, which is why it has its own word on the row.
+    return { ok: res.status !== 'failed' && res.status !== 'suppressed', provider: res.provider, status: res.status };
   }
 
   /** The outbound-delivery log — every email/SMS dispatched through the provider. */

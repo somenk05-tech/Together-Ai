@@ -53,6 +53,8 @@ function harness() {
 
   const messages: any = {
     conversationIdsFor: () => Promise.resolve(['c1', 'c2']),
+    endedDatingIds: () => Promise.resolve(new Set<string>()),
+    directIds: (ids: string[]) => Promise.resolve(new Set(ids)),
     membersOf: () => Promise.resolve(new Map()),
     deliverBacklog: (uid: string) => { delivered.push(uid); return Promise.resolve(2); },
     pendingForUser: () => Promise.resolve([]),

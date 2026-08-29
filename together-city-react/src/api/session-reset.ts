@@ -29,7 +29,42 @@ export function resetClientState(): void {
   //    create an auth.store → session-reset → socket → auth.store cycle.
   void import('./socket').then((m) => m.socketClient.reset()).catch(() => undefined);
 
-  // 3) Per-user persisted stores under the app namespace.
+  /* 3) THE PUSH SUBSCRIPTION, which is per-user state living outside every
+        store this function knew about (fifth audit, 29 Aug).
+        `pushApi.unsubscribe` existed and NOTHING called it, so a browser kept
+        its subscription across a sign-out. Two consequences on a shared
+        machine, and the second is the worse one: the person who signed out
+        went on receiving their own notifications — dating message previews
+        included — on somebody else's screen; and when the next account signed
+        in, `useWebPush` found the same subscription, sent the identical JSON,
+        and `push.controller` correctly refused to re-point it. That account
+        then had no push on that browser, permanently, with nothing said.
+        The browser-side `unsubscribe()` is the half that carries this: it
+        stops delivery at once and frees the next account to create a fresh
+        subscription. The server call is best-effort — by the time this runs
+        the token is usually already cleared — and the row it leaves behind
+        self-cleans, because the next send to a revoked endpoint returns 410
+        and WebPushProvider deletes it. */
+  void (async () => {
+    const reg = await navigator.serviceWorker?.getRegistration('/sw.js');
+    const sub = await reg?.pushManager.getSubscription();
+    if (!sub) return;
+    const json = sub.toJSON();
+    /* THE BROWSER FIRST, THE SERVER AFTER (re-audit, 29 Aug). The first
+       version awaited the server call and then revoked — and `signOut` clears
+       the tokens BEFORE calling this, so that request goes out with no bearer,
+       is refused by JwtAuthGuard, and drags the response interceptor through a
+       doomed refresh on the way. Meanwhile the one step that actually stops
+       delivery was queued behind all of it, so closing the tab straight after
+       signing out — the normal thing to do — left the subscription alive on a
+       shared machine, which is the exact leak this exists to close.
+       The server row left behind self-cleans: the next send to a revoked
+       endpoint returns 410 and WebPushProvider deletes it. */
+    await sub.unsubscribe().catch(() => undefined);
+    void import('./push.api').then((m) => m.pushApi.unsubscribe(json)).catch(() => undefined);
+  })().catch(() => undefined);
+
+  // 4) Per-user persisted stores under the app namespace.
   try {
     const drop: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {

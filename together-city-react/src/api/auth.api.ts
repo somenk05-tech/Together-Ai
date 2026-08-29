@@ -96,8 +96,8 @@ export const authApi = {
   revokeSession: (id: string): Promise<{ ok: boolean }> => apiPost('/auth/sessions/revoke', { id }, Ok),
   logoutOthers: (): Promise<{ ok: boolean }> => apiPost('/auth/logout-others', {}, Ok),
   logoutAll: (): Promise<{ ok: boolean }> => apiPost('/auth/logout-all', {}, Ok),
-  forgot: (identifier: string, channel: 'email' | 'sms' = 'email'): Promise<{ sent: boolean; delivery?: 'live' | 'failed' | 'unconfigured' }> =>
-    apiPost('/auth/forgot', { identifier, channel }, OkSent),
+  forgot: (identifier: string, channel: 'email' | 'sms' = 'email', turnstileToken?: string): Promise<{ sent: boolean; delivery?: 'live' | 'failed' | 'unconfigured' }> =>
+    apiPost('/auth/forgot', { identifier, channel, ...(turnstileToken ? { turnstileToken } : {}) }, OkSent),
   reset: (input: { identifier: string; code: string; newPassword: string }): Promise<{ ok: boolean }> =>
     apiPost<{ ok: boolean }>('/auth/reset', input, OkReset),
   /**

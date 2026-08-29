@@ -180,8 +180,27 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
    * one place all of those channels agree on.
    */
   private async roomsFor(userId: string): Promise<string[]> {
-    const ids = await this.messages.conversationIdsFor(userId);
+    let ids = await this.messages.conversationIdsFor(userId);
     if (!ids.length) return ids;
+
+    /* AN UNMATCH ENDS CONTACT TOO (fifth audit, 29 Aug). `unmatch` archived the
+       thread and flipped the row off `matched`, and published nothing — so the
+       two of them stayed in the room and kept typing, appearing online and
+       reading at each other until a reconnection that never comes. The live
+       half of the fix is the `connection.unmatched` event below; this is the
+       half that survives the reconnection, because the list is rebuilt here
+       from scratch and `conversationIdsFor` knows nothing about matches. */
+    try {
+      const ended = await this.messages.endedDatingIds(ids);
+      if (ended.size) ids = ids.filter((id) => !ended.has(id));
+    } catch (e) {
+      // Loud, and it fails OPEN on purpose: the archive and the send gate both
+      // still hold, so the cost is a stale typing indicator rather than a
+      // citizen who cannot use their live chats because one query failed.
+      this.logger.error(`Could not read ended matches for ${userId}: ${(e as Error).message}`);
+    }
+    if (!ids.length) return ids;
+
     let blocked: Set<string>;
     try {
       blocked = await this.permission.blockedWith(userId);
@@ -192,8 +211,16 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       return ids;
     }
     if (!blocked.size) return ids;
+    /* DIRECT ONLY. This filtered ANY conversation holding somebody you had
+       blocked, groups included — so blocking one person in a room of six
+       silently took you out of that room's live frames until the next message
+       put you back. `connection-permission.service.ts` says the opposite in
+       as many words: a block "is not a way to remove somebody from a room full
+       of other people". */
     const members = await this.messages.membersOf(ids);
-    return ids.filter((id) => !(members.get(id) ?? []).some((u) => u !== userId && blocked.has(u)));
+    const direct = await this.messages.directIds(ids);
+    return ids.filter((id) => !direct.has(id)
+      || !(members.get(id) ?? []).some((u) => u !== userId && blocked.has(u)));
   }
 
   /** Put a freshly-connected socket into every conversation room it belongs in. */
@@ -419,13 +446,35 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         try {
           const ids = await this.messages.conversationIdsFor(a);
           const members = await this.messages.membersOf(ids);
-          const shared = ids.filter((id) => (members.get(id) ?? []).includes(b));
+          /* DIRECT ONLY, LIKE `roomsFor` (re-audit, 29 Aug). That method was
+             scoped to one-to-one threads because a block "is not a way to
+             remove somebody from a room full of other people"; this half of
+             the same mechanism was not, so blocking one member of a group
+             still ejected BOTH people from that group's live frames — and the
+             next reconnect silently put them back, because the room list now
+             keeps groups. Two halves of one control disagreeing is worse than
+             either answer. */
+          const direct = await this.messages.directIds(ids);
+          const shared = ids.filter((id) => direct.has(id) && (members.get(id) ?? []).includes(b));
           for (const id of shared) {
             await this.server.in(room.user(a)).socketsLeave(room.conversation(id));
             await this.server.in(room.user(b)).socketsLeave(room.conversation(id));
           }
         } catch (e) {
           this.logger.error(`Could not empty the rooms ${a} and ${b} share: ${(e as Error).message}`);
+        }
+        break;
+      }
+      case 'connection.unmatched': {
+        /* One conversation, both people, immediately — the same reason the
+           block case gives, and narrower because an unmatch names its room. */
+        const [a, b] = event.userIds;
+        try {
+          for (const uid of [a, b]) {
+            await this.server.in(room.user(uid)).socketsLeave(room.conversation(event.conversationId));
+          }
+        } catch (e) {
+          this.logger.error(`Could not empty the room ${event.conversationId} after an unmatch: ${(e as Error).message}`);
         }
         break;
       }

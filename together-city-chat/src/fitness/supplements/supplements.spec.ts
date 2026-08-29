@@ -18,12 +18,26 @@ import { PlaceSupplementOrderSchema } from '../dto/supplements.dto';
  */
 
 const bare: Citizen = {};
+/**
+ * A CITIZEN WITH A PANEL ON FILE AND NOTHING ELSE — the baseline for every
+ * test about what the engine SAYS, since 29 Aug.
+ *
+ * `bare` used to be that baseline, and it now returns an empty plan by rule:
+ * no blood work, no recommendations. It stays in the file because the gate
+ * itself has to be tested, and because a test that reads `bare` and expects a
+ * card is exactly the regression the gate exists to prevent.
+ *
+ * The vitamin D here is deliberately NORMAL. It opens the gate without
+ * putting anything on the plan of its own, so each test below still measures
+ * only the rule it names.
+ */
+const tested: Citizen = { labs: [{ name: '25-OH vitamin D', value: 34, unit: 'ng/mL', at: '2026-08-01' }] };
 const find = (c: Citizen, id: string) => recommend(c).plan.find((r) => r.id === id);
 
 describe('it never invents a dose', () => {
   it('every dose it prints is a string out of the knowledge base', () => {
     const doses = new Set(SUPPLEMENTS.map((s) => s.typicalDose));
-    for (const c of [bare, { vegetarian: true, goal: 'muscle', trainsPerWeek: 4 } as Citizen]) {
+    for (const c of [tested, { ...tested, vegetarian: true, goal: 'muscle', trainsPerWeek: 4 } as Citizen]) {
       for (const r of recommend(c).plan) {
         if (r.dose !== null) {
           expect({ id: r.id, fromKnowledgeBase: doses.has(r.dose) }).toEqual({ id: r.id, fromKnowledgeBase: true });
@@ -54,7 +68,7 @@ describe('it never invents a dose', () => {
 
 describe('it will not put iron in front of somebody who has not been tested', () => {
   it('no ferritin result means not recommended, and says why', () => {
-    const iron = find(bare, 'iron')!;
+    const iron = find(tested, 'iron')!;
     expect(iron.bucket).toBe('not-recommended');
     expect(iron.dose).toBeNull();
     expect(iron.why[0].text).toMatch(/ferritin/i);
@@ -76,39 +90,56 @@ describe('it will not put iron in front of somebody who has not been tested', ()
 
 describe('safety and interactions run BEFORE the citizen sees anything', () => {
   it('a medicine interaction takes the decision away from the app', () => {
-    const k2 = find({ medicines: ['Warfarin 5mg'] }, 'vitamin-k2');
+    const k2 = find({ ...tested, medicines: ['Warfarin 5mg'] }, 'vitamin-k2');
     // K2 is only offered where something asks for it; what matters is that when
     // it IS offered to somebody on warfarin, it can never arrive unflagged.
-    const omega = find({ medicines: ['Warfarin 5mg'] }, 'omega-3')!;
+    const omega = find({ ...tested, medicines: ['Warfarin 5mg'] }, 'omega-3')!;
     expect(omega.needsClinician).toBe(true);
     expect(omega.flags.some((f) => f.kind === 'interaction')).toBe(true);
     if (k2) expect(k2.needsClinician).toBe(true);
   });
 
   it('a condition can refuse a supplement outright', () => {
-    const protein = find({ conditions: ['Chronic kidney disease'], proteinTargetG: 100, proteinIntakeG: 60 }, 'protein')!;
+    const protein = find({ ...tested, conditions: ['Chronic kidney disease'], proteinTargetG: 100, proteinIntakeG: 60 }, 'protein')!;
     expect(protein.bucket).toBe('not-recommended');
     expect(protein.flags.some((f) => f.kind === 'condition')).toBe(true);
   });
 
   it('and a smoker is warned about the beta-carotene inside a multivitamin', () => {
-    const mv = find({ smoker: true }, 'multivitamin')!;
+    const mv = find({ ...tested, smoker: true }, 'multivitamin')!;
     expect(mv.bucket).toBe('not-recommended');
     expect(mv.flags.some((f) => f.kind === 'harm' && /beta-carotene/i.test(f.text))).toBe(true);
   });
 
   it('a supplement already in the cabinet is flagged rather than stacked', () => {
-    const omega = find({ taking: ['Omega-3 fish oil 1000mg'] }, 'omega-3')!;
+    const omega = find({ ...tested, taking: ['Omega-3 fish oil 1000mg'] }, 'omega-3')!;
     expect(omega.flags.some((f) => f.kind === 'duplicate')).toBe(true);
   });
 });
 
 describe('an educational suggestion is never dressed as a clinical one', () => {
-  it('a population base rate is labelled as one, and does not become a finding', () => {
-    const d = find(bare, 'vitamin-d3')!;
-    expect(d.bucket).toBe('consider');
-    expect(d.why[0].from).toBe('population');
-    expect(d.why[0].text).toMatch(/not a finding about you/i);
+  it('a population base rate may not open a card of its own — owner, 29 Aug', () => {
+    // It used to open three: vitamin D in Worth considering, psyllium under
+    // Supporting your goal, omega-3 on the page for everybody alive, each with
+    // identical text for every citizen. A statistic about India is not a
+    // finding about the reader, and a heading that says "your plan" makes it
+    // read as one.
+    for (const c of [tested, { ...tested, vegetarian: true, goal: 'muscle' } as Citizen]) {
+      for (const r of recommend(c).plan) {
+        const populationOnly = r.why.length > 0 && r.why.every((w) => w.from === 'population');
+        expect({ id: r.id, populationOnly: populationOnly && r.flags.length === 0 })
+          .toEqual({ id: r.id, populationOnly: false });
+      }
+    }
+  });
+
+  it('but it survives as CONTEXT on a card a lab has already earned', () => {
+    // The omega-3 intake line under a raised triglyceride is the case: the
+    // card exists because of the result, and the base rate is the background
+    // the result sits against.
+    const o = find({ labs: PANEL }, 'omega-3')!;
+    expect(o.why.some((w) => w.from === 'lab')).toBe(true);
+    expect(o.why.some((w) => w.from === 'population')).toBe(true);
   });
 
   it('every reason names where it came from', () => {
@@ -125,7 +156,7 @@ describe('an educational suggestion is never dressed as a clinical one', () => {
   });
 
   it('and "not recommended" is an answer it gives with a citation', () => {
-    const plan = recommend(bare).plan.filter((r) => r.bucket === 'not-recommended');
+    const plan = recommend(tested).plan.filter((r) => r.bucket === 'not-recommended');
     expect(plan.length).toBeGreaterThan(0);
     for (const r of plan) expect(r.why.some((w) => w.source) || r.flags.some((f) => f.source)).toBe(true);
   });
@@ -135,7 +166,7 @@ describe('an educational suggestion is never dressed as a clinical one', () => {
     // "Harm signal" flag — the identical paragraph, citation and all, twice on
     // a card whose whole job is one refusal. A flag exists to ADD a fact the
     // card does not already state.
-    for (const r of recommend(bare).plan) {
+    for (const r of recommend(tested).plan) {
       const said = new Set(r.why.map((w) => w.text));
       for (const f of r.flags) {
         expect({ id: r.id, flagRepeatsWhy: said.has(f.text) }).toEqual({ id: r.id, flagRepeatsWhy: false });
@@ -146,6 +177,43 @@ describe('an educational suggestion is never dressed as a clinical one', () => {
   it('the things Mira is watching are named before their results exist', () => {
     const { watching } = recommend(bare);
     expect(watching.map((w) => w.text).join(' ')).toMatch(/Vitamin D.*B12.*Ferritin/s);
+  });
+});
+
+describe('no blood work, no plan — owner, 29 Aug', () => {
+  it('a citizen with no results gets an empty list and a gate, not a shorter plan', () => {
+    const { plan, gated } = recommend(bare);
+    expect(gated).toBe(true);
+    expect(plan).toEqual([]);
+  });
+
+  it('one readable result is the whole key', () => {
+    const { plan, gated } = recommend(tested);
+    expect(gated).toBe(false);
+    expect(plan.length).toBeGreaterThan(0);
+  });
+
+  it('and the refusals go behind the gate with everything else', () => {
+    // The expensive half of the decision, written down so that a later commit
+    // restoring "but the refusals are the useful part" has to argue with a
+    // failing test rather than with a comment. A refusal is only worth reading
+    // once the page has earned the right to have an opinion about the reader.
+    expect(recommend(bare).plan.some((r) => r.bucket === 'not-recommended')).toBe(false);
+    expect(recommend(tested).plan.some((r) => r.bucket === 'not-recommended')).toBe(true);
+  });
+
+  it('what the gate is allowed to say is the list of tests, and it still says it', () => {
+    const { watching, clinical } = recommend(bare);
+    expect(watching.map((w) => w.text).join(' ')).toMatch(/Vitamin D.*B12.*Ferritin/s);
+    // A clinical note is a reading of a result; with no results there are none.
+    expect(clinical).toEqual([]);
+  });
+
+  it('the gate is decided in the engine, not on the screen', () => {
+    // A page that computed this itself would be a second opinion about the
+    // same fact, and the two would disagree the first time either moved.
+    const src = readFileSync(join(__dirname, 'supplements.engine.ts'), 'utf8');
+    expect(src).toMatch(/const gated = \(c\.labs \?\? \[\]\)\.length === 0;/);
   });
 });
 
@@ -222,11 +290,11 @@ describe('a lipid result reaches the shelf, and reaches it differently by marker
     expect(p.needsClinician).toBe(false);
   });
 
-  it('and with no lipid panel it is still offered — as a base rate, labelled as one', () => {
-    const p = find(bare, 'psyllium')!;
-    expect(p.bucket).toBe('optional');
-    expect(p.why[0].from).toBe('population');
-    expect(p.why[0].text).toMatch(/not a finding about you/i);
+  it('and with no lipid panel it is not offered at all', () => {
+    // 81% of Indian adults have some dyslipidaemia, which is a true sentence
+    // about India and says nothing about this reader. It used to put psyllium
+    // on every plan in the country.
+    expect(find(tested, 'psyllium')).toBeUndefined();
   });
 
   it('a raised triglyceride moves omega-3 up AND takes the number away', () => {
@@ -240,10 +308,8 @@ describe('a lipid result reaches the shelf, and reaches it differently by marker
     expect(o.why.map((w) => w.text).join(' ')).toMatch(/prescription/i);
   });
 
-  it('and with no triglyceride it stays where it was, on a population reason', () => {
-    const o = find(bare, 'omega-3')!;
-    expect(o.bucket).toBe('optional');
-    expect(o.why.every((w) => w.from !== 'lab')).toBe(true);
+  it('and with no triglyceride there is no omega-3 card to move', () => {
+    expect(find(tested, 'omega-3')).toBeUndefined();
   });
 });
 

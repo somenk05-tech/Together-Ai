@@ -49,6 +49,10 @@ function harness() {
   const prisma: any = {
     mailMessage: {
       create,
+      // The daily city-mail ceiling counts the sender's own Sent rows.
+      // Added 29 Aug: internal mail had no limit at all, and the row it
+      // writes is charged against the RECIPIENT'S quota.
+      count: async () => 0,
       findFirst: async ({ where }: any) => rows.find((r) => matches(where, r)) ?? null,
       findMany: async ({ where, select }: any) => {
         const hit = rows.filter((r) => matches(where ?? {}, r));

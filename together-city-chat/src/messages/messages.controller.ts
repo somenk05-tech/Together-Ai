@@ -10,6 +10,7 @@ import {
   UseGuards,
   UsePipes,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
@@ -34,6 +35,29 @@ import {
   StarMessageSchema,
 } from './dto/messages.dto';
 
+/**
+ * PER-ROUTE CEILINGS, KEYED ON THE ACCOUNT (fifth audit, 29 Aug).
+ *
+ * There were none. `grep Throttle src/messages src/conversations src/chat`
+ * returned nothing, so sending, listing, searching and reacting all drew on
+ * the one global 120/minute — which was also counted per IP address, so a
+ * shared office network split it between everybody on it and a rotating
+ * address had no ceiling at all. The dating hub has had named limits per route
+ * since 28 Aug; the chat these matches actually happen in had none.
+ *
+ * SEND MATCHES THE SOCKET, which was the number the gateway's own comment
+ * claimed the HTTP path already used. It did not: the socket ceiling is 60 a
+ * minute (`chat.gateway.ts`) and HTTP was 120 shared with every other read.
+ * One number, in both doors.
+ *
+ * SEARCH IS THE TIGHT ONE because of what it costs rather than what it does:
+ * `contains … insensitive` across every conversation the citizen is in, with
+ * no index behind it.
+ */
+const SEND_LIMIT = { default: { limit: 60, ttl: 60_000 } };
+const SEARCH_LIMIT = { default: { limit: 20, ttl: 60_000 } };
+const WRITE_LIMIT = { default: { limit: 120, ttl: 60_000 } };
+
 @Controller()
 @UseGuards(JwtAuthGuard)
 export class MessagesController {
@@ -53,6 +77,7 @@ export class MessagesController {
 
   // POST /api/messages
   @Post('messages')
+  @Throttle(SEND_LIMIT)
   @UsePipes(new ZodValidationPipe(SendMessageSchema))
   send(@CurrentUser() user: JwtUser, @Body() dto: SendMessageDto) {
     return this.messages.send(user.sub, dto);
@@ -60,6 +85,7 @@ export class MessagesController {
 
   // PUT /api/messages/:id
   @Put('messages/:id')
+  @Throttle(WRITE_LIMIT)
   @UsePipes(new ZodValidationPipe(EditMessageSchema))
   edit(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: EditMessageDto) {
     return this.messages.edit(user.sub, id, dto);
@@ -77,6 +103,7 @@ export class MessagesController {
 
   // GET /api/messages/search
   @Get('messages/search')
+  @Throttle(SEARCH_LIMIT)
   search(@CurrentUser() user: JwtUser, @Query() query: Record<string, string>) {
     const dto: SearchMessagesDto = SearchMessagesSchema.parse(query);
     return this.messages.search(user.sub, dto);
@@ -84,6 +111,7 @@ export class MessagesController {
 
   // POST /api/messages/:id/star — keep it, or stop keeping it.
   @Post('messages/:id/star')
+  @Throttle(WRITE_LIMIT)
   @UsePipes(new ZodValidationPipe(StarMessageSchema))
   star(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: StarMessageDto) {
     return this.messages.setStarred(user.sub, id, dto.on);
@@ -91,6 +119,7 @@ export class MessagesController {
 
   // POST /api/messages/:id/react — one of the six, or null to clear yours.
   @Post('messages/:id/react')
+  @Throttle(WRITE_LIMIT)
   @UsePipes(new ZodValidationPipe(ReactMessageSchema))
   react(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: ReactMessageDto) {
     return this.messages.setReaction(user.sub, id, dto.emoji);
@@ -98,6 +127,7 @@ export class MessagesController {
 
   // POST /api/messages/:id/pin — one pinned message per conversation.
   @Post('messages/:id/pin')
+  @Throttle(WRITE_LIMIT)
   @UsePipes(new ZodValidationPipe(PinMessageSchema))
   pin(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: PinMessageDto) {
     return this.messages.setPinned(user.sub, id, dto.on);

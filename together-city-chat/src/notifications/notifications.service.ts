@@ -129,6 +129,13 @@ export class NotificationsService {
         await this.pushToDevices(
           input.userId, input.title, input.body ?? '',
           input.push?.deepLink ?? deepLinkFrom(input.href), input.href ?? '/',
+          /* THE ROW'S OWN ID AS THE TAG. Every bell push went out with an
+             empty conversationId, which the service worker collapsed into one
+             shared tag — so "It's a match", "You have a new like" and a
+             moderation verdict overwrote each other on a locked phone, and the
+             one notification the product exists to send was the one destroyed.
+             A notification is its own event; nothing else may replace it. */
+          `n-${row.id}`,
         );
       }
     } catch (e) {
@@ -137,22 +144,59 @@ export class NotificationsService {
   }
 
   /** Every device this citizen registered, FCM and web-push alike. Best-effort. */
-  private async pushToDevices(userId: string, title: string, body: string, deepLink: string, url: string): Promise<void> {
+  private async pushToDevices(userId: string, title: string, body: string, deepLink: string, url: string, tag?: string): Promise<void> {
     // unbounded: one citizen's device tokens — a handful
     const devices = await this.prisma.deviceToken.findMany({ where: { userId }, select: { token: true, platform: true } });
     const fcmTokens = devices.filter((d) => d.platform !== 'webpush').map((d) => d.token);
     const webTokens = devices.filter((d) => d.platform === 'webpush').map((d) => d.token);
     await this.fcm.send(fcmTokens, { title, body, deepLink, data: { deepLink } });
-    await this.webpush.send(webTokens, { title, body, conversationId: '', url });
+    await this.webpush.send(webTokens, { title, body, conversationId: '', url, tag });
   }
 
   /** Recent notifications for a user, newest first. Chats are NOT here —
    *  a message row exists only to drive the toast and per-conversation
    *  clearing; the Chats tab is the one surface that counts correspondence
    *  (owner decision, 9 Aug 2026 — see not-in-the-bell.spec.ts). */
-  async listFor(userId: string, limit = 50) {
-    const rows = await this.notif.findMany({ where: { userId, kind: { not: 'message' } }, orderBy: { createdAt: 'desc' }, take: limit }).catch(swallowed('notifications.listFor', [] as NotificationRow[]));
-    return rows.map((r) => this.shape(r));
+  async listFor(userId: string, limit = 50, cursor?: string, cursorId?: string) {
+    /**
+     * A CURSOR, BECAUSE THERE WAS NO WAY TO THE FIFTY-FIRST (fifth audit,
+     * 29 Aug). `listFor` took a limit, the controller passed none, and the
+     * route offered nothing else — so notification 51 was unreachable for the
+     * life of the account. Keyset, not offset: notifications arrive while you
+     * are reading them, and an offset page shifts under new rows.
+     *
+     * `createdAt` alone is not a key — two notifications can share a
+     * millisecond — so the id breaks the tie. THE TIE-BREAK HAS TO BE IN THE
+     * WHERE AND NOT ONLY IN THE ORDER BY (re-audit, 29 Aug): the first version
+     * ordered by the pair and filtered on `createdAt < cursor` alone, so when
+     * two rows shared the boundary millisecond and a page ended on the first
+     * of them, the second was asked for with `< T`, excluded, and unreachable
+     * for ever. That is the same "a row that exists and can never be reached"
+     * this method was rewritten to remove, reintroduced one line lower down.
+     *
+     * So the cursor is the pair, and the predicate is the pair: everything
+     * strictly older, plus the same instant with a smaller id.
+     */
+    const at = cursor ? new Date(cursor) : null;
+    const after = at && !Number.isNaN(at.getTime()) ? at : null;
+    const rows = await this.notif.findMany({
+      where: {
+        userId, kind: { not: 'message' },
+        ...(after ? {
+          OR: cursorId
+            ? [{ createdAt: { lt: after } }, { createdAt: after, id: { lt: cursorId } }]
+            : [{ createdAt: { lt: after } }],
+        } : {}),
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: Math.min(Math.max(limit, 1), 100),
+    }).catch(swallowed('notifications.listFor', [] as NotificationRow[]));
+    /* STILL AN ARRAY. Web and API deploy independently, so changing the shape
+       of this response would break every client on the old build the moment
+       the new server landed — for a paging feature. A caller that wants the
+       next page passes the `createdAt` of the last item it holds; a full page
+       is how it knows to ask. */
+    return rows.slice(0, Math.min(Math.max(limit, 1), 100)).map((r) => this.shape(r));
   }
 
   async unreadCount(userId: string): Promise<number> {
@@ -315,6 +359,19 @@ export class NotificationsService {
           body: `${displayName} is calling you.`,
           conversationId: params.conversationId,
           icon: displayPhoto,
+          /* THE THIRD EMIT SITE, MISSED THE FIRST TIME (re-audit, 29 Aug).
+             With no tag the worker falls back to `chat-<conversationId>`, so a
+             call shared a tag with that conversation's chat notification AND
+             with every other call in it — while this method's own docblock
+             says the opposite: "it never groups: every call is its own row,
+             because '3 missed calls' collapsed into one line loses the thing a
+             citizen actually wants to know."
+             And with no url the tap resolved to the city chats route and lost
+             `&call=<id>`, so tapping a call notification never joined the
+             call. `href` was computed forty lines up and thrown away, which is
+             the same mistake the message path had. */
+          tag: `call-${params.callId}`,
+          url: href,
         });
       }
     } catch (e) {
@@ -337,43 +394,58 @@ export class NotificationsService {
       : `togethercity://chat/${params.conversationId}`;
 
     for (const recipientId of params.recipientIds) {
-      const online = await this.presence.isOnline(recipientId);
-      const openConvos = await this.redis.openConversationsOf(recipientId);
-      // Suppress if any of the recipient's live tabs is viewing this conversation.
-      if (online && openConvos.includes(params.conversationId)) continue;
+      /* ONE RECIPIENT'S FAILURE IS ONE RECIPIENT'S FAILURE (fifth audit,
+         29 Aug). This loop had no try/catch, and it is invoked from a floating
+         promise on the event bus — so a single Prisma or provider error aborted
+         the whole fan-out and everybody after the failing recipient was told
+         nothing, with an unhandled rejection as the only trace. */
+      try {
+        const online = await this.presence.isOnline(recipientId);
+        const openConvos = await this.redis.openConversationsOf(recipientId);
+        // Suppress if any of the recipient's live tabs is viewing this conversation.
+        if (online && openConvos.includes(params.conversationId)) continue;
 
-      const member = await this.prisma.conversationMember.findUnique({
-        where: { conversationId_userId: { conversationId: params.conversationId, userId: recipientId } },
-      });
-      if (member?.muted) continue;
+        const member = await this.prisma.conversationMember.findUnique({
+          where: { conversationId_userId: { conversationId: params.conversationId, userId: recipientId } },
+        });
+        if (member?.muted) continue;
 
-      // In-app bell notification (grouped per chat) + live toast, titled with
-      // the sender's name.
-      await this.upsertMessageNotification(recipientId, params.conversationId, displayName, params.preview, href);
+        // In-app bell notification (grouped per chat) + live toast, titled with
+        // the sender's name.
+        await this.upsertMessageNotification(recipientId, params.conversationId, displayName, params.preview, href);
 
-      // unbounded: one citizen's device tokens — a handful
-      const devices = await this.prisma.deviceToken.findMany({
-        where: { userId: recipientId },
-        select: { token: true, platform: true },
-      });
-      const fcmTokens = devices.filter((d) => d.platform !== 'webpush').map((d) => d.token);
-      const webTokens = devices.filter((d) => d.platform === 'webpush').map((d) => d.token);
+        // unbounded: one citizen's device tokens — a handful
+        const devices = await this.prisma.deviceToken.findMany({
+          where: { userId: recipientId },
+          select: { token: true, platform: true },
+        });
+        const fcmTokens = devices.filter((d) => d.platform !== 'webpush').map((d) => d.token);
+        const webTokens = devices.filter((d) => d.platform === 'webpush').map((d) => d.token);
 
-      await this.fcm.send(fcmTokens, {
-        title: displayName,
-        body: params.preview,
-        imageUrl: displayPhoto,
-        deepLink,
-        data: { conversationId: params.conversationId },
-      });
+        await this.fcm.send(fcmTokens, {
+          title: displayName,
+          body: params.preview,
+          imageUrl: displayPhoto,
+          deepLink,
+          data: { conversationId: params.conversationId },
+        });
 
-      // Browser / PWA push — reaches the recipient even with the app fully closed.
-      await this.webpush.send(webTokens, {
-        title: displayName,
-        body: params.preview,
-        conversationId: params.conversationId,
-        icon: displayPhoto,
-      });
+        // Browser / PWA push — reaches the recipient even with the app fully closed.
+        await this.webpush.send(webTokens, {
+          title: displayName,
+          body: params.preview,
+          conversationId: params.conversationId,
+          icon: displayPhoto,
+          /* THE HREF THIS METHOD ALREADY COMPUTED, twenty lines up, and then
+             threw away. Without it the worker fell back to `/chats?c=<id>` —
+             the CITY Chats route — for a dating conversation, which is the one
+             list dating threads are deliberately stripped from, so the thread
+             opened with no peer and a broken header. */
+          url: href,
+        });
+      } catch (e) {
+        this.log.warn(`message notification failed for one recipient: ${(e as Error).message}`);
+      }
     }
   }
 }

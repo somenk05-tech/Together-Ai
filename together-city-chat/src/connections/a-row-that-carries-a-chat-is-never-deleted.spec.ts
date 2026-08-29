@@ -22,6 +22,7 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
+import { PURGE_RULES } from '../privacy/purge-plan';
 
 const SRC = path.join(__dirname, '..');
 
@@ -58,5 +59,43 @@ describe('nothing deletes a dating match row that carries a conversation', () =>
     const scoped = /conversationId:\s*null/.test(f.call) || /where:\s*\{\s*id:/.test(f.call);
     expect({ file: f.file, scopedToRowsWithNoConversation: scoped })
       .toEqual({ file: f.file, scopedToRowsWithNoConversation: true });
+  });
+});
+
+/**
+ * AND THE ONE DELETE THIS FILE'S REGEX CANNOT SEE.
+ *
+ * The nightly purge does not write `datingMatch.deleteMany` anywhere. It walks
+ * PURGE_RULES and calls a generic delegate — `table.deleteMany({ where:
+ * whereFor(rule, userId) })` — so the rule above swept the whole tree and
+ * found every call site except the one that was breaking the invariant. It
+ * passed, and it passed vacuously, for as long as the rule existed.
+ *
+ * Thirty days after one person deleted their account, the row classifying the
+ * anonymous thread was gone — and `datingConversationIds`, which reads exactly
+ * that row, stopped calling the conversation a dating conversation. It
+ * surfaced in the survivor's ordinary Chats list, searchable, under a name.
+ *
+ * So the plan is read here as well as the source: a `purge` on this model has
+ * to say, in its own filter, that it only takes rows with no conversation.
+ */
+describe('the purge plan is held to the same rule', () => {
+  const rules = PURGE_RULES.filter((r) => r.model === 'DatingMatch');
+
+  it('classifies the model at all', () => {
+    expect(rules.length).toBeGreaterThan(0);
+  });
+
+  it('never purges a row without saying it takes only the conversation-less ones', () => {
+    for (const r of rules.filter((x) => x.action === 'purge')) {
+      expect({ action: r.action, filter: r.filter }).toEqual({ action: 'purge', filter: { conversationId: null } });
+    }
+  });
+
+  it('and keeps the rest rather than leaving them unclassified', () => {
+    // An unclassified row is a row the plan's own completeness check would
+    // catch; a row classified `purge` with no filter is the one that got past
+    // everything.
+    expect(rules.some((r) => r.action === 'keep')).toBe(true);
   });
 });

@@ -224,15 +224,54 @@ describe('a trail past the cap', () => {
   });
 });
 
-describe('a retry supersedes the attempt it was made from', () => {
-  it('removes the failed row even when the retry fails too', async () => {
-    // The old rule removed it only when the retry ADDED a row to Sent, so
-    // three retries on a dead address left four identical rows in Failed and
-    // charged the quota four times.
+describe('a retry supersedes the attempt it was made from — when there IS an attempt', () => {
+  /**
+   * ── THE RULE, AND THE HALF OF IT THAT WAS FALSE (fifth audit, 29 Aug) ────
+   *
+   * The rule is right: a retry that writes a row of its own — Sent, or Failed
+   * with the new reason — supersedes the row it was made from, or three
+   * retries on a dead address leave four identical rows in Failed and four
+   * copies against the quota.
+   *
+   * The implementation removed the source in a `finally`, on the strength of a
+   * sentence that said every path through `send()` writes a row. It does not.
+   * It throws BEFORE writing when the mailbox is full, when the recipient is
+   * no longer connected, when the message names more external addresses than
+   * one may carry, when the day's external budget is spent, and when the body
+   * is empty. Press Retry on a full mailbox — which is exactly what a citizen
+   * does to make room — and the message was deleted with nothing written in
+   * its place. The only copy of what they had written, removed by the button
+   * offered for saving it.
+   */
+  it('keeps the citizen’s message when the attempt filed nothing', async () => {
     const { svc, rows } = harness();
     const m = put(rows, { folder: 'failed', toAddr: 'nobody@togethercity.app', failureReason: 'no such mailbox' });
 
     await expect(svc.retry('u1', m.id)).rejects.toThrow(/No such city mailbox/);
-    expect(rows.filter((r) => r.folder === 'failed')).toHaveLength(0);
+    expect(rows.filter((r) => r.folder === 'failed')).toHaveLength(1);
+    expect(rows.find((r) => r.id === m.id)?.body).toBe('b');
+  });
+
+  it('and the duplicate the old rule existed to prevent still cannot happen', async () => {
+    // The reason `finally` was reached for in the first place. On a path that
+    // writes nothing, retrying repeatedly cannot accumulate rows either —
+    // there is one row, it is the original, and it stays one.
+    const { svc, rows } = harness();
+    const m = put(rows, { folder: 'failed', toAddr: 'nobody@togethercity.app', failureReason: 'no such mailbox' });
+
+    await expect(svc.retry('u1', m.id)).rejects.toThrow(/No such city mailbox/);
+    await expect(svc.retry('u1', m.id)).rejects.toThrow(/No such city mailbox/);
+    await expect(svc.retry('u1', m.id)).rejects.toThrow(/No such city mailbox/);
+    expect(rows.filter((r) => r.folder === 'failed')).toHaveLength(1);
+  });
+
+  it('a full mailbox does not eat the message it was asked to resend', async () => {
+    // The reachable one. send() throws on the quota check before anything is
+    // written, and the `finally` ran on it.
+    const { svc, rows } = harness({ quotaBytes: 4096 });
+    const m = put(rows, { folder: 'failed', toAddr: 'alice@togethercity.app', sizeBytes: 4000, failureReason: 'earlier failure' });
+
+    await expect(svc.retry('u1', m.id)).rejects.toThrow(/mailbox is full/);
+    expect(rows.find((r) => r.id === m.id)).toBeDefined();
   });
 });

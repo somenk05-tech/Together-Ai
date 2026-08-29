@@ -39,6 +39,13 @@ import { CUTOFF, type ClinicalNote } from './labs';
  *    in `labs.ts` with the body that published it, and a cut-off is allowed to
  *    change a BUCKET and nothing else. It never scales a dose, and it is never
  *    subtracted from a result to manufacture a "gap".
+ *
+ * 5. AND IT ANSWERS NOBODY WHO HAS NOT BEEN TESTED. Owner's call, 29 Aug: no
+ *    blood work on file, no plan — `gated: true` and an empty list, not a
+ *    thinner set of suggestions. A population base rate may no longer open a
+ *    card of its own either. Both rules are enforced in this file rather than
+ *    on the screen, because a rule enforced in one place is a rule and a rule
+ *    enforced in two is a coincidence waiting to end.
  */
 
 export type Bucket = 'priority' | 'consider' | 'optional' | 'not-recommended';
@@ -174,6 +181,9 @@ const skipFor = (name: string) =>
  */
 export function recommend(c: Citizen): {
   plan: Recommendation[];
+  /** True when there is no blood work to reason from, and therefore no plan.
+   *  The screen renders the gate, not an empty list. */
+  gated: boolean;
   watching: Reason[];
   clinical: ClinicalNote[];
   source: typeof SOURCE;
@@ -238,6 +248,21 @@ export function recommend(c: Citizen): {
         flags.push({ kind: 'harm', text: sk.why, source: sk.source });
       }
     }
+
+    /* A BASE RATE IS NOT A RECOMMENDATION — owner's call, 29 Aug.
+       A card whose ONLY reason is a population statistic is a card about
+       India, printed under a heading that says "your plan". It used to put
+       vitamin D in Worth considering, psyllium in Supporting your goal and
+       omega-3 on the page for every citizen alive, and it did so with
+       identical text for all of them — which is an advertisement wearing a
+       statistic. A base rate keeps its place as CONTEXT on a card a lab has
+       already earned (the omega-3 intake line under a raised triglyceride is
+       exactly that), and it may name itself in "what we're watching". It may
+       no longer open a card of its own.
+       Flags are the exception, because a flag is a safety statement rather
+       than a suggestion: if this citizen's medicines interact with it, the
+       card survives to say so. */
+    if (why.length > 0 && why.every((w) => w.from === 'population') && flags.length === 0) return;
 
     /* THE DOSE IS COPIED, NEVER COMPUTED — and it is withheld entirely when a
        clinician should be the one setting it. */
@@ -433,5 +458,23 @@ export function recommend(c: Citizen): {
 
   const rank: Record<Bucket, number> = { priority: 0, consider: 1, optional: 2, 'not-recommended': 3 };
   out.sort((a, b) => rank[a.bucket] - rank[b.bucket] || b.fit.score - a.fit.score);
-  return { plan: out, watching, clinical, source: SOURCE };
+
+  /* ── THE BLOOD TEST IS THE KEY, AND IT IS THE ONLY KEY ──────────────────
+     Owner's call, 29 Aug. Until a panel this engine can read is on file there
+     is NO plan — not a shorter one, not a population-flavoured one, none.
+
+     The argument is the one this file already makes about iron, applied to
+     the whole page. A screen headed "your supplement plan" that a brand-new
+     account can open and read is not personalised and never was; it is a
+     catalogue with the citizen's name on the tab, and the thing it teaches
+     is that these answers arrive without a test. The refusals go with it,
+     which costs this page its best material — and that is the right price,
+     because a refusal is only worth reading once the citizen believes the
+     page knows something about them.
+
+     `watching` and `clinical` still travel: the gate's whole content is the
+     list of markers a test would settle, and a clinical note is a reading of
+     a result, which by definition cannot exist without one. */
+  const gated = (c.labs ?? []).length === 0;
+  return { plan: gated ? [] : out, gated, watching, clinical, source: SOURCE };
 }

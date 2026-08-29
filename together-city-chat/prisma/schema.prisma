@@ -316,6 +316,11 @@ model Conversation {
   calls    CallSession[]
 
   @@index([type])
+  /// The socket layer orders a citizen's room list by
+  /// `conversation.updatedAt desc` on every connect, and there was nothing
+  /// behind it (fifth audit, 29 Aug) — so the first thing every reconnecting
+  /// client did was a sort with no index.
+  @@index([updatedAt])
 }
 
 model ConversationMember {
@@ -366,6 +371,15 @@ model Message {
   text             String?
   messageType      MessageType @default(TEXT)
   replyToMessageId String?
+  /// THE SENDER'S OWN ID FOR THIS SEND, AND THE REASON A RETRY IS NOT A SECOND
+  /// MESSAGE. The DTO has documented `clientId` as "optimistic UI /
+  /// idempotency" since it was written, and nothing ever stored it: the
+  /// gateway echoed it back in the ack and `send()` never saw it. So a POST
+  /// that timed out after the write, or a socket re-sending on reconnect,
+  /// wrote the row twice — and the person who had said one thing had said it
+  /// twice, to a stranger. Nullable, because most sends do not carry one and a
+  /// unique index over NULLs in Postgres does not collide.
+  clientId         String?
   shareJson        String? // a shared hub item (flight/product/property/…) rendered as a rich card
   edited           Boolean     @default(false)
   deleted          Boolean     @default(false) // "delete for everyone" (soft delete — row kept)
@@ -403,10 +417,22 @@ model Message {
   attachments  Attachment[]
   statuses     MessageStatus[]
 
+  /// SEARCH HAS A TRIGRAM INDEX THAT IS NOT DECLARED HERE, and this note is
+  /// the pointer to it. `Message.text` carries a `gin_trgm_ops` GIN index
+  /// created in 20260829T160000_an_address_we_stop_writing_to — as raw SQL,
+  /// inside a DO block that swallows a refused `CREATE EXTENSION`, because a
+  /// managed Postgres role may not be allowed to install pg_trgm and a
+  /// migration that raises there takes the whole deploy down for a performance
+  /// index. Prisma cannot express "index if the extension exists", so the
+  /// index lives in the migration and this comment lives here.
   @@index([conversationId, createdAt]) // cursor pagination + ordering
   @@index([conversationId, pinnedAt]) // "what is pinned in this room" — one row
   @@index([senderId])
   @@index([createdAt])
+  /// Scoped to the SENDER, not global: a client id is generated on a device
+  /// and two devices can pick the same string. What must never happen twice is
+  /// the same person sending the same one.
+  @@unique([senderId, clientId])
 }
 
 model MessageStatus {
@@ -2269,6 +2295,18 @@ model MailMessage {
   owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
   @@index([ownerId, folder, createdAt])
+  /// EVERY THREAD OPERATION FILTERS ON THIS PAIR and nothing was behind it
+  /// (fifth audit, 29 Aug): resolveThreadId, thread(), fileThread,
+  /// fileWholeThread, threadProject, threadAttachments, attachmentUrl and
+  /// resolveInboundThread all scan `(ownerId, threadId)`. That is the hot path
+  /// of every message opened and every mail that arrives, degrading to a scan
+  /// of the whole mailbox as the mailbox grows.
+  @@index([ownerId, threadId])
+  /// Inbound dedupe: the provider retries, and this is what recognises a
+  /// message already filed.
+  @@index([ownerId, providerMessageId])
+  /// account() counts starred on every load.
+  @@index([ownerId, starred])
   @@index([ownerId, projectId, folder, createdAt])
 }
 
@@ -2329,6 +2367,36 @@ model EmailDelivery {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+  /// The delivery webhook arrives knowing only the provider's id for the
+  /// message. Without this, every bounce and every complaint is a full scan.
+  @@index([providerMessageId])
+}
+
+/// AN ADDRESS THIS CITY HAS BEEN TOLD TO STOP WRITING TO (fifth audit, 29 Aug).
+///
+/// There was no such list, and `EmailDelivery.status` was written on create and
+/// never updated — only `.create`, `.count` and `.findMany` exist against that
+/// table anywhere in the tree — so every Resend send sat at `queued` for ever.
+/// A hard bounce was re-sent on the next resend and the one after that, and a
+/// spam complaint suppressed nothing at all. Both are how a sending domain is
+/// lost, and this one carries every OTP the city sends: the mail hub's own spec
+/// names the consequence, "a burnt sender reputation locks everybody out of
+/// their own accounts".
+///
+/// GLOBAL, NOT PER-SENDER, because what it records is a fact about the ADDRESS
+/// — it does not exist, or the person behind it asked us to stop — and not
+/// about who happened to write to it.
+model SuppressedAddress {
+  /// Lowercased. The address is the identity here, so it is the key.
+  address   String   @id
+  /// hard-bounce | complaint | unsubscribed. What may still be sent depends on
+  /// which — see SUPPRESSION in mail.service.ts.
+  reason    String
+  /// The provider's own words, when it gave any. For a human reading the table.
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([reason, createdAt])
 }
 
 model PasswordReset {

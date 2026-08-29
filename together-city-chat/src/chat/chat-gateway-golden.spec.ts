@@ -33,6 +33,9 @@ function build() {
     // a backlog nobody delivers is a message stuck on one tick — see
     // a-message-gets-delivered.spec.ts, which owns those assertions.
     conversationIdsFor: async (...a: unknown[]) => { calls.push('rooms-for:' + JSON.stringify(a)); return ['c1']; },
+    endedDatingIds: async (...a: unknown[]) => { calls.push('ended-matches:' + JSON.stringify(a)); return new Set<string>(); },
+    membersOf: async () => new Map<string, string[]>(),
+    directIds: async () => new Set<string>(),
     deliverBacklog: async (...a: unknown[]) => { calls.push('backlog-delivered:' + JSON.stringify(a)); return 1; },
     send: async () => ({ id: 'm1' }),
     markDelivered: async (...a: unknown[]) => calls.push('delivered:' + JSON.stringify(a)),

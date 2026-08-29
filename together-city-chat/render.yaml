@@ -29,6 +29,18 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      # ── REFUSE TO START RATHER THAN START BROKEN ────────────────────────
+      # NOTE: this file is the Render fallback and deploys nowhere today — the
+      # live API is on Railway. The same variable is in the runbook's
+      # environment reference, which is what a real deploy is read from.
+      # assertProductionConfig() collects every missing production variable
+      # and, without this, prints them as a banner and boots anyway. That is
+      # how a deploy came up GREEN — health check and all — with the email
+      # provider on its logging stub, so every verification code, recovery
+      # code and receipt was written to stdout and nothing arrived. Set, the
+      # same banner is a refusal, which is the only version anybody reads.
+      - key: STRICT_PROD_CONFIG
+        value: "true"
       - key: PORT
         value: "4000"
       - key: CORS_ORIGIN
@@ -50,6 +62,30 @@ services:
         value: "900"
       - key: JWT_REFRESH_TTL
         value: "1209600"
+      # Refused at boot when unset — see the runbook's note about the three
+      # variables that stop a deploy rather than degrade. It has never been in
+      # this blueprint, so a Render deploy from this file could not come up
+      # even with every secret filled (found by re-audit, 29 Aug).
+      - key: PHOTO_MODERATION
+        value: rekognition
+      - key: REKOGNITION_REGION
+        sync: false
+      - key: REKOGNITION_ACCESS_KEY_ID
+        sync: false
+      - key: REKOGNITION_SECRET_ACCESS_KEY
+        sync: false
+      # ── PUSH ────────────────────────────────────────────────────────────
+      # Web push is the whole of push on this deployment; FCM below is for a
+      # native app that does not exist yet. Unset, WebPushProvider disables
+      # itself and every notification is delivered to nobody, silently —
+      # assertProductionConfig() now says so at boot.
+      # Generate a pair with: npx web-push generate-vapid-keys
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        value: mailto:connect@togethercity.app
       - key: FCM_ENABLED
         value: "false"
       # ── OBJECT STORAGE ──────────────────────────────────────────────────
@@ -65,6 +101,17 @@ services:
       # feature is off rather than open.
       - key: RESEND_INBOUND_SECRET
         sync: false
+      # ── OUTBOUND MAIL ───────────────────────────────────────────────────
+      # Unset, createMessagingProvider() falls through to StubMessagingProvider,
+      # which does no network I/O and reports `status: 'sent'`. Nothing is
+      # delivered and nothing is wrong-looking. These three are what make the
+      # difference, and they were absent from this file entirely until 29 Aug.
+      - key: EMAIL_PROVIDER
+        value: resend
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false                   # e.g. "Together City <hello@togethercity.app>"
       - key: MEDIA_PROVIDER
         value: r2
       - key: MEDIA_BUCKET

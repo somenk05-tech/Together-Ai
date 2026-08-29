@@ -57,6 +57,14 @@ const ALLOW: Array<{ id: string; why: string }> = [
       + 'will ever ask for it.',
   },
   {
+    id: 'mail/mail-inbound.controller.ts  POST /mail/unsubscribe',
+    why: 'One-click unsubscribe. Its caller is a MAIL CLIENT, pressing the '
+      + 'List-Unsubscribe-Post header on a message we sent — with nobody signed '
+      + 'in and no page open. A browser reaching this would mean somebody had '
+      + 'pasted the link out of a header by hand. Added 29 Aug with the '
+      + 'suppression list.',
+  },
+  {
     id: 'dating/dating.controller.ts  GET /dating/photo/*',
     why: 'CALLED, and never as a string in this repository: the browser fetches it '
       + 'as an <img> src from a URL this API minted. storage.provider.datingPhotoUrl '

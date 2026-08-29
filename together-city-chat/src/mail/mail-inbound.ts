@@ -5,7 +5,7 @@
  * reason messaging-provider's checks live beside their own spec). MailService
  * and the inbound webhook both import from here.
  */
-import { timingSafeEqual } from 'crypto';
+import { createHmac, timingSafeEqual } from 'crypto';
 
 /**
  * Build an RFC 5322 From header from a citizen's display name + city address, so
@@ -20,6 +20,54 @@ export function cityFromHeader(name: string, addr: string): string {
   const needsQuote = /["(),.:;<>@[\]\\]/.test(clean);
   const display = needsQuote ? `"${clean.replace(/(["\\])/g, '\\$1')}"` : clean;
   return `${display} <${addr}>`;
+}
+
+/**
+ * ── THE ONE-CLICK UNSUBSCRIBE TOKEN, MINTED AND READ HERE ──────────────────
+ *
+ * Prisma-free like the rest of this file, because two things need it: the
+ * service that puts the link in a header, and the GUARD that authenticates the
+ * request when a mail client presses it. `route-exposure.spec.ts` is why it is
+ * a guard — "a public mutation must NAME the mechanism that guards it, and
+ * that mechanism must be a real guard on the route, where the inventory, and a
+ * reviewer skimming the controller, can see it".
+ *
+ * An HMAC over the address and an expiry, so the endpoint needs no session and
+ * no database read to know the link is ours — which is the point of
+ * List-Unsubscribe-Post: the client presses it with nobody signed in.
+ *
+ * THE EXPIRY COMES FIRST and the address is everything after the first dot.
+ * An email address contains dots, so `address.expiry` cannot be split back
+ * apart: `reader@example.com.123` reads as an address of `reader@example`
+ * expiring at `com`.
+ *
+ * Domain-separated from every other use of the signing secret, so a token
+ * minted here can never be presented anywhere else.
+ */
+export function unsubscribeToken(address: string, expiresAt: number): string {
+  const payload = `${expiresAt}.${address.trim().toLowerCase()}`;
+  const mac = createHmac('sha256', `together-city/unsubscribe/${process.env.JWT_ACCESS_SECRET ?? ''}`)
+    .update(payload).digest('base64url');
+  return `${Buffer.from(payload).toString('base64url')}.${mac}`;
+}
+
+/** The address a token names, or null for anything that is not one of ours.
+ *  Null for every failure and never a reason: this endpoint takes an address,
+ *  and a talkative refusal is a way to ask whether one is on our list. */
+export function addressFromUnsubscribeToken(token: string): string | null {
+  const [body, mac] = String(token ?? '').split('.');
+  if (!body || !mac) return null;
+  const payload = Buffer.from(body, 'base64url').toString('utf8');
+  const cut = payload.indexOf('.');
+  if (cut < 0) return null;
+  const expiresAt = Number(payload.slice(0, cut));
+  const address = payload.slice(cut + 1);
+  if (!address || !Number.isFinite(expiresAt) || expiresAt < Date.now()) return null;
+  const expected = unsubscribeToken(address, expiresAt);
+  const a = Buffer.from(token);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+  return address;
 }
 
 /** Constant-time string compare for the inbound webhook secret. */
@@ -90,6 +138,122 @@ export interface InboundMail {
    * it can recognise.
    */
   inReplyTo: string[];
+  /**
+   * DID THE SENDER PROVE THEY ARE THE SENDER? (fifth audit, 29 Aug.)
+   *
+   * `ingestInbound` refused a city `From` and checked nothing else. The guard
+   * on the route authenticates the PROVIDER, not the MESSAGE — so any host on
+   * the internet could put `From: <a correspondent's address>` on a mail with
+   * a matching subject and have it spliced into that live thread by the
+   * subject heuristic, inheriting its filing and its history.
+   *
+   * `true` only when a verdict was found and it passed; `false` when a verdict
+   * was found and it failed; `null` when the provider told us nothing, which
+   * is a different thing from a failure and is treated as one below rather
+   * than as either extreme.
+   */
+  authenticated: boolean | null;
+}
+
+/**
+ * Read the sender verdict out of whatever the provider gave us.
+ *
+ * `Authentication-Results` is where the protocol puts it and it is what the
+ * receiving MTA — Resend, in our case — writes after it has checked. The
+ * per-field shapes (`dmarc: 'pass'`, `spf: { status }`) are accepted too,
+ * because providers differ and a verdict we can read is worth more than a
+ * verdict in the shape we expected.
+ *
+ * DMARC IS THE ONE THAT DECIDES, when it is there: it is the check that ties
+ * the visible From to the thing that passed, which is the only question being
+ * asked here. SPF alone passes for a forwarded message whose From is forged.
+ */
+export function senderVerdict(d: Record<string, unknown>, headers: Record<string, unknown>): boolean | null {
+  const say = (v: unknown): string => {
+    if (typeof v === 'string') return v.toLowerCase();
+    if (v && typeof v === 'object') {
+      const o = v as Record<string, unknown>;
+      const x = o.status ?? o.result ?? o.verdict;
+      return typeof x === 'string' ? x.toLowerCase() : '';
+    }
+    return '';
+  };
+  for (const key of ['dmarc', 'dkim', 'spf']) {
+    const v = say(d[key]);
+    if (v === 'pass') return true;
+    if (v === 'fail' || v === 'softfail' || v === 'permerror') return false;
+  }
+  const k = Object.keys(headers).find((x) => x.toLowerCase() === 'authentication-results');
+  const line = k === undefined ? '' : String(headers[k] ?? '').toLowerCase();
+  if (!line) return null;
+  if (/\bdmarc=pass\b/.test(line)) return true;
+  if (/\bdmarc=(fail|permerror|temperror)\b/.test(line)) return false;
+  if (/\bdkim=pass\b/.test(line)) return true;
+  if (/\bdkim=fail\b/.test(line) || /\bspf=fail\b/.test(line)) return false;
+  return null;
+}
+
+/**
+ * WHAT THE PROVIDER TELLS US AFTER IT HAS TRIED (fifth audit, 29 Aug).
+ *
+ * The webhook handled `email.received` and nothing else, so every other event
+ * Resend sends — delivered, bounced, complained, delayed — arrived at a handler
+ * that could make nothing of it and answered 200. `EmailDelivery.status` was
+ * therefore written once, at create, and never again: every send in the table
+ * says `queued` for ever, a hard bounce is re-sent on the next resend, and a
+ * spam complaint suppresses nothing.
+ *
+ * `email_id` is the join. It is the id `ResendEmailProvider.send` already
+ * returns and `EmailDelivery.providerMessageId` already stores.
+ */
+export type DeliveryEventType = 'delivered' | 'bounced' | 'complained' | 'delayed';
+
+export interface DeliveryEvent {
+  type: DeliveryEventType;
+  /** The provider's id for the message this is about. */
+  emailId: string;
+  /** Who it was to, when the payload says. Lowercased. */
+  address: string;
+  /**
+   * PERMANENT means the address does not exist and never will — that is the
+   * one that must never be written to again. A soft bounce is a full mailbox
+   * or a greylist and says nothing about the address, so it is recorded and
+   * not suppressed. Resend reports the distinction as `bounce.type`.
+   */
+  permanent: boolean;
+  /** The provider's own words, for a human reading the table later. */
+  detail?: string;
+}
+
+const EVENT_TYPES: Record<string, DeliveryEventType> = {
+  'email.delivered': 'delivered',
+  'email.bounced': 'bounced',
+  'email.complained': 'complained',
+  'email.delivery_delayed': 'delayed',
+};
+
+export function normalizeDeliveryEvent(payload: unknown): DeliveryEvent | null {
+  if (!payload || typeof payload !== 'object') return null;
+  const root = payload as Record<string, unknown>;
+  const type = EVENT_TYPES[String(root.type ?? '')];
+  if (!type) return null;
+  const d = (root.data && typeof root.data === 'object' ? root.data : {}) as Record<string, unknown>;
+  const emailId = String(d.email_id ?? d.emailId ?? d.id ?? '');
+  if (!emailId) return null;
+  const bounce = (d.bounce && typeof d.bounce === 'object' ? d.bounce : {}) as Record<string, unknown>;
+  const subType = String(bounce.type ?? d.bounce_type ?? '').toLowerCase();
+  return {
+    type,
+    emailId,
+    address: toAddrList(d.to)[0] ?? '',
+    /* Permanent unless the provider says otherwise. A bounce whose type we
+       cannot read is treated as the address being gone, because the cost of
+       suppressing a live address is one person who has to ask us to send
+       again, and the cost of the other mistake is the domain. */
+    permanent: type === 'bounced' ? subType !== 'transient' && subType !== 'soft' : false,
+    detail: typeof bounce.message === 'string' ? bounce.message
+      : typeof d.reason === 'string' ? d.reason : undefined,
+  };
 }
 
 /**
@@ -132,5 +296,6 @@ export function normalizeInbound(payload: unknown): InboundMail | null {
     emailId: typeof d.email_id === 'string' ? d.email_id
       : typeof d.emailId === 'string' ? d.emailId : undefined,
     inReplyTo,
+    authenticated: senderVerdict(d, headers),
   };
 }

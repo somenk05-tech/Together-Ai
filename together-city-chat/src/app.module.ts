@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { AccountThrottlerGuard } from './shared/account-throttler.guard';
 import { RedisService } from './shared/redis/redis.service';
 import { RedisThrottlerStorage } from './shared/redis/throttler-redis.storage';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
@@ -122,12 +123,28 @@ import { QueueModule } from './shared/queue/queue.module';
     AvatarsModule,
   ],
   providers: [
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
     // Authentication is the default for the whole API. Previously JwtAuthGuard
     // was declared per controller, so a controller that forgot it was silently
     // public — the wrong way round for a guard. Routes that genuinely need to
     // be reachable without a token carry @Public().
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    /* AND THE THROTTLER RUNS AFTER IT, WHICH IS THE POINT OF THE ORDER.
+       Every limit in this app was counted per IP address: one bucket for a
+       whole NAT — an office, a campus, an Indian mobile carrier — and no
+       bucket at all for anybody with a proxy pool, which is exactly who the
+       report, like and upload ceilings were written for. Keying on the account
+       needs the account, and `req.user` is what JwtAuthGuard attaches, so this
+       has to be declared second: Nest runs APP_GUARDs in declaration order.
+
+       THE PRICE, STATED: a request to a protected route with a bad token now
+       gets its 401 from JwtAuthGuard before any counter moves, so an
+       unauthenticated flood at a protected path is bounded by the JWT verify
+       and one indexed read rather than by a limit. The public routes that an
+       unauthenticated flood actually targets — login, register, forgot,
+       webhooks — carry @Public(), pass through with no `user`, and keep the
+       per-address counting the tracker falls back to. See
+       account-throttler.guard.ts. */
+    { provide: APP_GUARD, useClass: AccountThrottlerGuard },
     // No authenticated response is ever cacheable by a browser, proxy or CDN.
     { provide: APP_INTERCEPTOR, useClass: NoStoreInterceptor },
     { provide: APP_INTERCEPTOR, useClass: DeprecationInterceptor },

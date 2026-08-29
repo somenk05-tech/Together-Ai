@@ -297,8 +297,8 @@ const REVIEWED_UNSCOPED = [
 ].sort();
 
 /**
- * Queries that deliberately span every citizen because they ARE the background
- * job — a dispatcher looking for alarms now due, a nightly sweep topping up
+ * Queries that deliberately span every citizen because there IS no citizen
+ * asking — a dispatcher looking for alarms now due, a nightly sweep topping up
  * reminders. There is no "current user" in a cron; the whole point is that it
  * runs for everybody while nobody is asking.
  *
@@ -306,8 +306,24 @@ const REVIEWED_UNSCOPED = [
  * size limit, because the two need different scrutiny. A user-path query
  * missing its owner filter is a bug waiting to be found. A cron query with one
  * would simply not work. What matters here instead is that each of these is
- * genuinely reachable only from a scheduled job, and that anything it then
- * writes is addressed by an id it just read rather than one a request supplied.
+ * genuinely unreachable from a citizen's request, and that anything it writes
+ * is addressed by an id it just read rather than one a citizen supplied.
+ *
+ * ── AND PROVIDER CALLBACKS, WHICH ARE THE SAME SHAPE (widened 29 Aug) ──────
+ *
+ * A delivery webhook is not a cron and not a citizen's request: a mail
+ * provider posts it, authenticated as the provider by InboundSecretGuard, and
+ * the only identifier it carries is the provider's own id for a message we
+ * sent. There is no session and no current user to scope by, and the citizen
+ * the row belongs to is a fact the handler LEARNS from the row rather than one
+ * it could have filtered on.
+ *
+ * The widening is deliberately narrow, and the two conditions are what make it
+ * safe rather than convenient: the route must be authenticated as the provider
+ * rather than as anybody, and the id it acts on must be one WE minted and
+ * handed to that provider — not a string a citizen could choose. A callback
+ * that acted on a caller-supplied citizen id would belong in the list above,
+ * against its ceiling, where it would have to argue for itself.
  */
 const BACKGROUND_JOB_QUERIES = [
   // dueReminders() — every alarm now due, across all citizens. The dispatcher.
@@ -322,6 +338,17 @@ const BACKGROUND_JOB_QUERIES = [
   'prescriptions/prescriptions.service.ts  MedicineSchedule.findUnique x1',
   // markMissed() — checks whether a dose already has a log before writing one.
   'prescriptions/prescriptions.service.ts  DoseLog.findUnique x1',
+  // redactOldDeliveryBodies() — the nightly sweep blanking the stored body of
+  // every delivery record older than ninety days. Spans citizens because a
+  // retention rule is about AGE and not about anybody: scoping it to a user
+  // would be scoping it to nobody, since no user is asking. It reads nothing
+  // and writes one column to empty.
+  'tasks/retention.service.ts  EmailDelivery.updateMany x1',
+  // ingestDeliveryEvent() — the mail provider telling us what became of one
+  // message. Keyed on `providerMessageId`, which is Resend's id for a send we
+  // made; it writes one column, `status`, and returns a count. See the
+  // paragraph above about provider callbacks.
+  'mail/mail.service.ts  EmailDelivery.updateMany x1',
 ].sort();
 
 const ALL_REVIEWED = [...REVIEWED_UNSCOPED, ...BACKGROUND_JOB_QUERIES].sort();

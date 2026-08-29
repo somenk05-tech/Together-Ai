@@ -56,6 +56,11 @@ describe('normalizeInbound — a reply is parsed to route to the right citizen',
       // parsed now; see a-reply-names-its-own-thread.spec.ts for the shapes
       // that fill them.
       inReplyTo: [],
+      // NULL, NOT FALSE: this payload carries no verdict at all, and "the
+      // provider said nothing" is a different fact from "the provider said no".
+      // What they have in common is that neither is proof, which is why the
+      // subject heuristic refuses both — see a-reply-names-its-own-thread.
+      authenticated: null,
     });
   });
   it('parses a bare email object with an object from', () => {

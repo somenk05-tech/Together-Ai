@@ -45,10 +45,42 @@ export const ShareCardSchema = z.object({
   hub: z.string().max(40).nullish(),
   title: z.string().min(1).max(200),
   subtitle: z.string().max(300).nullish(),
-  image: z.string().max(200000).nullish(),
+  /**
+   * A LINK TO A PICTURE, NEVER THE PICTURE ITSELF (fifth audit, 29 Aug).
+   *
+   * `z.string().max(200000)` accepted 200 KB of anything, and `send()` never
+   * looked at this field: `assertAttachmentsAreYoursToSend` and
+   * `screenAttachments` both run on `attachments` alone. So a share card was
+   * the way to put an unowned, unsniffed, unscreened `data:image/...;base64,`
+   * payload in front of a stranger — through the one field the media guard
+   * does not read — and the recipient's client renders it eagerly as an
+   * `<img src>`. Every real caller in the web app sends a URL here
+   * (`m.posterUrl`, `images[0].url`, `master.imageUrl`); nothing legitimate
+   * needed the other 199,950 characters.
+   *
+   * https or a same-origin path, and nothing else: `data:` carries a payload,
+   * `http:` and `javascript:` carry the two other things a src can do. The
+   * conversation-level rule — a chat between strangers takes no picture from
+   * outside the city at all — is in `messages.service.ts`, because it needs to
+   * know which conversation this is going to.
+   */
+  image: z.string().max(2048).regex(/^(https:\/\/|\/)/, 'A card picture must be an https link or an app path.').nullish(),
   priceInr: z.number().finite().nullish(),
   meta: z.array(z.string().max(80)).max(8).nullish(),
-  deepLink: z.string().max(4000).nullish(), // may carry a self-contained shared-meal token
+  /**
+   * WHERE THE CARD GOES WHEN IT IS TAPPED — an app path, and only an app path.
+   *
+   * `z.string().max(4000)` with no scheme check, on a field the client renders
+   * as `<Link to={card.deepLink}>` inside a message thread (re-audit, 29 Aug).
+   * `//evil.example/x` is a protocol-relative href: one tap on a card a
+   * stranger sent and the browser leaves the city, carrying the referer. It is
+   * the sibling of `image` above and it was hardened a day late.
+   *
+   * A leading `/` and no second one. `javascript:` was already neutralised by
+   * React Router's path resolution; this closes the redirect and the beacon.
+   * May carry a self-contained shared-meal token in its query string.
+   */
+  deepLink: z.string().max(4000).regex(/^\/(?!\/)/, 'A card link must be a path inside the app.').nullish(),
   // Line items of a composite card (e.g. every dish in a shared meal), so the
   // recipient sees the WHOLE card, not just its headline.
   items: z.array(z.string().max(120)).max(16).nullish(),

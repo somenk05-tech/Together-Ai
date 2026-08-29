@@ -31,6 +31,13 @@ export type ChatEvent =
    *  two of them share, so typing, presence and receipts stop at the block
    *  rather than at their next reconnection. */
   | { kind: 'connection.blocked'; userIds: [string, string] }
+  /** A match ended. The block event above empties the rooms two people share
+   *  because a block must stop contact; an unmatch must stop it too, and did
+   *  not — sending was refused and typing, presence and read receipts carried
+   *  on, because all three are gated by the ROOM and the room list was only
+   *  rebuilt on connect. The conversation is named, because unlike a block an
+   *  unmatch is about exactly one of them. */
+  | { kind: 'connection.unmatched'; userIds: [string, string]; conversationId: string }
   // Calls. The gateway fans these to per-user rooms rather than the
   // conversation room: a call has to reach someone who is not looking at the
   // chat, which is the entire point of a phone ringing.

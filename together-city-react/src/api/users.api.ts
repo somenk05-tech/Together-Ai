@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { useQuery } from '@tanstack/react-query';
-import { apiGet, apiPost } from './http';
+import { apiGet } from './http';
 import { UserSchema, type User } from './schemas';
 
 export const RelationshipSchema = z.enum(['none', 'pending_out', 'pending_in', 'accepted', 'blocked']);
@@ -30,8 +30,6 @@ export const usersApi = {
   /** Find one citizen by their EXACT @handle. No directory — you must know the handle. */
   lookup: (handle: string): Promise<LookupResult> =>
     apiGet('/users/lookup', LookupSchema, { params: { handle } }),
-  registerDevice: (token: string, platform: string): Promise<void> =>
-    apiPost('/users/device-token', { token, platform }, z.void()),
 };
 
 export function useMe(enabled = true) {

@@ -1,6 +1,8 @@
-import { Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Public } from '../shared/public.decorator';
 import { InboundSecretGuard } from './inbound-secret.guard';
+import { UnsubscribeTokenGuard, type UnsubscribeRequest } from './unsubscribe-token.guard';
 import { MailService } from './mail.service';
 
 /**
@@ -28,11 +30,46 @@ import { MailService } from './mail.service';
 export class MailInboundController {
   constructor(private readonly mail: MailService) {}
 
+  /**
+   * OUT OF THE GLOBAL BUCKET, and the reason is the shape of webhook traffic
+   * rather than its volume (fifth audit, 29 Aug).
+   *
+   * This route carried no throttle of its own, so it fell under the app-wide
+   * 120 a minute — which is counted per caller. Every event a provider sends
+   * arrives from a handful of its own addresses, so at any real volume the
+   * city would start 429ing its own inbound mail and its own bounce
+   * notifications: exactly the messages that must not be dropped, refused for
+   * arriving too fast from the one source they can only arrive from.
+   *
+   * Authentication is unchanged and is what actually protects this route —
+   * InboundSecretGuard, a constant-time shared secret, fail-closed in every
+   * environment. A rate limit was never the control here.
+   */
   @Public()
+  @SkipThrottle()
   @UseGuards(InboundSecretGuard)
   @Post('inbound')
   @HttpCode(200)
   inbound(@Body() payload: unknown) {
     return this.mail.ingestInbound(payload);
+  }
+
+  /**
+   * One-click unsubscribe, as List-Unsubscribe-Post requires.
+   *
+   * PUBLIC AND UNAUTHENTICATED BY DESIGN: the mail client presses this by
+   * itself, with nobody signed in, which is the whole point of the header. The
+   * token is an HMAC over the address and an expiry, so the link proves itself
+   * — see MailService.unsubscribe, which also explains why a bad one gets a
+   * flat `{ ok: false }` and not a description of what was wrong.
+   *
+   * Throttled, unlike the webhook above: this one is reachable by anybody.
+   */
+  @Public()
+  @UseGuards(UnsubscribeTokenGuard)
+  @Post('unsubscribe')
+  @HttpCode(200)
+  unsubscribe(@Req() req: UnsubscribeRequest) {
+    return this.mail.unsubscribe(req.unsubscribeAddress ?? '');
   }
 }

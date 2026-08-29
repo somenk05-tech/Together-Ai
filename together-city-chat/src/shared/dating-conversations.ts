@@ -43,6 +43,35 @@ export async function datingConversationIds(prisma: PrismaService, userId: strin
   return out;
 }
 
+/**
+ * Of these conversations, the dating ones whose match is OVER.
+ *
+ * The socket layer's room list is what typing, presence and read receipts are
+ * gated by, and `unmatch` left both people in it: the live event below empties
+ * the room at the moment it happens, and this is the half that survives a
+ * reconnection, when the list is built again from scratch.
+ *
+ * Anything but `matched` counts — passed, rejected, whatever a later status is
+ * called — because the question this answers is "may these two still see each
+ * other in real time", and only one answer to it is yes.
+ */
+export async function endedDatingConversationIds(
+  prisma: PrismaService,
+  conversationIds: string[],
+): Promise<Set<string>> {
+  if (!conversationIds.length) return new Set();
+  // unbounded: `in:` a room list that `conversationIdsFor` has already capped
+  const rows = await datingMatch(prisma)
+    .findMany({
+      where: { conversationId: { in: conversationIds }, NOT: { status: 'matched' } },
+      select: { conversationId: true },
+    })
+    .catch(swallowed('shared.endedDatingConversationIds', [] as MatchRow[]));
+  const out = new Set<string>();
+  for (const r of rows) if (r.conversationId) out.add(r.conversationId);
+  return out;
+}
+
 export interface DatingContext {
   /** Does this conversation belong to the Dating Hub at all? */
   dating: boolean;

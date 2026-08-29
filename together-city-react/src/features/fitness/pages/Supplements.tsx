@@ -215,10 +215,108 @@ function Card({ r, shelf }: { r: Recommendation; shelf?: React.ReactNode }) {
   );
 }
 
+/**
+ * THE GATE — what this page is before a blood test, which is nothing.
+ *
+ * Owner's call, 29 Aug: the supplement guide is directed by blood work only.
+ * What stood here before was a full plan for an account one minute old —
+ * vitamin D in Worth considering, psyllium and omega-3 under Supporting your
+ * goal, a "Personal fit 20/100" on a card whose only reason was a statistic
+ * about India, and a shelf of bottles under each. Every word of it was true
+ * and none of it was about the reader, which is the failure mode a
+ * personalised page is supposed to be incapable of. A new citizen learned
+ * that this city hands out supplement answers without a test — the exact
+ * lesson the iron rule exists to unteach.
+ *
+ * SO THE REFUSALS GO TOO, and that is the expensive half of the decision.
+ * "We don't recommend these" is the best material on the page and it is now
+ * behind the gate with everything else, because a refusal is only worth
+ * reading once the page has earned the right to have an opinion about you.
+ *
+ * WHAT IS LEFT IS THE ONE HONEST THING: the markers a result would settle,
+ * named before the result exists, and a door to the test. The store stays
+ * open — browsing a shelf is not the same act as being advised off it — and
+ * it draws no badges until a panel arrives.
+ */
+function Gate({ watching, bloodWork, source }: {
+  watching: Array<{ from: string; text: string; source?: string | null }>;
+  bloodWork: { takenOn: string | null; granted: boolean } | null;
+  source?: { title: string; reviewed?: string; assessed?: number; note?: string };
+}) {
+  /* TWO DIFFERENT SILENCES, AND THE CITIZEN IS OWED THE DIFFERENCE. No panel
+     at all is a thing to go and do. A panel on file that carries none of the
+     seven markers this engine has a cited rule for is a thing the city has to
+     admit, rather than leave them refreshing a page that will never fill. */
+  const onFile = Boolean(bloodWork);
+  return (
+    <>
+      <section className="card rise" style={{ padding: '22px 24px', marginBottom: 18 }}>
+        <span className="eyebrow">Blood work</span>
+        <h2 style={{ fontSize: 22, margin: '6px 0 0' }}>
+          {onFile ? 'Your test doesn’t carry the markers this reads' : 'This plan starts with a blood test'}
+        </h2>
+        <p style={{ fontSize: 14.5, lineHeight: 1.65, margin: '10px 0 0', maxWidth: '62ch' }}>
+          {onFile ? (
+            <>
+              We can see a panel from {bloodWork?.takenOn ?? 'your medical hub'}, and none of the seven
+              results this plan is allowed to reason from are on it. Rather than fall back to what is
+              generally true of Indian adults, this page waits — a base rate is a fact about the
+              country, not a finding about you.
+            </>
+          ) : (
+            <>
+              There is nothing here yet, on purpose. Without your blood work this page could only tell
+              you what is generally true of Indian adults, dressed as advice — and the one thing a
+              supplement screen must never teach is that these answers arrive without a test.
+            </>
+          )}
+        </p>
+
+        {watching.length > 0 && (
+          <>
+            <span className="eyebrow" style={{ display: 'block', marginTop: 18 }}>What a test would settle</span>
+            <ul style={{ listStyle: 'none', margin: '6px 0 0', padding: 0 }}>
+              {watching.map((w, i) => <Why key={i} from={w.from} text={w.text} source={w.source ?? undefined} />)}
+            </ul>
+          </>
+        )}
+
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginTop: 18 }}>
+          <Link className="btn" to="/medical/blood">
+            {onFile ? 'Add a fuller panel' : 'Upload your blood test'}
+          </Link>
+          <Link className="btn btn-sm" to="/fitness/store">Browse the store instead</Link>
+        </div>
+        <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.6, margin: '12px 0 0' }}>
+          The store is open to everybody and carries every product’s evidence grade. It shows you no
+          personal badge until a panel arrives — an absent opinion is not approval.
+        </p>
+      </section>
+
+      {source && (
+        <Fold title="Where all of this came from" meta={`${source.assessed ?? 0} supplements assessed`}>
+          <p style={{ fontSize: 14, lineHeight: 1.6, margin: '10px 0 0' }}>
+            <b>{source.title}</b>{source.reviewed ? ` · reviewed ${source.reviewed}` : ''}
+          </p>
+          <p className="muted" style={{ fontSize: 13, lineHeight: 1.6, marginTop: 8 }}>
+            {source.note} Dietary supplements are not pre-approved for safety or effectiveness the way
+            medicines are. Nothing on this page is a dose, and nothing here is built until your own
+            results are.
+          </p>
+        </Fold>
+      )}
+    </>
+  );
+}
+
 export function Supplements() {
   const q = useSupplementPlan();
   const plan = q.data?.plan ?? [];
   const basis = q.data?.basis;
+  /* NO BLOOD WORK, NO PLAN. The server decides this and sends `gated`; the
+     `plan.length` half is not a second opinion but the same fact arriving on
+     an older API build, where an empty list is the only thing to go on. */
+  const gated = Boolean(q.data && (q.data.gated ?? plan.length === 0));
 
   /* THE SHELF, THE BAG AND THE TILL ARE THE STORE'S — read here, never
      re-derived. One catalogue, one bag, one total: a product added from this
@@ -262,17 +360,21 @@ export function Supplements() {
           <div className="eyebrow">Fitness · 07</div>
           <h1 style={{ fontSize: 'clamp(26px,3vw,42px)' }}>Your supplement plan</h1>
           <p className="lede" style={{ marginTop: 6 }}>
-            Built from your blood work, your diet, your medicines and your goal — and from an evidence
-            review, not a catalogue. About a third of it is what to stop buying.
+            Built from your blood work first — then your diet, your medicines and your goal, against an
+            evidence review rather than a catalogue. About a third of it is what to stop buying.
           </p>
           {/* WHAT YOU CAN BUY FROM HERE, AND WHAT YOU CANNOT — said before the
-              first Add rather than discovered at the fourth card. */}
-          <p style={{ marginTop: 10, fontSize: 13.5, lineHeight: 1.6 }}>
-            Everything this plan supports is buyable below, from your city wallet.
-            <span className="muted"> The ones it recommends against carry no price and no button
-              here — they are in <Link to="/fitness/store">the whole store</Link>, where the checkout
-              asks you to read the trial first.</span>
-          </p>
+              first Add rather than discovered at the fourth card. Not said at
+              all before there is a plan: a gate that advertises a shelf is a
+              shop with a waiting room. */}
+          {!gated && (
+            <p style={{ marginTop: 10, fontSize: 13.5, lineHeight: 1.6 }}>
+              Everything this plan supports is buyable below, from your city wallet.
+              <span className="muted"> The ones it recommends against carry no price and no button
+                here — they are in <Link to="/fitness/store">the whole store</Link>, where the checkout
+                asks you to read the trial first.</span>
+            </p>
+          )}
         </div>
       </div>
 
@@ -284,6 +386,8 @@ export function Supplements() {
           </p>
           <button type="button" className="btn btn-sm" onClick={() => void q.refetch()}>Try again</button>
         </section>
+      ) : gated ? (
+        <Gate watching={q.data?.watching ?? []} bloodWork={basis?.bloodWork ?? null} source={q.data?.source} />
       ) : (
         <>
           {/* WHAT THIS PLAN WAS BUILT FROM — first, and plainly. A plan made

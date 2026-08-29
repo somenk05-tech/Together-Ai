@@ -364,7 +364,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // 01-02-04 advertises the thing it is trying not to advertise.
       { path: '/fitness/workout', index: '03', label: 'Workout', sub: 'Guided live-timer plan' },
       { path: '/fitness/log', index: '04', label: 'Activity Log', sub: 'What you actually did' },
-      { path: '/fitness/supplements', index: '05', label: 'Supplements', sub: 'Goal-matched kit' },
+      { path: '/fitness/supplements', index: '05', label: 'Supplements', sub: 'Read from your blood work' },
       { path: '/fitness/sleep', index: '06', label: 'Sleep Cycle', sub: 'Duration, quality & schedule' },
       { path: '/fitness/store', index: '07', label: 'The Store', sub: 'Verified in India · we take no cut' },
       { path: '/fitness/orders', index: '08', label: 'My Orders', sub: 'Your bag & what you bought' },

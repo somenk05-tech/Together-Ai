@@ -7,10 +7,11 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { DeliveryStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../shared/prisma/prisma.service';
-import { datingConversationIds } from '../shared/dating-conversations';
+import { datingConversationIds, endedDatingConversationIds } from '../shared/dating-conversations';
 import { ConnectionPermissionService } from '../connections/connection-permission.service';
 import { ChatMediaGuard } from './chat-media-guard';
 import { ChatEventBus } from '../shared/events/chat-events';
+import { nickname } from '../shared/nickname';
 import {
   DeleteMessageDto,
   EditMessageDto,
@@ -53,23 +54,53 @@ export class MessagesService {
   async send(senderId: string, dto: SendMessageDto) {
     // 1) permission gate (403 if not connected / not a member)
     await this.permission.assertCanPostToConversation(senderId, dto.conversationId);
+    /* 1a) HAVE WE ALREADY DONE THIS ONE? (fifth audit, 29 Aug.)
+       `clientId` has been documented in the DTO as "optimistic UI / idempotency"
+       since it was written and was read in exactly one place — the socket ack
+       echoed it back — so nothing was idempotent: a POST retried after a
+       timeout, or a socket re-sending what it could not confirm had landed,
+       wrote a second row, and the person who said one thing had said it twice.
+       AFTER the gate, so a repeat still has to be allowed to post; BEFORE the
+       attachment work, because re-screening an image already screened is a
+       second Rekognition call for a decision we have made. */
+    if (dto.clientId) {
+      const already = await this.prisma.message.findUnique({
+        where: { senderId_clientId: { senderId, clientId: dto.clientId } },
+        include: messageInclude,
+      });
+      /* AND IT MUST BE THE SAME CONVERSATION (re-audit, 29 Aug). The unique
+         key is (sender, clientId), so a client that reuses an id across rooms
+         — a per-conversation sequence rather than a uuid — would have been
+         handed back the FIRST message, from the wrong room, with the second
+         send dropped silently: no row, no event, no error. Today's web app
+         uses `crypto.randomUUID()`, so this was latent rather than live; a
+         latent silent-message-loss is still one. A collision across rooms is
+         not idempotency, so it is refused rather than quietly answered. */
+      if (already && already.conversationId === dto.conversationId) return this.serialize(already);
+      if (already) {
+        throw new BadRequestException('That message id has already been used in another conversation.');
+      }
+    }
     // 1b) attachment gate — see assertAttachmentsAreYoursToSend below.
     if (dto.attachments?.length) await this.assertAttachmentsAreYoursToSend(senderId, dto.attachments);
     // 1c) and WHAT IS IN THEM, if this is a chat between strangers.
     if (dto.attachments?.length) await this.screenAttachments(senderId, dto.conversationId, dto.attachments);
+    // 1d) and the ONE PICTURE THAT IS NOT AN ATTACHMENT — see below.
+    const share = dto.share ? await this.shareForConversation(dto.conversationId, dto.share) : undefined;
 
     const recipientIds = await this.recipientIds(dto.conversationId, senderId);
 
     // 2) persist message + per-recipient SENT status + attachments atomically
     const text = dto.text ?? dto.body; // frontend sends `body`; DB column is `text`
-    const message = await this.prisma.message.create({
+    const args = {
       data: {
         conversationId: dto.conversationId,
         senderId,
+        clientId: dto.clientId,
         text,
         messageType: dto.messageType,
         replyToMessageId: dto.replyToMessageId,
-        shareJson: dto.share ? JSON.stringify(dto.share) : undefined,
+        shareJson: share ? JSON.stringify(share) : undefined,
         attachments: dto.attachments
           ? { create: dto.attachments.map((a) => ({ ...a })) }
           : undefined,
@@ -78,7 +109,27 @@ export class MessagesService {
         },
       },
       include: messageInclude,
-    });
+    };
+    let message;
+    try {
+      message = await this.prisma.message.create(args);
+    } catch (e) {
+      /* TWO IDENTICAL CLIENT IDS IN FLIGHT AT ONCE — the read above cannot see
+         a row that has not committed yet, so the unique index is what actually
+         decides, and the loser has to hand back the winner rather than an
+         error. Anything else and the retry that this whole field exists for
+         fails precisely when it was needed most. */
+      const won = dto.clientId
+        && e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002'
+        ? await this.prisma.message.findUnique({
+            where: { senderId_clientId: { senderId, clientId: dto.clientId } },
+            include: messageInclude,
+          })
+        : null;
+      // Same conversation only — see the pre-check above for why.
+      if (won && won.conversationId === dto.conversationId) return this.serialize(won);
+      throw e;
+    }
 
     // 3) touch conversation for ordering + emit realtime event
     await this.prisma.conversation.update({
@@ -493,6 +544,25 @@ export class MessagesService {
     return rows.map((r) => r.conversationId);
   }
 
+  /** Which of these conversations are one-to-one. The socket layer asks
+   *  because a block ends a DIRECT thread and does not empty a group. */
+  async directIds(conversationIds: string[]): Promise<Set<string>> {
+    if (!conversationIds.length) return new Set();
+    // unbounded: `in:` a room list conversationIdsFor has already capped
+    const rows = await this.prisma.conversation.findMany({
+      where: { id: { in: conversationIds }, type: 'DIRECT' },
+      select: { id: true },
+    });
+    return new Set(rows.map((r) => r.id));
+  }
+
+  /** Of these conversations, the dating ones whose match has ended. The socket
+   *  layer asks; the rule lives in shared/dating-conversations.ts with the rest
+   *  of what a dating conversation is. */
+  async endedDatingIds(conversationIds: string[]): Promise<Set<string>> {
+    return endedDatingConversationIds(this.prisma, conversationIds);
+  }
+
   /** Who is in each of these conversations. One query, because the socket layer
    *  asks about a whole room list at once. */
   async membersOf(conversationIds: string[]): Promise<Map<string, string[]>> {
@@ -569,12 +639,34 @@ export class MessagesService {
   async info(userId: string, messageId: string) {
     const msg = await this.prisma.message.findUnique({
       where: { id: messageId },
-      select: { id: true, senderId: true, createdAt: true },
+      select: {
+        id: true, senderId: true, createdAt: true,
+        // Read the room's anonymity with the row, not after it — see below.
+        conversation: { select: { type: true, anonymousTrust: true } },
+      },
     });
     if (!msg) throw new NotFoundException('Message not found');
     if (msg.senderId !== userId) {
       throw new ForbiddenException('Only the sender can see who has read a message.');
     }
+    /**
+     * AND IT DOES NOT HAND OVER THE CITY HANDLE EITHER (fifth audit, 29 Aug).
+     *
+     * `serialize` masks the sender block, `members()` masks the roster,
+     * `roster()` masks the list — three places that agree that below
+     * anonymousTrust 2 a dating chat carries an id and a name and nothing that
+     * reaches out of the Dating Hub. This method arrived later and knew about
+     * none of it: send one message, read its id off the response, ask who has
+     * seen it, and the answer named the other person's handle — the city's
+     * primary key for a person, their posts, their public face — undoing the
+     * reveal the whole hub is built around, in one GET.
+     *
+     * The masking is the same masking `members()` does, deliberately: a
+     * pseudonym for the name, null for the handle, and only for people who are
+     * not the caller.
+     */
+    const at = msg.conversation?.anonymousTrust;
+    const anonymous = msg.conversation?.type === 'DIRECT' && at != null && at < 2;
     // unbounded: one message's recipients — group-sized, and the group is the point
     const rows = await this.prisma.messageStatus.findMany({
       where: { messageId },
@@ -583,13 +675,16 @@ export class MessagesService {
     return {
       messageId: msg.id,
       sentAt: msg.createdAt.toISOString(),
-      recipients: rows.map((r) => ({
-        userId: r.userId,
-        name: r.user?.name ?? null,
-        handle: r.user?.handle ?? null,
-        status: r.status,
-        readAt: r.readAt ? r.readAt.toISOString() : null,
-      })),
+      recipients: rows.map((r) => {
+        const masked = anonymous && r.userId !== userId;
+        return {
+          userId: r.userId,
+          name: masked ? nickname(r.userId) : (r.user?.name ?? null),
+          handle: masked ? null : (r.user?.handle ?? null),
+          status: r.status,
+          readAt: r.readAt ? r.readAt.toISOString() : null,
+        };
+      }),
     };
   }
 
@@ -718,6 +813,50 @@ export class MessagesService {
         if (!verdict.ok) throw new BadRequestException(verdict.reason);
       }
     }
+  }
+
+  /**
+   * A CHAT BETWEEN STRANGERS TAKES NO PICTURE FROM OUTSIDE THE CITY.
+   *
+   * The DTO already refuses a `data:` payload in the share card's `image`, so
+   * what is left is a link — and a link is still two things in a dating chat.
+   * It is a viewer-IP harvester, which is the whole reason
+   * `assertAttachmentsAreYoursToSend` exists twenty lines below. And it is a
+   * picture nobody screened: an attacker hosts whatever they like on their own
+   * server, calls it a film poster, and the recipient's client fetches and
+   * renders it before anybody has looked.
+   *
+   * THE CARD TRAVELS AND THE PICTURE DOES NOT, rather than a 400 for the whole
+   * message. The share is the point — the film, the dish, the post, its title
+   * and its line of text all arrive — and the client already renders a card
+   * with no image, because `image` has always been nullable. Refusing the
+   * message instead would take a working feature away from the hub this rule
+   * exists to protect, to remove a photograph the recipient never asked for.
+   *
+   * ONLY dating conversations, which are the ones `anonymousTrust` marks — the
+   * same line `screenAttachments` draws, for the same reason: two people who
+   * accepted a connection are not two strangers a matching engine introduced.
+   */
+  private async shareForConversation(
+    conversationId: string,
+    share: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    if (!share.image) return share;
+    const convo = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { anonymousTrust: true },
+    });
+    /* BELOW THE REVEAL, NOT MERELY "SET" (re-audit, 29 Aug). The first
+       version fired on any non-null `anonymousTrust`, and every other
+       anonymity test in the tree draws the line at `< 2`: `serialize`,
+       `members()`, `roster()` and `info()` all do. Two things broke that this
+       rule was never about — a dating chat where BOTH people have revealed,
+       which is by definition no longer a chat between strangers, and the
+       real-estate enquiry thread, which opens at trust 2 and whose whole
+       purpose is sharing the property, photograph and all. */
+    const at = (convo as { anonymousTrust?: number | null } | null)?.anonymousTrust;
+    if (at == null || at >= 2) return share;
+    return { ...share, image: null };
   }
 
   private async assertAttachmentsAreYoursToSend(

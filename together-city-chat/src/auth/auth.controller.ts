@@ -142,7 +142,9 @@ export class AuthController {
   @Public()
   @Post('forgot')
   @UsePipes(new ZodValidationPipe(ForgotSchema))
-  forgot(@Body() dto: ForgotDto) {
+  async forgot(@Body() dto: ForgotDto, @Req() req: Request) {
+    // The same challenge register and login carry. See ForgotSchema.
+    await this.turnstile.assert(dto.turnstileToken, 'forgot', metaFrom(req).ip);
     return this.auth.forgot(dto);
   }
 

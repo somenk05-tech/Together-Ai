@@ -4,9 +4,10 @@ import { isDisposableEmail } from './disposable-domains';
 import {
   ConflictException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
-import { randomInt } from 'crypto';
+import { createHash, randomInt } from 'crypto';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
@@ -14,6 +15,7 @@ import { ForgotDto, LoginDto, RegisterDto, ResetDto } from './dto/auth.dto';
 import { TokenService, TokenPair, SessionMeta } from './token.service';
 import { assertStrongPassword } from './password-policy';
 import { isCityAddress } from '../mail/mail.constants';
+import { passwordChangedEmail, recoveryOtpEmail } from '../mail/email-templates';
 import { isReservedAdminHandle } from './admin';
 
 /** Wrong guesses allowed against one recovery code before it is burned. */
@@ -21,9 +23,15 @@ const MAX_RESET_ATTEMPTS = 5;
 /** Failed sign-ins per handle before the handle is refused, and for how long. */
 const LOGIN_LOCK_AFTER = 10;
 const LOGIN_LOCK_WINDOW_SEC = 15 * 60;
+/** Recovery codes one identifier may be sent in an hour. The same number
+ *  `verification-policy.ts` uses for its own targets, and for the same reason:
+ *  well above anybody's honest fumbling, well below a flood. */
+const RECOVERY_SENDS_PER_HOUR = 5;
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly tokens: TokenService,
@@ -208,6 +216,45 @@ export class AuthService {
     return this.prisma.user.findUnique({ where: { handle: id.replace(/@togethercity\.tech$/, '') } });
   }
 
+  /**
+   * MAY THIS IDENTIFIER BE SENT A RECOVERY CODE RIGHT NOW? (fifth audit, 29 Aug.)
+   *
+   * `/auth/forgot` carried one `@Throttle` — five in five minutes, counted per
+   * IP address — and no history of its own. `VerificationCodeService` next
+   * door has a whole policy for the same act (`decideSend`: a 60-second
+   * cooldown, five per target per hour) and this route called none of it. So
+   * any address known to be a member could be sent an unlimited stream of
+   * "reset your password" mail from rotating addresses: at Resend's cost, and
+   * against the sender reputation of the one domain that carries every OTP
+   * this city sends.
+   *
+   * KEYED ON THE IDENTIFIER AS TYPED, not on the account, so a MISS is
+   * throttled too — otherwise the counter is itself an oracle, answering
+   * "does this address exist" by which requests get a cooldown. Hashed,
+   * because this key names an email address and lives in a shared cache.
+   *
+   * REDIS DOWN: allowed, and loud. The per-IP throttle still stands, and a
+   * cache outage that locks every citizen out of account recovery is a worse
+   * failure than the one this prevents.
+   */
+  private async mayRecover(identifier: string): Promise<boolean> {
+    if (!this.redis.up) return true;
+    const key = `recover:${createHash('sha256').update(identifier.trim().toLowerCase()).digest('hex').slice(0, 32)}`;
+    try {
+      // One counter, two windows: the value is the count in the hour, and a
+      // second key is the 60-second cooldown between consecutive asks.
+      const gate = `${key}:gate`;
+      const fresh = await this.redis.raw.set(gate, '1', 'EX', 60, 'NX');
+      if (fresh === null) return false;
+      const n = await this.redis.raw.incr(key);
+      if (n === 1) await this.redis.raw.expire(key, 3600);
+      return n <= RECOVERY_SENDS_PER_HOUR;
+    } catch (e) {
+      this.logger.warn(`recovery cooldown unavailable: ${(e as Error).message}`);
+      return true;
+    }
+  }
+
   /** Forgot password — send a recovery OTP to the citizen's primary email or phone (and their city inbox). */
   async forgot(dto: ForgotDto): Promise<{ sent: true; delivery: 'live' | 'unconfigured'; channel: 'email' | 'sms' }> {
     const channel = dto.channel === 'sms' ? 'sms' : 'email';
@@ -220,7 +267,27 @@ export class AuthService {
     // phone number?" for any address a stranger cares to type. The whole
     // response is identical for a hit and a miss; this field must not be the
     // thing that breaks that.
-    const user = await this.findByIdentifier(dto.identifier);
+    const allowed = await this.mayRecover(dto.identifier);
+    const user = allowed ? await this.findByIdentifier(dto.identifier) : null;
+    /**
+     * THE TWO BRANCHES HAVE TO COST THE SAME (fifth audit, 29 Aug).
+     *
+     * The response body was already identical for a hit and a miss, and
+     * `auth.spec.ts` asserts it — but the bodies were the only thing being
+     * compared. A hit did an updateMany, an argon2 hash, a create and an
+     * AWAITED HTTP call to Resend; a miss returned after one findFirst. That
+     * is hundreds of milliseconds to seconds of difference, on a public route,
+     * which is a reliable answer to "is this address a member of this city"
+     * for anybody willing to time it — and on a DATING product that answer is
+     * not a small thing to give away.
+     *
+     * argon2 is the dominant cost and the only one worth matching; the dummy
+     * runs with the same parameters as the real one, on a value that is
+     * discarded. The provider call is deliberately NOT simulated — see below.
+     */
+    if (!user) {
+      await argon2.hash(String(randomInt(0, 1_000_000)).padStart(6, '0'));
+    }
     // Always respond the same way — never leak whether an account exists.
     if (user) {
       // Fall back to email if SMS was asked for but there's no phone on file.
@@ -239,13 +306,19 @@ export class AuthService {
       await this.prisma.passwordReset.create({
         data: { userId: user.id, code: await argon2.hash(code), expiresAt: new Date(Date.now() + 30 * 60 * 1000) },
       });
+      /* THE BRANDED TEMPLATE, WHICH HAD BEEN SITTING UNUSED TWO FILES AWAY
+         (fifth audit, 29 Aug). `recoveryOtpEmail` and `passwordChangedEmail`
+         were written, reviewed and never imported by anything — grep returned
+         only their own definitions — while the real security mail went out as
+         plain text with a leading emoji in the subject line. Text-only with a
+         decorated subject is a measurably weaker inbox-placement profile than
+         the multipart message that was already built, and inbox placement is
+         the whole job of a message somebody is waiting for.
+         SMS keeps the one-liner: there is no html half of a text message. */
+      const letter = recoveryOtpEmail(code, 30);
       const body = sendChannel === 'sms'
         ? `Together City recovery code: ${code}. Expires in 30 minutes. Didn't request it? Ignore this message.`
-        : [
-            `We received a request to reset your Together City password.`,
-            ``, `Your recovery code is: ${code}`, `It expires in 30 minutes.`, ``,
-            `Enter it on the reset screen along with a new password. If you didn't request this, you can ignore this message — your password stays unchanged.`,
-          ].join('\n');
+        : letter.text;
       // deliverTo, NOT deliverSystem. deliverSystem files a copy of every
       // message in the citizen's own in-app Together City inbox — which put the
       // password-reset code somewhere any holder of a session could read it,
@@ -260,7 +333,13 @@ export class AuthService {
         // If this fails, the citizen was told "sent" and no code is coming.
         // That was invisible; now it is a [swallowed] line with their id.
         await swallow(this.mail.deliverTo(user.id, sendChannel, target,
-          { subject: '🔐 Your Together City recovery code', body }, 'recovery'),
+          {
+            // No emoji on a security subject: it is the line a spam filter and
+            // a worried person both read first.
+            subject: letter.subject,
+            body,
+            ...(sendChannel === 'email' ? { html: letter.html } : {}),
+          }, 'recovery'),
           'recovery-code delivery', { userId: user.id, channel: sendChannel });
       }
     }
@@ -298,9 +377,9 @@ export class AuthService {
     await this.prisma.user.update({ where: { id: user.id }, data: { passwordHash: await argon2.hash(dto.newPassword) } });
     await this.prisma.passwordReset.update({ where: { id: reset.id }, data: { usedAt: new Date() } });
     await this.tokens.revokeAll(user.id); // sign out everywhere after a reset
+    const notice = passwordChangedEmail();
     await swallow(this.mail.deliverSystem(user.id, {
-      subject: '✅ Your Together City password was changed',
-      body: `Your password was just reset and you've been signed out of all sessions. If this wasn't you, reset your password again immediately.`,
+      subject: notice.subject, body: notice.text, html: notice.html,
     }, 'security'), 'password-changed notice', { userId: user.id });
     return { ok: true };
   }

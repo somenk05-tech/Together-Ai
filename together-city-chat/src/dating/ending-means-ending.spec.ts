@@ -92,3 +92,64 @@ describe('when somebody ends it, it ends', () => {
     expect(pool).toContain('deletedAt');
   });
 });
+
+/**
+ * ── AND IT ENDS ON THE SOCKET TOO (fifth audit, 29 Aug) ────────────────────
+ *
+ * The gate above stopped the message and stopped nothing else. Typing
+ * indicators, presence and read receipts are broadcast to
+ * `room.conversation(id)` and consult no database at all — being in the room
+ * IS the permission — and `unmatch` published nothing, so both sockets stayed
+ * in it. The person who ended the conversation went on being watched typing
+ * into it, and went on watching the other come online, for as long as neither
+ * of them reconnected. Which, for a phone that never closes the app, is never.
+ *
+ * A block already had this event. An unmatch, which the interface offers as
+ * the gentler of the two, did not.
+ */
+describe('and it ends on the socket too', () => {
+  const dating = code('dating/dating.service.ts');
+  const events = code('shared/events/chat-events.ts');
+  const gateway = code('chat/chat.gateway.ts');
+
+  it('the bus has a word for it', () => {
+    expect(events).toMatch(/kind: 'connection\.unmatched'; userIds: \[string, string\]; conversationId: string/);
+  });
+
+  it('unmatch says it, and says it after the write', () => {
+    const fn = dating.slice(dating.indexOf('async unmatch('), dating.indexOf('async unmatch(') + 3000);
+    expect(fn).toMatch(/kind: 'connection\.unmatched'/);
+    expect(fn.indexOf("status: 'passed'")).toBeLessThan(fn.indexOf("connection.unmatched"));
+  });
+
+  it('and so does the teardown that ends every chat at once', () => {
+    const fn = dating.slice(dating.indexOf('private async endMyChats('), dating.indexOf('private async endMyChats(') + 2500);
+    expect(fn).toMatch(/kind: 'connection\.unmatched'/);
+    // It needs the pair to empty the room, so it has to read the pair.
+    expect(fn).toMatch(/userOneId: true, userTwoId: true/);
+  });
+
+  it('and so does a PASS on a live match, which was the path that was missed', () => {
+    // `unmatch` and `endMyChats` published; `pass` did not, and the comment
+    // beside it shows a pass on a matched row is anticipated rather than
+    // impossible. Sending stopped; typing, presence and receipts did not.
+    // (re-audit, 29 Aug)
+    const fn = dating.slice(dating.indexOf('async pass('), dating.indexOf('async pass(') + 2500);
+    expect(fn).toMatch(/kind: 'connection\.unmatched'/);
+    // Only when there was a live conversation to end.
+    expect(fn).toMatch(/state\.conversationId && state\.status === 'matched'/);
+  });
+
+  it('the gateway empties that one room for both of them', () => {
+    const arm = gateway.slice(gateway.indexOf("case 'connection.unmatched'"), gateway.indexOf("case 'presence.changed'"));
+    expect(arm).toMatch(/socketsLeave\(room\.conversation\(event\.conversationId\)\)/);
+    expect(arm).toMatch(/for \(const uid of \[a, b\]\)/);
+  });
+
+  it('and the room list stops rebuilding it on the next connection', () => {
+    // The event is the half that does not wait for a reconnect; this is the
+    // half that survives one.
+    expect(gateway).toMatch(/const ended = await this\.messages\.endedDatingIds\(ids\)/);
+  });
+});
+

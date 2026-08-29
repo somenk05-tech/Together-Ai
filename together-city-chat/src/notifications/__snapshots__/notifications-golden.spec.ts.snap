@@ -67,7 +67,9 @@ exports[`what the notifications engine decides today a ringing phone ignores bot
         "body": "Asha Verma is calling you.",
         "conversationId": "c1",
         "icon": undefined,
+        "tag": "call-call1",
         "title": "Incoming video call",
+        "url": "/chats?c=c1&call=call1",
       },
       "tokens": [
         "web-viewer",
@@ -95,7 +97,9 @@ exports[`what the notifications engine decides today a ringing phone ignores bot
         "body": "Asha Verma is calling you.",
         "conversationId": "c1",
         "icon": undefined,
+        "tag": "call-call1",
         "title": "Incoming video call",
+        "url": "/chats?c=c1&call=call1",
       },
       "tokens": [
         "web-mutedone",
@@ -123,7 +127,9 @@ exports[`what the notifications engine decides today a ringing phone ignores bot
         "body": "Asha Verma is calling you.",
         "conversationId": "c1",
         "icon": undefined,
+        "tag": "call-call2",
         "title": "Incoming call",
+        "url": "/chats?c=c1&call=call2",
       },
       "tokens": [
         "web-viewer",
@@ -230,6 +236,7 @@ exports[`what the notifications engine decides today viewing the conversation su
         "conversationId": "c1",
         "icon": undefined,
         "title": "Asha Verma",
+        "url": "/chats?c=c1",
       },
       "tokens": [
         "web-plain",

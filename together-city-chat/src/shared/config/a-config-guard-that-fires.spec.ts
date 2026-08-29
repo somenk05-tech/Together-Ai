@@ -23,7 +23,14 @@ const SAFE: NodeJS.ProcessEnv = {
   S3_ENDPOINT: 'https://e', S3_ACCESS_KEY_ID: 'k', S3_SECRET_ACCESS_KEY: 's',
   MEDIA_BUCKET: 'public-bucket', MEDIA_PRIVATE_BUCKET: 'private-bucket',
   EMAIL_PROVIDER: 'resend',
+  // Named without its credential is not configured — the state the guard
+  // missed until the re-audit, and the one render.yaml encodes.
+  RESEND_API_KEY: 're_test',
   PHOTO_MODERATION: 'rekognition',
+  // Push, added 29 Aug. Web push is the whole of push on this deployment and
+  // it disables itself silently when these are unset, so "sound" now includes
+  // them — see the case below that proves the guard notices when they go.
+  VAPID_PUBLIC_KEY: 'pub', VAPID_PRIVATE_KEY: 'priv',
 };
 
 function withEnv(over: NodeJS.ProcessEnv, run: () => void): string[] {
@@ -68,6 +75,32 @@ describe('what refuses to start', () => {
     withEnv({ TURNSTILE_SECRET: 'k', TURNSTILE_HOSTNAMES: 'togethercity.app' }, () => {
       expect(() => assertProductionConfig()).not.toThrow();
     });
+  });
+
+  /**
+   * Not fatal on its own — it goes onto the same list as everything else, so
+   * STRICT_PROD_CONFIG decides. What matters is that it is SAID: web push is
+   * the whole of push on this deployment, it turns itself off when these are
+   * unset, and until 29 Aug nothing anywhere mentioned them. The shipped
+   * render.yaml pushed to nobody and looked perfectly healthy doing it.
+   */
+  it('and a deployment with no push keys is told that it has no push', () => {
+    const said = withEnv({ VAPID_PUBLIC_KEY: '' }, () => { assertProductionConfig(); });
+    expect(said.join(' ')).toMatch(/NO push notification will be delivered/);
+    const said2 = withEnv({ VAPID_PRIVATE_KEY: '  ' }, () => { assertProductionConfig(); });
+    expect(said2.join(' ')).toMatch(/VAPID_PRIVATE_KEY/);
+  });
+
+  /**
+   * `EMAIL_PROVIDER=resend` with an empty key passed every check here — the
+   * provider is not 'stub', so nothing objected — and then the Resend client
+   * throws the moment anything constructs it. render.yaml encodes exactly that
+   * shape: the name is a literal, the key is a blank an operator fills.
+   * (re-audit, 29 Aug)
+   */
+  it('and a named provider with no credential is not "configured"', () => {
+    const said = withEnv({ RESEND_API_KEY: '' }, () => { assertProductionConfig(); });
+    expect(said.join(' ')).toMatch(/RESEND_API_KEY is empty/);
   });
 
   it('nothing at all, when the configuration is sound', () => {

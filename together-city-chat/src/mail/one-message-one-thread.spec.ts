@@ -43,6 +43,10 @@ function harness() {
   const prisma: any = {
     mailMessage: {
       create,
+      // The daily city-mail ceiling counts the sender's own Sent rows.
+      // Added 29 Aug: internal mail had no limit at all, and the row it
+      // writes is charged against the RECIPIENT'S quota.
+      count: async () => 0,
       findFirst: async ({ where }: any) => rows.find((r) => matches(where, r)) ?? null,
       findMany: async ({ where, select }: any) => {
         const hit = rows.filter((r) => matches(where ?? {}, r));
@@ -74,7 +78,9 @@ function harness() {
     emailDelivery: { count: async () => 0 },
     user: {
       findUnique: async ({ where }: any) => {
-        if (where.id) return { id: 'u1', name: 'Somen', handle: 'somen' };
+        // emailVerified since 29 Aug: writing OUTSIDE the city now requires the
+        // sender to have confirmed their own address. Internal mail is unaffected.
+        if (where.id) return { id: 'u1', name: 'Somen', handle: 'somen', emailVerified: true };
         const known: any = { alice: { id: 'u2', name: 'Alice', handle: 'alice' }, bob: { id: 'u3', name: 'Bob', handle: 'bob' }, somen: { id: 'u1', name: 'Somen', handle: 'somen' } };
         return known[where.handle] ?? null;
       },

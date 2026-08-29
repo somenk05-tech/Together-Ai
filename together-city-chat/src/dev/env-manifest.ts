@@ -71,8 +71,8 @@ export const ENV_MANIFEST: EnvEntry[] = [
   { name: 'REDIS_URL', group: 'Database & cache', purpose: 'Redis, for rate limiting and socket fan-out across instances.', whenMissing: 'Rate limits count per process instead of per deployment, and real-time delivery stops crossing instances.', secret: true },
 
   // ── Mail ────────────────────────────────────────────────────────────────
-  { name: 'EMAIL_PROVIDER', group: 'Mail', purpose: 'resend | stub. Which sender is wired up.', whenMissing: 'Mail is written to the log instead of sent — everything looks fine and nothing arrives.' },
-  { name: 'RESEND_API_KEY', group: 'Mail', purpose: 'The Resend API key.', whenMissing: 'No outbound email: no verification codes, no password resets, no receipts.', secret: true },
+  { name: 'EMAIL_PROVIDER', group: 'Mail', purpose: 'resend | stub. Which sender is wired up.', whenMissing: 'Mail is written to the log instead of sent — everything looks fine and nothing arrives.', required: true },
+  { name: 'RESEND_API_KEY', group: 'Mail', purpose: 'The Resend API key.', whenMissing: 'No outbound email: no verification codes, no password resets, no receipts.', required: true, secret: true },
   { name: 'EMAIL_FROM', group: 'Mail', purpose: 'The address outbound mail is sent from.', whenMissing: 'Falls back to a default sender, which the receiving domain may reject as unauthenticated.' },
   { name: 'RESEND_INBOUND_SECRET', group: 'Mail', purpose: 'The shared secret on the inbound-mail webhook.', whenMissing: 'Inbound mail is REFUSED entirely — replies sent from Gmail never reach a citizen\'s mailbox.', secret: true },
   { name: 'ALLOW_UNSIGNED_INBOUND', group: 'Mail', purpose: 'Development-only: accept inbound mail with no secret.', whenMissing: 'Correct. This should never be set on a public deployment.' },
@@ -95,8 +95,13 @@ export const ENV_MANIFEST: EnvEntry[] = [
   { name: 'MESSAGE_DELETE_EVERYONE_WINDOW_SEC', group: 'Messaging & calls', purpose: 'How long delete-for-everyone is offered.', whenMissing: 'Uses the built-in default.' },
 
   // ── Push ────────────────────────────────────────────────────────────────
-  { name: 'VAPID_PUBLIC_KEY', group: 'Push', purpose: 'Web push, browser side.', whenMissing: 'No web push notifications. The app never says so — subscriptions simply fail.', },
-  { name: 'VAPID_PRIVATE_KEY', group: 'Push', purpose: 'Web push, server side.', whenMissing: 'No web push notifications.', secret: true },
+  // REQUIRED SINCE 29 AUG, and the entry above already said why: web push is
+  // the whole of push here, and it fails by doing nothing at all. What was
+  // missing was any consequence — these were in this manifest and in NO deploy
+  // config, so the shipped render.yaml pushed to nobody. Both are in it now,
+  // and assertProductionConfig says so at boot.
+  { name: 'VAPID_PUBLIC_KEY', group: 'Push', purpose: 'Web push, browser side.', whenMissing: 'No web push notifications. The app never says so — subscriptions simply fail.', required: true },
+  { name: 'VAPID_PRIVATE_KEY', group: 'Push', purpose: 'Web push, server side.', whenMissing: 'No web push notifications.', required: true, secret: true },
   { name: 'VAPID_SUBJECT', group: 'Push', purpose: 'The mailto: contact push services require.', whenMissing: 'Some push services reject the payload.' },
   // NOTHING REGISTERS A NATIVE TOKEN YET (checked 28 Aug). `/push/subscribe` is
   // the only route that writes a DeviceToken and it always writes
