@@ -57,7 +57,10 @@ function feedStub(opts: { follows: string[]; connections: string[]; blocked: str
   } as any;
   const blocking = { blockedWith: jest.fn(async () => new Set(opts.blocked)) } as any;
   const connections = { visibleAudiences: jest.fn(async () => ['friends']) } as any;
-  const svc = new SocialService(prisma, {} as never, {} as never, {} as never, connections, blocking, {} as never);
+  // Post media is a private key signed on read (30 Aug), so every read path
+  // goes through the storage provider now.
+  const storage = { signPostMedia: jest.fn(async () => new Map<string, string>()) } as any;
+  const svc = new SocialService(prisma, {} as never, {} as never, storage, connections, blocking, {} as never);
   return { svc, seen };
 }
 
@@ -160,7 +163,8 @@ function repostStub(original: Record<string, unknown>) {
   const connections = { visibleAudiences: jest.fn(async () => ['friends', 'family']) } as any;
   const gateway = { postNew: jest.fn() } as any;
   const notifications = { create: jest.fn(async () => undefined) } as any;
-  const svc = new SocialService(prisma, gateway, notifications, {} as never, connections, blocking, {} as never);
+  const storage = { signPostMedia: jest.fn(async () => new Map<string, string>()) } as any;
+  const svc = new SocialService(prisma, gateway, notifications, storage, connections, blocking, {} as never);
   return { svc, created };
 }
 
@@ -205,12 +209,17 @@ describe('a block survives a re-follow, and a delete reaches the bucket', () => 
     expect(written).toHaveLength(0);
   });
 
-  it('deletes the stored objects behind a deleted post, and skips inline photos', async () => {
+  it('deletes the stored objects behind a deleted post — the private keys and the legacy public ones', async () => {
     const deleted: string[] = [];
     const prisma = {
       post: { findUnique: async () => ({ id: 'p1', authorId: ME, audience: 'public' }), delete: async () => ({}) },
       postMedia: {
         findMany: async () => [
+          // The shape written since 30 Aug: a private key.
+          { url: `social/${ME}/new.mp4`, thumbUrl: `social/${ME}/new.jpg` },
+          // And the two shapes already in the table — a permanent public URL,
+          // which is exactly the file that most needs deleting, and an inline
+          // photograph, which has no object behind it at all.
           { url: 'https://cdn.example/abc.mp4', thumbUrl: 'https://cdn.example/abc.jpg' },
           { url: 'data:image/jpeg;base64,AAAA', thumbUrl: null },
         ],
@@ -219,14 +228,19 @@ describe('a block survives a re-follow, and a delete reaches the bucket', () => 
       follow: { findMany: async () => [] },
     } as any;
     const storage = {
+      isPostKey: (v: string) => /^social\/[^/]+\/[A-Za-z0-9._-]+$/.test(v),
       keyFromUrl: (u: string) => (u.startsWith('https://cdn.example/') ? u.slice('https://cdn.example/'.length) : ''),
-      deleteObject: jest.fn(async (k: string) => { deleted.push(k); }),
+      deleteObject: jest.fn(async (k: string) => { deleted.push(`public:${k}`); }),
+      deletePrivateObject: jest.fn(async (k: string) => { deleted.push(`private:${k}`); }),
     } as any;
     const blocking = { blockedWith: jest.fn(async () => new Set<string>()) } as any;
     const gateway = { postDeleted: jest.fn() } as any;
     const svc = new SocialService(prisma, gateway, {} as never, storage, {} as never, blocking, {} as never);
     await svc.deletePost(ME, 'p1');
     await new Promise((r) => setImmediate(r)); // the object deletes are best-effort
-    expect(deleted.sort()).toEqual(['abc.jpg', 'abc.mp4']);
+    expect(deleted.sort()).toEqual([
+      'private:social/me-0000/new.jpg', 'private:social/me-0000/new.mp4',
+      'public:abc.jpg', 'public:abc.mp4',
+    ]);
   });
 });

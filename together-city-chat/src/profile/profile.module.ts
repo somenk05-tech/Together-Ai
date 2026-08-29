@@ -5,9 +5,13 @@ import { ProfileService } from './profile.service';
 import { MasterProfileService } from './master-profile.service';
 import { ConnectionsModule } from '../connections/connections.module';
 import { AdminConsoleModule } from '../admin/admin.module';
+import { MediaModule } from '../media/media.module';
 
 @Module({
-  imports: [PrismaModule, ConnectionsModule, AdminConsoleModule],
+  // MediaModule for StorageProvider: the profile grid reads Post.media, which
+  // holds private keys now — a grid that did not sign them would render every
+  // photograph as a broken image.
+  imports: [PrismaModule, ConnectionsModule, AdminConsoleModule, MediaModule],
   controllers: [ProfileController],
   providers: [ProfileService, MasterProfileService],
   exports: [MasterProfileService],

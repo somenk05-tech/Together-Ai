@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards, UsePipes } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { Deprecated } from '../shared/deprecated.decorator';
 import { z } from 'zod';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -13,7 +14,18 @@ import {
   FeedQuerySchema,
 } from './dto/social.dto';
 
+/* THE SOCIAL HUB HAD NO CEILING OF ITS OWN (30 Aug audit).
+   The global limit is 120 requests a minute per ACCOUNT — good, and keyed on
+   the JWT subject rather than an address for reasons account-throttler.guard.ts
+   argues well. But 120 a minute is also 120 like-toggles a minute, and every
+   transition to liked writes a notification with no dedup and no cooldown: a
+   harassment tool at the speed of a script. The dating hub and the media
+   presign door both carry their own ceilings for the same reason; this is the
+   third. Generous for a person reading a feed, useless as a megaphone. */
+const SOCIAL_LIMIT = { default: { limit: 40, ttl: 60_000 } };
+
 @Controller('social')
+@Throttle(SOCIAL_LIMIT)
 @UseGuards(JwtAuthGuard)
 export class SocialController {
   constructor(private readonly social: SocialService) {}

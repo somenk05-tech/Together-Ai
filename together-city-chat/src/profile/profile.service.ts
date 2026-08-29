@@ -4,6 +4,7 @@ import { PrismaService } from '../shared/prisma/prisma.service';
 import { BlockingService } from '../connections/blocking.service';
 import { VISIBLE_ONLY } from '../social/post-visibility';
 import { AdminAccessService } from '../admin/admin-access.service';
+import { StorageProvider } from '../media/storage.provider';
 import { ConnectionsService } from '../connections/connections.service';
 import { isReservedAdminHandle } from '../auth/admin';
 import { orderPair } from '../connections/connection.util';
@@ -58,6 +59,7 @@ export class ProfileService {
     private readonly connections: ConnectionsService,
     private readonly blocking: BlockingService,
     private readonly access: AdminAccessService,
+    private readonly storage: StorageProvider,
   ) {}
 
   /** DESIGN YOUR SERVICES — read which hubs this citizen keeps off the street.
@@ -376,6 +378,12 @@ export class ProfileService {
     });
     const hasMore = rows.length > take;
     const page = hasMore ? rows.slice(0, take) : rows;
+    // Post media is a private key now, signed on read (30 Aug audit). One pass
+    // for the page, the same way SocialService.signMediaOf does it, or the grid
+    // renders every photograph as a broken image.
+    const signed = await this.storage.signPostMedia(
+      page.flatMap((p) => (p.media ?? []).flatMap((m) => [m.url, m.thumbUrl])),
+    );
     return {
       items: page.map((p) => {
         const px = p as unknown as {
@@ -391,7 +399,11 @@ export class ProfileService {
           feeling: p.feeling ?? null,
           createdAt: p.createdAt.toISOString(),
           outdoor: p.lat != null && p.lng != null,
-          media: (p.media ?? []).map((m) => ({ url: m.url, kind: m.kind, thumbUrl: m.thumbUrl ?? null })),
+          media: (p.media ?? []).map((m) => ({
+            url: signed.get(m.url) ?? m.url,
+            kind: m.kind,
+            thumbUrl: m.thumbUrl ? (signed.get(m.thumbUrl) ?? m.thumbUrl) : null,
+          })),
           likeCount: px._count.likes,
           commentCount: px._count.comments,
           // Full-card fields — so the profile can render the same PostCard as the feed.
@@ -507,6 +519,12 @@ export class ProfileService {
     });
     const hasMore = rows.length > take;
     const page = hasMore ? rows.slice(0, take) : rows;
+    // Post media is a private key now, signed on read (30 Aug audit). One pass
+    // for the page, the same way SocialService.signMediaOf does it, or the grid
+    // renders every photograph as a broken image.
+    const signed = await this.storage.signPostMedia(
+      page.flatMap((p) => (p.media ?? []).flatMap((m) => [m.url, m.thumbUrl])),
+    );
     return {
       items: page.map((p) => {
         const px = p as unknown as {
@@ -522,7 +540,11 @@ export class ProfileService {
           feeling: p.feeling ?? null,
           createdAt: p.createdAt.toISOString(),
           outdoor: p.lat != null && p.lng != null,
-          media: (p.media ?? []).map((m) => ({ url: m.url, kind: m.kind, thumbUrl: m.thumbUrl ?? null })),
+          media: (p.media ?? []).map((m) => ({
+            url: signed.get(m.url) ?? m.url,
+            kind: m.kind,
+            thumbUrl: m.thumbUrl ? (signed.get(m.thumbUrl) ?? m.thumbUrl) : null,
+          })),
           likeCount: px._count.likes,
           commentCount: px._count.comments,
           author: px.author,

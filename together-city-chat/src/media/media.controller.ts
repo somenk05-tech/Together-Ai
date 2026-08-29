@@ -36,6 +36,18 @@ export class MediaController {
     return this.media.requestUpload(user.sub, dto.mimeType, dto.sizeBytes);
   }
 
+  /* POST /api/media/upload-post → presigned PUT into the PRIVATE bucket for a
+     post's photograph or video. Its own route rather than a flag on `upload`,
+     because the two doors have different rules — this one takes an allowlist
+     and writes where nothing is readable without a signature. */
+  @Post('upload-post')
+  requestPostUpload(
+    @CurrentUser() user: JwtUser,
+    @Body(new ZodValidationPipe(PresignSchema)) dto: PresignDto,
+  ) {
+    return this.media.requestPostUpload(user.sub, dto.mimeType, dto.sizeBytes);
+  }
+
   // POST /api/media/upload-private → presigned PUT into the private health vault
   @Post('upload-private')
   requestPrivateUpload(

@@ -10,7 +10,21 @@ import { MUSIC_LIBRARY, type Track } from '../musicLibrary';
 
 // `file` is kept for media that uploads to storage (video) — the `src` is only a
 // local preview; the real post URL comes from the R2 upload on share.
-interface MediaItem { type: 'image' | 'video'; src: string; file?: File; dur?: number; portrait?: boolean; poster?: File }
+/**
+ * One attachment on its way into a post.
+ *
+ * `src` is an OBJECT URL for previewing, never a data URL. `file` is always
+ * present now — photographs are re-encoded to a small JPEG File rather than a
+ * base64 string, so every attachment takes the same road into the bucket.
+ * `key` and `posterKey` are the upload results, kept on the item so a retry
+ * after a half-failed batch does not re-upload what already landed (30 Aug
+ * audit: `Promise.all` discarded the successes and orphaned them in R2).
+ */
+interface MediaItem {
+  type: 'image' | 'video'; src: string; file: File;
+  dur?: number; portrait?: boolean; poster?: File;
+  key?: string; posterKey?: string;
+}
 
 /** Grab a still frame from a video as a JPEG File, to upload as its poster —
  *  so feed/profile grids show a real thumbnail and never fetch the video just
@@ -169,8 +183,15 @@ const frameRatio = (portrait?: boolean) => (portrait ? '9 / 16' : '16 / 9');
 
 // Inline-media limits (until object storage is configured). A 75 MB video is
 // ~100 MB as base64; the server body limit is raised to match.
-const MAX_VIDEO_BYTES = 75 * 1024 * 1024;   // 75 MB per video
-const MAX_TOTAL_BYTES = 105 * 1024 * 1024;  // total encoded payload ceiling
+/* THE TWO CAPS DISAGREED, AND THE CLIENT'S WAS THE HIGHER ONE (30 Aug audit).
+   The server refuses a presign over MAX_UPLOAD_BYTES, which defaults to 50 MB,
+   while this file waved through 75 — so a 60 MB clip passed the check the
+   citizen could see and was refused by the one they could not, after they had
+   written the caption. A client ceiling above the server's is not a limit, it
+   is a trap. 50 here, and the total is what one post may carry across all ten
+   attachments. */
+const MAX_VIDEO_BYTES = 50 * 1024 * 1024;   // matches MAX_UPLOAD_BYTES on the API
+const MAX_TOTAL_BYTES = 60 * 1024 * 1024;   // everything on one post, on the wire
 const mb = (b: number) => Math.round(b / (1024 * 1024));
 const sizeMB = (b: number) => (b / 1048576).toFixed(b < 10485760 ? 1 : 0);
 /** Human format label for a picked video file, e.g. "MP4" / "MOV" / "WEBM". */
@@ -181,36 +202,39 @@ const fileFmt = (f?: File): string => {
   return (f?.name.split('.').pop() || 'VIDEO').toUpperCase();
 };
 const VIDEO_FORMATS = 'MP4, WebM or MOV';
-/** Approx decoded byte size of a base64 data URL. */
-const dataUrlBytes = (src: string): number => {
-  const i = src.indexOf(',');
-  const b64 = i >= 0 ? src.slice(i + 1) : src;
-  return Math.ceil(b64.length * 0.75);
-};
-const readAsDataURL = (f: File): Promise<string> =>
-  new Promise((res, rej) => { const rd = new FileReader(); rd.onerror = () => rej(new Error('read failed')); rd.onload = () => res(String(rd.result)); rd.readAsDataURL(f); });
-/** Downscale + re-encode a photo so it posts as a small JPEG (never a raw 8 MB
- *  phone photo). Keeps aspect ratio; caps the long edge at 1600 px. */
-const compressImage = (f: File): Promise<{ src: string; portrait: boolean }> => new Promise((resolve, reject) => {
-  const rd = new FileReader();
-  rd.onerror = () => reject(new Error('read failed'));
-  rd.onload = () => {
-    const img = new Image();
-    img.onerror = () => reject(new Error('decode failed'));
-    img.onload = () => {
-      const MAXDIM = 1600;
-      const scale = Math.min(1, MAXDIM / Math.max(img.width, img.height));
-      const c = document.createElement('canvas');
-      c.width = Math.max(1, Math.round(img.width * scale));
-      c.height = Math.max(1, Math.round(img.height * scale));
-      const ctx = c.getContext('2d');
-      if (!ctx) return reject(new Error('no canvas'));
-      ctx.drawImage(img, 0, 0, c.width, c.height);
-      resolve({ src: c.toDataURL('image/jpeg', 0.82), portrait: img.height > img.width });
-    };
-    img.src = String(rd.result);
+/* `dataUrlBytes` lived here and went with the data URLs: nothing in a post
+   is base64 any more, so there is no decoded size to guess at. */
+/**
+ * Downscale + re-encode a photo, and hand back a FILE.
+ *
+ * It used to hand back `canvas.toDataURL(...)` — and that one line is where a
+ * photograph stopped being an upload and became a base64 string stored in
+ * Postgres, re-sent in every feed page, uncacheable by any browser or CDN, and
+ * broadcast down the websocket to every follower. `toBlob` is the same
+ * re-encode with a File at the end of it, and an object URL to look at while
+ * you write the caption.
+ */
+const compressImage = (f: File): Promise<{ file: File; src: string; portrait: boolean }> => new Promise((resolve, reject) => {
+  const url = URL.createObjectURL(f);
+  const img = new Image();
+  img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode failed')); };
+  img.onload = () => {
+    URL.revokeObjectURL(url);
+    const MAXDIM = 1600;
+    const scale = Math.min(1, MAXDIM / Math.max(img.width, img.height));
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(img.width * scale));
+    c.height = Math.max(1, Math.round(img.height * scale));
+    const ctx = c.getContext('2d');
+    if (!ctx) return reject(new Error('no canvas'));
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    c.toBlob((blob) => {
+      if (!blob) return reject(new Error('encode failed'));
+      const file = new File([blob], (f.name || 'photo').replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+      resolve({ file, src: URL.createObjectURL(file), portrait: img.height > img.width });
+    }, 'image/jpeg', 0.82);
   };
-  rd.readAsDataURL(f);
+  img.src = url;
 });
 
 const FEELINGS = ['😊 Happy', '😌 Relaxed', '🤩 Excited', '🙏 Grateful', '✨ Blessed', '❤️ Loved', '🧭 Adventurous', '🌇 Nostalgic', '🎉 Celebrating', '☕ Cosy'];
@@ -373,6 +397,16 @@ export function CreatePost() {
 
   const [text, setText] = useState('');
   const [media, setMedia] = useState<MediaItem[]>([]);
+  /**
+   * Object URLs are handles on decoded bytes, and the browser holds them until
+   * they are revoked. A composer that is opened, filled with four photographs
+   * and a clip, and then left by the back button keeps all of it alive for the
+   * life of the document otherwise. The ref is the live list — reading `media`
+   * inside a mount-only cleanup would revoke the empty array it closed over.
+   */
+  const mediaRef = useRef<MediaItem[]>([]);
+  mediaRef.current = media;
+  useEffect(() => () => { for (const m of mediaRef.current) URL.revokeObjectURL(m.src); }, []);
   const [feeling, setFeeling] = useState<string | null>(null);
   const [placeName, setPlaceName] = useState('');
   const [geo, setGeo] = useState<{ lat: number; lng: number } | null>(null);
@@ -428,9 +462,12 @@ export function CreatePost() {
             setMediaError(`"${f.name}" is ${mb(f.size)} MB — videos must be under ${mb(MAX_VIDEO_BYTES)} MB.`);
             continue;
           }
-          const src = await readAsDataURL(f);
-          // Keep the File — the video uploads to storage on share (a data-URL
-          // video won't stream/play reliably in the feed).
+          /* AN OBJECT URL, NOT A 100 MB STRING (30 Aug audit). This read a
+             75 MB video into a base64 data URL — a ~100 MB JavaScript string —
+             purely so a <video> could preview it, and then kept it in state for
+             the life of the composer. `genPoster` thirty lines up was already
+             doing it the cheap way. */
+          const src = URL.createObjectURL(f);
           const item: MediaItem = { type: 'video', src, file: f };
           const v = document.createElement('video');
           v.preload = 'metadata';
@@ -446,8 +483,8 @@ export function CreatePost() {
           setMedia((prev) => [...prev, item].slice(0, 10));
         } else {
           // Photos are downscaled + re-encoded so they always post as small JPEGs.
-          const { src, portrait } = await compressImage(f);
-          const item: MediaItem = { type: 'image', src, portrait };
+          const { file, src, portrait } = await compressImage(f);
+          const item: MediaItem = { type: 'image', src, file, portrait };
           setMedia((prev) => [...prev, item].slice(0, 10));
         }
       } catch {
@@ -485,33 +522,44 @@ export function CreatePost() {
 
   const share = async () => {
     if (busy || !canShare) return; // prevent duplicate submissions
-    // Only inline media (image data-URLs) counts toward the post-body limit —
-    // videos upload to storage and travel as a short URL.
-    const inlineBytes = media.filter((m) => !m.file).reduce((s, m) => s + dataUrlBytes(m.src), 0);
-    if (inlineBytes > MAX_TOTAL_BYTES) {
-      setMediaError(`These files total ${mb(inlineBytes)} MB — that's over the ${mb(MAX_TOTAL_BYTES)} MB limit for one post. Remove one or use a smaller file.`);
+    // Everything uploads now, so the ceiling is the total on the wire rather
+    // than "the part of it that travels inline as base64".
+    const totalBytes = media.reduce((n, m) => n + m.file.size, 0);
+    if (totalBytes > MAX_TOTAL_BYTES) {
+      setMediaError(`These files total ${mb(totalBytes)} MB — that's over the ${mb(MAX_TOTAL_BYTES)} MB limit for one post. Remove one or use a smaller file.`);
       return;
     }
     setMediaError(null);
     setErrMsg(null);
     setPhase('sharing');
-    // Upload any file-backed media (video) to storage; images stay inline.
-    let uploaded: { url: string; kind: 'image' | 'video'; thumbUrl?: string }[];
-    try {
-      uploaded = await Promise.all(
-        media.map(async (m) => {
-          if (!m.file) return { url: m.src, kind: m.type };
-          const url = await mediaApi.upload(m.file);
-          // Upload the captured poster too (best-effort) → stored as thumbUrl forever.
-          const thumbUrl = m.poster ? await mediaApi.upload(m.poster).catch(() => undefined) : undefined;
-          return { url, kind: m.type, ...(thumbUrl ? { thumbUrl } : {}) };
-        }),
-      );
-    } catch (e) {
-      setErrMsg(uploadErrorMessage(e));
+    /**
+     * A HALF-FAILED BATCH IS NOT RE-UPLOADED FROM SCRATCH (30 Aug audit).
+     *
+     * This was one `Promise.all` whose result was a local `let` thrown away in
+     * the catch. So a post of a video plus its poster where the poster failed
+     * discarded the video too, the citizen tapped Share again, and sixty
+     * megabytes went up a second time — leaving the first copy in the bucket
+     * with nothing referencing it and nothing to clean it up.
+     *
+     * The key is written back onto the item, so a retry uploads only what is
+     * still missing. `allSettled` means one failure no longer throws away the
+     * others' keys before they can be recorded.
+     */
+    type Uploaded = { url: string; kind: 'image' | 'video'; thumbUrl?: string };
+    const results = await Promise.allSettled(media.map(async (m): Promise<Uploaded> => {
+      if (!m.key) m.key = await mediaApi.uploadPost(m.file);
+      if (m.poster && !m.posterKey) m.posterKey = await mediaApi.uploadPost(m.poster).catch(() => undefined);
+      return { url: m.key, kind: m.type, ...(m.posterKey ? { thumbUrl: m.posterKey } : {}) };
+    }));
+    const failedAt = results.findIndex((r) => r.status === 'rejected');
+    if (failedAt >= 0) {
+      const why = (results[failedAt] as PromiseRejectedResult).reason as unknown;
+      const name = media[failedAt]?.file.name;
+      setErrMsg(`${name ? `“${name}” ` : ''}${uploadErrorMessage(why)} The others are uploaded — press Share again and only this one is retried.`);
       setPhase('error');
       return;
     }
+    const uploaded: Uploaded[] = results.map((r) => (r as PromiseFulfilledResult<Uploaded>).value);
     const finalText = [text.trim(), hashtags.join(' ')].filter(Boolean).join('\n\n');
     create.mutate(
       {
@@ -637,7 +685,7 @@ export function CreatePost() {
                       {badge.text}
                     </span>
                   )}
-                  <button type="button" onClick={() => setMedia((prev) => prev.filter((_, j) => j !== i))}
+                  <button type="button" onClick={() => setMedia((prev) => { URL.revokeObjectURL(prev[i]?.src ?? ''); return prev.filter((_, j) => j !== i); })}
                     aria-label={`Remove this ${m.type === 'video' ? 'video' : 'photo'}`}
                     style={{ minWidth: 44, minHeight: 44, position: 'absolute', top: 5, right: 5, width: 22, height: 22, borderRadius: '50%', background: 'rgba(0,0,0,.65)', color: 'var(--on-accent)', border: 'none', cursor: 'pointer', fontSize: 12, lineHeight: 1 }}>
                     <Icon name="close" size={14} />

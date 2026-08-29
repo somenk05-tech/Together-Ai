@@ -1,14 +1,33 @@
 import { z } from 'zod';
 
-// Accept only https media URLs (uploaded video/images on R2/CDN) OR inline
-// `data:image/...` data URLs (photos are posted inline as compressed JPEGs).
-// This still blocks the real XSS/redirect vectors — `javascript:` and
-// `data:text/html` — while allowing the two shapes real posts actually use.
-const httpsUrl = z
+/**
+ * A POST'S MEDIA IS ONE OF OUR OWN KEYS, AND NOTHING ELSE (30 Aug audit).
+ *
+ * This accepted `https://` — ANY host — and `data:image/...` up to fifteen
+ * MILLION characters, ten per post. Both were mistakes with a bill attached:
+ *
+ *  · `data:` meant photographs were never uploaded at all. They were stored
+ *    inline in Postgres, re-read and re-sent in every feed page (~7 MB for a
+ *    page of twenty), uncacheable by any browser or CDN, `loading="lazy"` a
+ *    no-op, and broadcast down the websocket to every follower. It also routed
+ *    around MediaService entirely, so the one guard written to stop an SVG
+ *    reaching a render surface never saw them.
+ *  · any-host `https` meant a post could point every viewer's browser at a
+ *    server the author chose, and `setCover` would fetch it server-side from
+ *    inside the VPC.
+ *
+ * Now: `social/<userId>/<uuid>.<ext>`, which is what
+ * `POST /media/upload-post` hands back, and which SocialService checks against
+ * the bucket for ownership, existence and real size before attaching it.
+ *
+ * The 4096 ceiling is a key length, not a payload — there is no payload here
+ * any more.
+ */
+const mediaRef = z
   .string()
-  .max(15_000_000) // ~11MB base64 image ceiling
-  .refine((u) => /^https:\/\//i.test(u) || /^data:image\//i.test(u), {
-    message: 'media URL must be https or an inline image',
+  .max(4096)
+  .refine((u) => /^social\/[^/]+\/[A-Za-z0-9._-]+$/.test(u), {
+    message: 'media must be uploaded first — send the key from /media/upload-post',
   });
 
 /** Create a post — text and/or media, optional feeling + geo (for the city map). */
@@ -19,9 +38,9 @@ export const CreatePostSchema = z
     media: z
       .array(
         z.object({
-          url: httpsUrl,
+          url: mediaRef,
           kind: z.enum(['image', 'video']),
-          thumbUrl: httpsUrl.optional(),
+          thumbUrl: mediaRef.optional(),
         }),
       )
       .max(10)

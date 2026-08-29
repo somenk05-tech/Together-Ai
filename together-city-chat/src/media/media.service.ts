@@ -45,6 +45,21 @@ export const EXECUTABLE_IN_A_BROWSER = new Set([
 ]);
 
 /**
+ * What a post may carry — an allowlist, and the contrast with the denylist
+ * above is the whole point.
+ *
+ * The general upload door takes whatever somebody attaches to a message, so it
+ * can only name the four things a browser will RUN and refuse those. A post
+ * carries a photograph or a clip, so it can say what it accepts. `image/*`
+ * would have admitted `image/svg+xml`, which is an image that runs script —
+ * the same argument `requestDatingUpload` makes for the same reason.
+ */
+export const POSTABLE_MEDIA = new Set([
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif',
+  'video/mp4', 'video/quicktime', 'video/webm',
+]);
+
+/**
  * The type, without its parameters and without the whitespace either side of
  * them.
  *
@@ -84,6 +99,10 @@ export class MediaService {
    * queue — see ARCHITECTURE.md → Media pipeline. Hooks: generateThumbnail(),
    * compressImage(), transcodeVideo().
    */
+  /** What a post may carry. Named rather than inferred from `image/*`, because
+   *  an SVG is an image that runs script and `image/*` admits it. */
+  static readonly POSTABLE = POSTABLE_MEDIA;
+
   async requestUpload(userId: string, mimeType: string, sizeBytes: number): Promise<PresignedUpload> {
     const max = this.config.get<number>('policy.maxUploadBytes') ?? 52428800;
     if (sizeBytes > max) throw new BadRequestException(`File exceeds ${max} bytes`);
@@ -143,6 +162,32 @@ export class MediaService {
   }
 
   /** Presign a PUT into the PRIVATE health vault (no public URL is returned). */
+  /**
+   * Presign a PUT for a POST's photograph or video.
+   *
+   * AN ALLOWLIST, LIKE THE DATING DOOR AND UNLIKE THE GENERAL ONE. The general
+   * `requestUpload` above takes whatever a citizen attaches to a message, so it
+   * can only name the four things a browser will RUN and refuse those. A post
+   * carries a photograph or a clip and nothing else, so it can say what it
+   * accepts — and an allowlist is the difference between "we thought of that
+   * one" and "it is not on the list".
+   *
+   * The cap here is the SECOND of two. `sizeBytes` is whatever the client
+   * says, so this one is advisory and always was; `SocialService.createPost`
+   * reads the real object size out of the bucket before the media is attached
+   * to anything. Both, because a small lie should be refused before 200MB is
+   * pushed into the bucket, and a big one has to be refused after.
+   */
+  async requestPostUpload(userId: string, mimeType: string, sizeBytes: number): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
+    const max = this.config.get<number>('policy.maxUploadBytes') ?? 52428800;
+    if (sizeBytes > max) throw new BadRequestException(`File exceeds ${max} bytes`);
+    const bare = bareMimeType(mimeType);
+    if (!POSTABLE_MEDIA.has(bare)) {
+      throw new BadRequestException('A post takes a photograph or a video — that file is neither.');
+    }
+    return this.storage.presignPostUpload(userId, mimeType, extFor(mimeType));
+  }
+
   async requestPrivateUpload(userId: string, mimeType: string, sizeBytes: number): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
     const max = this.config.get<number>('policy.maxUploadBytes') ?? 52428800;
     if (sizeBytes > max) throw new BadRequestException(`File exceeds ${max} bytes`);

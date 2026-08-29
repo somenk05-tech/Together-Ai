@@ -79,6 +79,17 @@ export class StorageProvider implements OnModuleInit {
    * take minutes over a lab report.
    */
   private readonly datingPhotoTtlSec = 60;
+  /**
+   * How long a signed link to a post's photograph or video stays good.
+   *
+   * A dating photo gets 60 seconds because it is the most sensitive image in
+   * the application and it is looked at once. A post is scrolled past, scrolled
+   * back to, and left on screen while somebody makes tea — sixty seconds there
+   * is a wall of broken images. An hour is long enough that no ordinary reading
+   * session outlives it and short enough that a copied link is not a permanent
+   * publication, which is what these URLs were before (30 Aug audit).
+   */
+  private readonly postMediaTtlSec = 3600;
 
   /**
    * SIXTY SECONDS WAS REVOCATION. IT IS NOT REVOCATION ANY MORE, AND IT WAS
@@ -385,6 +396,87 @@ export class StorageProvider implements OnModuleInit {
    *
    * So: private object, short-lived signed GET issued per eligible viewer.
    */
+  /**
+   * Presign a PUT for a POST's photograph or video — private bucket, key only.
+   *
+   * Post media used to go through `presignUpload`, which writes to the PUBLIC
+   * bucket and hands back `${publicBase}/${key}`: a permanent, unauthenticated
+   * URL, stored verbatim on PostMedia.url and shipped to every viewer. Anyone
+   * who saw a "Family" video could copy the `<video src>` and hand the string
+   * to anybody, forever, with no session — and deleting the post did not stop
+   * it. "Only Me" was a label on a public file (30 Aug audit).
+   *
+   * Its own prefix, following the rule this file already carries for the
+   * daybook and the dating selfie: ONE PREFIX PER THING THAT CAN BE OWNED. The
+   * userId is IN the key, so "is this yours" is something the key answers
+   * rather than something a lookup has to be trusted to check.
+   */
+  async presignPostUpload(userId: string, mimeType: string, ext: string): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
+    const safeExt = (ext || 'bin').replace(/[^a-zA-Z0-9]/g, '').slice(0, 10) || 'bin';
+    const key = `social/${userId}/${randomUUID()}.${safeExt}`;
+    if (!this.s3) {
+      return { uploadUrl: `${this.publicBase}/__presigned__/${key}`, key, expiresInSec: this.expiresInSec };
+    }
+    const uploadUrl = await getSignedUrl(
+      this.s3,
+      new PutObjectCommand({ Bucket: this.healthBucket, Key: key, ContentType: mimeType }),
+      { expiresIn: this.expiresInSec },
+    );
+    return { uploadUrl, key, expiresInSec: this.expiresInSec };
+  }
+
+  /** True when a stored PostMedia value is one of OUR private keys, rather than
+   *  a legacy public URL or an inline `data:` photo. Both of those still exist
+   *  in the table and both still have to render. */
+  isPostKey(value: string): boolean {
+    return /^social\/[^/]+\/[A-Za-z0-9._-]+$/.test(value);
+  }
+
+  /** True when `key` belongs to `userId` — the prefix is the ownership proof. */
+  isOwnPostKey(userId: string, key: string): boolean {
+    return this.isPostKey(key) && key.startsWith(`social/${userId}/`);
+  }
+
+  /**
+   * Sign every post-media key in one pass and hand back a lookup.
+   *
+   * A feed page is twenty posts and up to forty media rows, and signing is a
+   * local HMAC rather than a call to the bucket — so this is one `Promise.all`
+   * over a de-duplicated set, and the shaping stays synchronous. Legacy values
+   * are simply absent from the map and pass through untouched.
+   */
+  async signPostMedia(values: Array<string | null | undefined>): Promise<Map<string, string>> {
+    const out = new Map<string, string>();
+    const keys = [...new Set(values.filter((v): v is string => Boolean(v) && this.isPostKey(v as string)))];
+    if (!keys.length) return out;
+    const s3 = this.s3;
+    if (!s3) {
+      for (const k of keys) out.set(k, `${this.publicBase}/__private__/${k}`);
+      return out;
+    }
+    await Promise.all(keys.map(async (k) => {
+      try {
+        out.set(k, await getSignedUrl(s3, new GetObjectCommand({ Bucket: this.healthBucket, Key: k }), { expiresIn: this.postMediaTtlSec }));
+      } catch (e) {
+        this.logger.warn(`signPostMedia failed for ${k}: ${(e as Error).message}`);
+      }
+    }));
+    return out;
+  }
+
+  /** One signed GET for a post's own media — used where ffmpeg needs to read
+   *  the video the citizen is setting a cover frame from. Short, because it is
+   *  handed to a subprocess and not to a browser. */
+  async signPostObject(key: string, ttlSec = 120): Promise<string | null> {
+    if (!this.s3 || !this.isPostKey(key)) return null;
+    try {
+      return await getSignedUrl(this.s3, new GetObjectCommand({ Bucket: this.healthBucket, Key: key }), { expiresIn: ttlSec });
+    } catch (e) {
+      this.logger.warn(`signPostObject failed for ${key}: ${(e as Error).message}`);
+      return null;
+    }
+  }
+
   async presignDatingUpload(userId: string, mimeType: string, ext: string): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
     const safeExt = (ext || 'bin').replace(/[^a-zA-Z0-9]/g, '').slice(0, 10) || 'bin';
     const key = `dating/${userId}/${randomUUID()}.${safeExt}`;

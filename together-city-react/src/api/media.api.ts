@@ -89,6 +89,29 @@ export const mediaApi = {
   },
 
   /**
+   * Upload a POST's photograph or video — private bucket, key only.
+   *
+   * Photographs used not to be uploaded at all: the composer turned them into
+   * `data:image/jpeg;base64,…` and posted the string, which was stored inline
+   * in Postgres and re-sent in every feed page (~7 MB for twenty posts),
+   * uncacheable, and pushed down the websocket to every follower. Videos went
+   * through `upload` into the PUBLIC bucket, where the URL was permanent and
+   * unauthenticated — so a "Family" clip could be handed to anybody by copying
+   * one string, forever, and deleting the post did not stop it (30 Aug audit).
+   *
+   * Both go here now, and the scrub above matters more on this path than any
+   * other in the file: a post is the most public thing in the application, and
+   * a phone photograph carries the coordinates it was taken at.
+   */
+  async uploadPost(file: File): Promise<string> {
+    const { file: safe } = await scrubImage(file, 'public');
+    const res = await apiPost('/media/upload-post', { mimeType: safe.type, sizeBytes: safe.size },
+      z.object({ uploadUrl: z.string(), key: z.string(), expiresInSec: z.number().optional() }));
+    await axios.put(res.uploadUrl, safe, { headers: { 'Content-Type': safe.type } });
+    return res.key;
+  },
+
+  /**
    * Upload a DATING photo to the private bucket — returns the key only. (M3.)
    *
    * It lives here rather than in the dating page for the reason this whole file

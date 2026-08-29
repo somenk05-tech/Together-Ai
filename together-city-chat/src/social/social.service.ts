@@ -73,12 +73,55 @@ export class SocialService {
     if (post.authorId !== userId) throw new ForbiddenException('not your post');
     const video = (post.media ?? []).find((m) => m.kind === 'video');
     if (!video) throw new ForbiddenException('this post has no video');
-    const jpeg = await this.extractFrame(video.url, Math.max(0, Number(timeSec) || 0));
+    /**
+     * FFMPEG IS HANDED A URL WE MINTED, NOT ONE THE CLIENT CHOSE.
+     *
+     * The stored value used to be any `https://` string the client sent, and it
+     * went straight into `ffmpeg -i`. So this endpoint fetched whatever host
+     * the author named, from inside the VPC, and the three possible answers —
+     * a frame, "could not extract", or a hang — were an oracle for what is
+     * reachable in there. Media is one of our own keys now, and what ffmpeg
+     * receives is a two-minute signed GET for that key.
+     */
+    const source = await this.storage.signPostObject(video.url);
+    if (!source) throw new ForbiddenException('That video is not one this post can read a frame from.');
+    if (SocialService.coversRunning >= SocialService.COVER_LIMIT) {
+      throw new InternalServerErrorException('Too many covers are being made right now — try again in a moment.');
+    }
+    SocialService.coversRunning += 1;
+    let jpeg: Buffer | null = null;
+    try {
+      jpeg = await this.extractFrame(source, Math.max(0, Number(timeSec) || 0));
+    } finally {
+      SocialService.coversRunning -= 1;
+    }
     if (!jpeg) throw new InternalServerErrorException('could not extract that frame');
-    const thumbUrl = await this.storage.putObject(userId, jpeg, 'image/jpeg', 'jpg');
+    // The cover goes where the video went: the private bucket, signed on read.
+    // Putting it in the public one would have published a frame of a Family
+    // video at a permanent URL, which is most of the original bug.
+    const thumbKey = await this.storage.putPrivateObject('social', userId, jpeg, 'image/jpeg', 'jpg');
+    if (!thumbKey) throw new InternalServerErrorException('could not store that frame');
+    const thumbUrl = thumbKey;
     await this.prisma.postMedia.update({ where: { id: video.id }, data: { thumbUrl } });
     return { ok: true, thumbUrl };
   }
+
+  /**
+   * HOW MANY FFMPEGS MAY BE ALIVE AT ONCE, AND FOR HOW LONG.
+   *
+   * There was no answer to either question: no timeout, no kill, no cap. Ten
+   * citizens setting covers on fifty-megabyte videos meant ten ffmpeg processes
+   * decoding on a shared vCPU, and one pointed at an endpoint that accepts a
+   * connection and never sends bytes hung forever with nothing to end it.
+   *
+   * A counter rather than a queue, deliberately: a queue makes the eleventh
+   * citizen wait an unknown time and then probably fail anyway; a refusal tells
+   * them now and costs nothing. Static because the limit belongs to the
+   * process, not to a request-scoped instance of the service.
+   */
+  private static readonly COVER_LIMIT = 2;
+  private static readonly COVER_TIMEOUT_MS = 20_000;
+  private static coversRunning = 0;
 
   /** Grab a single JPEG frame at `timeSec` from a video URL via ffmpeg (stdout).
    *  `-ss` before `-i` seeks first, so only the needed bytes are fetched. */
@@ -90,9 +133,15 @@ export class SocialService {
           '-frames:v', '1', '-q:v', '3', '-f', 'image2pipe', '-vcodec', 'mjpeg', 'pipe:1',
         ], { stdio: ['ignore', 'pipe', 'ignore'] });
         const chunks: Buffer[] = [];
+        let settled = false;
+        const done = (v: Buffer | null) => { if (settled) return; settled = true; clearTimeout(timer); resolve(v); };
+        // SIGKILL and not SIGTERM: a stalled ffmpeg waiting on a socket does not
+        // always act on a term, and the whole point of the timer is that this
+        // ends.
+        const timer = setTimeout(() => { try { ff.kill('SIGKILL'); } catch { /* already gone */ } done(null); }, SocialService.COVER_TIMEOUT_MS);
         ff.stdout.on('data', (d: Buffer) => chunks.push(d));
-        ff.on('error', () => resolve(null));
-        ff.on('close', (code) => resolve(code === 0 && chunks.length ? Buffer.concat(chunks) : null));
+        ff.on('error', () => done(null));
+        ff.on('close', (code) => done(code === 0 && chunks.length ? Buffer.concat(chunks) : null));
       } catch { resolve(null); }
     });
   }
@@ -297,7 +346,42 @@ export class SocialService {
   }
 
   // ─────────────── posts ───────────────
+  /**
+   * EVERY KEY IS CHECKED AGAINST THE BUCKET BEFORE IT IS ATTACHED TO ANYTHING.
+   *
+   * The upload cap used to be whatever the client said it was: `sizeBytes` came
+   * out of the request body and the presigned PUT carried no
+   * content-length-range, so declaring 1 KB and pushing 200 MB worked. And the
+   * media URL was only checked for an `https://` prefix — any host on the
+   * internet — which is what made `setCover` an SSRF and what let a post pull
+   * every viewer's browser to a server the author chose.
+   *
+   * Three questions, and a key that cannot answer all three is refused:
+   * is it OURS (the prefix carries the uploader's id), is it THERE, and is it
+   * within the cap the bucket can actually measure.
+   */
+  private async verifyMedia(userId: string, media: CreatePostDto['media']): Promise<void> {
+    if (!media?.length) return;
+    const max = 200 * 1024 * 1024;
+    for (const m of media) {
+      for (const value of [m.url, m.thumbUrl]) {
+        if (!value) continue;
+        if (!this.storage.isOwnPostKey(userId, value)) {
+          throw new ForbiddenException('That media was not uploaded here, by you, for this post.');
+        }
+        if (!(await this.storage.privateObjectExists(value))) {
+          throw new NotFoundException('That upload did not finish — try attaching it again.');
+        }
+        const size = await this.storage.healthObjectSize(value);
+        if (size !== null && size > max) {
+          throw new ForbiddenException('That file is larger than a post can carry.');
+        }
+      }
+    }
+  }
+
   async createPost(userId: string, dto: CreatePostDto) {
+    await this.verifyMedia(userId, dto.media);
     const audience = dto.audience ?? 'public';
     const tagged = dto.tagged?.length
       ? dto.tagged.map((t) => ({ id: t.id, name: this.clean(t.name) ?? '', handle: this.clean(t.handle) ?? '' }))
@@ -321,7 +405,7 @@ export class SocialService {
       },
       include: { author: { select: AUTHOR_SELECT }, media: true },
     });
-    const shaped = this.shapePost(post, { likes: 0, comments: 0 }, false);
+    const shaped = this.shapePost(post, { likes: 0, comments: 0 }, false, await this.signMediaOf([post]));
     const recipients = await this.postRecipients(userId, audience);
     this.gateway.postNew(shaped, recipients);
     // "Your post is now live" — self-notification (no actor, so not skipped).
@@ -359,25 +443,34 @@ export class SocialService {
       select: { url: true, thumbUrl: true },
     }).catch(swallowed('social.deletePost.media', [] as { url: string; thumbUrl: string | null }[]));
     await this.prisma.post.delete({ where: { id: postId } });
-    for (const key of this.storageKeys(media)) {
-      void this.storage.deleteObject(key).catch(swallowed('social.deletePost.object', undefined));
+    for (const { key, legacy } of this.storageKeys(media)) {
+      const gone = legacy ? this.storage.deleteObject(key) : this.storage.deletePrivateObject(key);
+      void gone.catch(swallowed('social.deletePost.object', undefined));
     }
     this.gateway.postDeleted(postId, recipients);
     return { ok: true };
   }
 
-  /** The object keys behind a post's media rows — skipping inline `data:` URLs
-   *  and anything not served from our own public base. */
-  private storageKeys(media: { url: string; thumbUrl: string | null }[]): string[] {
-    const keys = new Set<string>();
+  /**
+   * The object keys behind a post's media rows.
+   *
+   * Two shapes live in this column: our own `social/<userId>/…` keys, and the
+   * legacy public URLs written before 30 Aug (plus inline `data:` photos, which
+   * have no object at all). Both kinds of object are deleted — the legacy ones
+   * are exactly the files that were reachable forever, so they are the ones
+   * that most need to go when a citizen deletes the post.
+   */
+  private storageKeys(media: { url: string; thumbUrl: string | null }[]): Array<{ key: string; legacy: boolean }> {
+    const out = new Map<string, boolean>();
     for (const m of media) {
       for (const u of [m.url, m.thumbUrl]) {
         if (!u || u.startsWith('data:')) continue;
+        if (this.storage.isPostKey(u)) { out.set(u, false); continue; }
         const key = this.storage.keyFromUrl(u);
-        if (key && key !== u) keys.add(key);
+        if (key && key !== u) out.set(key, true);
       }
     }
-    return [...keys];
+    return [...out.entries()].map(([key, legacy]) => ({ key, legacy }));
   }
 
   /** Edit a post's caption/text and/or its Work/Personal category (author only).
@@ -395,7 +488,7 @@ export class SocialService {
       include: { author: { select: AUTHOR_SELECT }, media: true, _count: { select: { likes: true, comments: true } }, likes: { where: { userId }, select: { id: true } } },
     });
     const u = updated as unknown as { _count: { likes: number; comments: number }; likes: unknown[] };
-    return this.shapePost(updated, u._count, u.likes.length > 0);
+    return this.shapePost(updated, u._count, u.likes.length > 0, await this.signMediaOf([updated]));
   }
 
   /** Cursor-paginated feed, newest first. Cursor = last post id of the previous page. */
@@ -586,7 +679,10 @@ export class SocialService {
     const hasMore = posts.length > limit;
     const page = hasMore ? posts.slice(0, limit) : posts;
     return {
-      items: page.map((p) => this.shapeFeedRow(p)),
+      items: (await (async () => {
+        const signed = await this.signMediaOf(page);
+        return page.map((p) => this.shapeFeedRow(p, signed));
+      })()),
       nextCursor: hasMore ? page[page.length - 1].id : null,
     };
   }
@@ -594,7 +690,7 @@ export class SocialService {
   /** Shape a feed row, unwrapping reposts: a repost renders the ORIGINAL post's
    *  content (so like/comment target the original) with a `repostedBy` label and
    *  a `key` unique to this feed entry, dated at the share time. */
-  private shapeFeedRow(row: unknown) {
+  private shapeFeedRow(row: unknown, signed?: Map<string, string>) {
     const r = row as {
       id: string; createdAt: Date; repostOfId?: string | null;
       author: { name: string; handle: string };
@@ -603,11 +699,29 @@ export class SocialService {
     };
     if (r.repostOfId && r.repostOf) {
       const o = r.repostOf;
-      const shaped = this.shapePost(o as never, o._count, (o.likes?.length ?? 0) > 0);
+      const shaped = this.shapePost(o as never, o._count, (o.likes?.length ?? 0) > 0, signed);
       return { ...shaped, key: r.id, createdAt: r.createdAt.toISOString(), repostedBy: { name: r.author.name, handle: r.author.handle } };
     }
-    const shaped = this.shapePost(row as never, r._count, (r.likes?.length ?? 0) > 0);
+    const shaped = this.shapePost(row as never, r._count, (r.likes?.length ?? 0) > 0, signed);
     return { ...shaped, key: r.id, repostedBy: null };
+  }
+
+  /**
+   * Every stored media value on these rows, the reposted originals included.
+   *
+   * One pass, one `Promise.all` inside `signPostMedia`, one map — rather than a
+   * signature per media row per post, which on a twenty-post page would be
+   * forty awaits threaded through the shaping. Signing is a local HMAC, so the
+   * cost here is the round of promises and nothing else.
+   */
+  private async signMediaOf(rows: unknown[]): Promise<Map<string, string>> {
+    const values: Array<string | null | undefined> = [];
+    for (const row of rows) {
+      const r = row as { media?: Array<{ url: string; thumbUrl: string | null }>; repostOf?: { media?: Array<{ url: string; thumbUrl: string | null }> } | null };
+      for (const m of r.media ?? []) values.push(m.url, m.thumbUrl);
+      for (const m of r.repostOf?.media ?? []) values.push(m.url, m.thumbUrl);
+    }
+    return this.storage.signPostMedia(values);
   }
 
   /** Repost (share to feed) another citizen's post. Idempotent per user+post.
@@ -660,7 +774,7 @@ export class SocialService {
         },
       },
     });
-    const shaped = this.shapeFeedRow(row);
+    const shaped = this.shapeFeedRow(row, await this.signMediaOf([row]));
     // The fan-out follows the inherited audience too, or the websocket would
     // have published to the whole follower list what the query no longer will.
     const recipients = await this.postRecipients(userId, inherited);
@@ -717,7 +831,8 @@ export class SocialService {
       take: 200,
       include: { author: { select: AUTHOR_SELECT }, media: true, _count: { select: { likes: true, comments: true } } },
     });
-    return posts.map((p) => this.shapePost(p, p._count, false));
+    const signedMap = await this.signMediaOf(posts);
+    return posts.map((p) => this.shapePost(p, p._count, false, signedMap));
   }
 
   // ─────────────── comments ───────────────
@@ -1329,6 +1444,10 @@ export class SocialService {
     },
     counts: { likes: number; comments: number },
     likedByMe: boolean,
+    /* What the browser should fetch for each stored value. Keys are signed;
+       legacy public URLs and inline `data:` photos are absent from the map and
+       pass through, because the table still holds both. */
+    signed?: Map<string, string>,
   ) {
     const px = p as unknown as { audience?: string | null; placeName?: string | null; taggedJson?: string | null; musicUrl?: string | null; musicTitle?: string | null };
     let tagged: Array<{ id: string; name: string; handle: string }> = [];
@@ -1345,7 +1464,12 @@ export class SocialService {
       lat: p.lat,
       lng: p.lng,
       author: p.author,
-      media: p.media.map((m) => ({ id: m.id, url: m.url, kind: m.kind, thumbUrl: m.thumbUrl })),
+      media: p.media.map((m) => ({
+        id: m.id,
+        url: signed?.get(m.url) ?? m.url,
+        kind: m.kind,
+        thumbUrl: m.thumbUrl ? (signed?.get(m.thumbUrl) ?? m.thumbUrl) : null,
+      })),
       likes: counts.likes,
       comments: counts.comments,
       likedByMe,
