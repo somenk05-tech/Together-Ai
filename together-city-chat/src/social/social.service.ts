@@ -3,7 +3,7 @@ import { ForbiddenException, Injectable, InternalServerErrorException, NotFoundE
 import { spawn } from 'child_process';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { BlockingService } from '../connections/blocking.service';
-import { VISIBLE_ONLY } from './post-visibility';
+import { VISIBLE, VISIBLE_ONLY } from './post-visibility';
 import { AdminAccessService } from '../admin/admin-access.service';
 import { ConnectionsService } from '../connections/connections.service';
 import { RECORD_CAP } from '../shared/paging';
@@ -123,6 +123,38 @@ export class SocialService {
     return [...ids];
   }
 
+  /**
+   * YOUR CIRCLE — ACCEPTED CONNECTIONS, AND NOTHING ELSE.
+   *
+   * `networkIds` above is the set whose posts you SEE. This is the much smaller
+   * set that a `friends`-audience post was written FOR, and the audit of 30 Aug
+   * is why they are now two functions instead of one.
+   *
+   * The friends branch of the feed gate read `networkIds`, which includes
+   * everyone you follow. Following is unilateral — a handle, no approval — so
+   * pressing Follow on somebody handed you their entire friends-audience
+   * history. The composer's own hint reads "Friends — Your accepted
+   * connections"; the citizen consented to that sentence and the query enforced
+   * a different one.
+   *
+   * This is the same set `ConnectionsService.visibleAudiences` gates on, which
+   * is what `assertCanView` already used — so the read path and the interaction
+   * path now agree. They did not before, and whichever was wrong, one of them
+   * was leaking.
+   */
+  private async circleIds(userId: string): Promise<string[]> {
+    // unbounded: the viewer's accepted connections — socially bounded, and the
+    // same set the friends lens and familyIds already read
+    const conns = await this.prisma.connection.findMany({
+      where: { status: 'ACCEPTED', OR: [{ userOneId: userId }, { userTwoId: userId }] },
+      select: { userOneId: true, userTwoId: true },
+    }).catch(swallowed('social.circleIds', [] as { userOneId: string; userTwoId: string }[]));
+    const blocked = await this.blockedWith(userId);
+    return conns
+      .map((c) => (c.userOneId === userId ? c.userTwoId : c.userOneId))
+      .filter((id) => !blocked.has(id));
+  }
+
   /** All userIds in a block relationship with this user (either direction).
    *  Reads BOTH the Block table and connection-level blocks — this used to read
    *  only the first, so someone blocked on their connection record still had
@@ -215,15 +247,37 @@ export class SocialService {
     const target = await this.prisma.user.findFirst({ where: { handle: ref }, select: { id: true } });
     if (!target) throw new NotFoundException('No citizen with that handle.');
     if (target.id === userId) throw new ForbiddenException("You can't follow yourself.");
+    /**
+     * A BLOCK HAS TO SURVIVE A RE-FOLLOW.
+     *
+     * This was the only mutation on the graph that never consulted the block
+     * set. Blocking drops the follow edges, so the sequence was: Alice blocks
+     * Mallory, Mallory calls follow again, the edge is written, Alice is sent
+     * "Mallory started following you", and Mallory reads her feed through the
+     * Following lens. In a loop, that is a notification firehose aimed at the
+     * person who blocked him.
+     */
+    const blockedEither = await this.blockedWith(userId);
+    if (blockedEither.has(target.id)) throw new ForbiddenException('You cannot follow this citizen.');
     const before = await this.prisma.follow.findUnique({ where: { followerId_followeeId: { followerId: userId, followeeId: target.id } } }).catch(swallowed('social.follow', null));
     await this.prisma.follow.createMany({ data: [{ followerId: userId, followeeId: target.id }], skipDuplicates: true });
+    /**
+     * EVERY ONE OF THESE FIVE CARRIES A `.catch` NOW (30 Aug audit).
+     *
+     * They were `void`-ed with no catch. `void` marks a promise as
+     * deliberately unawaited; it does not handle its rejection. Under Node's
+     * default `--unhandled-rejections=throw`, one failing notification write
+     * exits the API process — taking down every hub in the monolith because
+     * somebody tapped a heart. `swallowed` was already the house pattern for
+     * exactly this, nine lines from here in `reportDecide`.
+     */
     // Notify only on a genuinely new follow (not a repeat).
     if (!before) {
       void this.actorName(userId).then((name) =>
         this.notifications.create({
           userId: target.id, actorId: userId, kind: 'follow',
           title: `${name} started following you`, href: '/social/profile', entityId: userId,
-        }));
+        })).catch(swallowed('social.notify.follow', undefined));
     }
     return { following: true, userId: target.id };
   }
@@ -267,7 +321,7 @@ export class SocialService {
     void this.notifications.create({
       userId, kind: 'post_live', title: 'Your post is now live',
       body: post.text ? post.text.slice(0, 80) : 'Shared to your city.', href: '/social/feed', entityId: post.id,
-    });
+    }).catch(swallowed('social.notify.postLive', undefined));
     return shaped;
   }
 
@@ -276,9 +330,47 @@ export class SocialService {
     if (!post) throw new NotFoundException('post not found');
     if (post.authorId !== userId) throw new ForbiddenException('not your post');
     const recipients = await this.postRecipients(post.authorId, (post as unknown as { audience?: string | null }).audience);
+    /**
+     * DELETE HAS TO REACH THE BUCKET (30 Aug audit, blocker 3).
+     *
+     * `post.delete` cascades the PostMedia ROWS and nothing else, so the
+     * objects stayed in storage at the same public URL — reachable by anyone
+     * who had ever seen the post, forever, after the citizen deleted it. This
+     * is the delete people care most about being real, and it was the one that
+     * was not. `StorageProvider.deleteObject` already existed and had no caller
+     * in this module.
+     *
+     * Read the rows BEFORE the delete (the cascade takes them with it), and
+     * best-effort the objects AFTER, so a bucket that is briefly unreachable
+     * cannot keep the post itself alive. Inline `data:` photos have no object
+     * behind them and `keyFromUrl` returns nothing for them.
+     */
+    // unbounded: every media row of ONE post — the DTO caps a post at ten, and
+    // truncating here would orphan exactly the objects this call exists to delete
+    const media = await this.prisma.postMedia.findMany({
+      where: { postId },
+      select: { url: true, thumbUrl: true },
+    }).catch(swallowed('social.deletePost.media', [] as { url: string; thumbUrl: string | null }[]));
     await this.prisma.post.delete({ where: { id: postId } });
+    for (const key of this.storageKeys(media)) {
+      void this.storage.deleteObject(key).catch(swallowed('social.deletePost.object', undefined));
+    }
     this.gateway.postDeleted(postId, recipients);
     return { ok: true };
+  }
+
+  /** The object keys behind a post's media rows — skipping inline `data:` URLs
+   *  and anything not served from our own public base. */
+  private storageKeys(media: { url: string; thumbUrl: string | null }[]): string[] {
+    const keys = new Set<string>();
+    for (const m of media) {
+      for (const u of [m.url, m.thumbUrl]) {
+        if (!u || u.startsWith('data:')) continue;
+        const key = this.storage.keyFromUrl(u);
+        if (key && key !== u) keys.add(key);
+      }
+    }
+    return [...keys];
   }
 
   /** Edit a post's caption/text and/or its Work/Personal category (author only).
@@ -324,7 +416,12 @@ export class SocialService {
     if (filter === 'following') {
       // unbounded: the following feed filter set
       const follows = await this.prisma.follow.findMany({ where: { followerId: userId }, select: { followeeId: true } });
-      network = follows.map((f) => f.followeeId);
+      // The blocked filter is NOT optional here. This lens replaces `network`
+      // wholesale, and `networkIds` was the only thing removing blocked authors
+      // from it — so a blocked citizen you had followed before the block read
+      // through on this tab and nowhere else.
+      const blockedHere = await this.blockedWith(userId);
+      network = follows.map((f) => f.followeeId).filter((id) => !blockedHere.has(id));
     }
     const weekAgo = new Date(Date.now() - 7 * 86_400_000);
     // Audience gate pushed INTO the query (Universal Connection Model) so that
@@ -355,7 +452,21 @@ export class SocialService {
      * Friends and Following stay bounded, because that is what they are for.
      */
     const cityWide = filter === 'videos' || filter === 'foryou' || filter === 'trending' || filter === 'nearby';
-    const blockedSet = cityWide ? [...(await this.blockedWith(userId))] : [];
+    const blockedSet = [...(await this.blockedWith(userId))];
+    /**
+     * FRIENDS MEANS THE CIRCLE, ON BOTH BRANCHES (30 Aug audit, blocker 1).
+     *
+     * Before: the city-wide branch read `authorId: { in: network }` — everyone
+     * you follow — and the bounded branch read `{ audience: { in: ['public',
+     * 'friends'] } }` with no author bound at all, saved only by the outer
+     * `authorId: { in: network }` a few lines down. Both spelled "friends" as
+     * "your network", and the network is the follow graph.
+     *
+     * Now both spell it `circle`: accepted connections. The label in the
+     * composer and the rule in the query say the same thing, and
+     * `assertCanView` has always said it too.
+     */
+    const circle = await this.circleIds(userId);
     const audienceWhere = cityWide
       ? {
           OR: [
@@ -363,17 +474,44 @@ export class SocialService {
             // Public means public. No network bound on this branch — that was
             // the bug.
             { audience: 'public' },
-            { audience: 'friends', authorId: { in: network } },
+            { audience: 'friends', authorId: { in: circle } },
             { audience: 'family', authorId: { in: familyIds } },
           ],
         }
       : {
           OR: [
             { authorId: userId },
-            { audience: { in: ['public', 'friends'] } },
+            { audience: 'public' },
+            { audience: 'friends', authorId: { in: circle } },
             { audience: 'family', authorId: { in: familyIds } },
           ],
         };
+    /**
+     * A REPOST CANNOT OUTLIVE ITS ORIGINAL'S PERMISSIONS.
+     *
+     * `include: { repostOf: … }` cannot be filtered — Prisma has no `where` on
+     * a to-one relation include — and `shapeFeedRow` renders the ORIGINAL's
+     * text, media and author. So a removed post carried on being served by
+     * whoever had reposted it first, over a moderator's decision, and a blocked
+     * citizen's post arrived in full through anybody who shared it.
+     *
+     * The filter therefore belongs in the `where`, where a to-one relation CAN
+     * be constrained: either this row is not a repost, or the thing it reposts
+     * is still visible and its author is not somebody you have blocked.
+     */
+    const repostWhere = {
+      OR: [
+        { repostOfId: null },
+        {
+          repostOf: {
+            is: {
+              ...VISIBLE_ONLY,
+              ...(blockedSet.length ? { authorId: { notIn: blockedSet } } : {}),
+            },
+          },
+        },
+      ],
+    };
     // Ignore a stale/deleted cursor instead of 500-ing on it.
     let cursorClause: { cursor: { id: string }; skip: number } | object = {};
     if (cursor) {
@@ -384,9 +522,18 @@ export class SocialService {
       where: {
         ...VISIBLE_ONLY,
         // City-wide videos aren't bounded to your network; every other lens is.
-        ...(cityWide
-          ? (blockedSet.length ? { authorId: { notIn: blockedSet } } : {})
-          : { authorId: { in: network } }),
+        // ONE `authorId` KEY, NOT TWO SPREADS. Written as two conditional
+        // spreads the second silently replaces the first — which is how the
+        // block filter would have been dropped on every bounded lens, the exact
+        // shape of bug this change exists to close. The blocked filter now
+        // applies to BOTH branches: `networkIds` removed blocked authors for
+        // most lenses, but Following replaces that set wholesale, so the
+        // guarantee is stated here rather than inherited from whichever helper
+        // built the list.
+        authorId: {
+          ...(blockedSet.length ? { notIn: blockedSet } : {}),
+          ...(cityWide ? {} : { in: network }),
+        },
         ...(filter === 'nearby' ? { lat: { not: null } } : {}),
         ...(filter === 'trending' ? { createdAt: { gte: weekAgo } } : {}),
         // Photos / Videos sections: only posts carrying that media kind.
@@ -395,7 +542,9 @@ export class SocialService {
         // Thoughts: Twitter-style text-only posts — no media, real caption,
         // and not a repost.
         ...(filter === 'thoughts' ? { media: { none: {} }, text: { not: null }, repostOfId: null } : {}),
-        ...audienceWhere,
+        // Two ORs cannot share one object literal — the second would replace
+        // the first — so the audience gate and the repost gate are ANDed by name.
+        AND: [audienceWhere, repostWhere],
       },
       take: limit + 1,
       ...cursorClause,
@@ -447,13 +596,39 @@ export class SocialService {
   /** Repost (share to feed) another citizen's post. Idempotent per user+post.
    *  Appears at the top of the reposter's network feed as "shared by …". */
   async repost(userId: string, postId: string) {
-    const original = await this.prisma.post.findUnique({ where: { id: postId }, select: { id: true, authorId: true, audience: true } });
+    const original = await this.prisma.post.findUnique({
+      where: { id: postId },
+      select: { id: true, authorId: true, audience: true, moderation: true, repostOfId: true },
+    });
     if (!original) throw new NotFoundException('post not found');
     await this.assertCanView(userId, original);
+    /**
+     * A SHARE CANNOT WIDEN AN AUDIENCE (30 Aug audit, blocker 2).
+     *
+     * The repost row was written `audience: 'public'` unconditionally, and the
+     * feed renders the ORIGINAL through it. So one tap published a friends-only
+     * post to the whole city — and reposting your own `private` post published
+     * that, because `assertCanView` returns early for the author.
+     *
+     * Three rules, in the order they matter:
+     *   • a removed post cannot be shared at all;
+     *   • `private` cannot be shared, by anyone including its author — there is
+     *     no audience for it to inherit that means anything;
+     *   • everything else inherits the ORIGINAL's audience, so a share reaches
+     *     the same kind of room the post was written for and never a wider one.
+     *
+     * And a repost of a repost is refused: `shapeFeedRow` unwraps exactly one
+     * level, so the second one rendered as a card with no text, no media and no
+     * likes, whose like and comment landed on a content-free stub row.
+     */
+    if ((original.moderation ?? VISIBLE) !== VISIBLE) throw new ForbiddenException('That post is not available to share.');
+    if (original.repostOfId) throw new ForbiddenException('Share the original post rather than a share of it.');
+    const inherited = original.audience ?? 'public';
+    if (inherited === 'private') throw new ForbiddenException('A post kept to yourself cannot be shared.');
     const existing = await this.prisma.post.findFirst({ where: { authorId: userId, repostOfId: postId }, select: { id: true } });
     if (existing) return { reposted: true };
     const row = await this.prisma.post.create({
-      data: { authorId: userId, repostOfId: postId, audience: 'public' },
+      data: { authorId: userId, repostOfId: postId, audience: inherited },
       include: {
         author: { select: AUTHOR_SELECT },
         _count: { select: { likes: true, comments: true } },
@@ -469,14 +644,16 @@ export class SocialService {
       },
     });
     const shaped = this.shapeFeedRow(row);
-    const recipients = await this.postRecipients(userId, 'public');
+    // The fan-out follows the inherited audience too, or the websocket would
+    // have published to the whole follower list what the query no longer will.
+    const recipients = await this.postRecipients(userId, inherited);
     this.gateway.postNew(shaped, recipients);
     if (original.authorId !== userId) {
       void this.actorName(userId).then((name) =>
         this.notifications.create({
           userId: original.authorId, actorId: userId, kind: 'repost',
           title: `${name} shared your post`, href: '/social/feed', entityId: postId,
-        }));
+        })).catch(swallowed('social.notify.repost', undefined));
     }
     return { reposted: true };
   }
@@ -501,6 +678,10 @@ export class SocialService {
   async map(userId: string) {
     const network = await this.networkIds(userId);
     const familyIds = [...(await this.familyIds(userId))];
+    // Deprecated (sunset 2026-08-30) and still served, so it gets the same
+    // circle rule as the feed rather than being left with the bug on the way
+    // out. A geo-pinned friends post is the most sensitive kind there is.
+    const circle = await this.circleIds(userId);
     const posts = await this.prisma.post.findMany({
       where: {
         ...VISIBLE_ONLY,
@@ -510,7 +691,8 @@ export class SocialService {
         // Same audience gate as the feed — never leak private/family geo-posts.
         OR: [
           { authorId: userId },
-          { audience: { in: ['public', 'friends'] } },
+          { audience: 'public' },
+          { audience: 'friends', authorId: { in: circle } },
           { audience: 'family', authorId: { in: familyIds } },
         ],
       },
@@ -543,7 +725,7 @@ export class SocialService {
       userId: post.authorId, actorId: userId, kind: 'comment',
       title: `${comment.author.name} commented on your post`,
       body: comment.text.slice(0, 80), href: '/social/feed', entityId: postId,
-    });
+    }).catch(swallowed('social.notify.comment', undefined));
     return shaped;
   }
 
@@ -599,7 +781,7 @@ export class SocialService {
         this.notifications.create({
           userId: post.authorId, actorId: userId, kind: 'like',
           title: `${name} liked your post`, href: '/social/feed', entityId: postId,
-        }));
+        })).catch(swallowed('social.notify.like', undefined));
     }
     return result;
   }

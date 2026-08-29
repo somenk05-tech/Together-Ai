@@ -74,7 +74,14 @@ function socialStub(over: Record<string, unknown> = {}) {
 }
 
 const notifications = { create: jest.fn(async () => undefined) };
-const blocking = { block: jest.fn(async (_me: string, them: string) => ({ blocked: true as const, userId: them })) };
+// `blockedWith` joined this stub on 30 Aug: `follow` now consults the block set
+// before writing an edge, so a block survives a re-follow. Empty here — these
+// specs are about identity leaks, not blocks, and an empty set is the case that
+// lets the follow through.
+const blocking = {
+  block: jest.fn(async (_me: string, them: string) => ({ blocked: true as const, userId: them })),
+  blockedWith: jest.fn(async () => new Set<string>()),
+};
 
 const social = (prisma: any) =>
   new SocialService(prisma, {} as never, notifications as never, {} as never, {} as never, blocking as never, {} as never);
