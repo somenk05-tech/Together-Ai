@@ -26,6 +26,7 @@
  * a hub with a `:id` route fails this until somebody decides which it is.
  */
 import { allRoutes } from './route-inventory';
+import { RegisterSchema } from '../auth/dto/auth.dto';
 import { swallow } from '../shared/swallow';
 
 const TEST_DB = process.env.TEST_DATABASE_URL;
@@ -193,12 +194,51 @@ const UNPROBED = [
 
 // ── structural checks: these run whether or not a database is present ────
 
+/**
+ * THE BODY `register()` POSTS, at module scope so the always-on half of this
+ * file can check it against the real schema without a database.
+ *
+ * This is the fix for how the harness broke: `RegisterSchema` gained
+ * `dateOfBirth` and `gender`, this fixture kept sending the old three fields,
+ * and nothing noticed for a fortnight — the live half skips without
+ * TEST_DATABASE_URL, so it never runs on a laptop, and CI died at
+ * `prisma migrate deploy` from 14 Aug until 68942d2a. A guard that runs in
+ * exactly one place is only as reliable as that place, so the CHEAP half of it
+ * now runs everywhere.
+ *
+ * A fixed adult date, not `now - 25 years`: a fixture that computes its own age
+ * passes on a machine whose clock is wrong, and this suite's whole value is
+ * that it argues with the real endpoint rather than agreeing with itself.
+ */
+const registrationBody = (handle: string, label: string) => ({
+  handle,
+  name: `Isolation ${label}`,
+  email: `${handle}@isolation.test`,
+  // Must satisfy the real policy (recovery.service.ts assertStrongPassword):
+  // 12+ chars, upper, lower, digit, symbol. The first CI run failed here,
+  // which is the harness working — it went through the actual endpoint and
+  // got the actual validator rather than a mock that would have agreed.
+  password: 'Correct-Horse-Battery-9!',
+  dateOfBirth: '1995-06-15',
+  gender: 'female' as const,
+});
+
 describe('the cross-user harness itself', () => {
   const idRouteHubs = [...new Set(
     allRoutes()
       .filter((r) => r.takesRouteParam && !r.isPublic)
       .map((r) => r.prefix),
   )].sort();
+
+  /**
+   * Parsed by the SAME schema the endpoint uses, so a field added to
+   * registration fails here — on every machine, in a second — instead of
+   * waiting for the one environment that has a database.
+   */
+  it('sends a registration the real schema accepts', () => {
+    const parsed = RegisterSchema.safeParse(registrationBody('iso_alice_test', 'alice'));
+    expect(parsed.success ? [] : parsed.error.issues.map((i) => i.path.join('.'))).toEqual([]);
+  });
 
   it('probes hubs that actually exist', () => {
     const known = new Set(allRoutes().map((r) => r.prefix));
@@ -267,16 +307,7 @@ describeLive('one citizen cannot touch another citizen’s rows', () => {
   const register = async (label: string): Promise<Citizen> => {
     const stamp = `${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
     const handle = `iso_${label}_${stamp}`.slice(0, 30);
-    const res = await call(null, 'POST', '/api/auth/register', {
-      handle,
-      name: `Isolation ${label}`,
-      email: `${handle}@isolation.test`,
-      // Must satisfy the real policy (recovery.service.ts assertStrongPassword):
-      // 12+ chars, upper, lower, digit, symbol. The first CI run failed here,
-      // which is the harness working — it went through the actual endpoint and
-      // got the actual validator rather than a mock that would have agreed.
-      password: 'Correct-Horse-Battery-9!',
-    });
+    const res = await call(null, 'POST', '/api/auth/register', registrationBody(handle, label));
     if (res.status >= 300) throw new Error(`could not register ${label}: ${res.status} ${res.text}`);
     const { accessToken } = JSON.parse(res.text) as { accessToken: string };
 
