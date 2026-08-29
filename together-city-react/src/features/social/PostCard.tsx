@@ -5,9 +5,23 @@ import { useAuth } from '@/hooks/useAuth';
 import { ShareModal } from '@/features/chat/share';
 import type { ShareCard } from '@/types';
 import { setMuted, playWithSharedSound, releasePlayback, knownRatio, rememberRatio } from '@/lib/mediaState';
+import { CommentIcon, SendIcon, SaveIcon, ShareIcon, PlaceIcon } from './marks';
 import {
-  useAddComment, useComments, useToggleLike, useDeletePost, useUpdatePost, useRepost, type Post, type PostMedia,
+  useAddComment, useComments, useDeletePost, useUpdatePost, useRepost, type Post, type PostMedia,
 } from './api';
+
+/**
+ * The date as the owner's card reference prints it: `26-nov-2016`, lowercase.
+ * An absolute date and not "3h ago", because the reference's right-hand column
+ * is a record of WHEN and WHERE — a save-the-date, a place, a year — and a
+ * relative time is a record of how long you have been scrolling.
+ */
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+function postDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${String(d.getDate()).padStart(2, '0')}-${MONTHS[d.getMonth()]}-${d.getFullYear()}`;
+}
 
 export function timeAgo(iso: string): string {
   const mins = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
@@ -251,7 +265,7 @@ function VideoFrame({ url, isNew, vref, autoInView }: { url: string; isNew: bool
           rememberRatio(url, r);
           setAr(r);
         }}
-        style={{ width: '100%', aspectRatio: String(ar), maxHeight: 720, objectFit: 'contain', borderRadius: 'var(--r-2)', background: 'var(--media-bg)', display: 'block' }} />
+        style={{ width: '100%', aspectRatio: String(ar), maxHeight: 720, objectFit: 'contain', background: 'var(--media-bg)', display: 'block' }} />
       {/* The one affordance a bare paused video still owes: a play glyph.
           pointer-events: none — the tap lands on the video underneath. */}
       {!ctl && !playing && <span className="vf-play" aria-hidden>▶</span>}
@@ -268,7 +282,6 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
   post: Post; isNew?: boolean; manage?: boolean; onOpenAuthor?: (handle: string) => void;
   onSetCover?: (timeSec: number) => void; coverBusy?: boolean; autoplayVideo?: boolean;
 }) {
-  const like = useToggleLike();
   const del = useDeletePost();
   const upd = useUpdatePost();
   const repost = useRepost();
@@ -317,65 +330,10 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
           <Icon name="share" size={13} /> Shared by {post.repostedBy.name} <span style={{ fontWeight: 400 }}>@{post.repostedBy.handle}</span>
         </div>
       )}
-      <div className="sl-post-head">
-        <button type="button" onClick={openAuthor} aria-label={`View ${post.author.name}'s profile`}
-          style={{ background: 'none', border: 'none', padding: 0, cursor: onOpenAuthor ? 'pointer' : 'default', flexShrink: 0 }}>
-          <Avatar name={post.author.name} src={post.author.profileImage} />
-        </button>
-        <div className="sl-post-id">
-          <div className="sl-post-name">
-            <button type="button" onClick={openAuthor}
-              style={{ background: 'none', border: 'none', padding: 0, cursor: onOpenAuthor ? 'pointer' : 'default', font: 'inherit', color: 'inherit' }}>
-              {post.author.name}
-            </button>
-            <span className="sl-at"> @{post.author.handle}</span>
-            {isNew && <span className="tag dark" style={{ fontSize: 10, marginLeft: 8 }}>New</span>}
-          </div>
-          {/* Place, time and audience on one line, in that order — where it
-              happened, when, and who it was written for. */}
-          <div className="sl-post-meta">
-            {post.placeName && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                <Icon name="place" size={13} />{post.placeName}
-              </span>
-            )}
-            {post.placeName && <span aria-hidden>·</span>}
-            <span>{isNew ? 'Just now' : `${timeAgo(post.createdAt)} ago`}</span>
-            {post.feeling && <span aria-hidden>·</span>}
-            {post.feeling && <span>feeling {post.feeling}</span>}
-            {aud && (
-              <span title={post.audience} style={{ display: 'inline-flex' }}>
-                <Icon name={aud} size={13} />
-              </span>
-            )}
-          </div>
-        </div>
-        {manage && isMine && (
-          <div ref={menuRef} style={{ position: 'relative', flex: 'none' }}>
-            <button type="button" aria-label="Post options" onClick={() => setMenuOpen((o) => !o)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', lineHeight: 0, color: 'var(--muted)', padding: '4px 2px', minHeight: 44 }}>
-              <Icon name="more" size={19} />
-            </button>
-            {menuOpen && (
-              <div style={{ position: 'absolute', top: '100%', right: 0, zIndex: 21, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 12, boxShadow: '0 10px 32px rgba(0,0,0,.16)', overflow: 'hidden', minWidth: 150 }}>
-                  <button type="button" onClick={() => { setDraft(post.text ?? ''); setEditing(true); setMenuOpen(false); }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', color: 'var(--ink)' }}><Icon name="edit" size={14} /> Edit post</button>
-                  <button type="button" disabled={del.isPending}
-                    onClick={() => { setMenuOpen(false); if (window.confirm('Delete this post? This cannot be undone.')) del.mutate(post.id); }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', borderTop: '1px solid var(--line)', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', color: 'var(--danger-ink)' }}><Icon name="close" size={14} /> Delete post</button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
 
-      {(post.tagged?.length ?? 0) > 0 && (
-        <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
-          with {post.tagged!.map((t) => t.name).join(', ')}
-        </p>
-      )}
-
-      {/* media-first: single image full-bleed; multiple as a swipe carousel */}
+      {/* THE PICTURE IS FIRST. It used to be third, under a 40px avatar and two
+          lines of chrome; nobody scrolls a feed to read a handle. Single image
+          full-bleed inside the card's 12px mount; several as a swipe carousel. */}
       {images.length === 1 && (
         <div className="sl-media">
           <ImgCell url={images[0].url} adaptive alt={`Photo shared by ${post.author.name}`} />
@@ -394,46 +352,101 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
         </div>
       )}
 
-      {editing ? (
-        <div style={{ marginTop: 12 }}>
-          <textarea aria-label="Edit your post" value={draft} onChange={(e) => setDraft(e.target.value)} rows={3} maxLength={2200} autoFocus
-            style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit', resize: 'vertical' }} />
-          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <button type="button" disabled={upd.isPending}
-              onClick={() => upd.mutate({ postId: post.id, text: draft }, { onSuccess: () => setEditing(false) })}
-              className="btn btn-accent btn-sm">{upd.isPending ? 'Saving…' : 'Save'}</button>
-            <button type="button" onClick={() => { setEditing(false); setDraft(post.text ?? ''); }} className="btn btn-line btn-sm">Cancel</button>
+      {/* One block read in two directions: who and what on the left, when and
+          where on the right, each ranged to the margin the picture already set. */}
+      <div className="sl-post-foot">
+        <div className="sl-post-head">
+          <button type="button" className="sl-post-av" onClick={openAuthor} aria-label={`View ${post.author.name}'s profile`}
+            style={{ cursor: onOpenAuthor ? 'pointer' : 'default' }}>
+            <Avatar name={post.author.name} src={post.author.profileImage} />
+          </button>
+          <div className="sl-post-id">
+            <div className="sl-post-name">
+              <button type="button" onClick={openAuthor}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: onOpenAuthor ? 'pointer' : 'default', font: 'inherit', color: 'inherit' }}>
+                {post.author.name}
+              </button>
+              <span className="sl-at"> @{post.author.handle}</span>
+              {isNew && <span className="tag dark" style={{ fontSize: 10, marginLeft: 8 }}>New</span>}
+            </div>
+            {editing ? (
+              <div style={{ marginTop: 8 }}>
+                <textarea aria-label="Edit your post" value={draft} onChange={(e) => setDraft(e.target.value)} rows={3} maxLength={2200} autoFocus
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 'var(--r-1)', fontSize: 14, fontFamily: 'inherit', resize: 'vertical' }} />
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <button type="button" disabled={upd.isPending}
+                    onClick={() => upd.mutate({ postId: post.id, text: draft }, { onSuccess: () => setEditing(false) })}
+                    className="btn btn-accent btn-sm">{upd.isPending ? 'Saving…' : 'Save'}</button>
+                  <button type="button" onClick={() => { setEditing(false); setDraft(post.text ?? ''); }} className="btn btn-line btn-sm">Cancel</button>
+                </div>
+              </div>
+            ) : (
+              post.text && <p className="sl-post-text">{post.text}</p>
+            )}
+            {/* Who it was written for, how they felt, and who was there. Not in
+                the reference, and not invented either — it is what the composer
+                already collects, kept in one quiet line under the caption
+                instead of above the picture. */}
+            {(post.feeling || aud || (post.tagged?.length ?? 0) > 0) && (
+              <div className="sl-post-meta">
+                {post.feeling && <span>feeling {post.feeling}</span>}
+                {(post.tagged?.length ?? 0) > 0 && <span>with {post.tagged!.map((t) => t.name).join(', ')}</span>}
+                {aud && <span title={post.audience} style={{ display: 'inline-flex' }}><Icon name={aud} size={13} /></span>}
+              </div>
+            )}
           </div>
         </div>
-      ) : (
-        post.text && <p className="sl-post-text">{post.text}</p>
-      )}
 
-      {/* The four things you can do to somebody else's moment, and the one you
-          can do for yourself pushed to the far end — saving is private, and it
-          is the only control here that changes nothing for the author. */}
+        <div className="sl-post-where">
+          <div className="sl-post-when">
+            <span>{isNew ? 'just now' : postDate(post.createdAt)}</span>
+            {manage && isMine && (
+              <span ref={menuRef} style={{ position: 'relative', display: 'inline-flex' }}>
+                <button type="button" aria-label="Post options" onClick={() => setMenuOpen((o) => !o)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', lineHeight: 0, color: 'var(--muted)', padding: '4px 2px', minHeight: 44 }}>
+                  <Icon name="more" size={19} />
+                </button>
+                {menuOpen && (
+                  <div style={{ position: 'absolute', top: '100%', right: 0, zIndex: 21, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 12, boxShadow: 'var(--e2)', overflow: 'hidden', minWidth: 150, textAlign: 'left' }}>
+                    <button type="button" onClick={() => { setDraft(post.text ?? ''); setEditing(true); setMenuOpen(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', color: 'var(--ink)' }}><Icon name="edit" size={14} /> Edit post</button>
+                    <button type="button" disabled={del.isPending}
+                      onClick={() => { setMenuOpen(false); if (window.confirm('Delete this post? This cannot be undone.')) del.mutate(post.id); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', borderTop: '1px solid var(--line)', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', color: 'var(--danger-ink)' }}><Icon name="close" size={14} /> Delete post</button>
+                  </div>
+                )}
+              </span>
+            )}
+          </div>
+          {post.placeName && (
+            <div className="sl-post-place">
+              <span className="sl-mark-place"><PlaceIcon /></span>{post.placeName}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Four marks, and the reference draws no fifth: the heart is not here.
+          Send is this moment into somebody's chat; Share is it back into the
+          city. Different verbs, different marks. */}
       <div className="sl-acts">
-        <button type="button" className={`sl-act${post.likedByMe ? ' on' : ''}`}
-          aria-pressed={post.likedByMe} aria-label={`${post.likes} ${post.likes === 1 ? 'like' : 'likes'}`}
-          onClick={() => like.mutate(post.id)}>
-          <Icon name="heart" size={19} />{post.likes}
-        </button>
-        <button type="button" className={`sl-act${showComments ? ' on' : ''}`}
+        <button type="button" className="sl-act sl-mk-comment"
           aria-expanded={showComments} aria-label={`${post.comments} ${post.comments === 1 ? 'comment' : 'comments'}`}
           onClick={() => setShowComments((s) => !s)}>
-          <Icon name="comment" size={19} />{post.comments}
+          <span className="sl-mark"><CommentIcon /></span>
+          <span>Comment{post.comments ? <span className="sl-n"> {post.comments}</span> : null}</span>
         </button>
-        <button type="button" className="sl-act" onClick={() => setShareOpen(true)}>
-          <Icon name="share" size={18} />Share
+        <button type="button" className="sl-act sl-mk-send" onClick={() => setShareOpen(true)}>
+          <span className="sl-mark"><SendIcon /></span><span>Send</span>
         </button>
-        <button type="button" className={`sl-act${reposted ? ' on' : ''}`} disabled={repost.isPending || reposted}
-          onClick={() => repost.mutate(post.id, { onSuccess: () => setReposted(true) })}>
-          <Icon name="reorder" size={18} />{reposted ? 'Shared' : 'Repost'}
-        </button>
-        <button type="button" className={`sl-act sl-act-end${saved ? ' on' : ''}`}
+        <button type="button" className="sl-act sl-mk-save"
           aria-pressed={saved} aria-label={saved ? 'Saved to your bookmarks' : 'Save this post'}
           onClick={() => setSaved(toggleSaved(post))}>
-          <Icon name="save" size={19} />
+          <span className="sl-mark"><SaveIcon filled={saved} /></span><span>{saved ? 'Saved' : 'Save'}</span>
+        </button>
+        <button type="button" className="sl-act sl-mk-share" disabled={repost.isPending || reposted}
+          onClick={() => repost.mutate(post.id, { onSuccess: () => setReposted(true) })}>
+          <span className="sl-mark"><ShareIcon /></span><span>{reposted ? 'Shared' : 'Share'}</span>
         </button>
       </div>
 

@@ -134,28 +134,80 @@
    real height and uses that while it is skipped, so the scrollbar and the
    scroll position hold still; 640px is only the estimate for a card's first
    ever frame. Browsers without the property ignore both lines. */
-.sl-post { padding: 14px 15px 4px; margin-bottom: 14px;
+/* ══ THE POST CARD, AS THE OWNER'S SECOND REFERENCE DRAWS IT ═══════════════
+   29 Aug, the print of a save-the-date: the picture first and nearly to the
+   card's edge, and under it ONE block read in two directions — who and what
+   on the left, when and where on the right, both ranged to their own margin.
+   Then a hairline, then four marks with their words.
+
+   THE PICTURE COMES FIRST, which is the change with the most consequence. The
+   old card led with a 40px avatar and two lines of chrome — name, handle,
+   place, time ago, audience — and put the photograph third. Nobody scrolls a
+   feed to read a handle. The identity did not go anywhere; it moved BELOW the
+   thing it is identifying, which is where a caption has always gone.
+
+   THE PHOTOGRAPH'S CORNERS ARE SQUARE and the card's are not. That is the
+   reference, and it is also what a 12px white border around a print does: the
+   card is the mount, the picture is the print, and a print does not have
+   rounded corners. */
+.sl-post { padding: 12px; margin-bottom: 16px;
   content-visibility: auto; contain-intrinsic-size: auto 640px; }
-.sl-post-head { display: flex; align-items: flex-start; gap: 11px; }
-.sl-post-id { flex: 1 1 auto; min-width: 0; }
-.sl-post-name { font-size: var(--fs-5); font-weight: 700; letter-spacing: -.01em; }
-.sl-post-name .sl-at { font-weight: 400; color: var(--muted); }
+.sl-post .sl-media { margin-top: 0; border-radius: 0; }
+/* Read in two directions, and each half ranged to its own edge — the two
+   margins the picture already sets. */
+/* The right column is CAPPED at 40%, not `auto`. A place is one free-text
+   field — "haute cabriere, franschhoek, cape town" — and on `auto` the track
+   sizes to that string's max-content and eats the caption's column. Capped, a
+   long place wraps into the three right-ranged lines the reference prints,
+   and a short one still shrinks to its own width. */
+.sl-post-foot { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 40%); gap: 10px 18px; padding: 15px 3px 16px; }
+.sl-post-head { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 13px; align-items: start; }
+/* The avatar stands beside the whole right-hand block — name, caption and the
+   small line under it — so the caption keeps the NAME's left edge instead of
+   starting again at the card's. One grid, two cells; everything that belongs
+   to the second cell lives inside it, because auto-placement would otherwise
+   drop the caption under the avatar. */
+.sl-post-av { background: none; border: 0; padding: 0; line-height: 0; }
+.sl-post-id { min-width: 0; }
+.sl-post-name { font-size: var(--fs-6); font-weight: 700; letter-spacing: -.012em; line-height: 1.25; }
+.sl-post-name .sl-at { font-size: var(--fs-4); font-weight: 400; color: var(--muted); }
+.sl-post-text { margin: 5px 0 0; font-size: var(--fs-5); line-height: 1.5; white-space: pre-wrap; color: var(--ink-soft); }
 .sl-post-meta {
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
   font-size: 12px; color: var(--muted); margin-top: 2px;
 }
-.sl-post-text { margin: 11px 0 0; font-size: var(--fs-5); line-height: 1.55; white-space: pre-wrap; }
+/* When and where. Right-ranged, so the last character of every line lands on
+   the picture's right edge. */
+.sl-post-where { text-align: right; font-size: var(--fs-4); line-height: 1.55; color: var(--muted); white-space: nowrap; }
+.sl-post-when { display: flex; align-items: center; justify-content: flex-end; gap: 8px; color: var(--faint); }
+/* The pin is INLINE, not a flex item. As a flex sibling of the text it sat at
+   the far left of a wrapped block, three lines away from the words it marks;
+   inline it stays where the reference puts it — immediately before the first
+   line, with the rest of the place ranging right underneath. */
+.sl-post-place { margin-top: 6px; white-space: normal; }
+.sl-post-place .sl-mark-place { display: inline-block; vertical-align: -3px; margin-right: 5px; color: var(--mark-red); }
 .sl-media { position: relative; margin-top: 11px; border-radius: var(--r-2); overflow: hidden; background: var(--media-bg); }
-.sl-acts { display: flex; align-items: center; gap: 20px; padding: 2px 0; margin-top: 4px; }
+.sl-acts {
+  display: flex; align-items: center; gap: clamp(16px, 5vw, 56px);
+  border-top: 1px solid var(--line); padding: 4px 3px 0; margin-top: 0;
+}
 .sl-act {
-  display: inline-flex; align-items: center; gap: 7px; min-height: 44px;
+  display: inline-flex; align-items: center; gap: 10px; min-height: 44px;
   background: none; border: 0; padding: 0; cursor: pointer;
-  font-family: var(--sans); font-size: var(--fs-4); font-weight: 600; color: var(--muted);
+  font-family: var(--sans); font-size: var(--fs-4); font-weight: 600; color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
-.sl-act.on { color: var(--ink); }
+.sl-act .sl-n { font-weight: 500; color: var(--faint); }
 .sl-act:disabled { cursor: default; }
-.sl-act-end { margin-left: auto; }
+/* A phone holds the same card: the words stay — they are the half of the
+   reference that says what the marks do — and go under their marks. */
+@media (max-width: 560px) {
+  .sl-post-foot { grid-template-columns: minmax(0, 1fr); }
+  .sl-post-where { text-align: left; }
+  .sl-post-when, .sl-post-place { justify-content: flex-start; }
+  .sl-acts { gap: 4px; }
+  .sl-act { flex: 1 1 0; flex-direction: column; gap: 5px; font-size: var(--fs-2); }
+}
 
 /* ── the attach grid on Create Post ───────────────────────────────────── */
 .sl-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
@@ -317,7 +369,7 @@ textarea.sl-field { resize: vertical; line-height: 1.6; min-height: 132px; }
 }
 /* The one mark of colour above the fold. The reference ends the name with a
    blue full stop — it is punctuation, so it is drawn as punctuation. */
-.sl-reel-dot { color: var(--reel-blue); }
+.sl-reel-dot { color: var(--mark-blue); }
 .sl-reel-handle {
   display: block; margin-top: 9px;
   font-family: var(--sans); font-size: var(--fs-2); font-weight: 600;
@@ -378,15 +430,18 @@ textarea.sl-field { resize: vertical; line-height: 1.6; min-height: 132px; }
   background: none; border: 0; padding: 0; cursor: pointer;
   font-family: var(--sans); font-size: var(--fs-4); font-weight: 600; color: var(--ink);
 }
-.sl-reel-ic { display: grid; place-items: center; width: 26px; height: 26px; }
-/* The colour is on the MARK and never on the word. Five hues under five
-   labels would read as five competing buttons; five hues over one ink reads
-   as one row. */
-.sl-reel-like  .sl-reel-ic { color: var(--reel-red); }
-.sl-reel-comment .sl-reel-ic { color: var(--reel-blue); }
-.sl-reel-send  .sl-reel-ic { color: var(--reel-violet); }
-.sl-reel-save  .sl-reel-ic { color: var(--reel-amber); }
-.sl-reel-share .sl-reel-ic { color: var(--reel-green); }
+/* ── THE MARKS, SHARED BY THE SHEET AND THE CARD ────────────────────────
+   Both of the owner's references set the same row at the foot. The sheet has
+   five marks and the card has four (no like); everything else about them is
+   one thing, so it is written once. The colour is on the MARK and never on
+   the word — hues under labels read as buttons competing for the same tap;
+   hues over one ink read as one row. */
+.sl-mark { display: grid; place-items: center; width: 26px; height: 26px; }
+.sl-mk-like  .sl-mark { color: var(--mark-red); }
+.sl-mk-comment .sl-mark { color: var(--mark-blue); }
+.sl-mk-send  .sl-mark { color: var(--mark-violet); }
+.sl-mk-save  .sl-mark { color: var(--mark-amber); }
+.sl-mk-share .sl-mark { color: var(--mark-green); }
 .sl-reel-n { font-weight: 500; color: var(--faint); }
 
 /* ── stepping between sheets ───────────────────────────────────────────── */

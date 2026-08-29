@@ -4,55 +4,11 @@ import { ShareModal } from '@/features/chat/share';
 import type { ShareCard } from '@/types';
 import { isMuted, setMuted, subscribeMuted, claimPlayback, releasePlayback } from '@/lib/mediaState';
 import { Avatar, savedIds, toggleSaved } from './PostCard';
+import { HeartIcon, CommentIcon, SendIcon, SaveIcon, ShareIcon } from './marks';
 import {
   useAddComment, useComments, useToggleLike, useRepost, type Post,
 } from './api';
 
-/*
- * ── THE FIVE MARKS ──────────────────────────────────────────────────────────
- *
- * The owner's reference sets them outlined, at one weight, in five hues, with
- * their words beside them. They draw at 24 in a 24 box and take their colour
- * from `currentColor`, which social.css sets per action — so the hue lives in
- * tokens.css where every other colour in the application lives, instead of
- * being typed into a stroke attribute here. That is a change of address for
- * `#ed4956` and `#22c55e`, which were the last two colours in this file.
- *
- * `fill` still varies: a like and a save are STATES, and the reference draws
- * its heart solid. Filling the mark is how this row says "you already did
- * this" without a second colour or a second word.
- */
-const Ico = ({ children, fill = 'none' }: { children: ReactNode; fill?: string }) => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill={fill} stroke="currentColor"
-    strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{children}</svg>
-);
-const HeartIcon = ({ filled }: { filled: boolean }) => (
-  <Ico fill={filled ? 'currentColor' : 'none'}>
-    <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 1 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z" />
-  </Ico>
-);
-/* A circle with a tail, which is the reference's bubble — not the squared
-   speech balloon the tab bars of five other apps use. */
-const CommentIcon = () => (
-  <Ico><circle cx="12.4" cy="10.9" r="8.1" /><path d="M7.2 17.4L4 21l4.6-1.3" /></Ico>
-);
-const SendIcon = () => (
-  <Ico><path d="M21.5 2.5L10.8 13.2" /><path d="M21.5 2.5l-6.8 19-3.9-8.3-8.3-3.9 19-6.8z" /></Ico>
-);
-const SaveIcon = ({ filled }: { filled: boolean }) => (
-  <Ico fill={filled ? 'currentColor' : 'none'}>
-    <path d="M18.5 21L12 16.3 5.5 21V4.8a1.8 1.8 0 0 1 1.8-1.8h9.4a1.8 1.8 0 0 1 1.8 1.8z" />
-  </Ico>
-);
-/* Share is three points joined, not a second paper plane: sending a video to
-   one person and putting it back into the city are different verbs, and the
-   row has one mark for each. */
-const ShareIcon = () => (
-  <Ico>
-    <circle cx="18" cy="5.2" r="2.8" /><circle cx="6" cy="12" r="2.8" /><circle cx="18" cy="18.8" r="2.8" />
-    <path d="M8.5 10.6l7-3.9" /><path d="M8.5 13.4l7 3.9" />
-  </Ico>
-);
 const ChevronIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M18 15l-6-6-6 6" /></svg>
@@ -240,8 +196,8 @@ const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute, eager
 
   /** One mark, one word, and the count only where there is one to say. */
   const act = (key: string, icon: ReactNode, label: string, onClick: () => void, count?: number) => (
-    <button key={key} type="button" onClick={onClick} className={`sl-reel-act sl-reel-${key}`}>
-      <span className="sl-reel-ic">{icon}</span>
+    <button key={key} type="button" onClick={onClick} className={`sl-reel-act sl-mk-${key}`}>
+      <span className="sl-mark">{icon}</span>
       <span>{label}{count ? <span className="sl-reel-n"> {count}</span> : null}</span>
     </button>
   );

@@ -770,10 +770,13 @@
      surface — it is the absence of one. */
   --media-bg: #0a0a0a;
 
-  /* ── THE FIVE ACTIONS UNDER A VIDEO ─────────────────────────────────────
-     The owner's editorial reference, 29 Aug: the poster is black type on
-     white and the ONLY colour on the sheet is the five outlined marks at its
-     foot — like, comment, send, save, share. They are named here rather than
+  /* ── THE MARKS UNDER A MOMENT ───────────────────────────────────────────
+     The owner's editorial references, 29 Aug: black type on white, and the
+     ONLY colour on the sheet is the outlined marks at its foot — like,
+     comment, send, save, share. Named --mark- and not --reel- because the
+     photo card wears the same four (it has no like), and a colour named
+     after the first surface that used it is a colour the second surface
+     copies by hand. They are named here rather than
      drawn in the component for the ordinary reason: `#ed4956` and `#22c55e`
      were already typed into ReelsView.tsx, where no repaint would ever find
      them. A colour that lives in a component is a colour outside the system.
@@ -781,11 +784,11 @@
      They are ICON colours, never label colours: the words beside them stay
      --ink, which is what keeps a row of five hues from reading as five
      buttons competing for the same tap. */
-  --reel-red: #e8455a;
-  --reel-blue: #2563eb;
-  --reel-violet: #6d4aff;
-  --reel-amber: #e08a1e;
-  --reel-green: #23a95c;
+  --mark-red: #e8455a;
+  --mark-blue: #2563eb;
+  --mark-violet: #6d4aff;
+  --mark-amber: #e08a1e;
+  --mark-green: #23a95c;
 
   /* Legacy accent names, kept pointing at ink so nothing renders gold. */
   --gold: var(--accent); --gold-soft: var(--accent-soft); --gold-bright: var(--accent); --gold-ink: var(--accent-ink);
