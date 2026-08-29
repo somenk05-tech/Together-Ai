@@ -114,6 +114,27 @@ export function useFeed(filter = 'foryou') {
     queryFn: ({ pageParam }) => socialApi.feed(pageParam, filter),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
+    /**
+     * THE WORST CLIENT-INITIATED LOAD IN THE HUB (30 Aug audit).
+     *
+     * With the defaults — `staleTime: 0` and `refetchOnWindowFocus: true` —
+     * React Query refetches EVERY LOADED PAGE of an infinite query when the tab
+     * regains focus. A citizen who had scrolled ten pages, switched to a
+     * message and come back fired ten feed requests and two hundred backend
+     * queries, every time, on a train.
+     *
+     * Thirty seconds is the compromise: long enough that flicking between
+     * tabs, or between this hub and another, costs nothing; short enough that
+     * coming back to the feed after a coffee still shows the morning's posts.
+     * A like or a comment still patches its own post in place, so the number
+     * under somebody's thumb is never waiting on this.
+     */
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+    /* Ten pages of media is a lot of retained JavaScript on a phone. Older
+       pages are dropped and re-fetched if the citizen scrolls back that far,
+       which is rarer than the memory is precious. */
+    maxPages: 6,
   });
 }
 export function useFollowers() {

@@ -76,6 +76,12 @@ export type CreateCommentDto = z.infer<typeof CreateCommentSchema>;
 export const FeedQuerySchema = z.object({
   cursor: z.string().uuid().optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
-  filter: z.enum(['foryou', 'friends', 'nearby', 'trending', 'following', 'photos', 'videos', 'thoughts']).optional(),
+  /* `nearby` and `trending` are gone (30 Aug audit). Neither was in the client;
+     `trending` sorted by a relation _count over a week of posts, which no index
+     can serve and any authenticated request could ask for, and `nearby` meant
+     "has a latitude" — no radius, no longitude, no viewer coordinates. An API
+     that offers a ranking and a proximity search it does not have is the same
+     defect as a screen that invents data. */
+  filter: z.enum(['foryou', 'friends', 'following', 'photos', 'videos', 'thoughts']).optional(),
 });
 export type FeedQueryDto = z.infer<typeof FeedQuerySchema>;

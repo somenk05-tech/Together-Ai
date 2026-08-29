@@ -87,7 +87,9 @@ describe('a report about a person has a real action', () => {
   it('the queue is gated on moderation.read', async () => {
     const { svc, access } = build();
     // reportQueue reads the queue; assert that it asks for the read permission.
-    const prismaQ: any = { report: { findMany: jest.fn(async () => []), findUnique: jest.fn(async () => null) } };
+    // `count` joined the queue on 30 Aug: openTotal used to be the length of the
+    // page, so a brigade of 900 reports read as "500 open".
+    const prismaQ: any = { report: { findMany: jest.fn(async () => []), findUnique: jest.fn(async () => null), count: jest.fn(async () => 0) } };
     (svc as any).prisma = prismaQ;
     await svc.reportQueue('mod');
     expect(access.assert).toHaveBeenCalledWith('mod', 'moderation.read');

@@ -152,6 +152,46 @@ export class SocialService {
    * follow graph; connections are unioned in as a safety net). Keeps the feed to
    * your circle — strangers' posts don't appear.
    */
+  /**
+   * THE SOCIAL GRAPH IS READ ONCE PER REQUEST, NOT FOUR TIMES (30 Aug audit).
+   *
+   * `feed()` called `blockedWith` twice and `connection.findMany` three times —
+   * networkIds, circleIds and familyIds each fetching the same accepted
+   * connections, and two of them re-fetching the same block set — for eight
+   * queries before a single post row was read. Nothing cached, on every page of
+   * every scroll.
+   *
+   * A request-scoped bundle rather than a Redis cache, deliberately: a stale
+   * block set is a blocked person reappearing in somebody's feed, and that is
+   * not a trade worth making for a query. Within one request the answer cannot
+   * go stale, so this is free.
+   */
+  private async graphOf(userId: string): Promise<{ blocked: Set<string>; conns: Array<{ userOneId: string; userTwoId: string; relationship?: string | null }>; follows: string[] }> {
+    const [follows, conns, blocked] = await Promise.all([
+      // unbounded: the feed's follow set — socially bounded
+      this.prisma.follow.findMany({ where: { followerId: userId }, select: { followeeId: true } }),
+      // unbounded: the viewer's accepted connections — one read, three readers
+      this.prisma.connection.findMany({
+        where: { status: 'ACCEPTED', OR: [{ userOneId: userId }, { userTwoId: userId }] },
+      }).catch(swallowed('social.graph.conns', [] as Array<{ userOneId: string; userTwoId: string }>)),
+      this.blockedWith(userId),
+    ]);
+    return { blocked, conns: conns as never, follows: follows.map((f) => f.followeeId) };
+  }
+
+  /** The three sets the audience gate needs, derived from one read. */
+  private fromGraph(userId: string, g: Awaited<ReturnType<SocialService['graphOf']>>) {
+    const other = (c: { userOneId: string; userTwoId: string }) => (c.userOneId === userId ? c.userTwoId : c.userOneId);
+    const circle = g.conns.map(other).filter((id) => !g.blocked.has(id));
+    const network = new Set<string>([userId, ...g.follows, ...g.conns.map(other)]);
+    for (const b of g.blocked) network.delete(b);
+    network.add(userId);
+    const family = new Set(
+      g.conns.filter((c) => ((c.relationship ?? '') === 'family')).map(other).filter((id) => !g.blocked.has(id)),
+    );
+    return { circle, network: [...network], family: [...family] };
+  }
+
   private async networkIds(userId: string): Promise<string[]> {
     const [follows, conns, blocked] = await Promise.all([
       // unbounded: the feed's network set — follows + connections, socially bounded
@@ -495,35 +535,24 @@ export class SocialService {
   async feed(userId: string, query: FeedQueryDto) {
     const { cursor, limit } = query;
     const filter = (query as { filter?: string }).filter ?? 'foryou';
-    let network = await this.networkIds(userId);
-    // Five feed lenses (spec): For You (whole network) · Friends (connections
-    // only, not yourself) · Nearby (geo-pinned posts) · Trending (most-liked
-    // this week) · Following (people you follow).
+    // ONE read of the graph, three sets out of it — see graphOf.
+    const graph = await this.graphOf(userId);
+    const { circle, family: familySet } = this.fromGraph(userId, graph);
+    let network = this.fromGraph(userId, graph).network;
+    // Four feed lenses: For You and the two media tabs are city-wide; Friends
+    // (accepted connections only, not yourself) and Following are the bounded
+    // ones, which is what they are FOR.
     if (filter === 'friends') {
-      // Friends = your ACCEPTED connections only (real friends), never the whole
-      // city and never people you merely follow one-way. Your own posts are
-      // excluded (you aren't your own connection).
-      // unbounded: the friends feed filter set — accepted connections only
-      const conns = await this.prisma.connection.findMany({
-        where: { status: 'ACCEPTED', OR: [{ userOneId: userId }, { userTwoId: userId }] },
-        select: { userOneId: true, userTwoId: true },
-      });
-      const blocked = await this.blockedWith(userId);
-      network = conns
-        .map((c) => (c.userOneId === userId ? c.userTwoId : c.userOneId))
-        .filter((id) => !blocked.has(id));
+      // Friends = your ACCEPTED connections, never the whole city and never
+      // people you merely follow one-way. Your own posts are excluded (you
+      // aren't your own connection) — which `circle` already gives us.
+      network = circle;
     }
     if (filter === 'following') {
-      // unbounded: the following feed filter set
-      const follows = await this.prisma.follow.findMany({ where: { followerId: userId }, select: { followeeId: true } });
       // The blocked filter is NOT optional here. This lens replaces `network`
-      // wholesale, and `networkIds` was the only thing removing blocked authors
-      // from it — so a blocked citizen you had followed before the block read
-      // through on this tab and nowhere else.
-      const blockedHere = await this.blockedWith(userId);
-      network = follows.map((f) => f.followeeId).filter((id) => !blockedHere.has(id));
+      // wholesale, so the guarantee has to be restated rather than inherited.
+      network = graph.follows.filter((id) => !graph.blocked.has(id));
     }
-    const weekAgo = new Date(Date.now() - 7 * 86_400_000);
     // Audience gate pushed INTO the query (Universal Connection Model) so that
     // pagination math operates on already-visible rows. Previously the gate ran
     // in memory after `take: limit+1`, which silently truncated pages and
@@ -560,9 +589,8 @@ export class SocialService {
      * city-wide one pixel away. The bounded view is what Friends and Following
      * are FOR; these two are lenses on the same city For You shows.
      */
-    const cityWide = filter === 'videos' || filter === 'foryou' || filter === 'trending'
-      || filter === 'nearby' || filter === 'photos' || filter === 'thoughts';
-    const blockedSet = [...(await this.blockedWith(userId))];
+    const cityWide = filter === 'videos' || filter === 'foryou' || filter === 'photos' || filter === 'thoughts';
+    const blockedSet = [...graph.blocked];
     /**
      * FRIENDS MEANS THE CIRCLE, ON BOTH BRANCHES (30 Aug audit, blocker 1).
      *
@@ -576,7 +604,6 @@ export class SocialService {
      * composer and the rule in the query say the same thing, and
      * `assertCanView` has always said it too.
      */
-    const circle = await this.circleIds(userId);
     const audienceWhere = cityWide
       ? {
           OR: [
@@ -585,7 +612,7 @@ export class SocialService {
             // the bug.
             { audience: 'public' },
             { audience: 'friends', authorId: { in: circle } },
-            { audience: 'family', authorId: { in: familyIds } },
+            { audience: 'family', authorId: { in: familySet } },
           ],
         }
       : {
@@ -593,7 +620,7 @@ export class SocialService {
             { authorId: userId },
             { audience: 'public' },
             { audience: 'friends', authorId: { in: circle } },
-            { audience: 'family', authorId: { in: familyIds } },
+            { audience: 'family', authorId: { in: familySet } },
           ],
         };
     /**
@@ -644,8 +671,6 @@ export class SocialService {
           ...(blockedSet.length ? { notIn: blockedSet } : {}),
           ...(cityWide ? {} : { in: network }),
         },
-        ...(filter === 'nearby' ? { lat: { not: null } } : {}),
-        ...(filter === 'trending' ? { createdAt: { gte: weekAgo } } : {}),
         // Photos / Videos sections: only posts carrying that media kind.
         ...(filter === 'photos' ? { media: { some: { kind: 'image' } } } : {}),
         ...(filter === 'videos' ? { media: { some: { kind: 'video' } } } : {}),
@@ -658,9 +683,26 @@ export class SocialService {
       },
       take: limit + 1,
       ...cursorClause,
-      orderBy: (filter === 'trending'
-        ? [{ likes: { _count: 'desc' } }, { createdAt: 'desc' }, { id: 'desc' }]
-        : [{ createdAt: 'desc' }, { id: 'desc' }]),
+      /**
+       * ONE ORDER, AND IT IS A KEYSET (30 Aug audit).
+       *
+       * `trending` ordered by `likes: { _count: 'desc' }` — a LEFT JOIN onto
+       * Like, a GROUP BY over a week of posts, and a Sort over the lot, before
+       * the LIMIT. No index can serve it, no citizen could reach it (it is in
+       * no tab), and any authenticated request could ask for it: the cheapest
+       * denial of service in the application. Combined with `cursor`/`skip` it
+       * was not even correct — the counts move between pages, so posts were
+       * skipped and duplicated at every boundary.
+       *
+       * `nearby` went with it. It was `{ lat: { not: null } }`: no radius, no
+       * longitude, no viewer coordinates, no distance ordering — "any post
+       * anywhere on Earth that has a latitude, newest first". A lens named for
+       * something it does not do, on an unindexed nullable column.
+       *
+       * Neither is in the client. Both are gone from the DTO, so the API stops
+       * offering a ranking and a proximity search it does not have.
+       */
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: {
         author: { select: AUTHOR_SELECT },
         media: true,
@@ -1137,11 +1179,23 @@ export class SocialService {
     // could ring an inbox the queue then 403'd at the door. Both are the
     // AdminGrant/permission system now: reading the queue needs `moderation.read`.
     await this.access.assert(adminId, 'moderation.read');
-    const rows = await this.prisma.report.findMany({
-      where: { status: 'open' },
-      orderBy: { createdAt: 'asc' },
-      take: 500,
-    }) as unknown as Array<{ id: string; reporterId: string; targetType: string; targetId: string; reason: string | null; createdAt: Date }>;
+    /**
+     * `openTotal` USED TO BE `rows.length`, WHICH IS THE PAGE (30 Aug audit).
+     *
+     * With `take: 500` a brigading incident of 900 open reports reported "500
+     * open" and the 400 oldest never appeared — and, because the grouping and
+     * the sort happen AFTER the truncation, which 500 you got was arbitrary
+     * with respect to severity. A count is one cheap query and it is the number
+     * a moderator is deciding their evening by.
+     */
+    const [rows, openTotal] = await Promise.all([
+      this.prisma.report.findMany({
+        where: { status: 'open' },
+        orderBy: { createdAt: 'asc' },
+        take: 500,
+      }) as unknown as Promise<Array<{ id: string; reporterId: string; targetType: string; targetId: string; reason: string | null; createdAt: Date }>>,
+      this.prisma.report.count({ where: { status: 'open' } }),
+    ]);
 
     const groups = new Map<string, {
       targetType: string; targetId: string; reportCount: number;
@@ -1161,7 +1215,20 @@ export class SocialService {
       groups.set(key, g);
     }
 
-    const items = await Promise.all([...groups.values()].map(async (g) => ({
+    /**
+     * ONE QUERY PER KIND, NOT ONE PER GROUP (30 Aug audit).
+     *
+     * This was `Promise.all` over up to 500 groups, each awaiting
+     * `reportSubject`, which is one query for a post or a comment and TWO for a
+     * user (the account and its dating profile). So 500 open reports about 400
+     * distinct targets fired around 600 queries SIMULTANEOUSLY, through a
+     * Prisma pool whose default on a small container is five — and every other
+     * request in the process queued behind them. One moderator opening the
+     * queue stalled the city.
+     */
+    const list = [...groups.values()];
+    const subjects = await this.reportSubjects(list);
+    const items = list.map((g) => ({
       targetType: g.targetType,
       targetId: g.targetId,
       reportCount: g.reportCount,
@@ -1169,14 +1236,61 @@ export class SocialService {
       reasons: g.reasons.slice(0, 10),
       firstReportedAt: g.firstReportedAt,
       lastReportedAt: g.lastReportedAt,
-      subject: await this.reportSubject(g.targetType, g.targetId),
-    })));
+      subject: subjects.get(`${g.targetType}:${g.targetId}`) ?? { kind: g.targetType as 'post', gone: true },
+    }));
 
     // Most-reported first, then oldest — a thing ten people flagged an hour ago
     // outranks a thing one person flagged last week, and nothing sits forever.
     items.sort((a, b) => b.distinctReporters - a.distinctReporters
       || a.firstReportedAt.getTime() - b.firstReportedAt.getTime());
-    return { items, openTotal: rows.length };
+    return { items, openTotal };
+  }
+
+  /**
+   * Every subject in the queue, in a bounded number of queries.
+   *
+   * Three `findMany`s and one dating read, whatever the size of the page —
+   * against the one-per-group fan-out this replaces. `reportSubject` below is
+   * still the single-target path (the decision screen uses it) and the two
+   * agree on shape by construction, because this one calls it for the users
+   * whose masking rules live there.
+   */
+  private async reportSubjects(groups: Array<{ targetType: string; targetId: string }>) {
+    const out = new Map<string, Awaited<ReturnType<SocialService['reportSubject']>>>();
+    const idsOf = (kind: string) => groups.filter((g) => g.targetType === kind).map((g) => g.targetId);
+
+    const postIds = idsOf('post');
+    if (postIds.length) {
+      const posts = await this.prisma.post.findMany({
+        where: { id: { in: postIds } },
+        take: postIds.length,
+        select: { id: true, text: true, createdAt: true, moderation: true, author: { select: AUTHOR_SELECT } },
+      }).catch(swallowed('social.reportSubjects.posts', [] as never[]));
+      for (const p of posts) {
+        out.set(`post:${p.id}`, { kind: 'post', gone: false, text: p.text, createdAt: p.createdAt, moderation: p.moderation, author: p.author } as never);
+      }
+    }
+
+    const commentIds = idsOf('comment');
+    if (commentIds.length) {
+      const comments = await this.prisma.comment.findMany({
+        where: { id: { in: commentIds } },
+        take: commentIds.length,
+        select: { id: true, text: true, createdAt: true, author: { select: AUTHOR_SELECT } },
+      }).catch(swallowed('social.reportSubjects.comments', [] as never[]));
+      for (const c of comments) {
+        out.set(`comment:${c.id}`, { kind: 'comment', gone: false, text: c.text, createdAt: c.createdAt, author: c.author } as never);
+      }
+    }
+
+    // Users keep the one-at-a-time path: the dating-anonymity masking below is
+    // a per-person decision with its own reads, and copying it here is how the
+    // two would drift apart. The count is bounded by the number of distinct
+    // reported ACCOUNTS on one page, which is the small half of the queue.
+    for (const id of idsOf('user')) {
+      out.set(`user:${id}`, await this.reportSubject('user', id));
+    }
+    return out;
   }
 
   /** Enough of the reported thing to judge it, and no more. */

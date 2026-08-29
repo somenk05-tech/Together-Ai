@@ -108,15 +108,27 @@ export function SocialFeed() {
    * a scroll handler.
    */
   const moreRef = useRef<HTMLDivElement>(null);
+  /* A stable callback, so the observer below depends on two booleans rather
+     than on the whole query result — see the deps note under it. */
+  const feedRef = useRef(feed);
+  feedRef.current = feed;
+  const fetchMore = useCallback(() => { void feedRef.current.fetchNextPage(); }, []);
   useEffect(() => {
     const el = moreRef.current;
     if (!el || !feed.hasNextPage) return;
     const io = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && !feed.isFetchingNextPage) void feed.fetchNextPage();
+      if (entries[0].isIntersecting && !feed.isFetchingNextPage) fetchMore();
     }, { rootMargin: '1200px 0px' });
     io.observe(el);
     return () => io.disconnect();
-  }, [feed.hasNextPage, feed.isFetchingNextPage, feed]);
+    /* `feed` — the whole React Query result — was in this list, and it is a new
+       object on every render. So the observer was torn down and rebuilt on
+       every state change, every mute toggle, every cache patch; and with a
+       1200px rootMargin and a sentinel just below the list, each rebuild fired
+       immediately if the sentinel was still inside the margin. On a short feed
+       that is a loop: fetch, re-render, rebuild, fire, fetch. The two booleans
+       are what the effect actually reads. */
+  }, [feed.hasNextPage, feed.isFetchingNextPage, fetchMore]);
 
   // Lock the page behind the full-screen reels so only the reels scroll.
   // The shared counted lock: iOS actually honours it (overflow:hidden alone

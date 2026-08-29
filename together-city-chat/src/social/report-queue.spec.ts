@@ -28,6 +28,9 @@ function stub(
   const prisma = {
     report: {
       findMany: async ({ where }: any) => reports.filter((r) => match(r, where ?? {})),
+      // `openTotal` is a real count now, not `rows.length` — which was the PAGE,
+      // so 900 open reports read as "500 open" and the 400 oldest never showed.
+      count: async ({ where }: any) => reports.filter((r) => match(r, where ?? {})).length,
       updateMany: async ({ where, data }: any) => {
         const hit = reports.filter((r) => match(r, where ?? {}));
         for (const r of hit) Object.assign(r, data);
@@ -36,6 +39,9 @@ function stub(
     },
     post: {
       findUnique: async ({ where }: any) => posts.find((p) => p.id === where.id) ?? null,
+      // The queue reads its subjects in one findMany per kind now, rather than
+      // one query per group — up to ~600 concurrent through a pool of five.
+      findMany: async ({ where }: any) => posts.filter((p) => (where?.id?.in ?? []).includes(p.id)),
       updateMany: async ({ where, data }: any) => {
         const hit = posts.filter((p) => p.id === where.id);
         for (const p of hit) Object.assign(p, data);
@@ -47,6 +53,7 @@ function stub(
     // has to be able to hold one and lose it.
     comment: {
       findUnique: async ({ where }: any) => comments.find((c) => c.id === where.id) ?? null,
+      findMany: async ({ where }: any) => comments.filter((c) => (where?.id?.in ?? []).includes(c.id)),
       delete: async ({ where }: any) => {
         const i = comments.findIndex((c) => c.id === where.id);
         if (i < 0) throw new Error('no such comment');

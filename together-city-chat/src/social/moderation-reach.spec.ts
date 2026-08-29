@@ -25,6 +25,14 @@ const AUTHOR_SCOPED = [
   { file: 'profile/profile.service.ts', note: "the citizen's own engagement stats" },
   { file: 'profile/profile.service.ts', note: "the citizen's own grid, where a removed post must still show" },
   { file: 'profile/profile.service.ts', note: 'an ownership check by id, not a list anybody reads' },
+  {
+    file: 'social/social.service.ts',
+    note: 'reportSubjects — the MODERATOR\'s read, and the one place a removed post '
+      + 'must still be legible: a queue that hid what it had already removed would '
+      + 'show a second moderator an empty card and invite them to dismiss it. It is '
+      + 'behind moderation.read, it returns the moderation state as a FIELD, and it '
+      + 'is bounded by the ids on the page it was asked for.',
+  },
 ];
 
 describe('moderation reaches every list read of Post', () => {

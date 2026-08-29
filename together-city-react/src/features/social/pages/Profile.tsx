@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useScrollLock } from '@/hooks/useScrollLock';
 import { useBackToClose } from '@/hooks/useBackToClose';
 import { Icon } from '@/components/ui/Icon';
@@ -254,6 +254,9 @@ export function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' 
   };
   const canArrange = true; // rearrange works on every posts tab
   const sentinel = useRef<HTMLDivElement>(null);
+  const postsRef = useRef(posts);
+  postsRef.current = posts;
+  const fetchMore = useCallback(() => { void postsRef.current.fetchNextPage(); }, []);
   const items = useMemo(() => posts.data?.pages.flatMap((pg) => pg.items) ?? [], [posts.data]);
 
   // Drag-to-arrange state. `arranged` holds the working order while editing.
@@ -326,11 +329,11 @@ export function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' 
     const el = sentinel.current;
     if (!el || !posts.hasNextPage || arranging) return;
     const io = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && !posts.isFetchingNextPage) void posts.fetchNextPage();
+      if (entries[0].isIntersecting && !posts.isFetchingNextPage) fetchMore();
     }, { rootMargin: '400px' });
     io.observe(el);
     return () => io.disconnect();
-  }, [posts.hasNextPage, posts.isFetchingNextPage, posts, arranging]);
+  }, [posts.hasNextPage, posts.isFetchingNextPage, fetchMore, arranging]);
 
   if (posts.isLoading) return <Spinner label="Loading your posts…" />;
   /**
@@ -647,6 +650,9 @@ function PublicPostsTab({ handle, filter, onOpenAuthor }: { handle: string; filt
   const posts = usePublicPosts(handle);
   const [openId, setOpenId] = useState<string | null>(null);
   const sentinel = useRef<HTMLDivElement>(null);
+  const postsRef = useRef(posts);
+  postsRef.current = posts;
+  const fetchMore = useCallback(() => { void postsRef.current.fetchNextPage(); }, []);
   const items = useMemo(() => posts.data?.pages.flatMap((pg) => pg.items) ?? [], [posts.data]);
   const matchesFilter = (p: ProfilePost) => {
     const hasVideo = p.media.some((m) => m.kind === 'video');
@@ -659,11 +665,11 @@ function PublicPostsTab({ handle, filter, onOpenAuthor }: { handle: string; filt
     const el = sentinel.current;
     if (!el || !posts.hasNextPage) return;
     const io = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && !posts.isFetchingNextPage) void posts.fetchNextPage();
+      if (entries[0].isIntersecting && !posts.isFetchingNextPage) fetchMore();
     }, { rootMargin: '400px' });
     io.observe(el);
     return () => io.disconnect();
-  }, [posts.hasNextPage, posts.isFetchingNextPage, posts]);
+  }, [posts.hasNextPage, posts.isFetchingNextPage, fetchMore]);
 
   if (posts.isLoading) return <Spinner label="Loading posts…" />;
   if (posts.isError) {

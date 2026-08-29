@@ -123,6 +123,13 @@ const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute, eager
   // instead of buffering on arrival (the "lag"). The reel the viewer opened on
   // and its neighbours load at once; the rest flip true ~3 screens ahead.
   const [near, setNear] = useState(eager ?? false);
+  // Releasing the source is what actually frees the buffer: React setting
+  // `src={undefined}` leaves the element's current source in place, so the
+  // element has to be told.
+  useEffect(() => {
+    const el = vref.current;
+    if (!near && el && el.getAttribute('src')) { el.removeAttribute('src'); el.load(); }
+  }, [near]);
 
   // Keep the music track in lock-step with the video: play/pause/seek together.
   const syncAudioPlay = () => {
@@ -167,16 +174,29 @@ const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute, eager
     return () => { io.disconnect(); el.removeEventListener('loadeddata', onLoaded); releasePlayback(el); syncAudioPause(); };
   }, [hasMusic]);
 
-  // Warm the buffer ~1 screen before the reel scrolls into view.
+  /**
+   * NEAR FLIPS BACK (30 Aug audit).
+   *
+   * It used to flip true once and never return, so every reel already scrolled
+   * past kept its `src` attached with `preload="auto"`. Ten pages of the Videos
+   * tab meant two hundred `<video>` elements holding two hundred buffers: on
+   * mobile Safari that is a tab crash, not a slowdown. The comment on the src
+   * below diagnosed exactly this problem and solved only its beginning — it
+   * bounded when a video STARTS loading and nothing bounded the accumulation.
+   *
+   * The window is the same three screens either side that the warm-up already
+   * used, so nothing about the scroll feels different; what changes is that
+   * leaving the window releases the bytes.
+   */
   useEffect(() => {
     const el = vref.current;
-    if (!el || near) return;
+    if (!el) return;
     const io = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting) { setNear(true); io.disconnect(); }
+      setNear(entries[0].isIntersecting);
     }, { rootMargin: '300% 0px 300% 0px', threshold: 0 });
     io.observe(el);
     return () => io.disconnect();
-  }, [near]);
+  }, []);
 
   // Once near, actively fetch the media (preload='auto' alone isn't always honored).
   useEffect(() => {
@@ -261,7 +281,10 @@ const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute, eager
           )}
           {photo && <img className="sl-reel-media" src={photo.url} alt="" loading="lazy" />}
           {!video && !photo && <p className="sl-reel-said">{post.text}</p>}
-          {hasMusic && <audio ref={aref} src={post.musicUrl ?? undefined} loop muted={muted} preload="auto" />}
+          {/* Gated on `near` like the video beside it. Rendered unconditionally,
+            forty reels with music opened forty audio connections at once —
+            precisely the problem the note on the video's src describes. */}
+        {hasMusic && <audio ref={aref} src={near ? (post.musicUrl ?? undefined) : undefined} loop muted={muted} preload={near ? 'auto' : 'none'} />}
 
           {paused && video && (
             <span aria-hidden onClick={togglePlay} className="sl-reel-play">▶</span>
