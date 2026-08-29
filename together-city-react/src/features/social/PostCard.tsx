@@ -52,16 +52,42 @@ const SAVED_KEY = 'tc-saved-posts';
 export function savedIds(): Set<string> {
   try { return new Set(JSON.parse(localStorage.getItem(SAVED_KEY) ?? '[]') as string[]); } catch { return new Set(); }
 }
+/**
+ * THE BUTTON SAID "SAVED" WHEN NOTHING HAD BEEN SAVED (30 Aug audit).
+ *
+ * Two writes, and only the second one is big enough to fail: the id list is a
+ * few bytes and always succeeds, the snapshot carries the whole post — which,
+ * while photos are inline data URLs, is megabytes. So on a full store the id
+ * landed, the body did not, `catch { }` ate the quota error, and the function
+ * returned `true` anyway. The citizen saw "Saved", opened the Saved page, and
+ * the post was not there — because that page drops ids with no snapshot.
+ *
+ * It now rolls the id back and returns the state that is actually on disk. A
+ * save that did not happen reads as "Save", which is the truth and is also the
+ * only way the citizen finds out.
+ */
 export function toggleSaved(post: Post): boolean {
   const ids = savedIds();
   const on = !ids.has(post.id);
   if (on) ids.add(post.id); else ids.delete(post.id);
   try {
     localStorage.setItem(SAVED_KEY, JSON.stringify([...ids]));
+  } catch {
+    return !on; // the list itself would not write — nothing changed
+  }
+  try {
     const snaps = JSON.parse(localStorage.getItem(SAVED_KEY + '-data') ?? '{}') as Record<string, unknown>;
     if (on) snaps[post.id] = post; else delete snaps[post.id];
     localStorage.setItem(SAVED_KEY + '-data', JSON.stringify(snaps));
-  } catch { /* storage full — ignore */ }
+  } catch {
+    // The body did not fit. Undo the id so the two halves agree, and report the
+    // state the store is really in.
+    if (on) {
+      ids.delete(post.id);
+      try { localStorage.setItem(SAVED_KEY, JSON.stringify([...ids])); } catch { /* nothing more to try */ }
+      return false;
+    }
+  }
   return on;
 }
 

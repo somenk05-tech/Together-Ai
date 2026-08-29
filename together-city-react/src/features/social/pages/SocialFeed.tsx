@@ -153,6 +153,18 @@ export function SocialFeed() {
           <Icon name="back" size={15} /> City Feed
         </button>
         {feed.isLoading && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}><Spinner label="Loading videos…" /></div>}
+        {/* This portal had a loading branch and an empty branch and no error
+            branch, so a failed request rendered a blank full-screen rectangle
+            containing one button: no spinner, no message, nothing to press. */}
+        {feed.isError && (
+          <div className="sl-reel-empty">
+            <div className="sl-fail">
+              <p className="sl-fail-t">Couldn’t load the videos.</p>
+              <p className="sl-fail-h">This is a connection problem.</p>
+              <button type="button" className="btn btn-line btn-sm" onClick={() => void feed.refetch()}>Try again</button>
+            </div>
+          </div>
+        )}
         {!feed.isLoading && !feed.isError && items.length === 0 && (
           <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', textAlign: 'center', padding: 24 }}>
             <div>
@@ -224,10 +236,27 @@ export function SocialFeed() {
       </div>
 
       {feed.isLoading && <Spinner label="Loading the city feed…" />}
-      {feed.isError && <EmptyState title="Couldn't load the feed" hint="Reload in a moment." />}
+      {/* No emoji in Social Life's chrome — relief.spec guards that, and it is
+          right: the default mark plus a real retry says more than a warning
+          sign does. */}
+      {feed.isError && (
+        <EmptyState title="Couldn't load the feed"
+          hint="This is a connection problem — the city is still there."
+          action={<button type="button" className="btn btn-line btn-sm" onClick={() => void feed.refetch()}>Try again</button>} />
+      )}
 
+      {/* "Be the first to share one" was a claim about the whole city, made by
+          a tab that is bounded to your own network. The citizen could see
+          photos on For You and then be told there were none. Photos, Thoughts
+          and Friends are empty on day one BECAUSE they are bounded — so they
+          say that, and point at the thing that fills them. */}
       {!feed.isLoading && !feed.isError && items.length === 0 && (
-        <EmptyState title={filter === 'foryou' ? 'No moments yet' : 'Nothing here yet'} hint="Be the first to share one." />
+        filter === 'foryou'
+          ? <EmptyState title="No moments yet" hint="Be the first to share one." />
+          : <EmptyState title="Nothing here yet"
+              hint={filter === 'friends'
+                ? 'This tab shows your accepted connections. Connect with people and their posts collect here.'
+                : 'This tab shows people you follow. Follow a few and their posts collect here — For You shows the whole city meanwhile.'} />
       )}
 
       {items.length > 0 && (

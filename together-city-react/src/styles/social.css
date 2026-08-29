@@ -472,3 +472,43 @@ textarea.sl-field { resize: vertical; line-height: 1.6; min-height: 132px; }
   .sl-reel-act { flex: 1 1 0; flex-direction: column; gap: 5px; font-size: var(--fs-2); }
   .sl-reel-n { display: none; }
 }
+
+/* ══ WHEN A READ FAILS, AND THE SCREEN SAYS SO ════════════════════════════
+   The 30 Aug audit found seven screens in this hub rendering a failed request
+   as an empty account: "No posts yet" to somebody with a history, "No
+   followers yet" to somebody with four hundred, "No members match Priya" when
+   the search 500'd. An empty state is a CLAIM about the server's data, and it
+   may only be made once a read has proved it.
+
+   The failure block is a card and not a toast on purpose: it stands where the
+   content would have been, so the citizen reads it instead of the absence, and
+   it carries the one thing a toast cannot — the retry.
+
+   Written as classes rather than style objects because the six copies of it
+   would otherwise have been six copies of the same eleven inline properties,
+   and the size ratchet counts exactly that.
+   ══════════════════════════════════════════════════════════════════════════ */
+.sl-fail { text-align: center; padding: 44px 24px; margin-top: 16px; }
+.sl-fail-t { margin: 0 0 4px; font-size: var(--fs-5); color: var(--ink); }
+.sl-fail-h { margin: 0 0 14px; font-size: var(--fs-4); color: var(--muted); }
+/* The same message where a card would be too heavy — a follower list, a search. */
+.sl-fail-line { margin-top: 20px; font-size: var(--fs-4); color: var(--muted); }
+.sl-fail-again {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font: inherit; color: var(--ink); text-decoration: underline;
+}
+/* A safety action that did not happen. Red, and it says the state plainly:
+   "you are NOT blocking them yet" rather than "something went wrong". */
+.sl-fail-alert { margin: 7px 0 0; max-width: 260px; font-size: var(--fs-3); line-height: 1.45; color: var(--danger-ink); }
+.sl-note { padding: 14px 16px; margin-bottom: 14px; }
+.sl-note-t { font-size: var(--fs-4); font-weight: 700; }
+.sl-note-p { margin: 5px 0 0; font-size: var(--fs-3); color: var(--muted); }
+/* The reels portal's own centred slot — the empty and failed states inside a
+   full-screen player, which is a fixed box rather than a page column. */
+.sl-reel-empty { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; }
+.sl-fail-ic { margin: 0 auto 16px; }
+.sl-saved-t { font-size: var(--fs-6); font-weight: 700; letter-spacing: -.025em; }
+/* The block / report pair, and the line that appears under it when one of
+   them did not go through. */
+.sl-safety { margin-right: auto; }
+.sl-safety-row { display: flex; align-items: center; gap: 14px; }

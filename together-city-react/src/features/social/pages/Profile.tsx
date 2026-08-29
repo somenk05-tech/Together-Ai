@@ -325,6 +325,25 @@ export function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' 
   }, [posts.hasNextPage, posts.isFetchingNextPage, posts, arranging]);
 
   if (posts.isLoading) return <Spinner label="Loading your posts…" />;
+  /**
+   * A FAILED READ IS NOT AN EMPTY ACCOUNT (30 Aug audit, blocker 5).
+   *
+   * This screen had no `isError` branch, so a dropped connection told the
+   * citizen their entire history was gone and offered them a cheerful button
+   * to write their first post. Six other screens in this hub did the same
+   * thing; `Notifications.tsx` and `Blocked.tsx` did not, and are the shape
+   * copied here. An empty state is a CLAIM about the server's data, and it may
+   * only be made once the read has proved it.
+   */
+  if (posts.isError) {
+    return (
+      <div className="blk rise d1 sl-fail">
+        <p className="sl-fail-t">Couldn’t load your posts.</p>
+        <p className="sl-fail-h">They’re still there — this is a connection problem.</p>
+        <button type="button" className="btn btn-line btn-sm" onClick={() => void posts.refetch()}>Try again</button>
+      </div>
+    );
+  }
 
   const count = items.length;
   if (!count) {
@@ -507,27 +526,49 @@ function SafetyActions({ id, handle, onBlocked }: { id: string; handle: string; 
   const block = useBlock();
   const report = useReport();
   const [reported, setReported] = useState(false);
+  /**
+   * A SAFETY ACTION THAT FAILS SILENTLY IS THE WORST FAILURE HERE (30 Aug audit).
+   *
+   * Both of these were `mutate(..., { onSuccess })` with no `onError`. The
+   * modal simply stayed open on a failure — so a citizen blocked a harasser,
+   * the request never landed, nothing told them, and they carried on believing
+   * they were protected. Every other silent mutation in this hub costs somebody
+   * a retry; this one costs them the thing they came here for.
+   */
+  const [failed, setFailed] = useState<'block' | 'report' | null>(null);
 
   const doBlock = () => {
     if (!window.confirm(`Block @${handle}? They won't be able to see your posts or interact with you, and you won't see theirs.`)) return;
-    block.mutate({ handle }, { onSuccess: onBlocked });
+    setFailed(null);
+    block.mutate({ handle }, { onSuccess: onBlocked, onError: () => setFailed('block') });
   };
   const doReport = () => {
     const reason = window.prompt(`Report @${handle}? Optionally tell us what's wrong (spam, harassment, etc.):`, '');
     if (reason === null) return; // cancelled
-    report.mutate({ targetType: 'user', targetId: id, reason: reason || undefined }, { onSuccess: () => setReported(true) });
+    setFailed(null);
+    report.mutate({ targetType: 'user', targetId: id, reason: reason || undefined },
+      { onSuccess: () => setReported(true), onError: () => setFailed('report') });
   };
 
   return (
-    <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginRight: 'auto' }}>
-      <button type="button" onClick={doBlock} disabled={block.isPending}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontFamily: 'inherit', color: 'var(--danger-ink)', padding: 0 }}>
-        {block.isPending ? 'Blocking…' : <><Icon name="block" size={14} /> Block</>}
-      </button>
-      <button type="button" onClick={doReport} disabled={report.isPending || reported}
-        style={{ background: 'none', border: 'none', cursor: reported ? 'default' : 'pointer', fontSize: 12.5, fontFamily: 'inherit', color: 'var(--muted)', padding: 0 }}>
-        {reported ? <><Icon name="accepted" size={14} /> Reported</> : <><Icon name="flag" size={14} /> Report</>}
-      </button>
+    <div className="sl-safety">
+      <div className="sl-safety-row">
+        <button type="button" onClick={doBlock} disabled={block.isPending}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontFamily: 'inherit', color: 'var(--danger-ink)', padding: 0 }}>
+          {block.isPending ? 'Blocking…' : <><Icon name="block" size={14} /> Block</>}
+        </button>
+        <button type="button" onClick={doReport} disabled={report.isPending || reported}
+          style={{ background: 'none', border: 'none', cursor: reported ? 'default' : 'pointer', fontSize: 12.5, fontFamily: 'inherit', color: 'var(--muted)', padding: 0 }}>
+          {reported ? <><Icon name="accepted" size={14} /> Reported</> : <><Icon name="flag" size={14} /> Report</>}
+        </button>
+      </div>
+      {failed && (
+        <p role="alert" className="sl-fail-alert">
+          {failed === 'block'
+            ? 'That block didn’t go through — you are NOT blocking them yet. Try again in a moment.'
+            : 'That report didn’t go through. Try again in a moment.'}
+        </p>
+      )}
     </div>
   );
 }
@@ -626,6 +667,15 @@ function PublicPostsTab({ handle, filter, onOpenAuthor }: { handle: string; filt
   }, [posts.hasNextPage, posts.isFetchingNextPage, posts]);
 
   if (posts.isLoading) return <Spinner label="Loading posts…" />;
+  if (posts.isError) {
+    return (
+      <div className="blk rise d1 sl-fail">
+        <p className="sl-fail-t">Couldn’t load these posts.</p>
+        <p className="sl-fail-h">This is a connection problem, not an empty profile.</p>
+        <button type="button" className="btn btn-line btn-sm" onClick={() => void posts.refetch()}>Try again</button>
+      </div>
+    );
+  }
   const view = items.filter(matchesFilter);
   const noun = filter === 'photo' ? 'photo' : filter === 'video' ? 'video' : 'post';
   if (view.length === 0) {
@@ -752,7 +802,11 @@ function PeopleTab() {
         {dq.trim().length >= 2 && (
           <div style={{ marginTop: 12 }}>
             {search.isLoading && <Spinner />}
-            {!search.isLoading && results.length === 0 && <p className="muted" style={{ fontSize: 13 }}>No members match “{dq}”.</p>}
+            {/* Stating that somebody is not a member of the city, on the
+                strength of a request that failed, is a claim this screen was
+                making and could not support. */}
+            {search.isError && <p className="sl-note-p">Couldn’t search just now — try again in a moment.</p>}
+            {!search.isLoading && !search.isError && results.length === 0 && <p className="muted" style={{ fontSize: 13 }}>No members match “{dq}”.</p>}
             {results.map((r) => (
               <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 2px', borderTop: '1px solid var(--line)' }}>
                 <Avatar src={r.profileImage} name={r.name} size={40} />
@@ -970,6 +1024,16 @@ function FollowList({ kind }: { kind: 'followers' | 'following' }) {
   const q = kind === 'followers' ? followers : following;
   const people = q.data ?? [];
   if (q.isLoading) return <div style={{ marginTop: 16 }}><Spinner label={`Loading ${kind}…`} /></div>;
+  // "No followers yet" to somebody with four hundred of them is the worst
+  // sentence in this file. It needs the read to have succeeded first.
+  if (q.isError) {
+    return (
+      <p className="sl-fail-line">
+        Couldn’t load {kind} — this is a connection problem.{' '}
+        <button type="button" className="sl-fail-again" onClick={() => void q.refetch()}>Try again</button>
+      </p>
+    );
+  }
   if (!people.length) {
     return (
       <p className="muted" style={{ fontSize: 13.5, marginTop: 20 }}>

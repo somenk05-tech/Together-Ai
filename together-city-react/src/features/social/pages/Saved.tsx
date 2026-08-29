@@ -11,14 +11,24 @@ import type { Post } from '../api';
  *  appeared anywhere. */
 const SAVED_KEY = 'tc-saved-posts';
 
-function readSaved(): Post[] {
+/**
+ * "NOTHING SAVED YET" IS A CLAIM, AND IT NEEDS THE READ TO HAVE WORKED.
+ *
+ * This returned `[]` on an unreadable store and silently dropped every id whose
+ * snapshot was missing — which is exactly what a full store leaves behind. Both
+ * cases rendered as "Nothing saved yet", so the one state the citizen most
+ * needed to know about was the one the page denied. It now reports what it
+ * found and what it could not.
+ */
+function readSaved(): { posts: Post[]; unreadable: boolean; missing: number } {
   try {
     const ids = JSON.parse(localStorage.getItem(SAVED_KEY) ?? '[]') as string[];
     const snaps = JSON.parse(localStorage.getItem(SAVED_KEY + '-data') ?? '{}') as Record<string, Post>;
     // Newest saves first (ids are appended in save order).
-    return ids.map((id) => snaps[id]).filter(Boolean).reverse();
+    const posts = ids.map((id) => snaps[id]).filter(Boolean).reverse();
+    return { posts, unreadable: false, missing: ids.length - posts.length };
   } catch {
-    return [];
+    return { posts: [], unreadable: true, missing: 0 };
   }
 }
 
@@ -65,11 +75,12 @@ function SavedCard({ post, onRemove }: { post: Post; onRemove: () => void }) {
 }
 
 export function SocialSaved() {
-  const [posts, setPosts] = useState<Post[]>(() => readSaved());
+  const [store, setStore] = useState(() => readSaved());
+  const { posts, unreadable, missing } = store;
 
   const remove = (id: string) => {
     removeSaved(id);
-    setPosts((cur) => cur.filter((p) => p.id !== id));
+    setStore((cur) => ({ ...cur, posts: cur.posts.filter((p) => p.id !== id) }));
   };
 
   return (
@@ -82,7 +93,29 @@ export function SocialSaved() {
         </div>
       </div>
 
-      {posts.length === 0 ? (
+      {/* A store that would not read is not an empty store, and the citizen
+          can act on the difference: one is "save something", the other is
+          "this device is out of room". */}
+      {missing > 0 && (
+        <div className="card sl-note">
+          <div className="sl-note-t">
+            {missing} saved {missing === 1 ? 'post' : 'posts'} couldn’t be kept on this device
+          </div>
+          <p className="sl-note-p">
+            The bookmark was recorded but the post itself did not fit in this browser’s storage. Removing a few saves here makes room.
+          </p>
+        </div>
+      )}
+
+      {unreadable ? (
+        <div className="card sl-fail">
+          <span className="sl-ic lg sl-fail-ic"><Icon name="save" size={30} /></span>
+          <div className="sl-saved-t">Couldn’t read your saved posts</div>
+          <p className="sl-note-p">
+            This browser’s storage is unavailable or unreadable — your bookmarks are not lost, this page just cannot open them here.
+          </p>
+        </div>
+      ) : posts.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '44px 24px' }}>
           <span className="sl-ic lg" style={{ margin: '0 auto 16px' }}><Icon name="save" size={30} /></span>
           <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-.025em' }}>Nothing saved yet</div>
