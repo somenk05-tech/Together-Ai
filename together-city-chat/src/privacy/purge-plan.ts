@@ -80,12 +80,42 @@ export interface PurgeRule {
    * the purge reads both.
    */
   storageKeysJson?: { column: string; fields: string[] };
+  /**
+   * ── PUBLIC-BUCKET URLS, WHICH ARE STILL OUR OBJECTS ──────────────────────
+   *
+   * Every rule above names a PRIVATE-vault key, because that is where the
+   * health, dating and diary photographs live and those were the ones anybody
+   * went looking for. Half the city stores its pictures in the PUBLIC bucket
+   * instead — a shopfront logo, a scanned menu, a CV, a verification document
+   * — as a full URL rather than a key, and there was no vocabulary here for
+   * that shape at all. So four rules were `purge` with no storage clause and
+   * looked complete: the rows went and the files stayed, permanently.
+   *
+   * The columns hold a URL, so the key is recovered with
+   * `StorageProvider.keyFromUrl`, which returns '' for anything not under our
+   * own public base — an external link a citizen pasted is left alone, which
+   * is the behaviour that matters most here, since these columns are validated
+   * as `z.string().url()` and nothing server-side ties them to our bucket.
+   */
+  storageUrls?: string[];
+  /**
+   * Several private-vault key columns on one model, where `storageKey` holds
+   * exactly one. Added with `storageUrls` for the same reason: a model with two
+   * places to put a file had no way to say so, so it said one and leaked the
+   * other.
+   */
+  storageKeys?: string[];
+  /**
+   * URLs inside a JSON column — the listing photo arrays, `[{url,caption}]`.
+   * The public-bucket twin of `storageKeysJson`.
+   */
+  storageUrlsJson?: { column: string; field: string };
 }
 
 export const PURGE_RULES: PurgeRule[] = [
   // ── Health. The most sensitive data in the city, and the least ambiguous:
   //    none of it is visible to another citizen, all of it goes.
-  { model: 'MedicalRecord', by: 'userId', action: 'purge', storageKey: 'fileKey', reason: 'Uploaded medical documents. Private to the citizen; the stored file goes with the row.' },
+  { model: 'MedicalRecord', by: 'userId', action: 'purge', storageKey: 'fileKey', storageUrls: ['fileUrl'], reason: 'Uploaded medical documents. Private to the citizen; the stored file goes with the row — BOTH columns, because rows written before the private vault carry a public fileUrl and no fileKey, and naming only the key purged those rows with the document still in the bucket.' },
   { model: 'MedicalBloodTest', by: 'userId', action: 'purge', reason: 'Blood panels. Biomarkers and cached analyses cascade from here.' },
   { model: 'BloodAnalysis', by: 'userId', action: 'purge', reason: 'Cached interpretations of a panel.' },
   { model: 'BloodMarker', by: 'userId', action: 'purge', reason: 'Individual marker values.' },
@@ -147,7 +177,7 @@ export const PURGE_RULES: PurgeRule[] = [
   // AdminAudit carries `actorId`, which is not one of the link columns the spec
   // scans, so it needs no rule and a rule would read as stale. The decision is
   // written down all the same: audit rows are KEPT.
-{ model: 'ServiceListing', by: 'ownerId', action: 'purge', reason: 'Their own business page, and the threads hanging off it — a shopfront for somebody who has left is a door onto nothing.' },
+{ model: 'ServiceListing', by: 'ownerId', action: 'purge', storageUrls: ['logoUrl', 'menuScanUrl'], storageUrlsJson: { column: 'photosJson', field: 'url' }, reason: 'Their own business page, and the threads hanging off it — a shopfront for somebody who has left is a door onto nothing. The logo, the scanned menu and every photograph on the page go with it; they are in the PUBLIC bucket, which is why this rule had no storage clause and left all of them behind.' },
   { model: 'ServiceRegular', by: 'userId', action: 'purge', reason: 'A private shortlist of the businesses they kept going back to. Nobody else has ever seen it, and it says a great deal about a person.' },
   // The order card in the thread deliberately carries no name and no address
   // (see deliverCard in orders.service.ts), so purging the row takes the ONLY
@@ -223,7 +253,7 @@ export const PURGE_RULES: PurgeRule[] = [
   { model: 'TarotReading', by: 'userId', action: 'purge', reason: 'Which cards they drew, and on what day.' },
   { model: 'BeautyProfile', by: 'userId', action: 'purge', reason: 'Skin assessments, including photo-derived findings.' },
   { model: 'BeautyOrder', by: 'userId', action: 'purge', reason: 'What they bought from the beauty shelf.' },
-  { model: 'LookAnalysis', by: 'userId', action: 'purge', storageKey: 'fileKey', reason: 'Reference photos of a face, and what was read from them.' },
+  { model: 'LookAnalysis', by: 'userId', action: 'purge', storageKey: 'fileKey', reason: 'Reference photos of a face, and what was read from them. NOTE: this rule can only fire on rows the citizen has not deleted themselves — `remove()` used to null fileKey, which destroyed the key and left the photograph; it deletes the object first now.' },
   { model: 'Avatar', by: 'userId', action: 'purge', storageKey: 'assetKey', reason: 'Generated avatars and their stored images.' },
   { model: 'DatingProfile', by: 'userId', action: 'purge', storageKeysJson: { column: 'extras', fields: ['photos', 'selfieKey'] }, reason: 'Dating preferences and intent — the photos, AND the verification selfie, both of whose keys live in the extras JSON. The selfie is the one the first version of this rule missed.' },
   // The three dating tables the plan could not see, because their columns are
@@ -250,7 +280,7 @@ export const PURGE_RULES: PurgeRule[] = [
   { model: 'AppEvent', by: 'userId', action: 'purge', reason: 'Funnel steps recorded against their id — which page they opened, whom they liked. The aggregate counts the dashboard shows are recomputed from what remains; a deleted person is not a data point.' },
   { model: 'DatingPhotoReview', by: 'userId', action: 'purge', reason: 'The review verdict on each of their dating photos. The photos themselves are carried away with DatingProfile, whose extras JSON holds the keys.' },
   { model: 'ModerationLog', by: 'listingId', action: 'purge', reason: 'Dating reuses this table keyed by userId in the listingId column — the audit trail of approvals and rejections of THEIR profile. Once the profile is gone the record is a name and a verdict.' },
-  { model: 'JobProfile', by: 'userId', action: 'purge', reason: 'Their CV — history, skills, salary expectations.' },
+  { model: 'JobProfile', by: 'userId', action: 'purge', storageUrls: ['resumeUrl', 'photoUrl'], reason: 'Their CV — history, skills, salary expectations — AND the uploaded document and photograph themselves. Both live in the public bucket as URLs, so this rule was `purge` with no storage clause and read as complete while leaving a stranger\u2019s CV addressable forever.' },
   { model: 'JobApplication', by: 'userId', action: 'purge', reason: 'Applications they sent. The employer keeps the job posting, not the applicant\'s file.' },
   { model: 'PrivacySetting', by: 'userId', action: 'purge', reason: 'Consent and permission flags.' },
   { model: 'Budget', by: 'userId', action: 'purge', reason: 'Income, spending categories and targets.' },
@@ -340,7 +370,7 @@ export function deletions(): PurgeRule[] {
 
 /** Rules whose rows hold an object-storage key that must be removed too. */
 export function storageBearing(): PurgeRule[] {
-  return deletions().filter((r) => r.storageKey || r.storageKeysJson);
+  return deletions().filter((r) => r.storageKey || r.storageKeys || r.storageKeysJson || r.storageUrls || r.storageUrlsJson);
 }
 
 /** The WHERE clause for one rule against one citizen. */

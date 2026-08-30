@@ -1,7 +1,8 @@
 import { swallowed } from '../shared/swallow';
-import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit, Optional } from '@nestjs/common';
 import { demoDataEnabled } from '../shared/demo-data';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { StorageProvider } from '../media/storage.provider';
 import { ClockService } from '../shared/clock/clock.service';
 import { FEED_CAP, ORDER_HISTORY_CAP } from '../shared/paging';
 import { MasterProfileService } from '../profile/master-profile.service';
@@ -63,6 +64,9 @@ export class JobsService implements OnModuleInit {
     // Reads a CV into a profile. Optional at runtime — when the model is not
     // configured readCv returns null and the heuristic parser carries on.
     private readonly ai: AiService,
+    /* Optional so the specs that construct this service directly keep working;
+       `deleteResume` says loudly in the log when a document was left behind. */
+    @Optional() private readonly storage?: StorageProvider,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -212,6 +216,43 @@ export class JobsService implements OnModuleInit {
    * matched on what they typed themselves.
    */
   async deleteResume(userId: string) {
+    /**
+     * ── "THE APP KEPT A COPY WITH NO DOOR OUT" WAS STILL TRUE OF THE FILE ───
+     *
+     * The paragraph above this method says a citizen who wants their CV gone
+     * "had no way to remove it — the app kept a copy of their career history
+     * with no door out". This method was that door, and it opened onto the
+     * database only: it nulled `resumeUrl` and left the DOCUMENT in the public
+     * bucket, permanently addressable by its URL to anyone who ever had it.
+     *
+     * And nulling the column destroyed the only record of where it was, so the
+     * purge could not have caught it later either — the same shape as the look
+     * photograph and the post media, in a third place.
+     *
+     * `keyFromUrl` returns '' for anything not under our own public base. That
+     * matters here more than anywhere: `fileUrl` is a client-supplied
+     * `z.string().max(500)` with no bucket validation, so a citizen could have
+     * put any URL in this column, and we must not try to delete somebody
+     * else's.
+     */
+    const row = await this.prisma.jobProfile.findUnique({
+      where: { userId }, select: { resumeUrl: true },
+    }).catch(swallowed('jobs.deleteResume: read the resume url', null, { userId }));
+    const url = row?.resumeUrl ?? '';
+    if (url) {
+      if (this.storage) {
+        const key = this.storage.keyFromUrl(url);
+        if (key) {
+          await this.storage.deleteObject(key)
+            .catch(swallowed('jobs.deleteResume: delete the stored CV', undefined, { userId }));
+        }
+      } else {
+        this.logger.error(
+          `deleteResume: no storage provider wired — the stored CV (${url}) for ${userId} was NOT removed, `
+          + 'and the column is about to be nulled, so it is now orphaned.',
+        );
+      }
+    }
     await this.prisma.jobProfile.updateMany({
       where: { userId },
       data: { resumeText: '', resumeName: null, resumeUrl: null, resumeBytes: 0, resumeAt: null },

@@ -84,27 +84,71 @@ export class AccountPurgeService {
     for (const rule of storageBearing()) {
       const table = this.table(rule.model);
       if (!table) continue;
-      const key = rule.storageKey ?? (rule.storageKeysJson as { column: string }).column;
+      /**
+       * FOUR SHAPES, BECAUSE A FILE IN THIS APP IS KEPT FOUR WAYS (30 Aug).
+       *
+       * This loop read exactly one column and assumed the private vault. That
+       * covered health, dating and diary photographs — the ones anybody went
+       * looking for — and silently covered nothing else. Half the city keeps
+       * its pictures in the PUBLIC bucket as a full URL: a shopfront logo, a
+       * scanned menu, a CV, a verification document. Those rules were `purge`
+       * with no storage clause, which read as complete, and left every one of
+       * those files addressable after the account was destroyed.
+       *
+       *   storageKey / storageKeys  — private-vault keys, in their own columns
+       *   storageKeysJson           — private keys inside a JSON blob
+       *   storageUrls               — public-bucket URLs, in their own columns
+       *   storageUrlsJson           — public URLs inside a JSON array
+       */
+      const keyCols = [...(rule.storageKey ? [rule.storageKey] : []), ...(rule.storageKeys ?? [])];
+      const urlCols = rule.storageUrls ?? [];
+      const jsonCols = [
+        ...(rule.storageKeysJson ? [rule.storageKeysJson.column] : []),
+        ...(rule.storageUrlsJson ? [rule.storageUrlsJson.column] : []),
+      ];
+      const select: Record<string, boolean> = {};
+      for (const c of [...keyCols, ...urlCols, ...jsonCols]) select[c] = true;
+
       try {
         // unbounded: DELETION must be complete — every stored object of the account dies here
-        const rows = await table.findMany({
-          where: whereFor(rule, userId),
-          select: { [key]: true },
-        });
+        const rows = await table.findMany({ where: whereFor(rule, userId), select });
         for (const row of rows) {
-          const value = row[key];
-          if (typeof value !== 'string' || !value) continue;
+          // Private-vault keys, in columns of their own.
+          for (const col of keyCols) {
+            const value = row[col];
+            if (typeof value !== 'string' || !value) continue;
+            await this.storage.deleteHealthObject(value).catch(swallowed('privacy.purgeObjects', undefined));
+            removed++;
+          }
+
+          /* Public-bucket URLs. `keyFromUrl` returns '' for anything not under
+             our own public base, which is exactly the guard these columns need:
+             they are validated as `z.string().url()` and nothing server-side
+             ties them to our bucket, so a citizen who pasted a link to
+             somewhere else must not have us try to delete it. */
+          for (const col of urlCols) {
+            const value = row[col];
+            if (typeof value !== 'string' || !value) continue;
+            const key = this.storage.keyFromUrl(value);
+            if (!key) continue;
+            await this.storage.deleteObject(key).catch(swallowed('privacy.purgeObjects', undefined));
+            removed++;
+          }
+
           // Keys inside a JSON blob (dating photos) rather than a column of
           // their own. A malformed blob must not stop the rest of the purge:
           // failing here would leave a half-deleted account, which is worse
           // than one stubborn object we log and move past.
           if (rule.storageKeysJson) {
+            const value = row[rule.storageKeysJson.column];
             // FIELDS, PLURAL — the selfie key lives beside the photo array in
             // the same blob and the singular version of this loop left it in
             // the bucket forever. A field may hold one key or an array of
             // them; both shapes are read.
             let parsed: Record<string, unknown> = {};
-            try { parsed = JSON.parse(value) as Record<string, unknown>; } catch { parsed = {}; }
+            if (typeof value === 'string' && value) {
+              try { parsed = JSON.parse(value) as Record<string, unknown>; } catch { parsed = {}; }
+            }
             for (const field of rule.storageKeysJson.fields) {
               const raw = parsed[field];
               const keys: unknown[] = Array.isArray(raw) ? raw : raw ? [raw] : [];
@@ -116,11 +160,26 @@ export class AccountPurgeService {
                 removed++;
               }
             }
-            continue;
           }
-          // Everything with a storage key here lives in the private vault.
-          await this.storage.deleteHealthObject(value).catch(swallowed('privacy.purgeObjects', undefined));
-          removed++;
+
+          // Public URLs inside a JSON array — `[{url, caption}]`, the shape
+          // every listing gallery in the city uses.
+          if (rule.storageUrlsJson) {
+            const value = row[rule.storageUrlsJson.column];
+            let parsed: unknown = [];
+            if (typeof value === 'string' && value) {
+              try { parsed = JSON.parse(value); } catch { parsed = []; }
+            }
+            const field = rule.storageUrlsJson.field;
+            for (const entry of Array.isArray(parsed) ? parsed : []) {
+              const raw = typeof entry === 'string' ? entry : (entry as Record<string, unknown> | null)?.[field];
+              if (typeof raw !== 'string' || !raw) continue;
+              const key = this.storage.keyFromUrl(raw);
+              if (!key) continue;
+              await this.storage.deleteObject(key).catch(swallowed('privacy.purgeObjects', undefined));
+              removed++;
+            }
+          }
         }
       } catch (e) {
         this.logger.warn(`could not read ${rule.model} keys for ${userId}: ${(e as Error).message}`);

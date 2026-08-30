@@ -1,5 +1,7 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { StorageProvider } from '../media/storage.provider';
+import { swallowed } from '../shared/swallow';
 import { AiService } from '../ai/ai.service';
 import { BEAUTY_PRODUCTS } from './beauty-engine';
 import {
@@ -37,6 +39,9 @@ export class LookAnalysisService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ai: AiService,
+    /* Optional so the specs that construct this service directly keep working;
+       `remove` says loudly in the log when a photograph was left behind. */
+    @Optional() private readonly storage?: StorageProvider,
   ) {}
 
   /** The generated client may lag the schema; one narrow accessor. */
@@ -133,8 +138,36 @@ export class LookAnalysisService {
     return this.shape(row);
   }
 
-  /** Delete the look and detach the photo. */
+  /**
+   * Delete the look — and the photograph, which is the half this did not do.
+   *
+   * ── NULLING A KEY IS NOT DELETING A FILE (30 Aug) ─────────────────────────
+   *
+   * This set `fileKey: null` and stopped. The row said the photo was detached;
+   * the photograph was still in the private vault, and would be forever —
+   * because nulling the column DESTROYED THE ONLY RECORD OF WHERE IT WAS. The
+   * purge rule in purge-plan.ts names `fileKey` and could never fire on these
+   * rows again, so "delete this look" was the one action that put a face
+   * permanently beyond the reach of the machinery built to remove it.
+   *
+   * A reference photograph of somebody's face, kept on the promise it was for
+   * an analysis they have just asked to be rid of, is not a small thing to
+   * leave behind. The object goes first, then the key.
+   */
   async remove(userId: string, id: string): Promise<{ ok: true }> {
+    const row = await this.table.findFirst({ where: { id, userId } }) as { fileKey?: string | null } | null;
+    if (!row) throw new NotFoundException('No such look.');
+    if (row.fileKey) {
+      if (this.storage) {
+        await this.storage.deleteHealthObject(row.fileKey)
+          .catch(swallowed('beauty.remove: delete look photo', undefined, { userId, id }));
+      } else {
+        this.logger.error(
+          `look ${id}: no storage provider wired — the reference photograph (${row.fileKey}) was NOT removed `
+          + 'from the vault, and the key is about to be nulled, so it is now orphaned.',
+        );
+      }
+    }
     const res = await this.table.updateMany({
       where: { id, userId },
       data: { status: 'deleted', fileKey: null, attributes: null, steps: null, productMatches: null },

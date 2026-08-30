@@ -1,6 +1,7 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, ServiceUnavailableException, Optional, Logger } from '@nestjs/common';
 import { swallowed } from '../shared/swallow';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { StorageProvider } from '../media/storage.provider';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AiService } from '../ai/ai.service';
 import { categoryGroup, categoryKeysInGroup, categoryLabel, isCategory, isCategoryGroup } from './categories';
@@ -73,6 +74,12 @@ const parseYmd = (s: string): Date | null => {
   return Number.isNaN(d.getTime()) ? null : d;
 };
 
+/* Module-level rather than an instance field: deletion.spec.ts constructs this
+   service with `Object.create(LocalServicesService.prototype)`, which does not
+   run field initialisers — so an instance `logger` is undefined there, and the
+   first thing that reached for one turned a passing test into a TypeError. */
+const log = new Logger('LocalServicesService');
+
 @Injectable()
 export class LocalServicesService {
   constructor(
@@ -83,6 +90,9 @@ export class LocalServicesService {
     // BUSINESS, not about a conversation — this service only asks it whether a
     // brand-new thread is handed over or held.
     private readonly verification: VerificationService,
+    /* Optional so the specs that construct this service directly keep working;
+       `remove` says loudly in the log when files were left behind. */
+    @Optional() private readonly storage?: StorageProvider,
   ) {}
 
   // ───────────────────────── shaping ─────────────────────────
@@ -553,10 +563,96 @@ export class LocalServicesService {
       });
     }
 
+    /**
+     * ── THE ROWS GO BY CASCADE. THE FILES DID NOT GO AT ALL (30 Aug) ────────
+     *
+     * The comment below was right about every relation and silent about the
+     * bucket — the same sentence, in a fourth place, that purge-plan.ts has
+     * for pet photographs: "a foreign key knows nothing about an object
+     * store".
+     *
+     * What was being left behind here is the widest set in the city. A
+     * shopfront's logo, its scanned menu, every photograph in its gallery,
+     * every menu item's picture, and — cascading from the same row — the
+     * VERIFICATION DOCUMENTS the owner submitted to prove the business is
+     * real. Those last are the reason this is the most serious of the four:
+     * somebody uploads a document to prove who they are, deletes their
+     * business page, and the document stays in a public bucket indefinitely.
+     *
+     * Everything here is a public-bucket URL rather than a private key, which
+     * is why the purge plan had no vocabulary for it and this rule read as
+     * complete. `keyFromUrl` returns '' for anything not under our own base,
+     * so a link an owner pasted from somewhere else is left alone.
+     */
+    await this.purgeListingObjects(id);
+
     // Every relation is onDelete: Cascade — enquiries, messages, reviews,
     // regulars, offers, menu items and the verification row go with it.
     await this.prisma.serviceListing.delete({ where: { id } });
     return { ok: true as const, id };
+  }
+
+  /**
+   * Every stored file this listing owns, out of the bucket before the rows
+   * that name them are gone.
+   *
+   * Best-effort by necessity — a bucket having a bad day must not stop an
+   * owner removing their page — but each failure is logged with the key,
+   * because after the delete this log is the only record of what was left.
+   */
+  private async purgeListingObjects(listingId: string): Promise<void> {
+    if (!this.storage) {
+      log.error(
+        `listing ${listingId}: no storage provider wired — its logo, menu scan, gallery, menu-item `
+        + 'photographs and verification documents were NOT removed, and the rows naming them are about '
+        + 'to be deleted, so those objects are now orphaned.',
+      );
+      return;
+    }
+    const storage = this.storage;
+    const urls: string[] = [];
+
+    const listing = await this.prisma.serviceListing.findUnique({
+      where: { id: listingId },
+      select: { logoUrl: true, menuScanUrl: true, photosJson: true },
+    }).catch(swallowed('services.purgeObjects: read listing files', null, { listingId }));
+    if (listing) {
+      urls.push(listing.logoUrl ?? '', listing.menuScanUrl ?? '');
+      // `[{url, caption}]` — the gallery shape every listing in the city uses.
+      try {
+        const parsed: unknown = JSON.parse(listing.photosJson || '[]');
+        for (const p of Array.isArray(parsed) ? parsed : []) {
+          const u = typeof p === 'string' ? p : (p as Record<string, unknown> | null)?.url;
+          if (typeof u === 'string') urls.push(u);
+        }
+      } catch { /* a malformed gallery must not stop the rest going */ }
+    }
+
+    const items = await this.prisma.serviceMenuItem.findMany({
+      where: { listingId }, select: { photoUrl: true }, take: 2000,
+    }).catch(swallowed('services.purgeObjects: read menu photos', [] as Array<{ photoUrl: string | null }>, { listingId }));
+    for (const i of items ?? []) urls.push(i.photoUrl ?? '');
+
+    const ver = await this.prisma.serviceVerification.findFirst({
+      where: { listingId }, select: { docUrl: true, videoUrl: true },
+    }).catch(swallowed('services.purgeObjects: read verification files', null, { listingId }));
+    if (ver) urls.push(ver.docUrl ?? '', ver.videoUrl ?? '');
+
+    let removed = 0;
+    const failed: string[] = [];
+    for (const url of [...new Set(urls.filter(Boolean))]) {
+      const key = storage.keyFromUrl(url);
+      if (!key) continue; // not ours — an owner's link to somewhere else
+      try { await storage.deleteObject(key); removed += 1; } catch (e) {
+        failed.push(key);
+        log.error(`listing ${listingId}: could not remove ${key}: ${(e as Error).message}`);
+      }
+    }
+    if (failed.length) {
+      log.error(`listing ${listingId}: ${failed.length} object(s) ORPHANED — ${failed.join(', ')}`);
+    } else if (removed) {
+      log.log(`listing ${listingId}: removed ${removed} stored file(s)`);
+    }
   }
 
   async close(ownerId: string, id: string) {

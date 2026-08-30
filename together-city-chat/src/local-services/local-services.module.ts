@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../shared/prisma/prisma.module';
+import { MediaModule } from '../media/media.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AiModule } from '../ai/ai.module';
 import { CommerceModule } from '../commerce/commerce.module';
@@ -14,7 +15,10 @@ import { VerificationService } from './verification.service';
 @Module({
   // Commerce is the till and Financial is the wallet; ordering is a CALLER of
   // both, never a second copy of either.
-  imports: [PrismaModule, NotificationsModule, AiModule, CommerceModule, FinancialModule],
+  /* MediaModule for StorageProvider: deleting a listing has to take its
+     logo, menu scan, gallery, menu-item photographs and verification
+     documents out of the bucket — see purgeListingObjects. */
+  imports: [PrismaModule, NotificationsModule, AiModule, CommerceModule, FinancialModule, MediaModule],
   // ServiceOrdersController sits BEFORE LocalServicesController so its literal
   // 'orders/…' paths are matched before ':id' can eat them — the same
   // declaration-order rule 'mine' and 'regulars' already rely on inside the
