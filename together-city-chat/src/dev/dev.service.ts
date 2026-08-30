@@ -77,6 +77,23 @@ export class DevService {
         recentMigrations: migrations
           ? migrations.map((m) => ({ name: m.migration_name, at: m.finished_at?.toISOString() ?? null }))
           : null,
+        /**
+         * THE ONE NUMBER THAT SAYS "THE POOL IS THE BOTTLENECK" WITHOUT
+         * INFERENCE.
+         *
+         * Everything else about a saturated connection pool arrives as
+         * latency, which looks identical to a slow query, a slow disk or a
+         * slow network. `waiting` is requests queued for a connection: above
+         * zero for more than a moment and DB_POOL_MAX is the ceiling, full
+         * stop. It was ten until the scale pass, which is where the 30 Aug
+         * audit's "~20–40 concurrent" came from, and it is the first thing to
+         * read during a load test.
+         *
+         * Null when the adapter does not expose its pool — reported as null
+         * rather than as zeros, because "no waiters" and "we could not ask"
+         * are different answers and one of them is reassuring.
+         */
+        pool: this.prisma.poolStats(),
       },
       counts: { citizens, suspended, listings, pendingListings: pending },
       env: reportEnv(),

@@ -10,6 +10,7 @@ import { DeprecationInterceptor } from './shared/interceptors/deprecation.interc
 import configuration from './shared/config/configuration';
 import { PrismaModule } from './shared/prisma/prisma.module';
 import { RedisModule } from './shared/redis/redis.module';
+import { ReadCacheModule } from './shared/cache/cache.module';
 import { EventsModule } from './shared/events/events.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
@@ -79,6 +80,7 @@ import { QueueModule } from './shared/queue/queue.module';
     AstrologyModule,
     PrismaModule,
     RedisModule,
+    ReadCacheModule,
     EventsModule,
     AiModule,
     AuthModule,

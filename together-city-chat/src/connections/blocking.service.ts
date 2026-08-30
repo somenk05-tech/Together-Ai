@@ -1,6 +1,8 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { swallowed } from '../shared/swallow';
 import { ChatEventBus } from '../shared/events/chat-events';
+import { ReadCache } from '../shared/cache/read-cache.service';
 import {
   BLOCKED_STATUS, blockDirection, blockedMessage, blockedWith,
   type BlockDirection, type BlockRow, type ConnectionBlockRow,
@@ -24,8 +26,47 @@ import {
 @Injectable()
 export class BlockingService {
   /** The bus is optional so the many places that construct this service
-   *  directly keep working; a block with no bus is still a block. */
-  constructor(private readonly prisma: PrismaService, private readonly bus?: ChatEventBus) {}
+   *  directly keep working; a block with no bus is still a block. The cache is
+   *  optional for the same reason, and for the stronger one in
+   *  read-cache.service.ts: nothing here may need it. */
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly bus?: ChatEventBus,
+    @Optional() private readonly cache?: ReadCache,
+  ) {}
+
+  /**
+   * ── CACHING THE BLOCK SET, AND WHY IT IS SAFE TO ─────────────────────────
+   *
+   * `blockedWith` is two queries, and it is called on almost every read in the
+   * hub: the feed's graph, `assertCanView` on every like and comment, the
+   * fan-out audience, the Following lens. At a million citizens that is the
+   * most-executed pair of queries in the application, for an answer that
+   * changes when somebody presses Block.
+   *
+   * A stale block set is the one kind of staleness that is not merely
+   * inconvenient — it is a blocked person reappearing in the feed of whoever
+   * blocked them. So this is cached ONLY because the invalidation lives here,
+   * in the single place a block is written, and drops through Redis rather
+   * than in process memory: a block made on any container is forgotten on
+   * every container, immediately. The TTL is a backstop for a lost drop, not
+   * the mechanism.
+   *
+   * If that invariant ever stops holding — a second writer of Block or of a
+   * BLOCKED connection appearing anywhere — this cache has to go with it. That
+   * is why `block()` and `unblock()` below are the only two writes in the
+   * codebase, stated as a fact in the class docstring above rather than as an
+   * aspiration.
+   */
+  private static readonly BLOCK_TTL_S = ReadCache.ttlFromEnv('SOCIAL_CACHE_TTL_S', 30);
+
+  /** Forget both citizens' cached safety sets AND their cached graphs — a block
+   *  severs follow edges too, so the graph is wrong the moment this returns. */
+  private forget(a: string, b: string): void {
+    if (!this.cache) return;
+    void this.cache.drop(`blocked:${a}`, `blocked:${b}`, `graph:${a}`, `graph:${b}`)
+      .catch(swallowed('blocking.cache.forget', undefined, { a, b }));
+  }
 
   /**
    * Block someone. Idempotent, silent, and never notifies the blocked citizen —
@@ -54,6 +95,7 @@ export class BlockingService {
     // when a socket reconnected — so for the rest of a live session the person
     // just blocked still watched the blocker type and come online.
     this.bus?.publish({ kind: 'connection.blocked', userIds: [me, them] });
+    this.forget(me, them);
     return { blocked: true, userId: them };
   }
 
@@ -61,6 +103,7 @@ export class BlockingService {
    *  those were a relationship, not a setting, and re-following is a choice. */
   async unblock(me: string, them: string): Promise<{ blocked: false; userId: string }> {
     await this.prisma.block.deleteMany({ where: { blockerId: me, blockedId: them } });
+    this.forget(me, them);
     return { blocked: false, userId: them };
   }
 
@@ -104,8 +147,19 @@ export class BlockingService {
   /** Everyone this user is blocked with — the set every list subtracts. */
   async blockedWith(userId: string): Promise<Set<string>> {
     if (!userId) return new Set<string>();
-    const { blocks, connections } = await this.rows(userId);
-    return blockedWith(userId, blocks, connections);
+    // An ARRAY through the cache, never the Set: `JSON.stringify(new Set())`
+    // is `{}`, and a block list that silently comes back empty is the exact
+    // failure this cache must not be capable of.
+    const ids = this.cache
+      ? await this.cache.wrap(`blocked:${userId}`, BlockingService.BLOCK_TTL_S, async () => {
+        const { blocks, connections } = await this.rows(userId);
+        return [...blockedWith(userId, blocks, connections)];
+      })
+      : await (async () => {
+        const { blocks, connections } = await this.rows(userId);
+        return [...blockedWith(userId, blocks, connections)];
+      })();
+    return new Set(ids);
   }
 
   /**

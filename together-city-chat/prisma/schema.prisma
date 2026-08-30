@@ -940,14 +940,25 @@ model Post {
   /// comment here used to read "serves the hot feed path: WHERE authorId IN
   /// (...) ORDER BY createdAt DESC", and it does not: a btree on
   /// (authorId, createdAt) walks in createdAt order for ONE author, and for an
-  /// IN-list the planner has to append N index scans and sort the union. It
-  /// does serve the profile grid, which reads one author, so it stays.
-  @@index([authorId, createdAt])
-  /// AND THIS ONE SERVES THE FEED. Every lens filters `moderation: 'visible'`
+  /// IN-list the planner has to append N index scans and sort the union.
+  ///
+  /// DROPPED in the scale pass: the composite below leads with authorId too,
+  /// carries the moderation filter the profile grid also applies, and orders
+  /// the way every reader of it orders. Two indexes on the same leading column
+  /// are two indexes to write on every insert, and inserting is what a million
+  /// citizens do.
+  /// AND THIS ONE SERVES THE CITY-WIDE FEED. Every lens filters `moderation: 'visible'`
   /// and orders `(createdAt DESC, id DESC)`; with the sort key IN the index the
   /// city-wide read is a backwards index scan with a LIMIT instead of a scan
   /// plus a sort of everything that matched.
   @@index([moderation, createdAt, id])
+  /// AND THIS ONE SERVES THE BOUNDED LENSES. Friends and Following read
+  /// `authorId IN (...) AND moderation = 'visible' ORDER BY createdAt DESC,
+  /// id DESC LIMIT 21`. The pair above cannot help, because it leads with
+  /// moderation; this lets the planner run one ordered scan per author and
+  /// merge them, so a citizen with a thousand connections reads twenty-one
+  /// rows rather than sorting every post any of them ever wrote.
+  @@index([authorId, moderation, createdAt(sort: Desc), id(sort: Desc)])
   @@index([repostOfId])
 }
 
@@ -1005,6 +1016,10 @@ model Follow {
 
   @@unique([followerId, followeeId])
   @@index([followeeId])
+  /// The bounded fan-out takes the NEWEST SOCIAL_FANOUT_MAX followers. Without
+  /// createdAt in the index that is a sort of every follower an account has,
+  /// to return a thousand — which is the cost the cap exists to avoid.
+  @@index([followeeId, createdAt(sort: Desc)])
 }
 
 // Safety: one user blocking another. Blocks are one-directional records but

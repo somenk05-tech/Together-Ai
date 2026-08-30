@@ -1,4 +1,4 @@
-import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, type OnModuleInit, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import type { Readable } from 'stream';
@@ -6,6 +6,7 @@ import { apiUrl } from '../shared/api-prefix';
 import { mintPhotoToken, readPhotoToken } from '../dating/photo-link';
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand, PutBucketCorsCommand, GetBucketCorsCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { ReadCache } from '../shared/cache/read-cache.service';
 
 /** Origins allowed to upload directly to the bucket from the browser. Overridable
  *  via MEDIA_CORS_ORIGINS (comma-separated). */
@@ -122,7 +123,7 @@ export class StorageProvider implements OnModuleInit {
    */
   private readonly proxyPhotoTtlSec = 600;
 
-  constructor(private readonly config: ConfigService) {
+  constructor(private readonly config: ConfigService, @Optional() private readonly cache?: ReadCache) {
     const originsCsv = this.config.get<string>('media.corsOrigins') ?? '';
     this.corsOrigins = originsCsv.split(',').map((s) => s.trim()).filter(Boolean);
     if (!this.corsOrigins.length) this.corsOrigins = DEFAULT_CORS_ORIGINS;
@@ -454,9 +455,46 @@ export class StorageProvider implements OnModuleInit {
       for (const k of keys) out.set(k, `${this.publicBase}/__private__/${k}`);
       return out;
     }
-    await Promise.all(keys.map(async (k) => {
+
+    /**
+     * ── SIGNING IS CHEAP, AND FOUR HUNDRED OF ANYTHING IS NOT ───────────────
+     *
+     * The note above is right that this is a local HMAC rather than a call to
+     * the bucket. It is also, per key, a fresh SigV4 canonical request: a URL
+     * assembled, a handful of SHA-256s, a signing key derived. A feed page of
+     * twenty posts carrying media is up to four hundred of them, on the event
+     * loop, on every page of every scroll of every citizen — and unlike a
+     * query, none of it is waiting on anything, so it is four hundred
+     * synchronous CPU slices in the middle of the request that cannot be
+     * overlapped away.
+     *
+     * A signed URL is also the ideal thing to cache: it is deterministic for a
+     * key, it carries its own expiry, and handing the same one to two viewers
+     * is what a CDN in front of this would do anyway.
+     *
+     * CACHED FOR HALF ITS LIFE, DELIBERATELY. The URL is valid for
+     * `postMediaTtlSec`; caching it for that long means the copy handed out in
+     * the last second before eviction expires a second later, and the citizen
+     * gets a broken image with no way to explain it. At half, the worst URL
+     * anyone receives still has half an hour on it — longer than the page will
+     * be open.
+     */
+    const ttl = Math.max(1, Math.floor(this.postMediaTtlSec / 2));
+    const cache = this.cache;
+    const cached = cache ? await Promise.all(keys.map((k) => cache.get<string>(`sig:${k}`))) : [];
+    const missing: string[] = [];
+    keys.forEach((k, i) => {
+      const hit = cached[i];
+      if (hit) out.set(k, hit);
+      else missing.push(k);
+    });
+    if (!missing.length) return out;
+
+    await Promise.all(missing.map(async (k) => {
       try {
-        out.set(k, await getSignedUrl(s3, new GetObjectCommand({ Bucket: this.healthBucket, Key: k }), { expiresIn: this.postMediaTtlSec }));
+        const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: this.healthBucket, Key: k }), { expiresIn: this.postMediaTtlSec });
+        out.set(k, url);
+        await cache?.set(`sig:${k}`, url, ttl);
       } catch (e) {
         this.logger.warn(`signPostMedia failed for ${k}: ${(e as Error).message}`);
       }

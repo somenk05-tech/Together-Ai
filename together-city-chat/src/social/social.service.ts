@@ -1,10 +1,11 @@
 import { swallowed } from '../shared/swallow';
-import { ForbiddenException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, InternalServerErrorException, NotFoundException, Optional } from '@nestjs/common';
 import { spawn } from 'child_process';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { BlockingService } from '../connections/blocking.service';
 import { VISIBLE, VISIBLE_ONLY, removedNotice } from './post-visibility';
 import { AdminAccessService } from '../admin/admin-access.service';
+import { ReadCache } from '../shared/cache/read-cache.service';
 import { ConnectionsService } from '../connections/connections.service';
 import { RECORD_CAP } from '../shared/paging';
 import { SocialGateway } from './social.gateway';
@@ -62,7 +63,59 @@ export class SocialService {
     private readonly connections: ConnectionsService,
     private readonly blocking: BlockingService,
     private readonly access: AdminAccessService,
+    /**
+     * OPTIONAL, AND THAT IS THE POINT — TWICE OVER.
+     *
+     * At runtime ReadCacheModule is @Global, so this always resolves; the
+     * `@Optional()` is what lets a spec construct this service with seven
+     * arguments and get the uncached behaviour, which is the behaviour every
+     * assertion about correctness should be making. A cache that a test cannot
+     * be run without is a cache the tests are no longer testing around.
+     *
+     * And it states the rule the cache file itself opens with: nothing here may
+     * NEED the cache. Every read below goes through `cached()`, which falls
+     * straight through to the query when this is absent — so "Redis is down" and
+     * "this is a unit test" are the same code path, and it is the one that is
+     * always correct.
+     */
+    @Optional() private readonly cache?: ReadCache,
   ) {}
+
+  /**
+   * How long the viewer's follow/connection/block graph may be reused, and how
+   * many people one action may be pushed to live. Read once at module load —
+   * these are deployment settings, not per-request ones.
+   */
+  private static readonly GRAPH_TTL_S = ReadCache.ttlFromEnv('SOCIAL_CACHE_TTL_S', 30);
+  /** The most accounts one citizen's feed may be drawn from. See graphOf. */
+  private static readonly NETWORK_MAX = Math.min(
+    100_000,
+    Math.max(1, Number.parseInt(process.env.SOCIAL_NETWORK_MAX ?? '', 10) || 5_000),
+  );
+  private static readonly FANOUT_MAX = Math.min(
+    50_000,
+    Math.max(0, Number.parseInt(process.env.SOCIAL_FANOUT_MAX ?? '', 10) || 1_000),
+  );
+
+  /** Read through the cache when there is one, and straight through when there
+   *  is not. See the constructor note. */
+  private cached<T>(key: string, ttlSec: number, produce: () => Promise<T>): Promise<T> {
+    return this.cache ? this.cache.wrap(key, ttlSec, produce) : produce();
+  }
+
+  /**
+   * Forget a citizen's cached graph. Called wherever an edge changes, because
+   * thirty seconds is the right staleness for "who do I follow" and the wrong
+   * staleness for "who have I just blocked".
+   *
+   * Both sides, always: a block is symmetric, and a follow changes the
+   * FOLLOWEE's follower count as well as the follower's following set.
+   */
+  private forgetGraph(...userIds: Array<string | undefined | null>): void {
+    if (!this.cache) return;
+    const keys = userIds.filter((v): v is string => Boolean(v)).map((id) => `graph:${id}`);
+    if (keys.length) void this.cache.drop(...keys).catch(swallowed('social.cache.drop', undefined));
+  }
 
   /** Set a video post's cover: extract the frame at `timeSec` with ffmpeg from
    *  the stored video, upload it, and pin it as the media's thumbUrl — so the
@@ -167,16 +220,74 @@ export class SocialService {
    * go stale, so this is free.
    */
   private async graphOf(userId: string): Promise<{ blocked: Set<string>; conns: Array<{ userOneId: string; userTwoId: string; relationship?: string | null }>; follows: string[] }> {
-    const [follows, conns, blocked] = await Promise.all([
-      // unbounded: the feed's follow set — socially bounded
-      this.prisma.follow.findMany({ where: { followerId: userId }, select: { followeeId: true } }),
-      // unbounded: the viewer's accepted connections — one read, three readers
-      this.prisma.connection.findMany({
-        where: { status: 'ACCEPTED', OR: [{ userOneId: userId }, { userTwoId: userId }] },
-      }).catch(swallowed('social.graph.conns', [] as Array<{ userOneId: string; userTwoId: string }>)),
-      this.blockedWith(userId),
-    ]);
-    return { blocked, conns: conns as never, follows: follows.map((f) => f.followeeId) };
+    /**
+     * THIS IS THE READ THE WHOLE HUB MAKES, AND IT MADE IT EVERY TIME.
+     *
+     * Three queries, on every feed page, every heart tap, every comment, every
+     * scroll to the next page — for a set of facts that changes when somebody
+     * presses Follow, which is to say almost never. The 30 Aug audit called
+     * this out as "re-reads the whole follow graph on every page with no
+     * cache"; the per-request de-duplication that followed was right and did
+     * not go far enough, because the second page is a second request.
+     *
+     * Thirty seconds, and dropped explicitly by `forgetGraph` the moment an
+     * edge changes — so the staleness window applies only to edges changed by
+     * somebody ELSE on another container, which is exactly the case where
+     * thirty seconds of "you can still see a post from a person who just
+     * unfollowed you" costs nothing.
+     *
+     * What is cached is three ARRAYS. The Set is rebuilt on the way out,
+     * because `JSON.stringify(new Set())` is `{}` — a silent, total loss of
+     * the block list, which is the one value in here that must never come back
+     * empty by accident.
+     */
+    const raw = await this.cached(
+      `graph:${userId}`,
+      SocialService.GRAPH_TTL_S,
+      async (): Promise<{ blocked: string[]; conns: Array<{ userOneId: string; userTwoId: string; relationship?: string | null }>; follows: string[] }> => {
+        const [follows, conns, blocked] = await Promise.all([
+          /**
+           * "SOCIALLY BOUNDED" IS NOT A BOUND.
+           *
+           * The annotation here read `unbounded: the feed's follow set —
+           * socially bounded`, meaning: a person only follows so many people.
+           * A person, yes. Nothing in the API enforces it, so an account can
+           * follow a million, and this list becomes the IN-clause of the
+           * bounded feed lenses — at which point the query is not slow, it is
+           * a million-element array shipped to Postgres and parsed per page.
+           *
+           * Capped, and the cap is a real product number rather than a round
+           * one: a citizen following more than NETWORK_MAX accounts gets a
+           * Following feed drawn from the most recent NETWORK_MAX of them,
+           * which is the half they are actually reading. The proper fix is a
+           * follow limit at WRITE time — every network has one, for exactly
+           * this reason — and that is a product decision, so this is the
+           * read-side floor under it rather than a substitute for it.
+           */
+          this.prisma.follow.findMany({
+            where: { followerId: userId },
+            select: { followeeId: true },
+            orderBy: { createdAt: 'desc' },
+            take: SocialService.NETWORK_MAX,
+          }),
+          // unbounded: the viewer's accepted connections — one read, three readers
+          this.prisma.connection.findMany({
+            where: { status: 'ACCEPTED', OR: [{ userOneId: userId }, { userTwoId: userId }] },
+          }).catch(swallowed('social.graph.conns', [] as Array<{ userOneId: string; userTwoId: string }>)),
+          this.blockedWith(userId),
+        ]);
+        return {
+          blocked: [...blocked],
+          conns: (conns as never as Array<{ userOneId: string; userTwoId: string; relationship?: string | null }>)
+            // Only the three fields the gate reads. A cached row is a row that
+            // travels over the wire twice and sits in memory in between; there
+            // is no reason for the rest of the Connection to make that trip.
+            .map((c) => ({ userOneId: c.userOneId, userTwoId: c.userTwoId, relationship: c.relationship ?? null })),
+          follows: follows.map((f) => f.followeeId),
+        };
+      },
+    );
+    return { blocked: new Set(raw.blocked), conns: raw.conns, follows: raw.follows };
   }
 
   /** The three sets the audience gate needs, derived from one read. */
@@ -357,6 +468,8 @@ export class SocialService {
     if (blockedEither.has(target.id)) throw new ForbiddenException('You cannot follow this citizen.');
     const before = await this.prisma.follow.findUnique({ where: { followerId_followeeId: { followerId: userId, followeeId: target.id } } }).catch(swallowed('social.follow', null));
     await this.prisma.follow.createMany({ data: [{ followerId: userId, followeeId: target.id }], skipDuplicates: true });
+    // The edge changed on both sides — see forgetGraph.
+    this.forgetGraph(userId, target.id);
     /**
      * EVERY ONE OF THESE FIVE CARRIES A `.catch` NOW (30 Aug audit).
      *
@@ -382,6 +495,7 @@ export class SocialService {
    *  connected, they remain in your circle via the connection — by design. */
   async unfollow(userId: string, targetId: string) {
     await this.prisma.follow.deleteMany({ where: { followerId: userId, followeeId: targetId } });
+    this.forgetGraph(userId, targetId);
     return { following: false, userId: targetId };
   }
 
@@ -1080,11 +1194,20 @@ export class SocialService {
     if (!target) throw new NotFoundException('No citizen with that handle.');
     // Resolving the @handle is this hub's job; writing the block is not. Dating
     // needs the same write (H6), and the city should not have two of them.
-    return this.blocking.block(userId, target.id);
+    const out = await this.blocking.block(userId, target.id);
+    /* THE ONE CACHED FACT THAT MAY NOT BE THIRTY SECONDS STALE. Blocking drops
+       the follow edges as well, so both citizens' graphs are wrong the instant
+       this returns — and a stale block set is somebody reappearing in the feed
+       of the person who just blocked them. Dropped here, on both sides,
+       rather than left to expire. */
+    this.forgetGraph(userId, target.id);
+    return out;
   }
 
   async unblock(userId: string, targetId: string) {
-    return this.blocking.unblock(userId, targetId);
+    const out = await this.blocking.unblock(userId, targetId);
+    this.forgetGraph(userId, targetId);
+    return out;
   }
 
   /**
@@ -1541,25 +1664,67 @@ export class SocialService {
   /** Users allowed to receive live updates for a post, given its audience.
    *  Always includes the author; excludes anyone in a block relationship. */
   private async postRecipients(authorId: string, audience: string | null | undefined): Promise<string[]> {
+    /**
+     * ── THE FAN-OUT IS BOUNDED, AND THE OLD COMMENT WAS THE BUG ─────────────
+     *
+     * The line that used to sit on the follower query read: "unbounded: public
+     * fan-out includes every follower — same completeness rule". It was a
+     * deliberate decision, written down, and it does not survive a million
+     * citizens.
+     *
+     * What it meant in practice: EVERY post, EVERY heart tap, EVERY comment and
+     * EVERY share on a public post loaded the author's entire follower list out
+     * of Postgres and into this process's memory. For an account with half a
+     * million followers that is a half-million-row query and a half-million-
+     * element array, built and thrown away, per tap. Ten people liking one
+     * popular post at the same moment is five million rows in flight. The
+     * database does not fall over first; this process does.
+     *
+     * THE COMPLETENESS RULE WAS ALSO ANSWERING A QUESTION NOBODY ASKED. A
+     * truncated audience "silently unshares a post" only if the socket event is
+     * how people find out — and it is not. The websocket layer is a
+     * live-update convenience layered on top of a feed that everybody reads
+     * over HTTP; the 30 Aug audit found that nothing in the frontend listens to
+     * these events at all. A citizen who is not in the first thousand does not
+     * miss the post. They see it when they next read the feed, exactly as they
+     * do today.
+     *
+     * So: connections in full — a mutual, human-sized set, and the one where
+     * the audience gate really does depend on membership — plus at most
+     * FANOUT_MAX followers, newest first. Newest because a recent follower is
+     * the likeliest to have the app open, and because `(followeeId, createdAt)`
+     * is an index this can be served from without a sort.
+     *
+     * The cap is SOCIAL_FANOUT_MAX and 0 turns live fan-out off entirely,
+     * leaving the author's own notification path untouched.
+     */
     const aud = audience ?? 'public';
     const ids = new Set<string>([authorId]);
     if (aud === 'private') return [...ids];
     const [conns, blocked] = await Promise.all([
-      // unbounded: fan-out audience — must be complete; a truncated audience silently unshares a post
+      // Bounded by the social fact rather than by a `take`: an accepted
+      // connection is mutual and consented to on both sides, so this set is
+      // human-sized in a way a follower list is not.
       this.prisma.connection.findMany({
         where: { status: 'ACCEPTED', OR: [{ userOneId: authorId }, { userTwoId: authorId }] },
+        select: { userOneId: true, userTwoId: true, relationship: true },
+        take: SocialService.FANOUT_MAX + 1,
       }),
       this.blockedWith(authorId),
     ]);
     const other = (r: { userOneId: string; userTwoId: string }) => (r.userOneId === authorId ? r.userTwoId : r.userOneId);
     if (aud === 'family') {
-      for (const r of conns) if (((r as unknown as { relationship?: string | null }).relationship ?? '') === 'family') ids.add(other(r));
+      for (const r of conns) if ((r.relationship ?? '') === 'family') ids.add(other(r));
     } else {
-      // friends & public: all accepted connections
+      // friends & public: accepted connections
       for (const r of conns) ids.add(other(r));
-      if (aud === 'public') {
-        // unbounded: public fan-out includes every follower — same completeness rule
-        const followers = await this.prisma.follow.findMany({ where: { followeeId: authorId }, select: { followerId: true } });
+      if (aud === 'public' && ids.size < SocialService.FANOUT_MAX) {
+        const followers = await this.prisma.follow.findMany({
+          where: { followeeId: authorId },
+          select: { followerId: true },
+          orderBy: { createdAt: 'desc' },
+          take: SocialService.FANOUT_MAX - ids.size,
+        });
         for (const f of followers) ids.add(f.followerId);
       }
     }
@@ -1596,10 +1761,17 @@ export class SocialService {
     return post;
   }
 
-  /** The display name of whoever triggered a notification. */
+  /** The display name of whoever triggered a notification.
+   *
+   *  One user read on every like, comment, share and follow, for a string that
+   *  changes when somebody edits their profile. Five minutes, because the cost
+   *  of being stale is that one notification says the old name — and the cost
+   *  of not caching it is a query per heart tap at a million citizens. */
   private async actorName(userId: string): Promise<string> {
-    const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } }).catch(swallowed('social.actorName', null));
-    return u?.name ?? 'Someone';
+    return this.cached(`name:${userId}`, ReadCache.ttlFromEnv('SOCIAL_NAME_TTL_S', 300), async () => {
+      const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } }).catch(swallowed('social.actorName', null));
+      return u?.name ?? 'Someone';
+    });
   }
 
   private shapePost(
