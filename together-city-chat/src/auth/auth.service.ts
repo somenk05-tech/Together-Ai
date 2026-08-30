@@ -1,10 +1,12 @@
 import { swallow } from '../shared/swallow';
 import { RedisService } from '../shared/redis/redis.service';
+import { StorageProvider } from '../media/storage.provider';
 import { isDisposableEmail } from './disposable-domains';
 import {
   ConflictException,
   Injectable,
   Logger,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import { createHash, randomInt } from 'crypto';
@@ -37,6 +39,10 @@ export class AuthService {
     private readonly tokens: TokenService,
     private readonly mail: MailService,
     private readonly redis: RedisService,
+    /* Optional so the many specs that construct this service directly keep
+       working; a deletion with no storage is still a deletion of the rows, and
+       `purgePostObjects` says loudly in the log when that is what happened. */
+    @Optional() private readonly storage?: StorageProvider,
   ) {}
 
   /**
@@ -428,6 +434,67 @@ export class AuthService {
    * Requires the account password (re-authentication for a destructive action).
    * All sessions/refresh tokens are revoked, so every device is signed out.
    */
+  /**
+   * Delete the stored objects behind this citizen's posts.
+   *
+   * Best-effort by necessity — a bucket that refuses must not stop an account
+   * deletion — but LOUD, and loud with the keys in the message. If this fails,
+   * the rows are about to be deleted and the log line becomes the only record
+   * of which files were left behind; a log that says "3 objects failed" and
+   * not which ones is a log that cannot be acted on.
+   *
+   * Paged, because a prolific citizen's post history is not a bounded set and
+   * this runs inside a request.
+   */
+  private async purgePostObjects(userId: string): Promise<void> {
+    if (!this.storage) {
+      this.logger.error(
+        `deletion: no storage provider wired — post media for ${userId} was NOT removed from the bucket. `
+        + 'The rows are about to be deleted, so these objects are now orphaned.',
+      );
+      return;
+    }
+    const media = this.prisma as unknown as {
+      postMedia: { findMany: (a: unknown) => Promise<Array<{ id: string; url: string; thumbUrl: string | null }>> };
+    };
+    let cursor: string | undefined;
+    let removed = 0;
+    const failed: string[] = [];
+    for (let guard = 0; guard < 200; guard++) {
+      const rows = await swallow(media.postMedia.findMany({
+        where: { post: { authorId: userId } },
+        select: { id: true, url: true, thumbUrl: true },
+        orderBy: { id: 'asc' },
+        take: 500,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      }), 'deletion: read post media keys', { userId });
+      if (!rows?.length) break;
+      for (const row of rows) {
+        for (const key of [row.url, row.thumbUrl]) {
+          // Legacy inline `data:` photos and old public https URLs are not keys
+          // and have nothing in the private bucket to remove.
+          if (!key || !this.storage.isPostKey(key)) continue;
+          try {
+            await this.storage.deletePrivateObject(key);
+            removed += 1;
+          } catch (e) {
+            failed.push(key);
+            this.logger.error(`deletion: could not remove ${key} for ${userId}: ${(e as Error).message}`);
+          }
+        }
+      }
+      if (rows.length < 500) break;
+      cursor = rows[rows.length - 1].id;
+    }
+    if (failed.length) {
+      this.logger.error(
+        `deletion: ${failed.length} post object(s) for ${userId} are ORPHANED in the bucket — ${failed.join(', ')}`,
+      );
+    } else if (removed) {
+      this.logger.log(`deletion: removed ${removed} post object(s) for ${userId}`);
+    }
+  }
+
   async deleteAccount(userId: string, password: string): Promise<{ ok: true }> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new UnauthorizedException('Account not found.');
@@ -436,8 +503,33 @@ export class AuthService {
       throw new UnauthorizedException('That password is incorrect.');
     }
 
-    // 1) Remove this citizen's own public presence. Post media/likes/comments
-    //    cascade from Post; reposts of their posts cascade too.
+    /**
+     * ── 1) THE PHOTOGRAPHS GO BEFORE THE ROWS THAT NAME THEM ────────────────
+     *
+     * The comment that stood here read "Post media/likes/comments cascade from
+     * Post", and every word of it is true about the DATABASE. It is silent
+     * about the bucket, and the bucket is where the photographs are.
+     *
+     * `PostMedia` rows cascade; the objects those rows point at do not. So
+     * every photograph and video a citizen ever posted to Social Life survived
+     * their account deletion — and survived the thirty-day purge too, because
+     * the purge plan classifies `Post` as already handled here and, by the
+     * time it runs, the rows carrying the keys are long gone. Deleting the
+     * posts DESTROYED THE ONLY RECORD OF WHICH OBJECTS TO DELETE, which is why
+     * this cannot be left to the purge and has to happen at this line.
+     *
+     * The asymmetry is the tell: `SocialService.deletePost` has cleaned the
+     * bucket since 30 Aug, so deleting ONE post removed its files and deleting
+     * the WHOLE ACCOUNT did not. purge-plan.ts already has the sentence for
+     * this, written for pet photographs three hundred lines from the rule that
+     * missed it here: "a deleted account that leaves its pictures in a bucket
+     * is not a deleted account."
+     *
+     * Order matters and is deliberate. The keys are read and the objects
+     * deleted BEFORE the rows go, because after the rows go there is nothing
+     * left to ask.
+     */
+    await this.purgePostObjects(userId);
     // A step that fails here leaves public presence live behind an account
     // that reports itself deleted — the log line is the only witness.
     await swallow(this.prisma.post.deleteMany({ where: { authorId: userId } }), 'deletion: posts', { userId });

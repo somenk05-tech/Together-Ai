@@ -301,7 +301,21 @@ export const PURGE_RULES: PurgeRule[] = [
   { model: 'MessageStatus', by: 'userId', action: 'keep', reason: 'Delivery and read receipts belonging to messages that stay.' },
   { model: 'Comment', by: 'authorId', action: 'keep', reason: 'Replies on other people\'s posts, which those conversations still read as.' },
   { model: 'Like', by: 'userId', action: 'keep', reason: 'A like is a number on somebody else\'s post. Removing it edits their post.' },
-  { model: 'Post', by: 'authorId', action: 'keep', reason: 'Already deleted at soft-delete time, so nothing is left. Listed so the model is classified rather than missed.' },
+  /* THIS RULE'S REASON WAS TRUE ABOUT THE DATABASE AND SILENT ABOUT THE BUCKET
+     (30 Aug). It read "Already deleted at soft-delete time, so nothing is
+     left", and the rows genuinely are: `deleteAccount` deletes the posts and
+     PostMedia cascades. The OBJECTS those rows pointed at were never touched
+     by anything, so every photograph and video a citizen had posted survived
+     their deletion permanently — and could not be recovered by this purge
+     either, because deleting the rows destroyed the only record of which keys
+     to delete. AuthService.purgePostObjects now removes them BEFORE the rows
+     go, which is the only moment it can be done. */
+  { model: 'Post', by: 'authorId', action: 'keep', reason: 'Deleted at soft-delete time, rows AND stored objects — see AuthService.purgePostObjects, which must run before the rows go because the rows are what name the objects. Listed so the model is classified rather than missed.' },
+  /* PostMedia is not listed separately and does not need to be: it has no
+     citizen column of its own (it hangs off Post), so the exhaustiveness spec
+     beside this file does not ask for it. That is exactly how the objects went
+     unnoticed — the model carrying the storage keys is the one model in this
+     hub the plan was never going to make anybody think about. */
   { model: 'CallSession', by: 'createdById', action: 'keep', reason: 'The other person\'s call history too. Timestamps only — no content.' },
   { model: 'CallParticipant', by: 'userId', action: 'keep', reason: 'Their seat in that shared history.' },
   { model: 'Job', by: 'postedById', action: 'keep', reason: 'A posting other citizens have applied to.' },

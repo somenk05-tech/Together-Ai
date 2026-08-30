@@ -8,9 +8,13 @@ import { VerificationCodeService } from './verification-code.service';
 import { JwtStrategy } from './jwt.strategy';
 import { MailModule } from '../mail/mail.module';
 import { TurnstileService } from './turnstile.service';
+import { MediaModule } from '../media/media.module';
 
 @Module({
-  imports: [PassportModule, JwtModule.register({}), MailModule],
+  /* MediaModule for StorageProvider alone: deleting an account has to take
+     the citizen's post photographs out of the bucket, and the keys only exist
+     until the rows are deleted — see AuthService.purgePostObjects. */
+  imports: [PassportModule, JwtModule.register({}), MailModule, MediaModule],
   controllers: [AuthController],
   providers: [AuthService, TokenService, VerificationCodeService, JwtStrategy, TurnstileService],
   exports: [TokenService, JwtModule],
