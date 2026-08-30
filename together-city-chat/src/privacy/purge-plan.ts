@@ -46,7 +46,7 @@ export interface PurgeRule {
   model: string;
   /** The column that ties a row to a citizen. */
   by: 'userId' | 'ownerId' | 'authorId' | 'senderId' | 'createdById' | 'memberUserId' | 'hostId' | 'postedById'
-    | 'reporterId' | 'listingId' | 'invitedUserId' | 'either';
+    | 'reporterId' | 'listingId' | 'invitedUserId' | 'sellerId' | 'actorId' | 'seekerId' | 'reviewerId' | 'either';
   /**
    * For `by: 'either'` — a PAIR table, where the citizen may sit in one of two
    * columns. Dating's tables are all of this shape (userOneId/userTwoId,
@@ -109,7 +109,7 @@ export interface PurgeRule {
    * URLs inside a JSON column — the listing photo arrays, `[{url,caption}]`.
    * The public-bucket twin of `storageKeysJson`.
    */
-  storageUrlsJson?: { column: string; field: string };
+  storageUrlsJson?: Array<{ column: string; field: string }>;
 }
 
 export const PURGE_RULES: PurgeRule[] = [
@@ -177,7 +177,17 @@ export const PURGE_RULES: PurgeRule[] = [
   // AdminAudit carries `actorId`, which is not one of the link columns the spec
   // scans, so it needs no rule and a rule would read as stale. The decision is
   // written down all the same: audit rows are KEPT.
-{ model: 'ServiceListing', by: 'ownerId', action: 'purge', storageUrls: ['logoUrl', 'menuScanUrl'], storageUrlsJson: { column: 'photosJson', field: 'url' }, reason: 'Their own business page, and the threads hanging off it — a shopfront for somebody who has left is a door onto nothing. The logo, the scanned menu and every photograph on the page go with it; they are in the PUBLIC bucket, which is why this rule had no storage clause and left all of them behind.' },
+/* PROPERTY WAS NOT CLASSIFIED AT ALL, AND THE GUARD COULD NOT SAY SO.
+     Its citizen column is `sellerId`, and purge-plan.spec.ts looked for a
+     hardcoded list of names that did not include it — the exact failure its own
+     comment describes about `reporterId` in August: "a guard blind in exactly
+     one direction reads the same as a guard that passed." So a citizen's
+     property listings, and every photograph and floor plan on them, survived
+     their account entirely: not just the files, the whole advertisement with
+     their id on it. The spec derives its columns from the schema's User
+     relations now, so a name nobody thought of cannot hide a model again. */
+  { model: 'Property', by: 'sellerId', action: 'purge', storageUrlsJson: [{ column: 'photosJson', field: 'url' }, { column: 'floorPlansJson', field: 'url' }], reason: 'Their property advertisements — a listing for a home somebody has left the city is a viewing nobody can book. The photographs and floor plans go with them; both are arrays of {url} in the public bucket.' },
+  { model: 'ServiceListing', by: 'ownerId', action: 'purge', storageUrls: ['logoUrl', 'menuScanUrl'], storageUrlsJson: [{ column: 'photosJson', field: 'url' }], reason: 'Their own business page, and the threads hanging off it — a shopfront for somebody who has left is a door onto nothing. The logo, the scanned menu and every photograph on the page go with it; they are in the PUBLIC bucket, which is why this rule had no storage clause and left all of them behind.' },
   { model: 'ServiceRegular', by: 'userId', action: 'purge', reason: 'A private shortlist of the businesses they kept going back to. Nobody else has ever seen it, and it says a great deal about a person.' },
   // The order card in the thread deliberately carries no name and no address
   // (see deliverCard in orders.service.ts), so purging the row takes the ONLY
@@ -329,6 +339,19 @@ export const PURGE_RULES: PurgeRule[] = [
   { model: 'Report', by: 'reporterId', action: 'keep', reason: 'A moderation record about a THIRD party. Purging it would let anyone erase the evidence against someone by closing their own account.' },
   { model: 'Message', by: 'senderId', action: 'keep', reason: 'What they said to other people. A group thread full of holes is worse for the people left in it than one attributed to a deleted citizen.' },
   { model: 'MessageStatus', by: 'userId', action: 'keep', reason: 'Delivery and read receipts belonging to messages that stay.' },
+  /* An audit trail that thins out when the person audited leaves is not an
+     audit trail. Unclassified until 30 Aug for the same reason as Property —
+     `actorId` was a name the guard's list did not know. */
+  { model: 'AdminAudit', by: 'actorId', action: 'keep', reason: 'What a moderator DID, recorded so somebody can check it later. It is the city\u2019s record of an official act rather than the citizen\u2019s own data, and the acts of a moderator who has since left their account are the ones an appeal is most likely to be about.' },
+  /* ── FOUR MORE THE OLD SCANNER COULD NOT SEE ──────────────────────────
+     Block, Follow, ServiceEnquiry and ServiceReview all link to a citizen
+     through a `@relation` and none of them through a column the hardcoded
+     name list knew. They appeared the moment the scanner started reading the
+     schema's relations instead. */
+  { model: 'Block', by: 'either', pair: ['blockerId', 'blockedId'], action: 'purge', reason: 'Who they blocked, and who blocked them. Both halves go: a block is a rule about reaching a person, and when either side of it no longer exists there is nobody for it to protect and nothing for it to permit. Keeping it would also be keeping a list of somebody\u2019s enemies past the account that made it.' },
+  { model: 'Follow', by: 'either', pair: ['followerId', 'followeeId'], action: 'purge', reason: 'Follow edges both ways. `deleteAccount` already removes these at soft-delete; this is the backstop for rows that write failed on, and it is idempotent either way.' },
+  { model: 'ServiceEnquiry', by: 'seekerId', action: 'keep', reason: 'A conversation with a business, which the business is still in. The same rule as a group message: a thread with one side erased is worse for the person left in it than one attributed to a citizen who has gone. The seeker is an alias to that business anyway — "#7" — so what survives is a numbered customer, not a name.' },
+  { model: 'ServiceReview', by: 'reviewerId', action: 'keep', reason: 'A review other citizens read and a business has replied to. Removing it edits a public rating and silently rewrites somebody else\u2019s page — the same reason a Like and a Comment are kept. It carries an alias rather than a name.' },
   { model: 'Comment', by: 'authorId', action: 'keep', reason: 'Replies on other people\'s posts, which those conversations still read as.' },
   { model: 'Like', by: 'userId', action: 'keep', reason: 'A like is a number on somebody else\'s post. Removing it edits their post.' },
   /* THIS RULE'S REASON WAS TRUE ABOUT THE DATABASE AND SILENT ABOUT THE BUCKET

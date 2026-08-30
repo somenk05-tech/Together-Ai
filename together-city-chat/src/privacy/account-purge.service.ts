@@ -104,7 +104,7 @@ export class AccountPurgeService {
       const urlCols = rule.storageUrls ?? [];
       const jsonCols = [
         ...(rule.storageKeysJson ? [rule.storageKeysJson.column] : []),
-        ...(rule.storageUrlsJson ? [rule.storageUrlsJson.column] : []),
+        ...(rule.storageUrlsJson ?? []).map((j) => j.column),
       ];
       const select: Record<string, boolean> = {};
       for (const c of [...keyCols, ...urlCols, ...jsonCols]) select[c] = true;
@@ -164,15 +164,14 @@ export class AccountPurgeService {
 
           // Public URLs inside a JSON array — `[{url, caption}]`, the shape
           // every listing gallery in the city uses.
-          if (rule.storageUrlsJson) {
-            const value = row[rule.storageUrlsJson.column];
+          for (const spec of rule.storageUrlsJson ?? []) {
+            const value = row[spec.column];
             let parsed: unknown = [];
             if (typeof value === 'string' && value) {
               try { parsed = JSON.parse(value); } catch { parsed = []; }
             }
-            const field = rule.storageUrlsJson.field;
             for (const entry of Array.isArray(parsed) ? parsed : []) {
-              const raw = typeof entry === 'string' ? entry : (entry as Record<string, unknown> | null)?.[field];
+              const raw = typeof entry === 'string' ? entry : (entry as Record<string, unknown> | null)?.[spec.field];
               if (typeof raw !== 'string' || !raw) continue;
               const key = this.storage.keyFromUrl(raw);
               if (!key) continue;

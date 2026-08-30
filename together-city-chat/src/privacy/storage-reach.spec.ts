@@ -26,15 +26,51 @@ import { PURGE_RULES } from './purge-plan';
 
 const SCHEMA = readFileSync(join(__dirname, '..', '..', 'prisma', 'schema.prisma'), 'utf8');
 
-/** Every model → the columns whose name ends in Key or Url. */
+/**
+ * Every column whose NAME could plausibly name a file.
+ *
+ * THE FIRST VERSION OF THIS MATCHED `(key|url)$` AND NOTHING ELSE, which is
+ * how the same guard, written the same day, had the same blind spot as the one
+ * next door: it could only find files stored under a name somebody had thought
+ * of. `Property.photosJson` and `Property.floorPlansJson` are arrays of
+ * `{url}` in the public bucket and matched neither pattern, so a citizen's
+ * property advertisements and their floor plans were invisible to a guard
+ * written specifically to find files nothing removes.
+ *
+ * The pattern is deliberately WIDE now, and false positives are the point:
+ * a `docStatus` or a `videoRejectReason` costs one line in the registry saying
+ * it is not a file, and that line is cheap. A missed column costs somebody's
+ * document sitting in a bucket after they asked for it to be gone.
+ */
+const FILE_SHAPED = /(key|url|photo|photos|image|picture|avatar|logo|banner|poster|cover|thumb|thumbnail|file|files|doc|docs|attachment|attachments|media|selfie|scan|video|audio|asset)/i;
+/**
+ * AND EVERY JSON COLUMN, WHATEVER IT IS CALLED.
+ *
+ * `Property.floorPlansJson` is an array of `{url}` in the public bucket and
+ * matches no keyword above — "floor plans" is simply not a word anybody would
+ * have put in a list of file words. It survived the WIDENED pattern, which is
+ * the argument against patterns: the set of things a picture can be called is
+ * not enumerable.
+ *
+ * A JSON blob is opaque by construction — it can hold anything, including
+ * keys — so every one of them is a candidate and has to be classified. That is
+ * a rule about the SHAPE of the column rather than a guess about its name, and
+ * it is the only half of this detector that cannot be defeated by vocabulary.
+ */
+const OPAQUE = /Json$/;
+
 function candidates(): Array<{ model: string; column: string }> {
   const out: Array<{ model: string; column: string }> = [];
   for (const [, model, body] of SCHEMA.matchAll(/^model (\w+) \{([\s\S]*?)^\}/gm)) {
     for (const line of body.split('\n')) {
       const t = line.trim();
-      if (!t || t.startsWith('//') || t.startsWith('@@')) continue;
-      const m = /^(\w+)\s+\S/.exec(t);
-      if (m && /(key|url)$/i.test(m[1])) out.push({ model, column: m[1] });
+      if (!t || t.startsWith('//') || t.startsWith('/'.repeat(3)) || t.startsWith('@@')) continue;
+      const m = /^(\w+)\s+(\S+)/.exec(t);
+      if (!m) continue;
+      // Only String columns: an Int named `photos` is a count, and a relation
+      // field is the other side of a foreign key rather than a file.
+      if (!m[2].startsWith('String')) continue;
+      if (FILE_SHAPED.test(m[1]) || OPAQUE.test(m[1])) out.push({ model, column: m[1] });
     }
   }
   return out;
@@ -110,7 +146,18 @@ describe('the purge plan carries the storage clauses that were missing', () => {
   it('takes a shopfront’s logo, menu scan and gallery with the listing', () => {
     const r = rule('ServiceListing');
     expect(r?.storageUrls).toEqual(expect.arrayContaining(['logoUrl', 'menuScanUrl']));
-    expect(r?.storageUrlsJson).toEqual({ column: 'photosJson', field: 'url' });
+    expect(r?.storageUrlsJson).toEqual([{ column: 'photosJson', field: 'url' }]);
+  });
+
+  it('takes a property advertisement’s photographs and floor plans', () => {
+    // Property was not in the purge plan AT ALL — its citizen column is
+    // `sellerId`, a name the old scanner's list did not know.
+    const r = rule('Property');
+    expect(r?.action).toBe('purge');
+    expect(r?.storageUrlsJson).toEqual([
+      { column: 'photosJson', field: 'url' },
+      { column: 'floorPlansJson', field: 'url' },
+    ]);
   });
 
   it('takes a LEGACY medical document, which is a URL and not a key', () => {

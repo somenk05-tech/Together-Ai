@@ -19,24 +19,66 @@ import {
  */
 const SCHEMA = readFileSync(join(__dirname, '..', '..', 'prisma', 'schema.prisma'), 'utf8');
 
-// PAIR COLUMNS ARE LINKS TOO. userOneId/userTwoId and userA/userB tie a row to
-// a citizen just as userId does; leaving them out let three dating tables pass
-// this guard green while surviving every account deletion. Found 26 Aug.
-// `reporterId` joined them on 27 Aug. Report was the one model in the schema
-// carrying a citizen's id under a name this list did not know, so it was never
-// classified and the completeness check could not say so — a guard blind in
-// exactly one direction reads the same as a guard that passed.
+/**
+ * ── THE LIST STOPPED BEING A LIST (30 Aug) ─────────────────────────────────
+ *
+ * This was `LINK_COLUMNS`, a hardcoded set of column names, and its own
+ * comment had already recorded the failure twice:
+ *
+ *   "PAIR COLUMNS ARE LINKS TOO. userOneId/userTwoId and userA/userB tie a row
+ *    to a citizen just as userId does; leaving them out let three dating tables
+ *    pass this guard green while surviving every account deletion. Found
+ *    26 Aug. `reporterId` joined them on 27 Aug. Report was the one model in
+ *    the schema carrying a citizen's id under a name this list did not know, so
+ *    it was never classified and the completeness check could not say so — a
+ *    guard blind in exactly one direction reads the same as a guard that
+ *    passed."
+ *
+ * It happened a third time. `Property.sellerId` and `AdminAudit.actorId` were
+ * names nobody had added, so neither model was ever classified — a citizen's
+ * property advertisements, with their photographs and floor plans, survived
+ * their account entirely and this guard said everything was fine.
+ *
+ * Three times is the list telling us what it is. A guard built from names
+ * somebody remembered can only ever find what somebody remembered, and it goes
+ * green either way, which is the worst property a guard can have.
+ *
+ * SO THE COLUMNS COME FROM THE SCHEMA NOW. Prisma writes the link down itself:
+ * every declared foreign key to a citizen appears as
+ * `<field> User? @relation(… fields: [<column>], references: [id])`. Reading
+ * those gives every citizen-linking column BY CONSTRUCTION — including the
+ * next one, whatever it gets called.
+ *
+ * THE NAME LIST STAYS, AS THE OTHER HALF OF A UNION. Not every model declares
+ * the relation: twenty-one carry a bare `userId String` with no relation field
+ * beside it, and a relation-only scanner loses every one of them. So the two
+ * are unioned, and the union is a strict superset of what this guard found
+ * before — the names catch the models with no declared relation, the relations
+ * catch the names nobody thought of. Neither half is complete; together they
+ * are better than either, and adding to the name list is no longer the only
+ * way to make this guard see something new.
+ */
 const LINK_COLUMNS = ['userId', 'ownerId', 'authorId', 'senderId', 'createdById', 'postedById',
   'reporterId', 'userOneId', 'userTwoId', 'userA', 'userB'];
 
-/** Models whose rows belong to, or were written by, one citizen. */
+/** Every column tying a row to a citizen: declared User relations, plus the
+ *  conventional names, model by model. */
 function citizenLinkedModels(): Array<{ model: string; columns: string[] }> {
   const out: Array<{ model: string; columns: string[] }> = [];
   for (const block of SCHEMA.split(/^model /m).slice(1)) {
     const model = block.split(/\s/)[0];
     const body = block.slice(0, block.indexOf('\n}'));
-    const columns = LINK_COLUMNS.filter((c) => new RegExp(`^\\s*${c}\\s+String`, 'm').test(body));
-    if (columns.length) out.push({ model, columns });
+    const columns = new Set<string>(
+      LINK_COLUMNS.filter((c) => new RegExp(`^\\s*${c}\\s+String`, 'm').test(body)),
+    );
+    for (const line of body.split('\n')) {
+      // `author User @relation("name", fields: [authorId], references: [id])`
+      // — the type sits before @relation, the column inside fields: [...].
+      const rel = /^\s*\w+\s+User\??\s+@relation\([^)]*fields:\s*\[([^\]]+)\]/.exec(line);
+      if (!rel) continue;
+      for (const c of rel[1].split(',')) columns.add(c.trim());
+    }
+    if (columns.size) out.push({ model, columns: [...columns] });
   }
   return out;
 }

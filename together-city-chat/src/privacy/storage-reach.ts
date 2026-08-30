@@ -30,6 +30,14 @@
  *       a public URL, and there was no vocabulary for that shape, so those
  *       rules read as complete.
  *
+ *   4 · THE COLUMN WAS NOT CALLED ANYTHING FILE-SHAPED. `Property.photosJson`
+ *       and `floorPlansJson` are arrays of `{url}` in the public bucket. The
+ *       first version of the spec beside this file matched `(key|url)$`, the
+ *       second matched a list of file words, and "floor plans" defeated both —
+ *       because the set of things a picture can be called is not enumerable.
+ *       Every `Json` column is a candidate now, which is a rule about the
+ *       SHAPE of a column rather than a guess about its name.
+ *
  * So this is a REGISTRY rather than a detector. The spec beside it reads
  * schema.prisma, finds every column whose name looks like it could name a
  * file, and fails when one is not listed here. It cannot tell whether a
@@ -113,6 +121,71 @@ export const STORAGE_COLUMNS: StorageColumn[] = [
   { model: 'PrivacySetting', column: 'key', holds: 'not-storage', reason: 'A consent flag name.' },
   { model: 'ServiceListing', column: 'categoryKey', holds: 'not-storage', reason: 'One of a fixed enum of categories.' },
   { model: 'WalletTxn', column: 'idempotencyKey', holds: 'not-storage', reason: 'The Idempotency-Key header.' },
+
+  // ── Found by the WIDER scan (30 Aug): file-shaped names that do not end in
+  //    Key or Url, and every opaque JSON column. ────────────────────────────
+  { model: 'Attachment', column: 'thumbnail', holds: 'public-object', carriedAwayBy: 'NOTHING, deliberately — the same decision as Attachment.url beside it', reason: 'A chat attachment’s thumbnail, in the public bucket like the attachment itself.' },
+  { model: 'Property', column: 'photosJson', holds: 'public-object', carriedAwayBy: 'the Property purge rule’s storageUrlsJson (30 Aug — Property was not in the purge plan at all)', reason: 'A property advertisement’s photographs: `[{url,caption}]` in the public bucket.' },
+  { model: 'Property', column: 'floorPlansJson', holds: 'public-object', carriedAwayBy: 'the Property purge rule’s storageUrlsJson', reason: 'Floor plans, `[{label,url}]`. THE COLUMN THAT DEFEATED TWO VERSIONS OF THIS SPEC’S NAME PATTERN, and the reason every Json column is now a candidate.' },
+  { model: 'ServiceListing', column: 'photosJson', holds: 'public-object', carriedAwayBy: 'LocalServicesService.purgeListingObjects + the listing’s purge rule storageUrlsJson', reason: 'A shopfront’s gallery, `[{url,caption}]`.' },
+
+  { model: 'User', column: 'profileImage', holds: 'inline-data', reason: 'A resized `data:` URL capped at 400 KB in UsersService.setAvatar — it lives in the row, so nulling it at deletion genuinely removes the picture.' },
+  { model: 'ConversationMember', column: 'photo', holds: 'inline-data', reason: 'A contact photo one reader set for one conversation — the same resized `data:` shape as the account photo, per its DTO.' },
+  { model: 'BeautyProfile', column: 'progressJson', holds: 'inline-data', reason: 'A progress timeline whose `thumb` is a `data:` URL under 200 KB, kept in the row.' },
+  { model: 'Message', column: 'shareJson', holds: 'external-link', reason: 'A share card. Its `image` is https or a same-origin path and NOT a `data:` payload — messages.dto.ts records why that restriction exists. Whatever it points at, it is not an object this app stores on the citizen’s behalf.' },
+
+  { model: 'CallSession', column: 'avatarId', holds: 'not-storage', reason: 'Which generated Avatar an avatar call is bound to. Avatar.assetKey is the file, and has its own entry.' },
+  { model: 'Consult', column: 'doctorId', holds: 'not-storage', reason: 'Which doctor — a citizen id, not a file.' },
+  { model: 'CvEntry', column: 'profileId', holds: 'not-storage', reason: 'Which JobProfile the entry belongs to.' },
+  { model: 'MailMessage', column: 'attachmentIds', holds: 'not-storage', reason: 'DriveFile ids, not keys. The files are DriveFile.storageKey and go with that model’s rule.' },
+  { model: 'JobApplication', column: 'coverNote', holds: 'not-storage', reason: 'The covering note somebody typed. Prose in a column.' },
+  { model: 'JobProfile', column: 'profileVisibility', holds: 'not-storage', reason: 'Who may see the profile — a setting.' },
+  { model: 'ServiceVerification', column: 'docKind', holds: 'not-storage', reason: 'Which KIND of document was submitted.' },
+  { model: 'ServiceVerification', column: 'docRef', holds: 'not-storage', reason: 'A reference number typed off the document, not the document.' },
+  { model: 'ServiceVerification', column: 'docStatus', holds: 'not-storage', reason: 'none | submitted | verified | rejected.' },
+  { model: 'ServiceVerification', column: 'videoStatus', holds: 'not-storage', reason: 'The same vocabulary for the video.' },
+  { model: 'ServiceVerification', column: 'videoDecidedBy', holds: 'not-storage', reason: 'Which moderator decided.' },
+  { model: 'ServiceVerification', column: 'videoRejectReason', holds: 'not-storage', reason: 'Why it was refused, in words.' },
+
+  // Opaque JSON that turned out to hold content rather than files. Each one is
+  // a line rather than a judgement call somebody has to make again.
+  { model: 'AstroProfile', column: 'gemCartJson', holds: 'not-storage', reason: 'Gemstones in a basket.' },
+  { model: 'AstroReading', column: 'readingJson', holds: 'not-storage', reason: 'The text of a reading.' },
+  { model: 'BeautyOrder', column: 'itemsJson', holds: 'not-storage', reason: 'What was ordered.' },
+  { model: 'BeautyProfile', column: 'analysisJson', holds: 'not-storage', reason: 'A saved assessment — readings, not pictures.' },
+  { model: 'BeautyProfile', column: 'analysisLogJson', holds: 'not-storage', reason: 'Timestamps of past analysis runs.' },
+  { model: 'BeautyProfile', column: 'faceJson', holds: 'not-storage', reason: 'Face-feature readings — shapes and tones as numbers.' },
+  { model: 'BeautyProfile', column: 'photosJson', holds: 'not-storage', reason: 'Despite the name: `[{slot, analyzedAt, findings[]}]`. An assessment per photo slot, carrying no picture. The photographs themselves are analysed and not kept.' },
+  { model: 'Connection', column: 'modulesJson', holds: 'not-storage', reason: 'Which hubs a connection opens.' },
+  { model: 'DatingProfile', column: 'moderationJson', holds: 'not-storage', reason: 'A moderation decision. The dating photographs are in extras, which has its own clause.' },
+  { model: 'Event', column: 'tiersJson', holds: 'not-storage', reason: 'Ticket tiers and prices.' },
+  { model: 'FoodJournalEntry', column: 'itemsJson', holds: 'not-storage', reason: 'What was eaten.' },
+  { model: 'FoodJournalEntry', column: 'totalsJson', holds: 'not-storage', reason: 'The arithmetic of the above.' },
+  { model: 'Meal', column: 'addonsJson', holds: 'not-storage', reason: 'Extras on a meal.' },
+  { model: 'Message', column: 'hiddenForJson', holds: 'not-storage', reason: 'Who has hidden this message.' },
+  { model: 'Message', column: 'reactionsJson', holds: 'not-storage', reason: 'Emoji and who left them.' },
+  { model: 'Message', column: 'starredForJson', holds: 'not-storage', reason: 'Who starred it.' },
+  { model: 'NutritionOrder', column: 'qcJson', holds: 'not-storage', reason: 'Quality-check notes.' },
+  { model: 'PantryConsumption', column: 'itemsJson', holds: 'not-storage', reason: 'What was taken out of the pantry.' },
+  { model: 'Post', column: 'taggedJson', holds: 'not-storage', reason: 'The people tagged in a post — ids, names and handles.' },
+  { model: 'Property', column: 'milestonesJson', holds: 'not-storage', reason: 'Construction milestones and percentages.' },
+  { model: 'Property', column: 'moderationJson', holds: 'not-storage', reason: 'A moderation decision.' },
+  { model: 'ServiceListing', column: 'detailsJson', holds: 'not-storage', reason: 'Free-form business details.' },
+  { model: 'ServiceListing', column: 'hoursJson', holds: 'not-storage', reason: 'Opening hours, day by day.' },
+  { model: 'ServiceListing', column: 'moderationJson', holds: 'not-storage', reason: 'A moderation decision.' },
+  { model: 'ServiceMenuItem', column: 'addonsJson', holds: 'not-storage', reason: 'Extras on a dish.' },
+  { model: 'ServiceMenuItem', column: 'variantsJson', holds: 'not-storage', reason: 'Sizes and variants of a dish.' },
+  { model: 'ServiceOrder', column: 'itemsJson', holds: 'not-storage', reason: 'What was ordered.' },
+  { model: 'SupplementBag', column: 'linesJson', holds: 'not-storage', reason: 'Supplements in a bag.' },
+  { model: 'SupplementOrder', column: 'itemsJson', holds: 'not-storage', reason: 'What was ordered.' },
+  { model: 'TarotReading', column: 'readingJson', holds: 'not-storage', reason: 'The text of a reading.' },
+  { model: 'TravelPackage', column: 'highlightsJson', holds: 'not-storage', reason: 'Selling points, in words.' },
+  { model: 'TravelPackage', column: 'inclusionsJson', holds: 'not-storage', reason: 'What the price includes.' },
+  { model: 'TravelPackage', column: 'itineraryJson', holds: 'not-storage', reason: 'Day by day, in words.' },
+  { model: 'TravelPackage', column: 'tiersJson', holds: 'not-storage', reason: 'Price tiers for a package.' },
+  { model: 'TripBooking', column: 'detailJson', holds: 'not-storage', reason: 'The booking’s particulars.' },
+  { model: 'User', column: 'hiddenHubsJson', holds: 'not-storage', reason: 'Which hubs this citizen has hidden.' },
+  { model: 'User', column: 'watchlistJson', holds: 'not-storage', reason: 'Things they are watching.' },
 ];
 
 /** Every column holding a file we actually store. */
