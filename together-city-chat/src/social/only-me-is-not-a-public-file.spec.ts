@@ -55,8 +55,21 @@ function svc(over: { exists?: boolean; size?: number | null } = {}) {
   const blocking = { blockedWith: async () => new Set<string>() } as any;
   const gateway = { postNew: jest.fn() } as any;
   const notifications = { create: jest.fn(async () => undefined) } as any;
+  /**
+   * AN APPROVING SCREENING GUARD, PASSED EXPLICITLY, AND THE FACT THAT IT HAS
+   * TO BE IS THE POINT.
+   *
+   * Content screening landed on 30 Aug (the last of the five launch blockers)
+   * and `screenMedia` refuses a post carrying media when no guard was
+   * injected. This file's subject is where post media LIVES — the private
+   * bucket, ownership, signed URLs — not what is in the picture, so it says
+   * "assume the picture is fine" out loud rather than inheriting a pass from
+   * an absent dependency. `a-picture-nobody-checked.spec.ts` is where the
+   * absent case is the assertion.
+   */
+  const screening = { screenPost: async () => ({ ok: true }) } as any;
   return {
-    svc: new SocialService(prisma, gateway, notifications, storage, {} as never, blocking, {} as never),
+    svc: new SocialService(prisma, gateway, notifications, storage, {} as never, blocking, {} as never, screening),
     created,
   };
 }

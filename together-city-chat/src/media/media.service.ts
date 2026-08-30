@@ -129,7 +129,20 @@ export class MediaService {
     if (EXECUTABLE_IN_A_BROWSER.has(bareMimeType(mimeType))) {
       throw new BadRequestException('That kind of file cannot be uploaded here — it is a document a browser would run.');
     }
-    // Virus-scan hook: enqueue key for scanning before it is served (stub).
+    /* THE "VIRUS-SCAN HOOK" STUB IS GONE, AND WHAT REPLACED IT IS NOT A VIRUS
+       SCAN (30 Aug audit, the last launch blocker).
+       A comment saying a scan would happen here was doing the work of making
+       the gap look temporary. It could never have gone here anyway: this is
+       the PRESIGN, and the bytes do not exist yet — the browser PUTs them
+       straight to the bucket afterwards, and nothing server-side ever sees
+       them on the way.
+       So screening happens where the object first becomes something another
+       citizen can reach. For a social post that is `createPost`, in
+       SocialService.screenMedia via PostMediaGuard; for a dating chat it is
+       the send, via ChatMediaGuard. Both fail closed. What stands here
+       instead is the denylist above, which is a different question — "would a
+       browser RUN this file" rather than "should a person SEE it" — and both
+       are needed. */
     return this.storage.presignUpload(userId, mimeType, extFor(mimeType));
   }
 

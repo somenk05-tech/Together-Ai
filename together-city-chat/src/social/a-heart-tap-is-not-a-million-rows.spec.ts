@@ -52,7 +52,7 @@ function recorder(over: { followers?: number; conns?: number } = {}) {
 
 function svc(prisma: any, cache?: ReadCache) {
   const blocking = { blockedWith: async () => new Set<string>() } as any;
-  return new SocialService(prisma, {} as never, {} as never, {} as never, {} as never, blocking, {} as never, cache);
+  return new SocialService(prisma, {} as never, {} as never, {} as never, {} as never, blocking, {} as never, undefined, cache);
 }
 
 /** Reach the private method the way the service's own callers do. */

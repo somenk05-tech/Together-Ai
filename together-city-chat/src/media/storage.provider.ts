@@ -917,15 +917,32 @@ export class StorageProvider implements OnModuleInit {
    * one the uploader declared, which is precisely the claim we are checking.
    */
   async getPublicObjectPrefix(key: string, n: number): Promise<Buffer | null> {
+    return this.objectPrefix(this.bucket, key, n, 'getPublicObjectPrefix');
+  }
+
+  /** The same ranged read, against the PRIVATE bucket where post media lives.
+   *  Social posts moved there on 30 Aug; the screening guard needs the first
+   *  bytes for the same reason chat does — the declared Content-Type is the
+   *  claim being checked, so it cannot be the thing that answers. */
+  async getPostObjectPrefix(key: string, n: number): Promise<Buffer | null> {
+    return this.objectPrefix(this.healthBucket, key, n, 'getPostObjectPrefix');
+  }
+
+  /** Read a post-media object whole, for handing to an image classifier. */
+  async getPostObjectBase64(key: string): Promise<{ base64: string; contentType: string } | null> {
+    return this.getObjectBase64(key, this.healthBucket);
+  }
+
+  private async objectPrefix(bucket: string, key: string, n: number, where: string): Promise<Buffer | null> {
     if (!this.s3 || !key) return null;
     try {
       const res = await this.s3.send(new GetObjectCommand({
-        Bucket: this.bucket, Key: key, Range: `bytes=0-${Math.max(0, n - 1)}`,
+        Bucket: bucket, Key: key, Range: `bytes=0-${Math.max(0, n - 1)}`,
       }));
       const bytes = await res.Body?.transformToByteArray();
       return bytes ? Buffer.from(bytes) : null;
     } catch (e) {
-      this.logger.warn(`getPublicObjectPrefix failed for ${key}: ${(e as Error).message}`);
+      this.logger.warn(`${where} failed for ${key}: ${(e as Error).message}`);
       return null;
     }
   }

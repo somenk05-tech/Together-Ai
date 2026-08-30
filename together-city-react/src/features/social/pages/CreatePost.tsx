@@ -658,6 +658,28 @@ export function CreatePost() {
           // "upload failed" when the server actually returned a reason).
           const ax = e as { response?: { status?: number; data?: { message?: string } }; message?: string };
           const status = ax?.response?.status;
+          /**
+           * A REFUSED PHOTO IS NO LONGER IN THE BUCKET, SO THE MEMOISED KEY IS
+           * A LIE (30 Aug, alongside content screening).
+           *
+           * Screening deletes what it refuses — a presigned PUT means the
+           * bytes were already in the bucket, so a refusal that only blocks
+           * the post leaves the file addressable. Which means the `key` this
+           * composer memoised to avoid re-uploading now points at nothing, and
+           * pressing Share again would fail on the SERVER'S ownership check
+           * with "that upload did not finish" — a sentence about a network
+           * problem, for a photograph that was refused on its content.
+           *
+           * So a permanent refusal forgets the keys. The retry re-uploads and
+           * gets the same honest answer about the same picture, which is a
+           * loop the citizen can actually get out of by changing the picture.
+           * A 503 leaves them alone: nothing was deleted, and re-uploading
+           * sixty megabytes because AWS blinked is the bug this memoisation
+           * exists to prevent.
+           */
+          if (status === 403) {
+            for (const m of media) { m.key = undefined; m.posterKey = undefined; }
+          }
           setErrMsg(
             // 413 used to blame "that video" unconditionally, so a citizen
             // posting ten photographs and no video was told to try a shorter

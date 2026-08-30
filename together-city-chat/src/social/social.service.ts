@@ -1,11 +1,12 @@
 import { swallowed } from '../shared/swallow';
-import { ForbiddenException, Injectable, InternalServerErrorException, NotFoundException, Optional } from '@nestjs/common';
+import { ForbiddenException, Injectable, InternalServerErrorException, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { spawn } from 'child_process';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { BlockingService } from '../connections/blocking.service';
 import { VISIBLE, VISIBLE_ONLY, removedNotice } from './post-visibility';
 import { AdminAccessService } from '../admin/admin-access.service';
 import { ReadCache } from '../shared/cache/read-cache.service';
+import { PostMediaGuard } from './post-media-guard';
 import { ConnectionsService } from '../connections/connections.service';
 import { RECORD_CAP } from '../shared/paging';
 import { SocialGateway } from './social.gateway';
@@ -63,6 +64,16 @@ export class SocialService {
     private readonly connections: ConnectionsService,
     private readonly blocking: BlockingService,
     private readonly access: AdminAccessService,
+    /**
+     * Optional for the same reason the cache below is: a spec asserting what
+     * `createPost` writes should not have to stand up an image classifier. But
+     * the DEFAULT when it is absent is the safe one, not the convenient one —
+     * see `screenMedia`, where absent means "no screening was configured in
+     * this process", and a post carrying media is refused rather than waved
+     * through. A test that wants to post a photograph has to say so by passing
+     * a guard, which is the right way round.
+     */
+    @Optional() private readonly screening?: PostMediaGuard,
     /**
      * OPTIONAL, AND THAT IS THE POINT — TWICE OVER.
      *
@@ -534,8 +545,48 @@ export class SocialService {
     }
   }
 
+  /**
+   * ── THE LAST OF THE FIVE LAUNCH BLOCKERS (30 Aug audit) ────────────────────
+   *
+   * "There is no automated screening on any social upload." A dating profile
+   * photo passed a fail-closed classifier before one person saw it; a post
+   * passed nothing before the whole city did.
+   *
+   * It sits beside `verifyMedia` because that is already the place this code
+   * asks the bucket about these keys, and it runs AFTER it deliberately:
+   * verifyMedia proves the key is ours and the citizen's, and there is no
+   * sense handing an object to a classifier before knowing whose it is.
+   *
+   * FAIL-CLOSED INCLUDES "NOT CONFIGURED IN THIS PROCESS". The guard is an
+   * optional injection so specs need not stand one up — and a post carrying
+   * media with no guard present is refused, not published. An optional
+   * dependency whose absence silently disables a safety check is how a
+   * deployment ends up unscreened and confident; the absence has to be the
+   * strict case or the option is a hole.
+   *
+   * A post with no media never reaches the classifier at all, which is most
+   * posts, and is why this costs nothing on the Thoughts tab.
+   */
+  private async screenMedia(userId: string, media: CreatePostDto['media']): Promise<void> {
+    if (!media?.length) return;
+    if (!this.screening) {
+      throw new ForbiddenException(
+        'Photos and videos can’t be checked right now, so this post hasn’t gone up. Try again in a moment.',
+      );
+    }
+    const out = await this.screening.screenPost(userId, media as ReadonlyArray<{ url: string; kind: string; thumbUrl?: string | null }>);
+    if (out.ok) return;
+    /* TWO REFUSALS, TWO STATUS CODES, AND THE DIFFERENCE IS THE WHOLE POINT.
+       503 says "try again" and 403 says "do not"; a citizen told the wrong one
+       either retries forever or abandons a photograph that was fine. The
+       message says it in words too, because nobody reads a status code. */
+    if (out.retryable) throw new ServiceUnavailableException(out.reason);
+    throw new ForbiddenException(out.reason);
+  }
+
   async createPost(userId: string, dto: CreatePostDto) {
     await this.verifyMedia(userId, dto.media);
+    await this.screenMedia(userId, dto.media);
     const audience = dto.audience ?? 'public';
     const tagged = dto.tagged?.length
       ? dto.tagged.map((t) => ({ id: t.id, name: this.clean(t.name) ?? '', handle: this.clean(t.handle) ?? '' }))
