@@ -446,7 +446,9 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
     title: post.text?.trim() ? (post.text.length > 90 ? post.text.slice(0, 90) + '…' : post.text) : `${post.author.name}'s post`,
     subtitle: `by ${post.author.name}${post.placeName ? ` · 📍 ${post.placeName}` : ''}`,
     image: images[0]?.url ?? videos[0]?.thumbUrl ?? null,
-    deepLink: '/social/feed',
+    // The post, not the feed. "View Post →" used to open the recipient's own
+    // feed, which is not this post and may not contain it (30 Aug audit).
+    deepLink: `/social/p/${post.id}`,
   };
 
   const openAuthor = () => onOpenAuthor?.(post.author.handle);

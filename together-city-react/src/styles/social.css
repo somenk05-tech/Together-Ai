@@ -435,6 +435,11 @@ textarea.sl-field { resize: vertical; line-height: 1.6; min-height: 132px; }
   background: var(--card); color: var(--ink-soft); cursor: pointer;
 }
 
+/* The permalink page's way back. A class rather than four inline values,
+   because the size ratchet counts inline objects and a new page should not
+   raise a ceiling somebody else has to live under. */
+.sl-post-bar { display: flex; align-items: center; gap: var(--s-2); margin-bottom: var(--s-3); }
+
 /* ── the foot: five marks and five words ───────────────────────────────── */
 /* space-between, so the first mark starts on the left margin and the last
    ends on the right one — the row is the picture's width, measured. */

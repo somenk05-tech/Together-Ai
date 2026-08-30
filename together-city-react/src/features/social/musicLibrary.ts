@@ -8,8 +8,13 @@
  * the Reels player read straight from this list.
  *
  * IMPORTANT: only add tracks you have the rights to use (e.g. CC0 / Pixabay
- * Music / your own licensed audio). The paths below are placeholders; the
- * picker hides any track whose file 404s, so unshipped rows simply won't show.
+ * Music / your own licensed audio). The picker hides any track whose file
+ * 404s, so a row added before its MP3 lands simply won't show.
+ *
+ * (The line that used to sit here said "the paths below are placeholders". It
+ * had been untrue since the five tracks shipped — 4 to 10 MB of real audio
+ * each — and a stale comment about what is real is the kind that gets acted
+ * on.)
  */
 export interface Track {
   id: string;
@@ -19,9 +24,10 @@ export interface Track {
   url: string;
   /** Rough mood tag for grouping in the picker. */
   mood?: string;
-  /** Copyright status. Every library track is cleared/royalty-free — there is
-   *  no way to add copyrighted music (users can't upload their own audio, and
-   *  the API only accepts these library paths). */
+  /** What the row claims about its own rights, shown under the title. Whoever
+   *  adds a track sets this; nothing in the app can check it. The one thing
+   *  the app DOES enforce is that no other audio can be attached at all —
+   *  users cannot upload their own, and the API only accepts /music/ paths. */
   license?: string;
 }
 

@@ -298,11 +298,14 @@ const MOOD_HINTS: Array<[RegExp, string]> = [
   [/coffee|tea|rain|book/i, '☕ Cosy'],
   [/trip|travel|explore|adventure/i, '🧭 Adventurous'],
 ];
-const PLACE_HINTS: Array<[RegExp, string]> = [
-  [/marine drive/i, 'Marine Drive, Mumbai'], [/blue tokai/i, 'Blue Tokai Coffee'],
-  [/starbucks/i, 'Starbucks'], [/eiffel|paris/i, 'Paris'], [/bandra/i, 'Bandra, Mumbai'],
-  [/juhu/i, 'Juhu Beach'], [/gateway/i, 'Gateway of India'],
-];
+/* PLACE_HINTS IS GONE (30 Aug audit).
+   Seven regexes over seven hardcoded strings, offered under a pin icon as
+   though the composer had looked something up. It had not: it matched your own
+   words and handed them back with a city appended — /bandra/ → "Bandra,
+   Mumbai" for anyone anywhere, and /eiffel|paris/ → "Paris" for a post about
+   plaster of Paris. A place is where the citizen was; the field takes their
+   words, and the pin takes a real fix from the device. Guessing between the
+   two was the only part that was invented. */
 
 function fmtBadge(dur: number | undefined): { text: string; eligible: boolean } {
   const d = dur || 0;
@@ -354,9 +357,14 @@ function MusicPicker({ selected, onSelect, stopSignal }: { selected: Track | nul
     <div style={{ marginTop: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
         <span className="sl-hint-row"><Icon name="music" size={14} />Music</span>
-        <span title="Every track is royalty-free and cleared for use. Uploading your own (possibly copyrighted) audio is not allowed."
-          style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 8px', borderRadius: 'var(--r-full)', background: 'rgba(34,197,94,.14)', color: 'var(--ok-ink)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          <Icon name="shield" size={13} /> Copyright-safe · Royalty-free
+        {/* "COPYRIGHT-SAFE" IS A LEGAL ASSURANCE, AND THIS SCREEN CANNOT GIVE
+            ONE (30 Aug audit). What the app actually knows is narrower and
+            still worth saying: this list is the only audio a post can carry,
+            because the API refuses any musicUrl outside /music/. That is a
+            fact about the product, not a warranty about a catalogue. */}
+        <span title="These are the only tracks a post can carry — you can’t attach your own audio."
+          style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 8px', borderRadius: 'var(--r-full)', background: 'var(--paper)', color: 'var(--ink-soft)', border: '1px solid var(--line)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <Icon name="shield" size={13} /> Built-in tracks only
         </span>
         <button type="button" onClick={() => { stop(); onSelect(null); }}
           style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '6px 12px', borderRadius: 'var(--r-full)',
@@ -562,17 +570,14 @@ export function CreatePost() {
   const suggestions = useMemo(() => {
     const tags = new Set<string>();
     let mood: string | null = null;
-    let place: string | null = null;
     for (const [re, ts] of TOPIC_TAGS) if (re.test(text)) ts.forEach((t) => tags.add(t));
     for (const [re, m] of MOOD_HINTS) if (!mood && re.test(text)) mood = m;
-    for (const [re, p] of PLACE_HINTS) if (!place && re.test(text)) place = p;
     return {
       tags: [...tags].filter((t) => !hashtags.includes(t)).slice(0, 4),
       mood: mood && mood !== feeling ? mood : null,
-      place: place && place !== placeName ? place : null,
     };
-  }, [text, hashtags, feeling, placeName]);
-  const hasSuggestions = suggestions.tags.length > 0 || suggestions.mood || suggestions.place;
+  }, [text, hashtags, feeling]);
+  const hasSuggestions = suggestions.tags.length > 0 || Boolean(suggestions.mood);
 
   // `hashtags` goes into the post body a few lines down but was missing here,
   // so a post of nothing but tags could be composed and never shared.
@@ -826,12 +831,6 @@ export function CreatePost() {
                 {t}
               </button>
             ))}
-            {suggestions.place && (
-              <button type="button" onClick={() => { setPlaceName(suggestions.place!); setOpen('location'); }}
-                style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 'var(--r-full)', border: '1px solid var(--line)', background: 'var(--paper)', marginRight: 6, color: 'var(--ink)' }}>
-                <Icon name="place" size={13} /> {suggestions.place}
-              </button>
-            )}
             {suggestions.mood && (
               <button type="button" onClick={() => setFeeling(suggestions.mood)}
                 style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 'var(--r-full)', border: '1px solid var(--line)', background: 'var(--paper)', color: 'var(--ink)' }}>
@@ -923,6 +922,14 @@ export function CreatePost() {
         )}
         {open === 'hashtags' && (
           <div style={{ marginTop: 12 }}>
+            {/* WHAT A TAG ACTUALLY DOES HERE (30 Aug audit). There is no tag
+                index and no tag search, so a chip that looked like a filing
+                system was promising a room that does not exist. Tags are
+                appended to the caption — which is useful, and is the whole of
+                it. Saying so costs one line and stops the promise. */}
+            <p className="sl-hint" style={{ margin: '0 0 8px' }}>
+              Tags are added to the end of your caption. There’s no tag search yet — they read as words, not links.
+            </p>
             <input
               placeholder="Type a tag and press Enter — e.g. sunset"
               onKeyDown={(e) => {

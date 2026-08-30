@@ -1,21 +1,28 @@
-# Music library (royalty-free)
+# Music library
 
-These MP3s are the built-in soundtrack library shown in the Create Post → 🎵 Music
-picker and played over videos in the Reels/Videos tab.
+These MP3s are the built-in soundtrack library shown in Create Post → Music and
+played over videos in the Reels/Videos tab.
 
-The six shipped tracks (uplift, sunrise, citylife, dreamy, energy, acoustic) were
-synthesized from scratch for Together City, so they are 100% original and clear of
-any licensing claims.
+The five shipped tracks — Concrete Horizon, Crosswalk Pulse, Moonlit Adagio,
+Rush Hour Canopy and Sunlit String Waltz — were synthesized from scratch for
+Together City, so they are original and clear of licensing claims.
 
-## Copyright protection
-Users CANNOT upload their own audio — the composer only offers this curated,
-cleared library. The API enforces it too: `musicUrl` must match `/music/<file>`
-(see `CreatePostSchema` in the backend), so no external / copyrighted track URL
-can ever be attached to a post. The picker shows a "🛡 Copyright-safe ·
-Royalty-free" tag to make that clear to users.
+(This file used to name six tracks — uplift, sunrise, citylife, dreamy, energy,
+acoustic — none of which are in this folder. A README that lists files that
+aren't there is how somebody concludes a real library is a set of stubs.)
 
-## Adding your own track (admin only, in code)
-1. Drop a royalty-free MP3 into this folder (e.g. `myvibe.mp3`).
-2. Add a matching row to `src/features/social/musicLibrary.ts`:
+## What the app actually enforces
+Users cannot upload their own audio: the composer offers only this list, and
+the API refuses any `musicUrl` outside `/music/<file>` (see `CreatePostSchema`).
+So no external or copyrighted track URL can be attached to a post. That is a
+fact about the product and is what the picker's chip now says — "Built-in
+tracks only". It does not say "copyright-safe", because that is a legal
+assurance about a catalogue and the app cannot make one; the rights to each
+file are the responsibility of whoever adds it.
+
+## Adding a track (in code)
+1. Drop an MP3 you have the rights to into this folder, e.g. `myvibe.mp3`.
+2. Add a row to `src/features/social/musicLibrary.ts`:
    `{ id: 'myvibe', title: 'My Vibe', url: '/music/myvibe.mp3', mood: 'Chill', license: 'Royalty-free' }`.
+
 Only add audio you have the rights to use (CC0 / Pixabay Music / your own).

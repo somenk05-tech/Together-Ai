@@ -41,10 +41,24 @@ function resizeToDataUrl(file: File, size = 240): Promise<string> {
   });
 }
 
-/** Blue verified check — shown when the account's email is verified. */
-function VerifiedBadge() {
+/**
+ * IT MEANS THE EMAIL WAS CONFIRMED, AND NOW IT SAYS SO (30 Aug audit).
+ *
+ * `verified` on the profile API is `User.emailVerified` and nothing else. It
+ * was drawn as a filled blue disc with a white check beside the name and
+ * titled "Verified member" — which is, everywhere on the internet, the mark
+ * for a checked identity. Nobody at Together City checks an identity. So one
+ * confirmation click bought a stranger the badge that says "this really is
+ * who it says", which is the badge a scam wants most.
+ *
+ * Same fact, told properly: a hairline check in the quiet ink, at the weight
+ * of a footnote rather than a credential, named for the thing it knows.
+ */
+function EmailConfirmedMark() {
   return (
-    <span title="Verified member" aria-label="Verified" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, borderRadius: '50%', background: 'var(--info-ink)', color: 'var(--on-accent)', fontSize: 11, fontWeight: 900, flexShrink: 0 }}><Icon name="accepted" size={12} /></span>
+    <span title="Email address confirmed. Together City does not verify identity."
+      aria-label="Email address confirmed"
+      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, borderRadius: '50%', border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink-soft)', flexShrink: 0 }}><Icon name="accepted" size={11} /></span>
   );
 }
 
@@ -594,7 +608,7 @@ export function PublicProfileModal({ handle, onClose }: { handle: string; onClos
               <Avatar src={p.profileImage} name={p.name} size={64} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <h3 style={{ margin: 0, fontSize: 20 }}>{p.name}</h3>{p.verified && <VerifiedBadge />}
+                  <h3 style={{ margin: 0, fontSize: 20 }}>{p.name}</h3>{p.verified && <EmailConfirmedMark />}
                 </div>
                 <div className="muted" style={{ fontSize: 12.5, fontFamily: 'monospace' }}>@{p.handle}</div>
                 {p.city && <div className="muted" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="place" size={13} />{p.city}</div>}
@@ -758,7 +772,7 @@ export function PublicProfilePage() {
         <Avatar src={p.profileImage} name={p.name} size={96} />
         <div style={{ flex: 1, minWidth: 220 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <h1 style={{ fontSize: 24, display: 'flex', alignItems: 'center', gap: 7 }}>{p.name}{p.verified && <VerifiedBadge />}</h1>
+            <h1 style={{ fontSize: 24, display: 'flex', alignItems: 'center', gap: 7 }}>{p.name}{p.verified && <EmailConfirmedMark />}</h1>
             <FollowButton userId={p.id} handle={p.handle} iFollow={p.iFollow} />
             <ConnectButton id={p.id} handle={p.handle} relationship={p.relationship} />
           </div>
@@ -824,7 +838,7 @@ function PeopleTab() {
                 <Avatar src={r.profileImage} name={r.name} size={40} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <span style={{ fontSize: 14, fontWeight: 600 }}>{r.name}</span>{r.verified && <VerifiedBadge />}
+                    <span style={{ fontSize: 14, fontWeight: 600 }}>{r.name}</span>{r.verified && <EmailConfirmedMark />}
                   </div>
                   <div className="muted" style={{ fontSize: 12 }}>
                     <span style={{ fontFamily: 'monospace' }}>@{r.handle}</span>{r.city ? ` · ${r.city}` : ''}
@@ -1088,7 +1102,7 @@ export function SocialProfile() {
         <Avatar src={p.profileImage} name={p.name} size={96} />
         <div style={{ flex: 1, minWidth: 220 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <h1 style={{ fontSize: 24, display: 'flex', alignItems: 'center', gap: 7 }}>{p.name}{p.verified && <VerifiedBadge />}</h1>
+            <h1 style={{ fontSize: 24, display: 'flex', alignItems: 'center', gap: 7 }}>{p.name}{p.verified && <EmailConfirmedMark />}</h1>
             <button type="button" className="btn btn-line btn-sm" onClick={() => setEditing(true)}>
               <Icon name="edit" size={15} /> Edit profile
             </button>

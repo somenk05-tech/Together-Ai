@@ -94,6 +94,14 @@ export class SocialController {
     return this.social.deletePost(user.sub, id);
   }
 
+  /** One post, by id — what a shared card's link actually points at. Must be
+   *  declared BEFORE any `posts/:id/...` route with a static segment would
+   *  shadow it; Nest matches in declaration order. */
+  @Get('posts/:id')
+  one(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.social.post(user.sub, id);
+  }
+
   @Get('posts/:id/comments')
   comments(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.social.comments(user.sub, id);

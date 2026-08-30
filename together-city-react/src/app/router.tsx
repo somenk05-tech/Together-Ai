@@ -118,6 +118,7 @@ const HubsPage = lazy(() => import('@/pages/Hubs').then((m) => ({ default: m.Hub
 const SocProfile = lazy(() => import('@/features/social/pages/Profile').then((m) => ({ default: m.SocialProfile })));
 const SocPublicProfile = lazy(() => import('@/features/social/pages/Profile').then((m) => ({ default: m.PublicProfilePage })));
 const SocSaved = lazy(() => import('@/features/social/pages/Saved').then((m) => ({ default: m.SocialSaved })));
+const SocPost = lazy(() => import('@/features/social/pages/PostPage').then((m) => ({ default: m.PostPage })));
 // Medical sub-pages
 const MedTests = lazy(() => import('@/features/medical/pages/Tests').then((m) => ({ default: m.Tests })));
 const MedConnections = lazy(() => import('@/features/medical/pages/Connections').then((m) => ({ default: m.Connections })));
@@ -333,6 +334,8 @@ const ROUTE_BLOCKS: RouteObject[] = [
       { path: '/social/notifications', element: <RequireAuth>{wrap(<SocNotifications />)}</RequireAuth> },
       { path: '/social/profile', element: <RequireAuth>{wrap(<SocProfile />)}</RequireAuth> },
       { path: '/social/u/:handle', element: <RequireAuth>{wrap(<SocPublicProfile />)}</RequireAuth> },
+      /* The destination of every shared card's link. It used to be /social/feed. */
+      { path: '/social/p/:id', element: <RequireAuth>{wrap(<SocPost />)}</RequireAuth> },
       { path: '/social/saved', element: <RequireAuth>{wrap(<SocSaved />)}</RequireAuth> },
       /* The journal moved out with Personal (15 Aug). It rendered here because
          the Social Life menu listed it — a private journal on the social

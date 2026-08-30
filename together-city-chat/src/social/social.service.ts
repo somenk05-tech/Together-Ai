@@ -448,10 +448,17 @@ export class SocialService {
     const shaped = this.shapePost(post, { likes: 0, comments: 0 }, false, await this.signMediaOf([post]));
     const recipients = await this.postRecipients(userId, audience);
     this.gateway.postNew(shaped, recipients);
+    /* EVERY NOTIFICATION ABOUT A POST NOW POINTS AT THAT POST.
+       They all read `href: '/social/feed'`, so "Priya liked your post" opened
+       the feed and left the citizen to find which post — on a wall that had
+       moved since. The permalink exists now (GET social/posts/:id), and it
+       applies the same gates, so a link nobody may follow simply says so. The
+       moderator's comment-removal notice below keeps the feed href: the
+       comment it names is deleted, and there is nothing to point at. */
     // "Your post is now live" — self-notification (no actor, so not skipped).
     void this.notifications.create({
       userId, kind: 'post_live', title: 'Your post is now live',
-      body: post.text ? post.text.slice(0, 80) : 'Shared to your city.', href: '/social/feed', entityId: post.id,
+      body: post.text ? post.text.slice(0, 80) : 'Shared to your city.', href: `/social/p/${post.id}`, entityId: post.id,
     }).catch(swallowed('social.notify.postLive', undefined));
     return shaped;
   }
@@ -766,6 +773,56 @@ export class SocialService {
     return this.storage.signPostMedia(values);
   }
 
+  /**
+   * ONE POST, BY ID — THE THING A SHARE LINK WAS ALWAYS PROMISING.
+   *
+   * Every shared card in a chat carried `deepLink: '/social/feed'` under a
+   * button reading "View Post →" (30 Aug audit). Tapping it took the recipient
+   * to their OWN feed, which is not that post, may not contain that post, and
+   * in the friends-only case cannot contain it. A link is a promise about where
+   * it goes; that one was false on every share ever sent.
+   *
+   * The gates are the same ones the feed applies, spelled out here rather than
+   * inherited, because a single-row read is exactly where a permission gets
+   * forgotten:
+   *   • removed by a moderator — 404 to everyone but the author, who is meant
+   *     to see their own post is gone rather than conclude the app ate it;
+   *   • blocked either way, or an audience you are not in — assertCanView;
+   *   • a repost is unwrapped by shapeFeedRow, and inherits the original's
+   *     audience, so the original is checked as well as the share;
+   *   • media is signed, like every other read.
+   */
+  async post(userId: string, postId: string) {
+    const row = await this.prisma.post.findUnique({
+      where: { id: postId },
+      include: {
+        author: { select: AUTHOR_SELECT },
+        media: true,
+        _count: { select: { likes: true, comments: true } },
+        likes: { where: { userId }, select: { id: true } },
+        repostOf: {
+          include: {
+            author: { select: AUTHOR_SELECT },
+            media: true,
+            _count: { select: { likes: true, comments: true } },
+            likes: { where: { userId }, select: { id: true } },
+          },
+        },
+      },
+    });
+    if (!row) throw new NotFoundException('post not found');
+    const removed = (row.moderation ?? VISIBLE) !== VISIBLE;
+    if (removed && row.authorId !== userId) throw new NotFoundException('post not found');
+    await this.assertCanView(userId, row);
+    // A share of something you cannot see is still something you cannot see.
+    if (row.repostOf) {
+      const orig = row.repostOf;
+      if ((orig.moderation ?? VISIBLE) !== VISIBLE && orig.authorId !== userId) throw new NotFoundException('post not found');
+      await this.assertCanView(userId, orig);
+    }
+    return this.shapeFeedRow(row, await this.signMediaOf([row]));
+  }
+
   /** Repost (share to feed) another citizen's post. Idempotent per user+post.
    *  Appears at the top of the reposter's network feed as "shared by …". */
   async repost(userId: string, postId: string) {
@@ -825,7 +882,7 @@ export class SocialService {
       void this.actorName(userId).then((name) =>
         this.notifications.create({
           userId: original.authorId, actorId: userId, kind: 'repost',
-          title: `${name} shared your post`, href: '/social/feed', entityId: postId,
+          title: `${name} shared your post`, href: `/social/p/${postId}`, entityId: postId,
         })).catch(swallowed('social.notify.repost', undefined));
     }
     return { reposted: true };
@@ -898,7 +955,7 @@ export class SocialService {
     void this.notifications.create({
       userId: post.authorId, actorId: userId, kind: 'comment',
       title: `${comment.author.name} commented on your post`,
-      body: comment.text.slice(0, 80), href: '/social/feed', entityId: postId,
+      body: comment.text.slice(0, 80), href: `/social/p/${postId}`, entityId: postId,
     }).catch(swallowed('social.notify.comment', undefined));
     return shaped;
   }
@@ -966,7 +1023,7 @@ export class SocialService {
           userId: comment.authorId, actorId: userId, kind: 'comment_removed',
           title: 'Your comment was removed',
           body: `${name} removed your comment from their post.`,
-          href: '/social/feed', entityId: postId,
+          href: `/social/p/${postId}`, entityId: postId,
         })).catch(swallowed('social.notify.commentRemoved', undefined));
     }
     return { ok: true, id: commentId };
@@ -1005,7 +1062,7 @@ export class SocialService {
       void this.actorName(userId).then((name) =>
         this.notifications.create({
           userId: post.authorId, actorId: userId, kind: 'like',
-          title: `${name} liked your post`, href: '/social/feed', entityId: postId,
+          title: `${name} liked your post`, href: `/social/p/${postId}`, entityId: postId,
         })).catch(swallowed('social.notify.like', undefined));
     }
     return result;

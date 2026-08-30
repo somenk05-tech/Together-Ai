@@ -64,6 +64,8 @@ export const socialApi = {
     api.post<{ following: boolean; userId: string }>('/social/follow', person).then((r) => r.data),
   unfollow: (userId: string) =>
     api.delete<{ following: boolean; userId: string }>(`/social/follow/${userId}`).then((r) => r.data),
+  /** One post by id — the destination of a shared card's link. */
+  one: (postId: string) => api.get<Post>(`/social/posts/${postId}`).then((r) => r.data),
   create: (input: CreatePostInput) =>
     api.post<Post>('/social/posts', input).then((r) => r.data),
   remove: (postId: string) => api.delete<{ ok: boolean }>(`/social/posts/${postId}`).then((r) => r.data),
@@ -234,6 +236,18 @@ export function useToggleLike() {
           items.map((p) => (p.id === res.postId ? { ...p, likedByMe: res.liked, likes: res.likes } : p))));
       void qc.invalidateQueries({ queryKey: ['profile', 'posts'] });
     },
+  });
+}
+/** One post, for the permalink page a share link opens. */
+export function usePost(postId: string | undefined) {
+  return useQuery({
+    queryKey: ['social', 'post', postId],
+    queryFn: () => socialApi.one(postId as string),
+    enabled: Boolean(postId),
+    // A permalink is opened once and read; refetching it on every window focus
+    // buys nothing and costs a signed-URL round trip.
+    staleTime: 60_000,
+    retry: false,
   });
 }
 export function useComments(postId: string | null) {
