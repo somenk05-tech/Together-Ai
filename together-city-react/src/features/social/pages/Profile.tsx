@@ -202,9 +202,24 @@ function PostReader({
   // leaving the profile instead of the reader (30 Aug audit).
   useBackToClose(true, onClose);
 
+  /**
+   * TWO WRITES IN THIS READER SAID "SAVING…" AND THEN SAID NOTHING (30 Aug).
+   *
+   * Sorting a post and pinning a cover frame both showed a pending label and
+   * then simply stopped. The chip stayed where it was, the cover stayed what
+   * it was, and neither told the citizen why — while the card's own copy
+   * promises of the cover that "it's pinned for good", which a silent failure
+   * turns into a lie rather than an omission.
+   */
+  const [saveErr, setSaveErr] = useState<string | null>(null);
+
   const chip = (postId: string, cur: string, key: '' | 'personal' | 'work', label: string) => (
     <button key={key || 'none'} type="button" disabled={setCategory.isPending}
-      onClick={() => setCategory.mutate({ postId, category: key === '' ? null : key })}
+      onClick={() => {
+        setSaveErr(null);
+        setCategory.mutate({ postId, category: key === '' ? null : key },
+          { onError: () => setSaveErr('That didn’t save — the post is still sorted the way it was. Try again.') });
+      }}
       style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '6px 12px', borderRadius: 'var(--r-full)',
         border: `1.5px solid ${cur === key ? 'var(--accent)' : 'var(--line)'}`,
         background: cur === key ? 'var(--accent)' : 'var(--card)', color: cur === key ? 'var(--on-accent)' : 'var(--ink)' }}>
@@ -232,7 +247,11 @@ function PostReader({
             <PostCard post={post} autoplayVideo
               manage={manage}
               onOpenAuthor={onOpenAuthor}
-              onSetCover={manage ? (t) => setCover.mutate({ postId: post.id, time: t }) : undefined}
+              onSetCover={manage ? (t) => {
+                setSaveErr(null);
+                setCover.mutate({ postId: post.id, time: t },
+                  { onError: () => setSaveErr('That cover wasn’t set — the post still shows the frame it had. Try again.') });
+              } : undefined}
               coverBusy={manage ? setCover.isPending : undefined} />
             {manage && (
               <div className="card" style={{ margin: '8px 0 0', padding: '12px 14px', border: '1.5px solid var(--accent)' }}>
@@ -244,6 +263,10 @@ function PostReader({
                   {chip(post.id, category ?? '', 'personal', 'Personal')}
                   {chip(post.id, category ?? '', 'work', 'Work')}
                 </div>
+                {/* One message for both writes in this card — the chips and the
+                    cover button are the only two, and a citizen who just
+                    pressed one knows which. */}
+                {saveErr && <p role="alert" className="sl-fail-alert">{saveErr}</p>}
               </div>
             )}
           </div>
@@ -278,6 +301,12 @@ export function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' 
 
   // Drag-to-arrange state. `arranged` holds the working order while editing.
   const [arranging, setArranging] = useState(false);
+  /* Beside `arranging`, not beside the handlers that set it — there are two
+     early returns between here and there, and a hook after an early return is
+     a hook that is called on some renders and not others. The lint rule caught
+     it; it would have shown up as the grid losing its state the first time a
+     citizen's post list went empty. */
+  const [arrangeErr, setArrangeErr] = useState<string | null>(null);
   const [arranged, setArranged] = useState<ProfilePost[]>([]);
   const dragFrom = useRef<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
@@ -386,7 +415,7 @@ export function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' 
   }
 
   const startArranging = () => { setArranged(items.filter(matchesFilter)); setArranging(true); };
-  const cancelArranging = () => { setArranging(false); setArranged([]); dragFrom.current = null; setDragOver(null); };
+  const cancelArranging = () => { setArranging(false); setArranged([]); dragFrom.current = null; setDragOver(null); setArrangeErr(null); };
   const saveArranging = () => {
     // Weave the reordered (filtered) items back into the full post order, leaving
     // posts outside this tab where they are — so rearranging Photos doesn't
@@ -394,7 +423,16 @@ export function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' 
     const newIds = arranged.map((p) => p.id);
     let k = 0;
     const fullOrder = items.map((p) => (matchesFilter(p) ? newIds[k++] : p.id));
-    reorder.mutate(fullOrder, { onSuccess: () => { setArranging(false); setArranged([]); } });
+    /* THE ONE WHERE SILENCE COSTS THE MOST WORK. A citizen who has just dragged
+       thirty tiles into an order presses Save; on a failure the sheet stayed
+       open with the arrangement intact and said nothing, which reads as a dead
+       button. The arrangement is deliberately NOT discarded — it is minutes of
+       their work and the retry needs it — so the message says that too. */
+    setArrangeErr(null);
+    reorder.mutate(fullOrder, {
+      onSuccess: () => { setArranging(false); setArranged([]); },
+      onError: () => setArrangeErr('That order wasn’t saved — your arrangement is still here. Try Save again.'),
+    });
   };
 
   const move = (from: number, to: number) => {
@@ -433,6 +471,8 @@ export function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' 
           )}
         </div>
       </div>
+
+      {arrangeErr && <p role="alert" className="sl-fail-alert">{arrangeErr}</p>}
 
       {arranging && posts.hasNextPage && (
         <p className="muted" style={{ fontSize: 12, margin: '0 0 8px' }}>
@@ -513,11 +553,36 @@ function ConnectButton({ id, handle, relationship }: { id: string; handle: strin
   const [busy, setBusy] = useState(false);
   useEffect(() => setRel(relationship), [relationship]);
 
-  const connect = async () => { try { await requestConn.mutateAsync(handle); setRel('pending_out'); } catch { /* keep state */ } };
+  /**
+   * "KEEP STATE" WAS HALF A DECISION (30 Aug).
+   *
+   * Both of these caught the failure and left `rel` alone, which is right —
+   * the button does not lie about a connection that was not made. But leaving
+   * the state correct and the citizen uninformed are two different things, and
+   * only the first was done: Connect went back to saying "Connect", Accept
+   * went back to saying "Accept", and neither was distinguishable from a tap
+   * that never registered.
+   *
+   * The server's own sentence is preferred where there is one. A connection
+   * request has real reasons to be refused — already connected, blocked, a
+   * limit — and each of those is a thing the citizen can act on, where "try
+   * again" is not.
+   */
+  const [connErr, setConnErr] = useState<string | null>(null);
+  const said = (e: unknown, fallback: string) =>
+    (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? fallback;
+
+  const connect = async () => {
+    setConnErr(null);
+    try { await requestConn.mutateAsync(handle); setRel('pending_out'); }
+    catch (e) { setConnErr(said(e, 'That request didn’t go through — try again.')); }
+  };
   const accept = async () => {
     const row = (connections.data ?? []).find((c) => c.user.id === id && c.status === 'pending');
     if (!row) { navigate('/connections'); return; }
-    try { await respondConn.mutateAsync({ id: row.id, accept: true }); setRel('accepted'); } catch { /* keep */ }
+    setConnErr(null);
+    try { await respondConn.mutateAsync({ id: row.id, accept: true }); setRel('accepted'); }
+    catch (e) { setConnErr(said(e, 'That didn’t go through — you are not connected yet. Try again.')); }
   };
   const message = async () => {
     setBusy(true);
@@ -538,6 +603,7 @@ function ConnectButton({ id, handle, relationship }: { id: string; handle: strin
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
         <Button variant="accent" size="sm" disabled={respondConn.isPending} onClick={() => void accept()}>Accept</Button>
+        {connErr && <p role="alert" className="sl-fail-alert">{connErr}</p>}
         <ModuleChips modules={row?.modules ?? []} caption="Hubs they want to open:" />
         <span className="muted" style={{ fontSize: 11, textAlign: 'right', maxWidth: 240, lineHeight: 1.5 }}>
           They chose these. You can change them any time afterwards.
@@ -546,7 +612,12 @@ function ConnectButton({ id, handle, relationship }: { id: string; handle: strin
     );
   }
   if (rel === 'blocked') return <Button variant="line" size="sm" disabled>Unavailable</Button>;
-  return <Button variant="accent" size="sm" disabled={requestConn.isPending} onClick={() => void connect()}>Connect</Button>;
+  return (
+    <div>
+      <Button variant="accent" size="sm" disabled={requestConn.isPending} onClick={() => void connect()}>Connect</Button>
+      {connErr && <p role="alert" className="sl-fail-alert">{connErr}</p>}
+    </div>
+  );
 }
 
 /** Block / Report safety actions for a person, shown in their profile modal. */
@@ -1021,10 +1092,31 @@ function FollowRow({ person, onView }: { person: FollowPerson; onView: () => voi
   const unfollow = useUnfollow();
   const busy = follow.isPending || unfollow.isPending;
   const label = person.iFollow ? 'Following' : person.followsMe ? 'Follow back' : 'Follow';
+  /**
+   * A TAP THAT DID NOTHING LOOKED EXACTLY LIKE A TAP THAT WORKED (30 Aug).
+   *
+   * The label here reads `person.iFollow`, which only moves when the list
+   * refetches — which only happens on success. So a failed follow left the
+   * button saying "Follow", the citizen tapped again, and again.
+   *
+   * And one failure is not an accident: `follow()` refuses with 403 when
+   * either of them has blocked the other. Somebody trying to follow a person
+   * who blocked them could tap forever and never be told anything, which is
+   * the one case where silence is worst — the server has a real answer and
+   * the screen was swallowing it. The server's own sentence is preferred
+   * over ours for exactly that reason.
+   */
+  const [failed, setFailed] = useState<string | null>(null);
+  const said = (e: unknown) =>
+    (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
   const act = () => {
     if (busy) return;
-    if (person.iFollow) unfollow.mutate(person.id);
-    else follow.mutate({ handle: person.handle });
+    setFailed(null);
+    if (person.iFollow) {
+      unfollow.mutate(person.id, { onError: (e) => setFailed(said(e) ?? 'That didn’t go through — you’re still following them. Try again.') });
+    } else {
+      follow.mutate({ handle: person.handle }, { onError: (e) => setFailed(said(e) ?? 'That didn’t go through — you’re not following them yet. Try again.') });
+    }
   };
   return (
     <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px' }}>
@@ -1035,9 +1127,12 @@ function FollowRow({ person, onView }: { person: FollowPerson; onView: () => voi
         <div style={{ fontWeight: 600, fontSize: 14 }}>{person.name}</div>
         <div className="muted" style={{ fontSize: 12, fontFamily: 'monospace' }}>@{person.handle}{person.followsMe && !person.iFollow ? ' · follows you' : ''}</div>
       </div>
-      <Button variant={person.iFollow ? 'line' : 'accent'} size="sm" disabled={busy} onClick={act}>
-        {busy ? '…' : label}
-      </Button>
+      <div>
+        <Button variant={person.iFollow ? 'line' : 'accent'} size="sm" disabled={busy} onClick={act}>
+          {busy ? '…' : label}
+        </Button>
+        {failed && <p role="alert" className="sl-fail-alert">{failed}</p>}
+      </div>
     </div>
   );
 }

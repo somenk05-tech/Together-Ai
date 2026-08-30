@@ -46,7 +46,18 @@ export function SocialNotifications() {
   const shown = useMemo(() => (filter === 1 ? items.filter((n) => !n.read) : items), [items, filter]);
   const hasUnread = items.some((n) => !n.read);
 
+  const [markErr, setMarkErr] = useState<string | null>(null);
+
   const open = (id: string, href?: string, read?: boolean) => {
+    /* THIS ONE IS DELIBERATELY SILENT, and the line is here so the next person
+       does not "fix" it. The citizen is navigating away in the same gesture;
+       an error banner on a page they are leaving is a banner nobody reads, and
+       the only consequence of a lost mark-as-read is that the row is still
+       bold when they come back — which is self-correcting the moment they open
+       it again. "Mark all read" below is the opposite case: it is the whole
+       point of the press, and there is nowhere else to look. */
+    // deliberately silent: the citizen is navigating away in the same gesture,
+    // and an unmarked row simply stays bold until they open it again.
     if (!read) markRead.mutate(id);
     if (href) nav(href);
   };
@@ -63,9 +74,19 @@ export function SocialNotifications() {
           {FILTERS.map((f, i) => (
             <button key={f} type="button" className={`pill ${i === filter ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setFilter(i)}>{f}</button>
           ))}
-          {hasUnread && <button type="button" className="btn btn-line btn-sm" onClick={() => markAll.mutate()}>Mark all read</button>}
+          {hasUnread && (
+            <button type="button" className="btn btn-line btn-sm" disabled={markAll.isPending}
+              onClick={() => {
+                setMarkErr(null);
+                markAll.mutate(undefined, { onError: () => setMarkErr('Those didn’t clear — they are all still unread. Try again.') });
+              }}>
+              {markAll.isPending ? 'Clearing…' : 'Mark all read'}
+            </button>
+          )}
         </div>
       </div>
+
+      {markErr && <p role="alert" className="sl-fail-alert">{markErr}</p>}
 
       {q.isLoading && <Spinner label="Loading notifications…" />}
 

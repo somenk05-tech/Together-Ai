@@ -23,6 +23,7 @@ import { useBlocks, useUnblock, type BlockedPerson } from '../api';
 function Person({ person }: { person: BlockedPerson }) {
   const unblock = useUnblock();
   const [done, setDone] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   return (
     <li style={{
@@ -44,14 +45,30 @@ function Person({ person }: { person: BlockedPerson }) {
       {done
         ? <span className="muted" style={{ fontSize: 12.5 }}>Unblocked</span>
         : (
-          <Button
-            variant="line"
-            size="sm"
-            disabled={unblock.isPending}
-            onClick={() => unblock.mutate(person.id, { onSuccess: () => setDone(true) })}
-          >
-            {unblock.isPending ? 'Unblocking…' : 'Unblock'}
-          </Button>
+          <div>
+            <Button
+              variant="line"
+              size="sm"
+              disabled={unblock.isPending}
+              onClick={() => {
+                setFailed(false);
+                unblock.mutate(person.id, { onSuccess: () => setDone(true), onError: () => setFailed(true) });
+              }}
+            >
+              {unblock.isPending ? 'Unblocking…' : 'Unblock'}
+            </Button>
+            {/* THE SAME RULE THE BLOCK BUTTON ALREADY FOLLOWS: a safety action
+                that did not happen says the STATE, not "something went wrong".
+                A failed unblock left this button quietly saying "Unblock"
+                again, which is indistinguishable from never having pressed it
+                — and the difference matters, because the citizen is deciding
+                whether somebody can reach them. */}
+            {failed && (
+              <p role="alert" className="sl-fail-alert">
+                That didn’t go through — they are still blocked. Try again.
+              </p>
+            )}
+          </div>
         )}
     </li>
   );

@@ -115,6 +115,7 @@ const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute, eager
   const like = useToggleLike();
   const repost = useRepost();
   const [reposted, setReposted] = useState(false);
+  const [actErr, setActErr] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
   setSavedOwner(user?.id);
@@ -310,12 +311,27 @@ const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute, eager
         </div>
 
         <div className="sl-reel-acts">
-          {act('like', <HeartIcon filled={post.likedByMe} />, post.likedByMe ? 'Liked' : 'Like', () => like.mutate(post.id), post.likes)}
+          {act('like', <HeartIcon filled={post.likedByMe} />, post.likedByMe ? 'Liked' : 'Like',
+            () => { setActErr(null); like.mutate(post.id, { onError: () => setActErr('That like didn’t register — try again.') }); }, post.likes)}
           {act('comment', <CommentIcon />, 'Comment', () => setCommentsOpen(true), post.comments)}
           {act('send', <SendIcon />, 'Send', () => setShareOpen(true))}
           {act('save', <SaveIcon filled={saved} />, saved ? 'Saved' : 'Save', toggleSave)}
-          {act('share', <ShareIcon />, reposted ? 'Shared' : 'Share', () => { if (!reposted) repost.mutate(post.id, { onSuccess: () => setReposted(true) }); })}
+          {act('share', <ShareIcon />, reposted ? 'Shared' : 'Share', () => {
+            if (reposted) return;
+            setActErr(null);
+            repost.mutate(post.id, {
+              onSuccess: () => setReposted(true),
+              onError: () => setActErr('That share didn’t go through — try again.'),
+            });
+          })}
         </div>
+        {/* THE SAME TWO MARKS, THE SAME TWO SENTENCES AS THE FEED CARD.
+            PostCard's heart and share have said this since 30 Aug; the reels
+            copies of them did not, so the identical failure was spoken on one
+            surface and swallowed on the other. A mark that does nothing looks
+            exactly like a mark that worked — more so here, where the heart's
+            fill comes from `post.likedByMe` and simply does not move. */}
+        {actErr && <p role="alert" className="sl-fail-alert">{actErr}</p>}
       </div>
 
       {shareOpen && <ShareModal item={shareCard} onClose={() => setShareOpen(false)} />}
