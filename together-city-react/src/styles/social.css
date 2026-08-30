@@ -438,6 +438,12 @@ textarea.sl-field { resize: vertical; line-height: 1.6; min-height: 132px; }
 /* The permalink page's way back. A class rather than four inline values,
    because the size ratchet counts inline objects and a new page should not
    raise a ceiling somebody else has to live under. */
+/* "Show more" — the one control the three paginated lists share (comments in
+   the card, comments in the reel, followers/following). A class rather than
+   three inline objects, because the size ratchet counts those and three new
+   pages should not raise a ceiling somebody else has to live under. */
+.sl-more { margin-bottom: var(--s-2); justify-self: start; }
+
 .sl-post-bar { display: flex; align-items: center; gap: var(--s-2); margin-bottom: var(--s-3); }
 
 /* ── the foot: five marks and five words ───────────────────────────────── */

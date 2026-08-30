@@ -193,16 +193,27 @@ function CommentsPanel({ postId, canModerate }: { postId: string; canModerate: b
       onError: () => setSendErr('That reply didn’t send — try again.'),
     });
   };
+  /* Oldest first, a page at a time. `pages` is flattened here rather than in
+     the hook so the loading state of the NEXT page stays separate from the
+     first — "Older comments" should say it is working without the thread
+     blanking. */
+  const rows = (comments.data?.pages ?? []).flatMap((pg) => pg.items);
   return (
     <div style={{ borderTop: '1px solid var(--line)', marginTop: 12, paddingTop: 12 }}>
       {comments.isLoading && <Spinner />}
       {comments.isError && (
         <p className="muted" style={{ fontSize: 12.5 }}>Comments didn’t load — they’re still there. Try again in a moment.</p>
       )}
-      {(comments.data ?? []).map((c) => (
+      {rows.map((c) => (
         <CommentRow key={c.id} comment={c} postId={postId}
           canRemove={canModerate || c.author.id === myId} />
       ))}
+      {comments.hasNextPage && (
+        <button type="button" className="btn btn-line btn-sm sl-more"
+          disabled={comments.isFetchingNextPage} onClick={() => void comments.fetchNextPage()}>
+          {comments.isFetchingNextPage ? 'Loading…' : 'Show more comments'}
+        </button>
+      )}
       <form onSubmit={submit} style={{ display: 'flex', gap: 8 }}>
         <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Add a comment…"
           style={{ flex: 1, border: '1.5px solid var(--line)', borderRadius: 'var(--r-full)', padding: '9px 14px', fontSize: 13, fontFamily: 'inherit', outline: 'none', background: 'var(--card)', color: 'var(--ink)' }} />

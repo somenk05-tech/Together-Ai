@@ -38,6 +38,29 @@ export interface Post {
 export interface FeedPage { items: Post[]; nextCursor: string | null }
 export interface PostComment { id: string; postId: string; text: string; author: PostAuthor; createdAt: string }
 
+/** One page of a cursor-paginated list. Same shape the feed already returns. */
+export interface Page<T> { items: T[]; nextCursor: string | null }
+
+/**
+ * ── READ A PAGE FROM A SERVER THAT MAY NOT SEND PAGES YET ───────────────────
+ *
+ * Comments, Followers and Following returned bare arrays until 30 Aug and
+ * return `{ items, nextCursor }` now. The web app deploys to Vercel and the API
+ * to Railway, INDEPENDENTLY, so there is always a window where this frontend is
+ * live against the previous backend — minutes usually, longer when a build
+ * queues. `mira-tolerates-an-older-server.test.ts` is in this repo because that
+ * window has already cost a working feature once.
+ *
+ * A shape change is the worst version of that: not a missing field, an
+ * `undefined.map`. So the array is still accepted, as a single page with
+ * nothing after it — which is exactly what an unpaginated server was always
+ * saying.
+ */
+export function asPage<T>(body: Page<T> | T[] | null | undefined): Page<T> {
+  if (Array.isArray(body)) return { items: body, nextCursor: null };
+  return { items: body?.items ?? [], nextCursor: body?.nextCursor ?? null };
+}
+
 /** Payload for creating a post — mirrors the backend `POST /social/posts` body. */
 export interface CreatePostInput {
   text?: string;
@@ -56,8 +79,10 @@ export interface CreatePostInput {
 export const socialApi = {
   feed: (cursor?: string, filter?: string) =>
     api.get<FeedPage>('/social/feed', { params: { cursor, limit: 20, ...(filter ? { filter } : {}) } }).then((r) => r.data),
-  followers: () => api.get<FollowPerson[]>('/social/followers').then((r) => r.data),
-  following: () => api.get<FollowPerson[]>('/social/following').then((r) => r.data),
+  followers: (cursor?: string) =>
+    api.get<Page<FollowPerson> | FollowPerson[]>('/social/followers', { params: { cursor, limit: 30 } }).then((r) => asPage(r.data)),
+  following: (cursor?: string) =>
+    api.get<Page<FollowPerson> | FollowPerson[]>('/social/following', { params: { cursor, limit: 30 } }).then((r) => asPage(r.data)),
   // BY HANDLE. The API stopped accepting a raw user id here (and on block) —
   // an id off an anonymous Dating card must not resolve to a city identity.
   follow: (person: { handle: string }) =>
@@ -74,8 +99,9 @@ export const socialApi = {
     api.patch<Post>(`/social/posts/${postId}`, { category }).then((r) => r.data),
   like: (postId: string) =>
     api.post<{ postId: string; liked: boolean; likes: number }>(`/social/posts/${postId}/like`, {}).then((r) => r.data),
-  comments: (postId: string) =>
-    api.get<PostComment[]>(`/social/posts/${postId}/comments`).then((r) => r.data),
+  comments: (postId: string, cursor?: string) =>
+    api.get<Page<PostComment> | PostComment[]>(`/social/posts/${postId}/comments`, { params: { cursor, limit: 30 } })
+      .then((r) => asPage(r.data)),
   comment: (postId: string, text: string) =>
     api.post<PostComment>(`/social/posts/${postId}/comments`, { text }).then((r) => r.data),
   deleteComment: (postId: string, commentId: string) =>
@@ -139,8 +165,15 @@ export function useFeed(filter = 'foryou') {
     maxPages: 6,
   });
 }
+/** Cursor-paginated: a citizen with ten thousand followers used to load all of
+ *  them to render the first screenful. */
 export function useFollowers() {
-  return useQuery({ queryKey: ['social', 'followers'], queryFn: () => socialApi.followers() });
+  return useInfiniteQuery({
+    queryKey: ['social', 'followers'],
+    queryFn: ({ pageParam }) => socialApi.followers(pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
+  });
 }
 export function useFollow() {
   const qc = useQueryClient();
@@ -165,7 +198,12 @@ export function useUnfollow() {
   });
 }
 export function useFollowing() {
-  return useQuery({ queryKey: ['social', 'following'], queryFn: () => socialApi.following() });
+  return useInfiniteQuery({
+    queryKey: ['social', 'following'],
+    queryFn: ({ pageParam }) => socialApi.following(pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
+  });
 }
 export function useCreatePost() {
   const qc = useQueryClient();
@@ -250,10 +288,15 @@ export function usePost(postId: string | undefined) {
     retry: false,
   });
 }
+/** Oldest first, a page at a time — a comment thread is read as a conversation
+ *  and a conversation starts at the beginning. The 501st comment used to exist,
+ *  be counted on the card, and be reachable by nobody. */
 export function useComments(postId: string | null) {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ['social', 'comments', postId],
-    queryFn: () => socialApi.comments(postId as string),
+    queryFn: ({ pageParam }) => socialApi.comments(postId as string, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
     enabled: Boolean(postId),
   });
 }

@@ -85,3 +85,25 @@ export const FeedQuerySchema = z.object({
   filter: z.enum(['foryou', 'friends', 'following', 'photos', 'videos', 'thoughts']).optional(),
 });
 export type FeedQueryDto = z.infer<typeof FeedQuerySchema>;
+
+/**
+ * ── THE THREE LISTS THAT READ EVERYTHING ────────────────────────────────────
+ *
+ * shared/paging.ts opens by saying what these caps are and are not: "A ceiling
+ * is not the same as pagination, and this is deliberately the cheaper of the
+ * two… Real cursor pagination — which these endpoints should eventually have,
+ * the way /social/feed and /chat/:id/messages already do — is follow-up work."
+ *
+ * This is that follow-up work, for the three in Social Life. Comments were
+ * capped at RECORD_CAP, which is not a bug so much as a cliff: the 501st
+ * comment on a post existed, was counted on the card, and could be reached by
+ * nobody. Followers and Following were not capped at all.
+ *
+ * Same shape as the feed, deliberately — an opaque `cursor` and a clamped
+ * `limit` — so there is one paging idiom in the hub rather than three.
+ */
+export const ListQuerySchema = z.object({
+  cursor: z.string().uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(30),
+});
+export type ListQueryDto = z.infer<typeof ListQuerySchema>;

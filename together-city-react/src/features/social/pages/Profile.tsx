@@ -1145,7 +1145,9 @@ function FollowList({ kind }: { kind: 'followers' | 'following' }) {
   const followers = useFollowers();
   const following = useFollowing();
   const q = kind === 'followers' ? followers : following;
-  const people = q.data ?? [];
+  /* Paged since 30 Aug — both lists used to read the whole graph and fetch a
+     full profile row for every person in it, to render one screenful. */
+  const people = (q.data?.pages ?? []).flatMap((pg) => pg.items);
   if (q.isLoading) return <div style={{ marginTop: 16 }}><Spinner label={`Loading ${kind}…`} /></div>;
   // "No followers yet" to somebody with four hundred of them is the worst
   // sentence in this file. It needs the read to have succeeded first.
@@ -1167,6 +1169,12 @@ function FollowList({ kind }: { kind: 'followers' | 'following' }) {
   return (
     <div className="rise d1" style={{ display: 'grid', gap: 8, marginTop: 16, maxWidth: 560 }}>
       {people.map((person) => <FollowRow key={person.id} person={person} onView={() => setPeek(person.handle)} />)}
+      {q.hasNextPage && (
+        <button type="button" className="btn btn-line btn-sm sl-more"
+          disabled={q.isFetchingNextPage} onClick={() => void q.fetchNextPage()}>
+          {q.isFetchingNextPage ? 'Loading…' : `Show more ${kind}`}
+        </button>
+      )}
       {peek && <PublicProfileModal handle={peek} onClose={() => setPeek(null)} />}
     </div>
   );

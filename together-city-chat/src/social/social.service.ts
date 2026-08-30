@@ -6,9 +6,9 @@ import { BlockingService } from '../connections/blocking.service';
 import { VISIBLE, VISIBLE_ONLY, removedNotice } from './post-visibility';
 import { AdminAccessService } from '../admin/admin-access.service';
 import { ReadCache } from '../shared/cache/read-cache.service';
+import type { ListQueryDto } from './dto/social.dto';
 import { PostMediaGuard } from './post-media-guard';
 import { ConnectionsService } from '../connections/connections.service';
-import { RECORD_CAP } from '../shared/paging';
 import { SocialGateway } from './social.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
 import { StorageProvider } from '../media/storage.provider';
@@ -314,34 +314,18 @@ export class SocialService {
     return { circle, network: [...network], family: [...family] };
   }
 
-  private async networkIds(userId: string): Promise<string[]> {
-    const [follows, conns, blocked] = await Promise.all([
-      // unbounded: the feed's network set — follows + connections, socially bounded
-      this.prisma.follow.findMany({ where: { followerId: userId }, select: { followeeId: true } }),
-      // unbounded: same network set
-      this.prisma.connection.findMany({
-        where: { status: 'ACCEPTED', OR: [{ userOneId: userId }, { userTwoId: userId }] },
-        select: { userOneId: true, userTwoId: true },
-      }),
-      this.blockedWith(userId),
-    ]);
-    const ids = new Set<string>([userId]);
-    for (const f of follows) ids.add(f.followeeId);
-    for (const c of conns) ids.add(c.userOneId === userId ? c.userTwoId : c.userOneId);
-    // Never surface anyone you've blocked, or who has blocked you.
-    for (const b of blocked) ids.delete(b);
-    ids.add(userId); // your own posts always stay visible to you
-    return [...ids];
-  }
 
   /**
    * YOUR CIRCLE — ACCEPTED CONNECTIONS, AND NOTHING ELSE.
    *
-   * `networkIds` above is the set whose posts you SEE. This is the much smaller
-   * set that a `friends`-audience post was written FOR, and the audit of 30 Aug
-   * is why they are now two functions instead of one.
+   * `fromGraph(...).network` is the set whose posts you SEE — everyone you
+   * follow plus everyone you are connected to. This is the much smaller set
+   * that a `friends`-audience post was written FOR, and the audit of 30 Aug is
+   * why they are two things instead of one. (The name in this paragraph used
+   * to be `networkIds`, a second uncached and uncapped copy of the same graph
+   * read; it is gone, and `graphOf` is the one that remains.)
    *
-   * The friends branch of the feed gate read `networkIds`, which includes
+   * The friends branch of the feed gate read that wider network, which includes
    * everyone you follow. Following is unilateral — a handle, no approval — so
    * pressing Follow on somebody handed you their entire friends-audience
    * history. The composer's own hint reads "Friends — Your accepted
@@ -381,56 +365,148 @@ export class SocialService {
     return stripped.length ? stripped : null;
   }
 
-  /** The set of userIds THIS user follows (their outbound follow edges). */
-  private async myFollowingSet(userId: string): Promise<Set<string>> {
-    // unbounded: their outbound follows — socially bounded set
-    const rows = await this.prisma.follow.findMany({ where: { followerId: userId }, select: { followeeId: true } });
-    return new Set(rows.map((r) => r.followeeId));
-  }
 
   /** Followers = people who follow you OR are connected to you. Each carries
    *  `iFollow` (do you follow them back?) so the UI shows Following / Follow back. */
-  async followers(userId: string) {
-    const [rows, conns, iFollow] = await Promise.all([
-      // unbounded: followers page — the social graph is the bound; pagination is the named follow-up
-      this.prisma.follow.findMany({ where: { followeeId: userId }, select: { follower: { select: AUTHOR_SELECT } } }),
-      // unbounded: same page, connection halves
-      this.prisma.connection.findMany({
-        where: { status: 'ACCEPTED', OR: [{ userOneId: userId }, { userTwoId: userId }] },
-        include: { userOne: { select: AUTHOR_SELECT }, userTwo: { select: AUTHOR_SELECT } },
-      }),
-      this.myFollowingSet(userId),
-    ]);
-    const byId = new Map<string, { id: string; handle: string; name: string; profileImage: string | null }>();
-    for (const r of rows) byId.set(r.follower.id, r.follower);
-    for (const c of conns) {
-      const u = c.userOneId === userId ? c.userTwo : c.userOne;
-      byId.set(u.id, u);
+  /**
+   * ── TWO SOURCES, ONE PAGE, AND WHY THE CONNECTIONS COME FIRST ─────────────
+   *
+   * This list is "people who follow you" UNION "your accepted connections",
+   * and the two halves are not the same kind of set. A connection is mutual and
+   * consented to on both sides, so it is bounded by human reality. A follower
+   * list is bounded by nothing at all — which is why the annotation that used
+   * to sit on that query ("the social graph is the bound") was the same wrong
+   * idea, in the same words, that `graphOf` and `postRecipients` both had to
+   * have taken out of them.
+   *
+   * So the connections are read whole and shown first, and the FOLLOWERS are
+   * what gets paginated. That gives non-overlapping pages without the server
+   * remembering anything between requests: page two and beyond exclude the
+   * connection ids by name, so nobody is shown twice, and the exclusion list is
+   * itself human-sized.
+   *
+   * The connection read comes from the cached graph rather than its own query —
+   * see graphOf — so paging through followers costs one query per page.
+   */
+  async followers(userId: string, page: ListQueryDto = { limit: 30 }) {
+    const graph = await this.graphOf(userId);
+    const connIds = graph.conns
+      .map((c) => (c.userOneId === userId ? c.userTwoId : c.userOneId))
+      .filter((id) => !graph.blocked.has(id));
+
+    let cursorClause: { cursor: { id: string }; skip: number } | object = {};
+    if (page.cursor) {
+      const exists = await this.prisma.follow.findUnique({ where: { id: page.cursor }, select: { id: true } });
+      if (exists) cursorClause = { cursor: { id: page.cursor }, skip: 1 };
     }
+    const rows = await this.prisma.follow.findMany({
+      where: {
+        followeeId: userId,
+        // Never twice: the connection half is on page one, so it is excluded
+        // from every follower page including the first.
+        ...(connIds.length ? { followerId: { notIn: connIds } } : {}),
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: page.limit + 1,
+      ...cursorClause,
+      select: { id: true, follower: { select: AUTHOR_SELECT } },
+    });
+    const more = rows.length > page.limit;
+    const window = more ? rows.slice(0, page.limit) : rows;
+
+    // Connections only on the first page. Their profiles are fetched here
+    // rather than carried in the cached graph, which holds ids on purpose.
+    const connUsers = page.cursor || !connIds.length
+      ? []
+      : await this.prisma.user.findMany({
+        where: { id: { in: connIds } },
+        select: AUTHOR_SELECT,
+        take: connIds.length,
+      });
+
+    const byId = new Map<string, { id: string; handle: string; name: string; profileImage: string | null }>();
+    for (const u of connUsers) byId.set(u.id, u);
+    for (const r of window) byId.set(r.follower.id, r.follower);
+
+    /* "DO I FOLLOW BACK" IS A QUESTION ABOUT THIS PAGE, NOT ABOUT ME.
+       `myFollowingSet` read the citizen's ENTIRE outbound follow list to
+       decorate thirty rows — the same shape as the reads the scale pass
+       removed, surviving here because it was one line and looked like a
+       lookup. It is a bounded `in:` over the page now. */
+    const onPage = [...byId.keys()];
+    const iFollowRows = onPage.length
+      ? await this.prisma.follow.findMany({
+        where: { followerId: userId, followeeId: { in: onPage } },
+        select: { followeeId: true },
+        take: onPage.length,
+      })
+      : [];
+    const iFollow = new Set(iFollowRows.map((r) => r.followeeId));
+
     // Somebody you blocked is not one of your followers. The block dropped the
     // edge, but a connection row or a re-follow put them back on this list with
     // their name and their photograph — which is the one place a blocked person
     // must never turn up.
-    const blocked = await this.blockedWith(userId);
-    return [...byId.values()]
-      .filter((u) => !blocked.has(u.id))
+    const items = [...byId.values()]
+      .filter((u) => !graph.blocked.has(u.id))
       .map((u) => ({ ...u, followsMe: true, iFollow: iFollow.has(u.id) }));
+    /* The cursor is the FOLLOW ROW's id, not the person's — the keyset walks
+       the follow table, and a person can be reached through more than one row
+       shape. Taken from `window`, before the block filter, or blocking the last
+       person on a page would strand the cursor and end the list early. */
+    return { items, nextCursor: more ? window[window.length - 1]?.id ?? null : null };
   }
 
   /** Following = people you follow OR are connected to (connections are mutual).
    *  Each carries `followsMe` so the UI can flag mutuals. */
-  async following(userId: string) {
-    const network = await this.networkIds(userId);
-    const others = network.filter((id) => id !== userId);
-    if (!others.length) return [];
+  /**
+   * ── PAGED OVER THE IDS, NOT OVER THE PROFILES ────────────────────────────
+   *
+   * The old shape read the whole network — follows plus connections — and then
+   * fetched a full user row for every one of them. Two of those three reads
+   * carried `unbounded:` annotations, and one of them was `networkIds`, the
+   * uncapped predecessor of `graphOf` that the scale pass replaced everywhere
+   * except here.
+   *
+   * The id set is bounded now (SOCIAL_NETWORK_MAX, from the cached graph), so
+   * the expensive half is no longer the graph — it is the profiles. Those are
+   * what gets paged: sort the ids, take a window, fetch that window's users.
+   *
+   * SORTED BY ID, AND THE CURSOR IS `id > cursor`. Not because id order means
+   * anything — it does not — but because it is the one ordering that survives
+   * somebody being unfollowed between pages. A cursor that names a position in
+   * a list ("after the 30th") silently skips a row when the list shrinks; a
+   * cursor that names a VALUE cannot, and a deleted cursor value still gives
+   * the right answer for what comes after it.
+   */
+  async following(userId: string, page: ListQueryDto = { limit: 30 }) {
+    const graph = await this.graphOf(userId);
+    const ids = [...new Set(this.fromGraph(userId, graph).network)]
+      .filter((id) => id !== userId && !graph.blocked.has(id))
+      .sort();
+    const after = page.cursor ? ids.filter((id) => id > (page.cursor as string)) : ids;
+    const window = after.slice(0, page.limit);
+    if (!window.length) return { items: [], nextCursor: null };
+
     const [users, followerRows] = await Promise.all([
-      // unbounded: `in:` of the network set bounds it
-      this.prisma.user.findMany({ where: { id: { in: others } }, select: AUTHOR_SELECT }),
-      // unbounded: follower id set — socially bounded
-      this.prisma.follow.findMany({ where: { followeeId: userId }, select: { followerId: true } }),
+      this.prisma.user.findMany({ where: { id: { in: window } }, select: AUTHOR_SELECT, take: window.length }),
+      // Who of THIS PAGE follows back — bounded by the page, where it used to
+      // be the citizen's whole follower list read to answer a question about
+      // thirty people.
+      this.prisma.follow.findMany({
+        where: { followeeId: userId, followerId: { in: window } },
+        select: { followerId: true },
+        take: window.length,
+      }),
     ]);
     const followsMe = new Set(followerRows.map((r) => r.followerId));
-    return users.map((u) => ({ ...u, iFollow: true, followsMe: followsMe.has(u.id) }));
+    const items = users
+      .sort((a, b) => (a.id < b.id ? -1 : 1))
+      .map((u) => ({ ...u, iFollow: true, followsMe: followsMe.has(u.id) }));
+    return {
+      items,
+      nextCursor: after.length > page.limit ? window[window.length - 1] : null,
+    };
   }
 
   /**
@@ -1071,7 +1147,14 @@ export class SocialService {
 
   /** Posts that carry geo coordinates — powers the Social map (your network). */
   async map(userId: string) {
-    const network = await this.networkIds(userId);
+    /* THE LAST CALLER OF `networkIds`, WHICH IS WHY IT IS GONE.
+       `graphOf` replaced it on the feed during the scale pass — one cached
+       read instead of three uncached ones, and a cap on the follow list — and
+       this deprecated endpoint was left holding the old copy. Two spellings of
+       "the citizen's network", one of them capped and one not, is the shape
+       this file has now had to remove three times. */
+    const graph = await this.graphOf(userId);
+    const network = this.fromGraph(userId, graph).network;
     const familyIds = [...(await this.familyIds(userId))];
     // Deprecated (sunset 2026-08-30) and still served, so it gets the same
     // circle rule as the feed rather than being left with the bug on the way
@@ -1125,7 +1208,7 @@ export class SocialService {
     return shaped;
   }
 
-  async comments(userId: string, postId: string) {
+  async comments(userId: string, postId: string, page: ListQueryDto = { limit: 30 }) {
     const post = await this.assertPost(postId);
     await this.assertCanView(userId, post);
     /**
@@ -1139,19 +1222,44 @@ export class SocialService {
      * that belongs with the query work rather than smuggled in here.
      */
     const blocked = [...(await this.blockedWith(userId))];
+    /**
+     * RECORD_CAP WAS A CLIFF, NOT A CEILING (30 Aug).
+     *
+     * `take: RECORD_CAP` bounded the query, which was the point of
+     * shared/paging.ts and was the right first move. But five hundred is not a
+     * limit a citizen can see the edge of: the 501st comment on a post existed,
+     * was counted by `_count.comments` on the card, and could be reached by
+     * nobody — not its author, not the post's owner, not a moderator. A number
+     * that disagrees with the list it labels is the same defect as a screen
+     * that invents data, pointing the other way.
+     *
+     * Oldest first, because a comment thread is read as a conversation and a
+     * conversation starts at the beginning. The keyset is `(createdAt, id)`
+     * ascending, which `Comment(postId, createdAt)` serves directly.
+     */
+    let cursorClause: { cursor: { id: string }; skip: number } | object = {};
+    if (page.cursor) {
+      // A stale cursor — the comment was deleted between pages — is ignored
+      // rather than 500'd, the same way the feed's is.
+      const exists = await this.prisma.comment.findUnique({ where: { id: page.cursor }, select: { id: true } });
+      if (exists) cursorClause = { cursor: { id: page.cursor }, skip: 1 };
+    }
     const rows = await this.prisma.comment.findMany({
       where: { postId, ...(blocked.length ? { authorId: { notIn: blocked } } : {}) },
-      orderBy: { createdAt: 'asc' },
-      take: RECORD_CAP,
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: page.limit + 1,
+      ...cursorClause,
       include: { author: { select: AUTHOR_SELECT } },
     });
-    return rows.map((c) => ({
+    const more = rows.length > page.limit;
+    const items = (more ? rows.slice(0, page.limit) : rows).map((c) => ({
       id: c.id,
       postId,
       text: c.text,
       author: c.author,
       createdAt: c.createdAt.toISOString(),
     }));
+    return { items, nextCursor: more ? items[items.length - 1]?.id ?? null : null };
   }
 
   /**

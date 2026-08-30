@@ -11,7 +11,7 @@ import { SocialService } from './social.service';
 import {
   CreateCommentSchema, type CreateCommentDto,
   CreatePostSchema, type CreatePostDto,
-  FeedQuerySchema,
+  FeedQuerySchema, ListQuerySchema,
 } from './dto/social.dto';
 
 /* THE SOCIAL HUB HAD NO CEILING OF ITS OWN (30 Aug audit).
@@ -46,13 +46,13 @@ export class SocialController {
   }
 
   @Get('followers')
-  followers(@CurrentUser() user: JwtUser) {
-    return this.social.followers(user.sub);
+  followers(@CurrentUser() user: JwtUser, @Query() query: Record<string, unknown>) {
+    return this.social.followers(user.sub, parseOrThrow(ListQuerySchema, query));
   }
 
   @Get('following')
-  following(@CurrentUser() user: JwtUser) {
-    return this.social.following(user.sub);
+  following(@CurrentUser() user: JwtUser, @Query() query: Record<string, unknown>) {
+    return this.social.following(user.sub, parseOrThrow(ListQuerySchema, query));
   }
 
   // Follow a citizen by handle (idempotent). Handle only — see SocialService.follow.
@@ -103,8 +103,8 @@ export class SocialController {
   }
 
   @Get('posts/:id/comments')
-  comments(@CurrentUser() user: JwtUser, @Param('id') id: string) {
-    return this.social.comments(user.sub, id);
+  comments(@CurrentUser() user: JwtUser, @Param('id') id: string, @Query() query: Record<string, unknown>) {
+    return this.social.comments(user.sub, id, parseOrThrow(ListQuerySchema, query));
   }
 
   /** Remove a comment — its author, or whoever owns the post it sits on. */

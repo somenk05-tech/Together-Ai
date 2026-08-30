@@ -349,6 +349,7 @@ function ReelComments({ postId, canModerate, onClose }: { postId: string; canMod
   const [text, setText] = useState('');
   const [sendErr, setSendErr] = useState<string | null>(null);
   const sheet = useDialog(onClose);
+  const rows = (comments.data?.pages ?? []).flatMap((pg) => pg.items);
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (!text.trim()) return;
@@ -372,12 +373,18 @@ function ReelComments({ postId, canModerate, onClose }: { postId: string; canMod
         {comments.isError && (
           <p className="muted" style={{ fontSize: 13 }}>Comments didn’t load — they’re still there. Try again in a moment.</p>
         )}
-        {(comments.data ?? []).map((c) => (
+        {rows.map((c) => (
           <CommentRow key={c.id} comment={c} postId={postId} canRemove={canModerate || c.author.id === myId} />
         ))}
+        {comments.hasNextPage && (
+          <button type="button" className="btn btn-line btn-sm sl-more"
+            disabled={comments.isFetchingNextPage} onClick={() => void comments.fetchNextPage()}>
+            {comments.isFetchingNextPage ? 'Loading…' : 'Show more comments'}
+          </button>
+        )}
         {/* "Be the first to comment" on a failed read invited somebody to
             reply to a conversation that already exists. */}
-        {!comments.isLoading && !comments.isError && (comments.data ?? []).length === 0 && <p className="muted" style={{ fontSize: 13 }}>Be the first to comment.</p>}
+        {!comments.isLoading && !comments.isError && rows.length === 0 && <p className="muted" style={{ fontSize: 13 }}>Be the first to comment.</p>}
         <form onSubmit={submit} style={{ display: 'flex', gap: 8, marginTop: 8, position: 'sticky', bottom: 0, background: 'var(--card,#fff)', paddingTop: 6 }}>
           <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Add a comment…"
             style={{ flex: 1, border: '1.5px solid var(--line)', borderRadius: 'var(--r-full)', padding: '9px 14px', fontSize: 13, fontFamily: 'inherit', outline: 'none', background: 'var(--card)', color: 'var(--ink)' }} />
