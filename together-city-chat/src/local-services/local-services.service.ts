@@ -643,10 +643,12 @@ export class LocalServicesService {
     for (const url of [...new Set(urls.filter(Boolean))]) {
       const key = storage.keyFromUrl(url);
       if (!key) continue; // not ours — an owner's link to somewhere else
-      try { await storage.deleteObject(key); removed += 1; } catch (e) {
-        failed.push(key);
-        log.error(`listing ${listingId}: could not remove ${key}: ${(e as Error).message}`);
-      }
+      // Read the answer. `deleteObject` used to catch its own error and return
+      // void, so this was a try/catch around something that could not throw:
+      // `failed` never filled, the ORPHANED line below never printed, and
+      // every failure was counted as a removal.
+      if (await storage.deleteObject(key)) removed += 1;
+      else failed.push(key);
     }
     if (failed.length) {
       log.error(`listing ${listingId}: ${failed.length} object(s) ORPHANED — ${failed.join(', ')}`);

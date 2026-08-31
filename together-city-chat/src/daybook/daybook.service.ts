@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { StorageProvider } from '../media/storage.provider';
 
@@ -107,6 +107,12 @@ export interface DayRecord {
   photos: DayPhotoRow[];
 }
 
+/* MODULE-LEVEL, NOT A FIELD. Specs build services with
+   `Object.create(Prototype)`, which does not run field initialisers — so an
+   instance `logger` is undefined there and the first line that reaches for one
+   turns a passing test into a TypeError. */
+const log = new Logger('DaybookService');
+
 @Injectable()
 export class DaybookService {
   constructor(
@@ -205,7 +211,9 @@ export class DaybookService {
     const row = await this.prisma.dayPhoto.findFirst({ where: { id, userId } });
     if (!row) return null;
     await this.prisma.dayPhoto.deleteMany({ where: { id, userId } });
-    await this.storage.deletePrivateObject(row.fileKey);
+    if (!(await this.storage.deletePrivateObject(row.fileKey))) {
+      log.error(`daybook: ${row.fileKey} is ORPHANED — the photo row is gone and the object was not removed.`);
+    }
     return this.day(userId, row.date);
   }
 

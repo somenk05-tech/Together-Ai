@@ -392,8 +392,18 @@ export class MedicalService implements OnModuleInit {
     const rec = await this.prisma.medicalRecord.findFirst({ where: { id, userId } }) as
       ({ id: string; fileKey: string | null; fileUrl: string | null; bloodTestId: string | null } | null);
     if (!rec) throw new NotFoundException('record not found');
-    if (rec.fileKey) await this.storage.deleteHealthObject(rec.fileKey);
-    else if (rec.fileUrl) await this.storage.deleteObject(this.storage.keyFromUrl(rec.fileUrl));
+    // A medical document is the one file a citizen most expects to be gone.
+    // The row goes below either way — a bucket having a bad day must not keep
+    // the record alive — so the failure is logged with the key.
+    const doomed = rec.fileKey ?? (rec.fileUrl ? this.storage.keyFromUrl(rec.fileUrl) : '');
+    if (doomed) {
+      // The health bucket for a key we minted; the default bucket for a legacy
+      // public URL, which is where those objects actually live.
+      const gone = rec.fileKey
+        ? await this.storage.deleteHealthObject(doomed)
+        : await this.storage.deleteObject(doomed);
+      if (!gone) this.logger.error(`medical: ${doomed} is ORPHANED — the record row is being deleted and the object was not.`);
+    }
 
     // One transaction: a document without its panel, or a panel without its
     // document, are both worse than either deletion not happening at all.

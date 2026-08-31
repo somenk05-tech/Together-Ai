@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { StorageProvider } from '../media/storage.provider';
 
@@ -158,6 +158,12 @@ interface PetRow {
   photos: { id: string; fileKey: string; position: number; createdAt: Date }[];
 }
 
+/* MODULE-LEVEL, NOT A FIELD. Specs build services with
+   `Object.create(Prototype)`, which does not run field initialisers — so an
+   instance `logger` is undefined there and the first line that reaches for one
+   turns a passing test into a TypeError. */
+const log = new Logger('PetsService');
+
 @Injectable()
 export class PetsService {
   constructor(
@@ -230,7 +236,11 @@ export class PetsService {
     });
     if (!pet) throw new NotFoundException('No such pet.');
     for (const photo of pet.photos) {
-      await this.storage.deletePrivateObject(photo.fileKey);
+      // The row that names this key is about to go, so a failure here has to
+      // be said out loud or nothing records which file was left behind.
+      if (!(await this.storage.deletePrivateObject(photo.fileKey))) {
+        log.error(`pets: ${photo.fileKey} is ORPHANED — the pet row is being deleted and the object was not.`);
+      }
     }
     await this.prisma.pet.deleteMany({ where: { id, userId } });
     return { removed: id };
@@ -296,7 +306,9 @@ export class PetsService {
     const row = await this.prisma.petPhoto.findFirst({ where: { id: photoId, userId } });
     if (!row) throw new NotFoundException('No such photo.');
     await this.prisma.petPhoto.deleteMany({ where: { id: photoId, userId } });
-    await this.storage.deletePrivateObject(row.fileKey);
+    if (!(await this.storage.deletePrivateObject(row.fileKey))) {
+      log.error(`pets: ${row.fileKey} is ORPHANED — the photo row is gone and the object was not removed.`);
+    }
     return this.one(userId, row.petId);
   }
 

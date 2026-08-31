@@ -1,4 +1,4 @@
-import { keyFromUrl, sniffImage } from './chat-media-guard';
+import { ChatMediaGuard, keyFromUrl, sniffImage } from './chat-media-guard';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -210,11 +210,33 @@ describe('a stranger cannot just send you anything', () => {
       }
     });
 
-    it('never lets a failed delete change the answer', () => {
-      // An object we could not remove is a tidiness problem; refusing the send
-      // is the safety one. The catch logs and carries on.
-      const body = guard.slice(guard.indexOf('private async refuse('));
-      expect(body).toMatch(/catch \(e\)[\s\S]{0,200}?logger\.warn/);
+    it('never lets a failed delete change the answer', async () => {
+      /* An object we could not remove is a tidiness problem; refusing the send
+         is the safety one.
+
+         This used to be a regex for `catch (e) … logger.warn` in the source of
+         `refuse()`. The catch was unreachable — `deleteObject` swallowed its
+         own error and returned void — so the assertion described a branch that
+         could not run, which is the class of defect the 31 Aug audit found in
+         this method's callers as well. The provider reports now, and this asks
+         the method instead of reading it. */
+      const logged: string[] = [];
+      const g = new ChatMediaGuard(
+        { deleteObject: async () => false } as never,
+        { get: () => '' } as never,
+      );
+      (g as unknown as { logger: { error: (m: string) => void } }).logger = {
+        error: (m: string) => logged.push(m),
+        warn: () => undefined, log: () => undefined,
+      } as never;
+      const out = await (g as unknown as {
+        refuse: (k: string, s: string, r: string) => Promise<{ ok: boolean; retryable: boolean; reason: string }>;
+      }).refuse('chat/them/x.jpg', 'them-1111', 'nope');
+
+      expect(out).toEqual({ ok: false, retryable: false, reason: 'nope' });
+      // …and the file we could not remove is named, because nothing else will
+      // ever name it again.
+      expect(logged.join(' ')).toContain('chat/them/x.jpg');
     });
   });
 });

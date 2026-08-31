@@ -474,13 +474,13 @@ export class AuthService {
           // Legacy inline `data:` photos and old public https URLs are not keys
           // and have nothing in the private bucket to remove.
           if (!key || !this.storage.isPostKey(key)) continue;
-          try {
-            await this.storage.deletePrivateObject(key);
-            removed += 1;
-          } catch (e) {
-            failed.push(key);
-            this.logger.error(`deletion: could not remove ${key} for ${userId}: ${(e as Error).message}`);
-          }
+          /* THE ANSWER IS READ NOW, WHICH IT WAS NOT BEFORE. This was a
+             try/catch, and `deleteObject` caught its own error and returned
+             void — so the catch could not run, `failed` was always empty, and
+             every failure was counted in `removed`. A deletion that left a
+             hundred photographs in the bucket logged "removed 100". */
+          if (await this.storage.deletePrivateObject(key)) removed += 1;
+          else failed.push(key);
         }
       }
       if (rows.length < 500) break;

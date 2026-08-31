@@ -1,5 +1,5 @@
 import { swallowed } from '../shared/swallow';
-import { ForbiddenException, Injectable, InternalServerErrorException, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
+import { ForbiddenException, Injectable, InternalServerErrorException, Logger, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { spawn } from 'child_process';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { BlockingService } from '../connections/blocking.service';
@@ -54,6 +54,12 @@ function datingSummary(dp: Record<string, unknown>) {
 }
 
 type ReportDecision = 'remove' | 'dismiss' | 'warn' | 'suspend';
+
+/* MODULE-LEVEL, NOT A FIELD. Specs build services with
+   `Object.create(Prototype)`, which does not run field initialisers — so an
+   instance `logger` is undefined there and the first line that reaches for one
+   turns a passing test into a TypeError. */
+const log = new Logger('SocialService');
 
 @Injectable()
 export class SocialService {
@@ -840,7 +846,14 @@ export class SocialService {
     await this.prisma.post.delete({ where: { id: postId } });
     for (const { key, legacy } of this.storageKeys(media)) {
       const gone = legacy ? this.storage.deleteObject(key) : this.storage.deletePrivateObject(key);
-      void gone.catch(swallowed('social.deletePost.object', undefined));
+      // The Post row is already deleted, so if this fails nothing else will
+      // ever name the key again. `deleteObject` reports rather than throws;
+      // the `.catch` is for the transport, the `if` is for the answer.
+      void gone
+        .then((ok) => {
+          if (!ok) log.error(`social: ${key} is ORPHANED — the post row is gone and the object was not removed.`);
+        })
+        .catch(swallowed('social.deletePost.object', undefined));
     }
     this.gateway.postDeleted(postId, recipients);
     return { ok: true };

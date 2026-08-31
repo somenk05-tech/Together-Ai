@@ -232,10 +232,10 @@ export class ChatMediaGuard {
    * `assertAttachmentsAreYoursToSend`, which runs before any of this.
    */
   private async refuse(key: string, senderId: string, reason: string): Promise<Screening> {
-    try {
-      await this.storage.deleteObject(key);
-    } catch (e) {
-      this.logger.warn(`chat media: refused ${key} from ${senderId} but could not delete it (${(e as Error).message})`);
+    // `deleteObject` reports rather than throws — this was a catch around
+    // something that could not throw, so the line below never printed.
+    if (!(await this.storage.deleteObject(key))) {
+      this.logger.error(`chat media: refused ${key} from ${senderId} and could NOT delete it — it is still in the bucket.`);
     }
     return { ok: false, retryable: false, reason };
   }

@@ -628,7 +628,7 @@ export class StorageProvider implements OnModuleInit {
      dating and now daybook all use them. These aliases say so at the call site,
      so a diary photo is not deleted by something called `deleteHealthObject`. */
   async privateObjectExists(key: string): Promise<boolean> { return this.healthObjectExists(key); }
-  async deletePrivateObject(key: string): Promise<void> { return this.deleteHealthObject(key); }
+  async deletePrivateObject(key: string): Promise<boolean> { return this.deleteHealthObject(key); }
 
   /**
    * True when this key belongs to the given user's dating namespace.
@@ -882,7 +882,7 @@ export class StorageProvider implements OnModuleInit {
     }
   }
 
-  async deleteHealthObject(key: string): Promise<void> {
+  async deleteHealthObject(key: string): Promise<boolean> {
     return this.deleteObject(key, this.healthBucket);
   }
 
@@ -947,13 +947,48 @@ export class StorageProvider implements OnModuleInit {
     }
   }
 
-  /** Delete an object (frees the citizen's vault quota). No-op if unconfigured. */
-  async deleteObject(key: string, bucket?: string): Promise<void> {
-    if (!this.s3 || !key) return;
+  /**
+   * ── IT SAYS WHETHER THE OBJECT IS GONE, BECAUSE CALLERS ASKED AND IT LIED ──
+   *
+   * This returned `void` and caught its own error, so "the bucket refused" and
+   * "the object is deleted" were the same answer. Two callers had already
+   * written the careful version of the failure — `purgePostObjects` in
+   * AuthService and `purgeListingObjects` in LocalServicesService both collect
+   * the keys that failed and log them, with the reasoning that after the rows
+   * are deleted that log line is the ONLY record of what was left in the
+   * bucket. Neither could ever fire. Their `catch` blocks were unreachable,
+   * their `failed` arrays were always empty, and `removed` counted every
+   * failure as a success — so a deletion that left a hundred photographs
+   * behind logged "removed 100 post object(s)".
+   *
+   * It reports rather than throws, deliberately. Every caller here is
+   * best-effort ON PURPOSE: a bucket having a bad day must not stop a citizen
+   * deleting their account, their listing or their post. Throwing would turn a
+   * silent wrong answer into a loud broken one at two dozen call sites that
+   * were right to keep going. A boolean lets the callers who log what was lost
+   * log the truth, and leaves the rest exactly as they were.
+   *
+   *   true  — the object is gone, or there was no key to delete.
+   *   false — it may still be there. Say so if you are about to delete the
+   *           row that names it.
+   *
+   * `no S3 client` is FALSE, not true. An unconfigured provider has not
+   * deleted anything; claiming otherwise is the same lie one level up.
+   */
+  async deleteObject(key: string, bucket?: string): Promise<boolean> {
+    if (!key) return true;
+    if (!this.s3) {
+      this.logger.error(`deleteObject: storage is not configured — ${key} was NOT removed.`);
+      return false;
+    }
     try {
       await this.s3.send(new DeleteObjectCommand({ Bucket: bucket ?? this.bucket, Key: key }));
+      return true;
     } catch (e) {
-      this.logger.warn(`deleteObject failed for ${key}: ${(e as Error).message}`);
+      // error, not warn: a file we meant to destroy and did not is not a
+      // degraded nicety.
+      this.logger.error(`deleteObject failed for ${key}: ${(e as Error).message}`);
+      return false;
     }
   }
 

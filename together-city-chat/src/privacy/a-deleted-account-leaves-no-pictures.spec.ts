@@ -60,10 +60,22 @@ function svc(over: { media?: Array<{ id: string; url: string; thumbUrl: string |
 
   const storage = {
     isPostKey: (k: string) => /^social\/[^/]+\/[A-Za-z0-9._-]+$/.test(k),
+    /**
+     * IT REPORTS, IT DOES NOT THROW — BECAUSE THE REAL ONE CANNOT THROW.
+     *
+     * This stub used to `throw` on `failOn`, and the test below proved the
+     * orphan path against something the provider could not do:
+     * `StorageProvider.deleteObject` caught its own error and returned void.
+     * So the refusal branch was green against a fiction while the real
+     * `purgePostObjects` counted every failure as a success. A mock may only
+     * do what the thing it stands for can do; the provider now answers
+     * `false`, and so does this.
+     */
     deletePrivateObject: async (k: string) => {
-      if (over.failOn && k === over.failOn) throw new Error('bucket refused');
+      if (over.failOn && k === over.failOn) { order.push(`refused:${k}`); return false; }
       order.push(`delete:${k}`);
       deleted.push(k);
+      return true;
     },
   } as any;
 
@@ -133,10 +145,34 @@ describe('deleting an account takes the photographs with it', () => {
   it('still deletes the account when the bucket refuses', async () => {
     // Best-effort by necessity: a bucket having a bad day must not leave a
     // citizen unable to leave. The log is the record — see purgePostObjects.
-    const { s, order } = svc({ failOn: `social/${ME}/a.jpg` });
+    const { s, order, deleted } = svc({ failOn: `social/${ME}/a.jpg` });
     await expect(s.deleteAccount(ME, PW)).resolves.toEqual({ ok: true });
     expect(order).toContain('post.deleteMany');
     expect(order).toContain('user.update');
+    // The refusal was SEEN — the key is not in `deleted`, and the run carried
+    // on to the other two objects rather than stopping at the first no.
+    expect(deleted).not.toContain(`social/${ME}/a.jpg`);
+    expect(order).toContain(`refused:social/${ME}/a.jpg`);
+    expect(deleted).toEqual([`social/${ME}/v.mp4`, `social/${ME}/v.jpg`]);
+  });
+
+  it('names the orphaned keys in the log, which is the only record left', async () => {
+    /* After the rows are deleted this line is the ONLY thing that says which
+       files are still in the bucket, so "3 objects failed" without the keys is
+       a log that cannot be acted on. It could never print before: the try/catch
+       around a method that caught its own error meant `failed` was always
+       empty and `removed` counted the failures. */
+    const { s } = svc({ failOn: `social/${ME}/a.jpg` });
+    const errors: string[] = [];
+    (s as unknown as { logger: { error: (m: string) => void } }).logger = {
+      error: (m: string) => errors.push(m),
+      log: () => undefined, warn: () => undefined,
+    } as never;
+    await s.deleteAccount(ME, PW);
+    const orphan = errors.find((m) => m.includes('ORPHANED'));
+    expect(orphan).toBeDefined();
+    expect(orphan).toContain(`social/${ME}/a.jpg`);
+    expect(orphan).toContain(ME);
   });
 
   it('ignores values that are not ours to delete', async () => {
