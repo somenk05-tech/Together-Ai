@@ -892,8 +892,11 @@ export class SocialService {
     const filter = (query as { filter?: string }).filter ?? 'foryou';
     // ONE read of the graph, three sets out of it — see graphOf.
     const graph = await this.graphOf(userId);
-    const { circle, family: familySet } = this.fromGraph(userId, graph);
-    let network = this.fromGraph(userId, graph).network;
+    // ONE call, three sets. This ran fromGraph twice and threw away two
+    // thirds of each result — the second call rebuilt the circle and family
+    // sets on every feed request to read `network` off the end of them.
+    const { circle, family: familySet, network: graphNetwork } = this.fromGraph(userId, graph);
+    let network = graphNetwork;
     // Four feed lenses: For You and the two media tabs are city-wide; Friends
     // (accepted connections only, not yourself) and Following are the bounded
     // ones, which is what they are FOR.
@@ -958,25 +961,32 @@ export class SocialService {
      * composer and the rule in the query say the same thing, and
      * `assertCanView` has always said it too.
      */
-    const audienceWhere = cityWide
-      ? {
-          OR: [
-            { authorId: userId },
-            // Public means public. No network bound on this branch — that was
-            // the bug.
-            { audience: 'public' },
-            { audience: 'friends', authorId: { in: circle } },
-            { audience: 'family', authorId: { in: familySet } },
-          ],
-        }
-      : {
-          OR: [
-            { authorId: userId },
-            { audience: 'public' },
-            { audience: 'friends', authorId: { in: circle } },
-            { audience: 'family', authorId: { in: familySet } },
-          ],
-        };
+    /**
+     * ── ONE AUDIENCE RULE, AND IT IS ABOUT WHOEVER WROTE THE POST ───────────
+     *
+     * This was a ternary on `cityWide` whose two branches were character-for-
+     * character identical, with a comment on one of them ("no network bound on
+     * this branch — that was the bug") that was equally true of the other. The
+     * network bound lives on the outer `authorId`, not in here. Two copies of
+     * one rule is how a fix lands on one of them.
+     *
+     * `audienceGate` is that rule as a value, so it can be applied twice on
+     * purpose: once to the row, and once to the post the row RENDERS. See
+     * `repostWhere`.
+     *
+     * `private` matches nothing but `authorId: userId`, which is the whole of
+     * what private means.
+     */
+    const audienceGate = {
+      OR: [
+        { authorId: userId },
+        // Public means public — no network bound here; the outer `authorId`
+        // carries it for the lenses that have one.
+        { audience: 'public' },
+        { audience: 'friends', authorId: { in: circle } },
+        { audience: 'family', authorId: { in: familySet } },
+      ],
+    };
     /**
      * A REPOST CANNOT OUTLIVE ITS ORIGINAL'S PERMISSIONS.
      *
@@ -990,6 +1000,32 @@ export class SocialService {
      * be constrained: either this row is not a repost, or the thing it reposts
      * is still visible and its author is not somebody you have blocked.
      */
+    /**
+     * ── AND THE AUDIENCE IS THE ORIGINAL AUTHOR'S, NOT THE SHARER'S ─────────
+     *
+     * 31 Aug audit, fourth critical. This checked the original for moderation
+     * and for a block, and never for its AUDIENCE — while `shapeFeedRow`
+     * renders the original's text, media and author.
+     *
+     * The repost row inherits the original's audience label at creation, so
+     * `audienceGate` above sees the right WORD; it matches it against the
+     * wrong PERSON. The row's authorId is the sharer. So: Alice writes a
+     * friends-only post. Bob, her friend, shares it. Carol is Bob's friend and
+     * a stranger to Alice — and the row reads `{ audience: 'friends',
+     * authorId: Bob }`, Bob is in Carol's circle, the row matches, and Carol
+     * is served Alice's friends-only post under Alice's name. Every share
+     * re-published a private room to a room its author never chose. The bug is
+     * not that the audience was ignored; it is that "friends" was resolved
+     * against whoever passed it on.
+     *
+     * The permalink path has always been right — `post()` calls `assertCanView`
+     * on the ORIGINAL. It was the feed, which is where a post actually reaches
+     * people, that asked the easier question.
+     *
+     * Applying `audienceGate` to `repostOf.is` also means the original's
+     * audience is read LIVE rather than from the copy frozen at share time, so
+     * the two can no longer disagree.
+     */
     const repostWhere = {
       OR: [
         { repostOfId: null },
@@ -997,6 +1033,7 @@ export class SocialService {
           repostOf: {
             is: {
               ...VISIBLE_ONLY,
+              ...audienceGate,
               ...(blockedSet.length ? { authorId: { notIn: blockedSet } } : {}),
             },
           },
@@ -1033,7 +1070,7 @@ export class SocialService {
         ...(filter === 'thoughts' ? { media: { none: {} }, text: { not: null }, repostOfId: null } : {}),
         // Two ORs cannot share one object literal — the second would replace
         // the first — so the audience gate and the repost gate are ANDed by name.
-        AND: [audienceWhere, repostWhere],
+        AND: [audienceGate, repostWhere],
       },
       take: limit + 1,
       ...cursorClause,
