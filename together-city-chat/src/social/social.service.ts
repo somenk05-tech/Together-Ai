@@ -845,7 +845,6 @@ export class SocialService {
     // stalled the cursor whenever a hidden post fell inside the window.
     // Visible = your own posts (any audience) OR public/friends OR a family post
     // from a family connection. Others' private posts never match.
-    const familyIds = [...(await this.familyIds(userId))];
     // The Videos (reels) tab is CITY-WIDE: it surfaces every user's PUBLIC video,
     // not just your network — so the reels scroll runs through the whole city's
     // uploads. Friends/family-audience posts still only come from your circle,

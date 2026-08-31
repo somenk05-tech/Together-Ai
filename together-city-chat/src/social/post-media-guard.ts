@@ -91,6 +91,43 @@ const SNIFF_BYTES = 16;
 /** Above this we do not fetch the bytes at all — refuse rather than skip. */
 const MAX_SCREEN_BYTES = 12 * 1024 * 1024;
 
+/**
+ * ── EVERY KEY A VIEWER CAN BE SHOWN, NOT ONE CHOSEN BY KIND ─────────────────
+ *
+ * The first version of this guard read:
+ *
+ *     const key = isVideo ? (m.thumbUrl ?? '') : m.url;
+ *
+ * — one key per media item, picked by kind. For a video that is the poster,
+ * which is correct and deliberate. For an IMAGE it is `url` and nothing else,
+ * and `thumbUrl` is accepted on every media entry regardless of kind
+ * (`social.dto.ts`), passes `verifyMedia` (which checks ownership and
+ * existence, never content), is stored, is signed, and is the field the
+ * profile grid PREFERS for images:
+ *
+ *     const imgSrc = isVideo ? first?.thumbUrl : (first.thumbUrl || first.url)
+ *
+ * So: upload a clean JPEG as `url` and anything at all as `thumbUrl`, and the
+ * screener reads the clean one while every visitor to the author's grid sees
+ * the other. Sixteen tests were written for this guard and not one covered an
+ * image's thumbUrl, because they were written from the same belief the code
+ * was — that a media item has *a* picture.
+ *
+ * THE RULE IS NOT "ALSO SCREEN THE THUMBNAIL". It is: screen every key that a
+ * viewer can be shown. Written as a set rather than a choice, the next field
+ * somebody adds to a media item is either in it or is a deliberate omission
+ * with a line explaining itself — which is not what `isVideo ? a : b` offers.
+ *
+ * The one omission today is a VIDEO'S OWN `url`. Rekognition's synchronous API
+ * reads images; screening footage means StartContentModeration — asynchronous,
+ * S3-and-SNS, a job with a lifecycle — and until that exists the poster is the
+ * honest half. Every other key here is a picture somebody will see.
+ */
+export function screenableKeys(m: { url: string; kind: string; thumbUrl?: string | null }): string[] {
+  const keys = m.kind === 'video' ? [m.thumbUrl] : [m.url, m.thumbUrl];
+  return [...new Set(keys.filter((k): k is string => typeof k === 'string' && k.length > 0))];
+}
+
 export type PostScreening =
   | { ok: true }
   | { ok: false; retryable: boolean; reason: string };
@@ -143,15 +180,16 @@ export class PostMediaGuard {
   ): Promise<PostScreening> {
     for (const m of media) {
       const isVideo = m.kind === 'video';
-      const key = isVideo ? (m.thumbUrl ?? '') : m.url;
-      if (isVideo && !key) {
+      if (isVideo && !m.thumbUrl) {
         // Nothing to check, and fail-closed means that is a refusal. The
         // composer always generates a poster, so this is a client that did not
         // send one rather than a citizen who could not make one.
         return { ok: false, retryable: false, reason: 'That video could not be checked because it arrived without a cover image. Try posting it again.' };
       }
-      const out = await this.screenOne(key, userId, isVideo);
-      if (!out.ok) return out;
+      for (const key of screenableKeys(m)) {
+        const out = await this.screenOne(key, userId, isVideo && key === m.thumbUrl);
+        if (!out.ok) return out;
+      }
     }
     return { ok: true };
   }

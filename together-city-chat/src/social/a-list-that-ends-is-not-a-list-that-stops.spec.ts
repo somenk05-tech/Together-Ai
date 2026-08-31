@@ -34,7 +34,6 @@ function db(over: { comments?: number; followers?: number; conns?: string[]; fol
     id: `f${i}`, followerId: `u${i}`, followeeId: ME, createdAt: new Date(1000 + i), follower: person(i),
   }));
   const conns = (over.conns ?? []).map((id) => ({ userOneId: ME, userTwoId: id, relationship: null }));
-  const myFollows = (over.follows ?? []).map((id) => ({ followeeId: id }));
 
   const page = <T extends { id: string }>(rows: T[], args: any): T[] => {
     let out = rows;

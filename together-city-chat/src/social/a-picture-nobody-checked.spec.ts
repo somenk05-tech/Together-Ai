@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ForbiddenException, ServiceUnavailableException } from '@nestjs/common';
 import { SocialService } from './social.service';
-import { PostMediaGuard } from './post-media-guard';
+import { PostMediaGuard, screenableKeys } from './post-media-guard';
+import { CreatePostSchema } from './dto/social.dto';
 
 /**
  * ── A PICTURE NOBODY CHECKED ────────────────────────────────────────────────
@@ -192,6 +193,98 @@ describe('every way of not checking it is also a refusal', () => {
       { url: `social/${ME}/3.jpg`, kind: 'image' },
     ]);
     expect(calls).toBe(1);
+  });
+});
+
+/**
+ * ── THE FIELD THE GRID SHOWS, AND THE FIELD NOBODY READ ─────────────────────
+ *
+ * The 31 Aug audit. Sixteen tests above, and not one of them handed an IMAGE a
+ * `thumbUrl` — because the guard was written believing a media item has *a*
+ * picture, and the tests were written from the same belief. It had two:
+ *
+ *     const key = isVideo ? (m.thumbUrl ?? '') : m.url;   // the guard
+ *     const imgSrc = isVideo ? first?.thumbUrl
+ *                            : (first.thumbUrl || first.url);   // the grid
+ *
+ * The screener read `url`. The profile grid PREFERS `thumbUrl`. So a clean
+ * JPEG at `url` and anything at all at `thumbUrl` published a picture nothing
+ * had looked at, to everyone who opened the author's profile.
+ *
+ * Both ends are closed now, and both are asserted here: the DTO refuses a
+ * thumbnail on a non-video at the door, and the guard screens EVERY key a
+ * viewer can be shown rather than one chosen by kind. Either alone would fix
+ * today's hole; the pair is what survives somebody widening the DTO again.
+ */
+describe('a thumbnail is a picture somebody sees, so a thumbnail is screened', () => {
+  const THUMB = `social/${ME}/a-thumb.jpg`;
+
+  it('lists both of an image’s keys, and only the cover for a video', () => {
+    expect(screenableKeys({ url: IMG, kind: 'image' })).toEqual([IMG]);
+    expect(screenableKeys({ url: IMG, kind: 'image', thumbUrl: THUMB })).toEqual([IMG, THUMB]);
+    // The one deliberate omission: a video's own footage. Rekognition's
+    // synchronous API reads images, and StartContentModeration is its own
+    // piece of work. The poster is the honest half, and it is said out loud.
+    expect(screenableKeys({ url: 'social/me-0000/v.mp4', kind: 'video', thumbUrl: THUMB })).toEqual([THUMB]);
+  });
+
+  it('does not pay Rekognition twice for one key', () => {
+    expect(screenableKeys({ url: IMG, kind: 'image', thumbUrl: IMG })).toEqual([IMG]);
+    expect(screenableKeys({ url: IMG, kind: 'image', thumbUrl: null })).toEqual([IMG]);
+    expect(screenableKeys({ url: IMG, kind: 'image', thumbUrl: '' })).toEqual([IMG]);
+  });
+
+  it('reads an image’s thumbnail, not just its url', async () => {
+    const read: string[] = [];
+    const storage = {
+      getPostObjectPrefix: async (k: string) => { read.push(k); return JPEG; },
+      getPostObjectBase64: async () => ({ base64: JPEG.toString('base64'), contentType: 'image/jpeg' }),
+      deletePrivateObject: async () => undefined,
+    } as any;
+    const out = await withLabels(storage, []).screenPost(ME, [{ url: IMG, kind: 'image', thumbUrl: THUMB }]);
+    expect(out.ok).toBe(true);
+    expect(read).toEqual([IMG, THUMB]);
+  });
+
+  it('refuses the post when the CLEAN one is the url and the offending one is the thumbnail', async () => {
+    // The exploit exactly: `url` passes, `thumbUrl` is what every visitor to
+    // the grid is shown. A guard that reads only the first publishes the
+    // second.
+    const deleted: string[] = [];
+    let last = '';
+    const storage = {
+      getPostObjectPrefix: async (k: string) => { last = k; return JPEG; },
+      getPostObjectBase64: async () => ({ base64: JPEG.toString('base64'), contentType: 'image/jpeg' }),
+      deletePrivateObject: async (k: string) => { deleted.push(k); },
+    } as any;
+    const g = new PostMediaGuard(storage, { get: () => '' } as any);
+    (g as any).client = {
+      send: async () => ({
+        ModerationLabels: last === THUMB
+          ? [{ Name: 'Explicit Nudity', ParentName: 'Explicit Nudity', Confidence: 99 }]
+          : [],
+      }),
+    };
+    const out = await g.screenPost(ME, [{ url: IMG, kind: 'image', thumbUrl: THUMB }]) as any;
+    expect(out.ok).toBe(false);
+    expect(out.retryable).toBe(false);
+    expect(deleted).toEqual([THUMB]);
+  });
+
+  it('refuses an image carrying a cover image at the door, before a row exists', () => {
+    // Nothing legitimate is refused: the composer produces a poster only
+    // inside its video branch, and the cover picker is video-only. A field no
+    // client sends is a field only an attacker sends.
+    const bad = CreatePostSchema.safeParse({ text: 'hi', media: [{ url: IMG, kind: 'image', thumbUrl: THUMB }] });
+    expect(bad.success).toBe(false);
+
+    const video = CreatePostSchema.safeParse({
+      text: 'hi', media: [{ url: `social/${ME}/v.mp4`, kind: 'video', thumbUrl: THUMB }],
+    });
+    expect(video.success).toBe(true);
+
+    const plain = CreatePostSchema.safeParse({ text: 'hi', media: [{ url: IMG, kind: 'image' }] });
+    expect(plain.success).toBe(true);
   });
 });
 

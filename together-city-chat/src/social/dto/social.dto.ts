@@ -37,11 +37,33 @@ export const CreatePostSchema = z
     feeling: z.string().max(60).optional(),
     media: z
       .array(
-        z.object({
-          url: mediaRef,
-          kind: z.enum(['image', 'video']),
-          thumbUrl: mediaRef.optional(),
-        }),
+        z
+          .object({
+            url: mediaRef,
+            kind: z.enum(['image', 'video']),
+            thumbUrl: mediaRef.optional(),
+          })
+          /**
+           * A THUMBNAIL BELONGS TO A VIDEO, AND ONLY TO A VIDEO (31 Aug audit).
+           *
+           * `thumbUrl` was accepted on every entry regardless of kind, and the
+           * screener read `url` for an image while the profile grid renders
+           * `thumbUrl || url` — so a clean JPEG at `url` and anything at all at
+           * `thumbUrl` published an unscreened picture. PostMediaGuard now
+           * screens every key a viewer can be shown, which closes the hole at
+           * the guard; this closes it at the door as well.
+           *
+           * Nothing legitimate is refused. The composer produces a poster only
+           * inside its video branch (`genPoster`, CreatePost.tsx:546) and the
+           * cover picker is video-only, so an image entry carrying a thumbUrl
+           * did not come from this app's client. A field no client sends is a
+           * field only an attacker sends, and the cheapest place to say so is
+           * before the row exists.
+           */
+          .refine((m) => m.kind === 'video' || m.thumbUrl === undefined, {
+            message: 'only a video may carry a cover image',
+            path: ['thumbUrl'],
+          }),
       )
       .max(10)
       .optional(),
