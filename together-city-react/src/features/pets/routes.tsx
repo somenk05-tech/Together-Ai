@@ -15,7 +15,32 @@
 
 import { lazy } from 'react';
 import type { RouteObject } from 'react-router-dom';
-import { PetsBoot } from './components/PetsBoot';
+
+/**
+ * ── AND THE BOOT ROUTE IS LAZY TOO, WHICH IS THE WHOLE POINT ────────────────
+ *
+ * The docblock above says "no citizen who never opens Pets should pay for
+ * them", and until 31 Aug every citizen paid for all of them on every page of
+ * the app. One eager import did it:
+ *
+ *   app/router.tsx  →  petsRoutes            (static, shared chunk)
+ *     → components/PetsBoot                  (static — this line)
+ *       → ../store                           (static)
+ *         → ./engine/plan                    (static)
+ *           → ../data/catalogue              239 KB, 184 products
+ *           → ../data/composition, ./recipes
+ *
+ * Every page below is lazy, so the leak was invisible in this file: the only
+ * eager import was a twenty-line layout component that fetches the citizen's
+ * pets. What it dragged behind it was the pet food catalogue, into the shared
+ * chunk that the Social Life feed — and every other hub — waits for before it
+ * can render a pixel.
+ *
+ * Lazy, like its siblings. `router.tsx` already wraps this element in
+ * ChunkBoundary, which is a Suspense boundary, so there is nothing else to
+ * arrange.
+ */
+const PetsBoot = lazy(() => import('./components/PetsBoot').then((m) => ({ default: m.PetsBoot })));
 
 const PetsHome = lazy(() => import('./pages/PetsHome').then((m) => ({ default: m.PetsHome })));
 const Profiles = lazy(() => import('./pages/Profiles').then((m) => ({ default: m.Profiles })));

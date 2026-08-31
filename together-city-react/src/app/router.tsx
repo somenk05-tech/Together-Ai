@@ -8,32 +8,53 @@ import { REMOVED_ROUTES } from '@/config/labels';
 import { ChunkBoundary } from './ChunkBoundary';
 import { Home } from '@/pages/Home';
 import { Dashboard } from '@/pages/Dashboard';
-import { ServicesBrowse } from '@/features/services/pages/Browse';
-import { ListBusiness } from '@/features/services/pages/ListBusiness';
-import { EditBusiness } from '@/features/services/pages/EditBusiness';
-import { BusinessPage } from '@/features/services/pages/BusinessPage';
-import { AdminConsole } from '@/features/admin/pages/Console';
-import { DevPage } from '@/features/dev/pages/Dev';
-import { MyBusiness } from '@/features/services/pages/MyBusiness';
-import { ServiceMessages, ServiceThreadView } from '@/features/services/pages/Messages';
-import { MyOrders } from '@/features/services/pages/MyOrders';
-import { BizOrders } from '@/features/services/pages/BizOrders';
-import { Regulars } from '@/features/services/pages/Regulars';
-import { DailyOffers } from '@/features/services/pages/DailyOffers';
 import { HubLanding } from '@/pages/HubLanding';
 import { petsRoutes } from '@/features/pets/routes';
 import { ecommerceRoutes } from '@/features/ecommerce/routes';
-import { AstroToday } from '@/features/astrology/pages/AstroToday';
-import { AstroMonthly } from '@/features/astrology/pages/AstroMonthly';
-import { AstroAsk } from '@/features/astrology/pages/AstroAsk';
-import { AstroProfilePage } from '@/features/astrology/pages/AstroProfilePage';
-import { AstroTarot } from '@/features/astrology/pages/AstroTarot';
-import { AstroRemedies } from '@/features/astrology/pages/AstroRemedies';
-import { AstroGemstones } from '@/features/astrology/pages/AstroGemstones';
-import { GemStudio } from '@/features/astrology/pages/GemStudio';
-import { GemCheckout } from '@/features/astrology/pages/GemCheckout';
 import { RequireAuth } from '@/features/auth/AuthGate';
 import { NotFound } from '@/pages/NotFound';
+
+/**
+ * ── TWENTY-TWO PAGES THAT WERE NOT LAZY, IN A FILE OF A HUNDRED AND THIRTY
+ *    THAT WERE (31 Aug) ─────────────────────────────────────────────────────
+ *
+ * Services, Astrology, the admin console and the dev page were imported at the
+ * top of this file while every other room in the city was `lazy()`. Nothing
+ * marked them out — they are ordinary rooms, reached the same way, wrapped in
+ * the same ChunkBoundary — so they had simply been written before the pattern
+ * settled and never revisited.
+ *
+ * The cost is paid by everyone else. An eager import here is not "loaded when
+ * you visit Services", it is IN THE SHARED CHUNK: downloaded, parsed and
+ * executed before the first pixel of whatever tab the citizen actually opened.
+ * The admin console is the sharpest of them — a screen almost nobody may open,
+ * in everybody's critical path.
+ *
+ * Every one of these already renders through `wrap()`, which is ChunkBoundary,
+ * which is a Suspense boundary. There was nothing to arrange but the word.
+ */
+const ServicesBrowse = lazy(() => import('@/features/services/pages/Browse').then((m) => ({ default: m.ServicesBrowse })));
+const ListBusiness = lazy(() => import('@/features/services/pages/ListBusiness').then((m) => ({ default: m.ListBusiness })));
+const EditBusiness = lazy(() => import('@/features/services/pages/EditBusiness').then((m) => ({ default: m.EditBusiness })));
+const BusinessPage = lazy(() => import('@/features/services/pages/BusinessPage').then((m) => ({ default: m.BusinessPage })));
+const AdminConsole = lazy(() => import('@/features/admin/pages/Console').then((m) => ({ default: m.AdminConsole })));
+const DevPage = lazy(() => import('@/features/dev/pages/Dev').then((m) => ({ default: m.DevPage })));
+const MyBusiness = lazy(() => import('@/features/services/pages/MyBusiness').then((m) => ({ default: m.MyBusiness })));
+const MyOrders = lazy(() => import('@/features/services/pages/MyOrders').then((m) => ({ default: m.MyOrders })));
+const BizOrders = lazy(() => import('@/features/services/pages/BizOrders').then((m) => ({ default: m.BizOrders })));
+const Regulars = lazy(() => import('@/features/services/pages/Regulars').then((m) => ({ default: m.Regulars })));
+const DailyOffers = lazy(() => import('@/features/services/pages/DailyOffers').then((m) => ({ default: m.DailyOffers })));
+const AstroToday = lazy(() => import('@/features/astrology/pages/AstroToday').then((m) => ({ default: m.AstroToday })));
+const AstroMonthly = lazy(() => import('@/features/astrology/pages/AstroMonthly').then((m) => ({ default: m.AstroMonthly })));
+const AstroAsk = lazy(() => import('@/features/astrology/pages/AstroAsk').then((m) => ({ default: m.AstroAsk })));
+const AstroProfilePage = lazy(() => import('@/features/astrology/pages/AstroProfilePage').then((m) => ({ default: m.AstroProfilePage })));
+const AstroTarot = lazy(() => import('@/features/astrology/pages/AstroTarot').then((m) => ({ default: m.AstroTarot })));
+const AstroRemedies = lazy(() => import('@/features/astrology/pages/AstroRemedies').then((m) => ({ default: m.AstroRemedies })));
+const AstroGemstones = lazy(() => import('@/features/astrology/pages/AstroGemstones').then((m) => ({ default: m.AstroGemstones })));
+const GemStudio = lazy(() => import('@/features/astrology/pages/GemStudio').then((m) => ({ default: m.GemStudio })));
+const GemCheckout = lazy(() => import('@/features/astrology/pages/GemCheckout').then((m) => ({ default: m.GemCheckout })));
+const ServiceMessages = lazy(() => import('@/features/services/pages/Messages').then((m) => ({ default: m.ServiceMessages })));
+const ServiceThreadView = lazy(() => import('@/features/services/pages/Messages').then((m) => ({ default: m.ServiceThreadView })));
 
 // Route-level code splitting for the reference vertical.
 const MealPlan = lazy(() =>

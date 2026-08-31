@@ -913,8 +913,7 @@ export class SocialService {
       include: { author: { select: AUTHOR_SELECT }, media: true },
     });
     const shaped = this.shapePost(post, { likes: 0, comments: 0 }, false, await this.signMediaOf([post]));
-    const recipients = await this.postRecipients(userId, audience);
-    this.gateway.postNew(shaped, recipients);
+    this.broadcast(userId, audience, (r) => this.gateway.postNew(shaped, r));
     /* EVERY NOTIFICATION ABOUT A POST NOW POINTS AT THAT POST.
        They all read `href: '/social/feed'`, so "Priya liked your post" opened
        the feed and left the citizen to find which post — on a wall that had
@@ -934,7 +933,7 @@ export class SocialService {
     const post = await this.prisma.post.findUnique({ where: { id: postId } });
     if (!post) throw new NotFoundException('post not found');
     if (post.authorId !== userId) throw new ForbiddenException('not your post');
-    const recipients = await this.postRecipients(post.authorId, (post as unknown as { audience?: string | null }).audience);
+    const audience = (post as unknown as { audience?: string | null }).audience;
     /**
      * DELETE HAS TO REACH THE BUCKET (30 Aug audit, blocker 3).
      *
@@ -968,7 +967,7 @@ export class SocialService {
         })
         .catch(swallowed('social.deletePost.object', undefined));
     }
-    this.gateway.postDeleted(postId, recipients);
+    this.broadcast(post.authorId, audience, (r) => this.gateway.postDeleted(postId, r));
     return { ok: true };
   }
 
@@ -1386,8 +1385,7 @@ export class SocialService {
     const shaped = this.shapeFeedRow(row, await this.signMediaOf([row]));
     // The fan-out follows the inherited audience too, or the websocket would
     // have published to the whole follower list what the query no longer will.
-    const recipients = await this.postRecipients(userId, inherited);
-    this.gateway.postNew(shaped, recipients);
+    this.broadcast(userId, inherited, (r) => this.gateway.postNew(shaped, r));
     if (original.authorId !== userId) {
       void this.actorName(userId).then((name) =>
         this.notifications.create({
@@ -1466,8 +1464,7 @@ export class SocialService {
       author: comment.author,
       createdAt: comment.createdAt.toISOString(),
     };
-    const recipients = await this.postRecipients(post.authorId, post.audience);
-    this.gateway.commentNew(shaped, recipients);
+    this.broadcast(post.authorId, post.audience, (r) => this.gateway.commentNew(shaped, r));
     // Notify the post author that someone commented.
     void this.notifications.create({
       userId: post.authorId, actorId: userId, kind: 'comment',
@@ -1597,8 +1594,7 @@ export class SocialService {
     }
     const likes = await this.prisma.like.count({ where: { postId } });
     const result = { postId, liked: !wasLiked, likes };
-    const recipients = await this.postRecipients(post.authorId, post.audience);
-    this.gateway.likeChanged(result, recipients);
+    this.broadcast(post.authorId, post.audience, (r) => this.gateway.likeChanged(result, r));
     // Notify the author when a NEW like lands (not on unlike).
     if (!wasLiked) {
       void this.actorName(userId).then((name) =>
@@ -2091,6 +2087,38 @@ export class SocialService {
 
   /** Users allowed to receive live updates for a post, given its audience.
    *  Always includes the author; excludes anyone in a block relationship. */
+  /**
+   * ── THE FAN-OUT IS NOT ON THE CITIZEN'S CRITICAL PATH ───────────────────────
+   *
+   * `postRecipients` reads the author's connections and up to FANOUT_MAX
+   * followers plus their block set — two or three queries and up to two
+   * thousand rows — and every heart tap, comment, post, share and delete
+   * AWAITED it before replying. The tap's own work is a delete or an insert
+   * and a count; the fan-out was several times that, in front of it.
+   *
+   * And it is for a websocket frame NOBODY IS LISTENING TO. The docblock on
+   * `postRecipients` already recorded that finding on 30 Aug, and I checked it
+   * again rather than trusting it: the web app subscribes to sixteen socket
+   * events — messages, typing, presence, calls, notifications, connections —
+   * and not one of them is a social post, like or comment. So a citizen on a
+   * phone waited on two thousand rows for a message sent to no one.
+   *
+   * The broadcasts stay, because the day the feed does listen this is what it
+   * listens to, and a live feed is a real feature half-built rather than a
+   * mistake. They simply happen AFTER the answer goes out. Nothing downstream
+   * reads the result, so there is nothing to order it against; a failure is
+   * logged and costs the citizen nothing, which is what it was always worth.
+   */
+  private broadcast(
+    authorId: string,
+    audience: string | null | undefined,
+    send: (recipients: string[]) => void,
+  ): void {
+    void this.postRecipients(authorId, audience)
+      .then(send)
+      .catch(swallowed('social.broadcast', undefined, { authorId }));
+  }
+
   private async postRecipients(authorId: string, audience: string | null | undefined): Promise<string[]> {
     /**
      * ── THE FAN-OUT IS BOUNDED, AND THE OLD COMMENT WAS THE BUG ─────────────
