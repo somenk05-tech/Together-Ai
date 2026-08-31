@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { StorageProvider } from './storage.provider';
 
 /**
@@ -128,6 +129,43 @@ describe('the plural deletes a thousand at a time and says which ones did not go
     const { p } = batching();
     (p as any).s3 = null;
     await expect(p.deleteObjects(['a', 'b'])).resolves.toEqual({ failed: ['a', 'b'] });
+  });
+});
+
+describe('a signed read says the answer may be kept', () => {
+  /**
+   * The URL is already cached at half its life, so every viewer inside that
+   * window is handed the same string and the browser CAN reuse what it
+   * fetched. Can, not will: an S3 object with no `Cache-Control` of its own
+   * leaves the browser guessing, and the guess that costs us is "ask again" —
+   * a citizen scrolling back up the feed re-downloading photographs that never
+   * left their disk.
+   *
+   * Signed INTO the URL rather than set on the object, so it covers everything
+   * already in the bucket with no backfill.
+   *
+   * This reads the source, and says so. Asserting it behaviourally would mean
+   * standing up a SigV4 signer to inspect a query string it produced — a test
+   * of the AWS SDK, not of us. What is ours is which policy we ask for, and
+   * `GetObjectCommand` below type-checks that the field exists and takes a
+   * string, so a rename in the SDK fails the build rather than this test.
+   */
+  const POLICY = 'private, max-age=31536000, immutable';
+
+  it('asks for a private, immutable, one-year policy on every post media read', () => {
+    const cmd = new GetObjectCommand({ Bucket: 'b', Key: 'k', ResponseCacheControl: POLICY });
+    expect(cmd.input.ResponseCacheControl).toBe(POLICY);
+
+    const src = readFileSync(join(__dirname, 'storage.provider.ts'), 'utf8');
+    const signer = src.slice(src.indexOf('async signPostMedia'), src.indexOf('async signPostObject'));
+    expect(signer).toContain(`ResponseCacheControl: '${POLICY}'`);
+  });
+
+  it('is private, because these are private-bucket objects', () => {
+    // `public` would let any shared cache between us and the citizen keep a
+    // copy of a photograph the bucket is private to prevent exactly that.
+    const src = readFileSync(join(__dirname, 'storage.provider.ts'), 'utf8');
+    expect(src).not.toMatch(/ResponseCacheControl: 'public/);
   });
 });
 

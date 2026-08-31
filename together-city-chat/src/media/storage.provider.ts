@@ -492,7 +492,33 @@ export class StorageProvider implements OnModuleInit {
 
     await Promise.all(missing.map(async (k) => {
       try {
-        const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: this.healthBucket, Key: k }), { expiresIn: this.postMediaTtlSec });
+        /**
+         * ── AND THE ANSWER SAYS IT MAY BE KEPT ─────────────────────────────
+         *
+         * The URL is already cached at half its life, so every viewer inside
+         * that window is handed the SAME string and the browser can reuse what
+         * it fetched. Can, not will: an S3 object with no `Cache-Control` of
+         * its own leaves the browser guessing, and the guess that costs us is
+         * "ask again" — a citizen scrolling back up the feed re-downloading
+         * photographs that never left their disk.
+         *
+         * `ResponseCacheControl` is signed into the URL, so it applies to
+         * every object already in the bucket rather than only to ones uploaded
+         * after today — no backfill, no migration.
+         *
+         * PRIVATE, and a year. Private because these are private-bucket
+         * objects: this permits the citizen's own browser to keep a copy and
+         * forbids any shared cache in between from doing so. A year because
+         * the key is a uuid that is written once and never rewritten — a
+         * changed photograph is a new key — so `immutable` is a fact here
+         * rather than a hope, and it is what stops a revalidation request per
+         * picture per page.
+         */
+        const url = await getSignedUrl(s3, new GetObjectCommand({
+          Bucket: this.healthBucket,
+          Key: k,
+          ResponseCacheControl: 'private, max-age=31536000, immutable',
+        }), { expiresIn: this.postMediaTtlSec });
         out.set(k, url);
         await cache?.set(`sig:${k}`, url, ttl);
       } catch (e) {

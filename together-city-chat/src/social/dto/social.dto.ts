@@ -37,33 +37,37 @@ export const CreatePostSchema = z
     feeling: z.string().max(60).optional(),
     media: z
       .array(
-        z
-          .object({
-            url: mediaRef,
-            kind: z.enum(['image', 'video']),
-            thumbUrl: mediaRef.optional(),
-          })
-          /**
-           * A THUMBNAIL BELONGS TO A VIDEO, AND ONLY TO A VIDEO (31 Aug audit).
-           *
-           * `thumbUrl` was accepted on every entry regardless of kind, and the
-           * screener read `url` for an image while the profile grid renders
-           * `thumbUrl || url` — so a clean JPEG at `url` and anything at all at
-           * `thumbUrl` published an unscreened picture. PostMediaGuard now
-           * screens every key a viewer can be shown, which closes the hole at
-           * the guard; this closes it at the door as well.
-           *
-           * Nothing legitimate is refused. The composer produces a poster only
-           * inside its video branch (`genPoster`, CreatePost.tsx:546) and the
-           * cover picker is video-only, so an image entry carrying a thumbUrl
-           * did not come from this app's client. A field no client sends is a
-           * field only an attacker sends, and the cheapest place to say so is
-           * before the row exists.
-           */
-          .refine((m) => m.kind === 'video' || m.thumbUrl === undefined, {
-            message: 'only a video may carry a cover image',
-            path: ['thumbUrl'],
-          }),
+        /**
+         * ── AN IMAGE MAY CARRY A THUMBNAIL AGAIN, ON PURPOSE ──────────────
+         *
+         * This refused `thumbUrl` on a non-video, and the reason it gave was
+         * "a field no client sends is a field only an attacker sends". That
+         * was true when it was written, earlier the same day, and it is not
+         * true any more: the composer now uploads a 640px copy of every
+         * photograph so the profile grid, the desktop wall and the share
+         * tiles stop loading the full 1600px image to fill a small box.
+         *
+         * REVERSING A LOCK NEEDS THE ARGUMENT THE LOCK WAS FOR. The hole was
+         * that the screener read `url` for an image while the grid renders
+         * `thumbUrl || url` — so an unscreened picture could be published in
+         * a field nothing looked at. That was fixed at the guard in the same
+         * commit, and the guard is where it belongs: `screenableKeys` returns
+         * EVERY key a viewer can be shown, which for an image is both of
+         * them, and `a-picture-nobody-checked.spec.ts` asserts the exploit
+         * exactly — clean at `url`, offending at `thumbUrl`, refused, and the
+         * thumbnail is the object deleted.
+         *
+         * So the door-side refusal was the second lock, not the load-bearing
+         * one, and it is the one that now costs a feature. Both keys still
+         * have to be our own (`mediaRef`), still have to belong to the poster
+         * and exist in the bucket (`verifyMedia`), and still have to pass the
+         * classifier before the post goes up.
+         */
+        z.object({
+          url: mediaRef,
+          kind: z.enum(['image', 'video']),
+          thumbUrl: mediaRef.optional(),
+        }),
       )
       .max(10)
       .optional(),

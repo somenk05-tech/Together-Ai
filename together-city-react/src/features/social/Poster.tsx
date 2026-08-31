@@ -1,5 +1,5 @@
 import { timeAgo } from './PostCard';
-import type { Post } from './api';
+import type { Post, PostMedia } from './api';
 
 /**
  * ONE MOMENT AS A POSTER.
@@ -32,7 +32,14 @@ export function Poster({ post, isNew, onOpen }: {
   // A video counts as a picture only if it actually carries a cover frame. A
   // <video> element behind type would be a second thing to load and decode nine
   // times over, and a video with no cover has nothing to show anyway.
-  const cover = image?.url ?? video?.thumbUrl ?? null;
+  /* THE SMALL COPY, WHERE THERE IS ONE. A poster is a tile — a fraction of a
+     column on a phone, a sixth of the row on a desktop — and it was loading the
+     full 1600px photograph to fill it. Every image now carries a 640px copy in
+     `thumbUrl`, the same field a video's cover frame has always used, so both
+     kinds of media are read the same way here. `?? m.url` is the fallback for
+     every post made before the composer started producing one. */
+  const small = (m: PostMedia) => (m.kind === 'image' ? (m.thumbUrl ?? m.url) : m.thumbUrl);
+  const cover = (image ? small(image) : null) ?? (video ? small(video) : null) ?? null;
   /**
    * EVERY PICTURE THE POST CARRIES, NOT JUST THE FIRST.
    *
@@ -46,7 +53,7 @@ export function Poster({ post, isNew, onOpen }: {
    * cover frame, and a video without one contributes nothing.
    */
   const covers = post.media
-    .map((m) => (m.kind === 'image' ? m.url : m.thumbUrl))
+    .map(small)
     .filter((u): u is string => Boolean(u));
   const text = post.text?.trim() ?? '';
   const when = isNew ? 'now' : timeAgo(post.createdAt);

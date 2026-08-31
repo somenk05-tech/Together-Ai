@@ -243,14 +243,32 @@ function clearDraft(): void {
  * re-encode with a File at the end of it, and an object URL to look at while
  * you write the caption.
  */
-const compressImage = (f: File): Promise<{ file: File; src: string; portrait: boolean }> => new Promise((resolve, reject) => {
-  const url = URL.createObjectURL(f);
-  const img = new Image();
-  img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode failed')); };
-  img.onload = () => {
-    URL.revokeObjectURL(url);
-    const MAXDIM = 1600;
-    const scale = Math.min(1, MAXDIM / Math.max(img.width, img.height));
+const MAXDIM = 1600;
+/**
+ * ── AND A SECOND, SMALL ONE, WHICH IS WHAT THE GRIDS ACTUALLY SHOW ──────────
+ *
+ * A video has carried a poster frame since the composer was written, and every
+ * grid in the app renders it instead of the video. An image had no equivalent:
+ * the profile grid, the desktop wall and the share tiles all loaded the FULL
+ * 1600px photograph to fill a box a few hundred pixels wide — eighteen of them
+ * on a profile, decoded on the main thread, for perhaps a twentieth of the
+ * pixels each.
+ *
+ * `THUMBDIM` is 640: enough for a three-across grid on a 2x phone and for a
+ * wall tile on a desktop, and about a twentieth of the bytes. The full image is
+ * still what the feed card and the opened post show — a thumbnail there would
+ * be visibly soft, and the card is the one place the photograph is the point.
+ *
+ * It rides the poster machinery that already exists rather than a second
+ * upload path: `item.poster` is uploaded to `posterKey` and sent as `thumbUrl`,
+ * which is exactly what a video does. One shape, two kinds of media.
+ */
+const THUMBDIM = 640;
+
+/** Draw `img` into a JPEG File no larger than `maxDim` on its longest edge. */
+const encodeAt = (img: HTMLImageElement, maxDim: number, quality: number, name: string): Promise<File> =>
+  new Promise((resolve, reject) => {
+    const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
     const c = document.createElement('canvas');
     c.width = Math.max(1, Math.round(img.width * scale));
     c.height = Math.max(1, Math.round(img.height * scale));
@@ -259,9 +277,25 @@ const compressImage = (f: File): Promise<{ file: File; src: string; portrait: bo
     ctx.drawImage(img, 0, 0, c.width, c.height);
     c.toBlob((blob) => {
       if (!blob) return reject(new Error('encode failed'));
-      const file = new File([blob], (f.name || 'photo').replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
-      resolve({ file, src: URL.createObjectURL(file), portrait: img.height > img.width });
-    }, 'image/jpeg', 0.82);
+      resolve(new File([blob], name, { type: 'image/jpeg' }));
+    }, 'image/jpeg', quality);
+  });
+
+const compressImage = (f: File): Promise<{ file: File; thumb: File; src: string; portrait: boolean }> => new Promise((resolve, reject) => {
+  const url = URL.createObjectURL(f);
+  const img = new Image();
+  img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode failed')); };
+  img.onload = () => {
+    URL.revokeObjectURL(url);
+    const stem = (f.name || 'photo').replace(/\.[^.]+$/, '');
+    Promise.all([
+      encodeAt(img, MAXDIM, 0.82, `${stem}.jpg`),
+      // Lower quality as well as fewer pixels: at 640px on a grid tile the
+      // difference is invisible and it is another third off the wire.
+      encodeAt(img, THUMBDIM, 0.72, `${stem}-thumb.jpg`),
+    ]).then(([file, thumb]) => {
+      resolve({ file, thumb, src: URL.createObjectURL(file), portrait: img.height > img.width });
+    }).catch(reject);
   };
   img.src = url;
 });
@@ -547,8 +581,10 @@ export function CreatePost() {
           setMedia((prev) => [...prev, item].slice(0, 10));
         } else {
           // Photos are downscaled + re-encoded so they always post as small JPEGs.
-          const { file, src, portrait } = await compressImage(f);
-          const item: MediaItem = { type: 'image', src, file, portrait };
+          const { file, thumb, src, portrait } = await compressImage(f);
+          // `poster` is the grid-sized copy. Same field a video's cover frame
+          // uses, so the upload and the retry logic below need no second case.
+          const item: MediaItem = { type: 'image', src, file, portrait, poster: thumb };
           setMedia((prev) => [...prev, item].slice(0, 10));
         }
       } catch {

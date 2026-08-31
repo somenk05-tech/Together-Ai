@@ -26,7 +26,15 @@ describe('the city feed is a wall of the citizens\' own posters', () => {
     // The cover is the post's own first image, or a video's own cover frame.
     // There is no third branch — no placeholder, no seeded gradient, no stock.
     expect(poster).toMatch(/post\.media\.find\(\(m\) => m\.kind === 'image'\)/);
-    expect(poster).toMatch(/image\?\.url \?\? video\?\.thumbUrl \?\? null/);
+    /* THE SAME RULE, THROUGH `small()` (31 Aug). This asserted the literal
+       `image?.url ?? video?.thumbUrl ?? null`. Both kinds of media now carry a
+       grid-sized copy in `thumbUrl` — a video's cover frame and, since today,
+       a photograph's 640px thumbnail — so the tile reads one field for both
+       and falls back to the full image for every post made before that.
+       The rule the old expression encoded is unchanged and is asserted in the
+       `small` test below: an image has a picture, a video has one only if it
+       carries a cover. */
+    expect(poster).toMatch(/const cover = \(image \? small\(image\) : null\) \?\? \(video \? small\(video\) : null\) \?\? null;/);
     expect(poster).not.toMatch(/placeholder|unsplash|picsum|https?:\/\//i);
   });
 
@@ -45,7 +53,12 @@ describe('the city feed is a wall of the citizens\' own posters', () => {
     // a video is its cover frame, and a video without one contributes nothing.
     // If this ever becomes `.map((m) => m.url)` the strip starts rendering
     // blank frames for coverless videos, which looks like a broken image.
-    expect(poster).toMatch(/post\.media\s*\n?\s*\.map\(\(m\) => \(m\.kind === 'image' \? m\.url : m\.thumbUrl\)\)/);
+    // A COVERLESS VIDEO STILL CONTRIBUTES NOTHING, which is the half of this
+    // rule that a small-copy change could quietly break: `small()` must return
+    // undefined for a video with no cover, and must NEVER fall back to the
+    // video's own url the way the image branch falls back to the photograph.
+    expect(poster).toMatch(/const small = \(m: PostMedia\) => \(m\.kind === 'image' \? \(m\.thumbUrl \?\? m\.url\) : m\.thumbUrl\);/);
+    expect(poster).toMatch(/post\.media\s*\n?\s*\.map\(small\)/);
     expect(poster).toMatch(/\.filter\(\(u\): u is string => Boolean\(u\)\)/);
     expect(poster).toMatch(/covers\.length > 1/);
   });

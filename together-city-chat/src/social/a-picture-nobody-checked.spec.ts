@@ -271,12 +271,30 @@ describe('a thumbnail is a picture somebody sees, so a thumbnail is screened', (
     expect(deleted).toEqual([THUMB]);
   });
 
-  it('refuses an image carrying a cover image at the door, before a row exists', () => {
-    // Nothing legitimate is refused: the composer produces a poster only
-    // inside its video branch, and the cover picker is video-only. A field no
-    // client sends is a field only an attacker sends.
-    const bad = CreatePostSchema.safeParse({ text: 'hi', media: [{ url: IMG, kind: 'image', thumbUrl: THUMB }] });
-    expect(bad.success).toBe(false);
+  it('accepts a thumbnail on an image, because the guard is what protects it', () => {
+    /**
+     * ── A LOCK REVERSED ON PURPOSE, AND WHY THAT IS SAFE ────────────────────
+     *
+     * This asserted the opposite: the DTO refused `thumbUrl` on a non-video,
+     * on the reasoning that "a field no client sends is a field only an
+     * attacker sends". That was true when it was written and is not any more —
+     * the composer now uploads a 640px copy of every photograph, so the grids
+     * stop loading the full image to fill a small box.
+     *
+     * The hole was never the DTO. It was that the SCREENER read `url` for an
+     * image while the grid renders `thumbUrl || url`, so a picture nothing had
+     * looked at could be published in a field nothing looked at. That is fixed
+     * where it belongs, and the test directly above this one is the proof:
+     * clean at `url`, offending at `thumbUrl`, post refused, thumbnail deleted.
+     * Both keys must also be our own, belong to the poster, and exist in the
+     * bucket before any of that runs.
+     *
+     * So the door-side refusal was the second lock, and it is the one that
+     * came to cost a feature. It is gone deliberately, with the first lock
+     * asserted three lines up, rather than quietly.
+     */
+    const withThumb = CreatePostSchema.safeParse({ text: 'hi', media: [{ url: IMG, kind: 'image', thumbUrl: THUMB }] });
+    expect(withThumb.success).toBe(true);
 
     const video = CreatePostSchema.safeParse({
       text: 'hi', media: [{ url: `social/${ME}/v.mp4`, kind: 'video', thumbUrl: THUMB }],
@@ -285,6 +303,13 @@ describe('a thumbnail is a picture somebody sees, so a thumbnail is screened', (
 
     const plain = CreatePostSchema.safeParse({ text: 'hi', media: [{ url: IMG, kind: 'image' }] });
     expect(plain.success).toBe(true);
+
+    // The rule that did NOT move: a thumbnail is still one of our own keys.
+    // Widening `kind` must never widen this.
+    const foreign = CreatePostSchema.safeParse({
+      text: 'hi', media: [{ url: IMG, kind: 'image', thumbUrl: 'https://mallory.example/x.jpg' }],
+    });
+    expect(foreign.success).toBe(false);
   });
 });
 
