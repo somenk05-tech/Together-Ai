@@ -677,7 +677,25 @@ export function CreatePost() {
            * sixty megabytes because AWS blinked is the bug this memoisation
            * exists to prevent.
            */
-          if (status === 403) {
+          /**
+           * ── AND THE SERVER SAYS SO, RATHER THAN THIS GUESSING FROM 403 ────
+           *
+           * This forgot every key on ANY 403 (31 Aug audit). But 403 is also
+           * what a block, an audience refusal, a failed ownership check and
+           * "screening isn't configured" answer with, and none of those
+           * deleted anything — so a citizen who hit one of them re-uploaded
+           * every photograph in the post for nothing, on a phone, on mobile
+           * data. The status code means five things; only one of them is
+           * "the bytes are gone".
+           *
+           * `mediaDiscarded` is that one thing, stated by the party that knows.
+           * ABSENT MEANS KEEP, deliberately: an older API sends no flag, and
+           * keeping a key that turns out to be dead costs one honest error
+           * message, where discarding a live one costs the upload again.
+           */
+          const discarded = (ax as { response?: { data?: { mediaDiscarded?: boolean } } })
+            ?.response?.data?.mediaDiscarded === true;
+          if (discarded) {
             for (const m of media) { m.key = undefined; m.posterKey = undefined; }
           }
           setErrMsg(

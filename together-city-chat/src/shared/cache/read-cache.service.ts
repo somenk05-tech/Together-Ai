@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { RedisService } from '../redis/redis.service';
+import { envInt } from '../env-int';
+import { swallowed } from '../swallow';
 
 /**
  * ── A READ CACHE THAT CANNOT BREAK A READ ───────────────────────────────────
@@ -56,10 +58,10 @@ export class ReadCache {
 
   /** Seconds. 0 anywhere disables that cache entirely — see SOCIAL_CACHE_TTL_S. */
   static ttlFromEnv(name: string, fallback: number): number {
-    const raw = process.env[name];
-    if (raw === undefined || raw.trim() === '') return fallback;
-    const n = Number.parseInt(raw, 10);
-    return Number.isFinite(n) && n >= 0 ? Math.min(n, 86_400) : fallback;
+    // One reader of the environment, in shared/env-int.ts. This was the third
+    // copy of the same six lines and the only one of the three that had no
+    // bug; the copy in SocialService did. See that file.
+    return envInt(name, fallback, 0, 86_400);
   }
 
   private note(where: string, e: unknown): void {
@@ -110,6 +112,31 @@ export class ReadCache {
    * "the database refused this query" into "cache miss", which is how a real
    * fault becomes an empty feed.
    */
+  /**
+   * ── THE SOCIAL GRAPH KEYS, NAMED IN ONE PLACE ───────────────────────────
+   *
+   * `graph:<id>` and `blocked:<id>` were spelled out in SocialService and in
+   * BlockingService, and ConnectionsService — which changes the graph every
+   * time somebody accepts a request or unticks a hub — did not spell them at
+   * all. So accepting a connection left both citizens' cached graphs stale for
+   * the TTL, and after the 31 Aug change that made the feed's circle depend on
+   * `modulesJson`, unticking Social took effect up to thirty seconds late. A
+   * stale grant fails OPEN, which is the direction that matters.
+   *
+   * Three callers, three copies of a key format, and the one that was missing
+   * was missing precisely because nothing named it. The cache owns its own
+   * namespace now.
+   */
+  dropGraph(...userIds: Array<string | null | undefined>): void {
+    const ids = userIds.filter((v): v is string => Boolean(v));
+    if (!ids.length) return;
+    // A drop that fails leaves a stale entry for at most the TTL, so it is
+    // best-effort — but named, because "the block list did not clear" is worth
+    // finding in a log.
+    void this.drop(...ids.flatMap((id) => [`graph:${id}`, `blocked:${id}`]))
+      .catch(swallowed('cache.dropGraph', undefined, { ids: ids.length }));
+  }
+
   async wrap<T>(key: string, ttlSec: number, produce: () => Promise<T>): Promise<T> {
     if (ttlSec > 0) {
       const hit = await this.get<T>(key);

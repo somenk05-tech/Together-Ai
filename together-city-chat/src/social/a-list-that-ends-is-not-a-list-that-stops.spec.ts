@@ -44,6 +44,23 @@ function db(over: { comments?: number; followers?: number; conns?: string[]; fol
       out = out.filter((r) => args.where.followerId.in.includes((r as any).followerId));
     }
     if (args?.orderBy?.[0]?.createdAt === 'desc') out = [...out].reverse();
+    /* THE KEYSET, MODELLED (31 Aug). `followers` used Prisma's row cursor and
+       silently dropped it when the row was gone — which returned PAGE ONE
+       again, so a client appended the same thirty followers and asked for the
+       same missing row forever. It names the ordering's values now, and this
+       stub has to evaluate the same predicate or the test is about something
+       the service no longer does. */
+    const keyset = (args?.where?.OR ?? []).find((b: any) => b?.createdAt);
+    if (keyset) {
+      const lt = args.where.OR[0].createdAt.lt as Date;
+      const tieId = args.where.OR[1]?.id?.lt as string | undefined;
+      const tieAt = args.where.OR[1]?.createdAt as Date | undefined;
+      out = out.filter((r) => {
+        const at = (r as any).createdAt as Date;
+        if (at.getTime() < lt.getTime()) return true;
+        return tieAt !== undefined && at.getTime() === tieAt.getTime() && tieId !== undefined && r.id < tieId;
+      });
+    }
     if (args?.cursor?.id) {
       const at = out.findIndex((r) => r.id === args.cursor.id);
       out = at < 0 ? out : out.slice(at + (args.skip ?? 0));
@@ -52,6 +69,9 @@ function db(over: { comments?: number; followers?: number; conns?: string[]; fol
   };
 
   return {
+    /** The follow rows themselves, so a test can delete one for real rather
+     *  than filtering the answer after the query has already run. */
+    __follows: follows,
     post: { findUnique: async () => ({ id: 'p1', authorId: ME, audience: 'public' }) },
     comment: {
       findMany: async (a: any) => page(comments, a),
@@ -169,6 +189,42 @@ describe('the followers list pages without showing anyone twice', () => {
     // each once. A union that double-counts shows thirteen.
     expect(new Set(seen).size).toBe(12);
     expect(seen.length).toBe(12);
+  });
+
+  it('keeps going when the cursor row is unfollowed between pages', async () => {
+    /**
+     * ── THE LOOP THIS REPLACES ──────────────────────────────────────────────
+     *
+     * `followers` used Prisma's row cursor, guarded by "does that row still
+     * exist", and when it did not it DROPPED the cursor and returned page one.
+     * The client appends the same followers, asks for what comes after the
+     * same missing row, and gets them again — forever. Every follower past the
+     * first page is unreachable, and it takes ONE unfollow to get there,
+     * because the cursor row is the last follow on the page and a follow row
+     * is exactly the thing that disappears while somebody reads this list.
+     *
+     * The cursor names the ordering's VALUES now, so the row it points at may
+     * be gone and the position cannot be. `following()` had already argued
+     * this out in its own docblock; it was never applied here.
+     */
+    const prisma = db({ followers: 12 });
+    const s = svc(prisma);
+    const first: any = await s.followers(ME, { limit: 5 });
+    expect(first.nextCursor).toBeTruthy();
+
+    // The person the cursor names unfollows — the ROW LEAVES THE TABLE, which
+    // is the whole scenario. Filtering the answer afterwards would leave the
+    // cursor lookup working and prove nothing.
+    const gone = first.items[first.items.length - 1].id;
+    const at = prisma.__follows.findIndex((f: any) => f.followerId === gone);
+    expect(at).toBeGreaterThanOrEqual(0);
+    prisma.__follows.splice(at, 1);
+
+    const second: any = await s.followers(ME, { limit: 5, cursor: first.nextCursor });
+    // It moved ON, rather than starting again.
+    const firstIds = first.items.map((p: any) => p.id);
+    for (const p of second.items) expect(firstIds).not.toContain(p.id);
+    expect(second.items.length).toBeGreaterThan(0);
   });
 
   it('never asks Postgres for an unbounded follower page', async () => {

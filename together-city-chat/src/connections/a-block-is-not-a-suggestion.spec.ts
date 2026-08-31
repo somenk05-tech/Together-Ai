@@ -142,3 +142,35 @@ describe('a blocked citizen cannot read your profile or find you', () => {
     expect(seen[0].id).toEqual({ not: ME });
   });
 });
+
+describe('a change to a connection is true immediately', () => {
+  /**
+   * SocialService caches the viewer's graph for thirty seconds and drops it on
+   * follow, unfollow and block — all of which live in SocialService or
+   * BlockingService. The edges ConnectionsService changes were the ones nobody
+   * dropped: accepting, declining, removing, and changing which hubs a
+   * connection grants.
+   *
+   * The last became the sharp one on 31 Aug, when the feed's friends circle
+   * started reading `modulesJson` so the Social checkbox governs the feed as
+   * well as the profile grid. Unticking it took effect up to thirty seconds
+   * late — and a stale grant fails OPEN, the wrong direction for a control
+   * whose only purpose is to shut somebody out.
+   */
+  it('drops both citizens’ cached graphs whenever it broadcasts', () => {
+    const dropped: string[] = [];
+    const svc = new ConnectionsService(
+      {} as never, { permissionsChanged: () => undefined } as any, {} as never, {} as never,
+      { dropGraph: (...ids: string[]) => dropped.push(...ids.filter(Boolean)) } as any,
+    );
+    (svc as any).broadcast({ id: 'c1', userOneId: ME, userTwoId: THEM, status: 'ACCEPTED', modulesJson: null });
+    expect(dropped).toEqual([ME, THEM]);
+  });
+
+  it('works without a cache at all, which is how every spec builds it', () => {
+    const svc = new ConnectionsService(
+      {} as never, { permissionsChanged: () => undefined } as any, {} as never, {} as never,
+    );
+    expect(() => (svc as any).broadcast({ id: 'c1', userOneId: ME, userTwoId: THEM, status: 'ACCEPTED', modulesJson: null })).not.toThrow();
+  });
+});

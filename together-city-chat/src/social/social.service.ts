@@ -7,6 +7,7 @@ import { connectionGrants } from '../connections/connections.service';
 import { VISIBLE, VISIBLE_ONLY, removedNotice } from './post-visibility';
 import { AdminAccessService } from '../admin/admin-access.service';
 import { ReadCache } from '../shared/cache/read-cache.service';
+import { envInt } from '../shared/env-int';
 import type { ListQueryDto } from './dto/social.dto';
 import { PostMediaGuard } from './post-media-guard';
 import { ConnectionsService } from '../connections/connections.service';
@@ -106,14 +107,18 @@ export class SocialService {
    */
   private static readonly GRAPH_TTL_S = ReadCache.ttlFromEnv('SOCIAL_CACHE_TTL_S', 30);
   /** The most accounts one citizen's feed may be drawn from. See graphOf. */
-  private static readonly NETWORK_MAX = Math.min(
-    100_000,
-    Math.max(1, Number.parseInt(process.env.SOCIAL_NETWORK_MAX ?? '', 10) || 5_000),
-  );
-  private static readonly FANOUT_MAX = Math.min(
-    50_000,
-    Math.max(0, Number.parseInt(process.env.SOCIAL_FANOUT_MAX ?? '', 10) || 1_000),
-  );
+  private static readonly NETWORK_MAX = envInt('SOCIAL_NETWORK_MAX', 5_000, 1, 100_000);
+  /**
+   * ZERO MEANS ZERO (31 Aug audit). This read
+   *
+   *     Math.max(0, Number.parseInt(process.env.SOCIAL_FANOUT_MAX ?? '', 10) || 1_000)
+   *
+   * and `0 || 1_000` is `1_000` — so SOCIAL_FANOUT_MAX=0, the one value an
+   * operator reaches for to turn live fan-out OFF during an incident, quietly
+   * set it to the busiest setting there is. `envInt` cannot make that mistake:
+   * it decides on whether a number was read, not on whether it was truthy.
+   */
+  private static readonly FANOUT_MAX = envInt('SOCIAL_FANOUT_MAX', 1_000, 0, 50_000);
 
   /** Read through the cache when there is one, and straight through when there
    *  is not. See the constructor note. */
@@ -130,9 +135,10 @@ export class SocialService {
    * FOLLOWEE's follower count as well as the follower's following set.
    */
   private forgetGraph(...userIds: Array<string | undefined | null>): void {
-    if (!this.cache) return;
-    const keys = userIds.filter((v): v is string => Boolean(v)).map((id) => `graph:${id}`);
-    if (keys.length) void this.cache.drop(...keys).catch(swallowed('social.cache.drop', undefined));
+    // The key format lives in ReadCache now — see dropGraph. Three services
+    // spelled it out and the one that changes the graph most often,
+    // ConnectionsService, did not spell it at all.
+    this.cache?.dropGraph(...userIds);
   }
 
   /** Set a video post's cover: extract the frame at `timeSec` with ffmpeg from
@@ -357,10 +363,30 @@ export class SocialService {
             orderBy: { createdAt: 'desc' },
             take: SocialService.NETWORK_MAX,
           }),
+          /**
+           * ── A SWALLOWED FAILURE MUST NOT BE CACHED (31 Aug audit) ────────
+           *
+           * This was `.catch(swallowed('social.graph.conns', []))`. On its own
+           * that is the usual best-effort shape and reads as harmless: a
+           * momentary database hiccup, an empty circle, the feed shows public
+           * posts only. But it is INSIDE the cache producer, so the empty
+           * array was then stored for the TTL — one blink of the database and
+           * the citizen has no friends, no family and no household for thirty
+           * seconds, on every hub that reads this graph, with nothing in the
+           * logs after the first line to say why.
+           *
+           * A cache turns a transient failure into a persistent wrong answer.
+           * That is the whole hazard, and it is not visible at the `.catch`.
+           *
+           * So it throws, `wrap` never stores a rejected producer, and the
+           * request 503s. A feed that cannot read who you are connected to
+           * should say so once rather than quietly show you a stranger's city
+           * for half a minute.
+           */
           // unbounded: the viewer's accepted connections — one read, three readers
           this.prisma.connection.findMany({
             where: { status: 'ACCEPTED', OR: [{ userOneId: userId }, { userTwoId: userId }] },
-          }).catch(swallowed('social.graph.conns', [] as Array<{ userOneId: string; userTwoId: string }>)),
+          }),
           this.blockedWith(userId),
         ]);
         return {
@@ -507,22 +533,58 @@ export class SocialService {
       .map((c) => (c.userOneId === userId ? c.userTwoId : c.userOneId))
       .filter((id) => !graph.blocked.has(id));
 
-    let cursorClause: { cursor: { id: string }; skip: number } | object = {};
-    if (page.cursor) {
-      const exists = await this.prisma.follow.findUnique({ where: { id: page.cursor }, select: { id: true } });
-      if (exists) cursorClause = { cursor: { id: page.cursor }, skip: 1 };
-    }
+    /**
+     * ── A CURSOR THAT NAMES A VALUE, NOT A ROW (31 Aug audit) ──────────────
+     *
+     * This used Prisma's row cursor — `cursor: { id }, skip: 1` — guarded by
+     * "does that row still exist", and when it did not, it SILENTLY DROPPED
+     * THE CURSOR and returned page one again. The comment on the same shape in
+     * `feed()` calls that "ignore a stale/deleted cursor instead of 500-ing on
+     * it", which is right for a feed the citizen can scroll past. Here it is a
+     * loop: the client appends the same thirty followers, asks for what comes
+     * after the same missing row, and gets those thirty again, forever. Every
+     * follower past the first page is unreachable.
+     *
+     * And it takes one unfollow to arrive there — the cursor row is the last
+     * follow on the page, and a follow row is exactly the thing that gets
+     * deleted while somebody is reading a follower list.
+     *
+     * `following()` twenty lines down already argues this out and does it
+     * properly: "a cursor that names a position in a list silently skips a row
+     * when the list shrinks; a cursor that names a VALUE cannot, and a deleted
+     * cursor value still gives the right answer for what comes after it."
+     * That paragraph was written for the sibling method and never applied
+     * here.
+     *
+     * So the cursor carries the ordering's own values — `<createdAt ms>_<id>`
+     * — and the page is a keyset predicate on the pair. The row it names may
+     * be gone; the position it names cannot be.
+     *
+     * A bare id is still accepted, because the two halves of this app deploy
+     * separately and a client mid-scroll is holding one. It is resolved to a
+     * pair when the row survives, and otherwise starts the list again — which
+     * is the OLD behaviour, kept only for the length of one deploy window and
+     * only for cursors minted before it.
+     */
+    const after = page.cursor ? await this.decodeFollowCursor(page.cursor) : null;
     const rows = await this.prisma.follow.findMany({
       where: {
         followeeId: userId,
         // Never twice: the connection half is on page one, so it is excluded
         // from every follower page including the first.
         ...(connIds.length ? { followerId: { notIn: connIds } } : {}),
+        ...(after
+          ? {
+            OR: [
+              { createdAt: { lt: after.createdAt } },
+              { createdAt: after.createdAt, id: { lt: after.id } },
+            ],
+          }
+          : {}),
       },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: page.limit + 1,
-      ...cursorClause,
-      select: { id: true, follower: { select: AUTHOR_SELECT } },
+      select: { id: true, createdAt: true, follower: { select: AUTHOR_SELECT } },
     });
     const more = rows.length > page.limit;
     const window = more ? rows.slice(0, page.limit) : rows;
@@ -567,7 +629,34 @@ export class SocialService {
        the follow table, and a person can be reached through more than one row
        shape. Taken from `window`, before the block filter, or blocking the last
        person on a page would strand the cursor and end the list early. */
-    return { items, nextCursor: more ? window[window.length - 1]?.id ?? null : null };
+    const last = window[window.length - 1];
+    return {
+      items,
+      nextCursor: more && last ? `${last.createdAt.getTime()}_${last.id}` : null,
+    };
+  }
+
+  /**
+   * Read a follower-page cursor. See `followers` for why it names values.
+   *
+   * `<ms>_<id>` is what this mints. A bare id is a cursor from before 31 Aug,
+   * still in the hands of a client mid-scroll; it is resolved through the row
+   * while that row exists, and null once it does not — the old behaviour, kept
+   * for exactly as long as those cursors are.
+   */
+  private async decodeFollowCursor(raw: string): Promise<{ createdAt: Date; id: string } | null> {
+    const at = raw.indexOf('_');
+    if (at > 0) {
+      const ms = Number(raw.slice(0, at));
+      const id = raw.slice(at + 1);
+      if (Number.isFinite(ms) && id) return { createdAt: new Date(ms), id };
+      return null;
+    }
+    const row = await this.prisma.follow.findUnique({
+      where: { id: raw },
+      select: { id: true, createdAt: true },
+    }).catch(swallowed('social.followers.legacyCursor', null, { raw }));
+    return row ? { createdAt: row.createdAt, id: row.id } : null;
   }
 
   /** Following = people you follow OR are connected to (connections are mutual).
@@ -759,18 +848,42 @@ export class SocialService {
   private async screenMedia(userId: string, media: CreatePostDto['media']): Promise<void> {
     if (!media?.length) return;
     if (!this.screening) {
-      throw new ForbiddenException(
-        'Photos and videos can’t be checked right now, so this post hasn’t gone up. Try again in a moment.',
-      );
+      // Nothing was uploaded to a screener and nothing was deleted, so the
+      // composer must KEEP its keys — see the note below on mediaDiscarded.
+      throw new ForbiddenException({
+        message: 'Photos and videos can’t be checked right now, so this post hasn’t gone up. Try again in a moment.',
+        mediaDiscarded: false,
+      });
     }
     const out = await this.screening.screenPost(userId, media as ReadonlyArray<{ url: string; kind: string; thumbUrl?: string | null }>);
     if (out.ok) return;
+    /**
+     * ── THE COMPOSER NEEDS TO KNOW WHETHER THE BYTES ARE STILL THERE ────────
+     *
+     * A final refusal DELETED the object — that is decision 4 of
+     * PostMediaGuard — so the key the composer memoised to avoid re-uploading
+     * now points at nothing, and it has to forget it or the retry fails on the
+     * server's ownership check with a sentence about a network problem.
+     *
+     * The composer worked that out from the STATUS CODE: any 403 meant forget
+     * every key. But 403 is also what a block, an audience refusal, a failed
+     * ownership check and the no-screening-configured branch two lines up
+     * answer with — and none of those deleted anything. So a citizen who hit
+     * any of them re-uploaded every photograph in the post for no reason, on a
+     * phone, on mobile data.
+     *
+     * The server knows which it is; the status code cannot carry it. So it is
+     * said in the body, and the composer reads the fact instead of inferring
+     * it from a number that means five different things.
+     */
     /* TWO REFUSALS, TWO STATUS CODES, AND THE DIFFERENCE IS THE WHOLE POINT.
        503 says "try again" and 403 says "do not"; a citizen told the wrong one
        either retries forever or abandons a photograph that was fine. The
        message says it in words too, because nobody reads a status code. */
     if (out.retryable) throw new ServiceUnavailableException(out.reason);
-    throw new ForbiddenException(out.reason);
+    // A final refusal deleted the object — decision 4 of PostMediaGuard — so
+    // the composer's memoised keys are stale and it is told so as a fact.
+    throw new ForbiddenException({ message: out.reason, mediaDiscarded: true });
   }
 
   async createPost(userId: string, dto: CreatePostDto) {

@@ -1,7 +1,8 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
-import type { Pool, PoolConfig } from 'pg';
+import { Pool, type PoolConfig } from 'pg';
+import { envInt } from '../env-int';
 
 /**
  * ── THE CONNECTION POOL WAS THE CEILING ─────────────────────────────────────
@@ -73,14 +74,6 @@ import type { Pool, PoolConfig } from 'pg';
  * when the pooler arrives except the number.
  */
 
-/** An integer from the environment, or the default — never NaN, never negative. */
-function envInt(name: string, fallback: number, min: number, max: number): number {
-  const raw = process.env[name];
-  if (raw === undefined || raw.trim() === '') return fallback;
-  const n = Number.parseInt(raw, 10);
-  if (!Number.isFinite(n)) return fallback;
-  return Math.min(max, Math.max(min, n));
-}
 
 /** The pool settings, exported so a spec can assert them without a database. */
 export function poolConfig(): PoolConfig {
@@ -130,10 +123,27 @@ export function poolConfig(): PoolConfig {
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private static readonly log = new Logger('Prisma');
 
+  /**
+   * ── THE POOL WE MADE, HELD ONTO ────────────────────────────────────────
+   *
+   * `poolStats()` reached into `this.$pool` and then into
+   * `_engine.driverAdapter.underlyingDriver()`, and neither exists — so it
+   * returned null every time it was ever called. The /dev instrument built to
+   * answer "is DB_POOL_MAX the bottleneck" answered "I don't know", and the
+   * one number that says so directly (`waiting`) was never once read.
+   *
+   * Guessing at another library's internals is the wrong shape for that
+   * question. PrismaPg takes a Pool as happily as a PoolConfig, so we make it
+   * and keep the reference: there is nothing to reach into.
+   */
+  private readonly pool: Pool;
+  private ended = false;
+
   constructor() {
     const cfg = poolConfig();
+    const pool = new Pool(cfg);
     super({
-      adapter: new PrismaPg(cfg, {
+      adapter: new PrismaPg(pool, {
         // THE LISTENERS THAT KEEP THE PROCESS ALIVE. See the note above: an
         // unhandled 'error' on a pg client is an uncaught exception, and a
         // database restart would otherwise take down every hub in the
@@ -142,6 +152,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         onConnectionError: (e) => PrismaService.log.warn(`connection dropped (recovering): ${e.message}`),
       }),
     });
+    this.pool = pool;
     PrismaService.log.log(
       `pool max=${cfg.max} connectTimeout=${cfg.connectionTimeoutMillis}ms `
       + `statementTimeout=${(cfg as { statement_timeout?: number }).statement_timeout}ms keepAlive=on`,
@@ -154,6 +165,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   async onModuleDestroy(): Promise<void> {
     await this.$disconnect();
+    // The pool is OURS now, so closing it is ours too — `$disconnect` ends a
+    // pool the adapter created, not one it was handed. Guarded because pg
+    // throws on a second `end()`, and Nest can call this twice on a fast
+    // shutdown.
+    if (this.ended) return;
+    this.ended = true;
+    await this.pool.end().catch((e: Error) => PrismaService.log.warn(`pool end: ${e.message}`));
   }
 
   /**
@@ -162,12 +180,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
    * moment means DB_POOL_MAX is the bottleneck, and it is the one metric that
    * tells you so directly rather than by inference from latency.
    */
-  poolStats(): { total: number; idle: number; waiting: number; max: number } | null {
-    const pool = (this as unknown as { $pool?: Pool }).$pool
-      ?? (this as unknown as { _engine?: { driverAdapter?: { underlyingDriver?: () => Pool } } })._engine?.driverAdapter?.underlyingDriver?.();
-    if (!pool) return null;
+  poolStats(): { total: number; idle: number; waiting: number; max: number } {
     return {
-      total: pool.totalCount, idle: pool.idleCount, waiting: pool.waitingCount,
+      total: this.pool.totalCount, idle: this.pool.idleCount, waiting: this.pool.waitingCount,
       max: envInt('DB_POOL_MAX', 20, 1, 200),
     };
   }

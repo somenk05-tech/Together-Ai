@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
-import { swallowed } from '../shared/swallow';
+
 import { ChatEventBus } from '../shared/events/chat-events';
 import { ReadCache } from '../shared/cache/read-cache.service';
 import {
@@ -63,9 +63,10 @@ export class BlockingService {
   /** Forget both citizens' cached safety sets AND their cached graphs — a block
    *  severs follow edges too, so the graph is wrong the moment this returns. */
   private forget(a: string, b: string): void {
-    if (!this.cache) return;
-    void this.cache.drop(`blocked:${a}`, `blocked:${b}`, `graph:${a}`, `graph:${b}`)
-      .catch(swallowed('blocking.cache.forget', undefined, { a, b }));
+    // The key format lives in ReadCache.dropGraph — see the note there. This
+    // was one of three hand-written copies, and the service that changes the
+    // graph most often had none of them.
+    this.cache?.dropGraph(a, b);
   }
 
   /**
@@ -107,13 +108,46 @@ export class BlockingService {
     return { blocked: false, userId: them };
   }
 
-  /** Read a delegate that may not exist yet, and never let it break a caller. */
-  private async safely<T>(read: () => Promise<T[]>): Promise<T[]> {
+  /**
+   * ── "IT DOES NOT EXIST" AND "IT FAILED" ARE NOT THE SAME ANSWER ──────────
+   *
+   * This caught everything and returned `[]`. The intent was narrow and good:
+   * a Prisma delegate that is not in the client yet — a model added in a
+   * migration that has not run on this container — must not take down every
+   * read that subtracts blocked citizens. That is a startup-shaped problem
+   * with a startup-shaped answer.
+   *
+   * A QUERY FAILURE IS NOT THAT, and the 31 Aug audit found where the
+   * difference lands: `blockedWith` is cached. So one dropped connection
+   * during a deploy stored an EMPTY BLOCK LIST for the TTL, and for those
+   * thirty seconds every list that subtracts blocked people subtracted
+   * nobody — the feed, People, search, the share sheet, chat contacts. A
+   * transient error became a persistent, invisible unblocking of everyone.
+   *
+   * "The block union must be COMPLETE; a truncated list quietly unblocks
+   * people" is written twice below as the reason those reads are unbounded.
+   * An empty list is the most truncated list there is.
+   *
+   * So a missing delegate still answers `[]`, and a real failure throws:
+   * `wrap` never stores a rejected producer and the caller gets an error it
+   * can report, which is the only honest answer to "who has this citizen
+   * blocked" when we do not know.
+   */
+  private async safely<T>(read: () => Promise<T[]> | undefined): Promise<T[]> {
+    // Not "the read threw", but "there is nothing here to read from".
+    if (typeof read !== 'function') return [];
+    let promise: Promise<T[]>;
     try {
-      return await read();
-    } catch {
-      return [];
+      const out = read();
+      if (out === undefined) return [];
+      promise = out;
+    } catch (e) {
+      // Calling it threw synchronously — that is the undefined-delegate shape
+      // (`this.prisma.block` is undefined, so `.findMany` is a TypeError).
+      if (e instanceof TypeError) return [];
+      throw e;
     }
+    return promise;
   }
 
   private async rows(userId: string): Promise<{ blocks: BlockRow[]; connections: ConnectionBlockRow[] }> {

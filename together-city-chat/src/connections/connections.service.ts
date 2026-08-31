@@ -1,5 +1,6 @@
 import { swallow } from '../shared/swallow';
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ReadCache } from '../shared/cache/read-cache.service';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { ConnectionStatus, ConnectionType, Connection, User } from '@prisma/client';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { orderPair } from './connection.util';
@@ -80,11 +81,47 @@ export class ConnectionsService {
     private readonly gateway: ConnectionsGateway,
     private readonly notifications: NotificationsService,
     private readonly blocking: BlockingService,
+    /**
+     * OPTIONAL FOR THE REASON EVERY OTHER CACHE HERE IS — a spec asserting
+     * what `respond` writes should not have to stand up Redis — and read for
+     * the reason the 31 Aug audit found: this service changes the social graph
+     * on every accept, every module toggle and every removal, and it was the
+     * only one of the three that touched the graph and never invalidated it.
+     * See `forgetGraph` below.
+     */
+    @Optional() private readonly cache?: ReadCache,
   ) {}
+
+  /**
+   * ── ACCEPTING A CONNECTION HAS TO BE TRUE IMMEDIATELY ───────────────────
+   *
+   * SocialService caches the viewer's graph for thirty seconds and drops it
+   * whenever an edge changes — on follow, unfollow and block. Every one of
+   * those lives in SocialService or BlockingService. The edges this service
+   * changes are the ones it never dropped: accepting a request, declining it,
+   * removing a connection, and changing which hubs a connection grants.
+   *
+   * The last of those became the sharp one on 31 Aug, when the feed's friends
+   * circle started reading `modulesJson` so that the Social checkbox governs
+   * the feed as well as the profile grid. Unticking it now takes effect up to
+   * thirty seconds late — and a stale grant fails OPEN, which is the wrong
+   * direction for a control whose whole purpose is to shut somebody out.
+   *
+   * Both sides, always: a connection is one row and two people's graphs.
+   */
+  private forgetGraph(conn: { userOneId: string; userTwoId: string }): void {
+    this.cache?.dropGraph(conn.userOneId, conn.userTwoId);
+  }
 
   /** Broadcast a permission change to BOTH members so every open page (People +
    *  each hub) invalidates and re-reads the shared store — no manual refresh. */
   private broadcast(conn: Connection): void {
+    /* INSIDE broadcast, NOT BESIDE IT. Every write that changes what this pair
+       may see already calls this — accept, decline, module change, removal,
+       the two-way sync — so hanging the invalidation here is the one placement
+       a future writer cannot forget. Dropping a cache entry is always safe;
+       the worst it costs is one re-read. */
+    this.forgetGraph(conn);
     const modules = effectiveModules(conn as { modulesJson?: string | null; relationship?: string | null });
     this.gateway.permissionsChanged([conn.userOneId, conn.userTwoId], {
       connectionId: conn.id,
