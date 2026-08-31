@@ -125,7 +125,7 @@ describe('and the citizen is told', () => {
     const h = build(ADULT);
     await h.svc.moderateDecision('mod', 'them', 'rejected', 'under age');
     expect(h.told).toHaveLength(1);
-    expect(h.told[0]).toMatchObject({ userId: 'them', kind: 'system', href: '/dating/safety' });
+    expect(h.told[0]).toMatchObject({ userId: 'them', kind: 'system', href: '/matchmaking/safety' });
     expect(String(h.told[0].title)).toMatch(/taken down/i);
     expect(String(h.told[0].body)).not.toMatch(/under age/);
   });

@@ -52,7 +52,10 @@ describe('a room to look in, and a room to keep', () => {
   it('gives the dating hub its rooms, in the order the journey runs, and the safety one last', () => {
     const items = HUBS.dating.items;
     expect(items.map((i) => i.path)).toEqual([
-      '/dating/profile', '/dating/browse', '/dating/matches', '/dating/chats', '/dating/safety',
+    /* Dating → Matchmaking, 31 Aug (owner). The rooms answer on /matchmaking
+       now and /dating/* redirects to them, so every link in the app names the
+       new address. */
+      '/matchmaking/profile', '/matchmaking/browse', '/matchmaking/matches', '/matchmaking/chats', '/matchmaking/safety',
     ]);
     // one-bag pins contiguity across every hub; this pins THIS hub's numbering
     // so a later reshuffle cannot put the browse room after the keep room.
@@ -68,7 +71,7 @@ describe('a room to look in, and a room to keep', () => {
     // Curated no longer advertises a percentage: nobody arrives there by
     // scoring well, only by being chosen back.
     expect(items[2].sub).not.toMatch(/75|%/);
-    expect(router).toMatch(/path: '\/dating\/browse'/);
+    expect(router).toMatch(/path: '\/matchmaking\/browse'/);
   });
 
   it('browses the pool through the endpoint that scores everybody', () => {
@@ -77,7 +80,12 @@ describe('a room to look in, and a room to keep', () => {
     // and the cut is said on screen — which is the opposite of the silent
     // take(_, 24) this file was written against. Building a pool any other
     // way would still mean a second engine.
-    expect(browse).toMatch(/useDiscover\(kind, Boolean\(profile\.data\), limit\)/);
+    /* `isSavedProfile`, not `Boolean` — changed in cb055247 with the medium
+       tier and the assertion left behind, so this was red on main. The
+       distinction is the point of the change: a profile OBJECT is not a SAVED
+       profile, and browsing on the strength of the first one shows the pool to
+       somebody who has not finished introducing themselves. */
+    expect(browse).toMatch(/useDiscover\(kind, isSavedProfile\(profile\.data\), limit\)/);
     expect(browse).not.toMatch(/useDatingStack/);
     // A page is honest only if the citizen can ask for the next one and can
     // see how much of the city they have seen.
@@ -172,15 +180,15 @@ describe('a room to look in, and a room to keep', () => {
     expect(curated).not.toMatch(/function MatchCard\(|function MatchStack\(/);
     // Curated draws its own one card, and it is the door to the profile.
     expect(curated).toMatch(/function CuratedCard\(/);
-    expect(curated).toMatch(/to=\{`\/dating\/match\?u=\$\{match\.user\.id\}/);
+    expect(curated).toMatch(/to=\{`\/matchmaking\/match\?u=\$\{match\.user\.id\}/);
   });
 
   it('names the journey on both sides, so nobody has to discover it', () => {
     // Browse → "you both like each other and they move next door"; Curated →
     // "the other room is where everyone is". A room whose only route in is an
     // event that happens to you needs to say so before it happens.
-    expect(browse).toMatch(/to="\/dating\/matches"/);
-    expect(curated).toMatch(/to="\/dating\/browse"/);
+    expect(browse).toMatch(/to="\/matchmaking\/matches"/);
+    expect(curated).toMatch(/to="\/matchmaking\/browse"/);
     expect(cards).toMatch(/They’re in Curated Matches now/);
   });
 

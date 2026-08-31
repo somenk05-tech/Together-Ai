@@ -120,7 +120,7 @@ export function SafetyMenu({ userId, kind, compact = false }: {
                     reachable from exactly one place — inside the block shown
                     to somebody whose profile was refused — which meant the
                     citizens most likely to need it had never seen it. */}
-                <Link to="/dating/safety" onClick={close}
+                <Link to="/matchmaking/safety" onClick={close}
                   style={centreDoor(linkStyle)}>
                   Safety Centre — what we check, staying safe, and who to call
                 </Link>

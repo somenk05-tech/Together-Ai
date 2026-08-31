@@ -87,7 +87,7 @@ export const NAV: NavItem[] = [
      renaming an identifier to match a label is how a rename breaks things
      nobody asked about. The label is what a citizen reads; the key is what the
      app reads. Only one of them changed. */
-  { key: 'dating', label: 'Matchmaking', path: '/dating' },
+  { key: 'dating', label: 'Matchmaking', path: '/matchmaking' },
   { key: 'medical', label: 'Medical', path: '/medical' },
   { key: 'nutrition', label: 'Nutrition', path: '/nutrition' },
   // Not a district — the citizen's own drawer. See TabKey above.
@@ -227,17 +227,17 @@ export const HUBS: Record<HubKey, HubConfig> = {
     ],
   },
   dating: {
-    key: 'dating', name: 'Matchmaking Hub', tag: 'Curated, not endless', backPath: '/dating', dark: true,
+    key: 'dating', name: 'Matchmaking Hub', tag: 'Curated, not endless', backPath: '/matchmaking', dark: true,
     items: [
-      { path: '/dating/profile', index: '01', label: 'My Matchmaking Profile', sub: 'Birth details & interests' },
+      { path: '/matchmaking/profile', index: '01', label: 'My Matchmaking Profile', sub: 'Birth details & interests' },
       // THE RAIL IS THE JOURNEY, so it runs in the order the journey does:
       // introduce yourself, look at the city, keep the people who chose you
       // back, talk to them. Potential Matches is where every resident is scored
       // and where liking happens; Curated Matches is only ever MUTUAL, which is
       // why its line no longer advertises a percentage — nobody arrives there
       // by scoring well, only by being chosen back.
-      { path: '/dating/browse', index: '02', label: 'Potential Matches', sub: 'Everyone, with your %' },
-      { path: '/dating/matches', index: '03', label: 'Curated Matches', sub: 'You both liked each other' },
+      { path: '/matchmaking/browse', index: '02', label: 'Potential Matches', sub: 'Everyone, with your %' },
+      { path: '/matchmaking/matches', index: '03', label: 'Curated Matches', sub: 'You both liked each other' },
       // ACTIVITY DATING WAS REMOVED ENTIRELY (27 Aug, launch audit). It had
       // been hidden from this menu since 12 Aug; the audit found its anonymous
       // chats surfacing in the main Chats list under the other person's real
@@ -245,7 +245,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // of a block. Hiding it was not enough, so the page, the invitation
       // engine, both database tables and every /dating/activity endpoint are
       // gone. The numbering below closes up as it already did.
-      { path: '/dating/chats', index: '04', label: 'Matchmaking Chats', sub: 'Your conversations' },
+      { path: '/matchmaking/chats', index: '04', label: 'Matchmaking Chats', sub: 'Your conversations' },
       // THE SAFETY CENTRE IS ON THE RAIL, not only behind the report menu.
       // It was reachable from two places, and both of them assume something
       // has already gone wrong: the ⋯ menu on a card, and a block shown to
@@ -253,7 +253,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // check, what we do not, and four numbers to call — which is reading
       // somebody should be able to do BEFORE they need it, from the same list
       // as everything else in the hub.
-      { path: '/dating/safety', index: '05', label: 'Safety Centre', sub: 'What we check, and who to call' },
+      { path: '/matchmaking/safety', index: '05', label: 'Safety Centre', sub: 'What we check, and who to call' },
     ],
   },
   entertainment: {

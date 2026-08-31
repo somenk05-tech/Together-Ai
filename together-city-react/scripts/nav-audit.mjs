@@ -345,9 +345,11 @@ const UNREACHABLE_ON_PURPOSE = new Map([
   ['/profile/master', 'the Master Profile\'s old address. Its fields moved onto /profile on 28 Aug — one page, under the name the record actually has — and this path is now a redirect that preserves the section hash. Deliberately unlinked: every caller in the app points at /profile, and this exists only for links written before the merge.'],
   ['/console', 'the admin console. Staff-only, and absent from every menu ON PURPOSE — a link in a citizen\'s navigation is an invitation to a door that will not open. The server checks the permission per request; the route existing is not access.'],
   ['/dev', 'the developer page. Absent from every menu for the same reason as the console, and with one more lock on top: the API refuses every /dev request that does not carry the password, checked on the server in constant time. The route existing is not access.'],
-  ['/dating/admin', 'operator page, deliberately absent from every menu'],
+  // The hub was renamed Dating → Matchmaking on 31 Aug. The old paths are
+  // redirects now (see router.tsx) and the rooms answer on /matchmaking.
+  ['/matchmaking/admin', 'operator page, deliberately absent from every menu'],
   ['/realestate/admin', 'operator page, deliberately absent from every menu'],
-  ['/dating/match', 'UNRESOLVED. The singular sibling of /dating/chat, which was removed for serving a hardcoded conversation. Nothing opens this one either. Decide: delete it, or link it from a match card.'],
+  ['/matchmaking/match', 'UNRESOLVED, and it was UNRESOLVED as /dating/match before the 31 Aug rename — carried over unchanged so the question survives the new name rather than being quietly closed by it. The singular sibling of the removed /dating/chat, which served a hardcoded conversation. Nothing opens this one either. Decide: delete it, or link it from a match card.'],
   // ── TWO SURFACES TAKEN OFF A MENU AND LEFT WORKING ──────────────────────
   // Both are the same decision made twice: the page, its engine and its
   // endpoints are untouched and the path still resolves, because deleting a

@@ -95,7 +95,7 @@ function CuratedCard({ match, kind }: { match: CuratedMatch; kind: MatchKind }) 
   const photo = portraitOf(match);
   const place = placeLine(match);
   return (
-    <Link className="dt-lead dt-door" to={`/dating/match?u=${match.user.id}&kind=${kind}`}
+    <Link className="dt-lead dt-door" to={`/matchmaking/match?u=${match.user.id}&kind=${kind}`}
       aria-label={`Open ${match.user.name}’s profile`}>
       <span className="dt-shot">
         <Portrait src={photo}
@@ -156,7 +156,7 @@ export function DatingMatches() {
           hint="Curated matching needs your birth details and interests."
         />
         <div style={{ textAlign: 'center', marginTop: 14 }}>
-          <Link to="/dating/profile"><Button variant="accent">Create your matchmaking profile</Button></Link>
+          <Link to="/matchmaking/profile"><Button variant="accent">Create your matchmaking profile</Button></Link>
         </div>
       </div>
     );
@@ -201,7 +201,7 @@ export function DatingMatches() {
                 hint="This page fills up when someone likes you back. Everyone in your city is in Potential Matches — start there."
               />
               <div style={{ textAlign: 'center', marginTop: 14 }}>
-                <Link to="/dating/browse"><Button variant="accent">Browse Potential Matches</Button></Link>
+                <Link to="/matchmaking/browse"><Button variant="accent">Browse Potential Matches</Button></Link>
               </div>
             </>
           )}
@@ -215,7 +215,7 @@ export function DatingMatches() {
               {ageRange && <div><dt>Age</dt><dd>{ageRange}</dd></div>}
               {prefs.prefDistanceKm && <div><dt>Within</dt><dd>{prefs.prefDistanceKm} km</dd></div>}
             </dl>
-            <p className="dt-note"><Link to="/dating/profile">Edit preferences →</Link></p>
+            <p className="dt-note"><Link to="/matchmaking/profile">Edit preferences →</Link></p>
           </section>
         </aside>
       </div>

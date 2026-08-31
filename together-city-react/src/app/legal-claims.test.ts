@@ -8,7 +8,7 @@ const LEGAL = join(dirname(fileURLToPath(import.meta.url)), '..', 'features', 'l
 /**
  * The legal pages may not promise a protection the app does not have.
  *
- * The Dating Hub Terms carried "Screenshot-protection measures are applied
+ * The Matchmaking Hub Terms carried "Screenshot-protection measures are applied
  * where feasible" for as long as anyone can remember. Nothing implemented it,
  * and nothing could: browsers expose no way to stop a screenshot. It is the
  * most costly kind of untrue sentence in the product, because a citizen might
@@ -57,7 +57,10 @@ describe('the legal pages promise only what the app can do', () => {
   it('the guard is reading the real file, not an empty string', () => {
     // An audit that passes because it parsed nothing is worse than no audit.
     expect(src.length).toBeGreaterThan(5000);
-    expect(src).toContain('Dating Hub Terms');
+    /* The hub was renamed Dating → Matchmaking on 31 Aug (owner). This canary
+       names a heading in the file so a guard that parsed nothing cannot pass;
+       it has to move with the copy it is proving it read. */
+    expect(src).toContain('Matchmaking Hub Terms');
     // And it can still catch the exact sentence that started this.
     const planted = 'Screenshot-protection measures are applied where feasible';
     expect(UNBACKABLE.some(({ pattern }) => pattern.test(planted))).toBe(true);

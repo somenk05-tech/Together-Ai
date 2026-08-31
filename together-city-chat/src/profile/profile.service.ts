@@ -146,7 +146,7 @@ export class ProfileService {
     if (plans) hubs.push({ hub: 'meal-plans', label: 'Meal plans', summary: `${plans} saved plan${plans > 1 ? 's' : ''}`, href: '/nutrition/weekly' });
     if (bloodTests) hubs.push({ hub: 'medical', label: 'Medical', summary: `${bloodTests} blood test${bloodTests > 1 ? 's' : ''} on file`, href: '/medical/records' });
     if (answered(fitness)) hubs.push({ hub: 'fitness', label: 'Fitness', summary: `${fitness!.level} · goal: ${fitness!.goal}`, href: '/fitness/plan' });
-    if (dating) hubs.push({ hub: 'dating', label: 'Dating', summary: dating.visible ? 'Profile visible' : 'Profile hidden', href: '/dating/profile' });
+    if (dating) hubs.push({ hub: 'dating', label: 'Matchmaking', summary: dating.visible ? 'Profile visible' : 'Profile hidden', href: '/matchmaking/profile' });
     if (answered(beauty)) hubs.push({ hub: 'beauty', label: 'Beauty', summary: `Skin: ${beauty!.skinType} · Hair: ${beauty!.hairType}`, href: '/beauty/profile' });
     if (wallet) hubs.push({ hub: 'financial', label: 'Financial', summary: `Wallet ${inr(wallet.balanceInr)}`, href: '/financial' });
     // Only once there is something to count. Zero followers, zero following and

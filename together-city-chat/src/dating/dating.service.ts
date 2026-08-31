@@ -310,7 +310,12 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
         userId: g.userId, kind: 'system',
         title: alarms.length ? `Dating funnel: ${alarms.length} step${alarms.length === 1 ? '' : 's'} dropped by half` : 'Dating funnel, yesterday',
         body: (alarms.length ? alarms.join(' — ') + '. ' : '') + line,
-        href: '/dating/admin',
+        /* THE HUB'S NEW ADDRESS (31 Aug rename). Only what is minted from
+           HERE moves: every href already written on a notification row still
+           says /dating/..., cannot be edited by a deploy, and does not need to
+           be — the web app redirects those to /matchmaking. This is the half
+           that has to change so new rows stop adding to that pile. */
+        href: '/matchmaking/admin',
       });
     }
     return { recipients: grants.length, alarms };
@@ -1019,7 +1024,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
         // Browse, not Curated Matches: this person is a high-scoring STRANGER
         // and Curated Matches holds only people who chose you back, so the
         // alert named a page that structurally could not contain its subject.
-        href: '/dating/browse',
+        href: '/matchmaking/browse',
         actorId: userId,
       }), 'dating: match alert', { userId: cand.userId });
     }
@@ -1643,9 +1648,15 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     });
     let scored: Array<Record<string, unknown>> = [];
     try {
-      scored = await (this.prisma as unknown as {
+      /* A `take:` here would restate a bound that already exists, and be the
+         copy that goes stale when the window changes. The annotation below is
+         the honest form: it names where the bound really comes from. */
+      const scoreTable = (this.prisma as unknown as {
         compatibilityScore: { findMany(x: unknown): Promise<Array<Record<string, unknown>>> };
-      }).compatibilityScore.findMany({ where: { OR: keys } });
+      }).compatibilityScore;
+      // unbounded: one row per pair in `decided`, and `decided` is built from
+      // a read that already carries `take: LEARNING_WINDOW`.
+      scored = await scoreTable.findMany({ where: { OR: keys } });
     } catch { return []; }
     const byPair = new Map(scored.map((s) => [`${s.userA as string}|${s.userB as string}`, s]));
     const out: Decision[] = [];
@@ -2684,7 +2695,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
         push: { deepLink: 'togethercity://dating/matches' },
         title: kind === 'romantic' ? "It’s a match! 💫" : "You’re connected 🤝",
         body: kind === 'romantic' ? 'You both liked each other — open Dating to say hi.' : 'You both connected — open Dating to say hi.',
-        href: '/dating/matches',
+        href: '/matchmaking/matches',
       });
       return { matched: true, conversationId: null, chatLocked: true, matchId: matched.id };
     }
@@ -2728,7 +2739,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
         body: newSuper
           ? 'They get one of these a day and they used it on you. You’ll find out who if you like them back.'
           : 'You’ll find out who if you like them back.',
-        href: '/dating/browse',
+        href: '/matchmaking/browse',
       });
     }
     return { matched: false, conversationId: null, chatLocked: false, matchId: updated.id, superLike: !!opts.superLike };
@@ -2881,7 +2892,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     void this.notifications.create({
       userId: targetUserId, actorId: userId, kind: 'dating_match',
       push: { deepLink: `togethercity://dating/chat/${conversationId}` },
-      title: 'Someone connected to chat 💬', body: 'You have a new chat in the Matchmaking Hub.', href: '/dating/chats',
+      title: 'Someone connected to chat 💬', body: 'You have a new chat in the Matchmaking Hub.', href: '/matchmaking/chats',
     });
     this.analytics.track('dating.connect', userId, { kind });
     return { conversationId, alreadyOpen: false, chargedInr: 0 };
@@ -2975,7 +2986,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
         userId: targetUserId, kind: 'system',
         title: 'Your matchmaking profile was taken down',
         body: 'It is no longer shown and your matchmaking chats have ended. You can ask for this to be looked at again in the Safety Centre.',
-        href: '/dating/safety',
+        href: '/matchmaking/safety',
       });
     }
     return { userId: targetUserId, moderation: decision };
@@ -3123,7 +3134,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
         // uploaded again, and the person is the only one who has it.
         ? (row.kind === 'dating_profile' ? 'Your matchmaking profile is live again.' : 'That decision was overturned. The photo itself was deleted when it was refused — upload it again and it will go straight through.')
         : 'A moderator looked again and the decision stands. The reason is in your Safety Centre.',
-      href: '/dating/safety',
+      href: '/matchmaking/safety',
     });
     return { id: appealId, status: decision };
   }
@@ -3421,7 +3432,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
         // the @handle and the picture the whole city knows them by, which is
         // the thing worth being asked about.
         body: 'Their @handle and city photo are visible to you now. Share yours back whenever you’re ready.',
-        href: '/dating/chats',
+        href: '/matchmaking/chats',
       });
     }
     return { revealed: both, myReveal: show };

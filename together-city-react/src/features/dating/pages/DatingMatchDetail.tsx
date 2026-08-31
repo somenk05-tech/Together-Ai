@@ -175,13 +175,13 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
   // Connecting is free (26 Aug). The wallet path and its toast are gone with it.
   const doConnect = () => connect.mutate(
     { targetUserId },
-    { onSuccess: (r) => navigate(`/dating/chats?c=${r.conversationId}`) },
+    { onSuccess: (r) => navigate(`/matchmaking/chats?c=${r.conversationId}`) },
   );
 
   return (
     <div>
       <div className="eyebrow" style={{ marginBottom: 10 }}>
-        <Link to="/dating/matches" style={{ color: 'var(--muted)' }}>← Curated Matches</Link>
+        <Link to="/matchmaking/matches" style={{ color: 'var(--muted)' }}>← Curated Matches</Link>
       </div>
 
       <div className="card" style={{ padding: 16, borderRadius: 22 }}>
@@ -317,7 +317,7 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
                 {connect.isPending ? 'Connecting…' : '💬 Connect to Chat'}
               </Button>
               <Button variant="line" size="md" disabled={unmatch.isPending}
-                onClick={() => { if (window.confirm('Unmatch this person? They’ll be removed from your matches.')) unmatch.mutate(targetUserId, { onSuccess: () => navigate('/dating/matches') }); }}
+                onClick={() => { if (window.confirm('Unmatch this person? They’ll be removed from your matches.')) unmatch.mutate(targetUserId, { onSuccess: () => navigate('/matchmaking/matches') }); }}
                 style={{ color: 'var(--danger-ink)', borderColor: 'var(--danger-line)', flex: 'none' }}>
                 Unmatch
               </Button>
@@ -325,7 +325,7 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
           ) : (
             <>
               <Button variant="line" size="md" disabled={pass.isPending} style={{ flex: 'none' }}
-                onClick={() => pass.mutate(targetUserId, { onSuccess: () => navigate('/dating/matches') })}>
+                onClick={() => pass.mutate(targetUserId, { onSuccess: () => navigate('/matchmaking/matches') })}>
                 ✕ Skip
               </Button>
               {/* `chosen` reads the server's own likedByMe (fifth audit,
@@ -360,7 +360,7 @@ export function DatingMatchDetail() {
   if (!targetUserId) {
     return <div className="page-note">
       <EmptyState icon="✨" title="No profile selected" hint="Open a profile from your Curated Matches." />
-      <div style={{ textAlign: 'center', marginTop: 14 }}><Link to="/dating/matches"><Button variant="accent">Back to matches</Button></Link></div>
+      <div style={{ textAlign: 'center', marginTop: 14 }}><Link to="/matchmaking/matches"><Button variant="accent">Back to matches</Button></Link></div>
     </div>;
   }
   if (detail.isLoading) return <Spinner label="Opening the profile…" />;
@@ -377,7 +377,7 @@ export function DatingMatchDetail() {
     if (held) {
       return <div className="page-note">
         <EmptyState icon="🌙" title="Your profile isn’t live yet" hint={held} />
-        <div style={{ textAlign: 'center', marginTop: 14 }}><Link to="/dating/profile"><Button variant="accent">Open your matchmaking profile</Button></Link></div>
+        <div style={{ textAlign: 'center', marginTop: 14 }}><Link to="/matchmaking/profile"><Button variant="accent">Open your matchmaking profile</Button></Link></div>
       </div>;
     }
     // L3. The server answers every reason with the same 404 on purpose — "they
@@ -397,8 +397,8 @@ export function DatingMatchDetail() {
         hint="They may have paused or hidden their profile — or your own preferences have narrowed since you last saw them."
       />
       <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', marginTop: 14 }}>
-        <Link to="/dating/matches"><Button variant="accent">Back to matches</Button></Link>
-        <Link to="/dating/profile"><Button variant="line">Check your preferences</Button></Link>
+        <Link to="/matchmaking/matches"><Button variant="accent">Back to matches</Button></Link>
+        <Link to="/matchmaking/profile"><Button variant="line">Check your preferences</Button></Link>
       </div>
     </div>;
   }

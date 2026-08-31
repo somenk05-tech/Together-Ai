@@ -200,8 +200,8 @@ export function Dashboard() {
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             {unreadChats > 0 && <Waiting to="/chats" n={unreadChats} one="unread message" many="unread messages" />}
             {(notifications.data ?? 0) > 0 && <Waiting to="/social/notifications" n={notifications.data ?? 0} one="notification" many="notifications" />}
-            {pendingChats > 0 && <Waiting to="/dating/chats" n={pendingChats} one="match to connect with" many="matches to connect with" />}
-            {openChats > 0 && <Waiting to="/dating/chats" n={openChats} one="dating chat" many="dating chats" />}
+            {pendingChats > 0 && <Waiting to="/matchmaking/chats" n={pendingChats} one="match to connect with" many="matches to connect with" />}
+            {openChats > 0 && <Waiting to="/matchmaking/chats" n={openChats} one="dating chat" many="dating chats" />}
           </div>
         </section>
       ) : null}

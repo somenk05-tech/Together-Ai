@@ -71,7 +71,12 @@ describe('what the push says', () => {
   });
 
   it('points at the deck, where liking back is possible, not at mutual matches', () => {
-    expect(likeCall).toMatch(/href: '\/dating\/browse'/);
+    /* THE WEB PATH MOVED, THE DEEP LINK DID NOT. `/dating/browse` became
+       `/matchmaking/browse` in the 31 Aug rename; `togethercity://dating/...`
+       is the NATIVE app's scheme — a different contract, resolved by a
+       different router, and renaming it here would break a link this codebase
+       does not own. The two lines below say that on purpose. */
+    expect(likeCall).toMatch(/href: '\/matchmaking\/browse'/);
     expect(likeCall).toMatch(/deepLink: 'togethercity:\/\/dating\/browse'/);
   });
 
@@ -82,6 +87,6 @@ describe('what the push says', () => {
   it('and the high-score alert points there too, for the same reason', () => {
     const at = SERVICE.indexOf('You have a new ${score}% compatible match');
     expect(at).toBeGreaterThan(0);
-    expect(SERVICE.slice(at, at + 700)).toMatch(/href: '\/dating\/browse'/);
+    expect(SERVICE.slice(at, at + 700)).toMatch(/href: '\/matchmaking\/browse'/);
   });
 });

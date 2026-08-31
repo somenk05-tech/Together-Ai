@@ -220,6 +220,7 @@ const GemMarketBag = lazy(() => import('@/features/ecommerce/pages/MarketAisles'
 // auto-recovers instead of leaving a blank page.
 const wrap = (el: JSX.Element) => <ChunkBoundary>{el}</ChunkBoundary>;
 
+
 /**
  * Router covers every hub. Landings are data-driven (HubLanding); inner pages
  * live under a HubLayout (sidebar). Nutrition is fully migrated as the reference;
@@ -241,7 +242,7 @@ const ROUTE_BLOCKS: RouteObject[] = [
       { path: '/nutrition', element: <HubLanding hub="nutrition" /> },
       { path: '/entertainment', element: <HubLanding hub="entertainment" /> },
       { path: '/social', element: <HubLanding hub="social" /> },
-      { path: '/dating', element: <HubLanding hub="dating" /> },
+      { path: '/matchmaking', element: <HubLanding hub="dating" /> },
       { path: '/realestate', element: <HubLanding hub="realestate" /> },
       { path: '/jobs', element: <HubLanding hub="jobs" /> },
       { path: '/medical', element: <HubLanding hub="medical" /> },
@@ -279,6 +280,41 @@ const ROUTE_BLOCKS: RouteObject[] = [
       // and nothing else. Somebody may still have the URL; a redirect into the
       // hub that took its place beats a 404 for a page that never had content.
       { path: '/cars', element: <Navigate to="/services" replace /> },
+
+      /**
+       * ── THE HUB'S OLD ADDRESS, WHICH CANNOT BE RETIRED ────────────────────
+       *
+       * Dating became Matchmaking on 31 Aug. `/matchmaking/...` is where the
+       * rooms live now and what every link in the app points at; these carry
+       * anyone arriving on the old address to the new one.
+       *
+       * They are REDIRECTS rather than a second copy of each page, which was
+       * the first thing I tried. Two live URLs for one room is two addresses
+       * to keep correct, and nav-audit said so twice — once because routes
+       * built from a template literal are routes it cannot read, and again
+       * because `/dating/*` under a hub whose path is `/matchmaking` renders
+       * with a sidebar that no longer matches its own prefix. One canonical
+       * address and a doormat is the shape that answers both.
+       *
+       * THIS LIST DOES NOT GET TO SHRINK. `/dating/chats` is in the `href`
+       * column of every notification row ever written, and those rows cannot
+       * be edited by a deploy. It is also in bookmarks and in links people
+       * have already sent each other.
+       *
+       * NOT HERE, AND NOT EVER: `/dating/discover`, `/dating/selfie`,
+       * `/dating/stack`, `/dating/match/:id`. Those are API endpoints this
+       * client CALLS — the server's contract, in features/dating/api.ts — not
+       * pages it renders. A rename of a browser route must never touch one.
+       */
+      { path: '/dating', element: <Navigate to="/matchmaking" replace /> },
+      { path: '/dating/profile', element: <Navigate to="/matchmaking/profile" replace /> },
+      { path: '/dating/browse', element: <Navigate to="/matchmaking/browse" replace /> },
+      { path: '/dating/matches', element: <Navigate to="/matchmaking/matches" replace /> },
+      { path: '/dating/chats', element: <Navigate to="/matchmaking/chats" replace /> },
+      { path: '/dating/chat', element: <Navigate to="/matchmaking/chats" replace /> },
+      { path: '/dating/admin', element: <Navigate to="/matchmaking/admin" replace /> },
+      { path: '/dating/safety', element: <Navigate to="/matchmaking/safety" replace /> },
+      { path: '/dating/match', element: <Navigate to="/matchmaking/match" replace /> },
       // THE CONSOLE. Not a hub, and deliberately not in any menu: the route
       // existing is not access, and a link to it in a citizen's navigation
       // would be an invitation to a door that will not open for them. The
@@ -365,19 +401,43 @@ const ROUTE_BLOCKS: RouteObject[] = [
     ],
   },
   {
-    // Dating inner pages.
+    /**
+     * ── THE HUB ANSWERS ON TWO ADDRESSES (31 Aug, owner) ──────────────────
+     *
+     * It is called Matchmaking now, and `/matchmaking/...` is a real address
+     * rather than a redirect: whichever one a citizen arrived by is the one
+     * their address bar keeps.
+     *
+     * `/dating/...` STAYS, and not only for tidiness. Those strings are in
+     * bookmarks, in links people have already sent each other, and — the one
+     * that cannot be edited — in the `href` column of every notification row
+     * ever written. A notification from last week points at `/dating/chats`
+     * and has to keep working.
+     *
+     * The rooms are declared once and mounted under both prefixes, so a page
+     * added to this hub is reachable on both by construction. Two lists would
+     * be one list and a bug waiting for the next room.
+     *
+     * WHAT IS NOT ALIASED: the API. `/dating/discover`, `/dating/selfie`,
+     * `/dating/stack` and `/dating/match/:id` are endpoints this client CALLS,
+     * not pages it renders. They live in `features/dating/api.ts` and they are
+     * the server's contract — renaming a browser route must never touch one,
+     * which is the whole reason this is a list of pages rather than a
+     * find-and-replace over the string "/dating".
+     */
     element: <HubLayout hub={HUBS.dating} />,
     children: [
-      { path: '/dating/profile', element: <RequireAuth>{wrap(<DatingProfilePage />)}</RequireAuth> },
-      { path: '/dating/browse', element: <RequireAuth>{wrap(<DatingBrowse />)}</RequireAuth> },
-      { path: '/dating/matches', element: <RequireAuth>{wrap(<DatingMatches />)}</RequireAuth> },
-      { path: '/dating/chats', element: <RequireAuth>{wrap(<DatingChats />)}</RequireAuth> },
-      { path: '/dating/admin', element: <RequireAuth>{wrap(<DatingAdminStats />)}</RequireAuth> },
-      { path: '/dating/safety', element: <RequireAuth>{wrap(<DatingSafety />)}</RequireAuth> },
-      // '/dating/chat' (singular) removed — it served a hardcoded conversation
-      // with scripted replies. The real one is '/dating/chats'.
-      { path: '/dating/chat', element: <Navigate to="/dating/chats" replace /> },
-      { path: '/dating/match', element: <RequireAuth>{wrap(<DatingMatchDetail />)}</RequireAuth> },
+      { path: '/matchmaking/profile', element: <RequireAuth>{wrap(<DatingProfilePage />)}</RequireAuth> },
+      { path: '/matchmaking/browse', element: <RequireAuth>{wrap(<DatingBrowse />)}</RequireAuth> },
+      { path: '/matchmaking/matches', element: <RequireAuth>{wrap(<DatingMatches />)}</RequireAuth> },
+      { path: '/matchmaking/chats', element: <RequireAuth>{wrap(<DatingChats />)}</RequireAuth> },
+      { path: '/matchmaking/admin', element: <RequireAuth>{wrap(<DatingAdminStats />)}</RequireAuth> },
+      { path: '/matchmaking/safety', element: <RequireAuth>{wrap(<DatingSafety />)}</RequireAuth> },
+      { path: '/matchmaking/match', element: <RequireAuth>{wrap(<DatingMatchDetail />)}</RequireAuth> },
+
+      // 'chat' (singular) removed — it served a hardcoded conversation with
+      // scripted replies. The real one is 'chats'.
+      { path: '/matchmaking/chat', element: <Navigate to="/matchmaking/chats" replace /> },
     ],
   },
   {

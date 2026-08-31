@@ -209,10 +209,10 @@ export function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKin
                 moving rooms; saying so is the difference between a card that
                 changed and a journey the citizen was promised. */}
             <p>You chose each other.</p>
-            <Link to="/dating/matches">They’re in Curated Matches now →</Link>
+            <Link to="/matchmaking/matches">They’re in Curated Matches now →</Link>
             <div style={{ marginTop: 12 }}>
               {conversationId
-                ? <Link to={`/dating/chats?c=${conversationId}`}><Button variant="accent" size="sm">💬 Open chat</Button></Link>
+                ? <Link to={`/matchmaking/chats?c=${conversationId}`}><Button variant="accent" size="sm">💬 Open chat</Button></Link>
                 : <Link to={detailHref}><Button variant="accent" size="sm">💬 Connect to Chat</Button></Link>}
             </div>
           </div>

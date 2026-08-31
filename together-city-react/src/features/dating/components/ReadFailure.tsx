@@ -22,7 +22,7 @@ export function ReadFailure({ error, title, hint }: { error: unknown; title: str
         icon="⏳"
         title="Your profile isn’t live yet"
         hint={held}
-        action={<Link to="/dating/profile"><Button variant="accent">Open my dating profile</Button></Link>}
+        action={<Link to="/matchmaking/profile"><Button variant="accent">Open my dating profile</Button></Link>}
       />
     );
   }

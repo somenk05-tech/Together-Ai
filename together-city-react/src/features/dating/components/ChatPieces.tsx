@@ -139,7 +139,7 @@ export function CompatibilitySheet({ name, score, otherUserId, d, onClose }: {
           </>
         )}
         <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-          <Link to={`/dating/match?u=${otherUserId}&kind=romantic`} style={{ fontWeight: 700, fontSize: 'var(--fs-3)' }}>
+          <Link to={`/matchmaking/match?u=${otherUserId}&kind=romantic`} style={{ fontWeight: 700, fontSize: 'var(--fs-3)' }}>
             Open {name}’s full profile →
           </Link>
           <button type="button" className="btn btn-line btn-sm" onClick={onClose}>Close</button>

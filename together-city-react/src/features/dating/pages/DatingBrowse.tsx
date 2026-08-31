@@ -149,7 +149,7 @@ export function DatingBrowse() {
           hint="Compatibility is worked out from your birth details and what you told us matters to you — there is nothing to score until then."
         />
         <div style={{ textAlign: 'center', marginTop: 14 }}>
-          <Link to="/dating/profile"><Button variant="accent">Create your matchmaking profile</Button></Link>
+          <Link to="/matchmaking/profile"><Button variant="accent">Create your matchmaking profile</Button></Link>
         </div>
       </div>
     );
@@ -169,7 +169,7 @@ export function DatingBrowse() {
         <span aria-hidden style={{ display: 'grid', placeItems: 'center', width: 34, height: 34, borderRadius: '50%', border: '1.5px solid var(--accent-ink)', color: 'var(--muted)', flex: 'none' }}>💫</span>
         <div style={{ fontSize: 12.5, lineHeight: 1.5 }}>
           <strong>When you both like each other, they move to Curated Matches</strong> — and
-          chat opens there. <Link to="/dating/matches" style={{ fontWeight: 700 }}>Curated Matches →</Link>
+          chat opens there. <Link to="/matchmaking/matches" style={{ fontWeight: 700 }}>Curated Matches →</Link>
         </div>
       </div>
 
@@ -207,7 +207,7 @@ export function DatingBrowse() {
                 hint={`${discover.data?.poolSize} ${discover.data?.poolSize === 1 ? 'person is' : 'people are'} looking for someone like you, and your filters rule ${discover.data?.poolSize === 1 ? 'them' : 'all of them'} out. Distance and the deal breakers are the two that empty a small city fastest.`}
               />
               <div style={{ textAlign: 'center', marginTop: 14 }}>
-                <Link to="/dating/profile"><Button variant="accent">Open my preferences</Button></Link>
+                <Link to="/matchmaking/profile"><Button variant="accent">Open my preferences</Button></Link>
               </div>
             </>
           ) : (
@@ -218,7 +218,7 @@ export function DatingBrowse() {
                 hint="New residents appear here the day they join — everyone, not only the strong matches."
               />
               <div style={{ textAlign: 'center', marginTop: 14 }}>
-                <Link to="/dating/profile"><Button variant="line">Check who can find you</Button></Link>
+                <Link to="/matchmaking/profile"><Button variant="line">Check who can find you</Button></Link>
               </div>
             </>
           )}

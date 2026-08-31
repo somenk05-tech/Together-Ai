@@ -784,7 +784,7 @@ export function DatingProfilePage() {
       {/* A decision you can argue with, from the sentence that delivered it. */}
       {(data.moderation === 'rejected' || data.moderation === 'review') && (
         <div style={{ marginTop: 6 }}>
-          <Link to="/dating/safety" style={{ color: 'inherit', fontWeight: 700 }}>Think we got this wrong? Appeal in the Safety Centre.</Link>
+          <Link to="/matchmaking/safety" style={{ color: 'inherit', fontWeight: 700 }}>Think we got this wrong? Appeal in the Safety Centre.</Link>
         </div>
       )}
       {photoReviewNote && <div style={{ marginTop: 6 }}>{photoReviewNote}</div>}

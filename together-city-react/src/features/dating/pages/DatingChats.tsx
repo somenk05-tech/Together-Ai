@@ -181,7 +181,7 @@ function ChatRow({ c, active, onClick }: { c: DatingChatSummary; active: boolean
  *  Same name and photo the match card showed; tapping opens the connect step. */
 function MatchBubble({ c }: { c: DatingChatSummary }) {
   return (
-    <Link to={`/dating/match?u=${c.otherUserId}`}
+    <Link to={`/matchmaking/match?u=${c.otherUserId}`}
       style={{ textDecoration: 'none', color: 'inherit', flex: 'none', width: 78, textAlign: 'center' }}>
       <div style={{ width: 68, height: 68, margin: '0 auto', borderRadius: '50%', padding: 3,
         background: 'linear-gradient(135deg, var(--accent), var(--accent-soft))' }}>
@@ -572,7 +572,7 @@ export function DatingChats() {
         <>
           <EmptyState icon="💬" title="No matchmaking chats yet" hint="When you connect with a match, your conversation appears here." />
           <div style={{ textAlign: 'center', marginTop: 14 }}>
-            <Link to="/dating/matches"><Button variant="accent">See your matches</Button></Link>
+            <Link to="/matchmaking/matches"><Button variant="accent">See your matches</Button></Link>
           </div>
         </>
       ) : (

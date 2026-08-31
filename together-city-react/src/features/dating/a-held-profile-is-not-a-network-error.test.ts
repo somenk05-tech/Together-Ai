@@ -74,7 +74,7 @@ describe('the two list screens', () => {
   it('send a held citizen where the reasons and the fix are', () => {
     const rf = read('./components/ReadFailure.tsx');
     expect(rf).toMatch(/Your profile isn’t live yet/);
-    expect(rf).toMatch(/to="\/dating\/profile"/);
+    expect(rf).toMatch(/to="\/matchmaking\/profile"/);
   });
 });
 
