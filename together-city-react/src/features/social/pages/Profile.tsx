@@ -99,7 +99,7 @@ function PostTile({ p }: { p: ProfilePost }) {
         <video src={`${first.url}#t=0.1`} preload="metadata" muted playsInline
           style={{ width: '100%', height: '100%', objectFit: 'cover', background: 'var(--media-bg)', pointerEvents: 'none' }} />
       ) : (
-        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, textAlign: 'center', fontSize: 13, lineHeight: 1.4, color: 'var(--on-accent)', background: 'linear-gradient(140deg,var(--accent),var(--accent-ink))' }}>
+        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-12)', textAlign: 'center', fontSize: 13, lineHeight: 1.4, color: 'var(--on-accent)', background: 'linear-gradient(140deg,var(--accent),var(--accent-ink))' }}>
           <span style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{p.feeling ? `${p.feeling} · ` : ''}{p.text || 'Post'}</span>
         </div>
       )}
@@ -243,7 +243,7 @@ function PostReader({
         style={{ width: 'min(600px,96vw)', maxHeight: '100dvh', overflowY: 'auto', padding: '14px 0 40px', scrollbarWidth: 'thin',
           overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
         {posts.map(({ post, category }) => (
-          <div key={post.id} ref={post.id === startId ? startRef : undefined} style={{ scrollMarginTop: 14, marginBottom: 18 }}>
+          <div key={post.id} ref={post.id === startId ? startRef : undefined} style={{ scrollMarginTop: 14, marginBottom: 'var(--space-18)' }}>
             <PostCard post={post} autoplayVideo
               manage={manage}
               onOpenAuthor={onOpenAuthor}
@@ -264,10 +264,10 @@ function PostReader({
               coverBusy={manage ? setCover.isPending : undefined} />
             {manage && (
               <div className="card" style={{ margin: '8px 0 0', padding: '12px 14px', border: '1.5px solid var(--accent)' }}>
-                <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 'var(--space-8)' }}>
                   <Icon name="sort" size={14} /> Sort this post {setCategory.isPending && <span className="muted" style={{ fontWeight: 500 }}>· Saving…</span>}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', flexWrap: 'wrap' }}>
                   {chip(post.id, category ?? '', '', 'None')}
                   {chip(post.id, category ?? '', 'personal', 'Personal')}
                   {chip(post.id, category ?? '', 'work', 'Work')}
@@ -414,7 +414,7 @@ export function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' 
   const count = items.length;
   if (!count) {
     return (
-      <div className="blk rise d1" style={{ textAlign: 'center', padding: '56px 24px', marginTop: 16 }}>
+      <div className="blk rise d1" style={{ textAlign: 'center', padding: '56px 24px', marginTop: 'var(--space-16)' }}>
         <span className="sl-ic lg" style={{ margin: '0 auto 14px' }}><Icon name="grid" size={30} /></span>
         <h2 style={{ fontSize: 20, margin: '0 0 6px' }}>No posts yet</h2>
         <p className="muted" style={{ fontSize: 14, margin: '0 0 16px' }}>Share a photo, video or thought with your city.</p>
@@ -463,9 +463,9 @@ export function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' 
 
   return (
     <>
-      <div className="blk-head rise d1" style={{ marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+      <div className="blk-head rise d1" style={{ marginTop: 'var(--space-16)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-12)', flexWrap: 'wrap' }}>
         <h2 style={{ margin: 0 }}>{title}</h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-10)' }}>
           {!arranging ? (
             <>
               <span className="muted" style={{ fontSize: 12 }}>{view.length} {noun}{view.length === 1 ? '' : 's'}{posts.hasNextPage ? '+' : ''}</span>
@@ -490,7 +490,7 @@ export function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' 
       )}
 
       {view.length === 0 && (
-        <div className="blk rise d1" style={{ textAlign: 'center', padding: '44px 24px', marginTop: 16 }}>
+        <div className="blk rise d1" style={{ textAlign: 'center', padding: '44px 24px', marginTop: 'var(--space-16)' }}>
           <span className="sl-ic lg" style={{ margin: '0 auto 14px' }}><Icon name={filter === 'video' ? 'video' : 'camera'} size={30} /></span>
           <p className="muted" style={{ fontSize: 14, margin: 0 }}>No {noun}s yet.</p>
         </div>
@@ -530,7 +530,7 @@ export function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' 
         ))}
       </div>
       {!arranging && <div ref={sentinel} style={{ height: 1 }} />}
-      {!arranging && posts.isFetchingNextPage && <div style={{ padding: 16 }}><Spinner /></div>}
+      {!arranging && posts.isFetchingNextPage && <div style={{ padding: 'var(--space-16)' }}><Spinner /></div>}
       {(() => {
         // Driven by live items: if a post is edited or deleted the reader
         // reflects it, and it closes when the post you opened is gone.
@@ -684,10 +684,10 @@ export function PublicProfileModal({ handle, onClose }: { handle: string; onClos
         {q.isError && <p className="muted" style={{ fontSize: 13 }}>Couldn't load that profile.</p>}
         {p && (
           <>
-            <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-14)', alignItems: 'center' }}>
               <Avatar src={p.profileImage} name={p.name} size={64} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-6)' }}>
                   <h3 style={{ margin: 0, fontSize: 20 }}>{p.name}</h3>{p.verified && <EmailConfirmedMark />}
                 </div>
                 <div className="muted" style={{ fontSize: 12.5, fontFamily: 'monospace' }}>@{p.handle}</div>
@@ -700,7 +700,7 @@ export function PublicProfileModal({ handle, onClose }: { handle: string; onClos
               <StatCell n={p.stats.posts} label="posts" />
               <StatCell n={p.stats.cityPoints} label="city points" />
             </div>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end', alignItems: 'center' }}>
               {/* The peek has to keep the door it replaced. FollowList used to
                   navigate straight to /social/u/<handle>; opening this instead
                   without a way through would remove the only route from a
@@ -784,7 +784,7 @@ function PublicPostsTab({ handle, filter, onOpenAuthor }: { handle: string; filt
   const noun = filter === 'photo' ? 'photo' : filter === 'video' ? 'video' : 'post';
   if (view.length === 0) {
     return (
-      <div className="blk rise d1" style={{ textAlign: 'center', padding: '44px 24px', marginTop: 16 }}>
+      <div className="blk rise d1" style={{ textAlign: 'center', padding: '44px 24px', marginTop: 'var(--space-16)' }}>
         <span className="sl-ic lg" style={{ margin: '0 auto 14px' }}><Icon name={filter === 'video' ? 'video' : filter === 'photo' ? 'camera' : 'grid'} size={30} /></span>
         <p className="muted" style={{ fontSize: 14, margin: 0 }}>No {noun}s to show.</p>
       </div>
@@ -792,7 +792,7 @@ function PublicPostsTab({ handle, filter, onOpenAuthor }: { handle: string; filt
   }
   return (
     <>
-      <div className="rise d1 social-grid" style={{ marginTop: 16 }}>
+      <div className="rise d1 social-grid" style={{ marginTop: 'var(--space-16)' }}>
         {view.map((p) => (
           <button key={p.id} type="button" onClick={() => setOpenId(p.id)}
             style={{ position: 'relative', display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'pointer', font: 'inherit' }}>
@@ -801,7 +801,7 @@ function PublicPostsTab({ handle, filter, onOpenAuthor }: { handle: string; filt
         ))}
       </div>
       <div ref={sentinel} style={{ height: 1 }} />
-      {posts.isFetchingNextPage && <div style={{ padding: 16 }}><Spinner /></div>}
+      {posts.isFetchingNextPage && <div style={{ padding: 'var(--space-16)' }}><Spinner /></div>}
       {(() => {
         const op = openId ? view.find((x) => x.id === openId) : null;
         if (!op) return null;
@@ -836,7 +836,7 @@ export function PublicProfilePage() {
     return (
       <div>
         <button type="button" className="btn btn-line btn-sm" onClick={() => navigate(-1)}><Icon name="back" size={15} /> Back</button>
-        <p className="muted" style={{ marginTop: 16 }}>Couldn't load that profile.</p>
+        <p className="muted" style={{ marginTop: 'var(--space-16)' }}>Couldn't load that profile.</p>
       </div>
     );
   }
@@ -846,20 +846,20 @@ export function PublicProfilePage() {
 
   return (
     <div>
-      <button type="button" className="btn btn-line btn-sm" style={{ marginBottom: 18 }} onClick={() => navigate(-1)}><Icon name="back" size={15} /> Back</button>
+      <button type="button" className="btn btn-line btn-sm" style={{ marginBottom: 'var(--space-18)' }} onClick={() => navigate(-1)}><Icon name="back" size={15} /> Back</button>
 
-      <div className="card rise" style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
+      <div className="card rise" style={{ display: 'flex', gap: 'var(--space-24)', alignItems: 'center', flexWrap: 'wrap', marginBottom: 'var(--space-8)' }}>
         <Avatar src={p.profileImage} name={p.name} size={96} />
         <div style={{ flex: 1, minWidth: 220 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-10)', flexWrap: 'wrap' }}>
             <h1 style={{ fontSize: 24, display: 'flex', alignItems: 'center', gap: 7 }}>{p.name}{p.verified && <EmailConfirmedMark />}</h1>
             <FollowButton userId={p.id} handle={p.handle} iFollow={p.iFollow} />
             <ConnectButton id={p.id} handle={p.handle} relationship={p.relationship} />
           </div>
-          <p className="muted" style={{ fontSize: 13, marginTop: 2 }}>
+          <p className="muted" style={{ fontSize: 13, marginTop: 'var(--space-2)' }}>
             <span style={{ fontFamily: 'monospace' }}>@{p.handle}</span>{joined && <> · Joined {joined}</>}
           </p>
-          {p.city && <p className="muted" style={{ fontSize: 12.5, marginTop: 3, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="place" size={14} />{p.city}</p>}
+          {p.city && <p className="muted" style={{ fontSize: 12.5, marginTop: 3, display: 'flex', alignItems: 'center', gap: 'var(--space-6)' }}><Icon name="place" size={14} />{p.city}</p>}
           {p.bio && <p style={{ fontSize: 13.5, lineHeight: 1.5, margin: '8px 0 0', maxWidth: 560 }}>{p.bio}</p>}
           {p.website && <p style={{ margin: '4px 0 0' }}><a href={p.website} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: 'var(--accent-ink)' }}>{p.website.replace(/^https?:\/\//, '')}</a></p>}
           <div style={{ display: 'flex', gap: 22, margin: '12px 0 0', flexWrap: 'wrap' }}>
@@ -868,13 +868,13 @@ export function PublicProfilePage() {
             <StatCell n={p.stats.following} label="following" />
             <StatCell n={p.stats.cityPoints} label="city points" />
           </div>
-          <div style={{ marginTop: 12 }}>
+          <div style={{ marginTop: 'var(--space-12)' }}>
             <SafetyActions id={p.id} handle={p.handle} onBlocked={() => navigate('/social/feed')} />
           </div>
         </div>
       </div>
 
-      <div className="rise d1" style={{ display: 'flex', gap: 8, marginTop: 20, flexWrap: 'wrap' }}>
+      <div className="rise d1" style={{ display: 'flex', gap: 'var(--space-8)', marginTop: 'var(--space-20)', flexWrap: 'wrap' }}>
         <button type="button" className={`pill ${tab === 'posts' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('posts')}>Posts</button>
         <button type="button" className={`pill ${tab === 'photos' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('photos')}>Photos</button>
         <button type="button" className={`pill ${tab === 'videos' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('videos')}>Videos</button>
@@ -894,10 +894,10 @@ function PeopleTab() {
   const results = (search.data ?? []) as PersonResult[];
 
   return (
-    <div className="rise d1" style={{ marginTop: 16 }}>
-      <div className="card" style={{ marginBottom: 14 }}>
+    <div className="rise d1" style={{ marginTop: 'var(--space-16)' }}>
+      <div className="card" style={{ marginBottom: 'var(--space-14)' }}>
         <h4 style={{ margin: '0 0 4px' }}>Find people</h4>
-        <p className="muted" style={{ fontSize: 13, marginBottom: 12 }}>Search by name, @handle or Together City ID, then connect.</p>
+        <p className="muted" style={{ fontSize: 13, marginBottom: 'var(--space-12)' }}>Search by name, @handle or Together City ID, then connect.</p>
         <div style={{ display: 'flex', alignItems: 'center', border: '1.5px solid var(--line)', borderRadius: 12, padding: '0 12px' }}>
           <span className="muted" style={{ display: 'inline-flex' }}><Icon name="search" size={15} /></span>
           <input value={q} autoCapitalize="off" autoCorrect="off" spellCheck={false}
@@ -906,7 +906,7 @@ function PeopleTab() {
         </div>
 
         {dq.trim().length >= 2 && (
-          <div style={{ marginTop: 12 }}>
+          <div style={{ marginTop: 'var(--space-12)' }}>
             {search.isLoading && <Spinner />}
             {/* Stating that somebody is not a member of the city, on the
                 strength of a request that failed, is a claim this screen was
@@ -914,7 +914,7 @@ function PeopleTab() {
             {search.isError && <p className="sl-note-p">Couldn’t search just now — try again in a moment.</p>}
             {!search.isLoading && !search.isError && results.length === 0 && <p className="muted" style={{ fontSize: 13 }}>No members match “{dq}”.</p>}
             {results.map((r) => (
-              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 2px', borderTop: '1px solid var(--line)' }}>
+              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-12)', padding: '10px 2px', borderTop: '1px solid var(--line)' }}>
                 <Avatar src={r.profileImage} name={r.name} size={40} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -984,7 +984,7 @@ function EditProfileModal({ me, onClose }: { me: MyProfile; onClose: () => void 
         onClick={(e) => e.stopPropagation()} className="sheet" style={{ width: 'min(500px,94vw)', maxHeight: '88vh', overflow: 'auto' }}>
         <div className="blk-head"><h3 id="tc-edit-profile-title">Edit profile</h3></div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-14)', marginTop: 'var(--space-8)' }}>
           <Avatar src={photo} name={name} size={64} />
           <div>
             <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => void onFile(e.target.files?.[0])} />
@@ -1014,9 +1014,9 @@ function EditProfileModal({ me, onClose }: { me: MyProfile; onClose: () => void 
         <label style={label}>Website</label>
         <input value={website} onChange={(e) => setWebsite(e.target.value)} style={field} placeholder="https://…" />
 
-        {err && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, marginTop: 12 }}>{err}</p>}
+        {err && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, marginTop: 'var(--space-12)' }}>{err}</p>}
 
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 18 }}>
+        <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end', marginTop: 'var(--space-18)' }}>
           <Button variant="line" size="sm" onClick={onClose} disabled={busy}>Cancel</Button>
           <Button variant="accent" size="sm" onClick={() => void save()} disabled={busy || !name.trim() || handle.length < 3}>{busy ? 'Saving…' : 'Save changes'}</Button>
         </div>
@@ -1052,10 +1052,10 @@ function EarnView({ posts }: { posts: ProfilePost[] }) {
   ];
   return (
     <div>
-      <div className="card" style={{ marginBottom: 16 }}>
+      <div className="card" style={{ marginBottom: 'var(--space-16)' }}>
         <div className="eyebrow">Post &amp; Earn</div>
-        <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-.035em', lineHeight: 1.2, marginTop: 6 }}>Not open yet</div>
-        <div className="muted" style={{ fontSize: 13.5, lineHeight: 1.65, marginTop: 8, maxWidth: '54ch' }}>
+        <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-.035em', lineHeight: 1.2, marginTop: 'var(--space-6)' }}>Not open yet</div>
+        <div className="muted" style={{ fontSize: 13.5, lineHeight: 1.65, marginTop: 'var(--space-8)', maxWidth: '54ch' }}>
           No way to earn from your videos today — no rate, no review, no payout. When that
           changes, you’ll hear it here first.
         </div>
@@ -1070,21 +1070,21 @@ function EarnView({ posts }: { posts: ProfilePost[] }) {
         </p>
       </div>
 
-      <div className="card" style={{ marginTop: 16 }}>
+      <div className="card" style={{ marginTop: 'var(--space-16)' }}>
         <div className="blk-head"><h3>The kinds of stories we mean</h3></div>
-        <div style={{ marginTop: 10 }}>
+        <div style={{ marginTop: 'var(--space-10)' }}>
           {TOPICS.map((t) => (
             <span key={t} className="tag" style={{ margin: '0 6px 6px 0' }}>{t}</span>
           ))}
         </div>
       </div>
 
-      <div className="card" style={{ marginTop: 16 }}>
+      <div className="card" style={{ marginTop: 'var(--space-16)' }}>
         <div className="blk-head"><h3>Your videos</h3><span className="muted" style={{ fontSize: 12 }}>{videos.length}</span></div>
         {videos.length === 0
-          ? <p className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>You haven’t posted a video yet.</p>
+          ? <p className="muted" style={{ fontSize: 12.5, marginTop: 'var(--space-8)' }}>You haven’t posted a video yet.</p>
           : videos.map((v) => (
-            <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--line)', fontSize: 13 }}>
+            <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-12)', padding: '10px 0', borderBottom: '1px solid var(--line)', fontSize: 13 }}>
               <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.text || v.feeling || 'Video post'}</span>
               <span className="muted" style={{ whiteSpace: 'nowrap' }}>Posted</span>
             </div>
@@ -1128,7 +1128,7 @@ function FollowRow({ person, onView }: { person: FollowPerson; onView: () => voi
     }
   };
   return (
-    <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px' }}>
+    <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-12)', padding: '11px 14px' }}>
       <button type="button" onClick={onView} style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer' }}>
         <Avatar src={person.profileImage} name={person.name} size={44} />
       </button>
@@ -1157,7 +1157,7 @@ function FollowList({ kind }: { kind: 'followers' | 'following' }) {
   /* Paged since 30 Aug — both lists used to read the whole graph and fetch a
      full profile row for every person in it, to render one screenful. */
   const people = (q.data?.pages ?? []).flatMap((pg) => pg.items);
-  if (q.isLoading) return <div style={{ marginTop: 16 }}><Spinner label={`Loading ${kind}…`} /></div>;
+  if (q.isLoading) return <div style={{ marginTop: 'var(--space-16)' }}><Spinner label={`Loading ${kind}…`} /></div>;
   // "No followers yet" to somebody with four hundred of them is the worst
   // sentence in this file. It needs the read to have succeeded first.
   if (q.isError) {
@@ -1170,13 +1170,13 @@ function FollowList({ kind }: { kind: 'followers' | 'following' }) {
   }
   if (!people.length) {
     return (
-      <p className="muted" style={{ fontSize: 13.5, marginTop: 20 }}>
+      <p className="muted" style={{ fontSize: 13.5, marginTop: 'var(--space-20)' }}>
         {kind === 'followers' ? 'No followers yet.' : "You're not following anyone yet. Find people to follow below."}
       </p>
     );
   }
   return (
-    <div className="rise d1" style={{ display: 'grid', gap: 8, marginTop: 16, maxWidth: 560 }}>
+    <div className="rise d1" style={{ display: 'grid', gap: 'var(--space-8)', marginTop: 'var(--space-16)', maxWidth: 560 }}>
       {people.map((person) => <FollowRow key={person.id} person={person} onView={() => setPeek(person.handle)} />)}
       {q.hasNextPage && (
         <button type="button" className="btn btn-line btn-sm sl-more"
@@ -1210,10 +1210,10 @@ export function SocialProfile() {
 
   return (
     <div>
-      <div className="card rise" style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
+      <div className="card rise" style={{ display: 'flex', gap: 'var(--space-24)', alignItems: 'center', flexWrap: 'wrap', marginBottom: 'var(--space-8)' }}>
         <Avatar src={p.profileImage} name={p.name} size={96} />
         <div style={{ flex: 1, minWidth: 220 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-12)', flexWrap: 'wrap' }}>
             <h1 style={{ fontSize: 24, display: 'flex', alignItems: 'center', gap: 7 }}>{p.name}{p.verified && <EmailConfirmedMark />}</h1>
             <button type="button" className="btn btn-line btn-sm" onClick={() => setEditing(true)}>
               <Icon name="edit" size={15} /> Edit profile
@@ -1222,7 +1222,7 @@ export function SocialProfile() {
           </div>
           {/* Account tabs sit right beside Edit profile (moved out of the content
               tab bar below). */}
-          <div style={{ display: 'flex', gap: 9, marginTop: 12, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 9, marginTop: 'var(--space-12)', flexWrap: 'wrap' }}>
             <button type="button" className={`chip ${tab === 'followers' ? 'on' : ''}`} onClick={() => setTab('followers')} aria-pressed={tab === 'followers'}>
               <Icon name="people" size={15} />Followers
             </button>
@@ -1233,10 +1233,10 @@ export function SocialProfile() {
               <Icon name="wallet" size={15} />Post &amp; Earn
             </button>
           </div>
-          <p className="muted" style={{ fontSize: 13, marginTop: 2 }}>
+          <p className="muted" style={{ fontSize: 13, marginTop: 'var(--space-2)' }}>
             <span style={{ fontFamily: 'monospace' }}>@{p.handle}</span>{joined && <> · Joined {joined}</>}
           </p>
-          {p.city && <p className="muted" style={{ fontSize: 12.5, marginTop: 3, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="place" size={14} />{p.city}</p>}
+          {p.city && <p className="muted" style={{ fontSize: 12.5, marginTop: 3, display: 'flex', alignItems: 'center', gap: 'var(--space-6)' }}><Icon name="place" size={14} />{p.city}</p>}
           {p.bio && <p style={{ fontSize: 13.5, lineHeight: 1.5, margin: '8px 0 0', maxWidth: 560 }}>{p.bio}</p>}
           {p.website && <p style={{ margin: '4px 0 0' }}><a href={p.website} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: 'var(--accent-ink)' }}>{p.website.replace(/^https?:\/\//, '')}</a></p>}
           <div style={{ display: 'flex', gap: 22, margin: '12px 0 0', flexWrap: 'wrap' }}>
@@ -1277,7 +1277,7 @@ export function SocialProfile() {
       {tab === 'work' && <PostsTab category="work" />}
       {tab === 'followers' && <FollowList kind="followers" />}
       {tab === 'following' && (<><FollowList kind="following" /><PeopleTab /></>)}
-      {tab === 'earn' && <div className="rise d1" style={{ marginTop: 16 }}><EarnView posts={allPosts} /></div>}
+      {tab === 'earn' && <div className="rise d1" style={{ marginTop: 'var(--space-16)' }}><EarnView posts={allPosts} /></div>}
 
       {editing && <EditProfileModal me={p} onClose={() => setEditing(false)} />}
     </div>

@@ -178,7 +178,9 @@ section.blk { margin: 0 0 40px; }
   .cityfallback a span {
     position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
     padding: 14px 3px 3px; background: linear-gradient(to top, rgba(0,0,0,.82), transparent);
-    font-size: 6.5px; letter-spacing: .02em; line-height: 1.15; text-align: center;
+    /* 7, not 6.5 — a half-pixel nobody can see, and one fewer step on a
+       ladder that already has 6 and 7 on it. */
+    font-size: 7px; letter-spacing: .02em; line-height: 1.15; text-align: center;
     overflow-wrap: anywhere;
   }
 }

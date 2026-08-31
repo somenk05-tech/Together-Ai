@@ -8,7 +8,7 @@ import { isServerUnreachable, SERVER_UNREACHABLE_MSG } from '@/api/client';
 import { Button } from '@/components/ui';
 import { usePrivacyStore } from '@/features/privacy/store';
 import { pushTos } from '@/features/privacy/api';
-import { MIN_AGE, ageFrom, latestAdultDob } from '@/lib/age';
+import { MIN_AGE, UNDER_AGE_MESSAGE, ageFrom, latestAdultDob } from '@/lib/age';
 
 /** Prefer the backend's actual error message over a canned guess. */
 function serverMessage(err: unknown): string | null {
@@ -115,7 +115,13 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
   // the courtesy half, so somebody learns it before filling in a password
   // rather than after. The refusal that matters is in RegisterSchema.
   const adult = dob !== '' && ageFrom(dob) >= MIN_AGE;
-  const dobErr = dob && !adult ? 'You must be 18 or older to join Together City.' : null;
+  /* ONE WORDING, AND IT IS THE ONE THE SERVER USES. `UNDER_AGE_MESSAGE` was
+     written in lib/age.ts to be "worded once, mirrors UNDER_AGE_CITY_MESSAGE"
+     and then nothing imported it — the dead-export ratchet is how that
+     surfaced. This screen said something else, twice, and it dropped the half
+     that helps: "Check the year in your date of birth" is the sentence that
+     tells somebody who typed 2005 instead of 1995 what to do. */
+  const dobErr = dob && !adult ? UNDER_AGE_MESSAGE : null;
   const pwChecks = PW_RULES.map((r) => ({ ...r, ok: r.test(password) }));
   const pwScore = pwChecks.filter((c) => c.ok).length;
   const pwStrong = pwScore === PW_RULES.length;
@@ -127,7 +133,7 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
     e.preventDefault();
     setError(null);
     if (!agreed) { setError('Accept the Terms and Privacy Policy to continue.'); return; }
-    if (!adult) { setError('You must be 18 or older to join Together City.'); return; }
+    if (!adult) { setError(UNDER_AGE_MESSAGE); return; }
     if (!canSubmit) { setError('Please complete the highlighted fields.'); return; }
     setBusy(true);
     try {

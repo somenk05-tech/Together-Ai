@@ -306,7 +306,11 @@ export function Multivitamins() {
                 <section key={s.id} style={{ marginTop: 22 }}>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
                     <span aria-hidden style={{ fontSize: 13 }}>{s.dot}</span>
-                    <h2 style={{ fontSize: 19, margin: 0, letterSpacing: '-.02em' }}>{s.title}</h2>
+                    {/* 20, not 19: Supplements.tsx renders the identical
+                        dot-and-title section heading at 20, and a step on the
+                        type ladder that exists for one heading on one page is
+                        the drift size-system-ceiling was written to find. */}
+                    <h2 style={{ fontSize: 20, margin: 0, letterSpacing: '-.02em' }}>{s.title}</h2>
                     <span className="muted" style={{ fontSize: 12.5 }}>{s.blurb}</span>
                     <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>{rows.length}</span>
                   </div>
