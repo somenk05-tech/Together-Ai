@@ -4,7 +4,7 @@ import { randomUUID } from 'crypto';
 import type { Readable } from 'stream';
 import { apiUrl } from '../shared/api-prefix';
 import { mintPhotoToken, readPhotoToken } from '../dating/photo-link';
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand, PutBucketCorsCommand, GetBucketCorsCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, HeadObjectCommand, PutBucketCorsCommand, GetBucketCorsCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { ReadCache } from '../shared/cache/read-cache.service';
 
@@ -990,6 +990,57 @@ export class StorageProvider implements OnModuleInit {
       this.logger.error(`deleteObject failed for ${key}: ${(e as Error).message}`);
       return false;
     }
+  }
+
+  /**
+   * ── MANY OBJECTS, FEW ROUND TRIPS ───────────────────────────────────────
+   *
+   * `purgePostObjects` deleted a departing citizen's photographs ONE AT A
+   * TIME, inside the delete-account request, with a page loop that would walk
+   * up to a hundred thousand rows. A prolific account could not finish before
+   * the proxy gave up — and the ordering made that the worst possible failure:
+   * the objects go before the rows, so a request killed halfway left the
+   * ACCOUNT ALIVE and SOME OF THE PHOTOGRAPHS GONE. The citizen got an error,
+   * kept their account, and lost a arbitrary prefix of their pictures.
+   *
+   * S3 takes a thousand keys per call. That is the difference between two
+   * hundred thousand round trips and two hundred, and for an ordinary account
+   * between a few hundred and one.
+   *
+   * It returns the keys it could NOT delete, which is what a caller about to
+   * destroy the rows that name them needs — the same contract as
+   * `deleteObject`, in the plural. A partial failure is per-key: S3 answers
+   * with an Errors array, and every key in it is still there.
+   */
+  async deleteObjects(keys: string[], bucket?: string): Promise<{ failed: string[] }> {
+    const wanted = [...new Set(keys.filter(Boolean))];
+    if (!wanted.length) return { failed: [] };
+    if (!this.s3) {
+      this.logger.error(`deleteObjects: storage is not configured — ${wanted.length} object(s) were NOT removed.`);
+      return { failed: wanted };
+    }
+    const failed: string[] = [];
+    for (let i = 0; i < wanted.length; i += 1000) {
+      const batch = wanted.slice(i, i + 1000);
+      try {
+        const res = await this.s3.send(new DeleteObjectsCommand({
+          Bucket: bucket ?? this.bucket,
+          Delete: { Objects: batch.map((Key) => ({ Key })), Quiet: true },
+        }));
+        for (const e of res.Errors ?? []) if (e.Key) failed.push(e.Key);
+      } catch (e) {
+        // The whole batch is unaccounted for. Naming all of it is the point:
+        // a caller that logs "12 failed" without the keys cannot act on it.
+        this.logger.error(`deleteObjects failed for ${batch.length} key(s): ${(e as Error).message}`);
+        failed.push(...batch);
+      }
+    }
+    return { failed };
+  }
+
+  /** The private-bucket plural of `deletePrivateObject`. */
+  async deletePrivateObjects(keys: string[]): Promise<{ failed: string[] }> {
+    return this.deleteObjects(keys, this.healthBucket);
   }
 
   /** Derive the object key from a stored public URL (for legacy rows without a key). */

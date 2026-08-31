@@ -445,7 +445,33 @@ export class AuthService {
    *
    * Paged, because a prolific citizen's post history is not a bounded set and
    * this runs inside a request.
+   *
+   * ── AND IT USED TO BE ABLE TO STOP HALFWAY (31 Aug audit) ─────────────────
+   *
+   * This deleted one object per round trip, up to a hundred thousand of them,
+   * inside the delete-account request. The ordering above — objects before
+   * rows — is right and stays; what made it dangerous was that a proxy timeout
+   * landed in the MIDDLE of it. The citizen got an error, kept their account,
+   * and lost an arbitrary prefix of their photographs: the worst of the two
+   * outcomes and the one nobody chose.
+   *
+   * Two changes, and they answer different halves of that.
+   *
+   *  · A PAGE IS ONE CALL. S3 takes a thousand keys per delete, so a page of
+   *    five hundred rows is one round trip instead of a thousand. An ordinary
+   *    account now finishes in one.
+   *
+   *  · A BUDGET, AND CROSSING IT DOES NOT ABORT THE DELETION. If the bucket
+   *    work runs past `PURGE_BUDGET_MS` the remaining keys are named in the
+   *    log and the account deletion CARRIES ON. The account going is the thing
+   *    the citizen asked for and the thing that must not fail; an object left
+   *    behind is an operator's problem with a written record. Stopping here
+   *    would reproduce exactly the state this change exists to prevent.
    */
+  /** How long the bucket may hold up a delete-account request. Chosen well
+   *  inside a typical 30s proxy timeout, with the rest of the deletion — five
+   *  deleteManys, a user update and a token revoke — still to run after it. */
+  private static readonly PURGE_BUDGET_MS = 12_000;
   private async purgePostObjects(userId: string): Promise<void> {
     if (!this.storage) {
       this.logger.error(
@@ -454,12 +480,15 @@ export class AuthService {
       );
       return;
     }
+    const storage = this.storage;
     const media = this.prisma as unknown as {
       postMedia: { findMany: (a: unknown) => Promise<Array<{ id: string; url: string; thumbUrl: string | null }>> };
     };
+    const deadline = Date.now() + AuthService.PURGE_BUDGET_MS;
     let cursor: string | undefined;
     let removed = 0;
     const failed: string[] = [];
+    let ranOut = false;
     for (let guard = 0; guard < 200; guard++) {
       const rows = await swallow(media.postMedia.findMany({
         where: { post: { authorId: userId } },
@@ -469,22 +498,28 @@ export class AuthService {
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       }), 'deletion: read post media keys', { userId });
       if (!rows?.length) break;
-      for (const row of rows) {
-        for (const key of [row.url, row.thumbUrl]) {
-          // Legacy inline `data:` photos and old public https URLs are not keys
-          // and have nothing in the private bucket to remove.
-          if (!key || !this.storage.isPostKey(key)) continue;
-          /* THE ANSWER IS READ NOW, WHICH IT WAS NOT BEFORE. This was a
-             try/catch, and `deleteObject` caught its own error and returned
-             void — so the catch could not run, `failed` was always empty, and
-             every failure was counted in `removed`. A deletion that left a
-             hundred photographs in the bucket logged "removed 100". */
-          if (await this.storage.deletePrivateObject(key)) removed += 1;
-          else failed.push(key);
-        }
-      }
+      // Legacy inline `data:` photos and old public https URLs are not keys and
+      // have nothing in the private bucket to remove.
+      const keys = rows.flatMap((row) => [row.url, row.thumbUrl])
+        .filter((k): k is string => Boolean(k) && storage.isPostKey(k as string));
+      /* THE ANSWER IS READ, WHICH IT WAS NOT BEFORE. This was a try/catch
+         around `deleteObject`, which caught its own error and returned void —
+         so the catch could not run, `failed` was always empty, and every
+         failure was counted in `removed`. A deletion that left a hundred
+         photographs in the bucket logged "removed 100". */
+      const out = await storage.deletePrivateObjects(keys);
+      failed.push(...out.failed);
+      removed += keys.length - out.failed.length;
       if (rows.length < 500) break;
       cursor = rows[rows.length - 1].id;
+      if (Date.now() > deadline) { ranOut = true; break; }
+    }
+    if (ranOut) {
+      this.logger.error(
+        `deletion: ran out of time purging post objects for ${userId} after ${removed} — the rest are ORPHANED `
+        + 'in the bucket. The account deletion continues; a stopped deletion would leave a live account with '
+        + 'half its photographs gone, which is the worse of the two.',
+      );
     }
     if (failed.length) {
       this.logger.error(

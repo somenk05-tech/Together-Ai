@@ -217,7 +217,24 @@ const Reel = memo(function Reel({ post, onOpenAuthor, muted, onToggleMute, eager
     kind: 'post', hub: 'Social',
     title: post.text?.trim() ? (post.text.length > 90 ? post.text.slice(0, 90) + '…' : post.text) : `${post.author.name}'s video`,
     subtitle: `by ${post.author.name}`,
-    image: video?.thumbUrl ?? null,
+    /**
+     * NO PICTURE ON THE CARD, AND THAT IS DELIBERATE (31 Aug audit).
+     *
+     * This read `images[0]?.url`, and social post media is a PRIVATE bucket
+     * key signed on read — so the card carried a presigned URL: an unbound
+     * bearer credential, persisted into a chat message forever, expiring into
+     * a broken image, and shown to a recipient who may not be allowed to see
+     * the post at all. The last of those is the real one: a card carrying the
+     * photograph shows a friends-only picture to a stranger, which is the
+     * repost-audience bug on a different surface.
+     *
+     * `deepLink` is the honest half. It goes to the permalink, and the
+     * permalink runs assertCanView — so the recipient sees the post if they
+     * may, and a 404 if they may not. The API drops a presigned card picture
+     * too; this is the end of the same rule that a client cannot be trusted
+     * to keep on its own.
+     */
+    image: null,
     // The post, not the feed. "View Post →" used to open the recipient's own
     // feed, which is not this post and may not contain it (30 Aug audit).
     deepLink: `/social/p/${post.id}`,

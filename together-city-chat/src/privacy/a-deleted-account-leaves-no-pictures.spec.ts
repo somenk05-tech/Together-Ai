@@ -28,10 +28,23 @@ import { AuthService } from '../auth/auth.service';
  * below is really asserting.
  */
 
+/** Moved by the storage stub so a "slow bucket" costs no real time. */
+let clockSkew = 0;
+const REAL_NOW = Date.now;
+beforeEach(() => { clockSkew = 0; Date.now = () => REAL_NOW.call(Date) + clockSkew; });
+afterEach(() => { Date.now = REAL_NOW; });
+
 const ME = 'me-0000';
 const PW = 'correct horse';
 
-function svc(over: { media?: Array<{ id: string; url: string; thumbUrl: string | null }>; failOn?: string } = {}) {
+function svc(over: {
+  media?: Array<{ id: string; url: string; thumbUrl: string | null }>;
+  failOn?: string;
+  /** Pages of 500 to hand back before the reader runs dry — for the budget. */
+  pages?: number;
+  /** Milliseconds each bucket call appears to take, for the budget. */
+  slowMs?: number;
+} = {}) {
   const order: string[] = [];
   const deleted: string[] = [];
   const media = over.media ?? [
@@ -51,6 +64,14 @@ function svc(over: { media?: Array<{ id: string; url: string; thumbUrl: string |
         // The rows are gone once the posts are deleted — modelled, because the
         // whole point is that this read has to happen first.
         if (order.includes('post.deleteMany')) return [];
+        if (over.pages) {
+          // A prolific account: full pages, so the loop keeps asking for more.
+          const seen = order.filter((o) => o === 'postMedia.findMany').length;
+          if (seen > over.pages) return [];
+          return Array.from({ length: 500 }, (_, i) => ({
+            id: `p${seen}-${i}`, url: `social/${ME}/${seen}-${i}.jpg`, thumbUrl: null,
+          }));
+        }
         return a?.cursor ? [] : media;
       },
     },
@@ -76,6 +97,28 @@ function svc(over: { media?: Array<{ id: string; url: string; thumbUrl: string |
       order.push(`delete:${k}`);
       deleted.push(k);
       return true;
+    },
+    /**
+     * THE PLURAL, BECAUSE A PAGE IS NOW ONE CALL (31 Aug).
+     *
+     * purgePostObjects deleted one object per round trip, up to a hundred
+     * thousand of them, inside the delete-account request — so a proxy timeout
+     * landed in the middle and left a LIVE account with an arbitrary prefix of
+     * its photographs gone. S3 takes a thousand keys per call; the stub answers
+     * in the same shape, key by key, so the assertions below still read as a
+     * list of individual deletions.
+     */
+    deletePrivateObjects: async (keys: string[]) => {
+      // A slow bucket, without a slow test: the clock is moved rather than
+      // waited on, so the budget can be crossed in a millisecond.
+      if (over.slowMs) clockSkew += over.slowMs;
+      const failed: string[] = [];
+      for (const k of keys) {
+        if (over.failOn && k === over.failOn) { order.push(`refused:${k}`); failed.push(k); continue; }
+        order.push(`delete:${k}`);
+        deleted.push(k);
+      }
+      return { failed };
     },
   } as any;
 
@@ -187,6 +230,53 @@ describe('deleting an account takes the photographs with it', () => {
     });
     await s.deleteAccount(ME, PW);
     expect(deleted).toEqual([`social/${ME}/real.jpg`]);
+  });
+
+  it('deletes the account even when the bucket work runs past its budget', async () => {
+    /**
+     * THE FAILURE THIS REPLACES WAS THE WORST OF THE TWO OUTCOMES.
+     *
+     * Objects go before rows, deliberately — deleting the posts destroys the
+     * only record of which objects to delete. But this ran one round trip per
+     * object inside the request, so a prolific account hit the proxy timeout
+     * MID-PURGE: the citizen got an error, kept their account, and lost an
+     * arbitrary prefix of their photographs. Nobody chose that.
+     *
+     * Now the purge has a budget, and crossing it does not abort the deletion:
+     * what is left is named in the log and the account still goes. An object
+     * left behind is an operator's problem with a written record; a live
+     * account with half its pictures gone is the citizen's problem and has no
+     * record at all.
+     */
+    const { s, order } = svc({ pages: 40, slowMs: 5_000 });
+    const errors: string[] = [];
+    (s as unknown as { logger: { error: (m: string) => void } }).logger = {
+      error: (m: string) => errors.push(m), log: () => undefined, warn: () => undefined,
+    } as never;
+
+    await expect(s.deleteAccount(ME, PW)).resolves.toEqual({ ok: true });
+    // It stopped early rather than walking all forty pages…
+    expect(order.filter((o) => o === 'postMedia.findMany').length).toBeLessThan(10);
+    // …said so, with the count…
+    expect(errors.join(' ')).toMatch(/ran out of time purging post objects/);
+    // …and finished the deletion anyway, which is the whole point.
+    expect(order).toContain('post.deleteMany');
+    expect(order).toContain('user.update');
+  });
+
+  it('does not stop early when the bucket keeps up', async () => {
+    // The budget must not fire on an ordinary account, or the log becomes
+    // noise and nobody reads the line that matters.
+    const { s, order } = svc({ pages: 3 });
+    const errors: string[] = [];
+    (s as unknown as { logger: { error: (m: string) => void } }).logger = {
+      error: (m: string) => errors.push(m), log: () => undefined, warn: () => undefined,
+    } as never;
+    await s.deleteAccount(ME, PW);
+    expect(errors.join(' ')).not.toMatch(/ran out of time/);
+    // It really did walk every page — otherwise "did not stop early" is true
+    // of a run that never started.
+    expect(order.filter((o) => o === 'postMedia.findMany').length).toBeGreaterThan(3);
   });
 
   it('is idempotent on an account that is already deleted', async () => {

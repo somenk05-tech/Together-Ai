@@ -71,6 +71,66 @@ describe('the provider says whether the object is gone', () => {
   });
 });
 
+describe('the plural deletes a thousand at a time and says which ones did not go', () => {
+  /**
+   * `purgePostObjects` deleted one object per round trip, up to a hundred
+   * thousand of them, inside the delete-account request — so a proxy timeout
+   * landed in the MIDDLE of it and left a live account with an arbitrary
+   * prefix of its photographs gone. S3 takes a thousand keys per call.
+   */
+  const batching = () => {
+    const calls: string[][] = [];
+    const p = Object.create(StorageProvider.prototype) as StorageProvider;
+    (p as any).bucket = 'b';
+    (p as any).healthBucket = 'hb';
+    (p as any).logger = { error: () => undefined, warn: () => undefined, log: () => undefined };
+    (p as any).s3 = {
+      send: async (cmd: any) => {
+        const keys = cmd.input.Delete.Objects.map((o: { Key: string }) => o.Key);
+        calls.push(keys);
+        return { Errors: keys.filter((k: string) => k.endsWith('-bad')).map((Key: string) => ({ Key })) };
+      },
+    };
+    return { p, calls };
+  };
+
+  it('sends one call per thousand keys, not one per key', async () => {
+    const { p, calls } = batching();
+    const keys = Array.from({ length: 2500 }, (_, i) => `k${i}`);
+    await p.deleteObjects(keys);
+    expect(calls.map((c) => c.length)).toEqual([1000, 1000, 500]);
+  });
+
+  it('names the keys S3 refused, and only those', async () => {
+    const { p } = batching();
+    const out = await p.deleteObjects(['a', 'b-bad', 'c']);
+    expect(out.failed).toEqual(['b-bad']);
+  });
+
+  it('counts a whole batch as failed when the call itself throws', async () => {
+    // Nothing came back, so nothing is known to be gone. Naming all of it is
+    // the point: a caller that logs "12 failed" without the keys cannot act.
+    const { p } = batching();
+    (p as any).s3 = { send: async () => { throw new Error('network'); } };
+    const out = await p.deleteObjects(['a', 'b']);
+    expect(out.failed).toEqual(['a', 'b']);
+  });
+
+  it('deduplicates, and does nothing at all for an empty list', async () => {
+    const { p, calls } = batching();
+    await p.deleteObjects(['a', 'a', '', 'b']);
+    expect(calls).toEqual([['a', 'b']]);
+    await p.deleteObjects([]);
+    expect(calls).toHaveLength(1);
+  });
+
+  it('reports every key as failed when storage is not configured', async () => {
+    const { p } = batching();
+    (p as any).s3 = null;
+    await expect(p.deleteObjects(['a', 'b'])).resolves.toEqual({ failed: ['a', 'b'] });
+  });
+});
+
 /* ────────────────────────────────────────────────────────────────────────── */
 
 const SRC = join(__dirname, '..');

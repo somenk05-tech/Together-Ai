@@ -40,6 +40,14 @@ export const AttachmentSchema = z.object({
  * frontend sends explicit `null` for absent values (e.g. `image: posterUrl ?? null`);
  * a plain `.optional()` rejects `null` and would fail validation.
  */
+/**
+ * A URL that carries its own authorisation in the query string: SigV4 and its
+ * predecessors, and the Google equivalent. Nothing a share card legitimately
+ * points at needs one — a public poster does not, and an app path cannot have
+ * one. See the `image` field below for why this is not merely untidy.
+ */
+const PRESIGNED = /[?&](X-Amz-Signature|X-Amz-Credential|X-Goog-Signature|AWSAccessKeyId)=/i;
+
 export const ShareCardSchema = z.object({
   kind: z.string().min(1).max(40),
   hub: z.string().max(40).nullish(),
@@ -64,7 +72,37 @@ export const ShareCardSchema = z.object({
    * outside the city at all — is in `messages.service.ts`, because it needs to
    * know which conversation this is going to.
    */
-  image: z.string().max(2048).regex(/^(https:\/\/|\/)/, 'A card picture must be an https link or an app path.').nullish(),
+  /**
+   * ── AND NEVER A SIGNED URL FOR A PRIVATE OBJECT (31 Aug audit) ───────────
+   *
+   * Social post media lives in the PRIVATE bucket and is signed on read, so
+   * `post.media[0].url` in the client is a presigned GET. Both social share
+   * cards put it straight in here — `image: images[0]?.url ?? …` — and this
+   * field is persisted into the message row and rendered by the recipient.
+   *
+   * Three things wrong with that, and the third is the one that matters:
+   *
+   *  · a presigned URL is an unbound bearer credential. It carries no
+   *    requester identity, so anyone who reads that message — or the row, or
+   *    a log line — can fetch the private object;
+   *  · it expires, so the card was always going to become a broken image in
+   *    a conversation that keeps it forever;
+   *  · the recipient may be someone who cannot see the post AT ALL. A card
+   *    carrying the picture shows a friends-only photograph to a stranger,
+   *    which is the same defect as the repost audience bug, on a different
+   *    surface. The deepLink is the honest half: it goes to the permalink,
+   *    and the permalink asks assertCanView.
+   *
+   * DROPPED, NOT REFUSED — and that is a deploy-window decision. The API and
+   * the web app ship independently, so if this rejected the message every
+   * social share would 400 for however long the API ran ahead of the client.
+   * Dropping the field converges on the same end state whichever half lands
+   * first, and nobody's share fails while it does.
+   */
+  image: z.string().max(2048)
+    .regex(/^(https:\/\/|\/)/, 'A card picture must be an https link or an app path.')
+    .transform((u) => (PRESIGNED.test(u) ? null : u))
+    .nullish(),
   priceInr: z.number().finite().nullish(),
   meta: z.array(z.string().max(80)).max(8).nullish(),
   /**
