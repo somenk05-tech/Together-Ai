@@ -21,7 +21,7 @@ import { RedisService } from '../shared/redis/redis.service';
 import { QueueService } from '../shared/queue/queue.service';
 import { compatibilityScore, zodiacSign } from './astrology';
 import {
-  canonicalGoal, confidenceFor, coverage, curatedBar, distanceNote, explain, factorScores, frictions, matchAlertBody, matchAlertReason, overallScore, preferenceNotes, sharedItems, seeks, shownName, type DXProfile, type FactorBreakdown, unreachableReason,
+  canonicalGoal, coarseCoords, confidenceFor, coverage, curatedBar, distanceNote, explain, factorScores, frictions, matchAlertBody, matchAlertReason, overallScore, preferenceNotes, sharedItems, seeks, shownName, type DXProfile, type FactorBreakdown, unreachableReason,
 } from './matching';
 import { carrySelfie, selfieOnFile, selfieTakenAt, SELFIE_KEY, SELFIE_AT } from './selfie';
 import { UNDER_AGE_MESSAGE, ageOn, floorAgePreferences, isAdult } from '../shared/age';
@@ -31,6 +31,7 @@ import { profileCompletion } from './completion';
 import { DAILY_LIKES, DAILY_SUPER_LIKES, likeLimitMessage, superLimitMessage } from './limits';
 import { decide, type Check, type ModerationResult } from '../realestate/moderation';
 import { scanBio } from './bio-scan';
+import { shapeExtras, shownText } from './extras-shape';
 import { nickname } from '../shared/nickname';
 import { ChatEventBus } from '../shared/events/chat-events';
 import type { MatchKind, UpsertDatingProfileDto } from './dto/dating.dto';
@@ -714,9 +715,28 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       } else if (!selfieOnFile(priorDX)) {
         return dto.extras ?? null;
       }
-      const carried = carrySelfie(parsed, priorDX);
+      // SHAPE FIRST (fifth audit, 31 Aug, H6): only the keys this hub reads,
+      // each at its type and length. See extras-shape.ts for the 500 this
+      // stops. `parsed` is a whole object at this point, so the selfie carry,
+      // the photo filter, the age floor and the coordinate snap below all
+      // work on values that are already the right kind of thing.
+      const carried = carrySelfie(shapeExtras(parsed), priorDX);
       if ('photos' in carried) carried.photos = this.ownPhotosOnly(userId, carried.photos);
       floorAgePreferences(carried);
+      // THE EXACT POINT IS NEVER STORED (fifth audit, 31 Aug, H2). The
+      // browser's coordinates are snapped to the ~5 km grid `standCoords`
+      // reads through, so a database read gives no more than a card does.
+      // Anything that is not a finite pair is dropped rather than kept.
+      if ('searchLat' in carried || 'searchLng' in carried) {
+        const { searchLat: la, searchLng: ln } = carried;
+        if (typeof la === 'number' && typeof ln === 'number' && Number.isFinite(la) && Number.isFinite(ln)
+          && Math.abs(la) <= 90 && Math.abs(ln) <= 180) {
+          const c = coarseCoords(la, ln);
+          carried.searchLat = c.lat; carried.searchLng = c.lng;
+        } else {
+          delete carried.searchLat; delete carried.searchLng;
+        }
+      }
       return JSON.stringify(carried);
     })();
     const data = {
@@ -772,6 +792,37 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
 
     // Every profile passes AI + rule moderation before it's visible to others.
     const result = await this.moderateProfile(userId, dto);
+    /**
+     * A HUMAN'S NO IS NOT UNDONE BY A SAVE (fifth audit, 31 Aug, H1).
+     *
+     * This write never read the prior `moderation`, so a profile a moderator
+     * took down for catfishing, harassment or after reports came back
+     * `approved` the moment its owner edited one word and pressed Save. The
+     * comment in `moderateProfile` reasons about AUTOMATIC rejections — a
+     * sentence the citizen can change — and that reasoning is right for them.
+     * It was never right for a person's decision.
+     *
+     * So the last HUMAN word is read off the moderation log. If it was a
+     * rejection — and nothing human has said `approved` since (a moderator's
+     * approval or an overturned appeal both write one) — a save that the
+     * machine would clear lands in `review` instead. Not `rejected`: the new
+     * text may be fine, and a person should look. Rejections and reviews the
+     * machine reaches on its own are left as they are. The read is swallowed
+     * like the fraud counter's: a missing log is not a reason to lose a save.
+     */
+    if (result.decision === 'approved') {
+      const lastHuman = await swallow((this.prisma as unknown as {
+        moderationLog: { findFirst(a: unknown): Promise<{ decision: string } | null> };
+      }).moderationLog.findFirst({
+        where: { listingId: userId, NOT: { actor: 'system' } },
+        orderBy: { createdAt: 'desc' },
+        select: { decision: true },
+      }), 'dating: last human moderation read', { userId });
+      if (lastHuman?.decision === 'rejected') {
+        result.decision = 'review';
+        result.reasons.push('A moderator took this profile down earlier, so this version is held for a human look before it goes live.');
+      }
+    }
     await this.prisma.datingProfile.update({
       where: { userId },
       data: { moderation: result.decision, moderationJson: JSON.stringify(result) },
@@ -1138,6 +1189,29 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     checks.push({ name: 'bio-safe', pass: !scan.prohibited, severity: 'hard', detail: scan.prohibited ? `Your bio reads as ${scan.prohibited}. Please reword it — you can save again straight away.` : 'Bio content is clean.' });
     checks.push({ name: 'bio-no-scam', pass: !scan.scam, severity: 'soft', detail: scan.scam ? 'Bio has scam-like phrasing — needs a look.' : 'No scam phrasing.' });
 
+    /**
+     * EVERY FIELD A STRANGER IS SHOWN, SCANNED THE WAY THE BIO IS (H6).
+     *
+     * Only `bio` was scanned. The dating name, profession, education, city,
+     * personality, values, languages and interests all reach cards and the
+     * detail page unread — so `firstName: "Priya @priya_x"` was a legal
+     * name on every card and in the chat list, and a phone number in
+     * `profession` sat on every detail page. Field by field, so a handle in
+     * one field and an app name in the next do not read as one sentence.
+     */
+    let shapedDX: Record<string, unknown> = {};
+    try { shapedDX = shapeExtras(JSON.parse(dto.extras ?? '{}') as Record<string, unknown>); } catch { shapedDX = {}; }
+    const fields = [...shownText(shapedDX), ...(dto.interests ?? [])];
+    const fieldContacts: string[] = [];
+    let fieldProhibited: string | null = null;
+    for (const f of fields) {
+      const s = scanBio(f);
+      for (const c of s.contacts) if (!fieldContacts.includes(c)) fieldContacts.push(c);
+      if (!fieldProhibited) fieldProhibited = s.prohibited;
+    }
+    checks.push({ name: 'fields-no-contact', pass: fieldContacts.length === 0, severity: 'hard', detail: fieldContacts.length ? `Remove ${fieldContacts.join(', ')} from your profile fields (name, work, education, place, interests) — keep chat on Together City.` : 'Profile fields have no off-platform contact.' });
+    checks.push({ name: 'fields-safe', pass: !fieldProhibited, severity: 'hard', detail: fieldProhibited ? `A profile field reads as ${fieldProhibited}. Please reword it — you can save again straight away.` : 'Profile fields are clean.' });
+
     // Account fraud score (deeper signals — device/IP/selfie — need infra; TODO).
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { createdAt: true } });
     // 0-on-failure told the fraud score this account had a clean record — an
@@ -1301,12 +1375,16 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       if (state && this.passedBy(state, userId)) continue;
       if (state?.status === 'matched') continue;
 
-      if (kind === 'romantic') {
+      {
         const theirD = this.parseDX((cand as { extras?: string | null }).extras);
-        if (!seeks(mine.seeking, myD, cand.gender) || !seeks(cand.seeking, theirD, mine.gender)) continue;
+        // Who somebody seeks is a romantic question; friends may be any gender.
+        if (kind === 'romantic' && (!seeks(mine.seeking, myD, cand.gender) || !seeks(cand.seeking, theirD, mine.gender))) continue;
         const theirAge = this.ageOf(cand.birthDate);
         // Both directions. Showing somebody whose own filters exclude you is
-        // offering a door that is locked from the other side.
+        // offering a door that is locked from the other side. IN BOTH KINDS
+        // (fifth audit, 31 Aug, H3; owner decision the same day): platonic
+        // used to skip this, so `?kind=platonic` was a door past everyone's
+        // age range, distance and deal-breakers into a mode nobody opted into.
         if (unreachableReason(myD, theirD, this.ageOf(mine.birthDate), theirAge)) continue;
       }
 
@@ -1670,12 +1748,14 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       // Discovery filters decide who you are SHOWN. They must not un-show
       // someone you already chose: a preference edit after matching would
       // otherwise silently delete an existing match from the page.
-      if (kind === 'romantic' && !isMatched) {
+      if (!isMatched) {
         const theirD = this.parseDX((cand as { extras?: string | null }).extras);
-        if (!seeks(mine.seeking, myD, cand.gender) || !seeks(cand.seeking, theirD, mine.gender)) continue;
+        // Who somebody seeks is a romantic question; friends may be any gender.
+        if (kind === 'romantic' && (!seeks(mine.seeking, myD, cand.gender) || !seeks(cand.seeking, theirD, mine.gender))) continue;
         const theirAge = this.ageOf(cand.birthDate);
         // Both directions. Showing somebody whose own filters exclude you is
-        // offering a door that is locked from the other side.
+        // offering a door that is locked from the other side. In both kinds
+        // since 31 Aug (H3) — see discoverUncached.
         if (unreachableReason(myD, theirD, this.ageOf(mine.birthDate), theirAge)) continue;
       }
 
@@ -1919,14 +1999,19 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     const theirAge = this.ageOf(cand.birthDate);
 
     // Romantic requires mutual seeking + passing both sides' hard filters.
-    if (kind === 'romantic') {
-      if (!seeks(mine.seeking, myD, cand.gender) || !seeks(cand.seeking, candD, mine.gender)) throw new NotFoundException('This profile is not available.');
-      // The comment above has said "both sides" since this was written; only one
-      // side was ever checked. Now it is both, and the message stays deliberately
-      // identical either way — "they filtered you out" is not ours to disclose.
-      if (unreachableReason(myD, candD, this.ageOf(mine.birthDate), theirAge)) {
-        throw new NotFoundException('This profile is not available.');
-      }
+    // Who somebody seeks is a romantic question; friends may be any gender.
+    if (kind === 'romantic' && (!seeks(mine.seeking, myD, cand.gender) || !seeks(cand.seeking, candD, mine.gender))) {
+      throw new NotFoundException('This profile is not available.');
+    }
+    // The comment above has said "both sides" since this was written; only one
+    // side was ever checked. Now it is both, and the message stays deliberately
+    // identical either way — "they filtered you out" is not ours to disclose.
+    // AND IN BOTH KINDS (H3): with `?kind=platonic` this page opened anyone
+    // approved and visible — `@handle → /users/lookup → id → here` told a
+    // citizen whether a coworker or an ex had a dating profile, and showed the
+    // gallery, past the target's own age range, distance and deal-breakers.
+    if (unreachableReason(myD, candD, this.ageOf(mine.birthDate), theirAge)) {
+      throw new NotFoundException('This profile is not available.');
     }
 
     const myInterests = this.splitInterests(mine.interests);
@@ -2371,15 +2456,15 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
    * profile was just rejected must still be able to leave a match and to block
    * somebody. Safety exits do not require good standing.
    */
-  private async assertMayReach(userId: string): Promise<void> {
-    await this.myApprovedProfile(userId);
+  private async assertMayReach(userId: string) {
+    return this.myApprovedProfile(userId);
   }
 
-  private async assertWritable(userId: string, targetUserId: string): Promise<void> {
+  private async assertWritable(userId: string, targetUserId: string) {
     if (userId === targetUserId) throw new BadRequestException('That is you.');
     const cand = await this.prisma.datingProfile.findUnique({
       where: { userId: targetUserId },
-      select: { visible: true, moderation: true, extras: true, user: { select: { deletedAt: true } } },
+      select: { visible: true, moderation: true, extras: true, gender: true, seeking: true, birthDate: true, user: { select: { deletedAt: true } } },
     });
     if (!cand || cand.moderation !== 'approved') throw new NotFoundException('This profile is not available.');
     // Nobody writes to somebody who has gone: no new like, no connect, no
@@ -2407,11 +2492,53 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     }
     const excluded = await this.connectionExclusions(userId);
     if (excluded.has(targetUserId)) throw new NotFoundException('This profile is not available.');
+    return cand;
+  }
+
+  /**
+   * THE FILTERS HOLD ON THE WRITE PATH TOO (fifth audit, 31 Aug, H3).
+   *
+   * Every list applies `seeks` and `unreachableReason` in both directions
+   * before a card is produced; `like` and `pass` applied neither. With a user
+   * id from anywhere — a chat, a share, `GET /users/lookup` — a citizen could
+   * like somebody whose own age range, distance or deal-breakers had removed
+   * them, that person got "You have a new like 💛" from somebody their
+   * non-negotiables excluded, and if they liked back the row flipped to
+   * `matched` and the stack merged them in past every filter. A hard
+   * non-negotiable, overridden by a POST.
+   *
+   * The same two checks the lists make, made here — except for a pair that is
+   * ALREADY matched: a match is reached through the match, and a filter one
+   * of them tightened afterwards does not freeze it (unmatch is how you leave).
+   * `seeks` is romantic-only, as on the lists: friends may be of any gender.
+   * The refusal is the lists' own 404, so "they filtered you out" is not said.
+   */
+  private async assertReachable(
+    userId: string,
+    mine: { seeking: string; gender: string; birthDate: Date; extras: string | null },
+    cand: { seeking: string; gender: string; birthDate: Date; extras: string | null },
+    targetUserId: string,
+    kind: MatchKind,
+  ): Promise<void> {
+    const matched = await this.prisma.datingMatch.findFirst({
+      where: { OR: [{ userOneId: userId, userTwoId: targetUserId }, { userOneId: targetUserId, userTwoId: userId }], status: 'matched' },
+      select: { id: true },
+    });
+    if (matched) return;
+    const myD = this.parseDX(mine.extras);
+    const candD = this.parseDX(cand.extras);
+    if (kind === 'romantic' && (!seeks(mine.seeking, myD, cand.gender) || !seeks(cand.seeking, candD, mine.gender))) {
+      throw new NotFoundException('This profile is not available.');
+    }
+    if (unreachableReason(myD, candD, this.ageOf(mine.birthDate), this.ageOf(cand.birthDate))) {
+      throw new NotFoundException('This profile is not available.');
+    }
   }
 
   async like(userId: string, targetUserId: string, kind: MatchKind, opts: { superLike?: boolean } = {}) {
-    await this.assertMayReach(userId); // blocker 01: no profile, no like
-    await this.assertWritable(userId, targetUserId);
+    const mine = await this.assertMayReach(userId); // blocker 01: no profile, no like
+    const cand = await this.assertWritable(userId, targetUserId);
+    await this.assertReachable(userId, mine, cand, targetUserId, kind);
     await this.bumpListVersion(userId);
     void swallow(this.cachePairScore(userId, targetUserId), 'dating: score cache on like', { userId, targetUserId });
     const state = await this.upsertState(userId, targetUserId, kind);
@@ -2692,6 +2819,16 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     // Through the console, not around it: `moderation.act`, a written reason,
     // and an AdminAudit row BEFORE the write — the same discipline every
     // other moderator action in the city already has.
+    //
+    // THE PERMISSION FIRST, THEN THE ROW (fifth audit, 31 Aug, H7). This is
+    // the sibling of `decideAppeal`, which was moved to this shape on 27 Aug,
+    // and this one was left as it was: the row read, the "no dating profile"
+    // 404 and the under-18 403 all spoke before `act` asked who was asking.
+    // Any signed-in citizen could therefore learn, for any user id, whether a
+    // dating profile existed and whether its stored date of birth was under
+    // 18. The same check, in front of the first row it can speak about; `act`
+    // still makes it, and still writes the audit.
+    await this.access.assert(adminId, 'moderation.act');
     const before = await this.prisma.datingProfile.findUnique({ where: { userId: targetUserId }, select: { moderation: true, visible: true } });
     if (!before) throw new NotFoundException('That person has no dating profile.');
     // THE SAME REFUSAL THE APPEAL PATH MAKES. `decideAppeal` re-reads the stored
@@ -3350,7 +3487,11 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
   async pass(userId: string, targetUserId: string, kind: MatchKind) {
     // A pass on somebody unreachable is harmless in effect but still a row
     // written against a stranger who cannot see you; refused for symmetry.
-    await this.assertWritable(userId, targetUserId);
+    // That sentence was here for a month with nothing under it (H3): only the
+    // target was checked. Now the caller's standing and the filters are too.
+    const mine = await this.assertMayReach(userId);
+    const cand = await this.assertWritable(userId, targetUserId);
+    await this.assertReachable(userId, mine, cand, targetUserId, kind);
     await this.bumpListVersion(userId);
     void swallow(this.cachePairScore(userId, targetUserId), 'dating: score cache on pass', { userId, targetUserId });
     const state = await this.upsertState(userId, targetUserId, kind);

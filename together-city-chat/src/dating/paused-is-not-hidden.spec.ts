@@ -21,12 +21,14 @@ function build(mode: 'paused' | 'hidden', matched: boolean) {
      property to `never` — which is exactly what the Mac's tsc said the first
      time this script ran against a fully generated Prisma client. The spec
      only needs the one door it knocks on. */
-  return s as { assertWritable(a: string, b: string): Promise<void> };
+  // Since 31 Aug (H3) the gate hands the row back for the filter check that
+  // follows it; resolving with the row is passing.
+  return s as { assertWritable(a: string, b: string): Promise<unknown> };
 }
 
 describe('paused is not hidden', () => {
   it('lets an existing match keep acting on a paused profile', async () => {
-    await expect(build('paused', true).assertWritable('me', 'them')).resolves.toBeUndefined();
+    await expect(build('paused', true).assertWritable('me', 'them')).resolves.toMatchObject({ moderation: 'approved' });
   });
 
   it('still refuses a fresh stranger while paused — out of matching means out', async () => {
@@ -40,6 +42,6 @@ describe('paused is not hidden', () => {
   it('a visible approved profile is unchanged by any of this', async () => {
     const s: any = build('paused', false);
     s.prisma.datingProfile.findUnique = async () => ({ visible: true, moderation: 'approved', extras: null });
-    await expect(s.assertWritable('me', 'them')).resolves.toBeUndefined();
+    await expect(s.assertWritable('me', 'them')).resolves.toMatchObject({ moderation: 'approved' });
   });
 });

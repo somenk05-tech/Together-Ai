@@ -37,6 +37,9 @@ function build(state: any, allowance: any) {
   );
   (svc as any).assertMayReach = async () => undefined;
   (svc as any).assertWritable = async () => undefined;
+  // The third gate (H3, 31 Aug): filters on the write path. Stubbed like the
+  // other two — this file is about what happens AFTER the door.
+  (svc as any).assertReachable = async () => undefined;
   (svc as any).bumpListVersion = async () => undefined;
   (svc as any).cachePairScore = async () => undefined;
   (svc as any).upsertState = async () => state;

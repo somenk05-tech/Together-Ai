@@ -1,5 +1,5 @@
 import { http as api } from '@/api/client';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 
 /** Dating domain types — mirror the NestJS dating module DTOs. */
 export type MatchKind = 'romantic' | 'platonic';
@@ -308,6 +308,25 @@ export interface DatingChatSummary {
 export function useDatingProfile() {
   return useQuery({ queryKey: ['dating', 'profile'], queryFn: () => datingApi.profile() });
 }
+/**
+ * A PREFILL IS NOT A PROFILE (fifth audit, 31 Aug, B2).
+ *
+ * `GET /dating/profile` answers a citizen with no dating row by handing back
+ * what the Master Profile already knows — name, gender, date of birth — marked
+ * `saved: false`, so the form can open half-filled ("never ask twice").
+ * Registration collects a date of birth, so that object comes back for EVERY
+ * new account, and it is truthy.
+ *
+ * Browse and Curated Matches gated on `Boolean(profile.data)`. For a brand-new
+ * citizen that was true, the list reads fired, `myApprovedProfile` refused
+ * them with a 404 ("create your dating profile first"), and both rooms printed
+ * "This didn't reach us — try again in a moment" instead of the one button
+ * that would have helped. The profile page already knew the rule (`saved !==
+ * false`); this is that rule with one name, so the three screens cannot drift.
+ */
+export function isSavedProfile(p: DatingProfile | null | undefined): p is DatingProfile {
+  return Boolean(p) && (p as { saved?: boolean }).saved !== false;
+}
 export function useUpsertDatingProfile() {
   const qc = useQueryClient();
   return useMutation({
@@ -405,14 +424,46 @@ export function useUndoPass(kind: MatchKind) {
   });
 }
 
+/**
+ * A DECISION EDITS THE DECK IN PLACE; IT DOES NOT REFETCH IT. (Fifth audit,
+ * 31 Aug, H5.)
+ *
+ * Every Skip and every Connect invalidated the discover and stack queries, so
+ * each one refetched a 200-card page — and `GET /dating/discover` and
+ * `/dating/stack` allow twenty reads a minute each. Skip a card every three
+ * seconds and on the twenty-first the whole deck was replaced by "We couldn't
+ * score your matches" for the rest of the minute, with TanStack's retries
+ * stretching it. The one card that caused it stayed on screen.
+ *
+ * The server's answer to a pass is that the person is gone from the list, and
+ * to a like that the card is now "Chosen"; both are known here without
+ * asking. So the caches are edited — every page size of both lists — and the
+ * lists are refetched only on a MATCH, which moves a person between rooms.
+ */
+export function editDeck(qc: QueryClient, kind: MatchKind, edit: (cards: CuratedMatch[]) => CuratedMatch[]) {
+  qc.setQueriesData<DiscoverResult>({ queryKey: ['dating', 'discover', kind] }, (data) =>
+    data ? { ...data, sections: data.sections.map((s) => ({ ...s, matches: edit(s.matches) })) } : data);
+  qc.setQueriesData<DatingStack>({ queryKey: ['dating', 'stack', kind] }, (data) => {
+    if (!data) return data;
+    const candidates = edit(data.candidates);
+    return { ...data, candidates, top: candidates[0] ?? null };
+  });
+}
+export const withoutCard = (userId: string) => (cards: CuratedMatch[]) => cards.filter((c) => c.user.id !== userId);
+export const withCardChosen = (userId: string) => (cards: CuratedMatch[]) => cards.map((c) => (c.user.id === userId ? { ...c, likedByMe: true } : c));
+
 export function useLikeMatch(kind: MatchKind) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (targetUserId: string) => datingApi.like(targetUserId, kind),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['dating', 'matches', kind] });
-      void qc.invalidateQueries({ queryKey: ['dating', 'discover', kind] });
-      void qc.invalidateQueries({ queryKey: ['dating', 'stack', kind] });
+    onSuccess: (result, targetUserId) => {
+      if (result.matched) {
+        void qc.invalidateQueries({ queryKey: ['dating', 'matches', kind] });
+        void qc.invalidateQueries({ queryKey: ['dating', 'discover', kind] });
+        void qc.invalidateQueries({ queryKey: ['dating', 'stack', kind] });
+      } else {
+        editDeck(qc, kind, withCardChosen(targetUserId));
+      }
       void qc.invalidateQueries({ queryKey: ['dating', 'allowance'] });
     },
   });
@@ -421,10 +472,8 @@ export function usePassMatch(kind: MatchKind) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (targetUserId: string) => datingApi.pass(targetUserId, kind),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['dating', 'matches', kind] });
-      void qc.invalidateQueries({ queryKey: ['dating', 'discover', kind] });
-      void qc.invalidateQueries({ queryKey: ['dating', 'stack', kind] });
+    onSuccess: (_result, targetUserId) => {
+      editDeck(qc, kind, withoutCard(targetUserId));
     },
     // Nothing else to do: undo is offered from the stack, which knows a pass
     // just happened without needing the server to say so.

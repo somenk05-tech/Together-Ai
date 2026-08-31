@@ -208,7 +208,8 @@ describe('when a place cannot be resolved, nothing is invented', () => {
   it('prints no distance line on a card it could not measure', () => {
     expect(distanceNote({ city: 'Nowhereville' }, { city: 'Pune' })).toBeNull();
     expect(distanceNote(at('Pune'), at('Pune'))).toBe('In your city.');
-    expect(distanceNote(at('Mumbai'), at('Pune'))).toMatch(/^About 1[0-9]{2} km away/);
+    // A band, never a number, since 31 Aug (H2): Mumbai–Pune is 120 km.
+    expect(distanceNote(at('Mumbai'), at('Pune'))).toBe('50–150 km away — an easy day out.');
   });
 });
 

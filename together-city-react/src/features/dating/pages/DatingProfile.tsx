@@ -676,8 +676,12 @@ export function DatingProfilePage() {
     e.preventDefault();
     if (!v.validate()) return; // never save an incomplete dating profile
     const extras: DX = { ...dx };
+    // A BLANK OPTIONAL IS AN ABSENT ONE (fifth audit, 31 Aug, B1). The field
+    // says "(optional)" and starts as '', and '' is a string the server's
+    // HH:MM rule refuses — so anyone who did not know their birth time got
+    // "Invalid" under the button and no way past it. Send nothing instead.
     upsert.mutate(
-      { ...form, interests: (form.interests ?? []), extras: JSON.stringify(extras) },
+      { ...form, birthTime: form.birthTime || undefined, interests: (form.interests ?? []), extras: JSON.stringify(extras) },
       { onSuccess: (p) => { setCollapsed(p.moderation !== 'rejected'); successToast('Dating profile saved successfully.'); } },
     );
   };

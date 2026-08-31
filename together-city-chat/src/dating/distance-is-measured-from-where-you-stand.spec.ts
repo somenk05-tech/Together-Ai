@@ -18,7 +18,7 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
-import { hardFilterReason, searchDistanceKm, standCoords, type DXProfile } from './matching';
+import { coarseCoords, hardFilterReason, searchDistanceKm, standCoords, type DXProfile } from './matching';
 
 /** Mumbai and London, from the same table `cityCoords` reads. */
 const MUMBAI = { lat: 19.076, lng: 72.8777 };
@@ -34,9 +34,12 @@ describe('where a citizen stands', () => {
     expect(Math.round(p!.lat)).toBe(19);
   });
 
-  it('is the shared point when there is one, whatever the profile city says', () => {
+  it('is the shared point when there is one, whatever the profile city says — on the grid', () => {
     const moved: DXProfile = { ...inMumbai, partnerLocationMode: 'around', searchLat: LONDON.lat, searchLng: LONDON.lng };
-    expect(standCoords(moved)).toEqual(LONDON);
+    // Since 31 Aug (H2) the point is read through the ~5 km grid: the node,
+    // not the doorstep. See nobody-can-be-placed.spec.ts.
+    expect(standCoords(moved)).toEqual(coarseCoords(LONDON.lat, LONDON.lng));
+    expect(standCoords(moved)).not.toEqual(LONDON);
   });
 
   it('measures from that point, not from the profile city', () => {

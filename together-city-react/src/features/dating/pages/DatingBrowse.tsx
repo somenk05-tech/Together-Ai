@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { useDatingProfile, useDiscover, type CuratedMatch, type DiscoverSection, type MatchKind } from '../api';
+import { isSavedProfile, useDatingProfile, useDiscover, type CuratedMatch, type DiscoverSection, type MatchKind } from '../api';
 import { MatchCard, Distribution, UndoAndAllowance } from '../components/MatchCards';
 import { ReadFailure } from '../components/ReadFailure';
 import { bandsOf, byCategory } from '../bands';
@@ -73,7 +73,10 @@ export function DatingBrowse() {
   // first page is the best of the city, and every "Show more" is the next
   // best rather than the next in whatever order the database returned.
   const [limit, setLimit] = useState(BROWSE_PAGE);
-  const discover = useDiscover(kind, Boolean(profile.data), limit);
+  // `isSavedProfile`, not `Boolean(...)`: the read returns a truthy prefill
+  // for anyone with no dating row, and asking for matches on its strength is
+  // a guaranteed 404 dressed as a network error. (Fifth audit, B2.)
+  const discover = useDiscover(kind, isSavedProfile(profile.data), limit);
 
   /**
    * ONE PERSON, ONCE. `discover()` fills its sections through a shared `used`
@@ -137,7 +140,7 @@ export function DatingBrowse() {
     );
   }
 
-  if (!profile.data) {
+  if (!isSavedProfile(profile.data)) {
     return (
       <div>
         <EmptyState

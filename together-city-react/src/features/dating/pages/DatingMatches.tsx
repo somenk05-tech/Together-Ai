@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { useDatingProfile, useDatingStack, type CuratedMatch, type DatingProfile, type MatchKind } from '../api';
+import { isSavedProfile, useDatingProfile, useDatingStack, type CuratedMatch, type DatingProfile, type MatchKind } from '../api';
 import { coverageShort } from '../bands';
 import { Portrait } from '../components/Portrait';
 import { ReadFailure } from '../components/ReadFailure';
@@ -124,7 +124,9 @@ export function DatingMatches() {
   const profile = useDatingProfile();
   // This room keeps people; it never renders `candidates`. One is enough
   // for `top`, and it stops a 2,000-card payload refetching every 30 s.
-  const stack = useDatingStack(kind, Boolean(profile.data), 1);
+  // `isSavedProfile`, not `Boolean(...)`: a new citizen gets a truthy prefill
+  // from this read, and the stack refuses them with a 404. (Fifth audit, B2.)
+  const stack = useDatingStack(kind, isSavedProfile(profile.data), 1);
 
   if (profile.isLoading) return <Spinner label="Consulting the stars…" />;
 
@@ -145,7 +147,7 @@ export function DatingMatches() {
     );
   }
 
-  if (!profile.data) {
+  if (!isSavedProfile(profile.data)) {
     return (
       <div>
         <EmptyState

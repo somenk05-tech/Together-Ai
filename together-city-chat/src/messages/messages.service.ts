@@ -12,6 +12,7 @@ import { ConnectionPermissionService } from '../connections/connection-permissio
 import { ChatMediaGuard } from './chat-media-guard';
 import { ChatEventBus } from '../shared/events/chat-events';
 import { nickname } from '../shared/nickname';
+import { shownName } from '../dating/matching';
 import {
   DeleteMessageDto,
   EditMessageDto,
@@ -32,13 +33,22 @@ import {
  */
 const messageInclude = {
   conversation: { select: { anonymousTrust: true } },
-  sender: { select: { id: true, name: true, handle: true, profileImage: true } },
+  // `datingProfile.extras` rides along for one reason: below trust 2 the
+  // sender is named by their chosen dating name, and that is where it lives.
+  sender: { select: { id: true, name: true, handle: true, profileImage: true, datingProfile: { select: { extras: true } } } },
   attachments: true,
   replyTo: {
     select: { id: true, text: true, messageType: true, senderId: true, deleted: true },
   },
   statuses: true,
 } satisfies Prisma.MessageInclude;
+
+/** The `firstName` a citizen chose for the Dating Hub, or nothing — never a
+ *  throw: an unparseable blob falls through to `shownName`'s fallback. */
+function datingFirstName(dp: { extras: string | null } | null | undefined): { firstName?: unknown } {
+  if (!dp?.extras) return {};
+  try { return { firstName: (JSON.parse(dp.extras) as { firstName?: unknown }).firstName }; } catch { return {}; }
+}
 
 @Injectable()
 export class MessagesService {
@@ -955,20 +965,27 @@ export class MessagesService {
      * from appearing in the dating module; the message serializer lives here,
      * outside its reach, and was handing over both on every message.
      *
-     * The NAME stays, deliberately. conversations.service.ts retired the
-     * dating pseudonym on purpose — "the Matches page always showed the
-     * profile's real name, so a different name here read as the person
-     * changing names between screens" — and this must not quietly reopen that
-     * decision. What is masked is what the citizen has not chosen to give.
+     * A name stays — and it is the DATING name (fifth audit, 31 Aug, H4).
+     *
+     * This used to keep `User.name`, the account name, on the reasoning that
+     * "the Matches page always showed the profile's real name". That stopped
+     * being true on 27 Aug: cards, the dating chat list and every push now
+     * name a person by `shownName(extras.firstName, User.name)` — the name
+     * they chose for this hub, falling back to the account name only when
+     * they chose none. The message row was the one surface still carrying the
+     * account name, on every REST read, every socket frame and every pin,
+     * from the first bubble, before any reveal. The profile page promises
+     * "not your real name"; this is that promise, kept where the messages are.
      *
      * anonymousTrust 2 is the choice, and `reveal` is how it is made: both
      * sides say yes, the conversation moves to 2, and the sender block is
-     * whole. Before that it carries an id and a name and nothing that reaches
-     * out of the Dating Hub into the rest of somebody's life.
+     * whole. Before that it carries an id and the dating name and nothing
+     * that reaches out of the Dating Hub into the rest of somebody's life.
      */
     const anonymous = m.conversation?.anonymousTrust != null && m.conversation.anonymousTrust < 2;
     const sender = anonymous && m.sender && typeof m.sender === 'object'
-      ? (({ id, name }) => ({ id, name }))(m.sender as { id: string; name: string })
+      ? (({ id, name, datingProfile }) => ({ id, name: shownName(datingFirstName(datingProfile), name) }))(
+        m.sender as { id: string; name: string; datingProfile?: { extras: string | null } | null })
       : m.sender;
     /* A DELETED MESSAGE IS DELETED ALL THE WAY DOWN. The tombstone used to
        zero only the text: `media` URLs and the share card still travelled to

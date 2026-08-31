@@ -322,8 +322,36 @@ function bandFor(km: number): number {
  */
 export function standCoords(d: DXProfile): Coords | null {
   const { searchLat: lat, searchLng: lng } = d;
-  if (typeof lat === 'number' && typeof lng === 'number') return { lat, lng };
+  if (typeof lat === 'number' && typeof lng === 'number') return coarseCoords(lat, lng);
   return cityCoords(d.city, d.state, d.country);
+}
+
+/**
+ * NOBODY CAN BE PLACED CLOSER THAN ABOUT FIVE KILOMETRES (fifth audit, 31 Aug,
+ * H2; owner decision the same day).
+ *
+ * `searchLat/Lng` is the exact point a browser reported, and it was used
+ * exactly. The viewer's own point is equally theirs to set. So: save your
+ * profile from three invented positions, read "About 47 km away" on the
+ * target's card each time, intersect three circles — the target's browser
+ * position to the kilometre `haversineKm` rounds to. The distance
+ * deal-breaker gave the same answer as a 200/404 on the detail page. This is
+ * the 2014 Tinder trilateration, on a product whose promise is that nobody
+ * can find you.
+ *
+ * Every coordinate is snapped to a 0.05° grid — about 5.5 km north–south,
+ * 5.5 km × cos(latitude) east–west — at BOTH ends: on write, so the exact
+ * point is never stored, and here on read, so rows written before this
+ * existed are just as coarse. Distances are then between grid nodes, the
+ * sentence below prints a band rather than a number, and the finest thing
+ * any oracle can recover is the cell. Matching loses nothing it used: the
+ * score bands start at 30 km.
+ */
+export const COORD_GRID_DEG = 0.05;
+export function coarseCoords(lat: number, lng: number): Coords {
+  const snap = (v: number) => Math.round(v / COORD_GRID_DEG) * COORD_GRID_DEG;
+  // Rounded to two decimals so a stored value reads as the node it is.
+  return { lat: Number(snap(lat).toFixed(2)), lng: Number(snap(lng).toFixed(2)) };
 }
 
 /** Kilometres between where these two stand, or null when either cannot be
@@ -399,13 +427,23 @@ export function languageBarrier(a: DXProfile, b: DXProfile): boolean {
   return !mine.some((l) => T.has(l));
 }
 
-/** The distance, in the words a card can print, or null when unmeasured. */
+/**
+ * The distance, in the words a card can print, or null when unmeasured.
+ *
+ * A BAND, NEVER A NUMBER (H2). "About 47 km away" was one of three
+ * measurements a trilateration needs, and the grid above only bounds what a
+ * number can say — it does not stop it being said. The bands are the score's
+ * own (`bandFor`), so the sentence and the points agree.
+ */
 export function distanceNote(a: DXProfile, b: DXProfile): string | null {
   const km = searchDistanceKm(a, b);
   if (km === null) return null;
   if (km <= 30) return 'In your city.';
-  if (km <= 150) return `About ${km} km away — an easy day out.`;
-  return `About ${km.toLocaleString('en-IN')} km away.`;
+  if (km <= 50) return 'Within 50 km.';
+  if (km <= 150) return '50–150 km away — an easy day out.';
+  if (km <= 400) return '150–400 km away — a weekend.';
+  if (km <= 1500) return '400–1,500 km away — a flight.';
+  return 'Over 1,500 km away.';
 }
 export function factorScores(astrology: number, aInterests: string[], bInterests: string[], aD: DXProfile, bD: DXProfile): FactorBreakdown {
   return {

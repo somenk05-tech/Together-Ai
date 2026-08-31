@@ -29,7 +29,16 @@ export const UpsertDatingProfileSchema = z.object({
   seeking: z.enum(['male', 'female', 'nonbinary', 'any']),
   bio: z.string().max(600).optional(),
   birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD'),
-  birthTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  /**
+   * A BLANK IS NOT A WRONG ANSWER (fifth audit, 31 Aug, B1). The form labels
+   * this "(optional)" and posts '' when it is left alone; '' is a string, so
+   * `.optional()` never saw it and the HH:MM rule refused the whole profile
+   * with the word "Invalid". Anyone who did not know their birth time could
+   * not create a dating profile. The client now omits a blank too — this is
+   * the door being tolerant on its own account, not on one build's.
+   */
+  birthTime: z.union([z.string().regex(/^\d{2}:\d{2}$/), z.literal('')]).optional()
+    .transform((v) => (v ? v : undefined)),
   birthPlace: z.string().max(120).optional(),
   interests: z.array(z.string().min(1).max(40)).max(20).optional(),
   extras: z.string().max(2_000_000).optional(), // JSON blob (incl. photos as data URLs)
