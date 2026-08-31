@@ -221,18 +221,40 @@ export class ConnectionsService {
   /** Every connection this user is part of (friend graph), newest first. */
   async listForUser(userId: string, status?: string): Promise<ShapedConnection[]> {
     // unbounded: a citizen's friend graph — socially bounded, and the People page shows all of it
-    const rows = await this.prisma.connection.findMany({
-      where: {
-        OR: [{ userOneId: userId }, { userTwoId: userId }],
-        connectionType: ConnectionType.FRIEND,
-        status: { not: ConnectionStatus.REMOVED },
-      },
-      include: { userOne: true, userTwo: true },
-      orderBy: { updatedAt: 'desc' },
-    });
-    let shaped = rows.map((r) =>
-      this.shape(r, userId, r.userOneId === userId ? r.userTwo : r.userOne),
-    );
+    const [rows, blocked] = await Promise.all([
+      this.prisma.connection.findMany({
+        where: {
+          OR: [{ userOneId: userId }, { userTwoId: userId }],
+          connectionType: ConnectionType.FRIEND,
+          status: { not: ConnectionStatus.REMOVED },
+        },
+        include: { userOne: true, userTwo: true },
+        orderBy: { updatedAt: 'desc' },
+      }),
+      this.blocking.blockedWith(userId),
+    ]);
+    /**
+     * ── A BLOCKED CITIZEN IS NOT ON YOUR PEOPLE PAGE (31 Aug audit) ─────────
+     *
+     * `block()` writes a Block row and severs the follow edges — it does NOT
+     * touch an existing ACCEPTED connection, deliberately, because the two are
+     * different facts and unblocking must not have to guess what the
+     * connection used to be. But this list only excluded REMOVED, so a person
+     * you blocked stayed in your People page, in `recipients` — which is the
+     * share sheet's recipient list, on every hub — and in `listForModule`.
+     *
+     * The share sheet is the one that turns it from wrong into harmful: the
+     * blocked citizen was offered as somebody to send a card to, and
+     * `startDirect` would then refuse with "not accepting messages right now",
+     * so the app invited an action it had already decided to forbid.
+     *
+     * One filter, three surfaces, because all three read this method. Blocks
+     * are symmetric here as everywhere else — `blockedWith` is the union of
+     * both directions.
+     */
+    let shaped = rows
+      .map((r) => this.shape(r, userId, r.userOneId === userId ? r.userTwo : r.userOne))
+      .filter((c) => !blocked.has(c.user.id));
     if (status) shaped = shaped.filter((c) => c.status === status);
     return shaped;
   }

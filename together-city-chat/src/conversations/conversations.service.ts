@@ -31,19 +31,28 @@ export class ConversationsService {
    */
   async contacts(userId: string) {
     // unbounded: contacts = the accepted friend graph — socially bounded
-    const conns = await this.prisma.connection.findMany({
-      where: {
-        status: 'ACCEPTED',
-        connectionType: 'FRIEND',
-        OR: [{ userOneId: userId }, { userTwoId: userId }],
-      },
-      include: { userOne: true, userTwo: true },
-      orderBy: { updatedAt: 'desc' },
-    });
-    return conns.map((c) => {
-      const u = c.userOneId === userId ? c.userTwo : c.userOne;
-      return { id: u.id, handle: u.handle, name: u.name, profileImage: u.profileImage };
-    });
+    const [conns, blocked] = await Promise.all([
+      this.prisma.connection.findMany({
+        where: {
+          status: 'ACCEPTED',
+          connectionType: 'FRIEND',
+          OR: [{ userOneId: userId }, { userTwoId: userId }],
+        },
+        include: { userOne: true, userTwo: true },
+        orderBy: { updatedAt: 'desc' },
+      }),
+      this.permission.blockedWith(userId),
+    ]);
+    /* A BLOCKED CITIZEN IS NOT SOMEBODY TO START A CHAT WITH (31 Aug audit).
+       `block()` leaves an ACCEPTED connection accepted — the Block row and the
+       connection are different facts — so this list offered a blocked person
+       as a chat recipient, and `startDirect` then refused with "not accepting
+       messages right now". Offering an action we have already decided to
+       forbid is worse than not offering it. */
+    return conns
+      .map((c) => (c.userOneId === userId ? c.userTwo : c.userOne))
+      .filter((u) => !blocked.has(u.id))
+      .map((u) => ({ id: u.id, handle: u.handle, name: u.name, profileImage: u.profileImage }));
   }
 
   /** Idempotently get-or-create the DIRECT conversation with a member by handle. */

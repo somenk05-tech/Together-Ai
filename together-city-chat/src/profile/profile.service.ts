@@ -462,6 +462,30 @@ export class ProfileService {
     // A deleted account has no public profile — it reads exactly like a handle
     // that never existed.
     if (!u || u.deletedAt) throw new NotFoundException('No citizen with that handle.');
+    /**
+     * ── AND A BLOCK READS THE SAME WAY (31 Aug audit) ──────────────────────
+     *
+     * `publicPosts` below has always returned an empty grid for a blocked
+     * pair. This header did not check at all — so a citizen you blocked could
+     * type your handle and read your name, photograph, bio, city, website,
+     * member-since and your follower, following and post counts, under an
+     * empty grid. Everything but the pictures.
+     *
+     * `blocking.ts` already states the intended rule, in the docblock on
+     * `blockedMessage`: blocking somebody "removes them from the feed, from
+     * search and from your circle, so their profile is the one page you can no
+     * longer reach". That was written as a fact and enforced nowhere. It is
+     * why the unblock path is Settings → Blocked citizens rather than their
+     * profile — the product already assumed this.
+     *
+     * The same sentence as a deleted account, deliberately. A different one
+     * would tell the reader that a specific citizen exists and has shut them
+     * out, which is exactly the fact a block is meant not to hand over.
+     * Symmetric, like every other block check here.
+     */
+    if (u.id !== viewerId && await this.blocking.isBlocked(viewerId, u.id)) {
+      throw new NotFoundException('No citizen with that handle.');
+    }
     const stats = await this.statsFor(u.id);
     let relationship: Relationship = 'none';
     let iFollow = false;
@@ -568,9 +592,23 @@ export class ProfileService {
     const q = (qRaw ?? '').trim().replace(/^@/, '');
     if (q.length < 2) return { items: [] as unknown[] };
     const handleQ = q.toLowerCase();
+    /**
+     * ── BLOCKED CITIZENS ARE NOT IN THE DIRECTORY (31 Aug audit) ───────────
+     *
+     * This had no block filter, so a person you blocked came back in People
+     * search — for both of you — with their name, photograph and city, and a
+     * relationship chip inviting a connection request. `blocking.ts` says
+     * plainly that a block "removes them from the feed, from search and from
+     * your circle"; search was the third of those and it was never written.
+     *
+     * `notIn` rather than a post-filter, so the page is full: filtering twelve
+     * results afterwards would quietly return eleven. The set is the same
+     * union every other read uses, both directions.
+     */
+    const blocked = [...(await this.blocking.blockedWith(viewerId))];
     const rows = (await this.prisma.user.findMany({
       where: {
-        id: { not: viewerId },
+        id: { not: viewerId, ...(blocked.length ? { notIn: blocked } : {}) },
         deletedAt: null, // deleted accounts are never discoverable
         OR: [
           { handle: { startsWith: handleQ } },
