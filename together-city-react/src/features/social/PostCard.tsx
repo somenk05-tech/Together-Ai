@@ -293,7 +293,7 @@ function ImageCarousel({ images, authorName }: { images: PostMedia[]; authorName
 /** A feed video framed 16:9 (landscape) or 9:16 (vertical) by its real dimensions.
  *  `autoInView` makes it autoplay (muted) while scrolled into view and pause when
  *  it leaves — used by the "Videos" feed section. */
-function VideoFrame({ url, isNew, vref, autoInView }: { url: string; isNew: boolean; vref?: Ref<HTMLVideoElement>; autoInView?: boolean }) {
+function VideoFrame({ url, poster, isNew, vref, autoInView }: { url: string; poster?: string | null; isNew: boolean; vref?: Ref<HTMLVideoElement>; autoInView?: boolean }) {
   // Real width / height — remembered by URL, so scrolling back to a video (or
   // a pagination remount) frames it correctly before metadata arrives.
   const [ar, setAr] = useState(() => knownRatio(url) ?? 16 / 9);
@@ -322,16 +322,36 @@ function VideoFrame({ url, isNew, vref, autoInView }: { url: string; isNew: bool
     if (typeof vref === 'function') vref(el);
     else if (vref) (vref as MutableRefObject<HTMLVideoElement | null>).current = el;
   }, [vref]);
+  /**
+   * ── AND IT FLIPS BACK, WHICH IT DID NOT (31 Aug) ────────────────────────
+   *
+   * `setNear(true); io.disconnect();` — true once, and never again false. So
+   * every video the citizen scrolled PAST kept its `src` attached with
+   * `preload="auto"` for the life of the page. Ten pages of a video-heavy feed
+   * is dozens of `<video>` elements each holding a buffer and a decoder, and
+   * the browser's six-connections-per-host all spent on files nobody is
+   * looking at any more. That is the scroll stutter that gets worse the longer
+   * you scroll, and the hitch in the one video you ARE watching: it is queued
+   * behind the ones you have already left.
+   *
+   * ReelsView fixed exactly this on 30 Aug and wrote down why — "two hundred
+   * `<video>` elements holding two hundred buffers: on mobile Safari that is a
+   * tab crash, not a slowdown". The feed card is the other player and never
+   * got it. Same defect, same paragraph, one surface.
+   *
+   * Leaving the window releases the bytes. `isNew` stays pinned, because that
+   * video is the reason the citizen is on this page.
+   */
   useEffect(() => {
-    if (near) return;
+    if (isNew) return;
     const el = localRef.current;
     if (!el) return;
     const io = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting) { setNear(true); io.disconnect(); }
-    }, { rootMargin: '200% 0px 200% 0px', threshold: 0 });
+      setNear(entries[0].isIntersecting);
+    }, { rootMargin: '150% 0px 150% 0px', threshold: 0 });
     io.observe(el);
     return () => io.disconnect();
-  }, [near]);
+  }, [isNew]);
 
   /**
    * ONE VIDEO PLAYS, AND IT PLAYS WITH THE CITIZEN'S OWN SOUND.
@@ -374,7 +394,29 @@ function VideoFrame({ url, isNew, vref, autoInView }: { url: string; isNew: bool
   }, [autoInView]);
   return (
     <div className="vf-wrap">
-      <video ref={setRefs} src={near ? url : undefined} preload={near ? 'auto' : 'none'}
+      {/**
+        * THE POSTER IS THE PICTURE, AND IT WAS ALREADY PAID FOR.
+        *
+        * A video card rendered a bare `<video>`: nothing to look at until
+        * enough of a fifty-megabyte file arrived to decode one frame. Which
+        * means the feed downloaded video bytes to show a still — for every
+        * video within the preload window, whether or not anybody watched one.
+        *
+        * The still already exists. `thumbUrl` is the poster frame the composer
+        * captures, the guard screens, the purge tracks and the API signs; the
+        * profile grid and the reels player both render it. Handing it to
+        * `poster` paints the card from a ~50 KB JPEG and asks for no video
+        * bytes at all until the citizen decides to watch.
+        *
+        * PRELOAD IS `metadata`, NOT `auto`. `auto` is "take as much of this as
+        * you can", said about a fifty-megabyte file, about every video within
+        * a screen and a half — which is how the one being watched ends up
+        * queued behind four that are not. Metadata is duration and dimensions.
+        * The video actually playing, and a just-posted one, get `auto`.
+        */}
+      <video ref={setRefs} src={near ? url : undefined}
+        poster={poster ?? undefined}
+        preload={!near ? 'none' : (isNew || playing || ctl) ? 'auto' : 'metadata'}
         controls={ctl} playsInline autoPlay={isNew} muted={isNew || autoInView} loop={isNew || autoInView}
         onClick={() => {
           // First tap: play a paused video, and hand over the native controls.
@@ -498,7 +540,7 @@ export const PostCard = memo(function PostCard({ post, isNew = false, manage = f
         </div>
       )}
       {images.length > 1 && <ImageCarousel images={images} authorName={post.author.name} />}
-      {videos.map((m, i) => <VideoFrame key={m.id} url={m.url} isNew={isNew} vref={i === 0 ? vidRef : undefined} autoInView={autoplayVideo} />)}
+      {videos.map((m, i) => <VideoFrame key={m.id} url={m.url} poster={m.thumbUrl} isNew={isNew} vref={i === 0 ? vidRef : undefined} autoInView={autoplayVideo} />)}
 
       {manage && isMine && videos.length > 0 && onSetCover && (
         <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>

@@ -55,7 +55,7 @@ describe('what a citizen is told at the door out', () => {
        method ends where the next member begins; that is the boundary this
        always meant. */
     const from = svc.indexOf('async deleteAccount');
-    const next = svc.slice(from + 1).search(/\n  (?:\/\*\*|(?:private |public |protected )?(?:async )?[A-Za-z_$][\w$]*\s*\()/);
+    const next = svc.slice(from + 1).search(/\n {2}(?:\/\*\*|(?:private |public |protected )?(?:async )?[A-Za-z_$][\w$]*\s*\()/);
     const body = next < 0 ? svc.slice(from) : svc.slice(from, from + 1 + next);
     for (const call of ['post.deleteMany', 'follow.deleteMany', 'connection.deleteMany', 'revokeAll']) {
       expect(body).toContain(call);

@@ -2412,9 +2412,17 @@ textarea.g-field { resize: none; line-height: 1.55; }
    and closing it puts you back exactly there without a scroll restore. */
 .wall-open { grid-column: 1 / -1; }
 
+/* `content-visibility: auto` here for the same reason `.sl-post` carries it:
+   the desktop wall paints a grid of these, each holding a full-size
+   photograph, and a tile three screens down costs layout, paint and an image
+   decode for something nobody is looking at. The 3/4 aspect-ratio already
+   fixes the box's height from its column width, so skipping the contents
+   moves nothing — which is what makes this safe here without the intrinsic
+   size the post card needs. */
 .poster { position: relative; display: block; width: 100%; padding: 0; border: 0;
   aspect-ratio: 3 / 4; overflow: hidden; border-radius: var(--r-2); cursor: pointer;
   background: var(--media-bg); color: var(--on-accent); text-align: left;
+  content-visibility: auto;
   box-shadow: var(--e1); transition: box-shadow .18s ease, transform .18s ease; }
 .poster:hover { box-shadow: var(--e2); }
 @media (hover: hover) and (pointer: fine) {
