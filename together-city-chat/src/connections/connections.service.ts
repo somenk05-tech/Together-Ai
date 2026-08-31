@@ -42,6 +42,17 @@ const parseModules = (raw: unknown): string[] => {
  * `hub-grants.mayReadHub` deliberately leaves rows with no stated relationship
  * alone; the reasoning is written down there.
  */
+/**
+ * Does this connection grant a hub? Exported because the FEED needs the same
+ * answer, and the point of the 31 Aug fix is one rule rather than one per read
+ * path. It takes the ROW, not an id, so a caller holding a cached connection
+ * pays no query for it.
+ */
+export const connectionGrants = (
+  conn: { modulesJson?: string | null; relationship?: string | null },
+  hub: string,
+): boolean => effectiveModules(conn).includes(hub);
+
 const effectiveModules = (conn: { modulesJson?: string | null; relationship?: string | null }): string[] => {
   const rel = conn.relationship ?? null;
   return parseModules(conn.modulesJson).filter((slug) => mayReadHub(slug, rel));
@@ -349,31 +360,47 @@ export class ConnectionsService {
    * place and not another is worse than not offering the setting at all, and
    * two copies of a rule will always drift again.
    *
-   * A connection now counts only while Social is granted on it. That checkbox
-   * is what a citizen believes controls exactly this, and until now it did
-   * nothing: switching Social off left the other person still inside the
-   * friends circle. Following is untouched — choosing to follow someone is its
-   * own consent, and is not something the followee's hub toggles revoke.
+ * A connection counts only while Social is granted on it. That checkbox is what
+ * a citizen believes controls exactly this, and before 27 Aug it did nothing.
+ *
+ * ── AND FOLLOWING COUNTS FOR NOTHING (31 Aug) ──────────────────────────────
+ *
+ * This opened the friends circle to a bare `Follow` row, under the argument
+ * that stood here: "choosing to follow someone is its own consent, and is not
+ * something the followee's hub toggles revoke."
+ *
+ * That sentence names the wrong person's consent. Following is the FOLLOWER's
+ * decision. The audience on a post is the AUTHOR's, and "Friends" is a promise
+ * the author made about who would see it — the composer says so in as many
+ * words, "Friends · Your accepted connections". A stranger cannot enlarge that
+ * promise by taking an action the author is never asked about: `follow()` needs
+ * a public handle and nothing else — no approval, no notification gate.
+ *
+ * The 30 Aug audit opened with this bug and it was fixed in the FEED alone.
+ * This function is the other two thirds — the profile grid, and `assertCanView`
+ * which gates the permalink, comments, likes and reposts. While it stood,
+ * `GET /profile/user/<handle>/posts` returned every friends-audience post of
+ * anybody in the city to whoever had pressed Follow, with working signed URLs
+ * to the photographs.
+ *
+ * The follow read went with it: two queries answering a question one answers,
+ * on a path that runs for every grid read and every interaction.
    */
   async visibleAudiences(viewer: string, owner: string): Promise<string[]> {
     if (viewer === owner) return ['public', 'friends', 'family', 'private'];
 
     const { userOneId, userTwoId } = orderPair(viewer, owner);
-    const [follows, conn] = await Promise.all([
-      // Both fail CLOSED, to the more-private audience — but silently
-      // shrinking what a viewer may see is still worth a log line.
-      swallow(this.prisma.follow
-        .findUnique({ where: { followerId_followeeId: { followerId: viewer, followeeId: owner } }, select: { id: true } }), 'visibility: follow read', { viewer, owner }),
-      swallow(this.prisma.connection
-        .findFirst({ where: { userOneId, userTwoId, status: ConnectionStatus.ACCEPTED } }), 'visibility: connection read', { viewer, owner }),
-    ]);
+    // Fails CLOSED, to the more-private audience — but silently shrinking what
+    // a viewer may see is still worth a log line.
+    const conn = await swallow(this.prisma.connection
+      .findFirst({ where: { userOneId, userTwoId, status: ConnectionStatus.ACCEPTED } }), 'visibility: connection read', { viewer, owner });
 
     const social = conn
       ? parseModules((conn as { modulesJson?: string | null }).modulesJson).includes('social')
       : false;
 
     const allowed = ['public'];
-    if (follows || social) allowed.push('friends');
+    if (social) allowed.push('friends');
     if (social && ((conn as { relationship?: string | null } | null)?.relationship ?? '') === 'family') {
       allowed.push('family');
     }

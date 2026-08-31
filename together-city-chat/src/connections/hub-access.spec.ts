@@ -94,10 +94,32 @@ describe('hub access', () => {
       await expect(svc.visibleAudiences('a', 'b')).resolves.toEqual(['public']);
     });
 
-    it('keeps a follower in the friends circle regardless of hub toggles', async () => {
-      // Following is its own consent and is not revoked by a hub checkbox.
+    it('gives a FOLLOWER nothing but public, however long they have followed', async () => {
+      /**
+       * THIS TEST ASSERTED THE OPPOSITE UNTIL 31 AUG, and defended a leak.
+       *
+       * It read "keeps a follower in the friends circle regardless of hub
+       * toggles — following is its own consent and is not revoked by a hub
+       * checkbox", and the implementation matched it: `if (follows || social)`.
+       *
+       * The argument names the wrong person's consent. Following is the
+       * FOLLOWER's decision; the audience is the AUTHOR's, and the composer
+       * promises them "Friends · Your accepted connections". `follow()` takes a
+       * public handle with no approval and no gate, so while this held, anybody
+       * could read anybody's friends-audience posts — with working signed URLs
+       * to the photographs — by pressing Follow.
+       *
+       * A test can defend a bug as easily as a fix, and this one did, through
+       * an audit that named the same bug in the feed and a commit that closed
+       * it there.
+       */
       const svc = serviceWith(connWith([]), { id: 'f1' });
-      await expect(svc.visibleAudiences('a', 'b')).resolves.toEqual(['public', 'friends']);
+      await expect(svc.visibleAudiences('a', 'b')).resolves.toEqual(['public']);
+    });
+
+    it('gives a follower nothing even with no connection row at all', async () => {
+      const svc = serviceWith(null, { id: 'f1' });
+      await expect(svc.visibleAudiences('a', 'b')).resolves.toEqual(['public']);
     });
 
     it('needs BOTH a family relationship and Social for family posts', async () => {

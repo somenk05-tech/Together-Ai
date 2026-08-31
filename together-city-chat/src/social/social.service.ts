@@ -3,6 +3,7 @@ import { ForbiddenException, Injectable, InternalServerErrorException, NotFoundE
 import { spawn } from 'child_process';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { BlockingService } from '../connections/blocking.service';
+import { connectionGrants } from '../connections/connections.service';
 import { VISIBLE, VISIBLE_ONLY, removedNotice } from './post-visibility';
 import { AdminAccessService } from '../admin/admin-access.service';
 import { ReadCache } from '../shared/cache/read-cache.service';
@@ -230,7 +231,7 @@ export class SocialService {
    * not a trade worth making for a query. Within one request the answer cannot
    * go stale, so this is free.
    */
-  private async graphOf(userId: string): Promise<{ blocked: Set<string>; conns: Array<{ userOneId: string; userTwoId: string; relationship?: string | null }>; follows: string[] }> {
+  private async graphOf(userId: string): Promise<{ blocked: Set<string>; conns: Array<{ userOneId: string; userTwoId: string; relationship?: string | null; modulesJson?: string | null }>; follows: string[] }> {
     /**
      * THIS IS THE READ THE WHOLE HUB MAKES, AND IT MADE IT EVERY TIME.
      *
@@ -255,7 +256,7 @@ export class SocialService {
     const raw = await this.cached(
       `graph:${userId}`,
       SocialService.GRAPH_TTL_S,
-      async (): Promise<{ blocked: string[]; conns: Array<{ userOneId: string; userTwoId: string; relationship?: string | null }>; follows: string[] }> => {
+      async (): Promise<{ blocked: string[]; conns: Array<{ userOneId: string; userTwoId: string; relationship?: string | null; modulesJson?: string | null }>; follows: string[] }> => {
         const [follows, conns, blocked] = await Promise.all([
           /**
            * "SOCIALLY BOUNDED" IS NOT A BOUND.
@@ -289,11 +290,21 @@ export class SocialService {
         ]);
         return {
           blocked: [...blocked],
-          conns: (conns as never as Array<{ userOneId: string; userTwoId: string; relationship?: string | null }>)
+          conns: (conns as never as Array<{ userOneId: string; userTwoId: string; relationship?: string | null; modulesJson?: string | null }>)
             // Only the three fields the gate reads. A cached row is a row that
             // travels over the wire twice and sits in memory in between; there
             // is no reason for the rest of the Connection to make that trip.
-            .map((c) => ({ userOneId: c.userOneId, userTwoId: c.userTwoId, relationship: c.relationship ?? null })),
+            /* modulesJson TRAVELS WITH THE ROW (31 Aug). The feed's circle is
+               now the same set `visibleAudiences` computes, and that rule needs
+               the module grant — so the cached shape has to carry it. Trimming
+               it out to save a few bytes is what would make the two rules
+               disagree again, quietly, a week from now. */
+            .map((c) => ({
+              userOneId: c.userOneId,
+              userTwoId: c.userTwoId,
+              relationship: c.relationship ?? null,
+              modulesJson: (c as { modulesJson?: string | null }).modulesJson ?? null,
+            })),
           follows: follows.map((f) => f.followeeId),
         };
       },
@@ -304,12 +315,36 @@ export class SocialService {
   /** The three sets the audience gate needs, derived from one read. */
   private fromGraph(userId: string, g: Awaited<ReturnType<SocialService['graphOf']>>) {
     const other = (c: { userOneId: string; userTwoId: string }) => (c.userOneId === userId ? c.userTwoId : c.userOneId);
-    const circle = g.conns.map(other).filter((id) => !g.blocked.has(id));
+    /**
+     * THE CIRCLE IS WHAT `visibleAudiences` SAYS IT IS (31 Aug).
+     *
+     * These two sets and that function are the same question — "who is inside
+     * this citizen's friends circle" — and they answered it differently. The
+     * feed took every accepted connection; `visibleAudiences` additionally
+     * required the Social checkbox, which is the control a citizen believes
+     * governs exactly this. So switching Social off on a connection correctly
+     * emptied that person's view of the PROFILE GRID and left the FEED showing
+     * them everything, which makes the checkbox decorative on the one surface
+     * people actually read.
+     *
+     * `connectionGrants` is exported from ConnectionsService so there is one
+     * definition rather than a second copy here. Every path that creates a
+     * connection defaults the grant to `['social']`, so this narrows nothing
+     * for an ordinary connection — only for one where somebody deliberately
+     * unticked the box, which is the entire point of the box.
+     */
+    const inCircle = (c: { relationship?: string | null; modulesJson?: string | null }) => connectionGrants(c, 'social');
+    const circle = g.conns.filter(inCircle).map(other).filter((id) => !g.blocked.has(id));
+    /* `network` is deliberately WIDER, and stays that way: it is "whose posts
+       may appear at all", which follows legitimately grant — a follower sees
+       PUBLIC posts, and the audience gate above decides the rest. Narrowing
+       this would empty the Following lens rather than close a leak. */
     const network = new Set<string>([userId, ...g.follows, ...g.conns.map(other)]);
     for (const b of g.blocked) network.delete(b);
     network.add(userId);
     const family = new Set(
-      g.conns.filter((c) => ((c.relationship ?? '') === 'family')).map(other).filter((id) => !g.blocked.has(id)),
+      g.conns.filter((c) => ((c.relationship ?? '') === 'family') && inCircle(c))
+        .map(other).filter((id) => !g.blocked.has(id)),
     );
     return { circle, network: [...network], family: [...family] };
   }
@@ -342,10 +377,13 @@ export class SocialService {
     // same set the friends lens and familyIds already read
     const conns = await this.prisma.connection.findMany({
       where: { status: 'ACCEPTED', OR: [{ userOneId: userId }, { userTwoId: userId }] },
-      select: { userOneId: true, userTwoId: true },
-    }).catch(swallowed('social.circleIds', [] as { userOneId: string; userTwoId: string }[]));
+      select: { userOneId: true, userTwoId: true, relationship: true, modulesJson: true },
+    }).catch(swallowed('social.circleIds', [] as Array<{ userOneId: string; userTwoId: string; relationship: string | null; modulesJson: string | null }>));
     const blocked = await this.blockedWith(userId);
+    // The Social grant, same as fromGraph and visibleAudiences — three callers,
+    // one rule, which is the whole of the 31 Aug fix.
     return conns
+      .filter((c) => connectionGrants(c, 'social'))
       .map((c) => (c.userOneId === userId ? c.userTwoId : c.userOneId))
       .filter((id) => !blocked.has(id));
   }

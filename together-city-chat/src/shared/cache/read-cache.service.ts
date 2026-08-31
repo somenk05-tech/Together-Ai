@@ -38,7 +38,13 @@ import { RedisService } from '../redis/redis.service';
  * be sitting there answering questions in the new code's voice.
  */
 
-const NS = 'rc:v1:';
+/* v2 (31 Aug): the cached social graph gained `modulesJson`, because the feed's
+   friends circle now asks the same question `visibleAudiences` does. A v1 entry
+   read by v2 code has no modulesJson, and `parseModules(undefined)` falls back
+   to the DEFAULT grant — so a stale entry would fail OPEN for thirty seconds
+   after every deploy, on the exact rule being tightened. The version is what
+   makes that impossible rather than merely unlikely. */
+const NS = 'rc:v2:';
 
 @Injectable()
 export class ReadCache {
