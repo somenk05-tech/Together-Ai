@@ -68,6 +68,26 @@ describe('a re-tap sends nothing (blocker 08)', () => {
   });
 });
 
+describe('a withdrawn like, re-given, is not news (31 Aug, sixth pass)', () => {
+  // A pass withdraws the like FLAG and keeps the TIMESTAMP (a-no-stays-a-no).
+  // That made like -> pass -> like a `newLike` each time: a paid
+  // re-notification loop at one person, twenty a day inside the allowance.
+  // The timestamp is the memory - a pair this citizen has ever liked before
+  // notifies nobody twice. The like itself still lands.
+  it('re-liking after a withdrawal writes the like but sends nothing', async () => {
+    const { svc, notifications, updates } = build(st({ likedByOne: false, likedAtOne: new Date('2026-08-30T00:00:00Z') }), plenty);
+    await svc.like('me', 'them', 'romantic');
+    expect(updates[0]).toMatchObject({ likedByOne: true });
+    expect(notifications.create).not.toHaveBeenCalled();
+  });
+
+  it('a first like of the pair still notifies', async () => {
+    const { svc, notifications } = build(st(), plenty);
+    await svc.like('me', 'them', 'romantic');
+    expect(notifications.create).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('the daily super-like cannot be bypassed (blocker 09)', () => {
   it('super-liking someone you already liked is refused once the day is spent', async () => {
     const { svc, prisma, notifications } = build(st({ likedByOne: true }), noSupers);

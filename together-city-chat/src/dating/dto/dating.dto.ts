@@ -37,7 +37,11 @@ export const UpsertDatingProfileSchema = z.object({
    * not create a dating profile. The client now omits a blank too — this is
    * the door being tolerant on its own account, not on one build's.
    */
-  birthTime: z.union([z.string().regex(/^\d{2}:\d{2}$/), z.literal('')]).optional()
+  // And a time that fits a CLOCK (31 Aug, sixth pass): `\d{2}:\d{2}` accepted
+  // "99:99", which then synced to the Master Profile and fed the astrology
+  // engine. The form's <input type="time"> cannot produce one, so only a
+  // hand-crafted request ever meets this message.
+  birthTime: z.union([z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, 'Time of birth should be HH:MM on a 24-hour clock.'), z.literal('')]).optional()
     .transform((v) => (v ? v : undefined)),
   birthPlace: z.string().max(120).optional(),
   interests: z.array(z.string().min(1).max(40)).max(20).optional(),

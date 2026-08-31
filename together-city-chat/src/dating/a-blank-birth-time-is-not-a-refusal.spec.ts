@@ -44,4 +44,13 @@ describe('a blank birth time is not a refusal', () => {
       expect(UpsertDatingProfileSchema.safeParse({ ...base, birthTime: bad }).success).toBe(false);
     }
   });
+
+  it('and refuses a time no clock shows (31 Aug: 99:99 used to pass and sync to the Master Profile)', () => {
+    for (const bad of ['99:99', '24:00', '23:60', '30:15']) {
+      expect(UpsertDatingProfileSchema.safeParse({ ...base, birthTime: bad }).success).toBe(false);
+    }
+    for (const good of ['00:00', '09:05', '23:59']) {
+      expect(UpsertDatingProfileSchema.safeParse({ ...base, birthTime: good }).success).toBe(true);
+    }
+  });
 });

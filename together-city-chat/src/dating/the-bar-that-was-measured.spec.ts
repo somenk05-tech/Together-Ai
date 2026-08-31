@@ -101,3 +101,16 @@ describe('the bar that was measured', () => {
     process.env.DATING_BAR = prior;
   });
 });
+
+describe('a floor that does not parse is no floor (31 Aug)', () => {
+  // A stray character in DATING_BAR_FLOOR made the bar NaN, every comparison
+  // false, and Browse silently empty with no error anywhere.
+  it('falls back to the percentile when DATING_BAR_FLOOR is not a number', () => {
+    const prior = process.env.DATING_BAR_FLOOR;
+    process.env.DATING_BAR_FLOOR = 'abc';
+    const bar = curatedBar([90, 80, 70, 60, 50, 40, 30, 20, 10, 5]);
+    if (prior === undefined) delete process.env.DATING_BAR_FLOOR; else process.env.DATING_BAR_FLOOR = prior;
+    expect(Number.isFinite(bar)).toBe(true);
+    expect(bar).toBe(80); // the top tenth of ten is the second score
+  });
+});

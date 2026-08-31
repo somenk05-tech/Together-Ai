@@ -866,7 +866,12 @@ export function curatedBar(scores: number[], fixedBar = 75): number {
   if (!scores.length) return fixedBar;
   const sorted = [...scores].sort((a, b) => b - a);
   const p90 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.1))];
-  return Math.max(Number(process.env.DATING_BAR_FLOOR ?? 0), p90);
+  // A floor that does not parse is no floor (31 Aug, sixth pass): a stray
+  // character in DATING_BAR_FLOOR made this NaN, every comparison against the
+  // bar false, and Browse silently empty with no error anywhere. Config typos
+  // fall back to "no floor", which is the value the variable's absence means.
+  const floor = Number(process.env.DATING_BAR_FLOOR ?? 0);
+  return Math.max(Number.isFinite(floor) ? floor : 0, p90);
 }
 
 export function hardFilterReason(myD: DXProfile, theirD: DXProfile, theirAge: number): string | null {

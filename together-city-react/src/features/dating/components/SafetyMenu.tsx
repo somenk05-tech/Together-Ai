@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useBlockMatch, useReportMatch, type MatchKind } from '../api';
 
@@ -36,8 +36,32 @@ export function SafetyMenu({ userId, kind, compact = false }: {
   const [done, setDone] = useState<null | 'reported' | 'blocked'>(null);
   const block = useBlockMatch();
   const report = useReportMatch();
+  /**
+   * A DIALOG THE KEYBOARD CAN LEAVE AND ENTER (fifth audit, 31 Aug, medium
+   * 14). Opening this left focus on the trigger behind the scrim: a keyboard
+   * user pressing Tab was somewhere on the page they could not see, and
+   * Escape did nothing — on the safety menu, the one dialog someone may open
+   * in a hurry. Focus moves into the panel on open, Escape closes, and focus
+   * goes back to the "Report or block" trigger on close.
+   */
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   const close = () => { setOpen(false); setMode(null); setReason(''); };
+
+  useEffect(() => {
+    if (!open) return;
+    // Captured now: by cleanup time the ref may point elsewhere (the lint's
+    // caution), and the trigger to hand focus back to is the one that opened
+    // this dialog.
+    const trigger = triggerRef.current;
+    panelRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setOpen(false); setMode(null); setReason(''); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => { window.removeEventListener('keydown', onKey); trigger?.focus(); };
+  }, [open]);
 
   if (done) {
     return (
@@ -56,7 +80,7 @@ export function SafetyMenu({ userId, kind, compact = false }: {
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} style={linkStyle}
+      <button type="button" ref={triggerRef} onClick={() => setOpen(true)} style={linkStyle}
         aria-label="Report or block this person">
         ⋯ Report or block
       </button>
@@ -65,8 +89,8 @@ export function SafetyMenu({ userId, kind, compact = false }: {
         <div role="dialog" aria-modal="true" aria-label="Report or block"
           onClick={close}
           style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'var(--scrim-deep)', display: 'grid', placeItems: 'center', padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()}
-            style={{ width: '100%', maxWidth: 400, background: 'var(--card)', borderRadius: 18, padding: 20, boxShadow: 'var(--shadow)' }}>
+          <div ref={panelRef} tabIndex={-1} onClick={(e) => e.stopPropagation()}
+            style={{ width: '100%', maxWidth: 400, background: 'var(--card)', borderRadius: 18, padding: 20, boxShadow: 'var(--shadow)', outline: 'none' }}>
 
             {mode === null && (
               <>

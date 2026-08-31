@@ -84,9 +84,9 @@ describe('what a stored entry becomes', () => {
 });
 
 describe('whose photo you may file against your own profile', () => {
-  const own = (entries: unknown) => {
+  const own = (entries: unknown, prior: string[] = []) => {
     const s: any = Object.create(DatingService.prototype);
-    return s.ownPhotosOnly('u1', entries);
+    return s.ownPhotosOnly('u1', entries, prior);
   };
 
   it("refuses somebody else's key", () => {
@@ -103,9 +103,11 @@ describe('whose photo you may file against your own profile', () => {
   });
 
   it('lets a legacy blob through but NOT an http URL (blocker 04)', () => {
-    // data: is a legacy inline photo the citizen already has; an http URL is an
-    // arbitrary remote image and is refused at the write, not just the read.
-    expect(own(['data:image/png;base64,AAA', 'https://cdn.example/x.jpg'])).toEqual(['data:image/png;base64,AAA']);
+    // Since 31 Aug (sixth pass) a data: entry rides through only when this
+    // profile ALREADY STORED it - see no-arbitrary-photo-urls.spec.ts. An
+    // http URL is refused at the write either way.
+    expect(own(['data:image/png;base64,AAA', 'https://cdn.example/x.jpg'], ['data:image/png;base64,AAA'])).toEqual(['data:image/png;base64,AAA']);
+    expect(own(['data:image/png;base64,AAA', 'https://cdn.example/x.jpg'])).toEqual([]);
   });
 
   it('caps the gallery and survives rubbish', () => {

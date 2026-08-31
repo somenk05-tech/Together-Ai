@@ -199,9 +199,13 @@ export function learnWeights(decisions: readonly Decision[]): LearnedWeights {
         label: LABEL[k],
         lean,
         direction: (lean > 0 ? 'up' : 'down') as 'up' | 'down',
+        // A 'down' note only exists past CLEAR_LEAN, which means the factor
+        // ran ≥8 points HIGHER on the people you PASSED — "much the same
+        // either way" was the opposite of what the number said (fifth audit,
+        // low tier; fixed 31 Aug). Both sentences now state their own lean.
         note: lean > 0
           ? `${LABEL[k]} ran ${lean} points higher on the people you liked, so it counts for more.`
-          : `${LABEL[k]} was much the same either way, so it counts for less.`,
+          : `${LABEL[k]} ran ${Math.abs(lean)} points higher on the people you passed, so it counts for less.`,
       };
     })
     .sort((a, b) => Math.abs(b.lean) - Math.abs(a.lean));

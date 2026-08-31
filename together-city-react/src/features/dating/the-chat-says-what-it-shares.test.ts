@@ -66,6 +66,20 @@ describe('a thumbnail shows the photo it removes', () => {
   });
 });
 
+describe('a dialog the keyboard can leave and enter (31 Aug)', () => {
+  const menu = read('./components/SafetyMenu.tsx');
+  it('the safety menu takes focus, closes on Escape, and hands focus back', () => {
+    expect(menu).toMatch(/panelRef\.current\?\.focus\(\)/);
+    expect(menu).toMatch(/e\.key === 'Escape'/);
+    expect(menu).toMatch(/trigger\?\.focus\(\)/);
+    expect(menu).toMatch(/ref=\{panelRef\} tabIndex=\{-1\}/);
+  });
+  it('the compatibility sheet does the same', () => {
+    expect(pieces).toMatch(/sheetRef\.current\?\.focus\(\)/);
+    expect(pieces).toMatch(/e\.key === 'Escape'/);
+  });
+});
+
 describe('the safety page keeps the hub’s promise', () => {
   it('says the chosen dating identity, not "your own name and photos"', () => {
     expect(safety).not.toContain('you appear under your own name and photos');

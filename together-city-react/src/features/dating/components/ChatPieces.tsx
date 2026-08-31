@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import type { MatchDetail } from '../api';
 import { bandFor, coverageNote } from '../bands';
@@ -81,6 +82,15 @@ export function EmptyIntro({ name, score, myPhoto, theirPhoto, d, onPick }: {
 export function CompatibilitySheet({ name, score, otherUserId, d, onClose }: {
   name: string; score: number | null; otherUserId: string; d?: MatchDetail | null; onClose: () => void;
 }) {
+  // Escape closes and focus lands inside — the same keyboard door SafetyMenu
+  // gained (fifth audit, 31 Aug, medium 14).
+  const sheetRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    sheetRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
   const n = score ?? d?.score ?? null;
   const band = n != null ? bandFor(n) : null;
   const covNote = coverageNote(d?.coverage);
@@ -91,7 +101,7 @@ export function CompatibilitySheet({ name, score, otherUserId, d, onClose }: {
   return (
     <>
       <button type="button" className="cssheet-scrim" aria-label="Close compatibility" onClick={onClose} />
-      <div className="cssheet" role="dialog" aria-modal="true" aria-label="Your compatibility">
+      <div ref={sheetRef} tabIndex={-1} className="cssheet" role="dialog" aria-modal="true" aria-label="Your compatibility" style={{ outline: 'none' }}>
         <div className="cssheet-grab" aria-hidden />
         <h2>Your compatibility</h2>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>

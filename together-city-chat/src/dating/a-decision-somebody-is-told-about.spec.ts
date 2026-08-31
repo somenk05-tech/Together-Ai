@@ -20,7 +20,7 @@ const moderate = svc.slice(svc.indexOf('async moderateDecision('), svc.indexOf('
 describe('a decision somebody is told about', () => {
   it('tells the citizen their profile was taken down, and where to argue', () => {
     expect(moderate).toMatch(/notifications\.create\(/);
-    expect(moderate).toMatch(/Your dating profile was taken down/);
+    expect(moderate).toMatch(/Your (dating|matchmaking) profile was taken down/);
     expect(moderate).toMatch(/href: '\/dating\/safety'/);
   });
 

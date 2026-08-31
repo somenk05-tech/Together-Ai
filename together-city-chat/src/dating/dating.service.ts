@@ -665,16 +665,24 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
    * Legacy base64 and the account-photo URL pass through: they are not keys and
    * there is nothing to spoof.
    */
-  private ownPhotosOnly(userId: string, entries: unknown): string[] {
+  private ownPhotosOnly(userId: string, entries: unknown, priorStored: readonly string[] = []): string[] {
     if (!Array.isArray(entries)) return [];
+    // NO NEW INLINE PHOTOS (31 Aug, sixth pass). A `data:` entry is bytes the
+    // client typed rather than a key the vault issued: its review id is a
+    // digest of the string, so an approval belongs to the BYTES and anyone
+    // pasting the same string wears it, and it is the last thing that
+    // justified a 2 MB extras ceiling. The client has uploaded keys for
+    // weeks. Entries already STORED on this profile round-trip — a legacy
+    // gallery must survive its owner editing a bio — but the door only lets
+    // an inline photo back in, never in.
+    const legacy = new Set(priorStored.filter((e) => e.startsWith('data:')));
     return entries
       .filter((e): e is string => typeof e === 'string' && !!e)
       // NO http (27 Aug, second audit, blocker 04). An http entry is an
       // arbitrary remote URL: unreviewed by Rekognition, swappable after the
       // fact, and a tracker that logs every viewer's IP. The only source that
       // ever wrote one was the account-photo seed, which is exactly the leak.
-      // data: (legacy inline) and this citizen's own dating keys only.
-      .filter((e) => e.startsWith('data:') || StorageProvider.isOwnDatingKey(userId, e))
+      .filter((e) => (e.startsWith('data:') ? legacy.has(e) : StorageProvider.isOwnDatingKey(userId, e)))
       .slice(0, 10);
   }
 
@@ -721,7 +729,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       // the photo filter, the age floor and the coordinate snap below all
       // work on values that are already the right kind of thing.
       const carried = carrySelfie(shapeExtras(parsed), priorDX);
-      if ('photos' in carried) carried.photos = this.ownPhotosOnly(userId, carried.photos);
+      if ('photos' in carried) carried.photos = this.ownPhotosOnly(userId, carried.photos, this.storedPhotos(prior?.extras));
       floorAgePreferences(carried);
       // THE EXACT POINT IS NEVER STORED (fifth audit, 31 Aug, H2). The
       // browser's coordinates are snapped to the ~5 km grid `standCoords`
@@ -1606,7 +1614,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       }) as unknown as Array<Record<string, unknown>>;
     } catch { return []; }
 
-    const out: Decision[] = [];
+    const decided: Array<{ liked: boolean; other: string }> = [];
     for (const r0 of rows) {
       const r = r0 as unknown as {
         userOneId: string; userTwoId: string;
@@ -1618,35 +1626,48 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       // Only MY decision counts. Being liked by somebody says nothing about what
       // I look for, and counting it would learn other people's taste as mine.
       if (liked === passed) continue; // neither, or somehow both
-      const other = meIsOne ? r.userTwoId : r.userOneId;
-      const f = await this.readPairFactors(userId, other);
-      if (!f) continue;
-      out.push({ liked, factors: f });
+      decided.push({ liked, other: meIsOne ? r.userTwoId : r.userOneId });
+    }
+    if (!decided.length) return [];
+    /**
+     * ONE QUERY, NOT ONE PER DECISION (fifth audit, 31 Aug, the N+1). This
+     * loop called `readPairFactors` per row — up to LEARNING_WINDOW serial
+     * `findUnique`s on every uncached stack read, on the request path, and on
+     * every request while Redis is down. The cache rows are keyed by the
+     * sorted pair, so all of them come back in one `findMany`. The rule
+     * stays: a pair with no cached score is skipped, never guessed at.
+     */
+    const keys = decided.map((d) => {
+      const [userA, userB] = [userId, d.other].sort();
+      return { userA, userB };
+    });
+    let scored: Array<Record<string, unknown>> = [];
+    try {
+      scored = await (this.prisma as unknown as {
+        compatibilityScore: { findMany(x: unknown): Promise<Array<Record<string, unknown>>> };
+      }).compatibilityScore.findMany({ where: { OR: keys } });
+    } catch { return []; }
+    const byPair = new Map(scored.map((s) => [`${s.userA as string}|${s.userB as string}`, s]));
+    const out: Decision[] = [];
+    for (const d of decided) {
+      const [userA, userB] = [userId, d.other].sort();
+      const row = byPair.get(`${userA}|${userB}`) as Record<string, number> | undefined;
+      if (!row) continue;
+      out.push({
+        liked: d.liked,
+        factors: {
+          astrology: row.astrology, personality: row.personality,
+          relationshipGoals: row.relationshipGoal, values: row.values,
+          lifestyle: row.lifestyle, interests: row.interest, location: row.distance,
+        },
+      });
     }
     return out;
   }
 
-  /** The cached seven for a pair, or null when we never scored them. */
-  private async readPairFactors(a: string, b: string): Promise<FactorBreakdown | null> {
-    const [userA, userB] = [a, b].sort();
-    // try/catch around the WHOLE access, not just the promise. Reaching for
-    // `.findUnique` on a delegate that is not there throws synchronously, before
-    // there is a promise for `.catch` to attach to — and the correct behaviour
-    // when the evidence cannot be read is to learn nothing, not to take the
-    // matches page down with it.
-    let row: Record<string, number> | null = null;
-    try {
-      row = await (this.prisma as unknown as {
-        compatibilityScore: { findUnique(x: unknown): Promise<Record<string, number> | null> };
-      }).compatibilityScore.findUnique({ where: { userA_userB: { userA, userB } } });
-    } catch { return null; }
-    if (!row) return null;
-    return {
-      astrology: row.astrology, personality: row.personality,
-      relationshipGoals: row.relationshipGoal, values: row.values,
-      lifestyle: row.lifestyle, interests: row.interest, location: row.distance,
-    };
-  }
+  // `readPairFactors` lived here — one `findUnique` per decision — and went
+  // with the batched read above; the try/catch-the-whole-access reasoning it
+  // carried (a missing delegate throws synchronously) moved with it.
 
   async stack(userId: string, kind: MatchKind, limit?: number) {
     return this.cachedList(userId, 'stack', kind, limit, () => this.stackUncached(userId, kind, limit));
@@ -2673,7 +2694,19 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     // new like 💛" per call, free, sixty a minute, at a stranger whose phone
     // the victim cannot silence because the notification names nobody. Nothing
     // new happened on a re-tap, so nothing is sent.
-    if (newLike || newSuper) {
+    /**
+     * AND A WITHDRAWN LIKE, RE-GIVEN, IS NOT NEWS (31 Aug, sixth pass). Since
+     * a pass withdraws the like FLAG but keeps its TIMESTAMP, like → pass →
+     * like became a `newLike` each time — a paid re-notification loop at one
+     * person, twenty a day inside the allowance. The timestamp is the memory:
+     * a like this citizen has ever sent this pair before notifies nobody
+     * twice. The like itself still lands (a match can still form); only the
+     * push declines to repeat itself. A new SUPER still speaks — it is a
+     * different sentence and its flag survives a pass, so it can only ever
+     * say it once.
+     */
+    const everLikedBefore = meIsOne ? state.likedAtOne != null : state.likedAtTwo != null;
+    if ((newLike && !everLikedBefore) || newSuper) {
       this.analytics.track(opts.superLike ? 'dating.super_like' : 'dating.like', userId, { kind });
       // A super-like SAYS SO to the person receiving it — scarcity nobody can
       // see is a counter, not scarcity. It opens no chat; it changes one

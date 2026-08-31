@@ -61,7 +61,7 @@ describe('booting without the credentials', () => {
     expect(() => svc.onModuleInit()).toThrow(/REKOGNITION_REGION/);
     expect(() => svc.onModuleInit()).toThrow(/REKOGNITION_ACCESS_KEY_ID/);
     expect(() => svc.onModuleInit()).toThrow(/REKOGNITION_SECRET_ACCESS_KEY/);
-    expect(() => svc.onModuleInit()).toThrow(/No dating photo can be shown/);
+    expect(() => svc.onModuleInit()).toThrow(/No (dating|matchmaking) photo can be shown/);
   });
 
   it('names only the one that is missing', () => {
