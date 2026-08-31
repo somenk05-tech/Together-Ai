@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { StorageProvider } from './storage.provider';
 
 /**
@@ -132,40 +131,55 @@ describe('the plural deletes a thousand at a time and says which ones did not go
   });
 });
 
-describe('a signed read says the answer may be kept', () => {
+describe('the cache header comes from the object, because this bucket is R2', () => {
   /**
-   * The URL is already cached at half its life, so every viewer inside that
-   * window is handed the same string and the browser CAN reuse what it
-   * fetched. Can, not will: an S3 object with no `Cache-Control` of its own
-   * leaves the browser guessing, and the guess that costs us is "ask again" —
-   * a citizen scrolling back up the feed re-downloading photographs that never
-   * left their disk.
+   * ── A TEST THAT ASSERTED THE WRONG STORAGE ─────────────────────────────
    *
-   * Signed INTO the URL rather than set on the object, so it covers everything
-   * already in the bucket with no backfill.
+   * This asserted that `signPostMedia` signs a `response-cache-control`
+   * override into every URL, and it passed, and it was describing Amazon S3.
+   * THIS BUCKET IS R2 — `S3_ENDPOINT=…r2.cloudflarestorage.com`,
+   * `forcePathStyle: true` — and R2's S3 compatibility table does not
+   * implement the `response-*` overrides on GetObject. The parameter was, at
+   * best, ignored, and the test proved only that we asked.
    *
-   * This reads the source, and says so. Asserting it behaviourally would mean
-   * standing up a SigV4 signer to inspect a query string it produced — a test
-   * of the AWS SDK, not of us. What is ours is which policy we ask for, and
-   * `GetObjectCommand` below type-checks that the field exists and takes a
-   * string, so a rename in the SDK fails the build rather than this test.
+   * That is the same defect this file was written about, turned on itself: a
+   * mock may only do what the thing it stands for can do, and an assertion may
+   * only claim what the system it runs against will actually honour. Neither
+   * the SDK's type-checking nor a green run could tell me the storage on the
+   * other end had never implemented it.
+   *
+   * R2 does implement `Cache-Control` as PutObject metadata, so that is where
+   * it is set now — and the edge Worker sets the header on its own responses,
+   * which is the path that will carry the traffic.
    */
+  const raw = () => readFileSync(join(__dirname, 'storage.provider.ts'), 'utf8');
+  /* COMMENTS ARE NOT CODE. The docblock explaining the absence NAMES the thing
+     it explains, so a naive read finds the very string this forbids — a test
+     that fails on its own reasoning. The same trick
+     `what-you-are-told-when-you-leave` uses on the delete card's copy. */
+  const src = () => raw().replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
   const POLICY = 'private, max-age=31536000, immutable';
 
-  it('asks for a private, immutable, one-year policy on every post media read', () => {
-    const cmd = new GetObjectCommand({ Bucket: 'b', Key: 'k', ResponseCacheControl: POLICY });
-    expect(cmd.input.ResponseCacheControl).toBe(POLICY);
+  it('does not ask for a response override R2 will not honour', () => {
+    expect(src()).not.toContain('ResponseCacheControl');
+    // …and the reasoning is still written down where the next person looks.
+    expect(raw()).toContain('R2 DOES NOT IMPLEMENT IT');
+  });
 
-    const src = readFileSync(join(__dirname, 'storage.provider.ts'), 'utf8');
-    const signer = src.slice(src.indexOf('async signPostMedia'), src.indexOf('async signPostObject'));
-    expect(signer).toContain(`ResponseCacheControl: '${POLICY}'`);
+  it('sets Cache-Control on the objects this API writes, which R2 does honour', () => {
+    const put = src().slice(src().indexOf('async putPrivateObject'));
+    expect(put.slice(0, 1200)).toContain(`CacheControl: '${POLICY}'`);
   });
 
   it('is private, because these are private-bucket objects', () => {
     // `public` would let any shared cache between us and the citizen keep a
     // copy of a photograph the bucket is private to prevent exactly that.
-    const src = readFileSync(join(__dirname, 'storage.provider.ts'), 'utf8');
-    expect(src).not.toMatch(/ResponseCacheControl: 'public/);
+    expect(src()).not.toMatch(/CacheControl: 'public/);
+  });
+
+  it('and the edge Worker sets it too, for the path that will carry the traffic', () => {
+    const worker = readFileSync(join(__dirname, '..', '..', '..', 'workers', 'media-edge', 'worker.js'), 'utf8');
+    expect(worker).toContain(`'cache-control', '${POLICY}'`);
   });
 });
 
