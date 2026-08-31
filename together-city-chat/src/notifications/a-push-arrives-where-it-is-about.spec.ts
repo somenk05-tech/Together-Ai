@@ -200,11 +200,15 @@ describe('one notification does not erase the one before it', () => {
   });
 });
 
-describe('a dating push opens the dating hub', () => {
+describe('a matchmaking push opens the matchmaking hub', () => {
   it('the message push carries the href the method already computed', () => {
+    // The path is `/matchmaking/chats` since the 31 Aug rename. `/dating/*`
+    // still resolves — the router redirects it — so the hrefs stored in old
+    // notification rows keep working; new rows are written with the new path
+    // rather than one that costs every reader a redirect.
     const s = read(join(__dirname, 'notifications.service.ts'));
     const fn = s.slice(s.indexOf('async notifyNewMessage('));
-    expect(fn).toMatch(/const href = dating \? `\/dating\/chats\?c=/);
+    expect(fn).toMatch(/const href = dating \? `\/matchmaking\/chats\?c=/);
     expect(fn).toMatch(/url: href,/);
   });
 

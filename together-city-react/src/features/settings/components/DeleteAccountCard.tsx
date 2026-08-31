@@ -81,7 +81,7 @@ export function DeleteAccountCard() {
         message you or see you anywhere in the city.
       </p>
       <p className="muted" style={leaveLine}>
-        <strong>After thirty days:</strong> everything else is destroyed — your dating profile
+        <strong>After thirty days:</strong> everything else is destroyed — your matchmaking profile
         and its photographs, your health and medical records, your files and the rest of your
         data. Those thirty days are not a grace period: you cannot sign in again during them,
         and none of this can be undone.

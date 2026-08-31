@@ -610,7 +610,7 @@ export class MasterProfileService {
       section('beauty', 'Beauty', '/beauty/profile', [
         arr(beautyEx.photos).length > 0, arr(beautyEx.goals).length > 0 || has(beautyEx.goal),
       ]),
-      section('dating', 'Dating', '/dating/profile', [
+      section('dating', 'Matchmaking', '/matchmaking/profile', [
         has(dating?.bio), (dating?.interests ?? '').split(',').filter(Boolean).length >= 3, arr(datingEx.photos).length >= 3,
       ]),
       section('jobs', 'Jobs', '/jobs/profile', [

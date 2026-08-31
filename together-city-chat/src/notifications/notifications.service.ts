@@ -351,7 +351,7 @@ export class NotificationsService {
       const { displayName, displayPhoto, dating } = identity;
       const kindWord = params.type === 'audio' ? 'call' : `${params.type} call`;
       const href = dating
-        ? `/dating/chats?c=${params.conversationId}&call=${params.callId}`
+        ? `/matchmaking/chats?c=${params.conversationId}&call=${params.callId}`
         : `/chats?c=${params.conversationId}&call=${params.callId}`;
       const deepLink = `togethercity://call/${params.callId}`;
 
@@ -425,7 +425,7 @@ export class NotificationsService {
     const identity = await this.identityIn(params.conversationId, params.senderId);
     if (!identity) return;
     const { displayName, displayPhoto, dating } = identity;
-    const href = dating ? `/dating/chats?c=${params.conversationId}` : `/chats?c=${params.conversationId}`;
+    const href = dating ? `/matchmaking/chats?c=${params.conversationId}` : `/chats?c=${params.conversationId}`;
     const deepLink = dating
       ? `togethercity://dating/chat/${params.conversationId}`
       : `togethercity://chat/${params.conversationId}`;

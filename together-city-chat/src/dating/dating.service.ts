@@ -308,7 +308,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     for (const g of grants) {
       await this.notifications.create({
         userId: g.userId, kind: 'system',
-        title: alarms.length ? `Dating funnel: ${alarms.length} step${alarms.length === 1 ? '' : 's'} dropped by half` : 'Dating funnel, yesterday',
+        title: alarms.length ? `Matchmaking funnel: ${alarms.length} step${alarms.length === 1 ? '' : 's'} dropped by half` : 'Matchmaking funnel, yesterday',
         body: (alarms.length ? alarms.join(' — ') + '. ' : '') + line,
         /* THE HUB'S NEW ADDRESS (31 Aug rename). Only what is minted from
            HERE moves: every href already written on a notification row still
@@ -2328,7 +2328,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     for (const g of grants) {
       await swallow(this.notifications.create({
         userId: g.userId, kind: 'system',
-        title: total > 1 ? `Dating: a member has been reported ${total} times` : 'Dating: a member has been reported',
+        title: total > 1 ? `Matchmaking: a member has been reported ${total} times` : 'Matchmaking: a member has been reported',
         body: 'Open the moderation queue to read the report and decide.',
         href: '/moderation',
       }), 'dating: report notification row', { moderator: g.userId });
@@ -2694,7 +2694,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
         userId: targetUserId, actorId: userId, kind: 'dating_match',
         push: { deepLink: 'togethercity://dating/matches' },
         title: kind === 'romantic' ? "It’s a match! 💫" : "You’re connected 🤝",
-        body: kind === 'romantic' ? 'You both liked each other — open Dating to say hi.' : 'You both connected — open Dating to say hi.',
+        body: kind === 'romantic' ? 'You both liked each other — open Matchmaking to say hi.' : 'You both connected — open Matchmaking to say hi.',
         href: '/matchmaking/matches',
       });
       return { matched: true, conversationId: null, chatLocked: true, matchId: matched.id };

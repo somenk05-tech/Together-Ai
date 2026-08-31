@@ -2,7 +2,7 @@
 
 exports[`what the notifications engine decides today a dating chat titles with the profile name — one identity — and keeps the dating href 1`] = `
 {
-  "hrefIsDating": "/dating/chats?c=c9",
+  "hrefIsDating": "/matchmaking/chats?c=c9",
   "titleAfterReveal": "Asha Verma",
   "titleBeforeReveal": "Asha Verma",
 }

@@ -34,7 +34,7 @@ export function DatingAdminStats() {
             anything. And both are read at BOOT, so reloading the page does
             nothing; the API has to restart. */}
         <EmptyState icon="🔒" title="Admin access required" hint="This page is limited to Matchmaking Hub admins: add your handle to MODERATION_ADMINS on the API. Reviewing held photos and appeals is a separate grant — CONSOLE_FOUNDERS. Both are read when the API starts, so restart it rather than reloading this page." />
-        <div style={{ textAlign: 'center', marginTop: 14 }}><Link to="/dating"><Button variant="line">Back to Matchmaking Hub</Button></Link></div>
+        <div style={{ textAlign: 'center', marginTop: 14 }}><Link to="/matchmaking"><Button variant="line">Back to Matchmaking Hub</Button></Link></div>
       </div>
     );
   }
@@ -70,7 +70,7 @@ export function DatingAdminStats() {
       <Funnel />
 
       <div style={{ textAlign: 'center', marginTop: 26 }}>
-        <Link to="/dating"><Button variant="line">Back to Matchmaking Hub</Button></Link>
+        <Link to="/matchmaking"><Button variant="line">Back to Matchmaking Hub</Button></Link>
       </div>
     </div>
   );

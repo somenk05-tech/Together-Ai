@@ -74,6 +74,22 @@ function MasterProfileMoved() {
   const { hash } = useLocation();
   return <Navigate to={`/profile${hash || '#your-details'}`} replace />;
 }
+
+/**
+ * THE OLD DATING PATH, WITH WHAT WAS AFTER IT. (31 Aug.)
+ *
+ * `<Navigate to="/matchmaking/chats">` keeps the path and throws the query
+ * string away — and `?c=<conversationId>` is the whole address of the thread
+ * a push notification was about. Every notification row written before the
+ * rename holds `/dating/chats?c=…`; a redirect that drops the `?c=` puts a
+ * citizen who tapped "Priya sent you a message" on a list of chats and lets
+ * them find it themselves. Same reasoning as MasterProfileMoved above, one
+ * character further along the URL.
+ */
+function DatingMoved({ to }: { to: string }) {
+  const { search, hash } = useLocation();
+  return <Navigate to={`${to}${search}${hash}`} replace />;
+}
 const DrivePage = lazy(() => import('@/features/drive/pages/Drive').then((m) => ({ default: m.Drive })));
 const SocialFeed = lazy(() => import('@/features/social/pages/SocialFeed').then((m) => ({ default: m.SocialFeed })));
 const RecipeLibrary = lazy(() => import('@/features/nutrition/pages/RecipeLibrary').then((m) => ({ default: m.RecipeLibrary })));
@@ -306,15 +322,15 @@ const ROUTE_BLOCKS: RouteObject[] = [
        * client CALLS — the server's contract, in features/dating/api.ts — not
        * pages it renders. A rename of a browser route must never touch one.
        */
-      { path: '/dating', element: <Navigate to="/matchmaking" replace /> },
-      { path: '/dating/profile', element: <Navigate to="/matchmaking/profile" replace /> },
-      { path: '/dating/browse', element: <Navigate to="/matchmaking/browse" replace /> },
-      { path: '/dating/matches', element: <Navigate to="/matchmaking/matches" replace /> },
-      { path: '/dating/chats', element: <Navigate to="/matchmaking/chats" replace /> },
-      { path: '/dating/chat', element: <Navigate to="/matchmaking/chats" replace /> },
-      { path: '/dating/admin', element: <Navigate to="/matchmaking/admin" replace /> },
-      { path: '/dating/safety', element: <Navigate to="/matchmaking/safety" replace /> },
-      { path: '/dating/match', element: <Navigate to="/matchmaking/match" replace /> },
+      { path: '/dating', element: <DatingMoved to="/matchmaking" /> },
+      { path: '/dating/profile', element: <DatingMoved to="/matchmaking/profile" /> },
+      { path: '/dating/browse', element: <DatingMoved to="/matchmaking/browse" /> },
+      { path: '/dating/matches', element: <DatingMoved to="/matchmaking/matches" /> },
+      { path: '/dating/chats', element: <DatingMoved to="/matchmaking/chats" /> },
+      { path: '/dating/chat', element: <DatingMoved to="/matchmaking/chats" /> },
+      { path: '/dating/admin', element: <DatingMoved to="/matchmaking/admin" /> },
+      { path: '/dating/safety', element: <DatingMoved to="/matchmaking/safety" /> },
+      { path: '/dating/match', element: <DatingMoved to="/matchmaking/match" /> },
       // THE CONSOLE. Not a hub, and deliberately not in any menu: the route
       // existing is not access, and a link to it in a citizen's navigation
       // would be an invitation to a door that will not open for them. The

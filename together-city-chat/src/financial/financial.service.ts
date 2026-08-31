@@ -27,7 +27,7 @@ export const CATEGORIES = [
  * groceries and the beauty market pass their own computed total instead.)
  */
 export const SERVICE_RATES: Record<string, { label: string; hub: string; category: string; amountInr: number; note: string }> = {
-  datingChatUnlock: { label: 'Dating chat unlock', hub: 'Dating', category: 'dating', amountInr: 199, note: 'Unlock messaging with a new match.' },
+  datingChatUnlock: { label: 'Matchmaking chat unlock', hub: 'Dating', category: 'dating', amountInr: 199, note: 'Unlock messaging with a new match.' },
   // Add future services here — rates update in one place.
 };
 

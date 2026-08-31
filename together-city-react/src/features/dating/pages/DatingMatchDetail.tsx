@@ -85,7 +85,7 @@ function Collage({ d }: { d: MatchDetail }) {
 
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, var(--scrim-deep) 0%, var(--scrim-top) 46%, var(--scrim-clear) 72%)', pointerEvents: 'none' }} />
         <span style={{ position: 'absolute', top: 22, left: 12, display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: 'var(--on-accent)', fontSize: 11.5, fontWeight: 700, borderRadius: 'var(--r-full)', padding: '6px 12px', boxShadow: '0 2px 8px rgba(0,0,0,.3)' }}>
-          <span aria-hidden>✦</span> Intentional Dating
+          <span aria-hidden>✦</span> Intentional Matchmaking
         </span>
         <div style={{ position: 'absolute', left: 18, right: 18, bottom: 16, color: 'var(--on-accent)', pointerEvents: 'none' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontFamily: 'var(--serif)', fontSize: 30, fontWeight: 700, lineHeight: 1.05, textShadow: '0 2px 14px rgba(0,0,0,.5)' }}>

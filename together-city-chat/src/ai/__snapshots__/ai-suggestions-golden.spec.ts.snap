@@ -3,7 +3,7 @@
 exports[`ai-suggestions golden master (fallback spine) astrology: no dating profile is an invitation, not a guess 1`] = `
 {
   "aiPowered": false,
-  "intro": "Add your birth date to your dating profile to unlock your compatibility guide.",
+  "intro": "Add your birth date to your matchmaking profile to unlock your compatibility guide.",
   "items": [],
 }
 `;

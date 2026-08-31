@@ -116,7 +116,7 @@ function Group({ group }: { group: ReportGroup }) {
       { userId: group.targetId, decision: 'rejected', reason: note.trim() },
       {
         onSuccess: () => decide.mutate(
-          { targetType: group.targetType, targetId: group.targetId, decision: 'dismiss', note: `Taken out of Dating. ${note.trim()}`.trim() },
+          { targetType: group.targetType, targetId: group.targetId, decision: 'dismiss', note: `Taken out of Matchmaking. ${note.trim()}`.trim() },
           { onSuccess: () => setDone('dating') },
         ),
       },
@@ -141,7 +141,7 @@ function Group({ group }: { group: ReportGroup }) {
     return (
       <div className="card" style={{ marginTop: 12, padding: 14 }}>
         <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-          {done === 'remove' ? 'Removed. ' : done === 'dating' ? 'Taken out of Dating. ' : done === 'suspend' ? 'Account suspended. ' : done === 'warn' ? 'Warning sent. ' : 'Dismissed. '}
+          {done === 'remove' ? 'Removed. ' : done === 'dating' ? 'Taken out of Matchmaking. ' : done === 'suspend' ? 'Account suspended. ' : done === 'warn' ? 'Warning sent. ' : 'Dismissed. '}
           {group.reportCount} {group.reportCount === 1 ? 'report' : 'reports'} closed.
         </p>
       </div>
@@ -194,7 +194,7 @@ function Group({ group }: { group: ReportGroup }) {
           // is that reason.
           <Button variant="line" size="sm" disabled={dating.isPending || decide.isPending || note.trim().length < 3} onClick={unlist}
             title={note.trim().length < 3 ? 'Write the reason in the note first.' : undefined}>
-            {dating.isPending ? 'Working…' : 'Take out of Dating'}
+            {dating.isPending ? 'Working…' : 'Take out of Matchmaking'}
           </Button>
         )}
         {canActOnUser && (
@@ -216,7 +216,7 @@ function Group({ group }: { group: ReportGroup }) {
 
       {canUnlist && (
         <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>
-          Taking someone out of Dating hides their matchmaking profile from everyone. It does not touch their account. It needs a reason in the note — it is written to the audit.
+          Taking someone out of Matchmaking hides their matchmaking profile from everyone. It does not touch their account. It needs a reason in the note — it is written to the audit.
         </p>
       )}
       {canActOnUser && (

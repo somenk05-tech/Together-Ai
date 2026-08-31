@@ -59,7 +59,7 @@ function MasterPhoto() {
       <Avatar src={user?.profileImage ?? null} name={user?.name ?? ''} size={72} />
       <div>
         <p style={{ fontSize: 13.5, fontWeight: 700, margin: '0 0 2px' }}>{user?.name}</p>
-        <p className="muted" style={{ fontSize: 12, margin: '0 0 8px' }}>Your photo appears across Together AI — header, chat, connections and dating.</p>
+        <p className="muted" style={{ fontSize: 12, margin: '0 0 8px' }}>Your photo appears across Together AI — header, chat, connections and matchmaking.</p>
         <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => void onFile(e.target.files?.[0])} />
         <Button size="sm" variant="line" disabled={busy} onClick={() => fileRef.current?.click()}>
           {busy ? 'Uploading…' : user?.profileImage ? 'Change photo' : 'Add your photo'}
@@ -206,7 +206,7 @@ function PersonalInfoSection() {
               {saveM.isPending ? 'Saving…' : 'Save Personal Info'}
             </Button>
             <span className="muted" style={{ fontSize: 11.5, marginLeft: 10 }}>
-              Synchronizes automatically across dating, nutrition, fitness and astrology.
+              Synchronizes automatically across matchmaking, nutrition, fitness and astrology.
             </span>
           </div>
         </div>
@@ -447,7 +447,7 @@ export function AstroProfilePage() {
           <MasterPhoto />
           {view.data.source === 'dating' && (
             <p className="muted" style={{ fontSize: 12.5, marginBottom: 14 }}>
-              ✓ We prefilled what you already shared during dating onboarding — confirm and save.
+              ✓ We prefilled what you already shared during matchmaking onboarding — confirm and save.
             </p>
           )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 14 }}>

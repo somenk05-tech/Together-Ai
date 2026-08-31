@@ -12,7 +12,7 @@ const DOCS: Record<Slug, Doc> = {
     sections: [
       { h: 'What we collect', p: [
         'Account basics you give us (handle, name, email, optional phone) and the content you create — posts, messages, plans, saved items.',
-        'Sensitive information only when you choose to add it to a specific hub: health records and blood tests (Medical), birth details (Astrology), dating preferences (Dating), financial activity (Financial), and family relationships (Family).',
+        'Sensitive information only when you choose to add it to a specific hub: health records and blood tests (Medical), birth details (Astrology), matchmaking preferences (Matchmaking), financial activity (Financial), and family relationships (Family).',
       ] },
       { h: 'Why we use it', p: [
         'To run the features you asked for and to personalize them — meal plans from your goals, health insights from your labs, guidance from your birth details.',
@@ -51,7 +51,7 @@ const DOCS: Record<Slug, Doc> = {
     lede: "One city for your whole life. Everything personalized.",
     sections: [
       { h: 'One city, every part of life', p: [
-        'Together City brings the parts of daily life — health, food, money, travel, dating, entertainment, work and more — into one connected place, personalized to you.',
+        'Together City brings the parts of daily life — health, food, money, travel, matchmaking, entertainment, work and more — into one connected place, personalized to you.',
         'A single identity carries across every hub, so your goals, preferences and context follow you instead of starting over in each app.',
       ] },
       { h: 'Built around your consent', p: [

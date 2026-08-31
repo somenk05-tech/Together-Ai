@@ -372,7 +372,14 @@ for (const [full, text] of source) {
 }
 
 const redirectOnly = new Set();
-for (const m of router.matchAll(/\{\s*path:\s*'([^']+)'\s*,\s*element:\s*<Navigate/g)) redirectOnly.add(m[1]);
+// `<Navigate>` outright, and the `…Moved` components beside it in router.tsx.
+// A redirect sometimes has to be a component rather than a bare <Navigate>:
+// `MasterProfileMoved` carries the hash across and `DatingMoved` carries the
+// query string, both of which a plain <Navigate to="/x"> silently drops. They
+// are still redirects, and a redirect needs no inbound link — reading only
+// the literal element name would have made every one of them look like a
+// stranded route the day it started preserving what came after the path.
+for (const m of router.matchAll(/\{\s*path:\s*'([^']+)'\s*,\s*element:\s*<(?:Navigate|\w*Moved)\b/g)) redirectOnly.add(m[1]);
 // REMOVED_ROUTES are declared by a spread and are redirects by construction.
 for (const m of labels.matchAll(/^\s*'(\/[^']+)':/gm)) redirectOnly.add(m[1]);
 

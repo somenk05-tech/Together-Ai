@@ -160,7 +160,7 @@ export function DatingSafety() {
         )}
       </section>
 
-      <div style={{ marginTop: 16 }}><Link to="/dating"><Button variant="line" size="sm">Back to Matchmaking Hub</Button></Link></div>
+      <div style={{ marginTop: 16 }}><Link to="/matchmaking"><Button variant="line" size="sm">Back to Matchmaking Hub</Button></Link></div>
     </div>
   );
 }

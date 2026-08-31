@@ -79,12 +79,14 @@ describe('relationship status on the Master Profile', () => {
   it('says what it is not for', () => {
     /* RE-PINNED TO THE COPY AUDIT'S WORDS (708dc01 rewrote the blurb to
        "Optional — nothing else in the city reads it, including dating." and
-       this pin was still holding the old sentence). The three promises are
-       unchanged — nothing reads it, dating especially, and declining stays a
-       real answer (the option itself is the pin now that the long sentence
-       about it went). */
+       this pin was still holding the old sentence). Re-pinned again on
+       31 Aug: the hub a citizen sees is called Matchmaking now, so the
+       sentence says "including matchmaking". The three promises are
+       unchanged — nothing reads it, the matchmaking hub especially, and
+       declining stays a real answer (the option itself is the pin now that
+       the long sentence about it went). */
     expect(master).toMatch(/nothing else in the city reads it/);
-    expect(master).toMatch(/including dating/);
+    expect(master).toMatch(/including matchmaking/);
     // And that declining is an answer, unlike a blank.
     expect(master).toMatch(/Prefer not to say/);
   });

@@ -7,7 +7,7 @@ const FILTERS = [
   { key: 'nutrition', label: 'Nutrition' },
   { key: 'beauty', label: 'Beauty' },
   { key: 'medical', label: 'Medical' },
-  { key: 'dating', label: 'Dating' },
+  { key: 'dating', label: 'Matchmaking' },
   { key: 'wallet', label: 'Top-ups' },
 ];
 

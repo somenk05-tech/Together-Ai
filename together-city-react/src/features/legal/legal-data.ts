@@ -61,7 +61,7 @@ P.terms = {
       `<p>You are responsible for maintaining the confidentiality of your credentials and for all activity under your account.</p>
       ${li(['Provide accurate, current information and keep it updated.', 'One account per person unless we expressly permit otherwise.', 'Notify us immediately at ' + CO.support + ' of any unauthorised use.', 'We may offer two-factor authentication; we recommend you enable it.'])}` },
     { h: '4. The Platform is a multi-hub intermediary', html:
-      `<p>${CO.brand} brings together social, dating, AI, medical, nutrition, restaurants, travel, e-commerce, financial, and creator features. For many of these we act as an <strong>intermediary</strong> under the IT Act, connecting you to independent third parties (sellers, restaurants, hotels, labs, creators, payment providers).</p>
+      `<p>${CO.brand} brings together social, matchmaking, AI, medical, nutrition, restaurants, travel, e-commerce, financial, and creator features. For many of these we act as an <strong>intermediary</strong> under the IT Act, connecting you to independent third parties (sellers, restaurants, hotels, labs, creators, payment providers).</p>
       ${note('Except where we expressly say we are the seller or provider, contracts for goods, services, bookings, and diagnostics are between you and the relevant third party. We are not a party to those contracts and do not guarantee third-party performance.')}` },
     { h: '5. Acceptable use', html:
       `<p>You agree not to, and not to permit others to:</p>
@@ -171,13 +171,13 @@ P.ai = {
   short: "How Together City's AI works, its limits, and your responsibilities.",
   eff: CO.updated,
   tldr: [
-    'AI powers recommendations across food, restaurants, dating, travel, shopping, beauty, and health insights.',
+    'AI powers recommendations across food, restaurants, matchmaking, travel, shopping, beauty, and health insights.',
     'AI can be wrong. It is informational only — not professional medical, legal, or financial advice.',
     'We label AI interactions and AI-generated content, and provide human-review paths for sensitive matters.',
   ],
   sections: [
     { h: '1. Where we use AI', html:
-      `<p>${CO.brand} uses artificial intelligence and automated systems to generate meal plans, restaurant and travel suggestions, dating compatibility scores, beauty routines, shopping picks, and health-related insights, and to assist moderation.</p>` },
+      `<p>${CO.brand} uses artificial intelligence and automated systems to generate meal plans, restaurant and travel suggestions, matchmaking compatibility scores, beauty routines, shopping picks, and health-related insights, and to assist moderation.</p>` },
     { h: '2. AI is informational, not professional advice', html:
       `${note('AI outputs are generated automatically and may be inaccurate, incomplete, or unsuitable for your circumstances. They do not constitute medical, nutritional, legal, financial, or professional advice, and do not create a professional relationship.')}
       <p>Always use your own judgement and consult a qualified professional (doctor, dietitian, lawyer, advisor) before acting on AI output, especially for health, safety, money, or legal matters. See the Medical and Nutrition disclaimers.</p>` },
@@ -211,7 +211,7 @@ P.community = {
   ],
   sections: [
     { h: '1. Our expectations', html:
-      `<p>${CO.brand} connects millions of people across social, dating, creator, and marketplace features. These Guidelines apply to all content and behaviour on the Platform and work alongside our Terms and Content Moderation Policy.</p>` },
+      `<p>${CO.brand} connects millions of people across social, matchmaking, creator, and marketplace features. These Guidelines apply to all content and behaviour on the Platform and work alongside our Terms and Content Moderation Policy.</p>` },
     { h: '2. Content that is not allowed', html:
       li([
         'Illegal content, or content that promotes illegal acts;',
@@ -225,7 +225,7 @@ P.community = {
         "Infringing content and unauthorised use of others' IP.",
       ]) },
     { h: '3. Authenticity and safety', html:
-      `<p>Use your real identity, don't impersonate others, and protect people's privacy. For dating and in-person meetups, follow our Safety Centre guidance in the Matchmaking Hub Terms.</p>` },
+      `<p>Use your real identity, don't impersonate others, and protect people's privacy. For matchmaking and in-person meetups, follow our Safety Centre guidance in the Matchmaking Hub Terms.</p>` },
     { h: '4. Tools you control', html:
       li(['Report content or accounts;', 'Block and mute users;', 'Copyright reporting;', 'Appeal a moderation decision (see Content Moderation Policy).']) },
     { h: '5. Enforcement', html:
@@ -305,7 +305,10 @@ P.dating = {
     { h: '2. Identity and privacy', html:
       li([
         'Identity verification is strongly recommended and may be required;',
-        "In activity dating, a host reviews a requester's profile card before approving;",
+        // Was "In activity dating, a host reviews a requester's profile card
+        // before approving". Activity Dating was removed entirely on 27 Aug
+        // (the page, the invitation engine, both tables, every endpoint), so
+        // this promised a review step that no longer runs anywhere.
         'Chat identities remain masked until both users choose to become friends;',
         'Birth details used for astrology-based compatibility are stored to your account and only the score and explanation are surfaced.',
       ]) },
@@ -572,7 +575,7 @@ P.userlicense = stub('User Content Licence', 'The licence you grant us for your 
 P.trademark = stub('Trademark Policy', 'Use of the Together City brand and marks.', 'Governs permitted and prohibited use of the Together City name, logo, and brand assets, and how to report trademark misuse.', ['copyright', 'advertising']);
 P.harassment = stub('Harassment & Abuse Policy', 'Our stance on harassment and abuse.', 'Prohibits harassment, threats, doxxing, non-consensual imagery, and coordinated abuse, and sets out reporting and enforcement.', ['community', 'moderation', 'dating']);
 P.antifraud = stub('Anti-Fraud Policy', 'How we detect and prevent fraud.', 'Describes fraud, fake-account, and manipulated-engagement prevention, and the actions we take against fraudulent activity.', ['identity', 'payments', 'terms']);
-P.identity = stub('Identity Verification Policy', 'When and how we verify identity.', 'Explains identity checks (recommended in Dating and required for some features/sellers), what we collect, and how it is protected.', ['dating', 'seller', 'privacy']);
+P.identity = stub('Identity Verification Policy', 'When and how we verify identity.', 'Explains identity checks (recommended in Matchmaking and required for some features/sellers), what we collect, and how it is protected.', ['dating', 'seller', 'privacy']);
 P.merchant = stub('Merchant Agreement', 'General merchant terms across hubs.', 'Umbrella terms for merchants across marketplace, restaurants, and services, complementing the Seller Agreement.', ['seller', 'restaurant', 'payments']);
 P.restaurant = stub('Restaurant Partner Agreement', 'Terms for restaurant partners.', 'Governs restaurant listings, menu/price accuracy, taxes, hygiene claims, delivery details, and ratings policy.', ['merchant', 'reviews', 'refunds']);
 P.grocery = stub('Grocery Partner Agreement', 'Terms for grocery partners.', 'Governs grocery catalogues, pricing, freshness/expiry, substitutions, and fulfilment.', ['merchant', 'refunds']);
@@ -604,7 +607,7 @@ export const VOLUMES: Volume[] = [
   { id: 'v1', roman: 'I', title: 'Platform Terms & Data',
     desc: 'The master agreement, privacy, cookies, AI, and data rights.',
     policies: ['terms', 'privacy', 'cookies', 'ai', 'aidisclaimer', 'retention', 'deletion', 'security', 'vulnerability', 'lawenforcement'] },
-  { id: 'v2', roman: 'II', title: 'Community, Dating, Creator & Advertising',
+  { id: 'v2', roman: 'II', title: 'Community, Matchmaking, Creator & Advertising',
     desc: 'Behaviour, safety, moderation, and creator/advertiser rules.',
     policies: ['community', 'moderation', 'child', 'harassment', 'dating', 'identity', 'creator', 'userlicense', 'advertising', 'sponsored', 'affiliate', 'reviews'] },
   { id: 'v3', roman: 'III', title: 'Health, Nutrition, Restaurants & Travel',

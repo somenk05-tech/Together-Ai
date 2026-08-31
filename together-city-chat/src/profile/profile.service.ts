@@ -232,9 +232,9 @@ export class ProfileService {
     const seek = ({ any: 'Anyone', male: 'Men', female: 'Women', nonbinary: 'Non-binary' } as Record<string, string>)[d.seeking ?? ''] ?? null;
     const rows: ProfileSection[] = [
       { key: 'd_goal', label: 'Relationship goal', value: ex.relationshipGoal ?? null },
-      { key: 'd_seeking', label: 'Dating · seeking', value: seek },
-      { key: 'd_loc', label: 'Dating · location', value: [ex.city, ex.state].filter(Boolean).join(', ') || null },
-      { key: 'd_work', label: 'Dating · profession', value: ex.profession ?? null },
+      { key: 'd_seeking', label: 'Matchmaking · seeking', value: seek },
+      { key: 'd_loc', label: 'Matchmaking · location', value: [ex.city, ex.state].filter(Boolean).join(', ') || null },
+      { key: 'd_work', label: 'Matchmaking · profession', value: ex.profession ?? null },
       { key: 'd_traits', label: 'Personality', value: (ex.personalityTraits ?? []).join(', ') || null },
       { key: 'd_values', label: 'Values', value: (ex.values ?? []).join(', ') || null },
     ];

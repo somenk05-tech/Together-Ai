@@ -88,7 +88,7 @@ export const PERMISSIONS: PermissionDef[] = [
      to the person RECEIVING the push, which is why it is here and not on the
      dating profile. The server default matches: see
      `notifications.service.ts` → `datingPreviewAllowed`. */
-  { key: 'dating-push-preview', label: 'Message previews from Dating', desc: 'Show what a matchmaking message says on your lock screen. Off by default — a matchmaking notification names who it is from and nothing more.' },
+  { key: 'dating-push-preview', label: 'Message previews from Matchmaking', desc: 'Show what a matchmaking message says on your lock screen. Off by default — a matchmaking notification names who it is from and nothing more.' },
 ];
 
 /** Sensible defaults — personalization and notifications on; sharing off until chosen. */

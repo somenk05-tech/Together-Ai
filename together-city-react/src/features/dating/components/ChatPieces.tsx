@@ -67,7 +67,7 @@ export function EmptyIntro({ name, score, myPhoto, theirPhoto, d, onPick }: {
       {/* The "You" face above is drawn from YOUR OWN screen's session and is
           seen by nobody else — saying "nothing else is shown" under a city
           avatar read as that avatar being shown (fifth audit, medium 15). */}
-      <small>They see the name and photos on your dating profile — the face here is just for you.</small>
+      <small>They see the name and photos on your matchmaking profile — the face here is just for you.</small>
     </div>
   );
 }

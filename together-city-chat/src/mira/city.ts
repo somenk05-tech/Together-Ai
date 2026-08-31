@@ -43,7 +43,7 @@ export const CITY: Hub[] = [
       { path: '/astrology/ask', label: 'Ask', says: ['ask the astrologer', 'ask about my chart', 'a consultation'] },
       /* POINTS AT THE MASTER PROFILE, WHICH IS WHERE THEY ARE ACTUALLY TYPED.
          `/astrology/birth` is not a page — the graph below already says birth
-         details are told at `/profile/master` and that Dating reuses them, so
+         details are told at `/profile/master` and that Matchmaking reuses them, so
          the room was naming a door that does not open. Harmless while nothing
          could find it; not harmless now that "janam" and "time of birth" do. */
       { path: '/profile/master', label: 'Birth details', says: ['birth chart', 'time of birth', 'where i was born', 'janam'] },
@@ -59,18 +59,24 @@ export const CITY: Hub[] = [
       { path: '/beauty/market', label: 'Market', says: ['beauty market', 'buy skincare', 'beauty products'] },
       { path: '/beauty/orders', label: 'Orders', says: ['beauty orders', 'my beauty orders', 'what i ordered from beauty'] },
     ] },
-  { key: 'dating', name: 'Dating', what: 'Curated matches, and chats that stay separate from everything else.',
-    says: ['dates', 'dating', 'my dating profile'],
+  /* THE HUB IS MATCHMAKING (31 Aug), AND `says` KEEPS BOTH WORDS.
+     A label is what Mira SAYS; `says` is what a citizen says to her, and
+     people will go on asking for "dating" for a long time — it is the word
+     they have used for a year and the word the rest of the world uses. Taking
+     it out would make the rename a small act of not listening. So the names
+     move and the ears do not narrow. */
+  { key: 'dating', name: 'Matchmaking', what: 'Curated matches, and chats that stay separate from everything else.',
+    says: ['dates', 'dating', 'matchmaking', 'my dating profile', 'my matchmaking profile'],
     rooms: [
-      { path: '/dating/profile', label: 'Dating profile', says: ['my dating profile', 'how i look on dating'] },
-      { path: '/dating/matches', label: 'Curated matches', says: ['matches', 'my matches', 'who liked me'] },
-      /* "Dating chats" rather than "Chats", which is what the hub's own menu
+      { path: '/matchmaking/profile', label: 'Matchmaking profile', says: ['my dating profile', 'my matchmaking profile', 'how i look on dating', 'how i look on matchmaking'] },
+      { path: '/matchmaking/matches', label: 'Curated matches', says: ['matches', 'my matches', 'who liked me'] },
+      /* "Matchmaking chats" rather than "Chats", which is what the hub's own menu
          calls it — and what stops two rooms in the index answering to the same
          name. `/chats` is also labelled Chats, so "my chats" produced "Chats or
          Chats. Which one?" and `resolveChoice` handed back the first either
          way, making this room unreachable through the question that was asked
          about it. */
-      { path: '/dating/chats', label: 'Dating chats', says: ['dating chats', 'who i am talking to'] },
+      { path: '/matchmaking/chats', label: 'Matchmaking chats', says: ['dating chats', 'matchmaking chats', 'who i am talking to'] },
     ] },
   { key: 'entertainment', name: 'Entertainment', what: 'What is on, what to stream, and a list of what you meant to watch.',
     says: ['films', 'what to watch', 'cinema'],
@@ -237,9 +243,9 @@ export const PERSONALISATION: Personalisation[] = [
     toldAt: '/profile/master',
     changes: [
       'Astrology writes you a letter each morning instead of a generic one.',
-      'Dating uses the same details — you never type them twice.',
+      'Matchmaking uses the same details — you never type them twice.',
     ],
-    offer: 'Your birth details unlock the daily letter, and Dating reuses them. Two minutes, once.',
+    offer: 'Your birth details unlock the daily letter, and Matchmaking reuses them. Two minutes, once.',
   },
   {
     fact: 'A blood report',

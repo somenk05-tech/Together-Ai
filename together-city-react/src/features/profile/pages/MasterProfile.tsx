@@ -291,7 +291,7 @@ export function MasterProfileSections() {
       <div className="eyebrow">Your details</div>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 0', lineHeight: 1.6, maxWidth: '58ch' }}>
         Everything the document above prints, and everything the hubs read. Change something once and
-        Nutrition, Medical, Fitness, Beauty and Dating all follow — you never enter it twice.
+        Nutrition, Medical, Fitness, Beauty and Matchmaking all follow — you never enter it twice.
       </p>
 
       {/* Completeness, from the server's own count rather than a second one
@@ -387,7 +387,7 @@ export function MasterProfileSections() {
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>,
-          'Optional — nothing else in the city reads it, including dating.')}
+          'Optional — nothing else in the city reads it, including matchmaking.')}
       </Section>
 
       {/* ── Body ─────────────────────────────────────────────────── */}

@@ -194,14 +194,14 @@ export function Dashboard() {
           <h2 style={{ fontSize: 17, margin: '0 0 10px' }}>Waiting for you</h2>
           {countsUnknown && (
             <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.6, margin: '0 0 10px', maxWidth: '54ch' }}>
-              Some counts didn’t load — Alerts and Dating have the full picture.
+              Some counts didn’t load — Alerts and Matchmaking have the full picture.
             </p>
           )}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             {unreadChats > 0 && <Waiting to="/chats" n={unreadChats} one="unread message" many="unread messages" />}
             {(notifications.data ?? 0) > 0 && <Waiting to="/social/notifications" n={notifications.data ?? 0} one="notification" many="notifications" />}
             {pendingChats > 0 && <Waiting to="/matchmaking/chats" n={pendingChats} one="match to connect with" many="matches to connect with" />}
-            {openChats > 0 && <Waiting to="/matchmaking/chats" n={openChats} one="dating chat" many="dating chats" />}
+            {openChats > 0 && <Waiting to="/matchmaking/chats" n={openChats} one="matchmaking chat" many="matchmaking chats" />}
           </div>
         </section>
       ) : null}

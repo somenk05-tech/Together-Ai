@@ -40,7 +40,7 @@ describe('the funnel digest', () => {
     const out = await s.funnelDigest();
     expect(out.recipients).toBe(2);
     expect(out.alarms).toEqual([]);
-    expect(sent.map((n) => n.title)).toEqual(['Dating funnel, yesterday', 'Dating funnel, yesterday']);
+    expect(sent.map((n) => n.title)).toEqual(['Matchmaking funnel, yesterday', 'Matchmaking funnel, yesterday']);
   });
 
   /**
@@ -97,7 +97,7 @@ describe('the funnel digest', () => {
     const { s, sent } = build([80, 25, 40], [80, 60, 40]);
     const out = await s.funnelDigest();
     expect(out.alarms).toEqual(['dating.matches.viewed: 25% of previous, was 60% over the week']);
-    expect(sent[0].title).toBe('Dating funnel: 1 step dropped by half');
+    expect(sent[0].title).toBe('Matchmaking funnel: 1 step dropped by half');
   });
 
   it('does not raise an alarm over a handful of people', async () => {

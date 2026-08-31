@@ -297,7 +297,7 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
             <Link to="/legal/terms" target="_blank" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Terms of Service</Link>{' '}and{' '}
             <Link to="/legal/privacy" target="_blank" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Privacy Policy</Link>.
             <span id="tos-note" className="muted" style={{ display: 'block', marginTop: 3 }}>
-              Your data is yours. Health, dating and money stay private by default.
+              Your data is yours. Health, matchmaking and money stay private by default.
             </span>
           </span>
         </label>

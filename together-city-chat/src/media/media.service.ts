@@ -154,9 +154,9 @@ export class MediaService {
     // size used to sail through. Reviewed after upload against the stored
     // size too (photo-moderation.service.ts), which is the check that holds.
     const ext = DATING_PHOTO_MIME[mimeType];
-    if (!ext) throw new BadRequestException('A dating photo must be a JPEG, PNG, WebP or HEIC image.');
+    if (!ext) throw new BadRequestException('A matchmaking photo must be a JPEG, PNG, WebP or HEIC image.');
     if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) throw new BadRequestException('Say how large the photo is.');
-    if (sizeBytes > DATING_PHOTO_MAX_BYTES) throw new BadRequestException(`A dating photo must be under ${Math.round(DATING_PHOTO_MAX_BYTES / 1024 / 1024)} MB.`);
+    if (sizeBytes > DATING_PHOTO_MAX_BYTES) throw new BadRequestException(`A matchmaking photo must be under ${Math.round(DATING_PHOTO_MAX_BYTES / 1024 / 1024)} MB.`);
     return this.storage.presignDatingUpload(userId, mimeType, ext);
   }
 
