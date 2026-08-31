@@ -66,6 +66,47 @@ describe('the feed card does not download videos nobody is watching', () => {
   });
 });
 
+describe('weakening the preload did not break the fast fling', () => {
+  const card = code('features/social/PostCard.tsx');
+
+  /**
+   * The card can become mostly-visible BEFORE the src is attached — a fast
+   * fling outruns the preload margin — so the wish to play is kept and
+   * honoured when the source arrives. That recovery used to hang on a
+   * `loadeddata` listener alone, which was safe while `preload="auto"` made
+   * the event a near-certainty.
+   *
+   * It is not safe with `preload="metadata"`: the browser may stop after the
+   * header, and whether it decodes a first frame — which is what `loadeddata`
+   * means — is a per-browser decision, with mobile Safari the conservative
+   * one. A fast fling on a phone is exactly the case this exists for.
+   *
+   * This is the regression the preload change could have shipped: a bandwidth
+   * bug traded for a video that silently never starts. So the arrival of the
+   * src triggers the attempt directly.
+   */
+  it('retries the play when the source arrives, not only on a media event', () => {
+    expect(card).toMatch(/useEffect\(\(\) => \{ if \(near\) attempt\(\); \}, \[near, attempt\]\);/);
+  });
+
+  it('keeps the wish somewhere the src effect can read it', () => {
+    // A local `let` inside the intersection effect could not be seen by the
+    // effect that watches `near`, which is why this is a ref.
+    expect(card).toMatch(/const wantsPlay = useRef\(false\);/);
+    expect(card).toMatch(/wantsPlay\.current = true; attempt\(\);/);
+  });
+
+  it('still listens for loadeddata, because two cheap ways to notice beat one', () => {
+    expect(card).toMatch(/addEventListener\('loadeddata', attempt\)/);
+  });
+
+  it('forgets the wish when the card leaves, so it cannot fire later', () => {
+    // Without this a card scrolled past could start playing when its src
+    // finally arrived, with nothing on screen to explain the sound.
+    expect(card).toMatch(/wantsPlay\.current = false;\s*releasePlayback\(el\);/);
+  });
+});
+
 describe('the two players agree, which is the point', () => {
   /**
    * The fault here was never that anybody wrote this badly. It is that the feed

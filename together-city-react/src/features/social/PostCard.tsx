@@ -354,6 +354,35 @@ function VideoFrame({ url, poster, isNew, vref, autoInView }: { url: string; pos
   }, [isNew]);
 
   /**
+   * ── THE WISH TO PLAY, AND THE MOMENT IT CAN BE GRANTED ──────────────────
+   *
+   * A card can become mostly-visible BEFORE `near` has attached the src — a
+   * fast fling outruns the preload margin — and `play()` on a source-less
+   * element rejects. So the wish is KEPT and honoured when the source arrives.
+   *
+   * That recovery used to hang on a `loadeddata` listener alone, which was
+   * safe while `preload="auto"` made the event a near-certainty. It is not
+   * safe now: with `preload="metadata"` the browser is entitled to stop after
+   * the header, and whether it decodes a first frame — which is what
+   * `loadeddata` means — is a decision each browser makes differently. Mobile
+   * Safari is the conservative one, and a fast fling on a phone is exactly the
+   * case this exists for. Weakening the preload without moving this would have
+   * traded a bandwidth bug for a video that silently never starts.
+   *
+   * So the wish lives in a ref and the src's own arrival triggers it, in the
+   * effect below. React attaches the attribute in the commit that flips
+   * `near`, and effects run after the DOM is updated, so by the time it asks
+   * there is something to play. The `loadeddata` listener stays as the second
+   * path, because two cheap ways to notice are better than one.
+   */
+  const wantsPlay = useRef(false);
+  const attempt = useCallback(() => {
+    const el = localRef.current;
+    if (wantsPlay.current && el && el.getAttribute('src')) playWithSharedSound(el);
+  }, []);
+  useEffect(() => { if (near) attempt(); }, [near, attempt]);
+
+  /**
    * ONE VIDEO PLAYS, AND IT PLAYS WITH THE CITIZEN'S OWN SOUND.
    *
    * The old handler forced `muted = true` on every play, so a citizen who had
@@ -372,26 +401,21 @@ function VideoFrame({ url, poster, isNew, vref, autoInView }: { url: string; pos
     // fold it back into the shared state so the next video respects it.
     const onVolume = () => { if (!el.paused) setMuted(el.muted); };
     el.addEventListener('volumechange', onVolume);
-    // The card can become mostly-visible BEFORE `near` has attached the src
-    // (a fast fling outruns the preload margin). A play() on a source-less
-    // element rejects and nothing would start it later — so the wish to play
-    // is kept, and honoured the moment the data arrives.
-    let wantsPlay = false;
-    const attempt = () => { if (wantsPlay && el.getAttribute('src')) playWithSharedSound(el); };
     el.addEventListener('loadeddata', attempt);
     const io = new IntersectionObserver((entries) => {
       const e = entries[0];
-      if (e.isIntersecting && e.intersectionRatio >= 0.6) { wantsPlay = true; attempt(); }
-      else { wantsPlay = false; el.pause(); releasePlayback(el); }
+      if (e.isIntersecting && e.intersectionRatio >= 0.6) { wantsPlay.current = true; attempt(); }
+      else { wantsPlay.current = false; el.pause(); releasePlayback(el); }
     }, { threshold: [0, 0.6] });
     io.observe(el);
     return () => {
       io.disconnect();
       el.removeEventListener('volumechange', onVolume);
       el.removeEventListener('loadeddata', attempt);
+      wantsPlay.current = false;
       releasePlayback(el);
     };
-  }, [autoInView]);
+  }, [autoInView, attempt]);
   return (
     <div className="vf-wrap">
       {/**
