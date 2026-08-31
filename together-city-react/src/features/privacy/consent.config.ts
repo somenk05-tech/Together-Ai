@@ -32,13 +32,13 @@ export const SENSITIVE_HUBS: Record<string, HubConsent> = {
     control: 'Manage or revoke every permission in Medical → Privacy & Consent, and delete records any time from Health Records.',
   },
   dating: {
-    hub: 'dating', label: 'Dating Hub', icon: 'heart',
+    hub: 'dating', label: 'Matchmaking Hub', icon: 'heart',
     inline: 'Family and friends never see this — only compatible matches you choose do.',
     promise: 'Only information you choose to make public will be visible to potential matches.',
-    what: 'Your dating profile, preferences, interests and the birth details used for compatibility.',
+    what: 'Your matchmaking profile, preferences, interests and the birth details used for compatibility.',
     why: 'To find genuinely compatible matches (75%+) and improve who we surface to you.',
-    who: 'Connected family, friends and blocked people can never see your dating profile. Only compatible matches you engage with see what you make public.',
-    control: 'Edit visibility any time on your Dating Profile, hide your profile, or remove it entirely.',
+    who: 'Connected family, friends and blocked people can never see your matchmaking profile. Only compatible matches you engage with see what you make public.',
+    control: 'Edit visibility any time on your Matchmaking Profile, hide your profile, or remove it entirely.',
   },
   financial: {
     hub: 'financial', label: 'Financial District', icon: 'product',
@@ -88,7 +88,7 @@ export const PERMISSIONS: PermissionDef[] = [
      to the person RECEIVING the push, which is why it is here and not on the
      dating profile. The server default matches: see
      `notifications.service.ts` → `datingPreviewAllowed`. */
-  { key: 'dating-push-preview', label: 'Message previews from Dating', desc: 'Show what a dating message says on your lock screen. Off by default — a dating notification names who it is from and nothing more.' },
+  { key: 'dating-push-preview', label: 'Message previews from Dating', desc: 'Show what a matchmaking message says on your lock screen. Off by default — a matchmaking notification names who it is from and nothing more.' },
 ];
 
 /** Sensible defaults — personalization and notifications on; sharing off until chosen. */

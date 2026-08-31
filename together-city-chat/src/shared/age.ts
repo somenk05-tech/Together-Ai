@@ -68,7 +68,7 @@ export function isAdult(birthDate: Date | string | null | undefined, now: Date =
 /** What a citizen is told when the date they entered is too young. Said once,
  *  here, so the form, the API and the audit log cannot word it differently. */
 export const UNDER_AGE_MESSAGE =
-  `You must be ${MIN_DATING_AGE} or older to use the dating hub.`;
+  `You must be ${MIN_DATING_AGE} or older to use the matchmaking hub.`;
 
 /**
  * The same refusal, for the doors that are not the dating hub.

@@ -43,7 +43,7 @@ export interface FlagDef {
 }
 
 export const FLAGS: FlagDef[] = [
-  { key: 'dating', label: 'Dating', turnsOff: 'Matches, dating chats and the dating profile. Existing matches are not deleted.', prefixes: ['dating'], hubPath: '/dating' },
+  { key: 'dating', label: 'Dating', turnsOff: 'Matches, matchmaking chats and the matchmaking profile. Existing matches are not deleted.', prefixes: ['dating'], hubPath: '/dating' },
   { key: 'services', label: 'Local Services', turnsOff: 'The business directory, listing a business, and the anonymous enquiry threads.', prefixes: ['services'], hubPath: '/services' },
   { key: 'realestate', label: 'Real Estate', turnsOff: 'Property listings, selling, and enquiries.', prefixes: ['realestate'], hubPath: '/realestate' },
   { key: 'jobs', label: 'Jobs', turnsOff: 'Job postings, applications and the jobs profile.', prefixes: ['jobs'], hubPath: '/jobs' },

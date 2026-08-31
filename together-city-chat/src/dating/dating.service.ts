@@ -601,7 +601,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       throw new BadRequestException('That image is not a selfie taken for this profile.');
     }
     const row = await this.prisma.datingProfile.findUnique({ where: { userId }, select: { extras: true } });
-    if (!row) throw new NotFoundException('Create your dating profile before adding a selfie.');
+    if (!row) throw new NotFoundException('Create your matchmaking profile before adding a selfie.');
     const dx = this.parseDX(row.extras) as Record<string, unknown>;
     const at = new Date().toISOString();
     await this.prisma.datingProfile.update({
@@ -622,7 +622,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
    *  can clear it — a profile save cannot, deliberately. */
   async clearSelfie(userId: string) {
     const row = await this.prisma.datingProfile.findUnique({ where: { userId }, select: { extras: true } });
-    if (!row) throw new NotFoundException('No dating profile to change.');
+    if (!row) throw new NotFoundException('No matchmaking profile to change.');
     const dx = this.parseDX(row.extras) as Record<string, unknown>;
     const had = dx[SELFIE_KEY];
     delete dx[SELFIE_KEY];
@@ -1308,12 +1308,12 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
    */
   private async myApprovedProfile(userId: string) {
     const mine = await this.prisma.datingProfile.findUnique({ where: { userId } });
-    if (!mine) throw new NotFoundException('create your dating profile first');
+    if (!mine) throw new NotFoundException('create your matchmaking profile first');
     const state = (mine as { moderation?: string }).moderation ?? 'pending';
     if (state !== 'approved') {
       throw new ForbiddenException(state === 'rejected'
-        ? 'Your dating profile has not been approved, so you cannot browse yet. You can appeal in the Safety Centre.'
-        : 'Your dating profile is still being reviewed. This usually takes a moment — try again shortly.');
+        ? 'Your matchmaking profile has not been approved, so you cannot browse yet. You can appeal in the Safety Centre.'
+        : 'Your matchmaking profile is still being reviewed. This usually takes a moment — try again shortly.');
     }
     return mine;
   }
@@ -1342,7 +1342,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     // Narrowed, capped and ordered — see POOL_CEILING.
     const myDForQuery = this.parseDX((mine as { extras?: string | null }).extras);
     const candidates = await this.prisma.datingProfile.findMany({
-      where: this.poolWhere(userId, mine, myDForQuery),
+      where: this.poolWhere(userId, mine, myDForQuery, kind),
       include: { user: { select: { id: true, name: true, emailVerified: true } } },
       orderBy: { updatedAt: 'desc' },
       take: POOL_CEILING,
@@ -1673,11 +1673,14 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     const states = await this.prisma.datingMatch.findMany({
       where: { OR: [{ userOneId: userId }, { userTwoId: userId }], kind },
     });
+    // The learned ORDER for each card, kept beside the deck — see the
+    // one-number note at the score below.
+    const rankOf = new Map<object, number>();
 
     // Narrowed, capped and ordered — see POOL_CEILING.
     const myDForQuery = this.parseDX((mine as { extras?: string | null }).extras);
     const poolCandidates = await this.prisma.datingProfile.findMany({
-      where: this.poolWhere(userId, mine, myDForQuery),
+      where: this.poolWhere(userId, mine, myDForQuery, kind),
       include: { user: { select: { id: true, name: true, emailVerified: true } } },
       orderBy: { updatedAt: 'desc' },
       take: POOL_CEILING,
@@ -1812,7 +1815,17 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
 
       const breakdown = factorScores(astro, myInterests, theirInterests, myD, candDX);
       const conf = confidenceFor(myD, candDX, myInterests, theirInterests);
-      const score = overallScoreWith(breakdown, ranking.weights, conf);
+      /**
+       * ONE NUMBER, EVERYWHERE (owner decision, 31 Aug, medium 8). The score
+       * a citizen reads is the STANDARD astrology-weighted one — the same
+       * number Browse, the detail page, the push and the ledger print, so the
+       * card can never disagree with the screen it opens. The learned weights
+       * still work, as ORDERING: `rank` decides who stands above whom on this
+       * page and is never shown, so personalisation stays without a second
+       * percentage existing.
+       */
+      const score = overallScore(breakdown, conf);
+      const rank = overallScoreWith(breakdown, ranking.weights, conf);
       // No score floor, and since 27 Aug no threshold-visibility gate either
       // (the `standard` unlearned score existed to judge that gate fairly and
       // left with it — see matches()). A 17% dropped silently would be a
@@ -1827,7 +1840,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       // profile is required to have a photo, so the fallback mostly served
       // profiles that should not have been on a card at all.
       photoJobs.push({ keys: candPhotos.slice(0, LIST_PHOTOS), into: photos });
-      (isMatched ? matchedCards : cards).push({
+      const card = {
         matchId: state?.id ?? null,
         // Same rule as matches(): the chosen name or nothing bespoke at all.
         user: this.cardIdentity(cand.user, candDX),
@@ -1883,7 +1896,11 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
         languages: candDX.languages ?? [],
         relationshipGoal: candDX.relationshipGoal ?? null,
         personalityTraits: candDX.personalityTraits ?? [],
-      });
+      };
+      // The learned rank rides beside the card, never on it — it must not
+      // reach the wire, where it would be a second percentage after all.
+      rankOf.set(card, rank);
+      (isMatched ? matchedCards : cards).push(card);
     }
 
     // Compatibility-band histogram: 90–100, 80–90 … 20–30 (highest first).
@@ -1895,7 +1912,9 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       count: cards.filter((c) => c.score >= lo && c.score < hi).length,
     }));
 
-    const top = cards.sort((a, b) => b.score - a.score)[0] ?? null;
+    // Ordered by the learned rank, tied by the displayed score — see the
+    // one-number note above. With no learned weights the two are identical.
+    const top = cards.sort((a, b) => ((rankOf.get(b) ?? b.score) - (rankOf.get(a) ?? a.score)) || (b.score - a.score))[0] ?? null;
     // The histogram above counts everybody; the cards sent are the page.
     const shownCards = limit ? cards.slice(0, limit) : cards;
 
@@ -2110,11 +2129,22 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       }
       // If this write fails the pass is not recorded and the person stays in
       // each other's view — the opposite of what was just asked for.
+      //
+      // AND THE LIKES GO TOO (fifth audit, 31 Aug, medium 1). `unmatch` has
+      // cleared them since 27 Aug, for a reason written above it: a surviving
+      // like means one tap by the other person walks through `alreadyLiked`
+      // and flips the row straight back to `matched`. Block kept the likes —
+      // so block → unblock (from People) → their single like re-opened the
+      // archived chat with a push, against the blocker's explicit decision.
+      // The block is the strongest no in the product; it clears at least as
+      // much as an unmatch does.
       await swallow(this.prisma.datingMatch.update({
         where: { id: state.id },
         data: {
           status: 'passed', passedByOne: true, passedByTwo: true,
           revealByOne: false, revealByTwo: false,
+          likedByOne: false, likedByTwo: false, likedAtOne: null, likedAtTwo: null,
+          superByOne: false, superByTwo: false,
         },
       }), 'dating pass: record pass', { userId });
     }
@@ -2736,6 +2766,17 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     if (!(await this.stillHere(targetId))) {
       return { undone: false as const, reason: 'That person is no longer on Together City, so there is nothing to undo.' };
     }
+    // THE SAME GATE EVERY OTHER WRITE PASSES (fifth audit, 31 Aug, medium 1).
+    // Undo ran none of them, so it could rebuild a live row towards a profile
+    // that had since been taken down, hidden, or — the one that matters —
+    // towards somebody who had BLOCKED the undoer. The refusal is folded into
+    // undo's own honest shape rather than a 404: there is nothing to undo
+    // towards, and why is not the undoer's to know.
+    try {
+      await this.assertWritable(userId, targetId);
+    } catch {
+      return { undone: false as const, reason: 'That person can no longer be reached, so there is nothing to undo.' };
+    }
     await this.prisma.datingMatch.update({
       where: { id: row.id },
       data: {
@@ -2780,7 +2821,16 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     // link is written only where none exists yet, so two concurrent connects
     // produce one chat and one notification, and the loser is told it is
     // already open rather than opening a second one.
-    const conversationId = await this.conversations.getOrCreateDirectByIds(userId, targetUserId, 'dating', 1);
+    // ONE CHAT PER KIND (owner decision, 31 Aug, medium 2). The pair used to
+    // share one conversation across romantic and platonic rows, so after B
+    // unmatched the romantic chat, A alone could connect as friends and the
+    // ARCHIVED thread — history and all — reappeared on both chats tabs, and
+    // every by-conversation reader found two match rows disagreeing about one
+    // id. A friends chat is its own thread now; romantic keeps the pair's
+    // original key, so existing chats are untouched.
+    const conversationId = await this.conversations.getOrCreateDirectByIds(
+      userId, targetUserId, 'dating', 1, kind === 'platonic' ? 'platonic' : undefined,
+    );
     const linked = await this.prisma.datingMatch.updateMany({ where: { id: state.id, conversationId: null }, data: { conversationId } });
     if (!linked.count) {
       const fresh = await this.prisma.datingMatch.findFirst({ where: { id: state.id }, select: { conversationId: true } });
@@ -2798,7 +2848,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     void this.notifications.create({
       userId: targetUserId, actorId: userId, kind: 'dating_match',
       push: { deepLink: `togethercity://dating/chat/${conversationId}` },
-      title: 'Someone connected to chat 💬', body: 'You have a new chat in the Dating Hub.', href: '/dating/chats',
+      title: 'Someone connected to chat 💬', body: 'You have a new chat in the Matchmaking Hub.', href: '/dating/chats',
     });
     this.analytics.track('dating.connect', userId, { kind });
     return { conversationId, alreadyOpen: false, chargedInr: 0 };
@@ -2829,8 +2879,20 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     // 18. The same check, in front of the first row it can speak about; `act`
     // still makes it, and still writes the audit.
     await this.access.assert(adminId, 'moderation.act');
-    const before = await this.prisma.datingProfile.findUnique({ where: { userId: targetUserId }, select: { moderation: true, visible: true } });
-    if (!before) throw new NotFoundException('That person has no dating profile.');
+    const before = await this.prisma.datingProfile.findUnique({ where: { userId: targetUserId }, select: { moderation: true, visible: true, extras: true } });
+    if (!before) throw new NotFoundException('That person has no matchmaking profile.');
+    /**
+     * AN APPROVAL IS NOT AN UNPAUSING (fifth audit, 31 Aug, medium 3).
+     *
+     * `visible: decision === 'approved'` forced a profile into everyone's
+     * pool even when its owner had set paused or hidden — a save made while
+     * paused lands in this queue, and clearing the queue overrode the one
+     * privacy choice that is entirely the citizen's. The moderator decides
+     * whether the profile MAY be seen; the citizen decides whether it IS.
+     */
+    const mode = (this.parseDX(before.extras) as DXVisibility).visibility;
+    const chosenVisible = mode !== 'paused' && mode !== 'hidden';
+    const visibleAfter = decision === 'approved' && chosenVisible;
     // THE SAME REFUSAL THE APPEAL PATH MAKES. `decideAppeal` re-reads the stored
     // date of birth before it can reinstate anybody, and this — its sibling, and
     // the other way a profile reaches `approved` — did not. Both doors, or the
@@ -2843,11 +2905,11 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     }
     await this.access.act({
       actorId: adminId, need: 'moderation.act', action: `dating.profile.${decision}`, entity: 'user', entityId: targetUserId,
-      before, after: { moderation: decision, visible: decision === 'approved' }, reason,
+      before: { moderation: before.moderation, visible: before.visible }, after: { moderation: decision, visible: visibleAfter }, reason,
     }, async () => {
       await this.prisma.datingProfile.updateMany({
         where: { userId: targetUserId },
-        data: { moderation: decision, visible: decision === 'approved' },
+        data: { moderation: decision, visible: visibleAfter },
       });
       await this.logModeration(targetUserId, adminId, decision, reason);
       // A REJECTION HAS TO REACH THE CONVERSATIONS (27 Aug, launch audit).
@@ -2878,8 +2940,8 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     if (decision === 'rejected') {
       void this.notifications.create({
         userId: targetUserId, kind: 'system',
-        title: 'Your dating profile was taken down',
-        body: 'It is no longer shown and your dating chats have ended. You can ask for this to be looked at again in the Safety Centre.',
+        title: 'Your matchmaking profile was taken down',
+        body: 'It is no longer shown and your matchmaking chats have ended. You can ask for this to be looked at again in the Safety Centre.',
         href: '/dating/safety',
       });
     }
@@ -2898,7 +2960,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     if (kind === 'dating_photo' && !StorageProvider.isOwnDatingKey(userId, target)) throw new NotFoundException('That photo is not yours.');
     if (kind === 'dating_profile') {
       const mine = await this.prisma.datingProfile.findUnique({ where: { userId }, select: { moderation: true } });
-      if (!mine) throw new NotFoundException('create your dating profile first');
+      if (!mine) throw new NotFoundException('create your matchmaking profile first');
       if (mine.moderation === 'approved') throw new BadRequestException('Your profile is live — there is nothing to appeal.');
     }
     const open = await this.prisma.appeal.findFirst({ where: { userId, kind, targetId: target, status: 'open' }, select: { id: true } });
@@ -2989,11 +3051,17 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     // back in around it. Re-run the SAME age check on the STORED date, before
     // any audit row or notification is written, so a refused overturn leaves
     // nothing behind and never tells the appellant they are live.
+    let overturnVisible = true;
     if (decision === 'overturned' && row.kind === 'dating_profile') {
-      const prof = await this.prisma.datingProfile.findUnique({ where: { userId: row.userId }, select: { birthDate: true } });
+      const prof = await this.prisma.datingProfile.findUnique({ where: { userId: row.userId }, select: { birthDate: true, extras: true } });
       if (!prof || !isAdult((prof as { birthDate: Date }).birthDate)) {
         throw new ForbiddenException('This profile cannot be reinstated: it does not meet the minimum age.');
       }
+      // AN OVERTURN IS NOT AN UNPAUSING either — same rule as
+      // `moderateDecision` (medium 3): reinstating clears the moderation
+      // hold; whether the profile is in the pool stays the citizen's choice.
+      const mode = (this.parseDX((prof as { extras?: string | null }).extras) as DXVisibility).visibility;
+      overturnVisible = mode !== 'paused' && mode !== 'hidden';
     }
     await this.access.act({
       actorId: adminId, need: 'moderation.act', action: `dating.appeal.${decision}`, entity: 'appeal', entityId: appealId,
@@ -3001,7 +3069,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     }, async () => {
       await this.prisma.appeal.update({ where: { id: appealId }, data: { status: decision, decidedById: adminId, decidedAt: new Date(), decision: reason.slice(0, 500) } });
       if (decision === 'overturned' && row.kind === 'dating_profile') {
-        await this.prisma.datingProfile.updateMany({ where: { userId: row.userId }, data: { moderation: 'approved', visible: true } });
+        await this.prisma.datingProfile.updateMany({ where: { userId: row.userId }, data: { moderation: 'approved', visible: overturnVisible } });
         await this.logModeration(row.userId, adminId, 'approved', `appeal overturned: ${reason}`);
       }
       if (decision === 'overturned' && row.kind === 'dating_photo') {
@@ -3020,7 +3088,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
         // the proxy 404s. The decision really is overturned, which is what the
         // appeal was for and what matters for the record; the file has to be
         // uploaded again, and the person is the only one who has it.
-        ? (row.kind === 'dating_profile' ? 'Your dating profile is live again.' : 'That decision was overturned. The photo itself was deleted when it was refused — upload it again and it will go straight through.')
+        ? (row.kind === 'dating_profile' ? 'Your matchmaking profile is live again.' : 'That decision was overturned. The photo itself was deleted when it was refused — upload it again and it will go straight through.')
         : 'A moderator looked again and the decision stands. The reason is in your Safety Centre.',
       href: '/dating/safety',
     });
@@ -3209,7 +3277,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       hidden: pausedHidden - pausedOnly,
       gender: { male, female, nonbinary },
       connectedMembers,   // members who have connected to at least one chat
-      activeChats,        // open anonymous dating conversations right now
+      activeChats,        // open anonymous matchmaking conversations right now
       totalMatches,       // mutual matches ever formed
       mutualLikes,
       generatedAt: new Date().toISOString(),
@@ -3329,6 +3397,21 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
   /** The user's active Dating Hub chats — anonymous match conversations, masked
    *  until both reveal, with last-message + unread + compatibility. */
   async datingChats(userId: string) {
+    /**
+     * A REJECTED PROFILE DOES NOT READ THE ROOM (fifth audit, 31 Aug, medium
+     * 5). This had no standing gate at all: a profile a moderator took down
+     * still listed its matches' names, ages, signs and scores — the photos
+     * 404'd at fetch, but the text shipped. Rejected ONLY, deliberately:
+     * `pending` and `review` are states every ordinary edit passes through,
+     * and a citizen mid-review keeps the chats they already have. The
+     * rejected citizen keeps their safety exits — unmatch and blockMatch are
+     * ungated — and the sentence is the same one Browse shows, with the
+     * appeal path in it.
+     */
+    const mine = await this.prisma.datingProfile.findUnique({ where: { userId }, select: { moderation: true } });
+    if (mine?.moderation === 'rejected') {
+      throw new ForbiddenException('Your matchmaking profile has not been approved, so you cannot browse yet. You can appeal in the Safety Centre.');
+    }
     // Every mutual match, INCLUDING the ones with no conversation yet.
     //
     // This used to require `conversationId: { not: null }`. But a mutual like
@@ -3503,6 +3586,22 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       where: { id: state.id },
       data: {
         ...(meIsOne ? { passedByOne: true, passedAtOne: now } : { passedByTwo: true, passedAtTwo: now }),
+        /**
+         * A PASS WITHDRAWS YOUR OWN LIKE (fifth audit, 31 Aug, medium 1).
+         *
+         * It used to survive, so like-then-pass left a live like behind: when
+         * the other person later liked back, `like()` saw both flags and
+         * flipped the row to `matched` — "It's a match!" with somebody who had
+         * already changed their mind, and the pair on both chats tabs.
+         *
+         * The FLAG clears; the TIMESTAMP stays. `likeAllowance` counts spent
+         * likes by `likedAt*`, so clearing the time would refund the like and
+         * make like → pass → like a free notification loop at the same
+         * person. A withdrawn like stays spent; liking again costs another.
+         * The super flag also stays, for the same reason: it is the record of
+         * a scarce act, and `likeAllowance` counts supers by it.
+         */
+        ...(meIsOne ? { likedByOne: false } : { likedByTwo: false }),
         status: 'passed',
       },
     });
@@ -3575,9 +3674,28 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
    * What the database can be asked for without changing who is eligible.
    * Mirrors `reindexAfterChange`'s query exactly — see POOL_CEILING above.
    */
-  private poolWhere(userId: string, mine: { gender: string; seeking: string }, myD: DXProfile) {
+  private poolWhere(userId: string, mine: { gender: string; seeking: string }, myD: DXProfile, kind: MatchKind = 'romantic') {
+    /**
+     * WHO YOU SEEK IS A ROMANTIC QUESTION, IN SQL TOO (fifth audit, 31 Aug,
+     * medium 7). The JS filters have said so since H3 — platonic honours age,
+     * distance and deal-breakers and ignores gender — but this query still
+     * narrowed the platonic pool by the viewer's ROMANTIC gender preferences,
+     * so a straight man's New Friends tab contained only women. The age
+     * clauses stay in both kinds, matching the JS. The invariant at the top
+     * of matching.ts holds again: the query is only ever narrower than a
+     * filter that exists.
+     */
+    const seeking = kind === 'romantic'
+      ? {
+        ...(Array.isArray(myD.seekingList) && myD.seekingList.length
+          ? { gender: { in: myD.seekingList } }
+          : mine.seeking === 'any' ? {} : { gender: mine.seeking }),
+        seeking: { in: ['any', mine.gender] },
+      }
+      : {};
     return {
       userId: { not: userId }, visible: true, moderation: 'approved',
+      ...seeking,
       /**
        * AND THEY MUST STILL BE HERE (27 Aug, launch audit).
        *
@@ -3594,10 +3712,6 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
        * second thing to keep in step.
        */
       user: { is: { deletedAt: null } },
-      ...(Array.isArray(myD.seekingList) && myD.seekingList.length
-        ? { gender: { in: myD.seekingList } }
-        : mine.seeking === 'any' ? {} : { gender: mine.seeking }),
-      seeking: { in: ['any', mine.gender] },
       ...this.birthDateRangeFor(myD),
     };
   }

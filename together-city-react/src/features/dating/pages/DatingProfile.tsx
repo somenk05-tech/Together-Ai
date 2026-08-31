@@ -130,7 +130,7 @@ function CompletionCard({ completion }: { completion?: ProfileCompletion }) {
           <div style={{ width: 50, height: 50, borderRadius: '50%', background: 'var(--card)', display: 'grid', placeItems: 'center', fontSize: 15, fontWeight: 800 }}>{pct}%</div>
         </div>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>Dating Profile · {pct}% Complete</div>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>Matchmaking Profile · {pct}% Complete</div>
           <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>
             {completion.complete ? 'Your profile is fully complete — great match quality.' : 'Complete your profile to improve your match quality.'}
           </p>
@@ -209,20 +209,20 @@ const delBtn: React.CSSProperties = { color: 'var(--danger-ink)', borderColor: '
 function DeleteProfileCard({ onDelete, deleting, failed }: { onDelete: () => void; deleting: boolean; failed: string | null }) {
   return (
     <div className="card" style={delCard}>
-      <h3 style={delHead}>Delete your dating profile</h3>
+      <h3 style={delHead}>Delete your matchmaking profile</h3>
       <p className="muted" style={delBody}>
-        Your dating profile, your dating photos and your verification selfie are
+        Your matchmaking profile, your matchmaking photos and your verification selfie are
         deleted, and every match ends. Your Together City account is untouched —
-        this is the Dating Hub only, and you can start a new profile later.
+        this is the Matchmaking Hub only, and you can start a new profile later.
       </p>
       <p className="muted" style={delBodyLast}>
         Only want a break? Use <strong>Pause my profile</strong> above instead — it keeps
         everything and just takes you out of matching.
       </p>
       <Button variant="line" size="sm" disabled={deleting}
-        onClick={() => { if (window.confirm('Delete your dating profile? Your photos and matches go with it, and it cannot be undone.')) onDelete(); }}
+        onClick={() => { if (window.confirm('Delete your matchmaking profile? Your photos and matches go with it, and it cannot be undone.')) onDelete(); }}
         style={delBtn}>
-        {deleting ? 'Deleting…' : 'Delete dating profile'}
+        {deleting ? 'Deleting…' : 'Delete matchmaking profile'}
       </Button>
       {/* Same omission as the save button, and worse here: a delete that
           silently failed leaves somebody believing their photos are gone. */}
@@ -481,9 +481,26 @@ export function DatingProfilePage() {
   const [locErr, setLocErr] = useState<string | null>(null);
 
   const existingData = existing.data;
+  /**
+   * ONCE PER PROFILE, NOT ONCE PER FETCH (fifth audit, 31 Aug, medium 11).
+   *
+   * This effect keyed on the data OBJECT, and `getProfile` mints fresh photo
+   * tokens on every read, so every refetch is a new object — a selfie taken
+   * mid-edit invalidates the profile query, the effect re-ran, and every
+   * unsaved change on the form was thrown away and the editor collapsed. The
+   * seed's job is to fill the form when it OPENS and after the citizen's own
+   * save writes new truth; `useUpsertDatingProfile` already puts the save
+   * response into this cache, so keying on `updatedAt`-less identity means:
+   * seed once per mount per profile, and let the save's `onSuccess` handlers
+   * manage the rest. A background refetch never rewrites a form mid-edit.
+   */
+  const seededFor = useRef<string | null>(null);
   useEffect(() => {
     const d = existingData as (typeof existing.data & { saved?: boolean; name?: string; country?: string | null; state?: string | null; city?: string | null; heightCm?: number | null; photo?: string | null; diet?: string | null }) | null;
     if (!d) return;
+    const identity = `${(d as { userId?: string }).userId ?? 'me'}:${(d as { saved?: boolean }).saved !== false}`;
+    if (seededFor.current === identity) return;
+    seededFor.current = identity;
     const isSaved = (d as { saved?: boolean }).saved !== false; // prefill objects carry saved:false
     setForm({
       // The prefill already carries the Master Profile's answer, in this form's
@@ -575,7 +592,7 @@ export function DatingProfilePage() {
       <div>
         <EmptyState
           icon="⚠️"
-          title="We couldn’t load your dating profile"
+          title="We couldn’t load your matchmaking profile"
           hint="Nothing has been lost — we’ve kept the form closed so a blank one can’t overwrite what you saved. Try again in a moment."
         />
       </div>
@@ -674,7 +691,7 @@ export function DatingProfilePage() {
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (!v.validate()) return; // never save an incomplete dating profile
+    if (!v.validate()) return; // never save an incomplete matchmaking profile
     const extras: DX = { ...dx };
     // A BLANK OPTIONAL IS AN ABSENT ONE (fifth audit, 31 Aug, B1). The field
     // says "(optional)" and starts as '', and '' is a string the server's
@@ -682,7 +699,7 @@ export function DatingProfilePage() {
     // "Invalid" under the button and no way past it. Send nothing instead.
     upsert.mutate(
       { ...form, birthTime: form.birthTime || undefined, interests: (form.interests ?? []), extras: JSON.stringify(extras) },
-      { onSuccess: (p) => { setCollapsed(p.moderation !== 'rejected'); successToast('Dating profile saved successfully.'); } },
+      { onSuccess: (p) => { setCollapsed(p.moderation !== 'rejected'); successToast('Matchmaking profile saved successfully.'); } },
     );
   };
 
@@ -703,7 +720,27 @@ export function DatingProfilePage() {
   // no signed URL yet — the profile is refetched on save, which is when it
   // appears. Falling back to the raw entry keeps legacy base64 rendering.
   const photoSrcs = (data as { photoUrls?: string[] } | null)?.photoUrls ?? [];
-  const srcAt = (i: number) => photoSrcs[i] || (photos[i]?.startsWith('data:') ? photos[i] : '');
+  /**
+   * BY KEY, NOT BY POSITION (fifth audit, 31 Aug, medium 9). `photoUrls` is
+   * aligned to the SERVER's stored list; `photos` is the LOCAL edit. Indexing
+   * one with the other's position meant that after removing the first photo,
+   * thumbnail 0 still showed the removed picture and the last one vanished —
+   * so people removed the "wrong" photo twice. The server list is in `data`'s
+   * own extras, zipped here into key → url; a local reorder or removal then
+   * changes which keys are asked for, never which face a key shows.
+   */
+  const urlByKey = (() => {
+    let stored: string[] = [];
+    try {
+      const px = JSON.parse((data as { extras?: string | null } | null)?.extras ?? '{}') as { photos?: unknown };
+      stored = Array.isArray(px.photos) ? px.photos.filter((x): x is string => typeof x === 'string') : [];
+    } catch { stored = []; }
+    return new Map(stored.map((k, i) => [k, photoSrcs[i] ?? '']));
+  })();
+  const srcAt = (i: number) => {
+    const key = photos[i] ?? '';
+    return urlByKey.get(key) || (key.startsWith('data:') ? key : '');
+  };
   const completion = upsert.data?.completion ?? (existing.data as { completion?: ProfileCompletion } | null)?.completion;
   // 'threshold' no longer exists as a choice; a profile that stored it is
   // simply visible now, and the next save writes 'everyone'.
@@ -719,7 +756,7 @@ export function DatingProfilePage() {
   };
   const visRaw: Visibility = dx.visibility ?? 'everyone';
   const visibility: Visibility = visRaw === 'threshold' ? 'everyone' : visRaw;
-  const onDelete = () => del.mutate(undefined, { onSuccess: () => { setCollapsed(false); setDx({}); successToast('Dating profile deleted.'); } });
+  const onDelete = () => del.mutate(undefined, { onSuccess: () => { setCollapsed(false); setDx({}); successToast('Matchmaking profile deleted.'); } });
 
   // What each photo's review says, in one sentence, on the banner the owner
   // already reads. A photo shows to other people only once it is approved.
@@ -899,7 +936,7 @@ export function DatingProfilePage() {
 
   return (
     <div>
-      <div className="eyebrow">Dating Hub · Your profile</div>
+      <div className="eyebrow">Matchmaking Hub · Your profile</div>
       <h1 style={{ fontSize: 26 }}>Tell the stars about you</h1>
       <p className="muted" style={{ fontSize: 13.5, marginTop: 6 }}>
         One page, about five minutes. Your profile and photos pass a safety check before they go live.
@@ -1031,8 +1068,14 @@ export function DatingProfilePage() {
                   /* Uploaded, saved, not yet signed for display. Says so rather
                      than rendering a broken image frame. */
                   : <div style={{ width: 72, height: 72, borderRadius: 'var(--r-1)', background: 'var(--paper)', border: '1px solid var(--line)', display: 'grid', placeItems: 'center', fontSize: 10, color: 'var(--muted)', textAlign: 'center', padding: 4 }}>Saved · reload to view</div>}
+                {/* The 44px target is TRANSPARENT (fifth audit, medium 13):
+                    minWidth/minHeight beat width/height 20, so this painted a
+                    44px red disc over most of each 72px thumbnail. The button
+                    is the invisible hit area; the small disc is a child. */}
                 <button type="button" onClick={() => removePhoto(i)} aria-label="Remove"
-                  style={{ minWidth: 44, minHeight: 44, position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', border: 'none', background: 'var(--danger-ink)', color: 'var(--on-accent)', cursor: 'pointer', fontSize: 12 }}>×</button>
+                  style={{ minWidth: 44, minHeight: 44, position: 'absolute', top: -18, right: -18, border: 'none', background: 'transparent', cursor: 'pointer', display: 'grid', placeItems: 'center', padding: 0 }}>
+                  <span aria-hidden style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--danger-ink)', color: 'var(--on-accent)', fontSize: 12, display: 'grid', placeItems: 'center', lineHeight: 1 }}>×</span>
+                </button>
               </div>
             ))}
             {photos.length < 10 && (
@@ -1219,7 +1262,7 @@ export function DatingProfilePage() {
           <input type="checkbox" checked={Boolean(dx.sensitiveConsentAt)} required
             onChange={(e) => setD({ sensitiveConsentAt: e.target.checked ? new Date().toISOString() : undefined })}
             style={{ marginTop: 3 }} />
-          <span>I agree that who I&rsquo;m seeking and, if I give it, my religion are used to filter and score my matches. Neither is shown to other people; I can delete my dating profile at any time.</span>
+          <span>I agree that who I&rsquo;m seeking and, if I give it, my religion are used to filter and score my matches. Neither is shown to other people; I can delete my matchmaking profile at any time.</span>
         </label>
 
         {/* A SAVE THAT FAILED USED TO LOOK EXACTLY LIKE A SAVE NOBODY MADE

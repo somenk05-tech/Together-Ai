@@ -100,7 +100,7 @@ export class PhotoModerationService implements OnModuleInit {
         !secretAccessKey && 'REKOGNITION_SECRET_ACCESS_KEY',
       ].filter(Boolean).join(', ');
       const said = `Photo review is not configured (${missing || `PHOTO_MODERATION=${this.mode}`}). `
-        + 'No dating photo can be shown to anybody until it is.';
+        + 'No matchmaking photo can be shown to anybody until it is.';
       if (process.env.NODE_ENV === 'production') throw new Error(said);
       this.logger.warn(said);
     }
@@ -188,11 +188,20 @@ export class PhotoModerationService implements OnModuleInit {
     if (!this.client) return 'pending';
     const obj = await this.bytesOf(entry);
     if (obj === 'unreadable') return 'pending';
-    // The identity of the bytes this verdict is about. Inline photos have no
-    // object and therefore nothing that can be swapped underneath them.
-    const etag = entry.startsWith('data:') ? null : await this.storage.healthObjectETag(entry);
+    /**
+     * The identity of the bytes this verdict is about — FROM THE SAME GET
+     * THAT READ THEM (fifth audit, 31 Aug, medium 4). This was a separate
+     * HEAD after the read: a PUT through a still-valid presign, landed in
+     * that gap, got benign bytes reviewed and the hostile bytes' etag
+     * recorded — an approval of the swap. And a failed HEAD recorded null,
+     * which turned the serve-path check off for that key for ever. Inline
+     * photos keep null (there is no object to swap); a vault read that
+     * somehow carries no etag stays `pending` rather than un-checkable.
+     */
+    const etag = obj.etag;
     if (obj.bytes.length > PHOTO_MAX_BYTES) return this.record(key, userId, 'rejected', '', `Larger than ${PHOTO_MAX_BYTES} bytes.`, etag);
     if (!PHOTO_MIME[obj.contentType]) return this.record(key, userId, 'rejected', '', `Not a photo (${obj.contentType}).`, etag);
+    if (!entry.startsWith('data:') && !etag) return 'pending';
     let labels: Array<{ Name?: string; ParentName?: string; Confidence?: number }>;
     try {
       const res = await this.client.send(new DetectModerationLabelsCommand({
@@ -306,18 +315,21 @@ export class PhotoModerationService implements OnModuleInit {
    * photos predate the vault and still render (photo-storage.spec.ts); they
    * are reviewed from the same bytes, keyed by digest, rather than exempted.
    */
-  private async bytesOf(entry: string): Promise<{ bytes: Buffer; contentType: string } | 'unreadable'> {
+  private async bytesOf(entry: string): Promise<{ bytes: Buffer; contentType: string; etag: string | null } | 'unreadable'> {
     if (entry.startsWith('data:')) {
       const m = /^data:([^;,]+)(?:;base64)?,(.*)$/s.exec(entry);
-      if (!m) return { bytes: Buffer.alloc(0), contentType: 'invalid' };
-      return { bytes: Buffer.from(m[2], 'base64'), contentType: m[1] };
+      if (!m) return { bytes: Buffer.alloc(0), contentType: 'invalid', etag: null };
+      return { bytes: Buffer.from(m[2], 'base64'), contentType: m[1], etag: null };
     }
     const size = await this.storage.healthObjectSize(entry);
     if (size == null) return 'unreadable';
-    if (size > PHOTO_MAX_BYTES) return { bytes: Buffer.alloc(size), contentType: 'image/jpeg' };
+    if (size > PHOTO_MAX_BYTES) return { bytes: Buffer.alloc(size), contentType: 'image/jpeg', etag: null };
     const obj = await this.storage.getHealthObjectBase64(entry);
     if (!obj) return 'unreadable';
-    return { bytes: Buffer.from(obj.base64, 'base64'), contentType: obj.contentType };
+    // The etag of exactly the bytes read above — from the same GET, so a PUT
+    // that lands between a read and a later HEAD can no longer marry an
+    // approval of benign bytes to the identity of hostile ones (medium 4).
+    return { bytes: Buffer.from(obj.base64, 'base64'), contentType: obj.contentType, etag: obj.etag ?? null };
   }
 
   /**

@@ -328,8 +328,17 @@ export class ConversationsService {
    * conversation, and it moves into the Dating Hub with them; the reverse never
    * happens, because nothing turns a dating chat back into a city one.
    */
-  async getOrCreateDirectByIds(aId: string, bId: string, kind: ConversationKind, anonymousTrust?: number): Promise<string> {
-    const directKey = directKeyOf(aId, bId);
+  /**
+   * `thread` (owner decision, 31 Aug): a named channel that gets its OWN
+   * conversation for the pair. The dating hub passes 'platonic' for a friends
+   * chat, so a romantic thread and a friends thread between the same two
+   * people are separate rows — which is what stops an ended romantic chat and
+   * its history reappearing when one of them later connects as friends.
+   * Absent = the pair's one shared key, exactly as before, so every existing
+   * conversation keeps its identity.
+   */
+  async getOrCreateDirectByIds(aId: string, bId: string, kind: ConversationKind, anonymousTrust?: number, thread?: string): Promise<string> {
+    const directKey = thread ? `${directKeyOf(aId, bId)}#${thread}` : directKeyOf(aId, bId);
     const existing = await this.prisma.conversation.findUnique({ where: { directKey } });
     if (existing) {
       const row = existing as { anonymousTrust?: number | null; kind?: string };

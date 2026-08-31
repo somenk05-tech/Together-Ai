@@ -544,7 +544,11 @@ export function useBlockMatch() {
   return useMutation({
     mutationFn: ({ userId, kind }: { userId: string; kind: MatchKind }) => datingApi.blockMatch(userId, kind),
     onSuccess: () => {
-      for (const key of [['dating', 'stack'], ['dating', 'matches'], ['dating', 'discover'], ['dating', 'chats'], ['conversations']]) {
+      // `match` too (fifth audit, medium 11): blocking from the detail page
+      // left that page's cache live, with an enabled Connect under the
+      // person just blocked. Refetching it turns the page into the same
+      // "not available" state every other reader shows.
+      for (const key of [['dating', 'stack'], ['dating', 'matches'], ['dating', 'discover'], ['dating', 'chats'], ['dating', 'match'], ['conversations']]) {
         void qc.invalidateQueries({ queryKey: key });
       }
     },

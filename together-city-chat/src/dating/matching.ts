@@ -583,6 +583,11 @@ export function frictions(f: FactorBreakdown, aD: DXProfile, bD: DXProfile): str
   const out: string[] = [];
   const mine = canonicalGoal(aD.relationshipGoal), theirs = canonicalGoal(bD.relationshipGoal);
   if (mine && theirs && mine !== theirs) out.push(`You said ${aD.relationshipGoal}; they said ${bD.relationshipGoal}.`);
+  // "Still figuring it out" is an ANSWER (fifth audit, 31 Aug, medium 9):
+  // canonicalGoal deliberately maps it to null, and this sentence then told
+  // the viewer they had said nothing — a friction printed about a person who
+  // answered the question. The two states get their own true sentences.
+  else if (mine && !theirs && bD.relationshipGoal) out.push('They are still figuring out what they are looking for.');
   else if (mine && !theirs) out.push('They have not said what they are looking for yet.');
   if (childrenConflict(aD.wantsChildren, bD.wantsChildren)) {
     // THEIR ANSWER IS NOT QUOTED (audit finding 17). `wantsChildren` is the

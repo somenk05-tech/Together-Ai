@@ -57,7 +57,9 @@ describe('the two rooms gate on that rule and nothing weaker', () => {
   it.each([['Browse', browse], ['Curated Matches', matches]])('%s invites a new citizen to create a profile', (_, src) => {
     expect(src).not.toMatch(/if \(!profile\.data\) \{/);
     expect(src).toMatch(/if \(!isSavedProfile\(profile\.data\)\) \{/);
-    expect(src).toContain('Create your dating profile');
+    // The owner is renaming user-facing copy Dating → Matchmaking (31 Aug);
+    // either spelling is the button this test exists to protect.
+    expect(src).toMatch(/Create your (dating|matchmaking) profile/);
   });
 });
 

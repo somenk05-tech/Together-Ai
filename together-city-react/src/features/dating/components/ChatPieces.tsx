@@ -63,7 +63,10 @@ export function EmptyIntro({ name, score, myPhoto, theirPhoto, d, onPick }: {
       <ConversationStarters starters={startersFor({
         name, interests: d?.interests, city: d?.city, occupation: d?.occupation,
       })} onPick={onPick} />
-      <small>You appear as the name and photos on your dating profile — nothing else is shown.</small>
+      {/* The "You" face above is drawn from YOUR OWN screen's session and is
+          seen by nobody else — saying "nothing else is shown" under a city
+          avatar read as that avatar being shown (fifth audit, medium 15). */}
+      <small>They see the name and photos on your dating profile — the face here is just for you.</small>
     </div>
   );
 }

@@ -72,7 +72,7 @@ function Subject({ group }: { group: ReportGroup }) {
         {d && (
           <div style={subjectBox}>
             <div className="muted" style={subjectMeta}>
-              Dating profile
+              Matchmaking profile
               {d.shownName ? ` · appears as ${d.shownName}` : ''}
               {d.age != null ? ` · ${d.age}` : ''}
               {d.city ? ` · ${d.city}` : ''}
@@ -83,7 +83,7 @@ function Subject({ group }: { group: ReportGroup }) {
             {d.bio && <p style={subjectBio}>{d.bio}</p>}
           </div>
         )}
-        {!d && <div className="muted" style={subjectNone}>No dating profile.</div>}
+        {!d && <div className="muted" style={subjectNone}>No matchmaking profile.</div>}
       </div>
     );
   }
@@ -216,7 +216,7 @@ function Group({ group }: { group: ReportGroup }) {
 
       {canUnlist && (
         <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>
-          Taking someone out of Dating hides their dating profile from everyone. It does not touch their account. It needs a reason in the note — it is written to the audit.
+          Taking someone out of Dating hides their matchmaking profile from everyone. It does not touch their account. It needs a reason in the note — it is written to the audit.
         </p>
       )}
       {canActOnUser && (
@@ -393,7 +393,7 @@ function HeldPhotoCard({ photo }: { photo: HeldPhoto }) {
   return (
     <div className="card" style={{ marginTop: 12, padding: 14, display: 'grid', gridTemplateColumns: 'minmax(120px, 180px) 1fr', gap: 14 }}>
       {photo.url
-        ? <img src={photo.url} alt="Held dating photo" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: 10 }} />
+        ? <img src={photo.url} alt="Held matchmaking photo" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: 10 }} />
         : <div className="muted" style={{ fontSize: 12 }}>Could not load the photo.</div>}
       <div>
         <div className="muted" style={{ fontSize: 12 }}>

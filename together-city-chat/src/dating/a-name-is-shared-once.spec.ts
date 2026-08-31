@@ -28,7 +28,7 @@ function build(state: any) {
       findMany: jest.fn(async () => []),
       update: jest.fn(async ({ data }: any) => ({ ...state, ...data })),
     },
-    datingProfile: { findMany: jest.fn(async () => []) },
+    datingProfile: { findMany: jest.fn(async () => []), findUnique: jest.fn(async () => ({ moderation: 'approved' })) },
     user: { findMany: jest.fn(async () => []) },
     compatibilityScore: { findMany: jest.fn(async () => []) },
   };
@@ -77,7 +77,7 @@ describe('sharing your name', () => {
 });
 
 describe('the dating chats list for somebody with no matches', () => {
-  it('is empty, and costs exactly one query', async () => {
+  it('is empty, and costs one read of the list (plus the standing check, 31 Aug)', async () => {
     const { svc, prisma, conversations } = build(match());
     expect(await svc.datingChats('nobody')).toEqual([]);
     expect(prisma.datingMatch.findMany).toHaveBeenCalledTimes(1);

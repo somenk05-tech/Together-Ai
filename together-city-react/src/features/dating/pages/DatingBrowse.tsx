@@ -134,7 +134,7 @@ export function DatingBrowse() {
     return (
       <EmptyState
         icon="⚠️"
-        title="We couldn’t open your dating profile"
+        title="We couldn’t open your matchmaking profile"
         hint="This is ours to fix, not yours to redo — nothing you’ve entered has been lost. Try again in a moment."
       />
     );
@@ -149,7 +149,7 @@ export function DatingBrowse() {
           hint="Compatibility is worked out from your birth details and what you told us matters to you — there is nothing to score until then."
         />
         <div style={{ textAlign: 'center', marginTop: 14 }}>
-          <Link to="/dating/profile"><Button variant="accent">Create your dating profile</Button></Link>
+          <Link to="/dating/profile"><Button variant="accent">Create your matchmaking profile</Button></Link>
         </div>
       </div>
     );

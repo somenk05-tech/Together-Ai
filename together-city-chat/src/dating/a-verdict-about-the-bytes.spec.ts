@@ -77,7 +77,11 @@ describe('a verdict about the bytes', () => {
   });
 
   it('records the etag with every verdict, and shrinks the window it defends', () => {
-    expect(svc).toMatch(/healthObjectETag\(entry\)/);
+    // From the SAME GET that read the bytes (fifth audit, 31 Aug, medium 4) —
+    // a later HEAD could record the identity of a swapped object, and a
+    // failed HEAD recorded null, disabling the serve-path check for ever.
+    expect(svc).toMatch(/etag: obj\.etag \?\? null/);
+    expect(svc).toMatch(/if \(!entry\.startsWith\('data:'\) && !etag\) return 'pending';/);
     expect(svc).toMatch(/etag\?: string \| null/);
     expect(storage).toMatch(/datingUploadExpiresInSec = 120;/);
     expect(storage).toMatch(/etag: out\.ETag \?\? null/);

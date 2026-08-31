@@ -85,7 +85,7 @@ export class AiSuggestionsService {
   async astrology(userId: string): Promise<AiSuggestions> {
     const profile = await this.prisma.datingProfile.findUnique({ where: { userId } });
     if (!profile) {
-      return { aiPowered: this.ai.enabled, intro: 'Add your birth date to your dating profile to unlock your compatibility guide.', items: [] };
+      return { aiPowered: this.ai.enabled, intro: 'Add your birth date to your matchmaking profile to unlock your compatibility guide.', items: [] };
     }
     const sign = sunSign(profile.birthDate);
     const compatible = COMPAT[sign] ?? [];

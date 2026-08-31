@@ -21,7 +21,7 @@ function serviceWith(blockedIds: string[]) {
   const prisma: any = {
     datingMatch: { findMany: jest.fn(async () => [match('friend'), match('blocked')]) },
     user: { findMany: jest.fn(async () => [{ id: 'friend', name: 'Ada' }, { id: 'blocked', name: 'Zed' }]) },
-    datingProfile: { findMany: jest.fn(async () => [
+    datingProfile: { findUnique: jest.fn(async () => ({ moderation: 'approved' })), findMany: jest.fn(async () => [
       { userId: 'me', extras: null }, { userId: 'friend', birthDate: new Date('1995-01-01Z'), extras: null }, { userId: 'blocked', birthDate: new Date('1994-01-01Z'), extras: null },
     ]) },
     compatibilityScore: { findMany: jest.fn(async () => []) },

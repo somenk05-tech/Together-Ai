@@ -56,7 +56,7 @@ P.terms = {
       <p>These Terms are published as an electronic record under the Information Technology Act, 2000 and the applicable rules, and do not require any physical or digital signature. By creating an account, accessing, or using the Platform you accept these Terms and every policy incorporated by reference, including our Privacy Policy, Community Guidelines, and hub-specific terms.</p>` },
     { h: '2. Eligibility', html:
       `<p>The Platform is intended solely for persons who are 18 years of age or older and competent to contract under the Indian Contract Act, 1872. You represent that you meet these requirements.</p>
-      ${li(['You may not use the Platform if you are barred under any applicable law or previously removed by us.', 'Certain hubs (e.g. the Dating District) require additional age and identity confirmation.', 'We may verify your identity and refuse, suspend, or terminate access at our discretion where the law or safety requires.'])}` },
+      ${li(['You may not use the Platform if you are barred under any applicable law or previously removed by us.', 'Certain hubs (e.g. the Matchmaking District) require additional age and identity confirmation.', 'We may verify your identity and refuse, suspend, or terminate access at our discretion where the law or safety requires.'])}` },
     { h: '3. Your account', html:
       `<p>You are responsible for maintaining the confidentiality of your credentials and for all activity under your account.</p>
       ${li(['Provide accurate, current information and keep it updated.', 'One account per person unless we expressly permit otherwise.', 'Notify us immediately at ' + CO.support + ' of any unauthorised use.', 'We may offer two-factor authentication; we recommend you enable it.'])}` },
@@ -108,7 +108,7 @@ P.privacy = {
       `<p>This Privacy Policy explains how ${CO.company} ("Data Fiduciary") handles your personal data when you use ${CO.brand}. It is issued under the Digital Personal Data Protection Act, 2023 ("DPDP Act"), the Information Technology Act, 2000, and applicable rules. By using the Platform you consent to this Policy.</p>` },
     { h: '2. Data we collect', html:
       `<p>Depending on the hubs you use, we may collect:</p>
-      ${li(['<strong>Identity & contact:</strong> name, phone, email, date of birth, profile photo;', '<strong>Account & usage:</strong> handle, preferences, device and log data, cookies;', '<strong>Sensitive/health data:</strong> blood reports, biomarkers, nutrition and beauty profiles, prescriptions (Medical Hub is the single source of truth);', '<strong>Location:</strong> where you enable geo features (e.g. social map, restaurants, travel);', '<strong>Content:</strong> posts, chats, media, reviews;', '<strong>Transaction data:</strong> orders, bookings, payments (handled by our payment partners);', '<strong>Relationship data:</strong> dating profile and compatibility inputs (stored locally to your account where feasible).'])}` },
+      ${li(['<strong>Identity & contact:</strong> name, phone, email, date of birth, profile photo;', '<strong>Account & usage:</strong> handle, preferences, device and log data, cookies;', '<strong>Sensitive/health data:</strong> blood reports, biomarkers, nutrition and beauty profiles, prescriptions (Medical Hub is the single source of truth);', '<strong>Location:</strong> where you enable geo features (e.g. social map, restaurants, travel);', '<strong>Content:</strong> posts, chats, media, reviews;', '<strong>Transaction data:</strong> orders, bookings, payments (handled by our payment partners);', '<strong>Relationship data:</strong> matchmaking profile and compatibility inputs (stored locally to your account where feasible).'])}` },
     { h: '3. Purposes and legal basis', html:
       `<p>We process personal data on the basis of your consent, or where processing is necessary for a legitimate use permitted by the DPDP Act, to:</p>
       ${li(['Create and operate your account and the hubs you use;', 'Personalise recommendations (food, restaurants, travel, matches, beauty, medical insights);', 'Process payments, bookings, and creator payouts;', 'Keep the Platform safe, prevent fraud, and moderate content;', 'Comply with law and respond to lawful requests.'])}` },
@@ -225,7 +225,7 @@ P.community = {
         "Infringing content and unauthorised use of others' IP.",
       ]) },
     { h: '3. Authenticity and safety', html:
-      `<p>Use your real identity, don't impersonate others, and protect people's privacy. For dating and in-person meetups, follow our Safety Centre guidance in the Dating Hub Terms.</p>` },
+      `<p>Use your real identity, don't impersonate others, and protect people's privacy. For dating and in-person meetups, follow our Safety Centre guidance in the Matchmaking Hub Terms.</p>` },
     { h: '4. Tools you control', html:
       li(['Report content or accounts;', 'Block and mute users;', 'Copyright reporting;', 'Appeal a moderation decision (see Content Moderation Policy).']) },
     { h: '5. Enforcement', html:
@@ -291,8 +291,8 @@ P.medical = {
 };
 
 P.dating = {
-  title: 'Dating Hub Terms',
-  short: 'Rules and safety for the Dating District.',
+  title: 'Matchmaking Hub Terms',
+  short: 'Rules and safety for the Matchmaking District.',
   eff: CO.updated,
   tldr: [
     '18+ only, with recommended identity verification.',
@@ -301,7 +301,7 @@ P.dating = {
   ],
   sections: [
     { h: '1. Eligibility and conduct', html:
-      `<p>The Dating District is strictly for users aged 18 or older. You agree to interact respectfully, honestly, and lawfully, and not to use the feature for solicitation, fraud, or harassment.</p>` },
+      `<p>The Matchmaking District is strictly for users aged 18 or older. You agree to interact respectfully, honestly, and lawfully, and not to use the feature for solicitation, fraud, or harassment.</p>` },
     { h: '2. Identity and privacy', html:
       li([
         'Identity verification is strongly recommended and may be required;',
@@ -319,7 +319,7 @@ P.dating = {
         // a screenshot. Somebody could have shared a photo believing otherwise,
         // which makes it the most costly kind of untrue sentence to leave up.
         'We cannot stop anyone taking a screenshot — no website can — so treat anything you share here as something that could be saved;',
-        'Your dating photos are shown inside the Dating Hub only, to people allowed by the visibility setting on your profile — you can require a minimum match score, or hide your profile entirely;',
+        'Your matchmaking photos are shown inside the Matchmaking Hub only, to people allowed by the visibility setting on your profile — you can require a minimum match score, or hide your profile entirely;',
         'Sharing intimate images of someone without their consent is prohibited and can lead to permanent removal and reporting to authorities;',
         'Follow our Safety Centre before meeting anyone in person: meet in public, tell a friend, and trust your instincts;',
         'Emergency reporting is available in-app.',

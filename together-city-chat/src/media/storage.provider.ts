@@ -898,7 +898,7 @@ export class StorageProvider implements OnModuleInit {
     }
   }
 
-  async getHealthObjectBase64(key: string): Promise<{ base64: string; contentType: string } | null> {
+  async getHealthObjectBase64(key: string): Promise<{ base64: string; contentType: string; etag: string | null } | null> {
     return this.getObjectBase64(key, this.healthBucket);
   }
 
@@ -964,7 +964,7 @@ export class StorageProvider implements OnModuleInit {
 
   /** Read an object back as base64 (for AI vision on uploaded reports). Returns
    *  null when storage isn't configured or the object can't be read. */
-  async getObjectBase64(key: string, bucket?: string): Promise<{ base64: string; contentType: string } | null> {
+  async getObjectBase64(key: string, bucket?: string): Promise<{ base64: string; contentType: string; etag: string | null } | null> {
     if (!this.s3) return null;
     try {
       const res = await this.s3.send(new GetObjectCommand({ Bucket: bucket ?? this.bucket, Key: key }));
@@ -973,6 +973,11 @@ export class StorageProvider implements OnModuleInit {
       return {
         base64: Buffer.from(bytes).toString('base64'),
         contentType: res.ContentType ?? 'application/octet-stream',
+        // Free, and the identity of exactly these bytes: the GET that read
+        // them carries it, so a verdict can be recorded about what was READ
+        // rather than about whatever a later HEAD happens to find (fifth
+        // audit, 31 Aug, medium 4).
+        etag: res.ETag ?? null,
       };
     } catch (e) {
       this.logger.warn(`getObject failed for ${key}: ${(e as Error).message}`);

@@ -8,6 +8,8 @@ import type { Message } from '@/api/schemas';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDatingChats, useDatingReveal, useMatchDetail, useUnmatch, type DatingChatSummary } from '../api';
 import { SafetyMenu } from '../components/SafetyMenu';
+import { ReadFailure } from '../components/ReadFailure';
+import { serverMessage } from '../server-sentence';
 import { MiraMark } from '@/features/chat/mira/MiraMark';
 import { useMiraShown } from '@/hooks/useCityDesign';
 import { MiraConfidant } from '@/features/chat/mira/MiraConfidant';
@@ -334,7 +336,7 @@ function Thread({ chat, meId, mePhoto, onBack }: { chat: OpenChat; meId: string;
         {/* The city chat's back arrow, down to the chevron — on EVERY device
             now, because the room is the whole screen on every device and this
             is the only door back to the list. */}
-        <button type="button" className="csback" aria-label="Back to your dating chats" onClick={onBack}>
+        <button type="button" className="csback" aria-label="Back to your matchmaking chats" onClick={onBack}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
         </button>
@@ -391,8 +393,21 @@ function Thread({ chat, meId, mePhoto, onBack }: { chat: OpenChat; meId: string;
                   from every message until BOTH people have chosen otherwise.
                   This is that choice, and it is reversible: taking it back
                   drops the conversation out of revealed again. */}
+              {/* IT ASKS FIRST (fifth audit, 31 Aug, medium 10). This was a
+                  bare menu item one row above Unmatch: a mis-tap shared the
+                  handle and city photo with no confirmation, no visible state
+                  afterwards, and no surfaced error — on the hub's core
+                  promise. The server's own contract says "the caller says so
+                  before letting anyone flip it"; this is the caller saying
+                  so. Taking it back is not gated: undoing a share should be
+                  one tap. */}
               <button type="button" role="menuitem" disabled={reveal.isPending}
-                onClick={() => { setMenu(false); reveal.mutate({ userId: chat.otherUserId, kind: 'romantic', show: !chat.myReveal }); }}>
+                onClick={() => {
+                  setMenu(false);
+                  if (chat.myReveal || window.confirm('Share your city profile in this chat? They will see your @handle and your city photo, and they cannot un-see them — taking this back only stops showing them from then on.')) {
+                    reveal.mutate({ userId: chat.otherUserId, kind: 'romantic', show: !chat.myReveal });
+                  }
+                }}>
                 {chat.myReveal ? 'Stop sharing my city profile' : 'Share my city profile'}
               </button>
               {/* Unmatch and block are not the same thing, and the open chat is
@@ -422,6 +437,24 @@ function Thread({ chat, meId, mePhoto, onBack }: { chat: OpenChat; meId: string;
           </>
         )}
       </div>
+
+      {/* THE STATE OF THE SHARE, WHERE THE CHAT IS READ (medium 10). Nothing
+          rendered `myReveal`/`otherReveal`, so the only way to know what you
+          were showing was to open the menu and read the verb. One quiet line,
+          only when there is something to say — and the errors the two menu
+          actions used to swallow. */}
+      {(chat.myReveal || chat.otherReveal) && (
+        <p className="muted" role="status" style={{ margin: '4px 12px', fontSize: 11.5 }}>
+          {chat.myReveal && chat.otherReveal ? 'You are both sharing your city profiles.'
+            : chat.myReveal ? 'You are sharing your city profile — they are not.'
+            : `${chat.name} is sharing their city profile — you are not.`}
+        </p>
+      )}
+      {(reveal.isError || unmatch.isError) && (
+        <p role="alert" style={{ margin: '4px 12px', fontSize: 11.5, color: 'var(--danger-ink)' }}>
+          {serverMessage(reveal.isError ? reveal.error : unmatch.error) ?? 'That didn’t reach us — nothing changed. Try again in a moment.'}
+        </p>
+      )}
 
       {confide && (
         <MiraConfidant otherName={chat.name} transcript={confideTranscript}
@@ -527,14 +560,17 @@ export function DatingChats() {
         // this request failed. Of everything in the app, it is the one worst
         // suited to being said by mistake: somebody who has matched, and is
         // waiting, being told by the city that nobody is there.
-        <EmptyState
-          icon="⚠️"
+        // `ReadFailure`, not a bare EmptyState (31 Aug): a rejected profile
+        // is refused with a sentence naming the Safety Centre, and that
+        // sentence must reach the person it refuses.
+        <ReadFailure
+          error={chats.error}
           title="We couldn’t load your chats"
           hint="That’s a problem on our side, not a sign there’s nobody there. Nothing has been lost — try again in a moment."
         />
       ) : list.length === 0 ? (
         <>
-          <EmptyState icon="💬" title="No dating chats yet" hint="When you connect with a match, your conversation appears here." />
+          <EmptyState icon="💬" title="No matchmaking chats yet" hint="When you connect with a match, your conversation appears here." />
           <div style={{ textAlign: 'center', marginTop: 14 }}>
             <Link to="/dating/matches"><Button variant="accent">See your matches</Button></Link>
           </div>

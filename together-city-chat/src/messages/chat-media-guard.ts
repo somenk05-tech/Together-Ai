@@ -136,7 +136,7 @@ export class ChatMediaGuard {
     if (!this.client) {
       // Loud, because the consequence is a feature that stops working rather
       // than a check that quietly stops running.
-      this.logger.warn('Rekognition is not configured — no photograph can be sent in a dating chat until it is.');
+      this.logger.warn('Rekognition is not configured — no photograph can be sent in a matchmaking chat until it is.');
     }
   }
 

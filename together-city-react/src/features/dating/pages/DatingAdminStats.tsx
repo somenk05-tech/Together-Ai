@@ -20,7 +20,7 @@ function Stat({ label, value, hint }: { label: string; value: number | string; h
 export function DatingAdminStats() {
   const q = useDatingAdminStats();
 
-  if (q.isLoading) return <Spinner label="Loading Dating Hub stats…" />;
+  if (q.isLoading) return <Spinner label="Loading Matchmaking Hub stats…" />;
 
   if (q.isError || !q.data) {
     return (
@@ -33,8 +33,8 @@ export function DatingAdminStats() {
             who followed this sentence got the stats page and no way to review
             anything. And both are read at BOOT, so reloading the page does
             nothing; the API has to restart. */}
-        <EmptyState icon="🔒" title="Admin access required" hint="This page is limited to Dating Hub admins: add your handle to MODERATION_ADMINS on the API. Reviewing held photos and appeals is a separate grant — CONSOLE_FOUNDERS. Both are read when the API starts, so restart it rather than reloading this page." />
-        <div style={{ textAlign: 'center', marginTop: 14 }}><Link to="/dating"><Button variant="line">Back to Dating Hub</Button></Link></div>
+        <EmptyState icon="🔒" title="Admin access required" hint="This page is limited to Matchmaking Hub admins: add your handle to MODERATION_ADMINS on the API. Reviewing held photos and appeals is a separate grant — CONSOLE_FOUNDERS. Both are read when the API starts, so restart it rather than reloading this page." />
+        <div style={{ textAlign: 'center', marginTop: 14 }}><Link to="/dating"><Button variant="line">Back to Matchmaking Hub</Button></Link></div>
       </div>
     );
   }
@@ -42,21 +42,21 @@ export function DatingAdminStats() {
   const s = q.data;
   return (
     <div>
-      <div className="eyebrow">Dating Hub · Admin</div>
-      <h1 style={{ fontSize: 26 }}>Dating Hub stats</h1>
+      <div className="eyebrow">Matchmaking Hub · Admin</div>
+      <h1 style={{ fontSize: 26 }}>Matchmaking Hub stats</h1>
       <p className="muted" style={{ fontSize: 13, margin: '6px 0 20px' }}>
         Live counts from the database. Updated {new Date(s.generatedAt).toLocaleString()}.
       </p>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 12 }}>
-        <Stat label="Registered profiles" value={s.totalProfiles} hint="Everyone who created a dating profile" />
+        <Stat label="Registered profiles" value={s.totalProfiles} hint="Everyone who created a matchmaking profile" />
         <Stat label="Live in matching" value={s.approvedVisible} hint="Approved & visible" />
         <Stat label="Pending review" value={s.pendingReview} />
         <Stat label="Rejected" value={s.rejected} />
         <Stat label="Paused" value={s.paused ?? s.pausedHidden} hint="Out of matching; their matches keep working" />
         <Stat label="Hidden" value={s.hidden ?? 0} hint="Gone from everyone" />
         <Stat label="Connected members" value={s.connectedMembers} hint="Opened ≥1 chat" />
-        <Stat label="Active chats" value={s.activeChats} hint="Open dating conversations." />
+        <Stat label="Active chats" value={s.activeChats} hint="Open matchmaking conversations." />
         <Stat label="Total matches" value={s.totalMatches} hint="Mutual matches formed" />
       </div>
 
@@ -70,7 +70,7 @@ export function DatingAdminStats() {
       <Funnel />
 
       <div style={{ textAlign: 'center', marginTop: 26 }}>
-        <Link to="/dating"><Button variant="line">Back to Dating Hub</Button></Link>
+        <Link to="/dating"><Button variant="line">Back to Matchmaking Hub</Button></Link>
       </div>
     </div>
   );

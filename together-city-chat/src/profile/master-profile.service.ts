@@ -233,9 +233,9 @@ export class MasterProfileService {
     const done = await swallow(p.datingProfile.updateMany({
       where: { userId },
       data: { visible: false, moderation: 'rejected', moderationJson: JSON.stringify(reason) },
-    }), 'close dating profile for declared minor', { userId });
-    if (done) this.logger.warn(`dating profile closed: citizen declared a date of birth under ${MIN_DATING_AGE}`);
-    else this.logger.error(`COULD NOT close dating profile for a citizen who declared they are under ${MIN_DATING_AGE}`);
+    }), 'close matchmaking profile for declared minor', { userId });
+    if (done) this.logger.warn(`matchmaking profile closed: citizen declared a date of birth under ${MIN_DATING_AGE}`);
+    else this.logger.error(`COULD NOT close matchmaking profile for a citizen who declared they are under ${MIN_DATING_AGE}`);
   }
 
   /**

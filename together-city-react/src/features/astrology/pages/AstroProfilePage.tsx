@@ -585,7 +585,7 @@ export function AstroProfilePage() {
             <div style={{ marginTop: 16, padding: '14px 16px', borderRadius: 'var(--r-1)', background: 'rgba(46,125,79,.08)', border: '1px solid rgba(46,125,79,.3)' }}>
               <p style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ok-ink)', margin: 0 }}>✓ Birth details saved successfully.</p>
               <p className="muted" style={{ fontSize: 12, margin: '6px 0 2px' }}>These details will be used for:</p>
-              {['Daily Horoscope', 'Monthly Horoscope', 'Dating Compatibility', 'Kundli Matching', 'Future Astrology Features'].map((u) => (
+              {['Daily Horoscope', 'Monthly Horoscope', 'Matchmaking Compatibility', 'Kundli Matching', 'Future Astrology Features'].map((u) => (
                 <p key={u} className="muted" style={{ fontSize: 12, margin: '2px 0 0' }}>• {u}</p>
               ))}
             </div>

@@ -58,13 +58,13 @@ export function DatingSafety() {
 
   return (
     <div>
-      <div className="eyebrow">Dating Hub · Safety</div>
+      <div className="eyebrow">Matchmaking Hub · Safety</div>
       <h1 style={{ fontSize: 26 }}>Safety Centre</h1>
 
       <section className="card" style={{ padding: 16, marginTop: 14 }}>
         <h2 style={{ fontSize: 16, margin: 0 }}>What we check</h2>
         <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.65, margin: '8px 0 0' }}>
-          Every dating profile passes a text check before it goes live, and every photo is looked at before anyone else sees it.
+          Every matchmaking profile passes a text check before it goes live, and every photo is looked at before anyone else sees it.
           A photo the machine cannot clear waits for a person; until then it shows to you and to nobody else.
           The ✉ mark on a profile means their email address is confirmed — that is all it means. Nobody&rsquo;s identity is verified, and nobody&rsquo;s age is checked beyond the date of birth they typed.
         </p>
@@ -73,7 +73,10 @@ export function DatingSafety() {
       <section className="card" style={{ padding: 16, marginTop: 12 }}>
         <h2 style={{ fontSize: 16, margin: 0 }}>Staying safe</h2>
         <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.65, margin: '8px 0 0' }}>
-          Chat here first; you appear under your own name and photos, and the conversation stays in this hub.
+          {/* The old sentence said "your own name and photos" — the exact
+              opposite of the promise the profile page makes and the API
+              enforces (fifth audit, 31 Aug, medium 15). */}
+          Chat here first; you appear under the name and photos you chose for this hub — never your @handle or your city photo, unless you choose to share them — and the conversation stays in this hub.
           Meet in a public place and tell someone where you are going. Money never belongs in a conversation with someone you have not met — anyone who asks for it, report them.
           Report or block from any profile or chat; a report is read by a moderator, and the person you report is never told who reported them.
         </p>
@@ -157,7 +160,7 @@ export function DatingSafety() {
         )}
       </section>
 
-      <div style={{ marginTop: 16 }}><Link to="/dating"><Button variant="line" size="sm">Back to Dating Hub</Button></Link></div>
+      <div style={{ marginTop: 16 }}><Link to="/dating"><Button variant="line" size="sm">Back to Matchmaking Hub</Button></Link></div>
     </div>
   );
 }

@@ -67,7 +67,7 @@ const WHY_WE_ASK = {
     'Used only for health calculations — calorie and nutrient targets, and the reference ranges on '
     + 'your lab results. It is never shown to anyone else.',
   genderIdentity:
-    'How Together City refers to you, and what your dating profile shows. It is never used in a '
+    'How Together City refers to you, and what your matchmaking profile shows. It is never used in a '
     + 'health calculation.',
 };
 

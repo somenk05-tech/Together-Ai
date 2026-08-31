@@ -9,6 +9,7 @@ import {
 import { EmailConfirmed, EMAIL_CONFIRMED_NOTE, SelfieOnFile, SELFIE_ON_FILE_NOTE } from '../components/SelfieOnFile';
 import { SafetyMenu } from '../components/SafetyMenu';
 import { bandFor, coverageNote } from '../bands';
+import { moderationHold } from '../server-sentence';
 
 const photoBox: CSSProperties = { position: 'relative', borderRadius: 16, overflow: 'hidden', background: 'var(--paper)' };
 const cover: CSSProperties = { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' };
@@ -65,12 +66,19 @@ function Collage({ d }: { d: MatchDetail }) {
           <button type="button" aria-label="Next photo" onClick={() => go(1)} style={{ position: 'absolute', inset: '0 0 22% 62%', border: 'none', background: 'transparent', cursor: 'pointer' }} />
         </>}
 
-        {/* progress dots */}
+        {/* progress dots. THE HIT AREA IS INVISIBLE (fifth audit, 31 Aug,
+            medium 13): `minHeight: 44` on the painted element beat
+            `height: 3`, so the "dots" rendered as 44px-tall filled bars
+            covering the top of every multi-photo hero — and the badge under
+            them. The 44px target lives on the transparent button; the 3px
+            bar is a child it paints. */}
         {n > 1 && (
-          <div style={{ position: 'absolute', top: 10, left: 12, right: 12, display: 'flex', gap: 4 }}>
+          <div style={{ position: 'absolute', top: 0, left: 12, right: 12, display: 'flex', gap: 4 }}>
             {photos.map((_, k) => (
               <button key={k} type="button" aria-label={`Photo ${k + 1}`} onClick={() => setI(k)}
-                style={{ minWidth: 44, minHeight: 44, flex: 1, height: 3, borderRadius: 2, border: 'none', padding: 0, cursor: 'pointer', background: k === active ? 'var(--on-scrim)' : 'var(--on-scrim-dim)' }} />
+                style={{ minWidth: 44, minHeight: 44, flex: 1, border: 'none', padding: '10px 0 0', cursor: 'pointer', background: 'transparent', display: 'block' }}>
+                <span aria-hidden style={{ display: 'block', height: 3, borderRadius: 2, background: k === active ? 'var(--on-scrim)' : 'var(--on-scrim-dim)' }} />
+              </button>
             ))}
           </div>
         )}
@@ -145,6 +153,7 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
   const unmatch = useUnmatch(kind);
   const navigate = useNavigate();
   const [liked, setLiked] = useState(d.matched);
+  const [chosen, setChosen] = useState(d.likedByMe);
 
   const matched = liked || d.matched;
   const life: [string, string | null][] = [
@@ -319,16 +328,20 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
                 onClick={() => pass.mutate(targetUserId, { onSuccess: () => navigate('/dating/matches') })}>
                 ✕ Skip
               </Button>
-              <Button variant="accent" size="md" disabled={like.isPending}
-                onClick={() => like.mutate(targetUserId, { onSuccess: (r) => setLiked(r.matched) })}>
-                {like.isPending ? '…' : '♡ Connect'}
+              {/* `chosen` reads the server's own likedByMe (fifth audit,
+                  medium 16): an already-liked person showed a live "Connect"
+                  that re-posted the like, and the page never said "Chosen"
+                  the way the card does. */}
+              <Button variant="accent" size="md" disabled={like.isPending || chosen}
+                onClick={() => like.mutate(targetUserId, { onSuccess: (r) => { setLiked(r.matched); setChosen(true); } })}>
+                {like.isPending ? '…' : chosen ? '♡ Chosen' : '♡ Connect'}
               </Button>
             </>
           )}
         </div>
         <p className="muted" style={{ fontSize: 11.5, marginTop: 4, textAlign: 'center' }}>
           {/* The same correction as the card: told, never told WHO. */}
-          {matched ? 'Chat opens in the Dating Hub.' : 'They’ll be told someone liked them, never who.'}
+          {matched ? 'Chat opens in the Matchmaking Hub.' : 'They’ll be told someone liked them, never who.'}
         </p>
         <div style={{ marginTop: 14, textAlign: 'center' }}>
           <SafetyMenu userId={targetUserId} kind={kind} />
@@ -352,6 +365,21 @@ export function DatingMatchDetail() {
   }
   if (detail.isLoading) return <Spinner label="Opening the profile…" />;
   if (detail.isError || !detail.data) {
+    /**
+     * YOUR OWN HELD PROFILE IS NOT THEIR DOING (fifth audit, 31 Aug, medium
+     * 8/12). This page blamed the other person for every failure — including
+     * the caller's own profile being in review (a 403 with a precise
+     * sentence) and a plain network error. The two list pages have rendered
+     * the server's sentence since the fourth audit; this was the screen a
+     * notification deep-links to, discarding it.
+     */
+    const held = moderationHold(detail.error);
+    if (held) {
+      return <div className="page-note">
+        <EmptyState icon="🌙" title="Your profile isn’t live yet" hint={held} />
+        <div style={{ textAlign: 'center', marginTop: 14 }}><Link to="/dating/profile"><Button variant="accent">Open your matchmaking profile</Button></Link></div>
+      </div>;
+    }
     // L3. The server answers every reason with the same 404 on purpose — "they
     // filtered you out" is not ours to disclose, and the reasoning is written
     // where that decision lives. So this stays vague about THEM.

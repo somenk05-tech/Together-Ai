@@ -40,7 +40,7 @@ const PAVILIONS: Pavilion[] = [
   { to: '/astrology', img: 'astrology-hub.webp', title: 'Astrology Hub' },
   { to: '/nutrition', img: 'nutrition-and-groceies.webp', title: 'Nutrition & Groceries' },
   { to: '/social', img: 'social-life.webp', title: 'Social Life' },
-  { to: '/dating', img: 'dating-hub.webp', title: 'Dating Hub' },
+  { to: '/dating', img: 'dating-hub.webp', title: 'Matchmaking Hub' },
   { to: '/entertainment', img: 'entertainment.webp', title: 'Entertainment' },
   { to: '/realestate', img: 'real-estate.webp', title: 'Real Estate' },
   { to: '/jobs', img: 'jobs-hub.webp', title: 'Jobs Hub' },

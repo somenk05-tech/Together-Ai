@@ -19,7 +19,7 @@ const DOCS: Record<Slug, Doc> = {
         'We do not sell your personal data, and we do not use your private hub data to target you with third-party ads.',
       ] },
       { h: 'Who can see it', p: [
-        'By default, your sensitive hub data is private to you. Sharing only happens when you turn it on — for example, allowing another hub to read your biomarkers, or making parts of a dating profile public to matches.',
+        'By default, your sensitive hub data is private to you. Sharing only happens when you turn it on — for example, allowing another hub to read your biomarkers, or making parts of a matchmaking profile public to matches.',
         'Family sharing shows only what you grant to the specific members you choose.',
       ] },
       { h: 'Your control', p: [

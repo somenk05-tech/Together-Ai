@@ -146,7 +146,7 @@ describe('the only door that opens a hub conversation', () => {
     // main Chats list — it is where the person who made the enquiry goes to
     // find it. Conflating the two would have hidden every enquiry.
     expect(src('realestate/realestate.service.ts')).toContain("getOrCreateDirectByIds(userId, p.sellerId, 'city', 2)");
-    expect(src('dating/dating.service.ts')).toContain("getOrCreateDirectByIds(userId, targetUserId, 'dating', 1)");
+    expect(src('dating/dating.service.ts')).toMatch(/getOrCreateDirectByIds\(\s*userId, targetUserId, 'dating', 1, kind === 'platonic' \? 'platonic' : undefined,?\s*\)/);
   });
 });
 

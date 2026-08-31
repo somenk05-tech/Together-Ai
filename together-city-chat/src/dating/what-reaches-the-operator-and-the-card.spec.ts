@@ -39,7 +39,7 @@ describe('what reaches the operator, and the card', () => {
    * other side for a number it never received.
    */
   it('sends coverage on the stack card, where Curated Matches reads it', () => {
-    const card = svc.slice(svc.indexOf('(isMatched ? matchedCards : cards).push({'), svc.indexOf('// Compatibility-band histogram'));
+    const card = svc.slice(svc.indexOf('const card = {'), svc.indexOf('// Compatibility-band histogram'));
     expect(card).toMatch(/coverage: coverage\(myD, candDX, myInterests, theirInterests\)/);
   });
 

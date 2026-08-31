@@ -55,12 +55,12 @@ export interface HubConfig {
 export const NAV: NavItem[] = [
   { key: 'astrology', label: 'Astrology', path: '/astrology' },
   { key: 'beauty', label: 'Beauty', path: '/beauty' },
-  { key: 'dating', label: 'Dating', path: '/dating' },
   /* E-COMMERCE IS BACK ON THE STREET (owner, 22 Aug), and this time it has
-     rooms. It sorts between Dating and Entertainment because `localeCompare`
-     weighs the hyphen below the letters — the list reads "ECommerce", and 'c'
-     lands before 'n'. a-drawer-of-ones-own.test.ts holds the whole run to
-     that order. */
+     rooms. It sorts between Beauty and Entertainment — it used to say Dating,
+     which was true until that hub was renamed Matchmaking and sorted away from
+     here. `localeCompare` weighs the hyphen below the letters, so the list
+     reads "ECommerce" and 'c' lands before 'n'. a-drawer-of-ones-own.test.ts
+     holds the whole run to that order. */
   { key: 'ecommerce', label: 'E-Commerce', path: '/ecommerce' },
   { key: 'entertainment', label: 'Entertainment', path: '/entertainment' },
   /* FINANCIAL LEFT THE STREET (owner, 22 Aug), NOT THE CITY — the same move
@@ -75,6 +75,19 @@ export const NAV: NavItem[] = [
   { key: 'jobs', label: 'Jobs', path: '/jobs' },
   { key: 'services', label: 'Local services', path: '/services' },
   { key: 'mail', label: 'Mail', path: '/mail' },
+  /* THE HUB IS CALLED MATCHMAKING (31 Aug, owner), AND IT MOVED BECAUSE OF IT.
+     Header.tsx sorts this list by LABEL, so the rendered order changed on its
+     own the moment the word did — from between Beauty and E-Commerce to
+     between Mail and Medical. The literal is hand-sorted to read the way the
+     header renders, which is the whole reason a-drawer-of-ones-own.test.ts
+     asserts the run, so the entry moves with its word.
+
+     The KEY and the PATH stay `dating`. They are in stored notification hrefs,
+     in shared links, in the database and in a hundred route strings, and
+     renaming an identifier to match a label is how a rename breaks things
+     nobody asked about. The label is what a citizen reads; the key is what the
+     app reads. Only one of them changed. */
+  { key: 'dating', label: 'Matchmaking', path: '/dating' },
   { key: 'medical', label: 'Medical', path: '/medical' },
   { key: 'nutrition', label: 'Nutrition', path: '/nutrition' },
   // Not a district — the citizen's own drawer. See TabKey above.
@@ -214,9 +227,9 @@ export const HUBS: Record<HubKey, HubConfig> = {
     ],
   },
   dating: {
-    key: 'dating', name: 'Dating Hub', tag: 'Curated, not endless', backPath: '/dating', dark: true,
+    key: 'dating', name: 'Matchmaking Hub', tag: 'Curated, not endless', backPath: '/dating', dark: true,
     items: [
-      { path: '/dating/profile', index: '01', label: 'My Dating Profile', sub: 'Birth details & interests' },
+      { path: '/dating/profile', index: '01', label: 'My Matchmaking Profile', sub: 'Birth details & interests' },
       // THE RAIL IS THE JOURNEY, so it runs in the order the journey does:
       // introduce yourself, look at the city, keep the people who chose you
       // back, talk to them. Potential Matches is where every resident is scored
@@ -232,7 +245,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // of a block. Hiding it was not enough, so the page, the invitation
       // engine, both database tables and every /dating/activity endpoint are
       // gone. The numbering below closes up as it already did.
-      { path: '/dating/chats', index: '04', label: 'Dating Chats', sub: 'Your conversations' },
+      { path: '/dating/chats', index: '04', label: 'Matchmaking Chats', sub: 'Your conversations' },
       // THE SAFETY CENTRE IS ON THE RAIL, not only behind the report menu.
       // It was reachable from two places, and both of them assume something
       // has already gone wrong: the ⋯ menu on a card, and a block shown to
