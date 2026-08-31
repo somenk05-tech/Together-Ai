@@ -249,8 +249,17 @@ function PostReader({
               onOpenAuthor={onOpenAuthor}
               onSetCover={manage ? (t) => {
                 setSaveErr(null);
-                setCover.mutate({ postId: post.id, time: t },
-                  { onError: () => setSaveErr('That cover wasn’t set — the post still shows the frame it had. Try again.') });
+                setCover.mutate({ postId: post.id, time: t }, {
+                  /* The server now SCREENS this frame, and it answers with two
+                     different sentences: "we couldn’t check it just now" is
+                     worth retrying and "it didn’t pass" is not. Showing our own
+                     generic line instead threw that distinction away at the
+                     last step, and told a citizen to try again forever. */
+                  onError: (e) => setSaveErr(
+                    (e as { response?: { data?: { message?: string } } })?.response?.data?.message
+                    || 'That cover wasn’t set — the post still shows the frame it had. Try again.',
+                  ),
+                });
               } : undefined}
               coverBusy={manage ? setCover.isPending : undefined} />
             {manage && (

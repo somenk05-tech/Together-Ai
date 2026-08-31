@@ -48,12 +48,25 @@ describe('what a citizen is told at the door out', () => {
     // The immediate list is exactly what deleteAccount() does, and no more:
     // posts, follows, connections, sessions, and the name/handle swap.
     const svc = api('auth/auth.service.ts');
-    const body = svc.slice(svc.indexOf('async deleteAccount'), svc.indexOf('async deleteAccount') + 2600);
+    /* THE WHOLE METHOD, NOT THE FIRST N CHARACTERS OF IT. This sliced 2600
+       characters and then asserted the last of the four calls was inside them,
+       so adding a docblock to deleteAccount failed a test about the DELETE
+       CARD'S COPY — which is a test that reports on its own formatting. The
+       method ends where the next member begins; that is the boundary this
+       always meant. */
+    const from = svc.indexOf('async deleteAccount');
+    const next = svc.slice(from + 1).search(/\n  (?:\/\*\*|(?:private |public |protected )?(?:async )?[A-Za-z_$][\w$]*\s*\()/);
+    const body = next < 0 ? svc.slice(from) : svc.slice(from, from + 1 + next);
     for (const call of ['post.deleteMany', 'follow.deleteMany', 'connection.deleteMany', 'revokeAll']) {
       expect(body).toContain(call);
     }
     // …and photos are NOT among them, which is why the copy cannot say so.
     expect(body).not.toMatch(/photo.*deleteMany|deleteHealthObject/);
+    /* A slice that ran to the end of the file would satisfy both of those for
+       the wrong reason. `refresh` is the next member; if it is in here, the
+       boundary did not hold and neither assertion above means anything. */
+    expect(body).not.toContain('async refresh(');
+    expect(svc).toContain('async refresh(');
   });
 
   it('names the window the server actually uses', () => {

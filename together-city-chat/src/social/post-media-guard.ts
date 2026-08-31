@@ -92,6 +92,28 @@ const SNIFF_BYTES = 16;
 const MAX_SCREEN_BYTES = 12 * 1024 * 1024;
 
 /**
+ * ── WHAT WE WERE LOOKING AT, AND WHAT DID NOT HAPPEN BECAUSE OF IT ──────────
+ *
+ * Every refusal this guard writes ends "so the post hasn’t gone up", because
+ * until 31 Aug the only caller was `createPost`. `setCover` now screens too,
+ * and for that caller the post is already up — the sentence would have been a
+ * lie in the one place a citizen is reading it to decide what to do next. So
+ * the consequence travels with the subject rather than being baked into the
+ * string.
+ *
+ * `appMade` is the other axis, and it existed before as `isVideo` by accident.
+ * "That file isn’t a photo we can read" is actionable when the citizen CHOSE
+ * the file, and confusing when the app made it — a composer poster or an
+ * ffmpeg frame. It happened to line up with video; it is really about who
+ * produced the bytes, and now it says so.
+ */
+type Subject = { noun: string; consequence: string; appMade: boolean };
+
+const AS_A_POST_PHOTO: Subject = { noun: 'photo', consequence: 'so the post hasn’t gone up', appMade: false };
+const AS_A_POST_COVER: Subject = { noun: 'video’s cover image', consequence: 'so the post hasn’t gone up', appMade: true };
+const AS_A_NEW_COVER: Subject = { noun: 'cover image', consequence: 'so the cover hasn’t changed', appMade: true };
+
+/**
  * ── EVERY KEY A VIEWER CAN BE SHOWN, NOT ONE CHOSEN BY KIND ─────────────────
  *
  * The first version of this guard read:
@@ -171,8 +193,9 @@ export class PostMediaGuard {
    * learn from screening the other nine attachments of a post that is already
    * refused, and plenty of Rekognition bill to lose.
    *
-   * `kind` decides which key is screened: an image screens itself, a video
-   * screens its poster. See decision 3.
+   * WHICH keys are screened is `screenableKeys`, not this method: every key a
+   * viewer can be shown, which for an image is both of them. See decision 3
+   * for the one deliberate omission.
    */
   async screenPost(
     userId: string,
@@ -186,16 +209,39 @@ export class PostMediaGuard {
         // send one rather than a citizen who could not make one.
         return { ok: false, retryable: false, reason: 'That video could not be checked because it arrived without a cover image. Try posting it again.' };
       }
+      const subject = isVideo ? AS_A_POST_COVER : AS_A_POST_PHOTO;
       for (const key of screenableKeys(m)) {
-        const out = await this.screenOne(key, userId, isVideo && key === m.thumbUrl);
+        const out = await this.screenOne(key, userId, subject);
         if (!out.ok) return out;
       }
     }
     return { ok: true };
   }
 
-  private async screenOne(key: string, userId: string, isVideo: boolean): Promise<PostScreening> {
-    const noun = isVideo ? 'video’s cover image' : 'photo';
+  /**
+   * ── A COVER SET AFTER THE FACT IS STILL A PICTURE THE CITY SEES ─────────────
+   *
+   * `setCover` extracts a frame with ffmpeg and pins it as the media's
+   * thumbUrl. Until 31 Aug it went nowhere near this guard, and the shape of
+   * that gap is worse than "one endpoint forgot to call the screener":
+   *
+   * Decision 3 says video is screened BY ITS POSTER, and that the footage is
+   * not screened at all. `setCover` let the author replace the poster — the one
+   * frame we do check — with any frame of the footage we do not. The single
+   * thing the pipeline looks at was swappable, at will, for something from the
+   * single thing it does not look at, after the post was already live and
+   * already approved.
+   *
+   * The frame is screened at the same door and by the same rules as any other
+   * picture, and a refusal deletes it exactly as decision 4 says. Only the
+   * sentence differs, because only the consequence differs.
+   */
+  async screenCover(userId: string, key: string): Promise<PostScreening> {
+    return this.screenOne(key, userId, AS_A_NEW_COVER);
+  }
+
+  private async screenOne(key: string, userId: string, subject: Subject): Promise<PostScreening> {
+    const { noun, consequence } = subject;
 
     // THE BYTES DECIDE, NOT THE LABEL. Nothing server-side saw this file at
     // upload — the PUT went straight to the bucket with a Content-Type the
@@ -204,13 +250,13 @@ export class PostMediaGuard {
     const head = await this.storage.getPostObjectPrefix(key, SNIFF_BYTES)
       .catch(swallowed('social: read the first bytes of post media', null, { userId }));
     if (!head) {
-      return { ok: false, retryable: true, reason: `We couldn’t read that ${noun} just now, so the post hasn’t gone up. Try again in a moment.` };
+      return { ok: false, retryable: true, reason: `We couldn’t read that ${noun} just now, ${consequence}. Try again in a moment.` };
     }
 
     const actual = sniffImage(head);
     if (actual === null) {
-      if (isVideo) {
-        return this.refuse(key, userId, `We couldn’t read that ${noun}, so the post hasn’t gone up.`);
+      if (subject.appMade) {
+        return this.refuse(key, userId, `We couldn’t read that ${noun}, ${consequence}.`);
       }
       /* A POST'S IMAGE THAT IS NOT AN IMAGE IS REFUSED, WHERE A CHAT'S WOULD
          PASS. ChatMediaGuard returns ok for a non-image because a chat carries
@@ -218,7 +264,7 @@ export class PostMediaGuard {
          carries images and videos and nothing else — the DTO's allowlist says
          so — so a file here that is not a raster image is a file that lied
          about what it is, and there is no third category to fall into. */
-      return this.refuse(key, userId, 'That file isn’t a photo we can read, so the post hasn’t gone up.');
+      return this.refuse(key, userId, `That file isn’t a photo we can read, ${consequence}.`);
     }
     if (actual === 'image' || !SCREENABLE.has(actual)) {
       // An image container Rekognition cannot take — an animated GIF, a HEIC
@@ -231,13 +277,13 @@ export class PostMediaGuard {
       // RETRYABLE, so the object is NOT deleted: the citizen posts the same
       // key again once the scanner is configured, and nobody loses a
       // photograph to an operator's missing environment variable.
-      return { ok: false, retryable: true, reason: `We couldn’t check that ${noun} just now, so the post hasn’t gone up. Try again in a moment.` };
+      return { ok: false, retryable: true, reason: `We couldn’t check that ${noun} just now, ${consequence}. Try again in a moment.` };
     }
 
     const obj = await this.storage.getPostObjectBase64(key)
       .catch(swallowed('social: read post media for screening', null, { userId }));
     if (!obj) {
-      return { ok: false, retryable: true, reason: `We couldn’t read that ${noun} just now, so the post hasn’t gone up. Try again in a moment.` };
+      return { ok: false, retryable: true, reason: `We couldn’t read that ${noun} just now, ${consequence}. Try again in a moment.` };
     }
     const bytes = Buffer.from(obj.base64, 'base64');
     if (bytes.length > MAX_SCREEN_BYTES) {
@@ -252,13 +298,13 @@ export class PostMediaGuard {
       labels = res.ModerationLabels ?? [];
     } catch (e) {
       this.logger.warn(`social: Rekognition failed (${(e as Error).message})`);
-      return { ok: false, retryable: true, reason: `We couldn’t check that ${noun} just now, so the post hasn’t gone up. Try again in a moment.` };
+      return { ok: false, retryable: true, reason: `We couldn’t check that ${noun} just now, ${consequence}. Try again in a moment.` };
     }
 
     const verdict = verdictFor(labels, this.rejectAt);
     if (verdict.status === 'approved') return { ok: true };
     this.logger.warn(`social media refused (${verdict.status}) from ${userId}: ${verdict.reason}`);
-    return this.refuse(key, userId, `That ${noun} didn’t pass our automated check, so the post hasn’t gone up.`);
+    return this.refuse(key, userId, `That ${noun} didn’t pass our automated check, ${consequence}.`);
   }
 
   /** A refusal that is final, and takes the file with it. See decision 4. */

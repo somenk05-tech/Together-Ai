@@ -166,8 +166,77 @@ export class SocialService {
     // video at a permanent URL, which is most of the original bug.
     const thumbKey = await this.storage.putPrivateObject('social', userId, jpeg, 'image/jpeg', 'jpg');
     if (!thumbKey) throw new InternalServerErrorException('could not store that frame');
+
+    /**
+     * ── THE ONE FRAME WE SCREEN WAS THE ONE FRAME ANYONE COULD REPLACE ──────
+     *
+     * 31 Aug audit, third critical. This endpoint pinned an ffmpeg frame as
+     * the media's thumbUrl and never went near PostMediaGuard.
+     *
+     * The severity is not "an endpoint forgot to call the screener". It is
+     * that decision 3 of that guard — video is screened BY ITS POSTER, and the
+     * footage is not screened at all — made the poster the whole of what we
+     * check, and this let the author swap it, at a time of their choosing, for
+     * any frame of the footage we deliberately do not check. After the post
+     * was live. After it had been approved. The composer's poster passed a
+     * classifier; this replaced it with something that had passed nothing, and
+     * the grid, the feed card and every share card render exactly that field.
+     *
+     * So it is screened here, at the same door and by the same rules, and a
+     * refusal deletes the frame the way every other refusal does.
+     *
+     * SCREENED AFTER THE PUT, not before, and that is deliberate: the guard
+     * reads bytes from the bucket by key, because "the bytes decide, not the
+     * label" is the rule that makes it worth having. Handing it a Buffer would
+     * mean a second, shorter version of the same pipeline — and the shorter
+     * one is always the one that drifts. The cost is a stored object we may
+     * immediately delete, which is what `refuse` already does for every other
+     * media path in this file.
+     */
+    if (!this.screening) {
+      await this.storage.deletePrivateObject(thumbKey)
+        .catch(swallowed('social.setCover.unscreened', undefined, { userId, thumbKey }));
+      throw new ForbiddenException(
+        'Covers can’t be checked right now, so the cover hasn’t changed. Try again in a moment.',
+      );
+    }
+    const screened = await this.screening.screenCover(userId, thumbKey);
+    if (!screened.ok) {
+      // 503 says "try again" and 403 says "do not". Same split, same reason as
+      // screenMedia: a citizen told the wrong one either retries forever or
+      // gives up on a frame that was fine.
+      if (screened.retryable) {
+        await this.storage.deletePrivateObject(thumbKey)
+          .catch(swallowed('social.setCover.unused', undefined, { userId, thumbKey }));
+        throw new ServiceUnavailableException(screened.reason);
+      }
+      // A final refusal already deleted the object — see PostMediaGuard.refuse.
+      throw new ForbiddenException(screened.reason);
+    }
+
     const thumbUrl = thumbKey;
+    const previous = video.thumbUrl;
     await this.prisma.postMedia.update({ where: { id: video.id }, data: { thumbUrl } });
+    /**
+     * THE OLD COVER IS DELETED, AND ONLY AFTER THE NEW ONE IS THE ROW'S.
+     *
+     * Every cover before this one stayed in the bucket forever, addressable to
+     * anyone still holding a signed URL and invisible to the deletion sweep,
+     * which walks PostMedia rows and finds only the current value. A citizen
+     * who set nine covers left eight frames of their video behind with nothing
+     * pointing at them.
+     *
+     * Ordered so the failure is a leftover rather than a hole: the row points
+     * at the new key BEFORE the old one is removed, so a delete that fails
+     * leaves a stray object and a working post, never a post whose cover is a
+     * key with nothing behind it. Keys are minted per upload, so no other row
+     * can be sharing this one — a repost points at the original's media rather
+     * than copying it.
+     */
+    if (previous && previous !== thumbKey) {
+      await this.storage.deletePrivateObject(previous)
+        .catch(swallowed('social.setCover.previous', undefined, { userId, previous }));
+    }
     return { ok: true, thumbUrl };
   }
 
