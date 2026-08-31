@@ -22,6 +22,9 @@ export interface AppConfig {
     bucket: string;
     privateBucket: string;
     publicBaseUrl: string;
+    /** Where `workers/media-edge` answers. Empty = post media keeps the
+     *  presigned R2 links it had before the edge Worker existed. */
+    cdnBaseUrl: string;
     /** Where this API answers, as the public reaches it. Empty = dating photos
      *  keep the presigned-S3 path they had before the proxy route existed. */
     apiPublicBaseUrl: string;
@@ -237,6 +240,7 @@ export default (): AppConfig => {
     bucket: process.env.MEDIA_BUCKET ?? '',
     privateBucket: process.env.MEDIA_PRIVATE_BUCKET ?? '',
     publicBaseUrl: process.env.MEDIA_PUBLIC_BASE_URL ?? '',
+    cdnBaseUrl: (process.env.MEDIA_CDN_BASE ?? '').replace(/\/+$/, ''),
     apiPublicBaseUrl: (process.env.PUBLIC_API_URL ?? '').replace(/\/+$/, ''),
     region: process.env.S3_REGION ?? 'auto',
     endpoint: process.env.S3_ENDPOINT ?? '',

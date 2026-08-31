@@ -1,0 +1,22 @@
+# The edge in front of the PRIVATE media bucket. See worker.js for why this
+# exists at all — presigned R2 URLs only work on the S3 API host, which
+# Cloudflare does not cache.
+name = "together-city-media-edge"
+main = "worker.js"
+compatibility_date = "2026-08-01"
+
+# The bucket stays private. This Worker is its only public door.
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "together-city-private"   # set to MEDIA_PRIVATE_BUCKET's value
+
+# The custom domain. Cloudflare caches this host; the r2.cloudflarestorage.com
+# S3 endpoint is not cached, which is the whole reason for this Worker.
+[[routes]]
+pattern = "media.togethercity.tech/m/*"
+zone_name = "togethercity.tech"
+custom_domain = false
+
+# LINK_SECRET is a secret, not a var:
+#   wrangler secret put LINK_SECRET
+# It must equal the API's JWT_ACCESS_SECRET — both derive the media key from it.

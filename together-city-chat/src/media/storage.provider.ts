@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 import type { Readable } from 'stream';
 import { apiUrl } from '../shared/api-prefix';
 import { mintPhotoToken, readPhotoToken } from '../dating/photo-link';
+import { mintCacheableMediaToken } from './media-link';
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, HeadObjectCommand, PutBucketCorsCommand, GetBucketCorsCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { ReadCache } from '../shared/cache/read-cache.service';
@@ -41,6 +42,7 @@ export class StorageProvider implements OnModuleInit {
   private readonly bucket: string;
   private readonly healthBucket: string;
   private readonly publicBase: string;
+  private readonly cdnBase: string;
   private readonly apiBase: string;
   private readonly linkSecret: string;
   private readonly endpoint: string;
@@ -145,6 +147,18 @@ export class StorageProvider implements OnModuleInit {
      */
     this.healthBucket = this.config.get<string>('media.privateBucket') || this.bucket;
     this.publicBase = this.config.get<string>('media.publicBaseUrl') ?? '';
+    /**
+     * ── THE EDGE, IF THERE IS ONE ───────────────────────────────────────────
+     *
+     * MEDIA_CDN_BASE is the host `workers/media-edge` answers on. Set it and
+     * post media is served from Cloudflare's cache for a token this API signs;
+     * leave it unset and every line below behaves exactly as it did.
+     *
+     * That fallback is the point, and it is the same one `datingPhotoUrl`
+     * makes for the same reason: a missing or mistyped variable must not take
+     * every photograph in the city off the screen on a deploy morning.
+     */
+    this.cdnBase = (this.config.get<string>('media.cdnBaseUrl') ?? '').replace(/\/+$/, '');
     this.apiBase = this.config.get<string>('media.apiPublicBaseUrl') ?? '';
     this.linkSecret = this.config.get<string>('jwt.accessSecret') ?? '';
     const endpoint = this.config.get<string>('media.endpoint') ?? '';
@@ -450,6 +464,33 @@ export class StorageProvider implements OnModuleInit {
     const out = new Map<string, string>();
     const keys = [...new Set(values.filter((v): v is string => Boolean(v) && this.isPostKey(v as string)))];
     if (!keys.length) return out;
+    /**
+     * ── THE EDGE PATH, WHEN THERE IS AN EDGE ────────────────────────────────
+     *
+     * No network call at all: the token is an HMAC over the key, so this is a
+     * string concatenation and a hash rather than a presign. It is also the
+     * SAME string for every viewer inside the window — that is what makes the
+     * edge cache work, and it is why the token names no viewer. See
+     * media-link.ts.
+     *
+     * The signature cache below is skipped on this path deliberately. It exists
+     * to avoid re-presigning, and there is nothing here to avoid; caching a
+     * value cheaper to compute than to fetch is a Redis round trip for
+     * nothing.
+     *
+     * ABOVE the no-S3 early return, and a test is why. Minting a token is an
+     * HMAC over a string: it needs no S3 client, no bucket and no network. Left
+     * below that return, a deployment with an edge and no S3 credentials would
+     * have been handed the development placeholder instead of a URL that works
+     * perfectly well.
+     */
+    if (this.cdnBase && this.linkSecret) {
+      for (const k of keys) {
+        out.set(k, `${this.cdnBase}/m/${encodeURIComponent(mintCacheableMediaToken(this.linkSecret, k, this.postMediaTtlSec, Date.now()))}`);
+      }
+      return out;
+    }
+
     const s3 = this.s3;
     if (!s3) {
       for (const k of keys) out.set(k, `${this.publicBase}/__private__/${k}`);
