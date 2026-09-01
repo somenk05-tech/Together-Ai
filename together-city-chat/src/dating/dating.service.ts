@@ -21,7 +21,7 @@ import { RedisService } from '../shared/redis/redis.service';
 import { QueueService } from '../shared/queue/queue.service';
 import { compatibilityScore, zodiacSign } from './astrology';
 import {
-  canonicalGoal, coarseCoords, confidenceFor, coverage, curatedBar, distanceNote, explain, factorScores, frictions, matchAlertBody, matchAlertReason, overallScore, pairMultiplier, preferenceNotes, sharedItems, seeks, shownName, underLens, type DXProfile, type FactorBreakdown, intentsOf, type Intent, unreachableReason,
+  canonicalGoal, cardNotes, coarseCoords, confidenceFor, coverage, curatedBar, distanceNote, factorScores, matchAlertBody, matchAlertReason, overallScore, pairMultiplier, preferenceNotes, sharedItems, seeks, shownName, underLens, type DXProfile, type FactorBreakdown, intentsOf, type Intent, unreachableReason,
 } from './matching';
 import { carrySelfie, selfieOnFile, selfieTakenAt, SELFIE_KEY, SELFIE_AT } from './selfie';
 import { UNDER_AGE_MESSAGE, ageOn, floorAgePreferences, isAdult } from '../shared/age';
@@ -1528,8 +1528,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
           // percentage. Same value, same function, no new read: `conf` two
           // lines up is computed from the same four arguments.
           coverage: coverage(myD, candDX, myInterests, theirInterests),
-          reasons: explain(breakdown, sharedItems(myInterests, theirInterests), preferenceNotes(myD, candDX), distanceNote(myD, candDX)),
-          frictions: frictions(breakdown, myD, candDX),
+          ...cardNotes(breakdown, myD, candDX, sharedItems(myInterests, theirInterests), preferenceNotes(myD, candDX), distanceNote(myD, candDX)),
           likedByMe: state ? this.likedBy(state, userId) : false,
           matched: false,
           conversationId: state?.conversationId ?? null,
@@ -1992,8 +1991,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
         theirSign: signB,
         score,
         breakdown,
-        reasons: explain(breakdown, sharedItems(myInterests, theirInterests), preferenceNotes(myD, candDX), distanceNote(myD, candDX)),
-        frictions: frictions(breakdown, myD, candDX),
+        ...cardNotes(breakdown, myD, candDX, sharedItems(myInterests, theirInterests), preferenceNotes(myD, candDX), distanceNote(myD, candDX)),
         likedByMe: state ? this.likedBy(state, userId) : false,
         matched: isMatched,
         /**
@@ -2221,8 +2219,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       score, breakdown,
       coverage: coverage(myD, candD, myInterests, theirInterests),
       confidence: confidenceFor(myD, candD, myInterests, theirInterests),
-      reasons: explain(breakdown, sharedItems(myInterests, theirInterests), preferenceNotes(myD, candD), distanceNote(myD, candD)),
-      frictions: frictions(breakdown, myD, candD),
+      ...cardNotes(breakdown, myD, candD, sharedItems(myInterests, theirInterests), preferenceNotes(myD, candD), distanceNote(myD, candD)),
       likedByMe: state ? this.likedBy(state, userId) : false,
       matched: state?.status === 'matched',
       conversationId: state?.conversationId ?? null,

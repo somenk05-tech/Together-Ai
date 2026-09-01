@@ -792,7 +792,75 @@ export function frictions(f: FactorBreakdown, aD: DXProfile, bD: DXProfile): str
   if (lifestyleParts(aD, bD).measured > 0 && f.lifestyle < 50) out.push('Your day-to-day habits look quite different.');
   if (answered(aD.values) && answered(bD.values) && f.values < 45) out.push('Not much overlap in what you each said you value.');
   if (answered(aD.personalityTraits) && answered(bD.personalityTraits) && f.personality < 45) out.push('Very different temperaments.');
-  return out.slice(0, 2);
+
+  /**
+   * THE FOUR THAT USED TO BE REMOVALS, AND SO NEEDED NO SENTENCE.
+   *
+   * Diet, religion, distance and the two habits reached no card before 1 Sep —
+   * a mismatch on any of them took the person out of the list, so there was
+   * nothing to explain. Now they lower the number instead, and a card that is
+   * scored down for a reason it does not name is worse than either of the two
+   * states it replaced: the citizen sees a low percentage and no way to tell
+   * whether it is about them, about a setting, or about nothing at all.
+   *
+   * WHOSE ANSWER MAY BE QUOTED is the same rule the children friction settled:
+   * only what the profile itself already shows. `matchDetail` shows goal, diet,
+   * smoking, drinking, height and education — so those are quotable. Religion
+   * appears on NO card, so it gets the children treatment: the viewer's own
+   * answer and the fact of a difference, never the stranger's.
+   */
+  const live = effectiveDealBreakers(aD);
+  if (live.includes('Diet') && dietConflicts(aD.prefDiet, bD.diet)) {
+    out.push(`You asked for ${aD.prefDiet}; they said ${bD.diet}.`);
+  }
+  if (live.includes('Religion') && religionConflict(aD.religion, bD.religion)) {
+    out.push(`Different answers on religion — you said ${aD.religion}.`);
+  }
+  if (live.includes('Smoking') && bD.smoking === 'Regularly') out.push('They smoke regularly, and you asked not to be matched with that.');
+  if (live.includes('Drinking') && bD.drinking === 'Regularly') out.push('They drink regularly, and you asked not to be matched with that.');
+  if (mismatchReasons(aD, bD).includes('distance')) out.push('Further away than the limit you set.');
+
+  /**
+   * AND THE CAP OPENS WHEN THE NUMBER FALLS.
+   *
+   * Two was the right answer under the old rule, and its own reasoning said
+   * why: "a card with a friction is honest, a card with five is an argument
+   * against the match, and if the match were that bad the filters should have
+   * removed it." That last clause is what 1 Sep deleted. Nothing removes a bad
+   * match now — it arrives on the card at 18% — so the cap was resting on a
+   * premise that no longer exists, and a card at 18% that names two of its
+   * three reasons is withholding the answer to the only question the citizen
+   * has. Four is the ceiling because a card is still a card.
+   */
+  return out.slice(0, mismatchFactor(aD, bD) < 1 ? 4 : 2);
+}
+
+/**
+ * ONE CARD, ONE VOICE.
+ *
+ * `explain` and `frictions` are the two halves of the same card and were
+ * decided separately, which was survivable while a fundamentally wrong match
+ * could not reach a card at all. It can now. Five compliments over an 18%
+ * headline is a card arguing with its own number, and the citizen has to work
+ * out which half to believe.
+ *
+ * So when the score has been pulled down, the positives are trimmed to two.
+ * They are not removed and not softened — the astrology really is excellent,
+ * and saying otherwise would be a different lie — they simply stop being the
+ * shape of the card. Facts the citizen asked for (`prefsMet`) and the distance
+ * come first and are never trimmed, because those are answers rather than
+ * praise.
+ *
+ * Returned together so no call site can take one half and compute the other
+ * differently; `the-card-agrees-with-its-own-number.spec.ts` pins all three.
+ */
+export function cardNotes(
+  f: FactorBreakdown, aD: DXProfile, bD: DXProfile,
+  sharedInterests: string[], prefsMet: string[] = [], distance: string | null = null,
+): { reasons: string[]; frictions: string[] } {
+  const reasons = explain(f, sharedInterests, prefsMet, distance);
+  const pulled = mismatchFactor(aD, bD) < 1;
+  return { reasons: pulled ? reasons.slice(0, 2) : reasons, frictions: frictions(f, aD, bD) };
 }
 
 /** A number that can be a height or a bound, or undefined. Zero, negatives,
