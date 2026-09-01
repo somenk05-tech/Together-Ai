@@ -18,55 +18,63 @@ import * as fs from 'fs';
 import * as path from 'path';
 import {
   confidenceFor, coverage, confidence, curatedBar, effectiveDealBreakers, frictions, factorScores, hardFilterReason, overallScore,
-  unreachableReason, type DXProfile,
+  unreachableReason, mismatchReasons, mismatchFactor, pairMultiplier, type DXProfile,
 } from './matching';
 
 const dx = (p: Partial<DXProfile> = {}): DXProfile => ({ ...p });
 
+/**
+ * SINCE 1 SEP THESE COUNT POINTS, NOT PEOPLE (owner).
+ *
+ * Every rule below about WHEN intent registers is unchanged and still pinned
+ * here — a side rather than a distance, unstated on either side is nothing, the
+ * chip's own opt-out respected. What changed is the consequence: the pair stays
+ * visible and `mismatchFactor` takes the number down. So each case asserts both
+ * halves — nobody is removed, AND the mismatch is named.
+ */
 describe('Marriage Intentions — a side of the line, not a distance along it', () => {
   const seeker = dx({ dealBreakers: ['Marriage Intentions'], relationshipGoal: 'Marriage' });
   const casual = dx({ relationshipGoal: 'Casual Dating' });
 
-  it('removes a casual dater from a marriage-seeker who ticked it', () => {
-    expect(hardFilterReason(seeker, casual, 30)).toBe('intent');
+  it('keeps a casual dater in front of a marriage-seeker, and says they differ', () => {
+    expect(hardFilterReason(seeker, casual, 30)).toBeNull();
+    expect(mismatchReasons(seeker, casual)).toContain('intent');
   });
 
   it('keeps Serious Dating, which is two steps away and the same side', () => {
-    expect(hardFilterReason(seeker, dx({ relationshipGoal: 'Serious Dating' }), 30)).toBeNull();
+    expect(mismatchReasons(seeker, dx({ relationshipGoal: 'Serious Dating' }))).toEqual([]);
   });
 
-  it('removes Friendship First, which is one step further out and the other side', () => {
-    expect(hardFilterReason(seeker, dx({ relationshipGoal: 'Friendship First' }), 30)).toBe('intent');
+  it('names Friendship First, which is one step further out and the other side', () => {
+    expect(mismatchReasons(seeker, dx({ relationshipGoal: 'Friendship First' }))).toContain('intent');
   });
 
-  it('filters on a stated intent even with no chip ticked, since 26 Aug', () => {
-    // Intent, children and diet are core filters now — see effectiveDealBreakers.
-    // At astrology 0.90 a filter is the only thing that can remove anybody, and
-    // the chip section is one most citizens never open.
-    expect(hardFilterReason(dx({ relationshipGoal: 'Marriage' }), casual, 30)).toBe('intent');
+  it('counts a stated intent even with no chip ticked, since 26 Aug', () => {
+    // Intent, children and diet are core since 26 Aug — see effectiveDealBreakers.
+    // They stopped removing anybody on 1 Sep; they did not stop counting.
+    expect(mismatchReasons(dx({ relationshipGoal: 'Marriage' }), casual)).toContain('intent');
   });
 
   it('goes back to chips-only with DATING_CORE_FILTERS=off', () => {
     process.env.DATING_CORE_FILTERS = 'off';
     try {
-      expect(hardFilterReason(dx({ relationshipGoal: 'Marriage' }), casual, 30)).toBeNull();
+      expect(mismatchReasons(dx({ relationshipGoal: 'Marriage' }), casual)).toEqual([]);
     } finally { delete process.env.DATING_CORE_FILTERS; }
   });
 
-  it('filters nobody when either side never said what they want', () => {
-    expect(hardFilterReason(seeker, dx({}), 30)).toBeNull();
-    expect(hardFilterReason(dx({ dealBreakers: ['Marriage Intentions'] }), casual, 30)).toBeNull();
+  it('counts nobody when either side never said what they want', () => {
+    expect(mismatchReasons(seeker, dx({}))).toEqual([]);
+    expect(mismatchReasons(dx({ dealBreakers: ['Marriage Intentions'] }), casual)).toEqual([]);
   });
 
-  it('is honoured in both directions, or in neither', () => {
-    // `casual` states an intent, so with core filters on its own side now
-    // removes the pair first — which is the same answer arrived at one step
-    // earlier, and still the stricter of the two.
-    expect(unreachableReason(casual, seeker, 30, 31)).toEqual({ by: 'you', reason: 'intent' });
-    process.env.DATING_CORE_FILTERS = 'off';
-    try {
-      expect(unreachableReason(casual, seeker, 30, 31)).toEqual({ by: 'them', reason: 'intent' });
-    } finally { delete process.env.DATING_CORE_FILTERS; }
+  it('is a property of the pair, so it reads the same from either side', () => {
+    // `unreachableReason` no longer has an opinion here — neither side removes
+    // the other. The penalty is what carries the disagreement, and it must be
+    // identical whichever of them is looking, or one screen contradicts the other.
+    expect(unreachableReason(casual, seeker, 30, 31)).toBeNull();
+    expect(unreachableReason(seeker, casual, 31, 30)).toBeNull();
+    expect(mismatchFactor(casual, seeker)).toBe(mismatchFactor(seeker, casual));
+    expect(mismatchFactor(casual, seeker)).toBeLessThan(0.5);
   });
 });
 
@@ -75,46 +83,49 @@ describe('Distance — the limit they already stated', () => {
   const delhi = { city: 'Delhi', state: 'Delhi', country: 'India' };
   const pune = { city: 'Pune', state: 'Maharashtra', country: 'India' };
 
-  it('removes somebody beyond the stated kilometres', () => {
-    expect(hardFilterReason(dx({ ...mumbai, dealBreakers: ['Distance'], prefDistanceKm: 200 }), dx(delhi), 30)).toBe('distance');
+  it('counts somebody beyond the stated kilometres, and still shows them', () => {
+    const far = dx({ ...mumbai, dealBreakers: ['Distance'], prefDistanceKm: 200 });
+    expect(mismatchReasons(far, dx(delhi))).toContain('distance');
+    expect(hardFilterReason(far, dx(delhi), 30)).toBeNull();
   });
 
-  it('keeps somebody inside them', () => {
-    expect(hardFilterReason(dx({ ...mumbai, dealBreakers: ['Distance'], prefDistanceKm: 200 }), dx(pune), 30)).toBeNull();
+  it('counts nothing against somebody inside them', () => {
+    expect(mismatchReasons(dx({ ...mumbai, dealBreakers: ['Distance'], prefDistanceKm: 200 }), dx(pune))).toEqual([]);
   });
 
-  it('filters nobody when the distance could not be measured', () => {
-    expect(hardFilterReason(dx({ ...mumbai, dealBreakers: ['Distance'], prefDistanceKm: 5 }), dx({ city: 'Nowhere-On-Sea' }), 30)).toBeNull();
+  it('counts nothing when the distance could not be measured', () => {
+    expect(mismatchReasons(dx({ ...mumbai, dealBreakers: ['Distance'], prefDistanceKm: 5 }), dx({ city: 'Nowhere-On-Sea' }))).toEqual([]);
   });
 
-  it('filters nobody when the chip is not ticked — it stays a scoring penalty', () => {
-    expect(hardFilterReason(dx({ ...mumbai, prefDistanceKm: 200 }), dx(delhi), 30)).toBeNull();
+  it('counts nothing when the chip is not ticked', () => {
+    expect(mismatchReasons(dx({ ...mumbai, prefDistanceKm: 200 }), dx(delhi))).toEqual([]);
   });
 
-  it('filters nobody on a nonsense limit', () => {
-    expect(hardFilterReason(dx({ ...mumbai, dealBreakers: ['Distance'], prefDistanceKm: 0 }), dx(delhi), 30)).toBeNull();
+  it('counts nothing on a nonsense limit', () => {
+    expect(mismatchReasons(dx({ ...mumbai, dealBreakers: ['Distance'], prefDistanceKm: 0 }), dx(delhi))).toEqual([]);
   });
 });
 
 describe('Diet and Religion — collected all along, read for the first time', () => {
-  it('removes a non-vegetarian from someone who asked for vegetarian and meant it', () => {
+  it('counts a non-vegetarian against someone who asked for vegetarian and meant it', () => {
     const jain = dx({ dealBreakers: ['Diet'], prefDiet: 'Vegetarian' });
-    expect(hardFilterReason(jain, dx({ diet: 'Non-vegetarian' }), 30)).toBe('diet');
-    expect(hardFilterReason(jain, dx({ diet: 'Vegetarian' }), 30)).toBeNull();
+    expect(mismatchReasons(jain, dx({ diet: 'Non-vegetarian' }))).toContain('diet');
+    expect(hardFilterReason(jain, dx({ diet: 'Non-vegetarian' }), 30)).toBeNull();
+    expect(mismatchReasons(jain, dx({ diet: 'Vegetarian' }))).toEqual([]);
   });
 
-  it('treats "Any" as no preference, never as a filter', () => {
-    expect(hardFilterReason(dx({ dealBreakers: ['Diet'] }), dx({ diet: 'Non-vegetarian' }), 30)).toBeNull();
+  it('treats "Any" as no preference, never as a penalty', () => {
+    expect(mismatchReasons(dx({ dealBreakers: ['Diet'] }), dx({ diet: 'Non-vegetarian' }))).toEqual([]);
   });
 
-  it('filters nobody over a diet the candidate never stated', () => {
-    expect(hardFilterReason(dx({ dealBreakers: ['Diet'], prefDiet: 'Vegetarian' }), dx({}), 30)).toBeNull();
+  it('counts nothing over a diet the candidate never stated', () => {
+    expect(mismatchReasons(dx({ dealBreakers: ['Diet'], prefDiet: 'Vegetarian' }), dx({}))).toEqual([]);
   });
 
   it('honours religion only when it is on the list', () => {
     const a = dx({ religion: 'Hindu' }), b = dx({ religion: 'Christian' });
-    expect(hardFilterReason(a, b, 30)).toBeNull();
-    expect(hardFilterReason(dx({ ...a, dealBreakers: ['Religion'] }), b, 30)).toBe('religion');
+    expect(mismatchReasons(a, b)).toEqual([]);
+    expect(mismatchReasons(dx({ ...a, dealBreakers: ['Religion'] }), b)).toContain('religion');
   });
 });
 
@@ -244,26 +255,26 @@ describe('the curated bar', () => {
   });
 });
 
-describe('core questions as filters', () => {
+describe('core questions as the three that count most', () => {
   afterEach(() => { delete process.env.DATING_CORE_FILTERS; });
   const answered = dx({ relationshipGoal: 'Marriage', wantsChildren: 'Yes', prefDiet: 'Vegetarian' });
 
   it('changes nothing once it is switched off', () => {
     process.env.DATING_CORE_FILTERS = 'off';
     expect(effectiveDealBreakers(answered)).toEqual([]);
-    expect(hardFilterReason(answered, dx({ relationshipGoal: 'Casual Dating' }), 30)).toBeNull();
+    expect(mismatchReasons(answered, dx({ relationshipGoal: 'Casual Dating' }))).toEqual([]);
   });
 
-  it('filters on the three answers by default', () => {
+  it('counts on the three answers by default', () => {
     expect(effectiveDealBreakers(answered).sort()).toEqual(['Diet', 'Marriage Intentions', 'Wants Children']);
-    expect(hardFilterReason(answered, dx({ relationshipGoal: 'Casual Dating' }), 30)).toBe('intent');
-    expect(hardFilterReason(answered, dx({ wantsChildren: 'No' }), 30)).toBe('children');
-    expect(hardFilterReason(answered, dx({ diet: 'Non-vegetarian' }), 30)).toBe('diet');
+    expect(mismatchReasons(answered, dx({ relationshipGoal: 'Casual Dating' }))).toContain('intent');
+    expect(mismatchReasons(answered, dx({ wantsChildren: 'No' }))).toContain('children');
+    expect(mismatchReasons(answered, dx({ diet: 'Non-vegetarian' }))).toContain('diet');
   });
 
   it('never invents an answer nobody gave', () => {
     expect(effectiveDealBreakers(dx({}))).toEqual([]);
-    expect(hardFilterReason(dx({}), dx({ relationshipGoal: 'Casual Dating', wantsChildren: 'No', diet: 'Non-vegetarian' }), 30)).toBeNull();
+    expect(mismatchReasons(dx({}), dx({ relationshipGoal: 'Casual Dating', wantsChildren: 'No', diet: 'Non-vegetarian' }))).toEqual([]);
   });
 
   it('keeps the chips the citizen ticked themselves', () => {
@@ -281,10 +292,35 @@ describe('core questions as filters', () => {
       dealBreakers: ['-Wants Children'],
     });
     expect(effectiveDealBreakers(opted).sort()).toEqual(['Diet', 'Marriage Intentions']);
-    expect(hardFilterReason(opted, dx({ wantsChildren: 'No' }), 30)).toBeNull();
+    // Unticked means it does not count on THEIR side of the pair.
+    expect(mismatchReasons(opted, dx({ wantsChildren: 'No' }))).toEqual([]);
     // The other two are untouched, and the answer itself still stands.
     expect(opted.wantsChildren).toBe('Yes');
-    expect(hardFilterReason(opted, dx({ relationshipGoal: 'Casual Dating' }), 30)).toBe('intent');
+    expect(mismatchReasons(opted, dx({ relationshipGoal: 'Casual Dating' }))).toContain('intent');
+  });
+
+  /**
+   * AND AN OPT-OUT IS ONE PERSON'S, WHICH IS THE POINT OF IT.
+   *
+   * Unticking Wants Children says "I do not want this to cost anybody points
+   * with me". It cannot say the same on behalf of somebody who answered No and
+   * never opened the chip section — their answer is still on, by the same
+   * default, and `mismatchFactor` reads the pair from both sides exactly as
+   * `unreachableReason` always has. A citizen who could opt out of the other
+   * person's position too would be shown 90% for somebody who will never be
+   * interested, which is the opposite of what a percentage is for.
+   */
+  it('cannot untick the other person\'s answer, only their own', () => {
+    const opted = dx({ wantsChildren: 'Yes', dealBreakers: ['-Wants Children'] });
+    const themDefault = dx({ wantsChildren: 'No' });
+    expect(mismatchReasons(opted, themDefault)).toEqual([]);
+    expect(mismatchReasons(themDefault, opted)).toContain('children');
+    expect(mismatchFactor(opted, themDefault)).toBe(0.55);
+
+    // Both sides opted out — now it costs nothing, and reads the same either way.
+    const themOpted = dx({ wantsChildren: 'No', dealBreakers: ['-Wants Children'] });
+    expect(mismatchFactor(opted, themOpted)).toBe(1);
+    expect(mismatchFactor(themOpted, opted)).toBe(1);
   });
 
   it('can be turned off one at a time or all three', () => {
@@ -293,7 +329,12 @@ describe('core questions as filters', () => {
       dealBreakers: ['-Marriage Intentions', '-Wants Children', '-Diet'],
     });
     expect(effectiveDealBreakers(none)).toEqual([]);
-    expect(hardFilterReason(none, dx({ relationshipGoal: 'Casual Dating', wantsChildren: 'No', diet: 'Non-vegetarian' }), 30)).toBeNull();
+    const opposite = dx({ relationshipGoal: 'Casual Dating', wantsChildren: 'No', diet: 'Non-vegetarian' });
+    expect(mismatchReasons(none, opposite)).toEqual([]);
+    // The candidate stated all three and opted out of none, so the pair is still
+    // scored down from their side — see the test above.
+    const quiet = dx({ diet: 'Non-vegetarian', dealBreakers: ['-Marriage Intentions', '-Wants Children', '-Diet'] });
+    expect(mismatchFactor(none, quiet)).toBe(1);
   });
 
   it('never returns an opt-out marker as a filter', () => {
@@ -303,7 +344,7 @@ describe('core questions as filters', () => {
 
   it('an explicit tick still wins over an opt-out for a chip nobody answered', () => {
     // Ticking and unticking the same label is contradictory; the tick is the
-    // one that removes people, so it is the one that must be honoured.
+    // one that asks for something, so it is the one that must be honoured.
     expect(effectiveDealBreakers(dx({ dealBreakers: ['Diet', '-Diet'], prefDiet: 'Vegetarian' })))
       .toEqual(['Diet']);
   });

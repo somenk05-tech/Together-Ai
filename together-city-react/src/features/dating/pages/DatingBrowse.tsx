@@ -229,17 +229,22 @@ export function DatingBrowse() {
               the server has always sent the discriminator — "reported, never
               silent", says the comment above POOL_CEILING. `poolSize` is who the
               SQL found: right age, right seeking, visible, approved. Anyone lost
-              after that was lost to a filter of this citizen's own — height,
-              distance, diet, religion, children, intent, language — or to the
+              after that was lost to a filter of this citizen's own — or to the
               other person's pointing back. In a city of eight one setting clears
               the room, and telling somebody their city is empty when it is their
-              own boundary is both false and the one thing they cannot act on. */}
+              own boundary is both false and the one thing they cannot act on.
+
+              AND THERE ARE ONLY THREE LEFT (owner, 1 Sep). The seven deal-breaker
+              chips stopped removing anybody; they lower the percentage instead.
+              What can still empty this room is age, height and language — so the
+              sentence names those three rather than sending somebody to go and
+              untick a chip that is no longer capable of hiding a soul. */}
           {(discover.data?.poolSize ?? 0) > 0 ? (
             <>
               <EmptyState
                 icon="🎚"
-                title="Your settings are hiding everyone"
-                hint={`${discover.data?.poolSize} ${discover.data?.poolSize === 1 ? 'person is' : 'people are'} looking for someone like you, and your filters rule ${discover.data?.poolSize === 1 ? 'them' : 'all of them'} out. Distance and the deal breakers are the two that empty a small city fastest.`}
+                title="Your age, height or language settings are hiding everyone"
+                hint={`${discover.data?.poolSize} ${discover.data?.poolSize === 1 ? 'person is' : 'people are'} looking for someone like you, and ${discover.data?.poolSize === 1 ? 'they are' : 'all of them are'} outside your age range, your height range, or the languages you speak — either yours or theirs. Nothing else hides anyone: your deal breakers only lower the percentage.`}
               />
               <div style={{ textAlign: 'center', marginTop: 14 }}>
                 <Link to="/matchmaking/profile"><Button variant="accent">Open my preferences</Button></Link>

@@ -33,9 +33,16 @@ describe('an empty room has two causes', () => {
     expect(api).toMatch(/poolCapped: boolean;/);
   });
 
+  /**
+   * AND IT NAMES THE THREE THAT CAN STILL DO IT (owner, 1 Sep). The seven
+   * deal-breaker chips stopped removing anybody, so a sentence sending somebody
+   * off to untick one would be advice that cannot work. Age, height and
+   * language are what is left.
+   */
   it('blames the settings when the settings are what emptied it', () => {
     expect(browse).toMatch(/poolSize \?\? 0\) > 0/);
-    expect(browse).toMatch(/Your settings are hiding everyone/);
+    expect(browse).toMatch(/age, height or language settings are hiding everyone/);
+    expect(browse).toMatch(/your deal breakers only lower the percentage/);
     expect(browse).toMatch(/Open my preferences/);
   });
 

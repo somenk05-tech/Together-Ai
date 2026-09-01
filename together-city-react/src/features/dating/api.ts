@@ -358,14 +358,40 @@ export function useDatingProfile() {
 export function isSavedProfile(p: DatingProfile | null | undefined): p is DatingProfile {
   return Boolean(p) && (p as { saved?: boolean }).saved !== false;
 }
+/**
+ * EVERY LIST A SETTINGS CHANGE INVALIDATES, named once.
+ *
+ * There are three, and they are not interchangeable: `matches` is the curated
+ * shelf, `discover` is Potential Matches, `stack` is the deck. A citizen who
+ * changes an age range or unticks a deal breaker has changed who belongs in all
+ * three and at what percentage — so all three are stale together, always.
+ */
+export const DATING_LIST_KEYS = [
+  ['dating', 'matches'], ['dating', 'discover'], ['dating', 'stack'],
+] as const;
+
 export function useUpsertDatingProfile() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: UpsertProfileInput) => datingApi.upsertProfile(input),
     onSuccess: (profile) => {
       qc.setQueryData(['dating', 'profile'], profile);
-      // A saved edit changes compatibility — refresh the match lists.
-      void qc.invalidateQueries({ queryKey: ['dating', 'matches'] });
+      /**
+       * A SAVE REFRESHED THE ONE LIST THE CITIZEN WAS NOT LOOKING AT.
+       *
+       * This invalidated `['dating','matches']` alone, under a comment saying
+       * "refresh the match lists" — plural, and it meant it. Potential Matches
+       * is `['dating','discover']` and the deck is `['dating','stack']`, and
+       * neither was named. So the screen somebody lands on after changing their
+       * settings is the one screen that still shows the OLD answer, until a TTL
+       * they cannot see expires. Reported by the owner, who widened a filter,
+       * came back, and found the same empty room.
+       *
+       * The server already does its half: `upsertProfile` bumps that citizen's
+       * list-cache version, so the refetch below reads a freshly computed list
+       * rather than the Redis copy the save just made wrong.
+       */
+      for (const queryKey of DATING_LIST_KEYS) void qc.invalidateQueries({ queryKey });
       // Shared fields flowed to the Master Profile — refresh it + completion.
       void qc.invalidateQueries({ queryKey: ['profile'] });
     },

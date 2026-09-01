@@ -607,6 +607,22 @@ export function factorScores(astrology: number, aInterests: string[], bInterests
   };
 }
 
+/**
+ * THE ONE MULTIPLIER EVERY SCORE IS SCALED BY, so no call site can carry half.
+ *
+ * Confidence and mismatch are the two things that scale a weighted sum, and
+ * five places in `dating.service.ts` compute a score. Passing them separately
+ * is a fifth argument somebody forgets — this repo has already paid for that
+ * shape twice (`cardIdentity`'s viewer, and the twenty-two hand-written lazy
+ * route exports). One function is one thing to get right, and
+ * `every-score-is-scaled-the-same.spec.ts` fails if a call site drifts.
+ */
+export function pairMultiplier(
+  aD: DXProfile, bD: DXProfile, aInterests: string[] = [], bInterests: string[] = [],
+): number {
+  return confidenceFor(aD, bD, aInterests, bInterests) * mismatchFactor(aD, bD);
+}
+
 export function overallScore(f: FactorBreakdown, confidenceFactor = 1): number {
   let sum = 0;
   (Object.keys(WEIGHTS) as (keyof FactorBreakdown)[]).forEach((k) => { sum += f[k] * WEIGHTS[k]; });
@@ -1036,45 +1052,38 @@ export function curatedBar(scores: number[], fixedBar = 75): number {
   return Math.max(Number.isFinite(floor) ? floor : 0, p90);
 }
 
+/**
+ * ── EVERYONE SEES EVERYONE, AND A MISMATCH READS AS A LOW NUMBER ────────────
+ *
+ * Owner, 1 Sep, reversing the shape of this file's protection rather than its
+ * judgement of what matters.
+ *
+ * What stays a filter, and why each one is not a preference:
+ *
+ *   age       — the range the citizen stated. (The 18+ rule is upstream, at the
+ *               door, and is not this function's business.)
+ *   height    — the same shape: a stated range over a recorded number.
+ *   language  — two people who cannot talk to each other are not a match at any
+ *               score, and no percentage can express that usefully.
+ *
+ * Everything else — all seven deal-breaker chips — stops removing anybody and
+ * moves into `mismatchFactor` below, where it lowers the number instead.
+ *
+ * THE HALF OF THIS THAT IS NOT OPTIONAL. The 1M run measured what happens if
+ * the filters simply go: the canonical opposed pair — marriage against casual,
+ * children against none — scores **87%**, because `relationshipGoals` carries
+ * 0.04 of the weight table and children and diet are scored nowhere at all. A
+ * total intent opposition moves the shown percentage by 3.4 points. Removing
+ * the filters without `mismatchFactor` would not "show a low percentage"; it
+ * would show 87% to a marriage-seeker and call it a match. So the two land
+ * together or not at all, and the test that proves it measures the pair rather
+ * than asserting the intention.
+ */
 export function hardFilterReason(myD: DXProfile, theirD: DXProfile, theirAge: number): string | null {
   if (myD.prefAgeMin && theirAge < myD.prefAgeMin) return 'age';
   if (myD.prefAgeMax && theirAge > myD.prefAgeMax) return 'age';
   const height = heightFilterReason(myD, theirD);
   if (height) return height;
-
-  const db = effectiveDealBreakers(myD);
-  if (db.includes('Smoking') && theirD.smoking === 'Regularly') return 'smoking';
-  if (db.includes('Drinking') && theirD.drinking === 'Regularly') return 'drinking';
-  if (db.includes('Wants Children') && childrenConflict(myD.wantsChildren, theirD.wantsChildren)) return 'children';
-
-  // Marriage Intentions — a side of the line, not a distance along it.
-  //
-  // SIDES, PLURAL, SINCE THE LENSES (1 Sep). The rule is unchanged for every
-  // profile that states one goal: two people on opposite sides do not meet.
-  // What changed is that a citizen may now say they are open to both, and
-  // then they belong to both — no overlap is the rejection, not inequality.
-  // Unstated on either side still filters nobody.
-  if (db.includes('Marriage Intentions')) {
-    const mine = committedSides(myD), theirs = committedSides(theirD);
-    if (mine.length && theirs.length && !mine.some((s) => theirs.includes(s))) return 'intent';
-  }
-
-  // Distance — the limit they already stated, now honoured as the boundary they
-  // wrote it as. Unmeasurable distance filters nobody: `searchDistanceKm` returns
-  // null outside the coordinate table, and a filter must not fire on a guess.
-  // Anywhere never excludes on geography, whatever the slider was left at.
-  if (db.includes('Distance') && myD.partnerLocationMode !== 'any'
-      && typeof myD.prefDistanceKm === 'number' && myD.prefDistanceKm > 0) {
-    const km = searchDistanceKm(myD, theirD);
-    if (km !== null && km > myD.prefDistanceKm) return 'distance';
-  }
-
-  // Diet — only against a preference they actually stated. "Any" is not a
-  // preference and must never be scored, or filtered, as one.
-  if (db.includes('Diet') && dietConflicts(myD.prefDiet, theirD.diet)) return 'diet';
-
-  // Religion — same shape. Collected for a year, read for the first time here.
-  if (db.includes('Religion') && religionConflict(myD.religion, theirD.religion)) return 'religion';
 
   // A shared language is not a chip and is not opt-in. Two people who cannot
   // talk to each other are not a match at any score, and at astrology 0.90 the
@@ -1083,6 +1092,101 @@ export function hardFilterReason(myD: DXProfile, theirD: DXProfile, theirAge: nu
   if (languageBarrier(myD, theirD)) return 'language';
 
   return null;
+}
+
+/**
+ * WHAT THE VIEWER ASKED FOR AND THIS CANDIDATE IS NOT, in the citizen's own
+ * vocabulary — the same seven chips, read the same way, by the same rules.
+ *
+ * Every line below was a `return` in `hardFilterReason` until 1 Sep. Nothing
+ * about WHEN each one fires has changed: a chip that is not ticked still counts
+ * for nothing, a field neither side filled in still counts for nothing, and
+ * `effectiveDealBreakers` still decides which are live — including the `-`
+ * opt-out, so unticking Diet means diet does not even lower the number.
+ *
+ * Only the consequence changed. These used to remove a person from the city;
+ * they now remove points from a percentage.
+ */
+export function mismatchReasons(myD: DXProfile, theirD: DXProfile): string[] {
+  const db = effectiveDealBreakers(myD);
+  const out: string[] = [];
+  if (db.includes('Smoking') && theirD.smoking === 'Regularly') out.push('smoking');
+  if (db.includes('Drinking') && theirD.drinking === 'Regularly') out.push('drinking');
+  if (db.includes('Wants Children') && childrenConflict(myD.wantsChildren, theirD.wantsChildren)) out.push('children');
+
+  // Marriage Intentions — a side of the line, not a distance along it. Sides,
+  // plural, since the lenses: a citizen open to both belongs to both, and no
+  // overlap is the mismatch, not inequality. Unstated on either side is nothing.
+  if (db.includes('Marriage Intentions')) {
+    const mine = committedSides(myD), theirs = committedSides(theirD);
+    if (mine.length && theirs.length && !mine.some((x) => theirs.includes(x))) out.push('intent');
+  }
+
+  // Distance — unmeasurable distance counts for nothing: `searchDistanceKm`
+  // returns null outside the coordinate table, and a penalty must not fire on a
+  // guess any more than a filter could. Anywhere never counts geography at all.
+  if (db.includes('Distance') && myD.partnerLocationMode !== 'any'
+      && typeof myD.prefDistanceKm === 'number' && myD.prefDistanceKm > 0) {
+    const km = searchDistanceKm(myD, theirD);
+    if (km !== null && km > myD.prefDistanceKm) out.push('distance');
+  }
+
+  // Diet — only against a preference they actually stated. "Any" is not a
+  // preference and must never be scored as one.
+  if (db.includes('Diet') && dietConflicts(myD.prefDiet, theirD.diet)) out.push('diet');
+  // Religion — same shape.
+  if (db.includes('Religion') && religionConflict(myD.religion, theirD.religion)) out.push('religion');
+  return out;
+}
+
+/**
+ * HOW FAR EACH MISMATCH PULLS THE NUMBER DOWN.
+ *
+ * A multiplier, not a weight, and the distinction is the whole design. A weight
+ * has to be paid for out of the other factors' share — to make an intent
+ * mismatch visible through the weight table, astrology has to come down, which
+ * changes every score in the product including the ones that are fine. A
+ * multiplier costs nothing to a pair that has no mismatch (it is exactly 1.0)
+ * and can move an opposed pair as far as the product needs, so astrology stays
+ * at 0.90 for everybody it was chosen for.
+ *
+ * This is the same instrument as `confidenceFor`, which already multiplies the
+ * weighted sum by how much of the pair is actually answered.
+ *
+ * The numbers, and the reasoning for the ordering rather than the values:
+ * intent is the deepest because it is a side rather than a distance — two
+ * people on opposite sides of the commitment line are not a weak match, they
+ * are looking for different things. Children is next and close behind: Yes
+ * against No is not negotiable by degrees. Diet, religion, distance and the two
+ * habits are real and survivable, and read as a dent rather than a wall.
+ *
+ * Compounding is deliberate. Somebody who is wrong on intent AND children is
+ * further away than somebody wrong on one, and the arithmetic should say so.
+ * The floor stops it reaching zero: a 0% tells a citizen nothing they can act
+ * on, and the card still has to render a number.
+ */
+export const MISMATCH_PENALTY: Record<string, number> = {
+  intent: 0.45, children: 0.55, diet: 0.75,
+  religion: 0.80, distance: 0.85, smoking: 0.85, drinking: 0.85,
+};
+export const MISMATCH_FLOOR = 0.20;
+
+/**
+ * BOTH DIRECTIONS, because a mismatch is a property of the pair.
+ *
+ * `unreachableReason` has always read the filters both ways — a boundary the
+ * other person set is as real as one you set yourself, and honouring only the
+ * viewer's is the "door locked from the other side" this file has closed twice.
+ * The penalty inherits that: their deal-breakers lower the number they see AND
+ * the number you see, so one percentage describes the pair rather than each
+ * side privately disagreeing about how well it would go.
+ */
+export function mismatchFactor(myD: DXProfile, theirD: DXProfile): number {
+  if (process.env.DATING_MISMATCH_PENALTY === 'off') return 1;
+  const both = new Set([...mismatchReasons(myD, theirD), ...mismatchReasons(theirD, myD)]);
+  let f = 1;
+  for (const r of both) f *= MISMATCH_PENALTY[r] ?? 1;
+  return Math.max(MISMATCH_FLOOR, f);
 }
 
 /**

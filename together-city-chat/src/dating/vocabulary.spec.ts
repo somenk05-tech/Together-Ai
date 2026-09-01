@@ -1,6 +1,6 @@
 import { buildLookupSeed } from '../lookups/lookup.data';
 import {
-  canonicalGoal, committed, GOAL_ORDER, hardFilterReason, factorScores, coverage,
+  canonicalGoal, committed, GOAL_ORDER, hardFilterReason, mismatchReasons, factorScores, coverage,
   dietConflicts, childrenConflict, religionConflict, languageBarrier,
 } from './matching';
 
@@ -48,7 +48,10 @@ describe('the engine can read what the form sends', () => {
     const served = labelsFor('relationshipGoal');
     let fired = 0;
     for (const a of served) for (const b of served) {
-      if (hardFilterReason({ relationshipGoal: a, dealBreakers: ['Marriage Intentions'] }, { relationshipGoal: b }, 30) === 'intent') fired++;
+      // Reads `mismatchReasons` since 1 Sep: intent lowers the number rather
+      // than removing the person. WHICH pairs it fires on is what this counts,
+      // and that is unchanged — the normaliser is still the thing under test.
+      if (mismatchReasons({ relationshipGoal: a, dealBreakers: ['Marriage Intentions'] }, { relationshipGoal: b }).includes('intent')) fired++;
     }
     // Was 0 of 36 before the normaliser. Every committed x uncommitted ordered
     // pair among the five readable labels: 3 committed, 2 not, both directions.

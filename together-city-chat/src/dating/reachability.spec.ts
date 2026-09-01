@@ -1,4 +1,4 @@
-import { hardFilterReason, unreachableReason } from './matching';
+import { hardFilterReason, unreachableReason, mismatchFactor } from './matching';
 import type { DXProfile } from './matching';
 
 /**
@@ -51,11 +51,29 @@ describe('unreachableReason', () => {
     expect(bSeesA).not.toBeNull();
   });
 
-  it('carries deal-breakers both ways too, not just age', () => {
+  /**
+   * DEAL-BREAKERS LEFT THIS FUNCTION ON 1 SEP, and the both-ways rule went with
+   * them rather than being dropped.
+   *
+   * `unreachableReason` now answers only for the three that still remove
+   * somebody — age, height, language. The seven chips moved to
+   * `mismatchFactor`, which reads the pair from BOTH sides for the same reason
+   * this function always has: a boundary the other person set is as real as one
+   * you set yourself, and honouring only the viewer's is the door locked from
+   * the other side. So the property is asserted where it now lives.
+   */
+  it('no longer makes anybody unreachable over a deal-breaker', () => {
     const teetotal = dx({ dealBreakers: ['Drinking'] });
     const drinker = dx({ drinking: 'Regularly' });
-    expect(unreachableReason(drinker, teetotal, 30, 30)).toEqual({ by: 'them', reason: 'drinking' });
-    expect(unreachableReason(teetotal, drinker, 30, 30)).toEqual({ by: 'you', reason: 'drinking' });
+    expect(unreachableReason(drinker, teetotal, 30, 30)).toBeNull();
+    expect(unreachableReason(teetotal, drinker, 30, 30)).toBeNull();
+  });
+
+  it('carries deal-breakers both ways as a penalty instead', () => {
+    const teetotal = dx({ dealBreakers: ['Drinking'] });
+    const drinker = dx({ drinking: 'Regularly' });
+    expect(mismatchFactor(teetotal, drinker)).toBe(0.85);
+    expect(mismatchFactor(drinker, teetotal)).toBe(0.85);
   });
 
   it('does not invent a block out of empty profiles', () => {

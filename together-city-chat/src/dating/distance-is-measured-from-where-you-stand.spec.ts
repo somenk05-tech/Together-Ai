@@ -18,7 +18,7 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
-import { coarseCoords, hardFilterReason, searchDistanceKm, standCoords, type DXProfile } from './matching';
+import { coarseCoords, hardFilterReason, mismatchReasons, searchDistanceKm, standCoords, type DXProfile } from './matching';
 
 /** Mumbai and London, from the same table `cityCoords` reads. */
 const MUMBAI = { lat: 19.076, lng: 72.8777 };
@@ -62,23 +62,25 @@ describe('the Distance deal-breaker', () => {
       ...inMumbai, dealBreakers: ['Distance'], prefDistanceKm: 100,
       partnerLocationMode: 'around', searchLat: LONDON.lat, searchLng: LONDON.lng,
     };
-    expect(hardFilterReason(me, inLondon, 30)).not.toBe('distance');
-    expect(hardFilterReason(me, inMumbai, 30)).toBe('distance');
+    expect(mismatchReasons(me, inLondon)).not.toContain('distance');
+    expect(mismatchReasons(me, inMumbai)).toContain('distance');
   });
 
-  it('still excludes on the profile city when nobody shared a point', () => {
+  it('still counts the profile city when nobody shared a point', () => {
     const me: DXProfile = { ...inMumbai, dealBreakers: ['Distance'], prefDistanceKm: 100 };
-    expect(hardFilterReason(me, inLondon, 30)).toBe('distance');
+    expect(mismatchReasons(me, inLondon)).toContain('distance');
+    // And counting is all it does now — the Londoner is still in the list.
+    expect(hardFilterReason(me, inLondon, 30)).toBeNull();
   });
 
   it('never fires under Anywhere, whatever the slider was left at', () => {
     const me: DXProfile = { ...near, dealBreakers: ['Distance'], prefDistanceKm: 5, partnerLocationMode: 'any' };
-    expect(hardFilterReason(me, inLondon, 30)).not.toBe('distance');
+    expect(mismatchReasons(me, inLondon)).not.toContain('distance');
   });
 
   it('does fire under Current location at the same radius — so the mode is what changed, not the radius', () => {
     const me: DXProfile = { ...near, dealBreakers: ['Distance'], prefDistanceKm: 5 };
-    expect(hardFilterReason(me, inLondon, 30)).toBe('distance');
+    expect(mismatchReasons(me, inLondon)).toContain('distance');
   });
 });
 

@@ -1285,7 +1285,7 @@ export function DatingProfilePage() {
             <span className="muted" style={locHint}>
               {locationMode === 'any'
                 ? 'Shapes scores rather than hiding people — someone further away still appears, scored lower.'
-                : 'Shapes scores rather than hiding people — someone further away still appears, scored lower. Tick the Distance deal breaker below to make it a boundary.'}
+                : 'Shapes scores rather than hiding people — someone further away still appears, scored lower. Tick the Distance deal breaker below to count it against the percentage.'}
             </span>
           </label>
 
@@ -1308,10 +1308,19 @@ export function DatingProfilePage() {
 
               So they show as ON — silence keeps the protection — and they are
               real switches again (owner, 1 Sep). Unticking one writes `-<label>`,
-              which `effectiveDealBreakers` reads as "score it, do not hide
-              anybody over it". Nobody has to delete an honest answer to stop it
-              being a wall, and the line below says which answer lit each one. */}
+              which `effectiveDealBreakers` reads as "do not count this against
+              anybody". The line below says which answer lit each one.
+
+              AND BY THE END OF THAT SAME DAY NONE OF THEM HID ANYONE (owner).
+              All seven moved into `mismatchFactor`: everyone in the city is
+              visible, and a mismatch comes off the percentage instead. The word
+              "deal breaker" is kept because it is the citizen's word for what
+              they will not compromise on — what changed is that the engine
+              answers it with a number rather than an empty room. */}
           <span style={label}>Deal breakers (optional)</span>
+          <span className="muted" style={locHint}>
+            None of these hides anybody. Everyone in your city appears either way — these decide how far a percentage falls when somebody does not match.
+          </span>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{DEAL_BREAKERS.map((v) => {
             const core = coreFilterOn[v];
             return (
@@ -1322,7 +1331,7 @@ export function DatingProfilePage() {
           })}</div>
           {Object.keys(coreFilterOn).length > 0 && (
             <span className="muted" style={locHint}>
-              {Object.values(coreFilterOn).join(' ')} They are on because you answered, not because you are stuck with them — tap one to turn it off and it goes back to shaping the score instead of hiding people. Your answer stays either way.
+              {Object.values(coreFilterOn).join(' ')} They are on because you answered, not because you are stuck with them — tap one to turn it off and it stops counting against anybody. Your answer stays either way.
             </span>
           )}
         </div>

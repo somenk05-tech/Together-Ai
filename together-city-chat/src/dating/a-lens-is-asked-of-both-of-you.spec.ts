@@ -99,31 +99,34 @@ const SERIOUS = { relationshipGoal: 'Serious dating' };
 const MARRYING = { relationshipGoal: 'Marriage' };
 
 describe('a lens is asked of both of you', () => {
-  it('changes nothing at all when no lens is chosen', async () => {
+  it('shows the whole pool when no lens is chosen', async () => {
     /*
      * THE LIST EVERY EXISTING CLIENT ASKS FOR. A lens that leaked a default
      * would narrow it the day it shipped, and nobody reports a hub that shows
      * FEWER people — the failure mode this hub keeps having.
      *
-     * And what it returns is NOT everybody, which is the thing worth writing
-     * down. `Marriage Intentions` has been a default-on, mutual deal-breaker
-     * since 26 Aug: a casual viewer already never saw the committed side of
-     * the pool, measured, deliberately, and long before there was a word for
-     * it. So two of the three lenses were half-built already — `dating` is
-     * exactly the line that filter draws. What the lenses add is a NAME for
-     * it, and a split inside the committed side that did not exist: serious
-     * and marriage are one pool to that filter, by design ("a side, not a
-     * distance"), and two headings here.
+     * AND IT IS NOW EVERYBODY, which is the change of 1 Sep. Until then this
+     * assertion read `['casual']`, because `Marriage Intentions` had been a
+     * default-on mutual deal-breaker since 26 Aug and a casual viewer never saw
+     * the committed side of the pool at all. The owner reversed that: intent
+     * stops removing anyone and lowers the number instead, so a casual viewer
+     * with no lens now sees the marriage-seeker — at a percentage that says so.
+     *
+     * The lenses are untouched by this and matter MORE for it. They were the
+     * name for a line the filter drew invisibly; they are now the only way to
+     * draw it, and a citizen who wants the old behaviour picks a heading.
      */
     expect(await shown(CASUAL, [
       candidate('casual', CASUAL), candidate('serious', SERIOUS), candidate('marrying', MARRYING),
-    ])).toEqual(['casual']);
-    // From the other side of that same line, unchanged: serious and marriage
-    // still see each other with no lens, and the lens is what separates them.
+    ])).toEqual(['casual', 'marrying', 'serious']);
     expect(await shown(MARRYING, [
       candidate('casual', CASUAL), candidate('serious', SERIOUS), candidate('marrying', MARRYING),
-    ])).toEqual(['marrying', 'serious']);
+    ])).toEqual(['casual', 'marrying', 'serious']);
+    // And a chosen lens still narrows, which is now the whole of the mechanism.
     expect(await shown(MARRYING, [candidate('serious', SERIOUS)], 'marriage')).toEqual([]);
+    expect(await shown(CASUAL, [
+      candidate('casual', CASUAL), candidate('marrying', MARRYING),
+    ], 'dating')).toEqual(['casual']);
   });
 
   it('lets a citizen who is open to both sides be shown people on both', async () => {

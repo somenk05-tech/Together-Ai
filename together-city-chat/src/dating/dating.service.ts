@@ -21,7 +21,7 @@ import { RedisService } from '../shared/redis/redis.service';
 import { QueueService } from '../shared/queue/queue.service';
 import { compatibilityScore, zodiacSign } from './astrology';
 import {
-  canonicalGoal, coarseCoords, confidenceFor, coverage, curatedBar, distanceNote, explain, factorScores, frictions, matchAlertBody, matchAlertReason, overallScore, preferenceNotes, sharedItems, seeks, shownName, underLens, type DXProfile, type FactorBreakdown, intentsOf, type Intent, unreachableReason,
+  canonicalGoal, coarseCoords, confidenceFor, coverage, curatedBar, distanceNote, explain, factorScores, frictions, matchAlertBody, matchAlertReason, overallScore, pairMultiplier, preferenceNotes, sharedItems, seeks, shownName, underLens, type DXProfile, type FactorBreakdown, intentsOf, type Intent, unreachableReason,
 } from './matching';
 import { carrySelfie, selfieOnFile, selfieTakenAt, SELFIE_KEY, SELFIE_AT } from './selfie';
 import { UNDER_AGE_MESSAGE, ageOn, floorAgePreferences, isAdult } from '../shared/age';
@@ -1071,7 +1071,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
         { userId: cand.userId, birthDate: cand.birthDate, interests: this.splitInterests(cand.interests) },
       );
       const breakdown = factorScores(astro, myInterests, this.splitInterests(cand.interests), myD, candD);
-      const score = overallScore(breakdown, confidenceFor(myD, candD, myInterests, this.splitInterests(cand.interests)));
+      const score = overallScore(breakdown, pairMultiplier(myD, candD, myInterests, this.splitInterests(cand.interests)));
 
       // The threshold-visibility gate is gone (27 Aug — see matches()), so a
       // crossing is announced on the one bar both people are shown.
@@ -1497,7 +1497,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       const theirInterests = this.splitInterests(cand.interests);
       const candDX = this.parseDX((cand as { extras?: string | null }).extras) as DXProfile & DXVisibility & { city?: string; photos?: string[] };
       const breakdown = factorScores(astro, myInterests, theirInterests, myD, candDX);
-      const score = overallScore(breakdown, confidenceFor(myD, candDX, myInterests, theirInterests));
+      const score = overallScore(breakdown, pairMultiplier(myD, candDX, myInterests, theirInterests));
       // The threshold-visibility gate stood here too and is gone (27 Aug —
       // see matches()). Everyone visible is visible to every score.
 
@@ -1954,7 +1954,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       }
 
       const breakdown = factorScores(astro, myInterests, theirInterests, myD, candDX);
-      const conf = confidenceFor(myD, candDX, myInterests, theirInterests);
+      const conf = pairMultiplier(myD, candDX, myInterests, theirInterests);
       /**
        * ONE NUMBER, EVERYWHERE (owner decision, 31 Aug, medium 8). The score
        * a citizen reads is the STANDARD astrology-weighted one — the same
@@ -2180,7 +2180,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       { userId: targetUserId, birthDate: cand.birthDate, interests: theirInterests },
     );
     const breakdown = factorScores(astro, myInterests, theirInterests, myD, candD);
-    const score = overallScore(breakdown, confidenceFor(myD, candD, myInterests, theirInterests));
+    const score = overallScore(breakdown, pairMultiplier(myD, candD, myInterests, theirInterests));
 
     const state = await this.prisma.datingMatch.findFirst({
       where: { OR: [{ userOneId: userId, userTwoId: targetUserId }, { userOneId: targetUserId, userTwoId: userId }], kind },
@@ -2496,7 +2496,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       { userId: targetUserId, birthDate: cand.birthDate, interests: theirInterests },
     );
     const breakdown = factorScores(astro, myInterests, theirInterests, myD, candD);
-    const score = overallScore(breakdown, confidenceFor(myD, candD, myInterests, theirInterests));
+    const score = overallScore(breakdown, pairMultiplier(myD, candD, myInterests, theirInterests));
     await this.cacheScore(userId, targetUserId, breakdown, score);
   }
 
