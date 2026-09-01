@@ -1,4 +1,5 @@
 import { DatingService } from './dating.service';
+import { openCardId } from './card-id';
 import { BlockingService } from '../connections/blocking.service';
 
 /**
@@ -10,6 +11,12 @@ import { BlockingService } from '../connections/blocking.service';
  * nowhere on it. The one screen named after their matches was the one screen
  * that denied having any.
  */
+
+
+/** Ids on the wire are sealed to the viewer since 31 Aug (card-id.ts); the
+ *  assertions below read them back through the service's own key. */
+const unseal = (svc: unknown, viewer: string, token: string) =>
+  openCardId((svc as unknown as { cardSecret(): string }).cardSecret(), viewer, token) ?? token;
 
 const UPDATED = new Date('2026-07-29T12:00:00Z');
 
@@ -56,7 +63,7 @@ describe('dating chats include matches that have not been connected yet', () => 
     expect(out).toHaveLength(1);
     expect(out[0].pending).toBe(true);
     expect(out[0].conversationId).toBeNull();
-    expect(out[0].otherUserId).toBe('them');
+    expect(unseal(svc, 'me', out[0].otherUserId)).toBe('them');
   });
 
   it('does not try to summarise a conversation that does not exist', async () => {

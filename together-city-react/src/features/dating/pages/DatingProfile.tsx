@@ -5,7 +5,7 @@ import { Button, EmptyState, Spinner } from '@/components/ui';
 import { SearchSelect } from '@/components/SearchSelect';
 import { MultiSelect } from '@/components/MultiSelect';
 import type { LookupOption } from '@/api/lookups.api';
-import { useDatingProfile, useUpsertDatingProfile, useDeleteDatingProfile, useSaveSelfie, useClearSelfie, type UpsertProfileInput, type Visibility, type ProfileCompletion } from '../api';
+import { useDatingProfile, useUpsertDatingProfile, useDeleteDatingProfile, useSaveSelfie, useClearSelfie, INTENTS, INTENT_LABELS, INTENT_NOTES, type Intent, type UpsertProfileInput, type Visibility, type ProfileCompletion } from '../api';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
 import { serverMessage } from '../server-sentence';
 import { geoApi } from '@/api/geo.api';
@@ -69,6 +69,10 @@ interface DX {
   heightCm?: number | null; languages?: string[];
   photos?: string[];
   relationshipGoal?: string; diet?: string; smoking?: string; drinking?: string; fitnessLevel?: string; education?: string; profession?: string;
+  /** Which of the three lenses they appear under. ABSENT means they have never
+   *  seen this control and the hub reads their relationship goal instead — so
+   *  the form must not write an empty array on a save that never touched it. */
+  openTo?: Intent[];
   personalityTraits?: string[]; values?: string[];
   prefAgeMin?: number | null; prefAgeMax?: number | null; prefDistanceKm?: number | null;
   /** The preferred-height range is NO LONGER COLLECTED (owner decision, 2 Aug).
@@ -600,6 +604,11 @@ export function DatingProfilePage() {
   }
 
   const setD = (patch: Partial<DX>) => setDx((prev) => ({ ...prev, ...patch }));
+  /* WHICH LENSES THEY ARE UNDER RIGHT NOW (1 Sep). Their own edit if they have
+     made one; otherwise the server's answer, derived from their goal along a
+     ladder that lives in exactly one file. Not re-derived here — a second copy
+     of the goal vocabulary is the defect GOAL_ALIASES was written for. */
+  const openToNow: Intent[] = dx.openTo ?? existing.data?.openTo ?? [];
   // The thumb needs a position even before the citizen touches it; 100 km is a
   // sensible city radius. The stored value stays whatever they last saved.
   const distanceKm = typeof dx.prefDistanceKm === 'number' && dx.prefDistanceKm > 0 ? dx.prefDistanceKm : 100;
@@ -1103,6 +1112,49 @@ export function DatingProfilePage() {
           <span style={label}>Relationship goal</span>
           <SearchSelect category="relationshipGoal" value={dx.relationshipGoal ?? ''} placeholder="What are you looking for?"
             onChange={(o) => setD({ relationshipGoal: o?.label })} />
+
+          {/* ── WHICH LENSES YOU APPEAR UNDER (owner, 1 Sep) ────────────────
+              Three headings over one pool, and a citizen may tick any
+              combination — looking for a spouse and willing to date is a real
+              answer that the single dropdown above could never give.
+
+              UNTICKED IS NOT UNANSWERED. Until somebody uses this control the
+              key is absent, and the hub reads their goal above to place them,
+              which is why nobody already in the city has to be asked anything.
+              Once it is present it speaks for them, including when they clear
+              it — so `setD` writes the array only on a real click. */}
+          <span style={label}>Show me under</span>
+          <span className="muted lens-hint lens-intro">
+            {dx.openTo === undefined
+              ? `Set from your goal above${openToNow.length ? ` — ${openToNow.map((i) => INTENT_LABELS[i]).join(', ')}` : ''}. Tick any that fit.`
+              : 'People see you under the headings you tick, and only when they are looking under one too.'}
+          </span>
+          <div className="lens-list">
+            {INTENTS.map((i) => {
+              const on = openToNow.includes(i);
+              return (
+                <label key={i} className="lens-opt">
+                  <input
+                    type="checkbox" checked={on}
+                    onChange={() => {
+                      const next = on ? openToNow.filter((x) => x !== i) : [...openToNow, i];
+                      setD({ openTo: INTENTS.filter((x) => next.includes(x)) });
+                    }}
+                  />
+                  <span>
+                    <b>{INTENT_LABELS[i]}</b>
+                    <small className="muted lens-hint">{INTENT_NOTES[i]}</small>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          {dx.openTo?.length === 0 && (
+            <span className="muted lens-hint lens-note">
+              With none ticked you appear under no heading. People browsing a
+              particular one will not see you — you are still in the main list.
+            </span>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
             <div><span style={label}>Diet</span><SearchSelect category="diet" value={dx.diet ?? ''} placeholder="Select" onChange={(o) => setD({ diet: o?.label })} /></div>
             <div>

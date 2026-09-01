@@ -1,3 +1,5 @@
+import { INTENTS } from './matching';
+
 /**
  * THE SHAPE OF THE EXTRAS BLOB, ENFORCED WHERE IT IS WRITTEN.
  *
@@ -72,6 +74,16 @@ export function shapeExtras(raw: Record<string, unknown>): Record<string, unknow
     else if (typeof v === 'number' && Number.isFinite(v)) out[key] = v;
   }
   if (raw.partnerLocationMode === 'any' || raw.partnerLocationMode === 'around') out.partnerLocationMode = raw.partnerLocationMode;
+  /* THE LENSES THEY CHOSE (owner, 1 Sep). Filtered to the three that exist and
+     put in INTENTS order, so a stored blob can neither invent a fourth heading
+     nor decide what order the app reads them in. Kept when EMPTY — unticking
+     all three is an answer, and `intentsOf` reads a present-but-empty list as
+     that answer rather than falling back to their old goal. Absent stays
+     absent: every profile written before today has no key here, and that is
+     what tells the engine to read their stated goal instead. */
+  if (Array.isArray(raw.openTo)) {
+    out.openTo = INTENTS.filter((i) => (raw.openTo as unknown[]).includes(i));
+  }
   if (Array.isArray(raw.photos)) {
     out.photos = raw.photos
       .filter((x): x is string => typeof x === 'string' && x.length > 0 && x.length <= PHOTO_ENTRY_MAX)

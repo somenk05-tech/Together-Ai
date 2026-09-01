@@ -39,6 +39,15 @@ export interface DXProfile {
    *  lets those intersections reach shownName at all). */
   firstName?: string;
   personalityTraits?: string[]; values?: string[]; relationshipGoal?: string;
+  /**
+   * The lenses they chose to appear under — 'dating', 'intentional',
+   * 'marriage', any combination (owner, 1 Sep). ABSENT IS NOT EMPTY: absent
+   * means they have never been asked, and `intentsOf` reads their stated
+   * `relationshipGoal` instead, so every profile written before this existed
+   * keeps a place. An empty ARRAY is a citizen who unticked everything, and
+   * `intentsOf` returns nothing for them, which is what they asked for.
+   */
+  openTo?: string[];
   diet?: string; smoking?: string; drinking?: string; fitnessLevel?: string;
   /** What they said they'd prefer in someone else. Empty = "Any", which is not
    *  a preference and must never be scored as one. The form writes these from
@@ -199,6 +208,108 @@ export function canonicalGoal(goal?: string | null): string | null {
 }
 
 /**
+ * ── THE THREE LENSES (owner, 1 Sep) ───────────────────────────────────────
+ *
+ * "Apart from dating, add dating with intention and marriage." Three ways to
+ * look at ONE pool — not three pools. The likes, the daily allowance and the
+ * chats stay shared; what changes is who a list is willing to show you.
+ *
+ * They are not a new vocabulary. Every profile has been picking a
+ * `relationshipGoal` from six labels since the hub opened, and GOAL_ORDER
+ * above is the ladder those labels sit on. A lens is a RUNG RANGE on that
+ * ladder, which is why nobody has to be asked anything for this to work:
+ * a profile that said 'Marriage' is already in the marriage lens.
+ *
+ * `Still figuring it out` normalises to null and therefore belongs to no
+ * lens. That is the honest answer rather than a gap: a lens is a heading
+ * that says what someone is here for, and they have said they do not know.
+ * It does not hide them — the unfiltered list is unchanged, and that is the
+ * list they are on today.
+ */
+export const INTENTS = ['dating', 'intentional', 'marriage'] as const;
+export type Intent = (typeof INTENTS)[number];
+
+/** What a citizen is shown, in their own words. */
+export const INTENT_LABELS: Record<Intent, string> = {
+  dating: 'Dating',
+  intentional: 'Dating with intention',
+  marriage: 'Marriage',
+};
+
+/** Which rungs of GOAL_ORDER each lens covers. Exhaustive over the ladder. */
+const INTENT_GOALS: Record<Intent, readonly string[]> = {
+  dating: ['Friendship First', 'Casual Dating'],
+  intentional: ['Serious Dating', 'Long-term Relationship'],
+  marriage: ['Marriage'],
+};
+
+export function isIntent(v: unknown): v is Intent {
+  return typeof v === 'string' && (INTENTS as readonly string[]).includes(v);
+}
+
+/** The one lens a stated goal sits in, or null when the goal says nothing. */
+export function intentOfGoal(goal?: string | null): Intent | null {
+  const g = canonicalGoal(goal);
+  if (!g) return null;
+  for (const i of INTENTS) if (INTENT_GOALS[i].includes(g)) return i;
+  /* Unreachable while INTENT_GOALS covers GOAL_ORDER, which
+     `every-rung-has-a-lens` pins. Null rather than a guess if a rung is ever
+     added without one: an unclassified goal must not silently become 'dating'. */
+  return null;
+}
+
+/**
+ * The lenses this profile appears under.
+ *
+ * A citizen may be open to any combination (owner, 1 Sep) — looking for
+ * marriage and willing to date is a real answer, and the old single dropdown
+ * could not say it. `openTo` is that answer once they give it. Until they do,
+ * their stated goal answers for them, which is why no existing profile has to
+ * be asked anything and none of them leaves the hub.
+ *
+ * An empty result is "they have not said", NOT "they refuse everyone" — the
+ * same reading this file already gives an empty preference, and the reason no
+ * unfiltered list may filter on this.
+ */
+export function intentsOf(d: Pick<DXProfile, 'relationshipGoal' | 'openTo'>): Intent[] {
+  /* PRESENT, not non-empty. Reading `openTo: []` as "never asked" would send
+     somebody who deliberately unticked all three straight back to the lens
+     their old goal implies — their answer discarded by the code that asked
+     for it. The upsert DTO refuses an empty list from our own form, so this
+     case is a row written some other way, and the honest reading of it is
+     the one it states. */
+  if (d.openTo !== undefined) {
+    const declared = d.openTo.filter(isIntent);
+    return INTENTS.filter((i) => declared.includes(i));
+  }
+  const derived = intentOfGoal(d.relationshipGoal);
+  return derived ? [derived] : [];
+}
+
+/**
+ * Is this profile shown under this lens?
+ *
+ * BOTH SIDES ARE ASKED, always, and that is the whole rule. A lens that only
+ * filtered candidates would put somebody who is here for marriage in front of
+ * a person browsing casually — a door locked from the other side, which is
+ * what `unreachableReason` exists to stop happening on age and distance and
+ * what H3 had to close on `?kind=platonic`. There is no `?intent=` that opens
+ * a list you are not yourself on.
+ */
+export function underLens(d: Pick<DXProfile, 'relationshipGoal' | 'openTo'>, lens: Intent): boolean {
+  return intentsOf(d).includes(lens);
+}
+
+/** What two people are both open to. Empty is a real answer here. */
+export function sharedIntents(
+  a: Pick<DXProfile, 'relationshipGoal' | 'openTo'>,
+  b: Pick<DXProfile, 'relationshipGoal' | 'openTo'>,
+): Intent[] {
+  const B = new Set(intentsOf(b));
+  return intentsOf(a).filter((i) => B.has(i));
+}
+
+/**
  * The line the "Marriage Intentions" deal-breaker draws.
  *
  * Not a distance along GOAL_ORDER — a side. Serious Dating and Marriage are two
@@ -211,6 +322,41 @@ export function committed(goal?: string): boolean | null {
   const g = canonicalGoal(goal);
   if (!g) return null;
   return GOAL_ORDER.indexOf(g) >= COMMITTED_FROM;
+}
+
+/** Which lens sits on which side of that line. */
+const INTENT_COMMITTED: Record<Intent, boolean> = {
+  dating: false, intentional: true, marriage: true,
+};
+
+/**
+ * THE SIDES THIS PROFILE IS ON — plural since the lenses (owner, 1 Sep).
+ *
+ * `committed()` above answers for ONE goal, because until today a citizen
+ * could only have one. "Open to any combination" makes that a set: somebody
+ * who ticks Dating and Marriage is on both sides and means it, and reading
+ * only their old single goal would let the Marriage Intentions deal-breaker
+ * quietly delete half the pool they had just asked for. The screen would
+ * show three ticked boxes and the engine would honour one.
+ *
+ * A profile that has never touched the control still answers with exactly one
+ * side — its stated goal's — so this is the same filter it has always been for
+ * everyone already in the hub. Empty is "not stated", which filters nobody,
+ * and that rule does not bend here either.
+ */
+export function committedSides(d: Pick<DXProfile, 'relationshipGoal' | 'openTo'>): boolean[] {
+  const sides = new Set(intentsOf(d).map((i) => INTENT_COMMITTED[i]));
+  if (sides.size) return [...sides];
+  /* NO LENS, BUT POSSIBLY STILL A STATED GOAL — which is a citizen who
+     unticked every box. They have said "put me under no heading"; they have
+     not withdrawn what they are looking for, and this filter reads the
+     latter. Dropping to nothing here would quietly remove the protection
+     from the one person who fiddled with the control most, and from the
+     marriage-seeker on the other side of it, who said nothing at all. The
+     house rule is that a stated answer counts and an unstated one filters
+     nobody: their goal is stated, so it counts. */
+  const one = committed(d.relationshipGoal ?? undefined);
+  return one === null ? [] : [one];
 }
 function goalScore(a?: string, b?: string): number {
   // Unanswered is 45, not 60. Two people who have not said what they want are
@@ -886,9 +1032,15 @@ export function hardFilterReason(myD: DXProfile, theirD: DXProfile, theirAge: nu
   if (db.includes('Wants Children') && childrenConflict(myD.wantsChildren, theirD.wantsChildren)) return 'children';
 
   // Marriage Intentions — a side of the line, not a distance along it.
+  //
+  // SIDES, PLURAL, SINCE THE LENSES (1 Sep). The rule is unchanged for every
+  // profile that states one goal: two people on opposite sides do not meet.
+  // What changed is that a citizen may now say they are open to both, and
+  // then they belong to both — no overlap is the rejection, not inequality.
+  // Unstated on either side still filters nobody.
   if (db.includes('Marriage Intentions')) {
-    const mine = committed(myD.relationshipGoal), theirs = committed(theirD.relationshipGoal);
-    if (mine !== null && theirs !== null && mine !== theirs) return 'intent';
+    const mine = committedSides(myD), theirs = committedSides(theirD);
+    if (mine.length && theirs.length && !mine.some((s) => theirs.includes(s))) return 'intent';
   }
 
   // Distance — the limit they already stated, now honoured as the boundary they

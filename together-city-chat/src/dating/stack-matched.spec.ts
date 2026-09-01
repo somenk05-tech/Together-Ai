@@ -1,4 +1,5 @@
 import { DatingService } from './dating.service';
+import { openCardId } from './card-id';
 import { BlockingService } from '../connections/blocking.service';
 
 /**
@@ -11,6 +12,12 @@ import { BlockingService } from '../connections/blocking.service';
  * notification even said "open Dating to say hi" and linked to the page that had
  * just dropped them.
  */
+
+
+/** Ids on the wire are sealed to the viewer since 31 Aug (card-id.ts); the
+ *  assertions below read them back through the service's own key. */
+const unseal = (svc: unknown, viewer: string, token: string) =>
+  openCardId((svc as unknown as { cardSecret(): string }).cardSecret(), viewer, token) ?? token;
 
 const BIRTH = new Date('1996-04-12T00:00:00Z');
 
@@ -101,7 +108,7 @@ describe('curated stack keeps mutually-liked people', () => {
     };
 
     expect(res.matched).toHaveLength(1);
-    expect(res.matched[0].user.id).toBe('rhea');
+    expect(unseal(svc, 'me', res.matched[0].user.id)).toBe('rhea');
     expect(res.matched[0].matched).toBe(true);
   });
 
@@ -128,7 +135,7 @@ describe('curated stack keeps mutually-liked people', () => {
       [matchedState('rhea')],
     );
     const res = await svc.stack('me', 'romantic') as unknown as { matched: Array<{ user: { id: string } }> };
-    expect(res.matched.map((m) => m.user.id)).toEqual(['rhea']);
+    expect(res.matched.map((m) => unseal(svc, 'me', m.user.id))).toEqual(['rhea']);
   });
 
   it('keeps matches out of the discovery pool and its histogram', async () => {
@@ -143,8 +150,8 @@ describe('curated stack keeps mutually-liked people', () => {
       totalCandidates: number;
       distribution: Array<{ count: number }>;
     };
-    expect(res.matched.map((m) => m.user.id)).toEqual(['rhea']);
-    expect(res.top?.user.id).toBe('anita');
+    expect(res.matched.map((m) => unseal(svc, 'me', m.user.id))).toEqual(['rhea']);
+    expect(unseal(svc, 'me', res.top?.user.id ?? '')).toBe('anita');
     expect(res.totalCandidates).toBe(1);
     expect(res.distribution.reduce((n, b) => n + b.count, 0)).toBe(1);
   });
@@ -247,7 +254,7 @@ describe('curated stack keeps mutually-liked people', () => {
     // already had to fix once.
     const { svc } = serviceWith([profile('rhea')], [matchedState('rhea')]);
     const res = await svc.stack('me', 'romantic') as unknown as { matched: Array<{ user: { id: string } }> };
-    expect(res.matched.map((m) => m.user.id)).toEqual(['rhea']);
+    expect(res.matched.map((m) => unseal(svc, 'me', m.user.id))).toEqual(['rhea']);
   });
 
   it('carries the six fields the curated card is written from', async () => {
@@ -325,7 +332,7 @@ describe('a match survives its partner leaving the pool', () => {
       matched: Array<{ user: { id: string }; matched: boolean }>;
       candidates: unknown[];
     };
-    expect(res.matched.map((m) => m.user.id)).toEqual(['paused']);
+    expect(res.matched.map((m) => unseal(svc, 'me', m.user.id))).toEqual(['paused']);
     expect(res.matched[0].matched).toBe(true);
     // …and it did NOT come from the pool, which returned nobody.
     expect(res.candidates).toHaveLength(0);

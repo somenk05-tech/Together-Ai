@@ -75,6 +75,30 @@ describe('a name of your own', () => {
     // THE ONE THIS TEST EXISTS FOR: matchDetail shapes its user like every
     // other card, rather than spreading the row.
     expect(svc).not.toMatch(/user: cand\.user,/);
-    expect(svc).toMatch(/user: this\.cardIdentity\(cand\.user, candD\)/);
+    expect(svc).toMatch(/user: this\.cardIdentity\(userId, cand\.user, candD\)/);
+  });
+
+  /**
+   * AND THE ID ON THE CARD IS SEALED TO ONE VIEWER (H3's other half, 31 Aug).
+   *
+   * `cardIdentity` grew a first argument: the viewer. The id it ships is
+   * `sealCardId(viewer, target)` — a different opaque string per viewer, so
+   * `@handle → /users/lookup → id` no longer joins a person's public city
+   * life to their dating profile.
+   *
+   * That makes the viewer argument load-bearing in a way an argument usually
+   * is not: pass the wrong id and the seal still succeeds, still returns a
+   * plausible opaque string, and the card still renders — it is simply
+   * unopenable by the person holding it, or openable by the wrong one. There
+   * is no type that catches it; both are strings. So every call site is
+   * checked here rather than only the one this test was written for.
+   */
+  it('seals every card id to the viewer, at every call site', () => {
+    const calls = svc.match(/this\.cardIdentity\([^)]*\)/g) ?? [];
+    // Three cards ship a person: the discover list, the stack, the detail page.
+    expect(calls.length).toBeGreaterThanOrEqual(3);
+    for (const call of calls) expect(call).toMatch(/^this\.cardIdentity\(userId, /);
+    // And the seal is the viewer's, not a constant somebody wired in once.
+    expect(svc).toMatch(/sealCardId\(this\.cardSecret\(\), viewerId, user\.id\)/);
   });
 });

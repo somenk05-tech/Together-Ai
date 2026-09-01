@@ -768,6 +768,59 @@
    reason the inline object existed. */
 .dt-note strong { font-weight: 600; }
 
+/* ── THE THREE LENSES (owner, 1 Sep) ────────────────────────────────────────
+   Dating / Dating with intention / Marriage — three headings over one pool.
+   The picker on Browse and the "Show me under" tick-list on the profile form.
+
+   CLASSES, NOT INLINE OBJECTS, and for once that is not a style preference:
+   the first draft of this feature wrote thirteen inline style objects and took
+   `size-system-ceiling.mjs` from 6741 to 6754 — a ratchet that was ALREADY
+   over its 6691 by fifty, which is the state that script's own header warns
+   about ("a check that always fails teaches whoever runs it to skim past the
+   next real failure"). Adding to a number in that state is worse than adding
+   to a healthy one. Same lesson as the friction list above, learned again. */
+.lens-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.lens-pick {
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 7px 13px;
+  border-radius: var(--r-full);
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: inherit;
+}
+.lens-pick[aria-pressed='true'] {
+  font-weight: 700;
+  border-color: var(--accent-ink);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+/* Said once, where the lens is chosen: a heading that quietly halves the room
+   is worse than one that explains itself. */
+.lens-note { display: block; margin-top: 7px; }
+.lens-wrap { margin-bottom: 14px; }
+
+/* The tick-list on the profile form. `openTo` is a set — looking for a spouse
+   and willing to date is a real answer the old single dropdown could not give. */
+.lens-list { display: grid; gap: 8px; }
+.lens-opt { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.lens-opt input { margin-top: 3px; }
+.lens-opt b { font-weight: 600; }
+.lens-opt small { display: block; }
+
+/* Three sentences that are all "small print under a control", which is what
+   the class says rather than repeating 11.5/1.5 at each of them. */
+.lens-hint { font-size: 11.5px; line-height: 1.5; }
+.lens-intro { display: block; margin-bottom: 8px; }
+/* No `.lens-label`: the shared `label` object already carries `margin: 14px 0
+   6px`, so a class adding a top margin would be both redundant and losing —
+   an inline shorthand beats a class on the same property. The first draft had
+   `{...label, marginTop: 14}`, which was the same redundancy inline. */
+/* The way back to the control from the room it governs. */
+.lens-opt-link { font-weight: 600; }
+
 /* ── MEDICAL NUTRITION CARDS ────────────────────────────────────────────────
    Three lines the 28 Aug audit added to every recommendation card — what fired
    it, what the score measures, and that none of it is a diagnosis. Classes

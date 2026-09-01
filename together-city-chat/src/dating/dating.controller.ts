@@ -85,6 +85,16 @@ const PROFILE_LIMIT = { default: { ttl: 60_000, limit: 12 } };
 export class DatingController {
   constructor(private readonly dating: DatingService) {}
 
+  /*
+   * EVERY `:targetUserId` A CITIZEN SENDS IS RESOLVED FIRST (fifth audit, H3,
+   * closed 31 Aug). Cards, the stack, the detail page and the chats list hand
+   * the client a SEALED id — opaque, bound to the viewer — and
+   * `resolveTarget` opens it here, or accepts a raw id only for a pair a
+   * DatingMatch row already links. The service methods below keep taking real
+   * ids, so their specs and their reasoning are untouched; the moderator
+   * route keeps raw ids too, because the console names people by them.
+   */
+
   @Get('profile')
   profile(@CurrentUser() user: JwtUser) {
     return this.dating.getProfile(user.sub);
@@ -109,15 +119,15 @@ export class DatingController {
   @Get('discover')
   @Throttle(LIST_LIMIT)
   discover(@CurrentUser() user: JwtUser, @Query() query: Record<string, unknown>) {
-    const { kind, limit } = parseOrThrow(MatchesQuerySchema, query);
-    return this.dating.discover(user.sub, kind, limit);
+    const { kind, limit, intent } = parseOrThrow(MatchesQuerySchema, query);
+    return this.dating.discover(user.sub, kind, limit, kind === 'romantic' ? intent : undefined);
   }
 
   @Get('stack')
   @Throttle(LIST_LIMIT)
   stack(@CurrentUser() user: JwtUser, @Query() query: Record<string, unknown>) {
-    const { kind, limit } = parseOrThrow(MatchesQuerySchema, query);
-    return this.dating.stack(user.sub, kind, limit);
+    const { kind, limit, intent } = parseOrThrow(MatchesQuerySchema, query);
+    return this.dating.stack(user.sub, kind, limit, kind === 'romantic' ? intent : undefined);
   }
 
   @Get('matches/:targetUserId')
@@ -125,20 +135,20 @@ export class DatingController {
   // controller carries LIST_LIMIT; this one — the only read that enumerates
   // individuals rather than a page — was six times looser than all of them.
   @Throttle(LIST_LIMIT)
-  matchDetail(@CurrentUser() user: JwtUser, @Param('targetUserId') targetUserId: string, @Query() query: Record<string, unknown>) {
+  async matchDetail(@CurrentUser() user: JwtUser, @Param('targetUserId') targetUserId: string, @Query() query: Record<string, unknown>) {
     const { kind } = parseOrThrow(MatchesQuerySchema, query);
-    return this.dating.matchDetail(user.sub, targetUserId, kind);
+    return this.dating.matchDetail(user.sub, await this.dating.resolveTarget(user.sub, targetUserId), kind);
   }
 
   @Post('matches/:targetUserId/like')
   @Throttle(DECISION_LIMIT)
-  like(
+  async like(
     @CurrentUser() user: JwtUser,
     @Param('targetUserId') targetUserId: string,
     @Body() body: unknown,
   ) {
     const kind = parseOrThrow(MatchKindSchema.optional().default('romantic'), (body as { kind?: string } | null)?.kind);
-    return this.dating.like(user.sub, targetUserId, kind);
+    return this.dating.like(user.sub, await this.dating.resolveTarget(user.sub, targetUserId), kind);
   }
 
   /**
@@ -164,31 +174,31 @@ export class DatingController {
    */
   @Post('matches/:targetUserId/connect')
   @Throttle(DECISION_LIMIT)
-  connect(
+  async connect(
     @CurrentUser() user: JwtUser,
     @Param('targetUserId') targetUserId: string,
     @Body() body: unknown,
   ) {
     const kind = parseOrThrow(MatchKindSchema.optional().default('romantic'), (body as { kind?: string } | null)?.kind);
-    return this.dating.connect(user.sub, targetUserId, kind);
+    return this.dating.connect(user.sub, await this.dating.resolveTarget(user.sub, targetUserId), kind);
   }
 
   @Post('matches/:targetUserId/unmatch')
   @Throttle(DECISION_LIMIT)
-  unmatch(
+  async unmatch(
     @CurrentUser() user: JwtUser,
     @Param('targetUserId') targetUserId: string,
     @Body() body: unknown,
   ) {
     const kind = parseOrThrow(MatchKindSchema.optional().default('romantic'), (body as { kind?: string } | null)?.kind);
-    return this.dating.unmatch(user.sub, targetUserId, kind);
+    return this.dating.unmatch(user.sub, await this.dating.resolveTarget(user.sub, targetUserId), kind);
   }
 
   // Metered like every other decision on a match: revealing writes a row and,
   // the first time, sends a push. Untethered it was the global 120/min.
   @Throttle(DECISION_LIMIT)
   @Post('matches/:targetUserId/reveal')
-  reveal(
+  async reveal(
     @CurrentUser() user: JwtUser,
     @Param('targetUserId') targetUserId: string,
     @Body() body: unknown,
@@ -197,7 +207,7 @@ export class DatingController {
     // `show` is optional and defaults to true, so an older client that sends
     // only { kind } keeps revealing exactly as it did.
     const show = parseOrThrow(z.boolean().optional().default(true), (body as { show?: boolean } | null)?.show);
-    return this.dating.reveal(user.sub, targetUserId, kind, show);
+    return this.dating.reveal(user.sub, await this.dating.resolveTarget(user.sub, targetUserId), kind, show);
   }
 
   /**
@@ -346,13 +356,13 @@ export class DatingController {
 
   @Post('matches/:targetUserId/pass')
   @Throttle(DECISION_LIMIT)
-  pass(
+  async pass(
     @CurrentUser() user: JwtUser,
     @Param('targetUserId') targetUserId: string,
     @Body() body: unknown,
   ) {
     const kind = parseOrThrow(MatchKindSchema.optional().default('romantic'), (body as { kind?: string } | null)?.kind);
-    return this.dating.pass(user.sub, targetUserId, kind);
+    return this.dating.pass(user.sub, await this.dating.resolveTarget(user.sub, targetUserId), kind);
   }
 
   /**
@@ -408,13 +418,13 @@ export class DatingController {
 
   @Post('matches/:targetUserId/super-like')
   @Throttle(DECISION_LIMIT)
-  superLike(
+  async superLike(
     @CurrentUser() user: JwtUser,
     @Param('targetUserId') targetUserId: string,
     @Body() body: unknown,
   ) {
     const kind = parseOrThrow(MatchKindSchema.optional().default('romantic'), (body as { kind?: string } | null)?.kind);
-    return this.dating.like(user.sub, targetUserId, kind, { superLike: true });
+    return this.dating.like(user.sub, await this.dating.resolveTarget(user.sub, targetUserId), kind, { superLike: true });
   }
 
   /** Give back the most recent pass. Never an unmatch — see undoLastPass. */
@@ -428,24 +438,24 @@ export class DatingController {
   // ─── Safety. Reachable from the match, the profile and the chat (H6). ───
   @Post('matches/:targetUserId/block')
   @Throttle(DECISION_LIMIT)
-  blockMatch(
+  async blockMatch(
     @CurrentUser() user: JwtUser,
     @Param('targetUserId') targetUserId: string,
     @Body() body: unknown,
   ) {
     const kind = parseOrThrow(MatchKindSchema.optional().default('romantic'), (body as { kind?: string } | null)?.kind);
-    return this.dating.blockMatch(user.sub, targetUserId, kind);
+    return this.dating.blockMatch(user.sub, await this.dating.resolveTarget(user.sub, targetUserId), kind);
   }
 
   @Post('matches/:targetUserId/report')
   @Throttle(REPORT_LIMIT)
   @UsePipes(new ZodValidationPipe(ReportMatchSchema))
-  reportMatch(
+  async reportMatch(
     @CurrentUser() user: JwtUser,
     @Param('targetUserId') targetUserId: string,
     @Body() dto: ReportMatchDto,
   ) {
-    return this.dating.reportMatch(user.sub, targetUserId, dto.reason);
+    return this.dating.reportMatch(user.sub, await this.dating.resolveTarget(user.sub, targetUserId), dto.reason);
   }
 
 }

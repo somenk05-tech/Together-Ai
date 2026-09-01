@@ -85,7 +85,14 @@ describe('a room to look in, and a room to keep', () => {
        distinction is the point of the change: a profile OBJECT is not a SAVED
        profile, and browsing on the strength of the first one shows the pool to
        somebody who has not finished introducing themselves. */
-    expect(browse).toMatch(/useDiscover\(kind, isSavedProfile\(profile\.data\), limit\)/);
+    /* And a fourth argument since 1 Sep: the lens (Dating / Dating with
+       intention / Marriage). Three headings over ONE pool — still this
+       endpoint, still every eligible candidate scored, which is why the
+       assertion grew an argument instead of a second call somewhere else. */
+    expect(browse).toMatch(/useDiscover\(kind, isSavedProfile\(profile\.data\), limit, lens\)/);
+    // Undefined by default: a lens chosen for somebody narrows their city on
+    // their behalf, and nobody reports a room that shows fewer people.
+    expect(browse).toMatch(/useState<Intent \| undefined>\(undefined\)/);
     expect(browse).not.toMatch(/useDatingStack/);
     // A page is honest only if the citizen can ask for the next one and can
     // see how much of the city they have seen.

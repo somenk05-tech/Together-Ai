@@ -10,10 +10,26 @@ compatibility_date = "2026-08-01"
 binding = "MEDIA"
 bucket_name = "together-city-private"   # set to MEDIA_PRIVATE_BUCKET's value
 
-# The custom domain. Cloudflare caches this host; the r2.cloudflarestorage.com
-# S3 endpoint is not cached, which is the whole reason for this Worker.
+# THE HOST. A ROUTE, not a Custom Domain, and the difference decides what you
+# have to do before deploying (checked against the docs, 1 Sep):
+#
+#   · A Custom Domain (`custom_domain = true`, a bare hostname, no path) makes
+#     Cloudflare create the DNS record and the certificate for you — and it
+#     CANNOT be created on a hostname that already has a CNAME. If media.
+#     togethercity.tech is already an R2 public-bucket custom domain, that is
+#     a CNAME, and this form would be refused until you disconnected it,
+#     taking every public image down with it.
+#
+#   · A Route (below) attaches to a hostname whose proxied DNS record already
+#     exists, and only for the paths in the pattern. `/m/*` is this Worker;
+#     everything else on the host is untouched.
+#
+# The safe default is a host of its own — cdn.togethercity.tech, proxied,
+# nothing else on it — because then neither question arises. Layering a route
+# over a live R2 custom domain may well work; I could not find that stated in
+# the docs, and an unverified claim is not worth your public media.
 [[routes]]
-pattern = "media.togethercity.tech/m/*"
+pattern = "cdn.togethercity.tech/m/*"
 zone_name = "togethercity.tech"
 custom_domain = false
 

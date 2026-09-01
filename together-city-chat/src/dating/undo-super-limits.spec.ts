@@ -1,4 +1,5 @@
 import { DatingService } from './dating.service';
+import { openCardId } from './card-id';
 import { DAILY_LIKES, DAILY_SUPER_LIKES } from './limits';
 
 /**
@@ -19,6 +20,12 @@ type Row = {
   passedAtOne: Date | null; passedAtTwo: Date | null;
   superByOne: boolean; superByTwo: boolean; conversationId: string | null;
 };
+
+
+/** Ids on the wire are sealed to the viewer since 31 Aug (card-id.ts); the
+ *  assertions below read them back through the service's own key. */
+const unseal = (svc: unknown, viewer: string, token: string) =>
+  openCardId((svc as unknown as { cardSecret(): string }).cardSecret(), viewer, token) ?? token;
 
 const blank = (over: Partial<Row> & { id: string; userOneId: string; userTwoId: string }): Row => ({
   kind: 'romantic', status: 'pending',
@@ -174,7 +181,7 @@ describe('undo the last pass', () => {
     expect(t.rows[0].passedAtOne).toBeInstanceOf(Date);
     const out = await s.undoLastPass(ME, 'romantic');
     expect(out.undone).toBe(true);
-    expect(out.targetUserId).toBe('zz1');
+    expect(unseal(s, ME, out.targetUserId)).toBe('zz1');
     expect(t.rows[0].passedByOne).toBe(false);
     expect(t.rows[0].passedAtOne).toBeNull();
   });
@@ -190,7 +197,7 @@ describe('undo the last pass', () => {
     ]);
     const out = await s.undoLastPass(ME, 'romantic');
     expect(out.undone).toBe(true);
-    expect(out.targetUserId).toBe('aa');
+    expect(unseal(s, ME, out.targetUserId)).toBe('aa');
   });
 
   it('never resurrects an unmatch — that decision had somebody else in it', async () => {

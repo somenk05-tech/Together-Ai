@@ -5,6 +5,19 @@ export const MatchKindSchema = z.enum(['romantic', 'platonic']);
 export type MatchKind = z.infer<typeof MatchKindSchema>;
 
 /**
+ * The lens on the romantic pool: Dating, Dating with intention, Marriage
+ * (owner, 1 Sep). NOT a fourth `kind` — a kind is its own pool with its own
+ * likes and its own chats, and these three share all of that. What a citizen
+ * is open to lives in `extras.openTo`, shaped on the way in by
+ * `shapeExtras`; this is only the question a list read is asking.
+ *
+ * Optional with no default, deliberately. A default would silently narrow
+ * every existing client's list the day this shipped; absent means the whole
+ * pool, which is the answer those clients have always been given.
+ */
+export const IntentSchema = z.enum(['dating', 'intentional', 'marriage']);
+
+/**
  * Create/update the dating profile. Birth details power the astrology-first
  * scoring — and gate the whole hub.
  *
@@ -57,6 +70,10 @@ export const MatchesQuerySchema = z.object({
   kind: MatchKindSchema.default('romantic'),
   /** The best N, after ranking. Absent: the whole list, as before. */
   limit: z.coerce.number().int().min(1).max(500).optional(),
+  /** Which lens. Absent: every lens, which is the list that existed before
+   *  there were any. Only the romantic pool has lenses — a friend is not
+   *  sought with an intention — and the service ignores it for platonic. */
+  intent: IntentSchema.optional(),
 });
 export type MatchesQueryDto = z.infer<typeof MatchesQuerySchema>;
 

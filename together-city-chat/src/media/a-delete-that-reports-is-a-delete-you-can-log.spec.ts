@@ -174,12 +174,36 @@ describe('the cache header comes from the object, because this bucket is R2', ()
   it('is private, because these are private-bucket objects', () => {
     // `public` would let any shared cache between us and the citizen keep a
     // copy of a photograph the bucket is private to prevent exactly that.
+    // Still true of THIS door — see the next test for the one where it is not.
     expect(src()).not.toMatch(/CacheControl: 'public/);
   });
 
-  it('and the edge Worker sets it too, for the path that will carry the traffic', () => {
+  /**
+   * TWO DOORS, TWO ANSWERS (1 Sep). This test used to require the Worker to
+   * repeat the line above verbatim, and that requirement was the bug: the
+   * Cache API refuses to store a response whose Cache-Control tells a shared
+   * cache not to store it — `cache.put` returns 413 — so the edge Worker
+   * built to cache private media was caching nothing at all, silently, inside
+   * a `waitUntil`.
+   *
+   * They differ because they are reached differently. The stored metadata
+   * governs the S3 path, where the URL is presigned per request. The Worker's
+   * response is reached only by presenting a token that is the same string for
+   * every viewer in the window and is checked before the cache is consulted —
+   * so a cache holding it can serve it only to somebody who already holds the
+   * credential. That is what the presigned URL it replaces was too.
+   *
+   * What the Worker may NOT do is outlive the token, which is why the year
+   * went with the word.
+   */
+  it('and the edge Worker answers for its own door, in the window the token has', () => {
     const worker = readFileSync(join(__dirname, '..', '..', '..', 'workers', 'media-edge', 'worker.js'), 'utf8');
-    expect(worker).toContain(`'cache-control', '${POLICY}'`);
+    // Public — or the Cache API stores nothing and the Worker is a cost.
+    expect(worker).toMatch(/'cache-control', `public, max-age=\$\{ttl\}, immutable`/);
+    // And the ttl is what is LEFT of the token, not a constant.
+    expect(worker).toMatch(/const ttl = Math\.max\(0, exp - Math\.floor\(now \/ 1000\)\)/);
+    // The object's own stored policy is untouched, and still private.
+    expect(src()).toContain(`CacheControl: '${POLICY}'`);
   });
 });
 

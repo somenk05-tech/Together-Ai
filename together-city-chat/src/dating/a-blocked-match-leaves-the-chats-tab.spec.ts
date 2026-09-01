@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { DatingService } from './dating.service';
+import { openCardId } from './card-id';
 
 /**
  * ── A BLOCKED MATCH LEAVES THE CHATS TAB (blocker 10) ────────────────────────
@@ -11,6 +12,12 @@ import { DatingService } from './dating.service';
  * last message. This calls the method with one blocked match and one ordinary
  * one, and asserts only the ordinary one survives.
  */
+
+/** Ids on the wire are sealed to the viewer since 31 Aug (card-id.ts); the
+ *  assertions below read them back through the service's own key. */
+const unseal = (svc: unknown, viewer: string, token: string) =>
+  openCardId((svc as unknown as { cardSecret(): string }).cardSecret(), viewer, token) ?? token;
+
 const UPDATED = new Date('2026-07-01T00:00:00Z');
 const match = (otherId: string) => ({
   id: `m-${otherId}`, userOneId: 'me', userTwoId: otherId, kind: 'romantic', status: 'matched',
@@ -47,7 +54,7 @@ describe('a blocked match leaves the chats tab', () => {
   it('drops a match the caller has blocked (or who blocked them)', async () => {
     const { svc } = serviceWith(['blocked']);
     const out = await svc.datingChats('me') as any[];
-    const ids = out.map((r) => r.otherUserId);
+    const ids = out.map((r) => unseal(svc, 'me', r.otherUserId));
     expect(ids).toContain('friend');
     expect(ids).not.toContain('blocked');
   });
@@ -55,7 +62,7 @@ describe('a blocked match leaves the chats tab', () => {
   it('keeps both when nobody is blocked — the filter is off, not always-on', async () => {
     const { svc } = serviceWith([]);
     const out = await svc.datingChats('me') as any[];
-    expect(out.map((r) => r.otherUserId).sort()).toEqual(['blocked', 'friend']);
+    expect(out.map((r) => unseal(svc, 'me', r.otherUserId)).sort()).toEqual(['blocked', 'friend']);
   });
 
   it('actually consulted the block set', async () => {

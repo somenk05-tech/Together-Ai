@@ -133,8 +133,53 @@ describe('the API and the Worker read the same format', () => {
 
   it('answers 404 rather than 403 for a bad token', () => {
     // A 403 tells whoever is holding the string that they found something real.
-    expect(worker).toMatch(/if \(!key\) return new Response\('Not found', \{ status: 404 \}\)/);
+    expect(worker).toMatch(/if \(!claim\) return new Response\('Not found', \{ status: 404 \}\)/);
     expect(worker).not.toMatch(/status: 403/);
+  });
+
+  /**
+   * ── THE HEADER THAT WOULD HAVE MADE THE CACHE A NO-OP (1 Sep) ────────────
+   *
+   * The response the Worker stores said `Cache-Control: private`, over a
+   * comment asserting that Cloudflare's cache is filled by the explicit
+   * `cache.put` "so the two do not fight". They fight. `cache.put` returns
+   * 413 and stores nothing when Cache-Control instructs a shared cache not to
+   * cache, and the put sits inside `waitUntil`, so the refusal is silent:
+   * every request a miss, every photograph read from the bucket again, a
+   * Worker invocation added to the bill for it, and a comment above the line
+   * explaining why that was impossible.
+   *
+   * Nothing was red, and nothing could have been — no test looked at the
+   * header, and the one that verified the token would have passed against a
+   * cache that never held anything. This is that test.
+   */
+  it('stores a response a shared cache is allowed to keep', () => {
+    const stored = worker.slice(worker.indexOf("headers.set('cache-control'"));
+    expect(stored).toMatch(/headers\.set\('cache-control', `public, max-age=\$\{ttl\}, immutable`\)/);
+    // The word, specifically. `private` here is the whole defect.
+    expect(worker).not.toMatch(/'private[^']*'\)/);
+  });
+
+  it('does not hide a refused put inside waitUntil', () => {
+    // A cache write that fails must say so. It was the silence that made the
+    // header above survivable in the first place.
+    expect(worker).toMatch(/cache\.put\(request, res\.clone\(\)\)\.catch\(/);
+  });
+
+  it('answers for its own cache, rather than leaning on cf-cache-status', () => {
+    // `cf-cache-status` is documented for Cloudflare's ordinary cache path;
+    // what the Cache API does with it is not. A deploy checked by grepping for
+    // HIT would have been a deploy checked against a guess — including on the
+    // `workers.dev` URL, where the Cache API does not work at all.
+    expect(worker).toMatch(/x-tc-cache', 'hit'/);
+    expect(worker).toMatch(/x-tc-cache', 'miss'/);
+  });
+
+  it('never caches a range response, which the Cache API refuses outright', () => {
+    // `cache.put` throws on a 206. It is also simply wrong — a 206 is one
+    // reader's window, not the object.
+    expect(worker).toMatch(/if \(!ranged\) \{/);
+    expect(worker).toMatch(/status: ranged \? 206 : 200/);
   });
 });
 
@@ -167,7 +212,7 @@ describe('the Worker\'s own code reads a token this API minted', () => {
 
   it('accepts a token the API minted', async () => {
     const t = mintCacheableMediaToken(SECRET, KEY, 3600, Date.now());
-    await expect(workerRead(SECRET, t, Date.now())).resolves.toBe(KEY);
+    await expect(workerRead(SECRET, t, Date.now())).resolves.toMatchObject({ key: KEY });
   });
 
   it('rejects an expired one', async () => {

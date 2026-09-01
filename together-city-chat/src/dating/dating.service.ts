@@ -21,7 +21,7 @@ import { RedisService } from '../shared/redis/redis.service';
 import { QueueService } from '../shared/queue/queue.service';
 import { compatibilityScore, zodiacSign } from './astrology';
 import {
-  canonicalGoal, coarseCoords, confidenceFor, coverage, curatedBar, distanceNote, explain, factorScores, frictions, matchAlertBody, matchAlertReason, overallScore, preferenceNotes, sharedItems, seeks, shownName, type DXProfile, type FactorBreakdown, unreachableReason,
+  canonicalGoal, coarseCoords, confidenceFor, coverage, curatedBar, distanceNote, explain, factorScores, frictions, matchAlertBody, matchAlertReason, overallScore, preferenceNotes, sharedItems, seeks, shownName, underLens, type DXProfile, type FactorBreakdown, intentsOf, type Intent, unreachableReason,
 } from './matching';
 import { carrySelfie, selfieOnFile, selfieTakenAt, SELFIE_KEY, SELFIE_AT } from './selfie';
 import { UNDER_AGE_MESSAGE, ageOn, floorAgePreferences, isAdult } from '../shared/age';
@@ -32,6 +32,9 @@ import { DAILY_LIKES, DAILY_SUPER_LIKES, likeLimitMessage, superLimitMessage } f
 import { decide, type Check, type ModerationResult } from '../realestate/moderation';
 import { scanBio } from './bio-scan';
 import { shapeExtras, shownText } from './extras-shape';
+import { isSealedCardId, openCardId, sealCardId } from './card-id';
+import { randomBytes } from 'crypto';
+import { ConfigService } from '@nestjs/config';
 import { nickname } from '../shared/nickname';
 import { ChatEventBus } from '../shared/events/chat-events';
 import type { MatchKind, UpsertDatingProfileDto } from './dto/dating.dto';
@@ -187,7 +190,54 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
        constructed by hand in a dozen specs, and a bus that is not there must
        cost a socket frame rather than a test suite. */
     private readonly bus?: ChatEventBus,
+    /* Optional for the same reason: the access secret behind sealed card ids
+       is read through it when Nest constructs this; a spec that builds the
+       service by hand gets a per-process random key instead, so its tokens
+       are just as opaque and nothing fails open. See `cardSecret`. */
+    private readonly config?: ConfigService,
   ) {}
+
+  /**
+   * THE KEY THE CARD IDS ARE SEALED WITH. `jwt.accessSecret` under Nest
+   * (domain-separated inside card-id.ts, so it is never used as itself);
+   * absent — only ever in a hand-built spec — a random key that lives as
+   * long as this process, which keeps every token opaque and unforgeable
+   * without a secret to leak. Never a constant: a known fallback key would
+   * be a way to unseal every card in any deployment that forgot the secret,
+   * and production refuses to boot without one anyway (STRICT_PROD_CONFIG).
+   */
+  private processCardKey: string | null = null;
+  private cardSecret(): string {
+    const configured = this.config?.get<string>('jwt.accessSecret');
+    if (configured) return configured;
+    if (!this.processCardKey) this.processCardKey = randomBytes(32).toString('base64url');
+    return this.processCardKey;
+  }
+
+  /**
+   * THE REAL ID BEHIND WHAT A ROUTE WAS HANDED (fifth audit, H3, closed).
+   *
+   * Every `:targetUserId` route resolves through here before the service
+   * sees an id. A sealed card id opens for the viewer it was minted for and
+   * nobody else. A RAW id is accepted only when a `DatingMatch` row already
+   * links the pair: a matched pair already shares real ids inside their chat,
+   * and notification links written before the seal keep working — while a
+   * raw id for a stranger (`@handle → /users/lookup → id`) is the hub's
+   * uniform 404, exactly as if the profile did not exist. Which, to this
+   * viewer, it does not.
+   */
+  async resolveTarget(viewerId: string, param: string): Promise<string> {
+    if (isSealedCardId(param)) {
+      const opened = openCardId(this.cardSecret(), viewerId, param);
+      if (!opened) throw new NotFoundException('This profile is not available.');
+      return opened;
+    }
+    if (param === viewerId) return param; // "That is you." is the writers' own answer
+    const [userOneId, userTwoId] = [viewerId, param].sort();
+    const known = await this.prisma.datingMatch.findFirst({ where: { userOneId, userTwoId }, select: { id: true } });
+    if (!known) throw new NotFoundException('This profile is not available.');
+    return param;
+  }
 
   /**
    * The three pieces of deferred work this hub owns, as durable jobs. Each
@@ -325,16 +375,20 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
    * A SHORT CACHE ON THE THREE LIST READS. Each one scores up to POOL_CEILING
    * profiles for one viewer; a citizen pulling to refresh, or two tabs, or the
    * 30-second poll on the Curated page, was that scan again every time. The
-   * answer is kept for LIST_CACHE_SEC per viewer, kind and page, and thrown
+   * answer is kept for LIST_CACHE_SEC per viewer, SCOPE and page, and thrown
    * away the moment anything that changes it happens to THIS viewer — a like,
    * a pass, a connect, a profile save — by bumping their version. Other
    * people's saves reach them within the TTL, which is what the reindex
    * notifier is for anyway. Redis down: no cache, the scan as before.
    */
-  private async cachedList<T>(userId: string, name: string, kind: string, limit: number | undefined, compute: () => Promise<T>): Promise<T> {
+  /* `scope` was `kind` until the lenses arrived (1 Sep). It is the kind AND
+     the lens now, because two lenses over one pool are two different answers
+     for one viewer — a key that named only the kind would have served the
+     marriage list to somebody browsing casually for the length of the TTL. */
+  private async cachedList<T>(userId: string, name: string, scope: string, limit: number | undefined, compute: () => Promise<T>): Promise<T> {
     if (!this.redis?.up) return compute();
     const v = (await swallow(this.redis.raw.get(`dating:listv:${userId}`), 'dating: list cache version')) ?? '0';
-    const key = `dating:list:${userId}:${v}:${name}:${kind}:${limit ?? 'all'}`;
+    const key = `dating:list:${userId}:${v}:${name}:${scope}:${limit ?? 'all'}`;
     const hit = await swallow(this.redis.raw.get(key), 'dating: list cache read');
     if (hit) { try { return JSON.parse(hit) as T; } catch { /* recompute */ } }
     const out = await compute();
@@ -536,7 +590,26 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     // rather than the expiring URLs it was shown. Two fields, on purpose:
     // one is the record, the other is this minute's way to look at it.
     const stored = this.storedPhotos(profile.extras);
-    return { ...shaped, photoUrls: await this.photoUrlsAligned(userId, stored), photoReview: await this.photoMod.statusOf(stored) };
+    /**
+     * `openTo` ANSWERED HERE RATHER THAN WORKED OUT ON THE CLIENT (1 Sep).
+     *
+     * The form has to tick the boxes a citizen is already under, and until
+     * they touch the control that answer is derived from their stated goal
+     * along GOAL_ORDER. Deriving it in the web app too would put the goal
+     * vocabulary in a second place — which is precisely the defect the note
+     * above GOAL_ALIASES exists for: six served labels, one of which the
+     * engine's own copy could parse, and tests that passed against a
+     * vocabulary production never sent.
+     *
+     * So the ladder stays in one file and this is its answer. `extras.openTo`
+     * is still the stored record and still absent until they choose; this is
+     * what they are under right now, which is a different question.
+     */
+    const effective = intentsOf(this.parseDX(profile.extras) as DXProfile);
+    return {
+      ...shaped, openTo: effective,
+      photoUrls: await this.photoUrlsAligned(userId, stored), photoReview: await this.photoMod.statusOf(stored),
+    };
   }
 
   /** A prefill object (no saved profile yet) built from the Master Profile —
@@ -1345,11 +1418,12 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
    * we only relax the GLOBAL bar. (The per-candidate threshold-visibility
    * opt-in was removed at the owner's word, 27 Aug.)
    */
-  async discover(userId: string, kind: MatchKind, limit?: number) {
-    return this.cachedList(userId, 'discover', kind, limit, () => this.discoverUncached(userId, kind, limit));
+  async discover(userId: string, kind: MatchKind, limit?: number, lens?: Intent) {
+    return this.cachedList(userId, 'discover', `${kind}:${lens ?? 'all'}`, limit,
+      () => this.discoverUncached(userId, kind, limit, lens));
   }
 
-  private async discoverUncached(userId: string, kind: MatchKind, limit?: number) {
+  private async discoverUncached(userId: string, kind: MatchKind, limit?: number, lens?: Intent) {
     const mine = await this.myApprovedProfile(userId);
 
     // Narrowed, capped and ordered — see POOL_CEILING.
@@ -1399,6 +1473,20 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
         // used to skip this, so `?kind=platonic` was a door past everyone's
         // age range, distance and deal-breakers into a mode nobody opted into.
         if (unreachableReason(myD, theirD, this.ageOf(mine.birthDate), theirAge)) continue;
+      /**
+       * THE LENS, ASKED OF BOTH OF YOU (owner, 1 Sep).
+       *
+       * "Dating", "Dating with intention" and "Marriage" are three views of
+       * ONE pool — same likes, same allowance, same chats — so this is the
+       * only thing that separates them, and it has to hold on both sides.
+       * Filtering only the candidate would put somebody who is here for
+       * marriage in front of a person browsing casually, which is the door
+       * locked from the other side that `unreachableReason` two lines up
+       * exists to stop, and the same shape as the `?kind=platonic` hole H3
+       * closed. Absent lens = the unfiltered list, exactly as before, which
+       * is where a citizen who has never said what they want still appears.
+       */
+      if (lens && (!underLens(myD, lens) || !underLens(theirD, lens))) continue;
       }
 
       const { score: astro, signA, signB } = compatibilityScore(
@@ -1424,7 +1512,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       scored.push({
         card: {
           matchId: state?.id ?? null,
-          user: this.cardIdentity(cand.user, candDX),
+          user: this.cardIdentity(userId, cand.user, candDX),
           bio: cand.bio,
           interests: theirInterests,
           photos,
@@ -1680,11 +1768,12 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
   // with the batched read above; the try/catch-the-whole-access reasoning it
   // carried (a missing delegate throws synchronously) moved with it.
 
-  async stack(userId: string, kind: MatchKind, limit?: number) {
-    return this.cachedList(userId, 'stack', kind, limit, () => this.stackUncached(userId, kind, limit));
+  async stack(userId: string, kind: MatchKind, limit?: number, lens?: Intent) {
+    return this.cachedList(userId, 'stack', `${kind}:${lens ?? 'all'}`, limit,
+      () => this.stackUncached(userId, kind, limit, lens));
   }
 
-  private async stackUncached(userId: string, kind: MatchKind, limit?: number) {
+  private async stackUncached(userId: string, kind: MatchKind, limit?: number, lens?: Intent) {
     const mine = await this.myApprovedProfile(userId);
 
     // What this citizen's own choices have earned. Below the evidence bar this
@@ -1792,6 +1881,25 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
         // offering a door that is locked from the other side. In both kinds
         // since 31 Aug (H3) — see discoverUncached.
         if (unreachableReason(myD, theirD, this.ageOf(mine.birthDate), theirAge)) continue;
+      /**
+       * THE LENS, ASKED OF BOTH OF YOU (owner, 1 Sep).
+       *
+       * "Dating", "Dating with intention" and "Marriage" are three views of
+       * ONE pool — same likes, same allowance, same chats — so this is the
+       * only thing that separates them, and it has to hold on both sides.
+       * Filtering only the candidate would put somebody who is here for
+       * marriage in front of a person browsing casually, which is the door
+       * locked from the other side that `unreachableReason` two lines up
+       * exists to stop, and the same shape as the `?kind=platonic` hole H3
+       * closed. Absent lens = the unfiltered list, exactly as before, which
+       * is where a citizen who has never said what they want still appears.
+       *
+       * INSIDE `!isMatched`, with the rest of them. A lens is a discovery
+       * filter, and a discovery filter must never un-show a partner you have
+       * already matched — somebody who reopens themselves to marriage after
+       * you matched casually does not disappear out of your list.
+       */
+      if (lens && (!underLens(myD, lens) || !underLens(theirD, lens))) continue;
       }
 
       const { score: astro, signA, signB } = compatibilityScore(
@@ -1875,7 +1983,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       const card = {
         matchId: state?.id ?? null,
         // Same rule as matches(): the chosen name or nothing bespoke at all.
-        user: this.cardIdentity(cand.user, candDX),
+        user: this.cardIdentity(userId, cand.user, candDX),
         bio: cand.bio,
         interests: theirInterests,
         photos,
@@ -2087,7 +2195,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       // harmless: it sat in the JSON, and a display name somebody picked so
       // strangers would not learn their real one was defeated at the exact
       // surface that matters most. Same shaping function as every card now.
-      user: this.cardIdentity(cand.user, candD),
+      user: this.cardIdentity(userId, cand.user, candD),
       name: shownName(candD, cand.user.name),
       age: theirAge,
       gender: cand.gender,
@@ -2488,15 +2596,22 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
    * A dating profile is a deliberate, separate presentation of yourself. The
    * handle is the city's primary key for a person; it has no business on a
    * card shown to strangers, and neither does the photo the whole city knows
-   * them by. `id` stays — it is how the client opens matchDetail and it is
-   * opaque — and the name is the profile's chosen one.
+   * them by. The name is the profile's chosen one.
+   *
+   * AND THE ID IS SEALED (fifth audit, H3, closed 31 Aug). "id stays — it is
+   * opaque" was written here and was not true: it was the city's primary
+   * key, so `@handle → /users/lookup → id → this hub` joined a person's
+   * public life to their dating profile, and a card's id resolved straight
+   * back. The id a card carries is now `sealCardId(viewer, target)` — a
+   * different opaque string for every viewer, useless to any other, and
+   * opened only by `resolveTarget` at the routes. See card-id.ts.
    *
    * `nothing-links-the-card-to-the-city.spec.ts` fails if handle or
    * profileImage appear anywhere in this module again. The orientation sweep
    * exists for the same reason with sharper stakes; this is the general case.
    */
-  private cardIdentity(user: { id: string; name: string }, dx: { firstName?: string }): { id: string; name: string } {
-    return { id: user.id, name: shownName(dx, user.name) };
+  private cardIdentity(viewerId: string, user: { id: string; name: string }, dx: { firstName?: string }): { id: string; name: string } {
+    return { id: sealCardId(this.cardSecret(), viewerId, user.id), name: shownName(dx, user.name) };
   }
 
   /**
@@ -2830,7 +2945,8 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     });
     return {
       undone: true as const,
-      targetUserId: targetId,
+      // Sealed like every other id this hub hands the client (31 Aug).
+      targetUserId: sealCardId(this.cardSecret(), userId, targetId),
       theyLiked,
     };
   }
@@ -3576,7 +3692,9 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
         conversationId: m.conversationId,
         /** True while the match exists but the chat has not been opened yet. */
         pending: !m.conversationId,
-        otherUserId: otherId,
+        // Sealed like every card's id (31 Aug): the chat row is where reveal,
+        // unmatch, block and "view profile" get their target from.
+        otherUserId: sealCardId(this.cardSecret(), userId, otherId),
         // ONE identity, the profile's. The Matches page shows every visible
         // candidate's first name and photos to anyone browsing — a pseudonym
         // AFTER two people matched protected nothing, and read as the person

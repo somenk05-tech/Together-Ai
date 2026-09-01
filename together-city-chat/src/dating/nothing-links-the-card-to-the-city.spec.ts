@@ -32,8 +32,10 @@ describe('nothing links the card to the city', () => {
   });
 
   it('one function owns the identity a card carries: id and chosen name', () => {
-    expect(svc).toMatch(/private cardIdentity\(user: \{ id: string; name: string \}/);
-    expect(svc).toMatch(/return \{ id: user\.id, name: shownName\(dx, user\.name\) \};/);
+    // Since 31 Aug the id is SEALED to the viewer (card-id.ts) — see
+    // the-door-opens-only-for-the-viewer.spec.ts for what that holds.
+    expect(svc).toMatch(/private cardIdentity\(viewerId: string, user: \{ id: string; name: string \}/);
+    expect(svc).toMatch(/return \{ id: sealCardId\(this\.cardSecret\(\), viewerId, user\.id\), name: shownName\(dx, user\.name\) \};/);
     // and every card shape goes through it rather than spreading cand.user
     expect(svc).not.toMatch(/user: \{ \.\.\.cand\.user/);
   });

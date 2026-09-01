@@ -4,6 +4,30 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tansta
 /** Dating domain types — mirror the NestJS dating module DTOs. */
 export type MatchKind = 'romantic' | 'platonic';
 
+/**
+ * THE THREE LENSES (owner, 1 Sep). One pool, three ways of looking at it —
+ * the likes, the daily allowance and the chats are shared, and the lens only
+ * decides who a list is willing to show. NOT a `kind`: a kind is its own pool
+ * with its own chats, and these three are not that.
+ *
+ * `undefined` is the whole pool, which is the list this app asked for before
+ * the lenses existed. Nothing here defaults to one — a default would narrow
+ * every screen the day it shipped.
+ */
+export const INTENTS = ['dating', 'intentional', 'marriage'] as const;
+export type Intent = (typeof INTENTS)[number];
+export const INTENT_LABELS: Record<Intent, string> = {
+  dating: 'Dating',
+  intentional: 'Dating with intention',
+  marriage: 'Marriage',
+};
+/** What each one means, said once, where a citizen chooses it. */
+export const INTENT_NOTES: Record<Intent, string> = {
+  dating: 'Meeting people, seeing what happens.',
+  intentional: 'Dating to find a relationship, not to pass the time.',
+  marriage: 'Looking for a spouse.',
+};
+
 export type Visibility = 'everyone' | 'threshold' | 'paused' | 'hidden';
 
 export interface CompletionSuggestion { key: string; label: string; weight: number }
@@ -27,6 +51,13 @@ export interface DatingProfile {
    *  extras blob it just posted. Neither may be written through a save. */
   selfieOnFile?: boolean;
   selfieAt?: string | null;
+  /** SERVER-DERIVED TOO, and for the same reason (1 Sep): which lenses this
+   *  profile is under right now. Until the citizen uses the control it is read
+   *  off their relationship goal along a ladder that lives in one file on the
+   *  server, so the form ticks boxes rather than re-deriving them here from a
+   *  second copy of the goal vocabulary. `extras.openTo` stays the record of
+   *  what they CHOSE; this is what they are under. */
+  openTo?: Intent[];
   completion?: ProfileCompletion;
   extras: string | null;
   /**
@@ -196,7 +227,7 @@ export const datingApi = {
    *  server writes the mark. See the API's selfie.ts. */
   saveSelfie: (key: string) => api.post<{ selfieOnFile: true; selfieAt: string }>('/dating/selfie', { key }).then((r) => r.data),
   clearSelfie: () => api.delete<{ selfieOnFile: false; selfieAt: null }>('/dating/selfie').then((r) => r.data),
-  discover: (kind: MatchKind, limit?: number) => api.get<DiscoverResult>('/dating/discover', { params: { kind, limit } }).then((r) => r.data),
+  discover: (kind: MatchKind, limit?: number, intent?: Intent) => api.get<DiscoverResult>('/dating/discover', { params: { kind, limit, intent } }).then((r) => r.data),
   matchDetail: (targetUserId: string, kind: MatchKind) => api.get<MatchDetail>(`/dating/matches/${targetUserId}`, { params: { kind } }).then((r) => r.data),
   like: (targetUserId: string, kind: MatchKind) =>
     api.post<{ matched: boolean; conversationId: string | null; chatLocked: boolean; matchId: string }>(`/dating/matches/${targetUserId}/like`, { kind }).then((r) => r.data),
@@ -215,7 +246,7 @@ export const datingApi = {
   pass: (targetUserId: string, kind: MatchKind) =>
     api.post<{ ok: boolean }>(`/dating/matches/${targetUserId}/pass`, { kind }).then((r) => r.data),
   chats: () => api.get<DatingChatSummary[]>('/dating/chats').then((r) => r.data),
-  stack: (kind: MatchKind, limit?: number) => api.get<DatingStack>('/dating/stack', { params: { kind, limit } }).then((r) => r.data),
+  stack: (kind: MatchKind, limit?: number, intent?: Intent) => api.get<DatingStack>('/dating/stack', { params: { kind, limit, intent } }).then((r) => r.data),
   blockMatch: (targetUserId: string, kind: MatchKind) =>
     api.post<{ blocked: true }>(`/dating/matches/${targetUserId}/block`, { kind }).then((r) => r.data),
   reportMatch: (targetUserId: string, kind: MatchKind, reason?: string) =>
@@ -370,10 +401,13 @@ export function useDeleteDatingProfile() {
 }
 /** A page of the ranked pool. `limit` grows when the citizen asks for more;
  *  the previous page stays on screen while the next one loads. */
-export function useDiscover(kind: MatchKind, enabled = true, limit?: number) {
+export function useDiscover(kind: MatchKind, enabled = true, limit?: number, intent?: Intent) {
   return useQuery({
-    queryKey: ['dating', 'discover', kind, limit ?? 'all'],
-    queryFn: () => datingApi.discover(kind, limit),
+    // The lens is IN THE KEY. Two lenses are two different answers for one
+    // viewer, and a key that left it out would show the marriage list under
+    // the dating heading until something else happened to invalidate it.
+    queryKey: ['dating', 'discover', kind, limit ?? 'all', intent ?? 'all'],
+    queryFn: () => datingApi.discover(kind, limit, intent),
     enabled,
     placeholderData: (prev) => prev,
   });
@@ -509,8 +543,9 @@ export function useUnmatch(kind: MatchKind) {
 export function useDatingChats(refetchInterval = 15_000) {
   return useQuery({ queryKey: ['dating', 'chats'], queryFn: () => datingApi.chats(), refetchInterval });
 }
-export function useDatingStack(kind: MatchKind, enabled = true, limit?: number) {
-  return useQuery({ queryKey: ['dating', 'stack', kind, limit ?? 'all'], queryFn: () => datingApi.stack(kind, limit), enabled, refetchInterval: 30_000 });
+export function useDatingStack(kind: MatchKind, enabled = true, limit?: number, intent?: Intent) {
+  // The lens is in the key here for the same reason as useDiscover above.
+  return useQuery({ queryKey: ['dating', 'stack', kind, limit ?? 'all', intent ?? 'all'], queryFn: () => datingApi.stack(kind, limit, intent), enabled, refetchInterval: 30_000 });
 }
 export function useDatingAdminStats() {
   return useQuery({ queryKey: ['dating', 'admin', 'stats'], queryFn: () => datingApi.adminStats(), retry: false });

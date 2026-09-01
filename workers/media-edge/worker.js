@@ -29,9 +29,18 @@
  *   1. wrangler.toml here binds MEDIA (your PRIVATE bucket) and the route.
  *   2. `wrangler secret put LINK_SECRET`  — the SAME value as the API's
  *      JWT_ACCESS_SECRET. The API derives the media key from it; so does this.
- *   3. Point the custom domain at this Worker, then set MEDIA_CDN_BASE on the
- *      API to that origin. Until you do, the API keeps minting presigned URLs
- *      and nothing changes — see `postMediaUrl` in storage.provider.ts.
+ *   3. Point the host at this Worker, then set MEDIA_CDN_BASE on the API to
+ *      that origin. Until you do, the API keeps minting presigned URLs and
+ *      nothing changes — see `postMediaUrl` in storage.provider.ts.
+ *
+ * DO NOT turn on Tiered Cache for this host expecting it to help: `cache.put`
+ * is documented as incompatible with tiered caching. Cloudflare's own advice
+ * to pair Smart Tiered Cache with R2 is for a PUBLIC bucket served straight
+ * off a custom domain, where the edge fetches over the network and there is an
+ * upper tier to put near the bucket. This Worker reads through an R2 BINDING
+ * and stores what it read itself, so there is no fetch for a tier to sit in
+ * front of. Advice for a neighbouring architecture, which is how the first
+ * draft of this file ended up recommending CloudFront on Cloudflare.
  *
  * Leave the bucket PRIVATE. This Worker is the only public door, and it opens
  * only for a token this app signed.
@@ -77,7 +86,14 @@ function sameBytes(a, b) {
   return diff === 0;
 }
 
-/** The key a token names, or null — one answer for every kind of failure. */
+/**
+ * The key a token names AND when it stops naming it, or null — one answer for
+ * every kind of failure.
+ *
+ * The expiry is returned because the cache lifetime is derived from it. A
+ * fixed year would have been a claim about a URL that stops working in an
+ * hour, and a cache is entitled to believe it.
+ */
 async function readToken(secret, token, nowMs) {
   if (typeof token !== 'string') return null;
   const cut = token.lastIndexOf(SEP);
@@ -90,7 +106,7 @@ async function readToken(secret, token, nowMs) {
     const claim = JSON.parse(new TextDecoder().decode(fromB64Url(body)));
     if (typeof claim.k !== 'string' || typeof claim.e !== 'number') return null;
     if (claim.e * 1000 <= nowMs) return null;
-    return claim.k;
+    return { key: claim.k, exp: claim.e };
   } catch {
     return null;
   }
@@ -107,10 +123,12 @@ export default {
     const token = decodeURIComponent(url.pathname.replace(/^\/m\//, ''));
     if (!token || token === url.pathname) return new Response('Not found', { status: 404 });
 
-    const key = await readToken(env.LINK_SECRET, token, Date.now());
+    const now = Date.now();
+    const claim = await readToken(env.LINK_SECRET, token, now);
     // 404, never 403: a link that says "this exists but you may not have it"
     // tells whoever is holding the string that they found something.
-    if (!key) return new Response('Not found', { status: 404 });
+    if (!claim) return new Response('Not found', { status: 404 });
+    const { key, exp } = claim;
 
     /* THE CACHE KEY IS THE TOKEN, and that is safe BECAUSE the token is the
        same string for every viewer inside the window (see media-link.ts). A
@@ -118,7 +136,17 @@ export default {
        cache doing nothing at a cost. */
     const cache = caches.default;
     const hit = await cache.match(request);
-    if (hit) return hit;
+    if (hit) {
+      /* SAID OUT LOUD, because nothing else says it. `cf-cache-status` is
+         documented for Cloudflare's ordinary cache path, and the Cache API's
+         behaviour for that header is not — so a deploy verified by looking for
+         `cf-cache-status: HIT` is a deploy verified against a guess. This
+         header is the Worker's own answer about its own cache, which is the
+         only thing here that actually knows. */
+      const seen = new Response(hit.body, hit);
+      seen.headers.set('x-tc-cache', 'hit');
+      return seen;
+    }
 
     const object = await env.MEDIA.get(key, {
       range: request.headers.get('range') ?? undefined,
@@ -128,12 +156,40 @@ export default {
     const headers = new Headers();
     object.writeHttpMetadata(headers);
     headers.set('etag', object.httpEtag);
-    /* A YEAR, PRIVATE, IMMUTABLE. The key is a uuid written once and never
-       rewritten — a changed photograph is a new key — so `immutable` is a fact
-       here rather than a hope. `private` keeps it out of any shared proxy
-       between us and the citizen; Cloudflare's own cache is populated by the
-       explicit put below rather than by this header, so the two do not fight. */
-    headers.set('cache-control', 'private, max-age=31536000, immutable');
+    /* PUBLIC, AND ONLY UNTIL THE TOKEN DIES. (Corrected 1 Sep, against the
+       docs rather than against my memory of them.)
+       
+       It said `private, max-age=31536000`, over a comment claiming that
+       Cloudflare's cache is filled by the explicit `cache.put` below "so the
+       two do not fight". They fight. `cache.put` returns 413 and stores
+       NOTHING when Cache-Control instructs a shared cache not to cache, and
+       `private` is exactly that instruction. The put sits in `waitUntil`, so
+       the refusal would have been silent: every request a miss, every
+       photograph read from the bucket again, a Worker invocation added to the
+       bill for it, and a comment above the line explaining why that could not
+       be happening.
+
+       `public` here does not widen who may see a photograph, and the spec that
+       argued it would (`is private, because these are private-bucket objects`)
+       is right about the OTHER door. Two doors, two answers:
+
+         · The object's stored Cache-Control, written by putPrivateObject, is
+           `private` and stays `private`. That governs the S3 path, where the
+           URL is presigned per request and a shared cache keeping it would be
+           keeping something not everyone holding the URL may have.
+         · This response is reached only by presenting a token — the same
+           string for every viewer inside the window, checked BEFORE the cache
+           is consulted. A proxy that stores it can serve it only to somebody
+           presenting that same token, which is somebody who already has the
+           credential. That is exactly what the presigned URL this replaces
+           was: a bearer link, cacheable by whoever holds it.
+
+       The year had to go with it. `max-age` is now what is LEFT of the token,
+       so no cache anywhere outlives the URL's own validity — which a year on
+       an hour-long token invited it to do. `immutable` stays true: the key is
+       a uuid written once, and a changed photograph is a new key. */
+    const ttl = Math.max(0, exp - Math.floor(now / 1000));
+    headers.set('cache-control', `public, max-age=${ttl}, immutable`);
     // A range request answers 206 and must not be cached as if it were whole.
     const ranged = object.range !== undefined && request.headers.has('range');
     if (ranged) {
@@ -141,9 +197,20 @@ export default {
     }
     headers.set('accept-ranges', 'bytes');
 
+    headers.set('x-tc-cache', 'miss');
     const res = new Response(object.body, { status: ranged ? 206 : 200, headers });
-    // Only whole responses go in the edge cache; a 206 is one reader's window.
-    if (!ranged) ctx.waitUntil(cache.put(request, res.clone()));
+    /* Only whole responses go in the edge cache; a 206 is one reader's window,
+       and `cache.put` throws on one outright. A rejected put is otherwise
+       invisible in `waitUntil` — see the Cache-Control note above for what
+       that hid — so a failure says so in the log rather than turning into a
+       cache that is quietly always cold. */
+    if (!ranged) {
+      ctx.waitUntil(
+        cache.put(request, res.clone()).catch((err) => {
+          console.error('media-edge: cache.put refused', key, String(err));
+        }),
+      );
+    }
     return res;
   },
 };

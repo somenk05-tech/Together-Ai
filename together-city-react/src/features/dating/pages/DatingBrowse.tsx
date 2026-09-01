@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { isSavedProfile, useDatingProfile, useDiscover, type CuratedMatch, type DiscoverSection, type MatchKind } from '../api';
+import { isSavedProfile, useDatingProfile, useDiscover, INTENTS, INTENT_LABELS, type CuratedMatch, type DiscoverSection, type Intent, type MatchKind } from '../api';
 import { MatchCard, Distribution, UndoAndAllowance } from '../components/MatchCards';
 import { ReadFailure } from '../components/ReadFailure';
 import { bandsOf, byCategory } from '../bands';
@@ -76,7 +76,20 @@ export function DatingBrowse() {
   // `isSavedProfile`, not `Boolean(...)`: the read returns a truthy prefill
   // for anyone with no dating row, and asking for matches on its strength is
   // a guaranteed 404 dressed as a network error. (Fifth audit, B2.)
-  const discover = useDiscover(kind, isSavedProfile(profile.data), limit);
+  /* ── THE LENS (owner, 1 Sep) ──────────────────────────────────────────────
+     Dating, Dating with intention, Marriage: three headings over ONE pool.
+     `undefined` is everyone, and it is the default deliberately — a lens
+     chosen for somebody narrows their city on their behalf, and nobody
+     reports a room that shows fewer people.
+
+     Only lenses this citizen is themselves under are offered, because a lens
+     is asked of BOTH sides: picking one they are not on returns an empty room
+     every time, which is a door drawn on a wall. Which ones those are is the
+     server's answer (`profile.openTo`) — the goal ladder that derives it lives
+     in one file, and it is not this one. */
+  const [lens, setLens] = useState<Intent | undefined>(undefined);
+  const mine = profile.data?.openTo ?? [];
+  const discover = useDiscover(kind, isSavedProfile(profile.data), limit, lens);
 
   /**
    * ONE PERSON, ONCE. `discover()` fills its sections through a shared `used`
@@ -161,6 +174,28 @@ export function DatingBrowse() {
   return (
     <div>
       <UndoAndAllowance kind={kind} />
+
+      {mine.length > 0 && (
+        <div className="lens-wrap">
+          <div role="group" aria-label="Show me" className="lens-row">
+            {[undefined, ...INTENTS.filter((i) => mine.includes(i))].map((i) => (
+              <button
+                key={i ?? 'all'} type="button" aria-pressed={lens === i} className="lens-pick"
+                onClick={() => { setLens(i); setLimit(BROWSE_PAGE); }}
+              >
+                {i ? INTENT_LABELS[i] : 'Everyone'}
+              </button>
+            ))}
+          </div>
+          <span className="muted lens-hint lens-note">
+            {lens
+              ? `People here for ${INTENT_LABELS[lens].toLowerCase()}, who are also seeing you under it.`
+              : 'Everyone your settings allow. Pick a heading to narrow it.'}
+            {' '}
+            <Link to="/matchmaking/profile" className="lens-opt-link">Change which you appear under →</Link>
+          </span>
+        </div>
+      )}
 
       {/* THE ROOM NEXT DOOR, NAMED ON THE WAY IN. The journey the owner asked
           for is browse here → both choose → they are in Curated Matches, and a
