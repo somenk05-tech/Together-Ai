@@ -17,6 +17,10 @@ import { fileURLToPath } from 'node:url';
  * The second half of the same defect: three deal-breaker chips rendered UNTICKED
  * while matching.ts had them filtering, because answering the matching field is
  * what turns them on. The rule stands; the form now agrees with it.
+ *
+ * They are drawn ON, and since 1 Sep they are also switches: unticking one
+ * writes `-<label>`, which the engine reads as "score it, do not hide anybody
+ * over it". Nobody has to delete an honest answer to stop it being a wall.
  */
 const read = (p: string) => readFileSync(fileURLToPath(new URL(p, import.meta.url)), 'utf8');
 const api = read('./api.ts');
@@ -40,22 +44,38 @@ describe('an empty room has two causes', () => {
     expect(browse).toMatch(/New residents appear here the day they join/);
   });
 
-  it('draws the three core filters as the boundaries they are', () => {
+  it('draws the three core filters as on by default', () => {
     expect(profile).toMatch(/const coreFilterOn: Record<string, string> = \{/);
     for (const k of ['Marriage Intentions', 'Wants Children', 'Diet']) {
       expect(profile).toContain(k);
     }
-    expect(profile).toMatch(/locked=\{Boolean\(core\)\}/);
-    expect(profile).toMatch(/clear the answer above to stop it hiding people/);
+    expect(profile).toMatch(/on=\{core \? !coreOff\(v\) :/);
   });
 
   /**
-   * A locked chip must not be a silent one. If the explanation ever goes, the
-   * form is back to showing a boundary with no way to understand it.
+   * AND EVERY ONE OF THEM CAN BE PRESSED TWICE. A default the citizen cannot
+   * reverse is not a default, and the only escape the form used to offer was
+   * deleting a true answer. The opt-out marker is what makes it a switch, so
+   * both halves are pinned: no chip renders locked, and unticking a core chip
+   * writes the marker rather than dropping the label.
    */
-  it('says which answer turned each one on', () => {
-    expect(profile).toMatch(/so intent is filtering/);
-    expect(profile).toMatch(/so that is filtering/);
-    expect(profile).toMatch(/so diet is filtering/);
+  it('leaves no chip locked, and turns a core chip off with a marker', () => {
+    expect(profile).not.toMatch(/locked=/);
+    expect(profile).toMatch(/const CORE_DEAL_BREAKERS: string\[\] = \['Marriage Intentions', 'Wants Children', 'Diet'\]/);
+    expect(profile).toMatch(/const coreOff = \(v: string\) => \(dx\.dealBreakers \?\? \[\]\)\.includes\(`-\$\{v\}`\)/);
+    expect(profile).toMatch(/`-\$\{v\}`\]/);
+  });
+
+  /**
+   * A chip that is on by default must not be a silent one. If the explanation
+   * ever goes, the form is back to filtering with no way to understand it — and
+   * the sentence must also say the switch can be pressed.
+   */
+  it('says which answer turned each one on, and that it can be turned off', () => {
+    expect(profile).toMatch(/so intent starts on/);
+    expect(profile).toMatch(/so that starts on/);
+    expect(profile).toMatch(/so diet starts on/);
+    expect(profile).toMatch(/tap one to turn it off/);
+    expect(profile).toMatch(/Your answer stays either way/);
   });
 });

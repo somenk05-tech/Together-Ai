@@ -905,8 +905,24 @@ export function heightFilterReason(myD: DXProfile, theirD: DXProfile): 'height' 
  * An unanswered field still filters nobody, flag or no flag. That rule does not
  * bend: this makes a stated answer count, it does not invent one.
  */
+export const DEAL_BREAKER_OFF = '-';
+/** The three the engine turns on for an answered field, and the only three a
+ *  citizen can turn back off with a `-` entry. */
+export const CORE_DEAL_BREAKERS = ['Marriage Intentions', 'Wants Children', 'Diet'] as const;
+
 export function effectiveDealBreakers(d: DXProfile): string[] {
-  const on = new Set(d.dealBreakers ?? []);
+  const stored = d.dealBreakers ?? [];
+  // AN OPT-OUT IS AN ANSWER TOO (owner, 1 Sep). The three core filters stay on
+  // by default for anybody who has answered the field and never touched the
+  // chips — that is what the 26 Aug measurement bought and it does not change.
+  // What changes is that the chip is a chip again: a citizen who unticks one is
+  // stating that it should shape the score rather than empty the room, and the
+  // form writes that as `-<label>`. Explicit beats default; silence still means
+  // the filter is on.
+  const off = new Set(
+    stored.filter((v) => v.startsWith(DEAL_BREAKER_OFF)).map((v) => v.slice(1).trim()),
+  );
+  const on = new Set(stored.filter((v) => !v.startsWith(DEAL_BREAKER_OFF)));
   // DEFAULT ON since 26 Aug. Measured at 100K, with the percentile bar, this
   // takes curated slots carrying a fundamental mismatch from 45.4% to 15.8% and
   // triples the score's predictive validity, while complete profiles end up with
@@ -919,9 +935,9 @@ export function effectiveDealBreakers(d: DXProfile): string[] {
   // An unanswered field still filters nobody, flag or no flag. That rule does
   // not bend: this makes a stated answer count, it does not invent one.
   if (process.env.DATING_CORE_FILTERS !== 'off') {
-    if (canonicalGoal(d.relationshipGoal)) on.add('Marriage Intentions');
-    if (d.wantsChildren) on.add('Wants Children');
-    if (d.prefDiet) on.add('Diet');
+    if (canonicalGoal(d.relationshipGoal) && !off.has('Marriage Intentions')) on.add('Marriage Intentions');
+    if (d.wantsChildren && !off.has('Wants Children')) on.add('Wants Children');
+    if (d.prefDiet && !off.has('Diet')) on.add('Diet');
   }
   return [...on];
 }

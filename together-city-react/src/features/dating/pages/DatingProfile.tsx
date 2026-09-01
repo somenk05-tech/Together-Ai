@@ -38,6 +38,10 @@ const VALUES = ['Family', 'Honesty', 'Loyalty', 'Kindness', 'Career', 'Adventure
 // read. If a chip is ever added here again, add the branch there in the same
 // commit: this list is a promise the engine keeps.
 const DEAL_BREAKERS = ['Smoking', 'Drinking', 'Marriage Intentions', 'Wants Children', 'Distance', 'Diet', 'Religion'];
+/** The three the engine turns on for an answered field — mirrors
+ *  CORE_DEAL_BREAKERS in the API's matching.ts. These default to ON and are
+ *  turned off by storing `-<label>`, not by removing the answer. */
+const CORE_DEAL_BREAKERS: string[] = ['Marriage Intentions', 'Wants Children', 'Diet'];
 // THE SEVEN THE ENGINE ACTUALLY COMPUTES, and nothing else. `factorScores` in
 // the API's matching.ts returns exactly these: astrology, personality,
 // relationshipGoals, values, lifestyle, interests, location. 'Numerology
@@ -103,15 +107,17 @@ interface DX {
   visibility?: Visibility; minMatchScore?: number;
 }
 
-function Chip({ on, onClick, children, locked, title }: {
-  on: boolean; onClick: () => void; children: React.ReactNode; locked?: boolean; title?: string;
+// NO CHIP IS LOCKED (owner, 1 Sep). The `locked` variant existed for the three
+// core deal-breakers and is gone with them; every chip on this form is a switch
+// the citizen can press twice.
+function Chip({ on, onClick, children, title }: {
+  on: boolean; onClick: () => void; children: React.ReactNode; title?: string;
 }) {
   return (
-    <button type="button" onClick={locked ? undefined : onClick} disabled={locked} title={title} aria-disabled={locked} style={{
-      cursor: locked ? 'default' : 'pointer', borderRadius: 'var(--r-full)', padding: '7px 14px', fontSize: 12.5, fontFamily: 'inherit', fontWeight: 600,
+    <button type="button" onClick={onClick} title={title} aria-pressed={on} style={{
+      cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '7px 14px', fontSize: 12.5, fontFamily: 'inherit', fontWeight: 600,
       border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-soft)',
-      opacity: locked ? 0.85 : 1,
-    }}>{children}{locked ? ' ·' : ''}</button>
+    }}>{children}</button>
   );
 }
 
@@ -654,7 +660,9 @@ export function DatingProfilePage() {
   const capToggle = (list: string[] | undefined, v: string, cap: number): string[] => {
     const arr = list ?? [];
     if (arr.includes(v)) return arr.filter((x) => x !== v);
-    return arr.length >= cap ? arr : [...arr, v];
+    // A `-<label>` entry is an opt-OUT and removes nobody, so it is not one of
+    // the five a citizen may impose.
+    return arr.filter((x) => !x.startsWith('-')).length >= cap ? arr : [...arr, v];
   };
   /**
    * TICKING DISTANCE HAD TO ALSO MEAN A DISTANCE. (Fourth audit, 28 Aug.)
@@ -672,8 +680,42 @@ export function DatingProfilePage() {
    * way, so nothing is hidden by this — it stops a stated boundary being
    * silently discarded.
    */
+  /**
+   * AN OPT-OUT IS AN ANSWER TOO (owner, 1 Sep).
+   *
+   * The three core chips used to render locked-on, because the engine turns
+   * them on for an answered field and a switch that lies is worse than no
+   * switch. But "clear the answer above to stop it hiding people" asks somebody
+   * to delete what they want in order to stop it being a wall — which is not a
+   * choice anybody should have to make.
+   *
+   * So all seven are chips again. The three still default to ON the moment the
+   * field is answered — silence keeps the protection the 26 Aug measurement
+   * bought — and unticking one now writes `-<label>`, which the engine reads as
+   * "score it, do not hide anybody over it". The answer stays; the boundary
+   * goes. Only the three core labels are ever stored negated; the other four
+   * are plain on/off as before.
+   */
+  /** A core chip is default-ON only once its field is answered; until then it is
+   *  an ordinary chip, because there is nothing for it to filter on and a `-`
+   *  marker over an answer nobody gave would be a switch with no meaning. */
+  const coreAnswered: Record<string, boolean> = {
+    'Marriage Intentions': Boolean(dx.relationshipGoal),
+    'Wants Children': Boolean(dx.wantsChildren),
+    Diet: Boolean(dx.prefDiet),
+  };
+  const coreOff = (v: string) => (dx.dealBreakers ?? []).includes(`-${v}`);
   const tickDealBreaker = (v: string) => {
-    const next = capToggle(dx.dealBreakers, v, 5);
+    const arr = dx.dealBreakers ?? [];
+    if (CORE_DEAL_BREAKERS.includes(v) && coreAnswered[v]) {
+      // Default-on: the first tap on a core chip is a tap OFF.
+      const next = coreOff(v)
+        ? arr.filter((x) => x !== `-${v}`)
+        : [...arr.filter((x) => x !== v && x !== `-${v}`), `-${v}`];
+      setD({ dealBreakers: next });
+      return;
+    }
+    const next = capToggle(arr, v, 5);
     const turningOnDistance = v === 'Distance' && next.includes(v) && typeof dx.prefDistanceKm !== 'number';
     setD(turningOnDistance ? { dealBreakers: next, prefDistanceKm: distanceKm } : { dealBreakers: next });
   };
@@ -756,12 +798,13 @@ export function DatingProfilePage() {
   /**
    * The three the engine turns on for you, and the answer that turned each on.
    * Mirrors DATING_CORE_FILTERS in the API's matching.ts — an answered field
-   * becomes a boundary; an unanswered one filters nobody, flag or no flag.
+   * becomes a boundary by default; an unanswered one filters nobody, flag or no
+   * flag. Present here means "starts on and can be turned off", not "locked".
    */
   const coreFilterOn: Record<string, string> = {
-    ...(dx.relationshipGoal ? { 'Marriage Intentions': 'You said what you are looking for, so intent is filtering.' } : {}),
-    ...(dx.wantsChildren ? { 'Wants Children': 'You answered about children, so that is filtering.' } : {}),
-    ...(dx.prefDiet ? { Diet: 'You stated a diet preference, so diet is filtering.' } : {}),
+    ...(coreAnswered['Marriage Intentions'] ? { 'Marriage Intentions': 'You said what you are looking for, so intent starts on.' } : {}),
+    ...(coreAnswered['Wants Children'] ? { 'Wants Children': 'You answered about children, so that starts on.' } : {}),
+    ...(coreAnswered.Diet ? { Diet: 'You stated a diet preference, so diet starts on.' } : {}),
   };
   const visRaw: Visibility = dx.visibility ?? 'everyone';
   const visibility: Visibility = visRaw === 'threshold' ? 'everyone' : visRaw;
@@ -1263,21 +1306,23 @@ export function DatingProfilePage() {
               a control the form was simultaneously drawing as off. In a city of
               eight that is the whole room.
 
-              So they show as on, and they do not pretend to be a switch, because
-              they are not one: the answer is the switch. The line below says
-              which answer, and clearing it is how you stop it filtering. */}
+              So they show as ON — silence keeps the protection — and they are
+              real switches again (owner, 1 Sep). Unticking one writes `-<label>`,
+              which `effectiveDealBreakers` reads as "score it, do not hide
+              anybody over it". Nobody has to delete an honest answer to stop it
+              being a wall, and the line below says which answer lit each one. */}
           <span style={label}>Deal breakers (optional)</span>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{DEAL_BREAKERS.map((v) => {
             const core = coreFilterOn[v];
             return (
-              <Chip key={v} on={core ? true : (dx.dealBreakers ?? []).includes(v)}
-                locked={Boolean(core)} title={core}
+              <Chip key={v} on={core ? !coreOff(v) : (dx.dealBreakers ?? []).includes(v)}
+                title={core}
                 onClick={() => tickDealBreaker(v)}>{v}</Chip>
             );
           })}</div>
           {Object.keys(coreFilterOn).length > 0 && (
             <span className="muted" style={locHint}>
-              {Object.values(coreFilterOn).join(' ')} Those are boundaries, not preferences — clear the answer above to stop it hiding people.
+              {Object.values(coreFilterOn).join(' ')} They are on because you answered, not because you are stuck with them — tap one to turn it off and it goes back to shaping the score instead of hiding people. Your answer stays either way.
             </span>
           )}
         </div>

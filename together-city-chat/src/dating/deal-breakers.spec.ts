@@ -271,4 +271,40 @@ describe('core questions as filters', () => {
     expect(effectiveDealBreakers(dx({ dealBreakers: ['Smoking'], relationshipGoal: 'Marriage' })).sort())
       .toEqual(['Marriage Intentions', 'Smoking']);
   });
+
+  // AN OPT-OUT IS AN ANSWER TOO. The three default on for an answered field,
+  // and a citizen who unticks the chip has said "score it, do not hide anybody
+  // over it" — without having to delete the answer to say so.
+  it('lets the citizen untick one, and keeps the answer', () => {
+    const opted = dx({
+      relationshipGoal: 'Marriage', wantsChildren: 'Yes', prefDiet: 'Vegetarian',
+      dealBreakers: ['-Wants Children'],
+    });
+    expect(effectiveDealBreakers(opted).sort()).toEqual(['Diet', 'Marriage Intentions']);
+    expect(hardFilterReason(opted, dx({ wantsChildren: 'No' }), 30)).toBeNull();
+    // The other two are untouched, and the answer itself still stands.
+    expect(opted.wantsChildren).toBe('Yes');
+    expect(hardFilterReason(opted, dx({ relationshipGoal: 'Casual Dating' }), 30)).toBe('intent');
+  });
+
+  it('can be turned off one at a time or all three', () => {
+    const none = dx({
+      relationshipGoal: 'Marriage', wantsChildren: 'Yes', prefDiet: 'Vegetarian',
+      dealBreakers: ['-Marriage Intentions', '-Wants Children', '-Diet'],
+    });
+    expect(effectiveDealBreakers(none)).toEqual([]);
+    expect(hardFilterReason(none, dx({ relationshipGoal: 'Casual Dating', wantsChildren: 'No', diet: 'Non-vegetarian' }), 30)).toBeNull();
+  });
+
+  it('never returns an opt-out marker as a filter', () => {
+    const marked = dx({ dealBreakers: ['-Diet', 'Smoking'], prefDiet: 'Vegetarian' });
+    expect(effectiveDealBreakers(marked)).toEqual(['Smoking']);
+  });
+
+  it('an explicit tick still wins over an opt-out for a chip nobody answered', () => {
+    // Ticking and unticking the same label is contradictory; the tick is the
+    // one that removes people, so it is the one that must be honoured.
+    expect(effectiveDealBreakers(dx({ dealBreakers: ['Diet', '-Diet'], prefDiet: 'Vegetarian' })))
+      .toEqual(['Diet']);
+  });
 });
