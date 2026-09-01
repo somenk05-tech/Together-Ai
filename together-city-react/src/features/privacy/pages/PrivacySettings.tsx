@@ -47,7 +47,7 @@ export function PrivacySettings() {
       <h2 style={{ fontSize: 16, marginBottom: 10 }}>Optional features</h2>
       {PERMISSIONS.map((p) => (
         <div key={p.key} className="card" style={{ marginBottom: 10, display: 'flex', gap: 14, alignItems: 'center' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex-min">
             <div style={{ fontWeight: 700, fontSize: 15 }}>{p.label}</div>
             <div className="muted" style={{ fontSize: 12.5, marginTop: 2, lineHeight: 1.5 }}>{p.desc}</div>
           </div>
@@ -64,7 +64,7 @@ export function PrivacySettings() {
           <span style={{ width: 34, height: 34, borderRadius: 9, background: 'var(--accent-soft)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
             <Icon name={h.icon} size={17} style={{ color: 'var(--accent-ink)' }} />
           </span>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex-min">
             <div style={{ fontWeight: 700, fontSize: 14 }}>{h.label}</div>
             <div className="muted" style={{ fontSize: 12.5, marginTop: 2, lineHeight: 1.55 }}>{h.promise}</div>
           </div>

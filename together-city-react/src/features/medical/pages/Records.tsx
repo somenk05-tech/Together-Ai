@@ -415,7 +415,7 @@ export function Records() {
               {g.items.map((r) => (
                 <article key={r.id} className="card" style={{ marginBottom: 10, display: 'flex', gap: 12 }}>
                   <span style={{ fontSize: 20 }}>{iconFor(r.kind)}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="flex-min">
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                       <strong style={{ fontSize: 14 }}>{r.title}</strong>
                       <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>{r.recordedOn}</span>

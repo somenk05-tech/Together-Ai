@@ -66,7 +66,7 @@ export function Orders() {
             {bag.lines.map((l) => (
               <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderTop: '1px solid var(--line)' }}>
                 <ProductShot image={l.image} imageAlt={l.imageAlt} category={l.category} size={48} />
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="flex-min">
                   <div style={{ fontSize: 14, fontWeight: 600 }}>{l.name}</div>
                   <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
                     {rupees(l.priceInr)} each

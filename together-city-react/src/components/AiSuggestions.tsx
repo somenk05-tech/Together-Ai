@@ -44,7 +44,7 @@ export function AiSuggestions({ kind }: { kind: AiKind }) {
                 <div key={i} style={{ padding: '10px 2px', borderTop: '1px solid var(--line)' }}>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                     <span style={{ fontWeight: 600, fontSize: 14 }}>{it.title}</span>
-                    {it.tag && <span className="tag" style={{ fontSize: 10.5 }}>{it.tag}</span>}
+                    {it.tag && <span className="tag">{it.tag}</span>}
                   </div>
                   <p style={{ fontSize: 13, margin: '3px 0 0', lineHeight: 1.5 }}>{it.detail}</p>
                 </div>

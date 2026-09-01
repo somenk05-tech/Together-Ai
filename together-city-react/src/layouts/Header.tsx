@@ -105,7 +105,7 @@ function NotificationBell() {
                 background: n.read ? undefined : 'var(--well)', boxShadow: n.read ? undefined : 'var(--carve)',
                 cursor: 'pointer', fontFamily: 'inherit' }}>
               <Icon name={ICON_FOR[n.kind] ?? 'bell'} size={16} style={{ marginTop: 1, color: 'var(--accent-ink)' }} />
-              <span style={{ flex: 1, minWidth: 0 }}>
+              <span className="flex-min">
                 <span style={{ display: 'block', fontSize: 13, fontWeight: n.read ? 500 : 700 }}>{n.title}</span>
                 {n.body && <span className="muted" style={{ display: 'block', fontSize: 12, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.body}</span>}
                 <span className="muted" style={{ fontSize: 11 }}>{timeAgo(n.createdAt)} ago</span>

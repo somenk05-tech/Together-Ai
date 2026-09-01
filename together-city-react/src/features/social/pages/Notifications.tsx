@@ -114,7 +114,7 @@ export function SocialNotifications() {
               border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: '13px 15px', fontFamily: 'inherit',
               background: n.read ? 'var(--card)' : 'var(--wash)' }}>
             <span className="sl-ic sm" aria-hidden><Icon name={ICON_FOR[n.kind] ?? 'bell'} size={16} /></span>
-            <span style={{ flex: 1, minWidth: 0 }}>
+            <span className="flex-min">
               <span style={{ display: 'block', fontSize: 14, fontWeight: n.read ? 500 : 700 }}>{n.title}</span>
               {n.body && <span className="muted" style={{ display: 'block', fontSize: 12.5, marginTop: 2 }}>{n.body}</span>}
               {timeAgo(n.createdAt) && <span className="muted" style={{ fontSize: 11.5 }}>{timeAgo(n.createdAt)} ago</span>}

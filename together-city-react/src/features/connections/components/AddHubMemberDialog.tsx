@@ -118,7 +118,7 @@ export function AddHubMemberDialog({
           <div style={{ marginTop: 14, border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <Avatar src={result.profileImage} name={result.name} size={44} />
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="flex-min">
                 <div style={{ fontSize: 15, fontWeight: 600 }}>{result.name}</div>
                 <div className="muted" style={{ fontSize: 12, fontFamily: 'monospace' }}>@{result.handle}</div>
               </div>

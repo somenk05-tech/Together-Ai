@@ -46,7 +46,7 @@ function MemberCard({ m }: { m: FamilyHealthMember }) {
         <div className="av" style={{ width: 48, height: 48, fontSize: 17, overflow: 'hidden', backgroundImage: m.image ? `url(${m.image})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' }}>
           {!m.image && initials(m.name)}
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-min">
           <h4 style={{ margin: 0 }}>{m.name}{m.isSelf && <span className="muted" style={{ fontSize: 12, fontWeight: 400 }}> · You</span>}</h4>
           <p className="muted" style={{ fontSize: 12, margin: '2px 0 0', textTransform: 'capitalize' }}>{m.relationship} · {m.age}y · {m.sex}</p>
         </div>

@@ -72,7 +72,7 @@ export function VerificationCard() {
           const configured = channel === 'email' ? s.emailConfigured : s.smsConfigured;
           return (
             <div key={channel} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 0', borderBottom: channel === 'email' ? '1px solid var(--line)' : 'none' }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="flex-min">
                 <div className="muted" style={{ fontSize: 12 }}>{LABEL[channel]}</div>
                 <div style={{ fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {row.target ?? <span className="muted">Not set</span>}

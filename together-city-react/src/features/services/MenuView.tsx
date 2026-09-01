@@ -66,7 +66,7 @@ export function MenuView({ listingId, group, onSent }: { listingId: string; grou
                 style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '7px 2px', cursor: 'pointer', minHeight: 44 }}>
                 <input type="checkbox" checked={picked.includes(it.id)} onChange={() => toggle(it.id)}
                   style={{ marginTop: 3, flexShrink: 0 }} />
-                <span style={{ flex: 1, minWidth: 0 }}>
+                <span className="flex-min">
                   <span style={{ fontSize: 13.5, fontWeight: 600 }}>{it.name}</span>
                   {it.description && (
                     <span className="muted" style={{ display: 'block', fontSize: 12 }}>{it.description}</span>

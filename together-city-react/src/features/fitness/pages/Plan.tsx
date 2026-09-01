@@ -37,7 +37,7 @@ function DayRow({ s }: { s: Session }) {
     <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 0', borderTop: '1px solid var(--line)' }}>
       <div style={{ width: 38, fontWeight: 700, fontSize: 12.5, color: 'var(--muted)' }}>{s.day}</div>
       <span style={{ fontSize: 20 }}>{kindIcon[s.kind]}</span>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-min">
         <div style={{ fontWeight: 700, fontSize: 14 }}>{s.focus}</div>
         {/* WHAT THE DAY TRAINS, ON THE ROW ITSELF. A week of four lines reading
             "Full-body strength" is not a plan somebody can follow — it is the

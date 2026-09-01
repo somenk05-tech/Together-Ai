@@ -261,7 +261,7 @@ function ReadingRow({ r }: { r: BeautyReading }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: '1px solid var(--line)' }}>
       <span style={{ flex: 'none', width: 10, height: 10, borderRadius: '50%', background: lv.color }} />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-min">
         <div style={{ fontSize: 13, fontWeight: 600 }}>{r.label}</div>
         <div className="muted" style={{ fontSize: 11.5 }}>{r.note}</div>
       </div>
@@ -398,7 +398,7 @@ function ProgressView({ entries }: { entries: BeautyProgressEntry[] }) {
   const appeared = after.findings.filter((f) => !before.findings.includes(f));
   const delta = after.score - before.score;
   const Pane = ({ title, e, idx, set }: { title: string; e: BeautyProgressEntry; idx: number; set: (n: number) => void }) => (
-    <div style={{ flex: 1, minWidth: 0 }}>
+    <div className="flex-min">
       <select aria-label={`${title} — choose a date to compare`} value={idx} onChange={(ev) => set(+ev.target.value)} style={{ width: '100%', border: '1px solid var(--line)', borderRadius: 8, padding: '5px 8px', fontSize: 11.5, background: 'var(--paper)', fontFamily: 'inherit', marginBottom: 6 }}>
         {sorted.map((s, i) => <option key={s.id} value={i}>{title}: {fmtDate(s.date)}</option>)}
       </select>

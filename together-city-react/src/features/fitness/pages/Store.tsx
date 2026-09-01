@@ -128,7 +128,7 @@ function Tile({ p, personalised, qty, busy, onOpen, onSet }: {
           the rest wait in the detail. */}
       {(p.tags ?? []).length > 0 && (
         <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
-          {(p.tags ?? []).slice(0, 3).map((t) => <span key={t} className="tag" style={{ fontSize: 10.5 }}>{t}</span>)}
+          {(p.tags ?? []).slice(0, 3).map((t) => <span key={t} className="tag">{t}</span>)}
         </span>
       )}
 

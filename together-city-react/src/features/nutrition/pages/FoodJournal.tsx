@@ -320,7 +320,7 @@ export function FoodJournal() {
                           <span className="muted" style={{ fontSize: 11.5, minWidth: 62 }}>
                             {new Date(e.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
-                          <div style={{ flex: 1, minWidth: 0 }}>
+                          <div className="flex-min">
                             <div style={{ fontSize: 13.5, fontWeight: 600 }}>
                               {e.items.map((it) => it.name).filter(Boolean).join(', ') || '—'}
                             </div>

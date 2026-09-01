@@ -478,7 +478,7 @@ export function UniversalShareSheet({
         onClick={() => toggle(r.id)}
       >
         {avatar(r)}
-        <span style={{ flex: 1, minWidth: 0 }}>
+        <span className="flex-min">
           <span style={{ display: 'block', fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
           {r.subtitle && <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.subtitle}</span>}
         </span>

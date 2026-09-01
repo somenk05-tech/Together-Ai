@@ -120,7 +120,7 @@ export function PayoutAccount() {
         <Card style={{ marginBottom: 12 }}>
           <div className="eyebrow">The account on file</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-min">
               <div style={{ fontWeight: 700, fontSize: 15 }}>{a.legalName}</div>
               <div className="muted" style={{ fontSize: 12.5 }}>
                 {a.bankName ? `${a.bankName} · ` : ''}•••• {a.last4 ?? '————'}

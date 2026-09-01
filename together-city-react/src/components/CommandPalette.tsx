@@ -189,7 +189,7 @@ export function CommandPalette() {
               <span style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--paper)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                 <Icon name={d.icon ?? 'place'} size={16} style={{ color: 'var(--accent-ink)' }} />
               </span>
-              <span style={{ flex: 1, minWidth: 0 }}>
+              <span className="flex-min">
                 <span style={{ display: 'block', fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.label}</span>
                 {d.sub && <span className="muted" style={{ display: 'block', fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.sub}</span>}
               </span>
@@ -209,7 +209,7 @@ export function CommandPalette() {
                   <span style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--paper)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                     <Icon name="connection" size={16} style={{ color: 'var(--accent-ink)' }} />
                   </span>
-                  <span style={{ flex: 1, minWidth: 0 }}>
+                  <span className="flex-min">
                     <span style={{ display: 'block', fontSize: 13.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.businessName}</span>
                     <span className="muted" style={{ display: 'block', fontSize: 12 }}>{b.categoryLabel}{b.city ? ` · ${b.city}` : ''}</span>
                   </span>
@@ -230,7 +230,7 @@ export function CommandPalette() {
                   <span style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--paper)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                     <Icon name="comment" size={16} style={{ color: 'var(--accent-ink)' }} />
                   </span>
-                  <span style={{ flex: 1, minWidth: 0 }}>
+                  <span className="flex-min">
                     <span style={{ display: 'block', fontSize: 13.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.text ?? 'Attachment'}</span>
                     {m.senderName && <span className="muted" style={{ display: 'block', fontSize: 12 }}>{m.senderName}</span>}
                   </span>

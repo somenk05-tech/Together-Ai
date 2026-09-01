@@ -148,7 +148,7 @@ function ChatRow({ c, active, onClick }: { c: DatingChatSummary; active: boolean
       background: active ? 'var(--accent-soft)' : 'var(--card)',
     }}>
       <Avatar name={c.name} photo={c.photo} size={48} />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-min">
         <span style={{
           display: 'block', fontWeight: c.unread > 0 ? 800 : 700, fontSize: 15,
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',

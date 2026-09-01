@@ -470,7 +470,7 @@ export function BloodAnalysis() {
       </>
       ) : (
         <div className="card" style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex-min">
             <div className="eyebrow" style={{ margin: 0 }}>Panel saved &amp; analysed</div>
             <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>
               Your latest panel is saved{data?.takenOn ? ` · ${data.takenOn}` : ''}. Your analysis is below — upload a new report anytime.

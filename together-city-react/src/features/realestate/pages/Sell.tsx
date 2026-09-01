@@ -318,7 +318,7 @@ export function Sell() {
                   {l.photos[0]?.url
                     ? <img className="thumb" src={l.photos[0].url} alt="" style={{ width: 74, height: 56, borderRadius: 9, objectFit: 'cover', flex: '0 0 auto', background: 'var(--ink-soft)' }} />
                     : <div style={{ width: 74, height: 56, borderRadius: 9, flex: '0 0 auto', background: 'var(--line)', display: 'grid', placeItems: 'center', fontSize: 17 }}>🏠</div>}
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="flex-min">
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 3 }}>
                       <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', padding: '2px 8px', borderRadius: 'var(--r-full)', background: 'var(--accent-soft)', color: 'var(--accent-ink)' }}>{l.kind}</span>
                       <b style={{ fontSize: 14 }}>{l.fields[SCHEMA[l.kind].titleKey] || KIND_LABEL[l.kind]}</b>

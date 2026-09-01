@@ -686,7 +686,7 @@ export function PublicProfileModal({ handle, onClose }: { handle: string; onClos
           <>
             <div style={{ display: 'flex', gap: 'var(--space-14)', alignItems: 'center' }}>
               <Avatar src={p.profileImage} name={p.name} size={64} />
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="flex-min">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-6)' }}>
                   <h3 style={{ margin: 0, fontSize: 20 }}>{p.name}</h3>{p.verified && <EmailConfirmedMark />}
                 </div>
@@ -916,7 +916,7 @@ function PeopleTab() {
             {results.map((r) => (
               <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-12)', padding: '10px 2px', borderTop: '1px solid var(--line)' }}>
                 <Avatar src={r.profileImage} name={r.name} size={40} />
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="flex-min">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                     <span style={{ fontSize: 14, fontWeight: 600 }}>{r.name}</span>{r.verified && <EmailConfirmedMark />}
                   </div>

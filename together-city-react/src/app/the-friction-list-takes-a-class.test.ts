@@ -80,11 +80,16 @@ describe('the friction list takes a class', () => {
     // reading OVER on every run. All four lines came down to that day's
     // readings at once, which is what the script asks for on every green run
     // and what nobody had done while one metric kept the whole thing red.
-    expect(s).toMatch(/inlineStyleBlocks: 6691,/);
-    expect(s).toMatch(/rawSpacing: 3627,/);
+    //
+    // And again 1 Sep. `inlineStyleBlocks` had been fifty over since b1edab9a
+    // and red on every run since — the launch gate listed it as blocking. 57 of
+    // those objects were one declaration, `{ flex: 1, minWidth: 0 }`, which is
+    // now the `.flex-min` class; four more restated `.tag`'s own font size.
+    expect(s).toMatch(/inlineStyleBlocks: 6681,/);
+    expect(s).toMatch(/rawSpacing: 3605,/);
     // The two the script prints beside them, pinned for the same reason: a
     // number nothing reads is a number that drifts back up.
     expect(s).toMatch(/distinctFontSizes: 35,/);
-    expect(s).toMatch(/rawRadii: 323,/);
+    expect(s).toMatch(/rawRadii: 317,/);
   });
 });

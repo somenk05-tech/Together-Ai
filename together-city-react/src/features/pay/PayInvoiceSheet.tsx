@@ -118,7 +118,7 @@ export function PayInvoiceSheet({ invoice, open, onClose, onPaid }: {
                   border: `2px solid ${useWallet ? 'var(--accent)' : 'var(--line)'}`,
                   background: useWallet ? 'var(--accent)' : 'transparent',
                 }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="flex-min">
                   <div style={{ fontWeight: 700, fontSize: 13.5 }}>Together City Wallet</div>
                   <div className="muted" style={{ fontSize: 11.5 }}>
                     Balance {inr(q.balanceInr)}
@@ -138,7 +138,7 @@ export function PayInvoiceSheet({ invoice, open, onClose, onPaid }: {
                   border: '1.5px solid var(--line)', display: 'flex', alignItems: 'center', gap: 10,
                 }}>
                   <span aria-hidden style={{ fontSize: 17 }}>💳</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="flex-min">
                     <div style={{ fontWeight: 700, fontSize: 13.5 }}>{q.card.brand} •• {q.card.last4}</div>
                     <div className="muted" style={{ fontSize: 11.5 }}>{q.card.name}</div>
                   </div>

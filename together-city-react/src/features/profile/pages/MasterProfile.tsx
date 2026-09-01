@@ -416,7 +416,7 @@ export function MasterProfileSections() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 6 }}>
                 {CUISINES.map((c) => (
                   <label key={c} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5 }}>
-                    <span style={{ flex: 1, minWidth: 0 }}>{c}</span>
+                    <span className="flex-min">{c}</span>
                     <input type="number" min={0} max={100} step={5} aria-label={`${c} share`}
                       value={mix[c] ?? 0}
                       onChange={(e) => setMixDraft({ ...mix, [c]: capPct(mix, c, Number(e.target.value)) })}
@@ -481,7 +481,7 @@ export function MasterProfileSections() {
               <label key={o.value} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, minHeight: 44, cursor: 'pointer' }}>
                 <input type="checkbox" checked={health.keys.includes(o.value)}
                   onChange={() => toggleCondition(o.value)} style={{ width: 18, height: 18 }} />
-                <span style={{ flex: 1, minWidth: 0 }}>{o.label}</span>
+                <span className="flex-min">{o.label}</span>
               </label>
             ))}
           </div>

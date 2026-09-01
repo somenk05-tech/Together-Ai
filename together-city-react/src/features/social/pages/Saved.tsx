@@ -55,7 +55,7 @@ function SavedCard({ post, onRemove }: { post: Post; onRemove: () => void }) {
         <img src={firstImage.url} alt={`Photo shared by ${post.author.name}`} width={72} height={72}
           style={{ borderRadius: 'var(--r-1)', objectFit: 'cover', flexShrink: 0 }} />
       )}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-min">
         <div style={{ fontWeight: 600, fontSize: 13.5 }}>
           {post.author.name}
           <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}> @{post.author.handle}</span>

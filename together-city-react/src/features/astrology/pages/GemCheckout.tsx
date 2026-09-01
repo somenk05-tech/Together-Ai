@@ -96,7 +96,7 @@ export function GemCheckout() {
             <div key={l.gemId} className="gem-order-line">
               <img className="no-case" src={l.image} alt={l.imageAlt} loading="lazy" width={72} height={72}
                 style={{ width: 72, height: 72, objectFit: 'contain', mixBlendMode: 'multiply', flex: 'none' }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="flex-min">
                 <div style={{ fontSize: 15, fontWeight: 700 }}>{l.name}</div>
                 <div className="muted" style={{ fontSize: 12.5, lineHeight: 1.6, marginTop: 3 }}>{l.spec}</div>
                 {/* The two parts, because they are two things bought at two

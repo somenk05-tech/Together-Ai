@@ -32,7 +32,7 @@ export function Consent() {
 
       {consents.data.map((c) => (
         <div key={c.hub} className="card" style={{ marginBottom: 12, display: 'flex', gap: 14, alignItems: 'center' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex-min">
             <div style={{ fontWeight: 700, fontSize: 15 }}>{c.label}</div>
             <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>{c.reads}</div>
             <div style={{ fontSize: 11.5, marginTop: 4, color: c.granted ? 'var(--ok-ink)' : 'var(--danger-ink)', fontWeight: 600 }}>

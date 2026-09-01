@@ -622,7 +622,7 @@ export function Chats() {
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                         strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
                     </button>
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="flex-min">
                       <b style={{ display: 'block' }}>{picked.length} selected</b>
                       <em>{picked.length === 1 ? 'Tap another to add it' : 'Tap one again to drop it'}</em>
                     </div>
@@ -651,7 +651,7 @@ export function Chats() {
                     ? <img className="no-case" src={activePhoto} alt="" loading="lazy" />
                     : activeTitle.split(/[\s·]+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase()}
                 </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="flex-min">
                   {activeIsGroup ? (
                     <button type="button" onClick={() => setGroupOpen(true)}
                       aria-label="Group members and settings"

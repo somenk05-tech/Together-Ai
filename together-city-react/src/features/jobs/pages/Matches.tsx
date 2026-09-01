@@ -43,7 +43,7 @@ function JobCard({ job }: { job: JobMatch }) {
           style={{ width: 54, height: 54, borderRadius: 12, display: 'grid', placeItems: 'center', flexShrink: 0, background: 'var(--accent-soft)', color: scoreColor(job.score), fontWeight: 800, fontSize: 16 }}>
           {job.score}%
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-min">
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
             <strong style={{ fontSize: 15 }}>{job.title}</strong>
             {job.fitLabel && <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: FIT[job.fitLabel]?.color, border: `1px solid ${FIT[job.fitLabel]?.color}`, borderRadius: 'var(--r-full)', padding: '1px 7px' }}>{FIT[job.fitLabel]?.label}</span>}

@@ -102,7 +102,7 @@ function EnvGroupBlock({ group, rows }: { group: string; rows: EnvRow[] }) {
             color: r.set ? 'var(--ok-ink)' : r.required ? 'var(--danger-ink)' : 'var(--muted)' }}>
             {r.set ? 'set' : 'not set'}
           </span>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex-min">
             <div style={{ fontSize: 13, fontWeight: 600, fontFamily: 'ui-monospace, monospace' }}>
               {r.name}
               {r.required && <span className="muted" style={{ fontWeight: 400, fontFamily: 'inherit' }}> · required</span>}

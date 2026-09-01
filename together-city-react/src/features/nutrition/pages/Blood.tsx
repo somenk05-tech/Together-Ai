@@ -87,7 +87,7 @@ export function Blood() {
         ) : (
           <>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex-min">
             <strong style={{ fontSize: 15 }}>Connect to Medical Hub</strong>
             <p className="muted" style={{ fontSize: 13, margin: '4px 0 0', lineHeight: 1.55 }}>
               When on, your recipes and meal plans are designed around your latest blood panel.

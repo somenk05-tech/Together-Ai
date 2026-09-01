@@ -184,7 +184,7 @@ export function Composer({ onSend, onTyping, replyTo, onCancelReply, seed }: {
           padding: '8px 12px', borderRadius: 12,
           background: 'var(--stage-tile)', borderLeft: '3px solid var(--on-stage-faint)',
         }}>
-          <span style={{ flex: 1, minWidth: 0 }}>
+          <span className="flex-min">
             <span style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: 'var(--on-stage-soft)' }}>
               Replying to {replyTo.name}
             </span>

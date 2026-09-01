@@ -74,7 +74,7 @@ export function DesignYourServices() {
               <span aria-hidden style={{ color: 'var(--accent-ink)', display: 'grid', placeItems: 'center' }}>
                 <Icon name={tabIcon(key)} size={18} />
               </span>
-              <span style={{ flex: 1, minWidth: 0 }}>
+              <span className="flex-min">
                 <span style={{ display: 'block', fontWeight: 700, fontSize: 13.5, lineHeight: 1.25 }}>{cfg.name}</span>
                 <span className="muted" style={{ display: 'block', fontSize: 11, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {cfg.tag}
@@ -107,7 +107,7 @@ export function DesignYourServices() {
           const on = pathOn(p);
           return (
             <div key={p.key} className="card" style={{ display: 'flex', gap: 10, opacity: on ? 1 : 0.62 }}>
-              <span style={{ flex: 1, minWidth: 0 }}>
+              <span className="flex-min">
                 <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                   {p.hubs.map((h) => (
                     <span key={h} aria-hidden style={{ color: 'var(--accent-ink)', display: 'grid', placeItems: 'center' }}>

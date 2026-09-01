@@ -181,7 +181,7 @@ function PrescriptionCard({ p }: { p: Prescription }) {
         <ul style={{ listStyle: 'none', padding: 0, margin: '12px 0 0' }}>
           {p.items.map((i) => (
             <li key={i.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: '1px solid var(--line)' }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="flex-min">
                 <div style={{ fontSize: 13.5, fontWeight: 600 }}>
                   {i.medicineName}
                   {i.needsReview && <span className="tag" style={{ fontSize: 10, marginLeft: 8 }}>confirm this</span>}
@@ -362,7 +362,7 @@ export function Medicines() {
                   <span style={{ fontSize: 13.5, fontWeight: 600 }}>{d.medicine}</span>
                   <span className="muted" style={{ fontSize: 12 }}>{d.dosage ?? ''}</span>
                   <span className="muted" style={{ marginLeft: 'auto', fontSize: 11.5 }}>{fmtTime(d.scheduledAtUtc)}</span>
-                  <span className="tag" style={{ fontSize: 10.5 }}>{d.action}</span>
+                  <span className="tag">{d.action}</span>
                 </div>
               ))}
             </div>

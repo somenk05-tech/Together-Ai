@@ -294,7 +294,7 @@ export function Workout() {
   const exRow = (i: number, name: string, meta: string, tgt: string) => (
     <div key={`${name}-${i}`} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '9px 4px', borderBottom: '1px solid var(--line)' }}>
       <span style={{ width: 26, height: 26, borderRadius: 7, background: 'var(--accent-soft)', color: 'var(--accent-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flex: '0 0 auto' }}>{i}</span>
-      <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 13.5, fontWeight: 600 }}>{name}</div><div style={{ fontSize: 11.5, color: 'var(--muted)' }}>{meta}</div></div>
+      <div className="flex-min"><div style={{ fontSize: 13.5, fontWeight: 600 }}>{name}</div><div style={{ fontSize: 11.5, color: 'var(--muted)' }}>{meta}</div></div>
       <span style={{ fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', color: 'var(--accent-ink)' }}>{tgt}</span>
     </div>
   );

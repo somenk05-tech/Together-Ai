@@ -32,7 +32,7 @@ export function RecentPanel() {
         <span style={{ width: 42, height: 42, borderRadius: 11, background: 'var(--accent-soft)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
           <Icon name={iconFor(top.path)} size={20} style={{ color: 'var(--accent-ink)' }} />
         </span>
-        <span style={{ flex: 1, minWidth: 0 }}>
+        <span className="flex-min">
           <span className="muted" style={{ display: 'block', fontSize: 11.5, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase' }}>Resume</span>
           <span style={{ display: 'block', fontSize: 16, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{top.label}</span>
         </span>

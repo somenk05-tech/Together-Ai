@@ -118,7 +118,7 @@ export function MemberFinder() {
         <>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 4px', borderTop: '1px solid var(--line)' }}>
           <Avatar src={result.profileImage} name={result.name} size={40} />
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex-min">
             <div style={{ fontSize: 14, fontWeight: 600 }}>{result.name}</div>
             <div className="muted" style={{ fontSize: 12, fontFamily: 'monospace' }}>@{result.handle}</div>
           </div>

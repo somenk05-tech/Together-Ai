@@ -53,7 +53,7 @@ function InvitesInbox() {
             <div className="av sm" style={{ overflow: 'hidden', backgroundImage: iv.from.image ? `url(${iv.from.image})` : undefined, backgroundSize: 'cover' }}>
               {!iv.from.image && initialsOf(iv.from.name)}
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-min">
               <p style={{ fontSize: 13, margin: 0 }}>{iv.message}</p>
               <p className="muted" style={{ fontSize: 11.5, margin: '2px 0 0' }}>Role: {ROLE_META[iv.role]?.label ?? iv.role}</p>
             </div>
@@ -100,7 +100,7 @@ function FamilyProfileCard() {
         <div style={{ flex: 'none', width: 62, height: 62, borderRadius: '50%', display: 'grid', placeItems: 'center', background: `conic-gradient(${cColor} ${c.score * 3.6}deg, var(--line) 0)` }}>
           <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--card)', display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 15, color: cColor }}>{c.score}%</div>
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-min">
           <strong style={{ fontSize: 13.5 }}>Family compatibility · {c.level === 'high' ? 'High' : c.level === 'moderate' ? 'Moderate' : 'Low'}</strong>
           <p className="muted" style={{ fontSize: 12.5, margin: '3px 0 0' }}>{c.recommendation}</p>
         </div>
@@ -159,7 +159,7 @@ function FamilyMealPlanningCard() {
         <span className="muted" style={{ fontSize: 12 }}>cook together, or plan independently</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 12 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-min">
           <div style={{ fontSize: 13.5, fontWeight: 600 }}>{on ? 'ON — one shared family meal' : 'OFF — independent meal plans'}</div>
           <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
             {on
@@ -218,7 +218,7 @@ function PrivacyCard() {
           const on = s[r.key];
           return (
             <div key={r.key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 12px', border: '1px solid var(--line)', borderRadius: 12 }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="flex-min">
                 <div style={{ fontSize: 13.5, fontWeight: 600 }}>{r.label}</div>
                 <div className="muted" style={{ fontSize: 11.5 }}>{r.hint}</div>
               </div>
@@ -317,7 +317,7 @@ function MemberCard({ m, onEdit, onRemove }: { m: FamilyMemberProfile; onEdit: (
         <div className="av" style={{ width: 46, height: 46, fontSize: 17, overflow: 'hidden', backgroundImage: m.image ? `url(${m.image})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' }}>
           {!m.image && (m.name[0] ?? '?').toUpperCase()}
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-min">
           <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             {m.name}
             {m.isSelf && <span className="muted" style={{ fontSize: 12, fontWeight: 400 }}>· You</span>}

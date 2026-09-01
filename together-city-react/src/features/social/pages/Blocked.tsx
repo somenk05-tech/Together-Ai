@@ -37,7 +37,7 @@ function Person({ person }: { person: BlockedPerson }) {
           display: 'grid', placeItems: 'center', fontWeight: 700, color: 'var(--accent-ink)',
         }}>{(person.name || person.handle || '?').charAt(0).toUpperCase()}</span>}
 
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-min">
         <div style={{ fontWeight: 600, fontSize: 14 }}>{person.name || person.handle}</div>
         {person.handle && <div className="muted" style={{ fontSize: 12.5 }}>@{person.handle}</div>}
       </div>

@@ -259,6 +259,21 @@ table.tc td b { color: var(--ink); }
 .row:active { transform: scale(.995); }
 .row .thumb { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; flex-shrink: 0; }
 .row .grow { flex: 1; min-width: 0; }
+/* THE FLEX CHILD THAT IS ALLOWED TO SHRINK, under a name of its own.
+   `flex: 1` is half the rule: a flex item's automatic minimum size is its
+   content, so without `min-width: 0` one long word pushes the row wider than
+   its container instead of ellipsing inside it. 57 sites across the app wrote
+   both properties by hand as an inline style — the same declaration `.row .grow`
+   above has carried since the row existed, retyped because that one needs a
+   `.row` parent and they had none.
+
+   NOT called `grow`, and that is the whole point. Unparenting `.grow` would put
+   it in the global vocabulary, where `no-borrowed-class-names.test.ts` guards it
+   by name alongside `.row` and `.tag` — and several of these sites sit inside
+   the passport and the dark chat stage, which are exactly the blocks that guard
+   protects. This name carries NO material: no colour, no ground, no radius, no
+   type. That is why it is safe in a namespaced block and `.grow` would not be. */
+.flex-min { flex: 1; min-width: 0; }
 .row .t { font-weight: 600; font-size: var(--fs-5); }
 .row .m { font-size: var(--fs-3); color: var(--muted); margin-top: 2px; }
 .rows { display: flex; flex-direction: column; gap: 12px; }

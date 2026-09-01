@@ -98,7 +98,7 @@ export function BusinessPayments() {
         <div className="eyebrow">Payout account</div>
         {d.account ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-min">
               <div style={{ fontWeight: 700, fontSize: 14 }}>{d.account.legalName}</div>
               <div className="muted" style={{ fontSize: 12.5 }}>
                 {d.account.bankName ? `${d.account.bankName} · ` : ''}•••• {d.account.last4 ?? '————'}

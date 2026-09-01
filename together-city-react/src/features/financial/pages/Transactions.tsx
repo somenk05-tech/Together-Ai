@@ -16,7 +16,7 @@ function Row({ t }: { t: Txn }) {
   return (
     <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '11px 0', borderTop: '1px solid var(--line)' }}>
       <span style={{ width: 34, height: 34, borderRadius: '50%', display: 'grid', placeItems: 'center', background: 'var(--well)', boxShadow: 'var(--e1)', fontSize: 17 }}>{catIcon[t.category] ?? '•'}</span>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-min">
         <div style={{ fontWeight: 700, fontSize: 13.5 }}>{t.label}</div>
         <div className="muted" style={{ fontSize: 11.5 }}>
           <span style={{ color: catColor[t.category], fontWeight: 600 }}>{t.hub}</span> · {t.date.slice(0, 10)}

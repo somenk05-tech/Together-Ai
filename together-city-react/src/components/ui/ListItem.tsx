@@ -22,7 +22,7 @@ export function ListItem({ title, sub, leading, trailing, to, onClick, style }: 
   const inner = (
     <>
       {leading != null && <span style={{ flexShrink: 0, display: 'grid', placeItems: 'center' }}>{leading}</span>}
-      <span style={{ flex: 1, minWidth: 0 }}>
+      <span className="flex-min">
         <span style={{ display: 'block', fontSize: 15, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</span>
         {sub && <span className="muted" style={{ display: 'block', fontSize: 12.5, marginTop: 1, lineHeight: 1.45 }}>{sub}</span>}
       </span>

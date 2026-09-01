@@ -13,7 +13,7 @@ function TxnRow({ t }: { t: Txn }) {
   return (
     <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 0', borderTop: '1px solid var(--line)' }}>
       <span style={{ fontSize: 20 }}>{catIcon[t.category] ?? '•'}</span>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-min">
         <div style={{ fontWeight: 700, fontSize: 13.5 }}>{t.label}</div>
         <div className="muted" style={{ fontSize: 11.5 }}>{t.hub} · {t.date.slice(0, 10)}</div>
       </div>

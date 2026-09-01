@@ -77,7 +77,7 @@ export function GroupPanel({ conversationId, title, meId, onClose, onChanged, on
             {members.map((m) => (
               <div key={m.userId} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <Avatar src={m.profileImage} name={m.name} size={32} />
-                <span style={{ flex: 1, minWidth: 0 }}>
+                <span className="flex-min">
                   <span style={{ display: 'block', fontSize: 13.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {m.name}{m.userId === meId ? ' (you)' : ''}
                   </span>

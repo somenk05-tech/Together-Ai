@@ -128,7 +128,7 @@ function Card({ a }: { a: Assessment }) {
           {(a.regulatory.exceedances ?? []).length > 0 && (
             <ul style={{ listStyle: 'none', margin: '8px 0 0', padding: 0, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {(a.regulatory.exceedances ?? []).map((e) => (
-                <li key={e.nutrientId} className="tag" style={{ fontSize: 10.5 }}>
+                <li key={e.nutrientId} className="tag">
                   {e.name} {e.amount}{e.unit} · {e.times}×
                 </li>
               ))}

@@ -136,7 +136,7 @@ function ToastRow({ toast: t, onSelect }: { toast: Shown; onSelect: () => void }
             transform: reduce ? undefined : (out ? 'translateX(12px)' : 'translateX(0)'),
             transition: 'opacity var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-out)' }}>
           <Icon name={t.icon} size={17} style={{ marginTop: 1, color: 'var(--accent-ink)' }} />
-          <span style={{ flex: 1, minWidth: 0 }}>
+          <span className="flex-min">
             <span style={{ display: 'block', fontSize: 13, fontWeight: 700 }}>{t.title}</span>
             {t.body && <span className="muted" style={{ display: 'block', fontSize: 12, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.body}</span>}
           </span>

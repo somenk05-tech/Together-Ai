@@ -125,7 +125,7 @@ function NotificationsTab() {
         ) : incoming.map((c) => (
           <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderTop: '1px solid var(--line)', flexWrap: 'wrap' }}>
             <Avatar src={c.user.profileImage} name={c.user.name} size={38} />
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-min">
               <div style={{ fontWeight: 600, fontSize: 14 }}>{c.user.name}</div>
               <div className="muted" style={{ fontSize: 12 }}>@{c.user.handle} wants to connect</div>
               {/* The hubs were on this object all along and never drawn. The

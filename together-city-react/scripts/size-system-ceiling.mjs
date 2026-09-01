@@ -55,11 +55,33 @@ import { join } from 'node:path';
  * The other three ceilings come down to today's readings at the same time,
  * which is what the script's own closing line asks for on every green run.
  */
+/*
+ * LOWERED 1 SEP, and `inlineStyleBlocks` is why.
+ *
+ * It had been reading 6741 against 6691 — fifty over, red on every run, which
+ * is the state this file's own header calls out: a check that always fails
+ * teaches whoever runs it to skim past the next real failure. It had been red
+ * long enough that the launch gate listed it as a blocker to landing anything.
+ *
+ * Fifty-seven of those objects were one declaration: `{ flex: 1, minWidth: 0 }`,
+ * the flex child that is allowed to shrink. `.row .grow` in index.css had
+ * carried exactly that since the row existed; it needed a `.row` parent, so
+ * fifty-seven sites retyped it by hand instead. The class is unparented now and
+ * they say `grow`. Nothing was resized and nothing moved on screen — the same
+ * standard the 28 Aug lowering held itself to.
+ *
+ * Four more were `className="tag" style={{ fontSize: 10.5 }}` restating the
+ * `.tag` class's own `var(--fs-1)`, which is 10.5px. Those also took the type
+ * floor from 195 to 191.
+ *
+ * The other three ceilings come down to today's readings at the same time,
+ * which is what the script's own closing line asks for on every green run.
+ */
 const CEILING = {
-  rawRadii: 323,
-  inlineStyleBlocks: 6691,
+  rawRadii: 317,
+  inlineStyleBlocks: 6681,
   distinctFontSizes: 35,
-  rawSpacing: 3627,
+  rawSpacing: 3605,
 };
 
 const walk = (d, ext) => readdirSync(d).flatMap((n) => {

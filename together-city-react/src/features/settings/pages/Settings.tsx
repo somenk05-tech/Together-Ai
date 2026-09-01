@@ -14,7 +14,7 @@ import { SkinPicker } from '../components/SkinPicker';
 function Row({ title, desc, right }: { title: string; desc?: string; right?: ReactNode }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '13px 0', borderTop: '1px solid var(--line)' }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-min">
         <div style={{ fontWeight: 600, fontSize: 14 }}>{title}</div>
         {desc && <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>{desc}</div>}
       </div>
