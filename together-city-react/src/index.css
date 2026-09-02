@@ -1569,6 +1569,20 @@ html.tc-immersive .csdock { margin-bottom: calc(var(--safe-bottom) + 12px); }
 .dk-lab > span:first-child { flex: 0 0 auto; }
 .rev .dk-lab, .rev .dk-foot { color: var(--card); opacity: .62; }
 .dk-foot a { color: inherit; text-decoration: none; }
+/* THE WAY BACK INTO THE CITY, ON EVERY SLIDE. The wordmark in the foot row was
+   already there as a label; it is the door now too, marked with an arrow so it
+   reads as one. Not a floating button: every corner of a slide is already
+   spoken for, and a control over the artwork is the chrome this page was built
+   without.
+
+   THE 44px IS A HIT AREA, NOT A ROW HEIGHT. The negative margin gives the
+   padding straight back to the layout, so the foot row measures what it did
+   before and a thumb still gets a full target. */
+.dk-back { display: inline-flex; align-items: center; gap: .5em; min-height: 44px; margin-top: -14px; margin-bottom: -14px; color: inherit; text-decoration: none; }
+.dk-back::before { content: '\2190'; font-weight: 700; }
+.dk-back:hover { text-decoration: underline; }
+
+
 .dk-foot a:hover { text-decoration: underline; }
 
 /* The middle of a slide, and the one rule the whole layout rests on:
@@ -1719,4 +1733,13 @@ html.tc-immersive .csdock { margin-bottom: calc(var(--safe-bottom) + 12px); }
   .dk-steps { grid-template-columns: 1fr; }
   .dk-slide { height: auto; min-height: 100svh; }
   .dk-shot { flex: 0 1 auto; height: auto; max-height: 46svh; }
+  /* AND EVERY "TAKE THE REMAINDER" RULE HAS TO GO WITH THE FIXED HEIGHT.
+     `flex: 1 1 0` and `grid-template-rows: minmax(0, 1fr)` are how a slide of
+     a KNOWN height hands its leftover space to a photograph. On a phone the
+     slide is `height: auto`, so there is no leftover to hand out: the basis of
+     zero resolves to zero, the row resolves to zero, and the content paints
+     straight through whatever is under it — the unit-economics slide printed
+     its two tables on top of its own heading. Back to ordinary flow, where a
+     column that is as tall as its content is exactly what is wanted. */
+  .dk-two, .dk-three { flex: 0 1 auto; grid-template-rows: auto; row-gap: clamp(20px, 5vw, 40px); }
 }
