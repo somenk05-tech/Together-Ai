@@ -34,6 +34,7 @@ import { NotFound } from '@/pages/NotFound';
  * which is a Suspense boundary. There was nothing to arrange but the word.
  */
 const ServicesBrowse = lazy(() => import('@/features/services/pages/Browse').then((m) => ({ default: m.ServicesBrowse })));
+const FindService = lazy(() => import('@/features/services/pages/FindService').then((m) => ({ default: m.FindService })));
 const ListBusiness = lazy(() => import('@/features/services/pages/ListBusiness').then((m) => ({ default: m.ListBusiness })));
 const EditBusiness = lazy(() => import('@/features/services/pages/EditBusiness').then((m) => ({ default: m.EditBusiness })));
 const BusinessPage = lazy(() => import('@/features/services/pages/BusinessPage').then((m) => ({ default: m.BusinessPage })));
@@ -606,6 +607,7 @@ const ROUTE_BLOCKS: RouteObject[] = [
     // hub's sidebar, which nav-audit caught within a minute of it happening.
     element: <HubLayout hub={HUBS.services} />,
     children: [
+      { path: '/services/find', element: <RequireAuth>{wrap(<FindService />)}</RequireAuth> },
       { path: '/services/browse', element: <RequireAuth>{wrap(<ServicesBrowse />)}</RequireAuth> },
       { path: '/services/list', element: <RequireAuth>{wrap(<ListBusiness />)}</RequireAuth> },
       { path: '/services/mine', element: <RequireAuth>{wrap(<MyBusiness />)}</RequireAuth> },

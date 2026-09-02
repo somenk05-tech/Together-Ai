@@ -117,13 +117,20 @@ export const HUBS: Record<HubKey, HubConfig> = {
   services: {
     key: 'services', name: 'Local Services', tag: 'Fix it, learn it, book it — near you', backPath: '/services',
     items: [
-      { path: '/services/browse', index: '01', label: 'Find a service', sub: 'By trade and by where you are' },
-      { path: '/services/list', index: '02', label: 'List your business', sub: 'Pick a category, name your areas' },
-      { path: '/services/mine', index: '03', label: 'My business', sub: 'Edit, close, see who asked' },
-      { path: '/services/regulars', index: '04', label: 'Regulars', sub: 'The businesses you keep' },
-      { path: '/services/offers', index: '05', label: 'Daily offers', sub: 'What is on today' },
-      { path: '/services/messages', index: '06', label: 'Messages', sub: 'Anonymous, and only in this hub' },
-      { path: '/services/orders', index: '07', label: 'My orders', sub: 'Paid from your wallet, tracked to the door' },
+      /* TWO DOORS ONTO THE SAME DIRECTORY, AND THE ORDER IS THE ARGUMENT.
+         Somebody arriving at this hub has a job in mind — a leaking pipe, a
+         maths tutor — not a taxonomy to walk. 01 is one line to say it in;
+         02 is the whole list for the day you would rather look than ask. The
+         directory did not move: /services/browse is the same screen it was,
+         under the name it always deserved. */
+      { path: '/services/find', index: '01', label: 'Find a service', sub: 'Say it in your own words' },
+      { path: '/services/browse', index: '02', label: 'All listed services', sub: 'By trade and by where you are' },
+      { path: '/services/list', index: '03', label: 'List your business', sub: 'Pick a category, name your areas' },
+      { path: '/services/mine', index: '04', label: 'My business', sub: 'Edit, close, see who asked' },
+      { path: '/services/regulars', index: '05', label: 'Regulars', sub: 'The businesses you keep' },
+      { path: '/services/offers', index: '06', label: 'Daily offers', sub: 'What is on today' },
+      { path: '/services/messages', index: '07', label: 'Messages', sub: 'Anonymous, and only in this hub' },
+      { path: '/services/orders', index: '08', label: 'My orders', sub: 'Paid from your wallet, tracked to the door' },
     ],
   },
   travel: {

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Card, Chip, EmptyState, Spinner, Button } from '@/components/ui';
 import { useAuthStore } from '@/store/auth.store';
 import {
@@ -46,11 +46,17 @@ function greeting(hour: number): string {
 }
 
 export function ServicesBrowse() {
-  const [group, setGroup] = useState('');
-  const [category, setCategory] = useState('');
-  const [city, setCity] = useState('');
+  /* THE DOOR IN FRONT OF THIS ONE CARRIES ITS WORDS THROUGH. `/services/find`
+     is one field and a sentence; landing here having lost what you typed is
+     the hub asking twice. Read once, as the initial state — after that the
+     controls on this page own the search, so a later URL change never yanks
+     the box out from under somebody mid-edit. */
+  const [params] = useSearchParams();
+  const [group, setGroup] = useState(() => params.get('group') ?? '');
+  const [category, setCategory] = useState(() => params.get('category') ?? '');
+  const [city, setCity] = useState(() => params.get('city') ?? '');
   const [area, setArea] = useState('');
-  const [q, setQ] = useState('');
+  const [q, setQ] = useState(() => params.get('q') ?? '');
   const [view, setView] = useState<'list' | 'map'>('list');
   // "Near me" is off until somebody asks for it. The permission prompt is the
   // cost of this feature and it is only worth paying when it was requested.
@@ -102,7 +108,7 @@ export function ServicesBrowse() {
         <div style={{ flex: '1 1 420px', minWidth: 0 }}>
           <div className="eyebrow">Local Services</div>
           <h1 style={{ fontSize: 34, lineHeight: 1.12, margin: '4px 0 0', letterSpacing: '-0.02em' }}>
-            Find someone you can trust.
+            All listed services.
           </h1>
           <p className="muted" style={{ fontSize: 15, margin: '10px 0 0', maxWidth: '54ch' }}>
             {firstName ? `${greeting(new Date().getHours())}, ${firstName}. ` : ''}
