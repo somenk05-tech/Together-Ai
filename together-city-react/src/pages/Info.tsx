@@ -1,51 +1,11 @@
 import { Link } from 'react-router-dom';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 
-type Slug = 'privacy' | 'terms' | 'about' | 'help' | 'contact';
+type Slug = 'about' | 'help' | 'contact';
 
 interface Doc { title: string; lede?: string; sections: { h: string; p: string[] }[] }
 
 const DOCS: Record<Slug, Doc> = {
-  privacy: {
-    title: 'Privacy Policy',
-    lede: 'What we collect, why, and the control you keep — in plain language.',
-    sections: [
-      { h: 'What we collect', p: [
-        'Account basics you give us (handle, name, email, optional phone) and the content you create — posts, messages, plans, saved items.',
-        'Sensitive information only when you choose to add it to a specific hub: health records and blood tests (Medical), birth details (Astrology), matchmaking preferences (Matchmaking), financial activity (Financial), and family relationships (Family).',
-      ] },
-      { h: 'Why we use it', p: [
-        'To run the features you asked for and to personalize them — meal plans from your goals, health insights from your labs, guidance from your birth details.',
-        'We do not sell your personal data, and we do not use your private hub data to target you with third-party ads.',
-      ] },
-      { h: 'Who can see it', p: [
-        'By default, your sensitive hub data is private to you. Sharing only happens when you turn it on — for example, allowing another hub to read your biomarkers, or making parts of a matchmaking profile public to matches.',
-        'Family sharing shows only what you grant to the specific members you choose.',
-      ] },
-      { h: 'Your control', p: [
-        'You can review and change every sharing permission in Settings → Privacy & Permissions. Turning a permission off takes effect immediately.',
-        'You can export or delete your data. Deleting your account removes your personal records from active systems.',
-      ] },
-    ],
-  },
-  terms: {
-    title: 'Terms of Service',
-    lede: 'The basics of using Together City. By creating an account you agree to these terms.',
-    sections: [
-      { h: 'Using the city', p: [
-        'You must be at least 18 to use Together City. Keep your account secure and don\'t share your password.',
-        'Use the platform lawfully and respectfully. Don\'t harass others, impersonate people, or post illegal content.',
-      ] },
-      { h: 'Health, financial & guidance features', p: [
-        'Medical, Fitness and Nutrition insights are for information and personalization only — they are not medical advice or a diagnosis. Always consult a qualified professional.',
-        'Financial features help you organize money; they are not personalized investment or financial advice. Astrology content is offered as reflective guidance, not prediction.',
-      ] },
-      { h: 'Content & availability', p: [
-        'You own the content you create. You grant us the permissions needed to operate and display it within the features you use.',
-        'We improve the product continuously, so features may change. We aim for reliable service but can\'t guarantee uninterrupted availability.',
-      ] },
-    ],
-  },
   about: {
     title: 'About Together City',
     lede: "One city for your whole life. Everything personalized.",

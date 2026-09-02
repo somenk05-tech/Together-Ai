@@ -24,9 +24,9 @@ export const CO = {
   office: '[TO-FILL: Registered office address, Mumbai, Maharashtra]',
   jurisdiction: 'Mumbai, Maharashtra, India',
   grievanceOfficer: '[TO-FILL: Grievance Officer name]',
-  grievanceEmail: 'grievance@togethercity.tech',
-  support: 'support@togethercity.tech',
-  privacyEmail: 'privacy@togethercity.tech',
+  grievanceEmail: 'grievance@togethercity.app',
+  support: 'support@togethercity.app',
+  privacyEmail: 'privacy@togethercity.app',
   dpo: '[TO-FILL: Data Protection Officer / contact]',
   updated: '16 July 2026',
 };
@@ -47,7 +47,7 @@ P.terms = {
     'By using Together City you agree to these Terms and all policies linked here.',
     'You must be 18 or older. One account per person; keep your login secure.',
     "You own what you post but grant us a licence to operate the service; don't post unlawful content.",
-    'Many hubs (travel, restaurants, shopping, medical) connect you to third parties — we are an intermediary, not the seller or provider.',
+    'Many hubs (travel, local services, shopping, medical) connect you to third parties — we are an intermediary, not the seller or provider.',
     'Disputes are governed by Indian law, seated in Mumbai; a grievance officer handles complaints.',
   ],
   sections: [
@@ -61,7 +61,7 @@ P.terms = {
       `<p>You are responsible for maintaining the confidentiality of your credentials and for all activity under your account.</p>
       ${li(['Provide accurate, current information and keep it updated.', 'One account per person unless we expressly permit otherwise.', 'Notify us immediately at ' + CO.support + ' of any unauthorised use.', 'We may offer two-factor authentication; we recommend you enable it.'])}` },
     { h: '4. The Platform is a multi-hub intermediary', html:
-      `<p>${CO.brand} brings together social, matchmaking, AI, medical, nutrition, restaurants, travel, e-commerce, financial, and creator features. For many of these we act as an <strong>intermediary</strong> under the IT Act, connecting you to independent third parties (sellers, restaurants, hotels, labs, creators, payment providers).</p>
+      `<p>${CO.brand} brings together social, matchmaking, AI, medical, nutrition, local services, travel, e-commerce, financial, and creator features. For many of these we act as an <strong>intermediary</strong> under the IT Act, connecting you to independent third parties (sellers, local service providers, hotels, labs, creators, payment providers).</p>
       ${note('Except where we expressly say we are the seller or provider, contracts for goods, services, bookings, and diagnostics are between you and the relevant third party. We are not a party to those contracts and do not guarantee third-party performance.')}` },
     { h: '5. Acceptable use', html:
       `<p>You agree not to, and not to permit others to:</p>
@@ -108,10 +108,10 @@ P.privacy = {
       `<p>This Privacy Policy explains how ${CO.company} ("Data Fiduciary") handles your personal data when you use ${CO.brand}. It is issued under the Digital Personal Data Protection Act, 2023 ("DPDP Act"), the Information Technology Act, 2000, and applicable rules. By using the Platform you consent to this Policy.</p>` },
     { h: '2. Data we collect', html:
       `<p>Depending on the hubs you use, we may collect:</p>
-      ${li(['<strong>Identity & contact:</strong> name, phone, email, date of birth, profile photo;', '<strong>Account & usage:</strong> handle, preferences, device and log data, cookies;', '<strong>Sensitive/health data:</strong> blood reports, biomarkers, nutrition and beauty profiles, prescriptions (Medical Hub is the single source of truth);', '<strong>Location:</strong> where you enable geo features (e.g. social map, restaurants, travel);', '<strong>Content:</strong> posts, chats, media, reviews;', '<strong>Transaction data:</strong> orders, bookings, payments (handled by our payment partners);', '<strong>Relationship data:</strong> matchmaking profile and compatibility inputs (stored locally to your account where feasible).'])}` },
+      ${li(['<strong>Identity & contact:</strong> name, phone, email, date of birth, profile photo;', '<strong>Account & usage:</strong> handle, preferences, device and log data, cookies;', '<strong>Sensitive/health data:</strong> blood reports, biomarkers, nutrition and beauty profiles, prescriptions (Medical Hub is the single source of truth);', '<strong>Location:</strong> where you enable geo features (e.g. social map, local services, travel);', '<strong>Content:</strong> posts, chats, media, reviews;', '<strong>Transaction data:</strong> orders, bookings, payments (handled by our payment partners);', '<strong>Relationship data:</strong> matchmaking profile and compatibility inputs (stored locally to your account where feasible).'])}` },
     { h: '3. Purposes and legal basis', html:
       `<p>We process personal data on the basis of your consent, or where processing is necessary for a legitimate use permitted by the DPDP Act, to:</p>
-      ${li(['Create and operate your account and the hubs you use;', 'Personalise recommendations (food, restaurants, travel, matches, beauty, medical insights);', 'Process payments, bookings, and creator payouts;', 'Keep the Platform safe, prevent fraud, and moderate content;', 'Comply with law and respond to lawful requests.'])}` },
+      ${li(['Create and operate your account and the hubs you use;', 'Personalise recommendations (food, local services, travel, matches, beauty, medical insights);', 'Process payments, bookings, and creator payouts;', 'Keep the Platform safe, prevent fraud, and moderate content;', 'Comply with law and respond to lawful requests.'])}` },
     { h: '4. Consent and your control', html:
       `<p>We seek clear, specific, and informed consent before processing your data, and separately before processing sensitive categories such as health data. You may withdraw consent at any time; withdrawal does not affect prior lawful processing but may limit features.</p>
       ${note('Consent Manager: manage granular permissions (health sharing, location, marketing, cross-hub connections) from Settings → Privacy at any time.')}` },
@@ -121,7 +121,7 @@ P.privacy = {
       `<p>The Platform is restricted to users 18 and older. We do not knowingly process the personal data of children. If we learn that a minor has registered, we will delete the account and associated data. See our Child Safety & Minor Protection Policy.</p>` },
     { h: '7. Sharing and disclosure', html:
       `<p>We share personal data only as needed:</p>
-      ${li(['With third-party providers you transact with (sellers, restaurants, hotels, labs, creators) to fulfil your request;', 'With processors (Data Processors) who act on our instructions under contract;', 'With payment partners and, where required, regulators and law-enforcement under a valid legal request;', 'In a business transfer, subject to this Policy.'])}
+      ${li(['With third-party providers you transact with (sellers, local service providers, hotels, labs, creators) to fulfil your request;', 'With processors (Data Processors) who act on our instructions under contract;', 'With payment partners and, where required, regulators and law-enforcement under a valid legal request;', 'In a business transfer, subject to this Policy.'])}
       <p>We do not sell your personal data.</p>` },
     { h: '8. Security', html:
       `<p>We apply reasonable security safeguards: encryption in transit and at rest for sensitive data, access controls, hashing of passwords, rate limiting, audit logs, and periodic security testing. See our Security Policy. No system is perfectly secure; we will notify you and the Data Protection Board of any breach as required.</p>` },
@@ -171,13 +171,13 @@ P.ai = {
   short: "How Together City's AI works, its limits, and your responsibilities.",
   eff: CO.updated,
   tldr: [
-    'AI powers recommendations across food, restaurants, matchmaking, travel, shopping, beauty, and health insights.',
+    'AI powers recommendations across food, local services, matchmaking, travel, shopping, beauty, and health insights.',
     'AI can be wrong. It is informational only — not professional medical, legal, or financial advice.',
     'We label AI interactions and AI-generated content, and provide human-review paths for sensitive matters.',
   ],
   sections: [
     { h: '1. Where we use AI', html:
-      `<p>${CO.brand} uses artificial intelligence and automated systems to generate meal plans, restaurant and travel suggestions, matchmaking compatibility scores, beauty routines, shopping picks, and health-related insights, and to assist moderation.</p>` },
+      `<p>${CO.brand} uses artificial intelligence and automated systems to generate meal plans, local-service and travel suggestions, matchmaking compatibility scores, beauty routines, shopping picks, and health-related insights, and to assist moderation.</p>` },
     { h: '2. AI is informational, not professional advice', html:
       `${note('AI outputs are generated automatically and may be inaccurate, incomplete, or unsuitable for your circumstances. They do not constitute medical, nutritional, legal, financial, or professional advice, and do not create a professional relationship.')}
       <p>Always use your own judgement and consult a qualified professional (doctor, dietitian, lawyer, advisor) before acting on AI output, especially for health, safety, money, or legal matters. See the Medical and Nutrition disclaimers.</p>` },
@@ -376,7 +376,7 @@ P.refunds = {
       `<p>This Policy sets out cancellation, return, and refund rules across ${CO.brand}. Because many purchases involve third-party sellers and providers, the specific seller/provider's terms disclosed at checkout also apply, consistent with the Consumer Protection Act, 2019 and its e-commerce rules.</p>` },
     { h: '2. Cancellations', html:
       li([
-        '<strong>Bookings (travel, hotels, restaurants, events):</strong> cancellation windows and charges are shown before you confirm and set by the provider;',
+        '<strong>Bookings (travel, hotels, local services, events):</strong> cancellation windows and charges are shown before you confirm and set by the provider;',
         '<strong>Marketplace orders:</strong> may be cancelled before dispatch; after dispatch, the return process applies;',
         '<strong>Subscriptions:</strong> cancel anytime to stop future renewals (no partial-period refund unless required by law).',
       ]) },
@@ -576,8 +576,7 @@ P.trademark = stub('Trademark Policy', 'Use of the Together City brand and marks
 P.harassment = stub('Harassment & Abuse Policy', 'Our stance on harassment and abuse.', 'Prohibits harassment, threats, doxxing, non-consensual imagery, and coordinated abuse, and sets out reporting and enforcement.', ['community', 'moderation', 'dating']);
 P.antifraud = stub('Anti-Fraud Policy', 'How we detect and prevent fraud.', 'Describes fraud, fake-account, and manipulated-engagement prevention, and the actions we take against fraudulent activity.', ['identity', 'payments', 'terms']);
 P.identity = stub('Identity Verification Policy', 'When and how we verify identity.', 'Explains identity checks (recommended in Matchmaking and required for some features/sellers), what we collect, and how it is protected.', ['dating', 'seller', 'privacy']);
-P.merchant = stub('Merchant Agreement', 'General merchant terms across hubs.', 'Umbrella terms for merchants across marketplace, restaurants, and services, complementing the Seller Agreement.', ['seller', 'restaurant', 'payments']);
-P.restaurant = stub('Restaurant Partner Agreement', 'Terms for restaurant partners.', 'Governs restaurant listings, menu/price accuracy, taxes, hygiene claims, delivery details, and ratings policy.', ['merchant', 'reviews', 'refunds']);
+P.merchant = stub('Merchant Agreement', 'General merchant terms across hubs.', 'Umbrella terms for merchants across marketplace and local services, complementing the Seller Agreement.', ['seller', 'payments']);
 P.grocery = stub('Grocery Partner Agreement', 'Terms for grocery partners.', 'Governs grocery catalogues, pricing, freshness/expiry, substitutions, and fulfilment.', ['merchant', 'refunds']);
 P.marketplace = stub('Marketplace Terms', 'Buyer-side marketplace rules.', 'Explains how the marketplace works, that the Company is an intermediary, and buyer protections under consumer law.', ['seller', 'refunds', 'payments']);
 P.affiliate = stub('Affiliate Policy', 'Terms for affiliates and referrals.', 'Governs affiliate/referral participation, disclosure obligations, and commissions.', ['advertising', 'creator']);
@@ -589,7 +588,7 @@ P.flight = stub('Flight Booking Terms', 'Terms for flight bookings.', 'Covers ai
 P.experience = stub('Experience & Event Booking Terms', 'Terms for experiences and events.', 'Covers experiences, movies, and events: ticketing, seat selection, cancellation, and organiser responsibility.', ['travel', 'refunds']);
 P.advertising = stub('Advertising Policy', 'Rules for advertisers on the Platform.', 'Governs ad content standards, prohibited advertising, targeting limits, and ad-record keeping.', ['sponsored', 'creator', 'community']);
 P.sponsored = stub('Sponsored Content Policy', 'Disclosure of paid/branded content.', 'Requires clear labelling of sponsored and branded content by creators and advertisers.', ['advertising', 'creator']);
-P.reviews = stub('Review & Ratings Policy', 'How reviews and ratings work.', 'Governs authentic reviews, prohibits fake/paid reviews and misleading rankings, and explains moderation of reviews.', ['restaurant', 'marketplace', 'moderation']);
+P.reviews = stub('Review & Ratings Policy', 'How reviews and ratings work.', 'Governs authentic reviews, prohibits fake/paid reviews and misleading rankings, and explains moderation of reviews.', ['marketplace', 'moderation']);
 P.deletion = stub('Data Deletion Policy', 'How to delete your data.', 'Step-by-step account and data deletion, what is removed, and what is retained for legal reasons.', ['retention', 'privacy']);
 P.security = stub('Security Policy', 'Our security safeguards.', 'Describes encryption, authentication, access controls, testing, and breach response.', ['privacy', 'vulnerability', 'retention']);
 P.vulnerability = stub('Vulnerability Disclosure Policy', 'How to report security issues.', 'Invites responsible disclosure of vulnerabilities, sets safe-harbour expectations, and our response process.', ['security']);
@@ -610,9 +609,9 @@ export const VOLUMES: Volume[] = [
   { id: 'v2', roman: 'II', title: 'Community, Matchmaking, Creator & Advertising',
     desc: 'Behaviour, safety, moderation, and creator/advertiser rules.',
     policies: ['community', 'moderation', 'child', 'harassment', 'dating', 'identity', 'creator', 'userlicense', 'advertising', 'sponsored', 'affiliate', 'reviews'] },
-  { id: 'v3', roman: 'III', title: 'Health, Nutrition, Restaurants & Travel',
+  { id: 'v3', roman: 'III', title: 'Health, Nutrition & Travel',
     desc: 'Disclaimers and booking terms for health and lifestyle hubs.',
-    policies: ['medical', 'nutrition', 'healthdata', 'restaurant', 'reviews', 'travel', 'hotel', 'flight', 'experience'] },
+    policies: ['medical', 'nutrition', 'healthdata', 'reviews', 'travel', 'hotel', 'flight', 'experience'] },
   { id: 'v4', roman: 'IV', title: 'Commerce, Payments & Partners',
     desc: 'Marketplace, seller, payment, subscription, and partner agreements.',
     policies: ['marketplace', 'seller', 'merchant', 'grocery', 'refunds', 'payments', 'subscription', 'wallet', 'antifraud', 'api'] },

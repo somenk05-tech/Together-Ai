@@ -356,8 +356,14 @@ const ROUTE_BLOCKS: RouteObject[] = [
       { path: '/moderation', element: <RequireAuth>{wrap(<ModerationQueue />)}</RequireAuth> },
       { path: '/legal', element: wrap(<LegalCenter />) },
       { path: '/legal/policy/:policyId', element: wrap(<LegalCenter />) },
-      { path: '/legal/privacy', element: wrap(<Info slug="privacy" />) },
-      { path: '/legal/terms', element: wrap(<Info slug="terms" />) },
+      /* THE DOOR OPENS ON THE WHOLE DOCUMENT (2 Sep). Sign-up, the footer and
+         Settings link /legal/terms and /legal/privacy, and until today those
+         opened a three-paragraph summary from Info.tsx — so the page a citizen
+         agreed to at the door was not the Terms, and the one the DPDP Act
+         requires was one click further than anything pointed. The paths stay,
+         because they are printed in every consent line; the summaries go. */
+      { path: '/legal/privacy', element: <Navigate to="/legal/policy/privacy" replace /> },
+      { path: '/legal/terms', element: <Navigate to="/legal/policy/terms" replace /> },
       { path: '/about', element: wrap(<Info slug="about" />) },
       { path: '/help', element: wrap(<Info slug="help" />) },
       { path: '/contact', element: wrap(<Info slug="contact" />) },
