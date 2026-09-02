@@ -55,9 +55,14 @@ describe('one line, then the list', () => {
     expect(browse).toMatch(/useState\(\(\) => params\.get\('q'\)/);
   });
 
-  it('signs the room with the one wordmark the masthead uses', () => {
+  it('is a search bar and nothing else', () => {
+    /* The screen shipped with a photographed room, the wordmark and a rail of
+       suggested trades; all three went (owner, 2 Sep) because they competed
+       with the one thing 01 is for. This is the guard against them creeping
+       back one well-meaning commit at a time. */
     const find = strip(read('src/features/services/pages/FindService.tsx'));
-    expect(find).toContain('/assets/img/tc-word.svg');
-    expect(find).toContain('/assets/img/services-find-room.webp');
+    expect(find).not.toMatch(/backgroundImage|\.webp|tc-word\.svg/);
+    expect(find).toMatch(/role="search"/);
+    expect(find).toContain('placeholder="What are you looking for… today"');
   });
 });
