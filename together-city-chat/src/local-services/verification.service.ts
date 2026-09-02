@@ -1,6 +1,7 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { StorageProvider } from '../media/storage.provider';
 import {
   badgeFor, DOC_KINDS, ENTITY_KINDS, FREE_NEW_THREADS_PER_DAY, gateLifted, nextStep, policyFor,
   tierOf, type DocKind, type EntityKind, type Tier, type TrustEvidence, type TrustBadge,
@@ -73,6 +74,9 @@ export class VerificationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    /* Optional so the specs that build this service by hand keep working;
+       `presignVideo` refuses plainly when nothing is wired. */
+    @Optional() private readonly storage?: StorageProvider,
   ) {}
 
   // ───────────────────────── evidence ─────────────────────────
@@ -345,7 +349,7 @@ export class VerificationService {
       entityKind: dto.entityKind,
       docKind: dto.docKind,
       docRef: dto.docRef,
-      docUrl: dto.docUrl ?? null,
+      docUrl: null,
       docStatus: 'submitted',
       submittedAt: now,
       // A resubmission is a fresh question. Leaving the old refusal on the row
@@ -364,10 +368,22 @@ export class VerificationService {
    * the owner at the business, saying who they are — reviewed by eyes, never
    * by a model, because the whole point of this rung is that a person looked.
    */
-  async submitVideo(ownerId: string, listingId: string, videoUrl: string, now = new Date()) {
+  async presignVideo(ownerId: string, listingId: string, mimeType: string, sizeBytes: number): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
+    await this.own(ownerId, listingId);
+    if (!this.storage) throw new BadRequestException('File storage is not configured.');
+    if (sizeBytes > 200 * 1024 * 1024) throw new BadRequestException('A verification video must be under 200 MB.');
+    const ext = mimeType === 'video/quicktime' ? 'mov' : mimeType === 'video/webm' ? 'webm' : 'mp4';
+    return this.storage.presignVerificationVideoUpload(ownerId, mimeType, ext);
+  }
+
+  async submitVideo(ownerId: string, listingId: string, videoKey: string, now = new Date()) {
     const l = await this.own(ownerId, listingId);
+    /* THE KEY'S PREFIX IS THE OWNERSHIP PROOF. `kyc/<ownerId>/` was minted by
+       presignVideo for this owner; any other prefix is somebody else's clip,
+       or a URL from before 2 Sep replayed by an old client. */
+    if (!StorageProvider.isOwnKycKey(ownerId, videoKey)) throw new ForbiddenException('That video is not yours to send.');
     await this.upsert(l.id, {
-      videoUrl,
+      videoUrl: videoKey,
       videoStatus: 'submitted',
       videoSubmittedAt: now,
       // A resubmission is a fresh question — same rule as the document.

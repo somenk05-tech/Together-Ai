@@ -747,6 +747,57 @@ export class StorageProvider implements OnModuleInit {
     return typeof key === 'string' && key.startsWith(`daybook/${userId}/`);
   }
 
+  /**
+   * ── THE TWO FILES THAT WERE IN THE WRONG BUCKET (launch blocker 3, 2 Sep) ──
+   *
+   * A CV and a business-verification video both went through `presignUpload`
+   * into the PUBLIC bucket: a permanent, unauthenticated address for somebody's
+   * career history, and for a clip of an owner standing in their shop saying
+   * their name. Neither is a thing a stranger should be able to fetch by
+   * guessing, and neither is a thing deleting the row could take back.
+   *
+   * Both live in the vault now, each under its own prefix — `cv/<userId>/`
+   * and `kyc/<userId>/` — because ONE PREFIX PER THING THAT CAN BE OWNED is
+   * the rule this file keeps: the key answers "is this yours" without a
+   * lookup, and a CV key can never be handed to the Drive download route or
+   * the health reader, because it does not match their shape.
+   */
+  async presignResumeUpload(userId: string, mimeType: string, ext: string): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
+    return this.presignVaultUpload(`cv/${userId}/`, mimeType, ext);
+  }
+
+  async presignVerificationVideoUpload(userId: string, mimeType: string, ext: string): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
+    return this.presignVaultUpload(`kyc/${userId}/`, mimeType, ext);
+  }
+
+  static isOwnResumeKey(userId: string, key: string): boolean {
+    return typeof key === 'string' && key.startsWith(`cv/${userId}/`);
+  }
+
+  static isOwnKycKey(userId: string, key: string): boolean {
+    return typeof key === 'string' && key.startsWith(`kyc/${userId}/`);
+  }
+
+  /** True when a value is a vault key of either of those two shapes — as
+   *  opposed to the public URL the same columns held before 2 Sep. */
+  static isCvOrKycKey(value: string): boolean {
+    return typeof value === 'string' && /^(cv|kyc)\/[^/]+\/[A-Za-z0-9._-]+$/.test(value);
+  }
+
+  private async presignVaultUpload(prefix: string, mimeType: string, ext: string): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
+    const safeExt = (ext || 'bin').replace(/[^a-zA-Z0-9]/g, '').slice(0, 10) || 'bin';
+    const key = `${prefix}${randomUUID()}.${safeExt}`;
+    if (!this.s3) {
+      return { uploadUrl: `${this.publicBase}/__presigned__/${key}`, key, expiresInSec: this.expiresInSec };
+    }
+    const uploadUrl = await getSignedUrl(
+      this.s3,
+      new PutObjectCommand({ Bucket: this.healthBucket, Key: key, ContentType: mimeType }),
+      { expiresIn: this.expiresInSec },
+    );
+    return { uploadUrl, key, expiresInSec: this.expiresInSec };
+  }
+
   /* THE THREE HELPERS BELOW ARE BUCKET-LEVEL, NOT HEALTH-LEVEL. They are named
      for the vault's first tenant and operate on every object in it — drive,
      dating and now daybook all use them. These aliases say so at the call site,

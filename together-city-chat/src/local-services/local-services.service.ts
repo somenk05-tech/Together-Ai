@@ -641,6 +641,13 @@ export class LocalServicesService {
     let removed = 0;
     const failed: string[] = [];
     for (const url of [...new Set(urls.filter(Boolean))]) {
+      /* Since 2 Sep the verification video is a VAULT key (`kyc/<ownerId>/`),
+         not a public URL, and it is deleted from the vault. Rows from before
+         still hold a public URL until the migration moves them. */
+      if (StorageProvider.isCvOrKycKey(url)) {
+        if (await storage.deletePrivateObject(url)) removed += 1; else failed.push(url);
+        continue;
+      }
       const key = storage.keyFromUrl(url);
       if (!key) continue; // not ours — an owner's link to somewhere else
       // Read the answer. `deleteObject` used to catch its own error and return

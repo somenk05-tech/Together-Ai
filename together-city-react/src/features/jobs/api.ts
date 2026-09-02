@@ -156,8 +156,12 @@ export interface ApplicantsResponse { job: { id: string; title: string; company:
 
 export const jobsApi = {
   profile: () => api.get<JobProfile>('/jobs/profile').then((r) => r.data),
-  uploadResume: (input: { resumeText: string; fileName?: string; fileUrl?: string; fileBytes?: number }) =>
+  uploadResume: (input: { resumeText: string; fileName?: string; fileKey?: string; fileBytes?: number }) =>
     api.post<UploadResumeResponse>('/jobs/resume', input).then((r) => r.data),
+  /** The stored CV, as a signed download link that lasts minutes. The only
+   *  way the document comes back — `resumeUrl` on the profile is a vault
+   *  key, not an address (2 Sep). */
+  resumeLink: () => api.get<{ url: string | null; fileName: string | null }>('/jobs/resume/link').then((r) => r.data),
   deleteResume: () => api.delete<JobProfile>('/jobs/resume').then((r) => r.data),
   // ── the professional record ──
   addEntry: (input: CvEntryInput) => api.post<JobProfile>('/jobs/entries', input).then((r) => r.data),
@@ -206,7 +210,7 @@ export function useJobProfile() {
 export function useUploadResume() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { resumeText: string; fileName?: string; fileUrl?: string; fileBytes?: number }) => jobsApi.uploadResume(v),
+    mutationFn: (v: { resumeText: string; fileName?: string; fileKey?: string; fileBytes?: number }) => jobsApi.uploadResume(v),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['jobs', 'profile'] });
       void qc.invalidateQueries({ queryKey: ['jobs', 'entries'] });

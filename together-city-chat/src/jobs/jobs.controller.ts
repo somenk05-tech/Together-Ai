@@ -7,6 +7,7 @@ import { JobsService } from './jobs.service';
 import { Throttle } from '@nestjs/throttler';
 import {
   UploadResumeSchema, type UploadResumeDto,
+  ResumePresignSchema, type ResumePresignDto,
   SaveJobProfileSchema, type SaveJobProfileDto,
   ApplySchema, type ApplyDto,
   PostJobSchema, type PostJobDto,
@@ -27,6 +28,22 @@ export class JobsController {
   @Get('profile')
   profile(@CurrentUser() user: JwtUser) {
     return this.jobs.getProfile(user.sub);
+  }
+
+  /* THE CV GOES INTO THE VAULT, NOT THE PUBLIC BUCKET (2 Sep). Two calls, the
+     shape every private file in the city uses: `resume/presign` hands back a
+     URL the browser PUTs the bytes to under `cv/<userId>/`, and `resume`
+     files the key. `resume/link` is the only way the document comes back —
+     a short-lived signed URL, offered as a download, to its owner. */
+  @Post('resume/presign')
+  @UsePipes(new ZodValidationPipe(ResumePresignSchema))
+  presignResume(@CurrentUser() user: JwtUser, @Body() dto: ResumePresignDto) {
+    return this.jobs.presignResume(user.sub, dto.mimeType, dto.sizeBytes);
+  }
+
+  @Get('resume/link')
+  resumeLink(@CurrentUser() user: JwtUser) {
+    return this.jobs.resumeLink(user.sub);
   }
 
   @Post('resume')

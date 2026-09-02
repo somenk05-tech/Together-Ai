@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent 
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
-import { useJobProfile, useUploadResume, useDeleteResume, type CvEntry, type ResumeEntryCounts } from '../api';
+import { jobsApi, useJobProfile, useUploadResume, useDeleteResume, type CvEntry, type ResumeEntryCounts } from '../api';
 import { JobProfileForm } from '../JobProfileForm';
 import { ProfessionalProfile } from '../components/ProfessionalProfile';
 import { CvReview } from '../components/CvReview';
@@ -41,6 +41,16 @@ export function Profile() {
   const profile = useJobProfile();
   const upload = useUploadResume();
   const removeCv = useDeleteResume();
+  const [opening, setOpening] = useState(false);
+  const openCv = async () => {
+    setOpening(true);
+    try {
+      const { url } = await jobsApi.resumeLink();
+      if (url) window.open(url, '_blank', 'noopener');
+      else setReadError('That copy could not be opened just now.');
+    } catch { setReadError('That copy could not be opened just now.'); }
+    finally { setOpening(false); }
+  };
   const [fileName, setFileName] = useState<string | undefined>();
   const [drag, setDrag] = useState(false);
   const [pasteOpen, setPasteOpen] = useState(false);
@@ -74,10 +84,10 @@ export function Profile() {
     if (phase === 'review' && unchecked.length === 0) setPhase('idle');
   }, [phase, unchecked.length]);
 
-  const parse = (resumeText: string, name?: string, fileUrl?: string, fileBytes?: number) => {
+  const parse = (resumeText: string, name?: string, fileKey?: string, fileBytes?: number) => {
     if (!resumeText.trim()) return;
     setPhase('building');
-    upload.mutate({ resumeText, fileName: name, fileUrl, fileBytes }, {
+    upload.mutate({ resumeText, fileName: name, fileKey, fileBytes }, {
       onSuccess: (res) => {
         setFound(res.entries);
         setPhase('found');
@@ -125,10 +135,10 @@ export function Profile() {
        * fails must not lose the parse that succeeded, so the profile is
        * written either way and the file link is simply absent.
        */
-      let fileUrl: string | undefined;
-      try { fileUrl = await mediaApi.upload(f); }
+      let fileKey: string | undefined;
+      try { fileKey = (await mediaApi.uploadResume(f)).fileKey; }
       catch (e) { setReadError(`Your CV was read, but the copy could not be stored (${uploadErrorMessage(e)}).`); }
-      parse(read, f.name, fileUrl, f.size);
+      parse(read, f.name, fileKey, f.size);
     } catch {
       setReadError('Could not read that file — try a PDF, Word (.docx) or .txt file, or paste the text below.');
       setPasteOpen(true);
@@ -371,7 +381,10 @@ export function Profile() {
                 </div>
               </div>
               {p.resumeUrl
-                ? <a href={p.resumeUrl} target="_blank" rel="noreferrer"><Button variant="line" size="sm">View</Button></a>
+                /* The link is minted when tapped and lasts minutes — a CV is a
+                   vault file since 2 Sep, and a permanent href would be the
+                   public address this page exists not to have. */
+                ? <Button variant="line" size="sm" disabled={opening} onClick={() => void openCv()}>{opening ? 'Opening…' : 'View'}</Button>
                 /* An older upload predates the file being kept. Saying so beats a
                    button that opens nothing. */
                 : <span className="muted" style={{ fontSize: 12 }}>Uploaded before files were kept — re-upload to keep a copy</span>}

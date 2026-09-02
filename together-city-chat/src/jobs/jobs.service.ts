@@ -241,10 +241,18 @@ export class JobsService implements OnModuleInit {
     const url = row?.resumeUrl ?? '';
     if (url) {
       if (this.storage) {
-        const key = this.storage.keyFromUrl(url);
-        if (key) {
-          await this.storage.deleteObject(key)
+        /* Since 2 Sep the column holds a vault key; before it, a public URL.
+           Both shapes are still in the table until the migration has run, so
+           both are deleted from where they actually are. */
+        if (StorageProvider.isOwnResumeKey(userId, url)) {
+          await this.storage.deletePrivateObject(url)
             .catch(swallowed('jobs.deleteResume: delete the stored CV', undefined, { userId }));
+        } else {
+          const key = this.storage.keyFromUrl(url);
+          if (key) {
+            await this.storage.deleteObject(key)
+              .catch(swallowed('jobs.deleteResume: delete the stored CV', undefined, { userId }));
+          }
         }
       } else {
         this.logger.error(
@@ -311,7 +319,50 @@ export class JobsService implements OnModuleInit {
     return order;
   }
 
+  /**
+   * ── THE CV IS A PRIVATE FILE (launch blocker 3, 2 Sep) ─────────────────────
+   *
+   * `fileUrl` used to be whatever the client said it was: a public-bucket URL
+   * minted by `mediaApi.upload`, permanent and unauthenticated — a career
+   * history addressable by anybody who ever saw the string. The document goes
+   * into the vault under `cv/<userId>/` now, the client hands back the KEY,
+   * and the only way it comes out is `resumeLink`: a signed URL that lasts
+   * minutes, offered as a download, to its owner.
+   */
+  async presignResume(userId: string, mimeType: string, sizeBytes: number): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
+    if (!this.storage) throw new BadRequestException('File storage is not configured.');
+    if (sizeBytes > 20_000_000) throw new BadRequestException('A CV must be under 20 MB.');
+    const ext = mimeType === 'application/pdf' ? 'pdf'
+      : mimeType === 'text/plain' ? 'txt'
+      : mimeType === 'application/msword' ? 'doc' : 'docx';
+    return this.storage.presignResumeUpload(userId, mimeType, ext);
+  }
+
+  /** A short-lived signed URL for the citizen's own stored CV, or null when
+   *  there is none. Rows written before 2 Sep hold a public URL rather than a
+   *  key; those are handed back as they are until the migration moves them. */
+  async resumeLink(userId: string): Promise<{ url: string | null; fileName: string | null }> {
+    const row = await this.prisma.jobProfile.findUnique({
+      where: { userId }, select: { resumeUrl: true, resumeName: true },
+    });
+    const stored = row?.resumeUrl ?? '';
+    if (!stored) return { url: null, fileName: row?.resumeName ?? null };
+    if (!StorageProvider.isOwnResumeKey(userId, stored)) {
+      // A legacy public URL, or a key that is not this citizen's. The second
+      // cannot be written through uploadResume; if it ever appears, it is not
+      // signed either way.
+      return { url: StorageProvider.isCvOrKycKey(stored) ? null : stored, fileName: row?.resumeName ?? null };
+    }
+    const url = this.storage
+      ? await this.storage.presignHealthDownload(stored, { asAttachment: true, filename: row?.resumeName ?? 'cv' })
+      : null;
+    return { url, fileName: row?.resumeName ?? null };
+  }
+
   async uploadResume(userId: string, dto: UploadResumeDto) {
+    if (dto.fileKey && !StorageProvider.isOwnResumeKey(userId, dto.fileKey)) {
+      throw new ForbiddenException('That file is not yours to file.');
+    }
     /**
      * THE READER FIRST, THE HEURISTIC AS A FLOOR.
      *
@@ -341,7 +392,7 @@ export class JobsService implements OnModuleInit {
       }
       : heuristic;
     await this.persistProfile(userId, parsed, dto.resumeText, dto.fileName ?? null, {
-      resumeUrl: dto.fileUrl ?? null,
+      resumeUrl: dto.fileKey ?? null,
       resumeBytes: dto.fileBytes ?? 0,
       resumeAt: this.clock.now(),
       // The reader's name first, the heuristic's second, and neither

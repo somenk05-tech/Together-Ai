@@ -471,8 +471,8 @@ export const servicesApi = {
     api.get<ListingTrust>(`/services/${listingId}/verification`).then((r) => r.data),
   submitVerification: (listingId: string, input: SubmitVerificationInput) =>
     api.post<ListingTrust>(`/services/${listingId}/verification`, input).then((r) => r.data),
-  submitVerificationVideo: (listingId: string, videoUrl: string) =>
-    api.post<ListingTrust>(`/services/${listingId}/verification/video`, { videoUrl }).then((r) => r.data),
+  submitVerificationVideo: (listingId: string, videoKey: string) =>
+    api.post<ListingTrust>(`/services/${listingId}/verification/video`, { videoKey }).then((r) => r.data),
 
   menu: (listingId: string) => api.get<MenuPage>(`/services/${listingId}/menu`).then((r) => r.data),
   // Reading a photographed menu is a vision-model call and routinely outruns
@@ -533,7 +533,7 @@ export function useSubmitVerification(listingId?: string) {
 export function useSubmitVerificationVideo(listingId?: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (videoUrl: string) => servicesApi.submitVerificationVideo(listingId as string, videoUrl),
+    mutationFn: (videoKey: string) => servicesApi.submitVerificationVideo(listingId as string, videoKey),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['services'] }); },
   });
 }

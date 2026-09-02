@@ -87,8 +87,8 @@ function VideoRung({ listingId, t }: { listingId: string; t: ListingTrust }) {
     if (!file) return;
     setErr(null); setBusy(true);
     try {
-      const url = await mediaApi.upload(file);
-      send.mutate(url, {
+      const key = await mediaApi.uploadVerificationVideo(listingId, file);
+      send.mutate(key, {
         onError: (e: unknown) => {
           const raw = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
           setErr(raw ?? 'That could not be sent just now.');

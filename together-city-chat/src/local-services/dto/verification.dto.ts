@@ -30,10 +30,23 @@ export const SubmitVerificationSchema = z.object({
    *  that is right about one format and wrong about seven refuses real
    *  businesses. A human reads it against the upload. */
   docRef: z.string().trim().min(4).max(40).optional(),
-  docUrl: z.string().url().optional(),
+  /* `docUrl` is gone (2 Sep). No client ever sent one — the form takes a
+     reference number, and a person reads it against the video — but the
+     field accepted any public URL into the most sensitive column in the
+     services schema. A document upload, when it exists, goes to the vault
+     under `kyc/` like the video. */
 });
 export type SubmitVerificationDto = z.infer<typeof SubmitVerificationSchema>;
 
-/** The owner's clip, already uploaded through the media chokepoint. */
-export const SubmitVideoSchema = z.object({ videoUrl: z.string().url() });
+/** The owner's clip, already PUT into the vault under `kyc/<ownerId>/` via
+ *  `verification/video/presign` — a key, never a URL (2 Sep). */
+export const SubmitVideoSchema = z.object({ videoKey: z.string().regex(/^kyc\/[^/]+\/[A-Za-z0-9._-]+$/).max(300) });
+
+/** What a verification clip may be. The three containers a phone records and
+ *  a browser plays; 200 MB is generous for "under a minute is plenty". */
+export const VideoPresignSchema = z.object({
+  mimeType: z.enum(['video/mp4', 'video/quicktime', 'video/webm']),
+  sizeBytes: z.number().int().min(1).max(200 * 1024 * 1024),
+});
+export type VideoPresignDto = z.infer<typeof VideoPresignSchema>;
 export type SubmitVideoDto = z.infer<typeof SubmitVideoSchema>;

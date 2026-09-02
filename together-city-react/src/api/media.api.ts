@@ -177,6 +177,35 @@ export const mediaApi = {
   },
 
   /**
+   * Upload a CV — the vault, `cv/<userId>/`, key only (launch blocker 3, 2 Sep).
+   *
+   * It went through `upload` into the PUBLIC bucket until today: a permanent,
+   * unauthenticated address for somebody's career history, which deleting
+   * the profile could not take back. A CV is a document, not a photograph, so
+   * there is nothing to scrub; it goes browser→vault as it is and comes back
+   * only through `GET /jobs/resume/link`, signed, to its owner.
+   */
+  async uploadResume(file: File): Promise<{ fileKey: string; mimeType: string; sizeBytes: number }> {
+    const res = await apiPost('/jobs/resume/presign', { mimeType: file.type, sizeBytes: file.size },
+      z.object({ uploadUrl: z.string(), key: z.string(), expiresInSec: z.number().optional() }));
+    await axios.put(res.uploadUrl, file, { headers: { 'Content-Type': file.type } });
+    return { fileKey: res.key, mimeType: file.type, sizeBytes: file.size };
+  },
+
+  /**
+   * Upload a business-verification clip — the vault, `kyc/<ownerId>/`, key
+   * only (launch blocker 3, 2 Sep). Same story as the CV: an owner standing
+   * in their shop saying their own name was a public URL. A person in the
+   * console will watch it through a signed link; nobody else can address it.
+   */
+  async uploadVerificationVideo(listingId: string, file: File): Promise<string> {
+    const res = await apiPost(`/services/${listingId}/verification/video/presign`, { mimeType: file.type, sizeBytes: file.size },
+      z.object({ uploadUrl: z.string(), key: z.string(), expiresInSec: z.number().optional() }));
+    await axios.put(res.uploadUrl, file, { headers: { 'Content-Type': file.type } });
+    return res.key;
+  },
+
+  /**
    * Upload a photograph somebody is keeping in their DAYBOOK — the private
    * vault, the `daybook/<userId>/` namespace, key only.
    *

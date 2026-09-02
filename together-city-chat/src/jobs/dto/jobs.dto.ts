@@ -3,12 +3,23 @@ import { z } from 'zod';
 export const UploadResumeSchema = z.object({
   resumeText: z.string().min(1).max(20_000),
   fileName: z.string().max(200).optional(),
-  /** The stored file. Kept so the citizen can see, download and replace the
-   *  document they gave us rather than only our extraction of it. */
-  fileUrl: z.string().max(500).optional(),
+  /** The stored file — a VAULT KEY under `cv/<userId>/`, never a URL. Kept so
+   *  the citizen can see, download and replace the document they gave us
+   *  rather than only our extraction of it. Until 2 Sep this was `fileUrl`,
+   *  a public-bucket address any string could fill; the service checks the
+   *  prefix is the caller's own. */
+  fileKey: z.string().regex(/^cv\/[^/]+\/[A-Za-z0-9._-]+$/).max(300).optional(),
   fileBytes: z.number().int().min(0).max(20_000_000).optional(),
 });
 export type UploadResumeDto = z.infer<typeof UploadResumeSchema>;
+
+/** What a CV may be, and how big. PDF, Word and plain text are what the
+ *  reader parses; 20 MB matches `fileBytes` above. */
+export const ResumePresignSchema = z.object({
+  mimeType: z.enum(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword', 'text/plain']),
+  sizeBytes: z.number().int().min(1).max(20_000_000),
+});
+export type ResumePresignDto = z.infer<typeof ResumePresignSchema>;
 
 export const UpdateApplicationStatusSchema = z.object({
   status: z.enum(['applied', 'shortlisted', 'rejected']),
