@@ -1617,6 +1617,7 @@ html.tc-immersive .csdock { margin-bottom: calc(var(--safe-bottom) + 12px); }
 .dk-two > *, .dk-three > * { min-height: 0; }
 .dk-tags { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(8px, 1.4vw, 18px) clamp(14px, 2.6vw, 40px); }
 .dk-tags.two { grid-template-columns: repeat(2, 1fr); }
+.dk-tags.three { grid-template-columns: repeat(3, 1fr); }
 .dk-tags span { font-size: clamp(13px, 1.25vw, 20px); font-weight: 600; padding-top: 8px; border-top: 1px solid var(--line); }
 .rev .dk-tags span { border-top-color: var(--glass-line); }
 
@@ -1681,10 +1682,21 @@ html.tc-immersive .csdock { margin-bottom: calc(var(--safe-bottom) + 12px); }
    rather than `auto` is deliberate: a replaced element's flex-basis of `auto`
    is its intrinsic height, so a 1600x686 render would claim 686px of a 900px
    slide before the heading had asked for anything. From a basis of zero it
-   takes the REMAINDER, and `object-fit: cover` crops rather than letterboxes
-   what it is given — which is what makes the same slide work at 3840 wide and
-   on a phone. */
-.dk-shot { display: block; width: 100%; height: 100%; flex: 1 1 0; min-height: 0; object-fit: cover; border-radius: var(--r-3); }
+   takes the REMAINDER.
+
+   AND `contain`, NOT `cover` — THE WHOLE PICTURE OR IT IS NOT THE PICTURE.
+   `cover` fills the box beautifully and pays for it by cutting the edges off,
+   which on a deck is not a crop, it is a missing part of the argument: the
+   city slide loses two hubs off the sides, the pharmacy slide loses a vendor,
+   the funnel slide loses a plan. `contain` fits the whole frame inside the
+   space and leaves paper around it, and paper is what this deck is made of
+   anyway. The radius stops being visible with it, which is the small price.
+
+   IT IS CENTRED IN WHAT IS LEFT. A 21:9 render in a 16:9 slide that also
+   carries a heading is height-limited whatever you do, so there is white on
+   either side of it. Centred, that white is a margin; pushed to one edge it is
+   a picture that failed to load. */
+.dk-shot { display: block; width: 100%; height: 100%; flex: 1 1 0; min-height: 0; object-fit: contain; object-position: center; }
 /* THE SIGNATURE IS A SCAN, NOT A CUT-OUT — black script on a near-white
    field, which reads as a faint rectangle on paper that is pure white.
    `multiply` drops the field and keeps the line, and it is safe here because
@@ -1694,7 +1706,7 @@ html.tc-immersive .csdock { margin-bottom: calc(var(--safe-bottom) + 12px); }
 @media (max-width: 900px) {
   .dk-two, .dk-three { grid-template-columns: 1fr; }
   .dk-tags, .dk-steps { grid-template-columns: repeat(2, 1fr); }
-  .dk-tags.two { grid-template-columns: 1fr; }
+  .dk-tags.two, .dk-tags.three { grid-template-columns: 1fr; }
   .dk-mark { max-width: 260px; margin: 0; }
 }
 /* A PHONE STOPS SNAPPING WHERE A SLIDE STOPS FITTING. Mandatory snapping on a

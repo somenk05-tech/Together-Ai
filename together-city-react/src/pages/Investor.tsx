@@ -255,11 +255,15 @@ export function Investor() {
         <Label n="010" kind="Together City" />
         <div className="dk-body">
           <h2 className="dk-h2">Compatibility first, then attraction</h2>
-          <p className="dk-lede">One curated introduction at a time, scored against values, intent and lifestyle before a single photo is shown.</p>
-          <div className="dk-stats">
-            <div className="dk-stat"><b>95%</b><span>Compatibility, shown up front</span></div>
+          <div className="dk-two">
+            <div className="dk-body">
+              <p className="dk-lede">One curated introduction at a time, scored against values, intent and lifestyle before a single photo is shown.</p>
+              <div className="dk-stats">
+                <div className="dk-stat"><b>95%</b><span>Compatibility, shown up front</span></div>
+              </div>
+            </div>
+            <img className="dk-shot no-case" src={`${A}match.webp`} alt="A single introduction, with the reason it was made" loading="lazy" />
           </div>
-          <img className="dk-shot no-case" src={`${A}match.webp`} alt="A single introduction, with the reason it was made" loading="lazy" />
         </div>
         <div className="dk-foot"><span>Together City</span><span>Hub 01</span></div>
       </section>
@@ -365,16 +369,18 @@ export function Investor() {
         <Label n="025" kind="Breadth" />
         <div className="dk-body">
           <h2 className="dk-h2">The same pattern, sixteen times over</h2>
-          <p className="dk-lede">Every hub runs on the same three moves: read the profile, narrow the options, fulfil through nearby vendors. Adding a category is a data problem, not a new product.</p>
-          <div className="dk-tags">
-            {['Food and Dining', 'Grocery', 'Health and Medical', 'Beauty and Care',
-              'Fitness and Sports', 'Home Services', 'Real Estate', 'Jobs',
-              'Travel', 'Finance', 'Automotive', 'Local Retail'].map((c) => <span key={c}>{c}</span>)}
-          </div>
           <div className="dk-two">
-            <img className="dk-shot no-case" src={`${A}realestate.webp`} alt="Owner-direct listings in the Real Estate hub" loading="lazy" />
+            <div className="dk-body">
+              <p className="dk-lede">Every hub runs on the same three moves: read the profile, narrow the options, fulfil through nearby vendors. Adding a category is a data problem, not a new product.</p>
+              <div className="dk-tags three">
+                {['Food and Dining', 'Grocery', 'Health and Medical', 'Beauty and Care',
+                  'Fitness and Sports', 'Home Services', 'Real Estate', 'Jobs',
+                  'Travel', 'Finance', 'Automotive', 'Local Retail'].map((c) => <span key={c}>{c}</span>)}
+              </div>
+            </div>
             <div className="dk-body">
               <div className="dk-cap">Real estate, already built</div>
+              <img className="dk-shot no-case" src={`${A}realestate.webp`} alt="Owner-direct listings in the Real Estate hub" loading="lazy" />
               <p className="dk-note">132 verified listings, owner-direct, zero brokerage — the same narrowing logic applied to housing</p>
             </div>
           </div>
