@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 /**
  * ── THE PLATFORM DECK, AS A PAGE YOU SCROLL ────────────────────────────────
  *
- * Thirty-two slides for an investor or a partner, at /investor, outside the
+ * Thirty-one slides for an investor or a partner, at /investor, outside the
  * app shell: no header, no rail, no footer. A deck shown on somebody else's
  * screen should have nothing on it that is not the deck.
  *
@@ -276,34 +276,24 @@ export function Investor() {
         right={{ cap: 'What Together City shows you', img: 'nutrition-picks.webp', alt: 'One short shelf of chosen products', note: 'One shelf, built from your medical profile' }}
       />
 
-      <section className="dk-slide">
-        <Label n="013" kind="Fulfilment" />
-        <div className="dk-body">
-          <h2 className="dk-h2">One basket, four local stores</h2>
-          <p className="dk-lede">Items are split across whichever nearby stores hold them, packed in parallel, and collected on a single route.</p>
-          <img className="dk-shot no-case" src={`${A}grocery.webp`} alt="One order split across four neighbourhood stores" loading="lazy" />
-        </div>
-        <div className="dk-foot"><span>Together City</span><span>Hub 02</span></div>
-      </section>
-
-      <Chapter n="014" num="03" name="Beauty" line="Skin data in, two products out." />
+      <Chapter n="013" num="03" name="Beauty" line="Skin data in, two products out." />
 
       <Compare
-        n="015" kind="Hub 03" head="Ranked by ad spend, or by your skin"
+        n="014" kind="Hub 03" head="Ranked by ad spend, or by your skin"
         left={{ cap: 'Sorted by who pays the most', img: 'beauty-clutter.webp', alt: 'A wall of sponsored beauty products', note: 'Sponsored shelves, no clinical logic' }}
         right={{ cap: 'Sorted by what your skin needs', img: 'beauty-clean.webp', alt: 'Two products on an empty shelf', note: 'A serum and a moisturizer, matched to hydration, acne and UV needs' }}
       />
 
-      <Chapter n="016" num="04" name="Fitness" line="Supplements and training plans that answer to your bloodwork." />
+      <Chapter n="015" num="04" name="Fitness" line="Supplements and training plans that answer to your bloodwork." />
 
       <Compare
-        n="017" kind="Hub 04" head="What the market sells, what science supports"
+        n="016" kind="Hub 04" head="What the market sells, what science supports"
         left={{ cap: 'What the world tells you', img: 'fitness-clutter.webp', alt: 'A wall of supplement tubs', note: 'Every tub on the wall, none of them for you' }}
         right={{ cap: 'What we tell you', img: 'fitness-science.webp', alt: 'Two supplements with the reasoning beside them', note: 'Two products, annotated with the reason they were chosen' }}
       />
 
       <section className="dk-slide">
-        <Label n="018" kind="How it works" />
+        <Label n="017" kind="How it works" />
         <div className="dk-body">
           <h2 className="dk-h2">Medical data in, three plans out</h2>
           <div className="dk-stats">
@@ -317,7 +307,7 @@ export function Investor() {
       </section>
 
       <section className="dk-slide">
-        <Label n="019" kind="Retention" />
+        <Label n="018" kind="Retention" />
         <div className="dk-body">
           <h2 className="dk-h2">A plan for every stage</h2>
           <p className="dk-lede">Training adapts as the body does, so the plan stays correct instead of going stale after week three.</p>
@@ -331,16 +321,16 @@ export function Investor() {
         <div className="dk-foot"><span>Together City</span><span>Hub 04</span></div>
       </section>
 
-      <Chapter n="020" num="05" name="Pharmacy" line="One prescription, distributed across the vendors who actually have it." />
+      <Chapter n="019" num="05" name="Pharmacy" line="One prescription, distributed across the vendors who actually have it." />
 
       <Compare
-        n="021" kind="Hub 05" head="Upload once, route to three pharmacies"
+        n="020" kind="Hub 05" head="Upload once, route to three pharmacies"
         left={{ cap: 'Step one — scan and verify', img: 'rx-upload.webp', alt: 'A prescription read line by line', note: 'Five line items read straight off the prescription' }}
         right={{ cap: 'Step two — distribute', img: 'rx-vendors.webp', alt: 'The same prescription split across three pharmacies', note: 'Each vendor approves only the items it stocks' }}
       />
 
       <section className="dk-slide">
-        <Label n="022" kind="Hub 05 / Outcome" />
+        <Label n="021" kind="Hub 05 / Outcome" />
         <div className="dk-body">
           <h2 className="dk-h2">Full order, one delivery</h2>
           <div className="dk-stats">
@@ -353,10 +343,10 @@ export function Investor() {
         <div className="dk-foot"><span>Together City</span><span>Hub 05</span></div>
       </section>
 
-      <Chapter n="023" num="06" name="Services" line="Invisible quoting from the professionals nearest to you." />
+      <Chapter n="022" num="06" name="Services" line="Invisible quoting from the professionals nearest to you." />
 
       <section className="dk-slide">
-        <Label n="024" kind="Hub 06" />
+        <Label n="023" kind="Hub 06" />
         <div className="dk-body">
           <h2 className="dk-h2">The brief goes out, the quotes come back</h2>
           <p className="dk-lede">One upload becomes three priced, verified, time-estimated quotes from studios within five kilometres. You never have to ask.</p>
@@ -366,7 +356,7 @@ export function Investor() {
       </section>
 
       <section className="dk-slide">
-        <Label n="025" kind="Breadth" />
+        <Label n="024" kind="Breadth" />
         <div className="dk-body">
           <h2 className="dk-h2">The same pattern, sixteen times over</h2>
           <div className="dk-two">
@@ -389,7 +379,7 @@ export function Investor() {
       </section>
 
       <section className="dk-slide rev">
-        <Label n="026" kind="The rooms" />
+        <Label n="025" kind="The rooms" />
         <div className="dk-body">
           <h2 className="dk-h2">Every room in the city is a conversation</h2>
           <p className="dk-lede">Text, photographs, files and voice notes — and anything from any hub sent as a card that links back to the thing it came from.</p>
@@ -408,7 +398,7 @@ export function Investor() {
       </section>
 
       <section className="dk-slide">
-        <Label n="027" kind="The mailbox" />
+        <Label n="026" kind="The mailbox" />
         <div className="dk-body">
           <h2 className="dk-h2">A city address, and real mail through it</h2>
           <p className="dk-lede">Every citizen gets an address of their own. Mail leaves the city as them, from a verified domain, and the reply comes back to the same thread.</p>
@@ -427,7 +417,7 @@ export function Investor() {
       </section>
 
       <section className="dk-slide">
-        <Label n="028" kind="Personalization" />
+        <Label n="027" kind="Personalization" />
         <div className="dk-body">
           <h2 className="dk-h2">One profile, and every hub reading it</h2>
           <p className="dk-lede">Identity, body, contact, diet and medical live on one page, versioned, with every change on the record. A write reaches the hubs that used to keep their own copy, so two rooms cannot disagree about the same person.</p>
@@ -441,7 +431,7 @@ export function Investor() {
       </section>
 
       <section className="dk-slide rev">
-        <Label n="029" kind="The ask" />
+        <Label n="028" kind="The ask" />
         <div className="dk-body">
           <h2 className="dk-h2">₹23.74 crore, to build it and open the doors</h2>
           <p className="dk-lede">₹12.32 crore builds the platform over eighteen months; ₹11.42 crore carries the soft launch through month thirty-six. From month twenty-five the model funds itself out of receipts.</p>
@@ -459,7 +449,7 @@ export function Investor() {
       </section>
 
       <section className="dk-slide">
-        <Label n="030" kind="Financial estimates" />
+        <Label n="029" kind="Financial estimates" />
         <div className="dk-body">
           <h2 className="dk-h2">Seven years, on the model as it stands</h2>
           <div className="dk-scroll">
@@ -484,7 +474,7 @@ export function Investor() {
       </section>
 
       <section className="dk-slide">
-        <Label n="031" kind="Financial estimates" />
+        <Label n="030" kind="Financial estimates" />
         <div className="dk-body">
           <h2 className="dk-h2">What a citizen is worth, and where the money comes from</h2>
           <div className="dk-two">
@@ -518,7 +508,7 @@ export function Investor() {
       </section>
 
       <section className="dk-slide rev">
-        <Label n="032" kind="Together City" />
+        <Label n="031" kind="Together City" />
         <div className="dk-body">
           <h2 className="dk-h2">One box in front of the whole city</h2>
           <p className="dk-lede">Ask for anything. The city already knows which version of it is yours.</p>
