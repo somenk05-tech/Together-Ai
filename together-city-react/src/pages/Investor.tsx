@@ -25,6 +25,15 @@ import { Link } from 'react-router-dom';
  * THE ONLY CONTRAST IS REVERSAL: the six chapter cards, the slide about what
  * the rest of the market does, and the closing slide print white on the ink.
  *
+ * THE WAY OUT IS THE WORDMARK IN THE FOOT, ON EVERY SLIDE, and it is there
+ * rather than floating in a corner for two reasons. Every corner of this page
+ * is already spoken for — the slide number and its subject at the top, the
+ * wordmark and the hub at the bottom — so a fixed back button would sit on
+ * top of one of them at some width. And a control that floats over the
+ * artwork is the chrome this page was built without: it would have to be
+ * hidden before anybody screenshotted a slide. The foot already said
+ * "Together City" on all of them; it is now the door as well as the label.
+ *
  * EVERY CLAIM AND EVERY NUMBER ON THIS PAGE IS THE OWNER'S OWN COPY from the
  * deck it was built from. Nothing here is generated, inferred or rounded, and
  * nothing should be edited to read better without him — this is the page a
@@ -34,11 +43,29 @@ import { Link } from 'react-router-dom';
 /** Where the deck's renders live. Nineteen files, WebP, in public/investor. */
 const A = '/investor/';
 
-function Label({ n, kind }: { n: string; kind: string }) {
+/**
+ * THE TOP OF EVERY SLIDE: its number, and the way out.
+ *
+ * The right-hand slot used to repeat the slide's subject — which the FOOT row
+ * already prints, on the same slide, three hundred pixels below. Nothing is
+ * lost by giving that slot to the one thing this page did not have: a door.
+ * The deck is mounted outside the app shell, so there is no header and no rail
+ * to leave by, and a viewer twenty slides deep had the browser's back button
+ * and nothing else.
+ *
+ * IT IS NOT A FLOATING BUTTON, and that is not fussiness. Every corner of a
+ * slide is spoken for at some width, so a fixed control would sit on top of
+ * one of them on somebody's screen; and a control that floats over the artwork
+ * is the chrome this page was built without — it would have to be hidden
+ * before anybody screenshotted a slide. Inside the label row it inherits that
+ * row's ink, so it stays legible on the reversed slides without a second
+ * colour, a pill, or a blend mode.
+ */
+function Label({ n }: { n: string }) {
   return (
     <div className="dk-lab">
       <span>[ {n} ]</span>
-      <span>{kind}</span>
+      <Link className="dk-back" to="/">Back to the city</Link>
     </div>
   );
 }
@@ -50,7 +77,7 @@ function Label({ n, kind }: { n: string; kind: string }) {
 function Chapter({ n, num, name, line }: { n: string; num: string; name: string; line: string }) {
   return (
     <section className="dk-slide rev">
-      <Label n={n} kind={`Hub ${num}`} />
+      <Label n={n} />
       <div className="dk-body">
         <div className="dk-num">{num}</div>
         <h2 className="dk-h2">{name}</h2>
@@ -72,7 +99,7 @@ type Panel = { cap: string; img: string; alt: string; note: string };
 function Compare({ n, kind, head, left, right }: { n: string; kind: string; head: string; left: Panel; right: Panel }) {
   return (
     <section className="dk-slide">
-      <Label n={n} kind={kind} />
+      <Label n={n} />
       <div className="dk-body">
         <h2 className="dk-h2">{head}</h2>
         <div className="dk-two">
@@ -101,7 +128,7 @@ export function Investor() {
   return (
     <main className="dk">
       <section className="dk-slide">
-        <Label n="001" kind="Platform Deck" />
+        <Label n="001" />
         <div className="dk-body">
           <div className="dk-two">
             <div className="dk-body">
@@ -115,7 +142,7 @@ export function Investor() {
       </section>
 
       <section className="dk-slide">
-        <Label n="002" kind="The Ecosystem" />
+        <Label n="002" />
         <div className="dk-body">
           <h2 className="dk-h2">Sixteen hubs, one login</h2>
           <p className="dk-lede">Groceries, medicine, fitness, beauty, jobs, travel, housing, matchmaking — all of it inside a single city you actually live in.</p>
@@ -125,7 +152,7 @@ export function Investor() {
       </section>
 
       <section className="dk-slide">
-        <Label n="003" kind="Thesis" />
+        <Label n="003" />
         <div className="dk-body">
           <h2 className="dk-h2">A personalized engine for every aspect of your life</h2>
           <p className="dk-lede">Set your preferences once. Every hub narrows the world down to what fits you — instead of what pays the most for shelf space.</p>
@@ -139,7 +166,7 @@ export function Investor() {
       </section>
 
       <section className="dk-slide">
-        <Label n="004" kind="Contents" />
+        <Label n="004" />
         <div className="dk-body">
           <h2 className="dk-h2">Six hubs, one pattern</h2>
           <div className="dk-rows">
@@ -162,7 +189,7 @@ export function Investor() {
       </section>
 
       <section className="dk-slide rev">
-        <Label n="005" kind="The Mechanic" />
+        <Label n="005" />
         <div className="dk-body">
           <h2 className="dk-h2">From what you need to a doorstep, in five moves</h2>
           <p className="dk-lede">Every hub runs on the same market underneath: you say what you need, the city finds who nearby has it, and a local vendor fulfils it.</p>
@@ -182,7 +209,7 @@ export function Investor() {
       </section>
 
       <section className="dk-slide">
-        <Label n="006" kind="Fulfilment" />
+        <Label n="006" />
         <div className="dk-body">
           <h2 className="dk-h2">The vendor chooses how it reaches you</h2>
           <div className="dk-two">
@@ -207,7 +234,7 @@ export function Investor() {
       </section>
 
       <section className="dk-slide">
-        <Label n="007" kind="Why it works" />
+        <Label n="007" />
         <div className="dk-body">
           <h2 className="dk-h2">Four things in, four reasons it holds</h2>
           <div className="dk-two">
@@ -237,7 +264,7 @@ export function Investor() {
       <Chapter n="008" num="01" name="Matchmaking" line="Compatibility first, attraction second, curation always." />
 
       <section className="dk-slide rev">
-        <Label n="009" kind="The default" />
+        <Label n="009" />
         <div className="dk-body">
           <h2 className="dk-h2">More options, more confusion</h2>
           <p className="dk-lede">Regular dating apps monetize the scroll. Every extra profile is revenue for the platform and fatigue for the person standing in the middle of it.</p>
@@ -252,7 +279,7 @@ export function Investor() {
       </section>
 
       <section className="dk-slide">
-        <Label n="010" kind="Together City" />
+        <Label n="010" />
         <div className="dk-body">
           <h2 className="dk-h2">Compatibility first, then attraction</h2>
           <div className="dk-two">
@@ -293,7 +320,7 @@ export function Investor() {
       />
 
       <section className="dk-slide">
-        <Label n="017" kind="How it works" />
+        <Label n="017" />
         <div className="dk-body">
           <h2 className="dk-h2">Medical data in, three plans out</h2>
           <div className="dk-stats">
@@ -307,7 +334,7 @@ export function Investor() {
       </section>
 
       <section className="dk-slide">
-        <Label n="018" kind="Retention" />
+        <Label n="018" />
         <div className="dk-body">
           <h2 className="dk-h2">A plan for every stage</h2>
           <p className="dk-lede">Training adapts as the body does, so the plan stays correct instead of going stale after week three.</p>
@@ -330,7 +357,7 @@ export function Investor() {
       />
 
       <section className="dk-slide">
-        <Label n="021" kind="Hub 05 / Outcome" />
+        <Label n="021" />
         <div className="dk-body">
           <h2 className="dk-h2">Full order, one delivery</h2>
           <div className="dk-stats">
@@ -346,7 +373,7 @@ export function Investor() {
       <Chapter n="022" num="06" name="Services" line="Invisible quoting from the professionals nearest to you." />
 
       <section className="dk-slide">
-        <Label n="023" kind="Hub 06" />
+        <Label n="023" />
         <div className="dk-body">
           <h2 className="dk-h2">The brief goes out, the quotes come back</h2>
           <p className="dk-lede">One upload becomes three priced, verified, time-estimated quotes from studios within five kilometres. You never have to ask.</p>
@@ -356,7 +383,7 @@ export function Investor() {
       </section>
 
       <section className="dk-slide">
-        <Label n="024" kind="Breadth" />
+        <Label n="024" />
         <div className="dk-body">
           <h2 className="dk-h2">The same pattern, sixteen times over</h2>
           <div className="dk-two">
@@ -379,7 +406,7 @@ export function Investor() {
       </section>
 
       <section className="dk-slide rev">
-        <Label n="025" kind="The rooms" />
+        <Label n="025" />
         <div className="dk-body">
           <h2 className="dk-h2">Every room in the city is a conversation</h2>
           <p className="dk-lede">Text, photographs, files and voice notes — and anything from any hub sent as a card that links back to the thing it came from.</p>
@@ -398,7 +425,7 @@ export function Investor() {
       </section>
 
       <section className="dk-slide">
-        <Label n="026" kind="The mailbox" />
+        <Label n="026" />
         <div className="dk-body">
           <h2 className="dk-h2">A city address, and real mail through it</h2>
           <p className="dk-lede">Every citizen gets an address of their own. Mail leaves the city as them, from a verified domain, and the reply comes back to the same thread.</p>
@@ -417,7 +444,7 @@ export function Investor() {
       </section>
 
       <section className="dk-slide">
-        <Label n="027" kind="Personalization" />
+        <Label n="027" />
         <div className="dk-body">
           <h2 className="dk-h2">One profile, and every hub reading it</h2>
           <p className="dk-lede">Identity, body, contact, diet and medical live on one page, versioned, with every change on the record. A write reaches the hubs that used to keep their own copy, so two rooms cannot disagree about the same person.</p>
@@ -431,7 +458,7 @@ export function Investor() {
       </section>
 
       <section className="dk-slide rev">
-        <Label n="028" kind="The ask" />
+        <Label n="028" />
         <div className="dk-body">
           <h2 className="dk-h2">₹23.74 crore, to build it and open the doors</h2>
           <p className="dk-lede">₹12.32 crore builds the platform over eighteen months; ₹11.42 crore carries the soft launch through month thirty-six. From month twenty-five the model funds itself out of receipts.</p>
@@ -449,7 +476,7 @@ export function Investor() {
       </section>
 
       <section className="dk-slide">
-        <Label n="029" kind="Financial estimates" />
+        <Label n="029" />
         <div className="dk-body">
           <h2 className="dk-h2">Seven years, on the model as it stands</h2>
           <div className="dk-scroll">
@@ -474,7 +501,7 @@ export function Investor() {
       </section>
 
       <section className="dk-slide">
-        <Label n="030" kind="Financial estimates" />
+        <Label n="030" />
         <div className="dk-body">
           <h2 className="dk-h2">What a citizen is worth, and where the money comes from</h2>
           <div className="dk-two">
@@ -508,7 +535,7 @@ export function Investor() {
       </section>
 
       <section className="dk-slide rev">
-        <Label n="031" kind="Together City" />
+        <Label n="031" />
         <div className="dk-body">
           <h2 className="dk-h2">One box in front of the whole city</h2>
           <p className="dk-lede">Ask for anything. The city already knows which version of it is yours.</p>

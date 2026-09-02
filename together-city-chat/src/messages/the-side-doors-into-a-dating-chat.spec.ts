@@ -115,7 +115,7 @@ describe('a share card is a link to a picture, never the picture', () => {
 describe('a chat between strangers takes no picture from outside the city', () => {
   const build = (anonymousTrust: number | null) => {
     const prisma: any = { conversation: { findUnique: async () => ({ anonymousTrust }) } };
-    return new MessagesService(prisma, {} as never, {} as never, {} as never, {} as never);
+    return new MessagesService(prisma, {} as never, {} as never, {} as never, {} as never, {} as never);
   };
 
   it('drops the picture in a dating chat, and keeps the rest of the card', async () => {
@@ -159,7 +159,7 @@ describe('a chat between strangers takes no picture from outside the city', () =
   it('does not go to the database for a card with no picture', async () => {
     let asked = 0;
     const prisma: any = { conversation: { findUnique: async () => { asked += 1; return { anonymousTrust: 0 }; } } };
-    const svc: any = new MessagesService(prisma, {} as never, {} as never, {} as never, {} as never);
+    const svc: any = new MessagesService(prisma, {} as never, {} as never, {} as never, {} as never, {} as never);
     await svc.shareForConversation('c1', { kind: 'film', title: 'Tumbbad' });
     expect(asked).toBe(0);
   });

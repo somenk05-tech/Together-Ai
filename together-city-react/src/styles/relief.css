@@ -4110,6 +4110,95 @@ textarea.g-field { resize: none; line-height: 1.55; }
 @keyframes cssheet-in { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .cssheet { animation: none; } }
 
+/* ── A PHOTO THAT DOES NOT STAY ───────────────────────────────────────────
+   Temporary media as a chat primitive (2 Sep). Three surfaces: the sealed
+   tile in the thread, the sheet that sends one, and the viewer that spends a
+   view. All of it in stage tokens — the tile sits on the stage and the sheet
+   sits on the city's white, the same split `.cssheet` already makes.
+
+   NOTHING HERE DRAWS A NEW DEPTH. The tile is a `.csb` and keeps the bubble's
+   own elevation; the sheet is `.cssheet` and keeps its. */
+.cssnap-card { display: flex; align-items: center; gap: 12px; min-width: 232px; max-width: 300px; }
+.cssnap-card.spent { opacity: .62; }
+.cssnap-seal { font-size: 22px; flex: none; line-height: 1; }
+.cssnap-lines { display: block; min-width: 0; }
+.cssnap-title { display: block; font-weight: 700; font-size: 13.5px; }
+.cssnap-sub { display: block; font-size: 11.5px; opacity: .78; line-height: 1.45; }
+.cssnap-open {
+  flex: none; border: 0; font: inherit; cursor: pointer; font-weight: 700; font-size: 12.5px;
+  padding: 7px 13px; border-radius: var(--r-full);
+  background: var(--on-stage); color: var(--stage-solid);
+}
+.cssnap-open[disabled] { cursor: default; opacity: .6; }
+.csb.me .cssnap-open { background: var(--stage-tile); color: var(--on-stage); }
+/* A 44px finger on a 30px key, without the key growing — the same trick the
+   colour swatches use two thousand lines up. */
+.cssnap-open::after {
+  content: ''; position: absolute; inset: 50% auto auto 50%;
+  min-width: 44px; min-height: 44px; transform: translate(-50%, -50%);
+}
+.cssnap-open { position: relative; }
+.cssnap-keep {
+  align-self: flex-start; margin-top: 5px; border: 1px solid var(--stage-line);
+  background: none; color: var(--on-stage-soft); font: inherit; font-size: 12px;
+  padding: 6px 12px; border-radius: var(--r-full); cursor: pointer; min-height: 32px;
+}
+.cssnap-ask { display: flex; align-items: center; gap: 12px; min-width: 232px; max-width: 320px; }
+
+/* The composer's little menu: one key, three things to do with a temporary
+   photo. Above the capsule, because below it is the keyboard. */
+.cssnap-menu {
+  display: grid; gap: 2px; margin: 0 0 8px; padding: 6px;
+  border-radius: var(--r-3); background: var(--stage-tile);
+}
+.cssnap-menu button {
+  display: block; width: 100%; text-align: left; border: 0; background: none;
+  font: inherit; color: var(--on-stage); cursor: pointer;
+  padding: 9px 12px; border-radius: var(--r-2); min-height: 44px;
+}
+.cssnap-menu button:hover { background: var(--stage-hover); }
+.cssnap-menu button span:first-child { display: block; font-weight: 700; font-size: 13.5px; }
+.cssnap-menu button span:last-child { display: block; font-size: 11.5px; color: var(--on-stage-faint); }
+
+/* The sheet. It wears the city's white like every other `.cssheet`, so the
+   inks below are the page's, not the stage's. */
+.cssnap-note { font-size: 12.5px; color: var(--muted); margin: 0 0 12px; line-height: 1.5; }
+.cssnap-stage {
+  aspect-ratio: 3 / 4; max-height: 46dvh; margin: 0 auto 14px; overflow: hidden;
+  border-radius: var(--r-3); background: var(--well); display: grid; place-items: center;
+}
+.cssnap-stage video, .cssnap-stage img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cssnap-modes { display: grid; gap: 6px; margin-bottom: 12px; }
+.cssnap-mode {
+  display: block; width: 100%; text-align: left; cursor: pointer; font: inherit;
+  padding: 10px 13px; border-radius: var(--r-2); min-height: 44px;
+  border: 1px solid var(--line); background: none; color: var(--ink);
+}
+.cssnap-mode.on { border-color: var(--ink); background: var(--well); }
+.cssnap-mode-label { display: block; font-weight: 700; font-size: 13.5px; }
+.cssnap-mode-note { display: block; font-size: 11.5px; color: var(--muted); }
+.cssnap-caption { display: block; margin-bottom: 14px; }
+.cssnap-caption span { display: block; font-size: 11.5px; color: var(--muted); margin-bottom: 5px; }
+.cssnap-caption input {
+  width: 100%; font: inherit; font-size: 14px; padding: 10px 12px; min-height: 44px;
+  border-radius: var(--r-2); border: 1px solid var(--line); background: var(--card); color: var(--ink);
+}
+.cssnap-keys { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* The viewer. Full-bleed on purpose: a photograph somebody gets one look at
+   should not be a thumbnail with chrome around it. */
+.cssnap-viewer {
+  position: fixed; inset: 0; z-index: 61; display: grid; gap: 12px;
+  grid-template-rows: 1fr auto auto; place-items: center;
+  padding: calc(16px + var(--safe-top)) 16px calc(16px + var(--safe-bottom));
+}
+.cssnap-viewer img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: var(--r-3); }
+/* `--on-scrim-dim` and not a stage ink: the viewer is portaled to the body,
+   OUTSIDE `.cstage`, so every --on-stage-* token would resolve to the :root
+   fallback and draw near-white type on the room's white. The scrim inks exist
+   for exactly this — type laid over --scrim-deep. */
+.cssnap-viewer-note { margin: 0; font-size: 12.5px; color: var(--on-scrim-dim); text-align: center; }
+
 /* ── THE STAGE ON A PHONE ─────────────────────────────────────────────────
    Measured in a browser at the widths people actually hold. The header's
    eight controls wanted 398px before the name got a single pixel, so on
@@ -5840,3 +5929,21 @@ button.own-month-day:hover { border-color: var(--accent); }
 [data-hub] .side-menu a:not(.active) .n { color: var(--accent-ink); }
 [data-hub] .pill.on, [data-hub] .chip.on,
 [data-hub] .pill[aria-pressed="true"], [data-hub] .chip[aria-pressed="true"] { color: var(--accent-ink); }
+
+/* ── ONE FIELD ON WHITE (2 Sep) ──────────────────────────────────────────────
+   /services/find is a search bar and nothing else; see FindService.tsx for
+   why. Its five style objects moved here on 2 Sep because they were five of
+   the six that carried the size-system ceiling from 6681 to 6687 — the same
+   pathology the ceiling file names: a ratchet that is red on every run is a
+   ratchet nobody reads. Nothing here changed a value; every number below is
+   the number the inline object held. */
+.find-service { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-4); display: grid; place-items: center; min-height: 300px; padding: clamp(40px, 8vw, 96px) clamp(16px, 5vw, 56px); }
+.find-service__bar { width: 100%; max-width: 720px; display: flex; align-items: center; gap: var(--space-10); background: var(--card); border: 1px solid var(--line); border-radius: var(--r-full); box-shadow: var(--e2); padding: 7px 8px 7px 18px; }
+.find-service__glass { flex: 0 0 auto; color: var(--muted); }
+.find-service__q { flex: 1 1 auto; min-width: 0; min-height: 44px; border: 0; outline: none; background: transparent; font: inherit; font-size: clamp(15px, 1.5vw, 18px); color: var(--ink); }
+.find-service__go { flex: 0 0 auto; width: 44px; height: 44px; border-radius: var(--r-full); border: 1px solid var(--line); background: var(--face); color: var(--ink); cursor: pointer; display: grid; place-items: center; }
+
+/* The three breaths between the record, its readers and the visa pages on
+   /profile — one class, because the third of them (1a857f55) was the sixth
+   object over the ceiling. 30px is the value the inline objects held. */
+.mp-gap { height: 30px; }

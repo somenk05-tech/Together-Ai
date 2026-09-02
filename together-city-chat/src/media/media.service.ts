@@ -59,6 +59,13 @@ export const POSTABLE_MEDIA = new Set([
   'video/mp4', 'video/quicktime', 'video/webm',
 ]);
 
+/** What a snap may be: the three containers the moderation guard can actually
+ *  screen. See requestSnapUpload for why the list is not longer. */
+export const SNAPPABLE_IMAGE = new Set(['image/jpeg', 'image/png', 'image/webp']);
+/** And how big. Matches MAX_SCREEN_BYTES in chat-media-guard.ts on purpose: a
+ *  snap the guard cannot read is a snap that can only be refused. */
+export const MAX_SNAP_BYTES = 8 * 1024 * 1024;
+
 /**
  * The type, without its parameters and without the whitespace either side of
  * them.
@@ -199,6 +206,33 @@ export class MediaService {
       throw new BadRequestException('A post takes a photograph or a video — that file is neither.');
     }
     return this.storage.presignPostUpload(userId, mimeType, extFor(mimeType));
+  }
+
+  /**
+   * Presign a SNAP — a temporary chat photograph. (2 Sep.)
+   *
+   * THREE TYPES AND A SMALLER CEILING, and both narrowings are deliberate.
+   *
+   * JPEG, PNG and WebP because those are exactly what Rekognition takes, and a
+   * snap is screened before it is delivered — accepting HEIC or GIF here would
+   * mean accepting a file the guard can only refuse, one upload too late. The
+   * dating profile door draws the same line for the same reason.
+   *
+   * 8 MB rather than the 50 MB general cap because these bytes are STREAMED
+   * THROUGH THE API on every open rather than fetched from a bucket, and
+   * because `MAX_SCREEN_BYTES` in the guard refuses anything larger anyway. A
+   * ceiling that lets somebody upload 50 MB and then refuses to send it is a
+   * ceiling in the wrong place.
+   */
+  async requestSnapUpload(userId: string, mimeType: string, sizeBytes: number): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
+    const bare = bareMimeType(mimeType);
+    if (!SNAPPABLE_IMAGE.has(bare)) {
+      throw new BadRequestException('A snap is a photograph — JPEG, PNG or WebP.');
+    }
+    if (sizeBytes > MAX_SNAP_BYTES) {
+      throw new BadRequestException(`A snap must be under ${Math.round(MAX_SNAP_BYTES / 1024 / 1024)} MB.`);
+    }
+    return this.storage.presignSnapUpload(userId, mimeType, extFor(mimeType));
   }
 
   async requestPrivateUpload(userId: string, mimeType: string, sizeBytes: number): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {

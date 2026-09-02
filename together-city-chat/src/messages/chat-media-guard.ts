@@ -213,6 +213,85 @@ export class ChatMediaGuard {
   }
 
   /**
+   * ── SCREEN A SNAP, AND SCREEN IT IN EVERY ROOM ─────────────────────────────
+   *
+   * `screen` above runs on dating conversations only, and its docblock spends
+   * a paragraph on why: city chat is between people who accepted a connection,
+   * a dating chat is between two strangers a matching engine introduced, and
+   * the harm is the unsolicited image from somebody you do not know.
+   *
+   * A SNAP IS THE EXCEPTION, and the owner drew the line here on 2 Sep. Every
+   * snap is screened, in the city and in dating alike, because a photograph
+   * that deletes itself is the one image nobody can report after the fact. The
+   * ordinary chat photo the city does not screen is at least still there when
+   * somebody complains about it; a View Once is gone by then — no bytes, no
+   * moderator queue, no evidence, and the recipient holding nothing but their
+   * word. Screening at the door is the only moment this file gets.
+   *
+   * Everything else is `screen`'s reasoning unchanged: the bytes decide rather
+   * than the label, held refuses as well as rejected, and it fails closed.
+   *
+   * It takes a KEY rather than a URL because a snap has no URL — the object
+   * lives in the private bucket and its address is never published. That is
+   * the one substantive difference, and it is why this is a second method
+   * rather than a flag on the first: different vault to read, different vault
+   * to delete from, and `keyFromUrl` has nothing to do.
+   */
+  async screenSnap(key: string, senderId: string): Promise<Screening> {
+    const head = await this.storage.getSnapObjectPrefix(key, SNIFF_BYTES)
+      .catch(swallowed('chat media: read the first bytes of a snap', null, { senderId }));
+    if (!head) {
+      return { ok: false, retryable: true, reason: 'We could not read that photo just now, so it has not been sent. Try again in a moment.' };
+    }
+    const kind = sniffImage(head);
+    /* NOT AN IMAGE IS A REFUSAL HERE, not a pass. `screen` lets a voice note
+       and a document through as out-of-scope because it screens whatever a
+       message happens to carry; this screens a snap, and a snap is a
+       photograph by definition. Anything else arriving on this path is a
+       client sending something it was never meant to. */
+    if (kind === null || !SCREENABLE.has(kind)) {
+      return await this.refuseSnap(key, senderId, 'A snap is a photograph — JPEG, PNG or WebP.');
+    }
+    if (!this.client) {
+      return { ok: false, retryable: true, reason: 'We could not check that photo just now, so it has not been sent. Try again in a moment.' };
+    }
+    const obj = await this.storage.getSnapObjectBase64(key)
+      .catch(swallowed('chat media: read a snap for screening', null, { senderId }));
+    if (!obj) {
+      return { ok: false, retryable: true, reason: 'We could not read that photo just now, so it has not been sent. Try again in a moment.' };
+    }
+    const bytes = Buffer.from(obj.base64, 'base64');
+    if (bytes.length > MAX_SCREEN_BYTES) {
+      return await this.refuseSnap(key, senderId, 'That photo is too large to send as a snap.');
+    }
+    let labels: Array<{ Name?: string; ParentName?: string; Confidence?: number }>;
+    try {
+      const res = await this.client.send(new DetectModerationLabelsCommand({
+        Image: { Bytes: bytes }, MinConfidence: this.holdAt,
+      }));
+      labels = res.ModerationLabels ?? [];
+    } catch (e) {
+      this.logger.warn(`snap: Rekognition failed (${(e as Error).message})`);
+      return { ok: false, retryable: true, reason: 'We could not check that photo just now, so it has not been sent. Try again in a moment.' };
+    }
+    const verdict = verdictFor(labels, this.rejectAt);
+    if (verdict.status === 'approved') return { ok: true };
+    this.logger.warn(`snap refused (${verdict.status}) from ${senderId}: ${verdict.reason}`);
+    return await this.refuseSnap(key, senderId, 'That photo did not pass our automated check, so it has not been sent.');
+  }
+
+  /** `refuse` for the private vault. Same shape, same finality, and the same
+   *  rule that a failed delete never changes the answer — only the bucket
+   *  differs, because a snap was PUT somewhere nothing is readable without
+   *  this API's permission. */
+  private async refuseSnap(key: string, senderId: string, reason: string): Promise<Screening> {
+    if (!(await this.storage.deletePrivateObject(key))) {
+      this.logger.error(`snap: refused ${key} from ${senderId} and could NOT delete it — it is still in the vault.`);
+    }
+    return { ok: false, retryable: false, reason };
+  }
+
+  /**
    * A refusal that is final, and takes the file with it.
    *
    * REFUSING THE SEND DID NOT UN-PUBLISH ANYTHING. Attachments are PUT into

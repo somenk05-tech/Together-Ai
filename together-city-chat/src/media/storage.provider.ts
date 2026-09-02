@@ -440,6 +440,62 @@ export class StorageProvider implements OnModuleInit {
     return { uploadUrl, key, expiresInSec: this.expiresInSec };
   }
 
+  /**
+   * Presign a PUT for a SNAP — a temporary chat photograph. Private bucket,
+   * key only, its own prefix.
+   *
+   * ITS OWN PREFIX IS THE POINT, and it is the rule this file already keeps
+   * for the daybook, the dating selfie and post media: ONE PREFIX PER THING
+   * THAT CAN BE OWNED. `snaps/<userId>/<uuid>.<ext>` makes "is this yours to
+   * send" a question the key answers rather than one a lookup has to be
+   * trusted to ask — and it makes the reverse true too, which matters more
+   * here: a snap key can never be handed to the Drive download route, the
+   * health vault reader or the post signer, because none of them match this
+   * shape.
+   *
+   * The public bucket was never an option. A snap served from a permanent
+   * unauthenticated URL is a "view once" anybody can re-fetch forever, so the
+   * ephemerality would have been a caption rather than a property.
+   */
+  async presignSnapUpload(userId: string, mimeType: string, ext: string): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
+    const safeExt = (ext || 'bin').replace(/[^a-zA-Z0-9]/g, '').slice(0, 10) || 'bin';
+    const key = `snaps/${userId}/${randomUUID()}.${safeExt}`;
+    if (!this.s3) {
+      return { uploadUrl: `${this.publicBase}/__presigned__/${key}`, key, expiresInSec: this.expiresInSec };
+    }
+    const uploadUrl = await getSignedUrl(
+      this.s3,
+      new PutObjectCommand({ Bucket: this.healthBucket, Key: key, ContentType: mimeType }),
+      { expiresIn: this.expiresInSec },
+    );
+    return { uploadUrl, key, expiresInSec: this.expiresInSec };
+  }
+
+  /** True when a value is a snap key at all — as opposed to a public
+   *  attachment URL, which is what every other Attachment.url holds. */
+  isSnapKey(value: string): boolean {
+    return /^snaps\/[^/]+\/[A-Za-z0-9._-]+$/.test(value);
+  }
+
+  /** True when `key` belongs to `userId`. The prefix is the ownership proof —
+   *  no lookup, nothing to forget to check. */
+  isOwnSnapKey(userId: string, key: string): boolean {
+    return this.isSnapKey(key) && key.startsWith(`snaps/${userId}/`);
+  }
+
+  /** The ranged read the media guard needs, against the private bucket where
+   *  snaps live. Same reason as the public and post versions: the declared
+   *  Content-Type is the claim being checked, so it cannot be the thing that
+   *  answers. */
+  async getSnapObjectPrefix(key: string, n: number): Promise<Buffer | null> {
+    return this.objectPrefix(this.healthBucket, key, n, 'getSnapObjectPrefix');
+  }
+
+  /** A snap read whole, for handing to the image classifier. */
+  async getSnapObjectBase64(key: string): Promise<{ base64: string; contentType: string } | null> {
+    return this.getObjectBase64(key, this.healthBucket);
+  }
+
   /** True when a stored PostMedia value is one of OUR private keys, rather than
    *  a legacy public URL or an inline `data:` photo. Both of those still exist
    *  in the table and both still have to render. */

@@ -20,12 +20,28 @@ import { MiraMark } from '../mira/MiraMark';
 const MIRA_ID = '__mira__';
 
 /**
- * THE STAGE TAKES A COLOUR. Eight palettes from the owner's cards, plus the
- * slate the stage ships in. A theme is a `data-stage` attribute on the stage
- * element — the token blocks in tokens.css do all the painting, each one
+ * THE STAGE TAKES A COLOUR — FIVE OF THEM, AND THAT IS THE WHOLE LIST.
+ *
+ * It was eighteen: nine palettes from the owner's cards, then nine more added
+ * on 20 Aug to pair key-for-key with Mail's skins. Eighteen swatches in a
+ * header is not a choice, it is a colour picker — a wrapped grid of dots at
+ * the top of the list, above the search anybody actually came for, and every
+ * one of them a decision nobody wanted to make twice. Owner, 2 Sep: five.
+ *
+ * These five, because between them they cover the ground rather than the
+ * hue wheel — the slate the stage ships in, a dark blue, a dark green, a warm
+ * light and a paper light. A theme is a `data-stage` attribute on the stage
+ * element; the token blocks in tokens.css do all the painting, each one
  * re-stating the FULL set of stage tokens with its own measured inks, so a
  * theme can never re-ground the room while keeping the wrong ink. Mira's
  * room has its own tokens and takes no theme: she stays red.
+ *
+ * THE THIRTEEN BLOCKS THIS ORPHANS STAY IN tokens.css, and deliberately.
+ * `.cstage[data-stage=...]` is not chat's private property — DatingChats wears
+ * `porcelain` through the same class — and the nine Mail-paired palettes are
+ * half of a pair whose other half is still offered in the inbox. What goes is
+ * the OFFER, which is this array; a stored preference naming a palette that is
+ * no longer offered falls through `storedTheme` to slate on the next visit.
  *
  * The swatch colours live in tokens.css with the theme blocks (`.cstheme
  * [data-t=...]`) — relief.spec bans colour literals in page files, and it
@@ -35,23 +51,8 @@ const STAGE_THEMES = [
   { id: 'slate', name: 'Slate' },
   { id: 'navy', name: 'Navy Mirage' },
   { id: 'emerald', name: 'Emerald Depth' },
-  { id: 'mandarin', name: 'Mandarin Curd' },
   { id: 'rose', name: 'Rose Mascarpone' },
-  { id: 'peach', name: 'Peach Glaze' },
-  { id: 'pistachio', name: 'Pistachio Mint Cream' },
-  { id: 'lavender', name: 'Lavender Cream' },
   { id: 'cream', name: 'Cream Veil' },
-  /* NINE MORE, 20 AUG — the same palettes Mail's skins offer, and the keys are
-     deliberately identical so that "Rolex" means one green in both rooms. */
-  { id: 'burgundy', name: 'Deep Burgundy' },
-  { id: 'truffle', name: 'Soft Truffle' },
-  { id: 'rolex', name: 'Rolex Dial' },
-  { id: 'jaguar', name: 'Jaguar Lacquer' },
-  { id: 'sanmarino', name: 'San Marino' },
-  { id: 'sugar', name: 'Sugar Blue' },
-  { id: 'ruby', name: 'Ruby Chocolate' },
-  { id: 'mocha', name: 'Mocha Fudge' },
-  { id: 'zephyr', name: 'Currant Zephyr' },
 ] as const;
 type StageTheme = (typeof STAGE_THEMES)[number]['id'];
 const THEME_KEY = 'chat.stage';
@@ -320,6 +321,11 @@ export function Chats() {
      to accept this, share and all, and the working tree keeps compiling. When
      the share work lands, the parameter and the fourth argument come back
      together. */
+  /* A COUNTER, NOT A BOOLEAN, for the reason `seed` is one two files over: the
+     second "send me a Live Snap" has to open the camera as surely as the
+     first, and a flag that is already true is a flag that does nothing. */
+  const [liveSnapAsked, setLiveSnapAsked] = useState(0);
+
   const sendWithReply = useCallback((body: string, attachments?: OutgoingAttachment[]) => {
     const answering = replyTo?.id;
     setReplyTo(null);
@@ -824,6 +830,7 @@ export function Chats() {
                       selectedIds={selected} onSelect={toggleSelect}
                       onReact={(m, e) => { void reactToMessage(m, e); }}
                       onPin={(m, on) => { void pinMessage(m, on); }}
+                      onAnswerLiveSnap={() => setLiveSnapAsked((n) => n + 1)}
                       pinnedId={pinnedMsg?.id ?? null}
                       fetchInfo={chatApi.messageInfo} />
                   </>}
@@ -868,6 +875,8 @@ export function Chats() {
                   name: replyTo.senderId === user?.id ? 'yourself' : activeTitle,
                   body: replyTo.body || 'Attachment',
                 } : null}
+                onShare={(card) => send('', undefined, undefined, card)}
+                liveSnapAsked={liveSnapAsked}
                 onCancelReply={() => setReplyTo(null)} />
             </>
           ) : (

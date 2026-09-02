@@ -79,7 +79,7 @@ import { join } from 'node:path';
  */
 const CEILING = {
   rawRadii: 317,
-  inlineStyleBlocks: 6681,
+  inlineStyleBlocks: 6679,
   distinctFontSizes: 35,
   rawSpacing: 3605,
 };

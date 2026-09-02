@@ -69,4 +69,18 @@ describe('the deck is a page', () => {
   it('offers the deck from the foot of the city', () => {
     expect(footer).toMatch(/<Link to="\/investor">Investor<\/Link>/);
   });
+
+  /* A DECK WITH NO SHELL NEEDS ITS OWN DOOR, AND EVERY SLIDE NEEDS IT.
+     The page is mounted outside AppShell, so there is no header and no rail to
+     leave by — a viewer twenty slides deep has the browser's back button and
+     whatever this page gives them. Label prints the slide number AND the door,
+     and nothing else prints a slide number, so "every slide is numbered" (the
+     first assertion in this file) plus "Label carries the link" is the whole
+     proof that no slide is a dead end. */
+  it('gives every slide a way back into the city', () => {
+    expect(deck).toMatch(/function Label\([\s\S]{0,400}?className="dk-back" to="\/"/);
+    const chunks = deck.split('<section className="dk-slide').slice(1);
+    expect(chunks.length).toBeGreaterThan(15);
+    expect(chunks.filter((c) => !c.includes('<Label'))).toEqual([]);
+  });
 });

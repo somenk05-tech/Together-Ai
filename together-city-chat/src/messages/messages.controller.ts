@@ -3,13 +3,17 @@ import {
   Controller,
   Delete,
   Get,
+  NotFoundException,
   Param,
   Post,
   Put,
   Query,
+  Res,
+  StreamableFile,
   UseGuards,
   UsePipes,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
@@ -57,6 +61,13 @@ import {
 const SEND_LIMIT = { default: { limit: 60, ttl: 60_000 } };
 const SEARCH_LIMIT = { default: { limit: 20, ttl: 60_000 } };
 const WRITE_LIMIT = { default: { limit: 120, ttl: 60_000 } };
+/* OPENING A SNAP IS A READ OF BYTES, and it has its own ceiling because it is
+   the one route in this controller that streams a file rather than a row.
+   Thirty a minute is far more than a person taps and few enough that the door
+   is not a way to pull the vault through the API. Every open past a budget is
+   refused before the bucket is touched, so a loop cannot even reach storage —
+   this bounds the ones that CAN. */
+const SNAP_LIMIT = { default: { limit: 30, ttl: 60_000 } };
 
 @Controller()
 @UseGuards(JwtAuthGuard)
@@ -137,6 +148,62 @@ export class MessagesController {
   @Get('chat/:id/pinned')
   pinned(@CurrentUser() user: JwtUser, @Param('id') conversationId: string) {
     return this.messages.pinnedIn(user.sub, conversationId);
+  }
+
+  /**
+   * GET /api/messages/:id/snap — the photograph, and the view it costs.
+   *
+   * NOT A REDIRECT AND NOT A SIGNED URL, which is the decision this route is.
+   * A signed link is a bearer credential for as long as its window: hand one
+   * to a recipient and a "View Once" can be re-fetched for the next sixty
+   * seconds by anybody they pass the string to. Streaming the bytes means the
+   * view is spent at the exact moment they leave, which is the only version of
+   * this promise that is true.
+   *
+   * `no-store`, and it has to be: a snap in any cache — the browser's, an
+   * intermediary's, the back button's — is a snap that outlived its view.
+   * `Cross-Origin-Resource-Policy` for the reason the dating photo route
+   * carries it: helmet's same-origin default silently discards a perfectly
+   * good 200 when api.togethercity.app answers an <img> on togethercity.app.
+   *
+   * One 404 for every refusal — no such message, not a member, expired, spent,
+   * your own — because a route that distinguishes them tells whoever is asking
+   * something about a photograph they may not see.
+   */
+  @Get('messages/:id/snap')
+  @Throttle(SNAP_LIMIT)
+  async snap(
+    @CurrentUser() user: JwtUser,
+    @Param('id') id: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const found = await this.messages.openSnap(user.sub, id);
+    if (!found) throw new NotFoundException('That photo is not available.');
+    res.set({
+      'Content-Type': found.contentType,
+      'Cross-Origin-Resource-Policy': 'cross-origin',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+      ...(found.contentLength ? { 'Content-Length': String(found.contentLength) } : {}),
+    });
+    return new StreamableFile(found.body);
+  }
+
+  // POST /api/messages/:id/snap/keep — take the sender up on "keep in chat".
+  @Post('messages/:id/snap/keep')
+  @Throttle(WRITE_LIMIT)
+  keepSnap(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.messages.keepSnap(user.sub, id);
+  }
+
+  /* POST /api/messages/:id/snap/screenshot — a recipient's device reporting a
+     screen capture. THE WEB APP NEVER CALLS THIS: no browser can know. The
+     route exists for the Capacitor shells, which can. See the service method
+     for the whole argument, including why a browser heuristic would be worse
+     than nothing. */
+  @Post('messages/:id/snap/screenshot')
+  @Throttle(WRITE_LIMIT)
+  reportSnapShot(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.messages.reportSnapShot(user.sub, id);
   }
 
   // GET /api/messages/:id/info — declared AFTER messages/search on purpose:

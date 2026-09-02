@@ -27,6 +27,24 @@ export type ChatEvent =
   /* messageId is null when the room's pin was cleared. `message` carries the
      newly pinned one so a banner can render without a fetch. */
   | { kind: 'message.pinned'; conversationId: string; messageId: string | null; message: unknown }
+  /**
+   * SOMETHING HAPPENED TO A SNAP: it was opened, it was kept, or a recipient's
+   * device reported a screen capture.
+   *
+   * THE FACT TRAVELS AND THE MESSAGE DOES NOT, unlike every frame above it,
+   * and the reason is `viewsLeft`. How many opens are left is a PER-READER
+   * number; a broadcast reaches several readers at once and can only carry the
+   * allowance. A frame carrying the serialized message would therefore tell
+   * the person who just spent their last view that they have one left, half a
+   * second after their own request correctly told them they had none — the
+   * `starred` problem, on a field somebody is watching.
+   *
+   * So this says what happened and to which message, and a client that did not
+   * cause it re-reads. Snap events are rare by nature — one per photograph,
+   * not one per keystroke — so a refetch is the cheap correct answer rather
+   * than a delta somebody has to keep in step.
+   */
+  | { kind: 'snap.changed'; conversationId: string; messageId: string; by: string; event: 'opened' | 'kept' | 'shot' }
   | { kind: 'presence.changed'; userId: string; online: boolean }
   /** Somebody blocked somebody. The socket layer uses it to empty the rooms the
    *  two of them share, so typing, presence and receipts stop at the block

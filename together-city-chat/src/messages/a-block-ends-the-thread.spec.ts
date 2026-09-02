@@ -37,6 +37,7 @@ function build(gateThrows: boolean) {
     { publish: (e: unknown) => { published.push(e); } } as any,
     { get: () => 900 } as any,
     { screen: async () => ({ ok: true }) } as any,
+    {} as any,   // StorageProvider — the snap routes only, and a block reaches none of them.
   );
   return { svc, prisma, permission, published };
 }

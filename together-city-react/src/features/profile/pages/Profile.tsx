@@ -321,7 +321,7 @@ export function Profile() {
         </div>
         </div>
 
-        <div style={{ height: 30 }} />
+        <div className="mp-gap" />
 
         {/* ── THE RECORD ITSELF ──────────────────────────────────────────
             The document above is a drawing of these boxes. They were a second
@@ -332,7 +332,7 @@ export function Profile() {
             page that shares its name. */}
         <MasterProfileSections />
 
-        <div style={{ height: 30 }} />
+        <div className="mp-gap" />
 
         {/* ── EVERY OTHER PROFILE, LINKED TO THIS ONE ────────────────────
             The record above is the source. This is what reads from it, and
@@ -347,7 +347,7 @@ export function Profile() {
             writing. */}
         <CityProfiles />
 
-        <div style={{ height: 30 }} />
+        <div className="mp-gap" />
 
         {/* ── THE VISA PAGES ────────────────────────────────────────────── */}
         {/* ── ENDORSEMENTS ─────────────────────────────────────────────

@@ -2,8 +2,10 @@ import { z } from 'zod';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiDelete, apiGet, apiPost, apiPut } from './http';
+import { http } from './client';
 import { socketClient, WS } from './socket';
 import { useAuthed } from '@/store/useAuthed';
+import { useAuthStore } from '@/store/auth.store';
 import {
   ConversationSchema, GroupMemberSchema, MessageInfoSchema, MessagePageSchema, MessageSchema,
   type Conversation, type GroupMember, type Message, type MessageInfo, type MessagePage, type ShareCard,
@@ -30,11 +32,16 @@ const SetChatPhotoResultSchema = z.object({ ok: z.boolean(), photo: z.string().n
  *  Mirrors the API's AttachmentSchema — url, size and mimeType are required
  *  there, so they are required here rather than discovered by a 400. */
 export interface OutgoingAttachment {
+  /** A public URL for an ordinary file; a `snaps/<me>/<uuid>` KEY for a snap.
+   *  The server's DTO switches on `snap` to know which rule to apply. */
   url: string;
   mimeType: string;
   size: number;
   name?: string;
   duration?: number;
+  /** Present ⇒ this is a temporary photo. The mode is the clock; every actual
+   *  deadline is the server's to compute, which is why none is sent. */
+  snap?: { mode: 'once' | 'twice' | 'day' | 'keep'; live?: boolean };
 }
 
 /** The message type a set of attachments makes it. The server stores it on the
@@ -113,6 +120,44 @@ export const chatApi = {
    *  message is usually older than the page the thread has loaded. */
   pinnedMessage: (conversationId: string): Promise<{ pinned: Message | null }> =>
     apiGet(`/chat/${conversationId}/pinned`, z.object({ pinned: MessageSchema.nullable() })),
+
+  /**
+   * ── OPEN A SNAP, AND SPEND THE VIEW ─────────────────────────────────────
+   *
+   * A blob, not a url: the response is the bytes themselves, served once, with
+   * `no-store` on it. `URL.createObjectURL` gives the <img> something to point
+   * at that lives in this tab's memory and dies with `revokeObjectURL` — which
+   * is the only kind of address a view-once photograph should ever have on a
+   * page. Nothing here is cached, by TanStack or anyone else, because a cached
+   * snap is a snap that can be shown again without asking the server, and the
+   * server is the only thing that knows whether there is a view left.
+   *
+   * CALLED FROM A TAP AND NEVER FROM A RENDER. Every other image in this app
+   * is an `<img src>` the browser fetches when it feels like it; this one
+   * costs something, so it happens when somebody chooses it.
+   */
+  openSnap: async (messageId: string): Promise<Blob> => {
+    const { data } = await http.get<Blob>(`/messages/${messageId}/snap`, { responseType: 'blob' });
+    return data;
+  },
+
+  /** Take the sender up on "keep in chat". Refused for the other three modes —
+   *  keeping is not on offer there, and that is the point of them. */
+  keepSnap: (messageId: string): Promise<Message> =>
+    apiPost(`/messages/${messageId}/snap/keep`, {}, MessageSchema),
+
+  /**
+   * Report a screen capture of a snap.
+   *
+   * THE WEB APP NEVER CALLS THIS, and it is here so that the Capacitor shells
+   * can without a second API. No browser tells a page it has been
+   * screenshotted or recorded: there is no API, and the heuristics — blur,
+   * visibilitychange, a PrintScreen keydown — miss every real screenshot tool
+   * and fire on every tab switch. A notice that cries wolf is worse than no
+   * notice, so the web says nothing and claims nothing.
+   */
+  reportSnapScreenshot: (messageId: string): Promise<Message> =>
+    apiPost(`/messages/${messageId}/snap/screenshot`, {}, MessageSchema),
 
   /** Who received and read one of YOUR messages. 403 for anybody else's. */
   messageInfo: (messageId: string): Promise<MessageInfo> =>
@@ -261,6 +306,8 @@ export function useChatRealtime(
   onDeleted?: (messageId: string) => void,
   onEdited?: (m: Message) => void,
 ) {
+  const qc = useQueryClient();
+  const meId = useAuthStore((st) => st.user?.id);
   useEffect(() => {
     if (!conversationId) return;
     socketClient.emit(WS.JOIN_CONVERSATION, { conversationId });
@@ -284,12 +331,33 @@ export function useChatRealtime(
       if (!p.conversationId || p.conversationId === conversationId) onDeleted?.(p.messageId);
     });
     const offEdit = socketClient.on<Message>(WS.MESSAGE_EDITED, (m) => { if (m.conversationId === conversationId) onEdited?.(m); });
+    /**
+     * A SNAP CHANGED, SO RE-READ — and this one handles itself rather than
+     * taking a sixth callback, because there is nothing for a caller to decide.
+     * Every other frame here has a component-level meaning (append this,
+     * remove that, somebody is typing); this one means "the row you are holding
+     * is out of date", and the only correct response is to fetch it again.
+     *
+     * NOT A PATCH, and the reason is `viewsLeft`. It is a per-READER number and
+     * a broadcast cannot carry one, so a frame carrying the message would tell
+     * the person who just spent their last view that they have one left. The
+     * refetch asks as this reader and gets this reader's answer.
+     *
+     * `by === me` is skipped: the request that caused it already returned the
+     * current row, and re-reading would be a second round trip to learn what we
+     * were just told.
+     */
+    const offSnap = socketClient.on<{ conversationId: string; by: string }>(WS.SNAP_CHANGED, (p) => {
+      if (p.conversationId !== conversationId) return;
+      if (p.by === meId) return;
+      void qc.invalidateQueries({ queryKey: ['chat', 'messages', conversationId] });
+    });
     return () => {
       socketClient.emit(WS.LEAVE_CONVERSATION, { conversationId });
       sock.off('connect', rejoin);
-      offMsg(); offStart(); offStop(); offDel(); offEdit();
+      offMsg(); offStart(); offStop(); offDel(); offEdit(); offSnap();
     };
-  }, [conversationId, onMessage, onTyping, onDeleted, onEdited]);
+  }, [conversationId, onMessage, onTyping, onDeleted, onEdited, qc, meId]);
 
   /**
    * Send text, attachments, or both.

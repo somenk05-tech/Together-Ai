@@ -95,19 +95,43 @@ export interface Message {
   } | null;
 }
 
+/** What a temporary photo tells you about itself. NEVER an address for the
+ *  bytes — those come from `GET /messages/:id/snap`, one view at a time. Keep
+ *  in step with api/schemas.ts's SnapSchema, which is what parses the wire. */
+export interface Snap {
+  mode: 'once' | 'twice' | 'day' | 'keep';
+  /** The composer's word for "off the camera, not out of a gallery". A claim
+   *  about our capture path, not a verification — never shown as proof. */
+  live: boolean;
+  views: number | null;
+  /** The READER'S remaining opens; null when the mode has no budget. */
+  viewsLeft: number | null;
+  expiresAt: string | null;
+  openedAt: string | null;
+  keptAt: string | null;
+  /** Set only by a native shell. The web cannot detect a screenshot. */
+  shotAt: string | null;
+  gone: boolean;
+}
+
 export interface MediaAttachment {
   id: string;
+  /** EMPTY on a snap — a snap has no address a client may hold. */
   url: string;
   /** 'audio' joined with voice notes — it was folded into 'file' before, which
-   *  is why a voice note could only render as a link. Keep in step with
+   *  is why a voice note could only render as a link. 'snap' joined on 2 Sep
+   *  and is a contract rather than a type: the bytes are fetched, once,
+   *  through the API. Keep in step with
    *  api/schemas.ts's MediaAttachmentSchema, which is what parses the wire. */
-  kind: 'image' | 'video' | 'audio' | 'file';
+  kind: 'image' | 'video' | 'audio' | 'file' | 'snap';
   thumbUrl?: string;
   mimeType?: string;
   /** Absent on a voice note and on anything sent before the column existed. */
   name?: string;
   sizeBytes?: number;
   durationSec?: number;
+  /** Present exactly when `kind === 'snap'`. */
+  snap?: Snap;
 }
 
 export interface NotificationItem {

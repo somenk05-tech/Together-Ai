@@ -55,12 +55,48 @@ export const ConversationSchema = z.object({
 });
 export type Conversation = z.infer<typeof ConversationSchema>;
 
+/**
+ * ── WHAT A SNAP TELLS YOU WITHOUT SHOWING YOU ANYTHING ──────────────────────
+ *
+ * Every field here is a FACT ABOUT the photograph; none of them is the
+ * photograph, and there is deliberately no address for it. The bytes come from
+ * `GET /messages/:id/snap`, which spends a view in the same request that
+ * serves them — so a url in this object would be a view-once anybody could
+ * fetch twice.
+ *
+ * `viewsLeft` is the READER'S own remaining opens, and null when the mode has
+ * no budget (24 hours, keep). It arrives as the whole allowance on a socket
+ * broadcast, which cannot know who is listening — the same shape `starred`
+ * has, and the reader's own next read narrows it.
+ *
+ * `shotAt` is set only by a native shell reporting a screen capture. The web
+ * app cannot detect one and never claims to; see the server column for why a
+ * heuristic here would be worse than saying nothing.
+ */
+export const SnapSchema = z.object({
+  mode: z.enum(['once', 'twice', 'day', 'keep']),
+  live: z.boolean(),
+  views: z.number().nullable(),
+  viewsLeft: z.number().nullable(),
+  expiresAt: z.string().nullable(),
+  openedAt: z.string().nullable(),
+  keptAt: z.string().nullable(),
+  shotAt: z.string().nullable(),
+  gone: z.boolean(),
+});
+export type Snap = z.infer<typeof SnapSchema>;
+
 export const MediaAttachmentSchema = z.object({
   id: z.string(),
+  /** EMPTY ON A SNAP, and the server sends it empty on purpose — a snap has no
+   *  address a client may hold. `kind` is checked first everywhere this is
+   *  rendered; see the snap branch in MessageBody. */
   url: z.string(),
   /** 'audio' joined the list with voice notes. It was folded into 'file'
-   *  before, which is why a voice note could only ever render as a link. */
-  kind: z.enum(['image', 'video', 'audio', 'file']),
+   *  before, which is why a voice note could only ever render as a link.
+   *  'snap' joined on 2 Sep and is not a media TYPE but a media CONTRACT: it
+   *  says the bytes are fetched, once, through the API. */
+  kind: z.enum(['image', 'video', 'audio', 'file', 'snap']),
   thumbUrl: z.string().optional(),
   mimeType: z.string().optional(),
   /** What the file was called on the sender's machine; absent on a voice note
@@ -68,6 +104,8 @@ export const MediaAttachmentSchema = z.object({
   name: z.string().optional(),
   sizeBytes: z.number().optional(),
   durationSec: z.number().optional(),
+  /** Present exactly when `kind === 'snap'`. */
+  snap: SnapSchema.optional(),
 });
 export type MediaAttachment = z.infer<typeof MediaAttachmentSchema>;
 

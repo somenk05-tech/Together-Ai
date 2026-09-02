@@ -2,18 +2,22 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { Readable } from 'stream';
 import { ConfigService } from '@nestjs/config';
 import { DeliveryStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { endedDatingConversationIds } from '../shared/dating-conversations';
 import { ConnectionPermissionService } from '../connections/connection-permission.service';
 import { ChatMediaGuard } from './chat-media-guard';
+import { StorageProvider } from '../media/storage.provider';
 import { ChatEventBus } from '../shared/events/chat-events';
 import { nickname } from '../shared/nickname';
 import { shownName } from '../dating/matching';
 import {
+  AttachmentDto,
   DeleteMessageDto,
   EditMessageDto,
   ListMessagesDto,
@@ -50,6 +54,49 @@ function datingFirstName(dp: { extras: string | null } | null | undefined): { fi
   try { return { firstName: (JSON.parse(dp.extras) as { firstName?: unknown }).firstName }; } catch { return {}; }
 }
 
+/**
+ * ── A PHOTO THAT DOES NOT STAY: THE CLOCKS ──────────────────────────────────
+ *
+ * Every deadline a snap keeps is decided HERE, on the server, from the mode
+ * alone. The client says "once" or "day"; it never says "until Tuesday". A
+ * deadline in the request body is a clock the sender sets on somebody else's
+ * copy, and the first thing anybody would do with it is set it to a century.
+ *
+ * `views` is PER RECIPIENT — see Attachment.snapOpensJson for why a shared
+ * counter is a bug in a group rather than a simplification.
+ *
+ * `ttlMs` on once and twice is a BACKSTOP, not the feature: a View Once is
+ * finished when it is viewed, and this is only the answer to "what if it never
+ * is". Seven days, because an unopened snap should still be there when
+ * somebody comes back from a week away, and should not sit in the vault
+ * forever if they do not.
+ *
+ * `keep` is the reading of the owner's fourth mode, written down because it
+ * was the one ambiguous item on the list: "Keep in Chat — recipient can
+ * explicitly save it, if the sender allows." Taken as a MODE rather than a
+ * flag on the other three, so it is 24 hours with a Keep button on it, and
+ * keeping stops the clock. Read as an orthogonal permission it would have
+ * doubled the state — "view once, keepable" is a contradiction anyway.
+ */
+const SNAP_CLOCK: Record<string, { views: number | null; ttlMs: number | null }> = {
+  once:  { views: 1,    ttlMs: 7 * 24 * 3600_000 },
+  twice: { views: 2,    ttlMs: 7 * 24 * 3600_000 },
+  day:   { views: null, ttlMs: 24 * 3600_000 },
+  keep:  { views: null, ttlMs: 24 * 3600_000 },
+};
+
+/** `{ "<userId>": <opens so far> }`, or nothing. Never throws: an unparseable
+ *  blob is read as "nobody has opened it", which is the fail-SHUT answer —
+ *  it costs a recipient a view they already spent, and it cannot hand one to
+ *  somebody who has spent theirs. */
+function snapOpens(json: string | null | undefined): Record<string, number> {
+  if (!json) return {};
+  try {
+    const v = JSON.parse(json) as unknown;
+    return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, number>) : {};
+  } catch { return {}; }
+}
+
 @Injectable()
 export class MessagesService {
   constructor(
@@ -58,7 +105,13 @@ export class MessagesService {
     private readonly bus: ChatEventBus,
     private readonly config: ConfigService,
     private readonly media: ChatMediaGuard,
+    /* THE VAULT, because a snap is the one attachment this service reads and
+       deletes itself. Every other file in a message is handed to the client as
+       a URL and never touched again. */
+    private readonly storage: StorageProvider,
   ) {}
+
+  private readonly logger = new Logger(MessagesService.name);
 
   /** Send a message. Enforces the connection gate + membership before persisting. */
   async send(senderId: string, dto: SendMessageDto) {
@@ -95,6 +148,24 @@ export class MessagesService {
     if (dto.attachments?.length) await this.assertAttachmentsAreYoursToSend(senderId, dto.attachments);
     // 1c) and WHAT IS IN THEM, if this is a chat between strangers.
     if (dto.attachments?.length) await this.screenAttachments(senderId, dto.conversationId, dto.attachments);
+    /* 1c-ii) AND EVERY SNAP, IN EVERY ROOM. The line above is drawn at dating
+       conversations and chat-media-guard.ts argues that boundary at length. A
+       snap is the deliberate exception: it is the one image nobody can report
+       after the fact, because by the time somebody complains the bytes are
+       gone. Screening at the door is the only moment there is. */
+    for (const a of dto.attachments ?? []) {
+      if (!a.snap) continue;
+      /* ONE OBJECT, ONE SNAP. A key already named by an attachment row is a
+         key with a clock already running on it: sending it a second time would
+         give the same bytes a second budget, and retiring either message would
+         delete the photograph out from under the other. The upload route mints
+         a fresh uuid per snap, so this only ever fires on a client replaying an
+         old key — which is precisely the case worth refusing. */
+      const already = await this.prisma.attachment.findFirst({ where: { url: a.url }, select: { id: true } });
+      if (already) throw new BadRequestException('That snap has already been sent.');
+      const verdict = await this.media.screenSnap(a.url, senderId);
+      if (!verdict.ok) throw new BadRequestException(verdict.reason);
+    }
     // 1d) and the ONE PICTURE THAT IS NOT AN ATTACHMENT — see below.
     const share = dto.share ? await this.shareForConversation(dto.conversationId, dto.share) : undefined;
 
@@ -112,7 +183,7 @@ export class MessagesService {
         replyToMessageId: dto.replyToMessageId,
         shareJson: share ? JSON.stringify(share) : undefined,
         attachments: dto.attachments
-          ? { create: dto.attachments.map((a) => ({ ...a })) }
+          ? { create: dto.attachments.map((a) => this.attachmentRow(a)) }
           : undefined,
         statuses: {
           create: recipientIds.map((userId) => ({ userId, status: DeliveryStatus.SENT })),
@@ -759,6 +830,182 @@ export class MessagesService {
   }
 
   // ── helpers ──────────────────────────────────────────────
+  /**
+   * ── OPEN A SNAP, AND SPEND THE VIEW IN THE SAME BREATH ─────────────────────
+   *
+   * The bytes are streamed by the controller from what this returns. Every
+   * refusal is `null`, and they are all the same null on purpose — "expired",
+   * "you have used both views", "you are not in this conversation" and "there
+   * is no such message" are one 404 at the door, because a route that tells
+   * them apart tells whoever is asking something about a photograph they are
+   * not allowed to see.
+   *
+   * THE SENDER CANNOT RE-OPEN THEIR OWN, which is WhatsApp's rule and the
+   * strict reading of the owner's. It costs the sender nothing they do not
+   * already have — they took the picture — and it removes the branch where a
+   * "view once" has been viewed twice by somebody. One rule, no exceptions to
+   * hold in your head while reading the counter below.
+   *
+   * THE SPEND IS A COMPARE-AND-SET, and it has to be. Two taps arriving
+   * together on a View Once both read `{}` , both see a view available and
+   * both serve the photograph — the classic read-modify-write, on the one
+   * counter in this feature that is load-bearing. `updateMany` with the OLD
+   * json in the WHERE clause is an atomic conditional write on any database
+   * we might run on, with no raw SQL and no advisory lock: the loser matches
+   * zero rows, re-reads and tries once more, and a second failure refuses
+   * rather than guessing. Serving the bytes AFTER the write is the other half
+   * — a stream that breaks mid-flight has still spent the view, which is the
+   * safe direction to be wrong in.
+   */
+  async openSnap(userId: string, messageId: string): Promise<{ body: Readable; contentType: string; contentLength?: number } | null> {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const m = await this.prisma.message.findUnique({
+        where: { id: messageId },
+        select: {
+          id: true, senderId: true, conversationId: true, deleted: true,
+          attachments: true,
+        },
+      });
+      const a = m?.attachments.find((x) => x.snapMode);
+      if (!m || !a || m.deleted) return null;
+      if (m.senderId === userId) return null;
+      const member = await this.prisma.conversationMember.findUnique({
+        where: { conversationId_userId: { conversationId: m.conversationId, userId } },
+      });
+      if (!member) return null;
+      const kept = Boolean(a.snapKeptAt);
+      if (!kept) {
+        if (a.snapGoneAt) return null;
+        if (a.snapExpiresAt && a.snapExpiresAt.getTime() <= Date.now()) return null;
+      }
+      const opens = snapOpens(a.snapOpensJson);
+      const taken = opens[userId] ?? 0;
+      /* A kept snap has no budget left to spend — keeping is what took the
+         clock off it — so it is served without touching the counter. */
+      if (kept) return this.storage.readPrivateObject(a.url);
+      if (a.snapViews != null && taken >= a.snapViews) return null;
+
+      const next = JSON.stringify({ ...opens, [userId]: taken + 1 });
+      const won = await this.prisma.attachment.updateMany({
+        where: { id: a.id, snapOpensJson: a.snapOpensJson ?? null },
+        data: {
+          snapOpensJson: next,
+          ...(a.snapOpenedAt ? {} : { snapOpenedAt: new Date() }),
+        },
+      });
+      if (won.count === 0) continue;   // somebody else opened it first — re-read
+
+      const found = await this.storage.readPrivateObject(a.url);
+      if (!found) return null;
+      /* SPENT BY EVERYONE MEANS GONE NOW, not at the next sweep. The sweep
+         exists for the snap nobody opens; this is the common case, and the
+         bytes should not outlive the last view by ten minutes. */
+      await this.retireSnapIfSpent(m.conversationId, m.senderId, a.id);
+      this.bus.publish({ kind: 'snap.changed', conversationId: m.conversationId, messageId: m.id, by: userId, event: 'opened' });
+      return found;
+    }
+    return null;
+  }
+
+  /**
+   * Delete the object once every recipient has used every view they had.
+   *
+   * Best-effort, and never allowed to fail the open that triggered it: the
+   * photograph has already been served, and a bucket having a bad day must not
+   * turn that into an error for somebody who did nothing wrong. A row that is
+   * past its views and has no `snapGoneAt` is exactly what the sweep looks
+   * for, so a miss here is picked up within ten minutes.
+   */
+  private async retireSnapIfSpent(conversationId: string, senderId: string, attachmentId: string): Promise<void> {
+    const a = await this.prisma.attachment.findUnique({ where: { id: attachmentId } });
+    if (!a?.snapMode || a.snapViews == null || a.snapGoneAt || a.snapKeptAt) return;
+    const recipients = await this.recipientIds(conversationId, senderId);
+    const opens = snapOpens(a.snapOpensJson);
+    if (!recipients.every((r) => (opens[r] ?? 0) >= a.snapViews!)) return;
+    const gone = await this.storage.deletePrivateObject(a.url);
+    if (!gone) {
+      this.logger.error(`snap ${a.id} is spent and its object could NOT be deleted — it is still in the vault.`);
+      return;
+    }
+    await this.prisma.attachment.update({ where: { id: a.id }, data: { snapGoneAt: new Date() } });
+  }
+
+  /**
+   * KEEP IT — but only if the sender said it could be kept.
+   *
+   * `keep` is a mode, not a button the recipient always gets: the whole point
+   * of the other three is that keeping is not on offer. So the check is on the
+   * MODE, not on who is asking, and a recipient asking to keep a View Once is
+   * refused rather than quietly ignored — they are about to lose it and should
+   * be told that is what was always going to happen.
+   */
+  async keepSnap(userId: string, messageId: string) {
+    const m = await this.prisma.message.findUnique({
+      where: { id: messageId },
+      select: { id: true, senderId: true, conversationId: true, deleted: true, attachments: true },
+    });
+    const a = m?.attachments.find((x) => x.snapMode);
+    if (!m || !a || m.deleted) throw new NotFoundException('That photo is not available.');
+    await this.assertMember(userId, m.conversationId);
+    if (m.senderId === userId) throw new ForbiddenException('It is the person you sent it to who keeps it.');
+    if (a.snapMode !== 'keep') throw new ForbiddenException('This photo was not sent to be kept.');
+    if (a.snapGoneAt || (a.snapExpiresAt && a.snapExpiresAt.getTime() <= Date.now())) {
+      throw new NotFoundException('That photo is not available.');
+    }
+    if (!a.snapKeptAt) {
+      await this.prisma.attachment.update({ where: { id: a.id }, data: { snapKeptAt: new Date() } });
+      this.bus.publish({ kind: 'snap.changed', conversationId: m.conversationId, messageId: m.id, by: userId, event: 'kept' });
+    }
+    return this.snapState(m.id, userId);
+  }
+
+  /**
+   * ── A SCREEN CAPTURE WAS REPORTED, AND THE WEB WILL NEVER CALL THIS ────────
+   *
+   * No browser tells a page it has been screenshotted or screen-recorded.
+   * There is no API, and the heuristics people reach for — blur,
+   * visibilitychange, a PrintScreen keydown — miss every real screenshot tool
+   * on every platform and fire on every tab switch, which does not produce a
+   * weaker notice, it produces a notice nobody believes. So the web client
+   * does not call this route and does not claim the capability.
+   *
+   * The Capacitor shells CAN: iOS has `userDidTakeScreenshotNotification` and
+   * `UIScreen.isCaptured`, Android has the API-34 screenshot callback. This is
+   * the door they will knock on, and it is written now so that the native work
+   * is a plugin and a fetch rather than a schema change, a migration and a new
+   * socket event. Until then the column stays NULL and the thread says
+   * nothing, which is the only honest thing to say.
+   *
+   * FIRST REPORT WINS and nothing counts. "They took a screenshot" is the
+   * fact; how many times is a detail that would turn the notice into a
+   * scoreboard, and in a group it would name people. The event carries who,
+   * because the sender is owed that in a room with five people in it.
+   */
+  async reportSnapShot(userId: string, messageId: string) {
+    const m = await this.prisma.message.findUnique({
+      where: { id: messageId },
+      select: { id: true, senderId: true, conversationId: true, attachments: true },
+    });
+    const a = m?.attachments.find((x) => x.snapMode);
+    if (!m || !a) throw new NotFoundException('That photo is not available.');
+    await this.assertMember(userId, m.conversationId);
+    if (m.senderId === userId) throw new ForbiddenException('That is your own photo.');
+    if (!a.snapShotAt) {
+      await this.prisma.attachment.update({ where: { id: a.id }, data: { snapShotAt: new Date() } });
+    }
+    this.bus.publish({ kind: 'snap.changed', conversationId: m.conversationId, messageId: m.id, by: userId, event: 'shot' });
+    return this.snapState(m.id, userId);
+  }
+
+  /** What the caller's own client should now show for this message. The whole
+   *  message rather than a snap fragment, because the client already knows how
+   *  to replace a message in its cache and does not need a second shape. */
+  private async snapState(messageId: string, viewerId: string) {
+    const m = await this.prisma.message.findUnique({ where: { id: messageId }, include: messageInclude });
+    if (!m) throw new NotFoundException('That photo is not available.');
+    return this.serialize(m, viewerId);
+  }
+
   private async recipientIds(conversationId: string, senderId: string): Promise<string[]> {
     // unbounded: one conversation's members — group-sized
     const members = await this.prisma.conversationMember.findMany({
@@ -824,6 +1071,11 @@ export class MessagesService {
     if ((convo as { anonymousTrust?: number | null } | null)?.anonymousTrust == null) return;
     const base = (this.config.get<string>('media.publicBaseUrl') ?? '').replace(/\/+$/, '');
     for (const a of attachments) {
+      /* A snap is screened by `screenSnap` in every conversation, before this
+         runs, and its `url` is a private key that `keyFromUrl` would refuse.
+         Letting it fall through here would refuse every snap in a dating chat
+         with "that file could not be read". */
+      if ((a as { snap?: unknown }).snap) continue;
       // BOTH, and the asymmetry was the bug. `assertAttachmentsAreYoursToSend`
       // twenty lines below checks url AND thumbnail — it has to, or you could
       // put somebody else's file in the second field. This checked only the
@@ -883,6 +1135,27 @@ export class MessagesService {
     return { ...share, image: null };
   }
 
+  /**
+   * The Attachment row a request's attachment becomes.
+   *
+   * For everything that is not a snap this is the spread it replaced — the DTO
+   * fields ARE the columns and always have been. A snap adds the clock, and
+   * every value of it is computed here from the mode, never copied from the
+   * request: see SNAP_CLOCK for why the sender does not get to name a deadline.
+   */
+  private attachmentRow(a: AttachmentDto) {
+    const { snap, ...rest } = a;
+    if (!snap) return rest;
+    const clock = SNAP_CLOCK[snap.mode];
+    return {
+      ...rest,
+      snapMode: snap.mode,
+      snapLive: Boolean(snap.live),
+      snapViews: clock.views,
+      snapExpiresAt: clock.ttlMs == null ? null : new Date(Date.now() + clock.ttlMs),
+    };
+  }
+
   private async assertAttachmentsAreYoursToSend(
     senderId: string,
     attachments: Array<{ url: string; thumbnail?: string }>,
@@ -890,6 +1163,14 @@ export class MessagesService {
     const base = (this.config.get<string>('media.publicBaseUrl') ?? '').replace(/\/+$/, '');
     const own = (u: string | undefined): boolean => {
       if (!u) return true;
+      /* A SNAP PROVES ITSELF WITH ITS PREFIX. Its `url` is a private key, not
+         a URL, so the public-base and `/uploads/` rules below cannot speak to
+         it at all — and must not be allowed to pass it by accident either.
+         `snaps/<senderId>/…` is the ownership proof, the same way
+         `uploads/<senderId>/` is; a key naming somebody else fails here and
+         then fails the forward lookup too, which is right: a snap is never
+         forwardable, because the row it names carries a spent view budget. */
+      if (u.startsWith('snaps/')) return u.startsWith(`snaps/${senderId}/`);
       if (base && !u.startsWith(`${base}/`)) return false;
       const path = (() => { try { return new URL(u).pathname; } catch { return u; } })();
       return path.includes(`/uploads/${senderId}/`);
@@ -904,6 +1185,20 @@ export class MessagesService {
        theirs to pass on, because membership is re-read here and not trusted
        from whenever they first saw it. */
     const urls = attachments.flatMap((a) => [a.url, a.thumbnail]).filter((u): u is string => Boolean(u));
+    /* A SNAP IS NEVER FORWARDABLE, and it must be refused BEFORE the forward
+       clause below — which would otherwise wave it straight through.
+       "An attachment from a conversation you are in" is exactly what a snap
+       somebody sent you is, so the lookup would find the row, the send would
+       be allowed, and a second message would point at the same object with a
+       fresh view budget. A View Once forwarded to a group is the whole feature
+       undone, in the one code path that was written to be generous.
+       (The web client cannot construct this — a snap's `url` reaches it empty
+       — which is exactly the kind of "safe by accident" this gate exists to
+       stop being.) */
+    const stolen = urls.find((u) => u.startsWith('snaps/') && !u.startsWith(`snaps/${senderId}/`));
+    if (stolen) {
+      throw new ForbiddenException('A snap cannot be forwarded — it belongs to the moment it was sent in.');
+    }
     const foreign = urls.filter((u) => !own(u));
     if (!foreign.length) return;
 
@@ -943,6 +1238,9 @@ export class MessagesService {
     attachments?: Array<{
       id: string; url: string; mimeType: string; thumbnail?: string | null;
       name?: string | null; size?: number | null; duration?: number | null;
+      snapMode?: string | null; snapLive?: boolean | null; snapViews?: number | null;
+      snapOpensJson?: string | null; snapExpiresAt?: Date | null; snapOpenedAt?: Date | null;
+      snapKeptAt?: Date | null; snapShotAt?: Date | null; snapGoneAt?: Date | null;
     }>;
     sender?: unknown;
     statuses?: Array<{ status: string }>;
@@ -1005,22 +1303,80 @@ export class MessagesService {
      * the table the whole time (duration has been there since the schema was
      * written); only the serializer was throwing them away.
      */
-    const media = (m.deleted ? [] : (m.attachments ?? [])).map((a) => ({
-      id: a.id,
-      url: a.url,
-      kind: a.mimeType?.startsWith('image/')
-        ? 'image'
-        : a.mimeType?.startsWith('video/')
-          ? 'video'
-          : a.mimeType?.startsWith('audio/')
-            ? 'audio'
-            : 'file',
-      thumbUrl: a.thumbnail ?? undefined,
-      mimeType: a.mimeType,
-      name: a.name ?? undefined,
-      sizeBytes: typeof a.size === 'number' ? a.size : undefined,
-      durationSec: typeof a.duration === 'number' ? a.duration : undefined,
-    }));
+    const media = (m.deleted ? [] : (m.attachments ?? [])).map((a) => {
+      /**
+       * ── A SNAP HANDS OVER NO ADDRESS ────────────────────────────────────
+       *
+       * `url` is EMPTY on a snap, and that is the load-bearing line in this
+       * function. The column holds a private key — `snaps/<sender>/<uuid>` —
+       * and a recipient holding it could ask for the bytes without spending a
+       * view, forever, past the expiry, after the sweep, which is the entire
+       * thing "view once" is supposed to mean. The bytes are reached ONLY
+       * through `GET /messages/:id/snap`, which spends the view in the same
+       * request that serves them.
+       *
+       * Empty rather than absent because `MediaAttachment.url` is a required
+       * string in the client's schema and on eleven render paths; an optional
+       * url is a `<img src={undefined}>` waiting to happen in a component that
+       * forgot which kind it had. `kind: 'snap'` is the discriminator, it is
+       * checked first in MessageBody, and a server spec holds this empty.
+       */
+      const snap = a.snapMode
+        ? (() => {
+            const opens = snapOpens(a.snapOpensJson);
+            const taken = viewerId ? (opens[viewerId] ?? 0) : 0;
+            const past = a.snapExpiresAt != null && a.snapExpiresAt.getTime() <= Date.now();
+            return {
+              mode: a.snapMode,
+              live: Boolean(a.snapLive),
+              /* The allowance, and what is left of it FOR THE PERSON ASKING.
+                 Without a viewer — every socket broadcast — `viewsLeft` is the
+                 whole allowance, which is the true thing to say to a room:
+                 each of you gets this many. The reader's own next fetch
+                 narrows it, exactly as `starred` does two fields down. */
+              views: a.snapViews ?? null,
+              viewsLeft: a.snapViews == null ? null : Math.max(0, a.snapViews - taken),
+              expiresAt: a.snapKeptAt ? null : (a.snapExpiresAt ?? null),
+              openedAt: a.snapOpenedAt ?? null,
+              keptAt: a.snapKeptAt ?? null,
+              /* Reported by a native shell, never by the web app — see
+                 Attachment.snapShotAt for why the browser cannot know. */
+              shotAt: a.snapShotAt ?? null,
+              /* Nothing left to open: the bytes are deleted, or the clock ran
+                 out, or this reader has spent every view they had. Keeping
+                 stops all three. */
+              gone: Boolean(a.snapKeptAt)
+                ? false
+                : Boolean(a.snapGoneAt) || past || (a.snapViews != null && taken >= a.snapViews),
+            };
+          })()
+        : undefined;
+      return {
+        id: a.id,
+        /* A KEPT SNAP IS STILL A SNAP HERE. Keeping stops the clock; it does
+           not move the bytes. The object is in the private vault and has no
+           public address to hand over, so a kept snap is fetched through the
+           same route as any other — it simply never spends anything and never
+           expires. Handing back the key on this branch would have published
+           every snap anybody chose to keep. */
+        url: snap ? '' : a.url,
+        kind: snap
+          ? 'snap'
+          : a.mimeType?.startsWith('image/')
+            ? 'image'
+            : a.mimeType?.startsWith('video/')
+              ? 'video'
+              : a.mimeType?.startsWith('audio/')
+                ? 'audio'
+                : 'file',
+        thumbUrl: a.thumbnail ?? undefined,
+        mimeType: a.mimeType,
+        name: a.name ?? undefined,
+        sizeBytes: typeof a.size === 'number' ? a.size : undefined,
+        durationSec: typeof a.duration === 'number' ? a.duration : undefined,
+        ...(snap ? { snap } : null),
+      };
+    });
     // Aggregate delivery status across recipients (least-progressed wins):
     // all read ⇒ READ, all delivered-or-better ⇒ DELIVERED, else SENT.
     const rank: Record<string, number> = { SENT: 0, DELIVERED: 1, READ: 2 };

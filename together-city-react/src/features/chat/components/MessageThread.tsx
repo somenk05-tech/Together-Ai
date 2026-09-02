@@ -83,7 +83,7 @@ export function ConfirmDelete({ mine, canEveryone, count = 1, onCancel, onDelete
   );
 }
 
-export function MessageThread({ messages, currentUserId, typing, peerName, peerPhoto, onDelete, onEdit, onReply, onForward, onStar, onJump, fetchInfo, jumpToId, selectedIds, onSelect, onReact, onPin, pinnedId }: {
+export function MessageThread({ messages, currentUserId, typing, peerName, peerPhoto, onDelete, onEdit, onReply, onForward, onStar, onJump, fetchInfo, jumpToId, selectedIds, onSelect, onReact, onPin, onAnswerLiveSnap, pinnedId }: {
   messages: Message[]; currentUserId?: string; typing?: boolean;
   /** Whose thread this is, for the attribution line above each run. */
   peerName?: string;
@@ -113,6 +113,9 @@ export function MessageThread({ messages, currentUserId, typing, peerName, peerP
   /** The id of the room's pinned message, so the action bar can offer "Unpin"
    *  on the one message where that is the honest word. */
   pinnedId?: string | null;
+  /** Answering a "send me a Live Snap": the page opens the camera. Forwarded
+   *  to MessageBody, which draws the card that offers it. */
+  onAnswerLiveSnap?: () => void;
   /** Toggle one message in the selection. The first call is what enters
    *  selection mode, which is why the way in is a button in the action bar
    *  rather than a gesture: long-press already belongs to that bar, and taking
@@ -413,7 +416,7 @@ export function MessageThread({ messages, currentUserId, typing, peerName, peerP
                   </div>
                 ) : (
                   <MessageBody m={m} mine={mine} currentUserId={currentUserId} peerName={peerName}
-                    onJump={onJump} onReact={onReact} />
+                    onJump={onJump} onReact={onReact} onAnswerLiveSnap={onAnswerLiveSnap} />
                 )}
               </div>
             </div>

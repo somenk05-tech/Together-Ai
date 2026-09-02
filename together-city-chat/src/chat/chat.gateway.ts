@@ -454,6 +454,16 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
             message: event.message,
           });
         break;
+      case 'snap.changed':
+        this.server
+          .to(room.conversation(event.conversationId))
+          .emit(WS.SNAP_CHANGED, {
+            conversationId: event.conversationId,
+            messageId: event.messageId,
+            by: event.by,
+            event: event.event,
+          });
+        break;
       case 'connection.blocked': {
         /* Both directions, immediately. Leaving the room is what actually stops
            the transient signals — they are broadcast to `room.conversation(id)`
@@ -530,9 +540,22 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   }
 
   private previewOf(message: unknown): string {
-    const m = message as { text?: string | null; body?: string | null; messageType?: string };
+    const m = message as {
+      text?: string | null; body?: string | null; messageType?: string;
+      media?: Array<{ kind?: string }>;
+    };
     const t = m.body ?? m.text;
     if (t && t.trim()) return t.slice(0, 120);
+    /* A SNAP SAYS IT IS A SNAP, and it never says more than that. There is no
+       image in a push here — this whole function returns a STRING and the
+       notification carries no picture — so the lock screen was never going to
+       show the photograph. What it would have shown is "📷 Photo", which is
+       wrong in the one way that matters: somebody glancing at a notification
+       should know before they unlock that opening this will spend it.
+
+       A caption still previews, above, like any other text: the words are the
+       sender's message, not the photograph. */
+    if ((m.media ?? []).some((a) => a.kind === 'snap')) return '📸 Snap';
     const map: Record<string, string> = {
       IMAGE: '📷 Photo',
       VIDEO: '🎥 Video',

@@ -1,5 +1,6 @@
 import type { Message, MediaAttachment } from '@/types';
 import { ShareCardView } from '../share';
+import { SnapBubble } from './SnapBubble';
 
 /**
  * ── WHAT A MESSAGE LOOKS LIKE, IN ONE PLACE ─────────────────────────────────
@@ -91,13 +92,16 @@ function Ticks({ status }: { status?: Message['status'] }) {
   );
 }
 
-export function MessageBody({ m, mine, currentUserId, peerName, onJump, onReact, inert }: {
+export function MessageBody({ m, mine, currentUserId, peerName, onJump, onReact, onAnswerLiveSnap, inert }: {
   m: Message;
   mine: boolean;
   currentUserId?: string;
   peerName?: string;
   onJump?: (messageId: string) => void;
   onReact?: (m: Message, emoji: string | null) => void;
+  /** Somebody asked for a Live Snap and this reader said yes — the page opens
+   *  the camera. Absent on the sender's side and on the spotlight's copy. */
+  onAnswerLiveSnap?: () => void;
   /** A picture of the message rather than the message — see the file header. */
   inert?: boolean;
 }) {
@@ -129,10 +133,48 @@ export function MessageBody({ m, mine, currentUserId, peerName, onJump, onReact,
           {m.body && <div className={mine ? 'csb me' : 'csb'}>{m.body}</div>}
           {(m.media ?? []).map((a, i) => (
             <div key={a.id} style={{ marginTop: m.body || i ? 6 : 0 }}>
-              <Attachment a={a} mine={mine} />
+              {/* A SNAP IS CHECKED FIRST AND NEVER REACHES `Attachment`. Its
+                  `url` arrives empty by design — the server hands out no
+                  address for a temporary photograph — so every branch below
+                  would render a broken frame, and the image branch would render
+                  it eagerly, which is the one thing that must not happen to a
+                  picture whose fetch costs a view. */}
+              {a.kind === 'snap' && a.snap
+                ? <SnapBubble messageId={m.id} conversationId={m.conversationId}
+                    snap={a.snap} mine={mine} inert={inert} />
+                : <Attachment a={a} mine={mine} />}
             </div>
           ))}
-          {m.share && <div style={{ marginTop: m.body || (m.media ?? []).length ? 6 : 0 }}><ShareCardView card={m.share} compact clickable={!inert} /></div>}
+          {/* ── "SEND ME A LIVE SNAP" ────────────────────────────────────
+              A share card, because `shareJson` has carried rich cards since it
+              was written and `kind` is an open string by design — so asking
+              for a photograph cost no column, no migration and no new message
+              shape. It is drawn here rather than in ShareCardView because it
+              is the one card with a VERB on it: the generic renderer draws a
+              picture and a deep link, and this needs a button that opens a
+              camera. The asker sees what they sent; the person asked sees the
+              way to answer. */}
+          {m.share && (
+            /* ONE WRAPPER, TWO CARDS. The gap above a card is the same fact
+               whichever card it is, and writing the style object twice is two
+               inline objects against a ceiling that counts them. */
+            <div style={{ marginTop: m.body || (m.media ?? []).length ? 6 : 0 }}>
+              {m.share.kind === 'live-snap-request' ? (
+                <span className="csb cssnap-ask">
+                  <span className="cssnap-seal" aria-hidden>📸</span>
+                  <span className="cssnap-lines">
+                    <span className="cssnap-title">{m.share.title}</span>
+                    <span className="cssnap-sub">{m.share.subtitle}</span>
+                  </span>
+                  {!mine && !inert && onAnswerLiveSnap && (
+                    <button type="button" className="cssnap-open" onClick={onAnswerLiveSnap}>Take one</button>
+                  )}
+                </span>
+              ) : (
+                <ShareCardView card={m.share} compact clickable={!inert} />
+              )}
+            </div>
+          )}
         </>
       )}
 

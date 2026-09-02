@@ -48,6 +48,18 @@ export class MediaController {
     return this.media.requestPostUpload(user.sub, dto.mimeType, dto.sizeBytes);
   }
 
+  /* POST /api/media/upload-snap → presigned PUT into the PRIVATE bucket for a
+     temporary chat photograph. Its own route because it has its own rules: a
+     shorter type list and a smaller ceiling, both of them the moderation
+     guard's limits arriving one step earlier. */
+  @Post('upload-snap')
+  requestSnapUpload(
+    @CurrentUser() user: JwtUser,
+    @Body(new ZodValidationPipe(PresignSchema)) dto: PresignDto,
+  ) {
+    return this.media.requestSnapUpload(user.sub, dto.mimeType, dto.sizeBytes);
+  }
+
   // POST /api/media/upload-private → presigned PUT into the private health vault
   @Post('upload-private')
   requestPrivateUpload(

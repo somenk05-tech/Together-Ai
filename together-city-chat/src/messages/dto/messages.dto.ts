@@ -12,8 +12,47 @@ export const MessageTypeEnum = z.enum([
   'GIF',
 ]);
 
+/**
+ * A SNAP — a photograph with a clock on it. (2 Sep.)
+ *
+ * The mode is the clock, and there are four:
+ *   once  · one open per recipient
+ *   twice · two opens per recipient
+ *   day   · unlimited opens, then gone after 24 hours
+ *   keep  · the sender is content for the recipient to keep it
+ *
+ * `live` is the composer's word for "this came off the camera in the app, not
+ * out of a gallery" — a claim about our own capture path, which is why it is a
+ * boolean the client sets rather than something the API can check. The bytes
+ * carry no proof of their own provenance. Stored because it is true of every
+ * snap this app sends, and never displayed as if it were verified.
+ *
+ * How long a snap lives, and every one of these is server-decided: the client
+ * says which mode, never which deadline. A `expiresAt` in the request body
+ * would be a clock the sender sets on somebody else's copy.
+ */
+export const SnapSchema = z.object({
+  mode: z.enum(['once', 'twice', 'day', 'keep']),
+  live: z.boolean().optional(),
+});
+export type SnapDto = z.infer<typeof SnapSchema>;
+
+/** `snaps/<userId>/<uuid>.<ext>` — see StorageProvider.presignSnapUpload. The
+ *  shape is the ownership proof, so it is asserted here as well as there. */
+const SNAP_KEY = /^snaps\/[^/]+\/[A-Za-z0-9._-]+$/;
+
 export const AttachmentSchema = z.object({
-  url: z.string().url(),
+  /**
+   * TWO KINDS OF STRING, AND THE `snap` FIELD SAYS WHICH.
+   *
+   * An ordinary attachment carries a public URL, and `.url()` is the rule it
+   * has always kept. A snap carries a PRIVATE KEY and must not carry a URL —
+   * the recipient never receives the key at all, and there is no public
+   * address for the object to have. So the check moved into the refinement
+   * below, where it can ask which of the two this is; the non-snap branch is
+   * `z.string().url()` unchanged, applied to the same field.
+   */
+  url: z.string().min(1).max(2048),
   thumbnail: z.string().url().optional(),
   size: z.number().int().nonnegative(),
   mimeType: z.string().min(1),
@@ -23,7 +62,29 @@ export const AttachmentSchema = z.object({
   duration: z.number().int().nonnegative().optional(),
   width: z.number().int().nonnegative().optional(),
   height: z.number().int().nonnegative().optional(),
+  /** Present ⇒ this attachment is a snap. Absent ⇒ everything below is the
+   *  rule it was before this field existed. */
+  snap: SnapSchema.optional(),
+}).superRefine((a, ctx) => {
+  if (!a.snap) {
+    if (!z.string().url().safeParse(a.url).success) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['url'], message: 'Invalid url' });
+    }
+    return;
+  }
+  if (!SNAP_KEY.test(a.url)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['url'], message: 'A snap names a snap key, not a URL.' });
+  }
+  /* A THUMBNAIL OF A TEMPORARY PHOTOGRAPH IS A PERMANENT COPY OF IT. The
+     thumbnail field is a public URL by construction, so a snap that carried
+     one would publish a small version of itself to the bucket the whole
+     design exists to stay out of — and the recipient's client renders
+     thumbnails eagerly, before anybody has spent a view. */
+  if (a.thumbnail) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['thumbnail'], message: 'A snap has no thumbnail.' });
+  }
 });
+export type AttachmentDto = z.infer<typeof AttachmentSchema>;
 
 /**
  * A shared hub item (flight, product, property, event, movie, tv, recipe, …)
@@ -143,7 +204,31 @@ export const SendMessageSchema = z
       (v.attachments && v.attachments.length > 0) ||
       !!v.share,
     { message: 'A message must have text, an attachment, or a shared item' },
-  );
+  )
+  /**
+   * A SNAP TRAVELS ALONE.
+   *
+   * One snap, nothing else in the message: no second attachment, no share
+   * card. Not tidiness — the open route spends a view and streams bytes for
+   * ONE attachment on a message, and a message holding a snap beside an
+   * ordinary photograph is a message whose other half is permanent. The person
+   * who chose "View once" would have published the very thing they were
+   * choosing not to.
+   *
+   * A caption is allowed, and deliberately: words are not the photograph, they
+   * are how somebody says what the photograph is, and taking them away would
+   * make every snap arrive with no context at all.
+   */
+  .superRefine((v, ctx) => {
+    const snaps = (v.attachments ?? []).filter((a) => a.snap);
+    if (!snaps.length) return;
+    if (v.attachments!.length > 1) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['attachments'], message: 'A snap is sent on its own.' });
+    }
+    if (v.share) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['share'], message: 'A snap is sent on its own.' });
+    }
+  });
 export type SendMessageDto = z.infer<typeof SendMessageSchema>;
 
 export const EditMessageSchema = z.object({ text: z.string().min(1).max(8192) });

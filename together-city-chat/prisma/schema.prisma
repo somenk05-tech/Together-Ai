@@ -489,9 +489,84 @@ model Attachment {
   width     Int?
   height    Int?
 
+  /// ─────────────────────── A PHOTO THAT DOES NOT STAY ───────────────────────
+  ///
+  /// A SNAP IS AN ATTACHMENT WITH A CLOCK ON IT, not a second kind of message.
+  /// Owner, 2 Sep: temporary media is "a native chat primitive, alongside text,
+  /// voice, location, reactions" — so it rides the row every other file rides,
+  /// and every feature already built on Attachment (forwarding refusals,
+  /// deletion, retention, the ownership gate) reaches it without being taught
+  /// a new shape.
+  ///
+  /// `snapMode` NULL on every ordinary attachment, and that is the whole
+  /// discriminator. Four values, and each one means a different clock:
+  ///   once  · one open per recipient
+  ///   twice · two opens per recipient
+  ///   day   · unlimited opens for 24 hours
+  ///   keep  · the sender permits the recipient to keep it in the chat
+  ///
+  /// THE BYTES ARE NOT IN THE PUBLIC BUCKET, and this is the part that makes
+  /// any of it true rather than decorative. `url` on an ordinary attachment is
+  /// a permanent public URL; a "view once" photograph served from one is a
+  /// photograph anybody can re-fetch forever, which is not view-once, it is a
+  /// label. A snap's `url` holds a PRIVATE key — `snaps/<senderId>/<uuid>.<ext>`
+  /// — and the recipient never receives it: the serializer withholds it and the
+  /// bytes are streamed by `GET /messages/:id/snap`, which spends a view in the
+  /// same request that hands them over.
+  snapMode      String?
+  /// Taken with the camera inside the app rather than chosen from a gallery —
+  /// a Live Snap. THE HONEST LIMIT, stated where the column is: this is the
+  /// CLIENT'S word for how the picture was made. The bytes carry no proof of
+  /// their own provenance and the server cannot manufacture one, so this is a
+  /// claim the app makes about its own capture path, not a verification. It is
+  /// worth storing anyway — it is true of every snap our composer sends — and
+  /// it must never be shown as if it were proof.
+  snapLive      Boolean   @default(false)
+  /// How many opens each recipient gets. 1 or 2 for once/twice; NULL for day
+  /// and keep, which have no view budget at all. PER RECIPIENT, not shared:
+  /// see snapOpensJson.
+  snapViews     Int?
+  /// JSON { "<userId>": <opens so far> }. Same shape as hiddenForJson and
+  /// starredForJson, for the same reason — a per-reader fact about a message.
+  ///
+  /// It is per-reader because the alternative is a bug in a group: one shared
+  /// counter means the first person to open a View Once spends the only view
+  /// and the other four members are handed a photograph that is already gone.
+  snapOpensJson String?
+  /// When the snap stops being openable whatever the budget says. Set for every
+  /// mode except keep — 24 hours for `day`, and a backstop for once/twice so an
+  /// unopened snap does not sit in the bucket forever.
+  snapExpiresAt DateTime?
+  /// When the FIRST recipient opened it — what the sender's row reports, and
+  /// nothing more granular than that. Who opened it and when is in
+  /// snapOpensJson as a count, not a timeline.
+  snapOpenedAt  DateTime?
+  /// The recipient took the sender up on `keep`. Once set, the clock is off:
+  /// the object is not swept and the attachment renders as an ordinary photo.
+  snapKeptAt    DateTime?
+  /// A RECIPIENT REPORTED A SCREEN CAPTURE, and this column is a promise the
+  /// web cannot keep. No browser tells a page it has been screenshotted or
+  /// recorded — there is no API, and the heuristics people reach for (blur,
+  /// visibilitychange, PrintScreen) miss every real screenshot tool and fire on
+  /// every tab switch, which teaches citizens to disbelieve the notice. So the
+  /// web client never writes here. The Capacitor shells can: iOS has
+  /// `userDidTakeScreenshotNotification` and `UIScreen.isCaptured`, Android has
+  /// the API-34 screenshot callback. The route exists for them; until they call
+  /// it this column stays NULL and the thread says nothing rather than lying.
+  snapShotAt    DateTime?
+  /// When the object was actually removed from the bucket. NOT the same as
+  /// expired: expiry is when we stop serving it, this is when it stopped
+  /// existing, and the gap between them is what the sweep closes. Recorded so a
+  /// failed delete is visible as a row that expired and never went.
+  snapGoneAt    DateTime?
+
   message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@index([messageId])
+  /// The sweep asks one question — "which snaps are past their moment and still
+  /// have bytes" — every ten minutes, forever. Partial, because the answer is
+  /// always a handful of rows out of every attachment ever sent.
+  @@index([snapExpiresAt, snapGoneAt])
 }
 
 // ─────────────────────────── Nutrition Hub ───────────────────────────

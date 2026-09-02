@@ -175,26 +175,38 @@ describe('a room can be reskinned', () => {
   });
 
   /**
-   * THE TWO ROOMS ARE PAINTED BY TWO MECHANISMS, ON PURPOSE, AND THE KEYS TIE
-   * THEM TOGETHER.
+   * THE TWO ROOMS ARE PAINTED BY TWO MECHANISMS, ON PURPOSE — AND SINCE 2 SEP
+   * THEY NO LONGER OFFER THE SAME LIST.
    *
-   * Chat already had this feature — eight stages, a swatch row, a stored
-   * preference and a guard — built when the owner first sent palette cards.
-   * Mail had nothing, so Mail got `data-skin`. Rebuilding Mail's mechanism
-   * inside Chat would have been two colour systems in one room, disagreeing the
-   * first time either was touched.
+   * Chat already had this feature — stages, a swatch row, a stored preference
+   * and a guard — built when the owner first sent palette cards. Mail had
+   * nothing, so Mail got `data-skin`. Rebuilding Mail's mechanism inside Chat
+   * would have been two colour systems in one room.
    *
-   * What makes that safe rather than sloppy is that the KEYS match: picking
-   * "Rolex" in Mail and "Rolex" in Chat has to mean one green. If a palette is
-   * ever added to one side only, this fails and says which side.
+   * This test used to require Chat to offer EVERY skin Mail offers, on the
+   * reasoning that picking "Rolex" in both places must mean one green. The
+   * owner cut Chat's swatches from eighteen to five on 2 Sep — eighteen dots
+   * above the conversation list is a colour picker, not a choice — so the
+   * lists are now deliberately different sizes and that rule is retired.
+   *
+   * WHAT SURVIVES IS THE PART THAT WAS ACTUALLY ABOUT CORRECTNESS: a key
+   * offered in BOTH rooms must mean one palette. That set happens to be empty
+   * today, so the loop below is what keeps this from being a guard that cannot
+   * fail — every Chat stage is checked against tokens.css whether or not Mail
+   * shares it, which is the assertion that catches a swatch with no block
+   * behind it. (`the-stage-takes-a-colour` holds the harder half: that a block
+   * is all eleven tokens or it is not a theme.)
    */
-  it('offers the same palettes in the inbox and the chat room', () => {
+  it('paints every palette it offers, in whichever room offers it', () => {
     const skins = [...registry.matchAll(/\{ key: '([a-z]+)'/g)].map((m) => m[1]);
     const stages = [...chats.matchAll(/\{ id: '([a-z]+)', name:/g)].map((m) => m[1]);
-    // Chat keeps `slate` and the eight it already had; what it must not do is
-    // MISS one of the skins.
-    expect(skins.filter((k) => !stages.includes(k))).toEqual([]);
-    for (const key of skins) {
+    expect(stages.length).toBe(5);
+    /* `slate` is not a theme block and must not be looked for as one: it is the
+       ground `.cstage` itself declares, and the swatch that names it is the
+       swatch that removes the attribute. A block for it would be the stage's
+       own tokens written twice. */
+    const painted = [...new Set([...stages, ...skins.filter((k) => stages.includes(k))])].filter((k) => k !== 'slate');
+    for (const key of painted) {
       expect({ key, hasStage: new RegExp(`\\.cstage\\[data-stage="${key}"\\]`).test(tokens) })
         .toEqual({ key, hasStage: true });
     }

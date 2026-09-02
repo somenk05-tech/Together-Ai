@@ -163,7 +163,7 @@ describe('the parse itself', () => {
     'nutrition GET plan/today',
     'pets GET',
   'nutrition GET prep-alerts', 'nutrition GET targets',
-    'profile GET completion', 'profile GET health-score', 'profile GET master',
+    'profile GET city', 'profile GET completion', 'profile GET health-score', 'profile GET master',
     'thoughts GET',
     'travel GET trips',
   ];

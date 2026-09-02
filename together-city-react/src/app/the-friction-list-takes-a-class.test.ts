@@ -85,7 +85,12 @@ describe('the friction list takes a class', () => {
     // and red on every run since — the launch gate listed it as blocking. 57 of
     // those objects were one declaration, `{ flex: 1, minWidth: 0 }`, which is
     // now the `.flex-min` class; four more restated `.tag`'s own font size.
-    expect(s).toMatch(/inlineStyleBlocks: 6681,/);
+    //
+    // And 2 Sep, two lower: the services search field (five objects, one
+    // commit after the 1 Sep lowering) and a third spacer on /profile had put
+    // it six OVER at HEAD without anybody's landing script noticing. Both took
+    // classes; the ceiling follows the reading, as it says to on every run.
+    expect(s).toMatch(/inlineStyleBlocks: 6679,/);
     expect(s).toMatch(/rawSpacing: 3605,/);
     // The two the script prints beside them, pinned for the same reason: a
     // number nothing reads is a number that drifts back up.

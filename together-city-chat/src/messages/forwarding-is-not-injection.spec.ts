@@ -26,6 +26,9 @@ function build(seenUrls: string[]) {
     // which runs before any screening and does not consult it — a stub that
     // approves everything keeps this file about the thing it is about.
     { screen: async () => ({ ok: true }) } as any,
+    // StorageProvider. Ownership is a string question and a database one; it
+    // never reads the vault.
+    {} as any,
   );
   const check = (attachments: unknown) =>
     (svc as any).assertAttachmentsAreYoursToSend('me', attachments);

@@ -15,6 +15,11 @@ export const WS = {
   MESSAGE_EDITED: 'message_edited',
   MESSAGE_REACTED: 'message_reacted',
   MESSAGE_PINNED: 'message_pinned',
+  /* A snap was opened, kept, or reported as screen-captured. It carries the
+     FACT and not the message — how many opens are left is a per-reader number
+     and a broadcast reaches several readers, so a client that did not cause
+     the event re-reads the thread. See ChatEvent's 'snap.changed'. */
+  SNAP_CHANGED: 'snap_changed',
   // typing
   TYPING_START: 'typing_start',
   TYPING_STOP: 'typing_stop',

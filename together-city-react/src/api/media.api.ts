@@ -112,6 +112,25 @@ export const mediaApi = {
   },
 
   /**
+   * Upload a SNAP — a temporary chat photograph. Private bucket, key only.
+   *
+   * The scrub matters here for the same reason it matters on a post, and for
+   * one more: a snap is usually taken THIS MINUTE, WHERE THE SENDER IS. A
+   * photograph that deletes itself and carries the coordinates it was taken at
+   * is the worst possible combination — the picture goes and the location
+   * stays, in a row, forever. `scrubImage` runs before the presign, as
+   * everywhere else in this file, because stripping changes the size the URL
+   * is signed against.
+   */
+  async uploadSnap(file: File): Promise<{ key: string; mimeType: string; sizeBytes: number }> {
+    const { file: safe } = await scrubImage(file, 'private');
+    const res = await apiPost('/media/upload-snap', { mimeType: safe.type, sizeBytes: safe.size },
+      z.object({ uploadUrl: z.string(), key: z.string(), expiresInSec: z.number().optional() }));
+    await axios.put(res.uploadUrl, safe, { headers: { 'Content-Type': safe.type } });
+    return { key: res.key, mimeType: safe.type, sizeBytes: safe.size };
+  },
+
+  /**
    * Upload a DATING photo to the private bucket — returns the key only. (M3.)
    *
    * It lives here rather than in the dating page for the reason this whole file

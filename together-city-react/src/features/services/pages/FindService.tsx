@@ -35,34 +35,15 @@ export function FindService() {
   return (
     <section
       aria-label="Search local services"
-      style={{
-        background: 'var(--card)',
-        border: '1px solid var(--line)',
-        borderRadius: 'var(--r-4)',
-        display: 'grid',
-        placeItems: 'center',
-        minHeight: 300,
-        padding: 'clamp(40px, 8vw, 96px) clamp(16px, 5vw, 56px)',
-      }}
+      className="find-service"
     >
       <form
         onSubmit={go}
         role="search"
-        style={{
-          width: '100%',
-          maxWidth: 720,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          background: 'var(--card)',
-          border: '1px solid var(--line)',
-          borderRadius: 'var(--r-full)',
-          boxShadow: 'var(--e2)',
-          padding: '7px 8px 7px 18px',
-        }}
+        className="find-service__bar"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden
-          style={{ flex: '0 0 auto', color: 'var(--muted)' }}>
+          className="find-service__glass">
           <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
           <path d="M16.5 16.5 21 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>
@@ -71,20 +52,12 @@ export function FindService() {
           onChange={(e) => setQ(e.target.value)}
           aria-label="What are you looking for"
           placeholder="What are you looking for… today"
-          style={{
-            flex: '1 1 auto', minWidth: 0, minHeight: 44,
-            border: 0, outline: 'none', background: 'transparent',
-            font: 'inherit', fontSize: 'clamp(15px, 1.5vw, 18px)', color: 'var(--ink)',
-          }}
+          className="find-service__q"
         />
         <button
           type="submit"
           aria-label="Search"
-          style={{
-            flex: '0 0 auto', width: 44, height: 44, borderRadius: 'var(--r-full)',
-            border: '1px solid var(--line)', background: 'var(--face)', color: 'var(--ink)',
-            cursor: 'pointer', display: 'grid', placeItems: 'center',
-          }}
+          className="find-service__go"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path d="M4 12h15M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2"

@@ -18,7 +18,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import {
   confidenceFor, coverage, confidence, curatedBar, effectiveDealBreakers, frictions, factorScores, hardFilterReason, overallScore,
-  unreachableReason, mismatchReasons, mismatchFactor, pairMultiplier, type DXProfile,
+  unreachableReason, mismatchReasons, mismatchFactor, type DXProfile,
 } from './matching';
 
 const dx = (p: Partial<DXProfile> = {}): DXProfile => ({ ...p });

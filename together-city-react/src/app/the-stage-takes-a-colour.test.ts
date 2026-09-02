@@ -9,10 +9,15 @@ const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
 /**
  * THE STAGE TAKES A COLOUR.
  *
- * Eight palettes from the owner's cards — Navy Mirage, Emerald Depth,
- * Mandarin Curd, Rose Mascarpone, Peach Glaze, Pistachio Mint Cream,
- * Lavender Cream, Cream Veil — plus the slate default. One tap on a swatch
- * beside the Chats header re-grounds the whole chat system.
+ * Four palettes — Navy Mirage, Emerald Depth, Rose Mascarpone, Cream Veil —
+ * plus the slate default. One tap on a swatch beside the Chats header
+ * re-grounds the whole chat system.
+ *
+ * It was eighteen until 2 Sep, and this file held eight of them. The count
+ * is the owner's; what this file holds is the RULE, and the rule did not
+ * change with the count — so the list below is the offered list, and the
+ * last assertion is what makes it one: a swatch this file does not name
+ * cannot be added to the header without the build saying so.
  *
  * The rule this file holds is the one `a-stage-does-not-export-its-ink`
  * taught: A THEME IS ALL ELEVEN TOKENS OR IT IS NOT A THEME. A block that
@@ -20,7 +25,7 @@ const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
  * in whichever direction the ground moved — so every block below must
  * re-state the full set. And Mira takes no theme: her room stays red.
  */
-const THEMES = ['navy', 'emerald', 'mandarin', 'rose', 'peach', 'pistachio', 'lavender', 'cream'];
+const THEMES = ['navy', 'emerald', 'rose', 'cream'];
 const TOKENS = [
   /--stage:\s/, /--stage-panel:/, /--stage-tile:/, /--stage-hover:/,
   /--stage-well:/, /--stage-line:/, /--stage-solid:/,
@@ -62,9 +67,21 @@ describe('the stage takes a colour', () => {
   it('the swatches say their names, and say which one is worn', () => {
     expect(chats).toMatch(/aria-label=\{`Colour: \$\{t\.name\}`\}/);
     expect(chats).toMatch(/aria-pressed=\{stageTheme === t\.id\}/);
-    for (const name of ['Navy Mirage', 'Emerald Depth', 'Mandarin Curd', 'Rose Mascarpone', 'Peach Glaze', 'Pistachio Mint Cream', 'Lavender Cream', 'Cream Veil']) {
+    for (const name of ['Navy Mirage', 'Emerald Depth', 'Rose Mascarpone', 'Cream Veil']) {
       expect(chats).toContain(name);
     }
+  });
+
+  /* FIVE, AND THE BUILD COUNTS THEM. The reduction from eighteen was a
+     decision about how much choice a chat header should put in front of
+     somebody, so the thing worth defending is the NUMBER — a nineteenth
+     palette landing in tokens.css is fine, a sixth swatch is the regression.
+     Read off the array rather than the rendered markup because the array is
+     the offer; the map over it is one line below. */
+  it('the header offers five swatches and no sixth', () => {
+    const arr = /const STAGE_THEMES = \[([\s\S]*?)\] as const;/.exec(chats)?.[1] ?? '';
+    const ids = [...arr.matchAll(/\{\s*id: '([a-z]+)'/g)].map((m) => m[1]);
+    expect(ids).toEqual(['slate', 'navy', 'emerald', 'rose', 'cream']);
   });
 
   it('a 22px dot still takes a 44px finger', () => {

@@ -37,7 +37,7 @@ import { MessagesService } from './messages.service';
 const src = readFileSync(join(__dirname, 'messages.service.ts'), 'utf8');
 const gateway = readFileSync(join(__dirname, '..', 'chat', 'chat.gateway.ts'), 'utf8');
 
-const svc = new MessagesService({} as never, {} as never, {} as never, {} as never, {} as never);
+const svc = new MessagesService({} as never, {} as never, {} as never, {} as never, {} as never, {} as never);
 
 function senderOf(anonymousTrust: number | null, extras: string | null = JSON.stringify({ firstName: 'priya' })) {
   const row = {

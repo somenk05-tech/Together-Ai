@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { mediaApi } from '@/api/media.api';
 import { uploadErrorMessage } from '@/api/media.api';
 import type { OutgoingAttachment } from '@/api';
+import { SnapComposer, type SnapMode } from './SnapComposer';
+import type { ShareCard } from '@/types';
 
 /**
  * The composer is a capsule pressed into the stage, with one raised key — and
@@ -39,7 +41,23 @@ function pickMime(): string {
   return '';
 }
 
-export function Composer({ onSend, onTyping, replyTo, onCancelReply, seed }: {
+/** The card a "send me a Live Snap" is. A share card rather than a new message
+ *  shape: `shareJson` has carried rich cards since it was written, the kind is
+ *  an open string by design, and this needed neither a column nor a migration
+ *  to say one sentence with a button under it.
+ *
+ *  NOT EXPORTED, and that is not shyness: this file exports one component, and
+ *  a second export from it costs a react-refresh warning in a repo whose lint
+ *  ceiling is zero. MessageBody matches on the `kind` string, which is the
+ *  contract either way. */
+const LIVE_SNAP_REQUEST: ShareCard = {
+  kind: 'live-snap-request',
+  hub: 'chat',
+  title: 'Send me a Live Snap',
+  subtitle: 'Taken now, in the app — not from your gallery.',
+};
+
+export function Composer({ onSend, onTyping, replyTo, onCancelReply, seed, onShare, liveSnapAsked }: {
   onSend: (body: string, attachments?: OutgoingAttachment[]) => void;
   onTyping: (t: boolean) => void;
   /** The message being answered, if any — shown above the capsule so nobody
@@ -50,11 +68,21 @@ export function Composer({ onSend, onTyping, replyTo, onCancelReply, seed }: {
    *  the text lands in the field, focused, theirs to edit or delete. `n` makes
    *  the same words placeable twice — a counter, not an id. */
   seed?: { text: string; n: number } | null;
+  /** Sends a share card. Used for one thing here: asking for a Live Snap. */
+  onShare?: (card: ShareCard) => void;
+  /** Somebody asked YOU for a Live Snap, and this is the counter that says a
+   *  new one arrived — the same shape as `seed` above, and for the same
+   *  reason: the camera should open on the second ask as well as the first. */
+  liveSnapAsked?: number;
 }) {
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [recSec, setRecSec] = useState<number | null>(null);
+  /* null = closed; otherwise the sheet is open, and `live` says whether the
+     gallery route is drawn in it. */
+  const [snapSheet, setSnapSheet] = useState<{ live: boolean } | null>(null);
+  const [snapMenu, setSnapMenu] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -63,6 +91,10 @@ export function Composer({ onSend, onTyping, replyTo, onCancelReply, seed }: {
     if (seed?.text) { setBody(seed.text); inputRef.current?.focus(); }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- n IS the event
   }, [seed?.n]);
+  // A request arriving from the other side opens the camera, in live mode.
+  useEffect(() => {
+    if (liveSnapAsked) setSnapSheet({ live: true });
+  }, [liveSnapAsked]);
   const rec = useRef<{ mr: MediaRecorder; chunks: Blob[]; stream: MediaStream; started: number } | null>(null);
   const tick = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -104,6 +136,34 @@ export function Composer({ onSend, onTyping, replyTo, onCancelReply, seed }: {
         });
       }
       onSend(body.trim(), out);
+      setBody(''); onTyping(false);
+    } catch (err) {
+      setError(uploadErrorMessage(err));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  /**
+   * Upload a snap and send it.
+   *
+   * ITS OWN PATH, not `sendFiles` with a flag. Three things differ and every
+   * one of them matters: the bytes go to the PRIVATE vault through
+   * `uploadSnap` rather than the public bucket, what travels is a KEY rather
+   * than a URL, and the attachment carries the clock. A boolean threaded
+   * through the other function would have made the public-bucket branch the
+   * default for a photograph whose whole point is not being in it.
+   */
+  const sendSnap = async (file: File, mode: SnapMode, live: boolean, caption: string) => {
+    setSnapSheet(null);
+    setError(null);
+    setBusy('Sending snap…');
+    try {
+      const up = await mediaApi.uploadSnap(file);
+      onSend(caption, [{
+        url: up.key, mimeType: up.mimeType, size: up.sizeBytes,
+        snap: { mode, ...(live ? { live: true } : null) },
+      }]);
       setBody(''); onTyping(false);
     } catch (err) {
       setError(uploadErrorMessage(err));
@@ -197,6 +257,32 @@ export function Composer({ onSend, onTyping, replyTo, onCancelReply, seed }: {
             onClick={() => onCancelReply?.()} style={{ flex: 'none' }}>✕</button>
         </div>
       )}
+      {snapMenu && (
+        <div className="cssnap-menu" role="menu" aria-label="Temporary photo">
+          <button type="button" role="menuitem"
+            onClick={() => { setSnapMenu(false); setSnapSheet({ live: false }); }}>
+            <span>Send a snap</span>
+            <span>A photo with a clock on it.</span>
+          </button>
+          <button type="button" role="menuitem"
+            onClick={() => { setSnapMenu(false); setSnapSheet({ live: true }); }}>
+            <span>Send a Live Snap</span>
+            <span>Straight from the camera — no gallery.</span>
+          </button>
+          {onShare && (
+            <button type="button" role="menuitem"
+              onClick={() => { setSnapMenu(false); onShare(LIVE_SNAP_REQUEST); }}>
+              <span>Ask for a Live Snap</span>
+              <span>Their camera opens when they answer.</span>
+            </button>
+          )}
+        </div>
+      )}
+      {snapSheet && (
+        <SnapComposer live={snapSheet.live}
+          onSend={(f, m, live, caption) => void sendSnap(f, m, live, caption)}
+          onClose={() => setSnapSheet(null)} />
+      )}
       <form className="cscomposer" onSubmit={submit} style={{ margin: 0 }}>
         <input ref={fileRef} type="file" multiple onChange={onPick}
           style={{ display: 'none' }} aria-hidden tabIndex={-1} />
@@ -226,6 +312,14 @@ export function Composer({ onSend, onTyping, replyTo, onCancelReply, seed }: {
                 disabled={Boolean(busy)} onClick={() => fileRef.current?.click()}>📎</button>
               <button type="button" className="cstool" aria-label="Record a voice note"
                 disabled={Boolean(busy)} onClick={() => void startRec()}>🎙</button>
+              {/* ONE KEY, THREE THINGS TO DO WITH A TEMPORARY PHOTO. A snap, a
+                  Live Snap and asking for one are the same subject, and three
+                  keys in a row this narrow is how a composer becomes a toolbar.
+                  The menu is drawn above the capsule and closes on any
+                  choice. */}
+              <button type="button" className="cstool" aria-label="Send a temporary photo"
+                aria-expanded={snapMenu} disabled={Boolean(busy)}
+                onClick={() => setSnapMenu((v) => !v)}>📸</button>
             </span>
             <input ref={inputRef} value={body} placeholder="Write a message…" aria-label="Write a message"
               disabled={Boolean(busy)}

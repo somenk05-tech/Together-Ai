@@ -6,6 +6,8 @@ import { PrescriptionsModule } from '../prescriptions/prescriptions.module';
 import { CallsModule } from '../calls/calls.module';
 import { PrivacyModule } from '../privacy/privacy.module';
 import { StaleCallsService } from './stale-calls.service';
+import { ExpiredSnapsService } from './expired-snaps.service';
+import { MediaModule } from '../media/media.module';
 
 /**
  * Scheduled background work.
@@ -16,7 +18,7 @@ import { StaleCallsService } from './stale-calls.service';
  * leaving state half-finished.
  */
 @Module({
-  imports: [ScheduleModule.forRoot(), PrescriptionsModule, CallsModule, PrivacyModule],
-  providers: [RetentionService, MedicineRemindersService, StaleCallsService],
+  imports: [ScheduleModule.forRoot(), PrescriptionsModule, CallsModule, PrivacyModule, MediaModule],
+  providers: [RetentionService, MedicineRemindersService, StaleCallsService, ExpiredSnapsService],
 })
 export class TasksModule {}

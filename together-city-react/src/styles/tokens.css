@@ -2163,15 +2163,15 @@
 
 /* The picker's own dots — each theme's mid ground stop, stated here rather
    than in the page, because a colour literal belongs in the token layer and
-   nowhere else (relief.spec enforces exactly this). */
+   nowhere else (relief.spec enforces exactly this).
+
+   FIVE, since 2 Sep. Mandarin, Peach, Pistachio and Lavender lost their dots
+   with the offer that used them; their `.cstage[data-stage=...]` blocks stay
+   below, because that class is worn outside Chats too. */
 .cstheme [data-t="slate"]     { background: #434a54; }
 .cstheme [data-t="navy"]      { background: #24344e; }
 .cstheme [data-t="emerald"]   { background: #1a3a2d; }
-.cstheme [data-t="mandarin"]  { background: #f28a2e; }
 .cstheme [data-t="rose"]      { background: #e5b9bd; }
-.cstheme [data-t="peach"]     { background: #efa071; }
-.cstheme [data-t="pistachio"] { background: #98cfae; }
-.cstheme [data-t="lavender"]  { background: #c9bce6; }
 .cstheme [data-t="cream"]     { background: #fcf6ed; }
 
 /* ══ THE EIGHT SKINS — A ROOM A CITIZEN CHOOSES ═════════════════════════════

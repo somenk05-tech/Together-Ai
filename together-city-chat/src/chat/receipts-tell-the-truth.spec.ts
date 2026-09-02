@@ -34,6 +34,9 @@ function build(statuses: Array<{ messageId: string }>) {
     // reach the send path and never consult it — a stub that approves keeps
     // the file about the thing it is about.
     { screen: async () => ({ ok: true }) } as any,
+    // StorageProvider. The vault is reached only by the snap routes, which
+    // this file never walks.
+    {} as any,
   );
   return { svc, prisma, published };
 }

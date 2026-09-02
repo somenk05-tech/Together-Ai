@@ -10,6 +10,11 @@ export const WS = {
   MESSAGE_DELETED: 'message_deleted',
   MESSAGE_REACTED: 'message_reacted',
   MESSAGE_PINNED: 'message_pinned',
+  /* A snap was opened, kept, or reported as screen-captured. It carries the
+     FACT and not the message: how many opens are left is a per-reader number
+     and a broadcast reaches several readers at once. Whoever did not cause it
+     re-reads the thread. */
+  SNAP_CHANGED: 'snap_changed',
   TYPING_START: 'typing_start',
   TYPING_STOP: 'typing_stop',
   USER_ONLINE: 'user_online',
