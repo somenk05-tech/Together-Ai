@@ -1651,6 +1651,27 @@ html.tc-immersive .csdock { margin-bottom: calc(var(--safe-bottom) + 12px); }
 .dk-cap { font-size: var(--fs-2); font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
 .rev .dk-cap { color: var(--card); opacity: .62; }
 
+/* A TABLE, BECAUSE A FINANCIAL YEAR IS A COLUMN AND NOTHING ELSE READS AS ONE.
+   Six columns of figures do not become a bar chart in this deck's language —
+   they become a grid with a hairline over every cell and tabular figures so
+   the digits line up down the column. `.dk-scroll` is the one place in the
+   whole page allowed to scroll sideways: a six-year table cannot be made to
+   fit 390px, and shrinking it until it does is how a number stops being
+   readable at the moment somebody asks about it. */
+.dk-scroll { overflow-x: auto; }
+.dk-table { display: grid; gap: clamp(4px, .8vh, 10px) clamp(10px, 1.6vw, 28px); font-size: clamp(11px, 1.05vw, 18px); }
+.dk-table.c6 { grid-template-columns: 1.5fr repeat(5, 1fr); min-width: 620px; }
+.dk-table.c3 { grid-template-columns: 1fr auto 4.5em; }
+.dk-table.c2 { grid-template-columns: 1fr auto; }
+.dk-table > * { padding-top: clamp(5px, .9vh, 12px); border-top: 1px solid var(--line); }
+.rev .dk-table > * { border-top-color: var(--glass-line); }
+.dk-table .h { border-top: 0; padding-top: 0; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; font-size: var(--fs-2); color: var(--muted); }
+.rev .dk-table .h { color: var(--card); opacity: .62; }
+.dk-table .k { font-weight: 600; }
+.dk-table .v { font-weight: 700; font-variant-numeric: tabular-nums; }
+.dk-table .n { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.rev .dk-table .n { color: var(--card); opacity: .78; }
+
 .dk-stats { display: flex; flex-wrap: wrap; gap: clamp(20px, 5vw, 88px); }
 .dk-stat b { display: block; font-weight: 800; line-height: 1; letter-spacing: -.03em; font-size: clamp(38px, 6vw, 92px); }
 .dk-stat span { display: block; margin-top: 6px; font-size: var(--fs-2); font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
