@@ -1247,10 +1247,30 @@
   --tarot-back-ground: #0b1730;
 
   /* ── ONE TYPEFACE ───────────────────────────────────────────────────────
-     General Sans, self-hosted. --serif and --mono still exist because they are
-     read in a few dozen places, and they resolve to the same family: a heading
-     is a heading because of its size and weight, not because it changed font
-     halfway down the page. --num is the same family with tabular figures. */
+     Avenir Next, from the system. --serif and --mono still exist because they
+     are read in a few dozen places, and they resolve to the same family: a
+     heading is a heading because of its size and weight, not because it
+     changed font halfway down the page.
+
+     IT IS A SYSTEM STACK AND NOT A WEBFONT, WHICH IS A LICENCE AND NOT A
+     PREFERENCE. Avenir Next is Linotype/Monotype's, licensed to Apple and
+     shipped with macOS and iOS; there is no @font-face for it because
+     self-hosting the file is the one thing that licence does not permit. So
+     the face is READ off the machine when the machine has it, and falls
+     through to Helvetica Neue and then Arial when it does not — Mac and iPhone
+     get the design, Windows and Android get the nearest grotesque the OS
+     already owns. That is the accepted cost of the owner's decision, 2 Sep,
+     and the way to remove it is a web licence, not a different fallback.
+
+     NOTHING HERE ASKS FOR WEIGHT 300, AND THAT IS THE POINT. The reference
+     calls for Avenir Next Light; macOS does not ship a Light cut of Avenir
+     Next. It ships Ultra Light, Regular, Medium, Demi Bold, Bold and Heavy —
+     and CSS weight matching, asked for 300, takes the nearest cut at or below
+     it, which is ULTRA LIGHT. At 12.5px, the size 83% of this application is
+     set in, that is a hairline nobody can read. So the stylesheets keep
+     400/500/600/700 as they were, they now land on Regular/Medium/Demi
+     Bold/Bold, and 300 is a display decision to be made per surface rather
+     than a default to be inherited by every label in the city. */
   /* ══ THE PRESS — A NAMED EXCEPTION, NOT A DRIFT ══════════════════════════
      One page in this city is not a screen: the nutrition day. It is a menu,
      and it is set rather than built. Three Relief rules are broken there, all
@@ -1513,9 +1533,21 @@
                  inset 0 -1px 0 rgba(51, 44, 37, .20),
                  inset 0 0 22px rgba(51, 44, 37, .03);
 
-  --sans: 'General Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --sans: 'Avenir Next', Avenir, 'Helvetica Neue', Helvetica, Arial, sans-serif;
   --serif: var(--sans);
   --mono: var(--sans);
+
+  /* ── THE TRACKING ON A SET LINE ──────────────────────────────────────────
+     .22em, from the owner's reference, 2 Sep. Uppercase at this face and this
+     size is a composition rather than a heading — the letters are placed, not
+     typed — and the number was being written out at two call sites that had
+     arrived at it separately. It is a name now so the third one asks.
+
+     It is NOT the whole tracking scale. Seven other values express "small
+     tracked label" across the stylesheets and folding them together is a
+     design decision with a before-and-after, not a rename. This is the one
+     value the reference actually specifies. */
+  --track-display: .22em;
 
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);

@@ -965,14 +965,28 @@ describe('Relief stays a system', () => {
    * They must resolve to the same family: the moment one of them names a real
    * second font, a heading changes typeface halfway down a page and nobody can
    * say which screen did it.
+   *
+   * THE FAMILY IS AVENIR NEXT AND IT IS NOT SELF-HOSTED. Owner, 2 Sep. The
+   * licence forbids the @font-face, so the guard that used to prove the file
+   * shipped is replaced by one that proves the FALLBACK CHAIN is intact —
+   * which is the thing that can actually rot here. A stack that loses its tail
+   * renders Avenir Next on the owner's Mac and the browser's default serif on
+   * a Pixel, and it looks correct to whoever changed it.
+   *
+   * Helvetica Neue and Arial are both named on purpose: Helvetica Neue is the
+   * near-match and is not on Windows, Arial is on everything and is not a
+   * near-match. Dropping either one is a visible regression on one platform.
    */
   it('resolves every font token to the one family', () => {
     expect(strip(tokens)).toMatch(/--serif:\s*var\(--sans\)/);
     expect(strip(tokens)).toMatch(/--mono:\s*var\(--sans\)/);
-    expect(strip(tokens)).toMatch(/--sans:\s*'General Sans'/);
+    const sans = strip(tokens).match(/--sans:\s*([^;]+);/)?.[1] ?? '';
+    expect(sans).toBe("'Avenir Next', Avenir, 'Helvetica Neue', Helvetica, Arial, sans-serif");
+    // and no @font-face may re-import it: that is the licence, not a taste.
+    expect(strip(relief)).not.toMatch(/font-family:\s*'Avenir/);
     const families = [...stripFaces(strip(relief)).matchAll(/font-family:\s*([^;]+);/g)].map((m) => m[1].trim());
     const foreign = families.filter((f) =>
-      !/var\(--(sans|serif|mono)\)|inherit|'General Sans'/.test(f)
+      !/var\(--(sans|serif|mono)\)|inherit/.test(f)
       // THE PRESS. Two faces exist for the nutrition day and nowhere else. The
       // exception is named in tokens.css with its reason; the test below is
       // what makes it an exception rather than a drift, because it proves

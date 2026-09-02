@@ -25,72 +25,24 @@
    Nothing in this file, and nothing in any component, invents a sixth.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ── THE ONE TYPEFACE ──────────────────────────────────────────────────────
-   General Sans, self-hosted as a variable font, latin only. One @font-face,
-   one family. The italic is declared as a real cut rather than left to be
-   synthesised, because a faux-italic of a geometric sans shears the counters
-   and looks like a rendering fault at body size.
+/* ── THE ONE TYPEFACE ──────────────────────────────────────────────
+   Avenir Next, from the system. There is no @font-face here and there is not
+   supposed to be one — see tokens.css, ONE TYPEFACE, for the licence that says
+   so and for why weight 300 is not the default it looks like it should be.
 
-   IF THE ITALIC FILE IS NOT THERE, THIS IS STILL CORRECT. The face fails to
-   load, the browser falls back to synthesising an oblique from the upright, and
-   the page renders. The cost is one 404 per load, which is worth naming: the
-   alternative is deleting the declaration and permanently getting the sheared
-   faux-italic even on machines where the real cut exists. The gate requires the
-   upright and does not require the italic, for exactly this reason. */
-/* ── THE ONE TYPEFACE ──────────────────────────────────────────────────────
-   General Sans, self-hosted. One family, six files, fetched by
-   scripts/fetch-general-sans.mjs — see that file for why it is a script and
-   not a dependency.
+   FOUR @font-face BLOCKS STOOD HERE and they are gone rather than commented
+   out. They declared General Sans against four files in public/assets/fonts,
+   fetched by scripts/fetch-general-sans.mjs. Nothing reads that family now,
+   and a face declaration nothing reads is 250KB the browser is told to
+   consider on every load — worse, it is a family sitting there ready for the
+   next person who wants "the other font". The four .woff2 files are still on
+   disk; they are the deletion this session could not make and the owner can.
 
-   FOUR STATIC WEIGHTS, NOT ONE VARIABLE FILE, because that is what Fontshare's
-   CSS API publishes. It matters more than it sounds: this design was first
-   drawn against a variable cut at weights like 540 and 640, and with static
-   faces the browser SNAPS to the nearest one it has. `font-weight: 500` does
-   not render halfway between 500 and 600 — it renders as 600, silently, and
-   every heading comes out heavier than it was designed. So the stylesheets use
-   400/500/600/700 and nothing else, and the fetch script is named after the
-   same four numbers. If a variable cut is ever published the script says so on
-   its next run.
-
-   THERE IS NO ITALIC, AND THAT IS NOT AN OMISSION. General Sans publishes six
-   upright cuts and nothing else — confirmed against the live API, twice, once
-   after a query of mine had asked the wrong question and reported the same
-   answer for the wrong reason. Declaring an italic face anyway would cost a 404
-   on every page that italicises a word, in exchange for a file that is never
-   going to arrive. The browser synthesises an oblique instead.
-
-   That synthesis is worse than a drawn italic — it shears the counters of a
-   geometric sans, which is why this design would have preferred the real cut —
-   so use italics sparingly, and never at display size. The gate refuses any
-   @font-face here whose file is not on disk, so this cannot drift back. */
-@font-face {
-  font-family: 'General Sans';
-  src: url('/assets/fonts/general-sans-400.woff2') format('woff2');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'General Sans';
-  src: url('/assets/fonts/general-sans-500.woff2') format('woff2');
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'General Sans';
-  src: url('/assets/fonts/general-sans-600.woff2') format('woff2');
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'General Sans';
-  src: url('/assets/fonts/general-sans-700.woff2') format('woff2');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
+   THE TWO PRESS FACES BELOW ARE UNAFFECTED. Instrument Serif and IBM Plex
+   Mono are still self-hosted, still declared, still scoped to [data-press] and
+   the five named display selectors. They are licensed for it and Avenir Next
+   is not, which is the whole difference between them and the family that just
+   left. */
 
 /* ══ THE FIVE SKIES COME DOWN ══════════════════════════════════════════════
    Owner, 23 Aug, with a reference: near-white paper, hairline rules, one soft
@@ -444,7 +396,7 @@ table.tc th { background: var(--well); box-shadow: var(--edge-in); color: var(--
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 9px;
   height: 44px; padding: 0 26px; border-radius: var(--r-full);
-  font-family: var(--sans); font-size: 11px; font-weight: 500; letter-spacing: .22em;
+  font-family: var(--sans); font-size: 11px; font-weight: 500; letter-spacing: var(--track-display);
   text-transform: uppercase;
   color: var(--ink);
   background: var(--face);

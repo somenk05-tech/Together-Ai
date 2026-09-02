@@ -62,7 +62,7 @@ img { max-width: 100%; }
   .lede { font-size: var(--fs-6); color: var(--ink-soft); max-width: 66ch; }
   .muted { color: var(--muted); }
 
-  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; border-radius: var(--r-1); font-size: 11px; letter-spacing: .22em; font-weight: 500; text-transform: uppercase; padding: 16px 34px; transition: transform .12s ease-out, box-shadow .2s, background .2s, color .2s, opacity .2s, filter .2s; cursor: pointer; border: none; user-select: none; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; border-radius: var(--r-1); font-size: 11px; letter-spacing: var(--track-display); font-weight: 500; text-transform: uppercase; padding: 16px 34px; transition: transform .12s ease-out, box-shadow .2s, background .2s, color .2s, opacity .2s, filter .2s; cursor: pointer; border: none; user-select: none; }
   /* The lift is a POINTER affordance. On touch there is no hover to leave, so
      an ungated :hover transform fires on tap and stays fired until the next tap
      lands somewhere else — a sticky false hover. Gated, tapping does nothing
@@ -983,7 +983,7 @@ html.tc-immersive .csdock { margin-bottom: calc(var(--safe-bottom) + 12px); }
    ink on paper. No colour is introduced; nothing here is a new depth. */
 .instl { margin: 26px auto 0; max-width: 44ch; }
 .instl-eyebrow {
-  margin: 0 0 12px; font-size: var(--fs-1); font-weight: 700; letter-spacing: .22em;
+  margin: 0 0 12px; font-size: var(--fs-1); font-weight: 700; letter-spacing: var(--track-display);
   text-transform: uppercase; color: var(--muted);
 }
 .instl-cta {
@@ -1563,7 +1563,7 @@ html.tc-immersive .csdock { margin-bottom: calc(var(--safe-bottom) + 12px); }
 /* The label grid: [ 007 ] on the left, what the slide is about on the right. */
 .dk-lab, .dk-foot {
   display: flex; justify-content: space-between; gap: clamp(12px, 3vw, 40px);
-  font-size: var(--fs-2); font-weight: 700; letter-spacing: .22em;
+  font-size: var(--fs-2); font-weight: 700; letter-spacing: var(--track-display);
   text-transform: uppercase; color: var(--muted);
 }
 .dk-lab > span:first-child { flex: 0 0 auto; }

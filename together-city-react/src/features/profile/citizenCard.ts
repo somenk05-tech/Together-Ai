@@ -84,7 +84,7 @@ function tracked(c: CanvasRenderingContext2D, text: string, x: number, y: number
 function fit(c: CanvasRenderingContext2D, text: string, max: number, weight: number, size: number) {
   let s = size;
   for (;;) {
-    c.font = `${weight} ${s}px 'General Sans', system-ui, sans-serif`;
+    c.font = `${weight} ${s}px 'Avenir Next', Avenir, 'Helvetica Neue', sans-serif`;
     if (c.measureText(text).width <= max || s <= 18) return;
     s -= 1;
   }
@@ -156,7 +156,7 @@ export function drawCitizenCard(c: CanvasRenderingContext2D, d: CardData) {
   } else {
     plate(c, px, py, pw, ph, 0.7);
     c.fillStyle = '#6e727a';
-    c.font = "700 130px 'General Sans', system-ui, sans-serif";
+    c.font = "700 130px 'Avenir Next', Avenir, 'Helvetica Neue', sans-serif";
     c.textAlign = 'center'; c.textBaseline = 'middle';
     c.fillText(initials(d.name), px + pw / 2, py + ph / 2);
     c.textAlign = 'left'; c.textBaseline = 'alphabetic';
@@ -176,7 +176,7 @@ export function drawCitizenCard(c: CanvasRenderingContext2D, d: CardData) {
   let y = 424;
   const field = (label: string, value: string, big = false) => {
     c.fillStyle = LABEL;
-    c.font = "700 26px 'General Sans', system-ui, sans-serif";
+    c.font = "700 26px 'Avenir Next', Avenir, 'Helvetica Neue', sans-serif";
     tracked(c, label.toUpperCase(), fx, y, 4.2);
     y += big ? 66 : 58;
     c.fillStyle = INK;
@@ -210,7 +210,7 @@ export function drawCitizenCard(c: CanvasRenderingContext2D, d: CardData) {
   /* ── the foot: the thing that makes it useful outside the city ── */
   plate(c, 100, 1074, 1220, 148, 0.58);
   c.fillStyle = FOOT;
-  c.font = "700 26px 'General Sans', system-ui, sans-serif";
+  c.font = "700 26px 'Avenir Next', Avenir, 'Helvetica Neue', sans-serif";
   tracked(c, d.url.replace(/^https?:\/\//, '').toUpperCase(), 186, 1158, 3.2);
   if (d.since) tracked(c, d.since.toUpperCase(), 186 + 700, 1158, 3.2);
 }
