@@ -124,6 +124,11 @@ export function MasterProfileSections() {
       setHealthDraft(null);
       qc.setQueryData(['profile', 'master'], fresh);
       void qc.invalidateQueries({ queryKey: ['profile', 'completion'] });
+      // The panels below this form print these same values back with a
+      // "from your record" mark on them. Leaving them stale would make the
+      // page contradict itself on the one screen whose argument is that
+      // there is only ever one answer.
+      void qc.invalidateQueries({ queryKey: ['profile', 'city'] });
     },
   });
 
@@ -140,6 +145,11 @@ export function MasterProfileSections() {
       });
       qc.setQueryData(['profile', 'master'], fresh);
       void qc.invalidateQueries({ queryKey: ['profile', 'completion'] });
+      // The panels below this form print these same values back with a
+      // "from your record" mark on them. Leaving them stale would make the
+      // page contradict itself on the one screen whose argument is that
+      // there is only ever one answer.
+      void qc.invalidateQueries({ queryKey: ['profile', 'city'] });
       setSaved(Object.keys(patch)[0] ?? null);
       if (savedTimer.current) clearTimeout(savedTimer.current);
       savedTimer.current = setTimeout(() => setSaved(null), 2200);

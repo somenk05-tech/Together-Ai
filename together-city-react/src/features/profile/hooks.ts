@@ -18,6 +18,18 @@ export function useProfileCompletion() {
   return useQuery({ queryKey: ['profile', 'completion'], queryFn: () => profileApi.completion(), staleTime: 15_000 });
 }
 
+/**
+ * Every profile the city keeps, read in one request.
+ *
+ * Longer stale time than the record itself: this is fourteen tables, it is
+ * rendered collapsed, and a citizen opening a panel is not asking for a
+ * refetch of the whole city. Any save that matters invalidates it through the
+ * completion key it shares a source with.
+ */
+export function useCityProfiles() {
+  return useQuery({ queryKey: ['profile', 'city'], queryFn: () => profileApi.cityProfiles(), staleTime: 60_000 });
+}
+
 /** A wellness summary of what has actually been recorded. Never a fabricated
  *  number: `incomplete` and `unavailable` are real states, not errors. */
 export function useHealthScore() {

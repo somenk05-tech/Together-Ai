@@ -7,6 +7,7 @@ import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { ProfileService } from './profile.service';
 import { MasterProfileService, type SharedFields } from './master-profile.service';
+import { CityProfilesService } from './city-profiles';
 import { declaredHealthPatch } from './master-health-conditions';
 import { DESIGNABLE_HUBS } from './design-your-services';
 
@@ -17,6 +18,7 @@ export class ProfileController {
   constructor(
     private readonly profile: ProfileService,
     private readonly masterProfile: MasterProfileService,
+    private readonly cityProfiles: CityProfilesService,
   ) {}
 
   /** The Master Profile — single source of truth for shared user information. */
@@ -28,6 +30,31 @@ export class ProfileController {
   @Get('master')
   master(@CurrentUser() user: JwtUser) {
     return this.masterProfile.get(user.sub);
+  }
+
+  /**
+   * GET /api/profile/city — every store the city holds about this citizen.
+   *
+   * One request, one panel per store, each field carrying whether it descends
+   * from the Master Profile or belongs to the hub. It exists because the page
+   * named after somebody's record could describe only the seven boxes it owns,
+   * and a citizen wanting the obvious answer — what do you actually have on me
+   * — had to open fourteen pages to assemble it.
+   *
+   * DELIBERATELY READ-ONLY. There is no PATCH beside it and there should not
+   * be: a field is owned by exactly one place, and a second editor for a hub's
+   * fields on the page whose whole argument is against duplicate copies would
+   * be the defect wearing the fix's clothes. Every panel carries the door to
+   * the hub that does own the writing.
+   */
+  @Mira({
+    intent: 'List every profile the city holds for the citizen',
+    utterances: ['what data do you have on me', 'all my profiles', 'everything you know about me', 'my profiles across the city'],
+    risk: 'R0',
+  })
+  @Get('city')
+  cityProfilesView(@CurrentUser() user: JwtUser) {
+    return this.cityProfiles.get(user.sub);
   }
 
   /** The address book — home, work, other; the legacy line answers as home. */

@@ -5691,6 +5691,143 @@ button.own-month-day:hover { border-color: var(--accent); }
     linear-gradient(-135deg, var(--card) 50%, transparent 50%) 4px 0 / 8px 5px repeat-x;
 }
 
+/* ══ EVERY PROFILE IN THE CITY ══════════════════════════════════════════════
+   The panels under the Master Profile's boxes. Fourteen stores, shut.
+
+   A <details> and not a div with a state hook: the browser already knows how
+   to open one, find text inside a closed one, and reach it from a link — three
+   behaviours a hand-rolled accordion loses on the first pass and never quite
+   gets back. The open state is still React's, because "open all" has to be
+   able to say so; the element does the rest.
+
+   NO CARD INSIDE A CARD. The panel is ruled paper — a hairline above each row
+   and nothing else — because the page it sits on is already a document, and a
+   stack of fourteen shadowed boxes on a passport reads as a settings screen
+   that wandered in. */
+.cprofs { margin: 0 0 30px; }
+.cprofs-h { font-size: var(--fs-6); margin: 6px 0 4px; }
+.cprofs-lede { font-size: 13.5px; line-height: 1.6; margin: 0 0 14px; max-width: 62ch; }
+.cprofs-err { font-size: 12.5px; color: var(--danger-ink); line-height: 1.55; }
+.cprofs-bar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding-bottom: 10px; margin-bottom: 2px; font-size: 11.5px;
+}
+.cprofs-bar > .btn { margin-left: auto; }
+
+.cprof { border-top: 1px solid var(--line); }
+.cprof:last-of-type { border-bottom: 1px solid var(--line); }
+/* The record's own panel is the source and is marked as one — a rule in the
+   accent rather than a tint, so it stands apart without becoming a banner. */
+.cprof.csource { border-top: 2px solid var(--accent); }
+
+.cprof > summary {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 52px; padding: 10px 2px; cursor: pointer;
+  list-style: none; user-select: none;
+}
+.cprof > summary::-webkit-details-marker { display: none; }
+.cprof > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--r-1); }
+@media (hover: hover) and (pointer: fine) { .cprof > summary:hover b { color: var(--accent-ink); } }
+
+.cprof .ccode {
+  flex: none; min-width: 34px;
+  font-size: 9.5px; font-weight: 700; letter-spacing: .16em; color: var(--faint);
+}
+.cprof > summary b { font-size: 14.5px; font-weight: 700; }
+/* THE SHUT STATE IS THE ANSWER, not a teaser for the open one. It gets the
+   room that is left, and it truncates rather than wrapping the row to two
+   lines — a list of fourteen has to stay scannable at a glance. */
+.cprof .csum {
+  flex: 1; min-width: 0; font-size: 12.5px; color: var(--muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right;
+}
+.cprof .cpct { flex: none; font-size: 11px; font-weight: 700; color: var(--accent-ink); }
+/* A hub with nothing in it says so quietly rather than being greyed into
+   looking broken. */
+.cprof[data-started="false"] .csum { color: var(--faint); }
+
+.cprof .cchev {
+  flex: none; width: 8px; height: 8px; margin-left: 2px;
+  border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted);
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform var(--dur-base) var(--ease-out);
+}
+.cprof[open] > summary .cchev { transform: rotate(-135deg) translate(-2px, -2px); }
+@media (prefers-reduced-motion: reduce) { .cprof .cchev { transition: none; } }
+
+.cprof .cbody { padding: 2px 2px 20px; }
+.cprof .cnote { font-size: 12px; line-height: 1.55; margin: 0 0 12px; max-width: 62ch; }
+
+.cprof .ccounts { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 12px; font-size: 12px; color: var(--muted); }
+.cprof .ccounts b { color: var(--ink); font-size: 13px; }
+
+/* ── THE FIELDS ──────────────────────────────────────────────────────────
+   A definition list, because that is what this is. Two columns where there is
+   room and one where there is not; the label never shrinks below something
+   readable, so a long value wraps instead of crushing its own name. */
+.cprof .cfields { margin: 0; display: grid; gap: 0; }
+.cprof .cfield {
+  display: grid; grid-template-columns: minmax(150px, 34%) 1fr; gap: 4px 16px;
+  padding: 9px 0; border-top: 1px solid var(--line);
+}
+.cprof .cfield:first-child { border-top: none; }
+.cprof .cfield > dt {
+  font-size: 11px; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--muted);
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px;
+}
+.cprof .cfield > dd { margin: 0; font-size: 13.5px; line-height: 1.5; overflow-wrap: anywhere; }
+
+/* WHO OWNS THE FIELD, SAID ON THE FIELD. The whole argument of the page is
+   that one record feeds the city; a mark on each row is that argument made
+   checkable, rather than a sentence at the top asking to be believed. */
+/* Quieter than the label it sits beside, and NOT in the label's own caps —
+   set the same way round it reads as part of the field's name ("BIRTH DATE
+   FROM YOUR RECORD"), which turns a provenance note into a longer field. */
+.cprof .cmark {
+  font-size: 10px; font-weight: 500; letter-spacing: 0; text-transform: none;
+  color: var(--accent-ink); opacity: .8; white-space: nowrap;
+}
+.cprof .cmark::before { content: '\2191\2009'; font-weight: 700; }
+/* The lede is a SENTENCE about the mark, not an instance of it — an arrow
+   pointing up the page in the middle of a clause points at nothing. */
+.cprofs-lede .cmark { font-size: 10.5px; }
+.cprofs-lede .cmark::before { content: none; }
+
+/* NOT RECORDED IS A RULE YOU COULD WRITE ON, never an em-dash and never a
+   grey word that could be mistaken for a value. Same device as the passport's
+   blank fields, one section up the page. */
+.cprof .cblank {
+  display: inline-block; width: 92px; height: 1px; vertical-align: middle;
+  margin-bottom: 4px; border-bottom: 1px dashed var(--line-2);
+}
+.cprof .chint, .cprof .cread {
+  display: block; font-size: 11px; line-height: 1.5; color: var(--muted); margin-top: 3px;
+}
+.cprof .cread { color: var(--faint); }
+
+.cprof .cextra-h {
+  font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--faint); margin: 18px 0 2px;
+}
+
+/* The door out. Every panel has exactly one, because exactly one place owns
+   the writing. */
+.cprof .cdoor {
+  display: inline-flex; align-items: center; min-height: 44px; margin-top: 14px;
+  padding: 0 14px; border: 1px solid var(--accent); border-radius: var(--r-1);
+  color: var(--accent-ink); font-size: 12.5px; font-weight: 700; text-decoration: none;
+}
+@media (hover: hover) and (pointer: fine) { .cprof .cdoor:hover { background: var(--accent); color: var(--on-accent); } }
+
+/* A PHONE READS THIS PAGE TOO. Below 560px the two columns become one — a
+   150px label beside a wrapped value is a column of shredded words. */
+@media (max-width: 560px) {
+  .cprof .cfield { grid-template-columns: 1fr; gap: 2px; }
+  .cprof > summary { flex-wrap: wrap; row-gap: 2px; }
+  .cprof .csum { flex-basis: 100%; text-align: left; order: 3; }
+}
+
 /* ══ THE ROOM SIGNS ITS NAME (23 Aug, evening) ═════════════════════════════
    The quiet accent — see the foot of tokens.css — is allowed exactly three
    surfaces of its own: the eyebrow, the rail's resting numerals, and a chip's

@@ -61,6 +61,40 @@ export interface ProfileCompletion {
   nextUp: { key: string; label: string; href: string }[];
 }
 
+/* ── EVERY STORE THE CITY HOLDS ───────────────────────────────────────────
+   The mirror of src/profile/city-profiles.ts on the server. One panel per
+   store, and every field carrying WHO OWNS IT — 'master' means the value
+   descends from this record and editing it in the hub is editing a copy;
+   'hub' means the hub is the only writer. The Master Profile page renders the
+   two differently, which is how the claim "entered once" stops being a
+   sentence and becomes something a citizen can check. */
+export interface CityProfileField {
+  label: string;
+  /** null means NOTHING IS RECORDED — drawn as a blank rule, never as a
+   *  plausible value. */
+  value: string | null;
+  source: 'master' | 'hub';
+  hint?: string;
+}
+export interface CityProfilePanel {
+  key: string; label: string; code: string; blurb: string;
+  href: string; editLabel: string;
+  /** False when nothing has ever been answered here. The server decides this
+   *  from `answeredAt`, never by comparing against column defaults. */
+  started: boolean;
+  summary: string | null;
+  percent: number | null;
+  fields: CityProfileField[];
+  /** Whatever else the hub keeps in its own JSON blob. */
+  extra: CityProfileField[];
+  counts: { label: string; value: number }[];
+}
+export interface CityProfilesView {
+  mastered: { label: string; value: string | null; readBy: string[] }[];
+  panels: CityProfilePanel[];
+  startedCount: number;
+}
+
 export interface HealthScoreComponent {
   key: 'body' | 'activity' | 'markers' | 'sleep';
   label: string; weight: number;
@@ -111,6 +145,9 @@ export const profileApi = {
   forgetAddress: (label: string) =>
     api.delete<{ addresses: SavedAddressView[] }>(`/profile/addresses/${label}`).then((r) => r.data),
   completion: () => api.get<ProfileCompletion>('/profile/completion').then((r) => r.data),
+  /** Every store the city holds, in one read. No PATCH beside it on purpose —
+   *  see the controller's note: one field, one owner, one place it is written. */
+  cityProfiles: () => api.get<CityProfilesView>('/profile/city').then((r) => r.data),
   updateMaster: (patch: Partial<MasterProfileView>) =>
     api.patch<MasterProfileView>('/profile/master', patch).then((r) => r.data),
   /** One request, three columns. See DeclaredHealthDraft. */

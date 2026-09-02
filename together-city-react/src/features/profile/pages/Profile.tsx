@@ -18,6 +18,7 @@ import { useMasterProfile } from '../hooks';
 import { Field, Visa } from '../components/Passport';
 import { CitizenCard } from '../components/CitizenCard';
 import { DesignYourServices } from '../components/DesignYourServices';
+import { CityProfiles } from '../components/CityProfiles';
 import { codeBand, sexMark, splitName, visaPages } from '../passport';
 
 /* The Photo tab is gone: the passport's portrait IS the picker, and a second
@@ -330,6 +331,21 @@ export function Profile() {
             drawing rather than the record. Directly beneath it now, on the
             page that shares its name. */}
         <MasterProfileSections />
+
+        <div style={{ height: 30 }} />
+
+        {/* ── EVERY OTHER PROFILE, LINKED TO THIS ONE ────────────────────
+            The record above is the source. This is what reads from it, and
+            what each hub has added of its own — one collapsed panel per
+            store, so the citizen can finally answer "what do you have on me"
+            without opening fourteen pages.
+
+            It sits directly beneath the boxes rather than at the foot of the
+            page for the same reason the boxes sit beneath the document: the
+            claim and its evidence belong next to each other. Read-only by
+            design — every panel ends at the door to the hub that owns the
+            writing. */}
+        <CityProfiles />
 
         <div style={{ height: 30 }} />
 
