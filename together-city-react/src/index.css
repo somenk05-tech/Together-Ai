@@ -1515,3 +1515,175 @@ html.tc-immersive .csdock { margin-bottom: calc(var(--safe-bottom) + 12px); }
   .person-acts > .btn { flex: 1 1 0; padding-left: 8px; padding-right: 8px; }
   .person-fold { padding-left: 0; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THE DECK IS A PAGE.
+
+   /investor is the platform deck — the slides an investor or a partner
+   scrolls through on whatever screen the link was opened on. It is
+   NOT a slide viewer: there is no fan, no arrows, no library, no "3 / 23"
+   floating over the artwork. A slide is a section the height of the window,
+   the scroller snaps to it, and the number is printed on the slide the way a
+   page number is printed on a page. Everything a deck normally bolts on —
+   chrome that has to be hidden before a screenshot — is absent because the
+   page IS the deck.
+
+   IT IS PRINTED IN THE CITY'S OWN LANGUAGE, NOT THE SOURCE DECK'S. The design
+   it was drawn from is burgundy, cream and dusty blue with a bracket-label
+   grid; the city is white paper, one near-black ink and one typeface. What
+   carried over is the STRUCTURE — the numbered label, the chapter card, the
+   two-panel comparison, the stat row — and what did not is the palette, which
+   would have been a second design system living at one URL.
+
+   SO THE ONLY CONTRAST IS REVERSAL. Six chapter cards and the closing slide
+   print white on the ink; every other slide is paper. `--card` is exactly the
+   name for that (see tokens.css: "what a REVERSED object writes its letters
+   in"), and the dimmed labels inside a reversed slide are the same white at
+   an opacity rather than a second grey nobody else uses.
+
+   EVERY SIZE IS FLUID. A deck is read at 390px and projected at 3840, and a
+   step scale built for a page of body copy has nothing to say at either end —
+   `clamp()` is the type ramp here, and it is the reason this block introduces
+   no new font-size steps to the size system.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.dk {
+  height: 100dvh; overflow-y: auto; overflow-x: hidden;
+  scroll-snap-type: y mandatory;
+  background: var(--paper); color: var(--ink);
+}
+.dk-slide {
+  height: 100dvh; scroll-snap-align: start; scroll-snap-stop: always;
+  display: flex; flex-direction: column; justify-content: space-between;
+  gap: clamp(18px, 3vh, 44px);
+  padding: clamp(26px, 4.4vw, 84px) clamp(20px, 5vw, 96px)
+           calc(clamp(26px, 4.4vw, 84px) + var(--safe-bottom));
+}
+.dk-slide.rev { background: var(--ink); color: var(--card); }
+
+/* The label grid: [ 007 ] on the left, what the slide is about on the right. */
+.dk-lab, .dk-foot {
+  display: flex; justify-content: space-between; gap: clamp(12px, 3vw, 40px);
+  font-size: var(--fs-2); font-weight: 700; letter-spacing: .22em;
+  text-transform: uppercase; color: var(--muted);
+}
+.dk-lab > span:first-child { flex: 0 0 auto; }
+.rev .dk-lab, .rev .dk-foot { color: var(--card); opacity: .62; }
+.dk-foot a { color: inherit; text-decoration: none; }
+.dk-foot a:hover { text-decoration: underline; }
+
+/* The middle of a slide, and the one rule the whole layout rests on:
+   `min-height: 0` at EVERY level between the slide and the photograph. A flex
+   or grid item's automatic minimum is its content, so without it an image
+   refuses to shrink, the slide grows past the window, and the snap stops
+   landing on a whole slide — which looks like a scrolling bug and is really
+   this one line, three elements up. */
+.dk-body {
+  flex: 1 1 auto; min-height: 0;
+  display: flex; flex-direction: column; justify-content: center;
+  gap: clamp(14px, 2.4vh, 36px);
+}
+.dk-h1 {
+  margin: 0; font-weight: 900; line-height: .86; letter-spacing: -.035em;
+  text-transform: uppercase; font-size: clamp(46px, 11vw, 172px);
+}
+.dk-h2 {
+  margin: 0; font-weight: 800; line-height: .98; letter-spacing: -.03em;
+  font-size: clamp(30px, 5.6vw, 92px);
+}
+.dk-lede {
+  margin: 0; font-weight: 500; line-height: 1.34; max-width: 26em;
+  font-size: clamp(15px, 1.9vw, 30px); color: var(--ink-soft);
+}
+.dk-note {
+  margin: 0; line-height: 1.4; font-size: clamp(13px, 1.3vw, 21px);
+  color: var(--ink-soft);
+}
+.rev .dk-lede, .rev .dk-note { color: var(--card); opacity: .82; }
+
+/* A chapter card: the hub's number set as large as the slide allows. */
+.dk-num {
+  font-weight: 900; line-height: .78; letter-spacing: -.05em;
+  font-size: clamp(120px, 30vw, 420px);
+}
+
+/* THE GRID HAS TO BE TOLD IT MAY SHRINK, TWICE. `flex: 1 1 0` gives it the
+   slide's leftover height instead of its content's height, and
+   `grid-template-rows: minmax(0, 1fr)` lets that height reach the row — an
+   `auto` row is sized by its content, and a photograph asking for the
+   remainder of a row that is sized by its content resolves to nothing at all.
+   Both halves of a comparison slide are that photograph. */
+.dk-two { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: minmax(0, 1fr); gap: clamp(16px, 3vw, 56px); align-items: stretch; flex: 1 1 0; min-height: 0; }
+.dk-three { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(16px, 3vw, 56px); }
+.dk-two > *, .dk-three > * { min-height: 0; }
+.dk-tags { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(8px, 1.4vw, 18px) clamp(14px, 2.6vw, 40px); }
+.dk-tags.two { grid-template-columns: repeat(2, 1fr); }
+.dk-tags span { font-size: clamp(13px, 1.25vw, 20px); font-weight: 600; padding-top: 8px; border-top: 1px solid var(--line); }
+.rev .dk-tags span { border-top-color: var(--glass-line); }
+
+.dk-rows { display: grid; gap: clamp(8px, 1.6vh, 20px); }
+.dk-row { display: grid; grid-template-columns: auto 1fr; gap: clamp(12px, 2.4vw, 40px); align-items: baseline; padding-top: clamp(8px, 1.4vh, 18px); border-top: 1px solid var(--line); }
+.dk-row b { font-size: clamp(15px, 1.7vw, 26px); font-weight: 800; letter-spacing: -.01em; }
+.dk-row span { font-size: clamp(13px, 1.3vw, 21px); color: var(--ink-soft); }
+
+/* THE FIVE MOVES. A numbered step is the one thing in this deck that must not
+   end up in a column two words wide, so the row halves on a tablet and halves
+   again on a phone rather than shrinking to fit. */
+.dk-steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: clamp(14px, 2.2vw, 44px); }
+.dk-step { padding-top: clamp(8px, 1.4vh, 18px); border-top: 1px solid var(--line); }
+.rev .dk-step { border-top-color: var(--glass-line); }
+.dk-step b { display: block; font-weight: 800; line-height: 1; letter-spacing: -.03em; font-size: clamp(28px, 3.2vw, 58px); }
+.dk-step em { display: block; font-style: normal; margin-top: .5em; font-weight: 700; font-size: clamp(14px, 1.45vw, 24px); }
+.dk-step span { display: block; margin-top: .35em; font-size: clamp(12px, 1.1vw, 18px); color: var(--ink-soft); }
+.rev .dk-step span { color: var(--card); opacity: .78; }
+
+/* A route written as a line rather than drawn as a diagram: four words and
+   three arrows say what a flow chart of five boxes says, and they stay legible
+   at 390px, which the flow chart does not.
+
+   THE ARROW IS DRAWN BY THE STEP BEFORE IT, not written between them. As its
+   own flex item it is its own wrap opportunity, so a chain that breaks leaves
+   an arrow pointing at the end of a line and nothing after it. Carried by the
+   step, it wraps with the step or not at all. */
+.dk-chain { display: flex; flex-wrap: wrap; align-items: baseline; gap: clamp(6px, .9vw, 14px); font-size: clamp(13px, 1.35vw, 22px); font-weight: 600; }
+.dk-chain span:not(:last-child)::after { content: ' \2192'; color: var(--muted); font-weight: 500; }
+.rev .dk-chain span:not(:last-child)::after { color: var(--card); opacity: .62; }
+
+.dk-cap { font-size: var(--fs-2); font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
+.rev .dk-cap { color: var(--card); opacity: .62; }
+
+.dk-stats { display: flex; flex-wrap: wrap; gap: clamp(20px, 5vw, 88px); }
+.dk-stat b { display: block; font-weight: 800; line-height: 1; letter-spacing: -.03em; font-size: clamp(38px, 6vw, 92px); }
+.dk-stat span { display: block; margin-top: 6px; font-size: var(--fs-2); font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
+.rev .dk-stat span { color: var(--card); opacity: .62; }
+
+/* A photograph fills whatever the type has left, and no more. `flex: 1 1 0`
+   rather than `auto` is deliberate: a replaced element's flex-basis of `auto`
+   is its intrinsic height, so a 1600x686 render would claim 686px of a 900px
+   slide before the heading had asked for anything. From a basis of zero it
+   takes the REMAINDER, and `object-fit: cover` crops rather than letterboxes
+   what it is given — which is what makes the same slide work at 3840 wide and
+   on a phone. */
+.dk-shot { display: block; width: 100%; height: 100%; flex: 1 1 0; min-height: 0; object-fit: cover; border-radius: var(--r-3); }
+/* THE SIGNATURE IS A SCAN, NOT A CUT-OUT — black script on a near-white
+   field, which reads as a faint rectangle on paper that is pure white.
+   `multiply` drops the field and keeps the line, and it is safe here because
+   the signature appears on exactly one slide and that slide is paper. */
+.dk-mark { display: block; width: 100%; max-width: 520px; margin-left: auto; align-self: center; mix-blend-mode: multiply; }
+
+@media (max-width: 900px) {
+  .dk-two, .dk-three { grid-template-columns: 1fr; }
+  .dk-tags, .dk-steps { grid-template-columns: repeat(2, 1fr); }
+  .dk-tags.two { grid-template-columns: 1fr; }
+  .dk-mark { max-width: 260px; margin: 0; }
+}
+/* A PHONE STOPS SNAPPING WHERE A SLIDE STOPS FITTING. Mandatory snapping on a
+   container whose children are taller than the viewport is how the bottom of a
+   slide becomes unreachable: the scroller drags it back the moment the thumb
+   lifts. Proximity keeps the deck feeling like slides where they fit and hands
+   the page back where they do not. */
+@media (max-width: 760px) {
+  .dk { scroll-snap-type: y proximity; }
+  .dk-steps { grid-template-columns: 1fr; }
+  .dk-slide { height: auto; min-height: 100svh; }
+  .dk-shot { flex: 0 1 auto; height: auto; max-height: 46svh; }
+}

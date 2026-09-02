@@ -214,6 +214,10 @@ const BlockedPeople = lazy(() => import('@/features/social/pages/Blocked').then(
 const PrivacySettings = lazy(() => import('@/features/privacy/pages/PrivacySettings').then((m) => ({ default: m.PrivacySettings })));
 const Info = lazy(() => import('@/pages/Info').then((m) => ({ default: m.Info })));
 const LegalCenter = lazy(() => import('@/features/legal/LegalCenter').then((m) => ({ default: m.LegalCenter })));
+/* THE PLATFORM DECK. Registered below with /sign-in rather than inside the
+   AppShell block: a deck shown on an investor's screen has no header, no rail
+   and no footer on it. See the page's own head note. */
+const Investor = lazy(() => import('@/pages/Investor').then((m) => ({ default: m.Investor })));
 /* THE STORE IS NOT A HUB ROOM, and its two screens are registered in the
    AppShell block below rather than under a HubLayout for exactly one reason:
    the owner asked for a shop with no rail and one way back. A sidebar is not
@@ -686,6 +690,7 @@ const ROUTE_BLOCKS: RouteObject[] = [
       { path: '/mail/message/:id', element: <RequireAuth>{wrap(<MailMessage />)}</RequireAuth> },
     ],
   },
+  { path: '/investor', element: wrap(<Investor />) },
   { path: '/sign-in', element: wrap(<SignIn />) },
   { path: '/signin', element: <Navigate to="/sign-in" replace /> },
   { path: '/login', element: <Navigate to="/sign-in" replace /> },

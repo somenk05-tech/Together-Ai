@@ -36,7 +36,12 @@ import { useVisualViewport } from '@/hooks/useVisualViewport';
  * anonymous by design — a floating assistant over a room whose whole promise
  * is that nobody is watching is the wrong furniture.
  */
-const HER_OWN_ROOMS = ['/chats', '/dating/chats', '/services/messages'];
+/**
+ * And one room that is not a conversation at all: /investor is the platform
+ * deck, read full-screen and screenshotted a slide at a time. A floating mark
+ * over somebody's pitch is furniture in the photograph.
+ */
+const HER_OWN_ROOMS = ['/chats', '/dating/chats', '/services/messages', '/investor'];
 
 export function MiraDock() {
   const { pathname } = useLocation();
