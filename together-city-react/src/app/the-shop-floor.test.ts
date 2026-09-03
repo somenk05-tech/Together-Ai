@@ -38,6 +38,15 @@ describe('one product, one card, on both floors', () => {
     expect(well).not.toMatch(/height: \d+px/);
   });
 
+  it('puts the key ingredients on the face of the card, from the one component', () => {
+    const list = code('features/beauty/components/Ingredients.tsx');
+    expect(list).toMatch(/export function IngredientChips/);
+    expect(routine).toMatch(/<IngredientChips ingredients=\{s\.ingredients\}/);
+    expect(market).toMatch(/<IngredientChips ingredients=\{p\.ingredients\}/);
+    expect(routine).not.toMatch(/\.ingredients\.map\(/);
+    expect(market).not.toMatch(/\.ingredients\.map\(/);
+  });
+
   it('names every stepper button for a screen reader', () => {
     for (const src of [routine, market, bar]) {
       expect(src).toMatch(/aria-label=\{`One fewer \$\{/);
