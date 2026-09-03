@@ -77,6 +77,9 @@ function svc(over: {
     },
     follow: { deleteMany: async () => ({ count: 0 }) },
     connection: { deleteMany: async () => ({ count: 0 }) },
+    // Console roles are revoked with the account (2 Sep); this harness is
+    // about pictures, so the call only has to succeed.
+    adminGrant: { updateMany: async () => ({ count: 0 }) },
   } as any;
 
   const storage = {

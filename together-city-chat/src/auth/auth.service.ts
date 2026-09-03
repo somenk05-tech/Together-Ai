@@ -596,6 +596,17 @@ export class AuthService {
 
     // 3) Sign out everywhere — every refresh token/session is revoked.
     await swallow(this.tokens.revokeAll(userId), 'deletion: revoke all sessions', { userId });
+
+    // 4) And every console role goes with the account (launch blocker 4,
+    //    2 Sep). The row survives as a tombstone for thirty days, and until
+    //    now its AdminGrant rows survived live with it — a founder's grant on
+    //    an account nobody can sign into, waiting for the purge. Revoked here,
+    //    dated, so the grants table says when the role ended rather than
+    //    losing the row.
+    await swallow(this.prisma.adminGrant.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    }), 'deletion: revoke console roles', { userId });
     return { ok: true };
   }
 

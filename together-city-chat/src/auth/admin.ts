@@ -12,6 +12,20 @@ export const ADMIN_HANDLES: readonly string[] = (process.env.MODERATION_ADMINS ?
   .filter(Boolean);
 
 /**
+ * Handles listed in CONSOLE_FOUNDERS — the accounts the console bootstrap
+ * grants `founder` to at every boot. Read HERE, beside the moderator list,
+ * because it has to be reserved by the same two doors (launch blocker 4,
+ * 2 Sep): registration and PATCH /profile. It was read in console-bootstrap.ts
+ * alone, so a founder who deleted their account released the handle (the
+ * tombstone renames it), and the next citizen to register under it became
+ * founder on the next deploy — root, for the price of a sign-up form.
+ */
+export const FOUNDER_HANDLES: readonly string[] = (process.env.CONSOLE_FOUNDERS ?? '')
+  .split(',')
+  .map((s) => s.trim().toLowerCase().replace(/^@/, ''))
+  .filter(Boolean);
+
+/**
  * A handle nobody may claim or rename into.
  *
  * Admin used to be decided by comparing the JWT's handle against this list on
@@ -24,7 +38,7 @@ export const ADMIN_HANDLES: readonly string[] = (process.env.MODERATION_ADMINS ?
 export function isReservedAdminHandle(handle: string, currentHandle?: string | null): boolean {
   const h = handle.trim().toLowerCase().replace(/^@/, '');
   if (currentHandle && h === currentHandle.trim().toLowerCase()) return false; // keeping your own name
-  return ADMIN_HANDLES.includes(h);
+  return ADMIN_HANDLES.includes(h) || FOUNDER_HANDLES.includes(h);
 }
 
 /**

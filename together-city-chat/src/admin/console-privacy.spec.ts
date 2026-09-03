@@ -295,8 +295,13 @@ describe('a suspension actually bites', () => {
 describe('the bootstrap', () => {
   const boot = stripComments(src('admin/console-bootstrap.ts'));
 
-  it('takes its list from the environment, like the moderator role already does', () => {
-    expect(boot).toMatch(/process\.env\.CONSOLE_FOUNDERS/);
+  it('takes its list from the environment, beside the moderator list — and both are reserved', () => {
+    // Read in auth/admin.ts since 2 Sep so registration and PATCH /profile
+    // refuse both lists with one check; the bootstrap imports it from there.
+    const admin = stripComments(src('auth/admin.ts'));
+    expect(admin).toMatch(/process\.env\.CONSOLE_FOUNDERS/);
+    expect(admin).toMatch(/ADMIN_HANDLES\.includes\(h\) \|\| FOUNDER_HANDLES\.includes\(h\)/);
+    expect(boot).toMatch(/import \{ FOUNDER_HANDLES \} from '\.\.\/auth\/admin'/);
   });
 
   it('is idempotent — a live grant means nothing happens', () => {

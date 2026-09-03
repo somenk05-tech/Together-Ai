@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { FOUNDER_HANDLES } from '../auth/admin';
 import { swallow } from '../shared/swallow';
 
 /**
@@ -47,10 +48,9 @@ import { swallow } from '../shared/swallow';
  * without this line is "the console still says forbidden" with nothing in the
  * logs to explain it.
  */
-export const FOUNDER_HANDLES: readonly string[] = (process.env.CONSOLE_FOUNDERS ?? '')
-  .split(',')
-  .map((s) => s.trim().toLowerCase().replace(/^@/, ''))
-  .filter(Boolean);
+/* Read in auth/admin.ts since 2 Sep, beside MODERATION_ADMINS, so the same
+   reservation covers both lists — see the note on FOUNDER_HANDLES there. */
+export { FOUNDER_HANDLES };
 
 /** The role the environment may grant. One, and the narrowest that can grant
  *  the others — a founder's first real job is handing out smaller roles. */
