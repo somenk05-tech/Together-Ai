@@ -1651,40 +1651,9 @@
   background: var(--accent); border-color: var(--accent); color: var(--on-accent);
 }
 
-/* ══ THE BEAUTY MARKET ══════════════════════════════════════════════════════
-   A shop, laid out for comparison: a category row, a filter/title/sort bar,
-   and a wide grid of photographs. Only the three things that need a breakpoint
-   are here; the rest of the page stays inline, like the rest of this hub. */
-.market-tabs {
-  display: flex; gap: 26px; flex-wrap: wrap; justify-content: center;
-  border-bottom: 1px solid var(--line); padding: 4px 0 12px; margin: 6px 0 18px;
-}
-.market-tabs button {
-  border: 0; background: none; cursor: pointer; font-family: inherit;
-  font-size: 14px; font-weight: 500; color: var(--muted); padding: 6px 2px; position: relative;
-}
-.market-tabs button.on { color: var(--ink); font-weight: 700; }
-/* The dot above the live tab, from the reference. A dot rather than an
-   underline because the row already sits on one. */
-.market-tabs button.on::before {
-  content: ''; position: absolute; top: -4px; left: 50%; translate: -50% 0;
-  width: 4px; height: 4px; border-radius: 50%; background: var(--accent);
-}
-
-/* Filter left, title centred, sort right — and the title stays centred on the
-   PAGE rather than in the space left over, which is why this is a three-column
-   grid with equal outer tracks and not a flex row. */
-.market-bar {
-  display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px;
-  align-items: center; margin-bottom: 14px;
-}
-@media (max-width: 720px) {
-  .market-bar { grid-template-columns: 1fr; }
-  .market-bar > :nth-child(2) { text-align: left; }
-  .market-bar > :nth-child(3) { justify-content: flex-start; }
-  .market-tabs { gap: 18px; justify-content: flex-start; }
-}
-
+/* ── THE MARKET (24 Aug; re-laid as a collection page 3 Sep — see .mk-*) ──
+   The grid is the one thing here that needs breakpoints; the rail, the crumb
+   and the head are in the shop-floor block at the foot of this file. */
 .market-grid {
   /* NO align-items: start — measured live (24 Aug), it left every card its
      own height, so the foot-pinned Add-to-bag landed at 911, 931 and 950px
@@ -2019,7 +1988,7 @@
    frequency, the warnings. Only the shape moved.                            */
 .routine-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(226px, 1fr));
-  gap: 14px; margin-top: 10px;
+  gap: 30px 22px; margin-top: 10px; list-style: none; padding: 0;
 }
 .routine-card {
   display: flex; flex-direction: column; overflow: hidden;
@@ -2045,7 +2014,7 @@
    separate. There is one now, and a hairline across the middle of a single white
    surface is a line about nothing. */
 .routine-well {
-  position: relative; height: 210px;
+  position: relative; aspect-ratio: 1 / 1;
   background: var(--shot-ground);
 }
 /* The order, kept. A grid of product cards loses the one thing a numbered list
@@ -2134,6 +2103,18 @@
 .routine-why-list { list-style: none; padding: 0; margin: 0 0 2px; display: flex; flex-direction: column; gap: 4px; }
 .routine-why-list li { font-size: 12px; line-height: 1.5; padding-left: 13px; position: relative; }
 .routine-why-list li::before { content: '·'; position: absolute; left: 3px; color: var(--accent-ink); }
+
+/* ── the ingredients tab (routine card fold + market tile details) ──────────
+   A numbered list because a label is an ORDERED thing — INCI prints by
+   quantity, most first — and a sheet list keeps the sheet's order. The note
+   under it is set small and muted but never hidden: it is the sentence that
+   says whether this is the whole label. */
+.ingredient-head { font-size: 10.5px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.ingredient-list { margin: 0; padding: 0 0 0 18px; display: flex; flex-direction: column; gap: 3px; }
+.ingredient-list li { font-size: var(--fs-3); line-height: 1.5; color: var(--ink-soft); padding-left: 2px; }
+.ingredient-list li::marker { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.ingredient-note { font-size: var(--fs-2); line-height: 1.5; margin: 6px 0 0; }
+.ingredient-none { font-size: var(--fs-3); line-height: 1.5; margin: 0; }
 
 /* ── ADD THE WHOLE ROUTINE ──────────────────────────────────────────────────
    One control, rendered twice: inside the summary card that prices the routine
@@ -2942,3 +2923,185 @@
 }
 .gal-open img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; }
 .gal-full { display: block; max-width: 100%; max-height: 76vh; margin: 0 auto; object-fit: contain; border-radius: var(--r-1); }
+
+
+/* ══ THE SHOP FLOOR (owner, 3 Sep: "make it like a Shopify site") ═══════════
+   One anatomy for a product wherever it is sold — the market tile's `.st-*`
+   classes on the routine step too — and everything that is NOT a product
+   (the page header, the budget, the section heads, the notes) set as quiet
+   furniture around the grid. Every size here is a token, every colour a
+   token, every radius a token: this block adds nothing to any ceiling. */
+
+/* the page header: title left, the reading of the routine right */
+.rt-head { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; margin: 6px 0 18px; }
+.rt-head-title { flex: 1 1 320px; min-width: 0; }
+.rt-head-title .beauty-display { font-size: var(--fs-9); line-height: 1.05; margin: 0 0 6px; }
+.rt-head-sub { font-size: var(--fs-4); line-height: 1.55; margin: 0; max-width: 58ch; }
+.rt-head-total { flex: 0 1 300px; min-width: 240px; }
+.rt-head-fig { display: flex; flex-direction: column; gap: 4px; padding: 16px 18px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-2); }
+.rt-fig { font-size: var(--fs-8); font-weight: 800; letter-spacing: -.01em; line-height: 1.1; }
+.rt-head-keep { font-size: var(--fs-2); line-height: 1.5; }
+.rt-head-count { font-size: var(--fs-2); }
+.rt-tags { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 14px; }
+.rt-tags .tag { font-size: var(--fs-1); }
+.rt-note { margin: 0 0 14px; padding: 10px 14px; background: var(--paper); border-radius: var(--r-1); font-size: var(--fs-3); line-height: 1.55; }
+.rt-note p { margin: 4px 0 0; }
+.rt-note .st-role { margin-top: 0; }
+
+/* the budget: one strip, three meters */
+.rt-budget { margin-bottom: 18px; }
+.rt-budget-row { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.rt-budget-h { margin: 0; font-size: var(--fs-1); }
+.rt-budget-fig { font-size: var(--fs-6); }
+.rt-budget-fig strong { font-weight: 800; letter-spacing: -.01em; }
+.rt-budget-keep { font-size: var(--fs-2); }
+.rt-budget-adjust { margin-left: auto; font-size: var(--fs-3); font-weight: 700; }
+.rt-meters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 26px; padding-top: 14px; align-items: stretch; }
+@media (max-width: 820px) { .rt-meters { grid-template-columns: 1fr; } }
+.rt-meter { min-width: 0; display: flex; flex-direction: column; }
+/* THE ASKS LINE UP. Three meters with three different amounts of prose put
+   three Set/Keep boxes at three heights — the misalignment the owner saw on
+   the old cards. The ask is pinned to the foot of a stretched column, so the
+   three boxes sit on one line whatever is written above them. */
+.rt-meter .rt-ask { margin-top: auto; }
+.rt-meter-roles { font-size: var(--fs-1); margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rt-budget-note { flex-basis: 100%; font-size: var(--fs-2); line-height: 1.5; margin: 6px 0 0; }
+.rt-meter-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.rt-meter-name { margin-top: 0; color: var(--ink); }
+.rt-meter-count { font-size: var(--fs-1); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 60px; }
+.rt-meter-fig { margin-left: auto; font-size: var(--fs-4); white-space: nowrap; }
+.rt-meter-fig strong { font-weight: 800; }
+.rt-meter-bar { height: 6px; border-radius: var(--r-full); background: var(--line); overflow: hidden; margin: 8px 0 6px; display: flex; }
+.rt-meter-fill { height: 100%; background: var(--accent); }
+.rt-meter-over { height: 100%; background: var(--warn-ink); }
+.rt-meter-foot { display: flex; gap: 8px; font-size: var(--fs-2); }
+.rt-meter-left { margin-left: auto; font-weight: 700; color: var(--ink); }
+.rt-meter-note { font-size: var(--fs-2); line-height: 1.5; margin: 8px 0 0; }
+.rt-meter .routine-why { margin-top: 8px; }
+.rt-ask { margin-top: 12px; padding: 10px 12px; background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: var(--r-1); }
+.rt-ask p { margin: 0; font-size: var(--fs-3); line-height: 1.55; }
+/* TWO EQUAL DOORS, ALWAYS SIDE BY SIDE. As a wrapping flex row the wider
+   figure ("Set ₹17,723") pushed Keep onto a second line in one meter and not
+   the next, and the three asks stopped reading as the same control. */
+.rt-ask-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.rt-ask-actions .btn { width: 100%; min-width: 0; padding-left: 8px; padding-right: 8px; white-space: nowrap; }
+
+/* the section heads over each band */
+.rt-band-row { display: flex; align-items: baseline; gap: 9px; padding-bottom: 2px; }
+.rt-band-icon { font-size: var(--fs-5); color: var(--accent-ink); }
+.rt-band-title { font-size: var(--fs-5); margin: 0; text-transform: uppercase; letter-spacing: .09em; }
+.rt-band-count { margin-left: auto; font-size: var(--fs-2); }
+.rt-band-sub { font-size: var(--fs-2); }
+
+/* the step card wearing the tile's clothes */
+.routine-tier { top: auto; bottom: 10px; left: 10px; }
+.routine-tier.is-value { color: var(--accent-ink); border-color: var(--accent-line); background: var(--accent-soft); }
+.routine-tier.is-static { position: static; }
+.routine-body .st-role { margin-top: 0; }
+.routine-body .st-name { min-height: 2.8em; }
+.routine-warn { list-style: none; padding: 0; margin: 4px 0 0; display: flex; flex-direction: column; gap: 4px; }
+.routine-warn li { font-size: var(--fs-3); line-height: 1.5; color: var(--warn-ink); background: var(--warn-soft); border: 1px solid var(--warn-line); border-radius: var(--r-1); padding: 6px 10px; }
+.routine-foot .st-keep { display: inline-flex; align-items: center; gap: 6px; }
+
+/* the foot of the page */
+.rt-assure { display: flex; gap: 9px; align-items: center; }
+.rt-assure-mark { font-size: var(--fs-5); color: var(--accent-ink); }
+.rt-assure-text { font-size: var(--fs-1); font-weight: 700; letter-spacing: .05em; text-transform: uppercase; line-height: 1.4; }
+.rt-foot-links { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.rt-disclaimer { font-size: var(--fs-2); line-height: 1.55; margin-top: 18px; }
+
+/* the bag: the foot summary, the corner button, the drawer */
+.beauty-sheet:has(> .bag-foot) { margin-top: 22px; }
+.bag-foot { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.bag-foot-sum { min-width: 0; flex: 1 1 240px; }
+.bag-foot-total { font-weight: 700; font-size: var(--fs-5); }
+.bag-foot-lines { font-size: var(--fs-3); }
+.bag-foot-removed { font-size: var(--fs-2); margin-top: 3px; }
+.bag-foot-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+.bag-fab {
+  position: fixed; right: 18px; bottom: calc(18px + var(--safe-bottom)); z-index: 190;
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px 0 14px;
+  border: 1px solid var(--ink); border-radius: var(--r-full); background: var(--ink); color: var(--card);
+  font: inherit; font-size: var(--fs-3); font-weight: 700; cursor: pointer; box-shadow: var(--shadow-deep);
+}
+.bag-fab-mark { font-size: var(--fs-5); }
+.bag-fab-count { min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--r-full); background: var(--card); color: var(--ink); font-size: var(--fs-1); display: inline-grid; place-items: center; }
+.bag-fab-total { opacity: .8; font-weight: 600; }
+
+.bag-scrim { position: fixed; inset: 0; z-index: 210; background: var(--scrim-top); opacity: 0; visibility: hidden; transition: opacity var(--dur-base) var(--ease), visibility 0s var(--dur-base); }
+.bag-scrim.is-open { opacity: 1; visibility: visible; transition: opacity var(--dur-base) var(--ease); }
+.bag-drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 220; width: min(420px, 94vw);
+  display: flex; flex-direction: column; background: var(--card); color: var(--ink);
+  box-shadow: var(--shadow-deep); transform: translateX(100%); visibility: hidden;
+  transition: transform var(--dur-base) var(--ease), visibility 0s var(--dur-base);
+  padding-top: var(--safe-top); padding-bottom: var(--safe-bottom);
+}
+.bag-drawer.is-open { transform: none; visibility: visible; transition: transform var(--dur-base) var(--ease); }
+.bag-head { display: flex; align-items: center; gap: 10px; padding: 18px 20px 14px; border-bottom: 1px solid var(--line); }
+.bag-title { margin: 0; font-size: var(--fs-6); font-weight: 700; }
+.bag-close { margin-left: auto; min-width: 44px; min-height: 44px; border: 0; background: none; color: var(--ink); font: inherit; font-size: var(--fs-8); line-height: 1; cursor: pointer; border-radius: var(--r-full); }
+.bag-lines { list-style: none; margin: 0; padding: 6px 20px; overflow-y: auto; flex: 1; }
+.bag-line { display: flex; gap: 14px; align-items: flex-start; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.bag-line-shot { flex: none; width: 64px; height: 64px; border-radius: var(--r-1); overflow: hidden; background: var(--shot-ground); }
+.bag-line-body { flex: 1; min-width: 0; }
+.bag-line-name { font-size: var(--fs-4); font-weight: 600; line-height: 1.4; }
+.bag-line-each { font-size: var(--fs-2); margin-top: 2px; }
+.bag-line-qty { margin-top: 8px; width: 132px; min-height: 36px; }
+.bag-line-qty button { min-width: 40px; min-height: 36px; }
+.bag-line-total { flex: none; font-weight: 700; font-size: var(--fs-4); }
+.bag-drawer-foot { padding: 14px 20px 18px; border-top: 1px solid var(--line); background: var(--paper); }
+.bag-subtotal { display: flex; align-items: baseline; justify-content: space-between; }
+.bag-subtotal .st-role { margin-top: 0; }
+.bag-subtotal strong { font-size: var(--fs-7); font-weight: 800; letter-spacing: -.01em; }
+.bag-subtotal-note { font-size: var(--fs-2); margin: 4px 0 12px; }
+.bag-checkout { text-decoration: none; }
+.bag-keep { display: block; width: 100%; margin-top: 8px; min-height: 44px; border: 0; background: none; color: var(--ink-soft); font: inherit; font-size: var(--fs-3); font-weight: 700; cursor: pointer; }
+
+/* the market as a collection page: crumb, rail, grid */
+.mk-crumb { display: flex; gap: 8px; align-items: center; font-size: var(--fs-2); color: var(--muted); margin: 0 0 14px; flex-wrap: wrap; }
+.mk-crumb a { color: inherit; }
+.mk-crumb [aria-current] { color: var(--ink); font-weight: 700; }
+.mk-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 34px; align-items: start; }
+.mk-aside { position: sticky; top: calc(var(--header-h) + var(--safe-top) + 16px); display: flex; flex-direction: column; gap: 22px; }
+.mk-group { display: flex; flex-direction: column; gap: 2px; }
+.mk-group > .st-role { margin: 0 0 6px; }
+.mk-opt { display: flex; justify-content: space-between; gap: 10px; min-height: 36px; padding: 0 10px; margin: 0 -10px; border: 0; border-radius: var(--r-1); background: none; color: var(--ink-soft); font: inherit; font-size: var(--fs-4); text-align: left; cursor: pointer; }
+.mk-opt:hover { background: var(--paper); color: var(--ink); }
+.mk-opt.is-on { color: var(--ink); font-weight: 700; background: var(--paper); }
+.mk-select, .mk-input { width: 100%; min-height: 40px; border: 1px solid var(--line); border-radius: var(--r-1); padding: 0 12px; font: inherit; font-size: var(--fs-3); background: var(--paper); color: var(--ink); outline: none; }
+.mk-main { min-width: 0; }
+.mk-notice { font-size: var(--fs-3); line-height: 1.55; margin: 0 0 12px; }
+.mk-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding-bottom: 12px; margin-bottom: 20px; border-bottom: 1px solid var(--line); }
+.mk-title { font-size: var(--fs-8); font-weight: 600; margin: 0; }
+.mk-count { font-size: var(--fs-2); }
+.mk-section { margin-bottom: 30px; }
+.mk-section-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 14px; }
+.mk-section-title { font-size: var(--fs-3); margin: 0; text-transform: uppercase; letter-spacing: .11em; }
+@media (max-width: 900px) {
+  .mk-layout { grid-template-columns: 1fr; gap: 18px; }
+  .mk-aside { position: static; flex-direction: row; flex-wrap: wrap; gap: 14px 22px; }
+  .mk-group { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px; }
+  .mk-group > .st-role { flex-basis: 100%; margin: 0 0 2px; }
+  .mk-opt { margin: 0; padding: 0 12px; border: 1px solid var(--line); border-radius: var(--r-full); }
+  .mk-opt.is-on { border-color: var(--ink); }
+  .mk-select, .mk-input { width: auto; min-width: 180px; }
+}
+
+/* the tile's Details panel, as classes rather than inline styles */
+.st-dossier { text-align: left; margin: 6px 0 10px; padding: 10px 12px; background: var(--paper); border-radius: var(--r-1); display: flex; flex-direction: column; gap: 7px; }
+.st-dossier-blurb { font-size: var(--fs-3); line-height: 1.55; margin: 0; color: var(--ink-soft); }
+.st-dossier-meta { font-size: var(--fs-1); }
+.st-dossier-meta strong { color: var(--ink-soft); }
+.st-dossier-chips { display: flex; gap: 5px; flex-wrap: wrap; }
+.st-dossier-chip { font-size: var(--fs-1); font-weight: 600; color: var(--muted); border: 1px solid var(--line); border-radius: var(--r-full); padding: 2px 8px; }
+.st-dossier-chip.is-reason { font-weight: 700; color: var(--accent-ink); background: var(--accent-soft); border-color: var(--accent-line); }
+.st-dossier-why { font-size: var(--fs-2); line-height: 1.55; margin: 0; }
+.st-dossier-share { display: flex; justify-content: flex-end; }
+
+/* the key ingredients on the face of every product card */
+.ingredient-chips { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.ingredient-chips li { font-size: var(--fs-1); font-weight: 600; line-height: 1.4; color: var(--ink-soft); background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-full); padding: 3px 8px; }
+.ingredient-chips .is-more { color: var(--muted); background: transparent; }
+.routine-body .ingredient-chips { margin-top: 2px; }

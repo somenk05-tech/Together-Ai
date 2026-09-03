@@ -8,6 +8,7 @@ import {
 import { BeautyBagBar } from '../components/BeautyBagBar';
 import { NextOrder } from '../components/NextOrder';
 import { ProductShot } from '../components/ProductShot';
+import { IngredientChips, IngredientList, ingredientMeta } from '../components/Ingredients';
 
 /**
  * The routine, as a thing you could print and pin up.
@@ -146,125 +147,48 @@ function Step({ s, pick, qty, alreadyIn, onAdd, onRemove }: {
       <li className="routine-card is-owned">
         <div className="routine-body">
           <div className="routine-top">
-            <span className="muted" style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.07em' }}>
-              {s.order}. {s.step}
-            </span>
-            <span className="muted" style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.09em',
-              borderRadius: 'var(--r-full)', padding: '2px 7px', border: '1px solid var(--line)' }}>Yours</span>
+            <span className="st-role">{s.order}. {s.step}</span>
+            <span className="st-tier routine-tier is-static">Yours</span>
           </div>
-          <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.55, margin: '6px 0 0' }}>{s.ownedWhy}</p>
+          <p className="muted routine-owned">{s.ownedWhy}</p>
         </div>
       </li>
     );
   }
 
   return (
+    /* ONE CARD ANATOMY FOR THE WHOLE SHOP (owner, 3 Sep: "make it like a
+       Shopify site"). The routine step wears the market tile's classes —
+       square shot, uppercase role, name, brand, price, the black Add-to-bag
+       that becomes a stepper — so the same product is the same object on both
+       floors. What the routine knows that the shelf does not (the step number,
+       the tier, why it is here, the repeated-bottle note) rides the same card
+       in the same places. The two folds stay: the reasoning is the best thing
+       this hub has, and it is one tap down rather than on the face. */
     <li className="routine-card">
-      {/* THE PICTURE FIRST, AND BIG. The owner's catalogue sheet is a well of
-          paper with the product photographed in it and everything else written
-          underneath, and on a page whose job is "go and buy these eight things"
-          the photograph is the identifier — it is what somebody matches against
-          a shelf. At 62 square it told you a bottle from a tube and nothing
-          else. Every fact the old row carried is still here, below. */}
       <div className="routine-well">
         <span aria-hidden className="routine-num">{s.order}</span>
+        {pick && <span className={`st-tier routine-tier${pick.tier === 'high-value' ? ' is-value' : ''}`}>{TIER_LABEL[pick.tier]}</span>}
         <ProductShot image={s.image} imageAlt={s.imageAlt} name={s.name} category={s.category} fill />
       </div>
 
       <div className="routine-body">
-        <div className="routine-top">
-          <span className="muted" style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.07em' }}>{s.step}</span>
-          {/* WHY THIS STEP IS HERE, in one word. The plan sorts everything into
-              three tiers and acts on them — essentials go in first and are never
-              dropped for a nicer optional — so saying which is which is telling
-              somebody how their own routine was reasoned, not decorating it. */}
-          {pick && (
-            <span className="muted" style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.09em',
-              borderRadius: 'var(--r-full)', padding: '2px 7px',
-              background: pick.tier === 'high-value' ? 'var(--accent-soft)' : 'transparent',
-              color: pick.tier === 'high-value' ? 'var(--accent-ink)' : undefined,
-              border: pick.tier === 'high-value' ? '1px solid var(--accent-line)' : '1px solid var(--line)' }}>
-              {TIER_LABEL[pick.tier]}
-            </span>
-          )}
-        </div>
-
-        {/* WE HEARD YOU, AND WE PICKED ONE ANYWAY.
-            The citizen ticked this role on their profile. Until 22 Aug that
-            meant the step was not bought; it is bought now, at the best match
-            on the shelf, on the owner's call that the routine shows the best
-            products for a person's skin whatever they say they own.
-            This line is what stops that being a silent reversal — the form
-            asked a question, and the answer has to come back somewhere or the
-            form was a bin with a label on it. It sits above the price
-            deliberately: the sentence a person needs before they read a number
-            is the one explaining why there is a number at all. */}
-        {s.owned && s.ownedWhy && (
-          <p className="muted routine-owned">{s.ownedWhy}</p>
-        )}
-
-        {/* A REPEATED BOTTLE IS NOT A SECOND PRICE. The evening cleanser is the
-            morning cleanser, and printing ₹8,616 against it a second time is the
-            page inviting somebody to add up a routine that costs half what the
-            column implies. The foot already says where the first one is; the
-            money is said once, where it is spent. */}
+        <div className="st-role">{s.step}</div>
+        {s.owned && s.ownedWhy && <p className="muted routine-owned">{s.ownedWhy}</p>}
+        <h3 className="st-name routine-name">{s.name}</h3>
+        <div className="st-brand">{s.brand}</div>
+        <IngredientChips ingredients={s.ingredients} />
+        {/* A REPEATED BOTTLE IS NOT A SECOND PRICE: the evening cleanser is the
+            morning cleanser, and the money is said once, where it is spent. */}
         {alreadyIn ? (
-          <div className="muted" style={{ fontSize: 11.5 }}>Counted in your {alreadyIn.toLowerCase()} routine</div>
+          <div className="st-keep routine-price">Counted in your {alreadyIn.toLowerCase()} routine</div>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-            {/* GROUPED, like every other rupee figure on this card. The bare form
-                was a deliberate choice while a step price was three or four
-                digits and the only place it appeared. It is neither now: the
-                shelf carries ₹8,616 products, and the fold underneath prints
-                that same number as "₹8,616 to buy" a centimetre below. One
-                number in one card in two formats is not a style, it is a bug. */}
-            <span className="routine-price">{rupees(s.priceInr)}</span>
-            {pick && <span className="muted" style={{ fontSize: 11 }}>≈ {rupees(pick.monthlyInr)}/month to keep</span>}
+          <div className="st-price routine-price">
+            {rupees(s.priceInr)}
+            {pick && <span className="st-keep"> · ≈ {rupees(pick.monthlyInr)}/month to keep</span>}
           </div>
         )}
-        {/* THE NAME IS NOT A LINK ANY MORE, at the owner's word, and the
-            reasoning it replaces is worth keeping: it used to open the
-            retailer's page, on the argument that a routine which names a
-            product you then have to search for is homework.
 
-            What changed is the page around it. The card now carries the
-            photograph, the brand, the size, how long it lasts and the price —
-            it IS the product page — and the one thing this hub wants somebody
-            to do next is add it to the bag, which is the button directly
-            underneath. A title that quietly leaves for Nykaa is a shop showing
-            you the door on the way to its own checkout. `productUrl` stays on
-            the wire and stays used in the Market, where browsing OUT is what
-            the page is for. */}
-        <div className="routine-name">{s.name}</div>
-        <div className="muted" style={{ fontSize: 11.5, marginTop: 1 }}>{s.brand}{s.keyIngredient ? ` · ${s.keyIngredient}` : ''}</div>
-
-        {/* ── WHY THIS, HOW TO USE IT, AND WHAT IT COSTS TO KEEP ─────────────
-            FOLDED, AND EVERY WORD OF IT KEPT. Eight cards each printing four
-            paragraphs made a sheet nobody could scan: the thing somebody is
-            looking for on this page is which bottle, in what order — and the
-            reasoning, which is the best thing this hub has, was the reason
-            they had to scroll past it. So the card answers WHAT and the fold
-            answers WHY, and the fold names what is inside it rather than
-            saying "more", because a section that only says its own name is a
-            section nobody opens.
-
-            IT IS THE SHARED `Fold`. A disclosure is four things done together
-            — the state, the id, `aria-expanded`, `aria-controls` — and a
-            second implementation still looks correct while it stops announcing
-            itself. `routine-why` is this card's skin on the city's one
-            behaviour.
-
-            THE CAUTIONS DID NOT COME IN HERE, and that is the one deliberate
-            exception. "Increases sun sensitivity — daily sunscreen is not
-            optional alongside this" is the only alarm this hub allows itself,
-            and an alarm behind a disclosure is a decoration.
-
-            THE META IS THE PACK AND NOTHING ELSE. It was the pack AND how long
-            it lasts — "30 ml · about 4 weeks" — and measured on the live page
-            fifteen of the sixteen cards truncated it mid-word: the column is
-            273px and the line had 101px of text in 77px of room. A closed
-            section whose one line ends in an ellipsis reads as broken rather
-            than as folded. The duration is inside, under what it costs. */}
         <Fold face="routine-why" panel="routine-why-open"
           title="Why this step"
           meta={pick?.packLabel || s.frequency.toLowerCase()}>
@@ -276,8 +200,6 @@ function Step({ s, pick, qty, alreadyIn, onAdd, onRemove }: {
           <div className="routine-why-head">How to use it</div>
           <p className="routine-why-body">{s.instructions}</p>
           <div className="muted routine-why-note">{s.frequency}</div>
-          {/* The working behind the monthly figure. Without it "≈ ₹366/month"
-              is an assertion; with it, it is arithmetic anybody can check. */}
           {pick && (
             <>
               <div className="routine-why-head">What it costs to keep</div>
@@ -290,30 +212,34 @@ function Step({ s, pick, qty, alreadyIn, onAdd, onRemove }: {
           )}
         </Fold>
 
+        <Fold face="routine-why" panel="routine-why-open"
+          title="Ingredients"
+          meta={ingredientMeta(s.ingredients, s.ingredientsSource)}>
+          <IngredientList ingredients={s.ingredients} source={s.ingredientsSource} />
+        </Fold>
+
+        {/* The one alarm this hub allows itself, and never behind a fold. */}
         {s.warnings.length > 0 && (
-          <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {s.warnings.map((w) => (
-              <li key={w} style={{ fontSize: 12, lineHeight: 1.5, color: 'var(--warn-ink)', background: 'var(--warn-soft)', border: '1px solid var(--warn-line)', borderRadius: 8, padding: '6px 10px' }}>{w}</li>
-            ))}
+          <ul className="routine-warn">
+            {s.warnings.map((w) => <li key={w}>{w}</li>)}
           </ul>
         )}
 
         <div className="routine-foot">
           {alreadyIn ? (
-            <span className="muted" style={{ fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <span aria-hidden>↑</span>
+            <span className="muted st-keep">
+              <span aria-hidden>↑ </span>
               The same bottle as your {alreadyIn.toLowerCase()} routine
               {qty > 0 ? ` — ${qty} in bag` : ' — add it there'}
             </span>
           ) : qty > 0 ? (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-              <Button variant="line" size="sm" onClick={onRemove}>–</Button>
-              <span style={{ fontWeight: 700, fontSize: 13.5 }}>{qty}</span>
-              <Button variant="line" size="sm" onClick={onAdd}>+</Button>
-              <span className="muted" style={{ fontSize: 11.5 }}>in bag</span>
-            </span>
+            <div className="st-qty">
+              <button type="button" onClick={onRemove} aria-label={`One fewer ${s.name}`}>–</button>
+              <span>{qty} in bag</span>
+              <button type="button" onClick={onAdd} aria-label={`One more ${s.name}`}>+</button>
+            </div>
           ) : (
-            <Button variant="line" size="sm" onClick={onAdd}>Add to bag</Button>
+            <button type="button" className="st-add" onClick={onAdd}>Add to bag</button>
           )}
         </div>
       </div>
@@ -352,28 +278,24 @@ function Band(
   return (
     <section className="routine-band">
       <div className="routine-band-head">
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, paddingBottom: 4 }}>
-          <span aria-hidden style={{ fontSize: 15, color: 'var(--accent-ink)' }}>{meta.icon}</span>
-          <h2 style={{ fontSize: 15, margin: 0, textTransform: 'uppercase', letterSpacing: '.09em' }}>{r.title}</h2>
-          <span className="muted" style={{ marginLeft: 'auto', fontSize: 11.5 }}>
+        <div className="rt-band-row">
+          <span aria-hidden className="rt-band-icon">{meta.icon}</span>
+          <h2 className="rt-band-title">{r.title}</h2>
+          <span className="muted rt-band-count">
             {r.steps.length === 0 ? 'nothing yet' : `${r.steps.length} step${r.steps.length === 1 ? '' : 's'}`}
           </span>
         </div>
-        <div className="muted" style={{ fontSize: 11.5 }}>{meta.sub}</div>
+        <div className="muted rt-band-sub">{meta.sub}</div>
       </div>
 
       <div className="routine-band-note">
-        {r.notes.map((n) => (
-          <p key={n} style={{ fontSize: 12.5, lineHeight: 1.55, margin: '8px 0 0', background: 'var(--paper)', borderRadius: 'var(--r-1)', padding: '9px 12px' }}>{n}</p>
-        ))}
+        {r.notes.map((n) => <p key={n} className="rt-note">{n}</p>)}
       </div>
 
       {r.steps.length === 0 ? (
-        <p className="muted" style={{ fontSize: 12.5, margin: '12px 0 0' }}>
-          Nothing here yet — as your profile fills in, steps appear.
-        </p>
+        <p className="muted rt-note">Nothing here yet — as your profile fills in, steps appear.</p>
       ) : (
-        <ul className="routine-grid" style={{ listStyle: 'none', padding: 0 }}>
+        <ul className="routine-grid">
           {r.steps.map((s) => (
             <Step key={s.productId} s={s} pick={picks.get(s.productId)} qty={bagged.qtyOf(s.productId)}
               alreadyIn={seen.get(s.productId) === r.title ? undefined : seen.get(s.productId)}
@@ -442,12 +364,6 @@ const roleStrip = (c: CategoryPlan) => {
   return parts.join(' · ');
 };
 
-/** A finding key as a person would read it: 'dark-spots' → 'Dark spots'. */
-const needLabel = (k: string) => {
-  const words = k.replace(/[-_]+/g, ' ').trim();
-  return words.charAt(0).toUpperCase() + words.slice(1);
-};
-
 function BudgetCard(
   { c, kept, onKeep, onRaise, raising }:
   { c: CategoryPlan; kept: boolean; onKeep: () => void; onRaise: (n: number) => void; raising: boolean },
@@ -458,164 +374,56 @@ function BudgetCard(
   // the truth; a figure clamped to 100 would be the page hiding the headroom it
   // just used.
   const pct = c.budgetInr > 0 ? Math.round((c.spendInr / c.budgetInr) * 100) : 0;
-  /** The dearest bottle to keep, when it is more than half the upkeep. */
-  const dominant = c.picks.length > 0 && c.monthlyInr > 0
-    ? [...c.picks].sort((a, b) => b.monthlyInr - a.monthlyInr)
-      .filter((p) => p.monthlyInr * 2 > c.monthlyInr)[0]
-    : undefined;
   const short = c.minimumInr !== null && !kept;
   const ideal = c.idealInr !== null && !kept && !short;
   const ask = short ? (c.minimumInr as number) : ideal ? (c.idealInr as number) : null;
+  const over = c.overInr > 0 ? Math.max(3, Math.min(12, pct - 100)) : 0;
 
+  /* ONE METER, NOT A CARD (owner, 3 Sep: the budget as a small summary bar).
+     The three sheets this replaced each carried a heading, a definition list,
+     a bar, four sentences and an offer, and read as three more products. A
+     budget is a limit and a limit is one line: the name, the money against
+     it, the bar. What still has to be said — the ask before the money is
+     crossed, the planner's own reason for stopping short, the offers — is
+     under the line, and only when there is one. */
   return (
-    <section className="beauty-sheet" style={{ margin: 0, minWidth: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-        <h3 style={{ fontSize: 13, margin: 0, textTransform: 'uppercase', letterSpacing: '.12em' }}>{meta.label}</h3>
-        <span className="muted" style={{ fontSize: 11 }}>{c.picks.length} product{c.picks.length === 1 ? '' : 's'}</span>
+    <div className="rt-meter">
+      <div className="rt-meter-row">
+        <span className="st-role rt-meter-name">{meta.label}</span>
+        <span className="muted rt-meter-count">{c.picks.length} product{c.picks.length === 1 ? '' : 's'}</span>
+        <span className="rt-meter-fig">
+          <strong>{rupees(c.spendInr)}</strong> <span className="muted">of {rupees(c.budgetInr)}</span>
+        </span>
       </div>
-      <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>{roleStrip(c)}</div>
-
-      <dl style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '7px 12px', margin: '14px 0 0' }}>
-        <dt className="muted" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>Budget</dt>
-        <dd style={{ margin: 0, fontSize: 13.5, fontWeight: 700, textAlign: 'right' }}>{rupees(c.budgetInr)}</dd>
-        <dt className="muted" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>Routine cost</dt>
-        <dd style={{ margin: 0, fontSize: 20, fontWeight: 800, letterSpacing: '-.01em', textAlign: 'right', lineHeight: 1.1 }}>
-          {rupees(c.spendInr)}<span className="muted" style={{ fontSize: 11.5, fontWeight: 600 }}> to buy</span>
-        </dd>
-      </dl>
-
-      {/* THE ONE STATE THIS BAR EXISTS TO SHOW WAS THE ONE IT COULD NOT.
-          Capping the fill at 100 is right — a bar that runs past its own track
-          is a bar that has stopped meaning anything — but the cap was the whole
-          drawing, so 101% and 100% rendered as the same solid accent and the
-          overrun lived only in the sentence beside it. The track now carries the
-          last stretch in the warning ink, sized to the overrun and never less
-          than a visible sliver, so the figure and the picture agree. */}
-      <div aria-hidden style={{ height: 6, borderRadius: 'var(--r-full)', background: 'var(--line)', overflow: 'hidden', margin: '12px 0 7px', display: 'flex' }}>
-        <div style={{ width: `${Math.min(100, pct) - (c.overInr > 0 ? Math.max(3, Math.min(12, pct - 100)) : 0)}%`, height: '100%', background: 'var(--accent)' }} />
-        {c.overInr > 0 && (
-          <div style={{ width: `${Math.max(3, Math.min(12, pct - 100))}%`, height: '100%', background: 'var(--warn-ink)' }} />
-        )}
+      {/* THE ONE STATE THIS BAR EXISTS TO SHOW: the fill is capped at the
+          track, and an overrun is drawn in the warning ink at its own size, so
+          the figure and the picture agree. Routine cost against Budget. */}
+      <div aria-hidden className="rt-meter-bar">
+        <div className="rt-meter-fill" style={{ width: `${Math.min(100, pct) - over}%` }} />
+        {over > 0 && <div className="rt-meter-over" style={{ width: `${over}%` }} />}
       </div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <span className="muted" style={{ fontSize: 11.5 }}>{pct}% of your {meta.label.toLowerCase()} budget</span>
-        <span style={{ marginLeft: 'auto', fontSize: 11.5, fontWeight: 700 }}>
+      <div className="muted rt-meter-roles">{roleStrip(c)}</div>
+      <div className="rt-meter-foot muted">
+        <span>{pct}% used</span>
+        <span className="rt-meter-left">
           {c.overInr > 0 ? `${rupees(c.overInr)} above budget` : `${rupees(c.remainingInr)} remaining`}
         </span>
       </div>
-      {/* THE ONLY TIME THIS ROUTINE COSTS MORE THAN THE NUMBER SOMEBODY SET, and
-          it is said out loud rather than absorbed. The five per cent of headroom
-          is the top half of the 95–105% band: shelf prices can't always land
-          exactly on the number, so the planner may finish up to 5% over — and
-          never a rupee further. The sentence used to justify the overrun with
-          "a better match", which the band pass can no longer promise. */}
-      {c.overInr > 0 && (
-        <p className="muted" style={{ fontSize: 12, lineHeight: 1.55, margin: '7px 0 0' }}>
-          {rupees(c.overInr)} over the {rupees(c.budgetInr)} you set — shelf prices can&rsquo;t always
-          land exactly on your number — we allow up to five per cent over, never more.
-        </p>
-      )}
 
-      {/* WHAT IS NOT HERE, AND WHY — before the ask, not after it. These are
-          the sentences that turn a short list into a reasoned one: "you don't
-          need a separate toner" and "a treatment step would fit your profile
-          but not this budget" are different facts and a lean routine has to say
-          which one it means. */}
-      {/* WHAT THEY ALREADY HAVE, ABOVE WHAT WE LEFT OUT, because they are
-          different sentences and the citizen's own answer comes first. A step
-          they told us about is not a step we declined — and until this shipped
-          it was neither: it was a step we sold them twice. */}
-      {c.kept.length > 0 && (
-        <ul style={{ listStyle: 'none', padding: 0, margin: '12px 0 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {c.kept.map((k) => (
-            <li key={k.role} style={{ fontSize: 12, lineHeight: 1.5 }}>
-              <span style={{ fontWeight: 700 }}>{k.role}</span>
-              <span className="muted"> — {k.why}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {c.leftOut.length > 0 && (
-        <ul style={{ listStyle: 'none', padding: 0, margin: '12px 0 0', display: 'flex', flexDirection: 'column', gap: 5 }}>
-          {c.leftOut.slice(0, 3).map((l) => (
-            <li key={l.role} className="muted" style={{ fontSize: 12, lineHeight: 1.55 }}>· {l.why}</li>
-          ))}
-        </ul>
-      )}
-
-      {/* ── A CONCERN WE PRINTED AS A CHIP AND THEN DID NOT ANSWER ────────────
-          The page prints the citizen's declared findings at the top and a
-          routine underneath, and nothing checked that the second addressed the
-          first. Live, nothing in a ₹51,549 routine treated the blackheads: not
-          a selection bug — no product answering that key survived this
-          category's roles — but a promise broken without a word. Said plainly
-          here, where the rest of what this category did and did not do is. */}
-      {/* `?? []` BECAUSE THE TWO RAILS DEPLOY SEPARATELY. The field arrives
-          with the Railway release; between that and the Vercel one this page is
-          reading a plan that does not have it, and `.length` on undefined is a
-          white screen rather than a missing sentence. */}
-      {(c.uncoveredNeeds ?? []).length > 0 && (
-        <p style={{ fontSize: 12, lineHeight: 1.55, margin: '12px 0 0' }}>
-          <strong>Not treated here</strong>
-          <span className="muted"> — {(c.uncoveredNeeds ?? []).map(needLabel).join(', ')}. Nothing on this
-            shelf that answers {(c.uncoveredNeeds ?? []).length === 1 ? 'it' : 'them'} fits a step in your
-            {' '}{meta.label.toLowerCase()} routine.</span>
-        </p>
-      )}
-
-      {/* ── WHAT IT COSTS TO KEEP, AND WHERE THAT MONEY GOES ─────────────────
-          One line, and it only appears when one bottle is more than half of
-          the category's upkeep — which on the live sheet was true twice, at
-          73% and 79%. The budget is a purchase budget by design; this is the
-          number it does not govern, put where somebody can act on it. */}
-      {dominant && (
-        <p className="muted" style={{ fontSize: 12, lineHeight: 1.55, margin: '10px 0 0' }}>
-          ≈ {rupees(c.monthlyInr)}/month to keep going — {rupees(dominant.monthlyInr)} of that
-          is one product, the {dominant.name}.
-        </p>
-      )}
-
-      {/* ── MONEY THIS SHELF CANNOT HONESTLY SPEND ───────────────────────────
-          `usefulMaxInr` is the dearest routine in which every step is at least
-          as well matched as the best cheap one. It has been computed per person
-          since the cap landed and it caps the dial on the profile — but the
-          routine page never showed it, so a citizen whose budget runs past it
-          sees 99% of a number used and no hint that the last stretch bought a
-          dearer version of the same answer. */}
-      {c.usefulMaxInr > 0 && c.spendInr > c.usefulMaxInr && (
-        <p className="muted" style={{ fontSize: 12, lineHeight: 1.55, margin: '10px 0 0' }}>
-          Past about {rupees(c.usefulMaxInr)}, extra money buys a dearer version of the same
-          answer — not a closer match.
-        </p>
-      )}
-
-      {/* TWO ASKS, NEVER BOTH, AND NEITHER EVER ACTS ON ITS OWN.
-          · SHORT — the budget will not carry the essentials, and the figure that
-            would is offered.
-          · IDEAL — the budget carries a routine, but the best compatible one
-            costs more than the five per cent headroom permits. Crossing that is
-            the citizen's decision and they make it by moving the number.
-          Both doors are spelled out with the amount on them. "Keep ₹1,000" is a
-          real answer and it is the one that costs nothing. */}
+      {/* TWO ASKS, NEVER BOTH, AND NEITHER EVER ACTS ON ITS OWN. SHORT — the
+          budget will not carry the essentials. IDEAL — it carries a routine,
+          but the best compatible one costs more than the five per cent of
+          headroom permits. Crossing that is the citizen's decision and they
+          make it by moving the number; "Keep" is a real answer and the one
+          that costs nothing. */}
       {ask !== null && (
-        <div style={{ marginTop: 14, background: 'var(--accent-soft)', border: '1px solid var(--accent-line)', borderRadius: 'var(--r-1)', padding: '11px 13px' }}>
-          <p style={{ fontSize: 12.5, lineHeight: 1.6, margin: 0 }}>
-            {short ? (
-              <>
-                {rupees(c.budgetInr)} won&rsquo;t carry the full base for your {meta.label.toLowerCase()} —
-                the essentials come to about <strong>{rupees(ask)} to buy</strong> together. We&rsquo;ve built
-                what fits, essentials first. Nothing has been changed on your behalf.
-              </>
-            ) : (
-              <>
-                The best routine we can build for your {meta.label.toLowerCase()} comes
-                to <strong>{rupees(ask)} to buy</strong>, above the {rupees(c.budgetInr)} you set. This is
-                the best one that fits — we won&rsquo;t go over your budget without asking.
-              </>
-            )}
+        <div className="rt-ask">
+          <p>
+            {short
+              ? <>Essentials come to about <strong>{rupees(ask)}</strong> — above your {rupees(c.budgetInr)}.</>
+              : <>Best routine: <strong>{rupees(ask)}</strong> — above your {rupees(c.budgetInr)}.</>}
           </p>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+          <div className="rt-ask-actions">
             <Button variant="accent" size="sm" disabled={raising} onClick={() => onRaise(ask)}>
               {raising ? 'Saving…' : `Set ${rupees(ask)}`}
             </Button>
@@ -624,56 +432,30 @@ function BudgetCard(
         </div>
       )}
 
-      {/* WHY IT STOPPED SHORT OF THE BUDGET — the server's sentence, not one
-          written here. It is the plan explaining its own arithmetic: every
-          compatible step is already in, every step already holds the best
-          product for it, and the rest of the money buys nothing worth having. */}
-      {/* WHAT IT COSTS TO KEEP, under what it costs to buy. The budget is set in
-          purchase prices — owner's call, 15 Aug — and this is the number that
-          still says a big jar is better value than a small one. */}
-      <div className="muted" style={{ fontSize: 11.5, marginTop: 2 }}>
-        ≈ {rupees(c.monthlyInr)}/month to keep going
-      </div>
-
-      {/* A BUDGET EVEN THE BAND PASS CANNOT SPEND. Under the band-first rule
-          (owner, 16 Aug) the planner spends to 95–105% wherever the guarded
-          shelf allows, so this paragraph — which used to be the normal state
-          of a big budget — now appears only when the shelf genuinely cannot
-          absorb the band: usefulMaxInr, the plan at the dial's own maximum,
-          sits below this budget's floor. leanReason says why in the planner's
-          own words; this line gives the number a reader can argue with. */}
-      {!short && c.usefulMaxInr > 0 && c.usefulMaxInr < c.targetLowInr && (
-        <p className="muted" style={{ fontSize: 12, lineHeight: 1.6, margin: '10px 0 0' }}>
-          This shelf tops out at about {rupees(c.usefulMaxInr)} for your profile; you&rsquo;ve
-          set {rupees(c.budgetInr)}.
-        </p>
+      {/* The planner's own sentence for stopping short of the number, and the
+          point past which more money buys a dearer version of the same
+          answer. Both are the plan explaining its arithmetic, not copy. */}
+      {!short && c.leanReason && <p className="muted rt-meter-note">{c.leanReason}</p>}
+      {c.usefulMaxInr > 0 && c.spendInr > c.usefulMaxInr && (
+        <p className="muted rt-meter-note">Past about {rupees(c.usefulMaxInr)}, more money buys the same answer dearer.</p>
       )}
 
-      {!short && c.leanReason && (
-        <p className="muted" style={{ fontSize: 12, lineHeight: 1.6, margin: '12px 0 0' }}>{c.leanReason}</p>
-      )}
-
-      {/* Offered, never taken. Two kinds: a step the routine does not have, and
-          a dearer version of one it does. The second used to be swapped in
-          silently whenever the routine sat under 90% of the budget, on the
-          strength of a price grade and nothing else — see budget-routine.ts
-          pass 5b. It carries the sentence that made it an offer, and the
-          sentence is why it is down here rather than in the routine. */}
+      {/* Offered, never taken — a dearer version, or a step the routine does
+          not have. Folded, because an offer on the face of a limit reads as
+          the limit being argued with. */}
       {!short && c.upgrades.length > 0 && (
-        <div style={{ marginTop: 12, borderTop: '1px solid var(--line)', paddingTop: 10 }}>
-          <div className="muted" style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase' }}>Optional, if you want it</div>
-          <ul style={{ listStyle: 'none', padding: 0, margin: '6px 0 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <Fold face="routine-why" panel="routine-why-open" title="Optional, if you want it" meta={`${c.upgrades.length} offer${c.upgrades.length === 1 ? '' : 's'}`}>
+          <ul className="routine-why-list">
             {c.upgrades.slice(0, 3).map((u) => (
-              <li key={u.productId} style={{ fontSize: 11.5, lineHeight: 1.5 }}>
-                <span style={{ fontWeight: 700 }}>{u.role}</span>
-                <span className="muted"> — {u.name} · {rupees(u.priceInr)}</span>
-                {u.reason && <div className="muted" style={{ fontSize: 11, lineHeight: 1.5 }}>{u.reason}</div>}
+              <li key={u.productId}>
+                <strong>{u.role}</strong> — {u.name} · {rupees(u.priceInr)}
+                {u.reason && <div className="muted routine-why-note">{u.reason}</div>}
               </li>
             ))}
           </ul>
-        </div>
+        </Fold>
       )}
-    </section>
+    </div>
   );
 }
 
@@ -921,108 +703,58 @@ export function Routine() {
           with a list on it, it is a sheet with a title. `beauty-display` is
           the display serif, granted by name in relief.spec — the third and
           last thing in the city allowed to borrow the press's face. */}
-      <div className="card" style={{ background: 'var(--accent-soft)', borderColor: 'var(--accent-line)', marginBottom: 16, padding: '22px 22px 20px' }}>
-        <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ minWidth: 210 }}>
-            <div className="muted" style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 'var(--track-display)', textTransform: 'uppercase' }}>Your daily</div>
-            <h1 className="beauty-display" style={{ fontSize: 'clamp(34px, 4.6vw, 50px)', lineHeight: 1.02, margin: '4px 0 2px', color: 'var(--accent-ink)' }}>
-              AM &amp; PM
-            </h1>
-            <div className="beauty-display" style={{ fontSize: 'clamp(19px, 2.2vw, 25px)', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
-              skin &amp; hair routine
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: 26, flexWrap: 'wrap', flex: 1, minWidth: 200 }}>
-            {(['morning', 'evening'] as const).map((k) => (
-              <div key={k} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                <span aria-hidden style={{ fontSize: 20, color: 'var(--accent-ink)' }}>{BAND[k].icon}</span>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 700 }}>{k === 'morning' ? 'Morning' : 'Night'} routine</div>
-                  <div className="muted" style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' }}>{BAND[k].sub}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {!empty && (
-            <div style={{ minWidth: 190, background: 'var(--card)', border: '1px solid var(--accent-line)', borderRadius: 12, padding: '13px 15px' }}>
-              <div className="muted" style={{ fontSize: 11 }}>The whole routine</div>
-              <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-.01em' }}>{rupees(routineTotal)}</div>
-              {/* Both numbers, because they answer two different questions: what
-                  it costs to buy today, and what it costs to keep. */}
-              {/* ── THE NUMBER THE BUDGET DOES NOT GOVERN ────────────────────
-                  A budget is what you hand over at the counter — the owner
-                  settled that on 15 Aug and nothing here reopens it. But the
-                  upkeep figure sat in 11px grey under the price and was left to
-                  the reader to annualise, and on this profile it annualises to
-                  nearly six times the budget. The routine is not too expensive;
-                  the page was simply quieter about the larger of its two
-                  numbers than about the smaller. */}
+      {/* ── THE MASTHEAD, AS A SHOP'S PAGE HEADER ─────────────────────────
+          Title on the left, the reading of the routine on the right: what it
+          costs to buy, what it costs to keep, how many bottles, and the one
+          button that puts all of them in the bag. `beauty-display` is the
+          hub's one title class. Both numbers stay, because they answer two
+          different questions and this profile's upkeep annualises to several
+          times its purchase budget — the page is not allowed to be quieter
+          about the larger of its two numbers. */}
+      <div className="rt-head">
+        <div className="rt-head-title">
+          <h1 className="beauty-display">Your routine</h1>
+          <p className="muted rt-head-sub">
+            Built from your profile{data?.budget && data.plan ? ` and your ${rupees(data.plan.totalBudgetInr)} budget` : ''} — nothing you react to.
+          </p>
+        </div>
+        {!empty && (
+          <div className="rt-head-total">
+            <div className="rt-head-fig">
+              <span className="st-role">The whole routine</span>
+              <strong className="rt-fig">{rupees(routineTotal)}</strong>
               {monthlyTotal > 0 && (
-                <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--line)' }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 700 }}>≈ {rupees(monthlyTotal)}/month to keep going</div>
-                  <div className="muted" style={{ fontSize: 11.5 }}>about {rupees(monthlyTotal * 12)} over a year, at the doses this routine assumes</div>
-                </div>
+                <span className="muted rt-head-keep">≈ {rupees(monthlyTotal)}/month to keep going</span>
               )}
-              {/* "ADD ALL TO BAG" IS BACK, at the owner's word, and what it
-                  cost to remove is worth keeping written down: this card is a
-                  READING of the routine — what it costs to buy, what it costs
-                  to keep, how many bottles that is — and an accent button in it
-                  turns a reading into a till. The reason it can stand here now
-                  is the undo beside it; see `addWhole` above. Every step still
-                  carries its own Add to bag, and this one adds only what those
-                  have not already. */}
-              <div className="muted" style={{ fontSize: 11 }}>{everyStep.length} products</div>
+              <div className="muted rt-head-count">{everyStep.length} products</div>
               {data?.reorder && <NextOrder due={data.reorder} />}
               {addWhole}
             </div>
-          )}
-        </div>
-
-        {/* WHAT THIS WAS BUILT FROM, named. Three inputs and the budget is one
-            of them — a routine that quietly cost what it cost would make the
-            budget a filter applied afterwards, which is the thing it isn't. */}
-        <p className="muted" style={{ fontSize: 12, margin: '16px 0 0', lineHeight: 1.55 }}>
-          Built from your profile, your goals
-          {data?.budget && data.plan ? `, and your ${rupees(data.plan.totalBudgetInr)} budget` : ''}.
-          Anything you react to is left out.
-        </p>
+          </div>
+        )}
       </div>
 
       {data && !empty && (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
-          {data.personalisedBy.assessment && <span className="tag" style={{ fontSize: 11 }}>from your assessment</span>}
-          {/* WHAT THE FLAG ACTUALLY MEANS. `labs` is a boolean: the assessment
-              read the citizen's blood work. It does not carry WHICH marker, or
-              what it changed, and "using your biomarkers" over a routine is a
-              claim of influence nobody can check — the one kind of
-              personalisation badge that is worse than none. It says what it can
-              support and goes to the page where the reasoning is written. */}
+        <div className="rt-tags">
+          {data.personalisedBy.assessment && <span className="tag">from your assessment</span>}
+          {/* `labs` is a boolean: the assessment read the blood work. It does
+              not carry WHICH marker, so it says what it can support and goes
+              to the page where the reasoning is written. */}
           {data.personalisedBy.labs && (
-            <Link to="/beauty/profile" className="tag" style={{ fontSize: 11 }}>
-              🩸 your biomarkers were read — see your assessment
-            </Link>
+            <Link to="/beauty/profile" className="tag">🩸 biomarkers read</Link>
           )}
-          {data.personalisedBy.concerns.map((c) => <span key={c} className="tag" style={{ fontSize: 11 }}>{c}</span>)}
+          {data.personalisedBy.concerns.map((c) => <span key={c} className="tag">{c}</span>)}
         </div>
       )}
 
-      {/* ── IT IS NOT A FORECAST, SO IT NO LONGER DRESSES AS ONE ─────────────
-          The sentence is one static string per skin type, written by the
-          assessment, and it names BOTH seasons in the same breath: "Summer: …
-          Winter: …". Printed under a weather emoji, above a routine built this
-          morning, it read as advice for today — and there is no clock and no
-          city anywhere in the engine that produced it. The heading says what it
-          actually is: the standing note about how this routine moves through
-          the year. Give the engine a date and a place and this can become a
-          forecast; until then it must not look like one. */}
+      {/* The standing note about how this routine moves through the year. It
+          names both seasons in one breath and is not a forecast — there is no
+          clock and no city in the engine that produced it — so it must not
+          look like one. */}
       {!empty && seasonal && (
-        <div style={{ margin: '0 0 14px', background: 'var(--paper)', borderRadius: 'var(--r-1)', padding: '10px 12px' }}>
-          <div className="muted" style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase' }}>
-            How this routine changes with the seasons
-          </div>
-          <p style={{ fontSize: 12.5, lineHeight: 1.55, margin: '4px 0 0' }}>{seasonal}</p>
+        <div className="rt-note">
+          <span className="st-role">How this routine changes with the seasons</span>
+          <p>{seasonal}</p>
         </div>
       )}
 
@@ -1052,17 +784,19 @@ export function Routine() {
               are different on purpose and the page shows both rather than
               collapsing one into the other. */}
           {plans.length > 0 && (
-            <>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', margin: '2px 0 9px' }}>
-                <h2 style={{ fontSize: 13, margin: 0, textTransform: 'uppercase', letterSpacing: '.12em' }}>Your budget</h2>
-                <span className="muted" style={{ fontSize: 11.5 }}>
-                  {rupees(spendTotal)} of {rupees(data.plan?.totalBudgetInr ?? 0)} · ≈ {rupees(monthlyTotal)}/month to keep
-                </span>
-                {/* THE ONE PLACE A BUDGET IS SET IS THE PROFILE, so this is a
-                    way back to it and not a second set of dials. */}
-                <Link to="/beauty/profile" style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700 }}>Adjust budget</Link>
+            <section className="rt-budget beauty-sheet" aria-labelledby="rt-budget-h">
+              <div className="rt-budget-row">
+                <h2 id="rt-budget-h" className="st-role rt-budget-h">Your budget</h2>
+                <span className="rt-budget-fig"><span className="muted">Routine cost </span><strong>{rupees(spendTotal)}</strong> <span className="muted">of {rupees(data.plan?.totalBudgetInr ?? 0)}</span></span>
+                <span className="muted rt-budget-keep">≈ {rupees(monthlyTotal)}/month to keep</span>
+                {/* THE ONE PLACE A BUDGET IS SET IS THE PROFILE. */}
+                <Link to="/beauty/profile" className="rt-budget-adjust">Adjust budget</Link>
               </div>
-              <div className="routine-budget" style={{ marginBottom: 16 }}>
+              {/* Said once, here, rather than inside each of the three asks. */}
+              {plans.some((c) => (c.minimumInr !== null || c.idealInr !== null) && !kept[c.category]) && (
+                <p className="muted rt-budget-note">A better routine costs more than you set — we won&rsquo;t go over your budget without asking. Set the number, or keep yours.</p>
+              )}
+              <div className="rt-meters">
                 {plans.map((c) => (
                   <BudgetCard key={c.category} c={c}
                     kept={kept[c.category] ?? false}
@@ -1074,7 +808,7 @@ export function Routine() {
                     }} />
                 ))}
               </div>
-            </>
+            </section>
           )}
 
           {/* AM and PM abreast, as in the reference; the divider between them is
@@ -1094,19 +828,19 @@ export function Routine() {
 
           <div className="routine-assure beauty-sheet">
             {ASSURANCES.map(([mark, text]) => (
-              <div key={text} style={{ display: 'flex', gap: 9, alignItems: 'center' }}>
-                <span aria-hidden style={{ fontSize: 15, color: 'var(--accent-ink)' }}>{mark}</span>
-                <span className="muted" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', lineHeight: 1.4 }}>{text}</span>
+              <div key={text} className="rt-assure">
+                <span aria-hidden className="rt-assure-mark">{mark}</span>
+                <span className="muted rt-assure-text">{text}</span>
               </div>
             ))}
           </div>
 
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="rt-foot-links">
             <Link to="/beauty/market"><Button variant="line" size="sm">Browse the whole market</Button></Link>
             <Link to="/beauty/profile"><Button variant="line" size="sm">Update my profile</Button></Link>
           </div>
 
-          <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.55, marginTop: 18 }}>{data.disclaimer}</p>
+          <p className="muted rt-disclaimer">{data.disclaimer}</p>
         </>
       )}
 

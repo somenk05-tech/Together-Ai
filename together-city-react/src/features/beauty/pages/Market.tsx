@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { AllergyNote, EmptyState, Spinner } from '@/components/ui';
 import { useBagActions, useBeautyProducts, useBeautyRoutine, type RecommendedProduct } from '../api';
 import { BeautyBagBar } from '../components/BeautyBagBar';
 import { ShareToChat } from '@/features/chat/share';
 import { ProductShot } from '../components/ProductShot';
+import { IngredientChips, IngredientList } from '../components/Ingredients';
 
 /**
  * The whole shelf, laid out as a shop.
@@ -92,10 +94,8 @@ function Tile(
         ₹{p.priceInr.toLocaleString('en-IN')}
         {p.tier && <span className="st-keep"> · {p.tier}</span>}
       </div>
-      <p className="st-why">
-        {(p.actives.slice(0, 2).join(' · ') || p.keyIngredient)}
-        {p.matched ? ` · ${p.matchScore}% match` : ''}
-      </p>
+      <IngredientChips ingredients={p.ingredients} />
+      {p.matched && <p className="st-why">{p.matchScore}% match</p>}
 
       <button type="button" className="st-details" onClick={() => setOpen(!open)}
         aria-expanded={open}>
@@ -103,29 +103,33 @@ function Tile(
       </button>
 
       {open && (
-        <div style={{ textAlign: 'left', margin: '6px 0 10px', padding: '10px 12px', background: 'var(--paper)', borderRadius: 'var(--r-1)', display: 'flex', flexDirection: 'column', gap: 7 }}>
-          <p style={{ fontSize: 12, lineHeight: 1.55, margin: 0, color: 'var(--ink-soft)' }}>{p.blurb}</p>
-          <div className="muted" style={{ fontSize: 11 }}>
-            <strong style={{ color: 'var(--ink-soft)' }}>{p.actives.slice(0, 3).join(' · ')}</strong>
+        <div className="st-dossier">
+          <p className="st-dossier-blurb">{p.blurb}</p>
+          <div className="muted st-dossier-meta">
+            <strong>{p.actives.slice(0, 3).join(' · ')}</strong>
             {' '}· {p.usage.toLowerCase()}{!p.suitableSkin.includes('all') ? ` · for ${p.suitableSkin.join('/')} skin` : ''}
           </div>
+          {/* The same list the routine card folds, inside the tile's one
+              Details panel — a tile is compared, not read, and a second
+              disclosure on it would be a second thing to open before the
+              first has said anything. */}
+          <div>
+            <div className="ingredient-head">Ingredients</div>
+            <IngredientList ingredients={p.ingredients} source={p.ingredientsSource} />
+          </div>
           {p.primaryReasons.length > 0 && (
-            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-              {p.primaryReasons.map((r) => (
-                <span key={r} style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 'var(--r-full)', padding: '3px 9px' }}>{r}</span>
-              ))}
+            <div className="st-dossier-chips">
+              {p.primaryReasons.map((r) => <span key={r} className="st-dossier-chip is-reason">{r}</span>)}
             </div>
           )}
           {p.biomarkerReasons.length > 0 && (
-            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-              {p.biomarkerReasons.map((r) => (
-                <span key={r} style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '2px 8px' }}>🩸 {r}</span>
-              ))}
+            <div className="st-dossier-chips">
+              {p.biomarkerReasons.map((r) => <span key={r} className="st-dossier-chip">🩸 {r}</span>)}
             </div>
           )}
-          <p style={{ fontSize: 11.5, lineHeight: 1.55, margin: 0, color: 'var(--muted)' }}>{p.explanation}</p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ marginLeft: 'auto' }}>
+          <p className="muted st-dossier-why">{p.explanation}</p>
+          <div className="st-dossier-share">
+            <span>
               <ShareToChat label="" item={{
                 kind: 'product', hub: 'Beauty', title: p.name, subtitle: `${p.category} · ${p.keyIngredient}`,
                 priceInr: p.priceInr, deepLink: '/beauty/market', meta: p.matched ? [`${p.matchScore}% match`] : [],
@@ -215,105 +219,110 @@ export function Market() {
   const countIn = (k: Segment) => all.filter((p) => p.group === k).length;
   const heading = cat || (q.trim() ? `“${q.trim()}”` : `All ${SEGMENTS.find((s) => s.key === seg)!.label.toLowerCase()}`);
 
+  const segLabel = SEGMENTS.find((s) => s.key === seg)!.label;
+
   return (
-    /* THE SHEET IS WHAT MAKES THIS PAGE PART OF THE HUB. Profile and Routine
-       read as beige because their plates and sheets cover the page; this one
-       had nothing, so a grid of white product tiles sat straight on the black
-       wall and the whole shop read as a different application. The owner's
-       call was explicit: the wall stays, and every page gets a sheet so the
-       black shows only at the edges.
+    /* THE SHEET IS WHAT MAKES THIS PAGE PART OF THE HUB: the wall stays, and
+       every page gets a sheet so the black shows only at the edges.
 
-       NOT on `.page` globally — that makes one undifferentiated cream slab and
-       the plates lose the edge that makes them read as plates. */
+       A COLLECTION PAGE (owner, 3 Sep: "like a Shopify site"). Breadcrumb on
+       top; the filters — shop by, category, sort, search — in a rail on the
+       left; the title, the count and the grid on the right. On a phone the
+       rail folds above the grid as one row of chips. Nothing the page knew
+       moved: the same segments, the same categories in shelf order, the same
+       four sorts, the same search over name, brand and ingredient. */
     <div className="beauty-sheet is-shop">
-      <div className="eyebrow">Beauty Market · Shop</div>
-
-      {/* ── the category row, across the top, as in the reference ───────── */}
-      <nav className="market-tabs" aria-label="Shop by">
-        {SEGMENTS.map(({ key, label }) => (
-          <button key={key} type="button" onClick={() => { setSeg(key); setCat(''); }}
-            aria-current={seg === key ? 'true' : undefined}
-            className={seg === key ? 'on' : undefined}>
-            {label} <span style={{ opacity: .55, fontWeight: 500 }}>{countIn(key)}</span>
-          </button>
-        ))}
+      <nav className="mk-crumb" aria-label="Breadcrumb">
+        <Link to="/beauty">Beauty</Link>
+        <span aria-hidden>/</span>
+        <span>Market</span>
+        <span aria-hidden>/</span>
+        <span aria-current="page">{cat || segLabel}</span>
       </nav>
 
-      <AllergyNote notice={products.data.allergyNotice} manageTo="/beauty/profile" />
+      <div className="mk-layout">
+        <aside className="mk-aside" aria-label="Filter the shelf">
+          <div className="mk-group">
+            <div className="st-role">Shop by</div>
+            {SEGMENTS.map(({ key, label }) => (
+              <button key={key} type="button" className={`mk-opt${seg === key ? ' is-on' : ''}`}
+                onClick={() => { setSeg(key); setCat(''); }} aria-current={seg === key ? 'true' : undefined}>
+                <span>{label}</span><span className="muted">{countIn(key)}</span>
+              </button>
+            ))}
+          </div>
 
-      {/* A shorter shelf is only ever OUR RULE or OUR RANGE, and from the outside
-          those look identical. The allergy note has said which since K5.66; a
-          condition held products back silently until it didn't. */}
-      {products.data.conditionNotice && (
-        <p className="muted" style={{ fontSize: 12, lineHeight: 1.55, margin: '0 0 12px' }}>
-          {products.data.conditionNotice.sentence}
-        </p>
-      )}
+          {/* The categories this segment actually has, in shelf order — so
+              the rail never offers a filter that would empty the page. */}
+          <div className="mk-group">
+            <div className="st-role">Category</div>
+            {[['', 'Everything', inSegment.length] as [string, string, number],
+              ...categories.map(([c, n]) => [c, c, n] as [string, string, number])].map(([value, label, n]) => (
+              <button key={value || 'all'} type="button" className={`mk-opt${cat === value ? ' is-on' : ''}`}
+                onClick={() => setCat(value)} aria-current={cat === value ? 'true' : undefined}>
+                <span>{label}</span><span className="muted">{n}</span>
+              </button>
+            ))}
+          </div>
 
-      {/* ── filter · title · sort ───────────────────────────────────────── */}
-      <div className="market-bar">
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
-          <input value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search the shelf"
-            placeholder="Search name, brand or ingredient"
-            style={{ width: '100%', maxWidth: 260, border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '8px 14px', fontSize: 12.5, fontFamily: 'inherit', background: 'var(--paper)', color: 'var(--ink)', outline: 'none' }} />
-        </div>
+          <div className="mk-group">
+            <label className="st-role" htmlFor="market-sort">Sort by</label>
+            <select id="market-sort" className="mk-select" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+              {SORTS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+            </select>
+          </div>
 
-        <h1 style={{ fontSize: 20, margin: 0, textAlign: 'center', fontWeight: 600 }}>{heading}</h1>
+          <div className="mk-group">
+            <label className="st-role" htmlFor="market-q">Search</label>
+            <input id="market-q" className="mk-input" value={q} onChange={(e) => setQ(e.target.value)}
+              placeholder="Name, brand or ingredient" />
+          </div>
+        </aside>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, alignItems: 'center' }}>
-          <label className="muted" style={{ fontSize: 11.5 }} htmlFor="market-sort">Sort by</label>
-          <select id="market-sort" value={sort} onChange={(e) => setSort(e.target.value as Sort)}
-            style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-full)', padding: '7px 12px', fontSize: 12.5, fontFamily: 'inherit', background: 'var(--paper)', color: 'var(--ink)', outline: 'none' }}>
-            {SORTS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-          </select>
+        <div className="mk-main">
+          <AllergyNote notice={products.data.allergyNotice} manageTo="/beauty/profile" />
+          {/* A shorter shelf is only ever OUR RULE or OUR RANGE, and from the
+              outside those look identical. A condition that held products
+              back says so. */}
+          {products.data.conditionNotice && (
+            <p className="muted mk-notice">{products.data.conditionNotice.sentence}</p>
+          )}
+
+          <div className="mk-head">
+            <h1 className="mk-title">{heading}</h1>
+            <span className="muted mk-count">{shown.length} product{shown.length === 1 ? '' : 's'}</span>
+          </div>
+
+          {shown.length === 0 ? (
+            <EmptyState
+              icon="🧴"
+              title="Nothing here"
+              hint={q.trim()
+                ? `Nothing on this shelf matches “${q.trim()}”. Try a brand, or an ingredient like niacinamide.`
+                : products.data.allergyNotice
+                  ? 'Everything in this part of the shelf has an ingredient you told us to avoid.'
+                  : 'Nothing in this part of the shelf yet.'}
+            />
+          ) : (
+            sections.map((s) => (
+              <section key={s.title || 'all'} className="mk-section">
+                {s.title && (
+                  <div className="mk-section-head">
+                    <h2 className="mk-section-title">{s.title}</h2>
+                    <span className="muted mk-count">{s.rows.length}</span>
+                  </div>
+                )}
+                <div className="market-grid">
+                  {s.rows.map((p) => (
+                    <Tile key={p.id} p={p} inRoutine={routineBands.get(p.id) ?? []}
+                      qty={bagged.qtyOf(p.id)} onAdd={() => bagged.add(p.id)} onRemove={() => bagged.remove(p.id)} />
+                  ))}
+                </div>
+              </section>
+            ))
+          )}
         </div>
       </div>
-
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '0 0 20px' }}>
-        {[['', `Everything ${inSegment.length}`] as [string, string],
-          ...categories.map(([c, n]) => [c, `${c} ${n}`] as [string, string])].map(([value, label]) => (
-          <button key={value || 'all'} type="button" onClick={() => setCat(value)}
-            /* minHeight 44: these are the page's primary filter and were
-               ~34px in a 6px-gap wrap row — the classic mis-tap geometry.
-               (The owner's 3e05b7f fix, restored after c7e92d1 overwrote it
-               from a stale copy.) */
-            style={{ cursor: 'pointer', borderRadius: 'var(--r-full)', padding: '6px 13px', minHeight: 44, fontSize: 12, fontFamily: 'inherit', fontWeight: 600,
-              border: `1.5px solid ${cat === value ? 'var(--accent)' : 'var(--line)'}`,
-              background: cat === value ? 'var(--accent)' : 'transparent',
-              color: cat === value ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {shown.length === 0 ? (
-        <EmptyState
-          icon="🧴"
-          title="Nothing here"
-          hint={q.trim()
-            ? `Nothing on this shelf matches “${q.trim()}”. Try a brand, or an ingredient like niacinamide.`
-            : products.data.allergyNotice
-              ? 'Everything in this part of the shelf has an ingredient you told us to avoid.'
-              : 'Nothing in this part of the shelf yet.'}
-        />
-      ) : (
-        sections.map((s) => (
-          <section key={s.title || 'all'} style={{ marginBottom: 26 }}>
-            {s.title && (
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, borderBottom: '1px solid var(--line)', paddingBottom: 7, marginBottom: 16 }}>
-                <h2 style={{ fontSize: 12, margin: 0, textTransform: 'uppercase', letterSpacing: '.11em' }}>{s.title}</h2>
-                <span className="muted" style={{ fontSize: 11.5 }}>{s.rows.length}</span>
-              </div>
-            )}
-            <div className="market-grid">
-              {s.rows.map((p) => (
-                <Tile key={p.id} p={p} inRoutine={routineBands.get(p.id) ?? []}
-                  qty={bagged.qtyOf(p.id)} onAdd={() => bagged.add(p.id)} onRemove={() => bagged.remove(p.id)} />
-              ))}
-            </div>
-          </section>
-        ))
-      )}
 
       <BeautyBagBar />
     </div>
