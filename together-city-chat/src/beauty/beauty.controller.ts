@@ -7,6 +7,7 @@ import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { BeautyService } from './beauty.service';
 import { LookAnalysisService } from './look-analysis.service';
 import { PlaceBeautyOrderSchema, type PlaceBeautyOrderDto } from './dto/beauty.dto';
+import { BeautyProfileSchema } from './profile-save';
 
 import { Mira } from '../mira/mira.decorator';
 import { Throttle } from '@nestjs/throttler';
@@ -25,13 +26,7 @@ export class BeautyController {
 
   // Full skin & hair profile (rich payload); saving generates the one-time assessment.
   @Put('profile')
-  @UsePipes(new ZodValidationPipe(
-    // Rich questionnaire payload: bounded record of primitives / string lists.
-    z.record(
-      z.string().max(64),
-      z.union([z.string().max(2000), z.number(), z.boolean(), z.null(), z.array(z.string().max(300)).max(50)]),
-    ).refine((o) => Object.keys(o).length <= 80, 'too many fields'),
-  ))
+  @UsePipes(new ZodValidationPipe(BeautyProfileSchema))
   saveProfile(@CurrentUser() user: JwtUser, @Body() dto: Record<string, unknown>) {
     return this.beauty.saveProfile(user.sub, dto);
   }

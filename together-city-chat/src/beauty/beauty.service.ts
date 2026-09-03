@@ -20,6 +20,7 @@ import { allergyNotice } from '../shared/allergen-voice';
 import { buildRoutines } from './routine-engine';
 import { nextReorder, reorderDueFor } from './reorder';
 import { LookAnalysisService } from './look-analysis.service';
+import { carryEstimates } from './profile-save';
 import { assessBeauty, focusOf, noteOf, type BeautyProfileInput, type BeautyAssessment } from './beauty-analysis';
 import { buildMakeupLook, type FaceAttrs } from './makeup-engine';
 import type { PlaceBeautyOrderDto } from './dto/beauty.dto';
@@ -317,11 +318,16 @@ export class BeautyService {
           [...new Set(photos.flatMap((x) => x.findings ?? []))],
         )
       : null;
+    // The `aiEstimated` flags are the analysis's, not the form's: whatever the
+    // client echoed back is dropped, the flags on file are carried over, and
+    // any answer the citizen changed loses its label. See profile-save.ts for
+    // why the form echoing them used to make this whole save a 400.
+    const extras = JSON.stringify(carryEstimates(safeJson<Record<string, unknown>>(existing?.extras, {}), dto));
     await this.beauty.upsert({
       where: { userId },
-      update: { skinType, hairType, concerns: concerns.join(','), extras: JSON.stringify(dto),
+      update: { skinType, hairType, concerns: concerns.join(','), extras,
         ...(refreshed ? { analysisJson: JSON.stringify(refreshed) } : {}) },
-      create: { userId, skinType, hairType, concerns: concerns.join(','), extras: JSON.stringify(dto), photosJson: '[]', progressJson: '[]' },
+      create: { userId, skinType, hairType, concerns: concerns.join(','), extras, photosJson: '[]', progressJson: '[]' },
     });
 
     // Master Profile sync — shared demographics flow back to the single source of

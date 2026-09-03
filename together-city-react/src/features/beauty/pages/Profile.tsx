@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Spinner, EmptyState } from '@/components/ui';
+import { profilePayload, saveFailureMessage } from '../profile-payload';
 import { useBeautyBudget, useBeautyProfile, useSaveBeautyProfile, useAnalyzeBeautyPhotos, useBeautyInsights, useBeautyHistory, useConditionSuggestions, useDeleteLatestAssessment } from '../api';
 import type { BeautyAssessment, BeautyReading, AssessLevel, BeautyProgressEntry } from '../api';
 import { useMasterProfile } from '@/features/profile/hooks';
@@ -983,17 +984,29 @@ export function Profile() {
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', margin: '4px 0 22px', flexWrap: 'wrap' }}>
             {photosComplete && profileComplete && picsCount > 0 ? (
               <Button variant="accent" disabled={save.isPending || analyze.isPending}
-                onClick={() => save.mutate(f as unknown as Record<string, unknown>, { onSuccess: () => { void runAnalysis(); setTab('photos'); window.scrollTo({ top: 0, behavior: 'smooth' }); } })}>
+                onClick={() => save.mutate(profilePayload(f as unknown as Record<string, unknown>), { onSuccess: () => { void runAnalysis(); setTab('photos'); window.scrollTo({ top: 0, behavior: 'smooth' }); } })}>
                 {save.isPending || analyze.isPending ? 'Generating your assessment…' : '✨ Generate my AI assessment'}
               </Button>
             ) : (
-              <Button variant="accent" disabled={save.isPending || !profileComplete} onClick={() => save.mutate(f as unknown as Record<string, unknown>, { onSuccess: () => setEditingProfile(false) })}>
+              /* SAVE IS NEVER LOCKED (owner, 3 Sep: "all save profile buttons
+                 should collapse the form and save the form once clicked"). It
+                 used to be disabled until all eighteen were answered, which
+                 read as a button that did nothing — and threw away every
+                 answer given so far when the tab closed. A partial profile is
+                 saved as it stands; the form folds once the saved copy is
+                 complete, and the line beside the button counts what is left. */
+              <Button variant="accent" disabled={save.isPending} onClick={() => save.mutate(profilePayload(f as unknown as Record<string, unknown>), { onSuccess: () => setEditingProfile(false) })}>
                 {save.isPending ? 'Saving…' : 'Save profile'}
               </Button>
             )}
             {!profileComplete && <span className="muted" style={{ fontSize: 12 }}>{profileTotal - answered} question{profileTotal - answered === 1 ? '' : 's'} left — "Don't know" counts as an answer.</span>}
-            {save.isSuccess && profileComplete && <span style={{ fontSize: 13, color: 'var(--accent-ink)', fontWeight: 700 }}>✓ Saved</span>}
+            {save.isSuccess && <span style={{ fontSize: 13, color: 'var(--accent-ink)', fontWeight: 700 }}>✓ Saved</span>}
           </div>
+          {save.isError && (
+            <p role="alert" style={{ fontSize: 12.5, color: 'var(--danger-ink)', fontWeight: 600, margin: '-12px 0 22px' }}>
+              ⚠️ {saveFailureMessage(save.error)}
+            </p>
+          )}
           </>
           )}
 

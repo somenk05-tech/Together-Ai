@@ -75,6 +75,11 @@ export interface RecommendedProduct {
    *  hotlinked, so either may fail. */
   image: string; imageAlt: string; productUrl: string;
   blurb: string; keyIngredient: string; actives: string[]; usage: string; suitableSkin: string[];
+  /** What is in it, and what kind of list that is: 'sheet' is the key
+   *  ingredients the data sheet names, 'label' the pack's full INCI list. The
+   *  Ingredients tab prints the list and SAYS which, because a short list read
+   *  as a whole label tells an allergic citizen "not in it". */
+  ingredients: string[]; ingredientsSource: 'sheet' | 'label';
   matched: boolean; matchScore: number;
   primaryReasons: string[]; biomarkerReasons: string[]; explanation: string;
   reasons: string[];
@@ -98,6 +103,8 @@ export interface ProductsResponse {
 export interface ProductRoutineStep {
   order: number; step: string; productId: string; name: string; brand: string;
   category: string; keyIngredient: string; priceInr: number;
+  /** See RecommendedProduct.ingredients. */
+  ingredients: string[]; ingredientsSource: 'sheet' | 'label';
   /** Two hotlinked photographs and the page it is sold on. Either image can be
    *  empty and either can simply fail — the step falls through to the second
    *  and then to a category mark rather than showing a broken frame. */
@@ -326,8 +333,12 @@ export function useSaveBeautyProfile() {
     mutationFn: beautyApi.saveProfile,
     onSuccess: (p) => {
       qc.setQueryData(['beauty', 'profile'], p);
-      void qc.invalidateQueries({ queryKey: ['beauty', 'products'] });
-      void qc.invalidateQueries({ queryKey: ['beauty', 'history'] });
+      // A saved profile is an input to everything downstream of it, here and
+      // across the city: the routine, the shelf, the insights, the makeup
+      // look, and the Master Profile's panels, summary and completion. All of
+      // it re-reads, so nowhere on the site keeps showing the answers that
+      // were just replaced (owner ask, 3 Sep).
+      void qc.invalidateQueries({ queryKey: ['beauty'], predicate: (q) => q.queryKey[1] !== 'profile' });
       void qc.invalidateQueries({ queryKey: ['profile'] });
     },
   });

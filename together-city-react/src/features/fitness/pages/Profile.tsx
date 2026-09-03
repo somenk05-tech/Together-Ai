@@ -4,6 +4,7 @@ import { useFormValidation, ValidationSummary, successToast } from '@/components
 import { Button, Spinner, EmptyState } from '@/components/ui';
 import { useFitnessProfile, useSaveFitnessProfile } from '../api';
 import { useMasterProfile } from '@/features/profile/hooks';
+import { serverMessage } from '@/features/dating/server-sentence';
 import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLockedField';
 
 const GOALS = [
@@ -294,6 +295,11 @@ export function Profile() {
         </Button>
         {save.isSuccess && <span style={{ fontSize: 13, color: 'var(--accent-ink)', fontWeight: 700 }}>✓ Saved — see My Plan & Body Goal</span>}
       </div>
+      {save.isError && (
+        <p role="alert" style={{ fontSize: 12.5, color: 'var(--danger-ink)', fontWeight: 600, margin: '10px 0 0' }}>
+          ⚠️ Your profile wasn't saved — {serverMessage(save.error) ?? 'it didn’t reach us. Nothing you’ve entered has been lost; press Save again in a moment.'}
+        </p>
+      )}
     </div>
   );
 }
