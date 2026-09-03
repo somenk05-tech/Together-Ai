@@ -87,6 +87,7 @@ export const ENV_MANIFEST: EnvEntry[] = [
   { name: 'EMAIL_FROM', group: 'Mail', purpose: 'The address outbound mail is sent from.', whenMissing: 'Falls back to a default sender, which the receiving domain may reject as unauthenticated.' },
   { name: 'RESEND_INBOUND_SECRET', group: 'Mail', purpose: 'The shared secret on the inbound-mail webhook.', whenMissing: 'Inbound mail is REFUSED entirely — replies sent from Gmail never reach a citizen\'s mailbox.', secret: true },
   { name: 'ALLOW_UNSIGNED_INBOUND', group: 'Mail', purpose: 'Development-only: accept inbound mail with no secret.', whenMissing: 'Correct. This should never be set on a public deployment.' },
+  { name: 'ALLOW_INBOUND_SECRET_IN_URL', group: 'Mail', purpose: 'Migration-only: accept the inbound secret as ?secret= on the URL, where the platform logs it.', whenMissing: 'Correct. The secret belongs in an Authorization: Bearer header.' },
 
   // ── Messaging & calls ───────────────────────────────────────────────────
   { name: 'MESSAGING_PROVIDER', group: 'Messaging & calls', purpose: 'twilio | stub. Which SMS sender is wired up.', whenMissing: 'SMS is logged instead of sent, so phone verification silently never arrives.' },
@@ -192,6 +193,7 @@ export const ENV_MANIFEST: EnvEntry[] = [
   { name: 'DATING_LIST_CACHE_SEC', group: 'Operations', purpose: 'How long one viewer\'s dating list answer is kept in Redis before it is scored again. Their own like, pass, connect or save drops it at once. Default 60.', whenMissing: 'Uses the built-in sixty seconds per viewer, per page.' },
   { name: 'DATING_REINDEX_DEBOUNCE_MS', group: 'Operations', purpose: 'How long a profile save waits for the next one before the new-match scan runs. Default 5000.', whenMissing: 'Uses the built-in five seconds between a save and its scan.' },
   { name: 'WALLET_SELF_TOPUP', group: 'Operations', purpose: '"on" lets a citizen credit their own wallet through the API. Off in production until a payment processor confirms the money.', whenMissing: 'Correct: in production, self top-up is refused.' },
+  { name: 'PAYMENTS_SANDBOX', group: 'Operations', purpose: '"on" lets the simulated payment and payout providers run with NODE_ENV=production — a staging deploy, never the live city. Off, card payments, card linking and payouts are refused with "not available yet" until a real processor is signed and bound in commerce.module.ts.', whenMissing: 'Correct: in production the sandbox refuses every charge, card link and payout; wallet-only payments still work.' },
   { name: 'CORS_PREVIEW_PROJECT', group: 'Operations', purpose: 'The Vercel project slug whose preview URLs may call the API with credentials.', whenMissing: 'No preview URL is allowed. Only CORS_ORIGIN and the site itself.' },
   { name: 'CORS_PREVIEW_TEAM', group: 'Operations', purpose: 'The Vercel team slug, so preview URLs are matched to this team and not to every *.vercel.app.', whenMissing: 'Preview URLs are matched by project alone.' },
 

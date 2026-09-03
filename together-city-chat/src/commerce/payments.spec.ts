@@ -1,8 +1,9 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { SettlementService } from './settlement.service';
 import { SandboxPaymentProvider, SandboxPayoutProvider } from './sandbox.provider';
 import { feeFor, nextBusinessDay, dayKey } from './money';
+import { FLAGS } from '../dev/feature-flags';
 
 /**
  * THE SPLIT, AGAINST A DATABASE-SHAPED THING.
@@ -362,5 +363,70 @@ describe('what the business is owed', () => {
     expect(h.threadLines).toHaveLength(1);
     expect(h.threadLines[0].body).toMatch(/Paid ₹4,850/);
     expect(h.threadLines[0].senderSide).toBe('seeker');
+  });
+});
+
+/**
+ * ── THE SANDBOX DOES NOT RUN IN PRODUCTION (launch blocker 2, 2 Sep) ─────────
+ *
+ * Everything above proves the till adds up. This proves it is CLOSED where it
+ * has no processor behind it: with NODE_ENV=production and PAYMENTS_SANDBOX
+ * unset, a card leg is refused before an intent is written or a wallet leg
+ * taken, the sandbox classes refuse on their own, and the quote says so —
+ * while a wallet-only payment, which is real money in a real ledger, still
+ * goes through. PAYMENTS_SANDBOX=on reopens it, for a staging deploy.
+ */
+describe('the sandbox in production', () => {
+  const inProduction = async <T>(fn: () => Promise<T>, sandbox?: 'on'): Promise<T> => {
+    const saved = { NODE_ENV: process.env.NODE_ENV, PAYMENTS_SANDBOX: process.env.PAYMENTS_SANDBOX };
+    process.env.NODE_ENV = 'production';
+    if (sandbox) process.env.PAYMENTS_SANDBOX = sandbox; else delete process.env.PAYMENTS_SANDBOX;
+    try { return await fn(); } finally {
+      process.env.NODE_ENV = saved.NODE_ENV;
+      if (saved.PAYMENTS_SANDBOX === undefined) delete process.env.PAYMENTS_SANDBOX; else process.env.PAYMENTS_SANDBOX = saved.PAYMENTS_SANDBOX;
+    }
+  };
+
+  it('refuses a card leg before anything is written, and the wallet is untouched', async () => {
+    const h = harness({ balanceInr: 2_350 });
+    await inProduction(() =>
+      expect(h.payments.pay('CITIZEN', 'I1', { expectInr: 4_850, useWallet: true }, 'k1')).rejects.toBeInstanceOf(ForbiddenException));
+    expect(h.intents).toHaveLength(0);
+    expect(h.walletTxns).toHaveLength(0);
+    expect(h.balance()).toBe(2_350);
+    expect(h.invoice.paidInr).toBe(0);
+  });
+
+  it('still pays from the wallet alone — that is real money in a real ledger', async () => {
+    const h = harness({ balanceInr: 10_000 });
+    const out = await inProduction(() => h.payments.pay('CITIZEN', 'I1', { expectInr: 4_850, useWallet: true }, 'k1'));
+    expect(out.paid).toBe(true);
+    expect(out.payment.cardInr).toBe(0);
+    expect(h.balance()).toBe(5_150);
+  });
+
+  it('tells the sheet in the quote, so no card button is drawn', async () => {
+    const h = harness({ balanceInr: 2_350 });
+    expect((await h.payments.quote('CITIZEN', 'I1', true)).cardAvailable).toBe(true);
+    expect((await inProduction(() => h.payments.quote('CITIZEN', 'I1', true))).cardAvailable).toBe(false);
+    expect((await inProduction(() => h.payments.quote('CITIZEN', 'I1', true), 'on')).cardAvailable).toBe(true);
+  });
+
+  it('the sandbox classes refuse on their own, so a new caller cannot route around the door', async () => {
+    const pay = new SandboxPaymentProvider();
+    const out = new SandboxPayoutProvider();
+    await inProduction(async () => {
+      await expect(pay.charge({ amountInr: 100, instrumentRef: 'visa:4242:x', reference: 'r', idempotencyKey: 'a' })).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(out.registerAccount({ accountNumber: '123456789', ifsc: 'HDFC0001234', holderName: 'x' } as never)).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(out.transfer({ amountInr: 100, accountRef: 'fa_1', reference: 'r', idempotencyKey: 'b' } as never)).rejects.toBeInstanceOf(ForbiddenException);
+    });
+    // And open again with the variable, for a staging deploy.
+    const ok = await inProduction(() => pay.charge({ amountInr: 100, instrumentRef: 'visa:4242:x', reference: 'r', idempotencyKey: 'c' }), 'on');
+    expect(ok.status).toBe('succeeded');
+  });
+
+  it('is on the kill-switch list under its own key', () => {
+    const flag = FLAGS.find((f) => f.key === 'pay');
+    expect(flag?.prefixes).toEqual(['pay']);
   });
 });

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Fold, Spinner } from '@/components/ui';
-import { useWallet, useTopUp, useServices, useLinkCard, useRemoveCard, catIcon, inr, type Txn } from '../api';
+import { useWallet, useTopUp, useServices, useRemoveCard, catIcon, inr, type Txn } from '../api';
 import { PrivacyNote } from '@/features/privacy/PrivacyNote';
 import { useMyInvoices } from '@/features/pay/api';
 import { InvoiceCard } from '@/features/pay/InvoiceBits';
@@ -27,7 +27,6 @@ export function Wallet() {
   const wallet = useWallet();
   const topUp = useTopUp();
   const services = useServices();
-  const linkCard = useLinkCard();
   const removeCard = useRemoveCard();
   const [amount, setAmount] = useState('');
 
@@ -68,13 +67,10 @@ export function Wallet() {
             <Button variant="line" size="sm" disabled={removeCard.isPending} onClick={() => removeCard.mutate()}>Remove</Button>
           </div>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10 }}>
-            <span className="muted" style={{ fontSize: 13, flex: 1 }}>No card linked. Add one to pay without topping up the wallet.</span>
-            <Button variant="accent" size="sm" disabled={linkCard.isPending}
-              onClick={() => linkCard.mutate({ brand: 'Visa', last4: '4242', name: 'City Card' })}>
-              {linkCard.isPending ? 'Linking…' : '＋ Link a card'}
-            </Button>
-          </div>
+          /* No button mints a card (launch blocker 2, 2 Sep) — see PayInvoiceSheet. */
+          <p className="muted" style={{ fontSize: 13, margin: '10px 0 0' }}>
+            Card payments are not available yet — the city has no payment partner. Your wallet is the way to pay for now.
+          </p>
         )}
       </div>
 

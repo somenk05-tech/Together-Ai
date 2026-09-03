@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui';
-import { useWallet, useLinkCard, inr, type PayMethod } from './api';
+import { useWallet, inr, type PayMethod } from './api';
 
 /**
  * Unified payment confirmation. Nothing is charged until the user picks a method
@@ -24,7 +24,6 @@ export function PaymentSheet({
   walletOnly?: boolean;
 }) {
   const wallet = useWallet();
-  const linkCard = useLinkCard();
   const [method, setMethod] = useState<PayMethod>('wallet');
   if (!open) return null;
 
@@ -63,17 +62,16 @@ export function PaymentSheet({
         {walletOnly ? null : card ? (
           <Option m="card" title={`${card.brand} •• ${card.last4}`} sub={card.name} />
         ) : (
-          <button type="button" onClick={() => linkCard.mutate({ brand: 'Visa', last4: '4242', name: 'City Card' }, { onSuccess: () => setMethod('card') })}
-            disabled={linkCard.isPending}
-            style={{ width: '100%', textAlign: 'left', cursor: 'pointer', borderRadius: 12, padding: '12px 14px', marginBottom: 8, fontFamily: 'inherit', border: '1.5px dashed var(--line)', background: 'transparent' }}>
-            <div style={{ fontWeight: 700, fontSize: 13.5 }}>{linkCard.isPending ? 'Linking…' : '＋ Link a credit card'}</div>
-            <div className="muted" style={{ fontSize: 11.5 }}>Pay by card instead of the wallet</div>
-          </button>
+          /* No button mints a card (launch blocker 2, 2 Sep) — see PayInvoiceSheet. */
+          <div style={{ borderRadius: 12, padding: '12px 14px', marginBottom: 8, border: '1.5px dashed var(--line)' }}>
+            <div style={{ fontWeight: 700, fontSize: 13.5 }}>Card payments are not available yet</div>
+            <div className="muted" style={{ fontSize: 11.5 }}>The city has no payment partner yet — pay from your wallet.</div>
+          </div>
         )}
 
         {(error || (method === 'wallet' && walletShort)) && (
           <div style={{ fontSize: 12, color: 'var(--danger-ink)', fontWeight: 600, margin: '4px 0 8px' }}>
-            {error || 'Wallet balance is too low — top up or pay by card.'}
+            {error || 'Wallet balance is too low — top up your wallet.'}
           </div>
         )}
 

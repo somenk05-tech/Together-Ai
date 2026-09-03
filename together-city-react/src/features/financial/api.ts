@@ -29,7 +29,6 @@ export const financialApi = {
   budgets: () => api.get<Budget[]>('/financial/budgets').then((r) => r.data),
   setBudget: (category: string, monthlyInr: number) => api.put<Budget[]>('/financial/budgets', { category, monthlyInr }).then((r) => r.data),
   services: () => api.get<Service[]>('/financial/services').then((r) => r.data),
-  linkCard: (input: { brand?: string; last4?: string; name?: string }) => api.post<Card>('/financial/card', input).then((r) => r.data),
   removeCard: () => api.delete<{ ok: boolean }>('/financial/card').then((r) => r.data),
 
 };
@@ -55,13 +54,6 @@ export function useBudgets() {
 }
 export function useServices() {
   return useQuery({ queryKey: ['financial', 'services'], queryFn: () => financialApi.services() });
-}
-export function useLinkCard() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (input: { brand?: string; last4?: string; name?: string }) => financialApi.linkCard(input),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['financial', 'wallet'] }),
-  });
 }
 export function useRemoveCard() {
   const qc = useQueryClient();

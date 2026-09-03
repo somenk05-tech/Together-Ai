@@ -1,9 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import type {
   ChargeRequest, ChargeResult, PaymentProvider, PayoutAccountRequest, PayoutAccountResult,
   PayoutProvider, RefundRequest, RefundResult, TransferRequest, TransferResult,
 } from './provider';
-import { bankCodeOf, last4Of } from './provider';
+import { bankCodeOf, last4Of, sandboxAllowed, CARD_PAYMENTS_UNAVAILABLE, PAYOUTS_UNAVAILABLE } from './provider';
 
 /**
  * THE PROVIDER THAT IS NOT ONE.
@@ -49,6 +49,8 @@ export class SandboxPaymentProvider implements PaymentProvider {
   }
 
   async charge(req: ChargeRequest): Promise<ChargeResult> {
+    // Belt to PaymentsService.pay's braces — see sandboxAllowed in provider.ts.
+    if (!sandboxAllowed()) throw new ForbiddenException(CARD_PAYMENTS_UNAVAILABLE);
     const replay = this.seen.get(req.idempotencyKey);
     if (replay) return replay;
 
@@ -112,6 +114,7 @@ export class SandboxPayoutProvider implements PayoutProvider {
   }
 
   async registerAccount(req: PayoutAccountRequest): Promise<PayoutAccountResult> {
+    if (!sandboxAllowed()) throw new ForbiddenException(PAYOUTS_UNAVAILABLE);
     const digits = req.accountNumber.replace(/\D/g, '');
     if (digits.length < 6) {
       return { status: 'rejected', message: 'That account number is too short to be one.' };
@@ -128,6 +131,7 @@ export class SandboxPayoutProvider implements PayoutProvider {
   }
 
   async transfer(req: TransferRequest): Promise<TransferResult> {
+    if (!sandboxAllowed()) throw new ForbiddenException(PAYOUTS_UNAVAILABLE);
     const replay = this.seen.get(req.idempotencyKey);
     if (replay) return replay;
     const result: TransferResult = req.accountRef.includes('fail')

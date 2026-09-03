@@ -1,11 +1,11 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ClockService } from '../shared/clock/clock.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { FinancialService, isUniqueViolation } from '../financial/financial.service';
 import { InvoicesService, maskRef } from './invoices.service';
 import { SettlementService } from './settlement.service';
-import { PAYMENT_PROVIDER, type PaymentProvider } from './provider';
+import { PAYMENT_PROVIDER, type PaymentProvider, sandboxAllowed, CARD_PAYMENTS_UNAVAILABLE } from './provider';
 import { splitFor, outstandingInr, statusOf, PAYABLE } from './money';
 import type { PayInvoiceDto } from './dto/commerce.dto';
 
@@ -86,7 +86,16 @@ export class PaymentsService {
       ...split,
       /** A card leg with no card linked is the one thing the sheet must block. */
       needsCard: split.cardInr > 0 && !wallet.card,
+      /** False in production until a payment partner is signed: the sheet says
+       *  so instead of offering a card button that leads to a 403. */
+      cardAvailable: this.cardAvailable(),
     };
+  }
+
+  /** The sandbox is the only provider there is; in production it is off. A
+   *  real adapter has a different name and is never gated by this. */
+  private cardAvailable(): boolean {
+    return this.provider.name !== 'mock' || sandboxAllowed();
   }
 
   /**
@@ -136,6 +145,14 @@ export class PaymentsService {
 
     const wallet = await this.financial.wallet(userId);
     const split = splitFor({ amountInr: due, balanceInr: wallet.balanceInr, useWallet: dto.useWallet });
+
+    // ── a card leg with no processor to run it (launch blocker 2, 2 Sep) ────
+    // BEFORE the intent is written and BEFORE the wallet leg is taken, so the
+    // refusal costs nothing to unwind. The sandbox class refuses too; this is
+    // the check that keeps the wallet whole.
+    if (split.cardInr > 0 && !this.cardAvailable()) {
+      throw new ForbiddenException(CARD_PAYMENTS_UNAVAILABLE);
+    }
 
     // ── insufficient wallet balance, and no card to make it up ──────────────
     if (split.cardInr > 0 && !wallet.card) {

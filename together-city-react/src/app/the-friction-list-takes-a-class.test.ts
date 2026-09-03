@@ -90,7 +90,9 @@ describe('the friction list takes a class', () => {
     // commit after the 1 Sep lowering) and a third spacer on /profile had put
     // it six OVER at HEAD without anybody's landing script noticing. Both took
     // classes; the ceiling follows the reading, as it says to on every run.
-    expect(s).toMatch(/inlineStyleBlocks: 6679,/);
+    // And 2 Sep, evening, one lower: the wallet page stopped drawing a button
+    // that minted a card (launch blocker 2) and lost a style object with it.
+    expect(s).toMatch(/inlineStyleBlocks: 6678,/);
     expect(s).toMatch(/rawSpacing: 3605,/);
     // The two the script prints beside them, pinned for the same reason: a
     // number nothing reads is a number that drifts back up.

@@ -48,6 +48,8 @@ export interface Quote {
   invoiceId: string; number: string; dueInr: number; balanceInr: number;
   card: { brand: string; last4: string; name: string } | null;
   walletInr: number; cardInr: number; needsCard: boolean;
+  /** False until a payment partner is signed — the server says, the sheet does not guess. */
+  cardAvailable: boolean;
 }
 
 export interface PaidResult {

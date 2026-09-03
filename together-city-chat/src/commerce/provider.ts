@@ -29,6 +29,33 @@
 
 export type ChargeStatus = 'succeeded' | 'failed';
 
+/**
+ * ── THE SANDBOX DOES NOT RUN IN PRODUCTION (launch blocker 2, 2 Sep) ─────────
+ *
+ * `SandboxPaymentProvider` succeeds any charge whose instrument does not say
+ * "decline", and `SandboxPayoutProvider` accepts any bank account whose IFSC
+ * is the right shape. Bound in production, that is an invoice a citizen can
+ * mark paid with a card that does not exist, a business owed money nobody
+ * collected, and a payout "processing" to an account nobody verified. The
+ * wallet top-up already refuses in production for the same reason
+ * (`financial.service.ts`, WALLET_SELF_TOPUP); this is the same rule for the
+ * other two doors money goes through.
+ *
+ * One variable, PAYMENTS_SANDBOX=on, opens it deliberately — for a staging
+ * deploy that runs with NODE_ENV=production — and a real processor's adapter
+ * never reads it. Checked at the door (PaymentsService.pay, before an intent
+ * is written or a wallet leg taken) AND inside the sandbox classes, so a new
+ * caller of the provider cannot route around the check.
+ */
+export function sandboxAllowed(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.NODE_ENV !== 'production' || env.PAYMENTS_SANDBOX === 'on';
+}
+
+/** What every refusal says. One sentence, and it is the truth: the city has no
+ *  payment partner yet, and nothing has been taken. */
+export const CARD_PAYMENTS_UNAVAILABLE = 'Card payments are not available yet. Nothing has been taken.';
+export const PAYOUTS_UNAVAILABLE = 'Payouts are not available yet — the city has no payment partner to send money through.';
+
 export interface ChargeRequest {
   /** Rupees, whole. */
   amountInr: number;

@@ -71,6 +71,13 @@ export const FLAGS: FlagDef[] = [
    * was: it is how we find out the site is up, not a room anybody visits.
    */
   { key: 'medical', label: 'Medical', turnsOff: 'Health records, blood results, prescriptions and medicine reminders — for every citizen, including anyone mid-treatment who is relying on them right now. Nothing is deleted, but nobody can reach any of it until this is switched back.', prefixes: ['medical', 'medicines', 'prescriptions'], hubPath: '/medical' },
+  /* Money's own switch (launch blocker 2, 2 Sep). `pay` is every route under
+     /api/pay: paying invoices, business billing, the payments dashboard and
+     payout accounts. Not a hub on the citizen's grid, so it has no
+     visibility twin - it is a till, not a room. Financial (the wallet) has
+     its own switch above and is deliberately separate: closing payments must
+     not hide somebody's own balance and statement. */
+  { key: 'pay', label: 'Payments', turnsOff: 'Paying invoices, business billing, the payments dashboard and payout accounts. Wallets and statements stay readable.', prefixes: ['pay'], hubPath: '/pay' },
   { key: 'ai', label: 'AI features', turnsOff: 'Every AI call across the app — meal planning, blood reading, beauty analysis, CV parsing. The hubs stay open; the AI parts of them stop.', prefixes: ['ai'], hubPath: '/hubs' },
 ];
 

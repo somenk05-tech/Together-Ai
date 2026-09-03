@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Spinner } from '@/components/ui';
-import { useLinkCard } from '@/features/financial/api';
 import {
   inr, newPaymentKey, payError, useQuote, usePayInvoice,
   type Invoice, type PaidResult,
@@ -48,7 +47,6 @@ export function PayInvoiceSheet({ invoice, open, onClose, onPaid }: {
   const [err, setErr] = useState<string | null>(null);
   const quote = useQuote(invoice.id, useWallet, open);
   const pay = usePayInvoice();
-  const linkCard = useLinkCard();
 
   useEffect(() => {
     if (open) { setKey(newPaymentKey()); setErr(null); }
@@ -145,23 +143,24 @@ export function PayInvoiceSheet({ invoice, open, onClose, onPaid }: {
                   <span style={{ fontWeight: 800, fontSize: 15, fontVariantNumeric: 'tabular-nums' }}>{inr(q.cardInr)}</span>
                 </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => linkCard.mutate({ brand: 'Visa', last4: '4242', name: 'City Card' })}
-                  disabled={linkCard.isPending}
-                  style={{
-                    width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', minHeight: 44,
-                    borderRadius: 12, padding: '12px 14px', marginBottom: 8,
-                    border: '1.5px dashed var(--line)', background: 'transparent',
-                  }}
-                >
+                /* NO BUTTON MINTS A CARD (launch blocker 2, 2 Sep). This used
+                   to link "Visa •• 4242 City Card" from three hard-coded
+                   strings and call it a payment method. Until a payment
+                   partner is signed the server refuses card legs; the sheet
+                   says so instead of drawing a door that leads to a 403. */
+                <div style={{
+                  borderRadius: 12, padding: '12px 14px', marginBottom: 8,
+                  border: '1.5px dashed var(--line)',
+                }}>
                   <div style={{ fontWeight: 700, fontSize: 13.5 }}>
-                    {linkCard.isPending ? 'Adding…' : `＋ Add a card for the remaining ${inr(q.cardInr)}`}
+                    {q.cardAvailable ? `${inr(q.cardInr)} still to cover` : 'Card payments are not available yet'}
                   </div>
                   <div className="muted" style={{ fontSize: 11.5 }}>
-                    Together City never sees your card number — your bank keeps it.
+                    {q.cardAvailable
+                      ? 'No card is linked to your wallet.'
+                      : 'The city has no payment partner yet. Pay from your wallet, or ask the business for another way to pay.'}
                   </div>
-                </button>
+                </div>
               )
             )}
 
@@ -178,8 +177,8 @@ export function PayInvoiceSheet({ invoice, open, onClose, onPaid }: {
 
             {q.needsCard && (
               <p className="muted" style={{ fontSize: 12.5, margin: '8px 0 0' }}>
-                Your wallet covers {inr(q.walletInr)} of this. Add a card for the rest, or{' '}
-                <Link to="/financial/wallet" style={{ color: 'var(--accent-ink)', fontWeight: 700 }}>top up your wallet</Link>.
+                Your wallet covers {inr(q.walletInr)} of this.{' '}
+                <Link to="/financial/wallet" style={{ color: 'var(--accent-ink)', fontWeight: 700 }}>Top up your wallet</Link> to pay the rest.
               </p>
             )}
 

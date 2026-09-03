@@ -177,6 +177,13 @@ export class FinancialService {
   }
 
   async linkCard(userId: string, input: { brand?: string; last4?: string; name?: string }) {
+    // A CARD IS NOT LINKED FROM THREE STRINGS (launch blocker 2, 2 Sep). This
+    // stores whatever brand/last4/name the client sends and calls it a card;
+    // there is no tokenisation because there is no processor. Off in
+    // production unless the sandbox is deliberately on, like top-up above.
+    if (process.env.NODE_ENV === 'production' && process.env.PAYMENTS_SANDBOX !== 'on') {
+      throw new ForbiddenException('Card payments are not available yet.');
+    }
     await this.ensureWallet(userId);
     const w = await this.prisma.cityWallet.update({
       where: { userId },
