@@ -1,11 +1,12 @@
 import { swallowed } from '../shared/swallow';
-import { ForbiddenException, Injectable, InternalServerErrorException, Logger, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, InternalServerErrorException, Logger, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { spawn } from 'child_process';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { BlockingService } from '../connections/blocking.service';
 import { connectionGrants } from '../connections/connections.service';
-import { VISIBLE, VISIBLE_ONLY, removedNotice } from './post-visibility';
+import { REMOVED, VISIBLE, VISIBLE_ONLY, removedNotice } from './post-visibility';
 import { AdminAccessService } from '../admin/admin-access.service';
+import { REACHABLE_USER } from '../admin/account-reach';
 import { ReadCache } from '../shared/cache/read-cache.service';
 import { envInt } from '../shared/env-int';
 import type { ListQueryDto } from './dto/social.dto';
@@ -54,7 +55,26 @@ function datingSummary(dp: Record<string, unknown>) {
   };
 }
 
-type ReportDecision = 'remove' | 'dismiss' | 'warn' | 'suspend';
+type ReportDecision = 'remove' | 'dismiss' | 'warn' | 'suspend' | 'avatar';
+
+/**
+ * WHAT A WARNED CITIZEN IS TOLD — AND WHY IT IS NOT THE MODERATOR'S NOTE.
+ *
+ * The console's one text field is labelled "Note for the next moderator", and
+ * schema.prisma says of the column it lands in: "The moderator's note. Read by
+ * nobody but the next moderator." That same string was then sent as the BODY of
+ * the warning push. A note reading "third report this week, latest from @priya
+ * about the DMs" was delivered to the person the report was about — naming the
+ * reporter, on the one surface this whole hub exists to keep unnameable.
+ *
+ * A FIXED SENTENCE RATHER THAN A SECOND FREE-TEXT FIELD, and that is a
+ * decision. A second box beside the first is a second place to paste the same
+ * note out of habit, and it would have to be labelled well enough that nobody
+ * ever does — which is the bet that has just been lost once. One field,
+ * internal, that cannot leave. The citizen gets the two things a warning is
+ * actually for: what to read, and what happens if it continues.
+ */
+const WARNING_NOTICE = 'Please review the community guidelines. Continued reports may lead to your account being suspended.';
 
 /* MODULE-LEVEL, NOT A FIELD. Specs build services with
    `Object.create(Prototype)`, which does not run field initialisers — so an
@@ -1187,6 +1207,11 @@ export class SocialService {
           ...(blockedSet.length ? { notIn: blockedSet } : {}),
           ...(cityWide ? {} : { in: network }),
         },
+        // AND THE AUTHOR MUST STILL BE REACHABLE. A suspension was a login
+        // block and nothing else, so the posts of an account closed for
+        // harassment carried on being served to the whole city. See
+        // admin/account-reach.ts — the same predicate the dating pool uses.
+        author: REACHABLE_USER,
         // Photos / Videos sections: only posts carrying that media kind.
         ...(filter === 'photos' ? { media: { some: { kind: 'image' } } } : {}),
         ...(filter === 'videos' ? { media: { some: { kind: 'video' } } } : {}),
@@ -1302,8 +1327,11 @@ export class SocialService {
    *   • media is signed, like every other read.
    */
   async post(userId: string, postId: string) {
-    const row = await this.prisma.post.findUnique({
-      where: { id: postId },
+    /* `findFirst` rather than `findUnique` for one clause: a suspended author's
+       post is gone from the feed, and a permalink that still served it would be
+       the hole the feed filter was written to close. */
+    const row = await this.prisma.post.findFirst({
+      where: { id: postId, author: REACHABLE_USER },
       include: {
         author: { select: AUTHOR_SELECT },
         media: true,
@@ -1335,11 +1363,17 @@ export class SocialService {
   /** Repost (share to feed) another citizen's post. Idempotent per user+post.
    *  Appears at the top of the reposter's network feed as "shared by …". */
   async repost(userId: string, postId: string) {
-    const original = await this.prisma.post.findUnique({
-      where: { id: postId },
+    const original = await this.prisma.post.findFirst({
+      where: { id: postId, author: REACHABLE_USER },
       select: { id: true, authorId: true, audience: true, moderation: true, repostOfId: true },
     });
     if (!original) throw new NotFoundException('post not found');
+    /* THE MODERATION RULE IS ASKED FIRST, in the order the docblock below
+       states it. `assertCanView` refuses a removed post too now (a removed post
+       is not commentable, likeable or readable either) and it refuses with a
+       404 by design — and the sentence a would-be sharer needs is the specific
+       one on the next line, not "post not found". */
+    if ((original.moderation ?? VISIBLE) !== VISIBLE) throw new ForbiddenException('That post is not available to share.');
     await this.assertCanView(userId, original);
     /**
      * A SHARE CANNOT WIDEN AN AUDIENCE (30 Aug audit, blocker 2).
@@ -1360,7 +1394,6 @@ export class SocialService {
      * level, so the second one rendered as a card with no text, no media and no
      * likes, whose like and comment landed on a content-free stub row.
      */
-    if ((original.moderation ?? VISIBLE) !== VISIBLE) throw new ForbiddenException('That post is not available to share.');
     if (original.repostOfId) throw new ForbiddenException('Share the original post rather than a share of it.');
     const inherited = original.audience ?? 'public';
     if (inherited === 'private') throw new ForbiddenException('A post kept to yourself cannot be shared.');
@@ -1433,6 +1466,7 @@ export class SocialService {
         lat: { not: null },
         lng: { not: null },
         authorId: { in: network },
+        author: REACHABLE_USER,
         // Same audience gate as the feed — never leak private/family geo-posts.
         OR: [
           { authorId: userId },
@@ -1725,6 +1759,41 @@ export class SocialService {
   }
 
   /**
+   * IS THERE ANYTHING THERE, AND IS IT SOMEBODY ELSE (this audit).
+   *
+   * `report()` checked the target TYPE and nothing about the target. Forty
+   * reports a minute against random UUIDs each opened a distinct group in the
+   * queue, and `reportSubjects` then resolved every one of them — so five
+   * hundred junk ids were five hundred pointless reads every time a moderator
+   * opened the screen, and the real reports were buried under invented ones.
+   * `reportMatch` has checked existence and self-reporting since 26 Aug; this
+   * is the same two checks on the other door into the same table.
+   */
+  private async assertReportable(userId: string, type: string, targetId: string): Promise<void> {
+    if (type === 'user') {
+      if (targetId === userId) throw new BadRequestException("You can't report yourself.");
+      const u = await this.prisma.user.findUnique({ where: { id: targetId }, select: { id: true } });
+      if (!u) throw new NotFoundException('No citizen with that id.');
+      return;
+    }
+    const found = type === 'post'
+      ? await this.prisma.post.findUnique({ where: { id: targetId }, select: { authorId: true } })
+      : await this.prisma.comment.findUnique({ where: { id: targetId }, select: { authorId: true } });
+    if (!found) throw new NotFoundException(`That ${type} no longer exists.`);
+    if (found.authorId === userId) throw new BadRequestException(`You can't report your own ${type}.`);
+  }
+
+  /** The reporter's words on a re-filing, ADDED to what they wrote the first
+   *  time rather than replacing it. schema.prisma says what the reporter wrote
+   *  is never edited, and the first sentence is often the one that explains the
+   *  second. */
+  private refiledReason(prior: string | null, next: string | null): string | null {
+    if (!next) return prior;
+    if (!prior || prior.includes(next)) return prior ?? next;
+    return `${prior}\n— filed again: ${next}`.slice(0, 1000);
+  }
+
+  /**
    * File a report against a user, post or comment (feeds a moderation queue).
    *
    * THE SAME UNIQUE INDEX THE DATING PATH LEARNED ABOUT (launch audit, 27 Aug).
@@ -1736,12 +1805,26 @@ export class SocialService {
    * did not stop.
    *
    * So the row is REOPENED, exactly as `reportMatch` does it: a resolved report
-   * goes back to open with the new words and the moderator fields cleared, and
-   * a report that is still open is a genuine repeat tap and stays one.
+   * goes back to open, and a report that is still open is a genuine repeat tap
+   * and stays one.
+   *
+   * WHAT A REOPEN NO LONGER ERASES (this audit). It used to write
+   * `reviewedById: null, reviewedAt: null, decision: null` and `createdAt: new
+   * Date()`. The comment above says the invisibility of an escalation after a
+   * wrong dismissal is what this fixed; resetting those four columns MOVED that
+   * invisibility rather than closing it. The next moderator could not see that
+   * a colleague had already dismissed this exact report, which is the single
+   * most useful thing to know about a re-filing — and the queue sorts on
+   * `firstReportedAt asc`, so a stamped-forward `createdAt` sent a
+   * three-week-old escalation to the BOTTOM of the list. schema.prisma calls
+   * this model append-only; it is one now. The prior decision stays on the row
+   * and `reportQueue` shows it, the filing time stays the filing time, and the
+   * reporter's new words are added to their old ones rather than replacing them.
    */
   async report(userId: string, dto: { targetType: string; targetId: string; reason?: string }) {
     const type = dto.targetType;
     if (!['user', 'post', 'comment'].includes(type)) throw new ForbiddenException('invalid report target');
+    await this.assertReportable(userId, type, dto.targetId);
     const reason = this.clean(dto.reason) ?? null;
     try {
       await this.prisma.report.create({
@@ -1751,12 +1834,12 @@ export class SocialService {
       if ((e as { code?: string }).code !== 'P2002') throw e;
       const existing = await this.prisma.report.findFirst({
         where: { reporterId: userId, targetType: type, targetId: dto.targetId },
-        select: { id: true, status: true },
+        select: { id: true, status: true, reason: true },
       });
       if (!existing || existing.status === 'open') return { reported: true, duplicate: true };
       await this.prisma.report.update({
         where: { id: existing.id },
-        data: { status: 'open', reviewedById: null, reviewedAt: null, decision: null, reason, createdAt: new Date() },
+        data: { status: 'open', reason: this.refiledReason(existing.reason, reason) },
       });
       return { reported: true, reopened: true };
     }
@@ -1797,25 +1880,35 @@ export class SocialService {
         where: { status: 'open' },
         orderBy: { createdAt: 'asc' },
         take: 500,
-      }) as unknown as Promise<Array<{ id: string; reporterId: string; targetType: string; targetId: string; reason: string | null; createdAt: Date }>>,
+      }) as unknown as Promise<Array<{ id: string; reporterId: string; targetType: string; targetId: string; reason: string | null; createdAt: Date; reviewedAt: Date | null; decision: string | null }>>,
       this.prisma.report.count({ where: { status: 'open' } }),
     ]);
 
     const groups = new Map<string, {
       targetType: string; targetId: string; reportCount: number;
       reporters: Set<string>; reasons: string[]; firstReportedAt: Date; lastReportedAt: Date;
+      priorDecision: string | null; priorDecidedAt: Date | null;
     }>();
     for (const r of rows) {
       const key = `${r.targetType}:${r.targetId}`;
       const g = groups.get(key) ?? {
         targetType: r.targetType, targetId: r.targetId, reportCount: 0,
         reporters: new Set<string>(), reasons: [], firstReportedAt: r.createdAt, lastReportedAt: r.createdAt,
+        priorDecision: null, priorDecidedAt: null,
       };
       g.reportCount += 1;
       g.reporters.add(r.reporterId);
       if (r.reason) g.reasons.push(r.reason);
       if (r.createdAt < g.firstReportedAt) g.firstReportedAt = r.createdAt;
       if (r.createdAt > g.lastReportedAt) g.lastReportedAt = r.createdAt;
+      // AN OPEN ROW THAT HAS ALREADY BEEN DECIDED IS A RE-FILING, and it is the
+      // one thing worth carrying up from the rows: a colleague looked at this
+      // and closed it, and the reporter came back. The most recent decision
+      // wins, because that is the one being argued with.
+      if (r.reviewedAt && (!g.priorDecidedAt || r.reviewedAt > g.priorDecidedAt)) {
+        g.priorDecidedAt = r.reviewedAt;
+        g.priorDecision = r.decision ?? null;
+      }
       groups.set(key, g);
     }
 
@@ -1840,6 +1933,9 @@ export class SocialService {
       reasons: g.reasons.slice(0, 10),
       firstReportedAt: g.firstReportedAt,
       lastReportedAt: g.lastReportedAt,
+      // Null on a report nobody has decided yet, which is most of them.
+      priorDecision: g.priorDecision,
+      priorDecidedAt: g.priorDecidedAt,
       subject: subjects.get(`${g.targetType}:${g.targetId}`) ?? { kind: g.targetType as 'post', gone: true },
     }));
 
@@ -1853,11 +1949,10 @@ export class SocialService {
   /**
    * Every subject in the queue, in a bounded number of queries.
    *
-   * Three `findMany`s and one dating read, whatever the size of the page —
-   * against the one-per-group fan-out this replaces. `reportSubject` below is
-   * still the single-target path (the decision screen uses it) and the two
-   * agree on shape by construction, because this one calls it for the users
-   * whose masking rules live there.
+   * Four `findMany`s, whatever the size of the page — against the one-per-group
+   * fan-out this replaces. `reportSubject` below is still the single-target
+   * path (the decision screen uses it) and the two agree on shape because both
+   * build the dating half through `datingSummary`.
    */
   private async reportSubjects(groups: Array<{ targetType: string; targetId: string }>) {
     const out = new Map<string, Awaited<ReturnType<SocialService['reportSubject']>>>();
@@ -1887,12 +1982,43 @@ export class SocialService {
       }
     }
 
-    // Users keep the one-at-a-time path: the dating-anonymity masking below is
-    // a per-person decision with its own reads, and copying it here is how the
-    // two would drift apart. The count is bounded by the number of distinct
-    // reported ACCOUNTS on one page, which is the small half of the queue.
-    for (const id of idsOf('user')) {
-      out.set(`user:${id}`, await this.reportSubject('user', id));
+    /**
+     * AND USERS ARE BATCHED TOO (this audit).
+     *
+     * They were the one kind left on the per-target path, on the argument that
+     * the reported ACCOUNTS are the small half of the queue. That argument held
+     * only while a report had to name something real: `report()` checked
+     * nothing about its target, so five hundred reports against invented UUIDs
+     * were five hundred groups, and this loop was a thousand sequential round
+     * trips — two per id — every time a moderator opened the screen. The
+     * intake is closed now; this is the other half, because a queue whose cost
+     * is linear in what a stranger can type is not a queue that can be relied
+     * on during the incident it exists for.
+     *
+     * The masking rules stay one copy: `datingSummary` is the thing
+     * `reportSubject` uses too, and it is a pure function of the row.
+     */
+    const userIds = idsOf('user');
+    if (userIds.length) {
+      const [users, datings] = await Promise.all([
+        this.prisma.user.findMany({ where: { id: { in: userIds } }, take: userIds.length, select: AUTHOR_SELECT })
+          .catch(swallowed('social.reportSubjects.users', [] as Array<{ id: string; handle: string; name: string; profileImage: string | null }>)),
+        (this.prisma as unknown as {
+          datingProfile?: { findMany(a: unknown): Promise<Array<Record<string, unknown>>> };
+        }).datingProfile?.findMany({
+          where: { userId: { in: userIds } },
+          take: userIds.length,
+          select: { userId: true, bio: true, birthDate: true, moderation: true, visible: true, extras: true, updatedAt: true },
+        }).catch(swallowed('social.reportSubjects.dating', [] as Array<Record<string, unknown>>)),
+      ]);
+      const byId = new Map(users.map((u) => [u.id, u]));
+      const dpOf = new Map((datings ?? []).map((d) => [String(d.userId), d]));
+      for (const id of userIds) {
+        const u = byId.get(id);
+        if (!u) { out.set(`user:${id}`, { kind: 'user', gone: true } as never); continue; }
+        const dp = dpOf.get(id);
+        out.set(`user:${id}`, { kind: 'user', gone: false, user: u, dating: dp ? datingSummary(dp) : null } as never);
+      }
     }
     return out;
   }
@@ -1955,7 +2081,12 @@ export class SocialService {
    *
    * 'remove' works on a post and on a comment; an ACCOUNT is suspended rather
    * than removed, which is a different verb with different consequences and its
-   * own permission. A post is flagged and stays visible to its author; a
+   * own permission — or has its profile PHOTO removed, which is the
+   * proportionate verdict this queue was missing entirely.
+   *
+   * `note` NEVER LEAVES THE CONSOLE. It is the reason on the audit row and the
+   * line the next moderator reads, and nothing else — see WARNING_NOTICE for
+   * the day it was also the body of a push to the person reported. A post is flagged and stays visible to its author; a
    * comment is deleted and its author is notified — the difference is a
    * migration, and the reason is written above deleteComment.
    */
@@ -1991,8 +2122,8 @@ export class SocialService {
     if (decision === 'remove' && targetType === 'user') {
       throw new ForbiddenException('An account is suspended, not removed. Use suspend.');
     }
-    if ((decision === 'warn' || decision === 'suspend') && targetType !== 'user') {
-      throw new ForbiddenException('Warn and suspend act on an account, not a post or comment.');
+    if ((decision === 'warn' || decision === 'suspend' || decision === 'avatar') && targetType !== 'user') {
+      throw new ForbiddenException('Warn, suspend and removing a profile photo act on an account, not a post or comment.');
     }
     // The second permission, asked for before anything is written, so a
     // moderator without it is refused rather than told half a story.
@@ -2000,8 +2131,18 @@ export class SocialService {
     const reason = this.clean(dto.note);
 
     if (decision === 'remove' && targetType === 'post') {
-      const updated = await this.prisma.post.updateMany({ where: { id: targetId }, data: { moderation: 'removed' } });
-      if (!updated.count) throw new NotFoundException('That post no longer exists.');
+      // AUDITED LIKE EVERY OTHER DECISION (this audit). `moderation.act` is in
+      // MUST_AUDIT and permissions.ts says a handler that declares one and does
+      // not record fails the spec — this branch went straight to Prisma, so any
+      // post in the city could be taken down with nothing in GET /admin/audit.
+      await this.access.act({
+        actorId: adminId, need: 'moderation.act', action: 'report.post.remove',
+        entity: 'post', entityId: targetId, reason: reason ?? 'Removed following a report',
+        before: { moderation: VISIBLE }, after: { moderation: REMOVED },
+      }, async () => {
+        const updated = await this.prisma.post.updateMany({ where: { id: targetId }, data: { moderation: REMOVED } });
+        if (!updated.count) throw new NotFoundException('That post no longer exists.');
+      });
       // AND THE AUTHOR IS TOLD (30 Aug audit). `removedNotice()` has existed in
       // post-visibility.ts since the file was written, with a docstring
       // explaining that silent removal "is how people conclude the app is
@@ -2022,9 +2163,27 @@ export class SocialService {
     if (decision === 'remove' && targetType === 'comment') {
       // A comment is deleted rather than flagged — see deleteComment for why —
       // and its author is told by the same rule the post branch above follows.
-      const c = await this.prisma.comment.findUnique({ where: { id: targetId }, select: { authorId: true } });
+      const c = await this.prisma.comment.findUnique({ where: { id: targetId }, select: { authorId: true, postId: true, text: true } });
       if (!c) throw new NotFoundException('That comment no longer exists.');
-      await this.prisma.comment.delete({ where: { id: targetId } });
+      /**
+       * AUDITED — AND THE WORDS GO INTO THE RECORD WITH IT (this audit).
+       *
+       * This is a HARD delete where a message is a tombstone, and
+       * `deleteComment` below already says why: the reversible version needs a
+       * `moderation` column on Comment, which is a migration this change does
+       * not own. So until that column exists the audit row is the only place
+       * the removed comment survives, and `before` carries the TEXT rather than
+       * a boolean. A moderator who can delete any comment in the city and leave
+       * nothing behind is the MUST_AUDIT failure twice over: the act with no
+       * record, and the evidence going with it.
+       */
+      await this.access.act({
+        actorId: adminId, need: 'moderation.act', action: 'report.comment.remove',
+        entity: 'comment', entityId: targetId, reason: reason ?? 'Removed following a report',
+        before: { postId: c.postId, authorId: c.authorId, text: c.text }, after: { deleted: true },
+      }, async () => {
+        await this.prisma.comment.delete({ where: { id: targetId } });
+      });
       void this.notifications.create({
         userId: c.authorId, kind: 'comment_removed',
         title: 'A comment of yours was removed',
@@ -2050,10 +2209,42 @@ export class SocialService {
       });
     }
 
+    if (decision === 'avatar') {
+      /**
+       * NO VERDICT COULD REACH THE ONE PICTURE EVERYBODY SEES (this audit).
+       *
+       * A report about a person could be warned, suspended, or its dating
+       * profile taken down. None of those touches `User.profileImage` — which
+       * renders on every feed row, every comment, every chat header and every
+       * search result. So the response to "this person's profile photo is
+       * obscene" was to close their whole account or to do nothing, and a
+       * moderator faced with that choice reaches for nothing. This is the
+       * proportionate verdict that was missing: the picture goes, the account
+       * stays, and the person is told so they can upload another.
+       */
+      await this.access.act({
+        actorId: adminId, need: 'moderation.act', action: 'report.user.avatar',
+        entity: 'user', entityId: targetId, reason: reason ?? 'Profile photo removed following a report',
+        before: { profileImage: 'set' }, after: { profileImage: null },
+      }, async () => {
+        const done = await this.prisma.user.updateMany({
+          where: { id: targetId, deletedAt: null }, data: { profileImage: null },
+        });
+        if (!done.count) throw new NotFoundException('That account no longer exists.');
+        await this.notifications.create({
+          userId: targetId, kind: 'system',
+          title: 'Your profile photo was removed',
+          body: 'A moderator removed it after it was reported. You can set a new one from your profile.',
+          href: '/profile',
+        }).catch(swallowed('social.reportDecide: avatar notification', null));
+      });
+    }
+
     if (decision === 'warn') {
       // The one report decision the person is told about — that is the point of
-      // a warning. It carries the moderator's words, and nothing about who
-      // reported them.
+      // a warning. It carries a FIXED sentence: the note beside this button is
+      // written for the next moderator and was being delivered verbatim to the
+      // person reported. See WARNING_NOTICE.
       //
       // Through `act` rather than beside it: `moderation.act` is in MUST_AUDIT,
       // and a warning is a moderator's decision about a named citizen. The
@@ -2068,21 +2259,42 @@ export class SocialService {
         await this.notifications.create({
           userId: targetId, kind: 'system',
           title: 'A moderator has reviewed a report about you',
-          body: reason ?? 'Please review the community guidelines. Continued reports may lead to your account being suspended.',
+          body: WARNING_NOTICE,
           href: '/',
         }).catch(swallowed('social.reportDecide: warn notification', null));
       });
     }
 
     const now = new Date();
-    const closed = await this.prisma.report.updateMany({
-      where: { targetType, targetId, status: 'open' },
-      data: {
-        status: decision === 'dismiss' ? 'dismissed' : 'actioned',
-        reviewedById: adminId, reviewedAt: now, decision: reason,
-      },
-    });
-    return { decided: decision, reportsClosed: closed.count };
+    const close = async () => {
+      const closed = await this.prisma.report.updateMany({
+        where: { targetType, targetId, status: 'open' },
+        data: {
+          status: decision === 'dismiss' ? 'dismissed' : 'actioned',
+          reviewedById: adminId, reviewedAt: now, decision: reason,
+        },
+      });
+      return closed.count;
+    };
+    /**
+     * A DISMISSAL IS A DECISION, AND IT WAS THE ONE WITH NO RECORD (this audit).
+     *
+     * remove, warn, suspend and avatar all leave a row somebody can find.
+     * Dismiss changed nothing except the thing that matters most — it closed
+     * every open report about a target — and went straight to Prisma. So a
+     * moderator could clear the whole queue and `GET /admin/audit` would show an
+     * empty evening, which is exactly the reading a brigade would want it to
+     * have. The other decisions are audited above, so their bookkeeping write
+     * stays plain: one decision, one audit row, not two.
+     */
+    const reportsClosed = decision === 'dismiss'
+      ? await this.access.act({
+        actorId: adminId, need: 'moderation.act', action: 'report.dismiss',
+        entity: targetType, entityId: targetId, reason: reason ?? 'Dismissed after review',
+        before: { status: 'open' }, after: { status: 'dismissed' },
+      }, close)
+      : await close();
+    return { decided: decision, reportsClosed };
   }
 
   /** Users allowed to receive live updates for a post, given its audience.
@@ -2196,8 +2408,22 @@ export class SocialService {
    *   • family  → a family-relationship connection
    *   • private → the author alone
    *  Blocks (either direction) always deny. */
-  private async assertCanView(userId: string, post: { authorId: string; audience?: string | null }) {
+  private async assertCanView(userId: string, post: { authorId: string; audience?: string | null; moderation?: string | null }) {
+    /**
+     * A REMOVED POST IS NOT INTERACTIVE EITHER (this audit).
+     *
+     * `post()` read `moderation` and refused; the three gates that reach this
+     * method through `assertPost` — comment, comments, toggleLike — never read
+     * it. So anybody holding the id could still read the pile-on under a post a
+     * moderator had taken down, and a like on it fired "X liked your post" at
+     * the author of a post that no longer exists for anybody else.
+     * post-visibility.ts says removal must mean the post stops appearing; that
+     * has to include the ways of touching it. The author is the same deliberate
+     * exception it is everywhere else — the check below runs after the early
+     * return above.
+     */
     if (post.authorId === userId) return;
+    if ((post.moderation ?? VISIBLE) !== VISIBLE) throw new NotFoundException('post not found');
     const blocked = await this.blockedWith(userId);
     if (blocked.has(post.authorId)) throw new ForbiddenException('You do not have access to this post.');
     const aud = post.audience ?? 'public';
@@ -2212,7 +2438,14 @@ export class SocialService {
 
   // ─────────────── helpers ───────────────
   private async assertPost(postId: string) {
-    const post = await this.prisma.post.findUnique({ where: { id: postId }, select: { id: true, authorId: true, audience: true } });
+    /* `moderation` is selected because `assertCanView` refuses on it, and the
+       author gate is here rather than in each caller for the same reason the
+       feed carries one: a suspended author's post is unreachable, not
+       half-reachable. */
+    const post = await this.prisma.post.findFirst({
+      where: { id: postId, author: REACHABLE_USER },
+      select: { id: true, authorId: true, audience: true, moderation: true },
+    });
     if (!post) throw new NotFoundException('post not found');
     return post;
   }

@@ -6,6 +6,9 @@ import { directKeyOf } from './conversation.util';
 import { nickname } from '../shared/nickname';
 import { CreateGroupDto } from './dto/conversations.dto';
 
+/** The most people one conversation may hold — see addMembers. */
+const GROUP_MAX_MEMBERS = 512;
+
 export interface Summary { lastMessageAt: string; lastText: string | null; lastSenderId: string | null; unread: number }
 
 /**
@@ -621,6 +624,14 @@ export class ConversationsService {
     const { convo } = await this.assertGroupAdmin(userId, conversationId);
     const already = new Set(convo.members.map((m) => m.userId));
     const fresh = memberIds.filter((id) => !already.has(id));
+    /* A CEILING ON THE ROOM, NOT ON THE REQUEST. The DTO caps this call at 256
+       and the call repeats, so nothing bounded a group's size — and every
+       message in it costs the notification fan-out a round of work per member.
+       512 is well past any group anybody has asked for and far short of a room
+       one person can make expensive for everybody. */
+    if (already.size + fresh.length > GROUP_MAX_MEMBERS) {
+      throw new ForbiddenException(`A group holds up to ${GROUP_MAX_MEMBERS} people.`);
+    }
     for (const id of fresh) {
       if (!(await this.permission.canCommunicate(userId, id))) {
         throw new ForbiddenException('You can only add members you are connected to.');

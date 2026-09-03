@@ -77,19 +77,26 @@ describe('when somebody ends it, it ends', () => {
   it('closes the direct profile URL, and every write, to somebody who left', () => {
     const detail = dating.slice(dating.indexOf('async matchDetail'), dating.indexOf('async matchDetail') + 2600);
     expect(detail).toMatch(/deletedAt: true/);
-    expect(detail).toMatch(/\.deletedAt != null/);
+    expect(detail).toMatch(/accountReachable\(cand\.user/);
     const write = dating.slice(dating.indexOf('private async assertWritable'), dating.indexOf('private async assertWritable') + 1400);
-    expect(write).toMatch(/user: \{ select: \{ deletedAt: true \} \}/);
-    expect(write).toMatch(/\?\.deletedAt != null/);
+    expect(write).toMatch(/user: \{ select: \{ deletedAt: true, suspendedAt: true \} \}/);
+    expect(write).toMatch(/accountReachable\(cand\.user/);
   });
 
   it('takes a deleted citizen out of everybody’s pool immediately', () => {
     // On the relation, not copied onto the profile: the tombstone lives on
     // User and a second copy is a second thing to keep in step.
-    expect(dating).toMatch(/user: \{ is: \{ deletedAt: null \} \}/);
-    // One place, so every list that reads the pool inherits it.
+    expect(dating).toMatch(/user: REACHABLE_USER/);
+    // One place, so every list that reads the pool inherits it. Since 3 Sep
+    // that place is `REACHABLE_ACCOUNT` in admin/account-reach.ts — a deleted
+    // account and a SUSPENDED one are the same question, and the suspension
+    // half was being asked nowhere at all: a suspended harasser stayed in every
+    // citizen's pool, kept being scored and kept being matched with.
     const pool = dating.slice(dating.indexOf('private poolWhere'), dating.indexOf('private birthDateRangeFor'));
-    expect(pool).toContain('deletedAt');
+    expect(pool).toContain('REACHABLE_USER');
+    const reach = read('admin/account-reach.ts');
+    expect(reach).toContain('deletedAt');
+    expect(reach).toContain('suspendedAt');
   });
 });
 

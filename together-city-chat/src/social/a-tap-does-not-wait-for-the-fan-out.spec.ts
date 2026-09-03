@@ -38,7 +38,10 @@ function rig() {
   const hang = () => new Promise<never>(() => { /* never settles: a database that has stopped answering */ });
   const prisma = {
     post: {
-      findUnique: async () => ({ id: 'p1', authorId: AUTHOR, audience: 'public' }),
+      /* `assertPost` reads with findFirst: the author must still be reachable —
+         not deleted, not suspended — and that is a clause on the query rather
+         than a second lookup. See admin/account-reach.ts. */
+      findFirst: async () => ({ id: 'p1', authorId: AUTHOR, audience: 'public' }),
     },
     like: {
       deleteMany: async () => ({ count: 0 }),
@@ -89,7 +92,7 @@ describe('a heart tap answers before the fan-out does', () => {
   it('sends the frame once the recipients do arrive', async () => {
     const gateway = { likeChanged: jest.fn() } as any;
     const prisma = {
-      post: { findUnique: async () => ({ id: 'p1', authorId: AUTHOR, audience: 'public' }) },
+      post: { findFirst: async () => ({ id: 'p1', authorId: AUTHOR, audience: 'public' }) },
       like: { deleteMany: async () => ({ count: 0 }), createMany: async () => ({ count: 1 }), count: async () => 3 },
       connection: { findMany: async () => [] },
       follow: { findMany: async () => [{ followerId: 'f1' }] },

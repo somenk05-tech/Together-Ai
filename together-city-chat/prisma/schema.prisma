@@ -2958,6 +2958,11 @@ model Notification {
 
   @@index([userId, read])
   @@index([userId, createdAt])
+  /// The fan-out's own lookup: "has this citizen already got an unread row for
+  /// this conversation" runs once per recipient per message, and the two
+  /// indexes above cover only its first and last column — so the hottest read
+  /// in the notification path scanned that citizen's whole unread set.
+  @@index([userId, kind, entityId, read])
 }
 
 /// ─────────────────────────── User Drive ───────────────────────────

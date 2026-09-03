@@ -105,7 +105,8 @@ describe('assertCanView refuses a follower a friends-audience post', () => {
   const svc = (allowed: string[]) => {
     const post = { id: 'p1', authorId: AUTHOR, audience: 'friends', moderation: 'visible' };
     const prisma = {
-      post: { findUnique: async () => ({ ...post, author: {}, media: [], _count: { likes: 0, comments: 0 }, likes: [], repostOf: null, createdAt: new Date() }) },
+      // The permalink reads with findFirst — the author must still be reachable.
+      post: { findFirst: async () => ({ ...post, author: {}, media: [], _count: { likes: 0, comments: 0 }, likes: [], repostOf: null, createdAt: new Date() }) },
     } as any;
     const blocking = { blockedWith: async () => new Set<string>() } as any;
     const conns = { visibleAudiences: async () => allowed } as any;

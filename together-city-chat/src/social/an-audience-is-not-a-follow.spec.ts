@@ -138,8 +138,11 @@ function repostStub(original: Record<string, unknown>) {
   const created: any[] = [];
   const prisma = {
     post: {
-      findUnique: async () => original,
-      findFirst: async () => null,
+      /* `repost` reads the ORIGINAL with findFirst now (the author must still be
+         reachable, which is a clause rather than a second lookup) and uses
+         findFirst again for "have I already shared this". Dispatched on the
+         WHERE, so the two cannot answer each other's question. */
+      findFirst: async ({ where }: any) => (where.id ? original : null),
       create: async (args: any) => {
         created.push(args.data);
         // Shaped like the row the real `include` returns: a repost carries the

@@ -26,8 +26,11 @@ afterAll(() => {
 
 interface Row { [k: string]: any }
 
-function harness(opts: { members?: string[]; calls?: Row[]; participants?: Row[] } = {}) {
+function harness(opts: { members?: string[]; calls?: Row[]; participants?: Row[]; online?: string[] } = {}) {
   const members = opts.members ?? ['alice', 'bob'];
+  // Who still has a socket. The sweep asks this rather than reading the
+  // participant columns — see CallsService.stillConnected.
+  const online = new Set(opts.online ?? members);
   const calls: Row[] = opts.calls ?? [];
   const parts: Row[] = opts.participants ?? [];
   let seq = 0;
@@ -101,20 +104,33 @@ function harness(opts: { members?: string[]; calls?: Row[]; participants?: Row[]
     callSession,
     callParticipant,
     avatar: { findFirst: jest.fn(async () => null) },
-    conversationMember: { findMany: jest.fn(async () => members.map((userId) => ({ userId }))) },
+    conversationMember: {
+      findMany: jest.fn(async () => members.map((userId) => ({ userId }))),
+      findFirst: jest.fn(async ({ where }: { where: { userId: string } }) => (members.includes(where.userId) ? { userId: where.userId } : null)),
+    },
   };
 
   const permission = {
     assertCanPostToConversation: jest.fn(async (userId: string) => {
       if (!members.includes(userId)) throw new ForbiddenException('You are not a member of this conversation.');
     }),
+    blockedWith: jest.fn(async () => new Set<string>()),
+    isBlocked: jest.fn(async () => false),
   };
   const published: Row[] = [];
-  const notifications = { notifyIncomingCall: jest.fn(async () => undefined) };
+  /* `notifyCallEnded` since 3 Sep: `close()` is the one chokepoint every ending
+     goes through, and it takes the ring back off the lock screen there rather
+     than in the five callers that end a call. */
+  const notifications = {
+    notifyIncomingCall: jest.fn(async () => undefined),
+    notifyCallEnded: jest.fn(async () => undefined),
+  };
   const bus = { publish: jest.fn((e: Row) => published.push(e)) };
 
-  const svc = new CallsService(prisma as never, permission as never, notifications as never, bus as never);
-  return { svc, calls, parts, published, notifications, permission, callSession, callParticipant };
+  const redis = { isOnline: jest.fn(async (userId: string) => online.has(userId)) };
+
+  const svc = new CallsService(prisma as never, permission as never, notifications as never, bus as never, redis as never);
+  return { svc, calls, parts, published, notifications, permission, callSession, callParticipant, online };
 }
 
 describe('a call id is not a credential', () => {
@@ -245,13 +261,61 @@ describe('the sweep', () => {
     expect(next.id).not.toBe(call.id);
   });
 
-  it('leaves a long call alone while people are still in it', async () => {
+  it('leaves a long call alone while somebody on it is still connected', async () => {
     const h = harness();
     const call = await h.svc.start('alice', { conversationId: 'c1', type: 'audio' });
     await h.svc.join('bob', call.id);
     const hourLater = new Date(NOW.getTime() + 60 * 60_000);
     expect(await h.svc.sweepStale(hourLater)).toBe(0);
     expect(h.calls[0].status).toBe('active');
+  });
+
+  /* THIS TEST USED TO SAY THE OPPOSITE, AND IT WAS WRONG ON PURPOSE.
+     It asserted that an active call with "present" participants is never
+     stale, however long it runs — and present is two columns, joinedAt set and
+     leftAt null, written only by a request that arrives when somebody presses
+     a button. Two people closing their laptops press nothing, so the call
+     stayed active for the rest of time, this sweep skipped it every minute,
+     and the next `start` in that conversation joined the corpse: no ring for
+     anybody, and a caller sitting on "Connecting…" with the microphone open.
+     Liveness is presence, not a column. */
+  it('closes an active call both sides walked away from', async () => {
+    const h = harness();
+    const call = await h.svc.start('alice', { conversationId: 'c1', type: 'audio' });
+    await h.svc.join('bob', call.id);
+    h.online.clear(); // both laptops closed; no leave was ever sent
+    const later = new Date(NOW.getTime() + 5 * 60_000);
+    expect(await h.svc.sweepStale(later)).toBe(1);
+    expect(h.calls[0].endedReason).toBe('completed');
+    // ...and the conversation can be called again.
+    const next = await h.svc.start('alice', { conversationId: 'c1', type: 'audio' });
+    expect(next.id).not.toBe(call.id);
+  });
+
+  it('gives up the seat of somebody whose last socket went, and only that seat', async () => {
+    const h = harness({ members: ['alice', 'bob', 'carol'] });
+    const call = await h.svc.start('alice', { conversationId: 'c1', type: 'audio' });
+    await h.svc.join('bob', call.id);
+    // carol's phone is ringing; she never answered, so her tab closing is not
+    // a decline and must not take the call down.
+    expect(await h.svc.leaveAbandoned('carol')).toBe(0);
+    expect(h.calls[0].status).toBe('active');
+    expect(await h.svc.leaveAbandoned('bob')).toBe(1);
+    expect(h.parts.find((p) => p.userId === 'bob')?.leftAt).not.toBeNull();
+  });
+});
+
+describe('glare — two people press call in the same second', () => {
+  it('leaves one live call in the conversation, and both callers in it', async () => {
+    const h = harness();
+    // Both requests get past the "is anything live?" read before either writes,
+    // which is the race the check-then-act had no answer for.
+    const [a, b] = await Promise.all([
+      h.svc.start('alice', { conversationId: 'c1', type: 'audio' }),
+      h.svc.start('bob', { conversationId: 'c1', type: 'audio' }),
+    ]);
+    expect(a.id).toBe(b.id);
+    expect(h.calls.filter((c) => c.status !== 'ended')).toHaveLength(1);
   });
 });
 

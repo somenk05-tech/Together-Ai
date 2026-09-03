@@ -2,6 +2,7 @@ import { swallow } from '../shared/swallow';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { BlockingService } from '../connections/blocking.service';
+import { REACHABLE_ACCOUNT, accountReachable } from '../admin/account-reach';
 import { VISIBLE_ONLY } from '../social/post-visibility';
 import { AdminAccessService } from '../admin/admin-access.service';
 import { StorageProvider } from '../media/storage.provider';
@@ -456,12 +457,15 @@ export class ProfileService {
       select: {
         id: true, handle: true, name: true, email: true, profileImage: true,
         emailVerified: true, createdAt: true, bio: true, city: true, website: true,
-        deletedAt: true,
+        deletedAt: true, suspendedAt: true,
       },
-    })) as unknown as (UserRow & { deletedAt?: Date | null }) | null;
+    })) as unknown as (UserRow & { deletedAt?: Date | null; suspendedAt?: Date | null }) | null;
     // A deleted account has no public profile — it reads exactly like a handle
-    // that never existed.
-    if (!u || u.deletedAt) throw new NotFoundException('No citizen with that handle.');
+    // that never existed. AND NEITHER HAS A SUSPENDED ONE (this audit): a
+    // suspension was a login block and nothing more, so the account closed for
+    // harassment kept its page, its photograph and its grid. One predicate for
+    // both — see admin/account-reach.ts.
+    if (!u || !accountReachable(u)) throw new NotFoundException('No citizen with that handle.');
     /**
      * ── AND A BLOCK READS THE SAME WAY (31 Aug audit) ──────────────────────
      *
@@ -511,8 +515,8 @@ export class ProfileService {
    *  friends-audience posts. Never returns private/family posts of others. */
   async publicPosts(viewerId: string, handleRaw: string, cursor?: string, limit = 18) {
     const handle = (handleRaw ?? '').trim().replace(/^@/, '').toLowerCase();
-    const u = await this.prisma.user.findUnique({ where: { handle }, select: { id: true } });
-    if (!u) throw new NotFoundException('No citizen with that handle.');
+    const u = await this.prisma.user.findUnique({ where: { handle }, select: { id: true, deletedAt: true, suspendedAt: true } });
+    if (!u || !accountReachable(u)) throw new NotFoundException('No citizen with that handle.');
     // Blocked either way → nothing to show. This used to read the Block table
     // directly and so missed a connection-level block; connections/blocking.ts
     // is now the one place that knows what blocked means.
@@ -609,7 +613,10 @@ export class ProfileService {
     const rows = (await this.prisma.user.findMany({
       where: {
         id: { not: viewerId, ...(blocked.length ? { notIn: blocked } : {}) },
-        deletedAt: null, // deleted accounts are never discoverable
+        // Deleted accounts were never discoverable; suspended ones were, until
+        // this audit — search was one of the nine read paths a suspension did
+        // not reach. See admin/account-reach.ts.
+        ...REACHABLE_ACCOUNT,
         OR: [
           { handle: { startsWith: handleQ } },
           { name: { contains: q, mode: 'insensitive' } },

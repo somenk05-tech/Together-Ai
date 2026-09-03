@@ -96,7 +96,18 @@ describe('the client reads a reply from a server older than itself', () => {
     const { readFileSync } = await import('node:fs');
     const src = readFileSync(new URL('../features/chat/mira/MiraThread.tsx', import.meta.url), 'utf8');
     expect(src).toMatch(/instanceof ZodError/);
-    expect(src).toMatch(/not speaking the same language/);
-    expect(src).toMatch(/not reaching the city/);
+    /* THE SENTENCES MOVED, THE RULE DID NOT (3 Sep). `whyFailed` was three
+       copies — her room said the right thing and the confidant and daybook
+       panels each said "I'm not reaching the city" in her voice for a 429, a
+       401 and a schema skew alike. One copy now, in `api.ts`, read by all
+       three; this asserts against the copy that exists rather than the file it
+       used to live in. */
+    const api = readFileSync(new URL('../features/chat/mira/api.ts', import.meta.url), 'utf8');
+    expect(api).toMatch(/instanceof ZodError/);
+    expect(api).toMatch(/not speaking the same language/);
+    expect(api).toMatch(/not reaching the city/);
+    // And a 400 is not reported as an outage — the failure that used to say the
+    // city was down while the city was fine, in the one case it was our fault.
+    expect(api).toMatch(/400/);
   });
 });

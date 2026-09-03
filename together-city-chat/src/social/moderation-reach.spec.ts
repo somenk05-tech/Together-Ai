@@ -96,13 +96,21 @@ describe('moderation reaches every list read of Post', () => {
       },
       report: { updateMany: async () => ({ count: 1 }) },
     } as never;
-    const access = { assert: jest.fn(async () => ['moderator']), act: jest.fn() } as never;
+    /* `act` RUNS the write, because the write and the audit row are one call
+       now — a double that swallowed the callback would let this test pass over
+       a moderator who removed nothing. Both removals used to go straight to
+       Prisma with no audit at all; see admin.spec.ts. */
+    const act = jest.fn(async (_i: unknown, run: () => Promise<unknown>) => run());
+    const access = { assert: jest.fn(async () => ['moderator']), act } as never;
     const notifications = { create: jest.fn(async () => undefined) } as never;
     const svc = new SocialService(prisma, {} as never, notifications, {} as never, {} as never, {} as never, access);
 
     await svc.reportDecide('mod', { targetType: 'post', targetId: 'p1', decision: 'remove' });
     await svc.reportDecide('mod', { targetType: 'comment', targetId: 'c1', decision: 'remove' });
     expect(removed).toEqual(['post:removed', 'comment:deleted']);
+    // And each of them wrote a row.
+    expect(act.mock.calls.map((c) => (c[0] as { action: string }).action))
+      .toEqual(['report.post.remove', 'report.comment.remove']);
 
     await expect(svc.reportDecide('mod', { targetType: 'user', targetId: 'u1', decision: 'remove' }))
       .rejects.toThrow();

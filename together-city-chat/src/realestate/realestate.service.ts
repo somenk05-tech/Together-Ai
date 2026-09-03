@@ -1,8 +1,9 @@
 import { swallowed } from '../shared/swallow';
-import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, OnModuleInit, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ClockService, DEFAULT_TIMEZONE } from '../shared/clock/clock.service';
-import { AdminService } from '../auth/admin';
+import { AdminAccessService } from '../admin/admin-access.service';
+import { PostMediaGuard } from '../social/post-media-guard';
 import { AiService } from '../ai/ai.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { MessagesService } from '../messages/messages.service';
@@ -30,11 +31,18 @@ export class RealEstateService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ai: AiService,
-    private readonly admin: AdminService,
+    private readonly access: AdminAccessService,
     private readonly clock: ClockService,
     private readonly conversations: ConversationsService,
     private readonly messages: MessagesService,
     private readonly notifications: NotificationsService,
+    /**
+     * Optional, and ABSENT MEANS REFUSE — the same contract SocialService and
+     * UsersService state. A spec asserting what a listing writes should not have
+     * to stand up an image classifier; a listing carrying photographs cannot be
+     * waved through because one was not configured.
+     */
+    @Optional() private readonly screening?: PostMediaGuard,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -206,6 +214,40 @@ export class RealEstateService implements OnModuleInit {
     return { conversationId, alreadyOpen: Boolean(already) };
   }
 
+  /**
+   * ── THE CAPTION WAS MODERATED AND THE PICTURE WAS NOT (this audit) ─────────
+   *
+   * `moderation.ts` touches `photos` for exactly one thing — `p.caption`, fed
+   * into the contact-details regexes. So a listing's captions were checked for
+   * phone numbers while the photographs went to public Explore having passed
+   * through nothing at all, on the one hub any citizen can browse without
+   * knowing the seller. Dating photos get fail-closed Rekognition, posts get
+   * PostMediaGuard, chat images get ChatMediaGuard; this had the same reach as
+   * a post and none of the screening.
+   *
+   * The same guard, and its inline entry point, because a listing photograph is
+   * a `data:` URL in a column rather than an object in a bucket — see
+   * `screenInlineImage`. First refusal wins and the listing is refused whole: a
+   * listing is all-or-nothing, so there is nothing to learn from screening the
+   * other nine photographs of one that is already refused.
+   *
+   * A photo whose `url` is not a readable `data:` image is refused too, and
+   * that is deliberate rather than incidental: the Sell UI produces data URLs,
+   * and anything else in that field is a remote picture nobody here has seen.
+   */
+  private async screenPhotos(userId: string, photos: ReadonlyArray<{ url: string }>): Promise<void> {
+    if (!photos.length) return;
+    const consequence = 'so the listing hasn’t been saved';
+    if (!this.screening) {
+      throw new ServiceUnavailableException(`We couldn’t check that photo just now, ${consequence}. Try again in a moment.`);
+    }
+    for (const photo of photos) {
+      const out = await this.screening.screenInlineImage(userId, photo.url, consequence);
+      if (out.ok) continue;
+      throw out.retryable ? new ServiceUnavailableException(out.reason) : new BadRequestException(out.reason);
+    }
+  }
+
   async post(userId: string, dto: PostPropertyDto) {
     // Photos are optional for now — no minimum enforced here or in moderation.
     // Rate-limit listing creation (anti-spam).
@@ -214,6 +256,8 @@ export class RealEstateService implements OnModuleInit {
     if (recent >= MAX_LISTINGS_PER_HOUR) {
       throw new BadRequestException('You’ve created several listings in a short time — please try again later.');
     }
+    // Before the row exists, so an unscreened photograph is never written down.
+    await this.screenPhotos(userId, dto.photos);
 
     // 1) Create in Pending Review — never live immediately.
     const p = await this.prisma.property.create({
@@ -264,6 +308,9 @@ export class RealEstateService implements OnModuleInit {
    */
   async update(userId: string, id: string, dto: PostPropertyDto) {
     await this.assertOwn(id, userId);
+    // An edit is a new claim to the marketplace, and that includes its pictures:
+    // screening only on create would make `update` the way round this guard.
+    await this.screenPhotos(userId, dto.photos);
     const p = await this.prisma.property.update({
       where: { id },
       data: {
@@ -407,14 +454,31 @@ export class RealEstateService implements OnModuleInit {
   }
 
   // ─────────────── admin moderation ───────────────
-  /** Moderator authorisation reads User.role — see AdminService. A handle is
-   *  renameable by its owner and was never safe to authorise against. */
-  private assertAdmin(userId?: string) {
-    return this.admin.assertAdmin(userId);
+  /**
+   * ── ONE PERMISSION SYSTEM, AND REAL ESTATE WAS NOT IN IT (this audit) ──────
+   *
+   * `social.service.ts` records the day the city moved to one moderator
+   * system — "Both are the AdminGrant/permission system now" — and dating went
+   * with it. Real estate was left on `AdminService.assertAdmin`, which reads
+   * `User.role === 'admin'` seeded from MODERATION_ADMINS. Two consequences,
+   * pointing in opposite directions and both bad: a console `moderator`, whose
+   * whole role is `moderation.read` + `moderation.act`, was 403'd out of the
+   * listing queue; and anybody in MODERATION_ADMINS could approve or reject
+   * listings without holding `moderation.act` at all — including roles the
+   * permission table deliberately withholds it from.
+   *
+   * `userId` is optional on these two methods for historical reasons; the
+   * controller always has one. An absent caller is refused here rather than
+   * handed to `assert`, which would query the grants table for `undefined`.
+   */
+  private async assertModerator(userId: string | undefined, need: 'moderation.read' | 'moderation.act'): Promise<string> {
+    if (!userId) throw new ForbiddenException(`This needs the "${need}" permission, which none of your roles carries.`);
+    await this.access.assert(userId, need);
+    return userId;
   }
 
   async moderationQueue(userId?: string) {
-    await this.assertAdmin(userId);
+    await this.assertModerator(userId, 'moderation.read');
     const rows = await this.prisma.property.findMany({
       where: { moderation: { in: ['pending', 'review'] } },
       orderBy: { createdAt: 'desc' }, take: 100,
@@ -426,8 +490,23 @@ export class RealEstateService implements OnModuleInit {
     }));
   }
 
+  /**
+   * A listing decision, through the console rather than beside it.
+   *
+   * THE PERMISSION FIRST, THEN THE ROW — the same shape `moderateDecision` and
+   * `decideAppeal` were moved to: the 404 must not speak before `assert` has.
+   *
+   * AND IT WRITES AN AdminAudit ROW. It wrote a `moderationLog` row and nothing
+   * else, through a helper whose failure is swallowed — so approving or
+   * rejecting a listing was invisible in `GET /admin/audit`, and on a bad day
+   * invisible everywhere. `moderation.act` is in MUST_AUDIT; `act` records
+   * BEFORE the write and refuses an empty reason, which is the console-wide
+   * rule this route accepted `reason: ''` against. The moderationLog write
+   * stays: it is the seller-facing history on the listing, and it is a
+   * different record for a different reader.
+   */
   async moderationDecide(userId: string | undefined, id: string, decision: 'approved' | 'rejected', reason: string) {
-    await this.assertAdmin(userId);
+    const actorId = await this.assertModerator(userId, 'moderation.act');
     const p = await this.prisma.property.findUnique({ where: { id } }) as PropRow | null;
     if (!p) throw new NotFoundException('listing not found');
     const prev = parse<ModerationResult | null>(p.moderationJson ?? null, null);
@@ -435,8 +514,14 @@ export class RealEstateService implements OnModuleInit {
       decision, confidence: 1, score: prev?.score ?? 0, checks: prev?.checks ?? [],
       reasons: reason ? [reason] : (decision === 'rejected' ? (prev?.reasons ?? []) : []), decidedAt: new Date().toISOString(),
     };
-    await this.prisma.property.update({ where: { id }, data: { moderation: decision, moderationJson: JSON.stringify(next) } });
-    await this.logModeration(id, userId ?? 'moderator', decision, reason);
+    await this.access.act({
+      actorId, need: 'moderation.act', action: `realestate.listing.${decision}`,
+      entity: 'property', entityId: id, reason,
+      before: { moderation: p.moderation ?? null }, after: { moderation: decision },
+    }, async () => {
+      await this.prisma.property.update({ where: { id }, data: { moderation: decision, moderationJson: JSON.stringify(next) } });
+      await this.logModeration(id, actorId, decision, reason);
+    });
     return { id, moderation: decision };
   }
 

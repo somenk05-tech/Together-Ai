@@ -27,6 +27,72 @@ const subjectNone: React.CSSProperties = { fontSize: 11.5, margin: '4px 0 0' };
  * who can be asked, and a citizen who suspects that stops reporting.
  */
 
+const sectionWrap: CSSProperties = { marginTop: '28px' };
+const sectionHead: CSSProperties = { fontSize: 18, margin: 0 };
+const readFailed: CSSProperties = { fontSize: 13, lineHeight: 1.6, margin: '6px 0 12px', color: 'var(--danger-ink)' };
+const writeFailed: CSSProperties = { fontSize: 12, marginTop: '8px', color: 'var(--danger-ink)' };
+const priorLine: CSSProperties = { fontSize: 12, lineHeight: 1.55, marginTop: '6px', color: 'var(--danger-ink)' };
+
+/** The HTTP status behind a failed request, when there was one. A 403 and a
+ *  dropped connection are different facts and the sentences below say so. */
+function statusOf(err: unknown): number | null {
+  const status = (err as { response?: { status?: number } } | null)?.response?.status;
+  return typeof status === 'number' ? status : null;
+}
+
+/**
+ * ── THE ONE ERROR MESSAGE BLAMED THE WRONG ENVIRONMENT VARIABLE ─────────────
+ *
+ * The queue said, for every failure alike, that your handle needs to be in the
+ * deployment's moderator list. It does not: these routes are gated on
+ * `moderation.read` through an AdminGrant row, seeded from CONSOLE_FOUNDERS and
+ * granted by somebody holding `admin.grant`. MODERATION_ADMINS is the OTHER
+ * system, which real estate was the last surface still on. So a moderator who
+ * genuinely lacked the permission was sent to edit the wrong file, and a 500 or
+ * a dropped connection told them the same thing — which reads as "you are not
+ * allowed" when the truth is "we do not know what is in this queue".
+ */
+function readFailure(err: unknown, what: string): string {
+  const status = statusOf(err);
+  if (status === 403) {
+    return `${what} needs the “moderation.read” permission. It is granted as a console role on your account — ask somebody who holds “admin.grant”. It is not the deployment’s moderator list.`;
+  }
+  if (status === 401) return `Your session has expired. Sign in again to see ${what.toLowerCase()}.`;
+  return status
+    ? `${what} could not be loaded (error ${status}). This is not an empty queue — try again in a moment.`
+    : `${what} could not be loaded — the request did not reach the server. This is not an empty queue.`;
+}
+
+/** The same honesty for a button. A refused action that re-enables the button
+ *  and says nothing is indistinguishable from one that worked. */
+function writeFailure(err: unknown): string {
+  const status = statusOf(err);
+  if (status === 403) return 'That needs the “moderation.act” permission, which none of your roles carries. Nothing was changed.';
+  if (status === 404) return 'That is no longer there — somebody may have acted on it already. Nothing was changed.';
+  return status
+    ? `That did not go through (error ${status}). Nothing was changed.`
+    : 'That did not go through — the request did not reach the server. Nothing was changed.';
+}
+
+/**
+ * A read that failed says so WHERE ITS SECTION WOULD HAVE BEEN.
+ *
+ * Three of the four queues rendered `null` on a failed read, and `retry: false`
+ * meant one 500 was final. So a broken `/dating/admin/photos` removed the whole
+ * photo section — including its "N photos have been waiting without ever being
+ * looked at / that is what a stopped photo pipeline looks like" alarm — and a
+ * moderator read the page as "nothing to review". The heading stays, so an
+ * empty queue and an unknown one can never look alike.
+ */
+function FailedSection({ title, error, what }: { title: string; error: unknown; what: string }) {
+  return (
+    <section style={sectionWrap}>
+      <h2 style={sectionHead}>{title}</h2>
+      <p style={readFailed}>{readFailure(error, what)}</p>
+    </section>
+  );
+}
+
 function when(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
@@ -104,7 +170,7 @@ function Group({ group }: { group: ReportGroup }) {
   const decide = useDecideReport();
   const dating = useDatingDecision();
   const [note, setNote] = useState('');
-  const [done, setDone] = useState<'remove' | 'dismiss' | 'dating' | 'warn' | 'suspend' | null>(null);
+  const [done, setDone] = useState<'remove' | 'dismiss' | 'dating' | 'warn' | 'suspend' | 'avatar' | null>(null);
 
   const canRemove = group.targetType === 'post' && !group.subject.gone;
   // A reported person can be taken out of Dating — their profile, not their
@@ -131,7 +197,7 @@ function Group({ group }: { group: ReportGroup }) {
   // shut a door they could not open. The server refuses it either way; this is
   // so the refusal is not delivered as a button.
   const canSuspend = canActOnUser && (me.data?.permissions ?? []).some((p) => p.key === 'users.suspend');
-  const act = (decision: 'remove' | 'dismiss' | 'warn' | 'suspend') =>
+  const act = (decision: 'remove' | 'dismiss' | 'warn' | 'suspend' | 'avatar') =>
     decide.mutate(
       { targetType: group.targetType, targetId: group.targetId, decision, note: note.trim() || undefined },
       { onSuccess: () => setDone(decision) },
@@ -141,7 +207,7 @@ function Group({ group }: { group: ReportGroup }) {
     return (
       <div className="card" style={{ marginTop: 12, padding: 14 }}>
         <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-          {done === 'remove' ? 'Removed. ' : done === 'dating' ? 'Taken out of Matchmaking. ' : done === 'suspend' ? 'Account suspended. ' : done === 'warn' ? 'Warning sent. ' : 'Dismissed. '}
+          {done === 'remove' ? 'Removed. ' : done === 'dating' ? 'Taken out of Matchmaking. ' : done === 'suspend' ? 'Account suspended. ' : done === 'avatar' ? 'Profile photo removed. ' : done === 'warn' ? 'Warning sent. ' : 'Dismissed. '}
           {group.reportCount} {group.reportCount === 1 ? 'report' : 'reports'} closed.
         </p>
       </div>
@@ -166,6 +232,17 @@ function Group({ group }: { group: ReportGroup }) {
 
       <Subject group={group} />
 
+      {/* A RE-FILING SAYS SO. Re-filing used to clear the moderator columns and
+          stamp the filing date forward, so the next person could not see that a
+          colleague had already closed exactly this — which is the single most
+          useful thing to know about a report that has come back. */}
+      {group.priorDecidedAt && (
+        <p style={priorLine}>
+          Dismissed or actioned on {when(group.priorDecidedAt)} and filed again since
+          {group.priorDecision ? ` — the note then was “${group.priorDecision}”` : ''}.
+        </p>
+      )}
+
       {group.reasons.length > 0 && (
         <ul style={{ margin: '10px 0 0', paddingLeft: 18, fontSize: 12.5 }} className="muted">
           {group.reasons.map((r, i) => <li key={i} style={{ marginTop: 2 }}>{r}</li>)}
@@ -176,7 +253,7 @@ function Group({ group }: { group: ReportGroup }) {
         <input
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="Note for the next moderator (optional)"
+          placeholder="Why — the audit log and the next moderator (optional)"
           maxLength={500}
           style={{
             flex: 1, minWidth: 200, fontSize: 13, fontFamily: 'inherit', padding: '9px 11px',
@@ -202,6 +279,16 @@ function Group({ group }: { group: ReportGroup }) {
             Warn
           </Button>
         )}
+        {/* The proportionate verdict this queue did not have. The avatar renders
+            on every feed row, every comment, every chat header and every search
+            result, and the only responses to a reported one were to close the
+            whole account or to do nothing. */}
+        {canActOnUser && (
+          <Button variant="line" size="sm" disabled={decide.isPending || note.trim().length < 3} onClick={() => act('avatar')}
+            title={note.trim().length < 3 ? 'Write the reason in the note first.' : undefined}>
+            Remove profile photo
+          </Button>
+        )}
         {canSuspend && (
           <Button variant="line" size="sm" disabled={decide.isPending || note.trim().length < 3} onClick={() => act('suspend')}
             title={note.trim().length < 3 ? 'Write the reason in the note first.' : undefined}
@@ -221,13 +308,11 @@ function Group({ group }: { group: ReportGroup }) {
       )}
       {canActOnUser && (
         <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>
-          Warn sends the person a message{canSuspend ? '; Suspend closes their account until an admin restores it' : ''}. {canSuspend ? 'Both are' : 'It is'} written to the audit, and neither tells them who reported.{canSuspend ? ' Suspend needs a reason in the note.' : ''}
+          Warn sends the person a fixed sentence pointing them at the guidelines{canSuspend ? '; Suspend closes their account until an admin restores it' : ''}. Removing the profile photo leaves the account alone. Your note above is never shown to them — it is the audit row and the next moderator, and nothing else.{canSuspend ? ' Suspend needs a reason in the note.' : ''}
         </p>
       )}
       {(decide.isError || dating.isError) && (
-        <p className="muted" style={{ fontSize: 12, color: 'var(--danger-ink)', marginTop: 8 }}>
-          That did not go through. Try again in a moment.
-        </p>
+        <p style={writeFailed}>{writeFailure(decide.error ?? dating.error)}</p>
       )}
     </div>
   );
@@ -245,10 +330,7 @@ export function ModerationQueue() {
       {queue.isLoading && <Spinner />}
 
       {queue.isError && (
-        <p className="muted" style={{ fontSize: 13.5, marginTop: 10, lineHeight: 1.6 }}>
-          This queue is for moderators. If you should have access, your handle needs to be in the
-          deployment&rsquo;s moderator list — the role is granted from it when the server starts.
-        </p>
+        <p style={readFailed}>{readFailure(queue.error, 'The report queue')}</p>
       )}
 
       {queue.data && (
@@ -294,6 +376,7 @@ function HeldProfiles() {
   const q = useHeldProfiles();
   const decide = useProfileDecision();
   const [reason, setReason] = useState<Record<string, string>>({});
+  if (q.isError) return <FailedSection title="Profiles held for a look" error={q.error} what="The held-profile queue" />;
   if (!q.data) return null;
   const stuck = q.data.filter((p) => p.status === 'pending').length;
   return (
@@ -337,6 +420,7 @@ function HeldProfiles() {
               Take it down
             </Button>
           </div>
+          {decide.isError && <p style={writeFailed}>{writeFailure(decide.error)}</p>}
         </article>
       ))}
     </section>
@@ -352,6 +436,11 @@ function HeldPhotos() {
   const q = useHeldPhotos();
   const backfill = usePhotoBackfill();
   const stalled = (q.data ?? []).filter((p) => p.status === 'pending').length;
+  /* THE ALARM GOES WITH THE SECTION, which is why a failed read cannot render
+     nothing: "N photos have been waiting without ever being looked at" is the
+     one line that says photo review itself has stopped, and it lived inside the
+     block that disappeared on a 500. */
+  if (q.isError) return <FailedSection title="Photos held for a look" error={q.error} what="The held-photo queue" />;
   if (!q.data) return null;
   return (
     <section style={{ marginTop: 28 }}>
@@ -405,6 +494,9 @@ function HeldPhotoCard({ photo }: { photo: HeldPhoto }) {
           <Button variant="line" size="sm" disabled={!ok || decide.isPending} onClick={() => act('approved')}>Show it</Button>
           <Button variant="line" size="sm" disabled={!ok || decide.isPending} onClick={() => act('rejected')}>Remove it</Button>
         </div>
+        {/* A refusal used to re-enable the button and say nothing, which is
+            indistinguishable from a decision that worked. */}
+        {decide.isError && <p style={writeFailed}>{writeFailure(decide.error)}</p>}
       </div>
     </div>
   );
@@ -413,6 +505,7 @@ function HeldPhotoCard({ photo }: { photo: HeldPhoto }) {
 /** Citizens arguing with a decision on their own profile or photo. */
 function Appeals() {
   const q = useAppeals();
+  if (q.isError) return <FailedSection title="Appeals" error={q.error} what="The appeal queue" />;
   if (!q.data) return null;
   return (
     <section style={{ marginTop: 28 }}>
@@ -475,6 +568,7 @@ function AppealCard({ appeal }: { appeal: Appeal }) {
         <Button variant="line" size="sm" disabled={!ok || decide.isPending} onClick={() => decide.mutate({ id: appeal.id, decision: 'overturned', reason: reason.trim() })}>Overturn</Button>
         <Button variant="line" size="sm" disabled={!ok || decide.isPending} onClick={() => decide.mutate({ id: appeal.id, decision: 'upheld', reason: reason.trim() })}>Uphold</Button>
       </div>
+      {decide.isError && <p style={writeFailed}>{writeFailure(decide.error)}</p>}
     </div>
   );
 }

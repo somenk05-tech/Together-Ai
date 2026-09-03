@@ -103,6 +103,7 @@ describe('revokeAll writes the cutoff, in the same transaction', () => {
           calls.push('user'); stamped = data.sessionsRevokedAt; return { count: 1 };
         },
       },
+      deviceToken: { deleteMany: async () => { calls.push('devices'); return { count: 3 }; } },
       $transaction: async (ops: Promise<unknown>[]) => { inTransaction = true; return Promise.all(ops); },
     };
     return { svc, calls, stamped: () => stamped, inTransaction: () => inTransaction };
@@ -111,8 +112,23 @@ describe('revokeAll writes the cutoff, in the same transaction', () => {
   it('revokes the refresh tokens AND stamps the account', async () => {
     const h = build();
     await h.svc.revokeAll('u1');
-    expect(h.calls.sort()).toEqual(['tokens', 'user']);
+    expect(h.calls.sort()).toEqual(['devices', 'tokens', 'user']);
     expect(h.stamped()).toBeInstanceOf(Date);
+  });
+
+  it('and drops the push subscriptions, or the signed-out device keeps buzzing', async () => {
+    /*
+     * Push is keyed on the browser's push endpoint, not on a session, and the
+     * send path never re-checks — so a stolen laptop kept receiving message
+     * previews, dating pushes, invoice amounts and moderation verdicts after
+     * "sign out everywhere" said it had been signed out. Account deletion went
+     * the same way: it calls revokeAll on an already-scrubbed row, so
+     * DeviceToken's cascade never fires.
+     */
+    const h = build();
+    await h.svc.revokeAll('u1');
+    expect(h.calls).toContain('devices');
+    expect(h.inTransaction()).toBe(true);
   });
 
   it('does both in one transaction — a half-applied sign-out is the bug', async () => {

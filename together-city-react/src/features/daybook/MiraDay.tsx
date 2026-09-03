@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { apiPost } from '@/api/http';
 import { useMutation } from '@tanstack/react-query';
 import { MiraMark } from '@/features/chat/mira/MiraMark';
-import { useMiraSubscribe } from '@/features/chat/mira/api';
+import { SUB_INR, useMiraSubscribe, whyFailed } from '@/features/chat/mira/api';
 
 /**
  * MIRA, READING ONE DAY.
@@ -39,14 +39,18 @@ export function MiraDay({ date, onClose }: { date: string; onClose: () => void }
   const [turns, setTurns] = useState<Array<{ who: 'you' | 'mira'; text: string }>>([]);
   const [draft, setDraft] = useState('');
   const [paywalled, setPaywalled] = useState(false);
+  /** The last failure, held OUTSIDE the transcript — see `whyFailed`. */
+  const [failure, setFailure] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  /** The way to stop a request that is not coming back. See `ask`. */
+  const inFlight = useRef<AbortController | null>(null);
   const subscribe = useMiraSubscribe();
 
   const read = useMutation({
-    mutationFn: (ask: string) => apiPost('/mira/day', {
-      date, ask,
+    mutationFn: (input: { ask: string; signal?: AbortSignal }) => apiPost('/mira/day', {
+      date, ask: input.ask,
       tz: Intl.DateTimeFormat().resolvedOptions().timeZone || undefined,
-    }, DayReplySchema),
+    }, DayReplySchema, { signal: input.signal }),
   });
 
   useEffect(() => {
@@ -59,14 +63,27 @@ export function MiraDay({ date, onClose }: { date: string; onClose: () => void }
   const ask = async (text: string) => {
     const clean = text.trim();
     if (!clean || read.isPending) return;
+    setFailure(null);
     setTurns((t) => [...t, { who: 'you', text: clean }]);
     setDraft('');
+    // A request nobody can stop is an Ask key disabled with no way out of it.
+    const stop = new AbortController();
+    inFlight.current = stop;
     try {
-      const reply = await read.mutateAsync(clean);
+      const reply = await read.mutateAsync({ ask: clean, signal: stop.signal });
       setPaywalled(Boolean(reply.paywall));
       setTurns((t) => [...t, { who: 'mira', text: reply.text }]);
-    } catch {
-      setTurns((t) => [...t, { who: 'mira', text: 'I’m not reaching the city right now. Try me in a minute?' }]);
+    } catch (err) {
+      /**
+       * A FAILURE IS NOT ONE OF HER TURNS — the argument `MiraThread` made and
+       * won in her own room, carried here. This was a bare catch pushing one
+       * sentence in AS MIRA for a 429, an expired session and a schema skew
+       * alike: three different things and one wrong sentence, said in the
+       * voice of somebody reading the citizen's own diary back to them.
+       */
+      setFailure(whyFailed(err));
+    } finally {
+      inFlight.current = null;
     }
   };
 
@@ -90,6 +107,8 @@ export function MiraDay({ date, onClose }: { date: string; onClose: () => void }
             <div key={i} className={`miraturn ${t.who}`}><div className="mirabub">{t.text}</div></div>
           ))}
           {read.isPending && <div className="miraturn mira"><div className="mirabub mirawait">Reading it…</div></div>}
+          {/* Its own row, visibly not a bubble. */}
+          {failure && <div className="mirasys" role="status">{failure}</div>}
           {paywalled && (
             <div className="miraturn mira">
               <div className="mirabub">
@@ -99,7 +118,9 @@ export function MiraDay({ date, onClose }: { date: string; onClose: () => void }
                       .then(() => { setPaywalled(false); setTurns((t) => [...t, { who: 'mira', text: 'Done — we’re good for 30 days. Now, this day.' }]); })
                       .catch(() => setTurns((t) => [...t, { who: 'mira', text: 'The wallet didn’t answer. Try again in a minute?' }]));
                   }}>
-                  {subscribe.isPending ? 'A moment…' : 'Subscribe · ₹999 for 30 days'}
+                  {/* THE PRICE IS NOT A LITERAL. `api.ts` holds it precisely
+                      so a key cannot name an amount the wallet does not charge. */}
+                  {subscribe.isPending ? 'A moment…' : `Subscribe · ₹${SUB_INR} for 30 days`}
                 </button>
                 <Link className="miragoto" to="/financial">Top up the wallet first →</Link>
               </div>
@@ -116,7 +137,12 @@ export function MiraDay({ date, onClose }: { date: string; onClose: () => void }
         <form className="miracomposer" onSubmit={(e) => { e.preventDefault(); void ask(draft); }}>
           <input value={draft} onChange={(e) => setDraft(e.target.value)}
             aria-label="Ask Mira about this day" placeholder="Ask about this day…" />
-          <button type="submit" disabled={!draft.trim() || read.isPending}>Ask</button>
+          {/* A REQUEST CAN BE STOPPED, here as in her own room. */}
+          {read.isPending ? (
+            <button type="button" onClick={() => inFlight.current?.abort()}>Stop</button>
+          ) : (
+            <button type="submit" disabled={!draft.trim()}>Ask</button>
+          )}
         </form>
         <p className="miranote">She reads this one day, and keeps nothing from it.</p>
       </aside>

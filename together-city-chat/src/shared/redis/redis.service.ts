@@ -160,6 +160,8 @@ export class RedisService implements OnModuleDestroy {
     try {
       await this.client.set(PRESENCE_KEY(userId), Date.now().toString(), 'EX', 90);
       await this.client.expire(SOCKETS_KEY(userId), 90);
+      // ...and the open-conversation hash, which now expires on the same clock.
+      await this.client.expire(OPEN_CONV_KEY(userId), 90);
     } catch (e) {
       this.demote('heartbeat', e);
     }
@@ -198,21 +200,57 @@ export class RedisService implements OnModuleDestroy {
         await this.client.del(OPEN_CONV_KEY(userId));
         await this.client.hset(OPEN_CONV_KEY(userId), socketId, conversationId);
       }
-      await this.client.expire(OPEN_CONV_KEY(userId), 3600);
+      /* THE SAME NINETY SECONDS PRESENCE GETS, not an hour (3 Sep). A field
+         here is only ever removed by an explicit leave or by a disconnect this
+         process saw, so a killed instance left one behind — and the reader
+         below treats "this socket has that chat open" as a reason to send no
+         push. An hour of that is an hour of a silent thread. Refreshed by the
+         same heartbeat that keeps `presence:` and `sockets:` alive, so a tab
+         that is genuinely open never loses it. */
+      await this.client.expire(OPEN_CONV_KEY(userId), 90);
     } else {
       await this.client.hdel(OPEN_CONV_KEY(userId), socketId).catch(swallowed('redis.setOpenConversation', 0));
     }
   }
 
-  /** Every conversation any of this user's live sockets has open. */
+  /**
+   * Every conversation any of this user's LIVE sockets has open.
+   *
+   * "Live" is the word that was missing (3 Sep). This read `hvals` and trusted
+   * every field in the hash, and a field outlives its socket whenever the
+   * instance holding it is killed — no leave, no `handleDisconnect`. The only
+   * caller uses the answer to decide NOT to send a push, so one abandoned field
+   * silenced a conversation for the whole TTL for a citizen who was reading it
+   * nowhere. The socket set is the authority on which sockets exist; a field
+   * whose socket is not in it is a corpse, ignored here and dropped.
+   */
   async openConversationsOf(userId: string): Promise<string[]> {
     if (this.healthy) {
       try {
-        return await this.client.hvals(OPEN_CONV_KEY(userId));
+        return await this.openConversationsLive(userId);
       } catch (e) {
         this.demote('openConversationsOf', e);
       }
     }
-    return [...(this.localOpenConv.get(userId)?.values() ?? [])];
+    const live = this.localSockets.get(userId) ?? new Set<string>();
+    return [...(this.localOpenConv.get(userId) ?? new Map<string, string>())]
+      .filter(([socketId]) => live.has(socketId))
+      .map(([, conversationId]) => conversationId);
+  }
+
+  private async openConversationsLive(userId: string): Promise<string[]> {
+    const [open, sockets] = await Promise.all([
+      this.client.hgetall(OPEN_CONV_KEY(userId)),
+      this.client.smembers(SOCKETS_KEY(userId)),
+    ]);
+    const live = new Set(sockets);
+    const entries = Object.entries(open);
+    const stale = entries.filter(([socketId]) => !live.has(socketId)).map(([socketId]) => socketId);
+    // Best-effort tidy — the answer above does not depend on it succeeding.
+    if (stale.length) {
+      await this.client.hdel(OPEN_CONV_KEY(userId), ...stale)
+        .catch(swallowed('redis.openConversationsOf: dropping sockets that are gone', 0));
+    }
+    return entries.filter(([socketId]) => live.has(socketId)).map(([, conversationId]) => conversationId);
   }
 }

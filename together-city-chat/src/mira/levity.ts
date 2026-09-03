@@ -150,7 +150,30 @@ export function levity(input: LevityInput): LevityVerdict {
 
   const distressNow = DISTRESS.test(text);
   const lowMood = LOW_MOOD.test(text);
-  const distress = distressNow || Boolean(input.distressLocked);
+  /**
+   * LOW MOOD IS DISTRESS, AND NOT ONLY A LOWER NUMBER.
+   *
+   * This read `distressNow || locked`, so "I'm falling apart" capped the jokes
+   * here and was then read as an ordinary turn by everything downstream that
+   * asks this verdict the same question: the persona was handed
+   * `distress: false` and told the model to be "playful by default" on the one
+   * turn that mattered; `ask()` sent the sentence to a second model call to be
+   * mined for durable facts, against `fact.ts`'s rule 2; and the four-hour
+   * latch never armed, so the next message came back at base levity with a
+   * joke on it.
+   *
+   * A THIRD STATE WAS THE ALTERNATIVE and it earns nothing. Every consumer of
+   * this flag — the heavy register, the fact miner, the latch, the ledger and
+   * the meter — wants the same answer for "my mother is in hospital" and for
+   * "I can't cope", so a second grade of heavy would be a second thing to get
+   * wrong at five call sites. The two lexicons stay separate above so the
+   * trace still names which one fired; only the verdict is shared.
+   *
+   * What it costs: a false positive used to be one flat turn and is now four
+   * flat hours and one unmined sentence. That is the direction this file has
+   * always chosen — "a false negative costs the citizen".
+   */
+  const distress = distressNow || lowMood || Boolean(input.distressLocked);
 
   const base: LevityLevel = BASE[input.lane];
   trace.push(`lane ${input.lane} → base L${base}`);

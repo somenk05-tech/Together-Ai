@@ -75,12 +75,24 @@ export function useNotificationPages() {
       const tail = last[last.length - 1];
       return tail ? { createdAt: tail.createdAt, id: tail.id } : undefined;
     },
-    /* A CEILING ON THE REFETCH, because invalidation reloads EVERY loaded page
-       of an infinite query, and `useNotificationSync` invalidates on every
-       incoming chat message. Five pages is 250 notifications — past anything
-       anybody scrolls — and it bounds one message to five requests rather than
-       to however far somebody happened to scroll. */
-    maxPages: 5,
+    /* NO `maxPages`, AND THE CEILING IT REPLACED DELETED THE NEWEST ROWS.
+       (3 Sep)
+
+       It was `maxPages: 5`, to bound the refetch that an invalidation triggers
+       across every loaded page. What it actually does in TanStack Query v5 is
+       evict FIFO: fetching the sixth page drops the FIRST one — the newest 50
+       notifications — out of the cache. `Notifications.tsx` renders
+       `pages.flat()`, so scrolling past 250 silently deleted the top of the
+       citizen's own bell, and `getNextPageParam` reads only the tail, so there
+       was no way back short of a reload. v5 only lets an evicted page be
+       re-fetched when `getPreviousPageParam` exists, and this query has no
+       upwards direction: the newest page is not something you scroll back to.
+
+       The cost it was buying is real and much smaller than the bug: the paged
+       cache is a sibling key refetched only while the Notifications screen is
+       MOUNTED (`refetchType: 'active'`, see useNotificationSync), so it is one
+       screen, open, paying a request per loaded page. Losing rows nobody can
+       get back is not a trade for that. */
   });
 }
 export function useUnreadNotificationCount() {

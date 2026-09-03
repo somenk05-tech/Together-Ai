@@ -40,7 +40,10 @@ describe('nobody is here after they leave', () => {
   const gate = code(read('connections/connection-permission.service.ts'));
 
   it('has ONE definition of the question, not a clause people retype', () => {
-    expect(svc).toMatch(/private static readonly STILL_HERE = \{ is: \{ deletedAt: null \} \}/);
+    // The clause moved into admin/account-reach.ts when suspension joined it —
+    // one predicate for "may a citizen still reach this person", so the pool and
+    // the city feed cannot answer it differently.
+    expect(svc).toMatch(/private static readonly STILL_HERE = REACHABLE_USER;/);
     expect(svc).toMatch(/private async stillHere\(userId: string\): Promise<boolean>/);
     expect(svc).toMatch(/private async assertStillHere\(userId: string\): Promise<void>/);
   });
@@ -51,7 +54,7 @@ describe('nobody is here after they leave', () => {
     // grown twice since — blocked matches (blocker 10) and moderator-rejected
     // profiles (fourth audit) — so this pins the still-here half by its two
     // parts rather than by the shape of one line.
-    expect(svc).toMatch(/id: \{ in: allMatches\.map\(other\) \}, deletedAt: null/);
+    expect(svc).toMatch(/id: \{ in: allMatches\.map\(other\) \}, \.\.\.REACHABLE_ACCOUNT/);
     expect(svc).toMatch(/const matches = allMatches\.filter\(/);
     expect(svc).toMatch(/userOf\.has\(id\)/);
   });
@@ -89,7 +92,7 @@ describe('nobody is here after they leave', () => {
 
   it('keeps the two passes before this one', () => {
     // poolWhere (every list) and assertWritable (every like, connect, reveal).
-    expect(svc).toMatch(/private poolWhere\([\s\S]{0,1400}?deletedAt: null/);
+    expect(svc).toMatch(/private poolWhere\([\s\S]{0,2600}?user: REACHABLE_USER/);
     const writable = svc.slice(svc.indexOf('private async assertWritable'), svc.indexOf('private async assertWritable') + 1400);
     expect(writable).toMatch(/deletedAt/);
   });

@@ -121,7 +121,16 @@ export function Settings() {
     }
   };
 
-  const pushOn = push.permission === 'granted';
+  /* "ENABLED" MEANT "YOU ALLOWED THE PROMPT" (3 Sep).
+     `permission === 'granted'` is the browser's answer to a question about a
+     dialog. It says nothing about whether a subscription exists, and `enable()`
+     threw away the one value that knew: deploy without VAPID_PUBLIC_KEY and a
+     citizen pressed Enable, allowed the prompt, and was told "On — new messages
+     reach you even with the app closed" while nothing had been registered and
+     nothing ever would arrive. Both halves are required now, and the states
+     between them each say which problem it is and whose it is to fix. */
+  const pushOn = push.permission === 'granted' && push.state === 'on';
+  const pushChecking = push.permission === 'granted' && push.state === 'unknown';
 
   return (
     <div className="page">
@@ -157,15 +166,33 @@ export function Settings() {
       {/* Notifications */}
       <Card style={{ marginTop: 18 }}>
         <SectionTitle eyebrow="Notifications" title="How the city reaches you" link={{ to: '/profile', label: 'Notifications Centre' }} />
-        {push.supported && (
+        {push.supported ? (
           <Row
             title="Message push"
             desc={pushOn ? 'On — new messages reach you even with the app closed.'
               : push.permission === 'denied' ? 'Blocked in your browser — allow notifications for this site to enable.'
+              : push.state === 'unconfigured' ? 'Not switched on for the city yet — there is no push key on the server, so nothing can be delivered to any browser. Nothing to fix at your end.'
+              : pushChecking ? 'Checking whether this browser is registered…'
+              : push.permission === 'granted' ? 'You allowed notifications, but this browser could not be registered — so nothing will arrive yet. Try again.'
               : 'Get notified of new messages even when Together City is closed.'}
             right={pushOn ? <span className="tag">Enabled</span>
               : push.permission === 'denied' ? <span className="tag">Blocked</span>
-              : <Button size="sm" variant="accent" disabled={push.busy} onClick={() => void push.enable()}>{push.busy ? 'Enabling…' : 'Enable'}</Button>}
+              : push.state === 'unconfigured' ? <span className="tag">Unavailable</span>
+              : pushChecking ? <span className="tag">Checking…</span>
+              : <Button size="sm" variant="accent" disabled={push.busy} onClick={() => void push.enable()}>{push.busy ? 'Enabling…' : push.permission === 'granted' ? 'Try again' : 'Enable'}</Button>}
+          />
+        ) : (
+          /* THE ROW USED TO VANISH, WHICH READS AS "THERE IS NOTHING TO SAY"
+             (3 Sep). The shipped native apps are a Capacitor web view, which
+             exposes no Push API — so `supported` is false and the whole card
+             disappeared, leaving a citizen to conclude the city simply does not
+             send notifications. It does; it cannot reach them HERE. Saying so
+             is the difference between a missing feature and a broken one, and
+             it points at the surface that does work today. */
+          <Row
+            title="Message push"
+            desc="Not available in this app — it has no way to receive notifications, and there is no native delivery yet. Open Together City in your phone's browser to be reached with the app closed."
+            right={<span className="tag">Not available here</span>}
           />
         )}
         {/* Four switches used to sit here — digest bundling, quiet hours,

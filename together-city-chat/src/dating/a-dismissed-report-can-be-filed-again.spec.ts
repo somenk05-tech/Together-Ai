@@ -49,9 +49,19 @@ describe('a dismissed report can be filed again', () => {
     const out = await svc.reportMatch('me', 'them', 'they escalated to threats') as any;
     expect(out).toEqual({ reported: true, reopened: true });
     expect(updates[0].status).toBe('open');
-    expect(updates[0].reviewedById).toBeNull();
-    expect(updates[0].decision).toBeNull();
-    expect(updates[0].reason).toBe('they escalated to threats');
+    /* AND THE PREVIOUS DECISION SURVIVES IT (3 Sep). Re-filing used to null
+       `reviewedById`, `reviewedAt` and `decision` and stamp `createdAt`
+       forward — so the next moderator had no record that anyone had looked or
+       what they had concluded, and a report first filed three weeks ago sorted
+       LAST in a queue ordered by first-filed. This file's own paragraph above
+       says escalation after a wrong dismissal was invisible and that was the
+       whole point of reopening it; clearing the decision put the invisibility
+       back in different columns, on a model the schema calls append-only. */
+    expect(updates[0]).not.toHaveProperty('reviewedById');
+    expect(updates[0]).not.toHaveProperty('decision');
+    expect(updates[0]).not.toHaveProperty('createdAt');
+    // The reporter's new words are APPENDED — theirs and the earlier ones both.
+    expect(updates[0].reason).toContain('they escalated to threats');
     // tellModerators ran (it counted reports) — the doorbell rang again.
     expect(prisma.report.count).toHaveBeenCalled();
   });

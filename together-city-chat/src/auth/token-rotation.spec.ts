@@ -39,6 +39,9 @@ function build() {
     // issued before the sign-out stops working too — see session-revocation.spec.
     // Both writes go in one transaction, so the fake has to model both.
     user: { updateMany: async () => ({ count: 1 }) },
+    // ...and drops the account's push subscriptions, which is the third write
+    // in that transaction (see session-revocation.spec).
+    deviceToken: { deleteMany: async () => ({ count: 0 }) },
     $transaction: async (ops: Promise<unknown>[]) => Promise.all(ops),
   };
   return { svc, rows };

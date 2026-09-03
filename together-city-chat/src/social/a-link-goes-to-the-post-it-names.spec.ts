@@ -29,7 +29,9 @@ type Over = {
 
 function svc(over: Over = {}) {
   const prisma = {
-    post: { findUnique: async () => over.row ?? null },
+    // The permalink reads with findFirst — a suspended author's post is gone
+    // from the feed, and a link that still served it would be the hole.
+    post: { findFirst: async () => over.row ?? null },
   } as any;
   const storage = {
     signPostMedia: async (values: Array<string | null>) => new Map(

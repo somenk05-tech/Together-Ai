@@ -4,6 +4,7 @@ import { PrismaService } from '../shared/prisma/prisma.service';
 import { ConnectionPermissionService } from '../connections/connection-permission.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ChatEventBus } from '../shared/events/chat-events';
+import { RedisService } from '../shared/redis/redis.service';
 import {
   afterJoin, afterLeave, afterTimeout, durationSeconds, mayEndForAll, ringExpired,
   type CallView, type Transition,
@@ -51,6 +52,9 @@ export class CallsService {
     private readonly permission: ConnectionPermissionService,
     private readonly notifications: NotificationsService,
     private readonly bus: ChatEventBus,
+    // Presence, for the one question the participant rows cannot answer:
+    // is anybody on this call still connected? See sweepStale.
+    private readonly redis: RedisService,
   ) {}
 
   /** The generated client lags new models until `prisma generate` runs. */
@@ -204,7 +208,7 @@ export class CallsService {
 
     const conversation = await this.prisma.conversation.findUnique({
       where: { id: conversationId },
-      select: { type: true, anonymousTrust: true },
+      select: { type: true, kind: true, anonymousTrust: true },
     });
     if (!conversation) throw new NotFoundException('Conversation not found');
 
@@ -258,6 +262,20 @@ export class CallsService {
     const memberIds = members.map((m) => m.userId);
     if (memberIds.length < 2) throw new BadRequestException('There is nobody to call.');
 
+    /* A BLOCK STOPS A PHONE RINGING — IN A GROUP TOO.
+       The gate above only applies block rules to DIRECT conversations, and for
+       a good reason: a block "is not a way to remove somebody from a room full
+       of other people". But "still in the room" was read as "may be made to
+       ring", so anybody sharing any group with somebody who had blocked them
+       could put a full-screen ringing call on their phone, once a minute, for
+       as long as they liked. They stay in the room, on the roster and in the
+       history; they are simply not rung.
+       Fails CLOSED, deliberately: if this read cannot be made, the cost of
+       guessing wrong is the harassment this exists to stop. */
+    const blocked = await this.permission.blockedWith(userId);
+    const recipientIds = memberIds.filter((id) => id !== userId && !blocked.has(id));
+    if (!recipientIds.length) throw new BadRequestException('There is nobody to call.');
+
     const now = new Date();
     const call = await this.callSession.create({
       data: {
@@ -281,8 +299,26 @@ export class CallsService {
       skipDuplicates: true,
     });
 
+    /* GLARE — TWO PEOPLE PRESS CALL IN THE SAME SECOND.
+       The lookup above is a read and the create is a write, so both requests
+       can pass the read and the conversation ends up holding two live calls:
+       the one thing the invariant in this docblock says never happens, and the
+       reason it matters is that each half of the pair then negotiates against a
+       different session and neither of them hears anything. Nothing in the
+       schema catches it — the partial unique index that would is not there — so
+       the race is settled after the fact, and settled the SAME WAY BY BOTH
+       REQUESTS: re-read this conversation's live calls and keep the oldest.
+       The loser closes its own row and joins the winner, which is exactly what
+       it would have done had it seen that row a millisecond earlier. */
+    const oldest = await this.oldestLive(dto.conversationId, now);
+    if (oldest && oldest.id !== call.id) {
+      await this.close(await this.reload(call.id), { status: 'ended', endedReason: 'cancelled', started: false });
+      // Nothing was ever broadcast about the losing row, so nothing has to be
+      // taken back — the citizen simply lands in the call that won.
+      return this.join(userId, oldest.id);
+    }
+
     const fresh = await this.reload(call.id);
-    const recipientIds = memberIds.filter((id) => id !== userId);
     this.bus.publish({
       kind: 'call.ringing',
       callId: call.id,
@@ -341,7 +377,11 @@ export class CallsService {
     });
 
     const after = await this.reload(callId);
-    const move = afterLeave(this.view(row), userId);
+    // The state AFTER this leave, not the snapshot taken before it. Reading
+    // `row` here made two simultaneous declines each see the other person as
+    // still being rung, so neither ended the call and a group call was left
+    // ringing at nobody until the sweep.
+    const move = afterLeave(this.view(after), userId);
     if (move.status === 'ended') {
       const done = await this.close(after, move);
       // The other hang-up got there first; its broadcast already carries the
@@ -372,11 +412,13 @@ export class CallsService {
   /**
    * May `from` send `to` a piece of the WebRTC handshake?
    *
-   * Three things have to hold, and each has been a bug in somebody's call
+   * Four things have to hold, and each has been a bug in somebody's call
    * implementation: the call must be live, the sender must still belong to the
-   * conversation, and the *recipient* must be on this call's roster. Skipping
-   * the last one turns the signalling channel into an unsolicited-message
-   * channel addressed by user id.
+   * conversation, the *recipient* must be on this call's roster, and the
+   * recipient must still belong to the conversation too. Skipping the third
+   * turns the signalling channel into an unsolicited-message channel addressed
+   * by user id; skipping the fourth leaves it open to somebody the room has
+   * since removed, or who has since blocked the sender.
    */
   async assertMaySignal(from: string, callId: string, to: string): Promise<void> {
     if (from === to) throw new BadRequestException('You cannot signal yourself.');
@@ -386,18 +428,42 @@ export class CallsService {
     if (!roster.includes(from) || !roster.includes(to)) {
       throw new ForbiddenException('That person is not on this call.');
     }
+    /* AND THE ROSTER IS A RECORD, NOT A PERMISSION — FOR THE RECIPIENT TOO.
+       The roster is frozen at `start`, and the only membership re-checked per
+       frame was the SENDER's, because that is what `loadAuthorised` asks. So
+       somebody removed from a group, or who blocked the caller after the call
+       began, stayed addressable at 16 KB a frame for as long as the call was
+       left open — and `assertCanPostToConversation` cannot close that hole for
+       them, because it applies block and unmatch rules to DIRECT conversations
+       only. One membership read and one block read, per frame, on the same
+       principle as the sender's: authorise every frame or authorise nothing.
+       All three refusals say the same thing, so this never reports that a
+       block exists. */
+    const stillAMember = await this.prisma.conversationMember.findFirst({
+      where: { conversationId: row.conversationId, userId: to },
+      select: { userId: true },
+    });
+    if (!stillAMember) throw new ForbiddenException('That person is not on this call.');
+    if (await this.permission.isBlocked(from, to)) {
+      throw new ForbiddenException('That person is not on this call.');
+    }
   }
 
   // ── the sweep ──────────────────────────────────────────
 
   /**
-   * Calls nobody answered.
+   * Calls nobody answered, and calls everybody walked away from.
    *
    * Without this a call rings forever: the caller closes the tab, no leave ever
    * arrives, and the conversation is left holding a live call that blocks the
    * next one (see the invariant in `start`). Runs from a cron, spans every
    * citizen because that is what a sweep is, and writes only by ids it has just
    * read.
+   *
+   * The second half of that sentence is newer, and it is the one that had no
+   * backstop: an ACTIVE call was skipped forever on the strength of two columns
+   * that nobody had written a leave into. `stillConnected` is what makes the
+   * skip mean what it says.
    */
   async sweepStale(now = new Date()): Promise<number> {
     const cutoff = new Date(now.getTime() - 60_000);
@@ -408,9 +474,8 @@ export class CallsService {
     });
     let closed = 0;
     for (const row of stale) {
-      // An active call with people still in it is not stale, however long it runs.
-      const someonePresent = (row.participants ?? []).some((p) => p.joinedAt && !p.leftAt);
-      if (row.status === 'active' && someonePresent) continue;
+      // An active call with people still ON it is not stale, however long it runs.
+      if (row.status === 'active' && (await this.stillConnected(row))) continue;
       if (row.status === 'ringing' && !ringExpired(row.createdAt, now)) continue;
       try {
         const done = await this.close(row, afterTimeout(this.view(row)));
@@ -424,7 +489,85 @@ export class CallsService {
     return closed;
   }
 
+  /**
+   * Somebody who closed the laptop leaves the call they were on.
+   *
+   * Called when a citizen's LAST socket has gone and stayed gone (see
+   * ChatGateway.handleDisconnect for the grace period, which is what keeps a
+   * reload and a wifi blip from hanging up a healthy call). Without it the only
+   * way an abandoned call ended was the sweep, a minute of "Connecting…" later.
+   *
+   * A call that is merely RINGING for them is left alone: a phone ringing on
+   * three devices is not three people in a call, and closing one tab is not a
+   * decline. Only a seat somebody actually took is given up.
+   */
+  async leaveAbandoned(userId: string): Promise<number> {
+    // unbounded: one citizen's live calls — one, in practice
+    const rows = await this.callSession.findMany({
+      where: { status: { in: ['ringing', 'active'] }, participants: { some: { userId } } },
+      include: { participants: true },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    });
+    let left = 0;
+    for (const row of rows) {
+      const mine = (row.participants ?? []).find((p) => p.userId === userId);
+      if (!mine?.joinedAt || mine.leftAt) continue;
+      try {
+        await this.leave(userId, row.id);
+        left++;
+      } catch (e) {
+        this.logger.warn(`could not leave abandoned call ${row.id}: ${(e as Error).message}`);
+      }
+    }
+    return left;
+  }
+
   // ── internals ──────────────────────────────────────────
+
+  /**
+   * Is anybody on this call still connected?
+   *
+   * NOT "is anybody present": present is two columns — joinedAt set, leftAt
+   * null — written by a request that arrives only when somebody presses a
+   * button. Both people closing their laptops writes nothing, so the row stayed
+   * `active` with a full house forever, the sweep skipped it every minute for
+   * the rest of time, and the next `start` in that conversation joined the
+   * corpse instead of ringing anyone: the caller sat on "Connecting…" with the
+   * microphone open and nobody's phone made a sound.
+   *
+   * Presence is the liveness signal because it is the only one in this system
+   * that expires on its own: a Redis key the client's heartbeat refreshes every
+   * 30 seconds and that dies 90 seconds after the browser does. It survives a
+   * reload and a wifi blip — which is why an abandoned call is not closed the
+   * instant a socket drops — and it does not survive a closed lid.
+   */
+  private async stillConnected(row: CallRow): Promise<boolean> {
+    const present = (row.participants ?? []).filter((p) => p.joinedAt && !p.leftAt);
+    for (const p of present) {
+      if (await this.redis.isOnline(p.userId)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * This conversation's live call, oldest first — the tie-break that settles
+   * glare. Both rival requests read the same rows and sort them the same way,
+   * so both name the same winner without talking to each other. The id breaks a
+   * tie on the timestamp, because two creates can land in one millisecond.
+   */
+  private async oldestLive(conversationId: string, now: Date): Promise<CallRow | null> {
+    const rows = await this.callSession.findMany({
+      where: { conversationId, status: { in: ['ringing', 'active'] } },
+      include: { participants: true },
+      orderBy: { createdAt: 'asc' },
+      take: 5,
+    });
+    const live = rows
+      .filter((r) => !(r.status === 'ringing' && ringExpired(r.createdAt, now)))
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || (a.id < b.id ? -1 : 1));
+    return live[0] ?? null;
+  }
 
   private async reload(callId: string): Promise<CallRow> {
     const row = await this.callSession.findUnique({ where: { id: callId }, include: { participants: true } });
@@ -450,7 +593,34 @@ export class CallsService {
     if (res.count) {
       await this.callParticipant.updateMany({ where: { callId: row.id, leftAt: null }, data: { leftAt: now } });
     }
-    return { row: await this.reload(row.id), closed: res.count > 0 };
+    const after = await this.reload(row.id);
+    /* AND THE RING COMES OFF THE LOCK SCREEN.
+       `notifyIncomingCall` puts a notification up under the tag `call-<id>` and
+       nothing ever took it down, so a call nobody answered sat there reading
+       "Incoming call — Asha is calling you" in the present tense for as long as
+       the phone stayed locked, and tapping it hours later opened a thread for a
+       call `join` refuses. This is the one chokepoint every ending goes
+       through — cancel, decline, hang up, the sweep — so it is the only place
+       that has to remember. Only people who were RUNG and never joined are
+       told: the person who hung up does not need to be told they hung up.
+       Swallowed, and deliberately: a notification that fails to be corrected is
+       worse than a call that fails to end. */
+    if (res.count && after) {
+      const rung = (after.participants ?? [])
+        .filter((p) => p.userId !== after.createdById && !p.joinedAt)
+        .map((p) => p.userId);
+      if (rung.length) {
+        void this.notifications.notifyCallEnded({
+          conversationId: after.conversationId,
+          callerId: after.createdById,
+          recipientIds: rung,
+          callId: after.id,
+          type: after.type,
+          missed: after.endedReason === 'missed' || after.endedReason === 'cancelled',
+        }).catch(swallowed('calls: taking the ring off the lock screen', undefined));
+      }
+    }
+    return { row: after, closed: res.count > 0 };
   }
 
   private emitUpdated(row: CallRow, event: 'joined' | 'left' | 'ended') {

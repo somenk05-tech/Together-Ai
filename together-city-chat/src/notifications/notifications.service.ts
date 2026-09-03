@@ -1,4 +1,5 @@
 import { swallowed } from '../shared/swallow';
+import { BlockingService } from '../connections/blocking.service';
 import { Injectable, Logger } from '@nestjs/common';
 import { shownName } from '../dating/matching';
 import { datingContext } from '../shared/dating-conversations';
@@ -130,8 +131,27 @@ export class NotificationsService {
        * buzz. Chat messages are unaffected — they never came through here;
        * they upsert one row per conversation, by a 9 Aug decision, and giving
        * that path a push is a separate question about a different rhythm.
+       *
+       * ── "HERE" IS A DEVICE, AND THIS ASKED ABOUT AN ACCOUNT (3 Sep) ────────
+       *
+       * The gate was `!(await this.presence.isOnline(userId))`, and presence is
+       * ONE `presence:<userId>` key that any socket sets and a 30s heartbeat
+       * keeps alive against a 90s TTL. Leave a tab open on your desk and walk
+       * off with your phone and the account is "here" all day: no match push,
+       * no like, no invoice, no moderation verdict — the toast fires at an
+       * unattended monitor and the phone in the citizen's pocket is told
+       * nothing. That is the opposite of what the paragraph above promises.
+       *
+       * A push endpoint cannot be matched to a socket — `DeviceToken` records
+       * a browser endpoint and a platform and nothing that ties it to a
+       * session — so the server cannot answer the per-device question at all,
+       * and the account-wide answer it CAN give is wrong in the direction that
+       * loses the notification. So it sends, and the one place that knows
+       * whether this device is being looked at does the suppressing: a service
+       * worker holds `clients.matchAll` and can decline to show a notification
+       * when a visible window for the origin already has it.
        */
-      if (!input.silent && !(await this.presence.isOnline(input.userId))) {
+      if (!input.silent) {
         await this.pushToDevices(
           input.userId, input.title, input.body ?? '',
           input.push?.deepLink ?? deepLinkFrom(input.href), input.href ?? '/',
@@ -155,7 +175,7 @@ export class NotificationsService {
     const devices = await this.prisma.deviceToken.findMany({ where: { userId }, select: { token: true, platform: true } });
     const fcmTokens = devices.filter((d) => d.platform !== 'webpush').map((d) => d.token);
     const webTokens = devices.filter((d) => d.platform === 'webpush').map((d) => d.token);
-    await this.fcm.send(fcmTokens, { title, body, deepLink, data: { deepLink } });
+    await this.fcm.send(fcmTokens, { title, body, deepLink, data: { deepLink } }, userId);
     await this.webpush.send(webTokens, { title, body, conversationId: '', url, tag });
   }
 
@@ -356,6 +376,20 @@ export class NotificationsService {
       const deepLink = `togethercity://call/${params.callId}`;
 
       for (const recipientId of params.recipientIds) {
+        /* ITS OWN BLOCK CHECK (3 Sep). `calls.service` filters the ring list,
+           and this method is not the ring — it is reachable from anywhere, it
+           pushes with `silent: true` so the presence gate below `create` never
+           runs, and a full-screen ringing notification is the loudest thing
+           this app can put on a phone. One gate for the loudest surface, held
+           in one place, is not a gate.
+
+           Fails SHUT: an unreadable block table means this recipient is not
+           rung. It shares its fate with the device-token read a few lines down,
+           so a failure here is a failure of the whole push anyway — and the
+           direction that guesses wrong rings somebody who asked never to hear
+           from this person again. */
+        if (await this.blockedBetween(params.callerId, recipientId)) continue;
+
         // Muting a chat mutes its messages. It does not mute a ringing phone —
         // that is a different promise, and one nobody made.
         //
@@ -390,7 +424,7 @@ export class NotificationsService {
           imageUrl: displayPhoto,
           deepLink,
           data: { conversationId: params.conversationId, callId: params.callId },
-        });
+        }, recipientId);
         await this.webpush.send(webTokens, {
           title: `Incoming ${kindWord}`,
           body: `${displayName} is calling you.`,
@@ -416,83 +450,243 @@ export class NotificationsService {
     }
   }
 
+  /**
+   * Has either of these two blocked the other?
+   *
+   * THROUGH `BlockingService`, NOT THE TABLE. Reading `Block` here would see a
+   * Social-hub block and miss a connection-level one — the split
+   * `blocking-reach.spec.ts` exists to close, and it caught this the first time
+   * it was written as a direct find. Constructed rather than injected because
+   * this module does not depend on ConnectionsModule and the class is written
+   * to be built directly ("a block with no bus is still a block"); the cache is
+   * the only thing given up, and this runs once per call, not per message.
+   */
+  private async blockedBetween(a: string, b: string): Promise<boolean> {
+    try {
+      /* Built here rather than held as a field: a field initialiser reading
+         `this.prisma` runs before the parameter property under
+         `useDefineForClassFields`, and a BlockingService holding an undefined
+         client answers "blocked" for everybody — which fails shut, silently,
+         and stops every call ringing. */
+      return await new BlockingService(this.prisma).isBlocked(a, b);
+    } catch (e) {
+      // Loud, and shut. See the call site.
+      this.log.error(`could not read blocks for a call push: ${(e as Error).message}`);
+      return true;
+    }
+  }
+
+  /**
+   * THE RING IS OVER, AND THE LOCK SCREEN STILL SAYS IT IS RINGING (3 Sep).
+   *
+   * `notifyIncomingCall` puts "Incoming call — X is calling you" on a phone in
+   * the present tense, tagged `call-<callId>` and linked to `?call=<callId>`,
+   * and nothing ever took it back. A missed call sat there for the rest of the
+   * day still claiming somebody is on the line, and tapping it hours later
+   * opened a thread for a call that refuses to join ("That call was not
+   * answered.").
+   *
+   * A push cannot be withdrawn, but it can be REPLACED: the same tag overwrites
+   * the notification already on the device, so this is what "closing" it looks
+   * like from a server. Past tense, and a link with the `&call=` dropped, so
+   * the tap lands in the conversation rather than on a corpse.
+   *
+   * The bell row is updated in place for the same reason — one call, one row,
+   * per `notifyIncomingCall`'s own rule — so the feed does not keep a second
+   * copy of the same event in a tense that stopped being true.
+   *
+   * Called by whoever ends the ring: the stale-call sweep and `close()` in
+   * calls.service. Best-effort throughout; a failed correction must not fail
+   * the call teardown.
+   */
+  async notifyCallEnded(params: {
+    conversationId: string;
+    callerId: string;
+    recipientIds: string[];
+    callId: string;
+    type: string;
+    missed: boolean;
+  }): Promise<void> {
+    try {
+      const identity = await this.identityIn(params.conversationId, params.callerId);
+      if (!identity) return;
+      const { displayName, dating } = identity;
+      const kindWord = params.type === 'audio' ? 'call' : `${params.type} call`;
+      const title = params.missed ? `Missed ${kindWord}` : `${kindWord[0].toUpperCase()}${kindWord.slice(1)} ended`;
+      const body = `${displayName} called you.`;
+      // NO `&call=`: the call is over, and a link that offers to join one is
+      // the second half of the same lie.
+      const href = dating
+        ? `/matchmaking/chats?c=${params.conversationId}`
+        : `/chats?c=${params.conversationId}`;
+
+      await this.fanOut(params.recipientIds, async (recipientId) => {
+        try {
+          const existing = await this.notif.findFirst({
+            where: { userId: recipientId, kind: 'call_incoming', entityId: params.callId },
+            orderBy: { createdAt: 'desc' },
+          });
+          if (existing) {
+            const row = await this.notif.update({ where: { id: existing.id }, data: { title, body, href } });
+            this.gateway.emitNew(recipientId, this.shape(row), await this.unreadCount(recipientId));
+          }
+
+          // unbounded: one citizen's device tokens — a handful
+          const devices = await this.prisma.deviceToken.findMany({
+            where: { userId: recipientId },
+            select: { token: true, platform: true },
+          });
+          const fcmTokens = devices.filter((d) => d.platform !== 'webpush').map((d) => d.token);
+          const webTokens = devices.filter((d) => d.platform === 'webpush').map((d) => d.token);
+
+          await this.fcm.send(fcmTokens, {
+            title, body,
+            deepLink: deepLinkFrom(href),
+            data: { conversationId: params.conversationId, callId: params.callId },
+          }, recipientId);
+          await this.webpush.send(webTokens, {
+            title, body,
+            conversationId: params.conversationId,
+            // THE SAME TAG the ring went out under. This is the whole mechanism:
+            // a different tag would leave the ringing one on screen beside it.
+            tag: `call-${params.callId}`,
+            url: href,
+          });
+        } catch (e) {
+          this.log.warn(`could not close the call notification for one recipient: ${(e as Error).message}`);
+        }
+      });
+    } catch (e) {
+      this.log.warn(`call-ended notification failed: ${(e as Error).message}`);
+    }
+  }
+
+  /**
+   * A GROUP IS NOT A QUEUE (3 Sep).
+   *
+   * The message fan-out ran one recipient at a time — roughly eight sequential
+   * round trips each — inside a floating promise on the event bus. Membership
+   * is bounded only per REQUEST (64 at creation, 256 per `addMembers`, and
+   * `addMembers` repeats), so in a large room the last member waited for
+   * everybody before them: at 20ms a trip that is eight seconds of silence for
+   * a hundred people, and it grows with the room.
+   *
+   * A fixed window rather than `Promise.all` over everybody: the trips are
+   * Postgres and two push providers, and letting a 500-member room open 500
+   * concurrent Prisma calls trades a slow notification for a stalled pool.
+   */
+  private static readonly FAN_OUT_WIDTH = 8;
+
+  private async fanOut(ids: string[], each: (id: string) => Promise<void>): Promise<void> {
+    let next = 0;
+    const worker = async (): Promise<void> => {
+      for (let i = next++; i < ids.length; i = next++) {
+        const id = ids[i];
+        if (id) await each(id);
+      }
+    };
+    await Promise.all(
+      Array.from({ length: Math.min(NotificationsService.FAN_OUT_WIDTH, ids.length) }, worker),
+    );
+  }
+
   async notifyNewMessage(params: {
     conversationId: string;
     senderId: string;
     recipientIds: string[];
     preview: string;
   }): Promise<void> {
-    const identity = await this.identityIn(params.conversationId, params.senderId);
-    if (!identity) return;
-    const { displayName, displayPhoto, dating } = identity;
-    const href = dating ? `/matchmaking/chats?c=${params.conversationId}` : `/chats?c=${params.conversationId}`;
-    const deepLink = dating
-      ? `togethercity://dating/chat/${params.conversationId}`
-      : `togethercity://chat/${params.conversationId}`;
+    /* THE FIX WAS APPLIED ONE LEVEL TOO LOW (3 Sep). The per-recipient try
+       below is right and it starts too late: `identityIn` was awaited OUTSIDE
+       it, so one failed read of the sender — or of which hub this conversation
+       is in — threw straight out of a method whose only caller is a floating
+       promise on the event bus. Every recipient, every bell row and every push
+       for that message were lost together, with an unhandled rejection as the
+       only trace. `notifyIncomingCall` has wrapped its whole body since the
+       day it was written; this one had the same shape and not the same net. */
+    try {
+      const identity = await this.identityIn(params.conversationId, params.senderId);
+      if (!identity) return;
+      const { displayName, displayPhoto, dating } = identity;
+      const href = dating ? `/matchmaking/chats?c=${params.conversationId}` : `/chats?c=${params.conversationId}`;
+      const deepLink = dating
+        ? `togethercity://dating/chat/${params.conversationId}`
+        : `togethercity://chat/${params.conversationId}`;
 
-    for (const recipientId of params.recipientIds) {
-      /* ONE RECIPIENT'S FAILURE IS ONE RECIPIENT'S FAILURE (fifth audit,
-         29 Aug). This loop had no try/catch, and it is invoked from a floating
-         promise on the event bus — so a single Prisma or provider error aborted
-         the whole fan-out and everybody after the failing recipient was told
-         nothing, with an unhandled rejection as the only trace. */
-      try {
-        const online = await this.presence.isOnline(recipientId);
-        const openConvos = await this.redis.openConversationsOf(recipientId);
-        // Suppress if any of the recipient's live tabs is viewing this conversation.
-        if (online && openConvos.includes(params.conversationId)) continue;
+      await this.fanOut(params.recipientIds, async (recipientId) => {
+        /* ONE RECIPIENT'S FAILURE IS ONE RECIPIENT'S FAILURE (fifth audit,
+           29 Aug). This loop had no try/catch, and it is invoked from a floating
+           promise on the event bus — so a single Prisma or provider error aborted
+           the whole fan-out and everybody after the failing recipient was told
+           nothing, with an unhandled rejection as the only trace. */
+        try {
+          const member = await this.prisma.conversationMember.findUnique({
+            where: { conversationId_userId: { conversationId: params.conversationId, userId: recipientId } },
+          });
+          if (member?.muted) return;
 
-        const member = await this.prisma.conversationMember.findUnique({
-          where: { conversationId_userId: { conversationId: params.conversationId, userId: recipientId } },
-        });
-        if (member?.muted) continue;
+          /* WHAT MAY LEAVE THE APP, for this recipient.
+             The bell keeps the preview: it is inside the app, behind a session,
+             and a notification list that says "New message" four times is not a
+             notification list. The PUSH is the surface a stranger can read over
+             somebody's shoulder, and for a dating chat it carries the sender's
+             chosen name and nothing else unless this recipient asked otherwise. */
+          const pushBody = dating && !(await this.datingPreviewAllowed(recipientId))
+            ? 'New message'
+            : params.preview;
 
-        /* WHAT MAY LEAVE THE APP, for this recipient.
-           The bell keeps the preview: it is inside the app, behind a session,
-           and a notification list that says "New message" four times is not a
-           notification list. The PUSH is the surface a stranger can read over
-           somebody's shoulder, and for a dating chat it carries the sender's
-           chosen name and nothing else unless this recipient asked otherwise. */
-        const pushBody = dating && !(await this.datingPreviewAllowed(recipientId))
-          ? 'New message'
-          : params.preview;
+          /* THE BELL ROW IS NOT PART OF THE PUSH DECISION (3 Sep).
+             This used to sit below the open-conversation check, behind a
+             `continue` — so a stale field in the open-conversation hash (a
+             killed instance leaves one behind, and only an explicit leave or a
+             disconnect this process saw removes it) silenced the thread
+             completely: no push, no bell row, no badge, no trace. Whether a
+             live tab is reading the chat is a question about interrupting
+             somebody; it is not a question about whether the message happened.
+             The row is written first, and only the two transports are gated. */
+          await this.upsertMessageNotification(recipientId, params.conversationId, displayName, params.preview, href);
 
-        // In-app bell notification (grouped per chat) + live toast, titled with
-        // the sender's name.
-        await this.upsertMessageNotification(recipientId, params.conversationId, displayName, params.preview, href);
+          const online = await this.presence.isOnline(recipientId);
+          const openConvos = await this.redis.openConversationsOf(recipientId);
+          // Suppress the PUSH if any of the recipient's live tabs is viewing this
+          // conversation — the message is already on their screen.
+          if (online && openConvos.includes(params.conversationId)) return;
 
-        // unbounded: one citizen's device tokens — a handful
-        const devices = await this.prisma.deviceToken.findMany({
-          where: { userId: recipientId },
-          select: { token: true, platform: true },
-        });
-        const fcmTokens = devices.filter((d) => d.platform !== 'webpush').map((d) => d.token);
-        const webTokens = devices.filter((d) => d.platform === 'webpush').map((d) => d.token);
+          // unbounded: one citizen's device tokens — a handful
+          const devices = await this.prisma.deviceToken.findMany({
+            where: { userId: recipientId },
+            select: { token: true, platform: true },
+          });
+          const fcmTokens = devices.filter((d) => d.platform !== 'webpush').map((d) => d.token);
+          const webTokens = devices.filter((d) => d.platform === 'webpush').map((d) => d.token);
 
-        await this.fcm.send(fcmTokens, {
-          title: displayName,
-          body: pushBody,
-          imageUrl: displayPhoto,
-          deepLink,
-          data: { conversationId: params.conversationId },
-        });
+          await this.fcm.send(fcmTokens, {
+            title: displayName,
+            body: pushBody,
+            imageUrl: displayPhoto,
+            deepLink,
+            data: { conversationId: params.conversationId },
+          }, recipientId);
 
-        // Browser / PWA push — reaches the recipient even with the app fully closed.
-        await this.webpush.send(webTokens, {
-          title: displayName,
-          body: pushBody,
-          conversationId: params.conversationId,
-          icon: displayPhoto,
-          /* THE HREF THIS METHOD ALREADY COMPUTED, twenty lines up, and then
-             threw away. Without it the worker fell back to `/chats?c=<id>` —
-             the CITY Chats route — for a dating conversation, which is the one
-             list dating threads are deliberately stripped from, so the thread
-             opened with no peer and a broken header. */
-          url: href,
-        });
-      } catch (e) {
-        this.log.warn(`message notification failed for one recipient: ${(e as Error).message}`);
-      }
+          // Browser / PWA push — reaches the recipient even with the app fully closed.
+          await this.webpush.send(webTokens, {
+            title: displayName,
+            body: pushBody,
+            conversationId: params.conversationId,
+            icon: displayPhoto,
+            /* THE HREF THIS METHOD ALREADY COMPUTED, twenty lines up, and then
+               threw away. Without it the worker fell back to `/chats?c=<id>` —
+               the CITY Chats route — for a dating conversation, which is the one
+               list dating threads are deliberately stripped from, so the thread
+               opened with no peer and a broken header. */
+            url: href,
+          });
+        } catch (e) {
+          this.log.warn(`message notification failed for one recipient: ${(e as Error).message}`);
+        }
+      });
+    } catch (e) {
+      this.log.warn(`message fan-out failed for ${params.conversationId}: ${(e as Error).message}`);
     }
   }
 }

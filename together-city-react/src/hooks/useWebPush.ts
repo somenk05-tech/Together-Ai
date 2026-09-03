@@ -33,11 +33,33 @@ async function getRegistration(): Promise<ServiceWorkerRegistration> {
   return existing;
 }
 
-async function subscribeNow(): Promise<boolean> {
+/**
+ * WHAT ACTUALLY HAPPENED, not just whether it worked.
+ *
+ * `subscribeNow` returned a boolean and every caller threw it away, so Settings
+ * decided push was on from `Notification.permission` alone — which only says
+ * the citizen ALLOWED the prompt. Deploy without `VAPID_PUBLIC_KEY` and there
+ * is no key to subscribe with, the citizen presses Enable, allows the browser
+ * prompt, and is told "On — new messages reach you even with the app closed"
+ * while nothing has been registered and nothing will ever arrive. The three
+ * outcomes are different problems with different answers, so they are three
+ * different words.
+ */
+export type PushState =
+  /** Not asked yet, or not permitted — nothing has been attempted. */
+  | 'unknown'
+  /** Subscribed, and the server holds it. */
+  | 'on'
+  /** The server has no VAPID key: push is off for this deployment, not for you. */
+  | 'unconfigured'
+  /** The push service or the claim refused. Worth trying again. */
+  | 'failed';
+
+async function subscribeNow(): Promise<PushState> {
   const reg = await getRegistration();
   await navigator.serviceWorker.ready;
   const { key } = await pushApi.vapidKey();
-  if (!key) return false;
+  if (!key) return 'unconfigured';
   const subscribe = () => reg.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: urlBase64ToUint8Array(key) as unknown as BufferSource,
@@ -45,7 +67,7 @@ async function subscribeNow(): Promise<boolean> {
   const existing = await reg.pushManager.getSubscription();
   const sub = existing ?? (await subscribe());
   const claimed = await pushApi.subscribe(sub.toJSON());
-  if (claimed.ok) return true;
+  if (claimed.ok) return 'on';
 
   /* `{ ok: false }` MEANS SOMEBODY ELSE HOLDS THIS SUBSCRIPTION, and this
      line used to ignore the answer and report success. It happens on a shared
@@ -60,7 +82,7 @@ async function subscribeNow(): Promise<boolean> {
   await sub.unsubscribe().catch(() => undefined);
   const fresh = await subscribe();
   const second = await pushApi.subscribe(fresh.toJSON());
-  return second.ok;
+  return second.ok ? 'on' : 'failed';
 }
 
 /**
@@ -89,7 +111,7 @@ async function subscribeNow(): Promise<boolean> {
  * button, and a button that silently does nothing the second time is worse
  * than a duplicate request.
  */
-let inFlight: Promise<boolean> | null = null;
+let inFlight: Promise<PushState> | null = null;
 
 /**
  * Browser / PWA push notifications for offline message delivery.
@@ -103,6 +125,7 @@ export function useWebPush() {
     supported ? Notification.permission : 'denied',
   );
   const [busy, setBusy] = useState(false);
+  const [state, setState] = useState<PushState>('unknown');
 
   // Keep the subscription fresh whenever we're already permitted + logged in —
   // once, however many times the shell that calls this remounts.
@@ -110,9 +133,17 @@ export function useWebPush() {
     if (!(supported && authed && Notification.permission === 'granted')) {
       // Signed out, or not permitted: the next sign-in should refresh again.
       inFlight = null;
+      setState('unknown');
       return;
     }
-    inFlight ??= subscribeNow().catch(() => false);
+    inFlight ??= subscribeNow().catch(() => 'failed' as PushState);
+    /* AND THE ANSWER IS READ. Every mount reads the ONE in-flight refresh —
+       the dedupe above is what stops thirteen handshakes per session — so a
+       screen that mounts later still learns what it said rather than assuming
+       the permission prompt settled it. */
+    let alive = true;
+    void inFlight.then((r) => { if (alive) setState(r); });
+    return () => { alive = false; };
   }, [authed]);
 
   const enable = useCallback(async (): Promise<void> => {
@@ -122,14 +153,14 @@ export function useWebPush() {
       const perm = await Notification.requestPermission();
       setPermission(perm);
       if (perm === 'granted') {
-        const run = subscribeNow();
-        inFlight = run.catch(() => false);
-        await run;
+        const run = subscribeNow().catch(() => 'failed' as PushState);
+        inFlight = run;
+        setState(await run);
       }
     } finally {
       setBusy(false);
     }
   }, []);
 
-  return { supported, permission, busy, enable };
+  return { supported, permission, busy, enable, state };
 }

@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { swallowed } from '../shared/swallow';
+import { PrismaService } from '../shared/prisma/prisma.service';
 import { initializeApp, getApps, getApp, cert, type App } from 'firebase-admin/app';
 import { getMessaging, type Messaging } from 'firebase-admin/messaging';
 
@@ -25,7 +27,7 @@ export class FcmProvider {
   private readonly enabled: boolean;
   private messaging: Messaging | null = null;
 
-  constructor(config: ConfigService) {
+  constructor(config: ConfigService, private readonly prisma: PrismaService) {
     this.enabled = config.get<boolean>('fcm.enabled') ?? false;
     if (!this.enabled) return;
 
@@ -44,7 +46,11 @@ export class FcmProvider {
     }
   }
 
-  async send(tokens: string[], payload: PushPayload): Promise<void> {
+  /** `ownerId` is the citizen these tokens were read under. It scopes the
+   *  prune below: a dead token can only ever be dropped from the account it was
+   *  found on, which is both correct and what query-scoping.spec asks of every
+   *  write against a citizen-owned table. */
+  async send(tokens: string[], payload: PushPayload, ownerId?: string): Promise<void> {
     if (!this.messaging || tokens.length === 0) {
       this.logger.debug(
         `[FCM ${this.messaging ? 'no-tokens' : 'disabled'}] would push "${payload.title}" to ${tokens.length} device(s)`,
@@ -60,8 +66,36 @@ export class FcmProvider {
 
     if (res.failureCount > 0) {
       this.logger.warn(`[FCM] ${res.successCount} delivered, ${res.failureCount} failed of ${tokens.length}`);
+      await this.pruneDead(tokens, res.responses, ownerId);
     } else {
       this.logger.log(`[FCM] push "${payload.title}" → ${res.successCount} device(s)`);
     }
+  }
+
+  /**
+   * A DEAD TOKEN IS DELETED, NOT COUNTED (3 Sep).
+   *
+   * This read `failureCount` and logged a number. FCM registration tokens die
+   * for good — the app is uninstalled, its data cleared, the token refreshed —
+   * and the row stayed for the life of the account, so every push to that
+   * citizen carried a payload to a device that no longer exists, for ever, and
+   * the warning above became a permanent line in the log that meant nothing.
+   *
+   * `web-push.provider` has done this since it was written: 404/410 there is
+   * `registration-token-not-registered` here, plus the malformed token, which
+   * is the same permanence by a different route. Every other failure is
+   * transient and the row is left alone.
+   */
+  private async pruneDead(tokens: string[], responses: { success: boolean; error?: { code?: string } }[], ownerId?: string): Promise<void> {
+    const dead = tokens.filter((_, i) => {
+      const code = responses[i]?.error?.code;
+      return code === 'messaging/registration-token-not-registered'
+        || code === 'messaging/invalid-registration-token';
+    });
+    if (!dead.length || !ownerId) return;
+    await this.prisma.deviceToken
+      .deleteMany({ where: { userId: ownerId, token: { in: dead } } })
+      .catch(swallowed('notifications: dropping FCM tokens the device no longer holds', undefined));
+    this.logger.log(`[FCM] dropped ${dead.length} dead token(s)`);
   }
 }

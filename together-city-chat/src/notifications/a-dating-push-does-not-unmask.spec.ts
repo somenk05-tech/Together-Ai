@@ -8,11 +8,17 @@ import { shownName } from '../dating/matching';
  * push carries the chosen dating name and NO photo.
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-function build(opts: { dating: boolean; firstName?: string }) {
+function build(opts: { dating: boolean; firstName?: string; hubThrows?: boolean; noMatchRow?: boolean }) {
   const s: any = Object.create(NotificationsService.prototype);
   s.prisma = {
     user: { findUnique: async () => ({ name: 'Real Cityname', profileImage: 'https://cdn/city.jpg' }) },
-    datingMatch: { findFirst: async () => opts.dating
+    // WHICH HUB IS A COLUMN, and `hubThrows` is the database blip that used to
+    // answer "ordinary chat" — see the fail-shut tests below.
+    conversation: { findUnique: async () => {
+      if (opts.hubThrows) throw new Error('db down');
+      return { kind: opts.dating ? 'dating' : 'city' };
+    } },
+    datingMatch: { findFirst: async () => opts.dating && !opts.noMatchRow
       ? { revealByOne: false, revealByTwo: false, conversationId: 'c1', userOneId: 'S', userTwoId: 'R' }
       : null },
     datingProfile: { findUnique: async () => ({ extras: JSON.stringify({ firstName: opts.firstName }) }) },
@@ -36,6 +42,34 @@ describe('a dating push does not unmask the sender (blocker 06)', () => {
     expect(id.dating).toBe(false);
     expect(id.displayName).toBe('Real Cityname');
     expect(id.displayPhoto).toBe('https://cdn/city.jpg');
+  });
+
+  /*
+   * ── THE STUBS NEVER REJECTED, SO NEITHER CASE WAS COVERED (3 Sep) ──────────
+   *
+   * `dating: false` is not one wrong flag. It is the sender's ACCOUNT name as
+   * the title, the city photo as the image, the message BODY (the preview gate
+   * at `notifyNewMessage` hangs off the same flag) and a `/chats?c=` link — all
+   * of it on a lock screen, from one failed read. It has to fail SHUT, and the
+   * two tests below are the two ways it used to fail open.
+   */
+  it('a failed hub read is a DATING chat, not an ordinary one', async () => {
+    const s = build({ dating: true, firstName: 'Sky', hubThrows: true });
+    const id = await (s.identityIn as any).call(s, 'c1', 'S');
+    expect(id.dating).toBe(true);
+    expect(id.displayName).not.toBe('Real Cityname');
+    expect(id.displayPhoto).toBeUndefined();
+  });
+
+  it('a dating conversation whose match row was never linked is still anonymous', async () => {
+    // No error anywhere: `dating.service.ts` writes the conversation first and
+    // links the match second, so a failed link leaves a real dating chat that
+    // `DatingMatch` cannot see. Asking the column instead is what closes it.
+    const s = build({ dating: true, firstName: 'Sky', noMatchRow: true });
+    const id = await (s.identityIn as any).call(s, 'c1', 'S');
+    expect(id.dating).toBe(true);
+    expect(id.displayName).not.toBe('Real Cityname');
+    expect(id.displayPhoto).toBeUndefined();
   });
 });
 
@@ -107,6 +141,8 @@ function pushBuild(opts: { dating: boolean; optIn?: boolean }) {
   s.log = { warn: () => undefined };
   s.prisma = {
     user: { findUnique: async () => ({ name: 'Real Cityname', profileImage: null }) },
+    // The hub is a column, and an unreadable answer is dating — see identityIn.
+    conversation: { findUnique: async () => ({ kind: opts.dating ? 'dating' : 'city' }) },
     datingMatch: { findFirst: async () => opts.dating
       ? { revealByOne: false, revealByTwo: false, conversationId: 'c1', userOneId: 'S', userTwoId: 'R' }
       : null },

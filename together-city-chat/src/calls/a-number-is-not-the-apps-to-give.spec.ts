@@ -22,7 +22,7 @@ const VERIFIED = new Date('2026-01-01T00:00:00Z');
 
 function harness(opts: {
   members?: string[];
-  conversation?: { type: string; anonymousTrust: number | null } | null;
+  conversation?: { type: string; kind: string; anonymousTrust: number | null } | null;
   users?: Record<string, { phoneE164: string | null; phoneVerifiedAt: Date | null; deletedAt: Date | null }>;
 } = {}) {
   const members = opts.members ?? ['alice', 'bob'];
@@ -31,7 +31,7 @@ function harness(opts: {
     bob: { phoneE164: '+919876543210', phoneVerifiedAt: VERIFIED, deletedAt: null },
   };
   const conversation = opts.conversation === undefined
-    ? { type: 'DIRECT', anonymousTrust: null }
+    ? { type: 'DIRECT', kind: 'city', anonymousTrust: null }
     : opts.conversation;
 
   const prisma = {
@@ -47,7 +47,7 @@ function harness(opts: {
       if (!members.includes(userId)) throw new ForbiddenException('You are not a member of this conversation.');
     }),
   };
-  const svc = new CallsService(prisma as never, permission as never, {} as never, {} as never);
+  const svc = new CallsService(prisma as never, permission as never, {} as never, {} as never, {} as never);
   return { svc, permission };
 }
 
@@ -85,28 +85,45 @@ describe('a number is not the app\'s to give', () => {
 describe('the rooms that never yield a number', () => {
   it('refuses every dating chat, at every level of trust', () => {
     for (const anonymousTrust of [1, 2, 3]) {
-      expect(reachOf({ type: 'DIRECT', anonymousTrust }, [
+      expect(reachOf({ type: 'DIRECT', kind: 'dating', anonymousTrust }, [
         { phoneE164: '+919876543210', phoneVerifiedAt: VERIFIED, deletedAt: null },
       ])).toEqual({ phoneE164: null, reason: 'dating' });
     }
   });
 
+  /* IT IS THE `kind` COLUMN THAT SAYS SO, NOT THE TRUST LEVEL.
+     `anonymousTrust` was the proxy, and a real-estate enquiry sets it too —
+     so an enquiry about a flat was refused with reason 'dating', which is a
+     false statement about the citizen made by the API. Both rooms still
+     withhold the number; they no longer withhold it under each other's name. */
+  it('refuses an anonymous enquiry too, and does not call it dating', () => {
+    expect(reachOf({ type: 'DIRECT', kind: 'city', anonymousTrust: 1 }, [
+      { phoneE164: '+919876543210', phoneVerifiedAt: VERIFIED, deletedAt: null },
+    ])).toEqual({ phoneE164: null, reason: 'anonymous' });
+  });
+
+  it('refuses a dating chat on the strength of its own row, trust or none', () => {
+    expect(reachOf({ type: 'DIRECT', kind: 'dating', anonymousTrust: null }, [
+      { phoneE164: '+919876543210', phoneVerifiedAt: VERIFIED, deletedAt: null },
+    ])).toEqual({ phoneE164: null, reason: 'dating' });
+  });
+
   it('refuses a group, because there is no "the other person"', () => {
-    expect(reachOf({ type: 'GROUP', anonymousTrust: null }, [
+    expect(reachOf({ type: 'GROUP', kind: 'city', anonymousTrust: null }, [
       { phoneE164: '+919876543210', phoneVerifiedAt: VERIFIED, deletedAt: null },
       { phoneE164: '+919811111111', phoneVerifiedAt: VERIFIED, deletedAt: null },
     ])).toEqual({ phoneE164: null, reason: 'group' });
   });
 
   it('refuses a deleted account, and an empty room', () => {
-    expect(reachOf({ type: 'DIRECT', anonymousTrust: null }, [
+    expect(reachOf({ type: 'DIRECT', kind: 'city', anonymousTrust: null }, [
       { phoneE164: '+919876543210', phoneVerifiedAt: VERIFIED, deletedAt: new Date() },
     ]).reason).toBe('nobody');
-    expect(reachOf({ type: 'DIRECT', anonymousTrust: null }, []).reason).toBe('nobody');
+    expect(reachOf({ type: 'DIRECT', kind: 'city', anonymousTrust: null }, []).reason).toBe('nobody');
   });
 
   it('refuses a number nobody has proved, however well-formed', () => {
-    expect(reachOf({ type: 'DIRECT', anonymousTrust: null }, [
+    expect(reachOf({ type: 'DIRECT', kind: 'city', anonymousTrust: null }, [
       { phoneE164: '+919876543210', phoneVerifiedAt: null, deletedAt: null },
     ])).toEqual({ phoneE164: null, reason: 'unverified' });
   });
@@ -125,7 +142,7 @@ describe('the rooms that never yield a number', () => {
       '+911234',           // too short to be a subscriber number
       '+9198765432109876', // too long to be one
     ]) {
-      expect({ phoneE164, reach: reachOf({ type: 'DIRECT', anonymousTrust: null }, [
+      expect({ phoneE164, reach: reachOf({ type: 'DIRECT', kind: 'city', anonymousTrust: null }, [
         { phoneE164, phoneVerifiedAt: VERIFIED, deletedAt: null },
       ]) }).toEqual({ phoneE164, reach: { phoneE164: null, reason: 'unverified' } });
     }

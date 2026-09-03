@@ -14,7 +14,8 @@ import { NotificationsService, NotificationRow } from './notifications.service';
  * Recorded behaviours worth naming (all current, none aspirational):
  *  · you are never notified of your own action
  *  · message notifications group per conversation, updating in place
- *  · a recipient actively viewing the conversation is suppressed; muted too
+ *  · a recipient actively viewing the conversation has the PUSH suppressed
+ *    and the bell row written anyway; muting suppresses both
  *  · a ringing phone ignores BOTH rules — every call is its own row, muted
  *    or not, viewing or not
  *  · a dating chat titles with the profile's name (decided 1 Aug: one
@@ -35,7 +36,7 @@ function build(opts: {
   const pushes: Array<{ via: string; tokens: string[]; payload: unknown }> = [];
 
   const svc: any = Object.create(NotificationsService.prototype);
-  (svc as any).log = { warn: () => undefined };
+  (svc as any).log = { warn: () => undefined, error: () => undefined };
   svc.prisma = {
     notification: {
       create: async (a: any) => {
@@ -59,6 +60,18 @@ function build(opts: {
     user: {
       findUnique: async (a: any) => ({ name: a.where.id === 'sender1' ? 'Asha Verma' : 'Someone Else', profileImage: null }),
     },
+    // WHICH HUB IS A COLUMN, and the read cannot fail open: `datingContext`
+    // asks `Conversation.kind` and treats anything it cannot read as dating.
+    conversation: {
+      findUnique: async (a: any) => ({ kind: opts.datingMatch && opts.datingMatch.conversationId === a.where.id ? 'dating' : 'city' }),
+    },
+    // Nobody has blocked anybody in the goldens; `notifyIncomingCall` checks
+    // for itself now rather than trusting the ring list it was handed.
+    /* BlockingService reads BOTH tables — a Social-hub block and a
+       connection-level one — since 3 Sep; `blocking-reach.spec.ts` refuses a
+       direct Block read anywhere. Nobody has blocked anybody in the goldens. */
+    block: { findFirst: async () => null, findMany: async () => [] },
+    connection: { findMany: async () => [] },
     datingMatch: {
       findMany: async () => (opts.datingMatch ? [opts.datingMatch] : []),
       findFirst: async (a: any) => (opts.datingMatch && opts.datingMatch.conversationId === a.where.conversationId ? opts.datingMatch : null),
@@ -106,22 +119,29 @@ describe('what the notifications engine decides today', () => {
     expect({ table, emitted }).toMatchSnapshot();
   });
 
-  it('every notification reaches the phone — only when the person is not here', async () => {
-    // PUSH IS THE DEFAULT (owner, 28 Aug). It was opt-in and three of roughly
-    // forty callers opted in, so the alert written to bring somebody back
-    // reached the bell of a person who was not looking at the bell. The rule
-    // that made opt-in defensible is the one kept: nothing is sent to somebody
-    // who is HERE, because a push on top of a live toast is the same news
-    // twice.
+  it('every notification reaches the phone, including the one the desk tab is watching', async () => {
+    /* PUSH IS THE DEFAULT (owner, 28 Aug). It was opt-in and three of roughly
+       forty callers opted in, so the alert written to bring somebody back
+       reached the bell of a person who was not looking at the bell.
+       ── AND "HERE" WAS AN ACCOUNT, NOT A DEVICE (3 Sep) ──
+       The rule kept beside it — nothing is sent to somebody who is HERE — was
+       asked of `presence:<userId>`, one key any socket sets. A tab left open on
+       a desk made the whole account "here", so a citizen who walked away with
+       their phone got no match, no like, no invoice and no moderation verdict
+       all day, and the toast fired at an unattended monitor. The server cannot
+       tell a push endpoint from a socket, so it sends; a service worker is
+       where a device declines to show what that device is already showing. */
     const away = build();
     await away.svc.create({ userId: 'u1', actorId: 'u2', kind: 'dating_match', title: 'It’s a match', href: '/dating/matches', push: { deepLink: 'togethercity://dating/matches' } });
     expect(away.pushes.map((p) => p.via).sort()).toEqual(['fcm', 'webpush']);
     expect((away.pushes.find((p) => p.via === 'fcm')!.payload as { deepLink: string }).deepLink).toBe('togethercity://dating/matches');
     expect((away.pushes.find((p) => p.via === 'webpush')!.payload as { url: string }).url).toBe('/dating/matches');
 
+    // A live socket somewhere on the account no longer speaks for every device
+    // the citizen owns.
     const here = build({ online: ['u1'] });
     await here.svc.create({ userId: 'u1', actorId: 'u2', kind: 'dating_match', title: 'It’s a match', href: '/dating/matches', push: { deepLink: 'togethercity://dating/matches' } });
-    expect(here.pushes).toEqual([]);
+    expect(here.pushes.map((p) => p.via).sort()).toEqual(['fcm', 'webpush']);
 
     // The case this test used to assert the opposite of: a caller that says
     // nothing about push. It goes out, and the deep link is derived from the
@@ -145,10 +165,18 @@ describe('what the notifications engine decides today', () => {
     expect(table).toMatchSnapshot();
   });
 
-  it('viewing the conversation suppresses; being muted suppresses', async () => {
+  it('viewing the conversation suppresses the PUSH but not the row; being muted suppresses both', async () => {
+    /* THE BELL ROW WAS COLLATERAL (3 Sep). A `continue` skipped the row, the
+       badge and both transports together — so one stale field in the
+       open-conversation hash (a killed instance leaves one behind) took a
+       thread completely silent, with no trace anywhere. Whether a live tab is
+       reading the chat is a question about interrupting somebody; it is not a
+       question about whether the message happened. Muting is the other case
+       and is unchanged: muting a chat is a request for silence, row included. */
     const { svc, table, pushes } = build({ online: ['viewer'], openConvo: { viewer: 'c1' }, muted: ['mutedone'] });
     await svc.notifyNewMessage({ conversationId: 'c1', senderId: 'sender1', recipientIds: ['viewer', 'mutedone', 'plain'], preview: 'hello' });
-    expect({ rowsFor: table.map((r) => r.userId), pushes }).toMatchSnapshot();
+    expect(table.map((r) => r.userId).sort()).toEqual(['plain', 'viewer']);
+    expect(pushes.map((p) => p.tokens.join())).toEqual(['fcm-plain', 'web-plain']);
   });
 
   it('a ringing phone ignores both rules — every call its own row', async () => {

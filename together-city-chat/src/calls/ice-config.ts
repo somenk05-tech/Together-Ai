@@ -23,7 +23,8 @@ export interface IceServer {
 
 export interface IceConfig {
   iceServers: IceServer[];
-  /** True when at least one TURN/TURNS server is configured. */
+  /** True when at least one TURN/TURNS server is configured AND can be
+   *  authenticated to. A URL on its own is not a relay — see isRelay. */
   relayAvailable: boolean;
   /** Set when something is missing or malformed. Null when all is well. */
   note: string | null;
@@ -42,6 +43,29 @@ export interface IceEnv {
 }
 
 const SCHEMES = /^(stun|stuns|turn|turns):/;
+
+/**
+ * A relay, and not merely a `turn:` URL.
+ *
+ * TURN is the one ICE server that authenticates. Every public TURN deployment
+ * refuses an allocation without a username and credential, so an entry missing
+ * either relays nothing — and counting it made `relayAvailable: true` the most
+ * expensive lie in this file: the honest note above went unsaid, the frontend
+ * showed nothing, and the citizen on office wifi got a call that rang,
+ * connected and sat in silence. The exact failure the note exists to prevent,
+ * produced by the check that was supposed to raise it.
+ */
+function isRelay(server: IceServer): boolean {
+  const turn = server.urls.some((u) => u.startsWith('turn:') || u.startsWith('turns:'));
+  return turn && !!server.username && !!server.credential;
+}
+
+/** Set when a TURN entry was kept but cannot be used. */
+function credentialProblem(server: IceServer, where: string): string | null {
+  const turn = server.urls.some((u) => u.startsWith('turn:') || u.startsWith('turns:'));
+  if (!turn || (server.username && server.credential)) return null;
+  return `${where} names a TURN server with no ${server.username ? 'credential' : 'username and credential'} — it cannot relay anything.`;
+}
 
 function urlsOf(value: unknown): string[] {
   const raw = Array.isArray(value) ? value : [value];
@@ -70,11 +94,16 @@ export function parseIceServers(env: IceEnv): { servers: IceServer[]; problems: 
         const e = entry as { urls?: unknown; username?: unknown; credential?: unknown };
         const urls = urlsOf(e?.urls);
         if (!urls.length) continue;
-        servers.push({
+        const server: IceServer = {
           urls,
           ...(typeof e.username === 'string' && e.username ? { username: e.username } : {}),
           ...(typeof e.credential === 'string' && e.credential ? { credential: e.credential } : {}),
-        });
+        };
+        servers.push(server);
+        // Kept in the list — the browser is welcome to try — but said out loud,
+        // because otherwise this is a relay only on paper.
+        const problem = credentialProblem(server, 'ICE_SERVERS');
+        if (problem) problems.push(problem);
       }
       if (!servers.length) problems.push('ICE_SERVERS parsed but contained no usable stun:/turn: URLs.');
     } catch {
@@ -88,11 +117,14 @@ export function parseIceServers(env: IceEnv): { servers: IceServer[]; problems: 
     if (!urls.length) {
       problems.push('TURN_URL is not a turn:/turns: URL — ignoring it.');
     } else {
-      servers.push({
+      const server: IceServer = {
         urls,
         ...(env.TURN_USERNAME ? { username: env.TURN_USERNAME } : {}),
         ...(env.TURN_CREDENTIAL ? { credential: env.TURN_CREDENTIAL } : {}),
-      });
+      };
+      servers.push(server);
+      const problem = credentialProblem(server, 'TURN_URL');
+      if (problem) problems.push(problem);
     }
   }
 
@@ -101,7 +133,7 @@ export function parseIceServers(env: IceEnv): { servers: IceServer[]; problems: 
 
 /** True when the list contains something that can actually relay media. */
 export function hasRelay(servers: IceServer[]): boolean {
-  return servers.some((s) => s.urls.some((u) => u.startsWith('turn:') || u.startsWith('turns:')));
+  return servers.some(isRelay);
 }
 
 export function buildIceConfig(env: IceEnv): IceConfig {

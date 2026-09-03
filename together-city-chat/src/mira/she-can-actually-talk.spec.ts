@@ -34,6 +34,10 @@ function bare(over: Partial<Record<string, any>> = {}) {
     miraPass: {
       findUnique: async () => null,
       upsert: async (args: any) => { svc.__upserts = [...(svc.__upserts ?? []), args]; },
+      // subscribe() writes inside the money's transaction: a create when there
+      // is no pass yet, a conditional updateMany when there is. See mira.service.
+      create: async (args: any) => { svc.__created = args; return args.data; },
+      updateMany: async (args: any) => { svc.__moved = args; return { count: 1 }; },
     },
     user: { findUnique: async () => ({ name: 'Somen Kumar' }) },
   };
@@ -83,6 +87,18 @@ describe('she can actually talk', () => {
     }));
     expect(seen.map((t) => t.role)).toEqual(['user', 'assistant', 'user']);
     expect(seen.filter((t) => t.content === 'just feeling lonely')).toHaveLength(1);
+  });
+
+  /**
+   * LOW MOOD IS A HEAVY TURN, and not only a quieter one. `levity` capped the
+   * jokes on it and reported `distress: false`, so the register the LISTEN
+   * lane picks — and the persona, the fact miner and the four-hour latch with
+   * it — read "I'm falling apart" as an ordinary sentence.
+   */
+  it('"i\'m falling apart" gets the heavy line, not the ordinary one', async () => {
+    const svc = bare({ ai: { enabled: false, converse: async () => { throw new Error('must not be called'); } } });
+    const t = await svc.ask("i'm falling apart", ctx());
+    expect(t.text).toBe('Okay. Forget everything else for a second. Tell me what happened.');
   });
 
   it('a reply that breaks her voice is dropped and the deterministic line stands', async () => {
@@ -141,6 +157,42 @@ describe('the meter and the pass', () => {
     expect(t.text).toContain(`₹${SUB_INR}`);
   });
 
+  /**
+   * ── AND THE METER NEVER ANSWERS A HEAVY TURN ──────────────────────────────
+   *
+   * The paywall check ran first and returned a TRUTHY attempt, and the LISTEN
+   * lane returns whatever `converse()` hands back — so the deterministic
+   * support line under it was unreachable, and a citizen past their two
+   * hundred conversations who said their mother was in hospital was answered
+   * with the price of a subscription. Not a listed crisis phrase, so no
+   * hand-off caught it either.
+   */
+  it('a heavy turn past the meter is answered, not sold to', async () => {
+    const svc = bare({
+      ai: { enabled: true, converse: async () => 'That is a lot to be carrying on your own. What did they say?' },
+      prisma: {
+        miraPass: { findUnique: async () => ({ chatUsed: FREE_CHATS, paidUntil: null }), upsert: async () => undefined },
+        user: { findUnique: async () => null },
+      },
+    });
+    const t = await svc.ask("i can't cope, my mother is in hospital", ctx());
+    expect(t.paywall).toBeUndefined();
+    expect(t.text).not.toBe(PAYWALL_LINE);
+    expect(t.text).toContain('What did they say?');
+  });
+
+  it('and with the model off it is the support line, still not the meter', async () => {
+    const svc = bare({
+      ai: { enabled: false, converse: async () => { throw new Error('must not be called'); } },
+      prisma: {
+        miraPass: { findUnique: async () => ({ chatUsed: FREE_CHATS, paidUntil: null }), upsert: async () => undefined },
+        user: { findUnique: async () => null },
+      },
+    });
+    const t = await svc.ask("i can't cope, my mother is in hospital", ctx());
+    expect(t.text).toBe('Okay. Forget everything else for a second. Tell me what happened.');
+  });
+
   it('a subscriber is not metered — freeLeft is null, never zero', async () => {
     const tomorrow = new Date(Date.now() + 86_400_000);
     const svc = bare({
@@ -186,13 +238,34 @@ describe('the subscription', () => {
     const tenDaysOut = new Date(Date.now() + 10 * 86_400_000);
     const svc = bare({
       prisma: {
-        miraPass: { findUnique: async () => ({ chatUsed: 0, paidUntil: tenDaysOut }), upsert: async () => undefined },
+        miraPass: {
+          findUnique: async () => ({ chatUsed: 0, paidUntil: tenDaysOut }),
+          create: async () => { throw new Error('a pass that exists is moved, not created'); },
+          // The read date travels into the WHERE, so a second press that read
+          // the same row cannot both move it. Asserted below.
+          updateMany: async (args: any) => { svc.__moved = args; return { count: 1 }; },
+        },
         user: { findUnique: async () => null },
       },
     });
     const r = await svc.subscribe('u1');
     const days = (new Date(r.paidUntil).getTime() - Date.now()) / 86_400_000;
     expect(days).toBeGreaterThan(39.5);
+    expect(svc.__moved.where).toEqual({ userId: 'u1', paidUntil: tenDaysOut });
+  });
+
+  it('a second press that read the same date charges nothing — the conditional write refuses it', async () => {
+    const tenDaysOut = new Date(Date.now() + 10 * 86_400_000);
+    const svc = bare({
+      prisma: {
+        miraPass: {
+          findUnique: async () => ({ chatUsed: 0, paidUntil: tenDaysOut }),
+          updateMany: async () => ({ count: 0 }),
+        },
+        user: { findUnique: async () => null },
+      },
+    });
+    await expect(svc.subscribe('u1')).rejects.toThrow(/already being paid for/);
   });
 });
 

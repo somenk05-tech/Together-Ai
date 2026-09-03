@@ -107,7 +107,10 @@ describe('the age gate refuses at the door', () => {
     }
     // The appeal path deliberately does NOT come through it — a rejected
     // citizen must be able to appeal their own rejection.
-    const appeal = svc.slice(svc.indexOf("kind === 'dating_profile'"), svc.indexOf("kind === 'dating_profile'") + 600);
+    // 2000, not 600: the photo branch above it grew a gate of its own on 3 Sep
+    // (an appeal now needs a review row that actually carries a refusal), and
+    // the window this reads has to reach past it.
+    const appeal = svc.slice(svc.indexOf("kind === 'dating_profile'"), svc.indexOf("kind === 'dating_profile'") + 2000);
     expect(appeal).toMatch(/mine\.moderation === 'approved'/);
   });
 

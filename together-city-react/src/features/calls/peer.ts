@@ -15,7 +15,13 @@
  * something both sides already know: the person who started the call is
  * impolite. No coordination, no tie to break.
  */
-export type SignalKind = 'offer' | 'answer' | 'ice' | 'renegotiate';
+/* 'renegotiate' is gone. It was in this union and in the server's schema, and
+   nothing has ever sent it or handled it: `receive` treats everything that is
+   not 'ice' as a session description, so a frame naming it would have been fed
+   to setRemoteDescription as whatever its payload happened to be. Screen
+   sharing, the one feature that might have wanted it, uses replaceTrack
+   precisely so that nothing is renegotiated. */
+export type SignalKind = 'offer' | 'answer' | 'ice';
 
 export interface OutboundSignal {
   callId: string;
@@ -81,6 +87,12 @@ export class CallPeer {
 
   get sharingScreen(): boolean {
     return this.screen !== null;
+  }
+
+  /** The one person this connection is with. CallCenter checks every arriving
+   *  frame against it: a signal from anybody else belongs to another call. */
+  get remoteId(): string {
+    return this.opts.peerId;
   }
 
   /**
@@ -171,27 +183,45 @@ export class CallPeer {
       return;
     }
 
-    const description = payload as RTCSessionDescriptionInit;
+    const description = payload as RTCSessionDescriptionInit | null;
+    // A frame that is not a session description is not one. It used to go
+    // straight to setRemoteDescription, whose rejection nobody caught: one
+    // malformed payload from anywhere became an unhandled rejection, and on the
+    // path that answers a call it hung the victim's call up.
+    if (!description || typeof description.type !== 'string') return;
+
     const offerCollision =
       description.type === 'offer' && (this.makingOffer || pc.signalingState !== 'stable');
 
     this.ignoreOffer = !this.opts.polite && offerCollision;
     if (this.ignoreOffer) return;
 
-    await pc.setRemoteDescription(description);
-    for (const candidate of this.pending.splice(0)) {
-      await pc.addIceCandidate(candidate).catch(() => undefined);
-    }
-    if (description.type === 'offer') {
-      await pc.setLocalDescription();
-      if (pc.localDescription) this.signal('answer', pc.localDescription.toJSON());
+    try {
+      await pc.setRemoteDescription(description);
+      for (const candidate of this.pending.splice(0)) {
+        await pc.addIceCandidate(candidate).catch(() => undefined);
+      }
+      if (description.type === 'offer') {
+        await pc.setLocalDescription();
+        if (pc.localDescription) this.signal('answer', pc.localDescription.toJSON());
+      }
+    } catch {
+      /* A description that no longer applies — a stale answer arriving after a
+         rollback, a renegotiation the other side abandoned — is a normal event
+         on a busy handshake and not worth ending a call over. The failure that
+         IS worth it arrives through connectionstatechange, which already
+         speaks; this must not throw, because its callers are fire-and-forget. */
     }
   }
 
   /** Mute or unmute the microphone. Returns the muted state afterwards. */
   toggleMute(): boolean {
     const track = this.local?.getAudioTracks()[0];
-    if (!track) return false;
+    // No track is no sound leaving this device, which is what muted MEANS. It
+    // returned false, and that answer went straight into aria-pressed: a button
+    // reading "Mute" and announcing itself as unmuted, on a call sending
+    // nothing. Same answer as toggleCamera gives for the same reason.
+    if (!track) return true;
     track.enabled = !track.enabled;
     return !track.enabled;
   }

@@ -72,7 +72,8 @@ function db(over: { comments?: number; followers?: number; conns?: string[]; fol
     /** The follow rows themselves, so a test can delete one for real rather
      *  than filtering the answer after the query has already run. */
     __follows: follows,
-    post: { findUnique: async () => ({ id: 'p1', authorId: ME, audience: 'public' }) },
+    // `assertPost` reads with findFirst — the author must still be reachable.
+    post: { findFirst: async () => ({ id: 'p1', authorId: ME, audience: 'public' }) },
     comment: {
       findMany: async (a: any) => page(comments, a),
       findUnique: async (a: any) => comments.find((c) => c.id === a.where.id) ?? null,

@@ -85,6 +85,28 @@ describe('she remembers', () => {
     expect(rows[1].createdAt.getTime()).toBeGreaterThan(rows[0].createdAt.getTime());
   });
 
+  it('but never a health answer — her record is a model prompt', async () => {
+    /**
+     * `fact.ts` refuses to keep health and medication as a durable fact and
+     * says why at length. The transcript went round it: "2 still to take —
+     * Metformin and Sertraline." was composed deterministically from the
+     * medicines hub, written to `MiraTurn` with the question above it, and
+     * `recall()` replays the last thirty rows verbatim into the Anthropic call
+     * on the next ordinary chat turn. The answer is still shown, and still on
+     * the device; it just never becomes context for a model.
+     */
+    const CAP = {
+      id: 'medicines GET today', controller: 'p.ts', method: 'GET', path: 'medicines/today',
+      intent: 'tell the citizen which medicines are due today', risk: 'R0' as const,
+      utterances: ['what do i still have to take today'],
+    };
+    const svc = bare({ registry: { upTo: () => [CAP], byId: () => CAP, all: () => [CAP] } });
+    svc.prescriptions = { today: async () => ({ doses: [{ medicine: 'Metformin', status: 'due' }, { medicine: 'Sertraline', status: 'due' }] }) };
+    const t = await svc.ask('what do i still have to take today', ctx());
+    expect(t.text).toContain('Metformin');
+    expect(svc.__written).toBeUndefined();
+  });
+
   it('the record is the context — the model sees past days, oldest first', async () => {
     let seen: any[] = [];
     const svc = bare({

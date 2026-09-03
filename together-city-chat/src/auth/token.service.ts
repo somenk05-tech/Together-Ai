@@ -164,23 +164,53 @@ export class TokenService {
    *
    * updateMany rather than update — account deletion calls this, and a row that
    * has gone must not turn a sign-out into a thrown exception.
+   *
+   * AND THE PUSH SUBSCRIPTIONS GO WITH THEM (3 Sep). Push is keyed on the
+   * browser's push endpoint, not on any session, and nothing on the send path
+   * re-checks: so a stolen laptop whose owner had changed their password and
+   * pressed "sign out everywhere" was refused every request AND went on
+   * receiving message previews with sender names, dating pushes, invoice
+   * amounts and moderation verdicts, indefinitely — while the confirmation
+   * email said they had been signed out of all sessions. The only revoke that
+   * existed ran client-side, in the browser that pressed the button.
+   *
+   * Account deletion has the same path: it calls this on an already-scrubbed
+   * row, so `DeviceToken`'s `onDelete: Cascade` never fires.
+   *
+   * In the same transaction as the rest, for the reason the paragraph above
+   * gives: two facts about one account that disagree is the failure being
+   * fixed, and "signed out but still buzzing" is that failure with a phone.
    */
   async revokeAll(userId: string): Promise<void> {
     this.recentlyRotated.clear();
     await this.prisma.$transaction([
       this.prisma.refreshToken.updateMany({ where: { userId }, data: { revoked: true } }),
       this.prisma.user.updateMany({ where: { id: userId }, data: { sessionsRevokedAt: new Date() } }),
+      this.prisma.deviceToken.deleteMany({ where: { userId } }),
     ]);
   }
 
-  /** Revoke every OTHER session, keeping the caller's current one. */
+  /**
+   * Revoke every OTHER session, keeping the caller's current one.
+   *
+   * EVERY device token goes, the caller's included, because there is nothing to
+   * tell them apart: a `DeviceToken` row records a push endpoint and a
+   * platform, and no column ties it to the session that registered it. Keeping
+   * the ones that MIGHT be the caller's means keeping the intruder's, which is
+   * the whole reason the button was pressed. The caller's own browser makes a
+   * new subscription on its next load (see `useWebPush`), so the cost is one
+   * reload; the alternative is a signed-out device that still reads previews.
+   */
   async revokeOthers(userId: string, currentRefreshToken?: string): Promise<void> {
     this.recentlyRotated.clear();
     const currentHash = currentRefreshToken ? this.hash(currentRefreshToken) : '__none__';
-    await this.prisma.refreshToken.updateMany({
-      where: { userId, revoked: false, NOT: { tokenHash: currentHash } },
-      data: { revoked: true },
-    });
+    await this.prisma.$transaction([
+      this.prisma.refreshToken.updateMany({
+        where: { userId, revoked: false, NOT: { tokenHash: currentHash } },
+        data: { revoked: true },
+      }),
+      this.prisma.deviceToken.deleteMany({ where: { userId } }),
+    ]);
   }
 
   /** Active sessions for the "signed-in devices" screen. */

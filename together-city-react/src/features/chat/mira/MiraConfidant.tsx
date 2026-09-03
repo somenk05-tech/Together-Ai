@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { SUB_INR, useMiraConfide, useMiraSubscribe } from './api';
+import { SUB_INR, useMiraConfide, useMiraSubscribe, whyFailed } from './api';
 import { MiraMark } from './MiraMark';
 import { turnId } from './day';
 
@@ -60,6 +60,10 @@ export function MiraConfidant({ otherName, transcript, onClose }: {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [draft, setDraft] = useState('');
   const [paywalled, setPaywalled] = useState(false);
+  /** The last failure, held OUTSIDE the transcript — see `whyFailed`. */
+  const [failure, setFailure] = useState<string | null>(null);
+  /** The way to stop a request that is not coming back. See `ask`. */
+  const inFlight = useRef<AbortController | null>(null);
   /** Which of her bubbles was copied last — the label's receipt, which is a
    *  receipt and not a state: it says so and then goes back to being Copy. */
   const [copied, setCopied] = useState<string | null>(null);
@@ -112,14 +116,28 @@ export function MiraConfidant({ otherName, transcript, onClose }: {
   const ask = async (text: string, mode: 'read' | 'draft' = 'read') => {
     const clean = text.trim();
     if (!clean || confide.isPending) return;
+    setFailure(null);
     setTurns((t) => [...t, { id: turnId(), who: 'you', text: clean }]);
     setDraft('');
+    // A request nobody can stop is an Ask key disabled with no way out of it.
+    const stop = new AbortController();
+    inFlight.current = stop;
     try {
-      const reply = await confide.mutateAsync({ otherName, ask: clean, transcript, mode });
+      const reply = await confide.mutateAsync({ otherName, ask: clean, transcript, mode, signal: stop.signal });
       setPaywalled(Boolean(reply.paywall));
       setTurns((t) => [...t, { id: turnId(), who: 'mira', text: reply.text }]);
-    } catch {
-      setTurns((t) => [...t, { id: turnId(), who: 'mira', text: 'I’m not reaching the city right now. Try me in a minute?' }]);
+    } catch (err) {
+      /**
+       * A FAILURE IS NOT ONE OF HER TURNS — the argument `MiraThread` made and
+       * won in her own room, carried here. This was a bare catch pushing one
+       * sentence in AS MIRA, in a bubble with a working Copy button, for a
+       * 429, an expired session and a schema skew alike: three different
+       * things, one wrong sentence, offered to the clipboard as if she had
+       * said it.
+       */
+      setFailure(whyFailed(err));
+    } finally {
+      inFlight.current = null;
     }
   };
 
@@ -174,6 +192,9 @@ export function MiraConfidant({ otherName, transcript, onClose }: {
           ))}
           {confide.isPending && <div className="miraturn mira"><div className="mirabub mirawait">Reading it…</div></div>}
 
+          {/* Its own row, visibly not a bubble, and no Copy on it. */}
+          {failure && <div className="mirasys" role="status">{failure}</div>}
+
           {/* The same meter, the same key, the same rail — one subscription
               covers her everywhere, so the card here is the card from her
               own room, price on its face. */}
@@ -215,7 +236,12 @@ export function MiraConfidant({ otherName, transcript, onClose }: {
           <input value={draft} onChange={(e) => setDraft(e.target.value)}
             aria-label="Ask Mira about this conversation"
             placeholder="Ask about this conversation…" />
-          <button type="submit" disabled={!draft.trim() || confide.isPending}>Ask</button>
+          {/* A REQUEST CAN BE STOPPED, here as in her own room. */}
+          {confide.isPending ? (
+            <button type="button" onClick={() => inFlight.current?.abort()}>Stop</button>
+          ) : (
+            <button type="submit" disabled={!draft.trim()}>Ask</button>
+          )}
         </form>
         {/* The scope, said out loud where it is true — the same honesty the
             day-store note keeps in her own room. */}

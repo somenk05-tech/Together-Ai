@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ZodError } from 'zod';
 import { Link, useNavigate } from 'react-router-dom';
-import { FREE_CHATS, SUB_INR, useMiraAsk, useMiraCapabilities, useMiraGreeting, useMiraSubscribe, useMiraThread, type Choice } from './api';
+import { FREE_CHATS, SUB_INR, useMiraAsk, useMiraCapabilities, useMiraGreeting, useMiraSubscribe, useMiraThread, whyFailed, type Choice } from './api';
 import { Icon } from '@/components/ui/Icon';
 import { MiraMark, type MarkState } from './MiraMark';
 import { useVoiceNote, useSpeech } from './voice';
@@ -142,33 +142,10 @@ function merge(mine: StoredTurn[], theirs: StoredTurn[]): StoredTurn[] {
     .map((x) => x.t);
 }
 
-/**
- * WHAT ACTUALLY WENT WRONG, IN A SENTENCE THAT IS NOT HERS.
- *
- * Two strings covered a 500, a 401, a timeout, a rate limit and a CORS
- * failure, and both were pushed into the transcript AS MIRA — persisted with
- * everything else, so a dropped connection came back on the next reload as
- * something she had said. A network error is not a turn in a conversation.
- *
- * This is rendered as a system row and never stored, and it names the failure
- * it actually is, because "try me in a minute" is useless advice for a session
- * that has expired and wrong advice for a request nobody sent.
- */
-function whyFailed(err: unknown): string {
-  if (err instanceof ZodError) {
-    return 'We’re not speaking the same language — the app is mid-update. Give it a minute.';
-  }
-  const e = err as { code?: string; message?: string; response?: { status?: number } };
-  if (e?.code === 'ERR_CANCELED') return 'Stopped.';
-  const status = e?.response?.status;
-  if (status === 401 || status === 403) return 'Your session has expired. Sign in again and I’ll pick this up.';
-  if (status === 429) return 'Too many messages too fast. Give it a moment.';
-  if (status && status >= 500) return 'The city answered with an error — not you, not your connection.';
-  // No status at all: the request never reached anything that could answer —
-  // a dead connection, a timeout, or a browser refusing the origin.
-  if (e?.code === 'ECONNABORTED') return 'That took too long and I stopped waiting. Try again?';
-  return 'I’m not reaching the city right now. Check the connection and try again?';
-}
+/* `whyFailed` MOVED TO api.ts. It named the failures in her room and nowhere
+   else, while the confidant and daybook panels spoke a network error in her
+   voice, in a bubble with a Copy button on it. One sentence per failure, for
+   every surface that can fail. */
 
 export function MiraThread({ dial, about, onBack }: {
   dial?: 0 | 1 | 2;
@@ -214,7 +191,7 @@ export function MiraThread({ dial, about, onBack }: {
    * sentence. See `whyFailed` — an error is a thing the app is telling you,
    * not a thing she said, and it may not be persisted as one.
    */
-  const [failure, setFailure] = useState<{ why: string; held: string } | null>(null);
+  const [failure, setFailure] = useState<{ why: string; held: string; retry: boolean } | null>(null);
   /**
    * THE METER, WHEN THE SERVER MENTIONS IT. `freeLeft` is null for a
    * subscriber — unmetered, never rendered as "0 left". `paywall` below puts
@@ -337,8 +314,16 @@ export function MiraThread({ dial, about, onBack }: {
     // The day's transcript, both voices, oldest first — her context. Without
     // it "just feeling lonely" arrives as a sentence from nowhere, which is
     // the exact conversation the owner screenshotted.
-    const history = turns.slice(-12).map((t) => ({ who: t.who === 'you' ? ('me' as const) : ('mira' as const), text: t.text }));
-    if (echo) setTurns((t) => [...t, { id: turnId(), who: 'you', text: clean, at: Date.now() }]);
+    /* AND EVERY TURN IN IT IS INSIDE THE SCHEMA'S BOUND. `AskSchema` caps
+       `text` and every `history[].text` at 2000 characters, and the echoed
+       turn below is persisted by `saveDay` — so ONE over-long message, pasted
+       once, 400'd every send from then on and could never fall out of the
+       window. The composer caps what is typed now; this heals a device that is
+       already holding one, and costs nothing on any other, because the server
+       slices history to the same 2000 before the model ever sees it. */
+    const history = turns.slice(-12).map((t) => ({ who: t.who === 'you' ? ('me' as const) : ('mira' as const), text: t.text.slice(0, 2000) }));
+    const mine: StoredTurn | undefined = echo ? { id: turnId(), who: 'you', text: clean, at: Date.now() } : undefined;
+    if (mine) setTurns((t) => [...t, mine]);
     setDraft('');
     // A request nobody can stop is a disabled composer with no way out of it.
     const stop = new AbortController();
@@ -384,7 +369,22 @@ export function MiraThread({ dial, about, onBack }: {
       if (err instanceof ZodError) {
         console.warn('[mira] reply did not match the schema — API and web app are on different versions', err.issues);
       }
-      setFailure({ why: whyFailed(err), held: clean });
+      /**
+       * AND A TURN THE CITY REJECTED IS NOT A TURN. A 400 is the schema
+       * refusing this message, and the echoed turn is persisted by `saveDay`
+       * and re-sent as `history` on every later send — which is how one
+       * over-long paste made every subsequent send 400 forever on that
+       * device, with a Try again key that reproduced it. It comes off the
+       * thread and goes back into the composer, where it can be shortened,
+       * and no retry is offered for a request that would be refused
+       * identically the second time.
+       */
+      const rejected = (err as { response?: { status?: number } })?.response?.status === 400;
+      if (rejected) {
+        if (mine) setTurns((t) => t.filter((x) => x !== mine));
+        setDraft(clean);
+      }
+      setFailure({ why: whyFailed(err), held: clean, retry: !rejected });
     } finally {
       inFlight.current = null;
     }
@@ -567,10 +567,14 @@ export function MiraThread({ dial, about, onBack }: {
           <div className="mirasys" role="status">
             {failure.why}{' '}
             {/* The sentence is still on screen and still theirs — the retry
-                sends that one rather than asking them to type it again. */}
-            <button type="button" className="miraforget" onClick={() => { void send(failure.held, false); }}>
-              Try again
-            </button>
+                sends that one rather than asking them to type it again. Not
+                offered when the city REFUSED the message: a retry that is
+                certain to fail the same way is a button that lies. */}
+            {failure.retry && (
+              <button type="button" className="miraforget" onClick={() => { void send(failure.held, false); }}>
+                Try again
+              </button>
+            )}
           </div>
         )}
 
@@ -608,6 +612,8 @@ export function MiraThread({ dial, about, onBack }: {
                     setFailure({
                       why: typeof msg === 'string' && msg.trim() ? msg : 'The wallet didn’t answer. Try again in a minute?',
                       held,
+                      // A wallet that did not answer is worth pressing again.
+                      retry: true,
                     });
                   });
               }}>
@@ -678,6 +684,11 @@ export function MiraThread({ dial, about, onBack }: {
             ref={box}
             rows={1}
             value={draft}
+            /* THE CEILING IS THE SCHEMA'S. `AskSchema` rejects text past 2000
+               characters, and nothing here said so — a 3000-character paste
+               was a 400 the citizen could neither see coming nor read the
+               reason for. Capped where it is typed. */
+            maxLength={2000}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(draft); }

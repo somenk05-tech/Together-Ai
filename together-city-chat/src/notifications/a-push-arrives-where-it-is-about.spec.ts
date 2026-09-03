@@ -146,7 +146,10 @@ describe('a subscription cannot be taken over', () => {
 
   it('and a refused claim is repaired rather than reported as success', () => {
     const h = read(join(WEB, 'src', 'hooks', 'useWebPush.ts'));
-    expect(h).toMatch(/if \(claimed\.ok\) return true;/);
+    // `return 'on'` since 3 Sep: the answer is a STATE, not a boolean, because
+    // Settings has to tell an unconfigured deployment apart from a refusal —
+    // it used to call both of them "Enabled".
+    expect(h).toMatch(/if \(claimed\.ok\) return 'on';/);
     expect(h).toMatch(/await sub\.unsubscribe\(\)/);
   });
 });

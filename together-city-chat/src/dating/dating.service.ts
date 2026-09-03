@@ -1,7 +1,7 @@
 import { swallow } from '../shared/swallow';
 import { errorSnapshot } from '../shared/errors/error-log';
 import type { Readable } from 'stream';
-import { BadRequestException, Injectable, NotFoundException, type OnModuleInit, ForbiddenException, type OnModuleDestroy } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, type OnModuleInit, ForbiddenException, type OnModuleDestroy } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ClockService, DEFAULT_TIMEZONE } from '../shared/clock/clock.service';
 import { AdminService } from '../auth/admin';
@@ -17,6 +17,7 @@ import { MediaService } from '../media/media.service';
 import { PhotoModerationService } from './photo-moderation.service';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { AdminAccessService } from '../admin/admin-access.service';
+import { REACHABLE_ACCOUNT, REACHABLE_USER, accountReachable } from '../admin/account-reach';
 import { RedisService } from '../shared/redis/redis.service';
 import { QueueService } from '../shared/queue/queue.service';
 import { compatibilityScore, zodiacSign } from './astrology';
@@ -164,6 +165,13 @@ interface DXVisibility { visibility?: Visibility; minMatchScore?: number }
  * fields the detail view does without a second spelling of the same JSON.
  */
 interface DXCard { profession?: string; languages?: string[] }
+
+/* MODULE-LEVEL, NOT A FIELD — specs build this service with
+   `Object.create(Prototype)`, which does not run field initialisers, so an
+   instance logger is undefined there and the first line that reaches for one
+   turns a passing test into a TypeError. Same reason, same shape, as
+   social.service.ts. */
+const log = new Logger('DatingService');
 
 @Injectable()
 export class DatingService implements OnModuleInit, OnModuleDestroy {
@@ -2128,7 +2136,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     const mine = await this.myApprovedProfile(userId);
     const cand = await this.prisma.datingProfile.findUnique({
       where: { userId: targetUserId },
-      include: { user: { select: { id: true, name: true, emailVerified: true, deletedAt: true } } },
+      include: { user: { select: { id: true, name: true, emailVerified: true, deletedAt: true, suspendedAt: true } } },
     });
     /**
      * `deletedAt` HERE TOO, and this is the half the first fix missed.
@@ -2141,7 +2149,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
      * data had reached.
      */
     if (!cand || !cand.visible || (cand as { moderation?: string }).moderation !== 'approved'
-      || (cand.user as { deletedAt?: Date | null }).deletedAt != null) {
+      || !accountReachable(cand.user as { deletedAt?: Date | null; suspendedAt?: Date | null })) {
       throw new NotFoundException('This profile is not available.');
     }
     // Privacy: a connection or blocked user's dating profile is never exposed.
@@ -2257,12 +2265,26 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     await this.blocking.block(userId, targetUserId);
 
     const [userOneId, userTwoId] = [userId, targetUserId].sort();
-    const state = await this.prisma.datingMatch.findFirst({
-      where: { OR: [{ userOneId, userTwoId }], kind },
-    });
-    if (state) {
+    /**
+     * EVERY LENS, NOT THE ONE THE BUTTON WAS IN (this audit).
+     *
+     * This read one row, `kind`-scoped. `romantic` and `platonic` are separate
+     * rows with separate conversations since 31 Aug, so blocking from the
+     * romantic chat left the platonic match `matched`, its likes intact and its
+     * conversation unarchived — and the paragraph below, written for exactly
+     * this scenario, then applies to the row that was left behind: a later
+     * unblock re-opens that chat with a push, against the blocker's decision.
+     * A block is the strongest no in the product and it is about a PERSON.
+     */
+    // unbounded: one row per lens for ONE pair — `@@unique([userOneId, userTwoId, kind])`
+    // is the bound, and MatchKind has two members.
+    const states = await this.prisma.datingMatch.findMany({ where: { userOneId, userTwoId } });
+    for (const state of states) {
       if (state.conversationId) {
-        await swallow(this.conversations.archiveForAll(state.conversationId), 'dating pass: archive conversation', { userId });
+        // `kind` rides along in the log line rather than in the WHERE: which
+        // lens the button was pressed in is worth knowing afterwards and is not
+        // allowed to decide how much of the person goes.
+        await swallow(this.conversations.archiveForAll(state.conversationId), 'dating block: archive conversation', { userId, kind });
       }
       // If this write fails the pass is not recorded and the person stays in
       // each other's view — the opposite of what was just asked for.
@@ -2283,7 +2305,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
           likedByOne: false, likedByTwo: false, likedAtOne: null, likedAtTwo: null,
           superByOne: false, superByTwo: false,
         },
-      }), 'dating pass: record pass', { userId });
+      }), 'dating block: tear the match down', { userId, kind });
     }
     // BOTH LISTS, NOW (launch audit, 27 Aug). Every other write in this file
     // bumps the cache version; block was the one that did not, and the cache is
@@ -2339,12 +2361,27 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       // again. A report that is still open is a genuine repeat tap and stays one.
       const existing = await this.prisma.report.findFirst({
         where: { reporterId: userId, targetType: 'user', targetId: targetUserId },
-        select: { id: true, status: true },
+        select: { id: true, status: true, reason: true },
       });
       if (!existing || existing.status === 'open') return { reported: true as const, duplicate: true as const };
+      /**
+       * AND THE REOPEN NO LONGER ERASES THE DECISION IT IS ARGUING WITH.
+       *
+       * It used to clear `reviewedById`, `reviewedAt` and `decision` and stamp
+       * `createdAt` forward. The paragraph above says the invisibility of an
+       * escalation after a wrong dismissal is what this branch fixed; those
+       * four columns MOVED that invisibility rather than closing it. The next
+       * moderator could not see that a colleague had already dismissed exactly
+       * this, and the queue sorts `firstReportedAt asc`, so a report first
+       * filed three weeks ago sorted LAST. Same change, same reasons, in
+       * `social.report()` — the two doors into one table.
+       */
+      const merged = !cleanReason || (existing.reason ?? '').includes(cleanReason)
+        ? existing.reason
+        : `${existing.reason ? `${existing.reason}\n— filed again: ` : ''}${cleanReason}`.slice(0, 1000);
       await this.prisma.report.update({
         where: { id: existing.id },
-        data: { status: 'open', reviewedById: null, reviewedAt: null, decision: null, reason: cleanReason, createdAt: new Date() },
+        data: { status: 'open', reason: merged },
       });
       this.analytics.track('dating.report', userId);
       void swallow(this.tellModerators(targetUserId), 'dating: report re-notification', { targetUserId });
@@ -2559,20 +2596,33 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
    *
    * Pass one put the clause in `poolWhere` and closed every LIST. Pass two
    * found `matchDetail` and `assertWritable`, reached by a URL somebody
-   * already holds. Pass three — this one — found SEVEN more, including the
-   * chats tab, the activity cards, and a notifier that was still pushing
-   * "you have a new match" to a departed citizen's phone.
+   * already holds. Pass three found SEVEN more, including the chats tab, the
+   * activity cards, and a notifier that was still pushing "you have a new
+   * match" to a departed citizen's phone.
+   *
+   * PASS FOUR IS A SUSPENSION, and it is not a deletion — it is ours rather
+   * than the citizen's, and an admin can lift it. It has the same answer to the
+   * only question these three ask: may a citizen still reach this person? An
+   * account suspended for harassment in this very hub stayed in the pool, went
+   * on being scored, and went on being matched with. The predicate lives in
+   * admin/account-reach.ts now, so the feed and the pool cannot disagree.
    *
    * Everything below reads from these three, and
    * `nobody-is-here-after-they-leave.spec.ts` fails if a dating read that can
    * surface another citizen stops naming one of them.
    */
-  private static readonly STILL_HERE = { is: { deletedAt: null } } as const;
+  /* AND A SUSPENSION IS THE FOURTH PASS. `deletedAt` was the only tombstone
+     this predicate knew about, so a suspended account — closed at the door by
+     jwt.strategy and by nothing else — stayed in the pool, stayed scored,
+     stayed served, and went on being MATCHED with. The clause lives in
+     admin/account-reach.ts now, so the dating hub and the city feed cannot
+     disagree about who is still reachable. */
+  private static readonly STILL_HERE = REACHABLE_USER;
 
   /** True when the account exists and has not been deleted. */
   private async stillHere(userId: string): Promise<boolean> {
-    const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { deletedAt: true } });
-    return Boolean(u) && (u as { deletedAt?: Date | null }).deletedAt == null;
+    const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { deletedAt: true, suspendedAt: true } });
+    return accountReachable(u as { deletedAt?: Date | null; suspendedAt?: Date | null } | null);
   }
 
   /** The same refusal the read paths give, so a caller learns nothing extra. */
@@ -2638,13 +2688,13 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     if (userId === targetUserId) throw new BadRequestException('That is you.');
     const cand = await this.prisma.datingProfile.findUnique({
       where: { userId: targetUserId },
-      select: { visible: true, moderation: true, extras: true, gender: true, seeking: true, birthDate: true, user: { select: { deletedAt: true } } },
+      select: { visible: true, moderation: true, extras: true, gender: true, seeking: true, birthDate: true, user: { select: { deletedAt: true, suspendedAt: true } } },
     });
     if (!cand || cand.moderation !== 'approved') throw new NotFoundException('This profile is not available.');
     // Nobody writes to somebody who has gone: no new like, no connect, no
     // reveal, no opening a chat. The pause exception below is about a citizen
     // who chose to step back and can step forward again; this is not that.
-    if ((cand.user as { deletedAt?: Date | null } | null)?.deletedAt != null) {
+    if (!accountReachable(cand.user as { deletedAt?: Date | null; suspendedAt?: Date | null } | null)) {
       throw new NotFoundException('This profile is not available.');
     }
     if (!cand.visible) {
@@ -3004,7 +3054,30 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     const linked = await this.prisma.datingMatch.updateMany({ where: { id: state.id, conversationId: null }, data: { conversationId } });
     if (!linked.count) {
       const fresh = await this.prisma.datingMatch.findFirst({ where: { id: state.id }, select: { conversationId: true } });
-      return { conversationId: fresh?.conversationId ?? conversationId, alreadyOpen: true, chargedInr: 0 };
+      /**
+       * NOTHING FALLS THROUGH HERE IN SILENCE (handed over from another audit).
+       *
+       * The conversation is created FIRST and linked SECOND, and the link is a
+       * conditional `updateMany`. When it matches a row that already carries an
+       * id, get-or-create returned that same conversation and there is nothing
+       * wrong — that is the concurrent double-tap this is written for, and it
+       * is the branch below.
+       *
+       * When it matches NOTHING — the match row was unmatched or deleted in the
+       * gap — the conversation that was just created belongs to no DatingMatch
+       * at all: a `kind:'dating'` thread with both members and no match row. It
+       * is not harmless. Every push about it then falls through the dating
+       * PSEUDONYM gate, which reads the match to decide what name to show, and
+       * a citizen's real name reaches somebody they were only ever introduced
+       * to under a dating name. There is no transaction to wrap this in —
+       * `getOrCreateDirectByIds` is another service's write — so the failure is
+       * made LOUD instead of silently returning a chat nobody is matched in.
+       */
+      if (!fresh?.conversationId) {
+        log.error(`dating connect: conversation ${conversationId} was created for match ${state.id}, which no longer exists — the thread is orphaned`);
+        throw new NotFoundException('No active match to connect to.');
+      }
+      return { conversationId: fresh.conversationId, alreadyOpen: true, chargedInr: 0 };
     }
     // The connect count stays as a statistic (adminStats reads it); it no
     // longer decides anything.
@@ -3127,7 +3200,34 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
    */
   async appeal(userId: string, kind: 'dating_profile' | 'dating_photo', targetId: string | undefined, text: string) {
     const target = kind === 'dating_profile' ? userId : (targetId ?? '');
-    if (kind === 'dating_photo' && !StorageProvider.isOwnDatingKey(userId, target)) throw new NotFoundException('That photo is not yours.');
+    if (kind === 'dating_photo') {
+      /**
+       * AN APPEAL IS AGAINST A DECISION, AND THERE HAS TO HAVE BEEN ONE.
+       *
+       * The only gate was `isOwnDatingKey` — a `startsWith('dating/<me>/')`
+       * test on a string the client sends. No lookup, no requirement that the
+       * photograph was ever held, refused, or even uploaded. And the duplicate
+       * guard below is per-`targetId`, so every fabricated key was a FRESH open
+       * appeal: at five a minute, and with `appealQueue` taking the hundred
+       * oldest, one citizen could fill the queue and starve every real
+       * appellant off the screen — the people whose photographs are already
+       * down and who have no other way back.
+       *
+       * So the row decides, not the shape of the string: the review must exist,
+       * it must be this citizen's, and it must carry a verdict there is
+       * something to argue with. `approved` and `pending` are refused for
+       * different reasons and both are honest ones — nothing has been taken
+       * away yet.
+       */
+      if (!StorageProvider.isOwnDatingKey(userId, target)) throw new NotFoundException('That photo is not yours.');
+      const review = await this.prisma.datingPhotoReview.findUnique({
+        where: { key: target }, select: { userId: true, status: true },
+      });
+      if (!review || review.userId !== userId) throw new NotFoundException('That photo is not yours.');
+      if (review.status !== 'rejected' && review.status !== 'held') {
+        throw new BadRequestException('That photograph has not been refused — there is nothing to appeal.');
+      }
+    }
     if (kind === 'dating_profile') {
       const mine = await this.prisma.datingProfile.findUnique({ where: { userId }, select: { moderation: true } });
       if (!mine) throw new NotFoundException('create your matchmaking profile first');
@@ -3182,7 +3282,18 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
      */
     const photoKeys = rows.filter((r) => r.kind === 'dating_photo' && !r.targetId.startsWith('inline/')).map((r) => r.targetId);
     const photoUrl = new Map<string, string | null>();
-    for (const k of photoKeys) photoUrl.set(k, await this.storage.presignPrivateDownload(k));
+    /* AND `photoGone` HAS TO BE ASKED OF THE BUCKET (this audit).
+       `presignPrivateDownload` signs a GET without ever touching the object, so
+       it returns a perfectly good URL for a key that was deleted — which is the
+       NORMAL case here, since `photoMod.decide` deletes the object the moment a
+       photograph is refused. `url === null` was therefore false on essentially
+       every genuine appeal, the console rendered a broken <img>, and the
+       moderator never saw the honest line this queue's own docblock was written
+       for. One HEAD per photo appeal, bounded by the hundred rows above. */
+    for (const k of photoKeys) {
+      const exists = await this.storage.privateObjectExists(k);
+      photoUrl.set(k, exists ? await this.storage.presignPrivateDownload(k) : null);
+    }
     return rows.map((r) => {
       if (r.kind === 'dating_photo') {
         const url = photoUrl.get(r.targetId) ?? null;
@@ -3624,7 +3735,7 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     // reads below fetch rows for people who are not on this list.)
     // unbounded: `in:` of the matches read above, which that read's own bound covers.
     const users = await this.prisma.user.findMany({
-      where: { id: { in: allMatches.map(other) }, deletedAt: null },
+      where: { id: { in: allMatches.map(other) }, ...REACHABLE_ACCOUNT },
       select: { id: true, name: true },
     });
     const userOf = new Map(users.map((u) => [u.id, u]));
@@ -3910,8 +4021,12 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
        * One clause, on the relation rather than on the profile, because the
        * tombstone lives on User and copying it onto DatingProfile would be a
        * second thing to keep in step.
+       *
+       * AND A SUSPENSION IS THE SAME QUESTION. `REACHABLE_ACCOUNT` names both
+       * — see admin/account-reach.ts for the account that was suspended for
+       * harassment and stayed in the pool it was suspended for.
        */
-      user: { is: { deletedAt: null } },
+      user: REACHABLE_USER,
       ...this.birthDateRangeFor(myD),
     };
   }

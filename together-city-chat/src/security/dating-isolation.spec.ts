@@ -18,6 +18,12 @@ type MatchRow = { conversationId: string | null; userOneId: string; userTwoId: s
 
 function prismaWith(rows: MatchRow[]) {
   return {
+    // WHICH HUB IS A COLUMN, so the stub answers it from one: a conversation a
+    // match points at is a dating one, anything else is an ordinary city chat.
+    conversation: {
+      findUnique: jest.fn(async ({ where }: { where: { id: string } }) =>
+        ({ kind: rows.some((r) => r.conversationId === where.id) ? 'dating' : 'city' })),
+    },
     datingMatch: {
       findMany: jest.fn(async () => rows.filter((r) => r.conversationId)),
       findFirst: jest.fn(async ({ where }: { where: { conversationId: string } }) => rows.find((r) => r.conversationId === where.conversationId) ?? null),
@@ -71,25 +77,38 @@ describe('dating conversations are identifiable everywhere', () => {
     expect(stranger.senderRevealed).toBe(false);
   });
 
-  it('degrades to "ordinary" if the lookup fails, which is a known trade-off', async () => {
-    // Documented rather than asserted-as-good, and now MUCH narrower than it
-    // was. This trade-off used to govern the main Chats list as well, where it
-    // was indefensible — one broken read put every anonymous thread on screen
-    // under both people's real names. That half is a column now.
-    //
-    // What is left is the notification path, where the two options are both bad
-    // and neither is a disclosure of the whole list: treat it as ordinary (this
-    // — a real name could reach one push during an outage) or treat every
-    // conversation as anonymous (every normal chat notification loses its
-    // sender name during the same outage). The first fails for one message on
-    // one broken read; the second fails for everyone. If this trade-off is ever
-    // revisited, revisit it here.
+  it('treats an unreadable conversation as a dating one, not an ordinary one', async () => {
+    /*
+     * FAIL SHUT (3 Sep). This used to resolve to `{ dating: false }` and the
+     * comment beside it called the trade-off narrow: one real name on one push
+     * during an outage. It was not narrow. `dating: false` is also the answer
+     * that sends the sender's city PHOTO, the message BODY (the preview gate
+     * hangs off the same flag) and a `/chats?c=` link — the whole reveal, on a
+     * lock screen, from one failed read.
+     *
+     * The other direction costs an ordinary chat its sender name for as long as
+     * the database is down, which is a worse notification and not a disclosure.
+     */
     const broken = {
+      conversation: { findUnique: jest.fn(async () => { throw new Error('db down'); }) },
       datingMatch: {
         findMany: jest.fn(async () => { throw new Error('db down'); }),
         findFirst: jest.fn(async () => { throw new Error('db down'); }),
       },
     } as never;
-    await expect(datingContext(broken, 'c1', 'one')).resolves.toEqual({ dating: false, revealed: false, senderRevealed: false });
+    await expect(datingContext(broken, 'c1', 'one')).resolves.toEqual({ dating: true, revealed: false, senderRevealed: false });
   });
+
+  it('a dating conversation whose match was never linked is still a dating one', async () => {
+    // `dating.service.ts` creates the conversation and links the match second,
+    // so a failed link leaves a `kind:'dating'` row with both members and no
+    // match. Asking DatingMatch called that an ordinary chat for ever — no
+    // outage required, and nothing to notice.
+    const unlinked = {
+      conversation: { findUnique: jest.fn(async () => ({ kind: 'dating' })) },
+      datingMatch: { findMany: jest.fn(async () => []), findFirst: jest.fn(async () => null) },
+    } as never;
+    await expect(datingContext(unlinked, 'c1', 'one')).resolves.toEqual({ dating: true, revealed: false, senderRevealed: false });
+  });
+
 });

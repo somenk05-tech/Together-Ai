@@ -30,7 +30,9 @@ function svcWith(prisma: any, access: any) {
   // The appeal queue signs a photo appeal's image so it is not decided blind
   // (fourth audit). Null here stands for the case the fix exists to name: a
   // rejected photo's object is deleted at refusal, so there is nothing to show.
-  (svc as unknown as { storage: unknown }).storage = { presignPrivateDownload: async () => null };
+  // `photoGone` is asked of the BUCKET now, not inferred from a signature that
+  // never touches the object — so the stub answers both questions.
+  (svc as unknown as { storage: unknown }).storage = { privateObjectExists: async () => false, presignPrivateDownload: async () => null };
   return svc;
 }
 

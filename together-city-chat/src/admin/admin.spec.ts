@@ -119,6 +119,55 @@ describe('nothing happens silently', () => {
     expect(src).not.toMatch(/jwt|token|claims/i);
   });
 
+  /**
+   * ── AND THE LIST IS CHECKED AGAINST THE CALL SITES (this audit) ────────────
+   *
+   * The two assertions above check that the right KEYS are on MUST_AUDIT. That
+   * is what permissions.ts promises — "admin.spec.ts fails on a handler that
+   * declares one and does not record" — and it is not what this file did: it
+   * inspected the array and never a handler. So `moderation.act` sat correctly
+   * on the list while three of the four report verdicts wrote straight to
+   * Prisma. A moderator could hard-delete any comment in the city and dismiss
+   * every open report with nothing at all in `GET /admin/audit`, and the
+   * evidence went with the comment.
+   *
+   * The rule this checks is narrow on purpose, so it stays true rather than
+   * becoming a thing people route around: a method that ASSERTS a must-audit
+   * permission, or names one as the `need` of an action, has to call `act` or
+   * `record` in the same method. It cannot see a branch inside an audited
+   * method that skips the record — that is what the behavioural specs beside
+   * each surface are for — but it does catch the whole shape of this defect:
+   * a new call site that asks for the permission and then writes.
+   */
+  const SURFACES = ['social/social.service.ts', 'dating/dating.service.ts', 'realestate/realestate.service.ts'];
+  /* A method named `assert…` is the CHECK and not the action: it exists to be
+     called by the handler that then records, and `assertModerator` hands its
+     caller the id precisely so the caller can. Named here so the next one is a
+     deliberate addition rather than a hole nobody noticed. */
+  const CHECKERS = ['assertModerator'];
+  const NOT_A_METHOD = new Set(['if', 'for', 'while', 'switch', 'catch', 'return', 'constructor']);
+
+  it('records in every handler that asks for a must-audit permission', () => {
+    const escaped = MUST_AUDIT.map((p) => p.replace('.', '\\.')).join('|');
+    const asks = new RegExp(`(this\\.access\\.assert\\([^)]*'(?:${escaped})'|need: '(?:${escaped})')`);
+    const missing: string[] = [];
+
+    for (const file of SURFACES) {
+      const code = stripComments(readFileSync(join(__dirname, '..', file), 'utf8'));
+      const starts = [...code.matchAll(/\n {2}(?:private |protected |public )?(?:static )?(?:async )?([a-zA-Z_$][\w$]*)\s*\(/g)]
+        .filter((m) => !NOT_A_METHOD.has(m[1]));
+      for (let i = 0; i < starts.length; i++) {
+        const name = starts[i][1];
+        if (CHECKERS.includes(name)) continue;
+        const body = code.slice(starts[i].index ?? 0, i + 1 < starts.length ? starts[i + 1].index : code.length);
+        if (!asks.test(body)) continue;
+        if (/this\.access\.(act|record)\(/.test(body)) continue;
+        missing.push(`${file}#${name}`);
+      }
+    }
+    expect(missing).toEqual([]);
+  });
+
   it('names the permission when it refuses, not the role', () => {
     // "You need finance.act" tells somebody what to ask for. "You are not an
     // admin" invites them to ask for everything.

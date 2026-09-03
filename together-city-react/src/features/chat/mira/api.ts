@@ -1,6 +1,50 @@
-import { z } from 'zod';
+import { z, ZodError } from 'zod';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiGet, apiPost } from '@/api/http';
+
+/**
+ * WHAT ACTUALLY WENT WRONG, IN A SENTENCE THAT IS NOT HERS.
+ *
+ * Two strings covered a 500, a 401, a timeout, a rate limit and a CORS failure,
+ * and both were pushed into the transcript AS MIRA — persisted with everything
+ * else, so a dropped connection came back on the next reload as something she
+ * had said. A network error is not a turn in a conversation.
+ *
+ * IT LIVES HERE BECAUSE THREE SURFACES FAIL. This was written in
+ * `MiraThread.tsx` and fixed her own room only: the confidant panel and the
+ * daybook panel each kept a bare `catch` that pushed one sentence in as her
+ * turn, in a bubble with a working Copy button, for a 429, a 401 and a schema
+ * skew alike. A copy of this in three files is three chances to name a failure
+ * wrongly, so there is one, and every panel renders it as a system row that is
+ * never stored.
+ *
+ * It names the failure it actually is, because "try me in a minute" is useless
+ * advice for a session that has expired and wrong advice for a request nobody
+ * sent.
+ */
+export function whyFailed(err: unknown): string {
+  if (err instanceof ZodError) {
+    return 'We’re not speaking the same language — the app is mid-update. Give it a minute.';
+  }
+  const e = err as { code?: string; message?: string; response?: { status?: number } };
+  if (e?.code === 'ERR_CANCELED') return 'Stopped.';
+  const status = e?.response?.status;
+  if (status === 401 || status === 403) return 'Your session has expired. Sign in again and I’ll pick this up.';
+  if (status === 429) return 'Too many messages too fast. Give it a moment.';
+  /**
+   * AND A 400 IS NOT AN OUTAGE. This fell through to the offline line — the
+   * exact lie the docblock above exists to prevent — under a Try again button
+   * that reproduced it forever: the city answered, immediately and correctly,
+   * and said the message was not something it would accept. The commonest
+   * cause by far is length, and it is the one the citizen can act on.
+   */
+  if (status === 400) return 'The city refused that message rather than failing to receive it — almost always because it was too long. Shorten it and send it again.';
+  if (status && status >= 500) return 'The city answered with an error — not you, not your connection.';
+  // No status at all: the request never reached anything that could answer —
+  // a dead connection, a timeout, or a browser refusing the origin.
+  if (e?.code === 'ECONNABORTED') return 'That took too long and I stopped waiting. Try again?';
+  return 'I’m not reaching the city right now. Check the connection and try again?';
+}
 
 /**
  * One turn back from the server, validated at the boundary.
@@ -254,13 +298,17 @@ export function useMiraConfide() {
       /** 'draft' is the Help-me-reply button: she returns a message to paste,
        *  not a reading of the thread. Absent for anything typed by hand. */
       mode?: 'read' | 'draft';
+      /** The way out of a request that is not coming back — the same one her
+       *  own room has. Without it the panel's Ask key is disabled for as long
+       *  as the network takes to give up, with no cancel and no timeout. */
+      signal?: AbortSignal;
     }) =>
       apiPost('/mira/confide', {
         ask: input.ask,
         otherName: input.otherName,
         transcript: input.transcript.slice(-40),
         mode: input.mode,
-      }, ConfideReplySchema),
+      }, ConfideReplySchema, { signal: input.signal }),
   });
 }
 

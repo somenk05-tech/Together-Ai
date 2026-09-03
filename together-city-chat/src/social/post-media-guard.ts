@@ -240,6 +240,59 @@ export class PostMediaGuard {
     return this.screenOne(key, userId, AS_A_NEW_COVER);
   }
 
+  /**
+   * ── A PICTURE THAT NEVER BECAME AN OBJECT IS STILL A PICTURE ───────────────
+   *
+   * Everything above screens a KEY: the bytes are in the bucket already,
+   * because a presigned PUT put them there, and a refusal deletes the object.
+   * Two surfaces in this city never take that route — the city-wide profile
+   * photo (`users.service.ts`) and a property listing's photographs
+   * (`realestate.service.ts`) are `data:` URLs held in a column. Both were
+   * screened by nothing at all, and the avatar is the worst of the two: it
+   * renders on every feed row, every comment, every chat header and every
+   * search result, which is MORE exposed than a post and had LESS protection —
+   * the exact inversion decision 3 at the top of this file exists to refuse.
+   *
+   * Same sniff, same allowlist, same thresholds, same fail-closed default. The
+   * one difference is that there is no object to delete on a refusal, because
+   * nothing has been stored yet — the caller only writes the column when this
+   * says ok, which is a stronger position than the key path can ever be in.
+   */
+  async screenInlineImage(userId: string, dataUrl: string, consequence: string): Promise<PostScreening> {
+    const m = /^data:(image\/[a-z0-9.+-]+);base64,([\s\S]*)$/i.exec(dataUrl ?? '');
+    if (!m) return { ok: false, retryable: false, reason: `That file isn’t a photo we can read, ${consequence}.` };
+    const bytes = Buffer.from(m[2], 'base64');
+    // THE BYTES DECIDE, NOT THE LABEL — `data:image/jpeg` is a claim the sender
+    // typed, and it costs nothing to type `data:image/jpeg` over a PDF.
+    const actual = sniffImage(bytes.subarray(0, SNIFF_BYTES));
+    if (actual === null) {
+      return { ok: false, retryable: false, reason: `That file isn’t a photo we can read, ${consequence}.` };
+    }
+    if (actual === 'image' || !SCREENABLE.has(actual)) {
+      return { ok: false, retryable: false, reason: `A photo has to be a JPEG, PNG or WebP.` };
+    }
+    if (bytes.length > MAX_SCREEN_BYTES) {
+      return { ok: false, retryable: false, reason: `That photo is too large to check — try a smaller one.` };
+    }
+    if (!this.client) {
+      return { ok: false, retryable: true, reason: `We couldn’t check that photo just now, ${consequence}. Try again in a moment.` };
+    }
+    let labels: Array<{ Name?: string; ParentName?: string; Confidence?: number }>;
+    try {
+      const res = await this.client.send(new DetectModerationLabelsCommand({
+        Image: { Bytes: bytes }, MinConfidence: this.holdAt,
+      }));
+      labels = res.ModerationLabels ?? [];
+    } catch (e) {
+      this.logger.warn(`inline image: Rekognition failed (${(e as Error).message})`);
+      return { ok: false, retryable: true, reason: `We couldn’t check that photo just now, ${consequence}. Try again in a moment.` };
+    }
+    const verdict = verdictFor(labels, this.rejectAt);
+    if (verdict.status === 'approved') return { ok: true };
+    this.logger.warn(`inline image refused (${verdict.status}) from ${userId}: ${verdict.reason}`);
+    return { ok: false, retryable: false, reason: `That photo didn’t pass our automated check, ${consequence}.` };
+  }
+
   private async screenOne(key: string, userId: string, subject: Subject): Promise<PostScreening> {
     const { noun, consequence } = subject;
 

@@ -25,6 +25,13 @@ export interface ReportGroup {
   reasons: string[];
   firstReportedAt: string;
   lastReportedAt: string;
+  /** A re-filing: somebody already decided this and the reporter came back.
+   *  Null on the ordinary case, which is most of them. Re-filing used to clear
+   *  these columns and stamp `firstReportedAt` forward, which hid the prior
+   *  dismissal from the next moderator and sent the escalation to the bottom of
+   *  a queue sorted oldest-first. */
+  priorDecision: string | null;
+  priorDecidedAt: string | null;
   subject: ReportSubject;
 }
 
@@ -32,7 +39,9 @@ export interface ReportQueue { items: ReportGroup[]; openTotal: number }
 
 export const moderationApi = {
   queue: () => api.get<ReportQueue>('/social/reports/queue').then((r) => r.data),
-  decide: (dto: { targetType: string; targetId: string; decision: 'remove' | 'dismiss' | 'warn' | 'suspend'; note?: string }) =>
+  /** `note` is INTERNAL — the audit row and the next moderator, and nothing
+   *  else. It used to be delivered verbatim to the person reported. */
+  decide: (dto: { targetType: string; targetId: string; decision: 'remove' | 'dismiss' | 'warn' | 'suspend' | 'avatar'; note?: string }) =>
     api.post<{ decided: string; reportsClosed: number }>('/social/reports/decide', dto).then((r) => r.data),
   /**
    * The one thing this screen can do about a reported PERSON, and it is not an

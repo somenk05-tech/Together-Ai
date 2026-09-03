@@ -106,15 +106,21 @@ function NotificationsTab() {
           <div style={{ flex: 1, minWidth: 200 }}>
             <h4 style={{ margin: '0 0 4px' }}>🔔 Message notifications</h4>
             <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-              {push.permission === 'granted' ? 'On — you’ll be notified of new messages even with the app closed.'
+              {/* PERMISSION IS NOT DELIVERY. Allowing the browser prompt says
+                  nothing about whether a subscription was actually created —
+                  with no VAPID key on the server none ever is — and this card
+                  said "On" to somebody who would never receive anything. */}
+              {push.permission === 'granted' && push.state === 'on' ? 'On — you’ll be notified of new messages even with the app closed.'
+                : push.permission === 'granted' && push.state === 'unconfigured' ? 'Unavailable — there is no push key on the server yet, so nothing can be delivered.'
+                : push.permission === 'granted' ? 'You allowed notifications, but this browser could not be registered — so nothing will arrive yet. Try again.'
                 : push.permission === 'denied' ? 'Blocked in your browser settings — allow notifications for this site to enable.'
                 : 'Get notified of new messages even when Together City is closed.'}
             </p>
           </div>
-          {push.permission !== 'granted' && push.permission !== 'denied' && (
-            <Button variant="accent" size="sm" disabled={push.busy} onClick={() => void push.enable()}>{push.busy ? 'Enabling…' : 'Enable'}</Button>
+          {(push.permission !== 'denied' && !(push.permission === 'granted' && (push.state === 'on' || push.state === 'unconfigured'))) && (
+            <Button variant="accent" size="sm" disabled={push.busy} onClick={() => void push.enable()}>{push.busy ? 'Enabling…' : push.permission === 'granted' ? 'Try again' : 'Enable'}</Button>
           )}
-          {push.permission === 'granted' && <span className="tag" style={{ alignSelf: 'center' }}>Enabled</span>}
+          {push.permission === 'granted' && push.state === 'on' && <span className="tag" style={{ alignSelf: 'center' }}>Enabled</span>}
         </Card>
       )}
 

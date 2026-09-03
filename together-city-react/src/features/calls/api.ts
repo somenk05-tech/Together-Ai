@@ -26,7 +26,7 @@ export interface Call {
   participants: CallParticipant[];
 }
 
-export type ReachDenial = 'dating' | 'group' | 'nobody' | 'unverified';
+export type ReachDenial = 'dating' | 'anonymous' | 'group' | 'nobody' | 'unverified';
 
 /**
  * How to reach the other person when the app is not the answer.

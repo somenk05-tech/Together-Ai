@@ -639,7 +639,26 @@ export class StorageProvider implements OnModuleInit {
     }
   }
 
-  async presignDatingUpload(userId: string, mimeType: string, ext: string): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
+  /**
+   * ── THE DECLARED SIZE IS SIGNED IN, OR IT IS NOT A LIMIT ───────────────────
+   *
+   * `requestDatingUpload` refuses a photograph over the ceiling by reading the
+   * `sizeBytes` the client declares. That number reached this method and was
+   * DROPPED: the PUT was signed with a Content-Type and nothing else, so the
+   * signature said nothing at all about length. Ask for a presign for a 1 MB
+   * JPEG and PUT three gigabytes with it — every check upstream passed, on a
+   * number the bucket never saw.
+   *
+   * `ContentLength` puts it into SignedHeaders, so the object cannot be created
+   * at any other size and the ceiling becomes a property of the signature
+   * rather than of a form field. It is the same argument the docblock above
+   * `signPostMedia` makes AGAINST signing Cache-Control into a presigned PUT —
+   * that a client which forgets the header fails with SignatureDoesNotMatch —
+   * and here that trade is the right way round: a browser always sends
+   * content-length on a PUT of a file, and the failure mode of not signing it
+   * is an unbounded object in a private bucket.
+   */
+  async presignDatingUpload(userId: string, mimeType: string, ext: string, sizeBytes: number): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
     const safeExt = (ext || 'bin').replace(/[^a-zA-Z0-9]/g, '').slice(0, 10) || 'bin';
     const key = `dating/${userId}/${randomUUID()}.${safeExt}`;
     if (!this.s3) {
@@ -647,7 +666,7 @@ export class StorageProvider implements OnModuleInit {
     }
     const uploadUrl = await getSignedUrl(
       this.s3,
-      new PutObjectCommand({ Bucket: this.healthBucket, Key: key, ContentType: mimeType }),
+      new PutObjectCommand({ Bucket: this.healthBucket, Key: key, ContentType: mimeType, ContentLength: sizeBytes }),
       { expiresIn: this.datingUploadExpiresInSec },
     );
     return { uploadUrl, key, expiresInSec: this.datingUploadExpiresInSec };

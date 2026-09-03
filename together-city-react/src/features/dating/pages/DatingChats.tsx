@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { animate, motion, useMotionValue } from 'framer-motion';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useCallCenter } from '@/features/calls/context';
 import { Button, Spinner, EmptyState } from '@/components/ui';
 import { useMe } from '@/api';
 import { chatApi, useMessages, useChatRealtime, socketClient, WS, type OutgoingAttachment } from '@/api';
@@ -668,6 +669,18 @@ export function DatingChats() {
   const chats = useDatingChats();
   const [params, setParams] = useSearchParams();
   const openId = params.get('c');
+  const calls = useCallCenter();
+  /* See Chats.tsx: the `?call=` a push writes is joined once, then stripped. */
+  const joinedCall = useRef<string | null>(null);
+  useEffect(() => {
+    const callId = params.get('call');
+    if (!callId || joinedCall.current === callId) return;
+    joinedCall.current = callId;
+    const next = new URLSearchParams(params);
+    next.delete('call');
+    setParams(next, { replace: true });
+    void calls.joinById(callId);
+  }, [params, setParams, calls]);
 
   const list = chats.data ?? [];
   const active = list.find(

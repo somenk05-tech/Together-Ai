@@ -280,7 +280,9 @@ describe('and Mira reads one day of it', () => {
 
   it('asks its own route, for one date', () => {
     expect(panel).toMatch(/apiPost\('\/mira\/day'/);
-    expect(panel).toMatch(/date, ask,/);
+    // `ask` arrives inside the mutation's input now, so it can carry the
+    // AbortSignal the Stop key needs — the date is still the whole scope.
+    expect(panel).toMatch(/date, ask: input\.ask,/);
   });
 
   it('keeps nothing, and says so', () => {

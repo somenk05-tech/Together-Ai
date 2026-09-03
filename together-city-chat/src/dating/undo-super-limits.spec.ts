@@ -83,7 +83,7 @@ function build(rows: Row[] = []) {
   // target here is a stranger who is; the score cache write is best-effort.
   s.prisma = {
     datingMatch: t,
-    datingProfile: { findUnique: async () => ({ visible: true, moderation: 'approved', birthDate: new Date('1995-01-01T00:00:00Z'), interests: '', extras: null }) },
+    datingProfile: { findUnique: async () => ({ visible: true, moderation: 'approved', user: { deletedAt: null, suspendedAt: null }, birthDate: new Date('1995-01-01T00:00:00Z'), interests: '', extras: null }) },
     connection: { findMany: async () => [] },
     // AND THE TARGET MUST STILL BE HERE (27 Aug). `undoLastPass` restores a
     // match to `matched` when they had liked you, which is wrong if they have

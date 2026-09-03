@@ -39,7 +39,7 @@ function svcWith(prisma: any) {
   ) as any;
   svc.logModeration = jest.fn(async () => undefined);
   svc.endMyChats = jest.fn(async () => undefined);
-  (svc as { storage: unknown }).storage = { presignPrivateDownload: async () => null };
+  (svc as { storage: unknown }).storage = { privateObjectExists: async () => false, presignPrivateDownload: async () => null };
   return svc;
 }
 

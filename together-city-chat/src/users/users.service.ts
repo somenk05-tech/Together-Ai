@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { orderPair } from '../connections/connection.util';
 import { mayReadHub } from '../connections/hub-grants';
 import { PresenceService } from './presence.service';
+import { PostMediaGuard } from '../social/post-media-guard';
 
 export type Relationship = 'none' | 'pending_out' | 'pending_in' | 'accepted' | 'blocked';
 
@@ -22,6 +23,13 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly presence: PresenceService,
+    /**
+     * Optional so a spec asserting a lookup does not have to stand up an image
+     * classifier — and, exactly as in SocialService, ABSENT MEANS REFUSE. See
+     * setAvatar: the safe default is the one the citizen is told about, not the
+     * convenient one.
+     */
+    @Optional() private readonly screening?: PostMediaGuard,
   ) {}
 
   async me(userId: string) {
@@ -114,10 +122,42 @@ export class UsersService {
     return online;
   }
 
-  /** Set the user's profile photo (a resized data: URL — no external storage needed). */
+  /**
+   * Set the user's profile photo (a resized data: URL — no external storage needed).
+   *
+   * ── AND IT IS SCREENED NOW, LIKE EVERY OTHER PICTURE IN THE CITY ───────────
+   *
+   * This checked a `data:image/` prefix and a 400 KB length, and that was the
+   * whole of it. A dating photo goes through fail-closed Rekognition before ONE
+   * person sees it; a post goes through PostMediaGuard; a chat image and a snap
+   * go through ChatMediaGuard. The avatar renders on every feed row, every
+   * comment, every chat header and every search result — more exposed than any
+   * of them, protected by less than any of them, which is precisely the
+   * inversion `post-media-guard.ts` opens by saying this codebase does not do.
+   *
+   * FAIL-CLOSED WHEN THE CLASSIFIER IS ABSENT, the same call the owner made for
+   * posts on 30 Aug: with Rekognition unreachable nobody's profile photo
+   * changes, and the guard says so in the boot log rather than leaving it to be
+   * discovered from a support message.
+   *
+   * AND THE REFUSALS ARE 400s. `throw new Error(...)` reaches the exception
+   * filter as a 500 — "the server is broken" told to a citizen who picked the
+   * wrong file, which is both wrong and un-actionable. "Could not be checked"
+   * is a 503 and worth retrying; "did not pass" is a 400 and is not.
+   */
   async setAvatar(userId: string, image: string): Promise<{ profileImage: string }> {
     const ok = typeof image === 'string' && image.startsWith('data:image/') && image.length <= 400_000;
-    if (!ok) throw new Error('Invalid image — use a small photo.');
+    if (!ok) throw new BadRequestException('Invalid image — use a small photo.');
+    const consequence = 'so your profile photo hasn’t changed';
+    if (!this.screening) {
+      throw new ServiceUnavailableException(`We couldn’t check that photo just now, ${consequence}. Try again in a moment.`);
+    }
+    const verdict = await this.screening.screenInlineImage(userId, image, consequence);
+    if (!verdict.ok) {
+      throw verdict.retryable
+        ? new ServiceUnavailableException(verdict.reason)
+        : new BadRequestException(verdict.reason);
+    }
     await this.prisma.user.update({ where: { id: userId }, data: { profileImage: image } });
     return { profileImage: image };
   }

@@ -164,7 +164,10 @@ export class MediaService {
     if (!ext) throw new BadRequestException('A matchmaking photo must be a JPEG, PNG, WebP or HEIC image.');
     if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) throw new BadRequestException('Say how large the photo is.');
     if (sizeBytes > DATING_PHOTO_MAX_BYTES) throw new BadRequestException(`A matchmaking photo must be under ${Math.round(DATING_PHOTO_MAX_BYTES / 1024 / 1024)} MB.`);
-    return this.storage.presignDatingUpload(userId, mimeType, ext);
+    // The declared size travels WITH the presign now: it is signed into the PUT
+    // as ContentLength, so the ceiling checked two lines up is enforced by the
+    // bucket rather than only by this function. See presignDatingUpload.
+    return this.storage.presignDatingUpload(userId, mimeType, ext, sizeBytes);
   }
 
   /**

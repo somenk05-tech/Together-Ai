@@ -1,4 +1,4 @@
-import { Logger, UseFilters } from '@nestjs/common';
+import { HttpException, Logger, UseFilters } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -30,10 +30,23 @@ import {
   SocketSendSchema,
   TypingSchema,
 } from './dto/socket.dto';
-import { CallSignalSchema } from '../calls/dto/calls.dto';
+import { CallSignalSchema, type CallSignalDto } from '../calls/dto/calls.dto';
 
 /** How often an open socket re-reads its account row. */
 const RECHECK_MS = 60_000;
+
+/**
+ * How long a citizen has to come back before the calls they were on give up
+ * their seat.
+ *
+ * A reload, a redeploy and a wifi blip all look EXACTLY like closing the
+ * laptop from here — the socket goes and a new one arrives a second or two
+ * later — and hanging up on the first of those would end a healthy call every
+ * time somebody refreshed. 20 seconds is comfortably longer than socket.io's
+ * reconnection takes and far shorter than the sweep, which is the backstop for
+ * the case this misses entirely: a process that restarts before the timer runs.
+ */
+const CALL_ABANDON_GRACE_MS = 20_000;
 
 interface AuthedSocket extends Socket {
   userId: string;
@@ -46,6 +59,7 @@ interface AuthedSocket extends Socket {
   joinWindow?: RateWindow;
   ackWindow?: RateWindow;
   typingWindow?: RateWindow;
+  callWindow?: RateWindow;
 }
 
 interface RateWindow { startedAt: number; count: number }
@@ -78,8 +92,21 @@ interface RateWindow { startedAt: number; count: number }
  *                the comment claimed the client debounced and it did not: a
  *                start frame went out per keystroke, so an 80wpm typist
  *                crossed it mid-sentence.
+ *   call   240 — four a second, and it was the ONE handler with no ceiling at
+ *                all: four database reads and up to 16 KB per frame, which is
+ *                the most expensive thing this socket does and the cheapest to
+ *                shout down. The number is high because ICE trickle is
+ *                genuinely bursty and it must never be a person's call that
+ *                pays: a whole handshake is one offer, one answer and perhaps
+ *                thirty candidates on a dual-stack host with a relay, and they
+ *                all arrive within a few seconds of answering. 240 leaves room
+ *                for several ICE restarts on a train and still caps a
+ *                determined socket at well under 60 KB/s of relayed payload.
+ *                A dropped candidate is not a dropped call — the connection
+ *                simply has one fewer route to try — which is why this can be
+ *                a ceiling at all rather than a queue.
  */
-const LIMIT_PER_MINUTE = { send: 60, join: 120, ack: 240, typing: 600 };
+const LIMIT_PER_MINUTE = { send: 60, join: 120, ack: 240, typing: 600, call: 240 };
 type LimitKey = keyof typeof LIMIT_PER_MINUTE;
 
 function overLimit(client: AuthedSocket, key: LimitKey, now = Date.now()): boolean {
@@ -208,7 +235,33 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     client.typingTimers?.forEach((t) => clearTimeout(t));
     await this.redis.setOpenConversation(client.userId, null, client.id);
     const transitioned = await this.presence.markOffline(client.userId, client.id);
-    if (transitioned) this.bus.publish({ kind: 'presence.changed', userId: client.userId, online: false });
+    if (transitioned) {
+      this.bus.publish({ kind: 'presence.changed', userId: client.userId, online: false });
+      /* AND THE CALL THEY WERE ON, IF THEY DO NOT COME BACK.
+         Nothing here ever mentioned calls, so closing a laptop mid-call sent
+         no leave: the row stayed `active` with everybody still marked present,
+         the sweep skipped it on that strength every minute forever, and the
+         next call in that conversation joined the corpse instead of ringing
+         anybody. Only on the LAST socket — a second tab closing must not hang
+         up the call running in the first — and only after the grace above. */
+      this.dropCallsIfGone(client.userId);
+    }
+  }
+
+  /** Give up this citizen's seats, unless they are back within the grace. */
+  private dropCallsIfGone(userId: string): void {
+    const t = setTimeout(() => {
+      void (async () => {
+        try {
+          if (await this.presence.isOnline(userId)) return; // they came back
+          await this.calls.leaveAbandoned(userId);
+        } catch (e) {
+          this.logger.warn(`could not release ${userId}'s calls: ${(e as Error).message}`);
+        }
+      })();
+    }, CALL_ABANDON_GRACE_MS);
+    // A pending hang-up must never be the reason the process will not exit.
+    t.unref?.();
   }
 
   /**
@@ -392,8 +445,27 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
    */
   @SubscribeMessage(WS.CALL_SIGNAL)
   async onCallSignal(@ConnectedSocket() client: AuthedSocket, @MessageBody() body: unknown): Promise<void> {
-    const dto = parseOrThrow(CallSignalSchema, body);
-    await this.calls.assertMaySignal(client.userId, dto.callId, dto.to);
+    if (overLimit(client, 'call')) { refuse(client, 'call signals', 'call'); return; }
+    let dto: CallSignalDto;
+    try {
+      dto = parseOrThrow(CallSignalSchema, body);
+      await this.calls.assertMaySignal(client.userId, dto.callId, dto.to);
+    } catch (e) {
+      /* REFUSED, WITH A KIND — the same asymmetry `refuse` explains above, for
+         the same reason and one step further down. Everything thrown here
+         reached the client through WsExceptionFilter as `{ status, message }`
+         with no kind, and `error_event` names no message: the chat client
+         therefore failed every send it had in flight because a call frame was
+         rejected, while the call itself — which had nothing listening for
+         `error_event` at all — showed the citizen nothing. A call refusal is
+         about the call. */
+      client.emit(WS.ERROR, {
+        status: e instanceof HttpException ? e.getStatus() : 400,
+        kind: 'call',
+        message: e instanceof HttpException ? e.message : 'That call signal was refused.',
+      });
+      return;
+    }
     this.server.to(room.user(dto.to)).emit(WS.CALL_SIGNAL, {
       callId: dto.callId,
       from: client.userId,

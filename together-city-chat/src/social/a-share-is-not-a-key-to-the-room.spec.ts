@@ -60,6 +60,12 @@ type Row = {
   moderation?: string;
   repostOfId?: string | null;
   repostOf?: Row | null;
+  /* The feed asks about the AUTHOR now, not only about the post: a suspended
+     account's posts stayed in everybody's feed because `suspendedAt` was read
+     in four auth files and nowhere a citizen could reach (3 Sep). Absent here
+     means an ordinary, reachable author, which is what every fixture below is
+     unless it says otherwise. */
+  author?: { deletedAt?: string | null; suspendedAt?: string | null };
 };
 
 /**
@@ -82,6 +88,14 @@ function matches(where: any, row: Row): boolean {
       const c = cond as any;
       if (!('is' in c) || Object.keys(c).length !== 1) throw new Error('only { is: … } is understood on a relation');
       return row.repostOf ? matches(c.is, row.repostOf) : false;
+    }
+    /* A to-one relation that is always present. Unlike `repostOf`, every post
+       has an author, so an absent fixture means the defaults rather than "no
+       match" — otherwise adding the clause would empty every feed in here. */
+    if (key === 'author') {
+      const c = cond as any;
+      if (!('is' in c) || Object.keys(c).length !== 1) throw new Error('only { is: … } is understood on a relation');
+      return matches(c.is, { deletedAt: null, suspendedAt: null, ...(row.author ?? {}) } as unknown as Row);
     }
     const value = key === 'moderation'
       ? (row.moderation ?? 'visible')

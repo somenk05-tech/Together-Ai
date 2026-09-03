@@ -65,7 +65,7 @@ function build(rows: Row[]) {
   const s: any = Object.create(DatingService.prototype);
   s.prisma = {
     datingMatch: t,
-    datingProfile: { findUnique: async () => ({ visible: true, moderation: 'approved', birthDate: new Date('1995-01-01T00:00:00Z'), interests: '', extras: null }) },
+    datingProfile: { findUnique: async () => ({ visible: true, moderation: 'approved', user: { deletedAt: null, suspendedAt: null }, birthDate: new Date('1995-01-01T00:00:00Z'), interests: '', extras: null }) },
     connection: { findMany: async () => [] },
     user: { findUnique: async () => ({ deletedAt: null }) },
   };

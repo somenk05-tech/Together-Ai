@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { ForbiddenException } from '@nestjs/common';
 import { SocialService } from './social.service';
 
@@ -25,7 +27,14 @@ function build(opts: { granted?: boolean } = {}) {
   const reportUpdates: any[] = [];
   const prisma: any = {
     user: { updateMany: jest.fn(async ({ data }: any) => { users.push(data); return { count: 1 }; }) },
-    post: { updateMany: jest.fn(async () => ({ count: 1 })) },
+    post: {
+      updateMany: jest.fn(async () => ({ count: 1 })),
+      findUnique: jest.fn(async () => ({ authorId: 'author' })),
+    },
+    comment: {
+      findUnique: jest.fn(async () => ({ authorId: 'author', postId: 'p1', text: 'the words that were reported' })),
+      delete: jest.fn(async () => ({})),
+    },
     report: { updateMany: jest.fn(async ({ data }: any) => { reportUpdates.push(data); return { count: 2 }; }) },
   };
   const notifications = { create: jest.fn(async (n: any) => { notifs.push(n); return {}; }) };
@@ -62,8 +71,30 @@ describe('a report about a person has a real action', () => {
     expect(notifs[0].userId).toBe('bad');
     // No reporter identity travels with it — the notification carries no actor.
     expect(notifs[0].actorId).toBeUndefined();
-    expect(notifs[0].body).toContain('be kind');
     expect(reportUpdates[0].status).toBe('actioned');
+  });
+
+  /**
+   * ── THE NOTE IS FOR THE NEXT MODERATOR, AND IT NEVER LEAVES (this audit) ────
+   *
+   * The field is labelled "Note for the next moderator (optional)" in the
+   * console and schema.prisma says of the column it lands in: "The moderator's
+   * note. Read by nobody but the next moderator." It was then sent verbatim as
+   * the BODY of the warning push. A note reading "third report this week,
+   * latest from @priya about the DMs" was delivered to the person the report
+   * was about — naming the reporter, on the one surface built to keep reporters
+   * unnameable. The citizen gets a fixed sentence; the note goes to the audit.
+   */
+  it('never delivers the moderator’s note to the person it is about', async () => {
+    const { svc, notifs, access } = build();
+    const note = 'third report this week, latest from @priya about the DMs';
+    await svc.reportDecide('mod', { targetType: 'user', targetId: 'bad', decision: 'warn', note });
+    expect(notifs[0].body).not.toContain('priya');
+    expect(notifs[0].body).not.toContain(note);
+    expect(notifs[0].body).toContain('community guidelines');
+    // It is not lost — it is the reason on the audit row, which is where it was
+    // always meant to be read.
+    expect(access.act.mock.calls[0][0].reason).toBe(note);
   });
 
   it('dismiss still marks the reports dismissed', async () => {
@@ -82,6 +113,56 @@ describe('a report about a person has a real action', () => {
     const { svc, prisma } = build({ granted: false });
     await expect(svc.reportDecide('nobody', { targetType: 'user', targetId: 'x', decision: 'suspend' })).rejects.toBeInstanceOf(ForbiddenException);
     expect(prisma.user.updateMany).not.toHaveBeenCalled();
+  });
+
+  /**
+   * ── NOTHING HAPPENS SILENTLY, AND THAT MEANS EVERY VERDICT ─────────────────
+   *
+   * `moderation.act` is on MUST_AUDIT and permissions.ts promises that a
+   * handler which declares one and does not record fails this suite. Three of
+   * the five verdicts went straight to Prisma: removing a post, HARD-DELETING a
+   * comment, and dismissing — the last of which closes every open report about
+   * a target and was the one with no record at all. So a moderator could clear
+   * the whole queue and the audit log would show an empty evening.
+   *
+   * Asserted per verdict rather than "the method calls act somewhere", because
+   * "somewhere" is exactly what was true while three branches skipped it.
+   */
+  const DECIDES = [
+    { decision: 'remove', targetType: 'post', action: 'report.post.remove' },
+    { decision: 'remove', targetType: 'comment', action: 'report.comment.remove' },
+    { decision: 'dismiss', targetType: 'post', action: 'report.dismiss' },
+    { decision: 'warn', targetType: 'user', action: 'report.user.warn' },
+    { decision: 'suspend', targetType: 'user', action: 'report.user.suspend' },
+    { decision: 'avatar', targetType: 'user', action: 'report.user.avatar' },
+  ] as const;
+
+  it.each(DECIDES)('$decision on a $targetType writes exactly one audit row', async ({ decision, targetType, action }) => {
+    const { svc, access } = build();
+    await svc.reportDecide('mod', { targetType, targetId: 't1', decision: decision as any, note: 'why' });
+    expect(access.act).toHaveBeenCalledTimes(1);
+    expect(access.act.mock.calls[0][0].action).toBe(action);
+    expect(access.act.mock.calls[0][0].reason).toBe('why');
+  });
+
+  it('deleting a comment puts its words into the audit row, because the row is all that is left', async () => {
+    // A comment is a HARD delete — deleteComment says why, and says the
+    // reversible version needs a `moderation` column on Comment. Until that
+    // exists the audit row is the only surviving copy of the evidence, so
+    // `before` carries the text rather than a boolean.
+    const { svc, access, prisma } = build();
+    await svc.reportDecide('mod', { targetType: 'comment', targetId: 'c1', decision: 'remove', note: 'slur' });
+    expect(access.act.mock.calls[0][0].before.text).toBe('the words that were reported');
+    expect(prisma.comment.delete).toHaveBeenCalled();
+  });
+
+  it('exercises every verdict the route will accept', () => {
+    // A new decision added to the enum without a row above would ship
+    // unaudited, which is the whole shape of this defect.
+    const controller = readFileSync(join(__dirname, 'social.controller.ts'), 'utf8');
+    const enumLine = /decision: z\.enum\(\[([^\]]+)\]\)/.exec(controller);
+    const offered = (enumLine?.[1] ?? '').split(',').map((v) => v.trim().replace(/'/g, '')).filter(Boolean).sort();
+    expect([...new Set(DECIDES.map((d) => d.decision))].sort()).toEqual(offered);
   });
 
   it('the queue is gated on moderation.read', async () => {

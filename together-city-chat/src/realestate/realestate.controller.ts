@@ -67,7 +67,8 @@ export class RealEstateController {
     return this.realestate.enquire(user.sub, id, body.message);
   }
 
-  // ─── moderation (admin only; gated by MODERATION_ADMINS handles) ───
+  // ─── moderation (console: moderation.read to see the queue, moderation.act
+  //     to decide — the same AdminGrant permissions the rest of the city uses) ───
   @Get('moderation/queue')
   moderationQueue(@CurrentUser() user: JwtUser) {
     return this.realestate.moderationQueue(user.sub);

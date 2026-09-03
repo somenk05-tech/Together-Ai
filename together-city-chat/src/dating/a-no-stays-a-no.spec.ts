@@ -64,7 +64,7 @@ describe('a no stays a no', () => {
     const updates: any[] = [];
     const prisma = {
       datingMatch: {
-        findFirst: jest.fn(async () => ({ id: 'm1', userOneId: 'me', userTwoId: 'them', status: 'matched', conversationId: 'c1', likedByOne: true, likedByTwo: true })),
+        findMany: jest.fn(async () => [{ id: 'm1', userOneId: 'me', userTwoId: 'them', status: 'matched', conversationId: 'c1', likedByOne: true, likedByTwo: true }]),
         update: jest.fn(async ({ data }: any) => { updates.push(data); return {}; }),
       },
     };
@@ -81,6 +81,41 @@ describe('a no stays a no', () => {
     expect(data.likedAtTwo).toBeNull();
     expect(data.superByOne).toBe(false);
     expect(data.superByTwo).toBe(false);
+  });
+
+  /**
+   * A BLOCK IS ABOUT A PERSON, NOT A LENS (this audit).
+   *
+   * `romantic` and `platonic` are separate rows with separate conversations.
+   * The read here was `kind`-scoped, so blocking from the romantic chat left
+   * the platonic match `matched`, its likes intact and its thread unarchived —
+   * and the paragraph above then applied to the row left behind: a later
+   * unblock re-opened THAT chat with a push.
+   */
+  it('a block reaches every lens, not the one the button was pressed in', async () => {
+    const updated: string[] = [];
+    const archived: string[] = [];
+    const prisma = {
+      datingMatch: {
+        findMany: jest.fn(async ({ where }: any) => {
+          // The WHERE names the pair and nothing else — no `kind`.
+          expect(where.kind).toBeUndefined();
+          return [
+            { id: 'm-rom', userOneId: 'me', userTwoId: 'them', kind: 'romantic', status: 'matched', conversationId: 'c-rom' },
+            { id: 'm-pla', userOneId: 'me', userTwoId: 'them', kind: 'platonic', status: 'matched', conversationId: 'c-pla' },
+          ];
+        }),
+        update: jest.fn(async ({ where }: any) => { updated.push(where.id); return {}; }),
+      },
+    };
+    const blocking = { block: jest.fn(async () => ({ blocked: true, userId: 'them' })), blockedWith: async () => [] };
+    const svc = svcWith(prisma, blocking) as any;
+    svc.conversations = { archiveForAll: async (id: string) => { archived.push(id); } };
+    svc.bumpListVersion = async () => undefined;
+
+    await svc.blockMatch('me', 'them', 'romantic');
+    expect(updated.sort()).toEqual(['m-pla', 'm-rom']);
+    expect(archived.sort()).toEqual(['c-pla', 'c-rom']);
   });
 
   it('an undo towards somebody who can no longer be reached undoes nothing', async () => {

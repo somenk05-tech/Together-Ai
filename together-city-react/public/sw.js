@@ -58,7 +58,23 @@ self.addEventListener('push', (event) => {
     renotify: true,
     data: { conversationId, url: payload.url || '' },
   };
-  event.waitUntil(self.registration.showNotification(title, options));
+  /* THE DEVICE DECIDES WHETHER IT IS ALREADY LOOKING.
+     Suppression used to happen on the server, against one `presence:<userId>`
+     key that ANY socket set — so a tab left open on a desk silenced push on the
+     phone in your pocket for the whole day, and the toast fired at an
+     unattended monitor. The server cannot answer "is this device watching"
+     (nothing links a push endpoint to a socket), and the account-wide answer it
+     could give failed in the direction that loses the notification. The device
+     can answer it, and only for itself: if a window of this app is VISIBLE
+     here, the live toast has already carried the news and a second copy is the
+     same news twice. Every other device still gets its push. */
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window' }).then((clients) => {
+      const watching = clients.some((c) => c.visibilityState === 'visible');
+      if (watching) return undefined;
+      return self.registration.showNotification(title, options);
+    }).catch(() => self.registration.showNotification(title, options)),
+  );
 });
 
 self.addEventListener('notificationclick', (event) => {

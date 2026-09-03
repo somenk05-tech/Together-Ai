@@ -366,8 +366,13 @@ export function useChatRealtime(
          `error_event` names no message and there is nothing else to go on. */
       if (!e?.kind || e.kind === 'send') {
         for (const id of [...pending.current.keys()]) settle(id)?.fail(new Error(msg));
+        /* AND THE NOTICE IS THE SAME QUESTION. A call refusal — an ICE
+           candidate arriving a moment after the other person hung up — is not
+           news for the chat room, and raising it there put "That call has
+           ended." under the composer of a thread that was working fine. The
+           call surface listens for its own kind. */
+        errRef.current?.(msg);
       }
-      errRef.current?.(msg);
     });
     return () => {
       offAck(); offErr();

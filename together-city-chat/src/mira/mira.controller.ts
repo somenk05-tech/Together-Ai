@@ -310,7 +310,17 @@ export class MiraController {
    * everywhere. The capabilities, navigation and the greeting never touch the
    * meter; only model conversations are counted, and 200 of those are free.
    */
+  /**
+   * AND A RATE, BECAUSE THIS ONE SPENDS MONEY.
+   *
+   * The three model routes carry `MODEL_LIMIT` and this one carried nothing,
+   * sitting at the app-wide 120 a minute — on the only handler in the module
+   * that debits a wallet. The service now refuses a second concurrent press
+   * outright; this is the cheaper half of the same argument, and it is sized
+   * for a human pressing a key rather than for a stuck retry loop.
+   */
   @Post('subscribe')
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   subscribe(@CurrentUser() user: JwtUser) {
     return this.mira.subscribe(user.sub);
   }

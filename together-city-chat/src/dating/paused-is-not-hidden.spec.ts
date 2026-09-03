@@ -11,7 +11,7 @@ import { DatingService } from './dating.service';
 function build(mode: 'paused' | 'hidden', matched: boolean) {
   const s: any = Object.create(DatingService.prototype);
   s.prisma = {
-    datingProfile: { findUnique: async () => ({ visible: false, moderation: 'approved', extras: JSON.stringify({ visibility: mode }) }) },
+    datingProfile: { findUnique: async () => ({ visible: false, moderation: 'approved', user: { deletedAt: null, suspendedAt: null }, extras: JSON.stringify({ visibility: mode }) }) },
     datingMatch: { findFirst: async () => (matched ? { id: 'm1' } : null) },
     connection: { findMany: async () => [] },
   };
@@ -41,7 +41,7 @@ describe('paused is not hidden', () => {
 
   it('a visible approved profile is unchanged by any of this', async () => {
     const s: any = build('paused', false);
-    s.prisma.datingProfile.findUnique = async () => ({ visible: true, moderation: 'approved', extras: null });
+    s.prisma.datingProfile.findUnique = async () => ({ visible: true, moderation: 'approved', user: { deletedAt: null, suspendedAt: null }, extras: null });
     await expect(s.assertWritable('me', 'them')).resolves.toMatchObject({ moderation: 'approved' });
   });
 });

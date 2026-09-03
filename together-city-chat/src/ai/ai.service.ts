@@ -53,10 +53,29 @@ export class AiService {
 
   constructor() {
     const key = process.env.ANTHROPIC_API_KEY;
-    this.client = key ? new Anthropic({ apiKey: key }) : null;
+    /**
+     * ── AN EXPLICIT TIMEOUT AND AN EXPLICIT RETRY COUNT ───────────────────
+     *
+     * Neither was set, so both were whatever the SDK defaults to — two retries
+     * and a ten-minute wait — underneath `createWithFallback`, which walks up
+     * to three models, and `main.ts`, which sets no request timeout either. One
+     * chat turn could therefore make a dozen HTTP attempts on a 45 KB context
+     * with nothing anywhere bounding the wall clock a citizen sits through.
+     *
+     * Two minutes is sized for the longest call in this file — a vision read of
+     * a photographed lab report — and the chat path narrows it again per
+     * request. One retry, because every caller here has a deterministic answer
+     * behind it and a slow failure is worse than a quick one.
+     */
+    this.client = key ? new Anthropic({ apiKey: key, maxRetries: 1, timeout: 120_000 }) : null;
     this.enabled = !!this.client;
     if (!this.enabled) this.logger.log('ANTHROPIC_API_KEY not set — AI features use deterministic fallbacks.');
   }
+
+  /** What one chat turn may take before it is not worth waiting for. Short
+   *  because there is a sentence ready underneath it, and because a citizen is
+   *  watching a composer that is disabled until this returns. */
+  private static readonly CHAT_TIMEOUT_MS = 30_000;
 
   /** Ask for a JSON object matching <T>. Returns `fallback` if AI is off or errors. */
   /**
@@ -65,9 +84,8 @@ export class AiService {
    * Built for Mira, usable by anything that talks. Returns null when the key
    * is unset or the call fails, because every caller of a conversation has a
    * deterministic sentence to fall back to, and "the model is down" must cost
-   * warmth rather than an answer. Uses the model fallback chain for the same
-   * reason every other call here does: a retired model id must degrade, not
-   * take the feature with it.
+   * warmth rather than an answer — which is also why this is the one call in
+   * the file that does NOT walk the fallback chain. See inside.
    */
   async converse(
     system: string,
@@ -76,12 +94,40 @@ export class AiService {
   ): Promise<string | null> {
     if (!this.client) return null;
     try {
-      const res = await this.createWithFallback({
-        model: this.model,
-        max_tokens: maxTokens,
-        system,
-        messages: turns,
-      });
+      /**
+       * ── ONE MODEL, ONE RETRY, A WALL CLOCK ──────────────────────────────
+       *
+       * This called `createWithFallback`, whose justification comment was
+       * written about blood-report extraction: read-only, idempotent, one
+       * upload a citizen is waiting on — so retrying on ANY failure, across a
+       * chain that ends at Opus 5, buys a report that reads first time. A chat
+       * turn is none of those things. It is the highest-volume call in the
+       * city, it is metered, and a Haiku turn that fails silently escalating to
+       * Opus 5 is a bill nobody chose and a wait nobody can see the end of.
+       *
+       * So the chat path is bounded on its own terms: the chat model or
+       * nothing. A retired model id degrades to the deterministic sentence
+       * here, which is what every caller of this method already handles.
+       */
+      const res = await this.client.messages.create(
+        { model: this.model, max_tokens: maxTokens, system, messages: turns },
+        { timeout: AiService.CHAT_TIMEOUT_MS, maxRetries: 1 },
+      );
+      /**
+       * ── AND A HALF SENTENCE IS NOT AN ANSWER ────────────────────────────
+       *
+       * Nothing read `stop_reason`, so a reply that ran into `max_tokens` was
+       * returned mid-sentence: spoken aloud by the client, and written into
+       * `MiraTurn`, where `recall()` hands it back to the model as her own
+       * previous turn on every later chat. The menu reader below checks the
+       * same field and salvages what it can, because re-photographing a menu is
+       * expensive; here a complete deterministic sentence is one `return null`
+       * away, so the truncated one is dropped and the log says it happened.
+       */
+      if (res.stop_reason === 'max_tokens') {
+        this.logger.warn(`AI converse ran into its ${maxTokens}-token ceiling — the truncated reply was dropped`);
+        return null;
+      }
       const text = res.content
         .filter((b): b is Anthropic.TextBlock => b.type === 'text')
         .map((b) => b.text)

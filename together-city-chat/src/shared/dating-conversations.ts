@@ -97,13 +97,40 @@ export async function datingContext(
   conversationId: string,
   subjectUserId?: string,
 ): Promise<DatingContext> {
+  /*
+   * THE COLUMN DECIDES, AND AN UNREADABLE ANSWER IS "DATING" (3 Sep).
+   *
+   * This asked `DatingMatch` and swallowed a failed read into `null` — so "not
+   * a dating chat" and "I could not tell" were one value, which is exactly the
+   * shape of answer the note above says never to bring back. The caller that
+   * acts on it is the notification path, and its city branch puts the sender's
+   * ACCOUNT name and city photo on a match's lock screen, with the message body
+   * beside them, under a `/chats?c=` link to a list dating threads are stripped
+   * from. One database blip was the whole reveal.
+   *
+   * Two ways in, and the second needs no error at all: a conversation is
+   * written with `kind:'dating'` first and its match row linked second, so a
+   * failed link leaves a real dating chat that `DatingMatch` cannot see —
+   * permanently "not dating" to every push.
+   *
+   * So the hub is read where it is WRITTEN, and only an explicit "city" buys a
+   * city notification. Missing row, failed read, unknown value: all dating.
+   * That costs a real name its push during an outage and never spends one.
+   */
+  const convo = await prisma.conversation
+    .findUnique({ where: { id: conversationId }, select: { kind: true } })
+    .catch(swallowed('shared.datingContext: which hub this conversation is in', null, { conversationId }));
+  if (convo?.kind === 'city') return { dating: false, revealed: false, senderRevealed: false };
+
   const row = await datingMatch(prisma)
     .findFirst({
       where: { conversationId },
       select: { revealByOne: true, revealByTwo: true, conversationId: true, userOneId: true, userTwoId: true },
     })
     .catch(swallowed('shared.datingContext', null));
-  if (!row) return { dating: false, revealed: false, senderRevealed: false };
+  // No match row — never linked, or unreadable — leaves both people anonymous,
+  // which falls the same way the hub question above does.
+  if (!row) return { dating: true, revealed: false, senderRevealed: false };
 
   const revealed = Boolean(row.revealByOne && row.revealByTwo);
   const senderRevealed = subjectUserId === row.userOneId ? Boolean(row.revealByOne)

@@ -41,11 +41,12 @@ function build(throwing: boolean) {
   s.localOpenConv = new Map<string, Map<string, string>>();
   const boom = () => { throw new Error('Connection is closed.'); };
   s.client = throwing
-    ? { sadd: boom, srem: boom, scard: boom, del: boom, set: boom, expire: boom, exists: boom, hset: boom, hdel: boom, hvals: boom }
+    ? { sadd: boom, srem: boom, scard: boom, del: boom, set: boom, expire: boom, exists: boom, hset: boom, hdel: boom, hvals: boom, hgetall: boom, smembers: boom }
     : {
       sadd: async () => 1, srem: async () => 1, scard: async () => 1, del: async () => 1,
       set: async () => 'OK', expire: async () => 1, exists: async () => 1,
       hset: async () => 1, hdel: async () => 1, hvals: async () => ['c1'],
+      hgetall: async () => ({ sock1: 'c1' }), smembers: async () => ['sock1'],
     };
   return { s, warns };
 }
@@ -91,6 +92,32 @@ describe('a connection that closed', () => {
     expect(s.healthy).toBe(true);
     expect(s.localSockets.size).toBe(0);
     expect(warns).toHaveLength(0);
+  });
+
+  /**
+   * A FIELD OUTLIVES ITS SOCKET, AND IT USED TO GO ON SILENCING A THREAD.
+   *
+   * The open-conversation hash is only tidied by an explicit leave or by a
+   * disconnect this process saw, so a killed instance leaves a field behind
+   * pointing at a chat nobody has open. The one caller reads it to decide NOT
+   * to push — so the conversation went silent, bell row included, for the whole
+   * TTL, with nothing anywhere to say why. The socket set says which sockets
+   * exist; a field whose socket is not in it is ignored and dropped.
+   */
+  it('ignores an open-conversation field whose socket is gone', async () => {
+    const { s } = build(false);
+    const dropped: unknown[] = [];
+    s.client.hgetall = async () => ({ dead: 'c-ghost', alive: 'c-real' });
+    s.client.smembers = async () => ['alive'];
+    s.client.hdel = async (...a: unknown[]) => { dropped.push(a); return 1; };
+    expect(await s.openConversationsOf('u1')).toEqual(['c-real']);
+    expect(dropped).toEqual([['openconv:u1', 'dead']]);
+  });
+
+  it('gives the hash the same ninety seconds presence gets, not an hour', () => {
+    const src = fs.readFileSync(path.join(__dirname, 'redis.service.ts'), 'utf8');
+    expect(src).not.toMatch(/OPEN_CONV_KEY\(userId\), 3600/);
+    expect(src).toMatch(/expire\(OPEN_CONV_KEY\(userId\), 90\)/);
   });
 
   it('treats a deliberate close as unhealthy, not just an error', () => {

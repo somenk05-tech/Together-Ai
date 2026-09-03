@@ -90,6 +90,9 @@ describe('the safety exits stay open to a rejected citizen', () => {
       datingProfile: { findUnique: jest.fn(async (_q: unknown) => ({ userId: 'me', moderation: 'rejected', birthDate: ADULT })) },
       datingMatch: {
         findFirst: jest.fn(async () => ({ id: 'm1', userOneId: 'me', userTwoId: 'them', status: 'matched', conversationId: null })),
+        // blockMatch reads every lens for the pair, not one kind — see
+        // a-no-stays-a-no.spec.ts.
+        findMany: jest.fn(async () => [{ id: 'm1', userOneId: 'me', userTwoId: 'them', status: 'matched', conversationId: null }]),
         updateMany: jest.fn(async () => ({ count: 1 })),
         update: jest.fn(async () => ({ id: 'm1' })),
       },

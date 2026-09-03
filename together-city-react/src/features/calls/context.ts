@@ -14,6 +14,11 @@ export interface CallCenterValue {
   call: Call | null;
   /** Ring a conversation. */
   start: (conversationId: string, type: CallType) => Promise<void>;
+  /** Join a call by id — what a `?call=` notification link resolves to. The
+   *  server wrote that link and a spec asserted it was there; nothing on this
+   *  side ever read it, so tapping a ringing notification opened the thread and
+   *  left the call ringing. */
+  joinById: (callId: string) => Promise<void>;
   busy: boolean;
 }
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useCallCenter } from '@/features/calls/context';
 import { useQueryClient } from '@tanstack/react-query';
 import { useConversations, useMessages, useChatRealtime, useClearConversation, useMessageSearch, useOnlineContacts, usePinnedMessage, chatApi, socketClient, WS, type OutgoingAttachment, useChatRoster, useSetChatPhoto } from '@/api';
 import { ConversationList } from '../components/ConversationList';
@@ -97,8 +98,26 @@ export function Chats() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const conversations = useConversations();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const requestedId = searchParams.get('c') ?? undefined;
+  const calls = useCallCenter();
+  /* AND `?call=` IS JOINED, ONCE. The server has written it into every call
+     push since the link was added and a spec asserted it was there — but the
+     spec asserted on the server's own source and nothing on this side ever read
+     the parameter, so tapping a ringing notification opened the thread and left
+     the phone ringing. Joined once and then stripped from the url, because a
+     reload is not a second answer. */
+  const joinedCall = useRef<string | null>(null);
+  useEffect(() => {
+    const callId = searchParams.get('call');
+    if (!callId || joinedCall.current === callId) return;
+    joinedCall.current = callId;
+    const next = new URLSearchParams(searchParams);
+    next.delete('call');
+    setSearchParams(next, { replace: true });
+    void calls.joinById(callId);
+  }, [searchParams, setSearchParams, calls]);
+
   const [activeId, setActiveId] = useState<string | undefined>(requestedId);
   const clear = useClearConversation();
   /**
@@ -383,7 +402,11 @@ export function Chats() {
      the Composer, because that is where the words it kept are. */
   const onRealtimeError = useCallback((message: string) => { setNotice(message); }, []);
 
-  const { send, setTyping } = useChatRealtime(activeId, onMessage, onTyping, onDeleted, onEdited, onRealtimeError);
+  /* THE GUARDED ID, NOT THE RAW ONE. `__mira__` is not a conversation: joining
+     a room named after it emits `join_conversation` with an id the schema
+     demands be a UUID, which 400s into a kind-less `error_event` that rejects
+     every send in flight and sets a notice her branch never renders. */
+  const { send, setTyping } = useChatRealtime(convId, onMessage, onTyping, onDeleted, onEdited, onRealtimeError);
 
   /* A reply is a send that remembers. The state is cleared BEFORE the emit so
      a slow socket cannot leave the bar sitting over the composer looking like
@@ -871,7 +894,13 @@ export function Chats() {
                     owner's call, at 48 because the word stops being legible
                     below that. No chrome around it; hovering says what she is
                     for (the .mira-door tooltip in mira.css). */}
-                {miraShown && (
+                {/* NOT IN A GROUP: `confideTranscript` labels every sender
+                    who is not you "them" and hands her the group's title as
+                    the other person, so five people's messages arrive flattened
+                    under one speaker in a prompt that asserts the thread is
+                    between two. The same "a group has no single they" this file
+                    already applies to presence. */}
+                {miraShown && !activeIsGroup && (
                   <button type="button" className="mira-door" aria-label="Ask Mira about this conversation"
                     title="Mira can analyse this chat for you" onClick={() => setConfide(true)}
                     style={{ flex: 'none' }}>

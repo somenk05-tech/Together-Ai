@@ -19,9 +19,31 @@ import { CallCenterContext, type CallCenterValue, type CallPhase } from './conte
  * hearing nothing. With three people on a call, this connects to the first
  * other participant and says so.
  */
-/** The other person on a one-to-one call, from our point of view. */
+/**
+ * The one other person on this call — chosen the same way by both ends.
+ *
+ * It was `find(p => p.userId !== meId)` over a Prisma include with no ordering,
+ * computed independently on each side, while every frame this component sends
+ * is addressed to that one id. On a three-person call A could answer B and send
+ * the answer to C, and neither of them would ever hear anything. The rule below
+ * needs no round trip and cannot disagree: the person who started the call is
+ * one end of it, and the end they are talking to is whoever answered first.
+ *
+ * That is one PAIR, which is all this component has ever supported — see the
+ * note above. A third participant is connected to nobody, and is told so.
+ */
 function otherParticipant(call: Call, meId: string): string | null {
-  return call.participants.find((p) => p.userId !== meId)?.userId ?? null;
+  const others = call.participants.filter((p) => p.userId !== meId && !p.leftAt);
+  if (!others.length) return null;
+  // Everybody who answers talks to the caller…
+  if (call.createdById !== meId) {
+    return others.some((p) => p.userId === call.createdById) ? call.createdById : null;
+  }
+  // …and the caller talks to the first person who answered. The id breaks a
+  // tie, so two answers in the same millisecond still name one person twice.
+  const answered = others.filter((p) => p.joinedAt !== null);
+  answered.sort((a, b) => (a.joinedAt ?? '').localeCompare(b.joinedAt ?? '') || a.userId.localeCompare(b.userId));
+  return answered[0]?.userId ?? null;
 }
 
 function formatDuration(seconds: number): string {
@@ -47,6 +69,11 @@ export function CallCenter({ children }: { children: ReactNode }) {
   /** The phase as an effect can read it without re-subscribing per change. */
   const phaseRef = useRef<CallPhase>('idle');
   phaseRef.current = phase;
+  /** The call in progress, for the same reason — and it is what every arriving
+   *  frame is checked against, so it must be the current one, not the one the
+   *  socket listener happened to close over. */
+  const callRef = useRef<Call | null>(null);
+  callRef.current = call;
   /**
    * Set synchronously, before the first await in connectPeer.
    *
@@ -105,6 +132,11 @@ export function CallCenter({ children }: { children: ReactNode }) {
       // Say it before the silence, not after.
       setProblem(ice.note);
     }
+    // Honest about the scope stated above: with three people on a call, one
+    // pair can hear each other and nobody else can hear anything.
+    if (c.participants.filter((p) => !p.leftAt).length > 2) {
+      setProblem('Group calls aren’t built yet — only two people on this call can hear each other.');
+    }
 
     const peer = new CallPeer({
       callId: c.id,
@@ -120,7 +152,26 @@ export function CallCenter({ children }: { children: ReactNode }) {
         if (remoteAudio.current) remoteAudio.current.srcObject = stream;
       },
       onStateChange: (state) => {
-        if (state === 'connected') setPhase('connected');
+        // A late frame from a connection we have already replaced or closed
+        // must not touch the call that replaced it.
+        if (peerRef.current !== peer) return;
+        if (state === 'connected') { setPhase('connected'); return; }
+        /* A CONNECTION THAT DROPS IS NOT A CONNECTION. Only 'connected' was
+           handled, so 'disconnected', 'failed' and 'closed' changed nothing:
+           the dialog went on saying the call was in progress, the clock went
+           on counting, and the microphone stayed open on a call that had
+           already died. 'disconnected' is often a few seconds of a bad
+           network and ICE recovers from it, so it goes back to Connecting —
+           where the timer below gives it a minute and then gives up. */
+        if (state === 'disconnected') {
+          setPhase((p) => (p === 'connected' ? 'connecting' : p));
+          return;
+        }
+        if (state === 'failed' || state === 'closed') {
+          setProblem((prev) => prev ?? 'The connection dropped.');
+          teardown();
+          void callsApi.leave(c.id).catch(() => undefined);
+        }
       },
       onFailure: (message) => setProblem(message),
       onScreenShare: (on) => {
@@ -144,14 +195,21 @@ export function CallCenter({ children }: { children: ReactNode }) {
       // start() has already explained itself through onFailure. Leave the call
       // so the other person is not left listening to nothing.
       connecting.current = false;
-      await callsApi.leave(c.id).catch(() => undefined);
+      /* BUT ONLY IF WE ARE IN IT. This ran on any client that got here,
+         including a second device of the callee that had built a peer off the
+         same 'joined' broadcast, met its own microphone prompt and been
+         refused — and a leave from that device ended the call the OTHER device
+         had just answered, because a two-person call ends when one side
+         leaves. Our own row says whether this is our call to hang up. */
+      const mine = c.participants.find((p) => p.userId === meId);
+      if (mine?.joinedAt && !mine.leftAt) await callsApi.leave(c.id).catch(() => undefined);
       teardown();
       return;
     }
     connecting.current = false;
     if (localVideo.current && peer.localStream) localVideo.current.srcObject = peer.localStream;
     setPhase('connecting');
-    for (const s of early.current.splice(0)) await peer.receive(s.kind, s.payload);
+    for (const s of early.current.splice(0)) await peer.receive(s.kind, s.payload).catch(() => undefined);
   }, [meId, teardown]);
 
   // ── socket wiring ────────────────────────────────────
@@ -173,14 +231,35 @@ export function CallCenter({ children }: { children: ReactNode }) {
     });
 
     const offUpdated = socketClient.on<{ event: string; call: Call }>(WS.CALL_UPDATED, ({ event, call: updated }) => {
-      setCall((prev) => (prev && prev.id !== updated.id ? prev : updated));
+      /* EVERY FRAME FOR EVERY CALL YOU ARE ON THE ROSTER OF ARRIVES HERE, and
+         this read the event without ever reading the id. `setCall` knew that
+         and ignored a frame for another call; the branches underneath did not.
+         So a stale call — one you ignored an hour ago, closed now by the
+         server's sweep — arrived as `ended` and tore down the call you were
+         actually on. And because a teardown is local, your own leave never
+         went out: the other person's row stayed live and their screen stayed
+         on a call that had nobody in it. One comparison, before every branch. */
+      const current = callRef.current;
+      if (!current || updated.id !== current.id) return;
+      setCall(updated);
       if (event === 'ended') {
         teardown();
         return;
       }
       // Someone answered: if we are the caller, that is our cue to connect.
       if (event === 'joined' && updated.status === 'active') {
-        setPhase((p) => (p === 'incoming' ? p : 'connecting'));
+        /* ONLY IF THIS CLIENT IS IN THE CALL, AND ANSWERED IT HERE.
+           Every tab and every device on the roster built its own peer
+           connection off this one broadcast, guarded by nothing but a per-tab
+           flag. Two tabs of the caller pushed two interleaved offers into one
+           connection and negotiation never completed; the callee's second
+           device opened a microphone prompt for a call it had never answered.
+           A tab still showing the ringing sheet has not answered — whatever
+           another device of the same citizen has just done. */
+        if (phaseRef.current === 'incoming') return;
+        const mine = updated.participants.find((p) => p.userId === meId);
+        if (!mine?.joinedAt || mine.leftAt) return;
+        setPhase((p) => (p === 'connected' ? p : 'connecting'));
         void connectPeer(updated);
       }
     });
@@ -188,16 +267,40 @@ export function CallCenter({ children }: { children: ReactNode }) {
     const offSignal = socketClient.on<{ callId: string; from: string; kind: SignalKind; payload: unknown }>(
       WS.CALL_SIGNAL,
       (frame) => {
+        /* BOTH `callId` AND `from` WERE RECEIVED AND THROWN AWAY — here and in
+           peer.ts, which checks neither. A frame naming a different call was
+           applied to this one, and the buffer below was filled while the app
+           was idle and replayed into whatever connection happened to be built
+           next: a candidate from a call you declined, pushed into the call you
+           took afterwards. A signal is ours only if it names the call in
+           progress and comes from the person that call says we are talking to. */
+        const current = callRef.current;
+        if (!current || frame.callId !== current.id) return;
         const peer = peerRef.current;
         if (!peer) {
+          // Nothing to give it to yet — the caller's offer routinely beats our
+          // own join. Held only for the person we are about to be talking to.
+          if (frame.from !== otherParticipant(current, meId)) return;
           early.current.push({ kind: frame.kind, payload: frame.payload });
           return;
         }
-        void peer.receive(frame.kind, frame.payload);
+        if (frame.from !== peer.remoteId) return;
+        void peer.receive(frame.kind, frame.payload).catch(() => undefined);
       },
     );
 
-    return () => { offRinging(); offUpdated(); offSignal(); };
+    /* NOTHING IN THE CALL PATH LISTENED FOR `error_event`. Every refusal the
+       signalling handler makes — an ended call, a member since removed, a
+       block, the new ceiling — arrived here, was read by the CHAT client as
+       one of its messages failing, and said nothing whatsoever about the call,
+       which went on saying "Connecting…" until it timed out. The gateway names
+       the kind now; this is the half that shows it to the person waiting. */
+    const offError = socketClient.on<{ kind?: string; message?: string }>(WS.ERROR, (e) => {
+      if (e?.kind !== 'call' || phaseRef.current === 'idle') return;
+      setProblem(e.message || 'That call could not be connected.');
+    });
+
+    return () => { offRinging(); offUpdated(); offSignal(); offError(); };
   }, [meId, phase, connectPeer, teardown]);
 
   /**
@@ -264,8 +367,26 @@ export function CallCenter({ children }: { children: ReactNode }) {
     return () => clearTimeout(t);
   }, [phase, teardown]);
 
-  // Releasing the camera and microphone is not optional on unmount.
-  useEffect(() => () => { peerRef.current?.close(); }, []);
+  /* Releasing the camera and microphone is not optional on unmount — and
+     neither is telling the server. A tab that went away mid-call sent nothing
+     at all: the row stayed `active` with everybody still marked present, the
+     sweep skipped it on that strength every minute forever, and the next call
+     in that conversation joined the corpse instead of ringing anyone. The
+     socket's own disconnect is the guarantee (ChatGateway.handleDisconnect);
+     this is the half that fires while the page can still make the request, so
+     the other side stops waiting now rather than twenty seconds from now.
+     A RINGING sheet is not left behind: this phone may be ringing on three
+     devices, and closing one of them is not a decline. */
+  useEffect(() => {
+    const drop = () => {
+      const id = callRef.current?.id;
+      peerRef.current?.close();
+      peerRef.current = null;
+      if (id && phaseRef.current !== 'incoming') void callsApi.leave(id).catch(() => undefined);
+    };
+    window.addEventListener('pagehide', drop);
+    return () => { window.removeEventListener('pagehide', drop); drop(); };
+  }, []);
 
   // ── keyboard and focus ───────────────────────────────
 
@@ -316,10 +437,45 @@ export function CallCenter({ children }: { children: ReactNode }) {
       } else {
         setPhase('outgoing');
       }
+    } catch (e) {
+      // try/finally with no catch: every refusal this endpoint makes — a block,
+      // an unmatch, a conversation you are no longer in, an avatar that is not
+      // yours — was an unhandled rejection and a key that did nothing.
+      setProblem(
+        (e as { response?: { data?: { message?: string } } })?.response?.data?.message
+          ?? 'That call could not be started.',
+      );
+      teardown();
     } finally {
       setBusy(false);
     }
-  }, [connectPeer]);
+  }, [connectPeer, teardown]);
+
+  /* WHAT A NOTIFICATION LINK RESOLVES TO. `notifyIncomingCall` has written
+     `?call=<id>` into the push url since it was added, and a spec asserted the
+     url was present — but the spec asserted on server source and there was no
+     consumer anywhere in the client, so tapping a ringing notification opened
+     the thread and the phone went on ringing. A ring that has already expired
+     is refused by the server and says so, which is the honest answer and better
+     than the blank thread it used to be. */
+  const joinById = useCallback(async (callId: string) => {
+    setBusy(true);
+    setProblem(null);
+    try {
+      const joined = await callsApi.join(callId);
+      setCall(joined);
+      setPhase('connecting');
+      await connectPeer(joined);
+    } catch (e) {
+      setProblem(
+        (e as { response?: { data?: { message?: string } } })?.response?.data?.message
+          ?? 'That call is no longer available.',
+      );
+      teardown();
+    } finally {
+      setBusy(false);
+    }
+  }, [connectPeer, teardown]);
 
   const answer = useCallback(async () => {
     if (!call) return;
@@ -354,6 +510,19 @@ export function CallCenter({ children }: { children: ReactNode }) {
     teardown();
     if (id) await callsApi.leave(id).catch(() => undefined);
   }, [call, teardown]);
+
+  /* NOTHING EVER TIMED OUT `connecting`. The net above covers the two ringing
+     phases only, so a call that was answered and then failed to negotiate —
+     the ordinary outcome when one side is on a network needing a relay we do
+     not have — sat on "Connecting…" with the microphone open until the citizen
+     closed the tab. It gets the same minute the ringing phases get, and it
+     hangs up rather than merely clearing the screen, because the other side is
+     sitting in the same silence waiting for this to end. */
+  useEffect(() => {
+    if (phase !== 'connecting') return;
+    const t = setTimeout(() => { void hangUp(); }, 60_000);
+    return () => clearTimeout(t);
+  }, [phase, hangUp]);
 
   /**
    * Keep Tab inside the dialog, and let Escape decline a ringing call.
@@ -393,7 +562,7 @@ export function CallCenter({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [phase, hangUp]);
 
-  const value = useMemo<CallCenterValue>(() => ({ phase, call, start, busy }), [phase, call, start, busy]);
+  const value = useMemo<CallCenterValue>(() => ({ phase, call, start, joinById, busy }), [phase, call, start, joinById, busy]);
 
   const showVideo = call?.type !== 'audio';
 

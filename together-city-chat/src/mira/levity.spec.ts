@@ -42,6 +42,14 @@ describe('the hard zeroes', () => {
     expect(levity(base({ text: 'everything feels stuck' })).level).toBe(0);
   });
 
+  it('and a low-mood turn is a distressed turn everywhere else too', () => {
+    // The verdict, not just the number. `distress` is what the persona, the
+    // fact miner, the latch and the meter all read — a turn that is too heavy
+    // for a joke is too heavy to be mined, to be metered, and to be forgotten
+    // by the next message.
+    expect(levity(base({ text: "i'm falling apart" })).distress).toBe(true);
+  });
+
   it('never funny about her own failure', () => {
     expect(levity(base({ lastStepFailed: true })).level).toBe(0);
   });

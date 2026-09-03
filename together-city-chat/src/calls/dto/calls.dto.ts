@@ -46,7 +46,15 @@ export const CallSignalSchema = z
     callId: z.string().uuid(),
     /** The participant this is meant for. Checked against the call's roster. */
     to: z.string().uuid(),
-    kind: z.enum(['offer', 'answer', 'ice', 'renegotiate']),
+    /* THREE KINDS, AND 'renegotiate' IS NOT ONE OF THEM.
+       It was accepted here and handled nowhere: the client treats anything
+       that is not 'ice' as a session description, so a frame naming it arrived
+       at setRemoteDescription as whatever its payload happened to be. Screen
+       sharing — the one feature that might have wanted it — deliberately uses
+       replaceTrack precisely so that nothing is renegotiated. An accepted kind
+       with no handler is a hole with a name; it is refused at the door until
+       something actually sends it. */
+    kind: z.enum(['offer', 'answer', 'ice']),
     payload: z.unknown().refine(
       (v) => {
         try {

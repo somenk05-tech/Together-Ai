@@ -188,6 +188,9 @@ export class PhotoModerationService implements OnModuleInit {
     if (!this.client) return 'pending';
     const obj = await this.bytesOf(entry);
     if (obj === 'unreadable') return 'pending';
+    // No etag: there are no bytes to be about. This is the same verdict and the
+    // same reason string the oversize path has always recorded.
+    if (obj === 'too-large') return this.record(key, userId, 'rejected', '', `Larger than ${PHOTO_MAX_BYTES} bytes.`, null);
     /**
      * The identity of the bytes this verdict is about — FROM THE SAME GET
      * THAT READ THEM (fifth audit, 31 Aug, medium 4). This was a separate
@@ -315,7 +318,7 @@ export class PhotoModerationService implements OnModuleInit {
    * photos predate the vault and still render (photo-storage.spec.ts); they
    * are reviewed from the same bytes, keyed by digest, rather than exempted.
    */
-  private async bytesOf(entry: string): Promise<{ bytes: Buffer; contentType: string; etag: string | null } | 'unreadable'> {
+  private async bytesOf(entry: string): Promise<{ bytes: Buffer; contentType: string; etag: string | null } | 'unreadable' | 'too-large'> {
     if (entry.startsWith('data:')) {
       const m = /^data:([^;,]+)(?:;base64)?,(.*)$/s.exec(entry);
       if (!m) return { bytes: Buffer.alloc(0), contentType: 'invalid', etag: null };
@@ -323,7 +326,16 @@ export class PhotoModerationService implements OnModuleInit {
     }
     const size = await this.storage.healthObjectSize(entry);
     if (size == null) return 'unreadable';
-    if (size > PHOTO_MAX_BYTES) return { bytes: Buffer.alloc(size), contentType: 'image/jpeg', etag: null };
+    /* AN OVERSIZE PHOTO IS A WORD, NOT AN ALLOCATION (this audit). This read
+       `Buffer.alloc(size)` — a zero-filled buffer as large as whatever the
+       bucket says the object is, allocated purely so the length check in
+       `review` would fail. The size is attacker-controlled (it is the object a
+       citizen PUT), so a 3 GB upload asked this process for 3 GB of heap to
+       decide it was too big. `Buffer.alloc(0)` was clearly the intent and is
+       WRONG the other way: a zero-length buffer passes the same check and goes
+       on to Rekognition. The verdict does not need the bytes at all, so it no
+       longer asks for them. */
+    if (size > PHOTO_MAX_BYTES) return 'too-large';
     const obj = await this.storage.getHealthObjectBase64(entry);
     if (!obj) return 'unreadable';
     // The etag of exactly the bytes read above — from the same GET, so a PUT
