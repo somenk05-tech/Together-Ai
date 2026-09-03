@@ -294,7 +294,7 @@ describe('the fold itself', () => {
 });
 
 /**
- * THE DISPLAY SERIF IS LENT TO A HUB, NOT TO A PAGE.
+ * THE DISPLAY TITLE IS LENT TO A HUB, NOT TO A PAGE.
  *
  * `.beauty-display` was `.routine-display` — named after the first page that
  * happened to need it. When the owner's poster reference arrived for the skin &
@@ -302,8 +302,13 @@ describe('the fold itself', () => {
  * relief.spec's grant list, which would have been asking permission to do the
  * thing the existing grant already permits. One hub, one display class.
  *
- * It carries the FACE and nothing else. A class that is both a typeface grant
- * and a size is a class that resizes a masthead on a page nobody was editing.
+ * IT CARRIED THE FACE; IT CARRIES THE WEIGHT NOW. The display serif left on
+ * 2 Sep with the rest of the second typefaces — one font system for the whole
+ * site — and what makes these six read as titles in one typeface is what
+ * always did half the work: being LIGHTER and larger than everything near
+ * them. So the shared rule is `font-weight: 400` and the test below is
+ * unchanged in its point — a class that is both a title grant and a SIZE is a
+ * class that resizes a masthead on a page nobody was editing.
  */
 describe('the beauty display face', () => {
   // A file is allowed to explain itself — the old name is in a comment above
@@ -319,7 +324,10 @@ describe('the beauty display face', () => {
 
   it('sets no size of its own — only the plate does', () => {
     const grant = layout.slice(layout.indexOf('.letter-title,'), layout.indexOf('.beauty-plate {'));
-    expect(grant).toMatch(/font-family: var\(--press-serif\)/);
+    expect(grant).toMatch(/font-weight: 400/);
+    // and it must not have quietly regained a family: one font system means
+    // the six titles are --sans like everything else, by inheritance.
+    expect(grant).not.toMatch(/font-family/);
     expect(grant).not.toMatch(/font-size/);
     expect(layout).toMatch(/\.beauty-plate \.beauty-display \{[^}]*font-size/);
   });

@@ -16,6 +16,32 @@
  * `lint-ceiling.mjs` and `motion-ceiling.mjs`: record today, fail if it grows,
  * lower it as work lands.
  *
+ * ── TRACKING AND LINE-HEIGHT JOINED THE COUNT, 2 SEP ───────────────────────
+ *
+ * Owner: one font system for the entire website. The typeface half of that is
+ * done and it was one commit — the SCALE half is 49 distinct letter-spacing
+ * values over 577 sites and 46 line-heights over 791, and it is not one
+ * commit and should not pretend to be.
+ *
+ * They are counted HERE rather than in a sixth script for the reason four
+ * paragraphs down: five copies of the same directory walk is five places to
+ * fix the day the walk is wrong. Two more lines, two more ceilings, moving
+ * independently of the other four.
+ *
+ * WHY DISTINCT VALUES AND NOT CALL SITES. 577 tracked labels is not a
+ * problem; 54 WAYS OF SAYING ONE is. Seven values between .04em and .10em are
+ * seven afternoons, not seven intentions, and the difference between 1.55 and
+ * 1.6 on 12.5px type is six tenths of a pixel — a number nobody chose and
+ * nobody can see. Counting sites would punish the app for having a lot of
+ * labels. Counting values punishes it for having a lot of opinions about the
+ * same label, which is the actual debt.
+ *
+ * THE FIRST RUNG IS ALREADY IN. `--track-display: .22em`, from the owner's
+ * reference, read by the three sites that had arrived at .22em separately.
+ * Every value folded into a token from here lowers this number by one and
+ * changes nothing on screen — which is the only kind of change this ratchet
+ * should ever be paid with.
+ *
  * ONE FILE, NOT FIVE, because five copies of the same directory walk is five
  * places to fix the day the walk is wrong. Each metric is its own line and its
  * own ceiling; they move independently.
@@ -82,6 +108,14 @@ const CEILING = {
   inlineStyleBlocks: 6679,
   distinctFontSizes: 35,
   rawSpacing: 3605,
+  /* Added 2 Sep. Today's readings, recorded so they can only fall.
+   *
+   * `distinctTracking` opened at 50 and is recorded at 49, because the last
+   * literal `.22em` in the application — the press day's rail label — was
+   * folded into `--track-display` in the same pass. A ratchet whose first
+   * number was never once lowered is a ratchet nobody has proved moves. */
+  distinctTracking: 49,
+  distinctLineHeights: 46,
 };
 
 const walk = (d, ext) => readdirSync(d).flatMap((n) => {
@@ -97,6 +131,16 @@ const css = ['src/index.css', ...readdirSync('src/styles').map((f) => join('src/
 
 const n = { rawRadii: 0, inlineStyleBlocks: 0, rawSpacing: 0 };
 const sizes = new Set();
+const tracking = new Set();
+const lineHeights = new Set();
+
+/* A value written through a token is not a value somebody chose here — it is
+   the token being read, which is the outcome this counts towards. `inherit`,
+   `normal` and `unset` are the absence of a decision for the same reason. */
+const counts = (v) => {
+  const t = v.trim().replace(/\s*!important$/, '');
+  return t !== '' && !t.startsWith('var(') && !/^(inherit|normal|unset|initial|revert)$/.test(t);
+};
 
 for (const f of tsx) {
   const s = noComments(readFileSync(f, 'utf8'));
@@ -104,19 +148,27 @@ for (const f of tsx) {
   n.rawRadii += [...s.matchAll(/borderRadius:\s*'?([0-9.]+)/g)].length;
   n.rawSpacing += [...s.matchAll(/(?:padding|margin|gap)(?:Top|Right|Bottom|Left|X|Y)?:\s*[0-9]+\b/g)].length;
   for (const m of s.matchAll(/fontSize:\s*'?([0-9.]+)/g)) sizes.add(m[1]);
+  for (const m of s.matchAll(/letterSpacing:\s*'([^']+)'/g)) if (counts(m[1])) tracking.add(m[1].trim());
+  for (const m of s.matchAll(/lineHeight:\s*'?([0-9.]+(?:px|em|rem)?)'?/g)) if (counts(m[1])) lineHeights.add(m[1].trim());
 }
 for (const f of css) {
   const s = noComments(readFileSync(f, 'utf8'));
   n.rawRadii += [...s.matchAll(/border-radius:\s*([0-9.]+)px/g)].length;
   for (const m of s.matchAll(/font-size:\s*([0-9.]+)px/g)) sizes.add(m[1]);
+  for (const m of s.matchAll(/letter-spacing:\s*([^;}\n]+)/g)) if (counts(m[1])) tracking.add(m[1].trim());
+  for (const m of s.matchAll(/line-height:\s*([^;}\n]+)/g)) if (counts(m[1])) lineHeights.add(m[1].trim());
 }
 n.distinctFontSizes = sizes.size;
+n.distinctTracking = tracking.size;
+n.distinctLineHeights = lineHeights.size;
 
 const LABEL = {
   rawRadii: 'raw radii (not var(--r-*))',
   inlineStyleBlocks: 'inline style objects',
   distinctFontSizes: 'distinct font sizes',
   rawSpacing: 'raw inline spacing values',
+  distinctTracking: 'distinct tracking values',
+  distinctLineHeights: 'distinct line-heights',
 };
 
 let over = false, under = false;

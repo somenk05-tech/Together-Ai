@@ -1788,45 +1788,25 @@ textarea.g-field { resize: none; line-height: 1.55; }
 }
 
 /* ══ THE PRESS ═══════════════════════════════════════════════════════════
-   Two faces that exist ONLY inside `[data-press]`, and nowhere else in the
-   city. See the block of the same name in tokens.css for why this exception
-   was granted, what it is scoped to, and what happens if it spreads. */
-@font-face {
-  font-family: 'Instrument Serif';
-  src: url('/assets/fonts/instrument-serif-400.woff2') format('woff2');
-  font-weight: 400; font-style: normal; font-display: swap;
-}
-/* THE ITALIC IS THE ROMAN'S OWN, NOT A THIRD TYPEFACE — the same family, the
-   same foundry, the same latin subset, and the roman already on disk is
-   byte-for-byte the file this one ships beside. That is the whole argument for
-   it: without a real italic the browser SLANTS the roman, and a synthetic
-   oblique of a display serif at 38px is the one thing on a page that looks
-   broken to everybody and wrong to nobody who can say why. The beauty hub's
-   assessment plate sets its findings roman-italic-roman, from the owner's
-   reference, whose entire character is those two cuts against each other.
+   FOUR @font-face BLOCKS STOOD HERE — Instrument Serif roman and italic, IBM
+   Plex Mono 400 and 500 — and they are gone. Owner, 2 Sep: one font system
+   for the entire website. There is no self-hosted type left in this
+   application and no @font-face anywhere in it; relief.spec asserts that
+   emptiness rather than asserting a file list, because a file list is a thing
+   that grows.
 
-   22 KB, latin, `swap`, and requested only by the pages that set the face. */
-@font-face {
-  font-family: 'Instrument Serif';
-  src: url('/assets/fonts/instrument-serif-400-italic.woff2') format('woff2');
-  font-weight: 400; font-style: italic; font-display: swap;
-}
-@font-face {
-  font-family: 'IBM Plex Mono';
-  src: url('/assets/fonts/ibm-plex-mono-400.woff2') format('woff2');
-  font-weight: 400; font-style: normal; font-display: swap;
-}
-@font-face {
-  font-family: 'IBM Plex Mono';
-  src: url('/assets/fonts/ibm-plex-mono-500.woff2') format('woff2');
-  font-weight: 500; font-style: normal; font-display: swap;
-}
+   THE ONE THING THE MONO DID THAT THE FACE WAS NOT THE POINT OF: figures that
+   align down a column. That is a numeral set, not a typeface, and this is it.
+   Scoped to the press because that is where four columns of numbers are read
+   against each other; the rest of the city asks for it by the `.mono` class,
+   which has always been --sans plus exactly these two lines. */
+[data-press] { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1; }
 
 /* ══ THE PRINTED DAY ═════════════════════════════════════════════════════
    Everything below is inside [data-press] and cannot escape it. This is a
-   PRINTED page: hairlines instead of shadow, three faces instead of one. Both
-   are Relief rules broken on purpose, in one room, for a page whose whole job
-   is to be read like a menu.
+   PRINTED page: hairlines instead of shadow. That is now the ONLY Relief rule
+   broken here — the second and third faces left on 2 Sep — and it is broken on
+   purpose, in one room, for a page whose whole job is to be read like a menu.
 
    THE GROUND IS NOT ONE OF THE BREAKS ANY MORE. It was ivory; it is white,
    like every other background in the city. See tokens.css.
@@ -2220,7 +2200,7 @@ textarea.g-field { resize: none; line-height: 1.55; }
 /* ── the verso's rail ───────────────────────────────────────────────────── */
 .press-rail-top { font-family: var(--sans); font-size: var(--fs-3); letter-spacing: .3em;
   font-weight: 600; text-transform: uppercase; }
-.press-rail-top em { font-style: normal; display: block; font-size: 12px; letter-spacing: .22em;
+.press-rail-top em { font-style: normal; display: block; font-size: 12px; letter-spacing: var(--track-display);
   font-weight: 500; color: var(--press-verso-ink-2); margin-top: 9px; }
 .press-rail-hair { width: 56px; height: 0; margin: 24px 0 28px;
   border-top: 1px solid var(--press-verso-rule); box-shadow: 0 1px 0 var(--press-verso-lift); }

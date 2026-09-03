@@ -1273,12 +1273,27 @@
      than a default to be inherited by every label in the city. */
   /* ══ THE PRESS — A NAMED EXCEPTION, NOT A DRIFT ══════════════════════════
      One page in this city is not a screen: the nutrition day. It is a menu,
-     and it is set rather than built. Three Relief rules are broken there, all
-     three deliberately, all three scoped to `[data-press]` and reachable from
-     nowhere else:
+     and it is set rather than built. ONE Relief rule is broken there now,
+     deliberately, scoped to `[data-press]` and reachable from nowhere else:
 
        · the material is HAIRLINES, not shadow
-       · there are THREE faces, not one
+
+     THE SECOND AND THIRD FACES ARE GONE (owner, 2 Sep: one font system for
+     the entire website). Instrument Serif and IBM Plex Mono were the other
+     half of this exception and they are deleted, not repointed at a fallback:
+     --press-serif and --press-mono resolve to --sans, exactly as --serif and
+     --mono have always done, so the forty-six call sites that read them keep
+     reading them and there is no second family left in the city to drift
+     back to.
+
+     WHAT THE PRESS KEEPS IS WHAT IT ACTUALLY EARNED. The hairlines, the
+     paper's rules, the two-column recipe, and — the mono's real job — figures
+     that ALIGN DOWN A COLUMN. That last one is not a face, it is a numeral
+     set: `font-variant-numeric: tabular-nums` on [data-press] in relief.css
+     does what the monospace was there for, in one line, in the one typeface.
+     The cost is honest and small: tabular figures in the press's prose too,
+     which on a page that is four fifths numbers is not a page anybody reads
+     for its prose.
 
      THE GROUND IS NO LONGER ONE OF THEM. It was ivory — #faf7f0, with two
      radial washes of warm grey over it — because printed paper is warm and the
@@ -1286,8 +1301,9 @@
      the one room in the city with a colour behind the words, which is exactly
      what the Nutrition surface tint was removed for at the top of this file.
      So the exception gives the ground back. What made the page a menu was
-     never the beige; it was the hairlines, the serif and the tabular figures,
-     and all three still stand on white.
+     never the beige; it was the hairlines, the setting and the tabular
+     figures, and all three still stand on white — the serif that used to be
+     third in that list left on 2 Sep with the rest of the second typefaces.
 
      WHY THIS IS ALLOWED HERE AND NOWHERE ELSE. A meal plan is read the way a
      menu is read — down a column, comparing figures — and Relief's material is
@@ -1295,8 +1311,11 @@
      nothing anywhere else, and if it spreads the city stops looking like one
      thing. The guard in relief.spec.ts enforces the scope, not the taste.
 
-     THE MONO IS NOT A FOURTH MOOD. Four columns of figures cannot be scanned
-     in a proportional face; tabular numerals are the entire reason it is here.
+     THE MONO WAS NEVER A FOURTH MOOD, WHICH IS WHY IT COULD LEAVE. Four
+     columns of figures cannot be scanned when the numerals are different
+     widths — tabular numerals were the entire reason it was here, and Avenir
+     Next has them. A monospaced FACE was one way to get a numeral set; asking
+     for the numeral set is the direct way, and it does not cost a typeface.
 
      Every value on that page comes from the personalisation engine. These are
      the only colours it may use, and none of them is a number. */
@@ -1392,8 +1411,14 @@
   --press-macro-2:#5b957a;
   --press-macro-3:#b7cec1;
   --press-macro-0:#e6e6e6;   /* the unfilled part of a macro bar */
-  --press-serif: 'Instrument Serif', Georgia, 'Times New Roman', serif;
-  --press-mono:  'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
+  /* ONE FONT SYSTEM (owner, 2 Sep). Both names survive their faces on
+     purpose: forty-six call sites read them, and a token that says WHY a line
+     is set the way it is — a title, a figure — is worth more than forty-six
+     edits that would all say var(--sans). They resolve here, in one place, the
+     way --serif and --mono do; the moment either names a real second family
+     again, relief.spec fails. */
+  --press-serif: var(--sans);
+  --press-mono:  var(--sans);
   /* THE GRAIN IS THE PEARLS NOW (owner, 24 Aug, with a glassmorphism
      reference: a frosted pane floating among soft porcelain toruses). The
      token that once carried paper mottle carries the room's depth instead —

@@ -1082,15 +1082,17 @@ describe('Relief stays a system', () => {
   it('keeps the press inside the one page it was granted to', () => {
     const code = strip(relief);
 
-    // 1. the two faces are declared, and only ever read through their tokens
-    expect(strip(tokens)).toMatch(/--press-serif:\s*'Instrument Serif'/);
-    expect(strip(tokens)).toMatch(/--press-mono:\s*'IBM Plex Mono'/);
-    for (const m of stripFaces(code).matchAll(/font-family:\s*([^;]+);/g)) {
-      expect(m[1]).not.toMatch(/'Instrument Serif'|'IBM Plex Mono'/);
-    }
-    // and the two files must actually ship, like every other face here
-    expect(code).toMatch(/instrument-serif-400\.woff2/);
-    expect(code).toMatch(/ibm-plex-mono-400\.woff2/);
+    // 1. THE TWO FACES ARE GONE AND THE TWO NAMES ARE NOT. Owner, 2 Sep: one
+    //    font system for the entire website. --press-serif and --press-mono
+    //    still exist because forty-six call sites read them and because a
+    //    token that says WHY a line is set the way it is — a title, a figure
+    //    — is worth keeping; they resolve to --sans the way --serif and
+    //    --mono always have. What is checked is that they resolve there, and
+    //    that no file comes back.
+    expect(strip(tokens)).toMatch(/--press-serif:\s*var\(--sans\)/);
+    expect(strip(tokens)).toMatch(/--press-mono:\s*var\(--sans\)/);
+    expect(code).not.toMatch(/Instrument Serif|IBM Plex Mono/);
+    expect(strip(layout)).not.toMatch(/Instrument Serif|IBM Plex Mono/);
 
     // 2. every press rule is scoped — by attribute, or by its own prefix
     const selectors = [...code.matchAll(/(^|\})\s*([^{}@]+)\{/g)].map((m) => m[2].trim());
@@ -1111,32 +1113,25 @@ describe('Relief stays a system', () => {
       'src/features/nutrition/pages/RecipeDetail.tsx',
     ]);
 
-    // 4. the FACE may be borrowed outside the press exactly once, by name.
-    //    Read across both stylesheets: the borrower is in layout.css, and a
-    //    guard that only reads relief.css would have nothing to say about it.
-    const serifReaders: string[] = [];
+    // 4. THE LOAN IS CLOSED BECAUSE THERE IS NOTHING LEFT TO LEND. Six
+    //    selectors outside the press borrowed the display serif by name —
+    //    .letter-title, its archive row, .beauty-display, .gem-display,
+    //    .dating-display, .sl-reel-name. The face left on 2 Sep; the six are
+    //    now a weight rule in layout.css and need no permission from here.
+    //
+    //    WHAT REPLACES THAT GUARD IS STRICTER, NOT LOOSER: nothing anywhere
+    //    may read --press-serif or --press-mono outside the press at all. A
+    //    name that resolves to --sans is harmless today and is exactly how a
+    //    second family walks back in tomorrow — somebody re-points the token
+    //    for the nutrition page and six unrelated selectors change with it.
+    const pressTokenReaders: string[] = [];
     for (const sheet of [code, strip(layout)]) {
       for (const m of sheet.matchAll(/(^|\})([^{}@]+)\{([^}]*)\}/g)) {
-        if (/var\(--press-serif\)/.test(m[3])) serifReaders.push(m[2].trim());
+        if (/var\(--press-(serif|mono)\)/.test(m[3])) pressTokenReaders.push(m[2].trim());
       }
     }
-    const borrowed = serifReaders.filter((sel) => !/\.press-|\[data-press\]/.test(sel));
-    //    `.dating-display` is the fifth name on the loan, and it is on the
-    //    SAME selector group as the other four on purpose: one rule means one
-    //    entry here, so the list stays a list of names rather than becoming a
-    //    list of rules that happen to want the face. Dating's whole material
-    //    is a gradient and a monochrome grade — no second colour, no second
-    //    family — so the editorial title is the only thing it had left to set
-    //    the page's own voice apart from the interface's. Lent by name, and
-    //    the name is written here.
-    //    `.sl-reel-name` is the sixth, added 29 Aug with the video sheet. The
-    //    reference the owner gave for it is a poster — a name set large in a
-    //    display serif against a small paragraph of sans, one picture, and
-    //    five marks at the foot — so the face IS the composition rather than a
-    //    decoration on it. Granted for the name alone: every other word on
-    //    that sheet is --sans, and this list is where that is checkable.
-    expect(borrowed, 'the display serif is lent by name, and this is the list')
-      .toEqual(['.letter-title,\n.letter-archive-day .t,\n.beauty-display,\n.gem-display,\n.dating-display,\n.sl-reel-name']);
+    const outside = pressTokenReaders.filter((sel) => !/\.press-|\[data-press\]/.test(sel));
+    expect(outside, 'the press tokens are the press\'s, and nobody else reads them').toEqual([]);
   });
 
   /**
@@ -1767,11 +1762,23 @@ describe('Relief stays a system', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('references a font file the build can actually serve', () => {
-    const urls = [...strip(relief).matchAll(/url\('([^']+\.woff2)'\)/g)].map((m) => m[1]);
-    expect(urls.length).toBeGreaterThan(0);
-    for (const u of new Set(urls)) {
-      expect(u.startsWith('/assets/fonts/')).toBe(true);
+  /**
+   * NO FONT FILE, ANYWHERE, ON PURPOSE.
+   *
+   * This used to assert that every @font-face pointed at a file the build
+   * could serve. There are no faces now — one font system, from the system —
+   * so the assertion that carries weight is the EMPTY ONE. A file list is a
+   * thing that grows; an empty set is a thing somebody has to argue with.
+   *
+   * The argument, if anyone comes to make it: Avenir Next cannot be
+   * self-hosted (Monotype's, licensed to Apple), and a second family that
+   * CAN be is how a city with one typeface gets two. If a licensed webfont
+   * is ever bought, this test is where the decision gets written down.
+   */
+  it('ships no font file at all, and declares no face', () => {
+    for (const sheet of [strip(relief), strip(layout), strip(tokens)]) {
+      expect(sheet).not.toMatch(/@font-face/);
+      expect(sheet).not.toMatch(/\.woff2?/);
     }
   });
 });

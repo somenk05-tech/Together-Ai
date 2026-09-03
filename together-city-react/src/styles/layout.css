@@ -1315,38 +1315,31 @@
 @media (max-width: 720px) { .routine-assure { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 480px) { .routine-assure { grid-template-columns: minmax(0, 1fr); } }
 
-/* THE BORROWERS OF THE DISPLAY SERIF. See relief.spec assertion 4 — the face
-   is the nutrition press's, lent by name, each with a reason.
+/* THE SIX DISPLAY TITLES. There is nothing left to borrow — the display
+   serif they were named for left on 2 Sep with the rest of the second
+   typefaces — so what this rule sets is WEIGHT, and the weight is the whole
+   point of it.
 
-   `.routine-display` became `.beauty-display` when the owner's poster
-   reference arrived: the routine masthead and the four plates on the skin &
-   hair page are the same editorial title in the same hub, and one hub gets one
-   display class. Naming it after the first page that happened to need it is
-   how a second page ends up asking for a sixth grant it does not need.
+   A display title in this application is the LIGHTEST thing on its page, not
+   the heaviest. Every one of these six is the line that says "this is the
+   page": the astrology letter's title and its archive row, the beauty hub's
+   editorial title, the gemstone sheet's engraved name, the dating hub's three
+   sizes of house voice, and the name of whoever made the video you are
+   looking at. They were set in a 400-weight serif against a 600/700 sans, and
+   the contrast that made them read as titles was never the serifs — it was
+   being lighter and larger than everything around them. In one typeface that
+   contrast is still available, and this is where it is declared, once, so the
+   six cannot drift apart.
 
-   `.dating-display` is the fifth name, and it is one class for the whole hub
-   for exactly the reason above: the page title, the name of the person the
-   page is about, and the one sentence the house says in its own voice are
-   three sizes of the same editorial title. Dating's ground is a sky rather
-   than paper and its only other distinction is a monochrome grade — a room
-   with no colour and no second typeface had nothing left to say "this line
-   is the page" with. It says it in the serif, by name, in this list.
-
-   `.sl-reel-name` is the sixth, and the narrowest of the six: it sets ONE
-   line — the name of whoever made the video you are looking at — on the video
-   sheet the owner's editorial reference asked for on 29 Aug. That sheet is a
-   poster: black type on white, one picture, five marks at the foot. Its whole
-   composition is a NAME set large against a small paragraph of sans, and the
-   application owns exactly one face that can set a name large. Granted for
-   the name and nothing else on the sheet: the caption, the handle and the
-   five labels are all --sans, which is why this is a line in a list rather
-   than a stylesheet of its own. */
+   THE LIST IS STILL A LIST, AND STILL CLOSED. relief.spec no longer has a
+   face to police here, but a seventh name is still a decision somebody makes
+   on purpose rather than by adding a comma. */
 .letter-title,
 .letter-archive-day .t,
 .beauty-display,
 .gem-display,
 .dating-display,
-.sl-reel-name { font-family: var(--press-serif); font-weight: 400; }
+.sl-reel-name { font-weight: 400; }
 
 /* ══ THE BEAUTY PLATE ═══════════════════════════════════════════════════════
    The owner's poster reference, made into the page's furniture.
