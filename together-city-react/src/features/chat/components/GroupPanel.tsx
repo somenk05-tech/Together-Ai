@@ -41,9 +41,19 @@ export function GroupPanel({ conversationId, title, meId, onClose, onChanged, on
 
   /** Every action goes through here: one place that reports a refusal in the
    *  server's own words rather than a generic failure. */
-  const run = async (fn: () => Promise<unknown>) => {
+  const run = async (fn: () => Promise<unknown>, thenLeave?: () => void) => {
     setBusy(true); setErr(null);
-    try { await fn(); load(); onChanged(); }
+    try {
+      await fn();
+      onChanged();
+      /* LEAVING IS THE LAST THING THAT HAPPENS, and it used to be the first.
+         `onLeft()` was called inside `fn`, so this line fell through to
+         `load()` — a GET /chat/:id/members for a group this reader had just
+         left. A guaranteed 403, whose `.catch` set an error on a panel
+         `onLeft()` had already closed. There is nothing left to reload. */
+      if (thenLeave) { thenLeave(); return; }
+      load();
+    }
     catch (e) { setErr((e as { message?: string }).message || 'That did not work.'); }
     finally { setBusy(false); }
   };
@@ -131,7 +141,7 @@ export function GroupPanel({ conversationId, title, meId, onClose, onChanged, on
               because "you are the owner" is exactly when somebody hesitates. */}
           <button type="button" className="btn btn-line btn-sm" disabled={busy}
             style={{ color: 'var(--danger-ink)', borderColor: 'var(--danger-line)' }}
-            onClick={() => void run(async () => { await chatApi.leaveGroup(conversationId); onLeft(); })}>
+            onClick={() => void run(() => chatApi.leaveGroup(conversationId), onLeft)}>
             Leave group
           </button>
           <button type="button" className="btn btn-sm" onClick={onClose}>Done</button>

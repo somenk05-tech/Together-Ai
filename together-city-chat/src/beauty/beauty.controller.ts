@@ -9,6 +9,8 @@ import { LookAnalysisService } from './look-analysis.service';
 import { PlaceBeautyOrderSchema, type PlaceBeautyOrderDto } from './dto/beauty.dto';
 
 import { Mira } from '../mira/mira.decorator';
+import { Throttle } from '@nestjs/throttler';
+import { MODEL_LIMIT } from '../shared/throttles';
 @Controller('beauty')
 @UseGuards(JwtAuthGuard)
 export class BeautyController {
@@ -35,7 +37,11 @@ export class BeautyController {
   }
 
   // One-time photo assessment (vision when configured; profile-based otherwise).
+  // MODEL_LIMIT here and on `looks` (launch gate, 2 Sep): both reach the vision
+  // model and neither was throttled — the guard that checks every model route
+  // could not see past the ZodValidationPipe's first brace, and it can now.
   @Post('photos/analyze')
+  @Throttle(MODEL_LIMIT)
   @UsePipes(new ZodValidationPipe(z.object({
     photos: z.array(z.object({
       slot: z.string().min(1).max(32),
@@ -142,6 +148,7 @@ export class BeautyController {
 
   /** POST /api/beauty/looks — read a reference photo into steps you can follow. */
   @Post('looks')
+  @Throttle(MODEL_LIMIT)
   @UsePipes(new ZodValidationPipe(z.object({
     fileKey: z.string().max(300).optional(),
     mimeType: z.string().max(60).regex(/^image\//).optional(),

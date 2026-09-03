@@ -2962,7 +2962,20 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     await this.bumpListVersion(userId);
     const state = await this.upsertState(userId, targetUserId, kind);
     if (state.status !== 'matched') throw new NotFoundException('No active match to connect to.');
-    if (state.conversationId) return { conversationId: state.conversationId, alreadyOpen: true, chargedInr: 0 };
+    if (state.conversationId) {
+      /* AND IT IS OPEN AGAIN, NOT MERELY THE SAME ID. Unmatch, pass and block
+         all archive the conversation for both members and deliberately KEEP
+         `conversationId` on the match row — and nothing ever set `archived`
+         back. So a pair who unmatched and then matched again came straight
+         back here, were handed the same still-archived thread, and the chat
+         list marked it ended: a read-only room for two people the engine had
+         just re-matched, with no way out of it from either side. The status
+         above is already `matched`, which is the whole warrant for reopening
+         it. */
+      await swallow(this.conversations.unarchiveForAll(state.conversationId),
+        'dating connect: reopen an archived conversation', { userId });
+      return { conversationId: state.conversationId, alreadyOpen: true, chargedInr: 0 };
+    }
 
     // NO CAP (owner, 27 Aug). The read that counted somebody's other open
     // conversations, and the refusal it fed, are both gone — see the note
@@ -3657,9 +3670,27 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     } catch { /* no cache is "no score", same as readPairScore */ }
     const scoreOf = new Map(scoreRows.map((r) => [`${r.userA}:${r.userB}`, r.overall]));
 
-    const summaries = await this.conversations.summariesFor(
-      matches.map((m) => m.conversationId).filter((c): c is string => Boolean(c)), userId,
-    );
+    const convIds = matches.map((m) => m.conversationId).filter((c): c is string => Boolean(c));
+    const summaries = await this.conversations.summariesFor(convIds, userId);
+    /* AND WHETHER THE ROOM IS STILL OPEN. Ending a match archives the
+       conversation for every member — unmatch, block and a moderator's
+       takedown all go through `archiveForAll` — and until this reader's
+       fifteen-second poll comes round they are looking at a live thread with a
+       composer in it that the gateway will refuse. The flag rides on the row so
+       the page can put a sentence where the composer was, rather than the
+       thread disappearing under somebody mid-word when the poll lands.
+       One query for the whole list, like every other read on this path.
+
+       Swallowed, and inside the async wrapper so a throw of any kind becomes
+       one: a read that fails leaves every row saying `ended: false`, which is
+       exactly what this list said before the flag existed. A chat list is not
+       worth failing over one boolean. */
+    // unbounded: one row per conversation asked for, which `matches` bounds
+    const archivedRows = (await swallow((async () => this.prisma.conversationMember.findMany({
+      where: { conversationId: { in: convIds }, userId, archived: true },
+      select: { conversationId: true },
+    }))(), 'dating chats: read archived conversations', { userId })) ?? [];
+    const archived = new Set(archivedRows.map((r) => r.conversationId));
 
     const out = [];
     const photoJobs: Array<{ keys: readonly string[]; into: string[] }> = [];
@@ -3687,6 +3718,16 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
 
       out.push({
         conversationId: m.conversationId,
+        /** WHICH LENS THIS MATCH IS IN, and it has to be on the row.
+         *  `@@unique([userOneId, userTwoId, kind])` means one pair can hold a
+         *  romantic AND a platonic match at once, each with its own
+         *  conversation — and this list carries both, with no kind filter. A
+         *  row that does not say which one it is makes unmatch, block, reveal
+         *  and "view profile" a guess about somebody's relationship. */
+        kind: m.kind as MatchKind,
+        /** The conversation has been archived for this reader — unmatched,
+         *  blocked, or taken down. The room is read-only from here. */
+        ended: Boolean(m.conversationId && archived.has(m.conversationId)),
         /** True while the match exists but the chat has not been opened yet. */
         pending: !m.conversationId,
         // Sealed like every card's id (31 Aug): the chat row is where reveal,

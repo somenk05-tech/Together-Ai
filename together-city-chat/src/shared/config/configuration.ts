@@ -115,6 +115,29 @@ export function assertProductionConfig(): void {
   }
 
   /**
+   * A BLANK PUBLIC BASE URL DOES NOT WEAKEN THE ATTACHMENT CHECK. IT REMOVES IT.
+   *
+   * `assertAttachmentsAreYoursToSend` compares an attachment's origin against
+   * `media.publicBaseUrl` — and the comparison is written `if (base && ...)`,
+   * so an empty base skips it entirely and the only surviving rule is that the
+   * path contains `/uploads/<senderId>/`. That segment is the sender's own id:
+   * public knowledge, and theirs to type. With this unset,
+   * `https://tracker.example/uploads/<senderId>/pixel.gif` is a valid
+   * attachment, and every recipient's client fetches an arbitrary host the
+   * moment the thread renders — a tracking pixel in any conversation, dating
+   * ones included.
+   *
+   * Fatal for the same reason the private bucket is: nothing looks wrong in
+   * this state. The check still appears to run, the deploy is green, and
+   * render.yaml ships the variable `sync: false` — a blank an operator fills
+   * in, or does not.
+   */
+  if (!(process.env.MEDIA_PUBLIC_BASE_URL ?? '').trim()) {
+    fatal.push('MEDIA_PUBLIC_BASE_URL is unset — the attachment origin check is skipped entirely, so a message '
+      + 'can carry an image from ANY host. Set it to the public origin media is served from.');
+  }
+
+  /**
    * A BOT CHECK WITH AN OPEN SIDE DOOR IS WORSE THAN NO BOT CHECK, BECAUSE
    * IT IS BELIEVED. (28 Aug.)
    *

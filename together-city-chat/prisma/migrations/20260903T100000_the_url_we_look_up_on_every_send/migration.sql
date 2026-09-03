@@ -1,0 +1,20 @@
+-- THE URL WE LOOK UP ON EVERY SEND.
+--
+-- Attachment was indexed on `messageId` and on the snap sweep's
+-- (snapExpiresAt, snapGoneAt), and on nothing else. Two hot paths ask for a
+-- row BY ITS URL:
+--
+--   messages.service `findFirst({ where: { url } })` — the snap lookup, run on
+--   EVERY snap send, and
+--
+--   messages.service `findMany({ where: { url: { in: … } } })` — the forward
+--   ownership check, run on every forward.
+--
+-- Both were sequential scans of a table that gains a row for every attachment
+-- anybody has ever sent, and neither gets cheaper on its own.
+--
+-- CONCURRENTLY is deliberately NOT used, for the reason
+-- 20260830T030000_two_indexes_the_feed_actually_uses gives: `prisma migrate
+-- deploy` runs each migration in a transaction and CREATE INDEX CONCURRENTLY
+-- cannot run inside one.
+CREATE INDEX "Attachment_url_idx" ON "Attachment"("url");

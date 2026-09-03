@@ -136,31 +136,20 @@ export class ConversationsService {
       }
       return true;
     });
-    /* The counts run CONCURRENTLY. This was one awaited count per conversation
-       in series — a panel of forty chats was forty round-trips end to end, and
-       every open client polls this endpoint every fifteen seconds. Same
-       queries, one wait. */
-    const unreads = await Promise.all(
-      visible.map((m) => {
-        // Unread counts from whichever came later: the last read, or the clear.
-        // Without this a cleared thread reappears claiming every old message is
-        // unread.
-        const since = this.laterOf(m.lastReadAt, m.clearedAt);
-        return this.prisma.message.count({
-          where: {
-            conversationId: m.conversationId,
-            deleted: false,
-            senderId: { not: userId },
-            ...(since ? { createdAt: { gt: since } } : {}),
-          },
-        });
-      }),
+    /* ONE GROUPED COUNT, NOT ONE PER CONVERSATION. These already ran
+       concurrently — forty chats were one wait rather than forty — but they
+       were still forty round-trips, on an endpoint every open client polls
+       every fifteen seconds. `summariesFor` has done it in a single `groupBy`
+       since the Dating Hub list stopped looping, and the per-member `since`
+       expresses itself there exactly as it does here: an OR of
+       per-conversation conditions. */
+    const unreads = await this.unreadCounts(
+      userId,
+      visible.map((m) => ({ conversationId: m.conversationId, since: this.unreadSince(m) })),
     );
-    /* A flagged chat counts at least one. MAX rather than a fixed 1, so a
-       conversation with three real unread messages that is ALSO flagged still
-       says three — the flag raises the floor, it does not replace the count. */
-    return visible.map((m, i) =>
-      this.shape(m.conversation, userId, m.markedUnread ? Math.max(1, unreads[i]) : unreads[i]));
+    return visible.map((m) => this.shape(
+      m.conversation, userId, this.withUnreadFloor(unreads.get(m.conversationId) ?? 0, m.markedUnread),
+    ));
   }
 
   /**
@@ -252,6 +241,77 @@ export class ConversationsService {
     return a > b ? a : b;
   }
 
+  /**
+   * ── ONE UNREAD RULE, THREE READERS ────────────────────────────────────────
+   *
+   * `listForUser`, `toDto` and `summariesFor` each counted unread their own way
+   * and disagreed. `toDto` read `lastReadAt` alone, so clearing a chat and then
+   * re-opening it with POST /chat/start counted every message you had deleted;
+   * `summariesFor` — the Dating Hub list, polled every fifteen seconds — did
+   * the same AND never applied the `markedUnread` floor, so "mark unread" did
+   * nothing there and a cleared dating chat re-inflated its badge on the next
+   * poll.
+   *
+   * Three counts that disagree each look correct on their own, which is what
+   * makes one shared helper right here rather than three careful copies.
+   *
+   * The rule: unread means messages somebody else sent, not deleted, not hidden
+   * for this reader, after whichever of these came LAST.
+   */
+  private unreadSince(m: { lastReadAt?: Date | null; clearedAt?: Date | null; joinedAt?: Date | null }): Date | null {
+    /* `joinedAt` IS PART OF THE RULE and was consulted nowhere. A member added
+       to a group today has no lastReadAt and no clearedAt — both null — so
+       their first badge was the entire history of a room they had not been in. */
+    return this.laterOf(this.laterOf(m.lastReadAt, m.clearedAt), m.joinedAt);
+  }
+
+  /** The message-side half of the same rule, for any `where` that counts unread. */
+  private unreadWhere(userId: string) {
+    return {
+      deleted: false,
+      senderId: { not: userId },
+      /* A message this reader chose "delete for me" on is gone from their
+         thread and has to be gone from their badge too — it was still counted.
+         Done in SQL rather than the JS filter `messages.service.hiddenFor`
+         uses, because a count never loads the rows it counts; matching the
+         QUOTED id in the JSON array is exact, since the array holds whole ids
+         and nothing else. Under `AND` so callers keep the top-level `OR` for
+         their per-conversation conditions. */
+      AND: [{ OR: [{ hiddenForJson: null }, { NOT: { hiddenForJson: { contains: `"${userId}"` } } }] }],
+    };
+  }
+
+  /**
+   * Unread counts for many conversations in ONE query, each since its own
+   * `unreadSince`. The per-conversation floor is NOT applied here: `markedUnread`
+   * is a flag on the membership row, not a predicate on any message.
+   */
+  private async unreadCounts(
+    userId: string,
+    rows: Array<{ conversationId: string; since: Date | null }>,
+  ): Promise<Map<string, number>> {
+    if (!rows.length) return new Map();
+    const counts = await (this.prisma as unknown as { message: { groupBy(a: unknown): Promise<Array<{ conversationId: string; _count: { _all: number } }>> } })
+      .message.groupBy({
+        by: ['conversationId'],
+        where: {
+          ...this.unreadWhere(userId),
+          OR: rows.map((r) => (r.since
+            ? { conversationId: r.conversationId, createdAt: { gt: r.since } }
+            : { conversationId: r.conversationId })),
+        },
+        _count: { _all: true },
+      });
+    return new Map(counts.map((c) => [c.conversationId, c._count._all]));
+  }
+
+  /* A flagged chat counts at least one. MAX rather than a fixed 1, so a
+     conversation with three real unread messages that is ALSO flagged still
+     says three — the flag raises the floor, it does not replace the count. */
+  private withUnreadFloor(count: number, markedUnread: boolean | undefined): number {
+    return markedUnread ? Math.max(1, count) : count;
+  }
+
   /** Load one conversation (with members + last message + unread) as the flat DTO. */
   private async toDto(conversationId: string, userId: string) {
     const c = await this.prisma.conversation.findUnique({
@@ -263,15 +323,8 @@ export class ConversationsService {
     });
     if (!c) throw new ForbiddenException('Conversation not found');
     const me = c.members.find((m) => m.userId === userId);
-    const unread = await this.prisma.message.count({
-      where: {
-        conversationId,
-        deleted: false,
-        senderId: { not: userId },
-        ...(me?.lastReadAt ? { createdAt: { gt: me.lastReadAt } } : {}),
-      },
-    });
-    return this.shape(c, userId, unread);
+    const unreads = await this.unreadCounts(userId, [{ conversationId, since: this.unreadSince(me ?? {}) }]);
+    return this.shape(c, userId, this.withUnreadFloor(unreads.get(conversationId) ?? 0, me?.markedUnread));
   }
 
   /** Flat conversation DTO: { id, title, isGroup, participantIds, lastMessageAt, unread }. */
@@ -375,9 +428,13 @@ export class ConversationsService {
 
     // unbounded: one row per conversation asked for, and the caller bounds those
     const members = await this.prisma.conversationMember.findMany({
-      where: { conversationId: { in: ids }, userId }, select: { conversationId: true, lastReadAt: true },
-    }).catch(swallowed('conversations.summariesFor members', [] as Array<{ conversationId: string; lastReadAt: Date | null }>));
-    const readAt = new Map(members.map((m) => [m.conversationId, m.lastReadAt]));
+      where: { conversationId: { in: ids }, userId },
+      // `lastReadAt` alone was the whole rule here, which is why clearing a
+      // dating chat re-inflated its badge and "mark unread" did nothing on this
+      // list. The other three columns are the rest of `unreadSince` + the floor.
+      select: { conversationId: true, lastReadAt: true, clearedAt: true, joinedAt: true, markedUnread: true },
+    }).catch(swallowed('conversations.summariesFor members', [] as Array<{ conversationId: string; lastReadAt: Date | null; clearedAt: Date | null; joinedAt: Date; markedUnread: boolean }>));
+    const meOf = new Map(members.map((m) => [m.conversationId, m]));
 
     // `distinct` after `orderBy` keeps the first row per conversation, which is
     // the newest — the same row `findFirst` returned one at a time.
@@ -390,22 +447,13 @@ export class ConversationsService {
     }).catch(swallowed('conversations.summariesFor last', [] as Array<{ conversationId: string; createdAt: Date; text: string | null; senderId: string | null }>));
     const lastOf = new Map(lasts.map((l) => [l.conversationId, l]));
 
-    let counts: Array<{ conversationId: string; _count: { _all: number } }> = [];
+    let unreadOf = new Map<string, number>();
     try {
-      counts = await (this.prisma as unknown as { message: { groupBy(a: unknown): Promise<Array<{ conversationId: string; _count: { _all: number } }>> } })
-        .message.groupBy({
-          by: ['conversationId'],
-          where: {
-            deleted: false, senderId: { not: userId },
-            OR: ids.map((id) => {
-              const at = readAt.get(id);
-              return at ? { conversationId: id, createdAt: { gt: at } } : { conversationId: id };
-            }),
-          },
-          _count: { _all: true },
-        });
+      unreadOf = await this.unreadCounts(
+        userId,
+        ids.map((id) => ({ conversationId: id, since: this.unreadSince(meOf.get(id) ?? {}) })),
+      );
     } catch { /* no count is zero unread, the same answer summaryFor gave on error */ }
-    const unreadOf = new Map(counts.map((c) => [c.conversationId, c._count._all]));
 
     for (const id of ids) {
       const last = lastOf.get(id);
@@ -413,7 +461,7 @@ export class ConversationsService {
         lastMessageAt: (last?.createdAt ?? new Date(0)).toISOString(),
         lastText: last?.text ?? null,
         lastSenderId: last?.senderId ?? null,
-        unread: unreadOf.get(id) ?? 0,
+        unread: this.withUnreadFloor(unreadOf.get(id) ?? 0, meOf.get(id)?.markedUnread),
       });
     }
     return out;
@@ -432,7 +480,23 @@ export class ConversationsService {
   /** Archive a conversation for every member (used when a dating match is
    *  unmatched — the chat leaves both people's lists). */
   async archiveForAll(conversationId: string): Promise<void> {
-    await this.prisma.conversationMember.updateMany({ where: { conversationId }, data: { archived: true } }).catch(swallowed('conversations.archiveForAll', undefined));
+    await this.setArchivedForAll(conversationId, true);
+  }
+
+  /** And back, when a pair that unmatched matches again and reopens the SAME
+   *  conversation — nothing ever cleared this flag, so the thread stayed
+   *  archived for both of them forever. See `connect`'s alreadyOpen branch. */
+  async unarchiveForAll(conversationId: string): Promise<void> {
+    await this.setArchivedForAll(conversationId, false);
+  }
+
+  /* ONE WRITE, TWO DOORS. Both directions are deliberately every member of one
+     conversation, so query-scoping.spec reviews this as a single exception —
+     and a second `updateMany` next door would have spent a budget its own
+     comment says to scope queries rather than raise. */
+  private async setArchivedForAll(conversationId: string, archived: boolean): Promise<void> {
+    await this.prisma.conversationMember.updateMany({ where: { conversationId }, data: { archived } })
+      .catch(swallowed('conversations.setArchivedForAll', undefined));
   }
 
   /** Advance/clear a dating conversation's anonymity (reveal at ≥2). */

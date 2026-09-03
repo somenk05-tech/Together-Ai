@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiDelete, apiGet, apiPost, apiPut } from './http';
 import { http } from './client';
@@ -39,6 +39,17 @@ export interface OutgoingAttachment {
   size: number;
   name?: string;
   duration?: number;
+  /** A SMALL COPY, FOR THE 260px BOX THE BUBBLE ACTUALLY IS.
+   *  The serializer has always handed this back as `thumbUrl` and the
+   *  composer has never sent one, so every chat photo downloaded the full
+   *  original into a thumbnail. Refused by the server on a snap, on purpose:
+   *  a thumbnail is a public URL and a temporary photograph must not have one. */
+  thumbnail?: string;
+  /** The picture's shape, measured here because this is where the bytes are
+   *  already decoded for the thumbnail. It travels so the RECIPIENT's bubble
+   *  can reserve its height before the image loads. */
+  width?: number;
+  height?: number;
   /** Present ⇒ this is a temporary photo. The mode is the clock; every actual
    *  deadline is the server's to compute, which is why none is sent. */
   snap?: { mode: 'once' | 'twice' | 'day' | 'keep'; live?: boolean };
@@ -305,9 +316,67 @@ export function useChatRealtime(
   onTyping?: (userId: string, isTyping: boolean) => void,
   onDeleted?: (messageId: string) => void,
   onEdited?: (m: Message) => void,
+  /** The server refused something, in its own words — image moderation, the
+   *  socket rate limit, a blocked pair, an ended match. Until this existed
+   *  `error_event` had exactly one mention in the whole front end (the constant
+   *  itself) and a refused send was completely silent. */
+  onError?: (message: string) => void,
 ) {
   const qc = useQueryClient();
   const meId = useAuthStore((st) => st.user?.id);
+  /* EVERY SEND STILL WAITING FOR ITS ANSWER, BY clientId. A ref rather than
+     state: nothing renders from it, and a re-render must not lose a promise
+     somebody is awaiting. */
+  const pending = useRef(new Map<string, { ok: () => void; fail: (e: Error) => void; timer: number }>());
+  /* Read through a ref so the two listeners below can be keyed on the
+     conversation ALONE. A page that passes a fresh arrow function every render
+     would otherwise tear them down mid-send — and this effect's cleanup
+     rejects, so the citizen would be told a message failed as it landed. */
+  const errRef = useRef(onError);
+  errRef.current = onError;
+
+  /**
+   * ── DID IT LAND, OR WAS IT REFUSED? ────────────────────────────────────
+   *
+   * `message_ack` names the clientId this send generated, so it settles one
+   * promise. `error_event` names NOTHING — it is `{ status, message }` and no
+   * clientId — so there is no way to tell which send it refuses, and every one
+   * in flight is rejected. That is a deliberate over-approximation: sends are
+   * one at a time in practice, and a citizen who sees one error too many is
+   * far better off than the one this replaces, who saw none at all.
+   */
+  useEffect(() => {
+    if (!conversationId) return;
+    const settle = (id: string) => {
+      const p = pending.current.get(id);
+      if (p) { window.clearTimeout(p.timer); pending.current.delete(id); }
+      return p;
+    };
+    const offAck = socketClient.on<{ clientId?: string }>(WS.MESSAGE_ACK, (a) => {
+      if (a?.clientId) settle(a.clientId)?.ok();
+    });
+    const offErr = socketClient.on<{ status?: number; message?: string; kind?: string }>(WS.ERROR, (e) => {
+      const msg = e?.message || 'That did not go through. Please try again.';
+      /* A REFUSAL THAT NAMES ANOTHER KIND OF FRAME IS NOT ABOUT YOUR MESSAGE.
+         The gateway drops over-limit typing and receipt frames through the same
+         event, and rejecting the sends in flight for one of those would report
+         a message as failed that the server had accepted. Everything else —
+         the exception filter's frames, which carry no kind at all: moderation,
+         a block, an ended match, the send ceiling — still rejects them, because
+         `error_event` names no message and there is nothing else to go on. */
+      if (!e?.kind || e.kind === 'send') {
+        for (const id of [...pending.current.keys()]) settle(id)?.fail(new Error(msg));
+      }
+      errRef.current?.(msg);
+    });
+    return () => {
+      offAck(); offErr();
+      // A thread that closed is a thread whose acks are never coming.
+      for (const id of [...pending.current.keys()]) {
+        settle(id)?.fail(new Error('Message not sent — check your connection.'));
+      }
+    };
+  }, [conversationId]);
   useEffect(() => {
     if (!conversationId) return;
     socketClient.emit(WS.JOIN_CONVERSATION, { conversationId });
@@ -367,14 +436,30 @@ export function useChatRealtime(
    * with no text so long as it carries an attachment. The web simply never
    * offered a way to make one, so voice notes and files were a backend that
    * nothing could reach.
+   *
+   * IT RETURNS A PROMISE, AND THAT IS THE POINT. It used to return nothing:
+   * the emit went out, the composer cleared the caption on the next line, and
+   * a refusal — moderation, the rate limit, a blocked pair, an ended match —
+   * produced no bubble and no message. The promise resolves on this send's own
+   * `message_ack`, rejects on an `error_event` in the server's words, and
+   * rejects after ten seconds of silence, which is the case a socket that has
+   * quietly gone away looks like.
    */
-  const send = useCallback((body: string, attachments?: OutgoingAttachment[], replyToMessageId?: string, share?: ShareCard) => {
-    if (!conversationId) return;
+  const send = useCallback((body: string, attachments?: OutgoingAttachment[], replyToMessageId?: string, share?: ShareCard): Promise<void> => {
+    if (!conversationId) return Promise.resolve();
     const list = attachments?.length ? attachments : undefined;
+    const clientId = crypto.randomUUID();
+    const landed = new Promise<void>((resolve, reject) => {
+      const timer = window.setTimeout(() => {
+        pending.current.delete(clientId);
+        reject(new Error('Message not sent — check your connection.'));
+      }, 10_000);
+      pending.current.set(clientId, { ok: resolve, fail: reject, timer });
+    });
     socketClient.emit(WS.SEND_MESSAGE, {
       conversationId,
       body,
-      clientId: crypto.randomUUID(),
+      clientId,
       ...(list ? { attachments: list, messageType: messageTypeFor(list) } : null),
       /* The card, and the type only when the card IS the message. An unknown
          kind falls through to TEXT rather than to undefined — the send schema
@@ -384,6 +469,7 @@ export function useChatRealtime(
       // SocketSendSchema has accepted this since it was written.
       ...(replyToMessageId ? { replyToMessageId } : null),
     });
+    return landed;
   }, [conversationId]);
   const setTyping = useCallback((isTyping: boolean) => {
     if (conversationId) socketClient.emit(isTyping ? WS.TYPING_START : WS.TYPING_STOP, { conversationId });

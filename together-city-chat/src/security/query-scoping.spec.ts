@@ -257,6 +257,11 @@ const REVIEWED_UNSCOPED = [
   'auth/token.service.ts  RefreshToken.findUnique x1',
   'auth/token.service.ts  RefreshToken.update x1',
   'auth/token.service.ts  RefreshToken.updateMany x1',
+  // setArchivedForAll, behind archiveForAll and unarchiveForAll: BY DESIGN every
+  // member of one conversation, and called only for a dating match whose status
+  // the caller has already established (unmatch/pass/block archive it; connect
+  // reopens it). Scoping it by userId would leave one side of a pair looking at
+  // a thread the other side no longer has.
   'conversations/conversations.service.ts  ConversationMember.updateMany x1',
   // onModuleInit() — a startup alarm, not a read of anybody's data. The events
   // flow was removed (owner decision, 2 Aug) and any TicketBooking row is now a

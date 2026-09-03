@@ -31,6 +31,9 @@ const SAFE: NodeJS.ProcessEnv = {
   // it disables itself silently when these are unset, so "sound" now includes
   // them — see the case below that proves the guard notices when they go.
   VAPID_PUBLIC_KEY: 'pub', VAPID_PRIVATE_KEY: 'priv',
+  // Attachment origins, added 3 Sep — see the case below that proves the guard
+  // notices when it goes.
+  MEDIA_PUBLIC_BASE_URL: 'https://media.togethercity.app',
 };
 
 function withEnv(over: NodeJS.ProcessEnv, run: () => void): string[] {
@@ -65,6 +68,19 @@ describe('what refuses to start', () => {
    * boot refusal is not the difference between running and not — it is the
    * difference between a loud deploy log and a silent locked door. (28 Aug.)
    */
+  /**
+   * A BLANK PUBLIC BASE URL IS NOT A WEAKER CHECK, IT IS NO CHECK.
+   * `assertAttachmentsAreYoursToSend` is written `if (base && ...)`, so an
+   * empty base leaves only "the path contains /uploads/<senderId>/" — a segment
+   * that is the sender's own id, public and theirs to type. Fatal because
+   * nothing looks wrong in that state and render.yaml ships it `sync: false`.
+   */
+  it('an attachment origin check with no origin to check against', () => {
+    withEnv({ MEDIA_PUBLIC_BASE_URL: '' }, () => {
+      expect(() => assertProductionConfig()).toThrow(/MEDIA_PUBLIC_BASE_URL/);
+    });
+  });
+
   it('a Turnstile secret with no hostname allowlist', () => {
     withEnv({ TURNSTILE_SECRET: 'k' }, () => {
       expect(() => assertProductionConfig()).toThrow(/TURNSTILE_HOSTNAMES/);

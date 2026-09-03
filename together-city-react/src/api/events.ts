@@ -3,6 +3,10 @@ export const WS = {
   JOIN_CONVERSATION: 'join_conversation',
   LEAVE_CONVERSATION: 'leave_conversation',
   SEND_MESSAGE: 'send_message',
+  /* The gateway's answer to YOUR OWN send, and only yours: it carries the
+     clientId the sender generated, so a send can tell whether it landed.
+     Without it a refused message was indistinguishable from a sent one. */
+  MESSAGE_ACK: 'message_ack',
   RECEIVE_MESSAGE: 'receive_message',
   MESSAGE_DELIVERED: 'message_delivered',
   MESSAGE_READ: 'message_read',

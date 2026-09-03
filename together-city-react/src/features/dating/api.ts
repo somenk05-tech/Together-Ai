@@ -315,6 +315,21 @@ export interface DatingStack {
 export interface DatingChatSummary {
   /** Null until Connect to Chat opens the conversation. */
   conversationId: string | null;
+  /**
+   * WHICH LENS THIS MATCH IS IN, and every action on the row reads it here.
+   *
+   * The list carries both kinds — the server selects matched rows with no kind
+   * filter — and `@@unique([userOneId, userTwoId, kind])` means one pair can
+   * hold a romantic AND a platonic match at the same time, each with its own
+   * conversation. The page used to say `'romantic'` at five call sites, so
+   * unmatching a platonic thread looked for a romantic row, found none,
+   * answered `{ok:true}` and changed nothing — a destructive act that silently
+   * did not happen, and the thread back on the next poll.
+   */
+  kind: MatchKind;
+  /** The conversation has been archived for you: unmatched, blocked or taken
+   *  down. The thread stays readable; there is nothing left to send into. */
+  ended: boolean;
   /** A mutual match whose chat has not been opened yet. */
   pending: boolean;
   otherUserId: string;

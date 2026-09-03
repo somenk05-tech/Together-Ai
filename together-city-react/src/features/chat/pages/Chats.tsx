@@ -66,11 +66,28 @@ import { Composer } from '../components/Composer';
 import { ChatStarter } from '../components/ChatStarter';
 import { GroupPanel } from '../components/GroupPanel';
 import { ForwardPanel } from '../components/ForwardPanel';
-import { Spinner, EmptyState } from '@/components/ui';
+import { Spinner, EmptyState, Button } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
 import { useChatRoom } from '@/hooks/useChatRoom';
 import { useScaleLock } from '@/hooks/useScaleLock';
 import type { Message } from '@/types';
+
+/**
+ * WHAT THE SERVER SAID, IF IT SAID ANYTHING.
+ *
+ * Every refusal on this page is a sentence the API already wrote — "you can
+ * only delete for everyone within 15 minutes" is worth more than any apology
+ * this file could invent, and it is the one that tells somebody what to do
+ * next. Nest serialises a validation failure's message as an array, which is
+ * why the join is here rather than at four call sites. Three lines rather than
+ * an import: the identical read lives in the dating hub's `server-sentence`,
+ * and chat depending on the dating hub for it would be the worse duplication.
+ */
+const serverSaid = (e: unknown, fallback: string): string => {
+  const m = (e as { response?: { data?: { message?: string | string[] } } } | null)?.response?.data?.message;
+  const text = Array.isArray(m) ? m.join(' ') : m;
+  return typeof text === 'string' && text.trim().length > 0 ? text.trim() : fallback;
+};
 
 /**
  * Chats — conversation list + real-time thread.
@@ -103,9 +120,20 @@ export function Chats() {
      already collapsed to one column — but one column holding BOTH, so a
      phone got a squeezed list stacked on a squeezed thread and neither was
      usable. Here the list IS the screen until a conversation is opened, and
-     then the thread is, with a back arrow that returns. Decided at mount,
-     like every other phone branch in this app. */
-  const phone = typeof window !== 'undefined' && window.matchMedia('(max-width: 899px)').matches;
+     then the thread is, with a back arrow that returns. */
+  /* AND RE-DECIDED WHEN THE QUERY CHANGES, rather than measured once at mount.
+     A tablet that opened a thread at 820px and was turned to 1180px kept the
+     phone layout — the conversation list hidden behind a back arrow — until
+     the route remounted. There is no hook to borrow for this: useScaleLock,
+     useChatRoom and useVisualViewport all ask this same question and none of
+     them hands the answer back to its caller. */
+  const [phone, setPhone] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 899px)').matches);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 899px)');
+    const onChange = () => setPhone(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
   // Whether the "open the first thread" fallback has already fired.
   const autoPicked = useRef(false);
 
@@ -124,6 +152,11 @@ export function Chats() {
     autoPicked.current = true;
     setActiveId(list[0].id);
   }, [activeId, conversations.data, phone]);
+
+  /* A ?c= DEEP LINK THAT ARRIVES WHILE THIS PAGE IS ALREADY OPEN. The param was
+     read once, into initial state, and never again — so tapping a chat
+     notification from inside /chats changed the URL and moved nothing. */
+  useEffect(() => { if (requestedId) setActiveId(requestedId); }, [requestedId]);
 
   /* AN OPEN CHAT IS THE WHOLE SCREEN (owner, 9 Aug).
      A thread is a room you are inside, not a panel inside a website: the
@@ -168,6 +201,13 @@ export function Chats() {
   const [tombstoned, setTombstoned] = useState<Set<string>>(new Set());       // deleted for everyone
   const [editsMap, setEditsMap] = useState<Record<string, Message>>({});      // live edits
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Whether this citizen has already said they are typing — see emitTyping. */
+  const typingOn = useRef(false);
+  /** And the peer's flag, which expires on its own — see onTyping. */
+  const peerTypingClear = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Clears a jump once it has landed — see jumpTo, and the effect in
+   *  MessageThread that this id keeps re-firing while it is set. */
+  const jumpClear = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Message ids this session has already asked to mark read — each id is
    *  acknowledged once per opened thread, never per render. */
   const ackedRead = useRef<Set<string>>(new Set());
@@ -182,12 +222,25 @@ export function Chats() {
      phone does not have. */
   const [moreOpen, setMoreOpen] = useState(false);
   const [kw, setKw] = useState('');
+  /* ONE REQUEST PER PAUSE, NOT ONE PER KEYSTROKE. `useMessageSearch` keys on
+     the word itself, so typing "birthday" was eight searches of which seven
+     were thrown away before they landed. The same 220ms the people search on
+     the social profile waits, and the same shape — ForwardPanel makes this
+     argument in words and answers it by filtering what is already loaded. */
+  const [searchKw, setSearchKw] = useState('');
+  useEffect(() => { const t = setTimeout(() => setSearchKw(kw), 220); return () => clearTimeout(t); }, [kw]);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [jumpToId, setJumpToId] = useState<string | null>(null);
-  const [jumpNote, setJumpNote] = useState<string | null>(null);
+  /* THE PAGE'S ONE NOTICE LINE. Delete, edit, pin and "mark unread" each failed
+     in silence — a caught exception and nothing on screen — and the jump note
+     could only be read from inside the search panel, so a failed jump from the
+     pinned banner or from a quoted reply said nothing at all. To a reader they
+     are all the same sentence ("that did not happen, and here is why"), so
+     there is one place for it, above the thread, where they already are. */
+  const [notice, setNotice] = useState<string | null>(null);
   const [starredOnly, setStarredOnly] = useState(false);
-  const hits = useMessageSearch(activeId, kw, from || undefined, to || undefined, starredOnly);
+  const hits = useMessageSearch(convId, searchKw, from || undefined, to || undefined, starredOnly);
 
   /* PRESENCE HAD TWO IMPLEMENTATIONS AND NO AUDIENCE. The gateway works out an
      online/offline transition and broadcasts it to every conversation the
@@ -230,7 +283,9 @@ export function Chats() {
      whole Messages: a reaction frame carries only the list, and widening that
      map to accept fragments would let a half-message through it later. */
   const [reactionsMap, setReactionsMap] = useState<Record<string, Message['reactions']>>({});
-  const pinned = usePinnedMessage(activeId);
+  // convId, not activeId: Mira is not a conversation and GET /chat/__mira__/pinned
+  // is a 404 on every open. The invariant is stated at the top of this file.
+  const pinned = usePinnedMessage(convId);
   const activeIsGroup = useMemo(
     () => Boolean((conversations.data ?? []).find((c) => c.id === activeId)?.isGroup),
     [conversations.data, activeId],
@@ -246,7 +301,7 @@ export function Chats() {
   }, [peerId]);
 
   // Reset the live buffer whenever the conversation changes.
-  useEffect(() => { setLive([]); setPeerTyping(false); setStatusMap({}); setHiddenIds(new Set()); setTombstoned(new Set()); setEditsMap({}); ackedRead.current = new Set(); setReplyTo(null); setSearchOpen(false); setMoreOpen(false); setKw(''); setFrom(''); setTo(''); setJumpToId(null); setJumpNote(null); setStarredOnly(false); setSelected(new Set()); setBulkDelete(false); setReactionsMap({}); setConfide(false); }, [activeId]);
+  useEffect(() => { setLive([]); setPeerTyping(false); setStatusMap({}); setHiddenIds(new Set()); setTombstoned(new Set()); setEditsMap({}); ackedRead.current = new Set(); setReplyTo(null); setSearchOpen(false); setMoreOpen(false); setKw(''); setSearchKw(''); setFrom(''); setTo(''); setJumpToId(null); setNotice(null); setStarredOnly(false); setSelected(new Set()); setBulkDelete(false); setReactionsMap({}); setConfide(false); }, [activeId]);
 
   /* THE WHOLE LIST ARRIVES, so this assigns rather than merges. A frame that
      said "+1 on 👍" would need a correct count to add to, and one dropped frame
@@ -269,6 +324,23 @@ export function Chats() {
     return off;
   }, [activeId, qc]);
 
+  /* AND THE THREAD IS RE-READ WHEN THE SOCKET COMES BACK. `useChatRealtime`
+     re-joins the room on `connect` and invalidates nothing; the query client
+     runs staleTime 30s with refetchOnWindowFocus off, and this thread has no
+     poll behind it. So a backgrounded phone came back to a connection that had
+     missed everything sent in the gap — arriving by neither `receive_message`
+     nor `chat_notification` — and those messages were unreachable until the
+     component remounted. This belongs inside the hook, next to the re-join it
+     pairs with; that file is being edited elsewhere this week, so it is said
+     here, at the call site, in the same words the dating thread says it. */
+  useEffect(() => {
+    if (!convId) return;
+    const sock = socketClient.raw();
+    const resync = () => { void qc.invalidateQueries({ queryKey: ['chat', 'messages', convId] }); };
+    sock.on('connect', resync);
+    return () => { sock.off('connect', resync); };
+  }, [convId, qc]);
+
   // Live delivery/read receipts → advance the ticks on your sent messages.
   useEffect(() => {
     const offD = socketClient.on<{ messageId: string }>(WS.MESSAGE_DELIVERED, ({ messageId }) =>
@@ -286,9 +358,15 @@ export function Chats() {
       socketClient.emit(WS.MESSAGE_READ, { conversationId: activeId, messageIds: [m.id] });
     }
   }, [activeId, user?.id]);
+  /* A typing flag with no stop frame behind it must expire on its own: the
+     stop can be dropped by a reconnect or by the gateway's ceiling, and the
+     peer was then left reading "typing…" forever. The dating room has had this
+     since it was written; the city room had not. */
   const onTyping = useCallback((userId: string, isTyping: boolean) => {
     if (userId === user?.id) return;
     setPeerTyping(isTyping);
+    if (peerTypingClear.current) clearTimeout(peerTypingClear.current);
+    if (isTyping) peerTypingClear.current = setTimeout(() => setPeerTyping(false), 6000);
   }, [user?.id]);
 
   // Realtime deletions/edits from any device — applied instantly, no refresh.
@@ -299,7 +377,13 @@ export function Chats() {
     setEditsMap((s) => ({ ...s, [m.id]: m }));
   }, []);
 
-  const { send, setTyping } = useChatRealtime(activeId, onMessage, onTyping, onDeleted, onEdited);
+  /* THE SIXTH CALLBACK: a refusal the socket makes that is not tied to a send.
+     A rate-limit drop on join, on a read receipt or on typing arrives as an
+     `error_event` and had nowhere to go — the send path reports itself, inside
+     the Composer, because that is where the words it kept are. */
+  const onRealtimeError = useCallback((message: string) => { setNotice(message); }, []);
+
+  const { send, setTyping } = useChatRealtime(activeId, onMessage, onTyping, onDeleted, onEdited, onRealtimeError);
 
   /* A reply is a send that remembers. The state is cleared BEFORE the emit so
      a slow socket cannot leave the bar sitting over the composer looking like
@@ -328,9 +412,25 @@ export function Chats() {
 
   const sendWithReply = useCallback((body: string, attachments?: OutgoingAttachment[]) => {
     const answering = replyTo?.id;
-    setReplyTo(null);
-    send(body, attachments, answering);
+    /* THE PROMISE GOES BACK TO THE COMPOSER, which awaits it: on a rejection it
+       shows the server's own sentence and keeps the words and the attachments
+       that were staged. Swallowing it here is what made a refused send look
+       exactly like a sent one — the composer emptied and nothing arrived.
+       AND THE REPLY ANCHOR IS DROPPED ONLY ONCE IT HAS LANDED. Clearing it
+       before the await kept the words and the files on a refusal and threw away
+       the one thing that said what they were answering, so pressing Send again
+       posted the same sentence as a fresh message. */
+    return send(body, attachments, answering).then(() => { setReplyTo(null); });
   }, [send, replyTo]);
+
+  /* THE LIVE QUERY, NOT THE ONE THE CALLBACK BELOW CLOSED OVER. `history` was
+     captured when jumpTo was created, so `await history.fetchNextPage()` never
+     changed the `hasNextPage` its loop was reading — a thread that ran out of
+     pages on the second turn still spent all twelve, a second and a half of
+     re-fetching the same last page, before saying so. The ref is re-pointed on
+     every render, so each turn reads the flag as it is now. */
+  const historyRef = useRef(history);
+  historyRef.current = history;
 
   /* JUMPING TO A MESSAGE THAT IS NOT LOADED YET. A search hit can be a hundred
      messages back, and telling somebody "it is further up" while refusing to
@@ -339,20 +439,26 @@ export function Chats() {
      bounded, because a thread with thousands of messages should give up rather
      than fetch all night. */
   const jumpTo = useCallback(async (messageId: string) => {
-    setJumpNote(null);
+    setNotice(null);
     for (let i = 0; i < 12; i++) {
       if (document.querySelector(`[data-mid="${CSS.escape(messageId)}"]`)) {
         setSearchOpen(false);
+        if (jumpClear.current) clearTimeout(jumpClear.current);
         setJumpToId(null);
         window.setTimeout(() => setJumpToId(messageId), 0);
+        /* AND CLEARED ONCE IT HAS LANDED. MessageThread's jump effect is keyed
+           on [jumpToId, messages.length], so an id left standing re-fires it
+           on every message that arrives and drags the reader back to the same
+           bubble mid-conversation. Just past the 1600ms flash it draws. */
+        jumpClear.current = setTimeout(() => setJumpToId(null), 1800);
         return;
       }
-      if (!history.hasNextPage) break;
-      await history.fetchNextPage();
+      if (!historyRef.current.hasNextPage) break;
+      await historyRef.current.fetchNextPage();
       await new Promise((r) => window.setTimeout(r, 80));
     }
-    setJumpNote('That message is further back than this conversation will load.');
-  }, [history]);
+    setNotice('That message is further back than this conversation will load.');
+  }, []);
 
   /** Delete a message (soft delete server-side; synced across devices). */
   const deleteMessage = useCallback(async (messageId: string, scope: 'ME' | 'EVERYONE') => {
@@ -361,7 +467,14 @@ export function Chats() {
       if (scope === 'ME') setHiddenIds((s) => new Set(s).add(messageId));
       else setTombstoned((s) => new Set(s).add(messageId));
       void qc.invalidateQueries({ queryKey: ['chat', 'messages', activeId] });
-    } catch { /* window passed or network — leave the message untouched */ }
+    } catch (e) {
+      /* IT SAYS SO NOW. The 15-minute window is the usual refusal and the
+         server names it; catching and doing nothing closed the confirmation
+         dialog and left the message sitting there, which reads as success. */
+      setNotice(serverSaid(e, scope === 'EVERYONE'
+        ? 'That message could not be deleted for everyone.'
+        : 'That message could not be deleted.'));
+    }
   }, [activeId, qc]);
 
   const editMessage = useCallback(async (messageId: string, body: string) => {
@@ -369,7 +482,11 @@ export function Chats() {
       const updated = await chatApi.editMessage(messageId, body);
       setEditsMap((s) => ({ ...s, [messageId]: updated }));
       void qc.invalidateQueries({ queryKey: ['chat', 'messages', activeId] });
-    } catch { /* edit window passed — keep original */ }
+    } catch (e) {
+      // The typed edit is discarded either way; without a sentence, so is the
+      // reason it was refused. The server names the window.
+      setNotice(serverSaid(e, 'That edit did not save — the message is unchanged.'));
+    }
   }, [activeId, qc]);
 
   /* A star is optimistic on purpose: it is the reader's own bookkeeping, the
@@ -418,6 +535,10 @@ export function Chats() {
   const pinMessage = useCallback(async (m: Message, on: boolean) => {
     try {
       await chatApi.pinMessage(m.id, on);
+    } catch (e) {
+      // There was no catch at all, and both call sites `void` the promise: an
+      // unhandled rejection, and a banner that simply did not change.
+      setNotice(serverSaid(e, on ? 'That message could not be pinned.' : 'That pin could not be removed.'));
     } finally {
       void pinned.refetch();
     }
@@ -428,17 +549,44 @@ export function Chats() {
      resolve it by marking it read again — the effect above does exactly that
      on open. So the gesture closes the room, which is also what somebody means
      by it: I am done here for now. */
+  /* AND IT ONLY LEAVES IF IT WORKED. The call was `.catch(() => undefined)`
+     followed by close-and-refetch regardless, so a refusal looked exactly like
+     a success — the room closed, and the badge the whole gesture is for never
+     came back. A failure keeps the room open and says why. */
   const leaveUnread = useCallback(async (id: string) => {
-    await chatApi.markConversationUnread(id).catch(() => undefined);
+    try {
+      await chatApi.markConversationUnread(id);
+    } catch (e) {
+      setNotice(serverSaid(e, 'That chat could not be marked unread.'));
+      return;
+    }
     setActiveId(undefined);
     void conversations.refetch();
   }, [conversations]);
 
+  /* ONE FRAME PER BURST, NOT ONE PER KEYSTROKE. `onTyping` fires on every
+     `onChange`, so this emitted a `typing_start` for every character typed —
+     which at any ordinary speed is several hundred frames a minute, past the
+     gateway's ceiling and into `error_event`. Socket.IO says "somebody is
+     typing", a fact that does not change while it stays true, so the frame
+     goes out on the EDGE and the 2.5s timer takes it back. */
   const emitTyping = useCallback((t: boolean) => {
-    setTyping(t);
+    if (t !== typingOn.current) { typingOn.current = t; setTyping(t); }
     if (typingTimer.current) clearTimeout(typingTimer.current);
-    if (t) typingTimer.current = setTimeout(() => setTyping(false), 2500);
+    if (t) typingTimer.current = setTimeout(() => { typingOn.current = false; setTyping(false); }, 2500);
   }, [setTyping]);
+
+  /* THE 2.5s STOP, CANCELLED WITH THE ROOM. Type a character, leave inside the
+     window, and the timer still fired — `typing_stop` emitted for a room this
+     socket had already left. Keyed on activeId, so changing conversation
+     cancels it as surely as unmounting does; the jump timer goes with it. */
+  useEffect(() => () => {
+    if (typingTimer.current) clearTimeout(typingTimer.current);
+    if (peerTypingClear.current) clearTimeout(peerTypingClear.current);
+    if (jumpClear.current) clearTimeout(jumpClear.current);
+    // The next room has not been told anything yet.
+    typingOn.current = false;
+  }, [activeId]);
 
   const messages = useMemo(() => {
     const seen = new Set<string>();
@@ -492,8 +640,9 @@ export function Chats() {
 
   /* Sequential, and the selection is emptied FIRST: a bar counting down while
      its own messages disappear underneath it is a control describing something
-     that has stopped being true. Each call swallows its own failure exactly as
-     the single delete does, so a message the window closed on stays put. */
+     that has stopped being true. Each call reports its own failure through the
+     page's notice line exactly as the single delete does, so a message the
+     window closed on stays put — and now says so rather than merely surviving. */
   const deleteSelected = useCallback(async (scope: 'ME' | 'EVERYONE') => {
     const ids = picked.map((m) => m.id);
     setBulkDelete(false);
@@ -521,12 +670,14 @@ export function Chats() {
   }, [activeId, history.data, user?.id]);
   // Opening a conversation clears its badge ONCE, by REST — the server advances
   // lastReadAt to the newest message's own timestamp, never to the clock.
+  // convId, not activeId — POST /chat/__mira__/read is a 404 on every open of
+  // her room, swallowed and repeated. Same invariant as the pinned read above.
   useEffect(() => {
-    if (!activeId) return;
-    void chatApi.markRead(activeId)
+    if (!convId) return;
+    void chatApi.markRead(convId)
       .then(() => qc.invalidateQueries({ queryKey: ['chat', 'conversations'] }))
       .catch(() => undefined);
-  }, [activeId, qc]);
+  }, [convId, qc]);
 
   if (conversations.isLoading) return <Spinner label="Loading your chats…" />;
   if (conversations.isError) return <EmptyState title="Couldn't load chats" hint="Your chats are safe — try again in a moment." />;
@@ -732,6 +883,18 @@ export function Chats() {
                 </>
                 )}
               </div>
+              {/* THE NOTICE LINE, above everything the thread draws, so a
+                  failed jump from the pinned banner or from a quoted reply is
+                  read in the same place as a refused delete or a socket that
+                  turned somebody away. `.note` rather than a class of its own:
+                  it brings its own ground AND its own ink, which is what
+                  anything laid on this stage has to do. */}
+              {notice && (
+                <div className="note" role="status">
+                  {notice}{' '}
+                  <Button variant="line" size="sm" onClick={() => setNotice(null)}>Dismiss</Button>
+                </div>
+              )}
               {/* THE PINNED ROW, under the header and above everything else.
                   It is a line rather than a card because it is present for the
                   whole visit and a card would be a permanent tax on the height
@@ -780,10 +943,9 @@ export function Chats() {
                     </button>
                     {(kw || from || to || starredOnly) && (
                       <button type="button" className="cstab"
-                        onClick={() => { setKw(''); setFrom(''); setTo(''); setStarredOnly(false); setJumpNote(null); }}>Clear</button>
+                        onClick={() => { setKw(''); setSearchKw(''); setFrom(''); setTo(''); setStarredOnly(false); setNotice(null); }}>Clear</button>
                     )}
                   </div>
-                  {jumpNote && <p role="status" style={{ margin: 0, fontSize: 12, color: 'var(--on-stage-soft)' }}>{jumpNote}</p>}
                   {hits.isFetching && <p style={{ margin: 0, fontSize: 12, color: 'var(--on-stage-faint)' }}>Searching…</p>}
                   {hits.data && (
                     <div style={{ maxHeight: 220, overflowY: 'auto', display: 'grid', gap: 4 }}>
@@ -808,6 +970,19 @@ export function Chats() {
               )}
               {history.isLoading
                 ? <Spinner />
+                : history.isError
+                ? (
+                  /* A FAILED READ IS NOT AN EMPTY CONVERSATION. There was no
+                     error branch here and MessageThread draws nothing for an
+                     empty list, so a 500 or a schema failure was indistinguishable
+                     from a chat nobody had written in yet — and people re-sent
+                     what they had already sent. */
+                  <div className="note" role="alert">
+                    We couldn’t load this conversation. Nothing has been lost — it is this
+                    read that failed, not the thread.{' '}
+                    <Button variant="line" size="sm" onClick={() => { void history.refetch(); }}>Try again</Button>
+                  </div>
+                )
                 : <>
                     {/* The rest of the conversation. It was always there on the
                         server — the cursor came back on every page and nothing
@@ -823,7 +998,7 @@ export function Chats() {
                         </button>
                       </div>
                     )}
-                    <MessageThread messages={messages} currentUserId={user?.id} typing={peerTyping}
+                    <MessageThread key={activeId} messages={messages} currentUserId={user?.id} typing={peerTyping}
                       peerName={activeTitle} peerPhoto={activePhoto} onDelete={deleteMessage} onEdit={editMessage}
                       onReply={setReplyTo} onForward={(m) => setForwarding([m])} onStar={(m, on) => { void starMessage(m, on); }}
                       onJump={(id) => { void jumpTo(id); }} jumpToId={jumpToId}
@@ -870,12 +1045,22 @@ export function Chats() {
                   onChanged={() => { void conversations.refetch(); }}
                   onLeft={() => { setGroupOpen(false); setActiveId(undefined); void conversations.refetch(); }} />
               )}
-              <Composer onSend={sendWithReply} onTyping={emitTyping}
+              {/* KEYED ON THE ROOM. The composer holds typed words and staged
+                  attachments now, and it is the same instance across a switch
+                  of conversation — so a photo attached in one thread and left
+                  there was sent into the next one the reader opened, silently.
+                  A key is the whole fix: a new room gets a new composer. */}
+              <Composer key={activeId} onSend={sendWithReply} onTyping={emitTyping}
                 replyTo={replyTo ? {
                   name: replyTo.senderId === user?.id ? 'yourself' : activeTitle,
                   body: replyTo.body || 'Attachment',
                 } : null}
-                onShare={(card) => send('', undefined, undefined, card)}
+                /* A share card is the one send the Composer does not own, so
+                   its refusal has nowhere to land but the page's notice. */
+                onShare={(card) => {
+                  void send('', undefined, undefined, card)
+                    .catch((e: unknown) => setNotice(serverSaid(e, 'That card could not be sent.')));
+                }}
                 liveSnapAsked={liveSnapAsked}
                 onCancelReply={() => setReplyTo(null)} />
             </>

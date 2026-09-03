@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Message, MediaAttachment } from '@/types';
 import { ShareCardView } from '../share';
 import { SnapBubble } from './SnapBubble';
@@ -36,14 +37,43 @@ const fmtClock = (sec?: number): string =>
  * keyboard control, scrubbing and the platform's own accessibility for free.
  */
 function Attachment({ a, mine }: { a: MediaAttachment; mine: boolean }) {
+  /* AN OBJECT THAT HAS EXPIRED OR MOVED IS STILL A FACT ABOUT THE MESSAGE.
+     There was no `onError` anywhere in this feature, so a 404 rendered the
+     browser's own broken-image glyph — the one picture in the app nobody
+     chose. A sentence is not the photograph, but it is true. */
+  /* TWO STEPS, NOT ONE. The <img> asks for the THUMBNAIL first, and a
+     thumbnail that 404s says nothing about the original — declaring the
+     message's photo gone because a derived file expired is a lie the reader
+     cannot check. So the first failure falls back to the full picture and only
+     the second gives up. The <img> is keyed on the src so the fallback is a
+     fresh element and a fresh request, not a re-used one the browser has
+     already decided about. */
+  const [tried, setTried] = useState(0);
   const name = a.name ?? 'Attachment';
   const sub = [a.name ? fmtSize(a.sizeBytes) : '', fmtClock(a.durationSec)].filter(Boolean).join(' · ');
 
   if (a.kind === 'image') {
+    const src = tried === 0 && a.thumbUrl ? a.thumbUrl : a.url;
+    if (tried > (a.thumbUrl ? 1 : 0)) {
+      return <div className={mine ? 'csb me csphoto-gone' : 'csb csphoto-gone'}>This photo is no longer available.</div>;
+    }
+    /* THE BUBBLE RESERVES ITS HEIGHT BEFORE THE BYTES ARRIVE.
+       An <img> with no intrinsic size is 0px tall until it decodes, and the
+       thread scrolls itself to the bottom on a new message — so the photo
+       decoded a moment later and shoved the newest message below the fold.
+       `width`/`height` come off the media row when the server knows them, and
+       an exact ratio means the picture is never cropped to fit it. A row
+       written before the server sent them gets a reserved box instead
+       (`.csphoto-hold`), which is a guess about height rather than a guess
+       about shape — the picture still lands at its own proportions.
+
+       `alt` is the DESCRIPTION and the filename is the title: it read
+       `alt={a.name}`, so a screen reader announced "IMG_4821.jpg". */
+    const shape = a.width && a.height ? `${a.width} / ${a.height}` : undefined;
     return (
-      <a href={a.url} target="_blank" rel="noreferrer" style={{ display: 'block', maxWidth: 260 }}>
-        <img src={a.thumbUrl || a.url} alt={a.name ?? 'Shared photo'} loading="lazy"
-          style={{ width: '100%', borderRadius: 'var(--r-2)', display: 'block', background: 'var(--stage-tile)' }} />
+      <a href={a.url} target="_blank" rel="noreferrer" className={shape ? 'csphoto' : 'csphoto csphoto-hold'}>
+        <img key={src} src={src} alt="Shared photo" title={a.name} loading="lazy"
+          onError={() => setTried((n) => n + 1)} style={shape ? { aspectRatio: shape } : undefined} />
       </a>
     );
   }
@@ -64,8 +94,13 @@ function Attachment({ a, mine }: { a: MediaAttachment; mine: boolean }) {
       </div>
     );
   }
+  /* NO `download` ATTRIBUTE. It was `download={a.name}`, and the href is a
+     cross-origin R2 URL — the attribute is ignored outright on those, so the
+     PDF opened in place of the thread instead of saving and the promise the
+     markup made was never once kept. `target="_blank"` is the honest version
+     of what actually happens; saving is the browser's own menu. */
   return (
-    <a href={a.url} target="_blank" rel="noreferrer" download={a.name}
+    <a href={a.url} target="_blank" rel="noreferrer"
       className={mine ? 'csb me' : 'csb'}
       style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', maxWidth: 280 }}>
       <span aria-hidden style={{ fontSize: 20, flex: 'none' }}>📄</span>

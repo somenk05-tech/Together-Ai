@@ -71,18 +71,44 @@ describe('a dating message does not carry the city', () => {
     expect(senderOf(1, '{not json').name).toBe('Angel Dsouza');
   });
 
-  it('hands the whole sender over once both sides have chosen to reveal', () => {
-    expect(senderOf(2)).toEqual({
-      id: 'u1', name: 'Angel Dsouza', handle: 'somen', profileImage: 'https://city/me.jpg',
-      datingProfile: { extras: JSON.stringify({ firstName: 'priya' }) },
-    });
+  /**
+   * WHAT "WHOLE" MEANS, AND WHAT IT NEVER MEANT (3 Sep).
+   *
+   * This assertion used to require `datingProfile: { extras: … }` and the
+   * account photo on the revealed sender — it pinned the payload it happened
+   * to find rather than the rule the file is named after. `extras` is the
+   * WHOLE dating profile (`../dating/extras-shape.ts`): religion, deal
+   * breakers, personality traits, wants-children, smoking and drinking and
+   * diet, the age preferences, the search coordinates, the sensitive-consent
+   * stamp, the private verification-selfie key and the photo list. It is
+   * selected for ONE field — the dating first name — and was going out with
+   * every message in the city, revealed or not, dating or not. Revealing means
+   * "you may now know who I am in the city": a name and a handle. It has never
+   * meant the profile blob, so the test now guards the blob's absence instead.
+   *
+   * The account photo goes with it for a different reason — size, not privacy:
+   * no client reads a photo off a message, and `users.service` permits a 400 KB
+   * `data:` URL, so a thirty-message page carried the same face thirty times.
+   */
+  it('hands over the city name and the handle once both sides have chosen to reveal, and nothing more', () => {
+    expect(senderOf(2)).toEqual({ id: 'u1', name: 'Angel Dsouza', handle: 'somen' });
   });
 
-  it('leaves an ordinary city chat untouched', () => {
+  it('never lets the dating profile blob onto the wire, at any trust', () => {
+    for (const trust of [null, 0, 1, 2]) {
+      const s = senderOf(trust);
+      expect(s.datingProfile).toBeUndefined();
+      expect(JSON.stringify(s)).not.toContain('firstName');
+      expect(JSON.stringify(s)).not.toContain('extras');
+    }
+  });
+
+  it('leaves an ordinary city chat with its name and handle', () => {
     const s = senderOf(null);
     expect(s.name).toBe('Angel Dsouza');
     expect(s.handle).toBe('somen');
-    expect(s.profileImage).toBe('https://city/me.jpg');
+    // Not a privacy withholding — a message is simply not where an avatar belongs.
+    expect(s.profileImage).toBeUndefined();
   });
 
   /**

@@ -38,6 +38,11 @@ const GOOD_SECRETS = {
   JWT_REFRESH_SECRET: 'b'.repeat(48),
   CORS_ORIGIN: 'https://togethercity.app',
   ALLOW_STUB_MESSAGING: 'true',
+  /* Fatal since 3 Sep and unrelated to the vault — a blank one removes the
+     attachment origin check rather than weakening it. It lives here so every
+     case below keeps testing the bucket rule it was written for; the guard
+     that it fires at all is in a-config-guard-that-fires.spec.ts. */
+  MEDIA_PUBLIC_BASE_URL: 'https://media.togethercity.app',
 };
 
 /** Load configuration.ts fresh under a given environment and return the throw, if any. */

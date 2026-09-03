@@ -130,6 +130,11 @@ export interface MediaAttachment {
   name?: string;
   sizeBytes?: number;
   durationSec?: number;
+  /** The picture's own dimensions, when the sender's client measured them.
+   *  Absent on every row sent before 3 Sep, which is why the bubble still
+   *  carries a fallback reservation rather than trusting these. */
+  width?: number;
+  height?: number;
   /** Present exactly when `kind === 'snap'`. */
   snap?: Snap;
 }

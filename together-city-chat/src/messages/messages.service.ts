@@ -39,7 +39,13 @@ const messageInclude = {
   conversation: { select: { anonymousTrust: true } },
   // `datingProfile.extras` rides along for one reason: below trust 2 the
   // sender is named by their chosen dating name, and that is where it lives.
-  sender: { select: { id: true, name: true, handle: true, profileImage: true, datingProfile: { select: { extras: true } } } },
+  /* NO `profileImage`. It is a `data:` URL capped at 400 KB by
+     UsersService.setAvatar, and it rode on every message: a thirty-message
+     page carried the same face thirty times and every socket frame carried
+     one. Nothing reads a sender photo off a message — the client's message
+     schema has no `sender` block at all — and conversations.service already
+     keeps faces out of the polled list for exactly this reason. */
+  sender: { select: { id: true, name: true, handle: true, datingProfile: { select: { extras: true } } } },
   attachments: true,
   replyTo: {
     select: { id: true, text: true, messageType: true, senderId: true, deleted: true },
@@ -117,6 +123,24 @@ export class MessagesService {
   async send(senderId: string, dto: SendMessageDto) {
     // 1) permission gate (403 if not connected / not a member)
     await this.permission.assertCanPostToConversation(senderId, dto.conversationId);
+    /* 1a-i) AND THE MESSAGE BEING QUOTED HAS TO BE IN THIS ROOM.
+       `replyToMessageId` went straight from the request body into the row with
+       nothing checking it, and `messageInclude` hydrates `replyTo` while
+       `serialize` hands back its body and its real senderId — so quoting any
+       id from any other conversation read that message's plaintext back, on
+       every fetch, permanently, and showed it to the other participant too.
+       A 400 rather than a 403 for both misses: "that id is not in this
+       conversation" is all either party is owed, and telling them which of
+       "does not exist" or "is somewhere else" it was is itself a disclosure. */
+    if (dto.replyToMessageId) {
+      const quoted = await this.prisma.message.findUnique({
+        where: { id: dto.replyToMessageId },
+        select: { conversationId: true },
+      });
+      if (!quoted || quoted.conversationId !== dto.conversationId) {
+        throw new BadRequestException('You can only reply to a message in this conversation.');
+      }
+    }
     /* 1a) HAVE WE ALREADY DONE THIS ONE? (fifth audit, 29 Aug.)
        `clientId` has been documented in the DTO as "optimistic UI / idempotency"
        since it was written and was read in exactly one place — the socket ack
@@ -209,6 +233,14 @@ export class MessagesService {
         : null;
       // Same conversation only — see the pre-check above for why.
       if (won && won.conversationId === dto.conversationId) return this.serialize(won);
+      /* A FOREIGN KEY THAT WENT AWAY BETWEEN THE GATE ABOVE AND THIS WRITE.
+         The reply gate makes P2003 a race rather than an attack — the quoted
+         message or the conversation deleted mid-send — but a race is still a
+         thing the caller can be told about and retry, and an unhandled P2003
+         here was a 500 for a request that was simply too late. */
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2003') {
+        throw new BadRequestException('That message could not be sent — something it refers to no longer exists.');
+      }
       throw e;
     }
 
@@ -992,8 +1024,13 @@ export class MessagesService {
     if (m.senderId === userId) throw new ForbiddenException('That is your own photo.');
     if (!a.snapShotAt) {
       await this.prisma.attachment.update({ where: { id: a.id }, data: { snapShotAt: new Date() } });
+      /* INSIDE THE GUARD, because "first report wins" is what the column says
+         and the notice has to say the same thing. Outside it, the route's own
+         throttle let one photograph ring the sender's client 120 times a
+         minute — a scoreboard, which is exactly what the comment above rules
+         out, delivered by the one client that cannot be told to stop. */
+      this.bus.publish({ kind: 'snap.changed', conversationId: m.conversationId, messageId: m.id, by: userId, event: 'shot' });
     }
-    this.bus.publish({ kind: 'snap.changed', conversationId: m.conversationId, messageId: m.id, by: userId, event: 'shot' });
     return this.snapState(m.id, userId);
   }
 
@@ -1238,6 +1275,7 @@ export class MessagesService {
     attachments?: Array<{
       id: string; url: string; mimeType: string; thumbnail?: string | null;
       name?: string | null; size?: number | null; duration?: number | null;
+      width?: number | null; height?: number | null;
       snapMode?: string | null; snapLive?: boolean | null; snapViews?: number | null;
       snapOpensJson?: string | null; snapExpiresAt?: Date | null; snapOpenedAt?: Date | null;
       snapKeptAt?: Date | null; snapShotAt?: Date | null; snapGoneAt?: Date | null;
@@ -1281,10 +1319,28 @@ export class MessagesService {
      * that reaches out of the Dating Hub into the rest of somebody's life.
      */
     const anonymous = m.conversation?.anonymousTrust != null && m.conversation.anonymousTrust < 2;
-    const sender = anonymous && m.sender && typeof m.sender === 'object'
-      ? (({ id, name, datingProfile }) => ({ id, name: shownName(datingFirstName(datingProfile), name) }))(
-        m.sender as { id: string; name: string; datingProfile?: { extras: string | null } | null })
-      : m.sender;
+    /**
+     * AND THE SENDER IS BUILT FIELD BY FIELD ON BOTH BRANCHES.
+     *
+     * The masked branch was constructed; the other one returned `m.sender`
+     * verbatim, which meant `datingProfile.extras` — the WHOLE dating profile:
+     * religion, deal-breakers, personality traits, wants-children, smoking and
+     * drinking and diet, the age preferences, the search coordinates, the
+     * sensitive-consent stamp, the private verification-selfie key and the
+     * photo list, all of it in `extras-shape.ts` — travelled on every message
+     * in the city. It is selected for ONE field, the dating first name two
+     * lines down, and a select that exists to be read server-side must not be
+     * able to reach the wire by default. Naming the outgoing fields is what
+     * makes that structural rather than a rule somebody has to remember.
+     */
+    const from = m.sender as
+      { id: string; name: string; handle?: string | null; datingProfile?: { extras: string | null } | null }
+      | null | undefined;
+    const sender = !from || typeof from !== 'object'
+      ? from
+      : anonymous
+        ? { id: from.id, name: shownName(datingFirstName(from.datingProfile), from.name) }
+        : { id: from.id, name: from.name, handle: from.handle };
     /* A DELETED MESSAGE IS DELETED ALL THE WAY DOWN. The tombstone used to
        zero only the text: `media` URLs and the share card still travelled to
        every member on a row whose whole point is that its content is gone.
@@ -1374,6 +1430,13 @@ export class MessagesService {
         name: a.name ?? undefined,
         sizeBytes: typeof a.size === 'number' ? a.size : undefined,
         durationSec: typeof a.duration === 'number' ? a.duration : undefined,
+        /* THE SHAPE OF THE PICTURE, so the bubble can be the right size before
+           the bytes arrive. The DTO has accepted these since attachments were
+           written and `attachmentRow` has persisted them the whole time; only
+           this map dropped them, which left the client with no `aspect-ratio`
+           to set and a thread that jumped as every image loaded. */
+        width: typeof a.width === 'number' ? a.width : undefined,
+        height: typeof a.height === 'number' ? a.height : undefined,
         ...(snap ? { snap } : null),
       };
     });

@@ -61,7 +61,14 @@ function StarterModal({ mode, onClose, onOpened }: { mode: 'direct' | 'group'; o
     } finally { setBusy(false); }
   };
 
-  const rowStyle = (active: boolean): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', borderRadius: 'var(--r-1)', cursor: 'pointer', border: `1.5px solid ${active ? 'var(--accent)' : 'transparent'}`, background: active ? 'var(--accent-soft)' : 'transparent' });
+  /* PEOPLE ROWS ARE BUTTONS, NOT DIVS WITH onClick — the same fix the share
+     sheet took on 30 Aug, and the identical bug: with no role and no tabIndex a
+     keyboard or screen-reader user could not pick anybody, so `picked` stayed
+     empty, so "Start chat" below stayed `disabled` forever and this dialog
+     opened and could not be used at all without a mouse. The style therefore
+     also undoes the browser's button chrome (font, alignment, full width) so
+     the row still LOOKS like a row. */
+  const rowStyle = (active: boolean): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', borderRadius: 'var(--r-1)', cursor: 'pointer', border: `1.5px solid ${active ? 'var(--accent)' : 'transparent'}`, background: active ? 'var(--accent-soft)' : 'transparent', width: '100%', textAlign: 'left', font: 'inherit', color: 'inherit' });
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 100, display: 'grid', placeItems: 'center', padding: 16 }}>
@@ -76,7 +83,7 @@ function StarterModal({ mode, onClose, onOpened }: { mode: 'direct' | 'group'; o
         )}
         {mode === 'group' && picked.length > 0 && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '6px 0' }}>
-            {picked.map((c) => <span key={c.id} onClick={() => toggle(c)} style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 'var(--r-full)', padding: '3px 10px' }}>{c.name} ×</span>)}
+            {picked.map((c) => <button type="button" key={c.id} aria-label={`Remove ${c.name}`} onClick={() => toggle(c)} style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', border: 0, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 'var(--r-full)', padding: '3px 10px' }}>{c.name} ×</button>)}
           </div>
         )}
 
@@ -93,12 +100,12 @@ function StarterModal({ mode, onClose, onOpened }: { mode: 'direct' | 'group'; o
             {list.slice(0, 40).map((c) => {
               const active = picked.some((x) => x.id === c.id);
               return (
-                <div key={c.id} onClick={() => (mode === 'direct' ? setPicked([c]) : toggle(c))} style={rowStyle(active)}>
+                <button type="button" key={c.id} aria-pressed={active} onClick={() => (mode === 'direct' ? setPicked([c]) : toggle(c))} style={rowStyle(active)}>
                   <div className="tc-avatar" style={{ background: 'var(--accent-soft)', color: 'var(--accent-ink)', width: 30, height: 30, fontSize: 12 }}>{c.name.slice(0, 2).toUpperCase()}</div>
                   <span style={{ fontWeight: 600, fontSize: 13.5 }}>{c.name}</span>
                   <span className="muted" style={{ fontSize: 12 }}>@{c.handle}</span>
                   {active && <span style={{ marginLeft: 'auto', color: 'var(--accent-ink)', fontWeight: 800 }}>✓</span>}
-                </div>
+                </button>
               );
             })}
           </div>

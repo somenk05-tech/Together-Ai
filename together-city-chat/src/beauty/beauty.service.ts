@@ -1,10 +1,11 @@
 import { swallow } from '../shared/swallow';
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ORDER_HISTORY_CAP } from '../shared/paging';
 import { MedicalService } from '../medical/medical.service';
 import { FinancialService } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
+import { ModelBudgetService } from '../ai/model-budget.service';
 import { MasterProfileService } from '../profile/master-profile.service';
 import { beautyGender } from '../profile/sex-and-gender';
 import { clampBudget, planForWire, planWithinBudget, type StoredBudget } from './budget-routine';
@@ -75,6 +76,9 @@ export class BeautyService {
     private readonly ai: AiService,
     private readonly masterProfile: MasterProfileService,
     private readonly looks: LookAnalysisService,
+    /* Optional so the specs that construct this service directly keep working;
+       a missing budget means no daily cap, which is what those specs assume. */
+    @Optional() private readonly budget?: ModelBudgetService,
   ) {}
 
   /** Overlay the Master Profile's shared demographics onto the beauty profile
@@ -375,6 +379,8 @@ export class BeautyService {
     const profile = safeJson<BeautyProfileInput>(existing?.extras, {});
     const images = photos.filter((p) => p.base64).map((p) => ({ base64: p.base64, mediaType: p.mediaType || 'image/jpeg' }));
 
+    // The daily ceiling, spent BEFORE the model is asked (launch gate, 2 Sep).
+    if (images.length) await this.budget?.spend(userId, 'beauty.photos');
     const review = images.length ? await this.ai.reviewSkinPhotos(images) : { quality: 'ok' as const, findings: [] as string[], note: '', face: null as Record<string, string> | null };
     const rejected = review.quality === 'suspect' || review.quality === 'unclear';
     const warning = review.quality === 'suspect'
@@ -521,6 +527,8 @@ export class BeautyService {
    * the products matched to the steps are ones they can actually use.
    */
   async analyzeLook(userId: string, input: { fileKey?: string; mimeType?: string; base64?: string }) {
+    // The daily ceiling, spent before the row is written or the model asked.
+    if (input.base64) await this.budget?.spend(userId, 'beauty.looks');
     const profile = await this.getProfile(userId);
     const extras = profile.profile as { skinType?: string; allergies?: string[] };
     return this.looks.analyze(userId, input, {

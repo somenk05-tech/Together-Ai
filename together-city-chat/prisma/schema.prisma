@@ -563,6 +563,11 @@ model Attachment {
   message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@index([messageId])
+  /// Two hot paths look a row up BY ITS URL and there was nothing behind them:
+  /// every snap send (`findFirst({ where: { url } })`) and every forward
+  /// (`findMany({ where: { url: { in: … } } })`), both in messages.service.
+  /// Sequential scans of a table that grows with every attachment ever sent.
+  @@index([url])
   /// The sweep asks one question — "which snaps are past their moment and still
   /// have bytes" — every ten minutes, forever. Partial, because the answer is
   /// always a handful of rows out of every attachment ever sent.

@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { animate, motion, useMotionValue } from 'framer-motion';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button, Spinner, EmptyState } from '@/components/ui';
 import { useMe } from '@/api';
-import { chatApi, useMessages, useChatRealtime, type OutgoingAttachment } from '@/api';
+import { chatApi, useMessages, useChatRealtime, socketClient, WS, type OutgoingAttachment } from '@/api';
 import type { Message } from '@/api/schemas';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDatingChats, useDatingReveal, useMatchDetail, useUnmatch, type DatingChatSummary } from '../api';
@@ -89,7 +89,13 @@ function ChatRow({ c, active, onClick }: { c: DatingChatSummary; active: boolean
   const x = useMotionValue(0);
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  const unmatch = useUnmatch('romantic');
+  /* THE ROW'S OWN KIND, NOT THE LITERAL. This list carries romantic and
+     platonic threads together, and unmatch looks the row up by
+     (pair, kind) — so `'romantic'` on a platonic thread found no row, was
+     answered `{ok:true}`, closed the chat and let it come back on the next
+     poll. Worse when a romantic match with the same person does exist: it
+     archived the wrong conversation. */
+  const unmatch = useUnmatch(c.kind);
 
   const close = useCallback(() => { setOpen(false); setConfirming(false); void animate(x, 0, SPRING); }, [x]);
   // A confirmation left on screen is a trap for the next tap. It reverts.
@@ -181,7 +187,10 @@ function ChatRow({ c, active, onClick }: { c: DatingChatSummary; active: boolean
  *  Same name and photo the match card showed; tapping opens the connect step. */
 function MatchBubble({ c }: { c: DatingChatSummary }) {
   return (
-    <Link to={`/matchmaking/match?u=${c.otherUserId}`}
+    /* THE KIND TRAVELS WITH THE LINK. `DatingMatchDetail` defaults a missing
+       `kind` param to 'romantic', so a pending PLATONIC match opened the
+       romantic connect step — the wrong lens, about the wrong relationship. */
+    <Link to={`/matchmaking/match?u=${c.otherUserId}&kind=${c.kind}`}
       style={{ textDecoration: 'none', color: 'inherit', flex: 'none', width: 78, textAlign: 'center' }}>
       <div style={{ width: 68, height: 68, margin: '0 auto', borderRadius: '50%', padding: 3,
         background: 'linear-gradient(135deg, var(--accent), var(--accent-soft))' }}>
@@ -206,7 +215,9 @@ type OpenChat = DatingChatSummary & { conversationId: string };
 function Thread({ chat, meId, mePhoto, onBack }: { chat: OpenChat; meId: string; mePhoto: string | null; onBack: () => void }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const unmatch = useUnmatch('romantic');
+  // The thread's own kind, for the same reason ChatRow reads it: one pair can
+  // hold both a romantic and a platonic match, each with its own conversation.
+  const unmatch = useUnmatch(chat.kind);
   const msgs = useMessages(chat.conversationId);
   const [local, setLocal] = useState<Message[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -216,7 +227,7 @@ function Thread({ chat, meId, mePhoto, onBack }: { chat: OpenChat; meId: string;
      compatibility sheet all speak from one record. If the read fails (a
      paused profile still chats with an existing match, and its detail can
      404), everything downstream simply says less rather than breaking. */
-  const detail = useMatchDetail(chat.otherUserId, 'romantic');
+  const detail = useMatchDetail(chat.otherUserId, chat.kind);
   const d = detail.data ?? null;
   /* The composer seed: a starter tap PLACES words, focused, theirs to edit.
      `n` is a counter so the same suggestion can be placed twice. */
@@ -226,8 +237,15 @@ function Thread({ chat, meId, mePhoto, onBack }: { chat: OpenChat; meId: string;
   const reveal = useDatingReveal();
   const [sheet, setSheet] = useState(false);
   const [peerTyping, setPeerTyping] = useState(false);
+  /** Message ids this open thread has already acknowledged — once per id, not
+   *  once per render, for the reason the city chat states beside its own. */
+  const ackedRead = useRef<Set<string>>(new Set());
+  /** The room's one notice line: a socket refusal with no send behind it. */
+  const [notice, setNotice] = useState<string | null>(null);
   const typingClear = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Whether this citizen has already said they are typing — see emitTyping. */
+  const typingOn = useRef(false);
   /* MIRA, INVITED INTO THIS CONVERSATION (owner, 15 Aug: "add mira to dating
      chats too"). The same panel the city chats carry, scoped the same way:
      what she reads is the window this screen is already showing, handed over
@@ -269,43 +287,122 @@ function Thread({ chat, meId, mePhoto, onBack }: { chat: OpenChat; meId: string;
      the other side's typing, and the send itself — which is what lets a
      message carry a photograph or a voice note, because the socket schema
      always accepted attachments and REST send never did. */
+  /* THE HANDLERS ARE HELD, and this was the worst defect in this file.
+     `useChatRealtime`'s effect lists them in its dependencies and these were
+     inline arrows — a new identity on every render. So every render tore the
+     room down and built it again: LEAVE_CONVERSATION on the way out,
+     JOIN_CONVERSATION on the way back in. A message broadcast in that gap was
+     missed outright; leaving cleared the redis open-conversation flag that push
+     suppression reads, so the reader got a phone notification for the chat they
+     were looking at; and each re-join re-ran the permission gate and
+     `markConversationRead` — a database round trip per keystroke of the person
+     typing at them. The city chat has wrapped its equivalents since it was
+     written; this file is the copy that drifted. */
+  const onLiveMessage = useCallback((m: Message) => {
+    setLocal((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
+    setPeerTyping(false);
+    void qc.invalidateQueries({ queryKey: ['dating', 'chats'] });
+    /* AND IT IS READ. There was no MESSAGE_READ emit anywhere in this file:
+       the REST `/read` below fires once per open and only moves `lastReadAt`,
+       never MessageStatus — so a message arriving in a thread somebody was
+       staring at left the sender's ticks on one, for as long as the room
+       stayed open. Once per id, like the city chat's own acknowledgement. */
+    if (m.senderId !== meId && !ackedRead.current.has(m.id)) {
+      ackedRead.current.add(m.id);
+      socketClient.emit(WS.MESSAGE_READ, { conversationId: chat.conversationId, messageIds: [m.id] });
+    }
+  }, [qc, meId, chat.conversationId]);
+
+  const onLiveTyping = useCallback((userId: string, isTyping: boolean) => {
+    if (userId === meId) return;
+    setPeerTyping(isTyping);
+    if (typingClear.current) clearTimeout(typingClear.current);
+    // A typing flag with no stop frame behind it must expire on its own.
+    if (isTyping) typingClear.current = setTimeout(() => setPeerTyping(false), 6000);
+  }, [meId]);
+
+  /* THE SIXTH CALLBACK: a socket refusal that is not tied to a send — a
+     rate-limit drop on join, on a read receipt, on typing. The send path
+     reports itself inside the Composer, which is where the words it kept are. */
+  const onRealtimeError = useCallback((message: string) => { setNotice(message); }, []);
+
   const { send: wsSend, setTyping } = useChatRealtime(
-    chat.conversationId,
-    (m) => {
-      setLocal((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
-      setPeerTyping(false);
-      void qc.invalidateQueries({ queryKey: ['dating', 'chats'] });
-    },
-    (userId, isTyping) => {
-      if (userId === meId) return;
-      setPeerTyping(isTyping);
-      if (typingClear.current) clearTimeout(typingClear.current);
-      // A typing flag with no stop frame behind it must expire on its own.
-      if (isTyping) typingClear.current = setTimeout(() => setPeerTyping(false), 6000);
-    },
+    chat.conversationId, onLiveMessage, onLiveTyping, undefined, undefined, onRealtimeError,
   );
+
+  /* AND THE THREAD IS RE-READ WHEN THE SOCKET COMES BACK. The hook re-joins the
+     room on `connect` and invalidates nothing; the query client runs staleTime
+     30s with refetchOnWindowFocus off and this thread has no poll — so a phone
+     that was backgrounded came back to a connection that had missed everything
+     sent in the gap, arriving by neither `receive_message` nor
+     `chat_notification`, and unreachable until this component remounted. It
+     belongs inside the hook, beside the re-join it pairs with; that file is
+     being edited elsewhere this week, so it is said here at the call site. */
+  useEffect(() => {
+    const sock = socketClient.raw();
+    const resync = () => { void qc.invalidateQueries({ queryKey: ['chat', 'messages', chat.conversationId] }); };
+    sock.on('connect', resync);
+    return () => { sock.off('connect', resync); };
+  }, [chat.conversationId, qc]);
 
   useEffect(() => () => {
     if (typingClear.current) clearTimeout(typingClear.current);
     if (typingTimer.current) clearTimeout(typingTimer.current);
   }, []);
 
-  useEffect(() => { void chatApi.markRead(chat.conversationId).then(() => qc.invalidateQueries({ queryKey: ['dating', 'chats'] })).catch(() => undefined); }, [chat.conversationId, qc]);
-  useEffect(() => { const el = scrollRef.current; if (el) el.scrollTop = el.scrollHeight; }, [messages.length, peerTyping]);
+  /* `['chat','conversations']` as well: the city header's unread badge counts
+     dating messages, and invalidating only the dating list left it counting
+     messages this reader had already read for up to a minute. */
+  useEffect(() => {
+    void chatApi.markRead(chat.conversationId)
+      .then(() => {
+        void qc.invalidateQueries({ queryKey: ['dating', 'chats'] });
+        void qc.invalidateQueries({ queryKey: ['chat', 'conversations'] });
+      })
+      .catch(() => undefined);
+  }, [chat.conversationId, qc]);
+  /* THE NEWEST MESSAGE, NOT THE COUNT. `useMessages` PREPENDS an older page,
+     so keying this on `messages.length` meant "Load earlier messages" — added
+     above — grew the list and this yanked the box straight back to the newest
+     bubble: thirty messages loaded and none of them shown. Everything above the
+     reader just got taller by `scrollHeight - h`, so a prepend adds exactly
+     that to `scrollTop` and the message they were reading has not moved. */
+  const seen = useRef({ first: undefined as string | undefined, top: 0, h: 0 });
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const was = seen.current;
+    const first = messages[0]?.id;
+    const prepended = was.first !== undefined && first !== was.first
+      && messages.some((m) => m.id === was.first);
+    if (prepended) el.scrollTop = was.top + (el.scrollHeight - was.h);
+    else el.scrollTop = el.scrollHeight;
+    seen.current = { first, top: el.scrollTop, h: el.scrollHeight };
+  }, [messages, peerTyping]);
 
+  /* THE PROMISE GOES BACK TO THE COMPOSER, which awaits it: on a rejection it
+     shows the server's own sentence and keeps the words and the attachments
+     that were staged. Returning nothing is what made a refused send look
+     exactly like a sent one. */
   const handleSend = useCallback((body: string, attachments?: OutgoingAttachment[]) => {
     if (!body.trim() && !attachments?.length) return;
-    wsSend(body.trim(), attachments);
+    return wsSend(body.trim(), attachments);
   }, [wsSend]);
   /* Typing, said while it is true and taken back when it stops being typed —
      the same 2.5s the city chat uses, so one person reads as one person. */
+  /* ONE FRAME PER BURST, NOT ONE PER KEYSTROKE. `onTyping` fires on every
+     `onChange`, so this emitted a `typing_start` for every character typed —
+     which at any ordinary speed is several hundred frames a minute, past the
+     gateway's ceiling and into `error_event`. Socket.IO says "somebody is
+     typing", a fact that does not change while it stays true, so the frame
+     goes out on the EDGE and the 2.5s timer takes it back. */
   const emitTyping = useCallback((t: boolean) => {
-    setTyping(t);
+    if (t !== typingOn.current) { typingOn.current = t; setTyping(t); }
     if (typingTimer.current) clearTimeout(typingTimer.current);
-    if (t) typingTimer.current = setTimeout(() => setTyping(false), 2500);
+    if (t) typingTimer.current = setTimeout(() => { typingOn.current = false; setTyping(false); }, 2500);
   }, [setTyping]);
 
-  const profileHref = `/dating/match?u=${chat.otherUserId}&kind=romantic`;
+  const profileHref = `/dating/match?u=${chat.otherUserId}&kind=${chat.kind}`;
   const city = d?.city?.trim() || null;
   const subline = [
     chat.score != null ? `${chat.score}% compatible` : null,
@@ -405,7 +502,7 @@ function Thread({ chat, meId, mePhoto, onBack }: { chat: OpenChat; meId: string;
                 onClick={() => {
                   setMenu(false);
                   if (chat.myReveal || window.confirm('Share your city profile in this chat? They will see your @handle and your city photo, and they cannot un-see them — taking this back only stops showing them from then on.')) {
-                    reveal.mutate({ userId: chat.otherUserId, kind: 'romantic', show: !chat.myReveal });
+                    reveal.mutate({ userId: chat.otherUserId, kind: chat.kind, show: !chat.myReveal });
                   }
                 }}>
                 {chat.myReveal ? 'Stop sharing my city profile' : 'Share my city profile'}
@@ -432,7 +529,10 @@ function Thread({ chat, meId, mePhoto, onBack }: { chat: OpenChat; meId: string;
                 }}>
                 {unmatch.isPending ? 'Unmatching…' : 'Unmatch'}
               </button>
-              <SafetyMenu userId={chat.otherUserId} kind="romantic" compact />
+              {/* Block reads (pair, kind) exactly as unmatch does — see
+                  `blockMatch` — so the literal was the same bug wearing the
+                  strongest verb in the product. */}
+              <SafetyMenu userId={chat.otherUserId} kind={chat.kind} compact />
             </div>
           </>
         )}
@@ -456,6 +556,16 @@ function Thread({ chat, meId, mePhoto, onBack }: { chat: OpenChat; meId: string;
         </p>
       )}
 
+      {/* The room's notice line: what the socket refused when there was no send
+          to hang it on. `.note` brings its own ground and its own ink, which is
+          what anything laid on a stage has to do. */}
+      {notice && (
+        <div className="note" role="status">
+          {notice}{' '}
+          <Button variant="line" size="sm" onClick={() => setNotice(null)}>Dismiss</Button>
+        </div>
+      )}
+
       {confide && (
         <MiraConfidant otherName={chat.name} transcript={confideTranscript}
           onClose={() => setConfide(false)} />
@@ -471,6 +581,20 @@ function Thread({ chat, meId, mePhoto, onBack }: { chat: OpenChat; meId: string;
             d={d} onPick={pick} />
         ) : (
           <>
+            {/* THE REST OF THE CONVERSATION. `useMessages` has paged since it
+                was written and neither `fetchNextPage` nor `hasNextPage`
+                appeared anywhere in this file — so a two-hundred-message
+                thread showed the last thirty and said nothing about the rest.
+                The city chat has had this control since the cursor was wired;
+                this is the same one. */}
+            {msgs.hasNextPage && (
+              <div className="csatt">
+                <Button variant="line" size="sm" disabled={msgs.isFetchingNextPage}
+                  onClick={() => { void msgs.fetchNextPage(); }}>
+                  {msgs.isFetchingNextPage ? 'Loading…' : 'Load earlier messages'}
+                </Button>
+              </div>
+            )}
             {messages.map((m, i) => {
               const mine = m.senderId === meId;
               const prev = messages[i - 1];
@@ -509,7 +633,24 @@ function Thread({ chat, meId, mePhoto, onBack }: { chat: OpenChat; meId: string;
           on the left, one filled send key, typing wired through the socket,
           and the keyboard handled by the same visual-viewport machinery every
           thread already rides. A starter tap lands here as editable words. */}
-      <Composer onSend={handleSend} onTyping={emitTyping} seed={seed} />
+      {/* AND NOT WHEN THERE IS NOTHING TO SEND INTO (§16). The composer was
+          rendered unconditionally: the other person unmatches, both sockets
+          leave the room, and for up to fifteen seconds the reader typed into a
+          live-looking thread, was refused, and then had it unmount mid-word.
+          `ended` comes off the row from the server — the conversation is
+          archived for this reader — and the room stays readable, which is the
+          part that matters: their words do not disappear along with the way to
+          answer them. */}
+      {chat.ended ? (
+        <div className="csdock csatt" role="status">
+          <i>This conversation has ended. You can still read it — there is nothing left to send into.</i>
+        </div>
+      ) : (
+        /* Keyed on the room for the reason Chats is: the composer holds staged
+           attachments now, and one instance across two threads sent a photo
+           attached in the first into the second. */
+        <Composer key={chat.conversationId} onSend={handleSend} onTyping={emitTyping} seed={seed} />
+      )}
 
       {sheet && (
         <CompatibilitySheet name={chat.name} score={chat.score} otherUserId={chat.otherUserId}
@@ -532,6 +673,16 @@ export function DatingChats() {
   const active = list.find(
     (c): c is OpenChat => c.conversationId !== null && c.conversationId === openId,
   ) ?? null;
+  /* AND THE ROOM STAYS ON SCREEN AFTER IT ENDS. An unmatch takes the match row
+     out of this list, so `active` went null and the thread somebody was reading
+     — or typing into — unmounted under them, back to a list, with no sentence
+     anywhere saying what had happened. The last opened thread is held and shown
+     as ended until they leave it themselves. */
+  const lastOpen = useRef<OpenChat | null>(null);
+  if (active) lastOpen.current = active;
+  const held = lastOpen.current;
+  const shown: OpenChat | null = active
+    ?? (held && openId && held.conversationId === openId ? { ...held, ended: true } : null);
 
   // The queue and the conversations, split once so no branch disagrees.
   const pendingMatches = list.filter((c) => !c.conversationId);
@@ -547,8 +698,8 @@ export function DatingChats() {
      room a panel in a page. Now the thread is all there is: one connection,
      one room, and Back is the way to the rest of them. The list this screen
      used to keep visible is one tap away, where a list belongs. */
-  if (active && me.data) {
-    return <Thread chat={active} meId={me.data.id} mePhoto={me.data.profileImage ?? null} onBack={back} />;
+  if (shown && me.data) {
+    return <Thread chat={shown} meId={me.data.id} mePhoto={me.data.profileImage ?? null} onBack={back} />;
   }
 
   return (
@@ -586,7 +737,10 @@ export function DatingChats() {
                 New matches · {pendingMatches.length}
               </div>
               <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 4 }}>
-                {pendingMatches.map((c) => <MatchBubble key={c.otherUserId} c={c} />)}
+                {/* `otherUserId` is a sealed card id derived from viewer and
+                    target only — not from the kind — so the same person
+                    pending in both lenses produced two tiles under one key. */}
+                {pendingMatches.map((c) => <MatchBubble key={`${c.otherUserId}:${c.kind}`} c={c} />)}
               </div>
             </div>
           )}
@@ -594,7 +748,8 @@ export function DatingChats() {
             <div className="eyebrow" style={{ marginBottom: 6 }}>Chats</div>
           )}
           {opened.map((c) => (
-            <ChatRow key={c.conversationId} c={c} active={false} onClick={() => open(c.conversationId as string)} />
+            <ChatRow key={c.conversationId} c={c} active={c.conversationId === openId}
+              onClick={() => open(c.conversationId as string)} />
           ))}
         </>
       )}

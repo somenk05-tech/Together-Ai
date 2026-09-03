@@ -3890,6 +3890,20 @@ textarea.g-field { resize: none; line-height: 1.55; }
 .csb.gone { color: var(--on-stage-faint); background: none; box-shadow: none;
   font-style: italic; font-size: 13px; outline: 1px dashed var(--stage-line); outline-offset: -1px; }
 
+/* ── A PHOTO BUBBLE THAT IS ITS OWN SIZE BEFORE IT LOADS ──────────────────
+   The <img> here had no width, no height and no aspect-ratio, so it was 0px
+   tall until the bytes decoded — and the thread scrolls itself to the bottom
+   the moment a message arrives, which meant the picture then pushed the newest
+   message below the fold. The exact ratio is set inline from the row's own
+   width/height (see MessageBody); `.csphoto-hold` is the reserved box for the
+   older rows that carry neither, and it holds a HEIGHT rather than a shape so
+   nothing is ever cropped to a guess. */
+.csphoto { display: block; max-width: 260px; border-radius: var(--r-2);
+  overflow: hidden; background: var(--stage-tile); }
+.csphoto img { display: block; width: 100%; object-fit: cover; }
+.csphoto-hold { min-height: 140px; }
+.csphoto-gone { font-style: italic; font-size: var(--fs-3); }
+
 /* ── THE COMPOSER'S GUTTER ────────────────────────────────────
    The bar the composer sits in, and the only thing that sets its margins.
 
@@ -3945,6 +3959,36 @@ textarea.g-field { resize: none; line-height: 1.55; }
   background: var(--danger-ink); animation: csrec-pulse var(--dur-slow) var(--ease) infinite; }
 @keyframes csrec-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { .csrec-dot { animation: none; } }
+
+/* ── THE LINE ABOVE THE CAPSULE, AND THE TRAY UNDER IT ────────────────────
+   `.csnote` is what the composer is doing or what went wrong — one line, in
+   the stage's ink when it is a refusal and its soft ink when it is progress.
+   It was an inline style object in Composer.tsx; it is here because the tray
+   below needed a stylesheet anyway and a size system counts inline objects.
+
+   THE TRAY IS THE HALF-SECOND THAT WAS MISSING. Picking a file used to BE
+   sending it: no preview, no caption, no cancel, no way to drop one of three,
+   and a Send key that stayed dead because it only looked at the text. The
+   chips sit above the capsule where the reply quote sits, each with its own
+   way out, and a send the server refuses leaves them here. */
+.csnote { margin: 0 0 8px; font-size: var(--fs-3); line-height: 1.5; color: var(--on-stage-soft); }
+.csnote-bad { color: var(--on-stage); }
+.cstray { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; padding: 0; list-style: none; }
+.cschip { position: relative; display: flex; align-items: center; gap: 8px; max-width: 100%;
+  padding: 7px 8px 7px 12px; border-radius: var(--r-2); background: var(--stage-panel); color: var(--on-stage); }
+.cschip-what { display: block; min-width: 0; }
+.cschip-what b { display: block; max-width: 150px; font-size: var(--fs-3); font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cschip-what i { display: block; font-style: normal; font-size: var(--fs-2); color: var(--on-stage-faint); }
+/* A PHOTOGRAPH IS ITS OWN LABEL. The chip for one is the picture at a tile's
+   size with the remove key laid into its corner — a filename under a thumbnail
+   is a caption nobody reads. */
+.cschip-img { width: 62px; height: 62px; padding: 0; overflow: hidden; }
+.cschip-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cschip-x { flex: none; width: 26px; height: 26px; padding: 0; border: 0; border-radius: var(--r-full);
+  display: grid; place-items: center; cursor: pointer; font-family: inherit; font-size: var(--fs-2);
+  color: var(--on-stage-ink); background: var(--on-stage); }
+.cschip-img .cschip-x { position: absolute; top: 4px; right: 4px; }
 
 /* ── THE OVERFLOW KEY, AND WHAT IT HOLDS ──────────────────────────────────
    A menu on the stage, made of the stage: an opaque ground so the thread

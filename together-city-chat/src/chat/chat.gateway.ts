@@ -40,27 +40,73 @@ interface AuthedSocket extends Socket {
   typingTimers: Map<string, NodeJS.Timeout>;
   tokenIat?: number;
   recheck?: ReturnType<typeof setInterval>;
-  /** Sends in the current minute, and when that minute started. */
-  sendWindow?: { startedAt: number; count: number };
+  /** Frames in the current minute, and when that minute started — one bucket
+   *  per limited handler kind, `<key>Window` for `overLimit(client, key)`. */
+  sendWindow?: RateWindow;
+  joinWindow?: RateWindow;
+  ackWindow?: RateWindow;
+  typingWindow?: RateWindow;
 }
 
+interface RateWindow { startedAt: number; count: number }
+
 /**
- * A socket's own send ceiling. The HTTP send route sits behind the app-wide
+ * A socket's own ceilings. The HTTP send route sits behind the app-wide
  * throttler; this one did not, so a script holding one socket could post
  * without limit. Per connection, in memory: a limit that resets on reconnect
  * is a limit a determined script can dodge, but it is the one that stops the
  * accidental flood and the cheap one, and the HTTP path is the same number.
+ *
+ * IT WAS THE SEND PATH ONLY, AND THE SEND PATH IS NOT THE EXPENSIVE ONE.
+ * Every other handler did real work per frame and had no ceiling at all —
+ * `join` a findUnique with a members include plus a Redis write plus a
+ * notification read, `read`/`delivered` a findMany plus an updateMany over up
+ * to 500 ids, `typing` a timer and a room broadcast. So the bucket is keyed
+ * now and the same mechanism covers all of them.
+ *
+ * The numbers are per minute, and each is what a person doing that thing as
+ * fast as a person can do it would never reach:
+ *   send   60 — unchanged, and the same number the HTTP route enforces.
+ *   join  120 — two conversation switches a second, sustained for a minute;
+ *                a reconnect joins its rooms in one call, not one per room.
+ *   ack   240 — four frames a second. A client acks in batches of up to 500
+ *                ids, so one frame already covers a whole backlog.
+ *   typing 600 — ten a second. The client says it ONCE per burst and takes it
+ *                back on a 2.5s timer, so a person cannot approach this; the
+ *                number is high because the cost of a false positive here is
+ *                out of all proportion to the frame. It was 300, chosen when
+ *                the comment claimed the client debounced and it did not: a
+ *                start frame went out per keystroke, so an 80wpm typist
+ *                crossed it mid-sentence.
  */
-const SEND_LIMIT_PER_MINUTE = 60;
+const LIMIT_PER_MINUTE = { send: 60, join: 120, ack: 240, typing: 600 };
+type LimitKey = keyof typeof LIMIT_PER_MINUTE;
 
-function overSendLimit(client: AuthedSocket, now = Date.now()): boolean {
-  const w = client.sendWindow;
+function overLimit(client: AuthedSocket, key: LimitKey, now = Date.now()): boolean {
+  const field = `${key}Window` as const;
+  const w = client[field];
   if (!w || now - w.startedAt >= 60_000) {
-    client.sendWindow = { startedAt: now, count: 1 };
+    client[field] = { startedAt: now, count: 1 };
     return false;
   }
   w.count += 1;
-  return w.count > SEND_LIMIT_PER_MINUTE;
+  return w.count > LIMIT_PER_MINUTE[key];
+}
+
+/**
+ * Drop an over-limit frame, in the `{ status, message }` shape WsExceptionFilter
+ * emits — one `error_event` listener on the client handles both.
+ *
+ * PLUS THE KIND, WHICH THE FILTER'S FRAMES DO NOT CARRY, and that asymmetry is
+ * the point. `error_event` names no message, so the client rejects every send
+ * it has in flight when one arrives — right for a refusal that IS about a send
+ * (moderation, a block, an ended match, the send ceiling), and wrong for a
+ * dropped typing or read frame, which would report a message as failed that
+ * the server had accepted. A `kind` other than `send` says "this was not about
+ * your message".
+ */
+function refuse(client: AuthedSocket, what: string, kind: LimitKey): void {
+  client.emit(WS.ERROR, { status: 429, kind, message: `Too many ${what} — give it a minute.` });
 }
 
 /**
@@ -238,6 +284,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   // ── rooms ──────────────────────────────────────────────
   @SubscribeMessage(WS.JOIN_CONVERSATION)
   async onJoin(@ConnectedSocket() client: AuthedSocket, @MessageBody() body: unknown): Promise<void> {
+    if (overLimit(client, 'join')) { refuse(client, 'conversation opens', 'join'); return; }
     const { conversationId } = parseOrThrow(JoinConversationSchema, body);
     await this.permission.assertCanPostToConversation(client.userId, conversationId);
     await client.join(room.conversation(conversationId));
@@ -248,6 +295,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   @SubscribeMessage(WS.LEAVE_CONVERSATION)
   async onLeave(@ConnectedSocket() client: AuthedSocket, @MessageBody() body: unknown): Promise<void> {
+    if (overLimit(client, 'join')) { refuse(client, 'conversation opens', 'join'); return; }
     const { conversationId } = parseOrThrow(LeaveConversationSchema, body);
     await client.leave(room.conversation(conversationId));
     await this.redis.setOpenConversation(client.userId, null, client.id);
@@ -256,10 +304,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   // ── messaging ──────────────────────────────────────────
   @SubscribeMessage(WS.SEND_MESSAGE)
   async onSend(@ConnectedSocket() client: AuthedSocket, @MessageBody() body: unknown): Promise<void> {
-    if (overSendLimit(client)) {
-      client.emit('error_event', { message: 'Too many messages — give it a minute.' });
-      return;
-    }
+    if (overLimit(client, 'send')) { refuse(client, 'messages', 'send'); return; }
     const dto = parseOrThrow(SocketSendSchema, body);
     // MessagesService enforces the connection gate; throws 403 if not connected.
     const message = await this.messages.send(client.userId, dto);
@@ -270,12 +315,14 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   @SubscribeMessage(WS.MESSAGE_DELIVERED)
   async onDelivered(@ConnectedSocket() client: AuthedSocket, @MessageBody() body: unknown): Promise<void> {
+    if (overLimit(client, 'ack')) { refuse(client, 'receipts', 'ack'); return; }
     const { messageIds } = parseOrThrow(AckSchema, body);
     await this.messages.markDelivered(client.userId, messageIds);
   }
 
   @SubscribeMessage(WS.MESSAGE_READ)
   async onRead(@ConnectedSocket() client: AuthedSocket, @MessageBody() body: unknown): Promise<void> {
+    if (overLimit(client, 'ack')) { refuse(client, 'receipts', 'ack'); return; }
     const { messageIds } = parseOrThrow(AckSchema, body);
     await this.messages.markRead(client.userId, messageIds);
   }
@@ -283,6 +330,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   // ── typing ─────────────────────────────────────────────
   @SubscribeMessage(WS.TYPING_START)
   async onTypingStart(@ConnectedSocket() client: AuthedSocket, @MessageBody() body: unknown): Promise<void> {
+    if (overLimit(client, 'typing')) { refuse(client, 'typing signals', 'typing'); return; }
     const { conversationId } = parseOrThrow(TypingSchema, body);
     /* Typing is gated by the ROOM, not by a DB query per keystroke: the
        handshake (joinOwnConversations) and onJoin only admit members, so being
@@ -319,6 +367,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   @SubscribeMessage(WS.TYPING_STOP)
   async onTypingStop(@ConnectedSocket() client: AuthedSocket, @MessageBody() body: unknown): Promise<void> {
+    if (overLimit(client, 'typing')) { refuse(client, 'typing signals', 'typing'); return; }
     const { conversationId } = parseOrThrow(TypingSchema, body);
     if (!client.userId || !client.rooms.has(room.conversation(conversationId))) return;
     const existing = client.typingTimers.get(conversationId);

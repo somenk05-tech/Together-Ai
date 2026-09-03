@@ -73,14 +73,26 @@ describe('a model call costs money', () => {
    * So: read every method, note which sibling methods it calls, and propagate
    * "spends money" backwards until nothing changes.
    */
+  /* ACROSS THE HUB, NOT WITHIN ONE FILE (launch gate, 2 Sep). The first
+     version propagated inside a single service file, so `beauty.analyzeLook`
+     — whose only model call is `this.looks.analyze(...)` in a SIBLING
+     service — was never a spender, and `POST beauty/looks` reached the
+     vision model unthrottled while this test stayed green. Calls are now
+     read as `this.<anything>.<method>(` as well as `this.<method>(`, and
+     propagation runs over every service in the hub together. It is still
+     name-based and can over-approximate (two hubs' services with a method
+     of the same name), which errs toward a throttle nobody needed rather
+     than a model call nobody guarded. */
   const spenders = new Map<string, Set<string>>();
+  const perHub = new Map<string, { direct: Set<string>; calls: Map<string, string[]> }>();
   for (const f of services) {
     const src = strip(readFileSync(f, 'utf8'));
     const heads = [...src.matchAll(/^ {2}(?:private |public )?(?:async )?(\w+)\s*[(<]/gm)];
     if (!heads.length) continue;
+    const hub = f.split('/').slice(-2)[0];
+    if (!perHub.has(hub)) perHub.set(hub, { direct: new Set(), calls: new Map() });
+    const { direct, calls } = perHub.get(hub)!;
 
-    const direct = new Set<string>();
-    const calls = new Map<string, string[]>();
     for (let i = 0; i < heads.length; i += 1) {
       const name = heads[i][1];
       const from = heads[i].index ?? 0;
@@ -89,11 +101,14 @@ describe('a model call costs money', () => {
       // A CALL, not a property read: `this.ai.enabled` must not match, and a
       // generic call `this.ai.json<T>(...)` must.
       if (/this\.ai\.\w+\s*[<(]/.test(body)) direct.add(name);
-      calls.set(name, [...body.matchAll(/this\.(\w+)\s*[<(]/g)].map((m) => m[1]));
+      const callees = [...body.matchAll(/this\.(?:\w+\.)?(\w+)\s*[<(]/g)].map((m) => m[1]);
+      calls.set(name, [...(calls.get(name) ?? []), ...callees]);
     }
+  }
 
+  for (const [hub, { direct, calls }] of perHub) {
     const reaches = new Set(direct);
-    for (let pass = 0; pass < heads.length; pass += 1) {
+    for (let pass = 0; pass < calls.size; pass += 1) {
       let grew = false;
       for (const [name, callees] of calls) {
         if (reaches.has(name)) continue;
@@ -101,11 +116,7 @@ describe('a model call costs money', () => {
       }
       if (!grew) break;
     }
-
-    if (!reaches.size) continue;
-    const hub = f.split('/').slice(-2)[0];
-    if (!spenders.has(hub)) spenders.set(hub, new Set());
-    for (const n of reaches) spenders.get(hub)!.add(n);
+    if (reaches.size) spenders.set(hub, reaches);
   }
 
   it('finds the services that reach the model at all', () => {
@@ -130,15 +141,20 @@ describe('a model call costs money', () => {
         // to learn after a forward-only window misread half its routes.
         let top = i;
         while (top > 0 && /^\s*[@)]|^\s*$/.test(lines[top - 1]) && !/@(Get|Post|Patch|Delete|Put)\(/.test(lines[top - 1])) top -= 1;
-        let sig = i;
-        while (sig < lines.length - 1 && !/\{\s*$/.test(lines[sig])) sig += 1;
-
-        let depth = 0; let started = false; let end = sig;
-        for (let j = sig; j < Math.min(sig + 80, lines.length); j += 1) {
-          depth += (lines[j].match(/\{/g) ?? []).length - (lines[j].match(/\}/g) ?? []).length;
-          if (lines[j].includes('{')) started = true;
-          if (started && depth <= 0) { end = j; break; }
-        }
+        /* THE HANDLER IS NOT THE FIRST BRACE (launch gate, 2 Sep). This used
+           to walk to the first line ending in `{` and call that the handler —
+           and on a route whose `@UsePipes(new ZodValidationPipe(z.object({`
+           comes first, that brace is the SCHEMA. The window then closed on
+           the schema's own `})))` and the handler below it was never read,
+           which is how `POST beauty/photos/analyze` and `POST beauty/looks`
+           reached the vision model unthrottled while this test stayed green.
+           The signature is the first line at method indent that is not a
+           decorator or a decorator's continuation; the body runs to the next
+           route or the class's end. */
+        let sig = i + 1;
+        while (sig < lines.length - 1 && !/^ {2}(?:async )?\w+\s*[(<]/.test(lines[sig])) sig += 1;
+        let end = sig;
+        while (end < lines.length - 1 && !/@(Get|Post|Patch|Delete|Put)\(/.test(lines[end + 1]) && !/^}/.test(lines[end + 1])) end += 1;
 
         const decorators = lines.slice(top, sig + 1).join('\n');
         const body = lines.slice(sig, end + 1).join('\n');

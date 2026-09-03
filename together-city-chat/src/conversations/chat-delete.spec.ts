@@ -52,7 +52,13 @@ function serviceWith(members: Member[], newestMessageAt: Record<string, Date | n
         return { count: 1 };
       }),
     },
-    message: { count: jest.fn(async () => 0) },
+    /* `groupBy` since 3 Sep: the per-conversation `count` calls became one
+       grouped query when the 15-second panel poll stopped issuing N of them.
+       The stub keeps `count` too — other paths in this service still use it. */
+    message: {
+      count: jest.fn(async () => 0),
+      groupBy: jest.fn(async () => [] as Array<{ conversationId: string; _count: { _all: number } }>),
+    },
     datingMatch: { findMany: jest.fn(async () => []) },
   };
 
@@ -143,8 +149,8 @@ describe('what a cleared chat looks like afterwards', () => {
       { c1: T('2026-07-21T08:00:00Z') },
     );
     await svc.listForUser('a');
-    const where = (prisma.message.count as jest.Mock).mock.calls[0][0].where;
-    expect(where.createdAt).toEqual({ gt: CLEARED }); // the clear is later than lastReadAt
+    const where = (prisma.message.groupBy as jest.Mock).mock.calls[0][0].where;
+    expect(where.OR[0].createdAt).toEqual({ gt: CLEARED }); // the clear is later than lastReadAt
   });
 
   it('still honours a lastReadAt that is later than the clear', async () => {
@@ -154,7 +160,7 @@ describe('what a cleared chat looks like afterwards', () => {
       { c1: T('2026-07-23T08:00:00Z') },
     );
     await svc.listForUser('a');
-    const where = (prisma.message.count as jest.Mock).mock.calls[0][0].where;
-    expect(where.createdAt).toEqual({ gt: readAfter });
+    const where = (prisma.message.groupBy as jest.Mock).mock.calls[0][0].where;
+    expect(where.OR[0].createdAt).toEqual({ gt: readAfter });
   });
 });

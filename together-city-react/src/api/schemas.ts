@@ -104,6 +104,12 @@ export const MediaAttachmentSchema = z.object({
   name: z.string().optional(),
   sizeBytes: z.number().optional(),
   durationSec: z.number().optional(),
+  /** The shape of the picture, when the server knows it. It is what lets a
+   *  photo bubble reserve its height before the bytes arrive instead of
+   *  being 0px tall and shoving the thread down as it decodes. Absent on
+   *  every row written before the column was read back. */
+  width: z.number().optional(),
+  height: z.number().optional(),
   /** Present exactly when `kind === 'snap'`. */
   snap: SnapSchema.optional(),
 });

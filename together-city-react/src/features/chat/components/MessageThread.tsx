@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Message } from '@/types';
 import { MessageBody } from './MessageBody';
 import { MessageSpotlight, type SpotlightAction } from './MessageSpotlight';
@@ -153,22 +153,116 @@ export function MessageThread({ messages, currentUserId, typing, peerName, peerP
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const [flashId, setFlashId] = useState<string | null>(null);
+  /* THE LAST JUMP THIS COMPONENT ACTUALLY MADE. The jump effect below has
+     `messages.length` in its deps and nothing cleared `jumpToId`, so every new
+     message re-ran it: the reader was dragged back to a message they had
+     finished with, outline flashing, and it WON, because it runs after the
+     bottom-scroll effect above. The page clears the prop after the jump; this
+     is the same fact held here, so the component is right on its own terms. */
+  const jumped = useRef<string | null>(null);
   const [infoFor, setInfoFor] = useState<Message | null>(null);
   const [info, setInfo] = useState<Awaited<ReturnType<NonNullable<typeof fetchInfo>>> | null>(null);
   const [infoErr, setInfoErr] = useState<string | null>(null);
   const longPress = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /* THE LIST SCROLLS ITSELF.
-     scrollIntoView asks EVERY scrollable ancestor to move, and on a phone the
-     outermost one is the page beneath a fixed room — so a message arriving
-     could slide the whole screen while it was politely bringing the newest
-     bubble into view. This moves one box, and it is this one. */
+  /* WHERE THE READER HAD THIS BOX, AS OF THE LAST TIME ANYTHING LOOKED.
+     `h` and `top` are what the scroll anchoring below subtracts against; `first`
+     is how a PREPENDED page of older messages is told apart from a new message
+     at the bottom, since both only ever grew `messages.length`. */
+  const seen = useRef({ len: 0, first: undefined as string | undefined, top: 0, h: 0, atBottom: true });
+  /* A SMOOTH SCROLL IS STILL MOVING AFTER THE COMMIT THAT STARTED IT, and it
+     fires scroll events the whole way down. Read literally, those events say
+     the reader is somewhere in the middle of the thread — so the glide's own
+     movement was being mistaken for a reader who had scrolled away, and the
+     next message would then decline to chase. This is the window in which the
+     box's position is the browser's business and not the reader's. */
+  const chaseUntil = useRef(0);
+  const gliding = () => Date.now() < chaseUntil.current;
+
+  /* Kept true between commits as well as across them: a message can arrive
+     seconds after the reader last scrolled. */
   useEffect(() => {
     const el = box.current;
     if (!el) return;
+    const note = () => {
+      if (gliding()) return;
+      seen.current.top = el.scrollTop;
+      seen.current.h = el.scrollHeight;
+      seen.current.atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    };
+    el.addEventListener('scroll', note, { passive: true });
+    return () => el.removeEventListener('scroll', note);
+  }, []);
+
+  /* THE LIST SCROLLS ITSELF — BUT ONLY TOWARDS THE READER'S OWN INTENT.
+     scrollIntoView asks EVERY scrollable ancestor to move, and on a phone the
+     outermost one is the page beneath a fixed room — so a message arriving
+     could slide the whole screen while it was politely bringing the newest
+     bubble into view. This moves one box, and it is this one.
+
+     TWO THINGS THIS USED TO GET WRONG, both because it fired on
+     `messages.length` and did nothing else with it.
+
+     ONE — "Load earlier messages" appeared to do nothing. `useMessages`
+     PREPENDS the older page, so the length grew, so this yanked the box back
+     to the newest message: the button loaded thirty messages and showed you
+     none of them. The fix is arithmetic, not a flag — everything above the
+     reader just got taller by `scrollHeight - h`, so add exactly that to
+     `scrollTop` and the message they were reading has not moved a pixel.
+
+     TWO — a reader who had scrolled up to read something was dragged to the
+     bottom by somebody else's incoming message. So the bottom is chased only
+     when the reader was already near it. */
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const was = seen.current;
+    const first = messages[0]?.id;
+    /* A PREPEND, and not merely a longer list. The message the reader was on
+       has to still BE here: opening a different conversation also arrives as
+       "longer, with a new first message", and anchoring to a scroll height
+       measured in another thread would land nowhere in this one. */
+    const prepended = messages.length > was.len && was.first !== undefined
+      && first !== was.first && messages.some((m) => m.id === was.first);
+    if (prepended) { el.scrollTop = was.top + (el.scrollHeight - was.h); return; }
+    /* A DIFFERENT THREAD ARRIVES AS "LONGER, WITH A NEW FIRST MESSAGE" TOO, and
+       the reader's position in the last one means nothing here. Land at the
+       bottom, immediately — a conversation opens at its newest message. */
+    const switched = was.first !== undefined && first !== was.first
+      && !messages.some((m) => m.id === was.first);
+    /* AND YOUR OWN MESSAGE ALWAYS WINS. "Only chase when the reader was near
+       the bottom" is right for somebody else's message and wrong for yours:
+       pressing Send while scrolled up used to append the message off-screen and
+       leave the thread exactly where it was, which reads as not having sent. */
+    const last = messages[messages.length - 1];
+    const mineArrived = messages.length > was.len && last?.senderId === currentUserId;
+    if (switched) { el.scrollTop = el.scrollHeight; return; }
+    if (!was.atBottom && !mineArrived) return;
+    chaseUntil.current = Date.now() + 600;
+    seen.current.atBottom = true;
     if (typeof el.scrollTo === 'function') el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
     else el.scrollTop = el.scrollHeight;
-  }, [messages.length, typing]);
+  }, [messages, typing, currentUserId]);
+
+  /* And the box as it now stands, recorded for the NEXT commit to compare
+     against. No dependency array on purpose: every render must leave this
+     accurate, because the effect above reads it as "where the reader was
+     before this happened". Declared after that effect so it runs after it. */
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    seen.current = {
+      len: messages.length,
+      first: messages[0]?.id,
+      top: el.scrollTop,
+      h: el.scrollHeight,
+      /* A smooth scroll started microseconds ago has not arrived, so the box
+         still measures as "not at the bottom" while it is on its way there —
+         and a second message landing mid-glide would be read as a reader who
+         had scrolled away. */
+      atBottom: el.scrollHeight - el.scrollTop - el.clientHeight < 120 || gliding(),
+    };
+  });
 
   /* Bring one message into view and mark it, briefly. `el.scrollIntoView`
      would ask every scrollable ancestor to move — which on a phone is the page
@@ -177,13 +271,21 @@ export function MessageThread({ messages, currentUserId, typing, peerName, peerP
      component takes a prop rather than owning a ref somebody outside reaches
      into. */
   useEffect(() => {
-    if (!jumpToId) return;
+    /* Cleared when the prop goes back to null, which is how the page asks for
+       the SAME message twice — tapping one search hit, scrolling off, tapping
+       it again. Without this, `jumped` was a one-way latch and the second tap
+       did nothing at all. */
+    if (!jumpToId) { jumped.current = null; return; }
+    if (jumped.current === jumpToId) return;
     const box0 = box.current;
     // `window.CSS`, not `CSS`: this module declares its own `const CSS` for the
     // style block a few lines up, which shadows the global and turns
     // CSS.escape into a property of a string. tsc caught it; nothing else would.
     const el = box0?.querySelector<HTMLElement>(`[data-mid="${window.CSS.escape(jumpToId)}"]`);
+    // Not loaded yet — `messages.length` stays in the deps so a page arriving
+    // later still honours the jump. `jumped` is only set once it is HONOURED.
     if (!box0 || !el) return;
+    jumped.current = jumpToId;
     box0.scrollTo({ top: Math.max(0, el.offsetTop - 48), behavior: 'smooth' });
     setFlashId(jumpToId);
     const t = window.setTimeout(() => setFlashId(null), 1600);
