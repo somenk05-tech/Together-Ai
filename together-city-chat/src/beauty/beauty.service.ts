@@ -11,7 +11,7 @@ import { beautyGender } from '../profile/sex-and-gender';
 import { clampBudget, planForWire, planWithinBudget, type StoredBudget } from './budget-routine';
 import { normaliseBag, parseBag, type BagLine } from './beauty-bag';
 import {
-  beautyInsights, recommendProducts, priceBeautyOrder, CONCERN_TAGS, BEAUTY_PRODUCTS,
+  beautyInsights, recommendProducts, priceBeautyOrder, everythingIn, CONCERN_TAGS, BEAUTY_PRODUCTS,
   type BeautyInsight,
 } from './beauty-engine';
 import { topicalExclusions } from '../shared/topical-sensitivities';
@@ -510,7 +510,7 @@ export class BeautyService {
     // on this since the substring test was replaced; it has never mentioned it,
     // and a citizen cannot tell our rule from our range. Counted over the same
     // catalogue the recommender read, with the same matcher.
-    const shelf = BEAUTY_PRODUCTS.map((p) => ({ name: p.name, ingredients: [...p.actives, p.keyIngredient] }));
+    const shelf = BEAUTY_PRODUCTS.map((p) => ({ name: p.name, ingredients: everythingIn(p) }));
     const cut = topicalExclusions(shelf, declared);
     // And the same courtesy for a condition. A pregnant citizen whose shelf is
     // seven products shorter is owed the sentence saying so — otherwise the one

@@ -113,7 +113,12 @@ export function stepsFor(attributes: LookAttributes): LookStep[] {
   return out;
 }
 
-export interface ShelfProduct { id: string; name: string; category: string; suitableSkin: string[]; actives: string[] }
+export interface ShelfProduct {
+  id: string; name: string; category: string; suitableSkin: string[]; actives: string[];
+  /** The printed ingredient list, when the shelf carries one — read by the
+   *  allergy guard alongside the actives (3 Sep). */
+  ingredients?: string[];
+}
 export interface ProductMatch { stepOrder: number; step: string; productId: string; name: string }
 
 /**
@@ -137,7 +142,7 @@ export function matchProducts(
     // of the ORDER of operations and false of the exclusion itself, which was
     // `haystack.includes(declaredTerm)` — a test that finds almond oil only for
     // somebody who wrote "almond".
-    if (!isTopicallySafe(p.name, p.actives, allergies)) return false;
+    if (!isTopicallySafe(p.name, [...p.actives, ...(p.ingredients ?? [])], allergies)) return false;
     if (skin && p.suitableSkin.length && !p.suitableSkin.includes('all') && !p.suitableSkin.includes(skin)) return false;
     return true;
   });

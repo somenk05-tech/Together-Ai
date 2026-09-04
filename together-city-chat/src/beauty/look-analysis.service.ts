@@ -3,7 +3,7 @@ import { PrismaService } from '../shared/prisma/prisma.service';
 import { StorageProvider } from '../media/storage.provider';
 import { swallowed } from '../shared/swallow';
 import { AiService } from '../ai/ai.service';
-import { BEAUTY_PRODUCTS } from './beauty-engine';
+import { BEAUTY_PRODUCTS, everythingIn } from './beauty-engine';
 import {
   matchProducts, normaliseAttributes, stepsFor, NEUTRAL_ATTRIBUTES,
   type LookAttributes, type ShelfProduct,
@@ -60,7 +60,7 @@ export class LookAnalysisService {
   private shelf(): ShelfProduct[] {
     return BEAUTY_PRODUCTS.map((p) => ({
       id: p.id, name: p.name, category: p.category,
-      suitableSkin: p.suitableSkin, actives: p.actives,
+      suitableSkin: p.suitableSkin, actives: p.actives, ingredients: p.ingredients,
     }));
   }
 
@@ -108,7 +108,7 @@ export class LookAnalysisService {
     // against it reads as "we don't stock one", not "we do, and it has almond
     // oil in it".
     const cut = topicalExclusions(
-      shelf.map((p) => ({ name: p.name, ingredients: p.actives })),
+      BEAUTY_PRODUCTS.map((p) => ({ name: p.name, ingredients: everythingIn(p) })),
       prefs.allergies ?? [],
     );
 
