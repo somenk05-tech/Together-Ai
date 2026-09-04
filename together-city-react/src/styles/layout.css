@@ -313,7 +313,7 @@
    900px (not 899px) so the header guard's first-899px-block regex is untouched;
    placed here with the footer's own rules -- the letter-surface guard forbids
    anything after .letter-page from touching site chrome, and it is right to. */
-@media (max-width: 900px) {
+@media (max-width: 899px) {
   .tc-footer nav { gap: 4px 18px; }
   .tc-footer nav a { display: inline-flex; align-items: center; min-height: 44px; }
   .tc-footer { font-size: 14px; }
@@ -385,7 +385,11 @@
   /* 5px, not 6: the burger is a 44px box and 44 + 12 was 56px of content in a
      54px bar — it bled 1px past each edge. 44 + 10 = 54, exactly. */
   .tc-header { flex-direction: row; align-items: center; gap: 6px; padding: calc(5px + var(--safe-top)) 12px 5px; }
-  .tc-header-top { flex: 1 1 auto; justify-content: flex-start; padding-left: 40px; min-height: 0; }
+  /* 48px, not 40: the burger above is a 44px box pinned to left: 0 of this
+     element, so 40px of padding put the signature's first stroke 4px INSIDE
+     the tap target — the white pill sat on the T on every phone. 44 clears
+     it, 48 clears it with a gap you can see. */
+  .tc-header-top { flex: 1 1 auto; justify-content: flex-start; padding-left: 48px; min-height: 0; }
   .tc-nav { display: none; }
   .tc-navrow { display: none; }
   /* A PHONE KEEPS ONE ROW, so the three stacked rows fold back into a line:
@@ -1046,7 +1050,7 @@
 .astro-frame > * { position: relative; z-index: 1; }
 .astro-frame > .astro-frame-title { font-size: clamp(24px, 2.8vw, 34px); font-weight: 700; letter-spacing: -.035em; color: var(--ink); }
 .astro-frame > .astro-frame-sub { font-size: var(--fs-4); color: var(--muted); margin-top: 6px; }
-@media (max-width: 900px) { .astro-frame { padding: 26px 20px; border-radius: var(--r-4); } }
+@media (max-width: 899px) { .astro-frame { padding: 26px 20px; border-radius: var(--r-4); } }
 
 .astro-frame-heading { font-size: clamp(22px, 2.4vw, 30px); font-weight: 700; letter-spacing: -.035em; margin-bottom: 14px; color: var(--ink); }
 .astro-frame-note { font-size: var(--fs-3); color: var(--faint); margin-top: 12px; }
@@ -1964,7 +1968,7 @@
   text-decoration: underline; min-height: 44px; display: inline-flex; align-items: center;
 }
 .gem-unlock:hover { color: var(--ink); }
-@media (max-width: 900px) {
+@media (max-width: 899px) {
   .gem-checkout { grid-template-columns: 1fr; gap: 18px; }
   /* Unstuck on a phone: a sticky summary on a short screen is a summary sitting
      on top of the list it summarises. */
@@ -3073,7 +3077,7 @@
 .mk-section { margin-bottom: 30px; }
 .mk-section-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 14px; }
 .mk-section-title { font-size: var(--fs-3); margin: 0; text-transform: uppercase; letter-spacing: .11em; }
-@media (max-width: 900px) {
+@media (max-width: 899px) {
   .mk-layout { grid-template-columns: 1fr; gap: 18px; }
   .mk-aside { position: static; flex-direction: row; flex-wrap: wrap; gap: 14px 22px; }
   .mk-group { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px; }

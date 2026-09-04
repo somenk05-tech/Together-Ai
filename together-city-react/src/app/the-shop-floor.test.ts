@@ -124,6 +124,8 @@ describe('the market is a collection page', () => {
   });
 
   it('folds the rail above the grid on a phone', () => {
-    expect(layout).toMatch(/@media \(max-width: 900px\) \{\s*\.mk-layout \{ grid-template-columns: 1fr;/);
+    // 899px, which is the phone breakpoint every other block in this file
+    // uses — the rule was written at 899 and this guard asked for 900.
+    expect(layout).toMatch(/@media \(max-width: 899px\) \{\s*\.mk-layout \{ grid-template-columns: 1fr;/);
   });
 });

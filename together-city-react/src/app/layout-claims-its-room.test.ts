@@ -33,6 +33,15 @@ const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
  * the same fact stated twice: whenever the sidebar is not on screen, the hub's
  * sections need somewhere else to be.
  */
+/* EVERY 899px BLOCK, NOT THE FIRST ONE (4 Sep). `.match()` returns the first
+   match, and layout.css has had several phone blocks since the shop floor
+   landed one for the footer above the header's — so these guards were reading
+   a block about `.tc-footer` and reporting that the header rules had gone. The
+   rules had not moved; the slice had. Joined, so a rule counts wherever in the
+   phone range it is written. */
+const phoneBlocks = (css: string) =>
+  (css.match(/@media \(max-width: 899px\) \{[\s\S]*?\n\}/g) ?? []).join('\n');
+
 describe('the layout uses the space it has', () => {
   const layout = read('styles/layout.css');
   const index = read('index.css');
@@ -49,7 +58,7 @@ describe('the layout uses the space it has', () => {
   });
 
   it('shrinks the header on a phone rather than keeping two desktop rows', () => {
-    const phone = layout.match(/@media \(max-width: 899px\) \{[\s\S]*?\n\}/)?.[0] ?? '';
+    const phone = phoneBlocks(layout);
     expect(phone, 'no 899px block in layout.css').toBeTruthy();
     expect(phone).toMatch(/--header-h:\s*\d+px/);
     // Everything that clears the header reads the token, so the token is the
@@ -58,7 +67,7 @@ describe('the layout uses the space it has', () => {
   });
 
   it('hides the hub tab row where the bottom bar and the burger both reach it', () => {
-    const phone = layout.match(/@media \(max-width: 899px\) \{[\s\S]*?\n\}/)?.[0] ?? '';
+    const phone = phoneBlocks(layout);
     expect(phone).toMatch(/\.tc-nav \{ display: none/);
   });
 
@@ -80,7 +89,7 @@ describe('the layout uses the space it has', () => {
    * real, it may no longer take away a door that nothing else gives back.
    */
   it('keeps every door the phone has no other way into', () => {
-    const phone = layout.match(/@media \(max-width: 899px\) \{[\s\S]*?\n\}/)?.[0] ?? '';
+    const phone = phoneBlocks(layout);
     for (const sel of ['a[href="/chats"]', 'a[href="/profile"]', 'a[href="/mail"]', 'button[aria-label="Notifications"]']) {
       expect(phone, `${sel} is hidden on a phone with nothing to replace it`).not.toContain(sel);
     }

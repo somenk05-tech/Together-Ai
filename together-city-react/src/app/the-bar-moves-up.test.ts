@@ -193,7 +193,9 @@ describe('Personal is one of those doors now', () => {
 });
 
 describe('and the phone keeps the doors it has nowhere else', () => {
-  const phone = read('styles/layout.css').match(/@media \(max-width: 899px\) \{[\s\S]*?\n\}/)?.[0] ?? '';
+  // Every phone block, not the first — see layout-claims-its-room.test.ts.
+  const phone = (read('styles/layout.css')
+    .match(/@media \(max-width: 899px\) \{[\s\S]*?\n\}/g) ?? []).join('\n');
 
   it('hides the now-empty second row rather than leaving it in the header', () => {
     expect(phone, 'no 899px block in layout.css').toBeTruthy();

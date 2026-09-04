@@ -233,6 +233,19 @@
      inline `rgba(255,255,255,.42)` the match-detail dots wrote by hand, given
      the name that lets everything on a photograph read it from one place. */
   --on-scrim-dim: rgba(255, 255, 255, .42);
+
+  /* Type set directly on a photograph, where the ground is whatever the
+     picture holds that day. The tight 2px edge carries the letterform and
+     the wider halo lifts it off a pale sky — a single soft blur vanished
+     against the top third of the city hero, which is where the city strip
+     sits. */
+  --on-image-shadow: 0 1px 2px rgba(0, 0, 0, .8), 0 0 10px rgba(0, 0, 0, .5);
+  /* The QUIET step of that same ink. The city strip sets the day, the date and
+     the weather a shade under the temperature so the row has a hierarchy, and
+     it wrote `rgba(255,255,255,.78)` by hand in CityHeader to do it.
+     `--on-scrim-dim` is the wrong step for this — .42 is a hairline's alpha and
+     type set at it disappears into a pale frame of the hero video. */
+  --on-image-soft: rgba(255, 255, 255, .78);
   /* The page's own white at zero alpha, for a fade INTO the page. A gradient
      that ends at `transparent` ends at transparent BLACK, and the ramp between
      white and it is a grey smear across whatever scrolls underneath. */

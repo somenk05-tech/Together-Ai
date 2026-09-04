@@ -55,7 +55,7 @@ export function CityHeader() {
   // of the three places in the application where type is not black, and all
   // three are type on an image.
   const ink = 'var(--on-accent)';
-  const soft = 'rgba(255,255,255,.78)';
+  const soft = 'var(--on-image-soft)';
 
   const dot = <span aria-hidden style={{ color: soft, opacity: 0.7 }}>·</span>;
 
@@ -65,16 +65,26 @@ export function CityHeader() {
 
   return (
     <div aria-label={`${data?.city ?? 'Your city'}, ${day} ${date}${hasWeather ? `, ${data.temperatureC} degrees` : ''}`}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', lineHeight: 1, textShadow: '0 1px 3px rgba(0,0,0,.55)' }}>
+      {/* IT WRAPS, BECAUSE THE ROW IS LONGER THAN A SMALL PHONE. `nowrap` on
+          the flex container could not wrap and the hero does not scroll, so on
+          a 320px screen the line ran 50px past the viewport and "feels 30°"
+          was clipped away with no way to reach it. The spans keep their own
+          nowrap; only the row is allowed to fold.
+          THE SHADOW IS TIGHTER AND DARKER for the same reason it exists at
+          all: a 3px blur at .55 disappears against the pale sky in the top
+          third of the hero, which is exactly where this strip sits. A 2px
+          edge carries the letterform and the wider halo lifts it off whatever
+          is behind it that day — the picture changes, the strip cannot. */}
+      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, rowGap: 2, lineHeight: 1.25, textShadow: 'var(--on-image-shadow)' }}>
         {data?.city && (
           <>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontWeight: 700, fontSize: 12.5, color: ink, letterSpacing: '-.01em' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontWeight: 700, fontSize: 12.5, color: ink, letterSpacing: '-.01em', whiteSpace: 'nowrap' }}>
               <span aria-hidden style={{ fontSize: 11 }}>📍</span>{data.city}
             </span>
             {dot}
           </>
         )}
-        <span style={{ fontSize: 11.5, color: soft, fontWeight: 600 }}>{day} {date}</span>
+        <span style={{ fontSize: 11.5, color: soft, fontWeight: 600, whiteSpace: 'nowrap' }}>{day} {date}</span>
         {hasWeather && (
           <>
             {dot}
@@ -82,7 +92,7 @@ export function CityHeader() {
             <span style={{ fontSize: 12.5, fontWeight: 700, color: ink }}>{data.temperatureC}°C</span>
             {data.description && <span style={{ fontSize: 11, color: soft }}>{data.description}</span>}
             {data.feelsLikeC != null && data.feelsLikeC !== data.temperatureC && (
-              <>{dot}<span style={{ fontSize: 11, color: soft }}>feels {data.feelsLikeC}°</span></>
+              <>{dot}<span style={{ fontSize: 11, color: soft, whiteSpace: 'nowrap' }}>feels {data.feelsLikeC}°</span></>
             )}
           </>
         )}
