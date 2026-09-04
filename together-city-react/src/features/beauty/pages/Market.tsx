@@ -5,7 +5,7 @@ import { useBagActions, useBeautyProducts, useBeautyRoutine, type RecommendedPro
 import { BeautyBagBar } from '../components/BeautyBagBar';
 import { ShareToChat } from '@/features/chat/share';
 import { ProductShot } from '../components/ProductShot';
-import { IngredientChips, IngredientList } from '../components/Ingredients';
+import { IngredientChips } from '../components/Ingredients';
 
 /**
  * The whole shelf, laid out as a shop.
@@ -108,14 +108,6 @@ function Tile(
           <div className="muted st-dossier-meta">
             <strong>{p.actives.slice(0, 3).join(' · ')}</strong>
             {' '}· {p.usage.toLowerCase()}{!p.suitableSkin.includes('all') ? ` · for ${p.suitableSkin.join('/')} skin` : ''}
-          </div>
-          {/* The same list the routine card folds, inside the tile's one
-              Details panel — a tile is compared, not read, and a second
-              disclosure on it would be a second thing to open before the
-              first has said anything. */}
-          <div>
-            <div className="ingredient-head">Ingredients</div>
-            <IngredientList ingredients={p.ingredients} source={p.ingredientsSource} />
           </div>
           {p.primaryReasons.length > 0 && (
             <div className="st-dossier-chips">

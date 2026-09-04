@@ -8,7 +8,7 @@ import {
 import { BeautyBagBar } from '../components/BeautyBagBar';
 import { NextOrder } from '../components/NextOrder';
 import { ProductShot } from '../components/ProductShot';
-import { IngredientChips, IngredientList, ingredientMeta } from '../components/Ingredients';
+import { IngredientChips } from '../components/Ingredients';
 
 /**
  * The routine, as a thing you could print and pin up.
@@ -210,12 +210,6 @@ function Step({ s, pick, qty, alreadyIn, onAdd, onRemove }: {
               </p>
             </>
           )}
-        </Fold>
-
-        <Fold face="routine-why" panel="routine-why-open"
-          title="Ingredients"
-          meta={ingredientMeta(s.ingredients, s.ingredientsSource)}>
-          <IngredientList ingredients={s.ingredients} source={s.ingredientsSource} />
         </Fold>
 
         {/* The one alarm this hub allows itself, and never behind a fold. */}

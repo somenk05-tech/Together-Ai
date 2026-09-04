@@ -2109,12 +2109,6 @@
    quantity, most first — and a sheet list keeps the sheet's order. The note
    under it is set small and muted but never hidden: it is the sentence that
    says whether this is the whole label. */
-.ingredient-head { font-size: 10.5px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
-.ingredient-list { margin: 0; padding: 0 0 0 18px; display: flex; flex-direction: column; gap: 3px; }
-.ingredient-list li { font-size: var(--fs-3); line-height: 1.5; color: var(--ink-soft); padding-left: 2px; }
-.ingredient-list li::marker { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
-.ingredient-note { font-size: var(--fs-2); line-height: 1.5; margin: 6px 0 0; }
-.ingredient-none { font-size: var(--fs-3); line-height: 1.5; margin: 0; }
 
 /* ── ADD THE WHOLE ROUTINE ──────────────────────────────────────────────────
    One control, rendered twice: inside the summary card that prices the routine

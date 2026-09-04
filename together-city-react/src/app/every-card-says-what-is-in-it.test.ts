@@ -19,32 +19,29 @@ const code = (p: string) => read(p).replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^
  * comes from the server's `ingredientsSource` rather than from the length of
  * the list.
  */
-describe('the ingredients tab', () => {
+describe('the ingredients on every card', () => {
   const list = code('features/beauty/components/Ingredients.tsx');
   const routine = code('features/beauty/pages/Routine.tsx');
   const market = code('features/beauty/pages/Market.tsx');
 
   it('is one component, and both the routine card and the market tile print it', () => {
-    expect(routine).toMatch(/<IngredientList\b/);
-    expect(market).toMatch(/<IngredientList\b/);
-    // Neither surface prints `ingredients` on its own, which is how a second
-    // rendering with no caveat would begin.
+    expect(routine).toMatch(/<IngredientChips\b/);
+    expect(market).toMatch(/<IngredientChips\b/);
+    // Neither surface prints `ingredients` on its own.
     expect(routine).not.toMatch(/\.ingredients\.map\(/);
     expect(market).not.toMatch(/\.ingredients\.map\(/);
   });
 
-  it('says whether the list is the sheet\'s key ingredients or the pack\'s full label', () => {
-    expect(list).toMatch(/source === 'label'/);
-    expect(list).toMatch(/not the full label/i);
-    expect(list).toMatch(/as printed on the pack/i);
+  it('has no tab any more — chips on the face, and nothing that opens on "none on file" (owner, 4 Sep)', () => {
+    expect(routine).not.toMatch(/title="Ingredients"/);
+    expect(market).not.toMatch(/IngredientList/);
+    expect(list).not.toMatch(/No ingredient list on file/);
+    expect(list).not.toMatch(/export function IngredientList/);
   });
 
-  it('shows the tab even when there is nothing in it, and says so', () => {
-    expect(list).toMatch(/No ingredient list on file/);
-  });
-
-  it('is a fold on the routine card, using the city\'s one disclosure', () => {
-    expect(routine).toMatch(/<Fold[^>]*\n?\s*title="Ingredients"/);
+  it('shows nothing rather than a chip when the list is missing or empty', () => {
+    expect(list).toMatch(/if \(!ingredients\.length\) return null;/);
+    expect(list).toMatch(/const listOf = /);
   });
 
   it('is carried on the wire for both the routine step and the recommended product', () => {
