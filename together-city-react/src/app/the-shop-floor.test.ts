@@ -47,6 +47,15 @@ describe('one product, one card, on both floors', () => {
     expect(market).not.toMatch(/\.ingredients\.map\(/);
   });
 
+  it('survives a server that has not sent the ingredient list yet', () => {
+    // The two rails deploy separately (4 Sep, live: "undefined is not an
+    // object (evaluating 'n.length')" over the whole routine page).
+    const list = code('features/beauty/components/Ingredients.tsx');
+    expect(list).toMatch(/const listOf = \(v: string\[\] \| undefined \| null\): string\[\] => \(Array\.isArray\(v\) \? v : \[\]\)/);
+    expect(list).toMatch(/ingredients\?: string\[\] \| null/);
+    expect(list).toMatch(/source = 'sheet'/);
+  });
+
   it('names every stepper button for a screen reader', () => {
     for (const src of [routine, market, bar]) {
       expect(src).toMatch(/aria-label=\{`One fewer \$\{/);

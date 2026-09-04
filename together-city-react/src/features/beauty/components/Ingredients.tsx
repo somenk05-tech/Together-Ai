@@ -20,11 +20,21 @@
  * looks like a card that forgot, and a citizen cannot tell that from a card
  * that has nothing to say.
  */
-export function IngredientList({ ingredients, source, className }: {
-  ingredients: string[];
-  source: 'sheet' | 'label';
+/**
+ * `?? []` AND `?? 'sheet'` BECAUSE THE TWO RAILS DEPLOY SEPARATELY. The
+ * ingredient list arrives with the Railway release; between that and the
+ * Vercel one this component reads a step that does not have it, and
+ * `.length` on undefined was a white screen over the whole routine page
+ * (4 Sep, live). A missing list is "none on file", not a crash.
+ */
+const listOf = (v: string[] | undefined | null): string[] => (Array.isArray(v) ? v : []);
+
+export function IngredientList({ ingredients: raw, source = 'sheet', className }: {
+  ingredients?: string[] | null;
+  source?: 'sheet' | 'label';
   className?: string;
 }) {
+  const ingredients = listOf(raw);
   const note = source === 'label'
     ? 'Full list, as printed on the pack.'
     : 'Key ingredients from the data sheet — not the full label. Check the pack if you are avoiding something.';
@@ -43,7 +53,8 @@ export function IngredientList({ ingredients, source, className }: {
 }
 
 /** The word on the closed fold: what is inside, not how much. */
-export function ingredientMeta(ingredients: string[], source: 'sheet' | 'label'): string {
+export function ingredientMeta(raw: string[] | undefined | null, source: 'sheet' | 'label' = 'sheet'): string {
+  const ingredients = listOf(raw);
   if (!ingredients.length) return 'none on file';
   if (source === 'label') return `full label · ${ingredients.length}`;
   return ingredients.length === 1 ? ingredients[0] : `${ingredients.length} key ingredients`;
@@ -57,7 +68,8 @@ export function ingredientMeta(ingredients: string[], source: 'sheet' | 'label')
  * whole list with the sentence about where it came from. Same array, so a
  * chip can never name something the list does not.
  */
-export function IngredientChips({ ingredients, max = 4 }: { ingredients: string[]; max?: number }) {
+export function IngredientChips({ ingredients: raw, max = 4 }: { ingredients?: string[] | null; max?: number }) {
+  const ingredients = listOf(raw);
   if (!ingredients.length) return null;
   const shown = ingredients.slice(0, max);
   const more = ingredients.length - shown.length;
