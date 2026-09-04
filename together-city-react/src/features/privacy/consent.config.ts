@@ -23,7 +23,7 @@ export interface HubConsent {
 
 export const SENSITIVE_HUBS: Record<string, HubConsent> = {
   medical: {
-    hub: 'medical', label: 'Medical Hub', icon: 'heart',
+    hub: 'medical', label: 'Medical', icon: 'heart',
     inline: 'Your health records are private and only used to personalize your health insights.',
     promise: 'Your blood tests and health records remain private and are only used to personalize your health insights.',
     what: 'Blood tests, health records, documents and any biomarkers you add or upload.',
@@ -32,7 +32,7 @@ export const SENSITIVE_HUBS: Record<string, HubConsent> = {
     control: 'Manage or revoke every permission in Medical → Privacy & Consent, and delete records any time from Health Records.',
   },
   dating: {
-    hub: 'dating', label: 'Matchmaking Hub', icon: 'heart',
+    hub: 'dating', label: 'Matchmaking', icon: 'heart',
     inline: 'Family and friends never see this — only compatible matches you choose do.',
     promise: 'Only information you choose to make public will be visible to potential matches.',
     what: 'Your matchmaking profile, preferences, interests and the birth details used for compatibility.',
@@ -41,7 +41,7 @@ export const SENSITIVE_HUBS: Record<string, HubConsent> = {
     control: 'Edit visibility any time on your Matchmaking Profile, hide your profile, or remove it entirely.',
   },
   financial: {
-    hub: 'financial', label: 'Financial District', icon: 'product',
+    hub: 'financial', label: 'Financial', icon: 'product',
     inline: 'Your financial information is encrypted and never shared without your permission.',
     promise: 'Financial data is encrypted and never shared without your permission.',
     what: 'Your wallet balance, spending, budgets and transactions across the city.',
@@ -59,7 +59,7 @@ export const SENSITIVE_HUBS: Record<string, HubConsent> = {
     control: 'Adjust roles and permissions any time in Family → Connect Members, and remove a member to end their access.',
   },
   astrology: {
-    hub: 'astrology', label: 'Astrology Zone', icon: 'sparkles',
+    hub: 'astrology', label: 'Astrology', icon: 'sparkles',
     inline: 'Your birth details are used only to generate your personalized guidance and remain private.',
     promise: 'Your birth details are used only to generate personalized guidance.',
     what: 'Your date, time and place of birth, stored once in your Master Profile.',

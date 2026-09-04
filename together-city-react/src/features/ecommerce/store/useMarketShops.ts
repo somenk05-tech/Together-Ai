@@ -88,7 +88,7 @@ export function useBeautyMarketShop(): Shop {
     back: { path: '/ecommerce/market', label: 'Open Market' },
     title: 'Skin & Hair',
     line: 'Every product on the Beauty shelf, nothing ranked. What matched your profile is marked; the rest is simply here.',
-    hubName: 'Beauty Market',
+    hubName: 'Beauty',
     hubPath: '/beauty',
 
     items,
@@ -97,7 +97,7 @@ export function useBeautyMarketShop(): Shop {
     isLoading: products.isLoading || bagged.isLoading,
     isError: products.isError,
     emptyTitle: 'The shelf is empty',
-    emptyHint: 'Nothing is listed in the Beauty Market at the moment.',
+    emptyHint: 'Nothing is listed in Beauty at the moment.',
     /* THE SHELF'S OWN NOTICES, and they are the reason this line exists: the
        sensitivity rule and a health condition can each take products OFF this
        shelf, and a shorter shelf with no explanation reads as a smaller shop. */
@@ -249,7 +249,7 @@ export function usePetMarketShop(): Shop {
     /* NO ADD BUTTON: the pet cart lives in the browser and has no order
        endpoint behind it, so the tile opens the product's own page in Pet Care
        where the cart it belongs to actually is. */
-    design: { label: 'Open in Pet Care', path: `/pets/shop/${p.id}` },
+    design: { label: 'Open in Pets', path: `/pets/shop/${p.id}` },
   })), [catalogue.data]);
 
   return {
@@ -257,8 +257,8 @@ export function usePetMarketShop(): Shop {
     screens: { shelf: AISLES.pets.shelf.path, bag: AISLES.pets.shelf.path },
     back: { path: '/ecommerce/market', label: 'Open Market' },
     title: 'Pet shop',
-    line: 'The whole pet catalogue — food, treats, litter, walking, grooming and the rest, exactly as Pet Care lists it.',
-    hubName: 'Pet Care',
+    line: 'The whole pet catalogue — food, treats, litter, walking, grooming and the rest, exactly as Pets lists it.',
+    hubName: 'Pets',
     hubPath: '/pets',
 
     items,
@@ -272,10 +272,10 @@ export function usePetMarketShop(): Shop {
     isLoading: catalogue.loading,
     isError: Boolean(catalogue.error),
     emptyTitle: 'The catalogue is empty',
-    emptyHint: 'Nothing is listed in Pet Care at the moment.',
+    emptyHint: 'Nothing is listed in Pets at the moment.',
     /* NO TILL, SAID OUT LOUD. The bag being null is what hides the Bag link and
        the checkout bar; this sentence is what explains the absence. */
-    blocked: 'This aisle is for looking — every tile opens the product in Pet Care, where the basket lives.',
+    blocked: 'This aisle is for looking — every tile opens the product in Pets, where the basket lives.',
 
     bag: null,
     isSaving: false,

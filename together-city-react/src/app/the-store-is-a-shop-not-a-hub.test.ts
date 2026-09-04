@@ -314,7 +314,7 @@ describe('The Open Market aisles show the whole shelf', () => {
   it('gives the pet aisle no till, because there is none behind it', () => {
     // The pet cart lives in the browser with no order endpoint. A shop that
     // takes an order it cannot place is worse than a shelf that says so.
-    expect(market).toMatch(/design: \{ label: 'Open in Pet Care'/);
+    expect(market).toMatch(/design: \{ label: 'Open in Pets'/);
     expect(market).toMatch(/blocked: 'This aisle is for looking/);
   });
 

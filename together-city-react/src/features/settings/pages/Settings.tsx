@@ -7,6 +7,7 @@ import { authApi, type SessionInfo } from '@/api/auth.api';
 import { http } from '@/api/client';
 import { useMyProfile } from '@/features/social/myProfile.api';
 import { DeleteAccountCard } from '../components/DeleteAccountCard';
+import { ChangePasswordCard } from '../components/ChangePasswordCard';
 import { SkinPicker } from '../components/SkinPicker';
 
 
@@ -145,7 +146,7 @@ export function Settings() {
         </p>
         <Row title="Nutrition" desc="Blood reports adjust meal plans & supplement dosage" right={<Link to="/medical/consent" className="tag">Manage</Link>} />
         <Row title="Family" desc="Share conditions with linked family TC-IDs" right={<Link to="/medical/consent" className="tag">Manage</Link>} />
-        <Row title="Beauty Market" desc="Skin conditions inform personalised beauty recommendations" right={<Link to="/medical/consent" className="tag">Manage</Link>} />
+        <Row title="Beauty" desc="Skin conditions inform personalised beauty recommendations" right={<Link to="/medical/consent" className="tag">Manage</Link>} />
         <Row title="Social Life" desc="Only consent-scoped shares (e.g. sharing a blood report)" right={<Link to="/medical/consent" className="tag">Manage</Link>} />
       </Card>
 
@@ -205,6 +206,9 @@ export function Settings() {
       {/* Devices — real, backend-driven session manager */}
       <DevicesCard />
 
+      {/* The password, changed while signed in (4 Sep) */}
+      <ChangePasswordCard />
+
       {/* Safety */}
       <Card style={{ marginTop: 18 }}>
         <SectionTitle eyebrow="Safety" title="People you have blocked" />
@@ -233,7 +237,7 @@ export function Settings() {
         <Row title="Export data" desc="Everything the city holds about you, as one JSON file"
           right={<button type="button" className="tag" disabled={exporting} onClick={() => void downloadData()}
             style={{ cursor: exporting ? 'wait' : 'pointer', fontFamily: 'inherit', border: 'none' }}>{exporting ? 'Building…' : 'Download'}</button>} />
-        <Row title="Security & 2FA" desc="Password, biometrics, two-factor" right={<span className="tag">Coming soon</span>} />
+        <Row title="Two-factor sign-in" desc="Biometrics and a second factor" right={<span className="tag">Not yet open</span>} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 0', borderTop: '1px solid var(--line)' }}>
           <div>
             <div style={{ fontWeight: 600, fontSize: 14 }}>Account</div>

@@ -351,7 +351,7 @@ function MemberCard({ m, onEdit, onRemove }: { m: FamilyMemberProfile; onEdit: (
           No targets for {m.name.split(' ')[0]} yet — {m.bodyUnknown.fields.join(', ').toLowerCase()} still to add.
           <span className="muted">
             {' '}Portions come from a body, and we would rather ask than use somebody else&rsquo;s.
-            {m.userId !== null && !m.isSelf ? ` ${m.name.split(' ')[0]} adds this in their own Nutrition Hub.` : ''}
+            {m.userId !== null && !m.isSelf ? ` ${m.name.split(' ')[0]} adds this in their own Nutrition hub.` : ''}
           </span>
         </div>
       ) : (
@@ -402,7 +402,7 @@ export function FamilyConnect() {
     <div>
       <PageHeader eyebrow="Family Nutrition · 01"
         title="Household Members"
-        sub="Invite the people you cook for by their Together City ID — they accept, and their own diet, goals and health conditions shape the shared family plan. Private to the Nutrition Hub; never a social connection." />
+        sub="Invite the people you cook for by their Together City ID — they accept, and their own diet, goals and health conditions shape the shared family plan. Private to Nutrition; never a social connection." />
 
       <div style={{ maxWidth: 820, margin: '0 auto' }}>
         <InvitesInbox />

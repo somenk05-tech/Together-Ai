@@ -1,0 +1,6 @@
+{
+  "comment": "Media-query width drift in together-city-react. `overlaps` and `collisions` are defects and stay at 0. `boundaries` is the debt: the app needs four — 560 · 900 · 1180 · 1500 — and this number comes down as blocks are merged onto them. See scripts/breakpoint-ceiling.mjs. Never raise them.",
+  "boundaries": 25,
+  "overlaps": 0,
+  "collisions": 0
+}

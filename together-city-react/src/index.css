@@ -125,7 +125,7 @@ img { max-width: 100%; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .grid3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; }
 .grid4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
-@media (max-width:1000px) { .grid3 { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 999px) { .grid3 { grid-template-columns: 1fr 1fr; } }
 @media (max-width:680px) { .grid2, .grid3, .grid4 { grid-template-columns: 1fr; } }
 
 /* photo card — the signature hub tile */
@@ -165,7 +165,7 @@ section.blk { margin: 0 0 40px; }
 /* City map (hero video + clickable building zones) now shows on mobile too. */
 
 .cityfallback { display: none; }
-@media (max-width:900px) {
+@media (max-width: 899px) {
   /* SIX ACROSS, TWO DOWN, at the foot of the page. Twelve doors at a glance
      for the reader who reached the end — the two-column version of this grid
      used to OPEN the page instead, which put the whole city in front of
@@ -1717,7 +1717,7 @@ html.tc-immersive .csdock { margin-bottom: calc(var(--safe-bottom) + 12px); }
    the signature appears on exactly one slide and that slide is paper. */
 .dk-mark { display: block; width: 100%; max-width: 520px; margin-left: auto; align-self: center; mix-blend-mode: multiply; }
 
-@media (max-width: 900px) {
+@media (max-width: 899px) {
   .dk-two, .dk-three { grid-template-columns: 1fr; }
   .dk-tags, .dk-steps { grid-template-columns: repeat(2, 1fr); }
   .dk-tags.two, .dk-tags.three { grid-template-columns: 1fr; }

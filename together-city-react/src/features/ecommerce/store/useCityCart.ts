@@ -95,7 +95,7 @@ export function useCityCart(): CityCart {
     sections.push({
       key: 'beauty',
       title: 'Beauty',
-      hubName: 'Beauty Market',
+      hubName: 'Beauty',
       shelfPath: SHOPS.beauty.shelf.path,
       lines: bBag.lines,
       count: bBag.count,
@@ -148,7 +148,7 @@ export function useCityCart(): CityCart {
     sections.push({
       key: 'gemstones',
       title: 'Gemstones',
-      hubName: 'Astrology Zone',
+      hubName: 'Astrology',
       shelfPath: SHOPS.gemstones.shelf.path,
       lines: gLines,
       count: gemCart.data?.count ?? gLines.length,

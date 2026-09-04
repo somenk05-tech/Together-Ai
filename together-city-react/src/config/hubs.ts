@@ -134,7 +134,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
     ],
   },
   travel: {
-    key: 'travel', name: 'Travel Hub', tag: 'Explore. Dream. Discover. Together.', backPath: '/travel',
+    key: 'travel', name: 'Travel', tag: 'Explore, dream, discover — together', backPath: '/travel',
     items: [
       { path: '/travel/explore', index: '01', label: 'Explore Trips', sub: 'Curated packages' },
       { path: '/travel/flights', index: '02', label: 'Flights', sub: 'Compare fares & book' },
@@ -144,7 +144,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
     ],
   },
   astrology: {
-    key: 'astrology', name: 'Astrology Zone', tag: 'Read the stars, together', backPath: '/astrology', dark: true, skies: true,
+    key: 'astrology', name: 'Astrology', tag: 'Read the stars, together', backPath: '/astrology', dark: true, skies: true,
     items: [
       // These two lead to letters, and a letter may not name what produced it.
       // A menu entry sitting four inches away that says "from your chart" gives
@@ -172,7 +172,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
     ],
   },
   nutrition: {
-    key: 'nutrition', name: 'Nutrition Hub', tag: 'Eat healthy, live better', backPath: '/nutrition',
+    key: 'nutrition', name: 'Nutrition', tag: 'Eat healthy, live better', backPath: '/nutrition',
     items: [
       // Seven destinations were removed by the review (p14, p26) and two were
       // renamed. The removed paths still resolve — see REMOVED_ROUTES — they
@@ -225,8 +225,11 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // stays, reached from the feed's + Create and its composer — a verb
       // does not need a room in the list of places.
       { path: '/social/feed', index: '01', label: 'City Feed', sub: 'Moments from around you' },
-      { path: '/social/profile', index: '02', label: 'My Profile', sub: 'Story, stats & Post & Earn' },
-      { path: '/social/saved', index: '03', label: 'Saved', sub: 'Bookmarked posts & places' },
+      // "Post & Earn" and "places" left these two lines (owner, 4 Sep): the
+      // rail promises only what exists. The programme is still reachable from
+      // the profile chip, labelled not open; places are a caption on a post.
+      { path: '/social/profile', index: '02', label: 'My Profile', sub: 'Story, stats & posts' },
+      { path: '/social/saved', index: '03', label: 'Saved', sub: 'Bookmarked posts' },
       // Thoughts was here because it was "built, tested, and listed nowhere" —
       // a journal boarding in the social hub for want of anywhere else. It has
       // a home of its own now (Personal), and a private journal listed inside
@@ -234,7 +237,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
     ],
   },
   dating: {
-    key: 'dating', name: 'Matchmaking Hub', tag: 'Curated, not endless', backPath: '/matchmaking', dark: true,
+    key: 'dating', name: 'Matchmaking', tag: 'Curated, not endless', backPath: '/matchmaking', dark: true,
     items: [
       { path: '/matchmaking/profile', index: '01', label: 'My Matchmaking Profile', sub: 'Birth details & interests' },
       // THE RAIL IS THE JOURNEY, so it runs in the order the journey does:
@@ -294,7 +297,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
     ],
   },
   beauty: {
-    key: 'beauty', name: 'Beauty Market', tag: 'Science-led, personally curated', backPath: '/beauty',
+    key: 'beauty', name: 'Beauty', tag: 'Science-led, personally curated', backPath: '/beauty',
     items: [
       { path: '/beauty/profile', index: '01', label: 'Skin & Hair Profile', sub: 'Photos, AI assessment & goals' },
       // THE BUDGET IS NOT A TAB. It had one for an afternoon and it was a
@@ -323,7 +326,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
     ],
   },
   medical: {
-    key: 'medical', name: 'Medical Hub', tag: 'Your health, one secure place', backPath: '/medical',
+    key: 'medical', name: 'Medical', tag: 'Your health, one secure place', backPath: '/medical',
     items: [
       { path: '/medical/blood', index: '01', label: 'Blood Test Analysis', sub: 'Cited, trend-aware panel' },
       { path: '/medical/tests', index: '02', label: 'Order Blood Tests', sub: 'Not yet — upload a report today' },
@@ -349,7 +352,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
     ],
   },
   jobs: {
-    key: 'jobs', name: 'Jobs Hub', tag: 'Upload once. We do the rest.', backPath: '/jobs',
+    key: 'jobs', name: 'Jobs', tag: 'Upload once, we do the rest', backPath: '/jobs',
     items: [
       { path: '/jobs/profile', index: '01', label: 'Resume & Profile', sub: 'Upload once, we parse it' },
       { path: '/jobs/matches', index: '02', label: 'Jobs for you', sub: 'Ranked by fit' },
@@ -359,7 +362,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
     ],
   },
   fitness: {
-    key: 'fitness', name: 'Fitness', tag: 'Move. Recover. Fuel.', backPath: '/fitness',
+    key: 'fitness', name: 'Fitness', tag: 'Move, recover, fuel', backPath: '/fitness',
     items: [
       { path: '/fitness/profile', index: '01', label: 'Training Profile', sub: 'Age, level, style & body goal' },
       { path: '/fitness/body-goal', index: '02', label: 'Body Goal', sub: 'Diet + workout + health, integrated' },
@@ -424,7 +427,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
     ],
   },
   financial: {
-    key: 'financial', name: 'Financial District', tag: 'One city wallet, live today', backPath: '/financial',
+    key: 'financial', name: 'Financial', tag: 'One city wallet, live today', backPath: '/financial',
     items: [
       { path: '/financial/wallet', index: '01', label: 'City Wallet', sub: 'Balance & top-up' },
       { path: '/financial/spending', index: '02', label: 'Spending', sub: 'Where your money goes' },
@@ -446,7 +449,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
      "Explore Pet Care" — see DISTRICT_COPY in Home.tsx, which is the only map
      that override touches. */
   pets: {
-    key: 'pets', name: 'Pet Care', tag: 'Everything your pet needs, in one place', backPath: '/pets',
+    key: 'pets', name: 'Pets', tag: 'Everything your pet needs, in one place', backPath: '/pets',
     /* The sixteen rooms live with the feature that owns them, so adding a room
        is one edit there rather than two — one here and one in the router. */
     items: PETS_SIDEBAR,

@@ -278,7 +278,7 @@ export function Medicines() {
 
   return (
     <div>
-      <div className="eyebrow">Medical Hub · Medicines</div>
+      <div className="eyebrow">Medical · Medicines</div>
       <h1 style={{ fontSize: 26 }}>Medicines & reminders</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px' }}>
         {/* WHERE THE REMINDER ARRIVES IS PART OF THE PROMISE.

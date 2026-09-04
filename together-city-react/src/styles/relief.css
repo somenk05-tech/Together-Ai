@@ -2230,7 +2230,7 @@ textarea.g-field { resize: none; line-height: 1.55; }
 .press-under .press-aside { position: static; }
 .press-under .press-aside section { margin-bottom: 0; }
 
-@media (max-width: 900px) {
+@media (max-width: 899px) {
   .press-verso { grid-template-columns: minmax(0, 1fr); row-gap: 30px; }
   .press-two-up, .press-under { grid-template-columns: minmax(0, 1fr); }
   .press-two-up > div + div { border-left: 0; border-top: 1px solid var(--press-recto-rule); }
@@ -2321,7 +2321,7 @@ textarea.g-field { resize: none; line-height: 1.55; }
   /* Tiles top-align rather than stretch: a text card is shorter than a poster
      and stretching it would put a card-shaped hole under every caption. */
   align-items: start; }
-@media (max-width: 900px) { .wall { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 899px) { .wall { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .wall { grid-template-columns: minmax(0, 1fr); } }
 
 /* The rails above and below the wall. Small, letterspaced, and each side says
@@ -2338,11 +2338,6 @@ textarea.g-field { resize: none; line-height: 1.55; }
   padding: 0 2px; min-height: 44px; cursor: pointer; }
 .wall-more:disabled { color: var(--muted); cursor: default; }
 .wall-more:not(:disabled):hover { color: var(--ink); }
-
-/* An opened poster takes the whole width and pushes the wall down, rather than
-   floating over it in a lightbox: the moment stays in the place you found it,
-   and closing it puts you back exactly there without a scroll restore. */
-.wall-open { grid-column: 1 / -1; }
 
 /* `content-visibility: auto` here for the same reason `.sl-post` carries it:
    the desktop wall paints a grid of these, each holding a full-size
@@ -2730,7 +2725,7 @@ textarea.g-field { resize: none; line-height: 1.55; }
   border-top: 1px solid var(--press-ink); text-align: center; font-family: var(--press-serif);
   font-style: italic; font-size: var(--fs-6); line-height: 1.6; color: var(--press-ink-3); }
 
-@media (max-width: 900px) {
+@media (max-width: 899px) {
   /* One column, and the rule that separated them becomes the rule above the
      second — otherwise the ingredients list hangs off a border on its left
      with nothing on the other side of it. */
@@ -3019,6 +3014,10 @@ textarea.g-field { resize: none; line-height: 1.55; }
    a claim — and present by requirement: this is the screen the number is read
    on first, and it used to carry the figure with nothing beside it. */
 .pm-cov { margin: 3px 0 0; font-size: var(--fs-2); font-weight: 500; opacity: .8; }
+/* The strongest reason — or the first friction when the number is low — under
+   the number it explains. On the card, because the card is where the number is
+   decided on (owner rule, 4 Sep). */
+.pm-why { margin: 4px 0 0; font-size: var(--fs-3); font-weight: 500; opacity: .92; }
 .pm-acts {
   position: absolute; left: 16px; right: 16px; bottom: 16px; z-index: 4;
   display: flex; gap: 10px; align-items: center;
@@ -3344,7 +3343,7 @@ textarea.g-field { resize: none; line-height: 1.55; }
   transition: color var(--dur-fast) var(--ease);
 }
 .enav a.on, .enav button.on { color: var(--ink); }
-@media (max-width: 900px) {
+@media (max-width: 899px) {
   .emast { grid-template-columns: 1fr; gap: 14px; }
   .enav { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 14px; }
   .eplate { min-height: 0; }

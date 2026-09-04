@@ -174,7 +174,7 @@ export function useGemCounterShop(): Shop {
     back: { path: '/ecommerce/market', label: 'Open Market' },
     title: 'Gemstones',
     line: 'Every stone the city sells, at the weight you choose. Nothing here is read off a chart — move the carats and the price moves with them.',
-    hubName: 'Astrology Zone',
+    hubName: 'Astrology',
     hubPath: '/astrology',
 
     items,
@@ -190,7 +190,7 @@ export function useGemCounterShop(): Shop {
        better be clear which one somebody is looking at. */
     note: [
       catalog.data?.disclaimer,
-      'Sold loose and unset — the Astrology Zone studio handles mounting. Nothing here is a recommendation: the stones your own chart calls for are in the Personalized Store.',
+      'Sold loose and unset — the Astrology studio handles mounting. Nothing here is a recommendation: the stones your own chart calls for are in the Personalized Store.',
     ].filter(Boolean).join(' '),
 
     bag: cart.data ? {

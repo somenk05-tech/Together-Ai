@@ -87,7 +87,7 @@ export function useBeautyShop(): Shop {
     title: shelfName('beauty', '/beauty/routine'),
     line: 'The products your routine chose, and only those. Prices are the shelf’s own — nothing is charged until you pay.',
     from: { label: 'Skin & Hair Profile', path: '/beauty/profile' },
-    hubName: 'Beauty Market',
+    hubName: 'Beauty',
     hubPath: '/beauty',
 
     items,
