@@ -154,7 +154,7 @@ export function Investor() {
       <section className="dk-slide">
         <Label n="003" />
         <div className="dk-body">
-          <h2 className="dk-h2">A personalized engine for every aspect of your life</h2>
+          <h2 className="dk-h2">The world's Largest Digital City, personalized for you, powered by your trusted local vendors</h2>
           <p className="dk-lede">Set your preferences once. Every hub narrows the world down to what fits you — instead of what pays the most for shelf space.</p>
           <div className="dk-three">
             <div><div className="dk-cap">Once</div><p className="dk-note">One profile, one set of preferences</p></div>
