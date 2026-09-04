@@ -23,6 +23,10 @@ export interface RoutineStep {
   brand: string;
   category: string;
   keyIngredient: string;
+  /** What is in it, and whether that is the sheet's key list or the pack's
+   *  full label. See BeautyProduct.ingredients. */
+  ingredients: string[];
+  ingredientsSource: 'sheet' | 'label';
   priceInr: number;
   /** Two hotlinked photographs and the page it is sold on. Any of them may be
    *  empty, and the images may simply fail — the step renders without them. */
@@ -354,6 +358,7 @@ export function buildRoutines(products: RecommendedProduct[], owned: readonly Ow
         // describes one is the empty value for its type and the page keys off
         // `owned` rather than off a magic id it would have to know about.
         productId: '', name: '', brand: '', category: '', keyIngredient: '',
+        ingredients: [], ingredientsSource: 'sheet',
         priceInr: 0, image: '', imageAlt: '', productUrl: '',
         instructions: '', frequency: FREQUENCY[when], warnings: [],
         owned: true as const, ownedWhy: k.why,
@@ -371,6 +376,8 @@ export function buildRoutines(products: RecommendedProduct[], owned: readonly Ow
           brand: p.brand,
           category: p.category,
           keyIngredient: p.keyIngredient,
+          ingredients: p.ingredients,
+          ingredientsSource: p.ingredientsSource,
           priceInr: p.priceInr,
           image: p.image,
           imageAlt: p.imageAlt,

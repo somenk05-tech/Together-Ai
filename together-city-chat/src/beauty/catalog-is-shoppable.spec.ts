@@ -122,6 +122,23 @@ describe('the shelf', () => {
     expect(bad((p) => !!p.imageAlt && p.image === p.imageAlt)).toEqual([]);
   });
 
+  /**
+   * THE INGREDIENTS TAB PRINTS `ingredients` AND SAYS WHAT KIND OF LIST IT IS.
+   * A row may carry the sheet's key ingredients ('sheet') or the pack's full
+   * label ('label'), and nothing else — a third value would be a card with no
+   * sentence to put under the list. A 'sheet' list is the actives written out
+   * once more, so the two cannot drift; a 'label' list must not be empty,
+   * because "full label: nothing" is a lie about a product with a label. A
+   * product with real actives and no ingredients at all is a tab that opens
+   * on nothing. Tools and fragrances legitimately carry an empty list.
+   */
+  it('gives every product an ingredients list the tab can print honestly', () => {
+    expect(bad((p) => !Array.isArray(p.ingredients) || !['sheet', 'label'].includes(p.ingredientsSource))).toEqual([]);
+    expect(bad((p) => p.ingredientsSource === 'sheet' && JSON.stringify(p.ingredients) !== JSON.stringify(p.actives))).toEqual([]);
+    expect(bad((p) => p.ingredientsSource === 'label' && p.ingredients.length === 0)).toEqual([]);
+    expect(bad((p) => p.ingredients.some((i) => !i.trim()))).toEqual([]);
+  });
+
   it('uses only vocabulary the engine understands', () => {
     expect(bad((p) => !GROUPS.has(p.group))).toEqual([]);
     expect(bad((p) => !USAGE.has(p.usage))).toEqual([]);

@@ -162,6 +162,25 @@ export interface BeautyProduct {
   profileKeys: string[];    // assessment reading keys it addresses (PRIMARY signal)
   suitableSkin: string[];   // skin types it suits ('all' | dry/oily/combination/normal/sensitive)
   actives: string[];        // key active ingredients
+  /**
+   * WHAT IS IN IT, for the Ingredients tab on every card.
+   *
+   * `ingredients` is the list the tab prints; `ingredientsSource` says what
+   * kind of list it is, and the tab says so too:
+   *
+   *   'sheet' — the key ingredients the owner's data sheet names for the
+   *             product. This is what every row carries today: the same list
+   *             as `actives`, written once more under the name the card uses,
+   *             so a row can be upgraded without the card changing.
+   *   'label' — the full list as printed on the pack, in INCI order. No row
+   *             carries this yet. When a sheet with label lists arrives the
+   *             generator sets it; nothing is invented to fill the gap.
+   *
+   * A card must never present the sheet's actives as the whole label — a
+   * citizen screening for an allergen reads a short list as "not in it".
+   */
+  ingredients: string[];
+  ingredientsSource: 'sheet' | 'label';
   usage: string;            // Morning | Night | Morning & Night | Weekly | Body
   blurb: string;
   keyIngredient: string;
@@ -283,6 +302,12 @@ export function severityOf(r: ReadingLite): number {
  * citizen and this function, called without that field, handed them 1% retinol
  * in the same response. See shared/topical-contraindications.ts.
  */
+/** Every word on the bottle the safety guards may read: the actives, the
+ *  headline ingredient, and the ingredient list the card prints. */
+export function everythingIn(p: Pick<BeautyProduct, 'actives' | 'keyIngredient' | 'ingredients'>): string[] {
+  return [...p.actives, p.keyIngredient, ...(p.ingredients ?? [])];
+}
+
 export function recommendProducts(opts: {
   readings: ReadingLite[];
   concerns: string[];
@@ -331,12 +356,18 @@ export function recommendProducts(opts: {
     // "tree nuts" does not appear in "almond oil"; "salicylates" does not appear
     // in "salicylic acid". Both passed straight through a line commented "hard
     // filter", which is the worst kind of guard — one that reads as settled.
-    .filter((p) => isTopicallySafe(p.name, [...p.actives, p.keyIngredient], allergies))
+    //
+    // THE WHOLE LIST, NOT ONLY THE ACTIVES (3 Sep). Every product now carries
+    // `ingredients` — the data sheet's key ingredients today, the pack's full
+    // label when one arrives — and a filter that read only the two or three
+    // actives would wave through a fragrance or a paraben named further down
+    // the very list the card prints. What the card shows, the guard reads.
+    .filter((p) => isTopicallySafe(p.name, everythingIn(p), allergies))
     // And never something a declared condition rules out. Separate from the
     // allergy filter because the two say different things to the citizen: one is
     // "you told us this reacts with you", the other is "not while you are
     // pregnant", and a shelf that conflates them explains neither.
-    .filter((p) => isSafeForConditions(p.name, [...p.actives, p.keyIngredient], conditions))
+    .filter((p) => isSafeForConditions(p.name, everythingIn(p), conditions))
     .map((p) => {
       /**
        * NOT `p.profileKeys` — the keys this product may be MATCHED on.

@@ -7,7 +7,7 @@ import type { RecommendedProduct } from './beauty-engine';
 
 const product = (over: Partial<RecommendedProduct> & { id: string; category: string; usage: string }): RecommendedProduct => ({
   name: over.id, brand: 'A Brand', group: 'Skincare', tier: 'Budget', priceInr: 900, tags: [], profileKeys: [],
-  suitableSkin: ['all'], actives: [], blurb: '', keyIngredient: '',
+  suitableSkin: ['all'], actives: [], blurb: '', keyIngredient: '', ingredients: [], ingredientsSource: 'sheet',
   image: '', imageAlt: '', productUrl: '', matched: true,
   ...over,
 } as RecommendedProduct);

@@ -460,6 +460,8 @@ export function deriveOne(row) {
     suitableSkin: suitableSkinFor(group, row.skinHair),
     actives, usage, blurb: row.benefits,
     keyIngredient: actives[0] ?? row.ingredients,
+    ingredients: row.inci ? splitActives(row.inci) : actives,
+    ingredientsSource: row.inci ? 'label' : 'sheet',
     image: row.image,
     // NOT `|| row.image`. The second photograph exists because a hotlinked URL
     // is the field most certain to rot, and a copy of the first is not a
@@ -484,6 +486,10 @@ function emit(p) {
     + `    priceInr: ${p.priceInr}, tier: ${q(p.tier)}, usage: ${q(p.usage)},\n`
     + `    tags: ${arr(p.tags)}, profileKeys: ${arr(p.profileKeys)}, suitableSkin: ${arr(p.suitableSkin)},\n`
     + `    actives: ${arr(p.actives)}, keyIngredient: ${q(p.keyIngredient)},\n`
+    // The label's full INCI list when the sheet carries one (`inci`), else the
+    // sheet's key ingredients — and the source says which, so the card can
+    // never pass a short list off as the whole label.
+    + `    ingredients: ${arr(p.ingredients)}, ingredientsSource: ${q(p.ingredientsSource)},\n`
     + `    blurb: ${q(p.blurb)},\n`
     + `    image: ${q(p.image)},\n`
     + `    imageAlt: ${q(p.imageAlt)},\n`
