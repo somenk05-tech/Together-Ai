@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 /**
  * ── THE PLATFORM DECK, AS A PAGE YOU SCROLL ────────────────────────────────
  *
- * Thirty-one slides for an investor or a partner, at /investor, outside the
+ * Twenty-nine slides for an investor or a partner, at /investor, outside the
  * app shell: no header, no rail, no footer. A deck shown on somebody else's
  * screen should have nothing on it that is not the deck.
  *
@@ -457,26 +457,8 @@ export function Investor() {
         <div className="dk-foot"><span>Together City</span><span>Personalization</span></div>
       </section>
 
-      <section className="dk-slide rev">
+            <section className="dk-slide">
         <Label n="028" />
-        <div className="dk-body">
-          <h2 className="dk-h2">₹23.74 crore, to build it and open the doors</h2>
-          <p className="dk-lede">₹12.32 crore builds the platform over eighteen months; ₹11.42 crore carries the soft launch through month thirty-six. From month twenty-five the model funds itself out of receipts.</p>
-          <div className="dk-table c3">
-            <div className="h">Use of funds</div><div className="h">₹ Cr</div><div className="h">Share</div>
-            <div className="k">Product and engineering</div><div className="v">7.59</div><div className="n">32%</div>
-            <div className="k">Working capital and contingency</div><div className="v">6.00</div><div className="n">25%</div>
-            <div className="k">Customer acquisition and brand</div><div className="v">5.00</div><div className="n">21%</div>
-            <div className="k">Team and operations</div><div className="v">3.95</div><div className="n">17%</div>
-            <div className="k">Legal, compliance and security</div><div className="v">1.19</div><div className="n">5%</div>
-            <div className="k">Category partnerships and supply</div><div className="v">0.02</div><div className="n">—</div>
-          </div>
-        </div>
-        <div className="dk-foot"><span>Financial estimates</span><span>The ask</span></div>
-      </section>
-
-      <section className="dk-slide">
-        <Label n="029" />
         <div className="dk-body">
           <h2 className="dk-h2">Seven years, on the model as it stands</h2>
           <div className="dk-scroll">
@@ -500,42 +482,8 @@ export function Investor() {
         <div className="dk-foot"><span>Financial estimates</span><span>Projection, 8 July 2026 model</span></div>
       </section>
 
-      <section className="dk-slide">
-        <Label n="030" />
-        <div className="dk-body">
-          <h2 className="dk-h2">What a citizen is worth, and where the money comes from</h2>
-          <div className="dk-two">
-            <div className="dk-body">
-              <div className="dk-cap">Unit economics, soft launch to year seven</div>
-              <div className="dk-table c2">
-                <div className="k">Activation, registered to active</div><div className="v">49%</div>
-                <div className="k">Paid conversion, of active</div><div className="v">3.9% → 6.4%</div>
-                <div className="k">Revenue per active user</div><div className="v">₹47 → ₹311</div>
-                <div className="k">Revenue per paying user</div><div className="v">₹1,222 → ₹4,873</div>
-                <div className="k">Gross margin</div><div className="v">75% → 97%</div>
-                <div className="k">LTV / CAC at soft launch</div><div className="v">25.7×</div>
-                <div className="k">Payback at soft launch</div><div className="v">2.0 months</div>
-              </div>
-            </div>
-            <div className="dk-body">
-              <div className="dk-cap">Largest districts by year seven, ₹ crore</div>
-              <div className="dk-table c2">
-                <div className="k">Restaurant Market</div><div className="v">1,531</div>
-                <div className="k">Commerce</div><div className="v">996</div>
-                <div className="k">Health</div><div className="v">517</div>
-                <div className="k">Real Estate</div><div className="v">479</div>
-                <div className="k">Travel</div><div className="v">474</div>
-                <div className="k">AI Concierge</div><div className="v">359</div>
-              </div>
-            </div>
-          </div>
-          <p className="dk-note">Every figure on these three slides is a projection from the owner-built model of 8 July 2026, not a result. Six revenue categories are live at soft launch and nine by year four; two revenue streams become four.</p>
-        </div>
-        <div className="dk-foot"><span>Financial estimates</span><span>Projection, 8 July 2026 model</span></div>
-      </section>
-
-      <section className="dk-slide rev">
-        <Label n="031" />
+            <section className="dk-slide rev">
+        <Label n="029" />
         <div className="dk-body">
           <h2 className="dk-h2">One box in front of the whole city</h2>
           <p className="dk-lede">Ask for anything. The city already knows which version of it is yours.</p>
