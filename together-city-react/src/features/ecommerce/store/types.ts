@@ -204,4 +204,10 @@ export interface Shop {
   pay: (method: PayMethodChoice, done: () => void) => void;
   payPending: boolean;
   payError: string | null;
+  /**
+   * A shelf whose prices are indicative asks for a QUOTE rather than taking
+   * money (the gem counter, owner 5 Sep): the bag draws "Ask for a quote"
+   * instead of "Pay", opens no payment sheet, and says what happened after.
+   */
+  quoteOnly?: { cta: string; done: string };
 }

@@ -187,14 +187,11 @@ export function useUnlockGem() {
   const qc = useQueryClient();
   return useMutation({ mutationFn: astrologyApi.unlockGem, onSuccess: (c) => qc.setQueryData(['astrology', 'gem-cart'], c) });
 }
-export function useGemCheckout() {
+export function useGemQuote() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: astrologyApi.checkoutGemCart,
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['astrology', 'gem-cart'] });
-      void qc.invalidateQueries({ queryKey: ['financial'] });
-    },
+    mutationFn: astrologyApi.requestGemQuote,
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['notifications'] }); },
   });
 }
 
@@ -210,7 +207,7 @@ export function useGemCheckout() {
  * This is the exact case `scripts/dead-export-audit.mjs` was written after —
  * two ways to do one thing, one of them unreachable, and nothing in the build
  * able to say which. Deleted rather than repaired, because the reachable path
- * is `checkoutGemCart` and a payment flow should have one door.
+ * is `requestGemQuote` (5 Sep: the counter quotes, it does not charge) and that flow should have one door.
  */
 export function useAstroRemedies() {
   return useQuery({ queryKey: ['astrology', 'remedies'], queryFn: () => astrologyApi.remedies() });

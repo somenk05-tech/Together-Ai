@@ -141,6 +141,19 @@ export function PayoutAccount() {
         </Card>
       )}
 
+      {/* NO FORM FOR A PARTNER THAT DOES NOT EXIST (5 Sep). The page used to
+          ask for a real account number and IFSC and learn from the 403 that
+          nothing could be done with them. */}
+      {s.payoutsAvailable === false ? (
+        <Card>
+          <strong>Adding an account</strong>
+          <p className="muted">
+            Payouts aren’t available yet — the city has no payment partner to send money through, so
+            there’s nothing to type here today. Money from paid invoices still accrues to this listing,
+            and you’ll be asked for an account the day it can leave.
+          </p>
+        </Card>
+      ) : (
       <Card>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <strong style={{ fontSize: 13.5 }}>{a ? 'Change the account' : 'Add an account'}</strong>
@@ -200,6 +213,7 @@ export function PayoutAccount() {
           </div>
         )}
       </Card>
+      )}
 
       <div style={{ marginTop: 14 }}>
         <Link to={`/services/${listingId}/payments`} style={{ fontSize: 12.5, color: 'var(--accent-ink)', fontWeight: 600 }}>

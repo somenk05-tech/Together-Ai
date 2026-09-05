@@ -62,7 +62,7 @@ export function StoreBagPage({ shop }: { shop: Shop }) {
       </header>
 
       {paid && empty && (
-        <div className="st-paid">✓ Paid. Your order is in {shop.hubName}, with the rest of your orders.</div>
+        <div className="st-paid">✓ {shop.quoteOnly ? shop.quoteOnly.done : `Paid. Your order is in ${shop.hubName}, with the rest of your orders.`}</div>
       )}
 
       {empty ? (
@@ -118,8 +118,9 @@ export function StoreBagPage({ shop }: { shop: Shop }) {
           </div>
 
           <div className="st-pay">
-            <button type="button" className="st-cta st-cta-wide" onClick={() => setPayOpen(true)}>
-              Pay {rupees(bag.totalInr)}
+            <button type="button" className="st-cta st-cta-wide" disabled={shop.payPending}
+              onClick={() => (shop.quoteOnly ? shop.pay('wallet', () => setPaid(true)) : setPayOpen(true))}>
+              {shop.quoteOnly ? `${shop.quoteOnly.cta} · about ${rupees(bag.totalInr)}` : `Pay ${rupees(bag.totalInr)}`}
             </button>
             <Link to={back} className="st-quiet">Keep shopping</Link>
             <button type="button" className="st-quiet" disabled={shop.isSaving} onClick={() => shop.clear()}>Empty the bag</button>

@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Card, EmptyState, Spinner } from '@/components/ui';
-import { useGemCart, useGemCheckout, useUnlockGem } from '../hooks';
+import { useGemCart, useGemQuote, useUnlockGem } from '../hooks';
 import { AstroHeader, NeedsProfileCard } from '../shared';
-import { payError, type PayMethod } from '@/features/financial/api';
-import { PaymentSheet } from '@/features/financial/PaymentSheet';
+import { payError } from '@/features/financial/api';
 
 /**
  * Checkout — the locked commissions, in the shape a shop checkout has.
@@ -21,17 +20,22 @@ import { PaymentSheet } from '@/features/financial/PaymentSheet';
  *
  * PRICED NOW, NEVER AT THE PRICE IT WAS LOCKED AT. Gold moves daily. The cart
  * stores choices; the server prices them on every read from the same files the
- * studio quoted from, and again at the charge. Nothing here adds anything up
- * that the server has not already added up.
+ * studio quoted from. Nothing here adds anything up that the server has not
+ * already added up.
+ *
+ * AND THE PRICE IS A QUOTE, NOT A CHARGE (owner, 5 Sep). Every figure on this
+ * page is indicative — retail tiers compiled in August and a fallback gold
+ * rate — and until a supplier feed prices the stone nothing is taken from
+ * anybody. The button asks a person to price it; the answer comes back as a
+ * notification and in mail.
  */
 const rupees = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 
 export function GemCheckout() {
   const cart = useGemCart();
   const unlock = useUnlockGem();
-  const pay = useGemCheckout();
-  const [payOpen, setPayOpen] = useState(false);
-  const [paid, setPaid] = useState<{ lines: number; totalInr: number } | null>(null);
+  const quote = useGemQuote();
+  const [asked, setAsked] = useState<{ lines: number; totalInr: number } | null>(null);
 
   const data = cart.data;
 
@@ -48,19 +52,19 @@ export function GemCheckout() {
   }
   if ('needsProfile' in data && data.needsProfile) return <NeedsProfileCard />;
 
-  if (paid) {
+  if (asked) {
     return (
       <div>
-        <AstroHeader title="Ordered" lede="Paid from your city wallet." />
+        <AstroHeader title="Quote requested" lede="Nothing has been charged." />
         <Card style={{ padding: '22px 24px', maxWidth: 560 }}>
           <p style={{ fontSize: 15, lineHeight: 1.7, margin: 0 }}>
-            {paid.lines === 1 ? 'Your stone is' : `All ${paid.lines} stones are`} commissioned —{' '}
-            {rupees(paid.totalInr)}. The jeweller has the full specification for{' '}
-            {paid.lines === 1 ? 'it' : 'each'} and will confirm before starting work.
+            {asked.lines === 1 ? 'Your stone' : `All ${asked.lines} stones`} — indicatively {rupees(asked.totalInr)} —{' '}
+            {asked.lines === 1 ? 'is' : 'are'} with a person now. They will price {asked.lines === 1 ? 'it' : 'each'} against
+            today’s supplier rates and write back with a firm figure before anything is made or paid for.
           </p>
           <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
             <Link to="/astrology/gemstones"><Button variant="accent" size="sm">Back to your gemstones</Button></Link>
-            <Link to="/financial"><Button variant="line" size="sm">See the receipt</Button></Link>
+            <Link to="/alerts"><Button variant="line" size="sm">Watch for the reply</Button></Link>
           </div>
         </Card>
       </div>
@@ -70,7 +74,7 @@ export function GemCheckout() {
   if (data.count === 0) {
     return (
       <div>
-        <AstroHeader title="Checkout" lede="Stones you have locked, ready to commission." />
+        <AstroHeader title="Ask for a quote" lede="Stones you have locked, ready to be priced." />
         <EmptyState
           icon="◇"
           title="Nothing locked yet"
@@ -87,7 +91,7 @@ export function GemCheckout() {
 
   return (
     <div>
-      <AstroHeader title="Checkout" lede="Everything you have locked, priced at today’s rates." />
+      <AstroHeader title="Ask for a quote" lede="Everything you have locked, at indicative rates — a person prices it before anything is charged." />
 
       <div className="gem-checkout">
         {/* ── the order ──────────────────────────────────────────────────── */}
@@ -123,7 +127,7 @@ export function GemCheckout() {
         {/* ── the summary, which stays put ──────────────────────────────── */}
         <aside>
           <Card className="gem-summary">
-            <h2 style={{ fontSize: 13, margin: '0 0 14px', textTransform: 'uppercase', letterSpacing: '.12em' }}>Order summary</h2>
+            <h2 style={{ fontSize: 13, margin: '0 0 14px', textTransform: 'uppercase', letterSpacing: '.12em' }}>Indicative total</h2>
             <dl style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '9px 12px', margin: 0 }}>
               <dt className="muted" style={{ fontSize: 13 }}>Stones ({data.count})</dt>
               <dd style={{ margin: 0, fontSize: 13.5, fontWeight: 700, textAlign: 'right' }}>{rupees(data.stoneInr)}</dd>
@@ -135,18 +139,22 @@ export function GemCheckout() {
               )}
             </dl>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, borderTop: '1px solid var(--line)', marginTop: 14, paddingTop: 14 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' }}>Total</span>
+              <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' }}>Indicative</span>
               <span style={{ marginLeft: 'auto', fontSize: 26, fontWeight: 800, letterSpacing: '-.01em' }}>{rupees(data.totalInr)}</span>
             </div>
 
             <div style={{ marginTop: 16 }}>
-              <Button variant="accent" onClick={() => setPayOpen(true)}>Pay from your city wallet</Button>
+              <Button variant="accent" disabled={quote.isPending}
+                onClick={() => quote.mutate(undefined, { onSuccess: (r) => setAsked({ lines: r.lines, totalInr: r.totalInr }) })}>
+                {quote.isPending ? 'Sending…' : 'Ask for a quote'}
+              </Button>
             </div>
-            {pay.isError && (
-              <p style={{ fontSize: 12.5, color: 'var(--danger-ink)', fontWeight: 600, margin: '10px 0 0' }}>{payError(pay.error)}</p>
+            {quote.isError && (
+              <p style={{ fontSize: 12.5, color: 'var(--danger-ink)', fontWeight: 600, margin: '10px 0 0' }}>{payError(quote.error)}</p>
             )}
             <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.6, margin: '12px 0 0' }}>
-              One charge for everything above. Nothing is taken until you confirm it.
+              These figures are indicative — retail tiers compiled in August and the day’s fallback gold rate.
+              Nothing is charged: a person prices the stone against the supplier and writes back with a firm figure.
             </p>
             <Link to="/astrology/gemstones" style={{ display: 'inline-block', fontSize: 12.5, fontWeight: 700, marginTop: 12 }}>
               ← Keep looking
@@ -155,17 +163,6 @@ export function GemCheckout() {
         </aside>
       </div>
 
-      <PaymentSheet
-        open={payOpen}
-        amountInr={data.totalInr}
-        label={`Gemstones · ${data.count} commission${data.count === 1 ? '' : 's'}`}
-        pending={pay.isPending}
-        error={pay.isError ? payError(pay.error) : null}
-        onCancel={() => setPayOpen(false)}
-        onPay={(method: PayMethod) => pay.mutate(method, {
-          onSuccess: (r) => { setPaid({ lines: r.lines, totalInr: r.totalInr }); setPayOpen(false); },
-        })}
-      />
     </div>
   );
 }

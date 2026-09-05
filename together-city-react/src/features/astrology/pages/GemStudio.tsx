@@ -407,7 +407,7 @@ export function GemStudio() {
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 16 }}>
           <Button variant="accent" disabled={priceInr === null || lock.isPending}
             onClick={() => lock.mutate(lockPayload, { onSuccess: () => navigate('/astrology/gem-checkout') })}>
-            {lock.isPending ? 'Locking…' : `Commission this stone · ${priceInr === null ? '—' : rupees(priceInr)}`}
+            {lock.isPending ? 'Locking…' : `Ask for a quote · about ${priceInr === null ? '—' : rupees(priceInr)}`}
           </Button>
           <Button variant="line" disabled={priceInr === null || lock.isPending}
             onClick={() => lock.mutate(lockPayload, { onSuccess: () => navigate('/astrology/gemstones') })}>
@@ -418,8 +418,8 @@ export function GemStudio() {
           )}
         </div>
         <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.6, marginTop: 12 }}>
-          Locking costs nothing. It holds this design in your checkout, priced at the day&rsquo;s rate,
-          until you pay or remove it.
+          Locking costs nothing. It holds this design on your quote page at an indicative figure
+          until a person prices it against the supplier and writes back — nothing is charged before that.
         </p>
         <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.6, marginTop: 14 }}>{data.disclaimer}</p>
       </Card>

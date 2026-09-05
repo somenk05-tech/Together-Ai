@@ -74,8 +74,17 @@ export function BusinessPayments() {
         </Card>
       )}
 
+      {d.sandbox && (
+        <Card style={{ marginBottom: 'var(--space-12)' }}>
+          <strong>No money has left the city yet</strong>
+          <p className="muted">
+            The city has no payment partner to send money through, so every payout below is a
+            rehearsal: the arithmetic is real, the transfer is not. Nothing marked settled has reached a bank.
+          </p>
+        </Card>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10, marginBottom: 14 }}>
-        <Figure label="Settled" value={d.settledInr} note="Already in your account" />
+        <Figure label="Settled" value={d.settledInr} note={d.sandbox ? 'Rehearsal — not in a bank' : 'Already in your account'} />
         <Figure label="Pending settlement" value={d.pendingInr} note="Earned, on its way" />
         <Figure label="Today's sales" value={d.todayInr} note="Paid to you today" />
         <Figure label="Total sales" value={d.totalSalesInr} note="Since you started" />

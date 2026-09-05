@@ -224,12 +224,11 @@ export class AstrologyController {
     return this.astrology.unlockGem(user.sub, gemId);
   }
 
-  /** POST /api/astrology/gem-cart/checkout — one charge for everything locked.
-   *  No amount in the body: gold moves daily and the server prices it. */
-  @Post('gem-cart/checkout')
-  checkoutGemCart(@CurrentUser() user: JwtUser, @Body() body: unknown) {
-    const schema = z.object({ method: z.enum(['wallet', 'card']).default('wallet') });
-    return this.astrology.checkoutGemCart(user.sub, schema.parse(body).method);
+  /** POST /api/astrology/gem-cart/quote — ask a person to price what is
+   *  locked against the supplier's rates (owner, 5 Sep). Nothing is charged. */
+  @Post('gem-cart/quote')
+  requestGemQuote(@CurrentUser() user: JwtUser) {
+    return this.astrology.requestGemQuote(user.sub);
   }
 
   /** GET /api/astrology/remedies — practices for this period, health-filtered. */

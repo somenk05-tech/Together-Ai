@@ -185,7 +185,6 @@ export interface GemStone {
   traits: string[];
   description: string;
   whyRecommended: string;
-  whatYouFeel: string;
   wearingNote: string;
   image: string; imageAlt: string;
   perCaratMinInr: number; perCaratMaxInr: number;
@@ -394,8 +393,9 @@ export const astrologyApi = {
     carats?: number;
   }) => api.put<GemCart>('/astrology/gem-cart', v).then((r) => r.data),
   unlockGem: (gemId: string) => api.delete<GemCart>(`/astrology/gem-cart/${gemId}`).then((r) => r.data),
-  checkoutGemCart: (method: 'wallet' | 'card') =>
-    api.post<{ paid: true; totalInr: number; lines: number }>('/astrology/gem-cart/checkout', { method }).then((r) => r.data),
+  /** Ask a person to price what is locked (owner, 5 Sep). Nothing is charged. */
+  requestGemQuote: () =>
+    api.post<{ requested: true; totalInr: number; indicative: true; lines: number; spec: string }>('/astrology/gem-cart/quote').then((r) => r.data),
   gemMetals: (id: string, worn: 'ring' | 'pendant', design: string, size: number) =>
     api.get<{ metals: MetalQuote[] }>(`/astrology/gemstones/${id}/metals`, { params: { worn, design, size } })
       .then((r) => r.data),

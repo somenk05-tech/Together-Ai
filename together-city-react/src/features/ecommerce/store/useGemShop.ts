@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useAstroGemstones, useGemCart, useGemCheckout, useUnlockGem } from '@/features/astrology/hooks';
+import { useAstroGemstones, useGemCart, useGemQuote, useUnlockGem } from '@/features/astrology/hooks';
 import type { GemRecommendation } from '@/features/astrology/api';
 import { payError } from '@/features/financial/api';
 import { SHOPS } from '../shelves';
@@ -51,7 +51,7 @@ export function useGemShop(): Shop {
   const gems = useAstroGemstones();
   const cart = useGemCart();
   const unlock = useUnlockGem();
-  const checkout = useGemCheckout();
+  const quote = useGemQuote();
 
   const items = useMemo(
     () => (gems.data?.needsProfile ? [] : (gems.data?.recommendations ?? []).map(shopItem)),
@@ -115,8 +115,11 @@ export function useGemShop(): Shop {
     remove: (id: string) => unlock.mutate(id),
     clear: () => { for (const l of lines) unlock.mutate(l.id); },
 
-    pay: (method: PayMethodChoice, done: () => void) => checkout.mutate(method, { onSuccess: done }),
-    payPending: checkout.isPending,
-    payError: checkout.isError ? payError(checkout.error) : null,
+    /* The counter QUOTES (owner, 5 Sep): the figures are indicative and
+       nothing is charged until a person prices the stone. */
+    pay: (_method: PayMethodChoice, done: () => void) => quote.mutate(undefined, { onSuccess: done }),
+    payPending: quote.isPending,
+    payError: quote.isError ? payError(quote.error) : null,
+    quoteOnly: { cta: 'Ask for a quote', done: 'Quote requested. A person prices the stone against the supplier and writes back — nothing has been charged.' },
   };
 }

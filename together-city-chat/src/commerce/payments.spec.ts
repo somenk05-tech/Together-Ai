@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-var-requires */
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { SettlementService } from './settlement.service';
@@ -51,6 +52,7 @@ function harness(opts: { balanceInr?: number; card?: string | null; payoutsEnabl
     Object.entries(where).every(([k, v]) => {
       if (v && typeof v === 'object' && 'not' in (v as object)) return row[k] !== (v as { not: unknown }).not;
       if (v && typeof v === 'object' && 'in' in (v as object)) return (v as { in: unknown[] }).in.includes(row[k]);
+      if (v && typeof v === 'object' && 'gte' in (v as object)) return (row[k] as Date) >= (v as { gte: Date }).gte;
       return row[k] === v;
     });
 
@@ -90,6 +92,8 @@ function harness(opts: { balanceInr?: number; card?: string | null; payoutsEnabl
         return { count: n };
       },
       findMany: async () => [...intents],
+      // The one-payment-at-a-time gate (5 Sep) counts attempts still in flight.
+      count: async ({ where }: { where: Record<string, unknown> }) => intents.filter((i) => matches(i, where)).length,
     },
     cityWallet: {
       findUnique: async () => ({ balanceInr, cardBrand: 'Visa', cardLast4: '4242', cardName: opts.card ?? 'City Card' }),
@@ -157,7 +161,8 @@ function harness(opts: { balanceInr?: number; card?: string | null; payoutsEnabl
       update: async () => ({}),
     },
     serviceMessage: { create: async ({ data }: { data: Record<string, unknown> }) => { threadLines.push(data); return data; } },
-    user: { findUnique: async () => ({ name: 'A neighbour' }) },
+    user: { findUnique: async () => ({ name: 'A neighbour', identityVerifiedAt: T0, phoneVerifiedAt: T0 }) },
+    serviceVerification: { findUnique: async () => null },
   };
 
   const clock = { now: () => T0 } as never;
@@ -194,6 +199,7 @@ function harness(opts: { balanceInr?: number; card?: string | null; payoutsEnabl
     settlement: settlement as unknown as SettlementService,
     invoice, intents, ledger, settlements, settlementItems, walletTxns, notes, threadLines,
     balance: () => balanceInr,
+    prisma,
   };
 }
 
@@ -288,6 +294,38 @@ describe('paying twice', () => {
     await h.payments.pay('CITIZEN', 'I1', { expectInr: 4_850, useWallet: true }, 'a');
     await expect(h.payments.pay('CITIZEN', 'I1', { expectInr: 4_850, useWallet: true }, 'b'))
       .rejects.toThrow(/already paid/);
+  });
+
+  /* ONE PAYMENT AT A TIME (5 Sep). Two taps with DIFFERENT keys both passed
+     the snapshot check and both took the wallet. Under the row lock the
+     second sees the first's attempt still in flight and stops before any
+     money moves; and once the first has settled, the re-read under the lock
+     sees the invoice paid. */
+  it('refuses a second attempt while the first is still in flight, before touching the wallet', async () => {
+    const h = harness({ balanceInr: 10_000 });
+    // A card attempt that has not yet been captured: created + processing.
+    (h.prisma as any).paymentIntent.create({ data: { invoiceId: 'I1', userId: 'CITIZEN', status: 'processing', createdAt: T0 } });
+    const before = h.balance();
+    await expect(h.payments.pay('CITIZEN', 'I1', { expectInr: 4_850, useWallet: true }, 'b'))
+      .rejects.toThrow(/already in progress/);
+    expect(h.balance()).toBe(before);
+  });
+
+  it('an attempt that died a long time ago does not hold the invoice hostage', async () => {
+    const h = harness({ balanceInr: 10_000 });
+    (h.prisma as any).paymentIntent.create({ data: { invoiceId: 'I1', userId: 'CITIZEN', status: 'processing', createdAt: new Date(T0.getTime() - 3_600_000) } });
+    await expect(h.payments.pay('CITIZEN', 'I1', { expectInr: 4_850, useWallet: true }, 'c')).resolves.toBeDefined();
+  });
+
+  it('a refund is re-checked under the lock: the second full refund finds nothing left', async () => {
+    const h = harness({ balanceInr: 10_000 });
+    await h.payments.pay('CITIZEN', 'I1', { expectInr: 4_850, useWallet: true }, 'a');
+    // Simulate the race: both callers read refundable = 4,850 before either writes.
+    const p = h.prisma as any;
+    const firstRead = p.invoice.findFirst;
+    let reads = 0;
+    p.invoice.findFirst = async (a: unknown) => { const r = await firstRead(a); reads += 1; return reads === 2 ? { ...r, refundedInr: 4_850 } : r; };
+    await expect(h.payments.refund('OWNER', 'I1', 4_850, 'sorry')).rejects.toThrow(/just refunded/);
   });
 });
 
@@ -428,5 +466,26 @@ describe('the sandbox in production', () => {
   it('is on the kill-switch list under its own key', () => {
     const flag = FLAGS.find((f) => f.key === 'pay');
     expect(flag?.prefixes).toEqual(['pay']);
+  });
+
+  /* THE FORM DOES NOT OPEN FOR A PARTNER THAT DOES NOT EXIST (5 Sep). The
+     onboarding read says payouts are unavailable and saveAccount refuses at
+     the door — before an account number is read, let alone sent anywhere. */
+  it('says payouts are unavailable and refuses an account before reading it', async () => {
+    const h = harness({ balanceInr: 10_000 });
+    await inProduction(async () => {
+      const state = await h.settlement.onboarding('OWNER', 'L1');
+      expect(state.payoutsAvailable).toBe(false);
+      expect(state.next).toMatch(/no payment partner/);
+      await expect(h.settlement.saveAccount('OWNER', 'L1', { legalName: 'ABC', entityKind: 'individual', accountNumber: '123456789', ifsc: 'HDFC0001234' } as never))
+        .rejects.toBeInstanceOf(ForbiddenException);
+    });
+  });
+
+  it('outside production the form opens, and the rail is named as the sandbox', async () => {
+    const h = harness({ balanceInr: 10_000 });
+    const state = await h.settlement.onboarding('OWNER', 'L1');
+    expect(state.payoutsAvailable).toBe(true);
+    expect((h.settlement as any).sandboxRail()).toBe(true);
   });
 });

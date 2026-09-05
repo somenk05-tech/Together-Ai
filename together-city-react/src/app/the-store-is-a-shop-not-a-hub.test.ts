@@ -205,7 +205,8 @@ describe('The city cart is a view, not a fourth bag', () => {
     expect(cart).toMatch(/for \(const section of sections\)/);
     expect(cart).toMatch(/beautyPlace\.mutateAsync/);
     expect(cart).toMatch(/fitPlace\.mutateAsync/);
-    expect(cart).toMatch(/gemCheckout\.mutateAsync/);
+    // Gemstones are quoted, not charged (owner, 5 Sep).
+    expect(cart).toMatch(/gemQuote\.mutateAsync/);
     expect(cart).toMatch(/ok: false/);
     expect(page).toMatch(/cart\.outcomes\.map/);
   });

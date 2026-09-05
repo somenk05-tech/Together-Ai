@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useBagActions, usePlaceBeautyOrder } from '@/features/beauty/api';
 import { useBag, usePlaceOrder, useSaveBag, serverSaid } from '@/api/store.api';
-import { useGemCart, useGemCheckout, useUnlockGem } from '@/features/astrology/hooks';
+import { useGemCart, useGemQuote, useUnlockGem } from '@/features/astrology/hooks';
 import { payError } from '@/features/financial/api';
 import { SHOPS } from '../shelves';
 import type { PayMethodChoice, ShopBagLine } from './types';
@@ -80,7 +80,7 @@ export function useCityCart(): CityCart {
 
   const gemCart = useGemCart();
   const gemUnlock = useUnlockGem();
-  const gemCheckout = useGemCheckout();
+  const gemQuote = useGemQuote();
 
   const [outcomes, setOutcomes] = useState<PayOutcome[]>([]);
   const [paying, setPaying] = useState(false);
@@ -179,9 +179,10 @@ export function useCityCart(): CityCart {
           } else if (section.key === 'supplements') {
             await fitPlace.mutateAsync({ items: section.lines.map((l) => ({ id: l.id, qty: l.qty })) });
           } else {
-            await gemCheckout.mutateAsync(method);
+            // Gemstones are quoted, not charged (owner, 5 Sep).
+            await gemQuote.mutateAsync();
           }
-          out.push({ key: section.key, title: section.title, ok: true, message: 'Ordered.' });
+          out.push({ key: section.key, title: section.title, ok: true, message: section.key === 'gemstones' ? 'Quote requested — nothing charged.' : 'Ordered.' });
         } catch (err) {
           out.push({
             key: section.key,

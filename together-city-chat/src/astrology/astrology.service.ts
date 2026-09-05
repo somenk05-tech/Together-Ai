@@ -1,9 +1,10 @@
 import { swallow } from '../shared/swallow';
-import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { MasterProfileService } from '../profile/master-profile.service';
 import { refuseDateOfBirth } from '../shared/age';
-import { FinancialService, type PayMethod } from '../financial/financial.service';
+import { FinancialService } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
 import {
   NatalChart, geocodeApprox, natalChart, scanMonth, tzOffsetMinutes, SIGNS,
@@ -87,6 +88,7 @@ export class AstrologyService {
     private readonly masterProfile: MasterProfileService,
     private readonly financial: FinancialService,
     private readonly ai: AiService,
+    @Optional() private readonly notifications?: NotificationsService,
   ) {}
 
   /** New tables reach the generated client on deploy (`prisma db push` at boot);
@@ -814,33 +816,55 @@ export class AstrologyService {
   }
 
   /**
-   * Pay for everything locked, in one charge.
+   * ── A PRICE THAT IS INDICATIVE IS NOT A PRICE TO CHARGE (owner, 5 Sep) ────
    *
-   * THE TOTAL IS RECOMPUTED HERE and the request carries no amount, for the
-   * same reason the studio's did not: gold moves daily and this is the dearest
-   * thing the city sells.
+   * Every figure in the gem catalogue and the metal counter is marked
+   * indicative — four retail tiers compiled in August and a fallback gold
+   * rate dated the first of the month — and until now the checkout charged
+   * those figures as real money off the city wallet, with a work callback
+   * that did nothing: no order, no supplier, no stone. The owner's decision:
+   * the counter QUOTES. The studio still prices, the page still says what
+   * the indicative figure is and when it was compiled, and the button asks
+   * for a quote. The request reaches the console as a notification and the
+   * citizen gets one back saying it did; nothing is charged until a supplier
+   * feed prices the stone and a person writes back.
    */
-  async checkoutGemCart(userId: string, method: PayMethod) {
+  async requestGemQuote(userId: string) {
     const row = await this.requireProfile(userId);
     if (!row) throw new BadRequestException('Add your birth details first.');
-    const master = await swallow(this.masterProfile.get(userId), 'astro: master read for checkout', { userId });
+    const master = await swallow(this.masterProfile.get(userId), 'astro: master read for quote', { userId });
     const bodyKg = typeof master?.weightKg === 'number' ? master.weightKg : null;
     const cart = priceGemCart(await this.readGemCart(userId), bodyKg);
-    if (cart.count === 0) throw new BadRequestException('There is nothing locked to pay for.');
+    if (cart.count === 0) throw new BadRequestException('There is nothing locked to ask about.');
 
-    const label = cart.lines.length === 1
-      ? `Gemstone · ${cart.lines[0].spec}`
-      : `Gemstones (${cart.lines.length}) · ${cart.lines.map((l) => l.spec).join(' | ')}`;
-    await this.financial.paid<void>(
-      userId,
-      { hub: 'Astrology', category: 'astrology', label, amountInr: cart.totalInr, method },
-      async () => undefined,
-    );
-    // Paid for is out of the cart — the other thing that may empty it is the
-    // citizen, and nothing else.
-    await this.writeGemCart(userId, []);
-    return { paid: true as const, totalInr: cart.totalInr, lines: cart.lines.length, spec: label };
+    const spec = cart.lines.map((l) => l.spec).join(' | ');
+    const since = new Date(Date.now() - 24 * 3600_000);
+    const recent = await this.prisma.notification.findFirst({
+      where: { userId, kind: 'gem_quote', createdAt: { gte: since } }, select: { id: true },
+    });
+    if (recent) {
+      throw new ConflictException('You asked for a quote on this in the last day. We will write back before asking again.');
+    }
+    const who = await this.prisma.user.findUnique({ where: { id: userId }, select: { handle: true, name: true } });
+    const grants = await this.prisma.adminGrant.findMany({ where: { revokedAt: null }, select: { userId: true }, take: 50 });
+    const indicative = `₹${cart.totalInr.toLocaleString('en-IN')} indicative`;
+    await Promise.all([
+      this.notifications?.create({
+        userId, kind: 'gem_quote', entityId: userId,
+        title: 'Quote requested',
+        body: `${spec} · ${indicative}. A person will price this against today's supplier rates and write back. Nothing has been charged.`,
+        href: '/astrology/gem-checkout',
+      }),
+      ...[...new Set(grants.map((g) => g.userId))].filter((id) => id !== userId).map((adminId) => this.notifications?.create({
+        userId: adminId, kind: 'gem_quote_request', entityId: userId, actorId: userId,
+        title: `Gem quote · @${who?.handle ?? userId}`,
+        body: `${spec} · ${indicative}. Price against the supplier and reply.`,
+        href: `/console`,
+      })),
+    ]);
+    return { requested: true as const, totalInr: cart.totalInr, indicative: true as const, lines: cart.lines.length, spec };
   }
+
 
   /**
    * Practices for the current period, filtered by what the citizen has told us

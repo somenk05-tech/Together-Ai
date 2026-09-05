@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useGemCatalog, useGemCart, useGemCheckout, useLockGem, useUnlockGem } from '@/features/astrology/hooks';
+import { useGemCatalog, useGemCart, useGemQuote, useLockGem, useUnlockGem } from '@/features/astrology/hooks';
 import type { CounterStone } from '@/features/astrology/api';
 import { payError } from '@/features/financial/api';
 import { AISLES } from '../shelves';
@@ -80,7 +80,7 @@ export function useGemCounterShop(): Shop {
   const cart = useGemCart();
   const lock = useLockGem();
   const unlock = useUnlockGem();
-  const checkout = useGemCheckout();
+  const quote = useGemQuote();
 
   /* ONE MAP FOR THIRTY TILES rather than state per card. A tile that has not
      been touched is not in it, and reads its own opening weight off the shelf —
@@ -214,8 +214,11 @@ export function useGemCounterShop(): Shop {
     remove: (id: string) => unlock.mutate(id),
     clear: () => { for (const l of bagLines) unlock.mutate(l.id); },
 
-    pay: (method: PayMethodChoice, done: () => void) => checkout.mutate(method, { onSuccess: done }),
-    payPending: checkout.isPending,
-    payError: checkout.isError ? payError(checkout.error) : null,
+    /* The counter QUOTES (owner, 5 Sep): the figures are indicative and
+       nothing is charged until a person prices the stone. */
+    pay: (_method: PayMethodChoice, done: () => void) => quote.mutate(undefined, { onSuccess: done }),
+    payPending: quote.isPending,
+    payError: quote.isError ? payError(quote.error) : null,
+    quoteOnly: { cta: 'Ask for a quote', done: 'Quote requested. A person prices the stone against the supplier and writes back — nothing has been charged.' },
   };
 }

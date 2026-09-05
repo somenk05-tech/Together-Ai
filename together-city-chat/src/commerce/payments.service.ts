@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ClockService } from '../shared/clock/clock.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -52,6 +52,19 @@ interface InvoiceRow {
  * as `topUp`. A client that already believes it paid is not helped by being
  * told "duplicate"; it is helped by being told where the invoice stands.
  */
+/**
+ * A row lock on one invoice for the rest of the calling transaction. Postgres
+ * `SELECT … FOR UPDATE`: a second transaction on the same invoice waits here
+ * until the first commits, then re-reads and finds the figures the first one
+ * wrote. The fakes in the specs have no `$queryRaw`; for them the lock is a
+ * no-op and the re-read is what the assertions see.
+ */
+async function lockInvoice(tx: unknown, id: string): Promise<void> {
+  const client = tx as { $queryRaw?: (q: TemplateStringsArray, ...v: unknown[]) => Promise<unknown> };
+  if (typeof client.$queryRaw !== 'function') return;
+  await client.$queryRaw`SELECT id FROM "Invoice" WHERE id = ${id} FOR UPDATE`;
+}
+
 @Injectable()
 export class PaymentsService {
   constructor(
@@ -167,6 +180,31 @@ export class PaymentsService {
     let intentId: string;
     try {
       intentId = await this.prisma.$transaction(async (tx) => {
+        /* ── ONE PAYMENT AT A TIME ON ONE INVOICE (5 Sep) ───────────────────
+           The status check above read a snapshot. Two taps, two tabs, or a
+           retry that raced its own first attempt both passed it, both took
+           the wallet leg, and settle() then wrote paidInr as an ABSOLUTE
+           computed from that snapshot — so the invoice showed one payment
+           where two had been taken. The row is locked for the rest of this
+           transaction, the figures are re-read under the lock, and a second
+           attempt that is still in flight (a card capture between this
+           transaction and settle) refuses this one. Distinct idempotency
+           keys were never a guard against this; the lock is.
+           Serialised by SELECT … FOR UPDATE (lockInvoice). */
+        await lockInvoice(tx, inv.id);
+        const fresh = await tx.invoice.findFirst({ where: { id: inv.id, userId } }) as InvoiceRow | null;
+        if (!fresh || !PAYABLE.has(statusOf(fresh, this.clock.now())) || outstandingInr(fresh) < due) {
+          throw new ConflictException('This invoice was just paid or changed. Refresh to see where it stands.');
+        }
+        // Bounded to a quarter of an hour so an attempt that died mid-capture
+        // does not hold the invoice hostage; the capture path itself times out
+        // long before that.
+        const inFlight = await tx.paymentIntent.count({
+          where: { invoiceId: inv.id, userId, status: { in: ['created', 'processing'] }, createdAt: { gte: new Date(this.clock.now().getTime() - 15 * 60_000) } },
+        });
+        if (inFlight > 0) {
+          throw new ConflictException('A payment on this invoice is already in progress. Give it a moment, then refresh.');
+        }
         const intent = await tx.paymentIntent.create({
           data: {
             invoiceId: inv.id, userId, listingId: inv.listingId,
@@ -260,12 +298,17 @@ export class PaymentsService {
         where: { id: intentId, userId, status: { not: 'succeeded' } },
         data: { status: 'succeeded', capturedAt: this.clock.now() },
       });
-      const paidNow = inv.paidInr + amountInr;
+      /* The paid total is written under the row lock from a read taken under
+         the same lock, never from an earlier snapshot; paidAt is decided from
+         that figure (5 Sep). Serialised by SELECT … FOR UPDATE (lockInvoice). */
+      await lockInvoice(tx, inv.id);
+      const before = await tx.invoice.findFirst({ where: { id: inv.id, userId }, select: { paidInr: true, totalInr: true } });
+      const paidNow = (before?.paidInr ?? inv.paidInr) + amountInr;
       await tx.invoice.updateMany({
         where: { id: inv.id, userId },
         data: {
           paidInr: paidNow,
-          ...(paidNow >= inv.totalInr ? { paidAt: this.clock.now() } : {}),
+          ...(paidNow >= (before?.totalInr ?? inv.totalInr) ? { paidAt: this.clock.now() } : {}),
         },
       });
       await this.settlement.recordSale(tx, {
@@ -357,8 +400,23 @@ export class PaymentsService {
     }
 
     await this.prisma.$transaction(async (tx) => {
+      /* ── A REFUND IS CHECKED UNDER THE LOCK IT IS WRITTEN UNDER (5 Sep) ──
+         `refundable` above came from a snapshot. Two concurrent full refunds
+         both passed it, both credited the wallet (that leg is an atomic
+         increment, so the citizen was paid twice), and refundedInr ended at
+         one refund's value. Locked, re-read, re-checked; the second one
+         finds nothing left and stops before the wallet is touched.
+         Serialised by SELECT … FOR UPDATE (lockInvoice). */
+      await lockInvoice(tx, inv.id);
+      const fresh = await tx.invoice.findFirst({ where: { id: inv.id, ownerId }, select: { paidInr: true, refundedInr: true } });
+      const left = (fresh?.paidInr ?? inv.paidInr) - (fresh?.refundedInr ?? inv.refundedInr);
+      if (amountInr > left) {
+        throw new ConflictException(left <= 0
+          ? 'This invoice was just refunded. Nothing is left to return.'
+          : `Only ₹${left.toLocaleString('en-IN')} of this invoice can still be refunded.`);
+      }
       await tx.invoice.updateMany({
-        where: { id: inv.id, ownerId }, data: { refundedInr: inv.refundedInr + amountInr },
+        where: { id: inv.id, ownerId }, data: { refundedInr: (fresh?.refundedInr ?? inv.refundedInr) + amountInr },
       });
       await tx.cityWallet.upsert({
         where: { userId: inv.userId },

@@ -77,6 +77,9 @@ export interface PayoutAccountCard {
 export interface Onboarding {
   stage: 'not_started' | 'verification_required' | 'under_review' | 'verified' | 'payouts_enabled' | 'payouts_on_hold';
   next: string;
+  /** False until the city has a payment partner that can send money: the
+   *  account form is not drawn, and the server refuses it anyway (5 Sep). */
+  payoutsAvailable: boolean;
   identityVerified: boolean;
   businessVerified: boolean;
   account: PayoutAccountCard | null;
@@ -85,6 +88,8 @@ export interface Onboarding {
 
 export interface Dashboard {
   businessName: string;
+  /** The payout rail is the sandbox: nothing below has reached a bank (5 Sep). */
+  sandbox?: boolean;
   settledInr: number; pendingInr: number; todayInr: number;
   totalSalesInr: number; refundedInr: number; feesInr: number;
   nextPayout: { amountInr: number; on: string; status: string; statusLabel: string } | null;

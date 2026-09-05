@@ -4,7 +4,7 @@ import type { PrismaTx } from '../shared/prisma/prisma-tx';
 import { ClockService } from '../shared/clock/clock.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ORDER_HISTORY_CAP } from '../shared/paging';
-import { PAYOUT_PROVIDER, type PayoutProvider } from './provider';
+import { PAYOUT_PROVIDER, PAYOUTS_UNAVAILABLE, sandboxAllowed, type PayoutProvider } from './provider';
 import { feeFor, nextBusinessDay, dayKey, FEE } from './money';
 import type { PayoutAccountDto } from './dto/commerce.dto';
 
@@ -278,15 +278,28 @@ export class SettlementService {
           data: { status: 'settled', settledAt: this.clock.now() },
         });
         if (moved.count === 1) {
+          /* THE SANDBOX SAYS IT IS THE SANDBOX (5 Sep). This step is where a
+             real provider's webhook will land; until one exists the sandbox
+             "confirms" a transfer nobody made, and the notification said
+             "paid out" as if a bank had. A business reading that would go and
+             look for the money. */
+          const sandbox = this.sandboxRail();
           await this.notifications.create({
             userId: ownerId, kind: 'payout_settled',
-            title: `₹${s.netInr.toLocaleString('en-IN')} paid out`,
-            body: `${s.reference} · sent to your account${account?.accountLast4 ? ` •••• ${account.accountLast4}` : ''}.`,
+            title: sandbox ? `₹${s.netInr.toLocaleString('en-IN')} marked settled (sandbox — no money has moved)` : `₹${s.netInr.toLocaleString('en-IN')} paid out`,
+            body: sandbox
+              ? `${s.reference} · the city has no payment partner yet, so this is a rehearsal of the payout, not a transfer.`
+              : `${s.reference} · sent to your account${account?.accountLast4 ? ` •••• ${account.accountLast4}` : ''}.`,
             href: `/services/${listingId}/payments`, entityId: s.id,
           });
         }
       }
     }
+  }
+
+  /** No real partner is wired: the payout provider is the sandbox class. */
+  private sandboxRail(): boolean {
+    return this.payouts.name === 'mock';
   }
 
   // ── the dashboard ─────────────────────────────────────────────────────────
@@ -326,6 +339,9 @@ export class SettlementService {
 
     return {
       businessName: listing.businessName,
+      /** True while the payout rail is the sandbox: every "settled" figure
+       *  below is a rehearsal and the page says so (5 Sep). */
+      sandbox: this.sandboxRail(),
       /** What has already reached the bank. */
       settledInr: sum(entries.filter((e) => e.settlementId && settled.has(e.settlementId))),
       /** Earned, not yet sent. The brief's "Pending Settlement". */
@@ -476,9 +492,18 @@ export class SettlementService {
       next = 'Add the account your payouts should be sent to.';
     }
 
+    /* ── THE FORM DOES NOT OPEN FOR A PARTNER THAT DOES NOT EXIST (5 Sep) ──
+       The payout provider is the sandbox class; in production it refuses at
+       registerAccount with a 403. Until now the page asked for a real account
+       number and IFSC first and learned that afterwards — a bank account typed
+       into a form that could never send it anywhere. `payoutsAvailable` is
+       read by the page before it draws a field; saveAccount refuses at the
+       door with the same sentence. */
+    const payoutsAvailable = this.payouts.name !== 'mock' || sandboxAllowed();
     return {
       stage,
-      next,
+      next: payoutsAvailable ? next : PAYOUTS_UNAVAILABLE,
+      payoutsAvailable,
       identityVerified: identity,
       businessVerified: business,
       account: this.accountCard(account),
@@ -503,6 +528,7 @@ export class SettlementService {
   async saveAccount(ownerId: string, listingId: string, dto: PayoutAccountDto) {
     await this.own(ownerId, listingId);
     const state = await this.onboarding(ownerId, listingId);
+    if (!state.payoutsAvailable) throw new ForbiddenException(PAYOUTS_UNAVAILABLE);
     if (!state.identityVerified) {
       throw new BadRequestException('Verify your phone and identity before adding a payout account.');
     }

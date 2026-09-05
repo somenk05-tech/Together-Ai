@@ -427,23 +427,29 @@ describe('the gem checkout', () => {
 
   it('is the two-column order-and-summary a checkout is', () => {
     expect(checkout).toMatch(/gem-checkout/);
-    expect(checkout).toMatch(/Order summary/);
+    expect(checkout).toMatch(/Indicative total/);
     expect(checkout).toMatch(/gem-order-line/);
     expect(checkout).toMatch(/Remove/);
   });
 
-  it('takes one charge for everything locked', () => {
-    expect(checkout).toMatch(/One charge for everything above/);
-    expect(checkout).toMatch(/useGemCheckout/);
+  /* THE COUNTER QUOTES, IT DOES NOT CHARGE (owner, 5 Sep). Every figure is
+     indicative — retail tiers compiled in August and a fallback gold rate —
+     so the page asks a person to price the stones and takes no money. */
+  it('asks for a quote and opens no payment sheet', () => {
+    expect(checkout).toMatch(/Ask for a quote/);
+    expect(checkout).toMatch(/useGemQuote/);
+    expect(checkout).not.toMatch(/PaymentSheet/);
+    expect(checkout).not.toMatch(/useGemCheckout/);
+    expect(checkout).toMatch(/Nothing is charged/);
   });
 
   it('sends no total to the server', () => {
     // Gold moves daily and this is the dearest thing the city sells. The server
-    // prices the cart again at the charge, from the files the studio quoted
+    // prices the cart again on every read, from the files the studio quoted
     // from. Nothing on this page adds anything the server has not added.
     const api = code('features/astrology/api.ts');
-    expect(api).toMatch(/checkoutGemCart/);
-    expect(api).not.toMatch(/checkoutGemCart:.*amountInr/);
+    expect(api).toMatch(/requestGemQuote/);
+    expect(api).not.toMatch(/gem-cart\/checkout/);
     expect(checkout).not.toMatch(/reduce\(/);
   });
 
