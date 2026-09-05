@@ -1,7 +1,9 @@
 import { swallow } from '../shared/swallow';
 import { errorSnapshot } from '../shared/errors/error-log';
 import type { Readable } from 'stream';
-import { BadRequestException, Injectable, Logger, NotFoundException, type OnModuleInit, ForbiddenException, type OnModuleDestroy } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, type OnModuleInit, ForbiddenException, type OnModuleDestroy, Optional } from '@nestjs/common';
+import { ProfileEditMeterService } from '../profile/profile-edit-meter.service';
+import { profileChanged } from '../profile/edit-quota';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ClockService, DEFAULT_TIMEZONE } from '../shared/clock/clock.service';
 import { AdminService } from '../auth/admin';
@@ -204,6 +206,9 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
        service by hand gets a per-process random key instead, so its tokens
        are just as opaque and nothing fails open. See `cardSecret`. */
     private readonly config?: ConfigService,
+    /* Five free profile changes a month, ₹50 each after (5 Sep). Optional for
+       the same reason as the two above; Nest always provides it. */
+    @Optional() private readonly meter?: ProfileEditMeterService,
   ) {}
 
   /**
@@ -797,7 +802,10 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
     }
     // Read before the write: the selfie mark lives on the stored record and a
     // save must carry it across rather than take the client's word for it.
-    const prior = await this.prisma.datingProfile.findUnique({ where: { userId }, select: { extras: true } });
+    const prior = await this.prisma.datingProfile.findUnique({
+      where: { userId },
+      select: { extras: true, gender: true, seeking: true, bio: true, birthDate: true, birthTime: true, birthPlace: true, interests: true, visible: true },
+    });
     const priorDX = this.parseDX(prior?.extras) as Record<string, unknown>;
     const visibility: Visibility = dx.visibility ?? (dto.visible === false ? 'hidden' : 'everyone');
     const inPool = visibility === 'everyone' || visibility === 'threshold';
@@ -872,11 +880,24 @@ export class DatingService implements OnModuleInit, OnModuleDestroy {
       moderation: 'pending',
     };
     const existed = prior !== null;
+    // FIVE FREE CHANGES A MONTH, THEN ₹50 (5 Sep). Priced before the write,
+    // counted after, only when an answer moved; the first profile is the
+    // citizen arriving and is never counted. Extras are compared as the
+    // objects they hold, so a re-serialisation of the same photographs is not
+    // a change.
+    const { moderation: _m, extras: _e, ...answers } = data;
+    void _m; void _e;
+    const changed = existed && profileChanged(
+      { ...(prior as Record<string, unknown>), extras: this.parseDX(prior?.extras) },
+      { ...answers, extras: this.parseDX(cleanedExtras) },
+    );
+    const priceInr = changed && this.meter ? await this.meter.assertCanSave(userId, dto.method) : 0;
     const profile = await this.prisma.datingProfile.upsert({
       where: { userId },
       update: data,
       create: { userId, ...data },
     });
+    if (changed && this.meter) await this.meter.record(userId, 'dating', priceInr, dto.method);
     if (!existed) this.analytics.track('dating.profile.started', userId);
     await this.bumpListVersion(userId);
 

@@ -18,6 +18,10 @@ export const CATEGORIES = [
   // percentages are shares of something they are actually shares of — money
   // paid to a plumber lands in `cityTotal` whether or not it has a heading.
   { key: 'services', label: 'Local services', hint: 'Invoices from businesses near you', defaultBudget: 5000 },
+  // The city's own small charges (5 Sep): a profile change past the five
+  // free ones a month. Listed so the Spending page's shares are shares of
+  // everything it counts.
+  { key: 'city', label: 'City', hint: 'Profile changes beyond the free five', defaultBudget: 500 },
 ] as const;
 
 /**

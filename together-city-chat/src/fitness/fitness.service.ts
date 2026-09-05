@@ -1,6 +1,8 @@
 import { swallowed } from '../shared/swallow';
 import { ACTIVITY_FACTORS } from '../shared/energy';
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { ProfileEditMeterService } from '../profile/profile-edit-meter.service';
+import { profileChanged } from '../profile/edit-quota';
 import { answeredNow } from '../shared/prisma/answered-at';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { MasterProfileService } from '../profile/master-profile.service';
@@ -38,6 +40,10 @@ export class FitnessService {
     // clinicalProtein() — this hub asks rather than keeping a second copy of a
     // clinical rule that reads conditions, pregnancy, age and kidney staging.
     private readonly nutrition: NutritionService,
+    // Five free profile changes a month, ₹50 each after (5 Sep). Optional so
+    // the specs that build this service by hand are not asked to build a
+    // wallet; Nest always provides it.
+    @Optional() private readonly meter?: ProfileEditMeterService,
   ) {}
 
   private optionsFor(sex: string) {
@@ -127,6 +133,7 @@ export class FitnessService {
   }
 
   async saveProfile(userId: string, dto: SaveFitnessProfileDto) {
+    const { method } = dto;
     const data = {
       age: dto.age, sex: dto.sex, level: dto.level, mode: dto.mode, goal: dto.goal,
       conditions: dto.conditions.join(','), heightCm: dto.heightCm ?? null, weightKg: dto.weightKg ?? null, bodyGoal: dto.bodyGoal,
@@ -139,8 +146,16 @@ export class FitnessService {
       place: dto.place ?? undefined,
       sessionMinutes: dto.sessionMinutes ?? undefined,
     };
+    // FIVE FREE CHANGES A MONTH, THEN ₹50 (5 Sep). Priced before the write,
+    // counted after it, and only when an answer actually moved — a re-save of
+    // the same profile is not a change, and the FIRST save of a profile is
+    // the citizen arriving, not changing their mind: it is never counted.
+    const before = this.meter ? await this.prisma.fitnessProfile.findUnique({ where: { userId } }).catch(swallowed('fitness.saveProfile: read before', null)) : null;
+    const changed = Boolean(before?.answeredAt) && profileChanged(before as unknown as Record<string, unknown>, data);
+    const priceInr = changed && this.meter ? await this.meter.assertCanSave(userId, method) : 0;
     // The citizen saved their training profile — this row is no longer defaults.
     await this.prisma.fitnessProfile.upsert({ where: { userId }, update: answeredNow(data), create: { userId, ...answeredNow(data) } });
+    if (changed && this.meter) await this.meter.record(userId, 'fitness', priceInr, method);
     // Master Profile sync. This wrote `gender` — the retired column — which is
     // most of why it still looked alive: saving a fitness profile refilled it,
     // so the read sites that depended on it kept working for anybody who had,

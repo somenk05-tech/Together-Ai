@@ -44,6 +44,8 @@ export const SaveJobProfileSchema = z.object({
   expectedLpa: z.number().int().min(0).max(1000).nullable().optional(),
   links: z.string().max(600).optional(),
   photoUrl: z.string().url().max(500).nullable().optional(),
+  // Five free profile changes a month, ₹50 each after (5 Sep) — how the ₹50 is paid.
+  method: z.enum(['wallet', 'card']).optional(),
 });
 export type SaveJobProfileDto = z.infer<typeof SaveJobProfileSchema>;
 
@@ -118,6 +120,7 @@ export const CareerPreferencesSchema = z.object({
   currency: z.string().min(3).max(3).nullable().optional(),
   salaryPeriod: z.enum(['annual', 'monthly']).nullable().optional(),
   noticeDays: z.number().int().min(0).max(365).nullable().optional(),
+  method: z.enum(['wallet', 'card']).optional(),
 });
 export type CareerPreferencesDto = z.infer<typeof CareerPreferencesSchema>;
 

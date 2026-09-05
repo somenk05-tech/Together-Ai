@@ -453,6 +453,22 @@ export class MasterProfileService {
    * then propagate into the hub tables that duplicate the field (only rows
    * that already exist — a hub's own profile is still created by that hub).
    */
+  /**
+   * Would this patch change the master record? The same diff `syncShared`
+   * runs, without the write — so a save can be priced before it happens
+   * (five free changes a month, ₹50 each after, 5 Sep) and a re-send of what
+   * is already there is never counted as a change.
+   */
+  async wouldChange(userId: string, patch: SharedFields): Promise<boolean> {
+    const clean = Object.fromEntries(
+      Object.entries(patch).filter(([k, v]) => SHARED_KEYS.includes(k as keyof SharedFields) && v !== undefined),
+    ) as Record<string, unknown>;
+    if (!Object.keys(clean).length) return false;
+    const before = await swallow(this.master.findUnique({ where: { userId } }), 'would-change: master read', { userId });
+    if (!before) return false; // a first record is the citizen arriving, not changing their mind
+    return diffProfile(before as unknown as Record<string, unknown>, clean).length > 0;
+  }
+
   async syncShared(userId: string, patch: SharedFields, source: string, opts: { expectedVersion?: number | null; changedById?: string } = {}) {
     const clean = Object.fromEntries(
       Object.entries(patch).filter(([k, v]) => SHARED_KEYS.includes(k as keyof SharedFields) && v !== undefined),

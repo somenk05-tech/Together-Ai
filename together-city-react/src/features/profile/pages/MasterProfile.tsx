@@ -8,11 +8,21 @@ import { RELATIONSHIP_STATUS_OPTIONS } from '../relationshipStatus';
 import { HEALTH_CONDITION_OPTIONS, KIDNEY_STAGE_OPTIONS, TRIMESTER_OPTIONS, declaredKeys, wasAsked } from '../healthConditions';
 import { useFoodPref, useUpdateFoodPref } from '@/features/nutrition/hooks';
 import { CUISINES, balanced, capPct, cuisineSummary, mixTotal, readMix, withMix } from '@/features/nutrition/cuisineMix';
-import { useMasterProfile, useProfileCompletion } from '../hooks';
+import { editQuotaLine, useEditQuota, useMasterProfile, useProfileCompletion } from '../hooks';
 import { geoApi } from '@/api/geo.api';
 import { Button } from '@/components/ui';
 import { splitPlace } from '../placeParts';
 import { latestAdultDob } from '@/lib/age';
+
+/** The server's own sentence when it has one — past the five free changes it
+ *  names the price and the date — else the line this page always said. */
+function saveFailureLine(err: unknown): string {
+  const msg: unknown = (err as { response?: { data?: { message?: unknown } } } | undefined)?.response?.data?.message;
+  const text: unknown = Array.isArray(msg) ? (msg as unknown[])[0] : msg;
+  return typeof text === 'string' && text.trim()
+    ? text.trim()
+    : 'That didn’t save. Your change is still here — try again, or reload if someone else edited this profile.';
+}
 
 /**
  * The Master Profile's fields (FE-3.1), as a block rather than a page.
@@ -132,8 +142,13 @@ export function MasterProfileSections() {
     },
   });
 
+  // FIVE FREE CHANGES A MONTH, THEN ₹50 (5 Sep). The price is read before a
+  // save and sent with it as `method` only when there is one to pay; a form
+  // that has not read the price cannot be charged, only refused.
+  const quota = useEditQuota();
+  const changePrice = quota.data?.priceInr ?? 0;
   const save = useMutation({
-    mutationFn: (patch: Draft) => profileApi.updateMaster(patch),
+    mutationFn: (patch: Draft) => profileApi.updateMaster(changePrice > 0 ? { ...patch, method: 'wallet' } as Draft : patch),
     onSuccess: (fresh, patch) => {
       // The server's answer replaces the draft for the fields it just took, so
       // a normalised value (a trimmed name, a rounded height) is what the field
@@ -150,6 +165,7 @@ export function MasterProfileSections() {
       // page contradict itself on the one screen whose argument is that
       // there is only ever one answer.
       void qc.invalidateQueries({ queryKey: ['profile', 'city'] });
+      void qc.invalidateQueries({ queryKey: ['profile', 'edit-quota'] });
       setSaved(Object.keys(patch)[0] ?? null);
       if (savedTimer.current) clearTimeout(savedTimer.current);
       savedTimer.current = setTimeout(() => setSaved(null), 2200);
@@ -334,8 +350,11 @@ export function MasterProfileSections() {
 
       {save.isError && (
         <p style={{ color: 'var(--danger-ink)', fontSize: 12.5 }}>
-          That didn’t save. Your change is still here — try again, or reload if someone else edited this profile.
+          {saveFailureLine(save.error)}
         </p>
+      )}
+      {editQuotaLine(quota.data) && (
+        <p className="muted">{editQuotaLine(quota.data)}</p>
       )}
 
       {/* ── Identity ─────────────────────────────────────────────── */}
@@ -629,7 +648,7 @@ export function MasterProfileSections() {
           yet, and is disabled when there is nothing left to flush. */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '26px 0 8px' }}>
         <Button variant="accent" disabled={!dirty || closing || save.isPending} onClick={saveAll}>
-          {closing || save.isPending ? 'Saving…' : 'Save changes'}
+          {closing || save.isPending ? 'Saving…' : changePrice > 0 ? `Save changes · ₹${changePrice}` : 'Save changes'}
         </Button>
         <a href="#top" style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent-ink)' }}>Back to the document</a>
         <span className="muted" style={{ fontSize: 11.5, flex: 1, minWidth: 200, lineHeight: 1.5 }}>

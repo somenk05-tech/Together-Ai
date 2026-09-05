@@ -259,6 +259,8 @@ export const PURGE_RULES: PurgeRule[] = [
   { model: 'VerificationCode', by: 'userId', action: 'purge', reason: 'Six-digit codes with the email address or phone number they were sent to. Spent or not, it is contact data.' },
   { model: 'AstroProfile', by: 'userId', action: 'purge', reason: 'Birth date, time and place.' },
   { model: 'AstroReading', by: 'userId', action: 'purge', reason: 'Readings written for them and nobody else.' },
+  { model: 'Personalisation', by: 'userId', action: 'purge', reason: 'A kept model answer written from their own profile — diet, markers, skin, level. It is a derivative of the record and goes with it; it cascades from User at hard delete and this is the backstop.' },
+  { model: 'ProfileEdit', by: 'userId', action: 'purge', reason: 'When they changed their profile and what it cost. The wallet ledger keeps the money side under its own rule; the count itself is nobody\'s business once the account is gone.' },
   { model: 'AstroQuestion', by: 'userId', action: 'purge', reason: 'Questions they asked, which are often about health or relationships.' },
   { model: 'TarotReading', by: 'userId', action: 'purge', reason: 'Which cards they drew, and on what day.' },
   { model: 'BeautyProfile', by: 'userId', action: 'purge', reason: 'Skin assessments, including photo-derived findings.' },

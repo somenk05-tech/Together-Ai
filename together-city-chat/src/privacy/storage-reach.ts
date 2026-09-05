@@ -155,6 +155,8 @@ export const STORAGE_COLUMNS: StorageColumn[] = [
   { model: 'BeautyOrder', column: 'itemsJson', holds: 'not-storage', reason: 'What was ordered.' },
   { model: 'BeautyProfile', column: 'analysisJson', holds: 'not-storage', reason: 'A saved assessment — readings, not pictures.' },
   { model: 'BeautyProfile', column: 'analysisLogJson', holds: 'not-storage', reason: 'Timestamps of past analysis runs.' },
+  { model: 'BeautyProfile', column: 'acceptedAnalysesJson', holds: 'not-storage', reason: 'Timestamps of analyses that produced a result — what the one-free-a-month price is read from (5 Sep).' },
+  { model: 'Personalisation', column: 'payloadJson', holds: 'not-storage', reason: 'A kept model answer — a JSON list of suggestion titles and sentences, no keys, no links (5 Sep).' },
   { model: 'BeautyProfile', column: 'faceJson', holds: 'not-storage', reason: 'Face-feature readings — shapes and tones as numbers.' },
   { model: 'BeautyProfile', column: 'photosJson', holds: 'not-storage', reason: 'Despite the name: `[{slot, analyzedAt, findings[]}]`. An assessment per photo slot, carrying no picture. The photographs themselves are analysed and not kept.' },
   { model: 'Connection', column: 'modulesJson', holds: 'not-storage', reason: 'Which hubs a connection opens.' },

@@ -1,5 +1,7 @@
 import { swallowed } from '../shared/swallow';
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit, Optional, ServiceUnavailableException } from '@nestjs/common';
+import { ProfileEditMeterService } from '../profile/profile-edit-meter.service';
+import { profileChanged } from '../profile/edit-quota';
 import { demoDataEnabled } from '../shared/demo-data';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { StorageProvider } from '../media/storage.provider';
@@ -70,6 +72,9 @@ export class JobsService implements OnModuleInit {
     @Optional() private readonly storage?: StorageProvider,
     /* The profile photo goes through the post guard (5 Sep); fails closed without it. */
     @Optional() private readonly screening?: PostMediaGuard,
+    /* Five free profile changes a month, ₹50 each after (5 Sep). Optional for
+       the same reason; Nest always provides it. */
+    @Optional() private readonly meter?: ProfileEditMeterService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -613,7 +618,12 @@ export class JobsService implements OnModuleInit {
     set('currency', dto.currency === undefined ? undefined : (dto.currency ?? 'INR').toUpperCase());
     set('salaryPeriod', dto.salaryPeriod === undefined ? undefined : dto.salaryPeriod ?? 'annual');
     set('noticeDays', dto.noticeDays);
+    // FIVE FREE CHANGES A MONTH, THEN ₹50 (5 Sep) — the same meter as the profile.
+    const existing = this.meter ? await this.prisma.jobProfile.findUnique({ where: { userId } }) : null;
+    const changed = Boolean(existing) && profileChanged(existing as unknown as Record<string, unknown>, data);
+    const priceInr = changed && this.meter ? await this.meter.assertCanSave(userId, dto.method) : 0;
     await this.writeProfile(userId, data);
+    if (changed && this.meter) await this.meter.record(userId, 'jobs', priceInr, dto.method);
     return this.getProfile(userId);
   }
 
@@ -722,12 +732,20 @@ export class JobsService implements OnModuleInit {
       seniority: dto.experienceYears >= 10 ? 'lead' : dto.experienceYears >= 6 ? 'senior' : dto.experienceYears >= 2 ? 'mid' : 'junior',
       location: dto.location ?? null,
     };
-    await this.persistProfile(userId, parsed, existing?.resumeText ?? '', existing?.resumeName ?? null, {
+    const extra = {
       fullName: dto.fullName, summary: dto.summary, currentTitle: dto.currentTitle, currentCompany: dto.currentCompany,
       education: dto.education, links: dto.links,
       openToRoles: dto.openToRoles ? dto.openToRoles.join(',') : undefined,
       noticeDays: dto.noticeDays, expectedLpa: dto.expectedLpa, photoUrl: dto.photoUrl,
+    };
+    // FIVE FREE CHANGES A MONTH, THEN ₹50 (5 Sep). Priced before the write,
+    // counted after, only when an answer moved; a first profile is never counted.
+    const changed = Boolean(existing) && profileChanged(existing as unknown as Record<string, unknown>, {
+      headline: parsed.headline, skills: parsed.skills.join(','), experienceYears: parsed.experienceYears, location: parsed.location, ...extra,
     });
+    const priceInr = changed && this.meter ? await this.meter.assertCanSave(userId, dto.method) : 0;
+    await this.persistProfile(userId, parsed, existing?.resumeText ?? '', existing?.resumeName ?? null, extra);
+    if (changed && this.meter) await this.meter.record(userId, 'jobs', priceInr, dto.method);
     return this.getProfile(userId);
   }
 

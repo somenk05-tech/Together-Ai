@@ -10,6 +10,7 @@ import { MasterProfileService, type SharedFields } from './master-profile.servic
 import { CityProfilesService } from './city-profiles';
 import { declaredHealthPatch } from './master-health-conditions';
 import { DESIGNABLE_HUBS } from './design-your-services';
+import { ProfileEditMeterService } from './profile-edit-meter.service';
 
 import { Mira } from '../mira/mira.decorator';
 @Controller('profile')
@@ -19,7 +20,16 @@ export class ProfileController {
     private readonly profile: ProfileService,
     private readonly masterProfile: MasterProfileService,
     private readonly cityProfiles: CityProfilesService,
+    private readonly meter: ProfileEditMeterService,
   ) {}
+
+  /** Five free profile changes a month across the whole record, ₹50 each
+   *  after (5 Sep): how many are left, what the next one costs, when they
+   *  come back. Read before a save so the price is on the button. */
+  @Get('edit-quota')
+  editQuota(@CurrentUser() user: JwtUser) {
+    return this.meter.quota(user.sub);
+  }
 
   /** The Master Profile — single source of truth for shared user information. */
   @Mira({
@@ -155,8 +165,12 @@ export class ProfileController {
       'pregnancy', 'breastfeeding'])).max(12).nullable().optional(),
     pregnancyTrimester: z.enum(['first', 'second', 'third', 'unstated']).nullable().optional(),
     kidneyStage: z.enum(['early', 'late', 'dialysis', 'unstated']).nullable().optional(),
+    // Five free profile changes a month, ₹50 each after (5 Sep) — how the ₹50 is paid.
+    method: z.enum(['wallet', 'card']).optional(),
   })))
-  async updateMaster(@CurrentUser() user: JwtUser, @Body() body: Record<string, unknown>) {
+  async updateMaster(@CurrentUser() user: JwtUser, @Body() input: Record<string, unknown>) {
+    const { method: rawMethod, ...body } = input;
+    const method = rawMethod === 'wallet' || rawMethod === 'card' ? rawMethod : undefined;
     const patch: SharedFields = {
       ...body,
       // The three health columns move together or not at all, and one
@@ -167,7 +181,14 @@ export class ProfileController {
       dateOfBirth: typeof body.dateOfBirth === 'string' ? new Date(body.dateOfBirth + 'T00:00:00.000Z') : (body.dateOfBirth as null | undefined),
     } as SharedFields;
     const { expectedVersion, ...fields } = patch as typeof patch & { expectedVersion?: number };
+    // FIVE FREE CHANGES A MONTH, THEN ₹50 (5 Sep). Priced before the write,
+    // counted after, only when a shared field actually moved. The hubs'
+    // own syncShared calls are propagation, not a change of mind, and are
+    // not metered here — each hub meters its own save.
+    const changed = await this.masterProfile.wouldChange(user.sub, fields);
+    const priceInr = changed ? await this.meter.assertCanSave(user.sub, method) : 0;
     await this.masterProfile.syncShared(user.sub, fields, 'master-profile-page', { expectedVersion });
+    if (changed) await this.meter.record(user.sub, 'master', priceInr, method);
     return this.masterProfile.get(user.sub);
   }
 

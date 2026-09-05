@@ -89,5 +89,7 @@ export const FoodPrefSchema = z.object({
   sex: z.enum(['male', 'female']).optional(),
   activity: z.number().min(1.2).max(2.2).optional(),
   extras: z.string().max(6000).optional(), // JSON blob of extended preferences
+  // Five free profile changes a month, ₹50 each after (5 Sep) — how the ₹50 is paid.
+  method: z.enum(['wallet', 'card']).optional(),
 });
 export type FoodPrefDto = z.infer<typeof FoodPrefSchema>;

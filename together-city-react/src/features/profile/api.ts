@@ -1,6 +1,12 @@
 import { http as api } from '@/api/client';
 import type { ProfileSummary } from './types';
 
+/** What the next profile change costs and when the free ones come back (5 Sep). */
+export interface EditQuota {
+  freePerMonth: number; used: number; freeLeft: number;
+  priceInr: number; extraPriceInr: number; resetsAt: string; inSitting: boolean;
+}
+
 export interface MasterProfileView {
   name: string; email: string; photo: string | null;
   /** Pre-split single field. Read-only fallback; the app writes the two below. */
@@ -158,6 +164,8 @@ export const profileApi = {
       kidneyStage: h.kidneyStage,
     }).then((r) => r.data),
   summary: () => api.get<ProfileSummary>('/profile/summary').then((r) => r.data),
+  /** Five free profile changes a month across the whole record, ₹50 each after (5 Sep). */
+  editQuota: () => api.get<EditQuota>('/profile/edit-quota').then((r) => r.data),
   healthScore: () => api.get<HealthScoreView>('/profile/health-score').then((r) => r.data),
   setAvatar: (image: string) =>
     api.post<{ profileImage: string }>('/users/avatar', { image }).then((r) => r.data),

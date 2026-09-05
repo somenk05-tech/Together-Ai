@@ -60,6 +60,8 @@ export const UpsertDatingProfileSchema = z.object({
   interests: z.array(z.string().min(1).max(40)).max(20).optional(),
   extras: z.string().max(2_000_000).optional(), // JSON blob (incl. photos as data URLs)
   visible: z.boolean().optional(),
+  // Five free profile changes a month, ₹50 each after (5 Sep) — how the ₹50 is paid.
+  method: z.enum(['wallet', 'card']).optional(),
 }).refine((v) => isAdult(v.birthDate), {
   message: UNDER_AGE_MESSAGE,
   path: ['birthDate'],

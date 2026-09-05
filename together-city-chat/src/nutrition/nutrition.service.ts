@@ -2,7 +2,9 @@ import { conditionMatcher, hasCondition } from './condition-match';
 import { medicalFoodAllergenTerms } from '../shared/medical-allergies';
 import { RECORD_CAP } from '../shared/paging';
 import { swallowed } from '../shared/swallow';
-import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit, Optional } from '@nestjs/common';
+import { ProfileEditMeterService } from '../profile/profile-edit-meter.service';
+import { profileChanged } from '../profile/edit-quota';
 import { readiness } from '../shared/readiness';
 import { demoDataEnabled } from '../shared/demo-data';
 import { answeredNow } from '../shared/prisma/answered-at';
@@ -1629,6 +1631,9 @@ export class NutritionService implements OnModuleInit {
     private readonly connections: ConnectionsService,
     private readonly notifications: NotificationsService,
     private readonly clock: ClockService,
+    // Five free profile changes a month, ₹50 each after (5 Sep). Optional so
+    // the specs that build this service by hand need no wallet; Nest provides it.
+    @Optional() private readonly meter?: ProfileEditMeterService,
   ) {}
 
   /**
@@ -3343,7 +3348,14 @@ export class NutritionService implements OnModuleInit {
   async upsertFoodPref(userId: string, dto: FoodPrefDto) {
     // `extras` exists on Railway's freshly-generated client; cast for the local
     // (offline) client which can't be regenerated here.
-    const data = dto as Record<string, unknown>;
+    const { method, ...answers } = dto as FoodPrefDto & { method?: 'wallet' | 'card' };
+    const data = answers as Record<string, unknown>;
+    // FIVE FREE CHANGES A MONTH, THEN ₹50 (5 Sep). Priced before the write,
+    // counted after, only when an answer moved; the first save of the
+    // preferences is the citizen arriving and is never counted.
+    const before = this.meter ? await this.prisma.foodPref.findUnique({ where: { userId } }).catch(swallowed('nutrition.upsertFoodPref: read before', null)) : null;
+    const changed = Boolean((before as { answeredAt?: Date | null } | null)?.answeredAt) && profileChanged(before as unknown as Record<string, unknown>, data);
+    const priceInr = changed && this.meter ? await this.meter.assertCanSave(userId, method) : 0;
     // The citizen saved their food preferences, so this row now holds real
     // answers rather than the defaults registration put there.
     const saved = await this.prisma.foodPref.upsert({
@@ -3383,6 +3395,7 @@ export class NutritionService implements OnModuleInit {
       // field handed to it, so hand it nothing you were not told).
       dietaryPreference: dietKeyFrom((dto as { diet?: string }).diet),
     }, 'nutrition').catch(swallowed('nutrition.upsertFoodPref', undefined));
+    if (changed && this.meter) await this.meter.record(userId, 'nutrition', priceInr, method);
     return saved;
   }
 

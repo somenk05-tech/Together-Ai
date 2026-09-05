@@ -29,6 +29,8 @@ export const SaveFitnessProfileSchema = z.object({
   limitations: z.string().max(280).optional(),
   place: z.enum(['home', 'gym']).optional(),
   sessionMinutes: z.number().int().min(15).max(120).optional(),
+  // Five free profile changes a month, ₹50 each after (5 Sep) — how the ₹50 is paid.
+  method: z.enum(['wallet', 'card']).optional(),
 });
 export type SaveFitnessProfileDto = z.infer<typeof SaveFitnessProfileSchema>;
 

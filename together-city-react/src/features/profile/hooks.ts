@@ -1,5 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { profileApi } from './api';
+import { profileApi, type EditQuota } from './api';
+
+/**
+ * FIVE FREE CHANGES A MONTH, THEN ₹50 (5 Sep). Read before a save so the
+ * price is on the button; refetched after one so the count moves. Any hub
+ * profile form reads this — it is one counter across the whole record.
+ */
+export function useEditQuota() {
+  return useQuery({ queryKey: ['profile', 'edit-quota'], queryFn: () => profileApi.editQuota(), staleTime: 15_000 });
+}
+
+/** The words beside a Save button, from the quota. Null while nothing needs saying. */
+export function editQuotaLine(q: EditQuota | undefined): string | null {
+  if (!q || q.inSitting) return null;
+  if (q.priceInr > 0) {
+    const back = new Date(q.resetsAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+    return `You've used your ${q.freePerMonth} free profile changes this month — this change is ₹${q.priceInr} from your wallet, or they come back on ${back}.`;
+  }
+  return `${q.freeLeft} of ${q.freePerMonth} free profile changes left this month.`;
+}
 
 export function useProfileSummary() {
   return useQuery({ queryKey: ['profile', 'summary'], queryFn: () => profileApi.summary() });

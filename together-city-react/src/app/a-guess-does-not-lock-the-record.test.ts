@@ -46,7 +46,9 @@ describe('the Save button', () => {
     // the count beside the button says what is left.
     const src = readFileSync(join(web, 'features', 'beauty', 'pages', 'Profile.tsx'), 'utf8');
     expect(src).not.toMatch(/disabled=\{save\.isPending \|\| !profileComplete\}/);
-    expect(src).toMatch(/disabled=\{save\.isPending\} onClick=\{\(\) => save\.mutate\(profilePayload/);
+    // `withMethod(...)` (5 Sep) carries the ₹50 past the five free changes a
+    // month; it wraps the payload and locks nothing.
+    expect(src).toMatch(/disabled=\{save\.isPending\} onClick=\{\(\) => save\.mutate\((?:withMethod\()?profilePayload/);
   });
 });
 

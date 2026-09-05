@@ -1,5 +1,7 @@
 import { swallow } from '../shared/swallow';
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import { ProfileEditMeterService } from '../profile/profile-edit-meter.service';
+import { profileChanged } from '../profile/edit-quota';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { MasterProfileService } from '../profile/master-profile.service';
@@ -32,6 +34,7 @@ export interface SaveAstroProfileDto {
   birthState?: string | null;
   birthCity: string;
   timeZone: string;    // IANA, auto-detected client-side
+  method?: 'wallet' | 'card'; // how the ₹50 is paid past the five free changes a month
 }
 export interface AskDto { topic: string; question: string; method?: 'wallet' | 'card' }
 
@@ -89,6 +92,9 @@ export class AstrologyService {
     private readonly financial: FinancialService,
     private readonly ai: AiService,
     @Optional() private readonly notifications?: NotificationsService,
+    // Five free profile changes a month, ₹50 each after (5 Sep). Optional so
+    // the specs that build this service by hand need no wallet; Nest provides it.
+    @Optional() private readonly meter?: ProfileEditMeterService,
   ) {}
 
   /** New tables reach the generated client on deploy (`prisma db push` at boot);
@@ -317,11 +323,18 @@ export class AstrologyService {
       birthState: dto.birthState?.trim() || null, birthCity: dto.birthCity.trim(),
       timeZone: dto.timeZone, lat, lng,
     };
+    // FIVE FREE CHANGES A MONTH, THEN ₹50 (5 Sep). Priced before the write,
+    // counted after, only when a birth detail moved; the first chart is the
+    // citizen arriving and is never counted.
+    const before = this.meter ? await swallow(this.db.astroProfile.findUnique({ where: { userId } }), 'astro: profile read before save', { userId }) : null;
+    const changed = Boolean(before) && profileChanged(before as unknown as Record<string, unknown>, data);
+    const priceInr = changed && this.meter ? await this.meter.assertCanSave(userId, dto.method) : 0;
     const row = await this.db.astroProfile.upsert({
       where: { userId },
       update: data,
       create: { userId, ...data },
     });
+    if (changed && this.meter) await this.meter.record(userId, 'astrology', priceInr, dto.method);
     /**
      * Birth details changed → the letters for the period the citizen is IN were
      * written from the wrong chart and have to go, so daily/monthly regenerate

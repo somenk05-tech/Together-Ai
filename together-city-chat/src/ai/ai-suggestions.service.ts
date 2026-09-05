@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import { createHash } from 'crypto';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { AiService } from './ai.service';
+import { swallow } from '../shared/swallow';
 import { flagsFor, ruleFor, type MarkerStatus } from '../nutrition/clinical-engine';
 
 export interface Suggestion { title: string; detail: string; tag?: string }
@@ -13,12 +15,68 @@ export interface AiSuggestions {
 
 const HEALTH_NOTE = 'Informational only — not medical advice. Talk to a clinician about your results.';
 
+/**
+ * PERSONALISATION HAPPENS ONCE — owner rule, 5 Sep.
+ *
+ * These four routes used to ask the model on every page open: the same profile,
+ * the same prompt, a fresh call and a fresh bill each time, ~₹0.85 of a
+ * member's month for answers that could not differ. The rule now is the one
+ * the owner stated for the whole city: a personalisation is written once and
+ * kept, and a new one is written only when what it was written FROM has
+ * changed — the citizen edited a profile, added a photograph, ran a new
+ * analysis, uploaded a panel.
+ *
+ * "What it was written from" is the prompt itself. Every input a route reads
+ * — diet, goal, flagged markers, skin type, level, sign — ends up in the user
+ * turn, so a hash of system + user turn is a fingerprint of the inputs with
+ * nothing to keep in sync: change the profile and the prompt changes and the
+ * fingerprint with it. No TTL. A day passing is not a reason to spend.
+ *
+ * What is NOT kept: a fallback. `AiService.json` hands back the fallback on
+ * any failure without saying so, and keeping that would freeze a bad minute
+ * into somebody's profile for ever. So the model is asked with `null` as the
+ * fallback — null means "no answer" — and only an answer is written down.
+ */
 @Injectable()
 export class AiSuggestionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ai: AiService,
   ) {}
+
+  private get store() {
+    return (this.prisma as unknown as {
+      personalisation: {
+        findUnique(a: unknown): Promise<{ fingerprint: string; payloadJson: string } | null>;
+        upsert(a: unknown): Promise<unknown>;
+      };
+    }).personalisation;
+  }
+
+  /** The kept answer when the inputs have not changed; the model, once, when they have. */
+  private async remembered(userId: string, kind: string, system: string, user: string, fallback: Suggestion[]): Promise<Suggestion[]> {
+    const fingerprint = createHash('sha256').update(`${system}\n${user}`).digest('hex');
+    // A client that predates the table (a spec's hand-built prisma, an old
+    // generated client) has no memory: it asks every time, as before, rather
+    // than failing the read.
+    const store = this.store as typeof this.store | undefined;
+    const kept = store ? await swallow(store.findUnique({ where: { userId_kind: { userId, kind } } }), 'personalisation read', { userId, kind }) : null;
+    if (kept && kept.fingerprint === fingerprint) {
+      try {
+        const items = JSON.parse(kept.payloadJson) as Suggestion[];
+        if (Array.isArray(items) && items.length) return items;
+      } catch { /* an unreadable row is re-written below */ }
+    }
+    const answer = await this.ai.json<Suggestion[] | null>(system, user, null);
+    if (!answer || !Array.isArray(answer) || !answer.length) return fallback;
+    if (!store) return answer;
+    await swallow(store.upsert({
+      where: { userId_kind: { userId, kind } },
+      update: { fingerprint, payloadJson: JSON.stringify(answer) },
+      create: { userId, kind, fingerprint, payloadJson: JSON.stringify(answer) },
+    }), 'personalisation write', { userId, kind });
+    return answer;
+  }
 
   // ── Recipes from blood test / food profile ────────────────────────────────
   async recipes(userId: string): Promise<AiSuggestions> {
@@ -34,7 +92,7 @@ export class AiSuggestionsService {
       : 'no flagged markers';
 
     const fallback = this.recipeFallback(abnormal, diet, goal);
-    const items = await this.ai.json<Suggestion[]>(
+    const items = await this.remembered(userId, 'recipes',
       'You are a registered-dietitian assistant for a wellness app. Suggest practical, appetizing meal ideas. Never diagnose; keep it food-focused and safe.',
       `Diet: ${diet}. Goal: ${goal}. Flagged blood markers: ${flagText}.\n` +
         `Suggest 4 meal/recipe ideas that fit the diet and gently help those markers. ` +
@@ -114,7 +172,7 @@ export class AiSuggestionsService {
         tag: strengthOf(c.score),
       }));
 
-    const items = await this.ai.json<Suggestion[]>(
+    const items = await this.remembered(userId, 'astrology',
       'You write warm, light astrology dating content. Entertainment, never a deterministic claim about anyone.',
       `You are writing to one person, in the second person. They are a ${sign}. Write 4 compatibility notes for their most compatible signs — for each: which sign, and a playful reason they click. ` +
         `Return JSON array of {"title","detail","tag"}. The tag MUST be exactly one of "Classic pairing", "Strong pairing" or "Easy pairing" — ` +
@@ -145,7 +203,7 @@ export class AiSuggestionsService {
     const concernText = concerns.length ? concerns.join(', ') : 'general care';
 
     const fallback = this.beautyFallback(skin, concerns);
-    const items = await this.ai.json<Suggestion[]>(
+    const items = await this.remembered(userId, 'beauty',
       'You are a friendly skincare & beauty advisor. Recommend product TYPES and simple routines, not specific brands. Be gentle and evidence-aware.',
       `Skin type: ${skin}. Hair type: ${hair}. Concerns: ${concernText}. ` +
         `Suggest a simple 4-step routine with the product type for each step and why. ` +
@@ -182,7 +240,7 @@ export class AiSuggestionsService {
     const conditions = (p?.conditions ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 
     const fallback = this.fitnessFallback(level, goal);
-    const items = await this.ai.json<Suggestion[]>(
+    const items = await this.remembered(userId, 'fitness',
       'You are a certified fitness coach. Give safe, progressive workout guidance. If health conditions are present, keep advice conservative and add a caution.',
       `Level: ${level}. Goal: ${goal}. Preferred style: ${mode}. Conditions: ${conditions.join(', ') || 'none'}. ` +
         `Suggest a simple weekly plan as 4 items (e.g. days/sessions) with what to do and intensity. ` +
